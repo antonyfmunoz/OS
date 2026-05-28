@@ -45,7 +45,7 @@ class ConcreteIdentityResolver:
             ai_name = get_ai_name()
             business_stage = get_business_stage()
         except Exception:
-            ai_name = "DEX"
+            ai_name = ""
             business_stage = "pre_revenue"
 
         try:

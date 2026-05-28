@@ -173,12 +173,16 @@ class NodeRegistry:
     def purge_stale(self, *, max_age_hours: float = 24.0) -> list[str]:
         """Remove nodes whose last_seen is older than max_age_hours.
 
-        Protects well-known nodes (vps-primary, antony-workstation) from
+        Protects well-known nodes (vps-primary and the local workstation) from
         purge.  Returns list of removed node_ids.
         """
+        import os
         from datetime import datetime, timezone
 
-        protected = {"vps-primary", "antony-workstation"}
+        _local_node = os.environ.get("UMH_LOCAL_NODE_ID", "")
+        protected = {"vps-primary"}
+        if _local_node:
+            protected.add(_local_node)
         cutoff = datetime.now(timezone.utc).timestamp() - (max_age_hours * 3600)
         removed: list[str] = []
 

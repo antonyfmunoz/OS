@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from substrate.self_model import get_handler_prefix as _ghp
+
 _REPO_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
@@ -45,7 +47,7 @@ class UnifiedContext:
     workbook_framework: str | None = None
     pattern_context: str | None = None
     decision_log: str | None = None
-    dex_learnings: str | None = None
+    ai_learnings: str | None = None
     notebooklm_insights: str | None = None
 
     # Layer 1f: Primitives
@@ -126,8 +128,9 @@ class ContextBuilder:
         except Exception as e:
             uc.failed_sources.append(f"ai_identity: {e}")
 
-        # Layer 0a: EA standards (EA/DEX agents only)
-        _ea_agents = ("executive_assistant", "dex", "ea", None)
+        # Layer 0a: EA standards (EA agents only)
+        _ai_lower = os.environ.get("AI_NAME", "").lower()
+        _ea_agents = ("executive_assistant", _ai_lower, "ea", None) if _ai_lower else ("executive_assistant", "ea", None)
         if agent in _ea_agents or (agent and "ea" in agent.lower()):
             try:
                 from substrate.control_plane.agents.ea_operational_standards import get_all_standards
@@ -258,17 +261,17 @@ class ContextBuilder:
         except Exception as e:
             uc.failed_sources.append(f"decision_log: {e}")
 
-        # Layer 1e-vii-b: DEX learnings
+        # Layer 1e-vii-b: AI learnings
         try:
             from substrate.state.storage.db import get_conn
             with get_conn(ctx.org_id) as cur:
                 cur.execute(
                     """
                     SELECT payload_json FROM events
-                    WHERE org_id = %s AND event_type = 'dex_learning'
+                    WHERE org_id = %s AND event_type = %s
                     ORDER BY created_at DESC LIMIT 10
                     """,
-                    (str(ctx.org_id),),
+                    (str(ctx.org_id), f"{_ghp()}learning"),
                 )
                 learnings = cur.fetchall()
             if learnings:
@@ -282,11 +285,13 @@ class ContextBuilder:
                     if lq and la:
                         lines.append(f"Q: {lq} → A: {la}")
                 if lines:
-                    uc.dex_learnings = (
-                        "## What Antony Has Taught DEX\n" + "\n".join(lines[:10])
+                    _ai = os.environ.get("AI_NAME", "AI")
+                    _founder = os.environ.get("UMH_FOUNDER_NAME", "the founder")
+                    uc.ai_learnings = (
+                        f"## What {_founder} Has Taught {_ai}\n" + "\n".join(lines[:10])
                     )
         except Exception as e:
-            uc.failed_sources.append(f"dex_learnings: {e}")
+            uc.failed_sources.append(f"ai_learnings: {e}")
 
         # Layer 1e-viii: NotebookLM insights
         try:
@@ -473,11 +478,12 @@ class ContextBuilder:
             from substrate.state.metrics.founder_rate import check_against_no_list
             violations = check_against_no_list(message)
             if violations:
+                _founder_nl = os.environ.get("UMH_FOUNDER_NAME", "the founder")
                 uc.no_list = (
                     "## No List Alert\n"
-                    "The following items are on Antony's No List and appear "
+                    f"The following items are on {_founder_nl}'s No List and appear "
                     f"in this message: {', '.join(violations)}\n"
-                    "Flag this to Antony — he has committed to never doing these."
+                    f"Flag this to {_founder_nl} — they have committed to never doing these."
                 )
         except Exception as e:
             uc.failed_sources.append(f"no_list: {e}")

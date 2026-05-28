@@ -197,7 +197,7 @@ REPORTING STANDARD:
   offer stage, what moved, what didn't,
   what changes, stage transition status.
   Lead with the constraint. Always.
-- To DEX daily: one objective, active agents,
+- To the EA daily: one objective, active agents,
   what requires founder action,
   what requires approval.
   Four lines before detail.

@@ -58,6 +58,17 @@ def _get_daemon() -> Any:
     return _daemon_ref
 
 
+def _emit_stage_event(daemon: Any, stage_name: str, details: dict[str, Any]) -> None:
+    spine = getattr(daemon, "_event_spine", None)
+    if spine is None:
+        return
+    from substrate.organism.event_spine import EventDomain
+    spine.emit(EventDomain.EXECUTION, "stage_completed", "orchestration_loop", {
+        "stage": stage_name,
+        "details": details,
+    })
+
+
 def _stage_organism_tick(loop: PersistentLoop, report: CycleReport) -> None:
     """Full organism tick — the primary stage."""
     daemon = _get_daemon()
@@ -69,13 +80,15 @@ def _stage_organism_tick(loop: PersistentLoop, report: CycleReport) -> None:
     result = daemon.tick()
     actions_count = len(result.get("actions", []))
     report.actions_taken += actions_count
-    report.details.append({
+    detail = {
         "stage": "organism_tick",
         "tick": result.get("tick", 0),
         "actions": actions_count,
         "system_mode": result.get("system_mode", "unknown"),
         "elapsed_ms": result.get("elapsed_ms", 0),
-    })
+    }
+    report.details.append(detail)
+    _emit_stage_event(daemon, "organism_tick", detail)
 
 
 def _stage_health_check(loop: PersistentLoop, report: CycleReport) -> None:
@@ -90,12 +103,14 @@ def _stage_health_check(loop: PersistentLoop, report: CycleReport) -> None:
 
     if dead_count > 0 or degraded_count > 0:
         daemon.supervisor.reconcile_graph()
-        report.details.append({
+        detail = {
             "stage": "health_check",
             "dead": dead_count,
             "degraded": degraded_count,
             "reconciled": True,
-        })
+        }
+        report.details.append(detail)
+        _emit_stage_event(daemon, "health_check", detail)
 
 
 def _stage_homeostasis(loop: PersistentLoop, report: CycleReport) -> None:
@@ -107,12 +122,14 @@ def _stage_homeostasis(loop: PersistentLoop, report: CycleReport) -> None:
     hreport = daemon.homeostasis.check()
     if hreport.actions_taken:
         report.actions_taken += len(hreport.actions_taken)
-        report.details.append({
+        detail = {
             "stage": "homeostasis",
             "mode": hreport.mode.value,
             "unhealthy": hreport.unhealthy,
             "actions": hreport.actions_taken,
-        })
+        }
+        report.details.append(detail)
+        _emit_stage_event(daemon, "homeostasis", detail)
 
 
 def _stage_recovery(loop: PersistentLoop, report: CycleReport) -> None:
@@ -137,11 +154,13 @@ def _stage_recovery(loop: PersistentLoop, report: CycleReport) -> None:
             if available:
                 daemon.supervisor.record_recovery_success(rid)
                 report.actions_taken += 1
-                report.details.append({
+                detail = {
                     "stage": "recovery",
                     "runtime": rid,
                     "status": "recovered",
-                })
+                }
+                report.details.append(detail)
+                _emit_stage_event(daemon, "recovery", detail)
             else:
                 daemon.supervisor.record_recovery_failure(rid, "still unavailable")
         except Exception as exc:
@@ -163,10 +182,12 @@ def _stage_delegation_check(loop: PersistentLoop, report: CycleReport) -> None:
     followups = daemon.advisor.check_delegations()
     if followups:
         report.actions_taken += len(followups)
-        report.details.append({
+        detail = {
             "stage": "delegation_check",
             "overdue": len(followups),
-        })
+        }
+        report.details.append(detail)
+        _emit_stage_event(daemon, "delegation_check", detail)
 
 
 def _stage_objective_advance(loop: PersistentLoop, report: CycleReport) -> None:
@@ -182,11 +203,13 @@ def _stage_objective_advance(loop: PersistentLoop, report: CycleReport) -> None:
         results = coordinator.execute_ready(obj_dict["id"])
         report.actions_taken += len(results)
         if results:
-            report.details.append({
+            detail = {
                 "stage": "objective_advance",
                 "objective_id": obj_dict["id"],
                 "work_units_executed": len(results),
-            })
+            }
+            report.details.append(detail)
+            _emit_stage_event(daemon, "objective_advance", detail)
 
 
 def _stage_state_persist(loop: PersistentLoop, report: CycleReport) -> None:
@@ -196,7 +219,9 @@ def _stage_state_persist(loop: PersistentLoop, report: CycleReport) -> None:
         return
 
     daemon._persist_state()
-    report.details.append({"stage": "state_persist", "persisted": True})
+    detail = {"stage": "state_persist", "persisted": True}
+    report.details.append(detail)
+    _emit_stage_event(daemon, "state_persist", detail)
 
 
 def register_organism_stages(daemon: Any) -> None:

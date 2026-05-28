@@ -56,6 +56,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from substrate.execution.bridge.claude_session_bridge import make_session_name as _msn
 from substrate.execution.bridge.workload_policy import classify_workload
 from substrate.execution.bridge.resource_guard import evaluate_resource_guard
 from substrate.execution.bridge.context_lifecycle import (
@@ -1356,7 +1357,7 @@ def maybe_mirror_discord_text_message(
     }
 
 
-_CLAUDE_UNAVAILABLE_REPLY = "[DEX] Claude session unavailable."
+_CLAUDE_UNAVAILABLE_REPLY = f"[{os.environ.get('AI_NAME', 'AI')}] Claude session unavailable."
 
 
 # NOTE: the _claude_failure_envelope / _claude_responder_ingest helpers below
@@ -1607,7 +1608,7 @@ def pseudo_live_status() -> dict[str, Any]:
         "last_reply_at": snap.get("last_reply_at"),
         "claude_responder_enabled": _flag_truthy(_ENV_CLAUDE_RESPONDER),
         "claude_responder_target": os.getenv(_ENV_CLAUDE_TARGET) or "vps",
-        "claude_responder_session": os.getenv(_ENV_CLAUDE_SESSION) or "dex_main",
+        "claude_responder_session": os.getenv(_ENV_CLAUDE_SESSION) or _msn("main"),
         "claude_responder_per_channel": _flag_truthy(_ENV_CLAUDE_PER_CHANNEL),
         "allowlists": {
             "guilds": sorted(_parse_allowlist(_ENV_GUILDS)),

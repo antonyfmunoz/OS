@@ -304,7 +304,7 @@ REDIRECT TO PORTFOLIO AGENT when:
   CEO Agent or Portfolio Agent.
 - The question is about task management:
   "What needs to be done?" →
-  DEX or CEO Agent.
+  the AI EA or CEO Agent.
 Portfolio Advisor engages on:
   "Should we build this?" / "Is this market
   worth entering?" / "How should capital

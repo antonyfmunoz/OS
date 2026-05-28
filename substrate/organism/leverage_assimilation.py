@@ -56,7 +56,7 @@ class ArtifactType(str, Enum):
     UNKNOWN = "unknown"
 
 
-class PrimitiveType(str, Enum):
+class LeveragePrimitiveType(str, Enum):
     PATTERN = "pattern"
     CONFIG = "config"
     ABSTRACTION = "abstraction"
@@ -132,7 +132,7 @@ class LeverageScore:
 class ExtractedPrimitive:
     id: str = ""
     name: str = ""
-    primitive_type: PrimitiveType = PrimitiveType.PATTERN
+    primitive_type: LeveragePrimitiveType = LeveragePrimitiveType.PATTERN
     description: str = ""
     source_artifact: str = ""
     source_location: str = ""
@@ -249,11 +249,13 @@ class LeverageAssimilator:
         self,
         state_dir: str | Path = "data/umh/assimilation",
         umh_capabilities: set[str] | None = None,
+        event_spine: Any | None = None,
     ) -> None:
         self._state_dir = Path(state_dir)
         self._state_dir.mkdir(parents=True, exist_ok=True)
         self._artifacts: dict[str, AssimilationArtifact] = {}
         self._umh_capabilities = umh_capabilities or _UMH_CAPABILITIES
+        self._event_spine = event_spine
 
     def ingest(
         self,
@@ -327,7 +329,7 @@ class LeverageAssimilator:
             for p in primitives:
                 prim = ExtractedPrimitive(
                     name=p.get("name", ""),
-                    primitive_type=PrimitiveType(p.get("type", "pattern")),
+                    primitive_type=LeveragePrimitiveType(p.get("type", "pattern")),
                     description=p.get("description", ""),
                     source_artifact=artifact_id,
                     source_location=p.get("source_location", ""),
@@ -381,7 +383,7 @@ class LeverageAssimilator:
         return [
             ExtractedPrimitive(
                 name=f"{artifact.name}_{t['name']}",
-                primitive_type=PrimitiveType(t["type"]),
+                primitive_type=LeveragePrimitiveType(t["type"]),
                 description=t["desc"],
                 source_artifact=artifact.id,
             )
@@ -459,27 +461,27 @@ class LeverageAssimilator:
 
     def _score_applicability(self, prim: ExtractedPrimitive) -> float:
         """How broadly useful is this primitive across UMH?"""
-        broad_types = {PrimitiveType.PROTOCOL, PrimitiveType.ABSTRACTION, PrimitiveType.PATTERN}
+        broad_types = {LeveragePrimitiveType.PROTOCOL, LeveragePrimitiveType.ABSTRACTION, LeveragePrimitiveType.PATTERN}
         if prim.primitive_type in broad_types:
             return 0.8
-        if prim.primitive_type == PrimitiveType.WORKFLOW:
+        if prim.primitive_type == LeveragePrimitiveType.WORKFLOW:
             return 0.6
         return 0.4
 
     def _score_implementation_cost(self, prim: ExtractedPrimitive) -> float:
         """How much work to integrate? Higher = more expensive."""
-        high_cost_types = {PrimitiveType.ABSTRACTION, PrimitiveType.PROTOCOL}
+        high_cost_types = {LeveragePrimitiveType.ABSTRACTION, LeveragePrimitiveType.PROTOCOL}
         if prim.primitive_type in high_cost_types:
             return 0.7
-        if prim.primitive_type == PrimitiveType.ADAPTER:
+        if prim.primitive_type == LeveragePrimitiveType.ADAPTER:
             return 0.5
         return 0.3
 
     def _score_risk(self, prim: ExtractedPrimitive) -> float:
         """Integration risk to existing system. Higher = riskier."""
-        if prim.primitive_type == PrimitiveType.PROTOCOL:
+        if prim.primitive_type == LeveragePrimitiveType.PROTOCOL:
             return 0.6
-        if prim.primitive_type == PrimitiveType.ABSTRACTION:
+        if prim.primitive_type == LeveragePrimitiveType.ABSTRACTION:
             return 0.5
         return 0.2
 
@@ -490,14 +492,14 @@ class LeverageAssimilator:
             return {}
 
         mapping: dict[str, str] = {}
-        integration_points: dict[PrimitiveType, str] = {
-            PrimitiveType.PATTERN: "substrate/organism/",
-            PrimitiveType.CONFIG: "data/config/",
-            PrimitiveType.ABSTRACTION: "substrate/",
-            PrimitiveType.TECHNIQUE: "substrate/organism/",
-            PrimitiveType.PROTOCOL: "substrate/organism/protocols.py",
-            PrimitiveType.ADAPTER: "substrate/organism/runtime_adapters.py",
-            PrimitiveType.WORKFLOW: "substrate/execution/loop/",
+        integration_points: dict[LeveragePrimitiveType, str] = {
+            LeveragePrimitiveType.PATTERN: "substrate/organism/",
+            LeveragePrimitiveType.CONFIG: "data/config/",
+            LeveragePrimitiveType.ABSTRACTION: "substrate/",
+            LeveragePrimitiveType.TECHNIQUE: "substrate/organism/",
+            LeveragePrimitiveType.PROTOCOL: "substrate/organism/protocols.py",
+            LeveragePrimitiveType.ADAPTER: "substrate/organism/runtime_adapters.py",
+            LeveragePrimitiveType.WORKFLOW: "substrate/execution/loop/",
         }
 
         for prim in artifact.primitives:
@@ -556,3 +558,61 @@ class LeverageAssimilator:
             s = a.status.value
             counts[s] = counts.get(s, 0) + 1
         return counts
+
+    def _emit(self, event_type: str, data: dict[str, Any]) -> None:
+        if self._event_spine is None:
+            return
+        from substrate.organism.event_spine import EventDomain
+        self._event_spine.emit(EventDomain.LEVERAGE, event_type, "leverage_assimilator", data)
+
+    def rebalance_cycle(self) -> dict[str, Any]:
+        """Continuous leverage evaluation cycle.
+
+        Re-scores all artifacts based on current state,
+        detects degraded primitives, and emits rebalancing events.
+        """
+        evaluated = 0
+        adjustments: list[dict[str, Any]] = []
+
+        for artifact in self._artifacts.values():
+            if artifact.status.value not in ("extracted", "scored", "operationalized"):
+                continue
+            evaluated += 1
+            old_scores = [p.leverage.composite for p in artifact.primitives]
+            self.score_leverage(artifact.id)
+            new_scores = [p.leverage.composite for p in artifact.primitives]
+
+            for i, (old, new) in enumerate(zip(old_scores, new_scores)):
+                if abs(old - new) > 0.1:
+                    adjustments.append({
+                        "artifact": artifact.name,
+                        "primitive_index": i,
+                        "old_score": round(old, 3),
+                        "new_score": round(new, 3),
+                    })
+
+        result = {
+            "artifacts_evaluated": evaluated,
+            "adjustments": adjustments,
+        }
+
+        self._emit("leverage_rebalanced", result)
+        return result
+
+    def detect_degraded(self) -> list[dict[str, Any]]:
+        """Detect primitives with low leverage scores."""
+        degraded: list[dict[str, Any]] = []
+        for artifact in self._artifacts.values():
+            for prim in artifact.primitives:
+                if prim.leverage.composite < 0.3:
+                    degraded.append({
+                        "artifact": artifact.name,
+                        "primitive": prim.name,
+                        "score": round(prim.leverage.composite, 3),
+                    })
+        if degraded:
+            self._emit("leverage_degraded_detected", {
+                "count": len(degraded),
+                "primitives": degraded[:10],
+            })
+        return degraded

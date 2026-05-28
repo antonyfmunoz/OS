@@ -13,11 +13,11 @@ Usage:
     config = route("sales", "icp_qualifier")
     # config.task_type, config.skill_name, config.max_tokens
 
-    result = run_team_task("marketing", "hook_generator", prompt, "lyfe_institute", ctx)
+    result = run_team_task("marketing", "hook_generator", prompt, "active_venture", ctx)
 
     # Browser-wired outreach (async)
     from substrate.control_plane.agents.agent_teams import send_outreach_dm
-    result = await send_outreach_dm("target_username", "lyfe_institute", ctx)
+    result = await send_outreach_dm("target_username", "active_venture", ctx)
 """
 
 from dataclasses import dataclass
@@ -35,7 +35,7 @@ class SubAgentConfig:
 # ─── Sales Team ───────────────────────────────────────────────────────────────
 
 _SALES_AGENTS: dict[str, SubAgentConfig] = {
-    # Scores a signal/comment against Lyfe Institute ICP.
+    # Scores a signal/comment against the active venture ICP.
     # Returns match score + archetype + psychological state as JSON.
     "icp_qualifier": SubAgentConfig(
         task_type=TaskType.SCORE,
@@ -72,7 +72,7 @@ _SALES_AGENTS: dict[str, SubAgentConfig] = {
         skill_name="objection_handling",
         max_tokens=700,
     ),
-    # Guides discovery → diagnosed problem → direct close for Initiate Arena at $750.
+    # Guides discovery → diagnosed problem → direct close for the active product.
     "closer": SubAgentConfig(
         task_type=TaskType.GENERATE,
         skill_name="call_to_close",
@@ -109,7 +109,7 @@ _RESEARCH_AGENTS: dict[str, SubAgentConfig] = {
         skill_name="analyze_icp_signal",
         max_tokens=1200,
     ),
-    # Summarizes competitor moves and market shifts relevant to Lyfe Institute.
+    # Summarizes competitor moves and market shifts relevant to the active venture.
     "market_monitor": SubAgentConfig(
         task_type=TaskType.ANALYZE,
         skill_name="generate_market_report",
@@ -145,7 +145,7 @@ _CONTENT_AGENTS: dict[str, SubAgentConfig] = {
         skill_name="generate_content_from_intel",
         max_tokens=1000,
     ),
-    # Full caption: hook + body + CTA, written for the Initiate Arena audience.
+    # Full caption: hook + body + CTA, written for the active product audience.
     "caption_writer": SubAgentConfig(
         task_type=TaskType.GENERATE,
         skill_name="draft_arena_content_post",
@@ -223,7 +223,7 @@ class MarketingTeam:
 # ─── Customer Success Team ────────────────────────────────────────────────────
 
 _CUSTOMER_SUCCESS_AGENTS: dict[str, SubAgentConfig] = {
-    # Runs the Day 0–7 onboarding sequence for a new Initiate Arena client.
+    # Runs the Day 0-7 onboarding sequence for a new client.
     # One action at a time. Personal contact within 1 hour of payment.
     "onboarder": SubAgentConfig(
         task_type=TaskType.GENERATE,

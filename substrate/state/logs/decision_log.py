@@ -5,7 +5,7 @@ Decisions disappear after the context window closes. This module detects
 decision language in founder messages, extracts the key decision via LLM,
 and stores it permanently in Neon as a 'decision' event.
 
-The stored decisions are surfaced back into the cognitive loop so DEX always
+The stored decisions are surfaced back into the cognitive loop so the AI always
 knows what has been decided, and why.
 
 Usage:
@@ -18,7 +18,7 @@ Usage:
     if dl.detect_decision(text):
         dl.log_decision(description='Going with Instagram DMs', rationale='Signal confirmed')
 
-    decisions = dl.get_recent_decisions(venture_id='lyfe_institute', limit=5)
+    decisions = dl.get_recent_decisions(venture_id='my_venture', limit=5)
 """
 
 import json
@@ -35,7 +35,7 @@ class Decision:
     description: str    # what was decided
     rationale: str      # why
     venture_id: str
-    decided_by: str     # 'founder' or 'dex'
+    decided_by: str     # 'founder' or 'ai'
     impact: str         # 'high' | 'medium' | 'low'
     tags: list[str] = field(default_factory=list)
 

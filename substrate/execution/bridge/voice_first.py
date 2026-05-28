@@ -324,7 +324,7 @@ async def voice_first_respond(
     voice_engine: Any = None,
     text_channel: Any = None,
     user_name: str = "You",
-    ai_name: str = "DEX",
+    ai_name: str = "",
     ack_already_played: bool = False,
 ) -> VoiceFirstResult:
     """

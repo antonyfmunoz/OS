@@ -5,8 +5,8 @@ into executable work. It decomposes objectives into dependency-ordered
 work units, assigns each to the best available runtime, manages parallel
 execution, and aggregates results.
 
-This is what DEX delegates to internally. The user sees one intelligence;
-the coordinator sees a graph of runtimes and a DAG of work units.
+This is what the AI persona delegates to internally. The user sees one
+intelligence; the coordinator sees a graph of runtimes and a DAG of work units.
 
 Patterns absorbed from cortextOS:
   - Lifecycle generation counter (prevents restart race conditions)

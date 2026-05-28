@@ -11,6 +11,7 @@ Usage:
     agent  = ir.get_agent(domain)
 """
 
+import os
 from enum import Enum
 
 from substrate.state.context.context import EntrepreneurOSContext
@@ -32,9 +33,6 @@ class IntentRouter:
     Fast — no LLM call. Runs on every gateway message.
     """
 
-    def __init__(self, ctx: EntrepreneurOSContext) -> None:
-        self.ctx = ctx
-
     PORTFOLIO_SIGNALS = [
         "portfolio",
         "all companies",
@@ -50,28 +48,27 @@ class IntentRouter:
         "all three",
     ]
 
-    # Conversational / greeting patterns — must match before CEO to prevent
-    # casual questions like "hey DEX what are we building today?" from
-    # escalating to CEO agent.
-    CONVERSATION_SIGNALS = [
-        "hey dex",
-        "hi dex",
-        "yo dex",
-        "what's up",
-        "how are you",
-        "what are we",
-        "what do we",
-        "good morning",
-        "good afternoon",
-        "what's going on",
-        "talk to me",
-        "hey there",
-        "sup",
-    ]
+    def __init__(self, ctx: EntrepreneurOSContext) -> None:
+        self.ctx = ctx
+        # Conversational / greeting patterns — must match before CEO to prevent
+        # casual questions like "hey <AI> what are we building today?" from
+        # escalating to CEO agent. Built dynamically from AI_NAME.
+        _ai_lower = os.environ.get("AI_NAME", "").lower()
+        self.CONVERSATION_SIGNALS: list[str] = [
+            *(f"{g} {_ai_lower}" for g in ("hey", "hi", "yo") if _ai_lower),
+            "what's up",
+            "how are you",
+            "what are we",
+            "what do we",
+            "good morning",
+            "good afternoon",
+            "what's going on",
+            "talk to me",
+            "hey there",
+            "sup",
+        ]
 
     CEO_SIGNALS = [
-        "lyfe institute",
-        "empyrean",
         "personal brand",
         "revenue",
         "clients",

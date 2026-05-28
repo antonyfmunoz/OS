@@ -169,7 +169,7 @@ AGENT_STANDARDS: dict[str, list[str]] = {
         'the offer converts organically.',
         'Every DM conversation is both a sale attempt '
         'and market research. Both outcomes are valuable.',
-        'Lyfe Institute first sale enables Empyrean '
+        'The primary venture first sale enables the secondary venture '
         'to sell externally. That dependency is real.',
     ],
     'lyfe_ceo': [
@@ -184,7 +184,7 @@ AGENT_STANDARDS: dict[str, list[str]] = {
         'the offer converts organically.',
         'Every DM conversation is both a sale attempt '
         'and market research. Both outcomes are valuable.',
-        'Lyfe Institute first sale enables Empyrean '
+        'The primary venture first sale enables the secondary venture '
         'to sell externally. That dependency is real.',
     ],
     'empyrean_ceo': [
@@ -206,7 +206,7 @@ AGENT_STANDARDS: dict[str, list[str]] = {
         'it is a worldview. Content either comes from '
         'that worldview or it is not on brand.',
         'The personal brand is the distribution layer '
-        'for Lyfe Institute and Empyrean. '
+        'for the ventures. '
         'Audience quality matters more than audience size.',
         'Never post for the algorithm. '
         'Post for the ICP. The algorithm follows.',
@@ -355,7 +355,7 @@ class PrincipleEngine:
 
     Usage:
         pe = PrincipleEngine(ctx)
-        principles = pe.get_relevant_principles('sales', 'lyfe_institute')
+        principles = pe.get_relevant_principles('sales', 'my_venture')
         # Returns list with ROOT_RULE first, then domain-specific principles.
     """
 

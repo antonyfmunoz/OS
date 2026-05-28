@@ -16,9 +16,9 @@ Design rules:
 Usage (contract consumer side — substrate, not daemon):
     from substrate.execution.bridge import StationContract, StationHeartbeat
 
-    contract = StationContract(node_id="antony-workstation")
+    contract = StationContract(node_id=os.environ.get("UMH_LOCAL_NODE_ID", ""))
     heartbeat = StationHeartbeat(
-        node_id="antony-workstation",
+        node_id=os.environ.get("UMH_LOCAL_NODE_ID", ""),
         capabilities=["microphone_input", "audio_output"],
         control_mode=ControlMode.ASSIST,
     )

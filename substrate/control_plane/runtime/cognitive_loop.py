@@ -29,6 +29,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 import json, logging, os, re, sys, uuid, tempfile, time as _time
 
+from substrate.self_model import get_handler_prefix as _ghp
+
 logger = logging.getLogger(__name__)
 
 # ─── Spend cache ──────────────────────────────────────────────────────────────
@@ -886,7 +888,7 @@ class CognitiveLoop:
                 ),
                 (
                     _re.compile(r"^draft\s+(.+)$", _re.I),
-                    r"Draft a concise \1 in Antony's voice — direct, no fluff, action-oriented.",
+                    r"Draft a concise \1 in the founder's voice — direct, no fluff, action-oriented.",
                 ),
                 (
                     _re.compile(r"^analyze\s+(.+)$", _re.I),
@@ -969,15 +971,22 @@ class CognitiveLoop:
 
         # 3. LLM enhancement — AI upgrades when available
         try:
+            from substrate.self_model import self_model as _sm
+            _inst = _sm.instance
+            _biz_ctx = ""
+            if _inst.loaded:
+                parts = []
+                if _inst.ai_name:
+                    parts.append(f"{_inst.ai_name} is the AI Executive Assistant")
+                if _inst.founder_name:
+                    parts.append(f"Founder: {_inst.founder_name}")
+                if _inst.business_stage:
+                    parts.append(f"Stage: {_inst.business_stage}")
+                _biz_ctx = ". ".join(parts) + ".\n\n" if parts else ""
             enhancement = self.runtime.run(
                 task_type=TaskType.CLASSIFY,
                 prompt=(
-                    "Business context: Lyfe Institute (Initiate Arena, $750, "
-                    "90-day program, men 18-25). "
-                    "Empyrean Creative (AI infrastructure, creative studio). "
-                    "DEX is the name of the AI Executive Assistant — "
-                    "never expand DEX as decentralized exchange. "
-                    "Founder: Antony Munoz. North star: $10K/month. Stage 1 validation.\n\n"
+                    f"{_biz_ctx}"
                     "You are expanding a founder's shorthand message into a "
                     "precise, actionable execution prompt for their AI EA. "
                     "Preserve the original intent exactly. Do not add unrelated "
@@ -1247,7 +1256,7 @@ def detect_intent_and_inject(
     Detect founder intent from natural language and inject
     the right capability context into the system prompt.
 
-    This is what makes DEX conversational — no commands needed.
+    This is what makes the AI conversational — no commands needed.
     """
     text_lower = text.lower()
     injections: dict = {}
@@ -1477,12 +1486,12 @@ def detect_intent_and_inject(
                     """
                     SELECT payload_json FROM events
                     WHERE org_id = %s
-                    AND event_type = \'dex_task\'
+                    AND event_type = %s
                     AND (payload_json->>\'status\' IS NULL
                          OR payload_json->>\'status\' = \'pending\')
                     ORDER BY created_at DESC LIMIT 10
                 """,
-                    (str(ctx.org_id),),
+                    (str(ctx.org_id), f"{_ghp()}task"),
                 )
                 rows = cur.fetchall()
             tasks = []

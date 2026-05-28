@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from substrate.execution.bridge.operator_session import OperatorSession
 
+from substrate.execution.bridge.claude_session_bridge import make_session_name as _msn
 from substrate.execution.bridge.task_system import (
     Task,
     TaskExecutionPolicy,
@@ -62,10 +63,10 @@ def _utcnow() -> str:
 # Map ExecutionTarget enum values to (tmux_target, session_name) pairs.
 # Uses the same session naming convention as discord_mode_routing.
 _TARGET_MAP: dict[str, tuple[str, str]] = {
-    "local_product": ("local", "dex_product_main"),
-    "local_builder": ("local", "dex_builder_main"),
-    "vps_product": ("vps", "dex_product_main"),
-    "vps_builder": ("vps", "dex_builder_main"),
+    "local_product": ("local", _msn("product", "main")),
+    "local_builder": ("local", _msn("builder", "main")),
+    "vps_product": ("vps", _msn("product", "main")),
+    "vps_builder": ("vps", _msn("builder", "main")),
 }
 
 
@@ -77,7 +78,7 @@ def _resolve_tmux_target(chosen_target: Optional[str]) -> tuple[str, str]:
     """
     if chosen_target and chosen_target in _TARGET_MAP:
         return _TARGET_MAP[chosen_target]
-    return ("vps", "dex_builder_main")
+    return ("vps", _msn("builder", "main"))
 
 
 # ─── Human-Block Detection ──────────────────────────────────────────────────

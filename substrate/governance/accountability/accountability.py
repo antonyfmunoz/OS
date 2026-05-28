@@ -5,7 +5,7 @@ When a founder commits to something ("I'll send 20 DMs today"),
 this engine logs it and schedules a follow-up. The proactive engine
 fires that follow-up at the right time through Telegram or Discord.
 
-DEX is a mentor, not a nag. Follow-ups are asked once, with respect.
+The AI is a mentor, not a nag. Follow-ups are asked once, with respect.
 The founder's sovereignty is always preserved — the system never judges,
 it simply asks what happened.
 

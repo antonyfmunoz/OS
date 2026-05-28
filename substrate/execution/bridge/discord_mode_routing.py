@@ -39,9 +39,9 @@ Env vars (all default OFF / unknown)
   EOS_DISCORD_BUILDER_CHANNELS    comma-separated channel ids
   EOS_DISCORD_PRODUCT_CHANNELS    comma-separated channel ids
   EOS_DISCORD_BUILDER_TARGET      "vps" | "local"   (default "vps")
-  EOS_DISCORD_BUILDER_SESSION     session name      (default "dex_builder_main")
+  EOS_DISCORD_BUILDER_SESSION     session name      (default "<ai>_builder_main")
   EOS_DISCORD_PRODUCT_TARGET      "vps" | "local"   (default "vps")
-  EOS_DISCORD_PRODUCT_SESSION     session name      (default "dex_product_main")
+  EOS_DISCORD_PRODUCT_SESSION     session name      (default "<ai>_product_main")
   EOS_DISCORD_MODE_PER_CHANNEL    truthy → suffix session name with channel id
 
 Resolution rules
@@ -83,8 +83,9 @@ _ENV_PRODUCT_TARGET = "EOS_DISCORD_PRODUCT_TARGET"
 _ENV_PRODUCT_SESSION = "EOS_DISCORD_PRODUCT_SESSION"
 _ENV_PER_CHANNEL = "EOS_DISCORD_MODE_PER_CHANNEL"
 
-_DEFAULT_BUILDER_SESSION = "dex_builder_main"
-_DEFAULT_PRODUCT_SESSION = "dex_product_main"
+from substrate.execution.bridge.claude_session_bridge import make_session_name as _msn
+_DEFAULT_BUILDER_SESSION = _msn("builder", "main")
+_DEFAULT_PRODUCT_SESSION = _msn("product", "main")
 _DEFAULT_TARGET = "vps"
 _VALID_TARGETS = frozenset({"vps", "local"})
 

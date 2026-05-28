@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path as _Path
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
+from substrate.self_model import get_handler_prefix as _ghp
 
 load_dotenv(_Path(__file__).parent / '.env')
 logger = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ def store_founder_rate(annual_income: float, ctx=None) -> bool:
             org_id=str(ctx.org_id),
             event_type='founder_rate',
             payload={**rate, 'set_at': datetime.now(PDT).isoformat()},
-            handled_by='dex_founder_rate',
+            handled_by=f'{_ghp()}founder_rate',
         )
         return True
     except Exception as e:
@@ -111,7 +112,7 @@ def log_time_block(
                 'estimated_value': estimated_value,
                 'logged_at': datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_time_audit',
+            handled_by=f'{_ghp()}time_audit',
         )
         return True
     except Exception as e:
@@ -177,7 +178,7 @@ def get_time_audit_summary(days: int = 7, ctx=None) -> dict:
 
 
 def add_to_no_list(item: str, reason: str = '', ctx=None) -> bool:
-    """Add something to Antony's No List."""
+    """Add something to the founder's No List."""
     try:
         from substrate.state.context.context import load_context_from_env
         from substrate.state.memory.memory import AgentMemory
@@ -190,7 +191,7 @@ def add_to_no_list(item: str, reason: str = '', ctx=None) -> bool:
                 'reason': reason,
                 'added_at': datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_no_list',
+            handled_by=f'{_ghp()}no_list',
         )
         return True
     except Exception as e:
@@ -199,7 +200,7 @@ def add_to_no_list(item: str, reason: str = '', ctx=None) -> bool:
 
 
 def get_no_list(ctx=None) -> list[dict]:
-    """Get Antony's No List (deduplicated, newest-first)."""
+    """Get the founder's No List (deduplicated, newest-first)."""
     try:
         from substrate.state.context.context import load_context_from_env
         from substrate.state.storage.db import get_conn
@@ -241,9 +242,9 @@ def check_against_no_list(text: str, ctx=None) -> list[str]:
 
 def detect_delegation_threshold(ctx=None) -> list[dict]:
     """
-    Detect tasks Antony is repeatedly handling himself
+    Detect tasks the founder is repeatedly handling themselves
     that should be delegated. Returns list of violations.
-    Looks for dex_task events appearing 3+ times in 30 days.
+    Looks for task events appearing 3+ times in 30 days.
     """
     try:
         from substrate.state.context.context import load_context_from_env
@@ -257,13 +258,13 @@ def detect_delegation_threshold(ctx=None) -> list[dict]:
                     COUNT(*) as occurrence_count
                 FROM events
                 WHERE org_id = %s
-                AND event_type = 'dex_task'
+                AND event_type = %s
                 AND created_at >= NOW() - INTERVAL '30 days'
                 GROUP BY payload_json->>'task'
                 HAVING COUNT(*) >= 3
                 ORDER BY COUNT(*) DESC
                 LIMIT 10
-            """, (str(ctx.org_id),))
+            """, (str(ctx.org_id), f"{_ghp()}task"))
             rows = cur.fetchall()
 
         return [

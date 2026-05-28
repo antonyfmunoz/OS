@@ -23,11 +23,11 @@ Not in scope (deferred):
   - Capability-aware model routing.
 
 Operator entrypoint:
-    python3 -m execution.bridge.station_daemon --node-id antony-workstation
+    python3 -m execution.bridge.station_daemon --node-id $UMH_LOCAL_NODE_ID
 
 Library entrypoint:
     from substrate.execution.bridge.station_daemon import StationDaemon
-    StationDaemon(node_id="antony-workstation").run()
+    StationDaemon(node_id=os.environ.get("UMH_LOCAL_NODE_ID", "")).run()
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ from substrate.execution.bridge.station import StationEvent
 from substrate.execution.bridge.station_bus import StationBus, get_station_bus
 
 
-DEFAULT_NODE_ID = "antony-workstation"
+DEFAULT_NODE_ID = os.environ.get("UMH_LOCAL_NODE_ID", "")
 DEFAULT_CAPABILITIES: tuple[str, ...] = (
     "audio_output",
     "text_to_speech",

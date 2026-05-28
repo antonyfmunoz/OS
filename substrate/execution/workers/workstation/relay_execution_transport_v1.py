@@ -22,8 +22,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-SSH_HOST = os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102")
-SSH_USER = r"DESKTOP-LVGUIQ9\antonys beast pc"
+SSH_HOST = os.getenv("EOS_LOCAL_BRIDGE_IP", "")
+SSH_USER = os.getenv("EOS_LOCAL_BRIDGE_USER", "")
 SSH_KEY = "/root/.ssh/id_ed25519"
 SSH_TIMEOUT = 8
 

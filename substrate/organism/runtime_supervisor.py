@@ -122,11 +122,19 @@ class RuntimeSupervisor:
         self,
         graph: RuntimeGraph,
         state_dir: str | Path = "data/umh/supervisor",
+        event_spine: Any | None = None,
     ) -> None:
         self._graph = graph
         self._state_dir = Path(state_dir)
         self._state_dir.mkdir(parents=True, exist_ok=True)
         self._supervised: dict[str, SupervisedRuntime] = {}
+        self._event_spine = event_spine
+
+    def _emit(self, event_type: str, data: dict[str, Any]) -> None:
+        if self._event_spine is None:
+            return
+        from substrate.organism.event_spine import EventDomain
+        self._event_spine.emit(EventDomain.SUPERVISOR, event_type, "runtime_supervisor", data)
 
     def supervise(self, runtime_id: str) -> SupervisedRuntime:
         """Start supervising a runtime."""
@@ -230,6 +238,7 @@ class RuntimeSupervisor:
             sr.generation,
             error[:200],
         )
+        self._emit("runtime_crashed", {"runtime_id": runtime_id, "error": error or ""})
 
     def should_restart(self, runtime_id: str) -> tuple[bool, str]:
         """Determine if a crashed runtime should be restarted.
@@ -295,6 +304,70 @@ class RuntimeSupervisor:
             sr.restart_count,
             sr.backoff_seconds,
         )
+
+    def record_recovery_success(self, runtime_id: str, latency_ms: int = 0) -> None:
+        """Record that a runtime recovered successfully after a restart."""
+        sr = self._supervised.get(runtime_id)
+        if not sr:
+            return
+
+        sr.health = SupervisedHealth.ALIVE
+        sr.last_heartbeat = time.time()
+        sr.error = ""
+
+        self._graph.update_status(runtime_id, AvailabilityStatus.AVAILABLE)
+        self._graph.record_success(runtime_id, latency_ms)
+
+        logger.info(
+            "runtime %s recovery confirmed (gen=%d)",
+            runtime_id,
+            sr.generation,
+        )
+        self._emit("runtime_recovered", {"runtime_id": runtime_id, "latency_ms": latency_ms or 0})
+
+    def record_recovery_failure(self, runtime_id: str, error: str = "") -> None:
+        """Record that a runtime failed to recover after a restart attempt."""
+        sr = self._supervised.get(runtime_id)
+        if not sr:
+            return
+
+        sr.health = SupervisedHealth.DEAD
+        sr.error = error
+
+        self._graph.update_status(runtime_id, AvailabilityStatus.UNAVAILABLE)
+        self._graph.record_failure(runtime_id)
+
+        logger.warning(
+            "runtime %s recovery failed (gen=%d): %s",
+            runtime_id,
+            sr.generation,
+            error[:200],
+        )
+        self._emit("runtime_recovery_failed", {"runtime_id": runtime_id, "error": error or ""})
+
+    def reconcile_graph(self) -> dict[str, str]:
+        """Full reconciliation: push all supervised health states to the graph.
+
+        Call this after startup or when graph/supervisor may have drifted.
+        Returns mapping of runtime_id → status pushed.
+        """
+        result: dict[str, str] = {}
+        health_to_availability = {
+            SupervisedHealth.ALIVE: AvailabilityStatus.AVAILABLE,
+            SupervisedHealth.DEGRADED: AvailabilityStatus.DEGRADED,
+            SupervisedHealth.DEAD: AvailabilityStatus.UNAVAILABLE,
+            SupervisedHealth.STOPPED: AvailabilityStatus.UNAVAILABLE,
+            SupervisedHealth.PAUSED: AvailabilityStatus.UNAVAILABLE,
+            SupervisedHealth.RECOVERING: AvailabilityStatus.STARTING,
+            SupervisedHealth.STARTING: AvailabilityStatus.STARTING,
+        }
+
+        for rid, sr in self._supervised.items():
+            avail = health_to_availability.get(sr.health, AvailabilityStatus.UNKNOWN)
+            self._graph.update_status(rid, avail)
+            result[rid] = avail.value
+
+        return result
 
     def check_all(self) -> dict[str, SupervisedHealth]:
         """Check health of all supervised runtimes."""

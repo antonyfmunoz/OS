@@ -23,11 +23,11 @@ Usage:
     ctx = load_context_from_env()
 
     pr = PrimitiveRegistry(ctx)
-    context_str = pr.compose_business_context('lyfe_institute')
+    context_str = pr.compose_business_context('active_venture')
     # inject into prompt
 
     cre = ContextualReasoningEngine(ctx)
-    stage_ctx = cre.get_current_context('lyfe_institute')
+    stage_ctx = cre.get_current_context('active_venture')
     evaluation = cre.evaluate_principle('Should I hire a salesperson?', stage_ctx)
     # {'applies': False, 'warning': '...', 'what_applies_instead': '...'}
 """
@@ -521,7 +521,7 @@ PRIMITIVE_LIBRARY: dict[str, KnowledgePrimitive] = {
             'context': 'bootstrapped_pre_revenue',
             'applies': True,
             'modification': (
-                'For Initiate Arena at $750: '
+                'For the active product: '
                 'frame as investment not cost. '
                 'ROI anchor: what does staying '
                 'stuck cost you per month?'

@@ -1,0 +1,24 @@
+{
+  "id": "obj-0d9cd2ff",
+  "title": "Evented",
+  "status": "executing",
+  "completion_rate": 0.0,
+  "work_units": [
+    {
+      "id": "wu-bd990251",
+      "objective_id": "obj-0d9cd2ff",
+      "title": "Evented",
+      "unit_type": "execute",
+      "status": "pending",
+      "assigned_runtime": "",
+      "required_capability": "shell",
+      "blocked_by": [],
+      "blocks": [],
+      "attempt_count": 0,
+      "generation": 1,
+      "result": "",
+      "error": ""
+    }
+  ],
+  "generation": 1
+}

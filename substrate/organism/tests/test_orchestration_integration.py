@@ -400,8 +400,10 @@ class TestOrganismDaemonIntegration:
         daemon = _make_full_daemon(tmp_path)
         daemon.start()
         result = daemon.tick()
-        assert "tick" in result
-        assert "system_mode" in result
+        assert "cycle" in result
+        assert "stages_executed" in result
+        assert result["stages_executed"] >= 5
+        assert result["cycle"] == 1
 
     def test_daemon_tick_increments(self, tmp_path):
         daemon = _make_full_daemon(tmp_path)
@@ -427,6 +429,9 @@ class TestOrganismDaemonIntegration:
         assert status["running"] is True
         assert status["graph_available"] is True
         assert status["supervisor_available"] is True
+        assert "tick_engine" in status
+        assert "event_spine" in status
+        assert "governor" in status
         assert "homeostasis" in status
 
 

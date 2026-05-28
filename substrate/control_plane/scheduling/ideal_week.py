@@ -1,5 +1,5 @@
 """
-Ideal Week — stores and applies Antony's ideal
+Ideal Week — stores and applies the founder's ideal
 week template. Used by week_architect.py as baseline.
 """
 
@@ -11,6 +11,7 @@ from pathlib import Path as _Path
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 import os
+from substrate.self_model import get_handler_prefix as _ghp
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
@@ -104,7 +105,7 @@ def save_ideal_week(template: dict, ctx=None) -> bool:
                 'template': template,
                 'saved_at': datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_ideal_week',
+            handled_by=f'{_ghp()}ideal_week',
         )
         return True
     except Exception as e:
@@ -115,7 +116,7 @@ def save_ideal_week(template: dict, ctx=None) -> bool:
 def create_process_capture(task_name: str, description: str, ctx=None) -> str:
     """
     Process Capture — create a playbook from a task description.
-    User describes how they do a task, DEX turns it into a reusable SOP.
+    User describes how they do a task, the AI turns it into a reusable SOP.
     """
     try:
         from substrate.contracts.agent_types import TaskType
@@ -130,7 +131,7 @@ def create_process_capture(task_name: str, description: str, ctx=None) -> str:
 Convert this task description into a reusable SOP playbook.
 
 Task: {task_name}
-How Antony does it: {description}
+How the founder does it: {description}
 
 Create a structured playbook with:
 # Playbook: {task_name}
@@ -156,8 +157,8 @@ Create a structured playbook with:
 ## Trust Level
 [OBSERVE/ASSIST/EXECUTE/AUTONOMOUS]
 
-Make it specific enough that DEX can execute it exactly
-as Antony would, without asking questions."""
+Make it specific enough that the AI can execute it exactly
+as the founder would, without asking questions."""
 
         playbook = router.call(model, prompt, max_tokens=1500).strip()
 
@@ -213,7 +214,7 @@ def save_annual_architecture(year_plan: dict, ctx=None) -> bool:
                 'plan': year_plan,
                 'saved_at': datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_annual_plan',
+            handled_by=f'{_ghp()}annual_plan',
         )
         return True
     except Exception as e:

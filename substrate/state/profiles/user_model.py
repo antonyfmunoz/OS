@@ -40,7 +40,7 @@ load_dotenv(Path(__file__).parent / ".env")
 from substrate.state.context.context import EntrepreneurOSContext
 from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
 from substrate.contracts.agent_types import TaskType
-from substrate.contracts.agent_runtime_contracts import get_agent_runtime
+from adapters.models.agent_runtime import AgentRuntime
 from substrate.state.storage.db import get_conn
 
 
@@ -68,7 +68,7 @@ class UserModel:
     def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx = ctx
         self.loop = CognitiveLoop(ctx)
-        self._runtime = get_agent_runtime(ctx)
+        self._runtime = AgentRuntime(ctx)
         self._ensure_table()
 
     # ─── Schema migration ─────────────────────────────────────────────────────
@@ -324,7 +324,7 @@ class UserModel:
         prompts into their full intent. Routes through Haiku (fast, cheap).
 
         e.g. "do outreach" → "Run the daily Instagram DM outreach sequence for
-        Initiate Arena ICP segment using the warm opener template. Focus on
+        the active product ICP segment using the warm opener template. Focus on
         leads in the Contacted stage."
 
         Returns original prompt if:

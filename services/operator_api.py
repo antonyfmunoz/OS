@@ -44,11 +44,39 @@ logging.basicConfig(level=logging.INFO)
 
 _loop_registry = None
 _organism_daemon = None
+_tick_task = None
+
+
+def _wire_spine_to_cockpit_ws(daemon) -> None:
+    """Subscribe the EventSpine to push events to cockpit WebSocket clients."""
+    try:
+        from transports.api.cockpit import push_organism_event
+
+        def _on_organism_event(event) -> None:
+            push_organism_event(event.to_dict())
+
+        daemon.event_spine.subscribe(
+            "cockpit_ws_bridge", _on_organism_event,
+        )
+        logger.info("organism EventSpine → cockpit WS bridge wired")
+    except Exception as exc:
+        logger.warning("cockpit WS bridge not wired: %s", exc)
+
+
+async def _tick_loop(daemon) -> None:
+    """Background async loop that drives the organism metabolism."""
+    while True:
+        try:
+            daemon.tick()
+        except Exception as exc:
+            logger.warning("organism tick failed: %s", exc)
+        interval = daemon.autonomous_tick.current_interval
+        await asyncio.sleep(interval)
 
 
 @asynccontextmanager
 async def lifespan(application):
-    global _loop_registry, _organism_daemon
+    global _loop_registry, _organism_daemon, _tick_task
     try:
         from substrate.execution.loop.persistent_loop import get_registry
         _loop_registry = get_registry()
@@ -62,12 +90,21 @@ async def lifespan(application):
         from substrate.organism.daemon import OrganismDaemon
         _organism_daemon = OrganismDaemon()
         _organism_daemon.start()
-        logger.info("organism daemon started")
+        _wire_spine_to_cockpit_ws(_organism_daemon)
+        _tick_task = asyncio.create_task(_tick_loop(_organism_daemon))
+        logger.info("organism daemon started with autonomous tick loop")
     except Exception as exc:
         import traceback
         logger.warning("organism daemon not started: %s\n%s", exc, traceback.format_exc())
 
     yield
+
+    if _tick_task is not None:
+        _tick_task.cancel()
+        try:
+            await _tick_task
+        except asyncio.CancelledError:
+            pass
 
     if _organism_daemon is not None:
         _organism_daemon.stop()
