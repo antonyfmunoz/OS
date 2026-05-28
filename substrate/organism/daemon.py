@@ -61,6 +61,7 @@ from substrate.organism.spine_guard import GuardMode, SpineGuard
 from substrate.organism.autonomous_action_gateway import AutonomousActionGateway, AutonomousPolicy
 from substrate.organism.leverage_engine import LeverageEngine
 from substrate.organism.next_action_engine import NextActionEngine
+from substrate.organism.plan_execution_adapter import PlanExecutionAdapter
 from substrate.organism.readiness_model import ReadinessModel
 from substrate.organism.worker_cell import WorkerCell
 from substrate.execution.pipeline import ExecutionPipeline
@@ -256,6 +257,12 @@ class OrganismDaemon:
         self._assisted_executor.set_governed_spine(self._governed_spine)
         self._assisted_executor.set_autonomous_gateway(self._autonomous_gateway)
         self._maintenance_loop.set_autonomous_gateway(self._autonomous_gateway)
+
+        self._plan_execution_adapter = PlanExecutionAdapter(
+            governed_spine=self._governed_spine,
+            spine_guard=self._spine_guard,
+            autonomous_gateway=self._autonomous_gateway,
+        )
 
         self._workcell_daemon = WorkcellDaemonV2(
             state_dir=str(self._state_dir / "workcell_daemon"),
@@ -671,6 +678,10 @@ class OrganismDaemon:
     def autonomous_gateway(self) -> AutonomousActionGateway:
         return self._autonomous_gateway
 
+    @property
+    def plan_execution_adapter(self) -> PlanExecutionAdapter:
+        return self._plan_execution_adapter
+
     def start(self) -> None:
         self._started = True
 
@@ -809,6 +820,7 @@ class OrganismDaemon:
             "execution_journal": self._execution_journal.to_dict(),
             "spine_guard": self._spine_guard.to_dict(),
             "autonomous_gateway": self._autonomous_gateway.to_dict(),
+            "plan_execution_adapter": self._plan_execution_adapter.to_dict(),
             **self._advisor.organism_status(),
         }
         if self._graph is not None:

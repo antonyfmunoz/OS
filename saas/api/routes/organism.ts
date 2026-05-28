@@ -192,6 +192,46 @@ router.post('/compose', operatorGuard, async (c) => {
   return c.json(result.data)
 })
 
+// ── Phase 9.1: Plan Execution Adapter ────────────────────────
+router.post('/execute-plan', operatorGuard, async (c) => {
+  const body = await c.req.json().catch(() => ({}))
+  const intent = (body as Record<string, unknown>).intent as string
+  const result = await callOrganism('organism.execute_plan', { intent })
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
+router.get('/execution-graph', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.execution_graph')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/execution-graph/:id', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.execution_graph.detail', {
+    plan_id: c.req.param('id'),
+  })
+  if (!result.success) return c.json({ error: result.error }, 404)
+  return c.json(result.data)
+})
+
+router.post('/execute-plan/:planId/approve/:stepId', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.execute_plan.approve_step', {
+    plan_id: c.req.param('planId'),
+    step_id: c.req.param('stepId'),
+  })
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
+router.get('/execute-plan/:planId/pending', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.execute_plan.pending', {
+    plan_id: c.req.param('planId'),
+  })
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
 router.get('/workcells', async (c) => {
   const result = await callOrganism('organism.workcells')
   if (!result.success) return c.json({ error: result.error }, 502)
