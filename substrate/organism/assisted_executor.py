@@ -243,19 +243,31 @@ def _rotate_logs(repo_root: str, params: dict[str, Any]) -> tuple[str, bool]:
     return f"Rotated {len(rotated)} log files", len(rotated) >= 0
 
 
+import re
+
+_CONTAINER_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+_CRITICAL_CONTAINERS = {"os-operator", "os-discord"}
+_RESTARTABLE_CONTAINERS = {"os-monitor", "os-webhook", "os-scraper", "os-cockpit"}
+
+
 def _restart_container(repo_root: str, params: dict[str, Any]) -> tuple[str, bool]:
     """Restart a specific Docker container."""
     container = params.get("container", "")
     if not container:
         return "No container specified", False
 
-    critical = {"os-operator", "os-discord"}
-    if container in critical:
+    if not _CONTAINER_NAME_RE.match(container):
+        return f"Invalid container name: {container!r}", False
+
+    if container in _CRITICAL_CONTAINERS:
         return f"Refusing to restart critical container: {container}", False
+
+    if container not in _RESTARTABLE_CONTAINERS:
+        return f"Container not in restartable allowlist: {container}", False
 
     try:
         result = subprocess.run(
-            ["docker", "restart", container],
+            ["docker", "restart", "--", container],
             capture_output=True, text=True, timeout=_ACTION_TIMEOUT,
         )
         if result.returncode == 0:
@@ -278,12 +290,22 @@ def _refresh_runtime(repo_root: str, params: dict[str, Any]) -> tuple[str, bool]
         return str(exc), False
 
 
+_ALLOWED_TEST_PATHS = {
+    "substrate/organism/tests/",
+    "substrate/organism/tests",
+    "tests/",
+}
+
+
 def _run_tests(repo_root: str, params: dict[str, Any]) -> tuple[str, bool]:
     """Run the organism test suite."""
-    test_path = params.get("test_path", "substrate/organism/tests/")
+    test_path = "substrate/organism/tests/"
+    requested = params.get("test_path", "")
+    if requested and requested in _ALLOWED_TEST_PATHS:
+        test_path = requested
     try:
         result = subprocess.run(
-            ["python3", "-m", "pytest", test_path, "-x", "-q", "--tb=line"],
+            ["python3", "-m", "pytest", "-x", "-q", "--tb=line", "--", test_path],
             capture_output=True, text=True, timeout=120,
             cwd=repo_root,
         )

@@ -24,13 +24,18 @@ from pathlib import Path
 from typing import Any
 
 import psutil
-from fastapi import APIRouter, Depends, HTTPException, Security, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Request, Security, WebSocket, WebSocketDisconnect
 from fastapi.security import APIKeyHeader
 
 logger = logging.getLogger(__name__)
 
 _API_KEY = os.environ.get("UMH_OPERATOR_API_KEY", "dev-key-change-me")
+_OPERATOR_TOKEN = os.environ.get("UMH_OPERATOR_TOKEN", "")
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+_operator_token_header = APIKeyHeader(name="X-Operator-Token", auto_error=False)
+
+_PROMOTE_RATE_LIMIT: dict[str, float] = {}
+_PROMOTE_RATE_WINDOW = 60.0
 
 
 async def _require_api_key(key: str | None = Security(_api_key_header)) -> str:
@@ -39,6 +44,32 @@ async def _require_api_key(key: str | None = Security(_api_key_header)) -> str:
     if not key or key != _API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return key
+
+
+async def _require_operator_role(
+    request: Request,
+    key: str | None = Security(_api_key_header),
+    operator_token: str | None = Security(_operator_token_header),
+) -> str:
+    """Validates operator-level credentials for privileged endpoints.
+
+    Requires both the standard API key AND a separate operator token.
+    Logs all attempts for audit correlation.
+    """
+    await _require_api_key(key)
+
+    if not _OPERATOR_TOKEN:
+        logger.warning("UMH_OPERATOR_TOKEN not configured — privileged endpoints unprotected")
+        return "operator-unprotected"
+
+    if not operator_token or operator_token != _OPERATOR_TOKEN:
+        logger.warning(
+            "Unauthorized operator access attempt: %s %s from %s",
+            request.method, request.url.path, request.client.host if request.client else "unknown",
+        )
+        raise HTTPException(status_code=403, detail="Operator token required for privileged actions")
+
+    return "operator"
 
 
 router = APIRouter(prefix="/api/umh", dependencies=[Depends(_require_api_key)])
@@ -832,14 +863,28 @@ async def organism_execution_mode():
     }
 
 
-@router.post("/organism/execution-mode/promote")
-async def organism_promote_mode(payload: dict):
-    """Promote execution mode to a higher autonomy level."""
+@router.post("/organism/execution-mode/promote", dependencies=[Depends(_require_operator_role)])
+async def organism_promote_mode(payload: dict, request: Request):
+    """Promote execution mode to a higher autonomy level.
+
+    Requires operator token. Rate-limited to 1 call per 60s per client.
+    """
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
+
+    client_id = request.client.host if request.client else "unknown"
+    now = time.time()
+    last_call = _PROMOTE_RATE_LIMIT.get(client_id, 0.0)
+    if now - last_call < _PROMOTE_RATE_WINDOW:
+        remaining = int(_PROMOTE_RATE_WINDOW - (now - last_call))
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limited — retry in {remaining}s",
+        )
+
     target = payload.get("target_mode", "")
-    justification = payload.get("justification", "operator promotion")
+    justification = str(payload.get("justification", "operator promotion"))[:500]
     try:
         from substrate.organism.execution_modes import ExecutionMode, TransitionReason
         mode = ExecutionMode(target)
@@ -848,6 +893,8 @@ async def organism_promote_mode(payload: dict):
             reason=TransitionReason.OPERATOR_PROMOTION,
             justification=justification,
         )
+        _PROMOTE_RATE_LIMIT[client_id] = now
+        logger.info("Execution mode promotion: %s → %s by %s", target, ok, client_id)
         return {"ok": ok, "current_mode": daemon.execution_mode_manager.current_mode.value}
     except (ValueError, KeyError) as e:
         return {"error": str(e)}
@@ -935,12 +982,14 @@ async def organism_automation_candidates():
     }
 
 
-@router.post("/organism/automation-candidates/{proposal_id}/approve")
-async def organism_approve_automation(proposal_id: str):
-    """Approve an automation candidate."""
+@router.post("/organism/automation-candidates/{proposal_id}/approve", dependencies=[Depends(_require_operator_role)])
+async def organism_approve_automation(proposal_id: str, request: Request):
+    """Approve an automation candidate. Requires operator token."""
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
+    client_id = request.client.host if request.client else "unknown"
+    logger.info("Automation approval: %s by %s", proposal_id, client_id)
     ok = daemon.automation_pipeline.approve(proposal_id)
     if not ok:
         return {"ok": False, "error": "proposal not found or not in proposed state"}
@@ -1007,9 +1056,12 @@ async def organism_assisted():
     return daemon.assisted_executor.to_dict()
 
 
-@router.post("/organism/assisted/execute")
-async def organism_assisted_execute(payload: dict):
-    """Execute an approved maintenance action."""
+@router.post("/organism/assisted/execute", dependencies=[Depends(_require_operator_role)])
+async def organism_assisted_execute(payload: dict, request: Request):
+    """Execute an approved maintenance action.
+
+    Requires operator token. All executions logged with client identity.
+    """
     import asyncio
 
     daemon = _get_organism()
@@ -1017,7 +1069,7 @@ async def organism_assisted_execute(payload: dict):
         return {"error": "organism not running"}
 
     category = payload.get("category", "")
-    description = payload.get("description", "")
+    description = str(payload.get("description", ""))[:500]
     params = payload.get("params", {})
 
     try:
@@ -1029,7 +1081,10 @@ async def organism_assisted_execute(payload: dict):
             "available": [c.value for c in __import__("substrate.organism.maintenance_loop", fromlist=["ActionCategory"]).ActionCategory],
         }
 
+    client_id = request.client.host if request.client else "unknown"
     action_id = f"assisted-{category}-{int(time.time())}"
+    logger.info("Assisted execution requested: %s by %s", category, client_id)
+
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(
         None,
@@ -1037,6 +1092,7 @@ async def organism_assisted_execute(payload: dict):
             action_id=action_id,
             category=cat,
             description=description or f"Assisted: {category}",
+            approved_by=f"operator:{client_id}",
             params=params,
         ),
     )
