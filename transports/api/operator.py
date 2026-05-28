@@ -34,7 +34,7 @@ load_dotenv("/opt/OS/services/.env")
 load_dotenv("/opt/OS/.env", override=True)
 
 UMH_ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
-API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "dev-key-change-me")
+API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "")
 
 logger = logging.getLogger("operator_api")
 logging.basicConfig(level=logging.INFO)

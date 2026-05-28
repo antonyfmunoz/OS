@@ -3,6 +3,7 @@ import { useRealtimeStore, OrganismEvent } from '../stores/realtimeStore'
 import { useOrganismStore } from '../stores/organismStore'
 import { useSystemStore } from '../stores/systemStore'
 import { useCockpitStore } from '../stores/cockpitStore'
+import { getApiKey } from '../api/client'
 
 const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30000
@@ -11,9 +12,9 @@ const FALLBACK_POLL_MS = 5000
 
 function buildWsUrl(): string {
   const envUrl = import.meta.env.VITE_ORGANISM_WS_URL as string | undefined
-  if (envUrl) return envUrl
-  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${proto}//${window.location.host}/api/umh/ws`
+  const base = envUrl || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/umh/ws`
+  const token = (import.meta.env.VITE_UMH_WS_TOKEN as string) || getApiKey()
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base
 }
 
 export function useOrganismRealtime(): void {
