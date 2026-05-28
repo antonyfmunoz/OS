@@ -3,6 +3,7 @@
 **Date:** 2026-05-28
 **Branch:** worktree-anti-divergence-gate
 **Base commit:** bc0f64b4 (phase 6.6)
+**Security hardening commit:** 6e4ec6cf (post-review fixes)
 
 ## Deployment Path Chosen
 
@@ -35,9 +36,9 @@ and a second compute node to maintain.
 
 | Artifact | Hash |
 |----------|------|
-| JS bundle | `index-C2ZAc6p_.js` |
+| JS bundle | `index-9qBg6yvr.js` |
 | CSS bundle | `index-BCUjIQeU.css` |
-| Build base commit | `bc0f64b4` |
+| Build base commit | `6e4ec6cf` (security-hardened) |
 
 Both `cockpit/dist-web/` and `cockpit/dist/web/` have been updated.
 After operator restart, `/api/umh/build` will report these hashes.
@@ -70,10 +71,11 @@ All tested against `localhost:8091`:
 |-------|-----------|--------|
 | HTTP reads | `X-API-Key` header validated against `UMH_OPERATOR_API_KEY` | `UMH_DEV_BYPASS=true` + private IP only |
 | Privileged writes | `X-Operator-Token` header validated against `UMH_OPERATOR_TOKEN` | `UMH_DEV_BYPASS=true` + private IP only |
-| WebSocket `/ws` | `?token=` query param against `UMH_WS_TOKEN` | `UMH_DEV_BYPASS=true` + private IP only |
-| WebSocket `/api/umh/ws` | `?token=` query param against `UMH_WS_TOKEN` | `UMH_DEV_BYPASS=true` + private IP only |
+| WebSocket `/ws` | `Sec-WebSocket-Protocol: bearer.<token>` against `UMH_WS_TOKEN` | `UMH_DEV_BYPASS=true` + private IP only |
+| WebSocket `/api/umh/ws` | `Sec-WebSocket-Protocol: bearer.<token>` against `UMH_WS_TOKEN` | `UMH_DEV_BYPASS=true` + private IP only |
 
-**Private IP ranges recognized:** 127.x, 10.x, 192.168.x, 172.16-31.x, 100.64-127.x (CGNAT/Tailscale), ::1, fd (IPv6 ULA).
+**Private IP validation:** uses Python `ipaddress` module (not string prefixes). Covers RFC 1918, loopback, link-local, Tailscale CGNAT `100.64.0.0/10`, IPv6 ULA.
+**Token comparison:** all comparisons use `hmac.compare_digest()` (timing-safe).
 
 **Key behavioral changes:**
 
@@ -82,7 +84,7 @@ All tested against `localhost:8091`:
 3. `UMH_DEV_BYPASS` only works from private IPs — public requests always fail-closed
 4. WebSocket connections rejected with code 4001 if auth fails
 5. Frontend sends `X-API-Key` on all HTTP requests (from `VITE_UMH_API_KEY`)
-6. Frontend sends `?token=` on all WebSocket connections (from `VITE_UMH_WS_TOKEN`)
+6. Frontend sends `Sec-WebSocket-Protocol: bearer.<token>` on all WebSocket connections (from `VITE_UMH_WS_TOKEN`)
 
 ### Environment Variables
 
@@ -99,9 +101,21 @@ All tested against `localhost:8091`:
 
 - `/api/umh/ws` — organism realtime stream, sends pulse+events every 2s
 - `/ws` — chat/voice WebSocket, bidirectional
-- Both require `?token=` param on public access
+- Both require `Sec-WebSocket-Protocol: bearer.<token>` subprotocol on public access
+- Server echoes the subprotocol on accept (compliant with RFC 6455)
 - Both allow private-IP bypass when `UMH_DEV_BYPASS=true`
 - Unauthenticated connections receive close code 4001
+
+## Security Review Fixes (6e4ec6cf)
+
+Four findings from automated security review, all resolved:
+
+| Finding | Severity | Fix |
+|---------|----------|-----|
+| Substring IP prefix matching (`"100.7"` matches `100.70-79.x.x`) | HIGH | Replaced with `ipaddress` module — exact network membership check |
+| Non-constant-time token comparison (`==`) | MEDIUM | Replaced with `hmac.compare_digest()` — timing-safe |
+| Token in URL (`?token=` leaks to access logs) | MEDIUM | Moved to `Sec-WebSocket-Protocol: bearer.<token>` subprotocol |
+| Duplicate IP prefix bug in `operator_api.py` | HIGH | Same `ipaddress` module fix applied to both files |
 
 ## Files Changed
 
@@ -110,9 +124,10 @@ All tested against `localhost:8091`:
 | `transports/api/cockpit.py` | Replace `UMH_ALLOW_INSECURE` with `UMH_DEV_BYPASS` + private-IP check; add WS auth gate; update `_require_api_key` signature to include `Request` |
 | `transports/api/operator.py` | Remove `dev-key-change-me` default |
 | `services/operator_api.py` | Remove `dev-key-change-me` default; add WS auth gate for `/ws` |
-| `cockpit/src/renderer/api/client.ts` | Add `X-API-Key` header, export `getApiKey()` |
-| `cockpit/src/renderer/hooks/useWebSocket.ts` | Add `?token=` to WS URL |
-| `cockpit/src/renderer/hooks/useOrganismRealtime.ts` | Add `?token=` to organism WS URL |
+| `cockpit/src/renderer/api/client.ts` | Add `X-API-Key` header, export `getApiKey()`, `getWsToken()` |
+| `cockpit/src/renderer/api/websocket.ts` | Accept optional `protocols` constructor param for subprotocol auth |
+| `cockpit/src/renderer/hooks/useWebSocket.ts` | Send `bearer.<token>` subprotocol on WS connect |
+| `cockpit/src/renderer/hooks/useOrganismRealtime.ts` | Send `bearer.<token>` subprotocol on organism WS connect |
 
 ## Validation Gates
 
