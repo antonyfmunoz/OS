@@ -120,6 +120,10 @@ class MaintenanceLoop:
         self._reports: list[MaintenanceCycleReport] = []
         self._pending_recommendations: list[MaintenanceRecommendation] = []
         self._completed_actions: list[dict[str, Any]] = []
+        self._autonomous_gateway: Any = None
+
+    def set_autonomous_gateway(self, gateway: Any) -> None:
+        self._autonomous_gateway = gateway
 
     def maintenance_tick(self) -> dict[str, Any]:
         """Execute one maintenance cycle. Registered as a tick stage."""
@@ -237,6 +241,57 @@ class MaintenanceLoop:
                 ))
 
         return recs
+
+    def submit_recommendation_via_gateway(
+        self,
+        recommendation: MaintenanceRecommendation,
+    ) -> dict[str, Any]:
+        """Convert a MaintenanceRecommendation to an ActionEnvelope and submit via gateway.
+
+        Returns the envelope dict with its status.
+        """
+        if self._autonomous_gateway is None:
+            return {"error": "no gateway configured", "recommendation": recommendation.to_dict()}
+
+        from substrate.organism.action_envelope import (
+            ActionEnvelope,
+            ActionType,
+            BlastRadius,
+            ExecutionConstraints,
+            ReversibilityClass,
+        )
+
+        risk_map = {
+            ActionSeverity.INFO: "low",
+            ActionSeverity.WARNING: "low",
+            ActionSeverity.ACTION_NEEDED: "medium",
+            ActionSeverity.URGENT: "high",
+        }
+        risk = risk_map.get(recommendation.severity, "medium")
+
+        envelope = ActionEnvelope(
+            intent=recommendation.description,
+            action_type=ActionType.STATE,
+            source="maintenance_loop",
+            execute_fn=lambda: (recommendation.description, True),
+            risk_level=risk,
+            blast_radius=BlastRadius.LOCAL_RUNTIME,
+            reversibility=(
+                ReversibilityClass.FULLY_REVERSIBLE if recommendation.reversible
+                else ReversibilityClass.IRREVERSIBLE
+            ),
+            constraints=ExecutionConstraints(
+                require_approval=not recommendation.auto_approvable,
+            ),
+            metadata={
+                "mutation_name": recommendation.category.value,
+                "action_id": recommendation.action_id,
+                "category": recommendation.category.value,
+            },
+        )
+
+        result = self._autonomous_gateway.submit_envelope(envelope)
+        return result.to_dict()
 
     @property
     def pending_recommendations(self) -> list[MaintenanceRecommendation]:
