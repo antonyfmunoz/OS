@@ -34,4 +34,14 @@ Phase 5.8 — Operational Leverage Engine:
     autonomous action (observe → recommend → assisted → autonomous)
   - WorkloadProbes: real-time infrastructure state (Docker, disk,
     memory, repo, processes)
+
+Phase 5.9 — Real Workload Execution + Automation Promotion:
+  - WorkloadRunner: governed execution of real operational jobs
+    (repo health, docker health, disk pressure, test runs, etc.)
+  - AutomationPipeline: detects repeated interventions and proposes
+    automation candidates with leverage scoring and risk classification
+  - MaintenanceLoop: autonomous OBSERVE-mode maintenance cycle
+    wired into AutonomousTick (probes + recommendations)
+  - AssistedExecutor: governed execution of approved maintenance
+    actions (log rotation, container restart, graph rebuild, etc.)
 """
