@@ -1,0 +1,23 @@
+{
+  "id": "art-7e64b3d4",
+  "name": "NoSpine",
+  "source_url": "",
+  "artifact_type": "unknown",
+  "status": "scored",
+  "primitives_count": 1,
+  "leverage_summary": {
+    "count": 1,
+    "avg_score": 0.85,
+    "max_score": 0.85
+  },
+  "redundancy_report": {
+    "artifact_id": "art-7e64b3d4",
+    "total_primitives": 1,
+    "redundant": [],
+    "novel": [
+      "prim-1fed0293"
+    ],
+    "partial_overlap": []
+  },
+  "created_at": 1779934706.8584654
+}

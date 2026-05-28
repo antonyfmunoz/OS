@@ -2,7 +2,7 @@
 Session Watcher — continuous tmux state machine for Claude Code sessions.
 
 Replaces blind before/after polling in ask_session with state-aware monitoring.
-One SessionWatcher instance per tmux session (dex_builder_main, dex_product_main).
+One SessionWatcher instance per tmux session (e.g. {ai}_builder_main, {ai}_product_main).
 Runs as a daemon thread, polls tmux pane every 0.5s, detects session state,
 emits events via callback when CC needs input.
 
@@ -141,7 +141,7 @@ class SessionWatcher:
     """Continuous state machine monitor for a single CC tmux session.
 
     Usage:
-        watcher = SessionWatcher("vps", "dex_builder_main", on_event=my_callback)
+        watcher = SessionWatcher("vps", "<ai>_builder_main", on_event=my_callback)
         watcher.start()  # daemon thread, non-blocking
         ...
         watcher.send_response("yes")  # pipe text back into tmux

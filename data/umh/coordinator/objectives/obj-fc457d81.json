@@ -1,0 +1,24 @@
+{
+  "id": "obj-fc457d81",
+  "title": "Task",
+  "status": "executing",
+  "completion_rate": 0.0,
+  "work_units": [
+    {
+      "id": "wu-bad8f477",
+      "objective_id": "obj-fc457d81",
+      "title": "Task",
+      "unit_type": "execute",
+      "status": "pending",
+      "assigned_runtime": "",
+      "required_capability": "shell",
+      "blocked_by": [],
+      "blocks": [],
+      "attempt_count": 0,
+      "generation": 1,
+      "result": "",
+      "error": ""
+    }
+  ],
+  "generation": 1
+}

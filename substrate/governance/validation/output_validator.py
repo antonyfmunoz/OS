@@ -58,18 +58,23 @@ class OutputValidator:
         self._discord_max_chars = 1800
         self._required_footer   = True
 
-        # Instance-specific values that must never appear in platform-layer code
-        # These should always come from BIS/database at runtime
-        self._instance_values = [
-            'DEX',
-            'Antony',
-            'Lyfe Institute',
-            'Initiate Arena',
-            'Empyrean Creative',
-            '$750',
-            'afm_bot',
-            'Munoz Holdings',
-        ]
+        self._instance_values: list[str] = []
+        try:
+            from substrate.self_model import self_model
+            if self_model.instance.loaded:
+                inst = self_model.instance
+                self._instance_values = [
+                    v for v in [
+                        inst.ai_name, inst.founder_name, inst.org_name,
+                        inst.active_venture_name,
+                    ] if v
+                ]
+                for venture in inst.ventures:
+                    self._instance_values.extend(v for v in venture.values() if v)
+                for product in inst.products:
+                    self._instance_values.extend(v for v in product.values() if v)
+        except Exception:
+            pass
 
     # ─── Discord validation ────────────────────────────────────────────────────
 

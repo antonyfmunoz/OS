@@ -80,7 +80,8 @@ class ConcreteComponentRegistry:
             sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
             from substrate.state.storage.db import get_conn
 
-            with get_conn("munoz-holdings") as cur:
+            _org = os.environ.get("UMH_ORG_ID", "") or os.environ.get("EOS_ORG_ID", "")
+            with get_conn(_org) as cur:
                 cur.execute("SELECT id, name FROM agents WHERE active = true")
                 for row in cur.fetchall():
                     comp = Component(

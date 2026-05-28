@@ -26,6 +26,7 @@ Design rules (mirror substrate conventions):
 
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import dataclass
 from enum import Enum
@@ -91,7 +92,7 @@ class RoutingDecision:
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 VPS_NODE_ID = "vps-primary"
-LOCAL_NODE_ID = "antony-workstation"
+LOCAL_NODE_ID = os.environ.get("UMH_LOCAL_NODE_ID", "")
 
 # Capabilities that require local execution
 _LOCAL_REQUIRED_CAPS = frozenset(

@@ -345,7 +345,7 @@ class WorldPulse:
                 report_lines.append(f'  {line[:80]}')
             if skills_needing_review:
                 report_lines += ['', f'📚 Skills to review: {", ".join(skills_needing_review[:3])}']
-            report_lines.append('\n— DEX')
+            report_lines.append(f'\n— {os.environ.get("AI_NAME", "AI")}')
             notify_webhook(
                 '\n'.join(report_lines),
                 title='📊 DAILY MARKET SCAN',
@@ -576,7 +576,7 @@ class WorldPulse:
         # AI insight — skipped while Anthropic credits depleted (Qwen blocks on connect)
         # Re-enable when Claude API is restored: call rt.run() via multiprocessing with timeout
 
-        lines.append('— DEX')
+        lines.append(f'— {os.environ.get("AI_NAME", "AI")}')
         return '\n'.join(lines)
 
     def get_pulse_summary(self) -> str:

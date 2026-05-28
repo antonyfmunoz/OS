@@ -183,8 +183,15 @@ class RuntimeGraph:
     graph to determine where to execute any given task.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, event_spine: Any | None = None) -> None:
         self._nodes: dict[str, RuntimeNode] = {}
+        self._event_spine = event_spine
+
+    def _emit(self, event_type: str, data: dict[str, Any]) -> None:
+        if self._event_spine is None:
+            return
+        from substrate.organism.event_spine import EventDomain
+        self._event_spine.emit(EventDomain.RUNTIME, event_type, "runtime_graph", data)
 
     def register(
         self,
@@ -210,6 +217,7 @@ class RuntimeGraph:
             runtime_class.value,
             sorted(c.value for c in capabilities),
         )
+        self._emit("runtime_registered", {"runtime_id": runtime_id, "class": runtime_class.value})
         return node
 
     def unregister(self, runtime_id: str) -> bool:
@@ -223,6 +231,7 @@ class RuntimeGraph:
         if node:
             node.status = status
             node.last_heartbeat = time.time()
+            self._emit("runtime_status_changed", {"runtime_id": runtime_id, "new_status": status.value})
 
     def record_success(self, runtime_id: str, latency_ms: int) -> None:
         node = self._nodes.get(runtime_id)
@@ -230,6 +239,7 @@ class RuntimeGraph:
             node.reliability.record_success(latency_ms)
             node.status = AvailabilityStatus.AVAILABLE
             node.last_heartbeat = time.time()
+            self._emit("runtime_success_recorded", {"runtime_id": runtime_id, "latency_ms": latency_ms})
 
     def record_failure(self, runtime_id: str) -> None:
         node = self._nodes.get(runtime_id)
@@ -237,6 +247,7 @@ class RuntimeGraph:
             node.reliability.record_failure()
             if node.reliability.success_rate < 0.3:
                 node.status = AvailabilityStatus.UNAVAILABLE
+            self._emit("runtime_failure_recorded", {"runtime_id": runtime_id})
 
     def refresh_availability(self) -> dict[str, AvailabilityStatus]:
         """Probe all runtimes and update availability."""

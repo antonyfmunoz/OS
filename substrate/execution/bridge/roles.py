@@ -73,7 +73,7 @@ class RoleRegistry:
     Minimal in-memory role registry, seeded with the three initial roles.
 
     These mirror agent_hierarchy.py at a higher level of abstraction:
-      - ea_orchestrator  ≈ executive_assistant (DEX), the primary interface
+      - ea_orchestrator  ≈ executive_assistant, the primary interface
       - ceo              ≈ a generic CEO slot; per-company CEOs are instances
       - portfolio_advisor ≈ pure intelligence, no command authority
     """

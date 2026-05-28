@@ -1,6 +1,6 @@
 """
 EA Best Practices — world class EA operating standards
-for every tool DEX uses. Imported and applied in
+for every tool the AI uses. Imported and applied in
 gws_connector.py, meetings.py, and email_gps.py.
 """
 
@@ -51,7 +51,7 @@ EMAIL OPERATING STANDARDS — World Class EA
    - FOUNDER folder: personal, known contacts, financial, legal, urgent
    - TO_RESPOND: requires the founder's voice, needs reply within 24h
    - REVIEW: needs his input or decision
-   - RESPONDED: DEX handled completely
+   - RESPONDED: the AI handled completely
    - WAITING_ON: replied, waiting on someone else
    - RECEIPTS: any financial email
    - NEWSLETTERS: unsubscribe link present — never surfaces
@@ -61,7 +61,7 @@ EMAIL OPERATING STANDARDS — World Class EA
    - Short sentences. High signal. No padding.
    - Always include clear next step or ask
    - Never auto-respond to a recognized person with a template
-   - Sign as DEX when handling, as the founder when he approves
+   - Sign as the AI when handling, as the founder when he approves
 
 3. PERSON RECOGNITION:
    - Check every sender against memory before any action
@@ -112,9 +112,9 @@ MEETING OPERATING STANDARDS — World Class EA
    - No manual CRM work required from the founder
 """
 
-# ─── DEX OPERATING PRINCIPLES ────────────────────────
+# ─── the AI OPERATING PRINCIPLES ────────────────────────
 
-DEX_OPERATING_STANDARDS = f"""
+_AI_OPERATING_STANDARDS = f"""
 {CALENDAR_RULES}
 
 {EMAIL_RULES}
@@ -135,5 +135,9 @@ def get_meeting_rules() -> str:
     return MEETING_RULES
 
 
+# Backward compat alias
+DEX_OPERATING_STANDARDS = _AI_OPERATING_STANDARDS
+
+
 def get_all_standards() -> str:
-    return DEX_OPERATING_STANDARDS
+    return _AI_OPERATING_STANDARDS

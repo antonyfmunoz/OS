@@ -1,0 +1,24 @@
+{
+  "id": "obj-b1d0b0c9",
+  "title": "Quick",
+  "status": "executing",
+  "completion_rate": 0.0,
+  "work_units": [
+    {
+      "id": "wu-493b38dd",
+      "objective_id": "obj-b1d0b0c9",
+      "title": "Quick",
+      "unit_type": "execute",
+      "status": "pending",
+      "assigned_runtime": "",
+      "required_capability": "shell",
+      "blocked_by": [],
+      "blocks": [],
+      "attempt_count": 0,
+      "generation": 1,
+      "result": "",
+      "error": ""
+    }
+  ],
+  "generation": 1
+}

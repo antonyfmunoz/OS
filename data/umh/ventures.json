@@ -1,0 +1,83 @@
+{
+  "empyrean_creative": {
+    "stage": "building",
+    "monthly_revenue": 0.0,
+    "monthly_target": 0.0,
+    "primary_icp": "TODO: no ICP language found in any Drive document or local file. The Empyrean Studios (Agency Brand) doc in Drive exists but contains no content. Likely target: founder-operators who need brand strategy and/or AI infrastructure, but no verbatim language from the founder has been captured. Write this when the B2B offer is being actively pitched.",
+    "core_offer": "Dual-function entity. INTERNAL: Incubator that builds and validates the founder's own products and systems — validated outputs spin off as standalone companies (first venture is the first). EXTERNAL (B2B): Proven internal systems packaged as offers for other founders. Current B2B offer candidates: EntrepreneurOS AI system, creative strategy, brand positioning. Revenue model: project fees ($1,500–$3,000/project) + future recurring AI system licenses.",
+    "price_point": "$1,500–$3,000 per project (current) | recurring AI system licenses (future)",
+    "positioning": "A centralized forge that turns philosophy into systems, products, and media without trend dependence. Not a traditional agency. Mission: Enable authentic expression through disciplined creation. Enemy: Trend chasing, aesthetic emptiness, creative laziness. Narrative: Where Mastery Is Forged. The production engine and proof-of-concept lab for the portfolio — proves systems internally first, then sells externally.",
+    "competitors": [
+      "TODO: no competitor research found in any Drive document or local file for the B2B side",
+      "TODO: identify when B2B offer is being actively pitched"
+    ],
+    "winning_content_angles": [
+      "TODO: no content angles documented — content strategy for this entity has not been built yet"
+    ],
+    "proven_outreach_openers": [
+      "TODO: no B2B outreach openers found in any document — no active outreach operation yet"
+    ],
+    "common_objections": [
+      "TODO: no objection data found — entity has no active sales conversations yet"
+    ],
+    "north_star_metric": "Become the production engine and proof-of-concept lab that funds and validates all other ventures under the portfolio",
+    "active_blockers": [
+      "No active B2B clients — entity is pre-revenue on the external side",
+      "No case studies yet — internal work (EntrepreneurOS) is the first proof of concept",
+      "First venture product is the current primary focus — B2B offer gets real attention after first revenue target is stable"
+    ]
+  },
+  "lyfe_institute": {
+    "stage": "building",
+    "monthly_revenue": 0.0,
+    "monthly_target": 10000.0,
+    "primary_icp": "One sentence: 'Ambitious young men (18–25) who feel lost but know they're capable of more.'\n\nWHO THIS IS FOR (verbatim):\n- Feels behind in life\n- Knows they're capable of more\n- Lacks daily structure\n- Scrolls too much / escapes too much\n- Doesn't have a clear 12-month direction\n- Is willing to do uncomfortable work\n\nNOT FOR (verbatim):\n- Victim mindset\n- Blames others\n- Wants motivation without execution\n\nTwo documented psychological states (from ICP research):\n\nAMBITIOUS BUT STUCK: Self-aware, high perceived potential, zero output system. Language: 'I feel like I'm capable of more' / 'every week just disappears' / 'scrolling or gaming instead of building anything.' Not burned out — unstructured. Slowly losing faith the gap will close on its own.\n\nFRUSTRATED DRIFTER: High energy and curiosity. Starts constantly, finishes rarely. Language: 'I keep starting' / 'never finishing them' / 'makes me feel like I'm wasting my life.' Abandonment loop (excitement → momentum fade → quit → shame → repeat) has compounded into identity damage. High emotional urgency. Ready to act.",
+    "core_offer": "Initiate Arena — 90-day structured execution program for men 18–25. Delivery: WHOP (curriculum + PDFs/assignments) + Discord (community + live coaching calls). Included: weekly 90-min group call, private accountability group, weekly execution assignment, Initiate Diagnostic Report (weeks 1–2), 90-Day Personal Execution Plan, end-of-program Roadmap Call. 4-phase transformation map: Phase 1 (weeks 1–2) Stabilization — stop drift, install structure. Phase 2 (weeks 3–6) Direction + Skill Activation — install one primary execution lane. Phase 3 (weeks 7–10) Pressure + Exposure — real-world friction and proof under discomfort. Phase 4 (weeks 11–12) Identity Lock-In — Personal Operating Code, 12-Month Execution Plan. Full offer ladder exists (Game of Lyfe → Sovereign Path → Modern Monarch Mastermind) but is roadmap only — no resources allocated until first product hits $10K/mo net.",
+    "price_point": "Initiate Arena: $750 founding (ACTIVE) | Game of Lyfe: $5,000 (roadmap) | Sovereign Path: $15,000 1-on-1 (roadmap) | Modern Monarch Mastermind: $25,000 (roadmap)",
+    "positioning": "Not a coaching program — an educational institution that develops sovereign individuals. From Dependence To Sovereignty. Mission: Develop sovereign individuals. USP: Education designed to eliminate dependence. Enemy: Indoctrination, dishonesty, ineffectiveness. Theme: Agency. Archetype: The Mentor & Sage. Competes where Robbins and Dispenza can't: depth of frameworks + gamification + AI + daily-use community platform. Robbins = hype events + surface-level motivation. Dispenza = meditation + neuroscience → spirituality. Neither dominates Gen Z + Millennial attention markets. You = LYFEOS + Game of Lyfe → the OS of transformation.",
+    "competitors": [
+      "Tony Robbins — hype events, surface-level motivation, passive audience",
+      "Joe Dispenza — meditation, neuroscience, spirituality, retreat-based",
+      "TODO: research execution-based accountability cohorts and masculine development programs targeting 18–25 men (e.g. Modern Wisdom adjacent, discipline-focused creators)"
+    ],
+    "winning_content_angles": [
+      "\"You don't have a discipline problem. You have a structure problem.\"",
+      "\"You're not confused. You're undisciplined.\"",
+      "\"You don't lack purpose. You lack structure.\"",
+      "\"Scrolling is the new sedation.\"",
+      "\"You don't need more podcasts. You need constraints.\"",
+      "\"Capable people go broke on potential. Builders go broke on execution.\"",
+      "\"If every week disappears, your environment is built for consumption — not output.\"",
+      "\"Starting is easy. Finishing is a skill. Here's how to build it.\"",
+      "\"Every unfinished project is a loan against your future self-belief.\"",
+      "Myth-bust: \"Working harder isn't the fix if your week has no architecture.\"",
+      "Discussion prompt: \"What's the gap between who you think you are and what you shipped this week?\"",
+      "Discussion prompt: \"How many half-finished projects are sitting in your notes right now?\"",
+      "Vulnerable/story: \"I used to abandon everything I started — here's what actually changed that.\"",
+      "Document the rebuild publicly — show wake time, focus blocks, outreach numbers, honest struggles. The hero is the system, not you."
+    ],
+    "proven_outreach_openers": [
+      "WARM (verbatim): 'Yo — quick honest question: do you feel clear and structured about your direction right now? I'm opening a small founding group for ambitious guys 18–25 who feel lost but know they're capable of more. Want me to send you the details?'",
+      "COLD (verbatim): 'Random but real question — do you feel clear about where your life is going right now? I'm building something for ambitious young men who feel stuck but capable of more.'",
+      "Do you feel like you're capable of more than what you're actually shipping each week?",
+      "You don't have a motivation problem. You have an architecture problem. Sound familiar?",
+      "Most people who feel stuck aren't lazy. They're just running without a track. Does that land for you?",
+      "If discipline was going to fix it, it would've fixed it by now. What do you think is actually missing?",
+      "When you do have a productive week, what made it different from the others?",
+      "Do you find it easier to start things than to finish them?",
+      "Be honest — how many projects are sitting half-done right now?",
+      "You're not someone who doesn't finish things. You're someone who never had a system that made finishing inevitable. Big difference.",
+      "Every abandoned project costs something — not just time, but belief. How much has the cycle cost you?"
+    ],
+    "common_objections": [
+      "TODO: no objection data captured in any document yet — log objections from sales calls and DM conversations as they come in. Likely to encounter: 'I've tried courses before and didn't finish', 'I don't have the money right now', 'I need to think about it', 'I can figure this out on my own'"
+    ],
+    "north_star_metric": "$10K/month net profit from Initiate Arena",
+    "active_blockers": [
+      "Pre-revenue — no sales closed yet, first close is the immediate target",
+      "Outreach is the primary acquisition channel — volume and conversion are the only levers",
+      "No case studies or testimonials yet — social proof gap at point of sale",
+      "Game of Lyfe, Sovereign Path, and Mastermind are frozen until $10K/mo is stable"
+    ]
+  }
+}

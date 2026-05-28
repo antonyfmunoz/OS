@@ -6,7 +6,9 @@ Section 1 (Your list). Also pushes to Notion dashboard.
 
 import json
 import logging
+import os
 from datetime import datetime, timezone
+from substrate.self_model import get_handler_prefix as _ghp
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +29,13 @@ _IDEA_SIGNALS = [
 
 # Messages that should never be captured
 _SKIP_SIGNALS = [
-    'how are you', 'what\'s up', 'hey dex', 'morning', 'good morning',
+    'how are you', 'what\'s up', 'morning', 'good morning',
     'status', 'brief', 'what\'s the', 'how\'s', 'show me',
 ]
+# Add AI-name-specific skip signals at import time
+_ai_lower = os.environ.get("AI_NAME", "").lower()
+if _ai_lower:
+    _SKIP_SIGNALS.append(f"hey {_ai_lower}")
 
 
 def should_capture(text: str) -> tuple[bool, str]:
@@ -58,29 +64,44 @@ def should_capture(text: str) -> tuple[bool, str]:
 
 def _classify_venture(text: str) -> str:
     """Classify which venture a capture belongs to using the model router."""
+    _default_venture = os.environ.get("UMH_ACTIVE_VENTURE", "")
     try:
         from adapters.models.model_router import get_router
         router = get_router()
+
+        # Build venture list dynamically from instance config
+        venture_lines = []
+        try:
+            from substrate.self_model import SelfModel
+            sm = SelfModel()
+            for v in sm.instance.ventures:
+                venture_lines.append(f"- {v.get('id', '')}: {v.get('name', '')}")
+        except Exception:
+            # Fallback: use env var for active venture
+            if _default_venture:
+                venture_lines.append(f"- {_default_venture}")
+
+        venture_block = "\n".join(venture_lines) if venture_lines else "- (no ventures configured)"
+        venture_ids = [v.get('id', '') for v in getattr(getattr(SelfModel(), 'instance', None), 'ventures', [])] if venture_lines else [_default_venture]
+
         prompt = f"""Classify which venture this task belongs to.
 
 Ventures:
-- lyfe_institute: coaching/education for men 18-25, discipline, identity, personal development
-- empyrean_creative: B2B AI infrastructure, business automation, AI systems for companies
-- personal_brand: Antony's personal content, Twitch, audience building
+{venture_block}
 
 Task: "{text}"
 
-Reply with exactly one of: lyfe_institute | empyrean_creative | personal_brand"""
+Reply with exactly one venture id."""
 
         from substrate.contracts.agent_types import TaskType
         model = router.route(TaskType.FAST_RESPONSE)
         result = router.call(model, prompt).strip().lower()
-        if result in ('lyfe_institute', 'empyrean_creative', 'personal_brand'):
+        if result in venture_ids:
             return result
-        return 'lyfe_institute'
+        return _default_venture
     except Exception as e:
         logger.warning(f"[Capture] Venture classification failed: {e}")
-        return 'lyfe_institute'
+        return _default_venture
 
 
 def capture_to_neon(text: str, capture_type: str, ctx=None) -> bool:
@@ -93,7 +114,7 @@ def capture_to_neon(text: str, capture_type: str, ctx=None) -> bool:
 
         AgentMemory().log_event(
             org_id=str(ctx.org_id),
-            event_type='dex_task',
+            event_type=f'{_ghp()}task',
             payload={
                 'task': f'{capture_type.upper()}: {text}',
                 'status': None,
@@ -114,23 +135,22 @@ def capture_to_neon(text: str, capture_type: str, ctx=None) -> bool:
 def capture_to_notion(text: str, capture_type: str, venture_id: str = None) -> bool:
     """Push a captured task/idea to the Notion dashboard via SDK client."""
     try:
-        import os
         from datetime import date
 
         from adapters.notion.integration.auth import get_notion_client
 
-        if venture_id == 'empyrean_creative':
-            your_list_db = os.getenv('NOTION_YOUR_LIST_EMPYREAN')
-            venture_label = 'Empyrean Creative'
-        elif venture_id == 'personal_brand':
-            your_list_db = os.getenv('NOTION_YOUR_LIST_BRAND')
-            venture_label = 'Personal Brand'
-        else:
-            your_list_db = os.getenv('NOTION_YOUR_LIST_LYFE')
-            venture_label = 'Lyfe Institute'
+        # Resolve Notion DB and label from env vars — keyed by venture_id
+        _vid_upper = (venture_id or "").upper().replace(" ", "_")
+        your_list_db = os.getenv(f'NOTION_YOUR_LIST_{_vid_upper}') if _vid_upper else None
+        venture_label = (venture_id or "").replace("_", " ").title()
 
+        # Fallback: try generic Notion DB env var
+        if not your_list_db:
+            your_list_db = os.getenv('NOTION_YOUR_LIST_DEFAULT')
         if not your_list_db:
             return False
+
+        _founder = os.environ.get("UMH_FOUNDER_NAME", "Founder")
 
         client = get_notion_client()
         client.pages.create(
@@ -149,7 +169,7 @@ def capture_to_notion(text: str, capture_type: str, venture_id: str = None) -> b
                     'select': {'name': 'Discord'}
                 },
                 'Assigned To': {
-                    'select': {'name': 'Antony'}
+                    'select': {'name': _founder}
                 },
                 'Venture': {
                     'select': {'name': venture_label}
@@ -187,7 +207,8 @@ def capture(text: str, ctx=None, venture_id: str = None) -> dict:
         'notion_ok': notion_ok,
     }
 
-    # BBR check — should DEX handle this without flagging Antony?
+    # BBR check — should the AI handle this without flagging the founder?
+    _ai_name = os.environ.get("AI_NAME", "AI")
     try:
         from substrate.state.metrics.founder_rate import get_current_founder_rate
         from substrate.control_plane.strategy.task_yield_matrix import classify_task_yield
@@ -197,8 +218,8 @@ def capture(text: str, ctx=None, venture_id: str = None) -> dict:
             if drip.get('quadrant') == 'delegate':
                 result['below_bbr'] = True
                 result['bbr_message'] = (
-                    f'🤖 This is a DEX task (below ${rate["founder_rate"]}/hr). '
-                    f'Adding to DEX queue — not flagging to you.'
+                    f'This is a {_ai_name} task (below ${rate["founder_rate"]}/hr). '
+                    f'Adding to {_ai_name} queue — not flagging to you.'
                 )
     except Exception:
         pass

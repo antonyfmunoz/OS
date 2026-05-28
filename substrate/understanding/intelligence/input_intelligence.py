@@ -33,6 +33,7 @@ The enhancer never:
 
 import re
 import logging
+import os
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -48,8 +49,12 @@ _GREETING_SIGNALS = {
     "what's up", "whats up", "sup", "yo", "how are you",
     "how are you doing", "how's it going", "hows it going",
     "what's going on", "whats going on", "wassup",
-    "how you doing", "how are things", "hey dex", "hi dex",
+    "how you doing", "how are things",
 }
+# Add AI-name-specific greetings at import time
+_ai_lower = os.environ.get("AI_NAME", "").lower()
+if _ai_lower:
+    _GREETING_SIGNALS.update({f"hey {_ai_lower}", f"hi {_ai_lower}"})
 
 # Messages that are status checks — pass through, already clear
 _STATUS_SIGNALS = {
@@ -329,12 +334,14 @@ Produce the enhanced execution prompt:"""
         except Exception:
             pass
 
-        # Fallback — hardcoded portfolio context
-        return """
-Portfolio: Munoz Conglomerate → Lyfe Corp → Lyfe Institute, Empyrean Creative, Antony F. Munoz (personal brand)
-Lyfe Institute: Initiate Arena ($750, 90-day coaching, men 18-25), Stage 1 Validation, Instagram DMs
-Empyrean Creative: B2B AI infrastructure, Stage 1 Validation
-Antony F. Munoz brand: The Vigilante Architect archetype, Twitch primary channel
-Founder: Antony F. Munoz
-DEX = the AI Executive Assistant (not decentralized exchange)
-"""
+        # Fallback — load from instance config
+        _ai = os.environ.get("AI_NAME", "AI")
+        _founder = os.environ.get("UMH_FOUNDER_NAME", "the founder")
+        _org = os.environ.get("UMH_ORG_NAME", "Portfolio")
+        _venture = os.environ.get("UMH_ACTIVE_VENTURE", "")
+        return (
+            f"Portfolio: {_org}\n"
+            f"Active venture: {_venture}\n"
+            f"Founder: {_founder}\n"
+            f"{_ai} = the AI Executive Assistant\n"
+        )

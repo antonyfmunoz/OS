@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# UMH Pre-Commit Gate
+# Runs all substrate integrity checks before allowing a commit.
+# Install: ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+echo "── UMH Pre-Commit Gate ──"
+
+# Gate 1: Type Coherence — no parallel type definitions
+echo "  [1/2] Type divergence check..."
+python3 "$REPO_ROOT/scripts/check_type_divergence.py"
+
+# Gate 2: Instance Context — no hardcoded instance values in substrate
+echo "  [2/2] Instance context leak check..."
+python3 "$REPO_ROOT/scripts/check_instance_leak.py"
+
+echo "── All gates passed ──"

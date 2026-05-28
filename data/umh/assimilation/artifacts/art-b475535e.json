@@ -1,0 +1,23 @@
+{
+  "id": "art-b475535e",
+  "name": "test-system",
+  "source_url": "https://example.com",
+  "artifact_type": "unknown",
+  "status": "scored",
+  "primitives_count": 1,
+  "leverage_summary": {
+    "count": 1,
+    "avg_score": 0.85,
+    "max_score": 0.85
+  },
+  "redundancy_report": {
+    "artifact_id": "art-b475535e",
+    "total_primitives": 1,
+    "redundant": [],
+    "novel": [
+      "prim-f1b5f5b4"
+    ],
+    "partial_overlap": []
+  },
+  "created_at": 1779923667.1808345
+}

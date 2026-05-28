@@ -132,11 +132,19 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "AdvisorScope": ["substrate.organism.advisor_hierarchy"],
     "AdvisorAuthority": ["substrate.organism.advisor_hierarchy"],
     "AdvisorStatus": ["substrate.organism.advisor_hierarchy"],
+    # ── substrate/organism/leverage_assimilation.py ──────────────────
+    "LeveragePrimitiveType": ["substrate.organism.leverage_assimilation"],
     # ── substrate/organism/event_spine.py ─────────────────────────────
     "EventDomain": ["substrate.organism.event_spine"],
     "EventPriority": ["substrate.organism.event_spine"],
     # ── substrate/organism/objective_queue.py ──────────────────────────
     "ObjectiveQueueStatus": ["substrate.organism.objective_queue"],
+    # ── substrate/organism/allocation_loop.py ──────────────────────────
+    "AllocationStrategy": ["substrate.organism.allocation_loop"],
+    # ── substrate/organism/async_coordinator.py ───────────────────────
+    "AsyncObjectiveStatus": ["substrate.organism.async_coordinator"],
+    # ── substrate/organism/projection_port.py ────────────────────────
+    "StateSlice": ["substrate.organism.projection_port"],
     # ── substrate/self_model.py ────────────────────────────────────────
     "Layer": ["substrate.self_model"],
     "ContextKind": ["substrate.self_model"],

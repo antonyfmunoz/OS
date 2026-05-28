@@ -8,11 +8,10 @@ from __future__ import annotations
 
 import os
 
-# Tailscale IPs discovered from `tailscale status`
-TAILSCALE_VPS = "100.77.233.50"
-TAILSCALE_DESKTOP = "100.74.199.102"
-TAILSCALE_IPAD = "100.98.71.38"
-TAILSCALE_IPHONE = "100.108.75.25"
+TAILSCALE_VPS = os.environ.get("TAILSCALE_VPS_IP", "")
+TAILSCALE_DESKTOP = os.environ.get("TAILSCALE_DESKTOP_IP", "")
+TAILSCALE_IPAD = os.environ.get("TAILSCALE_IPAD_IP", "")
+TAILSCALE_IPHONE = os.environ.get("TAILSCALE_IPHONE_IP", "")
 
 BACKEND_PORT = int(os.environ.get("UMH_BACKEND_PORT", "8093"))
 FRONTEND_PORT = int(os.environ.get("UMH_FRONTEND_PORT", "5173"))

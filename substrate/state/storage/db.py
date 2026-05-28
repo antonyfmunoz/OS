@@ -33,7 +33,7 @@ USER_ID = os.environ.get("EOS_USER_ID", "")
 # ─── ID resolution caches ─────────────────────────────────────────────────────
 # Maps Python string slugs → Postgres UUIDs. Loaded once per process.
 
-_venture_cache: dict[str, str] = {}  # "lyfe_institute" → "<uuid>"
+_venture_cache: dict[str, str] = {}  # "venture_slug" → "<uuid>"
 _skill_cache: dict[str, str] = {}  # "analyze_icp_signal" → "<uuid>"
 _caches_loaded: bool = False
 
@@ -104,13 +104,13 @@ def resolve_venture(slug: str | None) -> str | None:
     Map a Python venture slug to its Neon UUID.
 
     Slugs are derived from venture names: lowercase, spaces → underscores.
-    e.g. "Lyfe Institute" → "lyfe_institute" → "<uuid>"
+    e.g. "My Venture" → "my_venture" → "<uuid>"
 
     Returns None if the slug is unknown or None.
     """
     if not slug:
         return None
-    # Normalize — callers may pass either "Lyfe Institute" or "lyfe_institute"
+    # Normalize — callers may pass either "My Venture" or "my_venture"
     normalized = slug.lower().replace(" ", "_")
     return _venture_cache.get(normalized)
 

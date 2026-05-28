@@ -9,6 +9,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from pathlib import Path
 from dotenv import load_dotenv
+from substrate.self_model import get_handler_prefix as _ghp
 
 load_dotenv(Path(__file__).parent / '.env')
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ def set_okr(
                 'quarter': quarter,
                 'created_at': now.isoformat(),
             },
-            handled_by='dex_okr',
+            handled_by=f'{_ghp()}okr',
         )
         return True
     except Exception as e:

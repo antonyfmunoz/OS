@@ -20,7 +20,7 @@ def advisor(store):
 
 
 def test_full_vertical_slice(advisor, store):
-    """Antony sends a signal. DEX delegates. Agent executes. Deliverable appears."""
+    """User sends a signal. Advisor delegates. Agent executes. Deliverable appears."""
     result = advisor.handle_signal(
         "Audit the services/umh/organism/ directory for any missing __init__.py files"
     )

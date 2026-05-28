@@ -428,7 +428,7 @@ DOMAINS: dict[str, dict] = {
         ],
         'current_focus': [
             'DM to call conversion patterns',
-            'Initiate Arena objection handling',
+            'active product objection handling',
             'pricing conversation for $750 offer',
         ],
         'connected_to': [
@@ -483,7 +483,7 @@ DOMAINS: dict[str, dict] = {
             'Financial discipline creates optionality',
         ],
         'current_focus': [
-            'path to $10K/month Initiate Arena',
+            'path to first revenue target for active product',
             'cost optimization for AI spend',
             'venture capital vs bootstrapping tradeoffs',
         ],
@@ -675,8 +675,8 @@ DOMAINS: dict[str, dict] = {
         ],
         'current_focus': [
             'short form video storytelling for Instagram',
-            'Antony brand narrative: vigilante architect',
-            'testimonial story structure for Initiate Arena',
+            'founder brand narrative development',
+            'testimonial story structure for active product',
         ],
         'connected_to': [
             'business_marketing', 'human_psychology',
@@ -707,7 +707,7 @@ DOMAINS: dict[str, dict] = {
             'tactical': [
                 'Instagram hook formula: identity statement + challenge + implicit promise in 3 words or less',
                 'Comment-triggering content: ends on a question or provocation — never a conclusion',
-                'Antony brand angle: the system builder vs the motivator — antihero of self-help',
+                'Founder brand angle: the system builder vs the motivator — antihero of self-help',
             ],
             'psychological': [
                 'Audiences self-insert into the hero — make the hero relatable, not admirable',

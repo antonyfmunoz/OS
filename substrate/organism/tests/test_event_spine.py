@@ -194,3 +194,42 @@ def test_spine_correlation_id():
 
     recent = spine.recent(limit=10)
     assert all(e.correlation_id == "obj-123" for e in recent)
+
+
+def test_jsonl_persistence(tmp_path):
+    path = str(tmp_path / "events.jsonl")
+    spine = EventSpine(persist_path=path)
+    spine.emit(EventDomain.EXECUTION, "test_event", "test_src", {"key": "val"})
+    spine.emit(EventDomain.RUNTIME, "rt_event", "rt_src", {"rt": 1})
+
+    spine2 = EventSpine(persist_path=path)
+    count = spine2.recover()
+    assert count == 2
+    events = spine2.recent(10)
+    assert events[0].event_type == "test_event"
+    assert events[1].event_type == "rt_event"
+    assert events[0].source == "test_src"
+
+
+def test_jsonl_recovery_empty_file(tmp_path):
+    path = tmp_path / "events.jsonl"
+    path.write_text("")
+    spine = EventSpine(persist_path=str(path))
+    assert spine.recover() == 0
+
+
+def test_jsonl_no_persist_path():
+    spine = EventSpine()
+    spine.emit(EventDomain.RUNTIME, "test", "src", {})
+    assert spine.recover() == 0
+
+
+def test_snapshot_includes_persist_path(tmp_path):
+    path = str(tmp_path / "events.jsonl")
+    spine = EventSpine(persist_path=path)
+    snap = spine.snapshot()
+    assert snap["persist_path"] == path
+
+    spine2 = EventSpine()
+    snap2 = spine2.snapshot()
+    assert snap2["persist_path"] is None
