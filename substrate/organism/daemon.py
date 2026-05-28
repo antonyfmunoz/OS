@@ -29,14 +29,19 @@ from substrate.organism.allocation_loop import AllocationLoop
 from substrate.organism.approval_store import ApprovalStore
 from substrate.organism.async_coordinator import AsyncCoordinator
 from substrate.organism.autonomous_tick import AutonomousTick, TickConfig
+from substrate.organism.bottleneck_engine import BottleneckEngine
 from substrate.organism.coordinator import OrganismCoordinator
 from substrate.organism.environment_graph import EnvironmentGraph
 from substrate.organism.environment_reconciler import EnvironmentReconciler
 from substrate.organism.event_spine import EventDomain, EventSpine
 from substrate.organism.execution_economy import ExecutionEconomy
+from substrate.organism.execution_modes import ExecutionModeManager
 from substrate.organism.homeostasis import HomeostasisEngine
 from substrate.organism.leverage_assimilation import LeverageAssimilator
+from substrate.organism.leverage_metrics import LeverageMetrics
+from substrate.organism.objective_physics import ObjectivePhysics
 from substrate.organism.objective_queue import ObjectiveQueue
+from substrate.organism.operator_compression import OperatorCompression
 from substrate.organism.projection_port import OrganismStatePort, StateSlice
 from substrate.organism.recursion_governance import RecursionGovernor
 from substrate.organism.runtime_graph import RuntimeGraph
@@ -44,6 +49,7 @@ from substrate.organism.runtime_supervisor import RuntimeSupervisor
 from substrate.organism.store import OrganismStore
 from substrate.organism.workcell_daemon import WorkcellDaemon as WorkcellDaemonV2
 from substrate.organism.workcell_protocol import Workcell, WorkcellRole
+from substrate.organism.workload_probes import WorkloadProbes
 from substrate.organism.worker_cell import WorkerCell
 from substrate.execution.pipeline import ExecutionPipeline
 
@@ -159,6 +165,25 @@ class OrganismDaemon:
 
         self._environment_graph = EnvironmentGraph()
 
+        self._leverage_metrics = LeverageMetrics(
+            event_spine=self._event_spine,
+        )
+        self._bottleneck_engine = BottleneckEngine(
+            event_spine=self._event_spine,
+        )
+        self._objective_physics = ObjectivePhysics(
+            event_spine=self._event_spine,
+        )
+        self._operator_compression = OperatorCompression(
+            event_spine=self._event_spine,
+        )
+        self._execution_mode_manager = ExecutionModeManager(
+            event_spine=self._event_spine,
+        )
+        self._workload_probes = WorkloadProbes(
+            event_spine=self._event_spine,
+        )
+
         self._workcell_daemon = WorkcellDaemonV2(
             state_dir=str(self._state_dir / "workcell_daemon"),
         )
@@ -255,9 +280,57 @@ class OrganismDaemon:
                 self._reconciler.reconcile_tick,
             )
         self._autonomous_tick.register_stage(
+            "leverage_measurement",
+            self._leverage_metrics.leverage_tick,
+        )
+        self._autonomous_tick.register_stage(
+            "bottleneck_detection",
+            self._bottleneck_detection_tick,
+        )
+        self._autonomous_tick.register_stage(
+            "objective_physics",
+            self._objective_physics.physics_tick,
+        )
+        self._autonomous_tick.register_stage(
+            "operator_compression",
+            self._operator_compression.compression_tick,
+        )
+        self._autonomous_tick.register_stage(
+            "workload_probes",
+            self._workload_probes.full_probe,
+        )
+        self._autonomous_tick.register_stage(
             "projection_broadcast",
             self._broadcast_state,
         )
+
+    def _bottleneck_detection_tick(self) -> dict[str, Any]:
+        """Feed real metrics into the bottleneck engine."""
+        leverage_inputs = self._leverage_metrics.bottleneck_inputs()
+
+        runtime_stats: list[dict[str, Any]] = []
+        if self._graph is not None:
+            for node in self._graph.all_nodes():
+                runtime_stats.append({
+                    "runtime_id": node.runtime_id,
+                    "avg_latency_ms": node.reliability.avg_latency_ms,
+                    "idle_cycles": 0,
+                })
+
+        tick_metrics = self._autonomous_tick.metrics
+        bottlenecks = self._bottleneck_engine.detect(
+            leverage_inputs=leverage_inputs,
+            runtime_stats=runtime_stats,
+            tick_metrics={
+                "total_stages_executed": tick_metrics.total_stages_executed,
+                "total_stages_failed": tick_metrics.total_stages_failed,
+            },
+            queue_depth=self._objective_queue.depth(),
+        )
+        return {
+            "detected": len(bottlenecks),
+            "critical": sum(1 for b in bottlenecks if b.severity.value == "critical"),
+        }
 
     def _broadcast_state(self) -> None:
         """Push current state through the projection port and capture topology."""
@@ -274,6 +347,10 @@ class OrganismDaemon:
         self._projection_port.broadcast(
             StateSlice.GOVERNANCE,
             self._governor.to_dict(),
+        )
+        self._projection_port.broadcast(
+            StateSlice.LEVERAGE,
+            self._leverage_metrics.to_dict(),
         )
         self._environment_graph.capture(
             graph=self._graph,
@@ -346,6 +423,30 @@ class OrganismDaemon:
     @property
     def governor(self) -> RecursionGovernor:
         return self._governor
+
+    @property
+    def leverage_metrics(self) -> LeverageMetrics:
+        return self._leverage_metrics
+
+    @property
+    def bottleneck_engine(self) -> BottleneckEngine:
+        return self._bottleneck_engine
+
+    @property
+    def objective_physics(self) -> ObjectivePhysics:
+        return self._objective_physics
+
+    @property
+    def operator_compression(self) -> OperatorCompression:
+        return self._operator_compression
+
+    @property
+    def execution_mode_manager(self) -> ExecutionModeManager:
+        return self._execution_mode_manager
+
+    @property
+    def workload_probes(self) -> WorkloadProbes:
+        return self._workload_probes
 
     def start(self) -> None:
         self._started = True
@@ -466,6 +567,12 @@ class OrganismDaemon:
             "tick_engine": self._autonomous_tick.to_dict(),
             "event_spine": self._event_spine.snapshot(),
             "governor": self._governor.to_dict(),
+            "leverage": self._leverage_metrics.to_dict(),
+            "bottlenecks": self._bottleneck_engine.to_dict(),
+            "objective_physics": self._objective_physics.to_dict(),
+            "operator_compression": self._operator_compression.to_dict(),
+            "execution_mode": self._execution_mode_manager.to_dict(),
+            "workload_probes": self._workload_probes.to_dict(),
             **self._advisor.organism_status(),
         }
         if self._graph is not None:
