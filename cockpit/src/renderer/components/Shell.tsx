@@ -30,6 +30,7 @@ import { InfrastructurePanel } from '../panels/InfrastructurePanel'
 import { ProfilePanel } from '../panels/ProfilePanel'
 import { OrganismPanel } from '../panels/OrganismPanel'
 import { IntelligencePanel } from '../panels/IntelligencePanel'
+import { WorldModelPanel } from '../panels/WorldModelPanel'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -77,6 +78,8 @@ function ActivePanel() {
       return <OrganismPanel />
     case 'intelligence':
       return <IntelligencePanel />
+    case 'worldmodel':
+      return <WorldModelPanel />
     default:
       return <DashboardPanel />
   }
