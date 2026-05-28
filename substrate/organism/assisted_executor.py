@@ -26,6 +26,13 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from substrate.organism.action_envelope import (
+    ActionEnvelope,
+    ActionType,
+    BlastRadius,
+    ExecutionConstraints,
+    ReversibilityClass,
+)
 from substrate.organism.event_spine import EventDomain, EventPriority, EventSpine
 from substrate.organism.execution_modes import ExecutionMode, ExecutionModeManager
 from substrate.organism.leverage_metrics import LeverageMetrics, TaskRecord
@@ -95,6 +102,59 @@ class AssistedExecutor:
         self._audit_trail: list[AssistedAction] = []
         self._total_executed: int = 0
         self._total_blocked: int = 0
+        self._governed_spine: Any = None
+
+    def set_governed_spine(self, spine: Any) -> None:
+        self._governed_spine = spine
+
+    def create_envelope(
+        self,
+        action_id: str,
+        category: ActionCategory,
+        description: str,
+        approved_by: str = "operator",
+        params: dict[str, Any] | None = None,
+    ) -> ActionEnvelope:
+        """Create an ActionEnvelope for an assisted action."""
+        handler = _ACTION_HANDLERS.get(category)
+        repo_root = self._repo_root
+        action_params = params or {}
+
+        action_type_map: dict[ActionCategory, ActionType] = {
+            ActionCategory.LOG_ROTATION: ActionType.FILESYSTEM,
+            ActionCategory.CONTAINER_RESTART: ActionType.CONTAINER,
+            ActionCategory.RUNTIME_REFRESH: ActionType.STATE,
+            ActionCategory.TEST_SUITE: ActionType.TEST,
+            ActionCategory.GRAPH_REBUILD: ActionType.GRAPH,
+            ActionCategory.BRANCH_CLEANUP: ActionType.CLEANUP,
+            ActionCategory.DISK_CLEANUP: ActionType.CLEANUP,
+        }
+
+        def _execute() -> tuple[str, bool]:
+            if handler is None:
+                return f"No handler for {category.value}", False
+            return handler(repo_root, action_params)
+
+        return ActionEnvelope(
+            intent=description,
+            action_type=action_type_map.get(category, ActionType.STATE),
+            source="assisted_executor",
+            execute_fn=_execute,
+            risk_level="medium",
+            blast_radius=BlastRadius.LOCAL_RUNTIME,
+            reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+            estimated_manual_seconds=_MANUAL_ESTIMATES.get(category, 60.0),
+            constraints=ExecutionConstraints(
+                timeout_seconds=120.0,
+                require_approval=True,
+            ),
+            metadata={
+                "mutation_name": category.value,
+                "action_id": action_id,
+                "category": category.value,
+                "approved_by": approved_by,
+            },
+        )
 
     def execute_action(
         self,
