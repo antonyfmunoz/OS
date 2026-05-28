@@ -646,7 +646,9 @@ async def mesh_nodes():
     try:
         result = subprocess.run(
             ["tailscale", "status", "--json"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode == 0:
             _parse_ts_data(json.loads(result.stdout))
@@ -662,17 +664,19 @@ async def mesh_nodes():
                 pass
 
     if not nodes:
-        nodes.append({
-            "node_id": "vps-primary",
-            "hostname": os.uname().nodename,
-            "role": "orchestrator",
-            "status": "online",
-            "os": "linux",
-            "ip": "",
-            "last_seen": datetime.now(timezone.utc).isoformat(),
-            "daemon_version": None,
-            "capabilities": [],
-        })
+        nodes.append(
+            {
+                "node_id": "vps-primary",
+                "hostname": os.uname().nodename,
+                "role": "orchestrator",
+                "status": "online",
+                "os": "linux",
+                "ip": "",
+                "last_seen": datetime.now(timezone.utc).isoformat(),
+                "daemon_version": None,
+                "capabilities": [],
+            }
+        )
 
     return nodes
 
@@ -681,12 +685,14 @@ def _get_mesh_server():
     """Lazy import to avoid circular dependency at module load."""
     try:
         from transports.api.app import _mesh_server
+
         if _mesh_server is not None:
             return _mesh_server
     except (ImportError, AttributeError):
         pass
     try:
         from services.operator_api import _mesh_server_instance
+
         return _mesh_server_instance
     except (ImportError, AttributeError):
         return None
@@ -760,12 +766,14 @@ async def organism_signal(payload: dict):
 def _get_organism():
     try:
         from transports.api.app import _organism
+
         if _organism is not None:
             return _organism
     except (ImportError, AttributeError):
         pass
     try:
         from services.operator_api import _organism_daemon
+
         return _organism_daemon
     except (ImportError, AttributeError):
         return None
@@ -1818,7 +1826,9 @@ async def cockpit_ws(ws: WebSocket):
             try:
                 result = subprocess.run(
                     ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}"],
-                    capture_output=True, text=True, timeout=3,
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
                 )
                 for line in result.stdout.strip().split("\n"):
                     if "\t" in line:
@@ -1865,11 +1875,14 @@ async def cockpit_ws(ws: WebSocket):
     finally:
         _cockpit_clients.discard(ws)
         logger.info(f"cockpit ws disconnected ({len(_cockpit_clients)} clients)")
+
+
 # ─── Persistent Loops ────────────────────────────────────────────────────────
 
 
 def _get_loop_registry():
     from substrate.execution.loop import get_registry
+
     registry = get_registry()
     if not registry.list_loops():
         registry.load_definitions()
@@ -1890,6 +1903,7 @@ async def loop_stages():
     """List available pipeline stages."""
     try:
         from substrate.execution.loop import STAGE_REGISTRY
+
         return {
             name: (func.__doc__ or "").strip().split("\n")[0]
             for name, func in sorted(STAGE_REGISTRY.items())
@@ -1938,12 +1952,16 @@ async def loop_create(payload: dict):
     try:
         from substrate.execution.loop import STAGE_REGISTRY
         from substrate.execution.loop.persistent_loop import LoopDefinition
+
         registry = _get_loop_registry()
 
         stages = payload.get("stages", [])
         unknown = [s for s in stages if s not in STAGE_REGISTRY]
         if unknown:
-            return {"error": f"unknown stages: {unknown}", "available": sorted(STAGE_REGISTRY.keys())}
+            return {
+                "error": f"unknown stages: {unknown}",
+                "available": sorted(STAGE_REGISTRY.keys()),
+            }
 
         defn = LoopDefinition(
             name=payload["name"],
@@ -2138,6 +2156,7 @@ async def organism_leverage():
         if assimilator is not None:
             return assimilator.to_dict()
         from substrate.organism.leverage_assimilation import LeverageAssimilator
+
         return LeverageAssimilator().to_dict()
     except Exception as e:
         return {"error": str(e)}
@@ -2188,9 +2207,11 @@ async def organism_runtimes():
     if graph is None:
         return {"runtimes": [], "count": 0}
     data = graph.to_dict()
+    runtimes_dict = data.get("runtimes", {})
     return {
-        "runtimes": data.get("nodes", []),
-        "count": data.get("node_count", 0),
+        "runtimes": list(runtimes_dict.values()),
+        "count": data.get("total_runtimes", 0),
+        "available": data.get("available", 0),
     }
 
 
@@ -2211,7 +2232,6 @@ async def organism_workcells():
     if daemon is None:
         return {"workcells": [], "count": 0}
     try:
-        from substrate.organism.workcell import WorkcellDaemon
         wc = getattr(daemon, "_workcell_daemon", None)
         if wc is None:
             return {"workcells": [], "count": 0, "note": "workcell daemon not wired"}
@@ -2222,12 +2242,125 @@ async def organism_workcells():
 
 @router.get("/organism/topology")
 async def organism_topology():
-    """Runtime topology — all runtimes, capabilities, health, scoring."""
+    """Full operational topology — runtimes, workcells, system metrics."""
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     try:
+        env_graph = getattr(daemon, "_environment_graph", None)
+        if env_graph is not None:
+            return env_graph.to_dict()
         return daemon.advisor.resource_topology()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/topology/live")
+async def organism_topology_live():
+    """Capture a fresh topology snapshot and return it with diff."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        env_graph = getattr(daemon, "_environment_graph", None)
+        if env_graph is None:
+            return {"error": "environment graph not available"}
+
+        workcell_data = []
+        wcd = getattr(daemon, "_workcell_daemon", None)
+        if wcd is not None:
+            for wc in wcd._workcells.values():
+                workcell_data.append(wc.to_dict())
+
+        snapshot = env_graph.capture(
+            graph=daemon.graph,
+            workcells=workcell_data,
+        )
+        diff = env_graph.diff()
+        return {
+            "snapshot": snapshot.to_dict(),
+            "diff": diff.to_dict() if diff.has_changes else None,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/throughput")
+async def organism_throughput():
+    """Event throughput, tick timing, and pressure metrics."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        spine = daemon.event_spine
+        tick = daemon.autonomous_tick
+        snap = spine.snapshot()
+
+        tick_data = tick.to_dict()
+        metrics = tick_data.get("metrics", {})
+
+        result = {
+            "event_spine": {
+                "total_events": snap.get("total_events", 0),
+                "events_by_domain": snap.get("events_by_domain", {}),
+                "subscriber_count": snap.get("subscriber_count", 0),
+            },
+            "tick_engine": {
+                "cycle_count": tick_data.get("cycle_count", 0),
+                "current_interval": tick_data.get("current_interval", 0),
+                "is_paused": tick_data.get("is_paused", False),
+                "stages": tick_data.get("stages", []),
+                "avg_cycle_ms": metrics.get("avg_cycle_ms", 0),
+                "total_stages_executed": metrics.get("total_stages_executed", 0),
+                "total_stages_failed": metrics.get("total_stages_failed", 0),
+                "consecutive_idle": metrics.get("consecutive_idle", 0),
+            },
+            "runtimes": {
+                "total": daemon.graph.node_count if daemon.graph else 0,
+                "available": daemon.graph.available_count if daemon.graph else 0,
+            },
+        }
+
+        reconciler = getattr(daemon, "_reconciler", None)
+        if reconciler is not None:
+            result["reconciler"] = reconciler.to_dict()
+
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/organism/reconciliation")
+async def organism_reconciliation():
+    """Last reconciliation report and history."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        reconciler = getattr(daemon, "_reconciler", None)
+        if reconciler is None:
+            return {"error": "reconciler not available"}
+        return reconciler.to_dict()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/organism/reconcile")
+async def organism_reconcile_now():
+    """Force an immediate reconciliation cycle."""
+    import asyncio
+
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    try:
+        reconciler = getattr(daemon, "_reconciler", None)
+        if reconciler is None:
+            return {"error": "reconciler not available"}
+
+        loop = asyncio.get_running_loop()
+        report = await loop.run_in_executor(None, reconciler.reconcile)
+        return report.to_dict()
     except Exception as e:
         return {"error": str(e)}
 
@@ -2240,18 +2373,46 @@ async def execution_status():
     """Execution slot status across all compute layers."""
     return {
         "slots": [
-            {"slot": 0, "layer": "native", "task": "", "status": "idle",
-             "step_count": 0, "authority_class": "operator",
-             "risk_class": "LOW", "approval_status": "none"},
-            {"slot": 1, "layer": "container", "task": "", "status": "idle",
-             "step_count": 0, "authority_class": "operator",
-             "risk_class": "LOW", "approval_status": "none"},
-            {"slot": 2, "layer": "wsl", "task": "", "status": "idle",
-             "step_count": 0, "authority_class": "operator",
-             "risk_class": "LOW", "approval_status": "none"},
-            {"slot": 3, "layer": "vm", "task": "", "status": "idle",
-             "step_count": 0, "authority_class": "operator",
-             "risk_class": "LOW", "approval_status": "none"},
+            {
+                "slot": 0,
+                "layer": "native",
+                "task": "",
+                "status": "idle",
+                "step_count": 0,
+                "authority_class": "operator",
+                "risk_class": "LOW",
+                "approval_status": "none",
+            },
+            {
+                "slot": 1,
+                "layer": "container",
+                "task": "",
+                "status": "idle",
+                "step_count": 0,
+                "authority_class": "operator",
+                "risk_class": "LOW",
+                "approval_status": "none",
+            },
+            {
+                "slot": 2,
+                "layer": "wsl",
+                "task": "",
+                "status": "idle",
+                "step_count": 0,
+                "authority_class": "operator",
+                "risk_class": "LOW",
+                "approval_status": "none",
+            },
+            {
+                "slot": 3,
+                "layer": "vm",
+                "task": "",
+                "status": "idle",
+                "step_count": 0,
+                "authority_class": "operator",
+                "risk_class": "LOW",
+                "approval_status": "none",
+            },
         ],
     }
 

@@ -547,7 +547,13 @@ class BeastNodeAdapter:
         start_ms = time.monotonic_ns() // 1_000_000
         try:
             result = subprocess.run(
-                ["ssh", "-o", "ConnectTimeout=5", f"{os.environ.get('UMH_BEAST_SSH_USER', 'user')}@{self._host}", cmd],
+                [
+                    "ssh",
+                    "-o",
+                    "ConnectTimeout=5",
+                    f"{os.environ.get('UMH_BEAST_SSH_USER', 'user')}@{self._host}",
+                    cmd,
+                ],
                 capture_output=True,
                 text=True,
                 timeout=kwargs.get("timeout", 120),
@@ -574,8 +580,88 @@ class BeastNodeAdapter:
             return None
 
 
+class OperatorAPIAdapter:
+    """Operator API — the FastAPI backend itself, always running when queried."""
+
+    @property
+    def runtime_id(self) -> str:
+        return "operator_api"
+
+    @property
+    def runtime_class(self) -> RuntimeClass:
+        return RuntimeClass.PROCESS
+
+    @property
+    def capabilities(self) -> frozenset[RuntimeCapability]:
+        return frozenset(
+            {
+                RuntimeCapability.SHELL,
+                RuntimeCapability.CODE_EXECUTE,
+                RuntimeCapability.FILE_OPS,
+            }
+        )
+
+    def check_available(self) -> bool:
+        return True
+
+    def execute(self, prompt: str, **kwargs: Any) -> RuntimeResult | None:
+        return RuntimeResult(
+            output="operator_api is the current process",
+            runtime_id=self.runtime_id,
+            metadata={"provider": "operator_api"},
+        )
+
+
+def _discover_docker_containers() -> list[DockerAdapter]:
+    """Discover all running Docker containers and return an adapter per container."""
+    if not shutil.which("docker"):
+        return []
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["docker", "ps", "--format", "{{.Names}}"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            return []
+        names = [n.strip() for n in result.stdout.strip().split("\n") if n.strip()]
+        return [DockerAdapter(container_name=n) for n in names]
+    except Exception as exc:
+        logger.debug("docker discovery failed: %s", exc)
+        return []
+
+
+def _discover_tmux_sessions() -> list[TmuxAdapter]:
+    """Discover all active tmux sessions and return an adapter per session."""
+    if not shutil.which("tmux"):
+        return []
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["tmux", "list-sessions", "-F", "#{session_name}"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        if result.returncode != 0:
+            return []
+        names = [n.strip() for n in result.stdout.strip().split("\n") if n.strip()]
+        return [TmuxAdapter(session_name=n) for n in names]
+    except Exception as exc:
+        logger.debug("tmux discovery failed: %s", exc)
+        return []
+
+
 def build_default_graph() -> "RuntimeGraph":
-    """Construct a RuntimeGraph pre-loaded with all known runtimes."""
+    """Construct a RuntimeGraph pre-loaded with all known runtimes.
+
+    Discovers real environment state: all Docker containers, all tmux
+    sessions, AI CLI tools, model APIs, and remote nodes.
+    """
     from substrate.organism.runtime_graph import (
         CostProfile,
         RuntimeGraph,
@@ -583,6 +669,7 @@ def build_default_graph() -> "RuntimeGraph":
 
     graph = RuntimeGraph()
 
+    # ── AI CLI runtimes ──
     cc = CCSDKAdapter()
     graph.register(
         cc.runtime_id,
@@ -619,6 +706,7 @@ def build_default_graph() -> "RuntimeGraph":
         adapter=opencode,
     )
 
+    # ── AI API runtimes ──
     gemini = GeminiAdapter()
     graph.register(
         gemini.runtime_id,
@@ -628,6 +716,7 @@ def build_default_graph() -> "RuntimeGraph":
         adapter=gemini,
     )
 
+    # ── Local model runtimes ──
     ollama = OllamaAdapter()
     graph.register(
         ollama.runtime_id,
@@ -637,6 +726,7 @@ def build_default_graph() -> "RuntimeGraph":
         adapter=ollama,
     )
 
+    # ── Remote nodes ──
     beast = BeastNodeAdapter()
     graph.register(
         beast.runtime_id,
@@ -644,6 +734,45 @@ def build_default_graph() -> "RuntimeGraph":
         beast.capabilities,
         cost=CostProfile(is_subscription=False, cost_per_1k_input=0.0),
         adapter=beast,
+    )
+
+    # ── Operator API (self) ──
+    op = OperatorAPIAdapter()
+    graph.register(
+        op.runtime_id,
+        op.runtime_class,
+        op.capabilities,
+        cost=CostProfile(),
+        adapter=op,
+    )
+
+    # ── Dynamic discovery: Docker containers ──
+    for docker_adapter in _discover_docker_containers():
+        if graph.get(docker_adapter.runtime_id) is None:
+            graph.register(
+                docker_adapter.runtime_id,
+                docker_adapter.runtime_class,
+                docker_adapter.capabilities,
+                cost=CostProfile(),
+                adapter=docker_adapter,
+            )
+
+    # ── Dynamic discovery: tmux sessions ──
+    for tmux_adapter in _discover_tmux_sessions():
+        if graph.get(tmux_adapter.runtime_id) is None:
+            graph.register(
+                tmux_adapter.runtime_id,
+                tmux_adapter.runtime_class,
+                tmux_adapter.capabilities,
+                cost=CostProfile(),
+                adapter=tmux_adapter,
+            )
+
+    logger.info(
+        "built runtime graph: %d runtimes (%d docker, %d tmux)",
+        graph.node_count,
+        sum(1 for n in graph.all_nodes() if n.runtime_id.startswith("docker:")),
+        sum(1 for n in graph.all_nodes() if n.runtime_id.startswith("tmux:")),
     )
 
     return graph
