@@ -32,6 +32,11 @@ def cors_origins() -> list[str]:
         f"http://{TAILSCALE_IPHONE}:{FRONTEND_PORT}",
     ]
 
+    prod_domain = os.environ.get("UMH_PUBLIC_DOMAIN", "")
+    if prod_domain:
+        origins.append(f"https://{prod_domain}")
+        origins.append(f"http://{prod_domain}")
+
     extra = os.environ.get("UMH_CORS_EXTRA_ORIGINS", "")
     if extra:
         origins.extend(o.strip() for o in extra.split(",") if o.strip())

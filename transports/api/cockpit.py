@@ -2179,6 +2179,47 @@ async def organism_full_snapshot():
         return {"error": str(e)}
 
 
+@router.get("/organism/runtimes")
+async def organism_runtimes():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"runtimes": [], "count": 0}
+    graph = getattr(daemon, "graph", None)
+    if graph is None:
+        return {"runtimes": [], "count": 0}
+    data = graph.to_dict()
+    return {
+        "runtimes": data.get("nodes", []),
+        "count": data.get("node_count", 0),
+    }
+
+
+@router.get("/organism/governor")
+async def organism_governor():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    gov = getattr(daemon, "governor", None)
+    if gov is None:
+        return {"error": "governor not available"}
+    return gov.to_dict()
+
+
+@router.get("/organism/workcells")
+async def organism_workcells():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"workcells": [], "count": 0}
+    try:
+        from substrate.organism.workcell import WorkcellDaemon
+        wc = getattr(daemon, "_workcell_daemon", None)
+        if wc is None:
+            return {"workcells": [], "count": 0, "note": "workcell daemon not wired"}
+        return wc.to_dict()
+    except Exception:
+        return {"workcells": [], "count": 0}
+
+
 @router.get("/organism/topology")
 async def organism_topology():
     """Runtime topology — all runtimes, capabilities, health, scoring."""
