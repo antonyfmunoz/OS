@@ -182,12 +182,13 @@ class ExecutablePlan:
 
     def ready_steps(self) -> list[ExecutableStep]:
         completed_ids = {
-            s.composition_step_id for s in self.steps
-            if s.status == StepExecutionStatus.COMPLETED
+            s.composition_step_id for s in self.steps if s.status == StepExecutionStatus.COMPLETED
         }
         failed_ids = {
-            s.composition_step_id for s in self.steps
-            if s.status in (
+            s.composition_step_id
+            for s in self.steps
+            if s.status
+            in (
                 StepExecutionStatus.FAILED,
                 StepExecutionStatus.BLOCKED_BY_FAILURE,
             )
@@ -225,7 +226,8 @@ class ExecutablePlan:
 
     def failure_count(self) -> int:
         return sum(
-            1 for s in self.steps
+            1
+            for s in self.steps
             if s.status in (StepExecutionStatus.FAILED, StepExecutionStatus.BLOCKED_BY_FAILURE)
         )
 
@@ -269,14 +271,17 @@ class ExecutionGraph:
 
     def active_plans(self) -> list[ExecutablePlan]:
         return [
-            p for p in self.plans.values()
+            p
+            for p in self.plans.values()
             if p.status in (ExecutionGraphStatus.PENDING, ExecutionGraphStatus.EXECUTING)
         ]
 
     def completed_plans(self, limit: int = 20) -> list[ExecutablePlan]:
         completed = [
-            p for p in self.plans.values()
-            if p.status in (
+            p
+            for p in self.plans.values()
+            if p.status
+            in (
                 ExecutionGraphStatus.COMPLETED,
                 ExecutionGraphStatus.FAILED,
                 ExecutionGraphStatus.PARTIALLY_COMPLETED,
@@ -365,10 +370,12 @@ class PlanExecutionAdapter:
 
         for comp_step in plan.steps:
             for dep_id in comp_step.depends_on:
-                executable.dependencies.append(ExecutionDependency(
-                    source_step_id=dep_id,
-                    target_step_id=comp_step.id,
-                ))
+                executable.dependencies.append(
+                    ExecutionDependency(
+                        source_step_id=dep_id,
+                        target_step_id=comp_step.id,
+                    )
+                )
 
         self._graph.add(executable)
         return executable
@@ -461,8 +468,10 @@ class PlanExecutionAdapter:
 
             if not ready:
                 pending_non_blocked = [
-                    s for s in plan.steps
-                    if s.status in (
+                    s
+                    for s in plan.steps
+                    if s.status
+                    in (
                         StepExecutionStatus.PENDING,
                         StepExecutionStatus.AWAITING_APPROVAL,
                         StepExecutionStatus.EXECUTING,
@@ -476,6 +485,14 @@ class PlanExecutionAdapter:
                 executor = executors.get(step.composition_step_id)
                 envelope = self._build_envelope(step, plan, execute_fn=executor)
 
+                if self._spine_guard is None and step.risk_level in ("high", "critical"):
+                    step.status = StepExecutionStatus.FAILED
+                    step.error = (
+                        "SpineGuard not configured — refusing to execute high/critical-risk step"
+                    )
+                    step.completed_at = time.time()
+                    self._record_outcome(step, plan)
+                    continue
                 if self._spine_guard is not None:
                     guard_result = self._spine_guard.evaluate(envelope)
                     if hasattr(guard_result, "blocked") and guard_result.blocked:
@@ -540,10 +557,7 @@ class PlanExecutionAdapter:
 
     def check_pending_approvals(self, plan: ExecutablePlan) -> list[ExecutableStep]:
         """Return steps awaiting operator approval."""
-        return [
-            s for s in plan.steps
-            if s.status == StepExecutionStatus.AWAITING_APPROVAL
-        ]
+        return [s for s in plan.steps if s.status == StepExecutionStatus.AWAITING_APPROVAL]
 
     def approve_step(
         self,
@@ -633,16 +647,14 @@ class PlanExecutionAdapter:
         if plan.status == ExecutionGraphStatus.COMPLETED:
             self._memory_pipeline.submit_candidate(
                 content=(
-                    f"Plan '{plan.intent}' completed successfully "
-                    f"with {len(plan.steps)} steps"
+                    f"Plan '{plan.intent}' completed successfully with {len(plan.steps)} steps"
                 ),
                 category=MemoryCategory.PATTERN,
                 evidence=[
                     MemoryEvidence(
                         source="plan_executor",
                         detail=(
-                            f"All {len(plan.steps)} steps succeeded "
-                            f"in plan {plan.source_plan_id}"
+                            f"All {len(plan.steps)} steps succeeded in plan {plan.source_plan_id}"
                         ),
                         confidence=0.8,
                     ),
@@ -651,10 +663,7 @@ class PlanExecutionAdapter:
             )
 
         elif plan.status == ExecutionGraphStatus.FAILED:
-            failed_steps = [
-                s for s in plan.steps
-                if s.status == StepExecutionStatus.FAILED
-            ]
+            failed_steps = [s for s in plan.steps if s.status == StepExecutionStatus.FAILED]
             errors = "; ".join(s.error[:100] for s in failed_steps if s.error)
             self._memory_pipeline.submit_candidate(
                 content=f"Plan '{plan.intent}' failed: {errors[:300]}",
@@ -662,10 +671,7 @@ class PlanExecutionAdapter:
                 evidence=[
                     MemoryEvidence(
                         source="plan_executor",
-                        detail=(
-                            f"{len(failed_steps)} steps failed "
-                            f"in plan {plan.source_plan_id}"
-                        ),
+                        detail=(f"{len(failed_steps)} steps failed in plan {plan.source_plan_id}"),
                         confidence=0.7,
                     ),
                 ],
