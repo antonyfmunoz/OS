@@ -1,6 +1,9 @@
 import { useSystemStore } from '../stores/systemStore'
 import { useOrganismStore } from '../stores/organismStore'
+import { useRealtimeStore } from '../stores/realtimeStore'
 import { usePolling } from '../hooks/usePolling'
+import { TopologyMap } from '../components/TopologyMap'
+import { ConnectionBanner } from '../components/ConnectionBanner'
 
 export function InfrastructurePanel() {
   const infraNodes = useSystemStore((s) => s.infraNodes)
@@ -9,69 +12,72 @@ export function InfrastructurePanel() {
   const fetchMeshNodes = useSystemStore((s) => s.fetchMeshNodes)
   const workloads = useOrganismStore((s) => s.workloads)
   const bottleneckStatus = useOrganismStore((s) => s.bottleneckStatus)
+  const runtimeGraph = useOrganismStore((s) => s.runtimeGraph)
   const fetchWorkloads = useOrganismStore((s) => s.fetchWorkloads)
   const fetchBottlenecks = useOrganismStore((s) => s.fetchBottlenecks)
+  const fetchOrganismStatus = useOrganismStore((s) => s.fetchOrganismStatus)
 
-  usePolling(() => { fetchInfra(); fetchMeshNodes(); fetchWorkloads(); fetchBottlenecks() }, 10000)
+  const realtimeStatus = useRealtimeStore((s) => s.status)
+  const cpuPercent = useRealtimeStore((s) => s.cpuPercent)
+  const memoryPercent = useRealtimeStore((s) => s.memoryPercent)
+  const diskPercent = useRealtimeStore((s) => s.diskPercent)
+  const containers = useRealtimeStore((s) => s.containers)
+
+  usePolling(() => { fetchInfra(); fetchMeshNodes(); fetchWorkloads(); fetchBottlenecks(); fetchOrganismStatus() },
+    realtimeStatus === 'connected' ? 15000 : 10000)
+
+  const runtimes = runtimeGraph ? Object.values(runtimeGraph.runtimes) : []
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-4">
-      <div className="flex items-center mb-4">
+    <div className="flex flex-col h-full overflow-hidden">
+      <ConnectionBanner />
+
+      <div className="flex items-center px-4 py-3 flex-shrink-0">
         <h2 className="text-lg font-semibold text-text-primary">Infrastructure</h2>
         <span className="ml-2 text-xs text-text-tertiary">
-          {meshNodes.length} nodes · {infraNodes.length} services
+          {meshNodes.length} mesh · {containers.length || infraNodes.length} containers · {runtimes.length} runtimes
           {workloads ? ` · ${workloads.total_runs} workloads` : ''}
         </span>
+        <div className="ml-auto flex gap-3 text-[10px]">
+          <span className={cpuPercent > 90 ? 'text-danger' : cpuPercent > 70 ? 'text-warn' : 'text-ok'}>
+            CPU {cpuPercent.toFixed(0)}%
+          </span>
+          <span className={memoryPercent > 90 ? 'text-danger' : memoryPercent > 70 ? 'text-warn' : 'text-ok'}>
+            RAM {memoryPercent.toFixed(0)}%
+          </span>
+          <span className={diskPercent > 90 ? 'text-danger' : diskPercent > 70 ? 'text-warn' : 'text-ok'}>
+            DISK {diskPercent.toFixed(0)}%
+          </span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {/* Left column */}
-        <div className="space-y-4">
-          <section>
-            <h3 className="wv-label mb-3">Mesh Nodes</h3>
-            <div className="grid grid-cols-1 gap-2">
-              {meshNodes.map((node) => (
-                <div key={node.node_id} className="wv-card flex items-center gap-3 px-3 py-2">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${node.status === 'online' ? 'bg-ok' : 'bg-danger'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-text-primary truncate">{node.hostname}</p>
-                    <div className="flex items-center gap-2">
-                      <span className="wv-label">{node.role}</span>
-                      {node.os && <span className="text-[10px] text-text-tertiary">{node.os}</span>}
-                    </div>
-                    {node.ip && <p className="text-[10px] text-text-tertiary font-mono">{node.ip}</p>}
-                  </div>
-                </div>
-              ))}
-              {meshNodes.length === 0 && (
-                <p className="text-xs text-text-tertiary">No mesh nodes connected</p>
-              )}
-            </div>
-          </section>
-
-          <section>
-            <h3 className="wv-label mb-3">Services</h3>
-            <div className="grid grid-cols-1 gap-2">
-              {infraNodes.map((svc) => (
-                <div key={svc.id} className="wv-card flex items-center gap-2 px-3 py-2">
-                  <span className={`w-2 h-2 rounded-full ${
-                    svc.status === 'healthy' ? 'bg-ok' : svc.status === 'degraded' ? 'bg-warn' : 'bg-danger'
-                  }`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-text-primary truncate">{svc.name}</p>
-                    <p className="text-xs text-text-tertiary">{svc.type}</p>
-                  </div>
-                </div>
-              ))}
-              {infraNodes.length === 0 && (
-                <p className="text-xs text-text-tertiary">No infrastructure data</p>
-              )}
-            </div>
-          </section>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: topology map */}
+        <div className="flex-1 overflow-y-auto p-3 border-r border-border">
+          <TopologyMap />
         </div>
 
-        {/* Right column: workloads + bottlenecks */}
-        <div className="space-y-4">
+        {/* Right: workloads + bottlenecks */}
+        <div className="w-96 overflow-y-auto p-3 space-y-4 bg-canvas">
+          {/* Live containers from WS */}
+          {containers.length > 0 && (
+            <section>
+              <h3 className="wv-label mb-3">Docker Containers (live)</h3>
+              <div className="space-y-1.5">
+                {containers.map((c) => {
+                  const isUp = c.status.toLowerCase().includes('up')
+                  return (
+                    <div key={c.name} className="wv-card flex items-center gap-2 px-3 py-2">
+                      <span className={`w-2 h-2 rounded-full ${isUp ? 'bg-ok' : 'bg-danger'}`} />
+                      <span className="text-sm text-text-primary font-mono flex-1 truncate">{c.name}</span>
+                      <span className="text-[10px] text-text-tertiary truncate max-w-[40%]">{c.status}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
           {workloads && (
             <section>
               <h3 className="wv-label mb-3">
@@ -124,8 +130,10 @@ export function InfrastructurePanel() {
             </section>
           )}
 
-          {!workloads && (bottleneckStatus?.active?.length ?? 0) === 0 && (
-            <p className="text-xs text-text-tertiary">No operational data available</p>
+          {!workloads && (bottleneckStatus?.active?.length ?? 0) === 0 && containers.length === 0 && (
+            <p className="text-xs text-text-tertiary">
+              No operational data — {realtimeStatus === 'connected' ? 'waiting for organism tick' : 'not yet wired: WebSocket disconnected'}
+            </p>
           )}
         </div>
       </div>

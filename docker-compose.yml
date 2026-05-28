@@ -130,6 +130,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ${UMH_ROOT:-/opt/OS}:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     env_file:
       - services/.env
       - infra/docker/umh.env

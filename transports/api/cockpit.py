@@ -90,6 +90,7 @@ async def _require_operator_role(
 
 
 router = APIRouter(prefix="/api/umh", dependencies=[Depends(_require_api_key)])
+ws_router = APIRouter(prefix="/api/umh")
 
 _ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
 MEMORY_STORE = _ROOT / "data" / "runtime" / "canonical_memory_store" / "memories.jsonl"
@@ -2154,6 +2155,42 @@ async def send_notification(payload: dict):
 
 # ─── WebSocket: live cockpit data stream ──────────────────────────────────────
 
+_DOCKER_SOCK = "/var/run/docker.sock"
+
+
+def _get_docker_containers() -> list[dict]:
+    """Query Docker Engine API via unix socket for running containers."""
+    import socket as _socket
+    import http.client
+
+    try:
+        if not os.path.exists(_DOCKER_SOCK):
+            return []
+
+        class DockerConnection(http.client.HTTPConnection):
+            def connect(self):
+                self.sock = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
+                self.sock.settimeout(2)
+                self.sock.connect(_DOCKER_SOCK)
+
+        conn = DockerConnection("localhost")
+        conn.request("GET", "/containers/json")
+        resp = conn.getresponse()
+        if resp.status != 200:
+            return []
+        data = json.loads(resp.read())
+        conn.close()
+        result = []
+        for c in data:
+            names = c.get("Names", ["/unknown"])
+            name = names[0].lstrip("/") if names else "unknown"
+            status = c.get("Status", "unknown")
+            result.append({"name": name, "status": status})
+        return result
+    except Exception:
+        return []
+
+
 _cockpit_clients: set[WebSocket] = set()
 _pending_organism_events: list[dict] = []
 
@@ -2165,7 +2202,7 @@ def push_organism_event(event_dict: dict) -> None:
         _pending_organism_events[:] = _pending_organism_events[-100:]
 
 
-@router.websocket("/ws")
+@ws_router.websocket("/ws")
 async def cockpit_ws(ws: WebSocket):
     """Stream live system metrics to connected cockpit clients.
 
@@ -2184,20 +2221,7 @@ async def cockpit_ws(ws: WebSocket):
             disk = psutil.disk_usage("/")
             traces = _read_jsonl(TRACE_STORE)
             recent_traces = traces[-10:] if traces else []
-            containers = []
-            try:
-                result = subprocess.run(
-                    ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}"],
-                    capture_output=True,
-                    text=True,
-                    timeout=3,
-                )
-                for line in result.stdout.strip().split("\n"):
-                    if "\t" in line:
-                        name, status = line.split("\t", 1)
-                        containers.append({"name": name, "status": status})
-            except Exception:
-                pass
+            containers = _get_docker_containers()
 
             new_events = _pending_organism_events[event_cursor:]
             event_cursor = len(_pending_organism_events)

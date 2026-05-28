@@ -3,6 +3,7 @@ import { SignedIn, SignedOut, SignIn, useAuth, ClerkLoaded, ClerkLoading } from 
 import { Shell } from './components/Shell'
 import { useKeyboard } from './hooks/useKeyboard'
 import { useWebSocket } from './hooks/useWebSocket'
+import { useOrganismRealtime } from './hooks/useOrganismRealtime'
 import { useChatStore } from './stores/chatStore'
 import { setTokenGetter } from './api/client'
 
@@ -11,6 +12,7 @@ const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 function AuthenticatedApp() {
   useKeyboard()
   useWebSocket()
+  useOrganismRealtime()
 
   const { getToken } = useAuth()
   useEffect(() => {
