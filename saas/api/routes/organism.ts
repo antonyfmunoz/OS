@@ -260,7 +260,7 @@ router.get('/reports', operatorGuard, async (c) => {
   return c.json(result.data)
 })
 
-router.get('/chat-history', async (c) => {
+router.get('/chat-history', operatorGuard, async (c) => {
   const limit = Number(c.req.query('limit') ?? 50)
   const result = await callOrganism('organism.chat_history', { limit })
   if (!result.success) return c.json({ error: result.error }, 502)
