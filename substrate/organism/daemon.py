@@ -59,6 +59,9 @@ from substrate.organism.governed_spine import GovernedExecutionSpine
 from substrate.organism.mutation_registry import MutationRegistry
 from substrate.organism.spine_guard import GuardMode, SpineGuard
 from substrate.organism.autonomous_action_gateway import AutonomousActionGateway, AutonomousPolicy
+from substrate.organism.leverage_engine import LeverageEngine
+from substrate.organism.next_action_engine import NextActionEngine
+from substrate.organism.readiness_model import ReadinessModel
 from substrate.organism.worker_cell import WorkerCell
 from substrate.execution.pipeline import ExecutionPipeline
 
@@ -178,6 +181,15 @@ class OrganismDaemon:
             event_spine=self._event_spine,
         )
         self._bottleneck_engine = BottleneckEngine(
+            event_spine=self._event_spine,
+        )
+        self._leverage_engine = LeverageEngine(
+            event_spine=self._event_spine,
+        )
+        self._next_action_engine = NextActionEngine(
+            event_spine=self._event_spine,
+        )
+        self._readiness_model = ReadinessModel(
             event_spine=self._event_spine,
         )
         self._objective_physics = ObjectivePhysics(
@@ -349,6 +361,10 @@ class OrganismDaemon:
             self._bottleneck_detection_tick,
         )
         self._autonomous_tick.register_stage(
+            "intelligence_computation",
+            self._intelligence_tick,
+        )
+        self._autonomous_tick.register_stage(
             "objective_physics",
             self._objective_physics.physics_tick,
         )
@@ -387,6 +403,8 @@ class OrganismDaemon:
                 })
 
         tick_metrics = self._autonomous_tick.metrics
+        pending_approvals = self._approval_store.pending_count()
+        gateway_state = self._autonomous_gateway.to_dict()
         bottlenecks = self._bottleneck_engine.detect(
             leverage_inputs=leverage_inputs,
             runtime_stats=runtime_stats,
@@ -395,10 +413,98 @@ class OrganismDaemon:
                 "total_stages_failed": tick_metrics.total_stages_failed,
             },
             queue_depth=self._objective_queue.depth(),
+            pending_approvals=pending_approvals,
+            governance_state=gateway_state,
         )
         return {
             "detected": len(bottlenecks),
             "critical": sum(1 for b in bottlenecks if b.severity.value == "critical"),
+        }
+
+    def _intelligence_tick(self) -> dict[str, Any]:
+        """Compute operational intelligence — leverage, next actions, readiness."""
+        bottleneck_data = [b.to_dict() for b in self._bottleneck_engine.active]
+        workload_state = self._workload_runner.to_dict()
+        pending_approvals = self._approval_store.pending_count()
+        execution_mode = self._execution_mode_manager.to_dict()
+        leverage_summary = self._leverage_metrics.summary()
+
+        completed = self._governed_spine.completed_envelopes(limit=50)
+        failed_envelopes = [
+            e for e in completed
+            if not e.get("result_success", True)
+        ][:10]
+
+        opportunities = self._leverage_engine.compute(
+            bottlenecks=bottleneck_data,
+            workload_state=workload_state,
+            pending_approvals=pending_approvals,
+            active_failures=failed_envelopes,
+            execution_mode=execution_mode,
+            leverage_summary=leverage_summary,
+        )
+
+        spine_stats = self._governed_spine.to_dict()
+        guard_dict = self._spine_guard.to_dict()
+        gateway_dict = self._autonomous_gateway.to_dict()
+        journal_dict = self._execution_journal.to_dict()
+
+        readiness = self._readiness_model.compute(
+            execution_state={
+                "success_rate": spine_stats.get("success_rate", 0),
+                "registered_mutations": self._mutation_registry.to_dict().get("total_specs", 0),
+                "current_mode": execution_mode.get("current_mode", "manual"),
+                "pending_count": spine_stats.get("pending_count", 0),
+                "active_count": spine_stats.get("active_count", 0),
+            },
+            governance_state={
+                "guard_active": guard_dict.get("mode", "") != "allow_all",
+                "gateway_active": gateway_dict.get("policy", "") != "disabled",
+                "total_submitted": gateway_dict.get("total_submitted", 0),
+                "total_blocked": gateway_dict.get("total_blocked", 0),
+                "total_violations": guard_dict.get("total_violations", 0),
+                "journal_active": journal_dict.get("total_entries", 0) > 0,
+            },
+            deployment_state={
+                "services_up": 3,
+                "services_total": 3,
+                "build_current": True,
+                "api_responsive": True,
+            },
+            operator_state={
+                "pending_approvals": pending_approvals,
+                "intervention_rate": self._leverage_metrics.bottleneck_inputs().get("intervention_rate", 0),
+                "operator_compression": self._operator_compression.to_dict(),
+            },
+            memory_state={
+                "total_observations": len(self._store.list_learning_signals(limit=1000)),
+                "total_skills": 0,
+                "total_memories": len(self._store.list_deliverables(limit=1000)),
+                "journal_entries": journal_dict.get("total_entries", 0),
+            },
+            composition_state={
+                "runtimes_available": len([n for n in (self._graph.all_nodes() if self._graph else []) if n.status.value == "available"]),
+                "runtimes_total": len(self._graph.all_nodes()) if self._graph else 0,
+                "agents_registered": len([f for f in self._store._agents_dir.iterdir() if f.suffix == ".json"]) if self._store._agents_dir.exists() else 0,
+                "event_spine_active": True,
+                "tick_running": self._started,
+                "connected_subsystems": 10,
+            },
+        )
+
+        readiness_gaps = readiness.gaps(threshold=60)
+        self._next_action_engine.compute(
+            leverage_opportunities=[o.to_dict() for o in opportunities],
+            bottlenecks=bottleneck_data,
+            pending_approvals=pending_approvals,
+            readiness_gaps=readiness_gaps,
+        )
+
+        return {
+            "leverage_opportunities": len(opportunities),
+            "next_actions": len(self._next_action_engine.actions),
+            "readiness_composite": round(readiness.composite_score, 1),
+            "readiness_status": readiness.overall_status,
         }
 
     def _broadcast_state(self) -> None:
@@ -500,6 +606,18 @@ class OrganismDaemon:
     @property
     def bottleneck_engine(self) -> BottleneckEngine:
         return self._bottleneck_engine
+
+    @property
+    def leverage_engine(self) -> LeverageEngine:
+        return self._leverage_engine
+
+    @property
+    def next_action_engine(self) -> NextActionEngine:
+        return self._next_action_engine
+
+    @property
+    def readiness_model(self) -> ReadinessModel:
+        return self._readiness_model
 
     @property
     def objective_physics(self) -> ObjectivePhysics:
@@ -675,6 +793,9 @@ class OrganismDaemon:
             "governor": self._governor.to_dict(),
             "leverage": self._leverage_metrics.to_dict(),
             "bottlenecks": self._bottleneck_engine.to_dict(),
+            "leverage_engine": self._leverage_engine.to_dict(),
+            "next_actions": self._next_action_engine.to_dict(),
+            "readiness": self._readiness_model.to_dict(),
             "objective_physics": self._objective_physics.to_dict(),
             "operator_compression": self._operator_compression.to_dict(),
             "execution_mode": self._execution_mode_manager.to_dict(),

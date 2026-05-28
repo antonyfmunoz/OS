@@ -945,6 +945,44 @@ async def organism_bottlenecks():
     return daemon.bottleneck_engine.to_dict()
 
 
+@router.get("/organism/intelligence")
+async def organism_intelligence():
+    """Unified operational intelligence — bottlenecks, leverage, actions, readiness."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return {
+        "bottlenecks": daemon.bottleneck_engine.to_dict(),
+        "leverage": daemon.leverage_engine.to_dict(),
+        "next_actions": daemon.next_action_engine.to_dict(),
+        "readiness": daemon.readiness_model.to_dict(),
+    }
+
+
+@router.get("/organism/intelligence/leverage")
+async def organism_intelligence_leverage():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.leverage_engine.to_dict()
+
+
+@router.get("/organism/intelligence/next-actions")
+async def organism_intelligence_next_actions():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.next_action_engine.to_dict()
+
+
+@router.get("/organism/intelligence/readiness")
+async def organism_intelligence_readiness():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.readiness_model.to_dict()
+
+
 @router.get("/organism/physics")
 async def organism_physics():
     daemon = _get_organism()

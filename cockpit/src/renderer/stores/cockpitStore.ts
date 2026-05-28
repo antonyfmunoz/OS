@@ -21,6 +21,7 @@ export type Panel =
   | 'infrastructure'
   | 'profile'
   | 'organism'
+  | 'intelligence'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
