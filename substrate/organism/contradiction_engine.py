@@ -138,6 +138,23 @@ class ContradictionReport:
             "checked_at": self.checked_at,
         }
 
+    def to_safe_dict(self) -> dict[str, Any]:
+        """HTTP-safe serialization — strips internal sources and file paths."""
+        safe_contradictions = []
+        for c in self.contradictions:
+            safe_contradictions.append({
+                "id": c.id,
+                "type": c.contradiction_type.value,
+                "severity": c.severity.value,
+                "confidence": c.confidence,
+                "recommended_fix": c.recommended_fix,
+            })
+        return {
+            "summary": self.summary(),
+            "contradictions": safe_contradictions,
+            "checked_at": self.checked_at,
+        }
+
 
 # ---------------------------------------------------------------------------
 # Contradiction checks — each is a deterministic probe

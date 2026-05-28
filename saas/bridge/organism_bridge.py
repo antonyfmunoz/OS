@@ -422,13 +422,13 @@ def _world_model(_payload: dict) -> dict:
 def _dependency_graph(_payload: dict) -> dict:
     from substrate.organism.dependency_graph import build_dependency_graph
     graph = build_dependency_graph()
-    return {"success": True, "data": graph.to_dict()}
+    return {"success": True, "data": graph.to_safe_dict()}
 
 
 def _contradictions(_payload: dict) -> dict:
     from substrate.organism.contradiction_engine import detect_contradictions
     report = detect_contradictions()
-    return {"success": True, "data": report.to_dict()}
+    return {"success": True, "data": report.to_safe_dict()}
 
 
 def _memory_promotion(_payload: dict) -> dict:
@@ -463,7 +463,7 @@ def _memory_promotion_reject(payload: dict) -> dict:
 def _learning_loop(_payload: dict) -> dict:
     from substrate.organism.outcome_learning import OutcomeLearningLoop
     loop = OutcomeLearningLoop()
-    return {"success": True, "data": loop.to_dict()}
+    return {"success": True, "data": loop.to_safe_dict()}
 
 
 def _compose(payload: dict) -> dict:

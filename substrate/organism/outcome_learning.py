@@ -310,6 +310,33 @@ class OutcomeLearningLoop:
             "adjustments": [a.to_dict() for a in self.get_adjustments()],
         }
 
+    def to_safe_dict(self) -> dict[str, Any]:
+        """HTTP-safe serialization — strips internal evidence and error details."""
+        safe_outcomes = []
+        for o in self.recent_outcomes(10):
+            safe_outcomes.append({
+                "id": o.id,
+                "action_type": o.action_type,
+                "status": o.status.value if isinstance(o.status, OutcomeStatus) else o.status,
+                "duration_seconds": o.duration_seconds,
+                "recorded_at": o.recorded_at,
+            })
+        safe_signals = []
+        for s in self.recent_signals(10):
+            safe_signals.append({
+                "id": s.id,
+                "signal_type": s.signal_type.value if isinstance(s.signal_type, SignalType) else s.signal_type,
+                "action_type": s.action_type,
+                "description": s.description,
+                "generated_at": s.generated_at,
+            })
+        return {
+            "summary": self.summary(),
+            "recent_outcomes": safe_outcomes,
+            "recent_signals": safe_signals,
+            "adjustments": [a.to_dict() for a in self.get_adjustments()],
+        }
+
 
 if __name__ == "__main__":
     import sys
