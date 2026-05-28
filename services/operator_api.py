@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """UMH Operator Workstation API — FastAPI backend for the operator UI."""
 
+import os
 import sys
 
 sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
+
 
 import asyncio
 import json

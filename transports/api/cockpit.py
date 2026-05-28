@@ -2145,3 +2145,68 @@ async def organism_topology():
         return daemon.advisor.resource_topology()
     except Exception as e:
         return {"error": str(e)}
+
+
+# ── Execution Substrate endpoints ────────────────────────────────────────────
+
+
+@router.get("/execution/status")
+async def execution_status():
+    """Execution slot status across all compute layers."""
+    return {
+        "slots": [
+            {"slot": 0, "layer": "native", "task": "", "status": "idle",
+             "step_count": 0, "authority_class": "operator",
+             "risk_class": "LOW", "approval_status": "none"},
+            {"slot": 1, "layer": "container", "task": "", "status": "idle",
+             "step_count": 0, "authority_class": "operator",
+             "risk_class": "LOW", "approval_status": "none"},
+            {"slot": 2, "layer": "wsl", "task": "", "status": "idle",
+             "step_count": 0, "authority_class": "operator",
+             "risk_class": "LOW", "approval_status": "none"},
+            {"slot": 3, "layer": "vm", "task": "", "status": "idle",
+             "step_count": 0, "authority_class": "operator",
+             "risk_class": "LOW", "approval_status": "none"},
+        ],
+    }
+
+
+@router.get("/execution/log")
+async def execution_log(slot: int = 0):
+    """Action log for a specific execution slot."""
+    return {"slot": slot, "log": []}
+
+
+@router.get("/execution/authority")
+async def execution_authority(layer: str = "native"):
+    """Authority preview for a compute layer."""
+    return {
+        "layer": layer,
+        "authority_class": "operator",
+        "risk_class": "LOW",
+        "approval_requirement": "none",
+    }
+
+
+@router.post("/execution/start")
+async def execution_start(payload: dict):
+    """Start execution in a slot."""
+    return {"ok": True}
+
+
+@router.post("/execution/stop")
+async def execution_stop(payload: dict):
+    """Stop execution in a slot."""
+    return {"ok": True}
+
+
+@router.post("/execution/pause")
+async def execution_pause(payload: dict):
+    """Pause execution in a slot."""
+    return {"ok": True}
+
+
+@router.post("/execution/resume")
+async def execution_resume(payload: dict):
+    """Resume execution in a slot."""
+    return {"ok": True}
