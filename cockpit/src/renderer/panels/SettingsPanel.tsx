@@ -91,7 +91,7 @@ export function SettingsPanel() {
           <p className="text-xs text-text-tertiary">Loading governance data...</p>
         )}
 
-        {governance && (
+        {governance?.safe_roots && governance?.allowed_shell_prefixes && (
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div className="wv-card px-3 py-2">
               <p className="wv-label mb-1">Safe Roots</p>
