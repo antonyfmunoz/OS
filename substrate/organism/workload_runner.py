@@ -160,9 +160,13 @@ class WorkloadRunner:
         self._total_successes: int = 0
         self._total_failures: int = 0
         self._governed_spine: Any = None
+        self._autonomous_gateway: Any = None
 
     def set_governed_spine(self, spine: Any) -> None:
         self._governed_spine = spine
+
+    def set_autonomous_gateway(self, gateway: Any) -> None:
+        self._autonomous_gateway = gateway
 
     def create_envelope(self, workload_type: WorkloadType) -> ActionEnvelope:
         """Create an ActionEnvelope for a workload — for spine-routed execution."""
@@ -202,6 +206,28 @@ class WorkloadRunner:
                 require_approval=(risk != WorkloadRisk.LOW),
             ),
             metadata={"mutation_name": workload_type.value, "workload_type": workload_type.value},
+        )
+
+    def run_workload_via_gateway(self, workload_type: WorkloadType) -> WorkloadOutcome:
+        """Route a mutation-capable workload through the autonomous gateway.
+
+        Creates an ActionEnvelope and submits it via the gateway, which
+        enforces autonomous policy before the spine sees it.
+        """
+        if self._autonomous_gateway is None:
+            return self.run_workload(workload_type)
+
+        envelope = self.create_envelope(workload_type)
+        result_envelope = self._autonomous_gateway.submit_envelope(envelope)
+
+        success = result_envelope.result_success
+        return WorkloadOutcome(
+            workload_type=workload_type,
+            success=success,
+            duration_seconds=max(result_envelope.completed_at - result_envelope.started_at, 0)
+            if result_envelope.started_at > 0 else 0.0,
+            findings=[result_envelope.result_output[:500]] if result_envelope.result_output else [],
+            metrics={"envelope_id": result_envelope.envelope_id, "status": result_envelope.status.value},
         )
 
     def run_workload(

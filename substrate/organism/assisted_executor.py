@@ -103,9 +103,13 @@ class AssistedExecutor:
         self._total_executed: int = 0
         self._total_blocked: int = 0
         self._governed_spine: Any = None
+        self._autonomous_gateway: Any = None
 
     def set_governed_spine(self, spine: Any) -> None:
         self._governed_spine = spine
+
+    def set_autonomous_gateway(self, gateway: Any) -> None:
+        self._autonomous_gateway = gateway
 
     def create_envelope(
         self,
@@ -155,6 +159,47 @@ class AssistedExecutor:
                 "approved_by": approved_by,
             },
         )
+
+    def execute_via_gateway(
+        self,
+        action_id: str,
+        category: ActionCategory,
+        description: str,
+        approved_by: str = "operator",
+        params: dict[str, Any] | None = None,
+    ) -> AssistedAction:
+        """Route an assisted action through the autonomous gateway.
+
+        Creates an ActionEnvelope and submits via the gateway, which
+        enforces autonomous policy before the spine.
+        """
+        if self._autonomous_gateway is None:
+            return self.execute_action(action_id, category, description, approved_by, params)
+
+        envelope = self.create_envelope(action_id, category, description, approved_by, params)
+        result_envelope = self._autonomous_gateway.submit_envelope(envelope)
+
+        action = AssistedAction(
+            action_id=action_id,
+            category=category,
+            description=description,
+            approved_by=approved_by,
+            started_at=result_envelope.started_at or time.time(),
+            completed_at=result_envelope.completed_at or time.time(),
+        )
+
+        if result_envelope.result_success:
+            action.result = ActionResult.SUCCESS
+        elif result_envelope.status.value in ("rejected", "proposed"):
+            action.result = ActionResult.BLOCKED
+            action.output = result_envelope.rejected_reason or "pending approval"
+        else:
+            action.result = ActionResult.FAILED
+            action.output = result_envelope.result_output[:1000]
+
+        action.duration_seconds = max(action.completed_at - action.started_at, 0)
+        self._record(action)
+        return action
 
     def execute_action(
         self,

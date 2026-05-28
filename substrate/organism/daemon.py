@@ -58,6 +58,7 @@ from substrate.organism.execution_journal import ExecutionJournal
 from substrate.organism.governed_spine import GovernedExecutionSpine
 from substrate.organism.mutation_registry import MutationRegistry
 from substrate.organism.spine_guard import GuardMode, SpineGuard
+from substrate.organism.autonomous_action_gateway import AutonomousActionGateway, AutonomousPolicy
 from substrate.organism.worker_cell import WorkerCell
 from substrate.execution.pipeline import ExecutionPipeline
 
@@ -230,8 +231,19 @@ class OrganismDaemon:
             journal=self._execution_journal,
         )
 
+        self._autonomous_gateway = AutonomousActionGateway(
+            governed_spine=self._governed_spine,
+            execution_mode=self._execution_mode_manager,
+            event_spine=self._event_spine,
+            journal=self._execution_journal,
+            policy=AutonomousPolicy.ASSISTED,
+        )
+
         self._workload_runner.set_governed_spine(self._governed_spine)
+        self._workload_runner.set_autonomous_gateway(self._autonomous_gateway)
         self._assisted_executor.set_governed_spine(self._governed_spine)
+        self._assisted_executor.set_autonomous_gateway(self._autonomous_gateway)
+        self._maintenance_loop.set_autonomous_gateway(self._autonomous_gateway)
 
         self._workcell_daemon = WorkcellDaemonV2(
             state_dir=str(self._state_dir / "workcell_daemon"),
@@ -537,6 +549,10 @@ class OrganismDaemon:
     def spine_guard(self) -> SpineGuard:
         return self._spine_guard
 
+    @property
+    def autonomous_gateway(self) -> AutonomousActionGateway:
+        return self._autonomous_gateway
+
     def start(self) -> None:
         self._started = True
 
@@ -671,6 +687,7 @@ class OrganismDaemon:
             "mutation_registry": self._mutation_registry.to_dict(),
             "execution_journal": self._execution_journal.to_dict(),
             "spine_guard": self._spine_guard.to_dict(),
+            "autonomous_gateway": self._autonomous_gateway.to_dict(),
             **self._advisor.organism_status(),
         }
         if self._graph is not None:

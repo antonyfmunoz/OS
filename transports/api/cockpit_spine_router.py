@@ -75,6 +75,15 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/spine/reject/{envelope_id}", _spine_reject, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/spine/retry/{envelope_id}", _spine_retry, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/spine-guard/mode", _spine_guard_set_mode, methods=["POST"], dependencies=auth)
+    r.add_api_route("/organism/autonomous-gateway/policy", _autonomous_gateway_set_policy, methods=["POST"], dependencies=auth)
+    r.add_api_route("/organism/autonomous-gateway/threshold", _autonomous_gateway_set_threshold, methods=["POST"], dependencies=auth)
+
+    # ── Autonomous gateway read-only endpoints ────────────────────────────
+
+    r.add_api_route("/organism/autonomous-gateway", _autonomous_gateway_status, methods=["GET"])
+    r.add_api_route("/organism/autonomous-gateway/decisions", _autonomous_gateway_decisions, methods=["GET"])
+    r.add_api_route("/organism/autonomous-gateway/blocked", _autonomous_gateway_blocked, methods=["GET"])
+    r.add_api_route("/organism/autonomous-gateway/pending", _autonomous_gateway_pending, methods=["GET"])
 
     return r
 
@@ -288,6 +297,7 @@ async def _execution_doctrine():
         "execution_mode": daemon.execution_mode_manager.to_dict(),
         "spine": daemon.governed_spine.to_dict(),
         "spine_guard": daemon.spine_guard.to_dict(),
+        "autonomous_gateway": daemon.autonomous_gateway.to_dict(),
         "journal_statistics": daemon.execution_journal.statistics(),
         "mutation_registry": {
             "total_specs": len(daemon.mutation_registry.all_specs()),
@@ -323,4 +333,93 @@ async def _reliability_metrics():
         ),
         "journal": journal_stats,
         "spine_guard": daemon.spine_guard.to_dict(),
+    }
+
+
+# ── Autonomous Action Gateway handlers ───────────────────────────────────────
+
+
+async def _autonomous_gateway_status():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.autonomous_gateway.to_dict()
+
+
+async def _autonomous_gateway_decisions(limit: int = 20):
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.autonomous_gateway.recent_decisions(limit)
+
+
+async def _autonomous_gateway_blocked(limit: int = 20):
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.autonomous_gateway.blocked_attempts(limit)
+
+
+async def _autonomous_gateway_pending():
+    daemon = _get_organism()
+    if daemon is None:
+        return []
+    return daemon.autonomous_gateway.pending_autonomous_envelopes()
+
+
+async def _autonomous_gateway_set_policy(payload: dict, request: Request):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    client_id = request.client.host if request.client else "unknown"
+    _check_rate_limit("execute", client_id)
+
+    from substrate.organism.autonomous_action_gateway import AutonomousPolicy
+
+    policy_str = str(payload.get("policy", "")).lower()
+    valid = {p.value: p for p in AutonomousPolicy}
+    if policy_str not in valid:
+        return {
+            "error": f"invalid policy: {policy_str}",
+            "valid_policies": list(valid.keys()),
+        }
+
+    new_policy = valid[policy_str]
+    old_policy = daemon.autonomous_gateway.policy
+    daemon.autonomous_gateway.set_policy(new_policy)
+    logger.info(
+        "Autonomous gateway policy changed via cockpit: %s → %s by %s",
+        old_policy.value, new_policy.value, client_id,
+    )
+    return {
+        "old_policy": old_policy.value,
+        "new_policy": new_policy.value,
+        "changed_by": client_id,
+    }
+
+
+async def _autonomous_gateway_set_threshold(payload: dict, request: Request):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    client_id = request.client.host if request.client else "unknown"
+    _check_rate_limit("execute", client_id)
+
+    threshold = payload.get("threshold")
+    if threshold is None or not isinstance(threshold, (int, float)):
+        return {"error": "threshold must be a number between 0.0 and 1.0"}
+
+    threshold = float(threshold)
+    if not (0.0 <= threshold <= 1.0):
+        return {"error": "threshold must be between 0.0 and 1.0"}
+
+    daemon.autonomous_gateway.set_reliability_threshold(threshold)
+    logger.info(
+        "Autonomous gateway threshold set to %.2f by %s", threshold, client_id,
+    )
+    return {
+        "threshold": threshold,
+        "changed_by": client_id,
     }
