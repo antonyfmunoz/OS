@@ -64,7 +64,8 @@ async def lifespan(application):
         _organism_daemon.start()
         logger.info("organism daemon started")
     except Exception as exc:
-        logger.warning("organism daemon not started: %s", exc)
+        import traceback
+        logger.warning("organism daemon not started: %s\n%s", exc, traceback.format_exc())
 
     yield
 
