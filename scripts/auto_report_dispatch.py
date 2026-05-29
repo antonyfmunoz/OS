@@ -20,6 +20,24 @@ sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
 
+def _detect_git_dir() -> str:
+    """Use the actual working directory for git commands — handles worktrees."""
+    cwd = os.getcwd()
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=5, cwd=cwd,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return REPO_ROOT
+
+
+_GIT_DIR = _detect_git_dir()
+
+
 def _git(args: list[str]) -> str:
     try:
         result = subprocess.run(
@@ -27,7 +45,7 @@ def _git(args: list[str]) -> str:
             capture_output=True,
             text=True,
             timeout=10,
-            cwd=REPO_ROOT,
+            cwd=_GIT_DIR,
         )
         return result.stdout.strip()
     except Exception:
@@ -80,7 +98,7 @@ def _find_audit_file(commits: list[dict[str, str]]) -> str | None:
         diff = _git(["diff-tree", "--no-commit-id", "-r", "--name-only", c["hash"]])
         for f in diff.split("\n"):
             if f.startswith("docs/audits/") and f.endswith(".md"):
-                full = os.path.join(REPO_ROOT, f)
+                full = os.path.join(_GIT_DIR, f)
                 if os.path.isfile(full):
                     return full
     return None
