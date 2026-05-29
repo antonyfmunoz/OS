@@ -1,0 +1,220 @@
+{
+  "phase": "9.4",
+  "trials": [
+    {
+      "name": "template_generation",
+      "template_id": "tpl-93aead67",
+      "template_type": "contradiction_fix",
+      "confidence": 0.6,
+      "status": "promoted",
+      "steps": 2
+    }
+  ],
+  "template_reuse_proof": {
+    "plan_id": "fdc410df",
+    "source_type": "template_guided",
+    "template_id": "tpl-93aead67",
+    "template_confidence": 0.6,
+    "reused_template": true,
+    "template_match_reason": "Promoted template matched: contradiction_fix",
+    "governance_preserved": "autonomous",
+    "steps": 2,
+    "overall_risk": "low"
+  },
+  "propagation_proof": {
+    "event_id": "pe-7889274f",
+    "outcome_event_id": "oc-e972fb75",
+    "status": "completed",
+    "waves": [
+      {
+        "wave_number": 1,
+        "targets": [
+          {
+            "name": "outcome_learning",
+            "primitive_relationship": "feedback",
+            "wave": 1,
+            "has_handler": true
+          },
+          {
+            "name": "template_generation",
+            "primitive_relationship": "action",
+            "wave": 1,
+            "has_handler": true
+          },
+          {
+            "name": "memory_generation",
+            "primitive_relationship": "feedback",
+            "wave": 1,
+            "has_handler": true
+          },
+          {
+            "name": "agent_capability_update",
+            "primitive_relationship": "resource",
+            "wave": 1,
+            "has_handler": true
+          },
+          {
+            "name": "world_model_evidence",
+            "primitive_relationship": "state",
+            "wave": 1,
+            "has_handler": true
+          }
+        ],
+        "results": [
+          {
+            "target_name": "template_generation",
+            "primitive_relationship": "action",
+            "status": "completed",
+            "duration_ms": 1.0,
+            "input_evidence": [
+              "Template registry implemented",
+              "64 tests passing"
+            ],
+            "output_artifact": "{\"template_id\": \"tpl-a342f628\", \"template_type\": \"world_model_accuracy_fix\", \"trigger_conditions\": [\"declared entity not found at expected location\"], \"required_context\": [\"world model entity metadata\", \"contradiction report\"], \"required_capabilities\": [\"code_search\", \"file_edit\", \"evidence_verification\"], \"required_agent_type\": \"developer_agent\", \"reusable_steps\": [{\"order\": 0, \"description\": \"Verify precondition\", \"action\": \"verify_precondition\", \"requires_capability\": \"code_search\", \"risk_cla",
+            "error": "",
+            "wave": 1
+          },
+          {
+            "target_name": "memory_generation",
+            "primitive_relationship": "feedback",
+            "status": "completed",
+            "duration_ms": 1.2,
+            "input_evidence": [
+              "Template registry implemented",
+              "64 tests passing"
+            ],
+            "output_artifact": "{\"candidates\": 2}",
+            "error": "",
+            "wave": 1
+          },
+          {
+            "target_name": "world_model_evidence",
+            "primitive_relationship": "state",
+            "status": "completed",
+            "duration_ms": 0.0,
+            "input_evidence": [
+              "Template registry implemented",
+              "64 tests passing"
+            ],
+            "output_artifact": "{\"entities\": 70, \"evidence_attached\": true}",
+            "error": "",
+            "wave": 1
+          },
+          {
+            "target_name": "outcome_learning",
+            "primitive_relationship": "feedback",
+            "status": "completed",
+            "duration_ms": 2.5,
+            "input_evidence": [
+              "Template registry implemented",
+              "64 tests passing"
+            ],
+            "output_artifact": "{\"outcome_id\": \"ad9c90b3\", \"success\": true, \"quality_score\": 1.0, \"notes\": \"Status: success\"}",
+            "error": "",
+            "wave": 1
+          },
+          {
+            "target_name": "agent_capability_update",
+            "primitive_relationship": "resource",
+            "status": "completed",
+            "duration_ms": 1.6,
+            "input_evidence": [
+              "Template registry implemented",
+              "64 tests passing"
+            ],
+            "output_artifact": "{\"records\": 3}",
+            "error": "",
+            "wave": 1
+          }
+        ],
+        "status": "completed",
+        "started_at": 1780042246.2005572,
+        "completed_at": 1780042246.2038262
+      },
+      {
+        "wave_number": 2,
+        "targets": [
+          {
+            "name": "contradiction_recheck",
+            "primitive_relationship": "constraint",
+            "wave": 2,
+            "has_handler": true
+          },
+          {
+            "name": "readiness_recalculate",
+            "primitive_relationship": "state",
+            "wave": 2,
+            "has_handler": true
+          },
+          {
+            "name": "composition_template_refresh",
+            "primitive_relationship": "goal",
+            "wave": 2,
+            "has_handler": true
+          }
+        ],
+        "results": [
+          {
+            "target_name": "contradiction_recheck",
+            "primitive_relationship": "constraint",
+            "status": "completed",
+            "duration_ms": 0.3,
+            "input_evidence": [
+              "Template registry implemented",
+              "64 tests passing"
+            ],
+            "output_artifact": "{\"contradictions\": 15}",
+            "error": "",
+            "wave": 2
+          },
+          {
+            "target_name": "composition_template_refresh",
+            "primitive_relationship": "goal",
+            "status": "completed",
+            "duration_ms": 0.0,
+            "input_evidence": [
+              "Template registry implemented",
+              "64 tests passing"
+            ],
+            "output_artifact": "{\"templates_available\": 6}",
+            "error": "",
+            "wave": 2
+          },
+          {
+            "target_name": "readiness_recalculate",
+            "primitive_relationship": "state",
+            "status": "completed",
+            "duration_ms": 0.1,
+            "input_evidence": [
+              "Template registry implemented",
+              "64 tests passing"
+            ],
+            "output_artifact": "{\"composite\": 28.3}",
+            "error": "",
+            "wave": 2
+          }
+        ],
+        "status": "completed",
+        "started_at": 1780042246.2038367,
+        "completed_at": 1780042246.2046452
+      }
+    ],
+    "started_at": 1780042246.2005334,
+    "completed_at": 1780042246.2046506,
+    "total_targets": 8,
+    "succeeded_targets": 8,
+    "failed_targets": 0,
+    "skipped_targets": 0
+  },
+  "world_model_integration": {
+    "world_model_entities": 70,
+    "contradictions_after": 15,
+    "readiness_after": 28.3,
+    "outcome_records": 1,
+    "memory_candidates": 2,
+    "template_candidates": 2,
+    "promoted_templates": 1,
+    "agent_capabilities": 3,
+    "agent_overall_reliability": 1.0
+  }
+}

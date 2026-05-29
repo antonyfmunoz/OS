@@ -1,0 +1,35 @@
+{
+  "phase": "9.4",
+  "title": "Primitive-Native Coherence Propagation + Template Registry",
+  "captured_at": "2026-05-29T00:00:00Z",
+  "commit": "0061e26e5d3450a6b474981af3df92b7cd570726",
+  "branch": "worktree-phase9-4-coherence-propagation",
+  "readiness_composite": 28.3,
+  "readiness_dimensions": {
+    "execution": 31.0,
+    "governance": 30.0,
+    "deployment": 26.0,
+    "operator": 62.5,
+    "memory": 0.0,
+    "composition": 0.0
+  },
+  "contradiction_count_total": 15,
+  "contradictions_by_severity": {
+    "medium": 1,
+    "info": 14
+  },
+  "world_model_entity_count": 70,
+  "world_model_capability_count": 0,
+  "dependency_graph_edge_count": 32,
+  "dependency_graph_orphan_count": 21,
+  "bottleneck_count": 0,
+  "outcome_record_count": 0,
+  "memory_candidate_count": 0,
+  "template_candidate_count": 0,
+  "promoted_template_count": 0,
+  "agent_capability_count": 0,
+  "execution_journal_count": 0,
+  "campaign_trial_count": 0,
+  "composition_templates_available": 5,
+  "cockpit_panel_status": "operational"
+}

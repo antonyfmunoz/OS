@@ -1,4 +1,5 @@
 import { useIntelligenceStore } from '../stores/intelligenceStore'
+import { useCoherenceStore } from '../stores/coherenceStore'
 import { usePolling } from '../hooks/usePolling'
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -43,11 +44,36 @@ function ConfidenceDot({ value }: { value: number }) {
   )
 }
 
+function TemplateStatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    raw: 'bg-surface-overlay text-text-tertiary',
+    candidate: 'bg-cyan/20 text-cyan',
+    approved: 'bg-ok/20 text-ok',
+    promoted: 'bg-ok text-surface',
+    rejected: 'bg-danger/20 text-danger',
+    superseded: 'bg-surface-overlay text-text-tertiary',
+    deprecated: 'bg-surface-overlay text-text-tertiary',
+  }
+  return (
+    <span className={`font-mono text-xs px-1.5 py-0.5 rounded uppercase ${colors[status] || 'bg-surface-overlay text-text-secondary'}`}>
+      {status}
+    </span>
+  )
+}
+
+function PropagationStatusDot({ status }: { status: string }) {
+  const color = status === 'completed' ? 'bg-ok' : status === 'failed' ? 'bg-danger' : 'bg-warn'
+  return <span className={`inline-block w-2 h-2 rounded-full ${color}`} />
+}
+
 export function IntelligencePanel() {
   const data = useIntelligenceStore((s) => s.data)
   const fetchIntelligence = useIntelligenceStore((s) => s.fetchIntelligence)
+  const coherence = useCoherenceStore()
+  const fetchCoherence = useCoherenceStore((s) => s.fetchAll)
 
   usePolling(fetchIntelligence, 15000)
+  usePolling(fetchCoherence, 20000)
 
   if (!data) {
     return (
@@ -217,6 +243,139 @@ export function IntelligencePanel() {
           </div>
         ) : (
           <p className="text-xs text-text-tertiary">No actions recommended — system idle</p>
+        )}
+      </section>
+
+      {/* ── Phase 9.4: Coherence Propagation ── */}
+
+      {/* Template Registry */}
+      <section>
+        <h3 className="wv-label mb-3">
+          Template Registry
+          {coherence.templates?.summary && (
+            <span className="ml-2 font-mono text-xs text-cyan">
+              {coherence.templates.summary.promoted_count} promoted / {coherence.templates.summary.total_candidates} total
+            </span>
+          )}
+        </h3>
+        {coherence.templates?.candidates && coherence.templates.candidates.length > 0 ? (
+          <div className="space-y-1.5">
+            {coherence.templates.candidates.slice(0, 8).map((tpl) => (
+              <div key={tpl.template_id} className="wv-card p-3 flex items-center gap-3">
+                <TemplateStatusBadge status={tpl.status} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-mono">{tpl.template_type.replace(/_/g, ' ')}</span>
+                </div>
+                <ConfidenceDot value={tpl.confidence} />
+                <span className="font-mono text-xs text-text-tertiary">{(tpl.confidence * 100).toFixed(0)}%</span>
+                <span className="font-mono text-xs text-text-tertiary">
+                  {tpl.observed_success_count}✓ {tpl.observed_failure_count}✗
+                </span>
+                {(tpl.status === 'raw' || tpl.status === 'candidate') && (
+                  <button
+                    onClick={() => coherence.approveTemplate(tpl.template_id)}
+                    className="text-xs text-ok hover:underline font-mono"
+                  >
+                    approve
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-text-tertiary">No template candidates yet</p>
+        )}
+        {coherence.templates?.promoted && coherence.templates.promoted.length > 0 && (
+          <div className="mt-2">
+            <p className="text-xs text-text-tertiary mb-1">Promoted:</p>
+            {coherence.templates.promoted.map((tpl) => (
+              <div key={tpl.template_id} className="flex items-center gap-2 py-0.5">
+                <TemplateStatusBadge status="promoted" />
+                <span className="text-xs font-mono">{tpl.template_type.replace(/_/g, ' ')}</span>
+                <span className="text-xs text-ok font-mono">{(tpl.confidence * 100).toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Agent Capabilities */}
+      <section>
+        <h3 className="wv-label mb-3">
+          Agent Capabilities
+          {coherence.agentCapabilities?.summary && (
+            <span className="ml-2 font-mono text-xs text-text-tertiary">
+              {coherence.agentCapabilities.summary.total_profiles} profiles / {coherence.agentCapabilities.summary.total_records} records
+            </span>
+          )}
+        </h3>
+        {coherence.agentCapabilities?.profiles && Object.keys(coherence.agentCapabilities.profiles).length > 0 ? (
+          <div className="space-y-2">
+            {Object.entries(coherence.agentCapabilities.profiles).map(([agentType, profile]) => (
+              <div key={agentType} className="wv-card p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-mono">{agentType.replace(/_/g, ' ')}</span>
+                  <span className={`font-mono text-xs ${profile.overall_reliability >= 0.8 ? 'text-ok' : profile.overall_reliability >= 0.5 ? 'text-warn' : 'text-danger'}`}>
+                    {(profile.overall_reliability * 100).toFixed(0)}% reliable
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  {Object.entries(profile.capabilities).map(([capName, cap]) => (
+                    <div key={capName} className="flex items-center gap-1">
+                      <ConfidenceDot value={cap.confidence} />
+                      <span className="text-xs font-mono text-text-secondary truncate">{capName.replace(/_/g, ' ')}</span>
+                      <span className="text-xs font-mono text-text-tertiary ml-auto">{cap.successes}/{cap.attempts}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-text-tertiary">No agent capability data yet</p>
+        )}
+      </section>
+
+      {/* Propagation Events */}
+      <section>
+        <h3 className="wv-label mb-3">
+          Coherence Propagation
+          {coherence.propagation?.summary && (
+            <span className="ml-2 font-mono text-xs text-text-tertiary">
+              {coherence.propagation.summary.total_events} events / {coherence.propagation.summary.total_succeeded} ok / {coherence.propagation.summary.total_failed} failed
+            </span>
+          )}
+        </h3>
+        {coherence.propagation?.recent_events && coherence.propagation.recent_events.length > 0 ? (
+          <div className="space-y-1.5">
+            {coherence.propagation.recent_events.slice(0, 5).map((ev) => (
+              <div key={ev.event_id} className="wv-card p-3 flex items-center gap-3">
+                <PropagationStatusDot status={ev.status} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-mono">{ev.event_id}</span>
+                </div>
+                <span className="font-mono text-xs text-ok">{ev.succeeded_targets}✓</span>
+                {ev.failed_targets > 0 && (
+                  <span className="font-mono text-xs text-danger">{ev.failed_targets}✗</span>
+                )}
+                <span className="font-mono text-xs text-text-tertiary">{ev.total_targets} targets</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-text-tertiary">No propagation events yet</p>
+        )}
+        {coherence.propagation?.registered_targets && coherence.propagation.registered_targets.length > 0 && (
+          <div className="mt-2">
+            <p className="text-xs text-text-tertiary mb-1">Registered targets ({coherence.propagation.registered_targets.length}):</p>
+            <div className="flex flex-wrap gap-1">
+              {coherence.propagation.registered_targets.map((t) => (
+                <span key={t.name} className="text-xs font-mono bg-surface-overlay px-1.5 py-0.5 rounded">
+                  W{t.wave}:{t.name}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
       </section>
     </div>

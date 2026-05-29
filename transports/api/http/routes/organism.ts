@@ -245,6 +245,57 @@ router.get('/trial-status', operatorGuard, async (c) => {
   return c.json(result.data)
 })
 
+// ── Phase 9.4: Templates, Agent Capabilities, Propagation ────
+router.get('/templates', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.templates')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/template-candidates', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.template_candidates')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.post('/template-candidates/:id/approve', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.template_candidates.approve', { id: c.req.param('id') })
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
+router.post('/template-candidates/:id/reject', operatorGuard, async (c) => {
+  const body = await c.req.json().catch(() => ({}))
+  const reason = (body as Record<string, unknown>).reason as string
+  const result = await callOrganism('organism.template_candidates.reject', { id: c.req.param('id'), reason })
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
+router.get('/agent-capabilities', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.agent_capabilities')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/propagation', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.propagation')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/propagation/:id', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.propagation.detail', { id: c.req.param('id') })
+  if (!result.success) return c.json({ error: result.error }, 404)
+  return c.json(result.data)
+})
+
+router.get('/template-reuse-proof', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.template_reuse_proof')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
 // ── Report Dispatcher ────────────────────────────────────────
 router.post('/dispatch-report', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))

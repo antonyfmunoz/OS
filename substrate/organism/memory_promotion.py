@@ -382,6 +382,81 @@ class MemoryPromotionPipeline:
     def list_canonical(self) -> list[CanonicalMemoryEntry]:
         return list(self._canonical)
 
+    def generate_candidate_from_outcome(self, outcome: dict[str, Any]) -> list[MemoryCandidate]:
+        """Generate memory candidates from a governed execution outcome.
+
+        Extracts: learned pattern, execution lesson, validation lesson,
+        governance lesson, and failure mode if applicable. No auto-promotion.
+        """
+        candidates: list[MemoryCandidate] = []
+        action_type = outcome.get("action_type", "unknown")
+        description = outcome.get("description", "")
+        success = outcome.get("success", True)
+        agent_type = outcome.get("agent_type", "developer_agent")
+        risk_class = outcome.get("risk_class", "low")
+        evidence_items = outcome.get("evidence", [])
+        if isinstance(evidence_items, str):
+            evidence_items = [evidence_items]
+
+        base_evidence = [
+            MemoryEvidence(
+                source="outcome",
+                detail=str(ev),
+                confidence=0.8 if success else 0.5,
+            )
+            for ev in evidence_items[:5]
+        ]
+        if not base_evidence:
+            base_evidence = [MemoryEvidence(
+                source="outcome",
+                detail=f"Execution of {action_type}: {'success' if success else 'failure'}",
+                confidence=0.7 if success else 0.4,
+            )]
+
+        if success:
+            candidates.append(self.submit_candidate(
+                content=f"Learned pattern: {action_type} executed successfully via {agent_type}. {description}",
+                category=MemoryCategory.PATTERN,
+                evidence=base_evidence,
+                source_action=action_type,
+            ))
+
+        candidates.append(self.submit_candidate(
+            content=f"Execution lesson: {action_type} with risk={risk_class} {'succeeded' if success else 'failed'}. Agent: {agent_type}",
+            category=MemoryCategory.OBSERVATION,
+            evidence=base_evidence,
+            source_action=action_type,
+        ))
+
+        if outcome.get("validation_strategy") or outcome.get("validation_result"):
+            val_result = outcome.get("validation_result", "unknown")
+            candidates.append(self.submit_candidate(
+                content=f"Validation lesson: {action_type} validation {val_result}",
+                category=MemoryCategory.OBSERVATION,
+                evidence=base_evidence,
+                source_action=action_type,
+            ))
+
+        if outcome.get("governance_mode") or risk_class in ("medium", "high", "critical"):
+            gov_mode = outcome.get("governance_mode", "autonomous")
+            candidates.append(self.submit_candidate(
+                content=f"Governance lesson: {action_type} required {gov_mode} governance at {risk_class} risk",
+                category=MemoryCategory.CONSTRAINT,
+                evidence=base_evidence,
+                source_action=action_type,
+            ))
+
+        if not success:
+            failure_reason = outcome.get("error", outcome.get("failure_reason", "unknown"))
+            candidates.append(self.submit_candidate(
+                content=f"Failure mode: {action_type} failed — {failure_reason}",
+                category=MemoryCategory.OBSERVATION,
+                evidence=base_evidence,
+                source_action=action_type,
+            ))
+
+        return candidates
+
     def pending_approvals(self) -> list[MemoryCandidate]:
         return [c for c in self._candidates.values() if c.status == MemoryPromotionStatus.CANDIDATE]
 
