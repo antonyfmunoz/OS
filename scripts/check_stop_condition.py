@@ -78,6 +78,14 @@ def main():
         )
         sys.exit(2)
     else:
+        # Session ending — dispatch report before exit
+        try:
+            from scripts.auto_report_dispatch import dispatch
+            sent = dispatch()
+            if sent:
+                print('[Stop] Report dispatched.', file=sys.stderr)
+        except Exception as e:
+            print(f'[Stop] Report dispatch failed: {e}', file=sys.stderr)
         # Exit 0 = allow stop
         print('[Stop] Session complete.')
         sys.exit(0)
