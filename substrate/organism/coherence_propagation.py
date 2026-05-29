@@ -91,7 +91,12 @@ class OutcomeCommitted:
     changed_entities: list[str] = field(default_factory=list)
     affected_subsystems: list[str] = field(default_factory=list)
     evidence: list[str] = field(default_factory=list)
+    completed_at: float = 0.0
     timestamp: float = field(default_factory=time.time)
+
+    @property
+    def idempotency_key(self) -> str:
+        return f"{self.action_envelope_id}:{self.completed_at}"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -112,6 +117,7 @@ class OutcomeCommitted:
             "changed_entities": self.changed_entities,
             "affected_subsystems": self.affected_subsystems,
             "evidence": self.evidence,
+            "completed_at": self.completed_at,
             "timestamp": self.timestamp,
         }
 
@@ -281,13 +287,50 @@ class ParallelPropagationEngine:
         self._store_dir = store_dir or os.path.join(_REPO_ROOT, "data", "umh", "propagation")
         self._events_path = os.path.join(self._store_dir, "events.jsonl")
         self._results_path = os.path.join(self._store_dir, "results.jsonl")
+        self._processed_path = os.path.join(self._store_dir, "processed_outcomes.jsonl")
         self._max_workers = max_workers
         self._targets: list[PropagationTarget] = []
         self._events: list[PropagationEvent] = []
+        self._processed_keys: set[str] = set()
+        self._failed_outcomes: list[OutcomeFailed] = []
 
     def register_target(self, target: PropagationTarget) -> None:
         """Register a propagation target."""
         self._targets.append(target)
+
+    def handle_outcome(self, outcome: OutcomeCommitted) -> PropagationEvent | None:
+        """Handle an OutcomeCommitted event with idempotency protection.
+
+        Returns None if the outcome was already processed (duplicate).
+        """
+        key = outcome.idempotency_key
+        if key in self._processed_keys:
+            logger.info("Duplicate outcome ignored: %s", key)
+            return None
+
+        event = self.propagate(outcome)
+        self._processed_keys.add(key)
+        self._persist_processed_key(key, outcome.event_id)
+        return event
+
+    def handle_failure(self, failed: OutcomeFailed) -> None:
+        """Record a failed outcome for monitoring. No propagation triggered."""
+        self._failed_outcomes.append(failed)
+        logger.info(
+            "Outcome failed recorded: %s reason=%s",
+            failed.event_id, failed.failure_reason[:100],
+        )
+
+    def _persist_processed_key(self, key: str, event_id: str) -> None:
+        os.makedirs(os.path.dirname(self._processed_path), exist_ok=True)
+        with open(self._processed_path, "a") as f:
+            f.write(json.dumps({"key": key, "event_id": event_id, "ts": time.time()}) + "\n")
+
+    def is_processed(self, key: str) -> bool:
+        return key in self._processed_keys
+
+    def failed_outcomes(self, limit: int = 20) -> list[OutcomeFailed]:
+        return self._failed_outcomes[-limit:]
 
     def _build_waves(self) -> dict[int, list[PropagationTarget]]:
         waves: dict[int, list[PropagationTarget]] = {}
@@ -480,8 +523,12 @@ class ParallelPropagationEngine:
                 "started_at": e.started_at,
                 "completed_at": e.completed_at,
             })
+        recent_failures = [f.to_dict() for f in self.failed_outcomes(10)]
         return {
             "summary": self.summary(),
             "recent_events": events,
+            "recent_failures": recent_failures,
             "registered_targets": [t.to_dict() for t in self._targets],
+            "processed_outcome_count": len(self._processed_keys),
+            "spine_native": True,
         }
