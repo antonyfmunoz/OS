@@ -1,11 +1,15 @@
 import { clsx } from 'clsx'
 import { useState, useRef, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send, Pencil, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send, Pencil, Check, Download } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useSystemStore } from '../stores/systemStore'
-import { useChatStore } from '../stores/chatStore'
+import { useChatStore, type ChatMessage, type Provenance, type Attachment } from '../stores/chatStore'
 import { usePolling } from '../hooks/usePolling'
 import { relativeTime } from '../lib/time'
 import { useConfigStore } from '../stores/configStore'
+
+const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
 
 type RightTab = 'chat' | 'activity' | 'logs'
 
@@ -82,6 +86,103 @@ export function RightRail() {
   )
 }
 
+function ProvenanceLine({ provenance }: { provenance: Provenance }) {
+  const parts: string[] = []
+  if (provenance.node) parts.push(provenance.node)
+  if (provenance.harness) parts.push(provenance.harness)
+  if (provenance.session) parts.push(`session ${provenance.session}`)
+  if (provenance.phase) parts.push(`Phase ${provenance.phase}`)
+  if (provenance.pr) parts.push(`PR #${provenance.pr}`)
+  if (provenance.task) parts.push(provenance.task)
+  if (parts.length === 0) return null
+
+  return (
+    <div
+      className="flex flex-wrap gap-x-1 gap-y-0.5 mt-1 mb-1.5 py-0.5 px-1.5 rounded text-[9px] font-mono"
+      style={{
+        background: 'var(--color-surface)',
+        borderLeft: '2px solid var(--color-cyan)',
+        color: 'var(--color-text-tertiary)',
+      }}
+    >
+      {parts.map((p, i) => (
+        <span key={i}>
+          {i > 0 && <span style={{ opacity: 0.4 }}> · </span>}
+          {p}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function AttachmentLink({ attachment }: { attachment: Attachment }) {
+  const href = `${API_URL}/chat/attachment?path=${encodeURIComponent(attachment.path)}`
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-1.5 mt-1.5 py-1 px-1.5 rounded text-[10px] font-mono no-underline transition-colors"
+      style={{
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        color: 'var(--color-cyan)',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-cyan)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
+    >
+      <Download size={10} />
+      <span className="truncate flex-1">{attachment.filename}</span>
+      <span style={{ color: 'var(--color-text-tertiary)' }}>DOWNLOAD</span>
+    </a>
+  )
+}
+
+function MessageBubble({ msg, aiName }: { msg: ChatMessage; aiName: string }) {
+  if (msg.sender === 'operator') {
+    return (
+      <div className="px-2 py-1.5 rounded text-[11px] bg-cyan-glow text-text-primary ml-4">
+        <div className="font-mono text-[9px] text-text-tertiary mb-0.5">YOU</div>
+        <p className="whitespace-pre-wrap">{msg.content}</p>
+      </div>
+    )
+  }
+
+  const isReport = msg.intent === 'report'
+
+  return (
+    <div className="px-2 py-1.5 rounded text-[11px] bg-surface-raised text-text-secondary mr-4">
+      <div className="flex items-center gap-1.5 mb-0.5">
+        <span className="font-mono text-[9px] text-text-tertiary">{aiName}</span>
+        {isReport && (
+          <span
+            className="text-[8px] font-mono px-1 rounded uppercase"
+            style={{ color: 'var(--color-ok)', background: 'rgba(0,255,136,0.08)' }}
+          >
+            report
+          </span>
+        )}
+        <span className="text-[9px] text-text-tertiary ml-auto">
+          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      </div>
+      {isReport && msg.title && (
+        <div
+          className="font-mono text-[10px] tracking-wide uppercase mb-1 pb-0.5"
+          style={{ color: 'var(--color-cyan)', borderBottom: '1px solid var(--color-border)' }}
+        >
+          {msg.title}
+        </div>
+      )}
+      {msg.provenance && <ProvenanceLine provenance={msg.provenance} />}
+      <div className="chat-markdown leading-relaxed" style={{ color: 'var(--color-violet)' }}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+      </div>
+      {msg.attachment && <AttachmentLink attachment={msg.attachment} />}
+    </div>
+  )
+}
+
 function ChatSection() {
   const aiName = useConfigStore((s) => s.aiName)
   const messages = useChatStore((s) => s.messages)
@@ -138,10 +239,7 @@ function ChatSection() {
       </div>
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 mb-2">
         {messages.map((m) => (
-          <div key={m.id} className={clsx('px-2 py-1.5 rounded text-[11px]', m.sender === 'operator' ? 'bg-cyan-glow text-text-primary ml-4' : 'bg-surface-raised text-text-secondary mr-4')}>
-            <div className="font-mono text-[9px] text-text-tertiary mb-0.5">{m.sender === 'operator' ? 'YOU' : aiName}</div>
-            {m.content}
-          </div>
+          <MessageBubble key={m.id} msg={m} aiName={aiName} />
         ))}
         {messages.length === 0 && (
           <p className="text-[11px] text-text-tertiary text-center py-4">Ask {aiName} anything</p>
