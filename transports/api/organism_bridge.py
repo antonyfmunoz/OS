@@ -1377,6 +1377,65 @@ def _autonomous_lane_policy(_payload: dict) -> dict:
         return {"success": False, "error": "internal_error"}
 
 
+# ── PR Factory bridge handlers ──────────────────────────────
+
+
+def _get_pr_factory():
+    from substrate.organism.worktree_sandbox import SandboxManager
+    from substrate.organism.autonomous_pr_factory import AutonomousPRFactory
+
+    daemon = _get_daemon()
+    manager = getattr(daemon, "_sandbox_manager", None)
+    if manager is None:
+        manager = SandboxManager()
+        daemon._sandbox_manager = manager
+    factory = getattr(daemon, "_pr_factory", None)
+    if factory is None:
+        factory = AutonomousPRFactory(sandbox_manager=manager)
+        daemon._pr_factory = factory
+    return manager, factory
+
+
+def _pr_factory_status(_payload: dict) -> dict:
+    try:
+        _, factory = _get_pr_factory()
+        return {"success": True, "data": factory.to_dict()}
+    except Exception:
+        logger.exception("organism.pr_factory failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _pr_factory_sandboxes(_payload: dict) -> dict:
+    try:
+        manager, _ = _get_pr_factory()
+        return {"success": True, "data": manager.to_dict()}
+    except Exception:
+        logger.exception("organism.pr_factory.sandboxes failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _pr_factory_sandbox_detail(payload: dict) -> dict:
+    try:
+        manager, _ = _get_pr_factory()
+        sandbox_id = payload.get("sandbox_id", "")
+        sb = manager.get_sandbox(sandbox_id)
+        if sb is None:
+            return {"success": False, "error": f"sandbox {sandbox_id} not found"}
+        return {"success": True, "data": sb.to_dict()}
+    except Exception:
+        logger.exception("organism.pr_factory.sandbox_detail failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _pr_factory_production_truth(_payload: dict) -> dict:
+    try:
+        manager, _ = _get_pr_factory()
+        return {"success": True, "data": manager.production_truth()}
+    except Exception:
+        logger.exception("organism.pr_factory.production_truth failed")
+        return {"success": False, "error": "internal_error"}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -1453,6 +1512,10 @@ _ACTIONS: dict = {
     "organism.autonomous_lane.runs": _autonomous_lane_runs,
     "organism.autonomous_lane.run_detail": _autonomous_lane_run_detail,
     "organism.autonomous_lane.policy": _autonomous_lane_policy,
+    "organism.pr_factory": _pr_factory_status,
+    "organism.pr_factory.sandboxes": _pr_factory_sandboxes,
+    "organism.pr_factory.sandbox_detail": _pr_factory_sandbox_detail,
+    "organism.pr_factory.production_truth": _pr_factory_production_truth,
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,

@@ -69,10 +69,37 @@ interface PropagationData {
   registered_targets: Array<{ name: string; primitive_relationship: string; wave: number }>
 }
 
+interface SandboxSummary {
+  sandbox_id: string
+  branch_name: string
+  status: string
+  candidate_id: string
+  template_id: string
+  pr_url: string
+  pr_number: number
+  created_at: number
+  affected_files: string[]
+}
+
+interface PRFactoryData {
+  total_review_packets: number
+  pr_created_count: number
+  blocked_count: number
+  failed_count: number
+  sandbox_manager: {
+    total_sandboxes: number
+    active_sandboxes: number
+    max_parallel: number
+    file_locks: Record<string, string>
+    sandboxes: SandboxSummary[]
+  }
+}
+
 interface CoherenceState {
   templates: TemplateData | null
   agentCapabilities: AgentCapabilityData | null
   propagation: PropagationData | null
+  prFactory: PRFactoryData | null
   loading: boolean
   error: string | null
   fetchAll: () => Promise<void>
@@ -84,21 +111,24 @@ export const useCoherenceStore = create<CoherenceState>((set, get) => ({
   templates: null,
   agentCapabilities: null,
   propagation: null,
+  prFactory: null,
   loading: false,
   error: null,
 
   fetchAll: async () => {
     set({ loading: true })
     try {
-      const [templates, capabilities, propagation] = await Promise.all([
+      const [templates, capabilities, propagation, prFactory] = await Promise.all([
         fetchApi<TemplateData>('/organism/templates').catch(() => null),
         fetchApi<AgentCapabilityData>('/organism/agent-capabilities').catch(() => null),
         fetchApi<PropagationData>('/organism/propagation').catch(() => null),
+        fetchApi<PRFactoryData>('/organism/autonomous-pr-factory').catch(() => null),
       ])
       set({
         templates: templates && !('error' in templates) ? templates : null,
         agentCapabilities: capabilities && !('error' in capabilities) ? capabilities : null,
         propagation: propagation && !('error' in propagation) ? propagation : null,
+        prFactory: prFactory && !('error' in prFactory) ? prFactory : null,
         error: null,
       })
     } catch {

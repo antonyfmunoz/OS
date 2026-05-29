@@ -246,6 +246,89 @@ export function IntelligencePanel() {
         )}
       </section>
 
+      {/* ── Phase 9.7: Autonomous PR Factory ── */}
+      <section>
+        <h3 className="wv-label mb-3">
+          Autonomous PR Factory
+          {coherence.prFactory && (
+            <span className="ml-2 font-mono text-xs text-cyan">
+              {coherence.prFactory.sandbox_manager.active_sandboxes} active / {coherence.prFactory.pr_created_count} PRs
+            </span>
+          )}
+        </h3>
+        {coherence.prFactory ? (
+          <div className="space-y-2">
+            <div className="wv-card p-3 space-y-1">
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">Active sandboxes</span>
+                <span className="font-mono text-xs">{coherence.prFactory.sandbox_manager.active_sandboxes} / {coherence.prFactory.sandbox_manager.max_parallel}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">Total PRs created</span>
+                <span className="font-mono text-xs text-ok">{coherence.prFactory.pr_created_count}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">Blocked</span>
+                <span className="font-mono text-xs text-warn">{coherence.prFactory.blocked_count}</span>
+              </div>
+              {coherence.prFactory.failed_count > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="wv-label w-40">Failed</span>
+                  <span className="font-mono text-xs text-danger">{coherence.prFactory.failed_count}</span>
+                </div>
+              )}
+              {Object.keys(coherence.prFactory.sandbox_manager.file_locks).length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs text-text-tertiary mb-1">File locks:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {Object.entries(coherence.prFactory.sandbox_manager.file_locks).map(([file, owner]) => (
+                      <span key={file} className="text-xs font-mono bg-warn/10 text-warn px-1.5 py-0.5 rounded" title={`Locked by ${owner}`}>
+                        {file.split('/').pop()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            {coherence.prFactory.sandbox_manager.sandboxes.length > 0 && (
+              <div className="space-y-1.5">
+                {coherence.prFactory.sandbox_manager.sandboxes.slice(-5).reverse().map((sb) => (
+                  <div key={sb.sandbox_id} className="wv-card p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`font-mono text-xs px-1.5 py-0.5 rounded uppercase ${
+                        sb.status === 'pr_created' ? 'bg-ok/20 text-ok' :
+                        sb.status === 'merged' ? 'bg-cyan/20 text-cyan' :
+                        sb.status === 'executing' ? 'bg-warn/20 text-warn' :
+                        sb.status === 'abandoned' || sb.status === 'validation_failed' ? 'bg-danger/20 text-danger' :
+                        'bg-surface-overlay text-text-secondary'
+                      }`}>
+                        {sb.status}
+                      </span>
+                      <span className="font-mono text-xs text-text-tertiary">{sb.sandbox_id}</span>
+                      {sb.pr_number > 0 && (
+                        <span className="font-mono text-xs text-ok">PR #{sb.pr_number}</span>
+                      )}
+                    </div>
+                    <p className="text-xs font-mono text-text-secondary">{sb.branch_name}</p>
+                    {sb.affected_files.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {sb.affected_files.map((f) => (
+                          <span key={f} className="text-xs font-mono bg-surface-overlay px-1 py-0.5 rounded">
+                            {f.split('/').pop()}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-text-tertiary">PR factory not initialized</p>
+        )}
+      </section>
+
       {/* ── Phase 9.4: Coherence Propagation ── */}
 
       {/* Template Registry */}
