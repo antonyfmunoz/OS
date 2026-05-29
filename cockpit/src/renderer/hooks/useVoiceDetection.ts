@@ -1,10 +1,12 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useVoiceStore } from '../stores/voiceStore'
 import { startVoice } from '../api/voice-controller'
+import { AI_NAME } from '../constants'
 
 const CLAP_THRESHOLD = 0.6
 const CLAP_COOLDOWN_MS = 1500
-const WAKE_WORDS = ['dex', 'hey dex', 'okay dex']
+const AI_LOWER = AI_NAME.toLowerCase()
+const WAKE_WORDS = [AI_LOWER, `hey ${AI_LOWER}`, `okay ${AI_LOWER}`]
 
 export function useVoiceDetection(): void {
   const clapEnabled = useVoiceStore((s) => s.clapEnabled)

@@ -4,6 +4,7 @@ primary_region = "sjc"
 [build]
   [build.args]
     VITE_CLERK_PUBLISHABLE_KEY = "pk_test_b2JsaWdpbmctZG9ua2V5LTMxLmNsZXJrLmFjY291bnRzLmRldiQ"
+    VITE_AI_NAME = "DEX"
 
 [http_service]
   internal_port = 8080

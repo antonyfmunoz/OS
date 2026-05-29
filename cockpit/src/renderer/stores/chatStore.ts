@@ -3,14 +3,14 @@ import { fetchApi } from '../api/client'
 
 interface ChatMessage {
   id: string
-  sender: 'operator' | 'dex' | 'system'
+  sender: 'operator' | 'assistant' | 'system'
   content: string
   timestamp: string
   source?: 'text' | 'voice'
   origin_channel?: string
 }
 
-interface DexResponse {
+interface ChatResponse {
   message_id: string
   response: string
   timestamp: string
@@ -64,21 +64,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     try {
       if (targetChannel === 'cockpit') {
-        const res = await fetchApi<DexResponse>('/chat/converse', {
+        const res = await fetchApi<ChatResponse>('/chat/converse', {
           method: 'POST',
           body: JSON.stringify({ content: content.trim() }),
         })
 
-        const dexMsg: ChatMessage = {
+        const aiMsg: ChatMessage = {
           id: res.message_id,
-          sender: 'dex',
+          sender: 'assistant',
           content: typeof res.response === 'string' ? res.response : JSON.stringify(res.response),
           timestamp: res.timestamp,
           origin_channel: 'cockpit',
         }
 
         set((s) => ({
-          messages: [...s.messages, dexMsg],
+          messages: [...s.messages, aiMsg],
           sending: false,
         }))
       } else {
@@ -91,7 +91,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (e) {
       set({
         sending: false,
-        error: e instanceof Error ? e.message : 'Failed to reach DEX',
+        error: e instanceof Error ? e.message : 'Failed to reach assistant',
       })
     }
   },
@@ -130,8 +130,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
         if (exchange.response) {
           messages.push({
-            id: `h-dex-${exchange.id}`,
-            sender: 'dex',
+            id: `h-ai-${exchange.id}`,
+            sender: 'assistant',
             content: typeof exchange.response === 'string'
               ? exchange.response
               : JSON.stringify(exchange.response),

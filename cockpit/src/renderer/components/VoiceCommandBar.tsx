@@ -1,10 +1,12 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useVoiceStore } from '../stores/voiceStore'
 import { startVoice, stopVoice } from '../api/voice-controller'
+import { AI_NAME } from '../constants'
 
 const CLAP_THRESHOLD = 0.6
 const CLAP_COOLDOWN_MS = 1500
-const WAKE_WORDS = ['dex', 'hey dex', 'okay dex']
+const AI_LOWER = AI_NAME.toLowerCase()
+const WAKE_WORDS = [AI_LOWER, `hey ${AI_LOWER}`, `okay ${AI_LOWER}`]
 
 function VoiceOrb() {
   const micState = useVoiceStore((s) => s.micState)
@@ -47,7 +49,7 @@ function VoiceOrb() {
         transform: `scale(${scale})`,
         cursor: 'pointer',
       }}
-      title={micState === 'idle' ? 'Click to talk to DEX' : 'Click to stop'}
+      title={micState === 'idle' ? `Click to talk to ${AI_NAME}` : 'Click to stop'}
     >
       {/* Inner rings for active state */}
       {isActive && (
@@ -152,7 +154,7 @@ function TranscriptDisplay() {
   let color = 'var(--text-secondary)'
 
   if (ttsState === 'speaking') {
-    text = 'DEX is speaking...'
+    text = `${AI_NAME} is speaking...`
     color = 'var(--accent-purple)'
   } else if (micState === 'processing') {
     text = 'thinking...'
@@ -186,7 +188,7 @@ function ActivationIndicators() {
         label="wake word"
         active={wakeWordEnabled}
         onClick={() => setWakeWordEnabled(!wakeWordEnabled)}
-        title={'"Hey DEX" to activate'}
+        title={`"Hey ${AI_NAME}" to activate`}
       />
       <TogglePill
         label="clap"
@@ -377,7 +379,7 @@ export function VoiceCommandBar() {
               className="font-mono text-xs uppercase tracking-wider"
               style={{ color: 'var(--text-tertiary)' }}
             >
-              talk to dex
+              talk to {AI_NAME.toLowerCase()}
             </span>
             <ActivationIndicators />
           </div>

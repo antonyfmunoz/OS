@@ -71,7 +71,7 @@ export function useWebSocket() {
     cleanups.push(client.on('chat_message', (msg) => {
       useChatStore.getState().pushExternalMessage({
         id: (msg.id as string) || `ext-${Date.now()}`,
-        sender: (msg.sender as 'operator' | 'dex' | 'system') || 'system',
+        sender: (msg.sender as 'operator' | 'assistant' | 'system') || 'system',
         content: (msg.content as string) || '',
         timestamp: (msg.timestamp as string) || new Date().toISOString(),
         origin_channel: (msg.origin_channel as string) || 'unknown',
