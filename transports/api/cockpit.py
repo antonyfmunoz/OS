@@ -1707,15 +1707,16 @@ async def dex_converse(payload: dict):
 
 @router.get("/dex/history")
 async def dex_history(limit: int = 50):
-    """Recent DEX channel exchanges — operator commands and DEX responses."""
+    """Recent DEX channel exchanges and system reports for the right-rail chat."""
     daemon = _get_organism()
     if daemon is None:
         return []
 
     messages = daemon.store.list_messages(limit=500)
-    dex_msgs = [m for m in messages if m.get("payload", {}).get("source") == "cockpit_dex_channel"]
 
     exchanges: list[dict[str, Any]] = []
+
+    dex_msgs = [m for m in messages if m.get("payload", {}).get("source") == "cockpit_dex_channel"]
     i = 0
     while i < len(dex_msgs):
         msg = dex_msgs[i]
@@ -1739,7 +1740,20 @@ async def dex_history(limit: int = 50):
         exchanges.append(exchange)
         i += 1
 
-    exchanges.reverse()
+    for m in messages:
+        if m.get("intent") == "report" and m.get("sender") == "system":
+            payload = m.get("payload", {})
+            title = payload.get("title", "Report")
+            summary = payload.get("summary", "")
+            exchanges.append({
+                "id": m.get("id", ""),
+                "timestamp": m.get("created_at", ""),
+                "sender": "system",
+                "content": f"**{title}**\n{summary}",
+                "response": None,
+            })
+
+    exchanges.sort(key=lambda x: x.get("timestamp", ""))
     return exchanges[-limit:]
 
 
@@ -3049,12 +3063,6 @@ async def chat_history():
         return []
 
 
-@router.get("/dex/history")
-async def dex_history():
-    """Alias for /chat/history — deployed cockpit build uses this path."""
-    return await chat_history()
-
-
 @router.post("/chat/converse", dependencies=[Depends(_require_operator_role)])
 async def chat_converse(request: Request):
     """Route operator message through organism conversation pipeline."""
@@ -3082,12 +3090,6 @@ async def chat_converse(request: Request):
             "response": "Internal error — check server logs.",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-
-
-@router.post("/dex/converse", dependencies=[Depends(_require_operator_role)])
-async def dex_converse(request: Request):
-    """Alias for /chat/converse — deployed cockpit build uses this path."""
-    return await chat_converse(request)
 
 
 @router.post("/chat/send", dependencies=[Depends(_require_operator_role)])
