@@ -1011,6 +1011,63 @@ async def _handle_inline_commands(
     return False
 
 
+# ── Organism command handler (approve/deny/status/kill/resume) ────────────────
+
+_ORGANISM_CMD_RE = re.compile(
+    r"^(approve|deny|status|kill|resume)\s*(.*)",
+    re.IGNORECASE,
+)
+
+
+async def _handle_organism_command(
+    message: discord.Message,
+    text: str,
+) -> bool:
+    """Handle governance commands from Discord (approve, deny, status, kill, resume).
+
+    Returns True if the message was a governance command and was handled.
+    """
+    m = _ORGANISM_CMD_RE.match(text.strip())
+    if not m:
+        return False
+
+    cmd = m.group(1).lower()
+    arg = m.group(2).strip()
+
+    try:
+        from transports.api.organism_bridge import _ACTIONS
+
+        if cmd == "approve" and arg:
+            result = _ACTIONS["organism.approve"](
+                {"approval_id": arg, "decided_by": f"discord:{message.author.name}"}
+            )
+        elif cmd == "deny" and arg:
+            result = _ACTIONS["organism.deny"](
+                {"approval_id": arg, "decided_by": f"discord:{message.author.name}"}
+            )
+        elif cmd == "status":
+            result = _ACTIONS["organism.status"]({})
+        elif cmd == "kill":
+            result = _ACTIONS["organism.kill"]({})
+        elif cmd == "resume":
+            result = _ACTIONS["organism.resume"]({})
+        else:
+            return False
+
+        if result.get("success"):
+            data = result.get("data", {})
+            summary = str(data)[:1800] if isinstance(data, dict) else str(data)[:1800]
+            await _send_reply(message, f"**{cmd.upper()}** ✓\n```\n{summary}\n```")
+        else:
+            await _send_reply(message, f"**{cmd.upper()}** failed: {result.get('error', 'unknown')}")
+
+        return True
+    except Exception as e:
+        logger.error("organism command %s failed: %s", cmd, e)
+        await _send_reply(message, f"**{cmd.upper()}** error: {e}")
+        return True
+
+
 # ── Gateway dispatch handler ─────────────────────────────────────────────────
 
 

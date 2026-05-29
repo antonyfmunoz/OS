@@ -267,6 +267,14 @@ router.get('/chat-history', operatorGuard, async (c) => {
   return c.json(result.data)
 })
 
+// ── Cross-channel messaging ──────────────────────────────────────
+router.post('/send-channel-message', operatorGuard, async (c) => {
+  const body = await c.req.json().catch(() => ({})) as Record<string, unknown>
+  const result = await callOrganism('organism.send_channel_message', body)
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
 // ── Governed mutations (operator-only) ─────────────────────────
 router.post('/approve/:id', operatorGuard, async (c) => {
   const result = await callOrganism('organism.approve', {

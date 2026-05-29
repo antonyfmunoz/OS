@@ -7,6 +7,7 @@ interface ChatMessage {
   content: string
   timestamp: string
   source?: 'text' | 'voice'
+  origin_channel?: string
 }
 
 interface DexResponse {
@@ -20,11 +21,14 @@ interface ChatState {
   input: string
   sending: boolean
   error: string | null
+  targetChannel: string
 
   setInput: (input: string) => void
+  setTargetChannel: (channel: string) => void
   sendMessage: (content: string, source?: 'text' | 'voice') => Promise<void>
   loadHistory: () => Promise<void>
   addVoiceTranscript: (text: string) => void
+  pushExternalMessage: (msg: ChatMessage) => void
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -32,11 +36,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
   input: '',
   sending: false,
   error: null,
+  targetChannel: 'cockpit',
 
   setInput: (input) => set({ input }),
+  setTargetChannel: (channel) => set({ targetChannel: channel }),
 
   sendMessage: async (content, source = 'text') => {
     if (!content.trim()) return
+
+    const { targetChannel } = get()
 
     const operatorMsg: ChatMessage = {
       id: `op-${Date.now()}`,
@@ -44,6 +52,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       content: content.trim(),
       timestamp: new Date().toISOString(),
       source,
+      origin_channel: targetChannel,
     }
 
     set((s) => ({
@@ -54,22 +63,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }))
 
     try {
-      const res = await fetchApi<DexResponse>('/dex/converse', {
-        method: 'POST',
-        body: JSON.stringify({ content: content.trim() }),
-      })
+      if (targetChannel === 'cockpit') {
+        const res = await fetchApi<DexResponse>('/dex/converse', {
+          method: 'POST',
+          body: JSON.stringify({ content: content.trim() }),
+        })
 
-      const dexMsg: ChatMessage = {
-        id: res.message_id,
-        sender: 'dex',
-        content: typeof res.response === 'string' ? res.response : JSON.stringify(res.response),
-        timestamp: res.timestamp,
+        const dexMsg: ChatMessage = {
+          id: res.message_id,
+          sender: 'dex',
+          content: typeof res.response === 'string' ? res.response : JSON.stringify(res.response),
+          timestamp: res.timestamp,
+          origin_channel: 'cockpit',
+        }
+
+        set((s) => ({
+          messages: [...s.messages, dexMsg],
+          sending: false,
+        }))
+      } else {
+        await fetchApi('/organism/send-channel-message', {
+          method: 'POST',
+          body: JSON.stringify({ channel: targetChannel, content: content.trim() }),
+        })
+        set({ sending: false })
       }
-
-      set((s) => ({
-        messages: [...s.messages, dexMsg],
-        sending: false,
-      }))
     } catch (e) {
       set({
         sending: false,
@@ -86,6 +104,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         content: string
         response: string | null
         timestamp: string
+        origin_channel?: string
       }>>('/dex/history?limit=50')
 
       const messages: ChatMessage[] = []
@@ -96,6 +115,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             sender: 'system',
             content: exchange.content,
             timestamp: exchange.timestamp,
+            origin_channel: exchange.origin_channel,
           })
           continue
         }
@@ -105,6 +125,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             sender: 'operator',
             content: exchange.content,
             timestamp: exchange.timestamp,
+            origin_channel: exchange.origin_channel,
           })
         }
         if (exchange.response) {
@@ -115,6 +136,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               ? exchange.response
               : JSON.stringify(exchange.response),
             timestamp: exchange.timestamp,
+            origin_channel: exchange.origin_channel,
           })
         }
       }
@@ -126,5 +148,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   addVoiceTranscript: (text) => {
     get().sendMessage(text, 'voice')
+  },
+
+  pushExternalMessage: (msg) => {
+    set((s) => {
+      if (s.messages.some((m) => m.id === msg.id)) return s
+      return { messages: [...s.messages, msg] }
+    })
   },
 }))

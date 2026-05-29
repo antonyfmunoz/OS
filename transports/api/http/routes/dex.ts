@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { Env } from '../types.js'
-import { callBridge } from '../lib/python_bridge.js'
+import { callOrganism } from '../lib/python_bridge.js'
 
 const router = new Hono<Env>()
 
@@ -11,29 +11,20 @@ router.post('/converse', async (c) => {
     return c.json({ error: 'validation_error', message: 'content is required' }, 400)
   }
 
-  const result = await callBridge({
-    action: 'agent.run',
-    payload: {
-      prompt: content,
-      task_type: 'GENERATE',
-      channel: 'cockpit_chat',
-    },
-  })
+  const result = await callOrganism('organism.converse', { content })
 
+  const data = result.data as Record<string, unknown> | undefined
   return c.json({
-    message_id: `dex-${Date.now()}`,
+    message_id: data?.message_id ?? `dex-${Date.now()}`,
     response: result.success
-      ? (result.data as Record<string, unknown>)?.output ?? 'No response'
+      ? (data?.response ?? 'No response')
       : `Error: ${result.error}`,
-    timestamp: new Date().toISOString(),
+    timestamp: data?.timestamp ?? new Date().toISOString(),
   })
 })
 
 router.get('/history', async (c) => {
-  const result = await callBridge({
-    action: 'organism.chat_history',
-    payload: { limit: 50 },
-  })
+  const result = await callOrganism('organism.chat_history', { limit: 50 })
   if (!result.success) return c.json([])
   const messages = (result.data as Array<Record<string, unknown>>) ?? []
   return c.json(messages.map((m) => ({
