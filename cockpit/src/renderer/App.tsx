@@ -5,6 +5,7 @@ import { useKeyboard } from './hooks/useKeyboard'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useOrganismRealtime } from './hooks/useOrganismRealtime'
 import { useChatStore } from './stores/chatStore'
+import { useConfigStore } from './stores/configStore'
 import { setTokenGetter } from './api/client'
 
 const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
@@ -23,10 +24,12 @@ function AuthenticatedApp() {
   useOrganismRealtime()
 
   const loadHistory = useChatStore((s) => s.loadHistory)
+  const loadConfig = useConfigStore((s) => s.loadConfig)
 
   useEffect(() => {
+    loadConfig()
     loadHistory()
-  }, [loadHistory])
+  }, [loadConfig, loadHistory])
 
   return <Shell />
 }

@@ -1,14 +1,19 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useMemo } from 'react'
 import { useVoiceStore } from '../stores/voiceStore'
+import { useConfigStore } from '../stores/configStore'
 import { startVoice } from '../api/voice-controller'
-import { AI_NAME } from '../constants'
 
 const CLAP_THRESHOLD = 0.6
 const CLAP_COOLDOWN_MS = 1500
-const AI_LOWER = AI_NAME.toLowerCase()
-const WAKE_WORDS = [AI_LOWER, `hey ${AI_LOWER}`, `okay ${AI_LOWER}`]
+
+function makeWakeWords(name: string): string[] {
+  const lower = name.toLowerCase()
+  return [lower, `hey ${lower}`, `okay ${lower}`]
+}
 
 export function useVoiceDetection(): void {
+  const aiName = useConfigStore((s) => s.aiName)
+  const wakeWords = useMemo(() => makeWakeWords(aiName), [aiName])
   const clapEnabled = useVoiceStore((s) => s.clapEnabled)
   const wakeWordEnabled = useVoiceStore((s) => s.wakeWordEnabled)
   const alwaysOnEnabled = useVoiceStore((s) => s.alwaysOnEnabled)
@@ -96,11 +101,11 @@ export function useVoiceDetection(): void {
     if (micState !== 'idle') return
 
     const lower = lastTranscript.toLowerCase().trim()
-    if (WAKE_WORDS.some(w => lower.includes(w))) {
+    if (wakeWords.some(w => lower.includes(w))) {
       useVoiceStore.getState().setActivationMode('wake_word')
       startVoice()
     }
-  }, [lastTranscript, wakeWordEnabled, micState])
+  }, [lastTranscript, wakeWordEnabled, micState, wakeWords])
 
   useEffect(() => {
     if (alwaysOnEnabled && micState === 'idle') {

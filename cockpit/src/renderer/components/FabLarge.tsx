@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useAgentStore } from '../stores/agentStore'
 import { useChatStore } from '../stores/chatStore'
-import { AI_NAME } from '../constants'
+import { useConfigStore } from '../stores/configStore'
 import { VoiceWaveform } from './VoiceWaveform'
 import { useVoiceStore } from '../stores/voiceStore'
 import { startVoice, stopVoice } from '../api/voice-controller'
@@ -14,6 +14,7 @@ const MODE_COLORS: Record<string, string> = {
 }
 
 export function FabLarge() {
+  const aiName = useConfigStore((s) => s.aiName)
   const mode = useCockpitStore((s) => s.mode)
   const cycleWindowMode = useCockpitStore((s) => s.cycleWindowMode)
   const setWindowMode = useCockpitStore((s) => s.setWindowMode)
@@ -95,7 +96,7 @@ export function FabLarge() {
         <input
           value={chatInput}
           onChange={(e) => setDexInput(e.target.value)}
-          placeholder={`Ask ${AI_NAME}...`}
+          placeholder={`Ask ${aiName}...`}
           className="flex-1 px-2 py-1 rounded text-xs bg-transparent outline-none"
           style={{
             color: 'var(--color-text-primary)',

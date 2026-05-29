@@ -10,6 +10,7 @@ import chatRouter       from './routes/chat.js'
 import knowledgeRouter  from './routes/knowledge.js'
 import executionRouter  from './routes/execution.js'
 import settingsRouter   from './routes/settings.js'
+import configRouter     from './routes/config.js'
 
 const app = new Hono<Env>()
 
@@ -20,6 +21,8 @@ app.use('/organism/*',   authMiddleware)
 app.use('/governance',   authMiddleware)
 app.use('/governance/*', authMiddleware)
 app.use('/chat/*',       authMiddleware)
+app.use('/config',       authMiddleware)
+app.use('/config/*',     authMiddleware)
 app.use('/ide/*',        authMiddleware)
 app.use('/observations', authMiddleware)
 app.use('/memory',       authMiddleware)
@@ -31,6 +34,7 @@ app.route('/chat',       chatRouter)
 app.route('/',           knowledgeRouter)
 app.route('/execution',  executionRouter)
 app.route('/settings',   settingsRouter)
+app.route('/config',     configRouter)
 
 app.notFound((c) =>
   c.json({ error: 'not_found', message: `${c.req.method} ${c.req.path}` }, 404)

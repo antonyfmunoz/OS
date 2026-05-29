@@ -1,5 +1,5 @@
 import { useCockpitStore, type Panel } from '../stores/cockpitStore'
-import { AI_NAME } from '../constants'
+import { useConfigStore } from '../stores/configStore'
 
 const NAV_ITEMS: Array<{ panel: Panel; icon: string; label: string; key: string }> = [
   { panel: 'dashboard', icon: '◉', label: 'Dashboard', key: '1' },
@@ -18,6 +18,7 @@ const NAV_ITEMS: Array<{ panel: Panel; icon: string; label: string; key: string 
 ]
 
 export function NavRail() {
+  const aiName = useConfigStore((s) => s.aiName)
   const activePanel = useCockpitStore((s) => s.activePanel)
   const setPanel = useCockpitStore((s) => s.setPanel)
   const toggleChat = useCockpitStore((s) => s.toggleChat)
@@ -57,7 +58,7 @@ export function NavRail() {
 
       <button
         onClick={toggleChat}
-        title={`${AI_NAME} Chat (Ctrl+/)`}
+        title={`${aiName} Chat (Ctrl+/)`}
         className="flex items-center justify-center w-10 h-10 rounded-md transition-colors duration-150"
         style={{
           color: chatOpen ? 'var(--accent-purple)' : 'var(--text-secondary)',

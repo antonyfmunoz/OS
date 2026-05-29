@@ -93,7 +93,26 @@ class Substrate:
             trace_recorder=self.trace,
             governance=self.governance,
         )
+        self._register_config_store()
         self._register_boot_adapters()
+
+    def _register_config_store(self) -> None:
+        """Wire the config store into the config port so substrate code can access config."""
+        try:
+            from substrate.state.config import config_store
+            from substrate.sockets.config_port import register_config_store
+
+            config_store.seed_from_instance_json()
+            register_config_store(
+                get_fn=config_store.get,
+                set_fn=config_store.set,
+                get_all_fn=config_store.get_all,
+                on_change_fn=config_store.on_change,
+            )
+            logger.debug("Config store registered with %d system keys",
+                         len(config_store.get_layer("system")))
+        except Exception as exc:
+            logger.warning("Failed to register config store: %s", exc)
 
     def _register_boot_adapters(self) -> None:
         """Register built-in adapters at boot time.
