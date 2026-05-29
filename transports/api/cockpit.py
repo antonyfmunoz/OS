@@ -3018,7 +3018,7 @@ async def execution_resume(payload: dict):
 
 # ── Chat endpoints (operator ↔ DEX right-rail conversation) ───────────────────
 
-@router.get("/chat/history")
+@router.get("/chat/history", dependencies=[Depends(_require_operator_role)])
 async def chat_history():
     """Return chat history for the cockpit right-rail ChatDrawer."""
     try:
@@ -3073,7 +3073,7 @@ async def chat_converse(request: Request):
         logger.error("chat_converse failed: %s", e)
         return {
             "message_id": f"dex-{int(time.time() * 1000)}",
-            "response": f"Error: {e}",
+            "response": "Internal error — check server logs.",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -3088,11 +3088,11 @@ async def chat_send(request: Request):
     try:
         from substrate.organism.store import OrganismStore
         store = OrganismStore()
-        channel = body.get("channel", "cockpit")
-        store.save_conversation_turn(content=content, response="", origin_channel=channel)
+        store.save_conversation_turn(content=content, response="", origin_channel="cockpit")
         return {"success": True}
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        logger.error("chat_send failed: %s", e)
+        return JSONResponse({"error": "internal error"}, status_code=500)
 
 
 @router.post("/chat/push")
