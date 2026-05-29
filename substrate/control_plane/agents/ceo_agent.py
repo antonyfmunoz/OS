@@ -21,7 +21,7 @@ Usage:
 import json
 import os
 from typing import Optional
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
 
 
@@ -45,7 +45,7 @@ class CEOAgent:
     Never asks the founder for info it can find itself.
     """
 
-    def __init__(self, ctx: EntrepreneurOSContext) -> None:
+    def __init__(self, ctx: SubstrateContext) -> None:
         self.ctx = ctx
 
     # ─── detect_primitives ────────────────────────────────────────────────────

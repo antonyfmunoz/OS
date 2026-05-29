@@ -1,8 +1,8 @@
 import type { Context, Next } from 'hono'
 import { eq } from 'drizzle-orm'
 import type { Env } from '../types.js'
-import { db } from '../../db/client.js'
-import { organizations } from '../../db/schema.js'
+import { db } from '../db/client.js'
+import { organizations } from '../db/schema.js'
 
 /**
  * Operator guard — restricts routes to the org owner.

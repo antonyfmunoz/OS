@@ -32,7 +32,7 @@ if _REPO_ROOT not in sys.path:
 
 from substrate.contracts.agent_types import TaskType
 from adapters.models.agent_runtime import AgentRuntime
-from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
+from substrate.state.context.context import SubstrateContext, load_context_from_env
 from substrate.state.storage.db import get_conn, resolve_venture, ORG_ID, USER_ID
 
 LEADS_DIR      = Path(_REPO_ROOT) / "03_CRM" / "Leads"
@@ -47,7 +47,7 @@ def _utcnow() -> str:
 
 class HumanIntelligenceEngine:
 
-    def __init__(self, ctx: EntrepreneurOSContext | None = None) -> None:
+    def __init__(self, ctx: SubstrateContext | None = None) -> None:
         self._ctx = ctx or load_context_from_env()
         self._runtime = AgentRuntime(self._ctx)
 

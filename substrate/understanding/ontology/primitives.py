@@ -33,7 +33,7 @@ Usage:
 """
 
 from dataclasses import dataclass, field
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 
 
 # ─── KnowledgePrimitive ───────────────────────────────────────────────────────
@@ -786,7 +786,7 @@ class PrimitiveRegistry:
     Reads the live BIS to determine the current stage per venture.
     """
 
-    def __init__(self, ctx: EntrepreneurOSContext):
+    def __init__(self, ctx: SubstrateContext):
         self.ctx = ctx
 
     def _get_stage(self, venture_id: str) -> int:
@@ -844,7 +844,7 @@ class ContextualReasoningEngine:
     to the response — the system corrects itself before the founder sees it.
     """
 
-    def __init__(self, ctx: EntrepreneurOSContext):
+    def __init__(self, ctx: SubstrateContext):
         self.ctx      = ctx
         self._registry = PrimitiveRegistry(ctx)
 

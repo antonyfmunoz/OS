@@ -69,7 +69,7 @@ class ConcreteContextAssembler:
 
             from types import SimpleNamespace
 
-            ctx = SimpleNamespace(org_id=os.environ.get("EOS_ORG_ID", ""))
+            ctx = SimpleNamespace(org_id=os.environ.get("UMH_ORG_ID", "") or os.environ.get("EOS_ORG_ID", ""))
             cm = ConversationMemory(ctx)
             return cm.get_session(user_id=user_id, channel_id=channel_id, limit=limit)
         except Exception:

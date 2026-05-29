@@ -1,5 +1,5 @@
 """
-Input Intelligence Layer — EntrepreneurOS
+Input Intelligence Layer
 ==========================================
 Sits at the gateway level between request intake and cognitive loop dispatch.
 
@@ -274,7 +274,7 @@ class InputIntelligence:
 
             venture_context = self._get_venture_context(venture_id)
 
-            system_prompt = f"""You are an input intelligence layer for EntrepreneurOS.
+            system_prompt = f"""You are an input intelligence layer for UMH.
 
 Your job: convert a founder's short or vague message into a precise,
 actionable execution prompt that will get world-class output from an AI agent.

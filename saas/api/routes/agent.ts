@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import type { Env } from '../types.js'
-import { callBridge } from '../lib/python_bridge.js'
+import type { Env } from '../../../transports/api/http/types.js'
+import { callBridge } from '../../../transports/api/http/lib/python_bridge.js'
 
 const router = new Hono<Env>()
 

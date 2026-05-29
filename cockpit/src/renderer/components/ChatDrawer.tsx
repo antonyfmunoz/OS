@@ -67,10 +67,14 @@ export function ChatDrawer() {
                   <span
                     className="font-mono text-xs uppercase"
                     style={{
-                      color: msg.sender === 'dex' ? 'var(--color-violet)' : 'var(--color-text-secondary)',
+                      color: msg.sender === 'dex'
+                        ? 'var(--color-violet)'
+                        : msg.sender === 'system'
+                          ? 'var(--color-cyan)'
+                          : 'var(--color-text-secondary)',
                     }}
                   >
-                    {msg.sender === 'dex' ? 'DEX' : 'YOU'}
+                    {msg.sender === 'dex' ? 'DEX' : msg.sender === 'system' ? 'UMH' : 'YOU'}
                   </span>
                   {msg.source === 'voice' && (
                     <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>🎤</span>
@@ -82,7 +86,11 @@ export function ChatDrawer() {
                 <p
                   className="leading-relaxed whitespace-pre-wrap"
                   style={{
-                    color: msg.sender === 'dex' ? 'var(--color-violet)' : 'var(--color-text-primary)',
+                    color: msg.sender === 'dex'
+                      ? 'var(--color-violet)'
+                      : msg.sender === 'system'
+                        ? 'var(--color-cyan)'
+                        : 'var(--color-text-primary)',
                   }}
                 >
                   {msg.content}

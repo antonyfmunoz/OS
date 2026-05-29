@@ -501,7 +501,7 @@ def _extract_governance(model: WorldModel) -> None:
     gov_files = [
         ("governance_control_plane", "substrate/control_plane/governance.py",
          "Deterministic risk classification"),
-        ("governance_router", "substrate/control_plane/router.py",
+        ("governance_router", "substrate/control_plane/router/__init__.py",
          "Signal lifecycle orchestration"),
         ("governance_spine", "substrate/execution/spine.py",
          "8-stage execution pipeline"),

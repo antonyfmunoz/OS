@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
 import { eq, sql, desc } from 'drizzle-orm'
-import type { Env } from '../types.js'
-import { withOrg } from '../../db/client.js'
+import type { Env } from '../../../transports/api/http/types.js'
+import { withOrg } from '../../../transports/api/http/db/client.js'
 import { interactions, clients, transactions } from '../../db/schema.js'
-import { callOrganism } from '../lib/python_bridge.js'
+import { callOrganism } from '../../../transports/api/http/lib/python_bridge.js'
 
 const router = new Hono<Env>()
 

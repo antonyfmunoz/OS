@@ -36,7 +36,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
+from substrate.state.context.context import SubstrateContext, load_context_from_env
 from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
 from substrate.contracts.agent_types import TaskType
 from substrate.state.storage.db import get_conn, resolve_venture
@@ -131,7 +131,7 @@ class StrategyEngine:
     Never generic. Every output is grounded in actual metrics.
     """
 
-    def __init__(self, ctx: EntrepreneurOSContext):
+    def __init__(self, ctx: SubstrateContext):
         self.ctx    = ctx
         self.loop   = CognitiveLoop(ctx)
         self.memory = AgentMemory()
@@ -402,7 +402,7 @@ class DecisionEngine:
     Results are logged to Neon for future reference.
     """
 
-    def __init__(self, ctx: EntrepreneurOSContext):
+    def __init__(self, ctx: SubstrateContext):
         self.ctx      = ctx
         self.strategy = StrategyEngine(ctx)
         self.loop     = self.strategy.loop

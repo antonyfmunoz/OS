@@ -36,6 +36,9 @@ Actions:
   organism.docker         — list Docker containers
   organism.mesh           — list Tailscale mesh nodes
 
+  organism.dev_sessions        — list active/completed development sessions (all harnesses)
+  organism.dev_session_detail  — full detail for a specific session (events, decisions, coherence)
+
 UMH substrate bridge — no instance context.
 """
 
@@ -642,6 +645,64 @@ def _execute_plan_pending(payload: dict) -> dict:
     return {"success": True, "data": []}
 
 
+def _trial_status(_payload: dict) -> dict:
+    """Return the latest self-improvement trial results."""
+    import glob
+
+    umh_root = _os.environ.get("UMH_ROOT", "/opt/OS")
+    trials_dir = _os.path.join(umh_root, "data", "umh", "trials")
+
+    result: dict = {"has_trial": False}
+
+    results_path = _os.path.join(trials_dir, "phase9_2_trial_results.json")
+    if _os.path.isfile(results_path):
+        with open(results_path) as f:
+            result["trial_results"] = json.loads(f.read())
+        result["has_trial"] = True
+
+    plan_path = _os.path.join(trials_dir, "phase9_2_composition_plan.json")
+    if _os.path.isfile(plan_path):
+        with open(plan_path) as f:
+            result["composition_plan"] = json.loads(f.read())
+
+    graph_path = _os.path.join(trials_dir, "phase9_2_execution_graph.json")
+    if _os.path.isfile(graph_path):
+        with open(graph_path) as f:
+            result["execution_graph"] = json.loads(f.read())
+
+    outcomes_path = _os.path.join(trials_dir, "trial_outcomes.jsonl")
+    if _os.path.isfile(outcomes_path):
+        outcomes = []
+        with open(outcomes_path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    outcomes.append(json.loads(line))
+        result["outcomes"] = outcomes
+
+    memory_candidates_path = _os.path.join(trials_dir, "memory", "memory_candidates", "candidates.jsonl")
+    if _os.path.isfile(memory_candidates_path):
+        candidates = []
+        with open(memory_candidates_path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    candidates.append(json.loads(line))
+        result["memory_candidates"] = candidates
+
+    journal_path = _os.path.join(trials_dir, "trial_journal.jsonl")
+    if _os.path.isfile(journal_path):
+        journal_entries = []
+        with open(journal_path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    journal_entries.append(json.loads(line))
+        result["journal_entries"] = journal_entries[-50:]
+
+    return {"success": True, "data": result}
+
+
 def _list_workspaces(_payload: dict) -> dict:
     import subprocess
 
@@ -725,6 +786,111 @@ def _read_file(payload: dict) -> dict:
         return {"success": False, "error": str(e)}
 
 
+# ── Report Dispatcher ─────────────────────────────────────
+
+def _dispatch_report(payload: dict) -> dict:
+    """Send a report to Discord + cockpit chat."""
+    title = payload.get("title", "")
+    summary = payload.get("summary", "")
+    body = payload.get("body", "")
+    file_path = payload.get("file_path")
+    metadata = payload.get("metadata", {})
+
+    if not title or not summary:
+        return {"success": False, "error": "title and summary required"}
+
+    try:
+        from substrate.organism.report_dispatcher import ReportDispatcher, Report
+        dispatcher = ReportDispatcher()
+        report = Report(
+            title=title,
+            summary=summary,
+            body=body,
+            file_path=file_path,
+            metadata=metadata,
+        )
+        result = dispatcher.dispatch_report(report)
+        return {"success": True, "data": result.to_dict()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _list_reports(payload: dict) -> dict:
+    """List recent reports from organism store."""
+    limit = int(payload.get("limit", 20))
+    try:
+        from substrate.organism.report_dispatcher import ReportDispatcher
+        dispatcher = ReportDispatcher()
+        reports = dispatcher.list_reports(limit=limit)
+        return {"success": True, "data": reports}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _chat_history(payload: dict) -> dict:
+    """Return chat history including system report messages."""
+    limit = int(payload.get("limit", 50))
+    try:
+        from substrate.organism.store import OrganismStore
+        store = OrganismStore()
+        messages = store.list_messages(limit=limit)
+        return {"success": True, "data": messages}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+# ── Development session handlers ──────────────────────────────────────
+
+def _dev_sessions(payload: dict) -> dict:
+    """List active and recent development sessions across all harnesses."""
+    try:
+        import json as _json
+        from pathlib import Path
+
+        sessions_dir = Path(_os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "sessions"
+        result: dict = {"active": [], "completed": []}
+
+        active_path = sessions_dir / "active_sessions.jsonl"
+        if active_path.exists():
+            for line in active_path.read_text().strip().split("\n"):
+                if line.strip():
+                    result["active"].append(_json.loads(line))
+
+        completed_path = sessions_dir / "completed_sessions.jsonl"
+        if completed_path.exists():
+            lines = completed_path.read_text().strip().split("\n")
+            limit = int(payload.get("limit", 20))
+            for line in lines[-limit:]:
+                if line.strip():
+                    result["completed"].append(_json.loads(line))
+
+        return {"success": True, "data": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _dev_session_detail(payload: dict) -> dict:
+    """Get full detail for a specific development session."""
+    session_id = payload.get("session_id", "")
+    if not session_id:
+        return {"success": False, "error": "session_id required"}
+    try:
+        import json as _json
+        from pathlib import Path
+
+        session_file = (
+            Path(_os.environ.get("UMH_ROOT", "/opt/OS"))
+            / "data" / "umh" / "sessions" / f"{session_id}.json"
+        )
+        if not session_file.exists():
+            return {"success": False, "error": f"session {session_id} not found"}
+
+        data = _json.loads(session_file.read_text())
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -775,6 +941,12 @@ _ACTIONS: dict = {
     "organism.execution_graph.detail": _execution_graph_detail,
     "organism.execute_plan.approve_step": _execute_plan_approve_step,
     "organism.execute_plan.pending": _execute_plan_pending,
+    "organism.trial_status": _trial_status,
+    "organism.dispatch_report": _dispatch_report,
+    "organism.reports": _list_reports,
+    "organism.chat_history": _chat_history,
+    "organism.dev_sessions": _dev_sessions,
+    "organism.dev_session_detail": _dev_session_detail,
 }
 
 
