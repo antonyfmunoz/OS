@@ -23,6 +23,13 @@ router.post('/converse', async (c) => {
   })
 })
 
+router.post('/send', async (c) => {
+  const body = await c.req.json().catch(() => ({})) as Record<string, unknown>
+  const result = await callOrganism('organism.send_channel_message', body)
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
 router.get('/history', async (c) => {
   const result = await callOrganism('organism.chat_history', { limit: 50 })
   if (!result.success) return c.json([])
