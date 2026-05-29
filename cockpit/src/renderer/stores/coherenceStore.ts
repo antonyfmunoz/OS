@@ -113,6 +113,14 @@ interface MergeVerificationData {
   count: number
 }
 
+interface ProductionTruthData {
+  production_outcomes_count: number
+  sandbox_outcomes_count: number
+  pending_verifications: number
+  cleanup_ready: number
+  last_delta_id: string | null
+}
+
 interface CoherenceState {
   templates: TemplateData | null
   agentCapabilities: AgentCapabilityData | null
@@ -120,11 +128,16 @@ interface CoherenceState {
   prFactory: PRFactoryData | null
   cadence: CadenceData | null
   mergeVerifications: MergeVerificationData | null
+  productionTruth: ProductionTruthData | null
   loading: boolean
   error: string | null
   fetchAll: () => Promise<void>
   approveTemplate: (id: string) => Promise<boolean>
   rejectTemplate: (id: string, reason: string) => Promise<boolean>
+  runDryRun: () => Promise<boolean>
+  setCadenceMode: (mode: string) => Promise<boolean>
+  verifyMerge: (sandboxId: string) => Promise<boolean>
+  cleanupEligible: () => Promise<boolean>
 }
 
 export const useCoherenceStore = create<CoherenceState>((set, get) => ({
@@ -134,19 +147,21 @@ export const useCoherenceStore = create<CoherenceState>((set, get) => ({
   prFactory: null,
   cadence: null,
   mergeVerifications: null,
+  productionTruth: null,
   loading: false,
   error: null,
 
   fetchAll: async () => {
     set({ loading: true })
     try {
-      const [templates, capabilities, propagation, prFactory, cadence, mergeVerifications] = await Promise.all([
+      const [templates, capabilities, propagation, prFactory, cadence, mergeVerifications, productionTruth] = await Promise.all([
         fetchApi<TemplateData>('/organism/templates').catch(() => null),
         fetchApi<AgentCapabilityData>('/organism/agent-capabilities').catch(() => null),
         fetchApi<PropagationData>('/organism/propagation').catch(() => null),
         fetchApi<PRFactoryData>('/organism/autonomous-pr-factory').catch(() => null),
         fetchApi<CadenceData>('/organism/autonomous-cadence').catch(() => null),
         fetchApi<MergeVerificationData>('/organism/autonomous-pr-factory/merge-verifications').catch(() => null),
+        fetchApi<ProductionTruthData>('/organism/autonomous-pr-factory/production-truth').catch(() => null),
       ])
       set({
         templates: templates && !('error' in templates) ? templates : null,
@@ -155,6 +170,7 @@ export const useCoherenceStore = create<CoherenceState>((set, get) => ({
         prFactory: prFactory && !('error' in prFactory) ? prFactory : null,
         cadence: cadence && !('error' in cadence) ? cadence : null,
         mergeVerifications: mergeVerifications && !('error' in mergeVerifications) ? mergeVerifications : null,
+        productionTruth: productionTruth && !('error' in productionTruth) ? productionTruth : null,
         error: null,
       })
     } catch {
@@ -180,6 +196,49 @@ export const useCoherenceStore = create<CoherenceState>((set, get) => ({
         method: 'POST',
         body: JSON.stringify({ reason }),
       })
+      await get().fetchAll()
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  runDryRun: async () => {
+    try {
+      await fetchApi('/organism/autonomous-cadence/run-dry-run', { method: 'POST' })
+      await get().fetchAll()
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  setCadenceMode: async (mode: string) => {
+    try {
+      await fetchApi('/organism/autonomous-cadence/set-mode', {
+        method: 'POST',
+        body: JSON.stringify({ mode }),
+      })
+      await get().fetchAll()
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  verifyMerge: async (sandboxId: string) => {
+    try {
+      await fetchApi(`/organism/autonomous-pr-factory/verify-merge/${sandboxId}`, { method: 'POST' })
+      await get().fetchAll()
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  cleanupEligible: async () => {
+    try {
+      await fetchApi('/organism/autonomous-pr-factory/cleanup-eligible', { method: 'POST' })
       await get().fetchAll()
       return true
     } catch {

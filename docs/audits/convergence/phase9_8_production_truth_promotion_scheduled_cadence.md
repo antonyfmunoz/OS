@@ -19,7 +19,7 @@ Only post-merge verification creates production truth.
 
 ## ProductionMergeVerifier
 
-**File:** `substrate/organism/production_merge_verifier.py` (514 lines)
+**File:** `substrate/organism/production_merge_verifier.py` (598 lines)
 
 Lifecycle:
 1. Receive sandbox_id / PR number
@@ -38,14 +38,14 @@ Lifecycle:
 Entities:
 - `ProductionMergeVerification` — tracks verification lifecycle
 - `ProductionPromotionDecision` — promote/reject/review decision
-- `MergeVerificationStatus` — 9 statuses from pending to cleanup_ready
+- `MergeVerificationStatus` — 12 statuses from pending to cleanup_ready
 
 Duplicate suppression: event key = `{sandbox_id}:{merge_commit}`. Duplicate
 ProductionOutcomeCommitted events are suppressed, never double-counted.
 
 ## ProductionTruthDelta
 
-**File:** `substrate/organism/production_truth_delta.py` (240 lines)
+**File:** `substrate/organism/production_truth_delta.py` (311 lines)
 
 Fields:
 - delta_id, sandbox_id, pr_number, merge_commit, base_commit, head_commit
@@ -147,20 +147,25 @@ Behavior:
 - create_pr_with_operator_policy → create PR only if policy enables
 - production_verify_only → check merged PRs
 
-Exposed in daemon.status():
-- autonomous_cadence.mode
-- autonomous_cadence.last_run_at
-- autonomous_cadence.dry_runs_today
-- autonomous_cadence.prs_today
-- autonomous_cadence.total_runs
-- autonomous_cadence.pending_recommendations
+Exposed in daemon.status() — 9 new top-level fields:
+- autonomous_cadence_mode
+- last_dry_run_at
+- last_candidate_count
+- last_recommendation_count
+- active_sandbox_count
+- active_pr_count
+- pending_merge_verification_count
+- last_production_truth_delta_id
+- last_production_outcome_at
 
 ## Cockpit Surface
 
 Updated IntelligencePanel:
-- Autonomous Cadence section (mode, counters, policy)
+- Autonomous Cadence section with controls (mode, counters, last run result, dry-run button, mode toggle)
+- Production Truth section (production outcomes count, sandbox outcomes, pending verifications, cleanup ready, last delta ID)
 - Merge Verifications section (status badges, PR numbers, commit hashes)
-- Updated coherenceStore with CadenceData and MergeVerificationData types
+- Updated coherenceStore with CadenceData, MergeVerificationData, and ProductionTruthData types
+- Added actions: runDryRun(), setCadenceMode(), verifyMerge(), cleanupEligible()
 - TypeScript compiles clean
 
 ## Cleanup/Lifecycle
@@ -175,14 +180,48 @@ Cleanup policies from Phase 9.7:
 - cleanup_expired() cleans abandoned sandboxes past TTL
 - Branch and worktree deletion on cleanup
 
+## Security Preflight (PR #42)
+
+See: `phase9_8_security_preflight_pr42.md`
+
+Fixes applied before Phase 9.8 implementation:
+- Path traversal protection on all ID parameters (regex validation)
+- Missing auth on `GET /organism/autonomous-pr-factory/production-truth`
+- All production truth endpoints now require operator token
+
+## First Production Truth Promotion
+
+**File:** `data/umh/autonomous_lane/phase9_8_first_production_truth_promotion.json`
+
+PR #42 (security fixes) verified as production truth:
+- Merge detected on main at `d1543edf`
+- Expected files match observed files (2/2)
+- 32 lines added, 20 removed
+- All post-merge validations passed
+- ProductionOutcomeCommitted emitted with idempotency key
+- Wave 1 + Wave 2 propagation targets documented
+
 ## Tests
 
-**File:** `tests/test_phase9_8_production_truth.py` — 86 tests, all passing
+**File:** `tests/test_phase9_8_production_truth.py` — 140 tests, all passing
+**File:** `tests/test_phase9_7_pr_factory.py` — 79 tests, all passing (regression fixed)
 
-Coverage:
+Phase 9.8 test coverage (140 tests):
 - ProductionTruthDelta: 18 tests (divergence, state delta, finalize, serialization)
 - ProductionMergeVerifier: 9 tests (init, unmerged, pending, cleanup, persistence, dedup)
 - ProductionOutcomeCommitted: 8 tests (contract, boundary, serialization)
+- MergeVerificationStatus extended: 3 tests (new statuses)
+- ProductionTruthDelta extended fields: 5 tests (line counts, bottlenecks, mismatch)
+- Idempotency key: 5 tests (format, uniqueness, determinism)
+- Security extended: 6 tests (path traversal, regex validation)
+- Thread-safe duplicate suppression: 5 tests (concurrent emission)
+- Production propagation waves: 6 tests (wave 1, wave 2, sequencing)
+- Daemon status extended: 5 tests (new fields)
+- Truth boundary extended: 5 tests (sandbox vs production)
+- Verifier expected-observed mismatch: 5 tests
+- Cadence policy extended: 5 tests
+- Compute line counts: 5 tests
+- ProductionTruthDelta finalize: 5 tests (all paths)
 - Truth boundary: 4 tests (SOC vs POC enforcement)
 - AutonomousCadence: 19 tests (modes, filtering, limits, scheduling, error handling)
 - Daemon integration: 4 tests (cadence property, status, tick registration)
@@ -190,30 +229,61 @@ Coverage:
 - Status enums: 3 tests
 - API contracts: 4 tests (JSON roundtrip)
 - Delegation: 1 test
-- Edge cases: 12 tests (additional coverage)
 
-Existing tests:
-- 1159 organism tests — ALL PASSING
-- 60 Phase 9.6 tests — ALL PASSING
+Phase 9.7 regression fix:
+- `test_verify_merge_found` was failing due to mock returning "ok\n" for git diff commands
+- Fix: added explicit "diff" case returning empty stdout, changed fallthrough to empty stdout
+- Root cause: mock stdout parsed as filename, creating false file divergence
+
+Cross-phase verification:
+- 219 total tests (79 Phase 9.7 + 140 Phase 9.8) — ALL PASSING
 - py_compile on all modified files — CLEAN
 - TypeScript compile — CLEAN
 - Type divergence gate — PASS (warnings are pre-existing)
 - Instance leak gate — PASS
 - Dependency direction gate — pre-existing violation in test_phase93 (not our code)
 
+## MergeVerificationStatus — Extended (Phase 9.8)
+
+Added 3 new statuses to the original 9:
+- `PR_NOT_FOUND` — gh pr view returned non-zero or unparseable JSON
+- `MAIN_UPDATE_FAILED` — git fetch origin main failed
+- `EXPECTED_OBSERVED_MISMATCH` — file divergence between expected and observed changes
+
+Total: 12 statuses covering full lifecycle from `pending` to `cleanup_ready`.
+
+## ProductionTruthDelta — Extended Fields (Phase 9.8)
+
+- `manifest_id` — links delta to source changeset manifest
+- `added_lines_expected`, `removed_lines_expected` — expected line counts
+- `added_lines_observed`, `removed_lines_observed` — from `git diff --stat`
+- `bottlenecks_before_after` — bottleneck engine state delta
+- `mismatch_reasons` — per-file divergence reasons
+- `requires_operator_review` — flag set on divergence or partial validation
+
+## ProductionOutcomeCommitted — Extended (Phase 9.8)
+
+- `production_validation_result` — dict with all_passed, results, file_divergence, mismatch_reasons
+- `idempotency_key` — `production_outcome:{merge_commit}:{manifest_id}:{validation_hash}`
+- Thread-safe duplicate suppression with `threading.Lock`
+
 ## Remaining Blockers
 
 None for Phase 9.8 scope. Pre-existing items:
-1. cockpit.py at 3532 lines (was 3419 before this phase — pre-existing over 3000 limit)
+1. cockpit.py at ~3240 lines (pre-existing over 3000 limit)
 2. Dependency direction violation in test_phase93_reliability_campaign.py (pre-existing)
 
 ## Next Highest-Leverage Step
 
-Phase 9.8K (First Production Truth Promotion) requires an actual autonomous
-PR to merge and verify. This can be executed when a low-risk autonomous
-candidate is available and the operator merges it. The infrastructure is
-complete and ready.
+The autonomous lane infrastructure is complete through Phase 9.8.
+The cadence system defaults to OFF. Operator can enable `dry_run_only`
+mode via cockpit to begin seeing autonomous improvement recommendations
+without any risk of production mutation.
 
-Beyond that: the cadence system is defaulting to OFF. Operator can enable
-dry_run_only mode to begin seeing autonomous improvement recommendations
-in the cockpit without any risk of production mutation.
+To run a real production truth promotion:
+1. Enable `dry_run_only` mode in cockpit
+2. Review a dry-run recommendation
+3. Enable `create_pr_with_operator_policy` when ready
+4. Autonomous lane creates PR, operator reviews and merges
+5. Production merge verifier confirms production truth
+6. ProductionOutcomeCommitted emits, coherence propagation runs

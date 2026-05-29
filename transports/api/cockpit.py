@@ -3097,7 +3097,7 @@ async def autonomous_pr_factory_parallel_dry_run():
     return factory.conflict_detector.parallel_dry_run(candidates)
 
 
-@router.get("/organism/autonomous-pr-factory/production-truth")
+@router.get("/organism/autonomous-pr-factory/production-truth", dependencies=[Depends(_require_operator_role)])
 async def autonomous_pr_factory_production_truth():
     manager, factory = _get_pr_factory()
     if manager is None:
@@ -3107,6 +3107,9 @@ async def autonomous_pr_factory_production_truth():
 
 @router.post("/organism/autonomous-pr-factory/verify-merge/{sandbox_id}", dependencies=[Depends(_require_operator_role)])
 async def autonomous_pr_factory_verify_merge(sandbox_id: str):
+    import re as _re
+    if not _re.fullmatch(r"sb-[a-f0-9]{8}", sandbox_id):
+        raise HTTPException(status_code=400, detail="invalid sandbox_id format")
     manager, factory = _get_pr_factory()
     if factory is None:
         return {"error": "organism not running"}

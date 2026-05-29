@@ -340,40 +340,117 @@ export function IntelligencePanel() {
           )}
         </h3>
         {coherence.cadence ? (
-          <div className="wv-card p-3 space-y-1">
-            <div className="flex items-center gap-3">
-              <span className="wv-label w-40">Mode</span>
-              <span className={`font-mono text-xs px-1.5 py-0.5 rounded uppercase ${
-                coherence.cadence.mode === 'off' ? 'bg-surface-overlay text-text-secondary' :
-                coherence.cadence.mode === 'dry_run_only' ? 'bg-cyan/20 text-cyan' :
-                'bg-warn/20 text-warn'
-              }`}>{coherence.cadence.mode}</span>
+          <div className="space-y-2">
+            <div className="wv-card p-3 space-y-1">
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">Mode</span>
+                <span className={`font-mono text-xs px-1.5 py-0.5 rounded uppercase ${
+                  coherence.cadence.mode === 'off' ? 'bg-surface-overlay text-text-secondary' :
+                  coherence.cadence.mode === 'dry_run_only' ? 'bg-cyan/20 text-cyan' :
+                  'bg-warn/20 text-warn'
+                }`}>{coherence.cadence.mode}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">Dry runs today</span>
+                <span className="font-mono text-xs">{coherence.cadence.dry_runs_today}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">PRs today</span>
+                <span className="font-mono text-xs">{coherence.cadence.prs_today}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">Total runs</span>
+                <span className="font-mono text-xs">{coherence.cadence.total_runs}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">Pending recs</span>
+                <span className="font-mono text-xs">{coherence.cadence.pending_recommendations}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">Should run</span>
+                <span className={`font-mono text-xs ${coherence.cadence.should_run ? 'text-ok' : 'text-text-tertiary'}`}>
+                  {coherence.cadence.should_run ? 'yes' : 'no'}
+                </span>
+              </div>
+              {coherence.cadence.last_run && (
+                <div className="flex items-center gap-3">
+                  <span className="wv-label w-40">Last result</span>
+                  <span className="font-mono text-xs">
+                    {coherence.cadence.last_run.candidates_found} candidates, {coherence.cadence.last_run.candidates_eligible} eligible
+                  </span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-3">
-              <span className="wv-label w-40">Dry runs today</span>
-              <span className="font-mono text-xs">{coherence.cadence.dry_runs_today}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="wv-label w-40">PRs today</span>
-              <span className="font-mono text-xs">{coherence.cadence.prs_today}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="wv-label w-40">Total runs</span>
-              <span className="font-mono text-xs">{coherence.cadence.total_runs}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="wv-label w-40">Pending recs</span>
-              <span className="font-mono text-xs">{coherence.cadence.pending_recommendations}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="wv-label w-40">Should run</span>
-              <span className={`font-mono text-xs ${coherence.cadence.should_run ? 'text-ok' : 'text-text-tertiary'}`}>
-                {coherence.cadence.should_run ? 'yes' : 'no'}
-              </span>
+            {/* Cadence Controls */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => coherence.runDryRun()}
+                className="text-xs font-mono px-2 py-1 rounded bg-cyan/20 text-cyan hover:bg-cyan/30"
+              >
+                run dry-run
+              </button>
+              <button
+                onClick={() => coherence.setCadenceMode('off')}
+                className={`text-xs font-mono px-2 py-1 rounded ${coherence.cadence.mode === 'off' ? 'bg-surface-overlay text-text-tertiary' : 'bg-surface-overlay text-text-secondary hover:text-text'}`}
+              >
+                off
+              </button>
+              <button
+                onClick={() => coherence.setCadenceMode('dry_run_only')}
+                className={`text-xs font-mono px-2 py-1 rounded ${coherence.cadence.mode === 'dry_run_only' ? 'bg-cyan/20 text-cyan' : 'bg-surface-overlay text-text-secondary hover:text-text'}`}
+              >
+                dry-run
+              </button>
+              <button
+                onClick={() => coherence.setCadenceMode('production_verify_only')}
+                className={`text-xs font-mono px-2 py-1 rounded ${coherence.cadence.mode === 'production_verify_only' ? 'bg-ok/20 text-ok' : 'bg-surface-overlay text-text-secondary hover:text-text'}`}
+              >
+                verify-only
+              </button>
             </div>
           </div>
         ) : (
           <p className="text-xs text-text-tertiary">Cadence not available</p>
+        )}
+      </section>
+
+      {/* ── Phase 9.8: Production Truth ── */}
+      <section>
+        <h3 className="wv-label mb-3">
+          Production Truth
+          {coherence.productionTruth && (
+            <span className="ml-2 font-mono text-xs text-ok">
+              {coherence.productionTruth.production_outcomes_count ?? 0} outcomes
+            </span>
+          )}
+        </h3>
+        {coherence.productionTruth ? (
+          <div className="wv-card p-3 space-y-1">
+            <div className="flex items-center gap-3">
+              <span className="wv-label w-40">Outcomes emitted</span>
+              <span className="font-mono text-xs text-ok">{coherence.productionTruth.production_outcomes_count ?? 0}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="wv-label w-40">Sandbox outcomes</span>
+              <span className="font-mono text-xs text-cyan">{coherence.productionTruth.sandbox_outcomes_count ?? 0}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="wv-label w-40">Pending verifications</span>
+              <span className="font-mono text-xs">{coherence.productionTruth.pending_verifications ?? 0}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="wv-label w-40">Cleanup ready</span>
+              <span className="font-mono text-xs">{coherence.productionTruth.cleanup_ready ?? 0}</span>
+            </div>
+            {coherence.productionTruth.last_delta_id && (
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">Last delta</span>
+                <span className="font-mono text-xs text-text-secondary">{coherence.productionTruth.last_delta_id}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-text-tertiary">No production truth data</p>
         )}
       </section>
 

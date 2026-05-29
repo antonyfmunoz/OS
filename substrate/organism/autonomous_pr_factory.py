@@ -136,6 +136,7 @@ class ProductionOutcomeCommitted:
     action_envelope_ids: list[str] = field(default_factory=list)
     sandbox_outcome_ids: list[str] = field(default_factory=list)
     post_merge_validation_passed: bool = False
+    production_validation_result: dict[str, Any] = field(default_factory=dict)
     production_propagation_complete: bool = False
     production_truth_delta: dict[str, Any] = field(default_factory=dict)
     changed_files: list[str] = field(default_factory=list)
@@ -144,10 +145,20 @@ class ProductionOutcomeCommitted:
     evidence: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
+    @property
+    def idempotency_key(self) -> str:
+        import hashlib
+
+        validation_hash = hashlib.sha256(
+            json.dumps(self.production_validation_result, sort_keys=True).encode()
+        ).hexdigest()[:12]
+        return f"production_outcome:{self.merge_commit}:{self.manifest_id}:{validation_hash}"
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "event_id": self.event_id,
             "event_type": "production_outcome_committed",
+            "idempotency_key": self.idempotency_key,
             "sandbox_id": self.sandbox_id,
             "manifest_id": self.manifest_id,
             "pr_number": self.pr_number,
@@ -164,6 +175,7 @@ class ProductionOutcomeCommitted:
             "action_envelope_ids": self.action_envelope_ids,
             "sandbox_outcome_ids": self.sandbox_outcome_ids,
             "post_merge_validation_passed": self.post_merge_validation_passed,
+            "production_validation_result": self.production_validation_result,
             "production_propagation_complete": self.production_propagation_complete,
             "production_truth_delta": self.production_truth_delta,
             "changed_files": self.changed_files,

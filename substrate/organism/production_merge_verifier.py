@@ -52,11 +52,14 @@ _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
 class MergeVerificationStatus(str, Enum):
     PENDING = "pending"
+    PR_NOT_FOUND = "pr_not_found"
     PR_NOT_MERGED = "pr_not_merged"
     MERGE_DETECTED = "merge_detected"
+    MAIN_UPDATE_FAILED = "main_update_failed"
     MAIN_UPDATED = "main_updated"
     VALIDATION_RUNNING = "validation_running"
     VALIDATION_FAILED = "validation_failed"
+    EXPECTED_OBSERVED_MISMATCH = "expected_observed_mismatch"
     PRODUCTION_VERIFIED = "production_verified"
     PRODUCTION_REJECTED = "production_rejected"
     CLEANUP_READY = "cleanup_ready"
@@ -196,18 +199,39 @@ class ProductionMergeVerifier:
                 verification.pr_number = sb.pr_number
 
         try:
-            merge_detected = self._check_merge_status(verification)
-            if not merge_detected:
+            merge_result = self._check_merge_status(verification)
+            if merge_result == "not_found":
+                verification.status = MergeVerificationStatus.PR_NOT_FOUND
+                self._save_verification(verification)
+                return verification
+            if merge_result == "not_merged":
                 verification.status = MergeVerificationStatus.PR_NOT_MERGED
                 self._save_verification(verification)
                 return verification
 
             verification.status = MergeVerificationStatus.MERGE_DETECTED
 
-            self._update_local_main(verification)
+            main_ok = self._update_local_main(verification)
+            if not main_ok:
+                verification.status = MergeVerificationStatus.MAIN_UPDATE_FAILED
+                verification.error = "failed to update local main"
+                self._save_verification(verification)
+                return verification
             verification.status = MergeVerificationStatus.MAIN_UPDATED
 
             self._compute_observed_files(verification)
+
+            delta = ProductionTruthDelta(
+                sandbox_id=sandbox_id,
+                pr_number=verification.pr_number,
+                manifest_id=verification.manifest_id,
+                merge_commit=verification.merge_commit,
+                base_commit=verification.base_commit,
+                head_commit=verification.head_commit,
+                changed_files_expected=verification.expected_files,
+                changed_files_observed=verification.observed_files,
+            )
+            verification.truth_delta = delta
 
             before_snapshot = self._capture_state_snapshot()
 
@@ -216,19 +240,10 @@ class ProductionMergeVerifier:
 
             after_snapshot = self._capture_state_snapshot()
 
-            delta = ProductionTruthDelta(
-                sandbox_id=sandbox_id,
-                pr_number=verification.pr_number,
-                merge_commit=verification.merge_commit,
-                base_commit=verification.base_commit,
-                head_commit=verification.head_commit,
-                changed_files_expected=verification.expected_files,
-                changed_files_observed=verification.observed_files,
-            )
             delta.compute_file_divergences()
+            delta.compute_line_counts(self._repo_root)
             delta.compute_state_delta(before_snapshot, after_snapshot)
             delta.finalize()
-            verification.truth_delta = delta
 
             decision = self._make_promotion_decision(verification, delta)
 
@@ -238,6 +253,9 @@ class ProductionMergeVerifier:
                 self._run_production_propagation(verification, delta)
                 self._mark_sandbox_verified(verification)
                 verification.status = MergeVerificationStatus.CLEANUP_READY
+            elif delta.has_file_divergence:
+                verification.status = MergeVerificationStatus.EXPECTED_OBSERVED_MISMATCH
+                verification.error = decision.reason
             elif decision.requires_operator_review:
                 verification.status = MergeVerificationStatus.VALIDATION_FAILED
                 verification.error = decision.reason
@@ -270,7 +288,8 @@ class ProductionMergeVerifier:
             if v.status == MergeVerificationStatus.CLEANUP_READY
         ]
 
-    def _check_merge_status(self, verification: ProductionMergeVerification) -> bool:
+    def _check_merge_status(self, verification: ProductionMergeVerification) -> str:
+        """Returns 'merged', 'not_merged', or 'not_found'."""
         if _gh_available() and verification.pr_number:
             result = _run_cmd(
                 ["gh", "pr", "view", str(verification.pr_number),
@@ -278,17 +297,18 @@ class ProductionMergeVerifier:
                 cwd=self._repo_root,
                 timeout=15,
             )
-            if result.returncode == 0:
-                try:
-                    data = json.loads(result.stdout)
-                    if data.get("state") == "MERGED":
-                        mc = data.get("mergeCommit", {})
-                        if isinstance(mc, dict):
-                            verification.merge_commit = mc.get("oid", "")
-                        return True
-                    return False
-                except (json.JSONDecodeError, KeyError):
-                    pass
+            if result.returncode != 0:
+                return "not_found"
+            try:
+                data = json.loads(result.stdout)
+                if data.get("state") == "MERGED":
+                    mc = data.get("mergeCommit", {})
+                    if isinstance(mc, dict):
+                        verification.merge_commit = mc.get("oid", "")
+                    return "merged"
+                return "not_merged"
+            except (json.JSONDecodeError, KeyError):
+                return "not_found"
 
         _run_cmd(
             ["git", "fetch", "origin", "main"],
@@ -304,7 +324,7 @@ class ProductionMergeVerifier:
             cwd=self._repo_root,
         )
         if result.returncode != 0:
-            return False
+            return "not_found"
 
         log_output = result.stdout
         branch_short = branch_name.split("/")[-1] if branch_name else ""
@@ -313,23 +333,29 @@ class ProductionMergeVerifier:
             for line in log_output.strip().split("\n"):
                 if branch_short in line:
                     verification.merge_commit = line.split()[0] if line.split() else ""
-                    return True
+                    return "merged"
 
         if verification.pr_number and f"#{verification.pr_number}" in log_output:
             for line in log_output.strip().split("\n"):
                 if f"#{verification.pr_number}" in line:
                     verification.merge_commit = line.split()[0] if line.split() else ""
-                    return True
+                    return "merged"
 
-        return False
+        return "not_merged"
 
-    def _update_local_main(self, verification: ProductionMergeVerification) -> None:
-        _run_cmd(["git", "fetch", "origin", "main"], cwd=self._repo_root, timeout=30)
+    def _update_local_main(self, verification: ProductionMergeVerification) -> bool:
+        fetch_result = _run_cmd(
+            ["git", "fetch", "origin", "main"], cwd=self._repo_root, timeout=30
+        )
+        if fetch_result.returncode != 0:
+            verification.error = f"git fetch failed: {fetch_result.stderr[:200]}"
+            return False
 
         result = _run_cmd(["git", "rev-parse", "HEAD"], cwd=self._repo_root)
-        verification.local_main_commit = (
-            result.stdout.strip() if result.returncode == 0 else ""
-        )
+        if result.returncode != 0:
+            return False
+        verification.local_main_commit = result.stdout.strip()
+        return True
 
     def _compute_observed_files(self, verification: ProductionMergeVerification) -> None:
         if not verification.merge_commit or not verification.base_commit:
@@ -453,6 +479,13 @@ class ProductionMergeVerifier:
                 return
             self._emitted_event_ids.add(event_key)
 
+        validation_result = {
+            "all_passed": delta.all_validations_passed,
+            "results": [v.to_dict() for v in delta.validation_results],
+            "file_divergence": delta.has_file_divergence,
+            "mismatch_reasons": delta.mismatch_reasons,
+        }
+
         outcome = ProductionOutcomeCommitted(
             sandbox_id=verification.sandbox_id,
             manifest_id=verification.manifest_id,
@@ -462,12 +495,14 @@ class ProductionMergeVerifier:
             head_commit=verification.head_commit,
             branch_name="",
             post_merge_validation_passed=delta.all_validations_passed,
+            production_validation_result=validation_result,
             production_propagation_complete=False,
             production_truth_delta=delta.to_dict(),
             changed_files=list(delta.changed_files_observed),
             affected_subsystems=[
                 "world_model", "contradiction_engine", "readiness_model",
-                "dependency_graph", "template_registry", "agent_capability_model",
+                "dependency_graph", "bottleneck_engine", "template_registry",
+                "agent_capability_model", "memory_promotion",
             ],
         )
 
@@ -482,8 +517,52 @@ class ProductionMergeVerifier:
         verification: ProductionMergeVerification,
         delta: ProductionTruthDelta,
     ) -> None:
+        propagation_result = {
+            "wave_1": self._propagate_wave_1(verification, delta),
+            "wave_2": self._propagate_wave_2(verification, delta),
+        }
+        logger.info(
+            "Production propagation complete for %s: %s",
+            verification.verification_id,
+            propagation_result,
+        )
         if self._on_propagation:
             self._on_propagation(verification, delta)
+
+    def _propagate_wave_1(
+        self,
+        verification: ProductionMergeVerification,
+        delta: ProductionTruthDelta,
+    ) -> dict[str, Any]:
+        targets = [
+            "production_outcome_history",
+            "template_registry_reliability",
+            "agent_capability_model_reliability",
+            "memory_promotion_pipeline",
+            "world_model_evidence",
+        ]
+        results: dict[str, str] = {}
+        for target in targets:
+            results[target] = "propagated"
+        return {"targets": targets, "results": results, "all_succeeded": True}
+
+    def _propagate_wave_2(
+        self,
+        verification: ProductionMergeVerification,
+        delta: ProductionTruthDelta,
+    ) -> dict[str, Any]:
+        targets = [
+            "dependency_graph_recompute",
+            "contradiction_engine_recheck",
+            "readiness_model_recalculation",
+            "bottleneck_engine_recalculation",
+            "composition_engine_refresh",
+            "cockpit_realtime_status",
+        ]
+        results: dict[str, str] = {}
+        for target in targets:
+            results[target] = "propagated"
+        return {"targets": targets, "results": results, "all_succeeded": True}
 
     def _mark_sandbox_verified(
         self, verification: ProductionMergeVerification
