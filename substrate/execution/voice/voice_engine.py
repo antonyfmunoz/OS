@@ -321,7 +321,8 @@ class IntelligentVoiceProcessor:
         for item in recent:
             lines.append(f"You: {item['utterance'][:100]}")
             if item['response']:
-                lines.append(f"{os.environ.get("AI_NAME", "AI")}: {item['response'][:100]}")
+                ai_name = os.environ.get('AI_NAME', 'AI')
+                lines.append(f"{ai_name}: {item['response'][:100]}")
         return '\n'.join(lines)
 
 
