@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types.js'
 import { callOrganism } from '../lib/python_bridge.js'
+import { operatorGuard } from '../middleware/operator.js'
 
 const router = new Hono<Env>()
 
@@ -17,7 +18,7 @@ router.get('/:key', async (c) => {
   return c.json(result.data)
 })
 
-router.patch('/', async (c) => {
+router.patch('/', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({})) as Record<string, unknown>
   const key = body.key as string | undefined
   const value = body.value
@@ -31,7 +32,7 @@ router.patch('/', async (c) => {
   return c.json(result.data)
 })
 
-router.get('/layers/all', async (c) => {
+router.get('/layers/all', operatorGuard, async (c) => {
   const result = await callOrganism('config.layers')
   if (!result.success) return c.json({ error: result.error }, 500)
   return c.json(result.data)

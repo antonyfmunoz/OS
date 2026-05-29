@@ -998,10 +998,14 @@ def _config_get(payload: dict) -> dict:
         return {"success": False, "error": str(e)}
 
 
+_WRITABLE_LAYERS = {"system", "user", "venture"}
+
+
 def _config_set(payload: dict) -> dict:
     """Set a config value. Requires key, value, optional layer (default: system)."""
     try:
         from substrate.sockets.config_port import set_config, get_config
+        from substrate.state.config.config_store import VALID_KEYS
         key = payload.get("key")
         value = payload.get("value")
         layer = payload.get("layer", "system")
@@ -1009,6 +1013,10 @@ def _config_set(payload: dict) -> dict:
             return {"success": False, "error": "key is required"}
         if value is None:
             return {"success": False, "error": "value is required"}
+        if key not in VALID_KEYS:
+            return {"success": False, "error": f"invalid config key: {key}"}
+        if layer not in _WRITABLE_LAYERS:
+            return {"success": False, "error": f"invalid layer: {layer}"}
         set_config(key, value, layer=layer)
         return {"success": True, "data": {"key": key, "value": get_config(key), "layer": layer}}
     except Exception as e:
