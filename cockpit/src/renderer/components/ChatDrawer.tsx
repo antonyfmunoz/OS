@@ -1,7 +1,18 @@
-import { useRef, useEffect, type FormEvent } from 'react'
+import React, { useRef, useEffect, type FormEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChatStore, type ChatMessage, type Provenance, type Attachment } from '../stores/chatStore'
+
+function safeUrl(url: string): string {
+  return /^https?:\/\//i.test(url) ? url : ''
+}
+
+const markdownComponents = {
+  a: ({ href, children, ...rest }: React.ComponentPropsWithoutRef<'a'>) => (
+    <a href={href ?? ''} target="_blank" rel="noopener noreferrer nofollow" {...rest}>{children}</a>
+  ),
+  img: () => null,
+}
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useConfigStore } from '../stores/configStore'
 
@@ -123,7 +134,7 @@ function MessageContent({ msg }: { msg: ChatMessage }) {
         )}
         {msg.provenance && <ProvenanceBlock provenance={msg.provenance} />}
         <div className="chat-markdown leading-relaxed" style={{ color: contentColor }}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={safeUrl} components={markdownComponents}>{msg.content}</ReactMarkdown>
         </div>
         {msg.attachment && <AttachmentBlock attachment={msg.attachment} />}
       </div>
@@ -133,7 +144,7 @@ function MessageContent({ msg }: { msg: ChatMessage }) {
   if (isAssistant || msg.sender === 'system') {
     return (
       <div className="chat-markdown leading-relaxed" style={{ color: contentColor }}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={safeUrl} components={markdownComponents}>{msg.content}</ReactMarkdown>
       </div>
     )
   }

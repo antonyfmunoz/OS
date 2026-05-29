@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send, Pencil, Check, Download } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -10,6 +10,17 @@ import { relativeTime } from '../lib/time'
 import { useConfigStore } from '../stores/configStore'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
+
+function safeUrl(url: string): string {
+  return /^https?:\/\//i.test(url) ? url : ''
+}
+
+const markdownComponents = {
+  a: ({ href, children, ...rest }: React.ComponentPropsWithoutRef<'a'>) => (
+    <a href={href ?? ''} target="_blank" rel="noopener noreferrer nofollow" {...rest}>{children}</a>
+  ),
+  img: () => null,
+}
 
 type RightTab = 'chat' | 'activity' | 'logs'
 
@@ -176,7 +187,7 @@ function MessageBubble({ msg, aiName }: { msg: ChatMessage; aiName: string }) {
       )}
       {msg.provenance && <ProvenanceLine provenance={msg.provenance} />}
       <div className="chat-markdown leading-relaxed" style={{ color: 'var(--color-violet)' }}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={safeUrl} components={markdownComponents}>{msg.content}</ReactMarkdown>
       </div>
       {msg.attachment && <AttachmentLink attachment={msg.attachment} />}
     </div>
