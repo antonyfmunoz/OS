@@ -1,8 +1,19 @@
 import { Hono } from 'hono'
 import { serve } from '@hono/node-server'
 import 'dotenv/config'
-import type { Env } from './types.js'
-import { authMiddleware } from './middleware/auth.js'
+
+// ── UMH platform infrastructure (from transports/api/http) ──────────────────
+import type { Env } from '../../transports/api/http/types.js'
+import { authMiddleware } from '../../transports/api/http/middleware/auth.js'
+import systemRouter       from '../../transports/api/http/routes/system.js'
+import organismRouter     from '../../transports/api/http/routes/organism.js'
+import governanceRouter   from '../../transports/api/http/routes/governance.js'
+import dexRouter          from '../../transports/api/http/routes/dex.js'
+import knowledgeRouter    from '../../transports/api/http/routes/knowledge.js'
+import executionRouter    from '../../transports/api/http/routes/execution.js'
+import settingsRouter     from '../../transports/api/http/routes/settings.js'
+
+// ── EOS projection routes ───────────────────────────────────────────────────
 import venturesRouter     from './routes/ventures.js'
 import skillsRouter       from './routes/skills.js'
 import interactionsRouter from './routes/interactions.js'
@@ -10,18 +21,11 @@ import outcomesRouter     from './routes/outcomes.js'
 import approvalsRouter    from './routes/approvals.js'
 import agentRouter        from './routes/agent.js'
 import eventsRouter       from './routes/events.js'
-import systemRouter       from './routes/system.js'
 import tasksRouter        from './routes/tasks.js'
 import agentsRouter       from './routes/agents.js'
-import organismRouter     from './routes/organism.js'
 import workflowsRouter    from './routes/workflows.js'
 import activityRouter     from './routes/activity.js'
-import executionRouter    from './routes/execution.js'
-import knowledgeRouter    from './routes/knowledge.js'
-import settingsRouter     from './routes/settings.js'
-import governanceRouter   from './routes/governance.js'
 import analyticsRouter    from './routes/analytics.js'
-import dexRouter          from './routes/dex.js'
 
 const app = new Hono<Env>()
 
@@ -31,7 +35,19 @@ app.get('/health', (c) => c.json({ status: 'ok', ts: new Date().toISOString() })
 // ── System routes (no auth — runtime telemetry) ─────────────────────────────
 app.route('/',             systemRouter)
 
-// ── Auth middleware on all tenant routes ─────────────────────────────────────
+// ── Auth middleware ──────────────────────────────────────────────────────────
+// UMH substrate routes
+app.use('/organism/*',     authMiddleware)
+app.use('/governance',     authMiddleware)
+app.use('/governance/*',   authMiddleware)
+app.use('/dex/*',          authMiddleware)
+app.use('/ide/*',          authMiddleware)
+app.use('/observations',   authMiddleware)
+app.use('/memory',         authMiddleware)
+app.use('/tracking',       authMiddleware)
+
+// EOS projection routes
+app.use('/eos/*',          authMiddleware)
 app.use('/ventures/*',     authMiddleware)
 app.use('/skills/*',       authMiddleware)
 app.use('/interactions/*', authMiddleware)
@@ -41,24 +57,39 @@ app.use('/agent/*',        authMiddleware)
 app.use('/events/*',       authMiddleware)
 app.use('/tasks/*',        authMiddleware)
 app.use('/agents/*',       authMiddleware)
-app.use('/organism/*',     authMiddleware)
-app.use('/ide/*',           authMiddleware)
 app.use('/workflows/*',    authMiddleware)
 app.use('/activity/*',     authMiddleware)
 app.use('/execution/*',    authMiddleware)
-app.use('/observations',   authMiddleware)
-app.use('/memory',         authMiddleware)
-app.use('/tracking',       authMiddleware)
 app.use('/settings',       authMiddleware)
 app.use('/settings/*',     authMiddleware)
-app.use('/governance',     authMiddleware)
-app.use('/governance/*',   authMiddleware)
 app.use('/analytics',      authMiddleware)
 app.use('/analytics/*',    authMiddleware)
-app.use('/eos/*',          authMiddleware)
-app.use('/dex/*',          authMiddleware)
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+// ── UMH substrate routes ─────────────────────────────────────────────────────
+app.route('/organism',     organismRouter)
+app.route('/governance',   governanceRouter)
+app.route('/dex',          dexRouter)
+app.route('/',             knowledgeRouter)
+app.route('/execution',    executionRouter)
+app.route('/settings',     settingsRouter)
+
+// ── EOS projection routes — canonical /eos/ prefix ───────────────────────────
+const eos = new Hono<Env>()
+eos.route('/ventures',     venturesRouter)
+eos.route('/skills',       skillsRouter)
+eos.route('/interactions', interactionsRouter)
+eos.route('/outcomes',     outcomesRouter)
+eos.route('/approvals',    approvalsRouter)
+eos.route('/agent',        agentRouter)
+eos.route('/events',       eventsRouter)
+eos.route('/tasks',        tasksRouter)
+eos.route('/agents',       agentsRouter)
+eos.route('/workflows',    workflowsRouter)
+eos.route('/activity',     activityRouter)
+eos.route('/analytics',    analyticsRouter)
+app.route('/eos',          eos)
+
+// ── EOS projection routes — flat paths (backward compat) ────────────────────
 app.route('/ventures',     venturesRouter)
 app.route('/skills',       skillsRouter)
 app.route('/interactions', interactionsRouter)
@@ -68,16 +99,9 @@ app.route('/agent',        agentRouter)
 app.route('/events',       eventsRouter)
 app.route('/tasks',        tasksRouter)
 app.route('/agents',       agentsRouter)
-app.route('/organism',     organismRouter)
 app.route('/workflows',    workflowsRouter)
 app.route('/activity',     activityRouter)
-app.route('/execution',    executionRouter)
-app.route('/',             knowledgeRouter)
-app.route('/settings',     settingsRouter)
-app.route('/governance',   governanceRouter)
 app.route('/analytics',    analyticsRouter)
-app.route('/eos',          analyticsRouter)
-app.route('/dex',          dexRouter)
 
 // ── Error handlers ────────────────────────────────────────────────────────────
 app.notFound((c) =>
@@ -93,5 +117,5 @@ app.onError((err, c) => {
 const PORT = Number(process.env.PORT ?? 3000)
 
 serve({ fetch: app.fetch, port: PORT }, () => {
-  console.log(`eos-saas API running on http://localhost:${PORT}`)
+  console.log(`UMH API running on http://localhost:${PORT}`)
 })

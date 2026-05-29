@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
 import { sql } from 'drizzle-orm'
 import { z } from 'zod'
-import type { Env } from '../types.js'
-import { withOrg } from '../../db/client.js'
+import type { Env } from '../../../transports/api/http/types.js'
+import { withOrg } from '../../../transports/api/http/db/client.js'
 import { outcomes } from '../../db/schema.js'
 
 const router = new Hono<Env>()

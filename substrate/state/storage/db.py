@@ -27,8 +27,8 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
 
 _DATABASE_URL = os.environ.get("DATABASE_URL", "")
-ORG_ID = os.environ.get("EOS_ORG_ID", "")
-USER_ID = os.environ.get("EOS_USER_ID", "")
+ORG_ID = os.environ.get("UMH_ORG_ID", "") or os.environ.get("EOS_ORG_ID", "")
+USER_ID = os.environ.get("UMH_USER_ID", "") or os.environ.get("EOS_USER_ID", "")
 
 # ─── ID resolution caches ─────────────────────────────────────────────────────
 # Maps Python string slugs → Postgres UUIDs. Loaded once per process.

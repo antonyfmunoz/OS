@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
-# pre-commit — blocks commits that introduce type divergence.
+# pre-commit — blocks commits that violate substrate integrity gates.
 #
 # Canonical version: scripts/hooks/pre-commit
 # Install: cp scripts/hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 # Or: scripts/install_divergence_gate.sh
 #
-# Checks staged Python files against substrate/canonical_types.py.
-# If a new class definition shadows an existing canonical type,
-# the commit is blocked with an actionable error message.
+# Gates:
+#   1. Type Coherence — no shadow types (check_type_divergence.py)
+#   2. Instance Context — no hardcoded instance values in substrate (check_instance_leak.py)
+#   3. Projection Boundary — no projection names in substrate (check_projection_leak.py)
 
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
+FAILED=0
 
 # Only run if Python files are staged
 STAGED_PY=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
@@ -19,4 +21,32 @@ if [ -z "$STAGED_PY" ]; then
     exit 0
 fi
 
-python3 "$REPO_ROOT/scripts/check_type_divergence.py"
+# Gate 1: Type Coherence
+if [ -f "$REPO_ROOT/scripts/check_type_divergence.py" ]; then
+    if ! python3 "$REPO_ROOT/scripts/check_type_divergence.py"; then
+        FAILED=1
+    fi
+fi
+
+# Gate 2: Instance Context
+if [ -f "$REPO_ROOT/scripts/check_instance_leak.py" ]; then
+    if ! python3 "$REPO_ROOT/scripts/check_instance_leak.py"; then
+        FAILED=1
+    fi
+fi
+
+# Gate 3: Projection Boundary
+if [ -f "$REPO_ROOT/scripts/check_projection_leak.py" ]; then
+    if ! python3 "$REPO_ROOT/scripts/check_projection_leak.py"; then
+        FAILED=1
+    fi
+fi
+
+# Gate 4: Dependency Direction
+if [ -f "$REPO_ROOT/scripts/check_dependency_direction.py" ]; then
+    if ! python3 "$REPO_ROOT/scripts/check_dependency_direction.py"; then
+        FAILED=1
+    fi
+fi
+
+exit $FAILED

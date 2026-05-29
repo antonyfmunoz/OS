@@ -24,12 +24,7 @@ logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
-
-class RiskClass(str, Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+from substrate.types import RiskClass
 
 
 class GovernanceMode(str, Enum):
@@ -262,6 +257,7 @@ _INTENT_PATTERNS: dict[str, list[dict[str, Any]]] = {
 }
 
 _RISK_MAP = {"low": RiskClass.LOW, "medium": RiskClass.MEDIUM, "high": RiskClass.HIGH, "critical": RiskClass.CRITICAL}
+_RISK_SEVERITY = {RiskClass.LOW: 0, RiskClass.MEDIUM: 1, RiskClass.HIGH: 2, RiskClass.CRITICAL: 3}
 _GOV_MAP = {"autonomous": GovernanceMode.AUTONOMOUS, "assisted": GovernanceMode.ASSISTED, "operator_required": GovernanceMode.OPERATOR_REQUIRED}
 
 
@@ -297,12 +293,17 @@ class CompositionEngine:
             from substrate.organism.contradiction_engine import detect_contradictions
             self._contradictions = detect_contradictions(self._world_model, self._dep_graph)
 
-    def compose(self, intent: CompositionIntent, constraints: list[CompositionConstraint] | None = None) -> CompositionPlan:
+    def compose(
+        self,
+        intent: CompositionIntent,
+        constraints: list[CompositionConstraint] | None = None,
+        custom_steps: list[dict[str, Any]] | None = None,
+    ) -> CompositionPlan:
         self._ensure_models()
 
         category = _classify_intent(intent.description)
         intent.category = category
-        pattern = _INTENT_PATTERNS.get(category, _INTENT_PATTERNS["general"])
+        pattern = custom_steps or _INTENT_PATTERNS.get(category, _INTENT_PATTERNS["general"])
 
         context = CompositionContext(
             active_contradictions=len(self._contradictions.contradictions),
@@ -332,7 +333,7 @@ class CompositionEngine:
             plan.steps.append(step)
             prev_id = step.id
 
-            if list(RiskClass).index(risk) > list(RiskClass).index(max_risk):
+            if _RISK_SEVERITY.get(risk, 1) > _RISK_SEVERITY.get(max_risk, 0):
                 max_risk = risk
             if list(GovernanceMode).index(gov) > list(GovernanceMode).index(max_gov):
                 max_gov = gov

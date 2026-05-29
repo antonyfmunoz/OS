@@ -31,7 +31,7 @@ if _REPO_ROOT not in sys.path:
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / '.env')
 
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 
 
 # ─── Stage transition detection ───────────────────────────────────────────────
@@ -98,7 +98,7 @@ class StageTransitionResult:
 
 class StageManager:
 
-    def __init__(self, ctx: EntrepreneurOSContext):
+    def __init__(self, ctx: SubstrateContext):
         self.ctx = ctx
 
     def advance_stage(

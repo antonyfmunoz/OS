@@ -333,7 +333,7 @@ def run_team_task(
         sub_agent:  Named sub-agent within that team.
         prompt:     Task input.
         venture_id: Venture context to inject.
-        ctx:        EntrepreneurOSContext — loaded from env if not provided.
+        ctx:        SubstrateContext — loaded from env if not provided.
         username:   Optional Instagram handle for human profile injection.
 
     Returns:
@@ -378,7 +378,7 @@ async def run_browser_action(
         team: Department team name — for logging/attribution only.
         url:  URL to navigate to before running the task.
         task: Natural-language task description for the browser agent.
-        ctx:  EntrepreneurOSContext — loaded from env if not provided.
+        ctx:  SubstrateContext — loaded from env if not provided.
 
     Returns:
         {success, steps_taken, page_states, findings, final_url}
@@ -406,7 +406,7 @@ async def send_outreach_dm(
     Args:
         username:         Instagram handle (without @).
         venture_id:       Venture context for outreach copy.
-        ctx:              EntrepreneurOSContext.
+        ctx:              SubstrateContext.
         message_override: Skip generation and send this exact message.
 
     Returns:
@@ -483,7 +483,7 @@ async def research_prospect(
         username:      Prospect handle.
         platform_url:  Full URL to their profile (Instagram, LinkedIn, etc.).
         venture_id:    Venture context for ICP scoring.
-        ctx:           EntrepreneurOSContext.
+        ctx:           SubstrateContext.
 
     Returns:
         {profile_data, icp_score}

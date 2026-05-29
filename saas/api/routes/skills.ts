@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
-import type { Env } from '../types.js'
-import { withOrg } from '../../db/client.js'
+import type { Env } from '../../../transports/api/http/types.js'
+import { withOrg } from '../../../transports/api/http/db/client.js'
 import { skills, skillVersions } from '../../db/schema.js'
-import { callBridge } from '../lib/python_bridge.js'
+import { callBridge } from '../../../transports/api/http/lib/python_bridge.js'
 
 const router = new Hono<Env>()
 

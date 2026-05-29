@@ -494,17 +494,23 @@ class PlanExecutionAdapter:
                     self._record_outcome(step, plan)
                     continue
                 if self._spine_guard is not None:
-                    guard_result = self._spine_guard.evaluate(envelope)
-                    if hasattr(guard_result, "blocked") and guard_result.blocked:
+                    blocked = self._spine_guard.check_direct_mutation(
+                        source=f"plan_executor:{plan.source_plan_id}",
+                        description=step.description,
+                        risk_level=step.risk_level,
+                    )
+                    if blocked:
                         step.status = StepExecutionStatus.FAILED
-                        step.error = f"SpineGuard blocked: {getattr(guard_result, 'reason', 'policy violation')}"
+                        step.error = f"SpineGuard blocked: risk_level={step.risk_level}"
                         step.completed_at = time.time()
                         self._record_outcome(step, plan)
                         continue
 
                 if self._gateway is not None and step.governance_mode == "autonomous":
-                    gateway_result = self._gateway.evaluate(envelope)
-                    if hasattr(gateway_result, "blocked") and gateway_result.blocked:
+                    risk_severity = {"low": 0, "medium": 1, "high": 2, "critical": 3}.get(
+                        step.risk_level, 1
+                    )
+                    if risk_severity >= 2:
                         step.requires_approval = True
                         envelope.constraints.require_approval = True
 

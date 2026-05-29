@@ -87,7 +87,7 @@ def _deterministic_cognitive_response(message: str) -> str:
     return _COGNITIVE_DEFAULT_FALLBACK
 
 
-from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
+from substrate.state.context.context import SubstrateContext, load_context_from_env
 from substrate.contracts.agent_types import TaskType
 from substrate.contracts.agent_runtime_contracts import get_agent_runtime
 from substrate.state.memory.memory import AgentMemory
@@ -297,7 +297,7 @@ class CognitiveLoop:
       - STORE:     Neon event for reflections
     """
 
-    def __init__(self, ctx: EntrepreneurOSContext):
+    def __init__(self, ctx: SubstrateContext):
         self.ctx = ctx
         self.runtime = get_agent_runtime()
         self.memory = AgentMemory()

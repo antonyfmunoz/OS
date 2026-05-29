@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from substrate.contracts.agent_types import AgentResult, TaskType
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 
 
 @runtime_checkable
@@ -25,12 +25,12 @@ class AgentRuntimeProtocol(Protocol):
         max_tokens: int = 1024,
         agent: str = "default",
         system_extra: str | None = None,
-        ctx: EntrepreneurOSContext | None = None,
+        ctx: SubstrateContext | None = None,
         **kwargs,
     ) -> AgentResult: ...
 
 
-def get_agent_runtime(ctx: EntrepreneurOSContext | None = None) -> AgentRuntimeProtocol:
+def get_agent_runtime(ctx: SubstrateContext | None = None) -> AgentRuntimeProtocol:
     """Factory — returns the concrete AgentRuntime from adapters.
 
     This is the single boundary crossing point. Substrate code calls this

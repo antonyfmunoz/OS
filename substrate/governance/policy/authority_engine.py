@@ -1,4 +1,4 @@
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 from substrate.state.storage.db import get_conn
 from substrate.types import PermissionTier, RiskClass, required_tier_for_action
 import json, uuid
@@ -63,7 +63,7 @@ AUTONOMY_LEVEL_RESTRICTIONS = {
 
 
 class AuthorityEngine:
-    def __init__(self, ctx: EntrepreneurOSContext):
+    def __init__(self, ctx: SubstrateContext):
         self.ctx = ctx
         self._org_autonomy = self._load_org_autonomy()
 

@@ -37,7 +37,7 @@ if _REPO_ROOT not in sys.path:
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
 from substrate.contracts.agent_types import TaskType
 from adapters.models.agent_runtime import AgentRuntime
@@ -65,7 +65,7 @@ class UserModel:
     before generic Haiku enhancement kicks in.
     """
 
-    def __init__(self, ctx: EntrepreneurOSContext):
+    def __init__(self, ctx: SubstrateContext):
         self.ctx = ctx
         self.loop = CognitiveLoop(ctx)
         self._runtime = AgentRuntime(ctx)

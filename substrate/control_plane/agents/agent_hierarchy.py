@@ -16,7 +16,7 @@ def _venture_name(venture_id: str) -> str:
 
 
 """
-Agent hierarchy for EntrepreneurOS.
+Agent hierarchy for UMH substrate.
 
 Defines the formal authority structure from Founder → EA → CEOs → Departments.
 Used by CognitiveLoop (PERCEIVE injection) and Gateway (routing) to ensure
@@ -289,7 +289,7 @@ HIERARCHY: dict[str, dict] = {
 
 class AgentHierarchy:
     """
-    Formal hierarchy of agents in the EntrepreneurOS system.
+    Formal hierarchy of agents in the UMH substrate.
 
     Responsibilities:
     - Routing: which agent should handle a given request
