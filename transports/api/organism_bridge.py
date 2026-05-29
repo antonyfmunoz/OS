@@ -36,6 +36,9 @@ Actions:
   organism.docker         — list Docker containers
   organism.mesh           — list Tailscale mesh nodes
 
+  organism.converse            — route cockpit conversation through SignalEnvelope → SubstrateGateway
+  organism.send_channel_message — send message to external channel (Discord, etc.) via channel_port
+
   organism.dev_sessions        — list active/completed development sessions (all harnesses)
   organism.dev_session_detail  — full detail for a specific session (events, decisions, coherence)
 
@@ -827,13 +830,104 @@ def _list_reports(payload: dict) -> dict:
         return {"success": False, "error": str(e)}
 
 
+def _converse(payload: dict) -> dict:
+    """Route cockpit conversation through SignalEnvelope → SubstrateGateway.
+
+    Same canonical path as Discord: builds SignalEnvelope, enters through
+    SubstrateGateway.handle(), returns ExecutionResult as response dict.
+    """
+    content = (payload.get("content") or "").strip()
+    if not content:
+        return {"success": False, "error": "content is required"}
+
+    try:
+        from substrate.control_plane.runtime.substrate_gateway import SubstrateGateway
+        from substrate.types import SignalEnvelope, SignalSource
+
+        signal = SignalEnvelope(
+            source=SignalSource.USER,
+            content=content,
+            user_id=payload.get("username", "operator"),
+            organization_id=_os.environ.get("UMH_ORG_ID")
+            or _os.environ.get("EOS_ORG_ID", ""),
+            venture_id=payload.get("venture_id")
+            or _os.environ.get("UMH_PORTFOLIO_ID")
+            or _os.environ.get("EOS_PORTFOLIO_ID"),
+            metadata={
+                "channel": "cockpit",
+                "username": payload.get("username", "operator"),
+                "session_id": payload.get("session_id"),
+                "request_type": "agent_task",
+                "task_type": payload.get("task_type", "GENERATE"),
+                "projection_id": payload.get("projection_id", "eos"),
+            },
+        )
+
+        gw = SubstrateGateway()
+        result = gw.handle(signal)
+
+        response_text = result.output or "No response"
+
+        try:
+            from substrate.organism.store import OrganismStore
+            store = OrganismStore()
+            ai_name = _os.environ.get("AI_NAME", "system")
+            store.save_conversation_turn(
+                content=content,
+                response=response_text,
+                origin_channel="cockpit",
+                projection_id=payload.get("projection_id", "eos"),
+                responder=ai_name,
+            )
+        except Exception as persist_err:
+            logger.warning("conversation persist failed (non-fatal): %s", persist_err)
+
+        return {
+            "success": True,
+            "data": {
+                "message_id": str(signal.id),
+                "response": response_text,
+                "timestamp": result.completed_at.isoformat(),
+                "outcome": result.outcome.value if result.outcome else "unknown",
+                "provider": result.provider or "",
+            },
+        }
+    except Exception as e:
+        import traceback
+
+        logger.error("converse failed: %s", e)
+        return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+
+
+def _send_channel_message(payload: dict) -> dict:
+    """Send a message to an external channel (Discord, etc.) via channel_port."""
+    channel = payload.get("channel", "")
+    content = (payload.get("content") or "").strip()
+    if not channel or not content:
+        return {"success": False, "error": "channel and content are required"}
+
+    try:
+        from substrate.sockets.channel_port import get_channel_router
+
+        router = get_channel_router()
+        if not router:
+            return {"success": False, "error": "no channel router registered"}
+
+        result = router.send(channel=channel, content=content)
+        return {"success": True, "data": result}
+    except Exception as e:
+        logger.error("send_channel_message failed: %s", e)
+        return {"success": False, "error": str(e)}
+
+
 def _chat_history(payload: dict) -> dict:
     """Return chat history including system report messages."""
     limit = int(payload.get("limit", 50))
+    origin_channel = payload.get("origin_channel")
     try:
         from substrate.organism.store import OrganismStore
         store = OrganismStore()
-        messages = store.list_messages(limit=limit)
+        messages = store.list_messages(limit=limit, origin_channel=origin_channel)
         return {"success": True, "data": messages}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -944,6 +1038,8 @@ _ACTIONS: dict = {
     "organism.trial_status": _trial_status,
     "organism.dispatch_report": _dispatch_report,
     "organism.reports": _list_reports,
+    "organism.converse": _converse,
+    "organism.send_channel_message": _send_channel_message,
     "organism.chat_history": _chat_history,
     "organism.dev_sessions": _dev_sessions,
     "organism.dev_session_detail": _dev_session_detail,

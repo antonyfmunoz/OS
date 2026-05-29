@@ -2,13 +2,54 @@ import { useRef, useEffect, type FormEvent } from 'react'
 import { useChatStore } from '../stores/chatStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 
+const CHANNELS = [
+  { id: 'cockpit', label: 'Cockpit', enabled: true },
+  { id: 'discord', label: 'Discord', enabled: true },
+  { id: 'telegram', label: 'Telegram', enabled: false },
+  { id: 'whatsapp', label: 'WhatsApp', enabled: false },
+  { id: 'slack', label: 'Slack', enabled: false },
+] as const
+
+function OriginBadge({ channel }: { channel?: string }) {
+  if (!channel || channel === 'cockpit') {
+    return (
+      <span
+        className="text-[9px] font-mono px-1 rounded"
+        style={{ color: 'var(--color-text-tertiary)', background: 'var(--color-surface-raised)' }}
+      >
+        ⌘
+      </span>
+    )
+  }
+  if (channel === 'discord') {
+    return (
+      <span
+        className="text-[9px] font-mono px-1 rounded"
+        style={{ color: '#7289da', background: 'rgba(114,137,218,0.12)' }}
+      >
+        DC
+      </span>
+    )
+  }
+  return (
+    <span
+      className="text-[9px] font-mono px-1 rounded"
+      style={{ color: 'var(--color-text-tertiary)', background: 'var(--color-surface-raised)' }}
+    >
+      {channel.slice(0, 3).toUpperCase()}
+    </span>
+  )
+}
+
 export function ChatDrawer() {
   const chatOpen = useCockpitStore((s) => s.chatOpen)
   const messages = useChatStore((s) => s.messages)
   const input = useChatStore((s) => s.input)
   const sending = useChatStore((s) => s.sending)
   const error = useChatStore((s) => s.error)
+  const targetChannel = useChatStore((s) => s.targetChannel)
   const setInput = useChatStore((s) => s.setInput)
+  const setTargetChannel = useChatStore((s) => s.setTargetChannel)
   const sendMessage = useChatStore((s) => s.sendMessage)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -50,7 +91,7 @@ export function ChatDrawer() {
               DEX
             </span>
             <span className="ml-2 text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-              intelligence channel
+              unified channel
             </span>
           </div>
 
@@ -76,6 +117,7 @@ export function ChatDrawer() {
                   >
                     {msg.sender === 'dex' ? 'DEX' : msg.sender === 'system' ? 'UMH' : 'YOU'}
                   </span>
+                  <OriginBadge channel={msg.origin_channel} />
                   {msg.source === 'voice' && (
                     <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>🎤</span>
                   )}
@@ -116,9 +158,21 @@ export function ChatDrawer() {
           {/* Input */}
           <form
             onSubmit={handleSubmit}
-            className="flex items-center px-3 py-2 shrink-0"
+            className="flex items-center px-3 py-2 shrink-0 gap-2"
             style={{ borderTop: '1px solid var(--color-border)' }}
           >
+            <select
+              value={targetChannel}
+              onChange={(e) => setTargetChannel(e.target.value)}
+              className="bg-transparent text-xs font-mono outline-none cursor-pointer shrink-0"
+              style={{ color: 'var(--color-text-tertiary)', maxWidth: '72px' }}
+            >
+              {CHANNELS.map((ch) => (
+                <option key={ch.id} value={ch.id} disabled={!ch.enabled}>
+                  {ch.label}{!ch.enabled ? ' ○' : ''}
+                </option>
+              ))}
+            </select>
             <input
               ref={inputRef}
               type="text"
@@ -132,7 +186,7 @@ export function ChatDrawer() {
             <button
               type="submit"
               disabled={!input.trim() || sending}
-              className="ml-2 px-2 py-1 rounded text-xs font-mono uppercase tracking-wider transition-colors"
+              className="px-2 py-1 rounded text-xs font-mono uppercase tracking-wider transition-colors shrink-0"
               style={{
                 color: input.trim() ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
                 background: input.trim() ? 'var(--color-cyan-glow)' : 'transparent',
