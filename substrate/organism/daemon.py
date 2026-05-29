@@ -53,10 +53,15 @@ from substrate.organism.workload_probes import WorkloadProbes
 from substrate.organism.workload_runner import WorkloadRunner
 from substrate.organism.automation_pipeline import AutomationPipeline
 from substrate.organism.maintenance_loop import MaintenanceLoop
+from substrate.organism.agent_capability_model import AgentCapabilityModel
 from substrate.organism.assisted_executor import AssistedExecutor
 from substrate.organism.execution_journal import ExecutionJournal
 from substrate.organism.governed_spine import GovernedExecutionSpine
+from substrate.organism.memory_promotion import MemoryPromotionPipeline
 from substrate.organism.mutation_registry import MutationRegistry
+from substrate.organism.outcome_learning import OutcomeLearningLoop
+from substrate.organism.propagation_wiring import build_propagation_engine
+from substrate.organism.template_registry import TemplateRegistry
 from substrate.organism.spine_guard import GuardMode, SpineGuard
 from substrate.organism.autonomous_action_gateway import AutonomousActionGateway, AutonomousPolicy
 from substrate.organism.leverage_engine import LeverageEngine
@@ -231,12 +236,36 @@ class OrganismDaemon:
         self._execution_journal = ExecutionJournal(
             persist_path=str(self._state_dir / "execution_journal.jsonl"),
         )
+        self._outcome_learning = OutcomeLearningLoop(
+            store_path=str(self._state_dir / "outcome_learning.jsonl"),
+        )
+        self._template_registry = TemplateRegistry(
+            store_dir=str(self._state_dir / "templates"),
+        )
+        self._memory_pipeline = MemoryPromotionPipeline(
+            store_dir=str(self._state_dir / "memory"),
+        )
+        self._agent_capability_model = AgentCapabilityModel(
+            store_dir=str(self._state_dir / "agents"),
+        )
+
+        self._propagation_engine = build_propagation_engine(
+            learning_loop=self._outcome_learning,
+            template_registry=self._template_registry,
+            memory_pipeline=self._memory_pipeline,
+            agent_capability_model=self._agent_capability_model,
+            readiness_model=self._readiness_model,
+            bottleneck_engine=self._bottleneck_engine,
+            store_dir=str(self._state_dir / "propagation"),
+        )
+
         self._governed_spine = GovernedExecutionSpine(
             event_spine=self._event_spine,
             execution_mode=self._execution_mode_manager,
             mutation_registry=self._mutation_registry,
             journal=self._execution_journal,
             leverage_metrics=self._leverage_metrics,
+            propagation_engine=self._propagation_engine,
         )
         self._spine_guard = SpineGuard(
             mode=GuardMode.BLOCK_HIGH_RISK,
@@ -682,6 +711,26 @@ class OrganismDaemon:
     def plan_execution_adapter(self) -> PlanExecutionAdapter:
         return self._plan_execution_adapter
 
+    @property
+    def outcome_learning(self) -> OutcomeLearningLoop:
+        return self._outcome_learning
+
+    @property
+    def template_registry(self) -> TemplateRegistry:
+        return self._template_registry
+
+    @property
+    def memory_pipeline(self) -> MemoryPromotionPipeline:
+        return self._memory_pipeline
+
+    @property
+    def agent_capability_model(self) -> AgentCapabilityModel:
+        return self._agent_capability_model
+
+    @property
+    def propagation_engine(self):
+        return self._propagation_engine
+
     def start(self) -> None:
         self._started = True
 
@@ -821,6 +870,11 @@ class OrganismDaemon:
             "spine_guard": self._spine_guard.to_dict(),
             "autonomous_gateway": self._autonomous_gateway.to_dict(),
             "plan_execution_adapter": self._plan_execution_adapter.to_dict(),
+            "outcome_learning": self._outcome_learning.to_dict(),
+            "template_registry": self._template_registry.summary(),
+            "memory_pipeline": self._memory_pipeline.summary(),
+            "agent_capability_model": self._agent_capability_model.summary(),
+            "propagation_engine": self._propagation_engine.to_safe_dict(),
             **self._advisor.organism_status(),
         }
         if self._graph is not None:

@@ -1196,12 +1196,19 @@ def _spine_propagation_status(_payload: dict) -> dict:
 def _template_reuse_proof(_payload: dict) -> dict:
     try:
         umh_root = _os.environ.get("UMH_ROOT", "/opt/OS")
-        proof_path = _os.path.join(umh_root, "data", "umh", "trials", "phase9_4_propagation_trial.json")
-        if not _os.path.isfile(proof_path):
+        proofs = {}
+        for phase_file in (
+            "phase9_4_propagation_trial.json",
+            "phase9_5_spine_native_proof.json",
+            "phase9_5_campaign_results.json",
+        ):
+            proof_path = _os.path.join(umh_root, "data", "umh", "trials", phase_file)
+            if _os.path.isfile(proof_path):
+                with open(proof_path) as f:
+                    proofs[phase_file] = json.loads(f.read())
+        if not proofs:
             return {"success": True, "data": {"has_proof": False}}
-        with open(proof_path) as f:
-            data = json.loads(f.read())
-        return {"success": True, "data": {"has_proof": True, **data}}
+        return {"success": True, "data": {"has_proof": True, "proofs": proofs}}
     except Exception as e:
         logger.exception("organism.template_reuse_proof failed")
         return {"success": False, "error": str(e)}

@@ -1,25 +1,53 @@
 {
-  "commit_sha": "60bbceed03df03e16a3be5c1f8093db302742fa4",
-  "branch": "worktree-unified-channel-notifications",
-  "timestamp": 1780074630.2757237,
-  "timestamp_human": "2026-05-29 10:10:30",
+  "phase": "9.5",
+  "timestamp": 1780077907.0433333,
+  "commit_sha": "f34841e22412dcb93c9b1a3208f37dad7801bd0a",
+  "branch": "main",
   "readiness_score": 28.3,
-  "contradiction_count_by_severity": {
+  "readiness_by_dimension": {
+    "execution": 31.0,
+    "governance": 30.0,
+    "deployment": 26.0,
+    "operator": 62.5,
+    "memory": 0.0,
+    "composition": 0.0
+  },
+  "contradiction_count": 15,
+  "contradictions_by_severity": {
     "medium": 1,
     "info": 14
   },
-  "contradiction_total": 15,
   "world_model_entity_count": 70,
   "dependency_graph_edge_count": 32,
   "dependency_graph_orphan_count": 43,
-  "outcome_record_count": 0,
+  "outcome_record_count": 1,
   "memory_candidate_count": 0,
   "template_candidate_count": 0,
   "promoted_template_count": 0,
   "agent_capability_count": 0,
+  "agent_profile_count": 0,
   "propagation_event_count": 0,
   "execution_journal_count": 0,
   "current_propagation_targets": [],
-  "composition_template_index_state": "available",
+  "template_registry_summary": {
+    "total_candidates": 0,
+    "by_status": {},
+    "promoted_count": 0,
+    "pending_approvals": 0,
+    "total_decisions": 0
+  },
+  "agent_capability_summary": {
+    "total_profiles": 0,
+    "total_records": 0,
+    "profiles": {}
+  },
+  "propagation_summary": {
+    "total_events": 0,
+    "total_targets_processed": 0,
+    "total_succeeded": 0,
+    "total_failed": 0,
+    "registered_targets": 0
+  },
+  "spine_native_propagation_wired": false,
   "cockpit_panel_status": "operational"
 }
