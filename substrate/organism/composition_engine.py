@@ -139,6 +139,13 @@ class CompositionStep:
         }
 
 
+class PlanSourceType(str, Enum):
+    TEMPLATE_GUIDED = "template_guided"
+    CANDIDATE_TEMPLATE_GUIDED = "candidate_template_guided"
+    DETERMINISTIC_GENERATED = "deterministic_generated"
+    CUSTOM_STEPS = "custom_steps"
+
+
 @dataclass
 class CompositionPlan:
     id: str = field(default_factory=lambda: str(uuid4())[:8])
@@ -155,6 +162,11 @@ class CompositionPlan:
     rollback_plan: str = ""
     evidence: list[str] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
+    source_type: PlanSourceType = PlanSourceType.DETERMINISTIC_GENERATED
+    template_id: str = ""
+    template_confidence: float = 0.0
+    reused_template: bool = False
+    template_match_reason: str = ""
 
     def ready_steps(self) -> list[CompositionStep]:
         completed_ids = {s.id for s in self.steps if s.status == StepStatus.COMPLETED}
@@ -180,6 +192,10 @@ class CompositionPlan:
             "missing_prerequisites": len(self.missing_prerequisites),
             "risks": len(self.risks),
             "created_at": self.created_at,
+            "source_type": self.source_type.value,
+            "template_id": self.template_id,
+            "template_confidence": round(self.template_confidence, 3),
+            "reused_template": self.reused_template,
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -198,6 +214,11 @@ class CompositionPlan:
             "rollback_plan": self.rollback_plan,
             "evidence": self.evidence,
             "created_at": self.created_at,
+            "source_type": self.source_type.value,
+            "template_id": self.template_id,
+            "template_confidence": round(self.template_confidence, 3),
+            "reused_template": self.reused_template,
+            "template_match_reason": self.template_match_reason,
         }
 
 
@@ -277,10 +298,12 @@ def _classify_intent(description: str) -> str:
 class CompositionEngine:
     """Deterministic composition from observed capabilities."""
 
-    def __init__(self, world_model=None, dependency_graph=None, contradiction_report=None):
+    def __init__(self, world_model=None, dependency_graph=None, contradiction_report=None,
+                 template_registry=None):
         self._world_model = world_model
         self._dep_graph = dependency_graph
         self._contradictions = contradiction_report
+        self._template_registry = template_registry
 
     def _ensure_models(self) -> None:
         if self._world_model is None:
@@ -303,7 +326,43 @@ class CompositionEngine:
 
         category = _classify_intent(intent.description)
         intent.category = category
-        pattern = custom_steps or _INTENT_PATTERNS.get(category, _INTENT_PATTERNS["general"])
+
+        source_type = PlanSourceType.DETERMINISTIC_GENERATED
+        template_id = ""
+        template_confidence = 0.0
+        template_match_reason = ""
+        pattern = None
+
+        if custom_steps:
+            pattern = custom_steps
+            source_type = PlanSourceType.CUSTOM_STEPS
+        elif self._template_registry is not None:
+            matches = self._template_registry.find_matching(category, intent.description)
+            if matches:
+                best = matches[0]
+                from substrate.organism.template_registry import TemplateStatus
+                if best.reusable_steps:
+                    pattern = [
+                        {
+                            "action": s.action,
+                            "desc": s.description,
+                            "risk": s.risk_class,
+                            "gov": s.governance_mode,
+                            "verify": s.verification,
+                        }
+                        for s in best.reusable_steps
+                    ]
+                    template_id = best.template_id
+                    template_confidence = best.confidence
+                    if best.status == TemplateStatus.PROMOTED:
+                        source_type = PlanSourceType.TEMPLATE_GUIDED
+                        template_match_reason = f"Promoted template matched: {best.template_type.value}"
+                    else:
+                        source_type = PlanSourceType.CANDIDATE_TEMPLATE_GUIDED
+                        template_match_reason = f"Candidate template matched (confidence={best.confidence:.2f}): {best.template_type.value}"
+
+        if pattern is None:
+            pattern = _INTENT_PATTERNS.get(category, _INTENT_PATTERNS["general"])
 
         context = CompositionContext(
             active_contradictions=len(self._contradictions.contradictions),
@@ -313,6 +372,11 @@ class CompositionEngine:
             intent=intent,
             context=context,
             constraints=constraints or [],
+            source_type=source_type,
+            template_id=template_id,
+            template_confidence=template_confidence,
+            reused_template=bool(template_id),
+            template_match_reason=template_match_reason,
         )
 
         prev_id: str | None = None

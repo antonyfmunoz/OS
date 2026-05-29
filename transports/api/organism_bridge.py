@@ -1054,6 +1054,108 @@ def _config_layers(payload: dict) -> dict:
         return {"success": False, "error": str(e)}
 
 
+# ── Phase 9.4: Template Registry, Agent Capability, Propagation ──
+
+def _templates(_payload: dict) -> dict:
+    try:
+        from substrate.organism.template_registry import TemplateRegistry
+        reg = TemplateRegistry()
+        return {"success": True, "data": reg.to_safe_dict()}
+    except Exception as e:
+        logger.exception("organism.templates failed")
+        return {"success": False, "error": str(e)}
+
+
+def _template_candidates(_payload: dict) -> dict:
+    try:
+        from substrate.organism.template_registry import TemplateRegistry
+        reg = TemplateRegistry()
+        candidates = [t.to_dict() for t in reg.pending_approvals()]
+        return {"success": True, "data": {"candidates": candidates, "count": len(candidates)}}
+    except Exception as e:
+        logger.exception("organism.template_candidates failed")
+        return {"success": False, "error": str(e)}
+
+
+def _template_candidate_approve(payload: dict) -> dict:
+    try:
+        from substrate.organism.template_registry import TemplateRegistry
+        template_id = payload.get("id", "")
+        if not template_id:
+            return {"success": False, "error": "Missing template id"}
+        reg = TemplateRegistry()
+        ok = reg.approve(template_id, decided_by="cockpit")
+        if ok:
+            reg.promote(template_id, decided_by="cockpit")
+        return {"success": ok, "data": {"template_id": template_id, "approved": ok}}
+    except Exception as e:
+        logger.exception("organism.template_candidates.approve failed")
+        return {"success": False, "error": str(e)}
+
+
+def _template_candidate_reject(payload: dict) -> dict:
+    try:
+        from substrate.organism.template_registry import TemplateRegistry
+        template_id = payload.get("id", "")
+        reason = payload.get("reason", "")
+        if not template_id:
+            return {"success": False, "error": "Missing template id"}
+        reg = TemplateRegistry()
+        ok = reg.reject(template_id, reason=reason, decided_by="cockpit")
+        return {"success": ok, "data": {"template_id": template_id, "rejected": ok}}
+    except Exception as e:
+        logger.exception("organism.template_candidates.reject failed")
+        return {"success": False, "error": str(e)}
+
+
+def _agent_capabilities(_payload: dict) -> dict:
+    try:
+        from substrate.organism.agent_capability_model import AgentCapabilityModel
+        model = AgentCapabilityModel()
+        return {"success": True, "data": model.to_safe_dict()}
+    except Exception as e:
+        logger.exception("organism.agent_capabilities failed")
+        return {"success": False, "error": str(e)}
+
+
+def _propagation(_payload: dict) -> dict:
+    try:
+        from substrate.organism.coherence_propagation import ParallelPropagationEngine
+        engine = ParallelPropagationEngine()
+        return {"success": True, "data": engine.to_safe_dict()}
+    except Exception as e:
+        logger.exception("organism.propagation failed")
+        return {"success": False, "error": str(e)}
+
+
+def _propagation_detail(payload: dict) -> dict:
+    try:
+        from substrate.organism.coherence_propagation import ParallelPropagationEngine
+        event_id = payload.get("id", "")
+        engine = ParallelPropagationEngine()
+        event = engine.get_event(event_id)
+        if not event:
+            return {"success": False, "error": f"Propagation event {event_id} not found"}
+        return {"success": True, "data": event.to_dict()}
+    except Exception as e:
+        logger.exception("organism.propagation.detail failed")
+        return {"success": False, "error": str(e)}
+
+
+def _template_reuse_proof(_payload: dict) -> dict:
+    try:
+        umh_root = _os.environ.get("UMH_ROOT", "/opt/OS")
+        proof_path = _os.path.join(umh_root, "data", "umh", "trials", "phase9_4_propagation_trial.json")
+        if not _os.path.isfile(proof_path):
+            return {"success": True, "data": {"has_proof": False}}
+        with open(proof_path) as f:
+            data = json.loads(f.read())
+        return {"success": True, "data": {"has_proof": True, **data}}
+    except Exception as e:
+        logger.exception("organism.template_reuse_proof failed")
+        return {"success": False, "error": str(e)}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -1112,6 +1214,14 @@ _ACTIONS: dict = {
     "organism.chat_history": _chat_history,
     "organism.dev_sessions": _dev_sessions,
     "organism.dev_session_detail": _dev_session_detail,
+    "organism.templates": _templates,
+    "organism.template_candidates": _template_candidates,
+    "organism.template_candidates.approve": _template_candidate_approve,
+    "organism.template_candidates.reject": _template_candidate_reject,
+    "organism.agent_capabilities": _agent_capabilities,
+    "organism.propagation": _propagation,
+    "organism.propagation.detail": _propagation_detail,
+    "organism.template_reuse_proof": _template_reuse_proof,
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,
