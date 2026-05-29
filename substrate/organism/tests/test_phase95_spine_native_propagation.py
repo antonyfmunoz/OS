@@ -1360,3 +1360,114 @@ class TestGovernedSpineState:
         completed = spine.completed_envelopes()
         assert len(completed) == 1
         assert completed[0]["status"] == "verified"
+
+
+# ---------------------------------------------------------------------------
+# XVI. Daemon Wiring Tests (Phase 9.5A)
+# ---------------------------------------------------------------------------
+
+class TestDaemonWiring:
+    """Verify OrganismDaemon wires propagation engine into spine."""
+
+    def test_daemon_has_propagation_engine(self):
+        from substrate.organism.daemon import OrganismDaemon
+        d = OrganismDaemon(store_dir="/tmp/test_daemon_wiring_pe")
+        assert d.propagation_engine is not None
+
+    def test_daemon_spine_has_propagation_engine(self):
+        from substrate.organism.daemon import OrganismDaemon
+        d = OrganismDaemon(store_dir="/tmp/test_daemon_wiring_spine")
+        assert d.governed_spine.propagation_engine is not None
+
+    def test_daemon_propagation_engine_has_targets(self):
+        from substrate.organism.daemon import OrganismDaemon
+        d = OrganismDaemon(store_dir="/tmp/test_daemon_wiring_targets")
+        assert len(d.propagation_engine._targets) > 0
+
+    def test_daemon_status_exposes_propagation_wired(self):
+        from substrate.organism.daemon import OrganismDaemon
+        d = OrganismDaemon(store_dir="/tmp/test_daemon_wiring_status")
+        s = d.status()
+        assert s["propagation_engine_wired"] is True
+        assert s["propagation_targets_count"] > 0
+        assert s["template_registry_ready"] is True
+        assert s["agent_capability_model_ready"] is True
+        assert s["outcome_committed_supported"] is True
+
+    def test_daemon_template_registry_initialized(self):
+        from substrate.organism.daemon import OrganismDaemon
+        d = OrganismDaemon(store_dir="/tmp/test_daemon_wiring_tpl")
+        assert d.template_registry is not None
+
+    def test_daemon_agent_capability_model_initialized(self):
+        from substrate.organism.daemon import OrganismDaemon
+        d = OrganismDaemon(store_dir="/tmp/test_daemon_wiring_acm")
+        assert d.agent_capability_model is not None
+
+    def test_daemon_memory_pipeline_initialized(self):
+        from substrate.organism.daemon import OrganismDaemon
+        d = OrganismDaemon(store_dir="/tmp/test_daemon_wiring_mem")
+        assert d.memory_pipeline is not None
+
+    def test_daemon_outcome_learning_initialized(self):
+        from substrate.organism.daemon import OrganismDaemon
+        d = OrganismDaemon(store_dir="/tmp/test_daemon_wiring_ol")
+        assert d.outcome_learning is not None
+
+    def test_daemon_e2e_submit_triggers_propagation(self):
+        """Submit through daemon's spine — propagation fires automatically."""
+        from substrate.organism.daemon import OrganismDaemon
+        from substrate.organism.action_envelope import ActionEnvelope, ActionType, ExecutionConstraints, VerificationStrategy
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            d = OrganismDaemon(store_dir=tmpdir)
+            env = ActionEnvelope(
+                intent="daemon e2e test",
+                action_type=ActionType.STATE,
+                source="test",
+                execute_fn=lambda: ("ok", True),
+                risk_level="low",
+                metadata={"agent_type": "developer_agent"},
+                constraints=ExecutionConstraints(require_approval=False),
+            )
+            env.verification = VerificationStrategy(
+                description="test",
+                verify_fn=lambda: True,
+            )
+            env.required_capabilities = ["code_search"]
+
+            result = d.governed_spine.submit(env)
+
+            assert result.status.value == "verified"
+            assert result.result_success is True
+            recent = d.propagation_engine.recent_events()
+            assert len(recent) >= 1
+            assert recent[-1].succeeded_targets > 0
+
+
+# ---------------------------------------------------------------------------
+# XVII. API Route Registration Test (Phase 9.5A)
+# ---------------------------------------------------------------------------
+
+class TestAPIRouteRegistration:
+    """Verify spine-propagation-status API route exists."""
+
+    def test_organism_route_file_has_spine_propagation_status(self):
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)
+        ))))
+        route_path = os.path.join(repo_root, "transports", "api", "http", "routes", "organism.ts")
+        with open(route_path) as f:
+            content = f.read()
+        assert "spine-propagation-status" in content
+        assert "organism.spine_propagation_status" in content
+
+    def test_organism_bridge_has_spine_propagation_handler(self):
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)
+        ))))
+        bridge_path = os.path.join(repo_root, "transports", "api", "organism_bridge.py")
+        with open(bridge_path) as f:
+            content = f.read()
+        assert "def _spine_propagation_status(" in content
+        assert '"organism.spine_propagation_status"' in content
