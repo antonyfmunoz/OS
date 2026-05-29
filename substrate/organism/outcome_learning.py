@@ -91,7 +91,7 @@ class LearningSignal:
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
-            "signal_type": self.signal_type.value,
+            "signal_type": self.signal_type.value if isinstance(self.signal_type, SignalType) else self.signal_type,
             "action_type": self.action_type,
             "description": self.description,
             "old_value": self.old_value,
@@ -174,11 +174,23 @@ class OutcomeLearningLoop:
                         continue
                     data = json.loads(line)
                     if data.get("record_type") == "outcome":
-                        rec = OutcomeRecord(**{k: v for k, v in data.items() if k != "record_type"})
+                        fields = {k: v for k, v in data.items() if k != "record_type"}
+                        if "status" in fields and isinstance(fields["status"], str):
+                            try:
+                                fields["status"] = OutcomeStatus(fields["status"])
+                            except ValueError:
+                                fields["status"] = OutcomeStatus.SUCCESS
+                        rec = OutcomeRecord(**fields)
                         self._outcomes.append(rec)
-                        self._outcome_counts[rec.action_type][rec.status.value if isinstance(rec.status, OutcomeStatus) else rec.status] += 1
+                        self._outcome_counts[rec.action_type][rec.status.value] += 1
                     elif data.get("record_type") == "signal":
-                        sig = LearningSignal(**{k: v for k, v in data.items() if k != "record_type"})
+                        sig_fields = {k: v for k, v in data.items() if k != "record_type"}
+                        if "signal_type" in sig_fields and isinstance(sig_fields["signal_type"], str):
+                            try:
+                                sig_fields["signal_type"] = SignalType(sig_fields["signal_type"])
+                            except ValueError:
+                                sig_fields["signal_type"] = SignalType.RELIABILITY_UPDATE
+                        sig = LearningSignal(**sig_fields)
                         self._signals.append(sig)
                     elif data.get("record_type") == "reliability":
                         self._reliability[data["action_type"]] = data["value"]
