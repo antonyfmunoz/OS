@@ -607,8 +607,8 @@ class VoiceEngine:
 
         if ctx is not None:
             try:
-                from substrate.control_plane.runtime.gateway import EntrepreneurOSGateway
-                gw     = EntrepreneurOSGateway()
+                from substrate.control_plane.runtime.gateway import Gateway
+                gw     = Gateway()
                 result = gw.handle({'type': 'agent_task', 'prompt': text})
                 output = result.get('output') or result.get('brief') or ''
                 if output:

@@ -36,6 +36,9 @@ Actions:
   organism.docker         — list Docker containers
   organism.mesh           — list Tailscale mesh nodes
 
+  organism.dev_sessions        — list active/completed development sessions (all harnesses)
+  organism.dev_session_detail  — full detail for a specific session (events, decisions, coherence)
+
 UMH substrate bridge — no instance context.
 """
 
@@ -836,6 +839,58 @@ def _chat_history(payload: dict) -> dict:
         return {"success": False, "error": str(e)}
 
 
+# ── Development session handlers ──────────────────────────────────────
+
+def _dev_sessions(payload: dict) -> dict:
+    """List active and recent development sessions across all harnesses."""
+    try:
+        import json as _json
+        from pathlib import Path
+
+        sessions_dir = Path(_os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "sessions"
+        result: dict = {"active": [], "completed": []}
+
+        active_path = sessions_dir / "active_sessions.jsonl"
+        if active_path.exists():
+            for line in active_path.read_text().strip().split("\n"):
+                if line.strip():
+                    result["active"].append(_json.loads(line))
+
+        completed_path = sessions_dir / "completed_sessions.jsonl"
+        if completed_path.exists():
+            lines = completed_path.read_text().strip().split("\n")
+            limit = int(payload.get("limit", 20))
+            for line in lines[-limit:]:
+                if line.strip():
+                    result["completed"].append(_json.loads(line))
+
+        return {"success": True, "data": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _dev_session_detail(payload: dict) -> dict:
+    """Get full detail for a specific development session."""
+    session_id = payload.get("session_id", "")
+    if not session_id:
+        return {"success": False, "error": "session_id required"}
+    try:
+        import json as _json
+        from pathlib import Path
+
+        session_file = (
+            Path(_os.environ.get("UMH_ROOT", "/opt/OS"))
+            / "data" / "umh" / "sessions" / f"{session_id}.json"
+        )
+        if not session_file.exists():
+            return {"success": False, "error": f"session {session_id} not found"}
+
+        data = _json.loads(session_file.read_text())
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -890,6 +945,8 @@ _ACTIONS: dict = {
     "organism.dispatch_report": _dispatch_report,
     "organism.reports": _list_reports,
     "organism.chat_history": _chat_history,
+    "organism.dev_sessions": _dev_sessions,
+    "organism.dev_session_detail": _dev_session_detail,
 }
 
 

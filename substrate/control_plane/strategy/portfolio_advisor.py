@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Optional
 
 from substrate.self_model import get_handler_prefix as _ghp
-from substrate.state.context.context import EntrepreneurOSContext, load_context_from_env
+from substrate.state.context.context import SubstrateContext, load_context_from_env
 from substrate.state.storage.db import get_conn
 from substrate.contracts.agent_types import TaskType
 from adapters.models.agent_runtime import AgentRuntime
@@ -65,7 +65,7 @@ _ORG_NAMES: dict[str, str] = _load_org_names()
 
 class PortfolioAdvisor:
 
-    def __init__(self, ctx: EntrepreneurOSContext) -> None:
+    def __init__(self, ctx: SubstrateContext) -> None:
         self.ctx     = ctx
         self._runtime = AgentRuntime()
         _org_name = os.environ.get("UMH_ORG_NAME", "") or "Portfolio"

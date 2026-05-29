@@ -1,14 +1,10 @@
-"""SubstrateGateway — unified SignalEnvelope interface over the legacy gateway.
+"""SubstrateGateway — unified SignalEnvelope interface over the internal Gateway.
 
-Convergence P2 bridge: accepts SignalEnvelope, delegates to
-EntrepreneurOSGateway.handle(), returns ExecutionResult.
+Accepts SignalEnvelope, delegates to Gateway.handle(), returns ExecutionResult.
 
-This lets transports program against the canonical substrate types
-while the legacy gateway still does all the actual work (context
-enrichment, agent routing, cognitive loop, quality gates).
-
-Once feature parity is proven, the internals can be replaced
-without changing the interface.
+This is the public API for all transports. Transports program against
+SignalEnvelope/ExecutionResult types. The internal Gateway handles the
+actual work (context enrichment, agent routing, cognitive loop, quality gates).
 """
 
 from __future__ import annotations
@@ -34,16 +30,16 @@ logger = logging.getLogger(__name__)
 
 
 class SubstrateGateway:
-    """Wraps EntrepreneurOSGateway with SignalEnvelope I/O.
+    """Wraps Gateway with SignalEnvelope I/O.
 
-    Thread-safe: delegates to the singleton gateway which is
+    Thread-safe: delegates to the singleton Gateway which is
     already thread-safe.
     """
 
     def __init__(self) -> None:
-        from substrate.control_plane.runtime.gateway import EntrepreneurOSGateway
+        from substrate.control_plane.runtime.gateway import Gateway
 
-        self._gateway = EntrepreneurOSGateway()
+        self._gateway = Gateway()
 
     def handle(self, signal: SignalEnvelope) -> ExecutionResult:
         """Route a SignalEnvelope through the full gateway lifecycle.

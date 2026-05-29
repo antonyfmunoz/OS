@@ -4,7 +4,7 @@ OSRegistry — formal registry for all three OS modules.
 Defines what each OS is, what it owns, what agents and primitives
 it activates, and how it injects into the cognitive loop.
 
-This is Layer 2 of the EOS protocol architecture. Each OS module
+This is Layer 2 of the UMH protocol architecture. Each OS module
 injects context only when the user is subscribed. OS modules share
 the Layer 0 and Layer 1 substrate but do not interfere with each other.
 

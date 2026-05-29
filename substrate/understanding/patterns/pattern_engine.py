@@ -18,7 +18,7 @@ Usage:
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 
 
 @dataclass
@@ -35,7 +35,7 @@ class Pattern:
 
 class PatternEngine:
 
-    def __init__(self, ctx: EntrepreneurOSContext):
+    def __init__(self, ctx: SubstrateContext):
         self.ctx = ctx
 
     def analyze(self, days_back: int = 30) -> list[Pattern]:

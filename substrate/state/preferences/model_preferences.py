@@ -15,7 +15,7 @@ Human override always wins. Never crash. Always return a valid config.
 """
 
 import os
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 from substrate.state.storage.db import get_conn
 
 
@@ -105,7 +105,7 @@ ECONOMY_OK = [
 
 class ModelPreferences:
 
-    def __init__(self, ctx: EntrepreneurOSContext) -> None:
+    def __init__(self, ctx: SubstrateContext) -> None:
         self.ctx = ctx
         self._prefs = self._load()
         self._business_context = self._load_business_context()

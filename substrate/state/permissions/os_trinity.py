@@ -25,7 +25,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 
 
 VALID_PRODUCTS: list[str] = ['LYFEOS', 'creatorOS', 'eos']
@@ -44,7 +44,7 @@ class OSTrinity:
     without crashing the caller. Default for permission checks is always DENIED.
     """
 
-    def __init__(self, ctx: EntrepreneurOSContext) -> None:
+    def __init__(self, ctx: SubstrateContext) -> None:
         self.ctx = ctx
 
     # ─── Cross-product permissions ────────────────────────────────────────────

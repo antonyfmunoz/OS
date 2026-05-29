@@ -1,5 +1,5 @@
 """
-EntrepreneurOSGateway — single control plane for all AI operations.
+Gateway — single control plane for all AI operations.
 
 Every AI request enters here. Nothing calls agent_runtime, event_bus,
 orchestrator, or agent_teams directly from outside runtime.
@@ -21,8 +21,8 @@ Request schema:
     }
 
 Usage:
-    from substrate.control_plane.runtime.gateway import EntrepreneurOSGateway
-    gw = EntrepreneurOSGateway()
+    from substrate.control_plane.runtime.gateway import Gateway
+    gw = Gateway()
     result = gw.handle({"type": "brief", "prompt": "", "venture_id": "lyfe_institute"})
 """
 
@@ -232,19 +232,19 @@ def _timestamp_id() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
 
 
-# ─── EntrepreneurOSGateway (singleton) ───────────────────────────────────────────────────
+# ─── Gateway (singleton) ─────────────────────────────────────────────────────
 
 
-class EntrepreneurOSGateway:
+class Gateway:
     """
-    Singleton gateway. EntrepreneurOSGateway() always returns the same instance.
+    Singleton gateway. Gateway() always returns the same instance.
     Thread-safe.
     """
 
-    _instance: "EntrepreneurOSGateway | None" = None
+    _instance: "Gateway | None" = None
     _class_lock: threading.Lock = threading.Lock()
 
-    def __new__(cls) -> "EntrepreneurOSGateway":
+    def __new__(cls) -> "Gateway":
         with cls._class_lock:
             if cls._instance is None:
                 instance = super().__new__(cls)
@@ -424,7 +424,7 @@ class EntrepreneurOSGateway:
         """Regex-based folder instruction extraction — deterministic fallback."""
         t = text.lower()
         folder = None
-        for f in EntrepreneurOSGateway._EMAIL_FOLDERS:
+        for f in Gateway._EMAIL_FOLDERS:
             if f in t:
                 folder = f.title()
                 break
@@ -634,7 +634,7 @@ class EntrepreneurOSGateway:
                         ORG_ID,
                         f"gateway:{request.get('type', 'unknown')}",
                         json.dumps(payload),
-                        json.dumps(["EntrepreneurOSGateway"]),
+                        json.dumps(["Gateway"]),
                     ),
                 )
                 return str(cur.fetchone()["id"])
@@ -1593,7 +1593,7 @@ class EntrepreneurOSGateway:
         neon_status = "✅ connected" if events_count > 0 else "⚠️ no events"
         output_lines = (
             [
-                "**EOS SYSTEM STATUS**",
+                "**SYSTEM STATUS**",
                 "",
                 "**NORTH STAR**",
             ]
@@ -1880,9 +1880,9 @@ class EntrepreneurOSGateway:
 # ─── Module-level helper ──────────────────────────────────────────────────────
 
 
-def get_gateway() -> EntrepreneurOSGateway:
-    """Return the singleton EntrepreneurOSGateway instance."""
-    return EntrepreneurOSGateway()
+def get_gateway() -> Gateway:
+    """Return the singleton Gateway instance."""
+    return Gateway()
 
 
 def ingest_external_context(
@@ -1921,3 +1921,7 @@ def ingest_external_context(
         task_type=context_type,
     )
     return interaction_id
+
+
+# Backward compatibility
+EntrepreneurOSGateway = Gateway

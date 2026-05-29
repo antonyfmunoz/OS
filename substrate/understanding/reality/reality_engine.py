@@ -37,7 +37,7 @@ if _REPO_ROOT not in sys.path:
 load_dotenv(Path(__file__).parent / ".env")
 load_dotenv(Path(_REPO_ROOT) / "services" / ".env")
 
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
 from substrate.control_plane.events.event_bus import EventBus
 from substrate.contracts.agent_types import TaskType
@@ -101,7 +101,7 @@ class RealityIntelligenceEngine:
     simulation layer when browser tools are wired in.
     """
 
-    def __init__(self, ctx: EntrepreneurOSContext):
+    def __init__(self, ctx: SubstrateContext):
         self.ctx = ctx
         self.loop = CognitiveLoop(ctx)
         self.event_bus = EventBus()

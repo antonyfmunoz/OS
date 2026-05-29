@@ -1,5 +1,5 @@
 """
-EntrepreneurOSOrchestrator — strategic intelligence layer.
+Orchestrator — strategic intelligence layer.
 
 Reads venture KPIs, queries 7-day memory stats, identifies the binding
 constraint, and dispatches the morning brief via Telegram.
@@ -30,7 +30,7 @@ if _REPO_ROOT not in sys.path:
 
 from substrate.contracts.agent_types import TaskType
 from substrate.contracts.agent_runtime_contracts import get_agent_runtime
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 from substrate.state.storage.db import get_conn, resolve_venture
 from substrate.state.memory.memory import AgentMemory
 from substrate.state.business.venture_knowledge import VentureKnowledgeBase
@@ -79,9 +79,9 @@ class CEOAgent:
 
     _DEPARTMENTS = ("sales", "research", "content", "ops", "finance")
 
-    def __init__(self, ctx: EntrepreneurOSContext, org_id: str) -> None:
+    def __init__(self, ctx: SubstrateContext, org_id: str) -> None:
         # Scope context to this specific org
-        self.ctx = EntrepreneurOSContext(
+        self.ctx = SubstrateContext(
             org_id=org_id,
             user_id=ctx.user_id,
             portfolio_id=ctx.portfolio_id,
@@ -375,7 +375,7 @@ def _fmt_patterns(patterns: list[dict]) -> str:
 # ─── Full morning cycle ───────────────────────────────────────────────────────
 
 
-def run_full_morning_cycle(ctx: EntrepreneurOSContext, return_content: bool = False):
+def run_full_morning_cycle(ctx: SubstrateContext, return_content: bool = False):
     """
     Unified morning cycle producing one coherent Telegram message:
       1. Portfolio Advisor board view
@@ -385,7 +385,7 @@ def run_full_morning_cycle(ctx: EntrepreneurOSContext, return_content: bool = Fa
       5. Pending approvals
       6. Knowledge graph patterns
 
-    Replaces the old EntrepreneurOSOrchestrator.run_morning_cycle().
+    Replaces the old Orchestrator.run_morning_cycle().
     Called by cron at 6am via __main__.
     """
     print("[Orchestrator] ── Full morning cycle start ──")
@@ -677,7 +677,7 @@ def run_full_morning_cycle(ctx: EntrepreneurOSContext, return_content: bool = Fa
 
 
 def run_ceo_morning_delegation(
-    ctx: EntrepreneurOSContext,
+    ctx: SubstrateContext,
     ventures: list = None,
 ) -> None:
     """
@@ -729,7 +729,7 @@ def run_ceo_morning_delegation(
 
         try:
             # Scope context to this venture
-            from substrate.state.context.context import EntrepreneurOSContext as _EC
+            from substrate.state.context.context import SubstrateContext as _EC
 
             venture_ctx = _EC(
                 org_id=ctx.org_id,
@@ -904,7 +904,7 @@ def run_ceo_morning_delegation(
 # ─── Proactive Intelligence ───────────────────────────────────────────────────
 
 
-def check_proactive_triggers(ctx: EntrepreneurOSContext) -> list[str]:
+def check_proactive_triggers(ctx: SubstrateContext) -> list[str]:
     """
     Runs after morning cycle. Checks conditions that warrant unsolicited
     Telegram alerts. Returns list of alert messages (empty = nothing to surface).
@@ -980,7 +980,7 @@ def check_proactive_triggers(ctx: EntrepreneurOSContext) -> list[str]:
     return alerts
 
 
-def check_outcome_milestone(ctx: EntrepreneurOSContext, new_outcome_count: int) -> None:
+def check_outcome_milestone(ctx: SubstrateContext, new_outcome_count: int) -> None:
     """
     Event-driven milestone check called immediately when a new outcome is logged.
     Sends Telegram alert without waiting for 6am cycle.
@@ -1000,7 +1000,7 @@ def check_outcome_milestone(ctx: EntrepreneurOSContext, new_outcome_count: int) 
 # discord_bot.py callers — will be removed in next cleanup pass.
 
 
-async def generate_morning_brief(ctx: EntrepreneurOSContext) -> str:
+async def generate_morning_brief(ctx: SubstrateContext) -> str:
     """
     DEPRECATED: Use run_full_morning_cycle() instead.
 
@@ -1179,7 +1179,7 @@ async def generate_morning_brief(ctx: EntrepreneurOSContext) -> str:
 # ─── Notion Dashboard ─────────────────────────────────────────────────────────
 
 
-def write_to_notion_dashboard(ctx: EntrepreneurOSContext, morning_data: dict) -> None:
+def write_to_notion_dashboard(ctx: SubstrateContext, morning_data: dict) -> None:
     """
     DEPRECATED: Use NotionPublisher.publish_morning_brief() instead.
     This function is kept for backward compatibility only.
@@ -1194,7 +1194,7 @@ def write_to_notion_dashboard(ctx: EntrepreneurOSContext, morning_data: dict) ->
 # ─── Orchestrator ─────────────────────────────────────────────────────────────
 
 
-class EntrepreneurOSOrchestrator:
+class Orchestrator:
     def __init__(self) -> None:
         self._runtime = get_agent_runtime()
         self._memory = AgentMemory()
@@ -1779,7 +1779,7 @@ class EntrepreneurOSOrchestrator:
 # ─── Ambient state refresh ───────────────────────────────────────────────────
 
 
-def refresh_ambient_state(ctx: EntrepreneurOSContext) -> None:
+def refresh_ambient_state(ctx: SubstrateContext) -> None:
     """
     Compute a fresh reality snapshot and cache it as ambient state.
     Called every morning by run_morning_cycle() and on first startup.
@@ -1802,7 +1802,7 @@ def refresh_ambient_state(ctx: EntrepreneurOSContext) -> None:
 # ─── Ambient refresh background loop ─────────────────────────────────────────
 
 
-def start_ambient_refresh_loop(ctx: EntrepreneurOSContext) -> None:
+def start_ambient_refresh_loop(ctx: SubstrateContext) -> None:
     """
     Start a background daemon thread that refreshes ambient state.
     Uses work_state to idle efficiently — exponential backoff under pressure,
@@ -1904,3 +1904,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"[Morning] CEO delegation failed: {e}")
     start_ambient_refresh_loop(_ctx)
+
+
+# Backward compatibility
+EntrepreneurOSOrchestrator = Orchestrator

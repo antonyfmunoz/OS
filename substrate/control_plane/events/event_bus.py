@@ -425,10 +425,10 @@ def _handle_morning_cycle(payload: dict) -> dict:
     """
     morning_cycle → trigger orchestrator.run_morning_cycle().
     """
-    from substrate.control_plane.orchestrator.orchestrator import EntrepreneurOSOrchestrator
+    from substrate.control_plane.orchestrator.orchestrator import Orchestrator
 
     print("[EventBus:morning_cycle] firing orchestrator.run_morning_cycle()")
-    orchestrator = EntrepreneurOSOrchestrator()
+    orchestrator = Orchestrator()
     orchestrator.run_morning_cycle()
     return {"status": "morning_cycle_complete"}
 
