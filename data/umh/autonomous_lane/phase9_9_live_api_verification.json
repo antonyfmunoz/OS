@@ -1,0 +1,32 @@
+{
+  "phase": "9.9C",
+  "description": "Live API endpoint verification",
+  "runtime_commit": "dbafd0be6b9688d91d21a0a8bc76a75f7f0f5d54",
+  "endpoints_verified": {
+    "GET /api/umh/organism/autonomous-pr-factory": {"status": 200, "auth_required": "api_key"},
+    "GET /api/umh/organism/autonomous-pr-factory/sandboxes": {"status": 200, "auth_required": "api_key"},
+    "GET /api/umh/organism/autonomous-pr-factory/manifests": {"status": 200, "auth_required": "api_key"},
+    "GET /api/umh/organism/autonomous-pr-factory/production-truth": {"status": 200, "auth_required": "operator_token"},
+    "GET /api/umh/organism/autonomous-pr-factory/merge-verifications": {"status": 200, "auth_required": "operator_token"},
+    "GET /api/umh/organism/autonomous-cadence": {"status": 200, "auth_required": "operator_token"},
+    "GET /api/umh/organism/status": {"status": 200, "auth_required": "api_key"},
+    "GET /api/umh/organism/events": {"status": 200, "auth_required": "api_key"},
+    "GET /api/umh/build": {"status": 200, "auth_required": "api_key"}
+  },
+  "mutation_routes_auth_check": {
+    "POST /verify-merge without auth": {"status": 403, "blocked": true},
+    "POST /cleanup without auth": {"status": 403, "blocked": true},
+    "POST /cleanup-eligible without auth": {"status": 403, "blocked": true},
+    "POST /set-mode without auth": {"status": 403, "blocked": true},
+    "POST /run-dry-run without auth": {"status": 403, "blocked": true}
+  },
+  "security_checks": {
+    "path_traversal_sandbox": {"status": 404, "safe": true},
+    "path_traversal_manifest": {"status": 404, "safe": true},
+    "path_traversal_delta": {"status": 404, "safe": true},
+    "invalid_id_verify_merge": {"status": 400, "message": "invalid sandbox_id format"},
+    "nonexistent_sandbox": {"safe": true, "no_traceback": true},
+    "nonexistent_manifest": {"safe": true, "no_traceback": true}
+  },
+  "verified_at": "2026-05-29T23:20:00Z"
+}
