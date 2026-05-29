@@ -1,0 +1,2 @@
+{"record_id": "rel-5c46a879", "agent_type": "developer_agent", "capability": "code_search", "success": true, "duration_ms": 0.051021575927734375, "outcome_id": "oc-1234b9e9", "action_envelope_id": "61a593cd55e0419e", "template_id": "", "risk_class": "low", "recorded_at": 1780075443.9829035}
+{"record_id": "rel-66f98167", "agent_type": "developer_agent", "capability": "file_edit", "success": true, "duration_ms": 0.051021575927734375, "outcome_id": "oc-1234b9e9", "action_envelope_id": "61a593cd55e0419e", "template_id": "", "risk_class": "low", "recorded_at": 1780075443.9838326}

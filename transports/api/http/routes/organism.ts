@@ -296,6 +296,25 @@ router.get('/template-reuse-proof', operatorGuard, async (c) => {
   return c.json(result.data)
 })
 
+router.get('/outcomes', operatorGuard, async (c) => {
+  const limit = Number(c.req.query('limit') ?? 20)
+  const result = await callOrganism('organism.outcomes', { limit })
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/outcomes/:id', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.outcomes.detail', { id: c.req.param('id') })
+  if (!result.success) return c.json({ error: result.error }, 404)
+  return c.json(result.data)
+})
+
+router.get('/spine-propagation-status', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.spine_propagation_status')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
 // ── Report Dispatcher ────────────────────────────────────────
 router.post('/dispatch-report', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))

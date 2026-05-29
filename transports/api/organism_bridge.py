@@ -580,6 +580,7 @@ def _execute_plan(payload: dict) -> dict:
     from substrate.organism.outcome_learning import OutcomeLearningLoop
     from substrate.organism.memory_promotion import MemoryPromotionPipeline
     from substrate.organism.spine_guard import SpineGuard
+    from substrate.organism.coherence_propagation import ParallelPropagationEngine
 
     intent = payload.get("intent", "")
     if not intent:
@@ -589,11 +590,13 @@ def _execute_plan(payload: dict) -> dict:
 
     event_spine = EventSpine()
     journal = ExecutionJournal()
+    propagation_engine = ParallelPropagationEngine()
     spine = GovernedExecutionSpine(
         event_spine=event_spine,
         execution_mode=ExecutionModeManager(),
         mutation_registry=MutationRegistry(),
         journal=journal,
+        propagation_engine=propagation_engine,
     )
     outcome_loop = OutcomeLearningLoop()
     memory_pipeline = MemoryPromotionPipeline()
@@ -1142,6 +1145,54 @@ def _propagation_detail(payload: dict) -> dict:
         return {"success": False, "error": str(e)}
 
 
+def _outcomes(payload: dict) -> dict:
+    try:
+        from substrate.organism.outcome_learning import OutcomeLearningLoop
+        loop = OutcomeLearningLoop()
+        limit = int(payload.get("limit", 20))
+        recent = loop.recent_outcomes(limit)
+        return {"success": True, "data": {
+            "outcomes": [o.to_dict() for o in recent],
+            "count": len(recent),
+            "summary": loop.summary(),
+        }}
+    except Exception as e:
+        logger.exception("organism.outcomes failed")
+        return {"success": False, "error": str(e)}
+
+
+def _outcome_detail(payload: dict) -> dict:
+    try:
+        from substrate.organism.outcome_learning import OutcomeLearningLoop
+        outcome_id = payload.get("id", "")
+        loop = OutcomeLearningLoop()
+        recent = loop.recent_outcomes(100)
+        outcome = next((o for o in recent if o.id == outcome_id), None)
+        if not outcome:
+            return {"success": False, "error": f"Outcome {outcome_id} not found"}
+        return {"success": True, "data": outcome.to_dict()}
+    except Exception as e:
+        logger.exception("organism.outcomes.detail failed")
+        return {"success": False, "error": str(e)}
+
+
+def _spine_propagation_status(_payload: dict) -> dict:
+    try:
+        from substrate.organism.coherence_propagation import ParallelPropagationEngine
+        engine = ParallelPropagationEngine()
+        summary = engine.summary()
+        return {"success": True, "data": {
+            "spine_native": True,
+            "summary": summary,
+            "registered_targets": [t.to_dict() for t in engine._targets],
+            "processed_outcome_count": len(engine._processed_keys),
+            "recent_failures": [f.to_dict() for f in engine.failed_outcomes(5)],
+        }}
+    except Exception as e:
+        logger.exception("organism.spine_propagation_status failed")
+        return {"success": False, "error": str(e)}
+
+
 def _template_reuse_proof(_payload: dict) -> dict:
     try:
         umh_root = _os.environ.get("UMH_ROOT", "/opt/OS")
@@ -1222,6 +1273,9 @@ _ACTIONS: dict = {
     "organism.propagation": _propagation,
     "organism.propagation.detail": _propagation_detail,
     "organism.template_reuse_proof": _template_reuse_proof,
+    "organism.outcomes": _outcomes,
+    "organism.outcomes.detail": _outcome_detail,
+    "organism.spine_propagation_status": _spine_propagation_status,
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,
