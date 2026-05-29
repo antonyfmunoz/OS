@@ -30,6 +30,7 @@ import json
 import logging
 import os
 import subprocess
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -160,6 +161,7 @@ class ProductionMergeVerifier:
         self._verifications: dict[str, ProductionMergeVerification] = {}
         self._production_outcomes: list[dict[str, Any]] = []
         self._emitted_event_ids: set[str] = set()
+        self._emit_lock = threading.Lock()
 
     @property
     def verifications(self) -> list[ProductionMergeVerification]:
@@ -444,9 +446,12 @@ class ProductionMergeVerifier:
         from substrate.organism.autonomous_pr_factory import ProductionOutcomeCommitted
 
         event_key = f"{verification.sandbox_id}:{verification.merge_commit}"
-        if event_key in self._emitted_event_ids:
-            logger.warning("Duplicate production outcome suppressed: %s", event_key)
-            return
+
+        with self._emit_lock:
+            if event_key in self._emitted_event_ids:
+                logger.warning("Duplicate production outcome suppressed: %s", event_key)
+                return
+            self._emitted_event_ids.add(event_key)
 
         outcome = ProductionOutcomeCommitted(
             sandbox_id=verification.sandbox_id,
@@ -466,8 +471,8 @@ class ProductionMergeVerifier:
             ],
         )
 
-        self._emitted_event_ids.add(event_key)
-        self._production_outcomes.append(outcome.to_dict())
+        with self._emit_lock:
+            self._production_outcomes.append(outcome.to_dict())
 
         if self._on_production_outcome:
             self._on_production_outcome(outcome)
