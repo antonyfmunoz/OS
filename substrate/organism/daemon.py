@@ -875,6 +875,11 @@ class OrganismDaemon:
             "memory_pipeline": self._memory_pipeline.summary(),
             "agent_capability_model": self._agent_capability_model.summary(),
             "propagation_engine": self._propagation_engine.to_safe_dict(),
+            "propagation_engine_wired": self._governed_spine.propagation_engine is not None,
+            "propagation_targets_count": len(self._propagation_engine._targets),
+            "template_registry_ready": self._template_registry is not None,
+            "agent_capability_model_ready": self._agent_capability_model is not None,
+            "outcome_committed_supported": self._governed_spine.propagation_engine is not None,
             **self._advisor.organism_status(),
         }
         if self._graph is not None:
