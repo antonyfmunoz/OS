@@ -1,0 +1,13 @@
+{
+  "commit": "58f0463451fa79e72cc83f27a3e3d02747fe6d61",
+  "entities": 74,
+  "contradictions_total": 15,
+  "contradictions_by_severity": {
+    "low": 2,
+    "medium": 2,
+    "info": 11
+  },
+  "readiness_composite": 79.8,
+  "gaps": 1,
+  "uncertainties": 23
+}
