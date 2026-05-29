@@ -211,6 +211,7 @@ function MessageBubble({ msg, aiName }: { msg: ChatMessage; aiName: string }) {
 
 function ChatSection() {
   const aiName = useConfigStore((s) => s.aiName)
+  const setConfigValue = useConfigStore((s) => s.setConfigValue)
   const messages = useChatStore((s) => s.messages)
   const input = useChatStore((s) => s.input)
   const sending = useChatStore((s) => s.sending)
@@ -218,21 +219,24 @@ function ChatSection() {
   const sendMessage = useChatStore((s) => s.sendMessage)
   const loadHistory = useChatStore((s) => s.loadHistory)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [assistantName, setAssistantName] = useState(`${aiName} ASSISTANT`)
+  const displayName = `${aiName} ASSISTANT`
   const [editingName, setEditingName] = useState(false)
-  const [nameInput, setNameInput] = useState(assistantName)
+  const [nameInput, setNameInput] = useState(aiName)
   const nameRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadHistory() }, [loadHistory])
   useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight) }, [messages])
   useEffect(() => { if (editingName) nameRef.current?.focus() }, [editingName])
+  useEffect(() => { setNameInput(aiName) }, [aiName])
 
   const handleSend = () => { if (input.trim()) sendMessage(input) }
 
   const commitName = () => {
     const trimmed = nameInput.trim()
-    if (trimmed) setAssistantName(trimmed)
-    else setNameInput(assistantName)
+    if (trimmed && trimmed !== aiName) {
+      setConfigValue('ai_name', trimmed)
+    }
+    if (!trimmed) setNameInput(aiName)
     setEditingName(false)
   }
 
@@ -245,7 +249,7 @@ function ChatSection() {
               ref={nameRef}
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') { setNameInput(assistantName); setEditingName(false) } }}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') { setNameInput(aiName); setEditingName(false) } }}
               onBlur={commitName}
               className="wv-label bg-transparent border-b border-cyan outline-none flex-1 uppercase"
               style={{ fontSize: 'inherit', lineHeight: 'inherit' }}
@@ -256,8 +260,8 @@ function ChatSection() {
           </>
         ) : (
           <>
-            <span className="wv-label">{assistantName}</span>
-            <button onClick={() => { setNameInput(assistantName); setEditingName(true) }} className="p-0.5 text-text-tertiary hover:text-cyan transition-colors">
+            <span className="wv-label">{displayName}</span>
+            <button onClick={() => { setNameInput(aiName); setEditingName(true) }} className="p-0.5 text-text-tertiary hover:text-cyan transition-colors">
               <Pencil size={10} />
             </button>
           </>

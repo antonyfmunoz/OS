@@ -3213,6 +3213,44 @@ async def chat_attachment(path: str):
     return FileResponse(str(resolved), filename=resolved.name, media_type="application/octet-stream")
 
 
+# ── Config endpoints ──────────────────────────────────────────────────────────
+
+
+@router.get("/config")
+async def config_get():
+    """Get resolved config (ai_name, timezone, theme, etc.)."""
+    try:
+        from substrate.sockets.config_port import get_all_config
+        return get_all_config()
+    except Exception as e:
+        logger.error("config_get failed: %s", e)
+        return {}
+
+
+@router.patch("/config", dependencies=[Depends(_require_operator_role)])
+async def config_patch(request: Request):
+    """Set a config value. Body: {key, value, layer?}."""
+    body = await request.json()
+    key = body.get("key")
+    value = body.get("value")
+    layer = body.get("layer", "system")
+    if not key:
+        return JSONResponse({"error": "key is required"}, status_code=400)
+    if value is None:
+        return JSONResponse({"error": "value is required"}, status_code=400)
+    try:
+        from substrate.state.config.config_store import VALID_KEYS
+        from substrate.sockets.config_port import set_config, get_config
+
+        if key not in VALID_KEYS:
+            return JSONResponse({"error": f"invalid config key: {key}"}, status_code=400)
+        set_config(key, value, layer=layer)
+        return {"ok": True, "key": key, "value": get_config(key), "layer": layer}
+    except Exception as e:
+        logger.error("config_patch failed: %s", e)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # ── Phase 6.1→6.2: Spine routes extracted to cockpit_spine_router.py ─────────
 
 

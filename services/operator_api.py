@@ -78,6 +78,17 @@ async def _tick_loop(daemon) -> None:
 @asynccontextmanager
 async def lifespan(application):
     global _loop_registry, _organism_daemon, _tick_task
+    # ── Register config store ─────────────────────────────────────────────
+    try:
+        from substrate.state.config.config_store import ConfigStore
+        from substrate.sockets.config_port import register_config_store
+
+        _cfg = ConfigStore()
+        register_config_store(_cfg.get, _cfg.set, _cfg.get_all, _cfg.on_change)
+        logger.info("config store registered: ai_name=%s", _cfg.get("ai_name"))
+    except Exception as exc:
+        logger.warning("config store not registered: %s", exc)
+
     try:
         from substrate.execution.loop.persistent_loop import get_registry
 
