@@ -1,5 +1,7 @@
 import { useRef, useEffect, type FormEvent } from 'react'
-import { useChatStore } from '../stores/chatStore'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { useChatStore, type ChatMessage, type Provenance, type Attachment } from '../stores/chatStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useConfigStore } from '../stores/configStore'
 
@@ -11,6 +13,8 @@ const CHANNELS = [
   { id: 'slack', label: 'Slack', enabled: false },
 ] as const
 
+const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
+
 function OriginBadge({ channel }: { channel?: string }) {
   if (!channel || channel === 'cockpit') {
     return (
@@ -18,7 +22,7 @@ function OriginBadge({ channel }: { channel?: string }) {
         className="text-[9px] font-mono px-1 rounded"
         style={{ color: 'var(--color-text-tertiary)', background: 'var(--color-surface-raised)' }}
       >
-        ⌘
+        CMD
       </span>
     )
   }
@@ -39,6 +43,105 @@ function OriginBadge({ channel }: { channel?: string }) {
     >
       {channel.slice(0, 3).toUpperCase()}
     </span>
+  )
+}
+
+function ProvenanceBlock({ provenance }: { provenance: Provenance }) {
+  const entries: string[] = []
+  if (provenance.node) entries.push(provenance.node)
+  if (provenance.harness) entries.push(provenance.harness)
+  if (provenance.session) entries.push(`session ${provenance.session}`)
+  if (provenance.phase) entries.push(`Phase ${provenance.phase}`)
+  if (provenance.pr) entries.push(`PR #${provenance.pr}`)
+  if (provenance.task) entries.push(provenance.task)
+
+  if (entries.length === 0) return null
+
+  return (
+    <div
+      className="flex flex-wrap gap-x-1.5 gap-y-0.5 mt-1 mb-2 py-1 px-2 rounded text-[10px] font-mono"
+      style={{
+        background: 'var(--color-surface-raised)',
+        borderLeft: '2px solid var(--color-cyan)',
+        color: 'var(--color-text-tertiary)',
+      }}
+    >
+      {entries.map((entry, i) => (
+        <span key={i}>
+          {i > 0 && <span style={{ opacity: 0.4 }}> · </span>}
+          {entry}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function AttachmentBlock({ attachment }: { attachment: Attachment }) {
+  const downloadUrl = `${API_URL}/chat/attachment?path=${encodeURIComponent(attachment.path)}`
+
+  return (
+    <a
+      href={downloadUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 mt-2 py-1.5 px-2 rounded text-xs font-mono no-underline transition-colors"
+      style={{
+        background: 'var(--color-surface-raised)',
+        border: '1px solid var(--color-border)',
+        color: 'var(--color-cyan)',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-cyan)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
+    >
+      <span style={{ fontSize: '14px' }}>&#x1F4CE;</span>
+      <span className="truncate">{attachment.filename}</span>
+      <span style={{ color: 'var(--color-text-tertiary)', marginLeft: 'auto', flexShrink: 0 }}>DOWNLOAD</span>
+    </a>
+  )
+}
+
+function MessageContent({ msg }: { msg: ChatMessage }) {
+  const isReport = msg.intent === 'report'
+  const isAssistant = msg.sender === 'assistant'
+
+  const contentColor = isAssistant
+    ? 'var(--color-violet)'
+    : msg.sender === 'system'
+      ? 'var(--color-cyan)'
+      : 'var(--color-text-primary)'
+
+  if (isReport) {
+    return (
+      <div>
+        {msg.title && (
+          <div
+            className="font-mono text-xs tracking-wide uppercase mb-1 pb-1"
+            style={{ color: 'var(--color-cyan)', borderBottom: '1px solid var(--color-border)' }}
+          >
+            {msg.title}
+          </div>
+        )}
+        {msg.provenance && <ProvenanceBlock provenance={msg.provenance} />}
+        <div className="chat-markdown leading-relaxed" style={{ color: contentColor }}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+        </div>
+        {msg.attachment && <AttachmentBlock attachment={msg.attachment} />}
+      </div>
+    )
+  }
+
+  if (isAssistant || msg.sender === 'system') {
+    return (
+      <div className="chat-markdown leading-relaxed" style={{ color: contentColor }}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+      </div>
+    )
+  }
+
+  return (
+    <p className="leading-relaxed whitespace-pre-wrap" style={{ color: contentColor }}>
+      {msg.content}
+    </p>
   )
 }
 
@@ -119,26 +222,23 @@ export function ChatDrawer() {
                   >
                     {msg.sender === 'assistant' ? aiName : msg.sender === 'system' ? 'UMH' : 'YOU'}
                   </span>
+                  {msg.intent === 'report' && (
+                    <span
+                      className="text-[9px] font-mono px-1 rounded uppercase"
+                      style={{ color: 'var(--color-success)', background: 'rgba(0,255,136,0.08)' }}
+                    >
+                      report
+                    </span>
+                  )}
                   <OriginBadge channel={msg.origin_channel} />
                   {msg.source === 'voice' && (
-                    <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>🎤</span>
+                    <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>mic</span>
                   )}
                   <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                <p
-                  className="leading-relaxed whitespace-pre-wrap"
-                  style={{
-                    color: msg.sender === 'assistant'
-                      ? 'var(--color-violet)'
-                      : msg.sender === 'system'
-                        ? 'var(--color-cyan)'
-                        : 'var(--color-text-primary)',
-                  }}
-                >
-                  {msg.content}
-                </p>
+                <MessageContent msg={msg} />
               </div>
             ))}
             {sending && (
@@ -171,7 +271,7 @@ export function ChatDrawer() {
             >
               {CHANNELS.map((ch) => (
                 <option key={ch.id} value={ch.id} disabled={!ch.enabled}>
-                  {ch.label}{!ch.enabled ? ' ○' : ''}
+                  {ch.label}{!ch.enabled ? ' ...' : ''}
                 </option>
               ))}
             </select>

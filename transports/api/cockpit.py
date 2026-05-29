@@ -1748,25 +1748,38 @@ async def dex_history(limit: int = 50):
             summary = payload.get("summary", "")
             meta = payload.get("metadata", {})
             file_path = str(payload.get("file_path", ""))[:500]
+            conv_id = m.get("conversation_id", "")
 
-            provenance_parts = []
+            provenance: dict[str, Any] = {
+                "node": "VPS",
+                "harness": "Claude Code",
+            }
+            if conv_id:
+                provenance["session"] = str(conv_id)[:12]
             if meta.get("phase"):
-                provenance_parts.append(f"Phase {str(meta['phase'])[:20]}")
+                provenance["phase"] = str(meta["phase"])[:20]
             if meta.get("pr"):
-                provenance_parts.append(f"PR #{str(meta['pr'])[:20]}")
-            provenance_parts.append("VPS / Claude Code session")
-            provenance = " · ".join(provenance_parts)
+                provenance["pr"] = int(meta["pr"]) if str(meta["pr"]).isdigit() else str(meta["pr"])[:20]
+            if meta.get("task"):
+                provenance["task"] = str(meta["task"])[:100]
 
-            body = f"📋 {title}\n{provenance}\n\n{summary}"
+            attachment = None
             if file_path:
-                body += f"\n\n📎 {file_path}"
+                attachment = {
+                    "path": file_path,
+                    "filename": file_path.rsplit("/", 1)[-1] if "/" in file_path else file_path,
+                }
 
             exchanges.append({
                 "id": m.get("id", ""),
                 "timestamp": m.get("created_at", ""),
                 "sender": m.get("sender", "system"),
                 "content": "",
-                "response": body,
+                "response": summary,
+                "intent": "report",
+                "title": title,
+                "provenance": provenance,
+                "attachment": attachment,
             })
 
     exchanges.sort(key=lambda x: x.get("timestamp", ""))
@@ -3145,6 +3158,25 @@ async def chat_push(request: Request):
     body = await request.json()
     push_chat_message(body)
     return {"ok": True}
+
+
+@router.get("/chat/attachment")
+async def chat_attachment(path: str):
+    """Download an attachment file referenced in a chat message."""
+    from fastapi.responses import FileResponse
+
+    _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+    allowed_dirs = [
+        os.path.realpath(os.path.join(_REPO_ROOT, "docs")),
+        os.path.realpath(os.path.join(_REPO_ROOT, "data", "audits")),
+    ]
+    resolved = os.path.realpath(path)
+    if not any(resolved.startswith(d) for d in allowed_dirs):
+        raise HTTPException(status_code=403, detail="Path outside allowed directories")
+    if not os.path.isfile(resolved):
+        raise HTTPException(status_code=404, detail="File not found")
+    filename = os.path.basename(resolved)
+    return FileResponse(resolved, filename=filename, media_type="application/octet-stream")
 
 
 # ── Phase 6.1→6.2: Spine routes extracted to cockpit_spine_router.py ─────────
