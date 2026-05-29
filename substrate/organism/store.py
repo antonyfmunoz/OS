@@ -60,13 +60,50 @@ class OrganismStore:
         recipient: str | None = None,
         sender: str | None = None,
         limit: int = 50,
+        origin_channel: str | None = None,
     ) -> list[dict[str, Any]]:
         all_m = self._read_all(self._messages)
         if recipient:
             all_m = [m for m in all_m if m.get("recipient") == recipient]
         if sender:
             all_m = [m for m in all_m if m.get("sender") == sender]
+        if origin_channel:
+            all_m = [m for m in all_m if m.get("origin_channel") == origin_channel]
         return all_m[-limit:]
+
+    def save_conversation_turn(
+        self,
+        content: str,
+        response: str,
+        origin_channel: str,
+        projection_id: str | None = None,
+        responder: str = "system",
+    ) -> tuple[AgentMessage, AgentMessage]:
+        """Persist both inbound user message and outbound response as a pair."""
+        from uuid import uuid4 as _uuid4
+
+        conv_id = _uuid4()
+        inbound = AgentMessage(
+            sender="operator",
+            recipient=responder,
+            intent="converse",
+            payload={"content": content, "projection_id": projection_id},
+            conversation_id=conv_id,
+            origin_channel=origin_channel,
+        )
+        self.save_message(inbound)
+
+        outbound = AgentMessage(
+            sender=responder,
+            recipient="operator",
+            intent="response",
+            payload={"content": response, "projection_id": projection_id},
+            conversation_id=conv_id,
+            parent_message_id=inbound.id,
+            origin_channel=origin_channel,
+        )
+        self.save_message(outbound)
+        return inbound, outbound
 
     def save_agent_state(self, agent_id: str, state: dict[str, Any]) -> None:
         state["_updated_at"] = datetime.now(timezone.utc).isoformat()
