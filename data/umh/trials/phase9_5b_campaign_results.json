@@ -1,0 +1,57 @@
+{
+  "phase": "9.5B",
+  "campaign_id": "f567b9d9",
+  "timestamp": 1780087876.0407317,
+  "commit": "28cf3f73",
+  "spine_native": true,
+  "manual_propagation_called": false,
+  "campaign_summary": {
+    "campaign_id": "f567b9d9",
+    "total_candidates": 6,
+    "total_trials": 6,
+    "completed": 6,
+    "failed": 0,
+    "blocked": 0,
+    "success_rate": 1.0,
+    "contradiction_delta": 0,
+    "readiness_delta": 0.0,
+    "total_memory_candidates": 0,
+    "duration_seconds": 0.32
+  },
+  "trials_completed": 6,
+  "trials_failed": 0,
+  "success_rate": 1.0,
+  "propagation_events_fired": 17,
+  "propagation_all_succeeded": true,
+  "template_candidates_generated": 17,
+  "templates_promoted": 1,
+  "template_lifecycle": {
+    "initial_status": "raw",
+    "initial_confidence": 0.2,
+    "template_id": "tpl-bbb98aac",
+    "template_type": "maintenance_action",
+    "after_approve": "approved",
+    "after_promote": "promoted",
+    "promoted_count": 1,
+    "confidence_after_reuse": 0.6666666666666666,
+    "find_matching_count": 1,
+    "top_match_id": "tpl-bbb98aac",
+    "top_match_promoted": true
+  },
+  "agent_capability_profile": {
+    "agent_type": "developer_agent",
+    "total_attempts": 34,
+    "total_successes": 0,
+    "reliability": 0,
+    "capabilities_tracked": 2,
+    "capability_names": [
+      "code_search",
+      "file_edit"
+    ]
+  },
+  "outcome_records": 17,
+  "memory_candidates": 34,
+  "idempotency_protected": true,
+  "failure_isolation_intact": true,
+  "all_success_criteria_met": true
+}
