@@ -477,6 +477,10 @@ class TemplateRegistry:
         self._persist(self._candidates_path, candidate.to_dict())
         return candidate
 
+    def get_template(self, template_id: str) -> TemplateCandidate | None:
+        """Look up a template by ID across candidates and promoted stores."""
+        return self._candidates.get(template_id) or self._promoted.get(template_id)
+
     def promote_to_candidate(self, template_id: str) -> bool:
         """Move from raw → candidate (ready for operator review)."""
         tpl = self._candidates.get(template_id)
