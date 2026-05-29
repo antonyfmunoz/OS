@@ -2966,6 +2966,158 @@ async def organism_reconcile_now():
         return {"error": str(e)}
 
 
+# ── Autonomous PR Factory endpoints ─────────────────────────────────────────
+
+def _get_pr_factory():
+    from substrate.organism.worktree_sandbox import SandboxManager
+    from substrate.organism.autonomous_pr_factory import AutonomousPRFactory
+    daemon = _get_organism()
+    if daemon is None:
+        return None, None
+    manager = getattr(daemon, "_sandbox_manager", None)
+    if manager is None:
+        manager = SandboxManager()
+        daemon._sandbox_manager = manager
+    factory = getattr(daemon, "_pr_factory", None)
+    if factory is None:
+        factory = AutonomousPRFactory(sandbox_manager=manager)
+        daemon._pr_factory = factory
+    return manager, factory
+
+
+@router.get("/organism/autonomous-pr-factory")
+async def autonomous_pr_factory_status():
+    manager, factory = _get_pr_factory()
+    if factory is None:
+        return {"error": "organism not running"}
+    return factory.to_dict()
+
+
+@router.get("/organism/autonomous-pr-factory/sandboxes")
+async def autonomous_pr_factory_sandboxes():
+    manager, factory = _get_pr_factory()
+    if manager is None:
+        return {"error": "organism not running"}
+    return manager.to_dict()
+
+
+@router.get("/organism/autonomous-pr-factory/sandboxes/{sandbox_id}")
+async def autonomous_pr_factory_sandbox_detail(sandbox_id: str):
+    manager, factory = _get_pr_factory()
+    if manager is None:
+        return {"error": "organism not running"}
+    sb = manager.get_sandbox(sandbox_id)
+    if sb is None:
+        return {"error": f"sandbox {sandbox_id} not found"}
+    return sb.to_dict()
+
+
+@router.get("/organism/autonomous-pr-factory/manifests")
+async def autonomous_pr_factory_manifests():
+    import glob
+    _root = os.environ.get("UMH_ROOT", "/opt/OS")
+    manifest_dir = os.path.join(_root, "data", "umh", "autonomous_lane", "manifests")
+    manifests = []
+    for path in sorted(glob.glob(os.path.join(manifest_dir, "*.json"))):
+        try:
+            with open(path) as f:
+                manifests.append(json.load(f))
+        except (json.JSONDecodeError, OSError):
+            continue
+    return {"manifests": manifests, "count": len(manifests)}
+
+
+@router.get("/organism/autonomous-pr-factory/manifests/{manifest_id}")
+async def autonomous_pr_factory_manifest_detail(manifest_id: str):
+    _root = os.environ.get("UMH_ROOT", "/opt/OS")
+    path = os.path.join(
+        _root, "data", "umh", "autonomous_lane", "manifests", f"{manifest_id}.json"
+    )
+    if not os.path.isfile(path):
+        return {"error": f"manifest {manifest_id} not found"}
+    with open(path) as f:
+        return json.load(f)
+
+
+@router.post("/organism/autonomous-pr-factory/create-pr", dependencies=[Depends(_require_operator_role)])
+async def autonomous_pr_factory_create_pr(payload: dict, request: Request):
+    manager, factory = _get_pr_factory()
+    if factory is None:
+        return {"error": "organism not running"}
+    from substrate.organism.autonomous_pr_factory import AutonomousPRRequest
+    from substrate.organism.autonomous_improvement_lane import AutonomousImprovementCandidate
+    candidate = AutonomousImprovementCandidate(
+        candidate_id=payload.get("candidate_id", ""),
+        description=payload.get("description", ""),
+        affected_files=payload.get("affected_files", []),
+        risk_class=payload.get("risk_class", "low"),
+        matching_template_id=payload.get("template_id", ""),
+        validation_method=payload.get("validation_method", "py_compile"),
+        rollback_method=payload.get("rollback_method", "git revert"),
+        reversible=True,
+    )
+    req = AutonomousPRRequest(
+        candidate=candidate,
+        candidate_slug=payload.get("slug", candidate.description[:40]),
+        description=payload.get("description", ""),
+    )
+    import asyncio
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, factory.create_pr, req)
+    return result.to_dict()
+
+
+@router.post("/organism/autonomous-pr-factory/cleanup/{sandbox_id}", dependencies=[Depends(_require_operator_role)])
+async def autonomous_pr_factory_cleanup(sandbox_id: str):
+    manager, factory = _get_pr_factory()
+    if manager is None:
+        return {"error": "organism not running"}
+    ok = manager.cleanup_sandbox(sandbox_id)
+    return {"ok": ok, "sandbox_id": sandbox_id}
+
+
+@router.get("/organism/autonomous-pr-factory/parallel-dry-run")
+async def autonomous_pr_factory_parallel_dry_run():
+    manager, factory = _get_pr_factory()
+    if factory is None:
+        return {"error": "organism not running"}
+    from substrate.organism.autonomous_improvement_lane import (
+        AutonomousCandidateSelector,
+        AutonomousImprovementCandidate,
+    )
+    from substrate.organism.template_registry import TemplateRegistry
+    from substrate.organism.agent_capability_model import AgentCapabilityModel
+    tr = TemplateRegistry()
+    acm = AgentCapabilityModel()
+    selector = AutonomousCandidateSelector(
+        template_registry=tr,
+        agent_capability_model=acm,
+    )
+    candidates = selector.build_candidates(max_candidates=5)
+    return factory.conflict_detector.parallel_dry_run(candidates)
+
+
+@router.get("/organism/autonomous-pr-factory/production-truth")
+async def autonomous_pr_factory_production_truth():
+    manager, factory = _get_pr_factory()
+    if manager is None:
+        return {"error": "organism not running"}
+    return manager.production_truth()
+
+
+@router.post("/organism/autonomous-pr-factory/verify-merge/{sandbox_id}", dependencies=[Depends(_require_operator_role)])
+async def autonomous_pr_factory_verify_merge(sandbox_id: str):
+    manager, factory = _get_pr_factory()
+    if factory is None:
+        return {"error": "organism not running"}
+    import asyncio
+    loop = asyncio.get_running_loop()
+    outcome = await loop.run_in_executor(None, factory.verify_merge, sandbox_id)
+    if outcome is None:
+        return {"error": "merge not detected or sandbox not found"}
+    return outcome.to_dict()
+
+
 # ── Execution Substrate endpoints ────────────────────────────────────────────
 
 
