@@ -3157,16 +3157,25 @@ async def chat_converse(request: Request):
 
 @router.post("/chat/send", dependencies=[Depends(_require_operator_role)])
 async def chat_send(request: Request):
-    """Send a message to a specific channel (Discord, etc)."""
+    """Send a message — writes to organism store + pushes to cockpit WS."""
     body = await request.json()
     content = (body.get("content") or "").strip()
     if not content:
         return JSONResponse({"error": "content is required"}, status_code=400)
     try:
         from substrate.organism.store import OrganismStore
+
         store = OrganismStore()
-        store.save_conversation_turn(content=content, response="", origin_channel="cockpit")
-        return {"success": True}
+        inbound, _ = store.save_conversation_turn(
+            content=content, response="", origin_channel="cockpit",
+        )
+        push_chat_message({
+            "sender": "operator",
+            "content": content,
+            "origin_channel": "cockpit",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        return {"success": True, "message_id": str(inbound.id)}
     except Exception as e:
         logger.error("chat_send failed: %s", e)
         return JSONResponse({"error": "internal error"}, status_code=500)

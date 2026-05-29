@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from substrate.sockets.notification import push_chat
 from substrate.state.business.business_instance import get_ai_name
 
 logger = logging.getLogger(__name__)
@@ -151,6 +152,10 @@ class ReportDispatcher:
             }
             with open(self._messages_path, "a") as f:
                 f.write(json.dumps(msg, default=str, separators=(",", ":")) + "\n")
+            try:
+                push_chat(msg)
+            except Exception as ws_exc:
+                logger.debug("WS push for report failed (non-fatal): %s", ws_exc)
             return True
         except Exception as e:
             logger.error("Failed to send report to cockpit: %s", e)
