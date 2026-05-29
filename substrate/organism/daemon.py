@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -108,6 +109,7 @@ class OrganismDaemon:
         self._store = OrganismStore(store_dir=store_dir)
         self._approval_store = ApprovalStore(store_dir=store_dir)
         self._pipeline = pipeline
+        self._repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
         self._state_dir = Path(store_dir)
         self._state_dir.mkdir(parents=True, exist_ok=True)
 
@@ -894,6 +896,21 @@ class OrganismDaemon:
             "template_registry_ready": self._template_registry is not None,
             "agent_capability_model_ready": self._agent_capability_model is not None,
             "outcome_committed_supported": self._governed_spine.propagation_engine is not None,
+            "autonomous_cadence_mode": self._autonomous_cadence.mode.value,
+            "last_dry_run_at": self._autonomous_cadence._last_run_at,
+            "last_candidate_count": (
+                self._autonomous_cadence._run_history[-1].candidates_found
+                if self._autonomous_cadence._run_history else 0
+            ),
+            "last_recommendation_count": (
+                len(self._autonomous_cadence._run_history[-1].recommendations)
+                if self._autonomous_cadence._run_history else 0
+            ),
+            "active_sandbox_count": self._get_active_sandbox_count(),
+            "active_pr_count": self._get_active_pr_count(),
+            "pending_merge_verification_count": self._get_pending_verification_count(),
+            "last_production_truth_delta_id": self._get_last_delta_id(),
+            "last_production_outcome_at": self._get_last_production_outcome_at(),
             **self._advisor.organism_status(),
         }
         if self._graph is not None:
@@ -901,3 +918,61 @@ class OrganismDaemon:
         if self._reconciler is not None:
             result["reconciler"] = self._reconciler.to_dict()
         return result
+
+    def _get_active_sandbox_count(self) -> int:
+        try:
+            from substrate.organism.worktree_sandbox import SandboxStatus
+            manager = self._autonomous_gateway._sandbox_manager
+            return sum(
+                1 for sb in manager.all_sandboxes
+                if sb.status == SandboxStatus.ACTIVE
+            )
+        except (AttributeError, ImportError):
+            return 0
+
+    def _get_active_pr_count(self) -> int:
+        try:
+            from substrate.organism.worktree_sandbox import SandboxStatus
+            manager = self._autonomous_gateway._sandbox_manager
+            return sum(
+                1 for sb in manager.all_sandboxes
+                if sb.status == SandboxStatus.PR_CREATED
+            )
+        except (AttributeError, ImportError):
+            return 0
+
+    def _get_pending_verification_count(self) -> int:
+        try:
+            import glob as _glob
+            mv_dir = os.path.join(self._repo_root, "data", "umh", "autonomous_lane", "merge_verifications")
+            if not os.path.isdir(mv_dir):
+                return 0
+            return len(_glob.glob(os.path.join(mv_dir, "pmv-*.json")))
+        except (OSError, AttributeError):
+            return 0
+
+    def _get_last_delta_id(self) -> str:
+        try:
+            import glob as _glob
+            mv_dir = os.path.join(self._repo_root, "data", "umh", "autonomous_lane", "merge_verifications")
+            if not os.path.isdir(mv_dir):
+                return ""
+            ptd_files = sorted(_glob.glob(os.path.join(mv_dir, "ptd-*.json")))
+            if ptd_files:
+                return os.path.basename(ptd_files[-1]).replace(".json", "")
+            return ""
+        except (OSError, AttributeError):
+            return ""
+
+    def _get_last_production_outcome_at(self) -> float:
+        try:
+            import glob as _glob
+            mv_dir = os.path.join(self._repo_root, "data", "umh", "autonomous_lane", "merge_verifications")
+            if not os.path.isdir(mv_dir):
+                return 0.0
+            poc_files = sorted(_glob.glob(os.path.join(mv_dir, "pmv-*.json")))
+            if poc_files:
+                return os.path.getmtime(poc_files[-1])
+            return 0.0
+        except (OSError, AttributeError):
+            return 0.0
