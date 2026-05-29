@@ -893,10 +893,8 @@ def _converse(payload: dict) -> dict:
             },
         }
     except Exception as e:
-        import traceback
-
-        logger.error("converse failed: %s", e)
-        return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        logger.exception("converse failed")
+        return {"success": False, "error": "internal error"}
 
 
 def _send_channel_message(payload: dict) -> dict:
@@ -1065,12 +1063,10 @@ def main():
     try:
         result = handler(payload)
     except Exception as e:
-        import traceback
-
+        logger.exception("handler %s failed", action)
         result = {
             "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc(),
+            "error": "internal error",
         }
 
     _emit(result)

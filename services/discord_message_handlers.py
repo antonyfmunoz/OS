@@ -1026,10 +1026,16 @@ async def _handle_organism_command(
     """Handle governance commands from Discord (approve, deny, status, kill, resume).
 
     Returns True if the message was a governance command and was handled.
+    Only the founder (FOUNDER_DISCORD_ID) may execute governance commands.
     """
     m = _ORGANISM_CMD_RE.match(text.strip())
     if not m:
         return False
+
+    founder_id = _ctx.get("founder_id", 0)
+    if message.author.id != founder_id:
+        await _send_reply(message, "Governance commands are restricted to the operator.")
+        return True
 
     cmd = m.group(1).lower()
     arg = m.group(2).strip()
@@ -1039,11 +1045,11 @@ async def _handle_organism_command(
 
         if cmd == "approve" and arg:
             result = _ACTIONS["organism.approve"](
-                {"approval_id": arg, "decided_by": f"discord:{message.author.name}"}
+                {"approval_id": arg, "decided_by": f"discord:{message.author.id}"}
             )
         elif cmd == "deny" and arg:
             result = _ACTIONS["organism.deny"](
-                {"approval_id": arg, "decided_by": f"discord:{message.author.name}"}
+                {"approval_id": arg, "decided_by": f"discord:{message.author.id}"}
             )
         elif cmd == "status":
             result = _ACTIONS["organism.status"]({})
