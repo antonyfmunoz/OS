@@ -132,7 +132,7 @@ class ReportDispatcher:
     def _send_to_cockpit(self, report: Report) -> bool:
         """Write an AI message to messages.jsonl so the cockpit chat picks it up."""
         try:
-            ai_name = get_ai_name().lower()
+            ai_name = get_ai_name().lower() or "system"
             msg = {
                 "id": str(uuid4()),
                 "sender": ai_name,
