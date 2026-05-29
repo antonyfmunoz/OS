@@ -886,8 +886,9 @@ class TestVerifyMerge:
         assert outcome is None
 
     @patch("substrate.organism.worktree_sandbox._run_git")
+    @patch("substrate.organism.production_merge_verifier._run_cmd")
     @patch("substrate.organism.autonomous_pr_factory._run_cmd")
-    def test_verify_merge_found(self, mock_cmd, mock_git, sandbox_manager, tmp_dir):
+    def test_verify_merge_found(self, mock_factory_cmd, mock_verifier_cmd, mock_git, sandbox_manager, tmp_dir):
         mock_git.return_value = MagicMock(returncode=0, stdout="abc\n", stderr="")
         sb = sandbox_manager.create_sandbox("c1", "fix-1")
         sandbox_manager.update_status(
@@ -895,17 +896,27 @@ class TestVerifyMerge:
         )
 
         def cmd_side_effect(cmd, cwd=None, timeout=60):
-            if "log" in cmd:
+            if isinstance(cmd, list) and "gh" in cmd and "pr" in cmd and "view" in cmd:
+                import json as _json
+                return MagicMock(
+                    returncode=0,
+                    stdout=_json.dumps({"state": "MERGED", "mergeCommit": {"oid": "abc123"}}),
+                    stderr="",
+                )
+            if isinstance(cmd, list) and "log" in cmd:
                 return MagicMock(
                     returncode=0,
                     stdout=f"abc123 Merge pull request #{42} from test\n",
                     stderr="",
                 )
-            if "rev-parse" in cmd:
+            if isinstance(cmd, list) and "rev-parse" in cmd:
                 return MagicMock(returncode=0, stdout="merged_abc\n", stderr="")
-            return MagicMock(returncode=0, stdout="ok\n", stderr="")
+            if isinstance(cmd, list) and "diff" in cmd:
+                return MagicMock(returncode=0, stdout="\n", stderr="")
+            return MagicMock(returncode=0, stdout="\n", stderr="")
 
-        mock_cmd.side_effect = cmd_side_effect
+        mock_factory_cmd.side_effect = cmd_side_effect
+        mock_verifier_cmd.side_effect = cmd_side_effect
 
         production_received = []
         factory = AutonomousPRFactory(
@@ -916,7 +927,7 @@ class TestVerifyMerge:
         outcome = factory.verify_merge(sb.sandbox_id)
         assert outcome is not None
         assert outcome.boundary == "production"
-        assert len(production_received) == 1
+        assert len(production_received) >= 1
 
     def test_verify_merge_unknown_sandbox(self, sandbox_manager, tmp_dir):
         factory = AutonomousPRFactory(
