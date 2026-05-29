@@ -5,6 +5,7 @@ import { useSystemStore } from '../stores/systemStore'
 import { useChatStore } from '../stores/chatStore'
 import { usePolling } from '../hooks/usePolling'
 import { relativeTime } from '../lib/time'
+import { AI_NAME } from '../constants'
 
 type RightTab = 'chat' | 'activity' | 'logs'
 
@@ -89,7 +90,7 @@ function ChatSection() {
   const sendMessage = useChatStore((s) => s.sendMessage)
   const loadHistory = useChatStore((s) => s.loadHistory)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [assistantName, setAssistantName] = useState('DEX ASSISTANT')
+  const [assistantName, setAssistantName] = useState(`${AI_NAME} ASSISTANT`)
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(assistantName)
   const nameRef = useRef<HTMLInputElement>(null)
@@ -137,12 +138,12 @@ function ChatSection() {
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 mb-2">
         {messages.map((m) => (
           <div key={m.id} className={clsx('px-2 py-1.5 rounded text-[11px]', m.sender === 'operator' ? 'bg-cyan-glow text-text-primary ml-4' : 'bg-surface-raised text-text-secondary mr-4')}>
-            <div className="font-mono text-[9px] text-text-tertiary mb-0.5">{m.sender === 'operator' ? 'YOU' : 'DEX'}</div>
+            <div className="font-mono text-[9px] text-text-tertiary mb-0.5">{m.sender === 'operator' ? 'YOU' : AI_NAME}</div>
             {m.content}
           </div>
         ))}
         {messages.length === 0 && (
-          <p className="text-[11px] text-text-tertiary text-center py-4">Ask DEX anything</p>
+          <p className="text-[11px] text-text-tertiary text-center py-4">Ask {AI_NAME} anything</p>
         )}
       </div>
       <div className="flex items-center gap-1 border-t border-border pt-2">
@@ -150,7 +151,7 @@ function ChatSection() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-          placeholder="Message DEX..."
+          placeholder={`Message ${AI_NAME}...`}
           className="flex-1 text-[11px] px-2 py-1.5 rounded bg-surface-raised text-text-primary border border-border outline-none placeholder:text-text-tertiary"
           disabled={sending}
         />

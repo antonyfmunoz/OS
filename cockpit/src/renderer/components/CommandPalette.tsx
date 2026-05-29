@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useCockpitStore, type Panel } from '../stores/cockpitStore'
+import { AI_NAME } from '../constants'
 
 interface Command {
   id: string
@@ -31,7 +32,7 @@ export function CommandPalette() {
     { id: 'execution', label: 'Go to Execution', shortcut: 'Ctrl+0', action: () => setPanel('execution') },
     { id: 'portfolio', label: 'Go to Portfolio', shortcut: 'Ctrl+P', action: () => setPanel('portfolio') },
     { id: 'company', label: 'Go to Company', shortcut: 'Ctrl+C', action: () => setPanel('company') },
-    { id: 'chat', label: 'Toggle DEX Chat', shortcut: 'Ctrl+/', action: toggleChat },
+    { id: 'chat', label: `Toggle ${AI_NAME} Chat`, shortcut: 'Ctrl+/', action: toggleChat },
     { id: 'mode-execute', label: 'Switch to EXECUTE mode', action: () => setMode('EXECUTE') },
     { id: 'mode-plan', label: 'Switch to PLAN mode', action: () => setMode('PLAN') },
     { id: 'mode-review', label: 'Switch to REVIEW mode', action: () => setMode('REVIEW') },

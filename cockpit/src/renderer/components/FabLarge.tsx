@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useAgentStore } from '../stores/agentStore'
 import { useChatStore } from '../stores/chatStore'
+import { AI_NAME } from '../constants'
 import { VoiceWaveform } from './VoiceWaveform'
 import { useVoiceStore } from '../stores/voiceStore'
 import { startVoice, stopVoice } from '../api/voice-controller'
@@ -21,14 +22,14 @@ export function FabLarge() {
   const sendMessage = useChatStore((s) => s.sendMessage)
   const sending = useChatStore((s) => s.sending)
   const micState = useVoiceStore((s) => s.micState)
-  const [dexInput, setDexInput] = useState('')
+  const [chatInput, setDexInput] = useState('')
 
   const activeAgents = agents.filter((a) => a.status === 'active' || a.status === 'running')
 
-  function handleDexSubmit(e: React.FormEvent) {
+  function handleChatSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (dexInput.trim() && !sending) {
-      sendMessage(dexInput.trim())
+    if (chatInput.trim() && !sending) {
+      sendMessage(chatInput.trim())
       setDexInput('')
     }
   }
@@ -90,11 +91,11 @@ export function FabLarge() {
         </div>
       </div>
 
-      <form onSubmit={handleDexSubmit} className="flex gap-1.5">
+      <form onSubmit={handleChatSubmit} className="flex gap-1.5">
         <input
-          value={dexInput}
+          value={chatInput}
           onChange={(e) => setDexInput(e.target.value)}
-          placeholder="Ask DEX..."
+          placeholder={`Ask ${AI_NAME}...`}
           className="flex-1 px-2 py-1 rounded text-xs bg-transparent outline-none"
           style={{
             color: 'var(--color-text-primary)',
@@ -103,11 +104,11 @@ export function FabLarge() {
         />
         <button
           type="submit"
-          disabled={sending || !dexInput.trim()}
+          disabled={sending || !chatInput.trim()}
           className="px-2 py-1 rounded text-xs"
           style={{
             color: 'var(--color-cyan)',
-            opacity: sending || !dexInput.trim() ? 0.4 : 1,
+            opacity: sending || !chatInput.trim() ? 0.4 : 1,
           }}
         >
           ↵
