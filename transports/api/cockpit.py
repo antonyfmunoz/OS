@@ -3110,12 +3110,125 @@ async def autonomous_pr_factory_verify_merge(sandbox_id: str):
     manager, factory = _get_pr_factory()
     if factory is None:
         return {"error": "organism not running"}
+    from substrate.organism.production_merge_verifier import ProductionMergeVerifier
+    verifier = ProductionMergeVerifier(sandbox_manager=manager)
+    sb = manager.get_sandbox(sandbox_id)
+    pr_number = sb.pr_number if sb else 0
+    expected_files: list = []
+    manifest_id = ""
+    if factory:
+        for rp in factory.review_packets:
+            if rp.sandbox_id == sandbox_id:
+                manifest_id = rp.manifest_id
+                if rp.manifest:
+                    expected_files = [cf.path for cf in rp.manifest.changed_files]
+                break
     import asyncio
     loop = asyncio.get_running_loop()
-    outcome = await loop.run_in_executor(None, factory.verify_merge, sandbox_id)
-    if outcome is None:
-        return {"error": "merge not detected or sandbox not found"}
-    return outcome.to_dict()
+    verification = await loop.run_in_executor(
+        None, verifier.verify_merge, sandbox_id, pr_number, manifest_id, expected_files
+    )
+    return verification.to_dict()
+
+
+@router.get("/organism/autonomous-pr-factory/production-truth/{delta_id}")
+async def autonomous_pr_factory_production_truth_detail(delta_id: str):
+    import glob as _glob
+    _root = os.environ.get("UMH_ROOT", "/opt/OS")
+    mv_dir = os.path.join(_root, "data", "umh", "autonomous_lane", "merge_verifications")
+    path = os.path.join(mv_dir, f"{delta_id}.json")
+    if os.path.isfile(path):
+        with open(path) as f:
+            return json.load(f)
+    return {"error": f"delta {delta_id} not found"}
+
+
+@router.get("/organism/autonomous-pr-factory/merge-verifications")
+async def autonomous_pr_factory_merge_verifications():
+    import glob as _glob
+    _root = os.environ.get("UMH_ROOT", "/opt/OS")
+    mv_dir = os.path.join(_root, "data", "umh", "autonomous_lane", "merge_verifications")
+    verifications = []
+    if os.path.isdir(mv_dir):
+        for path in sorted(_glob.glob(os.path.join(mv_dir, "pmv-*.json"))):
+            try:
+                with open(path) as f:
+                    verifications.append(json.load(f))
+            except (json.JSONDecodeError, OSError):
+                continue
+    return {"verifications": verifications, "count": len(verifications)}
+
+
+@router.get("/organism/autonomous-pr-factory/merge-verifications/{verification_id}")
+async def autonomous_pr_factory_merge_verification_detail(verification_id: str):
+    _root = os.environ.get("UMH_ROOT", "/opt/OS")
+    path = os.path.join(
+        _root, "data", "umh", "autonomous_lane", "merge_verifications",
+        f"{verification_id}.json",
+    )
+    if not os.path.isfile(path):
+        return {"error": f"verification {verification_id} not found"}
+    with open(path) as f:
+        return json.load(f)
+
+
+@router.post("/organism/autonomous-pr-factory/cleanup-eligible", dependencies=[Depends(_require_operator_role)])
+async def autonomous_pr_factory_cleanup_eligible():
+    manager, factory = _get_pr_factory()
+    if manager is None:
+        return {"error": "organism not running"}
+    eligible = []
+    for sb in manager.all_sandboxes:
+        if sb.status.value in ("merged", "abandoned", "cleaned"):
+            eligible.append(sb.to_dict())
+    stale = []
+    import time as _time
+    now = _time.time()
+    for sb in manager.all_sandboxes:
+        age_h = (now - sb.created_at) / 3600
+        if age_h > manager._ttl_hours and sb.status.value not in ("merged", "cleaned"):
+            stale.append({"sandbox_id": sb.sandbox_id, "age_hours": round(age_h, 1), "status": sb.status.value})
+    return {"cleanup_eligible": eligible, "stale": stale, "count": len(eligible) + len(stale)}
+
+
+@router.get("/organism/autonomous-cadence")
+async def autonomous_cadence_status():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    cadence = getattr(daemon, "_autonomous_cadence", None)
+    if cadence is None:
+        return {"error": "cadence not available"}
+    return cadence.to_dict()
+
+
+@router.post("/organism/autonomous-cadence/run-dry-run", dependencies=[Depends(_require_operator_role)])
+async def autonomous_cadence_run_dry_run():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    cadence = getattr(daemon, "_autonomous_cadence", None)
+    if cadence is None:
+        return {"error": "cadence not available"}
+    result = cadence.run_cycle()
+    return result.to_dict()
+
+
+@router.post("/organism/autonomous-cadence/set-mode", dependencies=[Depends(_require_operator_role)])
+async def autonomous_cadence_set_mode(payload: dict):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    cadence = getattr(daemon, "_autonomous_cadence", None)
+    if cadence is None:
+        return {"error": "cadence not available"}
+    from substrate.organism.autonomous_cadence import CadenceMode
+    mode_str = payload.get("mode", "off")
+    try:
+        cadence.mode = CadenceMode(mode_str)
+    except ValueError:
+        return {"error": f"invalid mode: {mode_str}"}
+    return {"ok": True, "mode": cadence.mode.value}
 
 
 # ── Execution Substrate endpoints ────────────────────────────────────────────
