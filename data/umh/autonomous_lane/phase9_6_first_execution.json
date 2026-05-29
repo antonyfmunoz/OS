@@ -1,0 +1,662 @@
+{
+  "phase": "9.6",
+  "timestamp": 1780089623.833322,
+  "commit": "3be45d78",
+  "dry_run": {
+    "run_id": "alr-62b1d7b9",
+    "status": "dry_run",
+    "policy": {
+      "max_candidates_per_run": 3,
+      "max_executions_per_run": 1,
+      "max_file_changes_per_execution": 2,
+      "allowed_risk": "low",
+      "require_template": true,
+      "require_rollback_or_non_mutating": true,
+      "require_validation": true,
+      "require_agent_reliability": 0.7,
+      "require_template_confidence": 0.6,
+      "cooldown_minutes_per_template": 30,
+      "cooldown_minutes_per_file": 60,
+      "dry_run_first": true
+    },
+    "candidates_count": 3,
+    "eligible_count": 3,
+    "blocked_count": 0,
+    "selected_candidate": {
+      "candidate_id": "alc-cb18d2a9",
+      "source": "contradiction",
+      "description": "File has zero bytes",
+      "affected_files": [],
+      "affected_entities": [
+        "store_execution_journal_jsonl"
+      ],
+      "risk_class": "low",
+      "reversible": true,
+      "non_mutating": false,
+      "validation_method": "re-run contradiction engine to verify resolution",
+      "rollback_method": "revert world model observation",
+      "matching_template_id": "tpl-389dd926",
+      "template_confidence": 1.0,
+      "required_agent_type": "developer_agent",
+      "required_capabilities": [
+        "code_search",
+        "file_edit"
+      ],
+      "agent_reliability": 0.889,
+      "governance_mode_required": "autonomous",
+      "expected_outcome": "Resolve contradiction: File has zero bytes",
+      "selection_score": 88.33,
+      "selection_reason": "contradiction (medium)",
+      "evidence": "File has zero bytes",
+      "entity_id": "store_execution_journal_jsonl"
+    },
+    "plan_id": "9b1ca50a",
+    "executable_id": "661d96d5",
+    "governance_dry_run": "passed",
+    "execution_status": "",
+    "validation_result": "",
+    "propagation_events": 0,
+    "template_confidence_before": 0.0,
+    "template_confidence_after": 0.0,
+    "agent_reliability_before": 0.0,
+    "agent_reliability_after": 0.0,
+    "rollback_available": true,
+    "error": "",
+    "started_at": 1780089623.8145423,
+    "completed_at": 1780089623.8174021,
+    "duration_seconds": 0.0,
+    "evaluations": [
+      {
+        "candidate_id": "alc-cb18d2a9",
+        "decision": "eligible",
+        "block_reasons": [],
+        "policy_checks": {
+          "risk_is_low": true,
+          "template_exists": true,
+          "template_confidence_met": true,
+          "agent_reliability_met": true,
+          "validation_exists": true,
+          "rollback_or_non_mutating": true,
+          "no_sensitive_content": true,
+          "file_count_ok": true,
+          "has_evidence": true,
+          "not_duplicate": true,
+          "not_in_cooldown": true
+        }
+      },
+      {
+        "candidate_id": "alc-6c9f1b9f",
+        "decision": "eligible",
+        "block_reasons": [],
+        "policy_checks": {
+          "risk_is_low": true,
+          "template_exists": true,
+          "template_confidence_met": true,
+          "agent_reliability_met": true,
+          "validation_exists": true,
+          "rollback_or_non_mutating": true,
+          "no_sensitive_content": true,
+          "file_count_ok": true,
+          "has_evidence": true,
+          "not_duplicate": true,
+          "not_in_cooldown": true
+        }
+      },
+      {
+        "candidate_id": "alc-938ea94d",
+        "decision": "eligible",
+        "block_reasons": [],
+        "policy_checks": {
+          "risk_is_low": true,
+          "template_exists": true,
+          "template_confidence_met": true,
+          "agent_reliability_met": true,
+          "validation_exists": true,
+          "rollback_or_non_mutating": true,
+          "no_sensitive_content": true,
+          "file_count_ok": true,
+          "has_evidence": true,
+          "not_duplicate": true,
+          "not_in_cooldown": true
+        }
+      }
+    ],
+    "candidates": [
+      {
+        "candidate_id": "alc-cb18d2a9",
+        "source": "contradiction",
+        "description": "File has zero bytes",
+        "affected_files": [],
+        "affected_entities": [
+          "store_execution_journal_jsonl"
+        ],
+        "risk_class": "low",
+        "reversible": true,
+        "non_mutating": false,
+        "validation_method": "re-run contradiction engine to verify resolution",
+        "rollback_method": "revert world model observation",
+        "matching_template_id": "tpl-389dd926",
+        "template_confidence": 1.0,
+        "required_agent_type": "developer_agent",
+        "required_capabilities": [
+          "code_search",
+          "file_edit"
+        ],
+        "agent_reliability": 0.889,
+        "governance_mode_required": "autonomous",
+        "expected_outcome": "Resolve contradiction: File has zero bytes",
+        "selection_score": 88.33,
+        "selection_reason": "contradiction (medium)",
+        "evidence": "File has zero bytes",
+        "entity_id": "store_execution_journal_jsonl"
+      },
+      {
+        "candidate_id": "alc-6c9f1b9f",
+        "source": "contradiction",
+        "description": "Panel may use a shared route or have no backend",
+        "affected_files": [],
+        "affected_entities": [
+          "panel_activity"
+        ],
+        "risk_class": "low",
+        "reversible": true,
+        "non_mutating": false,
+        "validation_method": "re-run contradiction engine to verify resolution",
+        "rollback_method": "revert world model observation",
+        "matching_template_id": "tpl-389dd926",
+        "template_confidence": 1.0,
+        "required_agent_type": "developer_agent",
+        "required_capabilities": [
+          "code_search",
+          "file_edit"
+        ],
+        "agent_reliability": 0.889,
+        "governance_mode_required": "autonomous",
+        "expected_outcome": "Resolve contradiction: Panel may use a shared route or have no backend",
+        "selection_score": 88.33,
+        "selection_reason": "contradiction (info)",
+        "evidence": "Panel may use a shared route or have no backend",
+        "entity_id": "panel_activity"
+      },
+      {
+        "candidate_id": "alc-938ea94d",
+        "source": "contradiction",
+        "description": "Panel may use a shared route or have no backend",
+        "affected_files": [],
+        "affected_entities": [
+          "panel_agents"
+        ],
+        "risk_class": "low",
+        "reversible": true,
+        "non_mutating": false,
+        "validation_method": "re-run contradiction engine to verify resolution",
+        "rollback_method": "revert world model observation",
+        "matching_template_id": "tpl-389dd926",
+        "template_confidence": 1.0,
+        "required_agent_type": "developer_agent",
+        "required_capabilities": [
+          "code_search",
+          "file_edit"
+        ],
+        "agent_reliability": 0.889,
+        "governance_mode_required": "autonomous",
+        "expected_outcome": "Resolve contradiction: Panel may use a shared route or have no backend",
+        "selection_score": 88.33,
+        "selection_reason": "contradiction (info)",
+        "evidence": "Panel may use a shared route or have no backend",
+        "entity_id": "panel_agents"
+      }
+    ]
+  },
+  "first_execution": {
+    "run_id": "alr-cd886478",
+    "status": "completed",
+    "policy": {
+      "max_candidates_per_run": 3,
+      "max_executions_per_run": 1,
+      "max_file_changes_per_execution": 2,
+      "allowed_risk": "low",
+      "require_template": true,
+      "require_rollback_or_non_mutating": true,
+      "require_validation": true,
+      "require_agent_reliability": 0.7,
+      "require_template_confidence": 0.6,
+      "cooldown_minutes_per_template": 30,
+      "cooldown_minutes_per_file": 60,
+      "dry_run_first": true
+    },
+    "candidates_count": 3,
+    "eligible_count": 3,
+    "blocked_count": 0,
+    "selected_candidate": {
+      "candidate_id": "alc-aab93ebc",
+      "source": "contradiction",
+      "description": "File has zero bytes",
+      "affected_files": [],
+      "affected_entities": [
+        "store_execution_journal_jsonl"
+      ],
+      "risk_class": "low",
+      "reversible": true,
+      "non_mutating": false,
+      "validation_method": "re-run contradiction engine to verify resolution",
+      "rollback_method": "revert world model observation",
+      "matching_template_id": "tpl-389dd926",
+      "template_confidence": 1.0,
+      "required_agent_type": "developer_agent",
+      "required_capabilities": [
+        "code_search",
+        "file_edit"
+      ],
+      "agent_reliability": 0.889,
+      "governance_mode_required": "autonomous",
+      "expected_outcome": "Resolve contradiction: File has zero bytes",
+      "selection_score": 88.33,
+      "selection_reason": "contradiction (medium)",
+      "evidence": "File has zero bytes",
+      "entity_id": "store_execution_journal_jsonl"
+    },
+    "plan_id": "5a93368e",
+    "executable_id": "2b69f9c8",
+    "governance_dry_run": "passed",
+    "execution_status": "partial",
+    "validation_result": "partial",
+    "propagation_events": 0,
+    "template_confidence_before": 1.0,
+    "template_confidence_after": 1.0,
+    "agent_reliability_before": 0.889,
+    "agent_reliability_after": 0.727,
+    "rollback_available": true,
+    "error": "",
+    "started_at": 1780089623.8177228,
+    "completed_at": 1780089623.8331237,
+    "duration_seconds": 0.02,
+    "evaluations": [
+      {
+        "candidate_id": "alc-aab93ebc",
+        "decision": "eligible",
+        "block_reasons": [],
+        "policy_checks": {
+          "risk_is_low": true,
+          "template_exists": true,
+          "template_confidence_met": true,
+          "agent_reliability_met": true,
+          "validation_exists": true,
+          "rollback_or_non_mutating": true,
+          "no_sensitive_content": true,
+          "file_count_ok": true,
+          "has_evidence": true,
+          "not_duplicate": true,
+          "not_in_cooldown": true
+        }
+      },
+      {
+        "candidate_id": "alc-8e8985ac",
+        "decision": "eligible",
+        "block_reasons": [],
+        "policy_checks": {
+          "risk_is_low": true,
+          "template_exists": true,
+          "template_confidence_met": true,
+          "agent_reliability_met": true,
+          "validation_exists": true,
+          "rollback_or_non_mutating": true,
+          "no_sensitive_content": true,
+          "file_count_ok": true,
+          "has_evidence": true,
+          "not_duplicate": true,
+          "not_in_cooldown": true
+        }
+      },
+      {
+        "candidate_id": "alc-aed4d6ff",
+        "decision": "eligible",
+        "block_reasons": [],
+        "policy_checks": {
+          "risk_is_low": true,
+          "template_exists": true,
+          "template_confidence_met": true,
+          "agent_reliability_met": true,
+          "validation_exists": true,
+          "rollback_or_non_mutating": true,
+          "no_sensitive_content": true,
+          "file_count_ok": true,
+          "has_evidence": true,
+          "not_duplicate": true,
+          "not_in_cooldown": true
+        }
+      }
+    ],
+    "candidates": [
+      {
+        "candidate_id": "alc-aab93ebc",
+        "source": "contradiction",
+        "description": "File has zero bytes",
+        "affected_files": [],
+        "affected_entities": [
+          "store_execution_journal_jsonl"
+        ],
+        "risk_class": "low",
+        "reversible": true,
+        "non_mutating": false,
+        "validation_method": "re-run contradiction engine to verify resolution",
+        "rollback_method": "revert world model observation",
+        "matching_template_id": "tpl-389dd926",
+        "template_confidence": 1.0,
+        "required_agent_type": "developer_agent",
+        "required_capabilities": [
+          "code_search",
+          "file_edit"
+        ],
+        "agent_reliability": 0.889,
+        "governance_mode_required": "autonomous",
+        "expected_outcome": "Resolve contradiction: File has zero bytes",
+        "selection_score": 88.33,
+        "selection_reason": "contradiction (medium)",
+        "evidence": "File has zero bytes",
+        "entity_id": "store_execution_journal_jsonl"
+      },
+      {
+        "candidate_id": "alc-8e8985ac",
+        "source": "contradiction",
+        "description": "Panel may use a shared route or have no backend",
+        "affected_files": [],
+        "affected_entities": [
+          "panel_activity"
+        ],
+        "risk_class": "low",
+        "reversible": true,
+        "non_mutating": false,
+        "validation_method": "re-run contradiction engine to verify resolution",
+        "rollback_method": "revert world model observation",
+        "matching_template_id": "tpl-389dd926",
+        "template_confidence": 1.0,
+        "required_agent_type": "developer_agent",
+        "required_capabilities": [
+          "code_search",
+          "file_edit"
+        ],
+        "agent_reliability": 0.889,
+        "governance_mode_required": "autonomous",
+        "expected_outcome": "Resolve contradiction: Panel may use a shared route or have no backend",
+        "selection_score": 88.33,
+        "selection_reason": "contradiction (info)",
+        "evidence": "Panel may use a shared route or have no backend",
+        "entity_id": "panel_activity"
+      },
+      {
+        "candidate_id": "alc-aed4d6ff",
+        "source": "contradiction",
+        "description": "Panel may use a shared route or have no backend",
+        "affected_files": [],
+        "affected_entities": [
+          "panel_agents"
+        ],
+        "risk_class": "low",
+        "reversible": true,
+        "non_mutating": false,
+        "validation_method": "re-run contradiction engine to verify resolution",
+        "rollback_method": "revert world model observation",
+        "matching_template_id": "tpl-389dd926",
+        "template_confidence": 1.0,
+        "required_agent_type": "developer_agent",
+        "required_capabilities": [
+          "code_search",
+          "file_edit"
+        ],
+        "agent_reliability": 0.889,
+        "governance_mode_required": "autonomous",
+        "expected_outcome": "Resolve contradiction: Panel may use a shared route or have no backend",
+        "selection_score": 88.33,
+        "selection_reason": "contradiction (info)",
+        "evidence": "Panel may use a shared route or have no backend",
+        "entity_id": "panel_agents"
+      }
+    ]
+  },
+  "propagation_events_fired": 2,
+  "template_candidates_generated": 3,
+  "outcome_records": 2,
+  "memory_candidates": 4,
+  "policy": {
+    "max_candidates_per_run": 3,
+    "max_executions_per_run": 1,
+    "max_file_changes_per_execution": 2,
+    "allowed_risk": "low",
+    "require_template": true,
+    "require_rollback_or_non_mutating": true,
+    "require_validation": true,
+    "require_agent_reliability": 0.7,
+    "require_template_confidence": 0.6,
+    "cooldown_minutes_per_template": 30,
+    "cooldown_minutes_per_file": 60,
+    "dry_run_first": true
+  },
+  "lane_status": {
+    "lane_active": true,
+    "policy": {
+      "max_candidates_per_run": 3,
+      "max_executions_per_run": 1,
+      "max_file_changes_per_execution": 2,
+      "allowed_risk": "low",
+      "require_template": true,
+      "require_rollback_or_non_mutating": true,
+      "require_validation": true,
+      "require_agent_reliability": 0.7,
+      "require_template_confidence": 0.6,
+      "cooldown_minutes_per_template": 30,
+      "cooldown_minutes_per_file": 60,
+      "dry_run_first": true
+    },
+    "total_runs": 2,
+    "completed_runs": 1,
+    "failed_runs": 0,
+    "last_run": {
+      "run_id": "alr-cd886478",
+      "status": "completed",
+      "policy": {
+        "max_candidates_per_run": 3,
+        "max_executions_per_run": 1,
+        "max_file_changes_per_execution": 2,
+        "allowed_risk": "low",
+        "require_template": true,
+        "require_rollback_or_non_mutating": true,
+        "require_validation": true,
+        "require_agent_reliability": 0.7,
+        "require_template_confidence": 0.6,
+        "cooldown_minutes_per_template": 30,
+        "cooldown_minutes_per_file": 60,
+        "dry_run_first": true
+      },
+      "candidates_count": 3,
+      "eligible_count": 3,
+      "blocked_count": 0,
+      "selected_candidate": {
+        "candidate_id": "alc-aab93ebc",
+        "source": "contradiction",
+        "description": "File has zero bytes",
+        "affected_files": [],
+        "affected_entities": [
+          "store_execution_journal_jsonl"
+        ],
+        "risk_class": "low",
+        "reversible": true,
+        "non_mutating": false,
+        "validation_method": "re-run contradiction engine to verify resolution",
+        "rollback_method": "revert world model observation",
+        "matching_template_id": "tpl-389dd926",
+        "template_confidence": 1.0,
+        "required_agent_type": "developer_agent",
+        "required_capabilities": [
+          "code_search",
+          "file_edit"
+        ],
+        "agent_reliability": 0.889,
+        "governance_mode_required": "autonomous",
+        "expected_outcome": "Resolve contradiction: File has zero bytes",
+        "selection_score": 88.33,
+        "selection_reason": "contradiction (medium)",
+        "evidence": "File has zero bytes",
+        "entity_id": "store_execution_journal_jsonl"
+      },
+      "plan_id": "5a93368e",
+      "executable_id": "2b69f9c8",
+      "governance_dry_run": "passed",
+      "execution_status": "partial",
+      "validation_result": "partial",
+      "propagation_events": 0,
+      "template_confidence_before": 1.0,
+      "template_confidence_after": 1.0,
+      "agent_reliability_before": 0.889,
+      "agent_reliability_after": 0.727,
+      "rollback_available": true,
+      "error": "",
+      "started_at": 1780089623.8177228,
+      "completed_at": 1780089623.8331237,
+      "duration_seconds": 0.02,
+      "evaluations": [
+        {
+          "candidate_id": "alc-aab93ebc",
+          "decision": "eligible",
+          "block_reasons": [],
+          "policy_checks": {
+            "risk_is_low": true,
+            "template_exists": true,
+            "template_confidence_met": true,
+            "agent_reliability_met": true,
+            "validation_exists": true,
+            "rollback_or_non_mutating": true,
+            "no_sensitive_content": true,
+            "file_count_ok": true,
+            "has_evidence": true,
+            "not_duplicate": true,
+            "not_in_cooldown": true
+          }
+        },
+        {
+          "candidate_id": "alc-8e8985ac",
+          "decision": "eligible",
+          "block_reasons": [],
+          "policy_checks": {
+            "risk_is_low": true,
+            "template_exists": true,
+            "template_confidence_met": true,
+            "agent_reliability_met": true,
+            "validation_exists": true,
+            "rollback_or_non_mutating": true,
+            "no_sensitive_content": true,
+            "file_count_ok": true,
+            "has_evidence": true,
+            "not_duplicate": true,
+            "not_in_cooldown": true
+          }
+        },
+        {
+          "candidate_id": "alc-aed4d6ff",
+          "decision": "eligible",
+          "block_reasons": [],
+          "policy_checks": {
+            "risk_is_low": true,
+            "template_exists": true,
+            "template_confidence_met": true,
+            "agent_reliability_met": true,
+            "validation_exists": true,
+            "rollback_or_non_mutating": true,
+            "no_sensitive_content": true,
+            "file_count_ok": true,
+            "has_evidence": true,
+            "not_duplicate": true,
+            "not_in_cooldown": true
+          }
+        }
+      ],
+      "candidates": [
+        {
+          "candidate_id": "alc-aab93ebc",
+          "source": "contradiction",
+          "description": "File has zero bytes",
+          "affected_files": [],
+          "affected_entities": [
+            "store_execution_journal_jsonl"
+          ],
+          "risk_class": "low",
+          "reversible": true,
+          "non_mutating": false,
+          "validation_method": "re-run contradiction engine to verify resolution",
+          "rollback_method": "revert world model observation",
+          "matching_template_id": "tpl-389dd926",
+          "template_confidence": 1.0,
+          "required_agent_type": "developer_agent",
+          "required_capabilities": [
+            "code_search",
+            "file_edit"
+          ],
+          "agent_reliability": 0.889,
+          "governance_mode_required": "autonomous",
+          "expected_outcome": "Resolve contradiction: File has zero bytes",
+          "selection_score": 88.33,
+          "selection_reason": "contradiction (medium)",
+          "evidence": "File has zero bytes",
+          "entity_id": "store_execution_journal_jsonl"
+        },
+        {
+          "candidate_id": "alc-8e8985ac",
+          "source": "contradiction",
+          "description": "Panel may use a shared route or have no backend",
+          "affected_files": [],
+          "affected_entities": [
+            "panel_activity"
+          ],
+          "risk_class": "low",
+          "reversible": true,
+          "non_mutating": false,
+          "validation_method": "re-run contradiction engine to verify resolution",
+          "rollback_method": "revert world model observation",
+          "matching_template_id": "tpl-389dd926",
+          "template_confidence": 1.0,
+          "required_agent_type": "developer_agent",
+          "required_capabilities": [
+            "code_search",
+            "file_edit"
+          ],
+          "agent_reliability": 0.889,
+          "governance_mode_required": "autonomous",
+          "expected_outcome": "Resolve contradiction: Panel may use a shared route or have no backend",
+          "selection_score": 88.33,
+          "selection_reason": "contradiction (info)",
+          "evidence": "Panel may use a shared route or have no backend",
+          "entity_id": "panel_activity"
+        },
+        {
+          "candidate_id": "alc-aed4d6ff",
+          "source": "contradiction",
+          "description": "Panel may use a shared route or have no backend",
+          "affected_files": [],
+          "affected_entities": [
+            "panel_agents"
+          ],
+          "risk_class": "low",
+          "reversible": true,
+          "non_mutating": false,
+          "validation_method": "re-run contradiction engine to verify resolution",
+          "rollback_method": "revert world model observation",
+          "matching_template_id": "tpl-389dd926",
+          "template_confidence": 1.0,
+          "required_agent_type": "developer_agent",
+          "required_capabilities": [
+            "code_search",
+            "file_edit"
+          ],
+          "agent_reliability": 0.889,
+          "governance_mode_required": "autonomous",
+          "expected_outcome": "Resolve contradiction: Panel may use a shared route or have no backend",
+          "selection_score": 88.33,
+          "selection_reason": "contradiction (info)",
+          "evidence": "Panel may use a shared route or have no backend",
+          "entity_id": "panel_agents"
+        }
+      ]
+    }
+  },
+  "all_success_criteria_met": true
+}
