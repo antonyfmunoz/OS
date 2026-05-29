@@ -82,7 +82,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           sending: false,
         }))
       } else {
-        await fetchApi('/organism/send-channel-message', {
+        await fetchApi('/dex/send', {
           method: 'POST',
           body: JSON.stringify({ channel: targetChannel, content: content.trim() }),
         })
