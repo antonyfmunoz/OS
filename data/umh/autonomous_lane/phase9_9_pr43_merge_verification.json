@@ -1,0 +1,32 @@
+{
+  "phase": "9.9A",
+  "description": "PR #43 merge verification",
+  "pr_url": "https://github.com/antonyfmunoz/OS/pull/43",
+  "pr_title": "feat: phase 9.8 — production truth promotion + scheduled autonomous cadence",
+  "pr_state": "MERGED",
+  "pr_branch": "worktree-phase9-8-production-truth",
+  "merge_commit": "dbafd0be6b9688d91d21a0a8bc76a75f7f0f5d54",
+  "main_head": "dbafd0be6b9688d91d21a0a8bc76a75f7f0f5d54",
+  "base_commit": "d1543edf8fb0dcfae587201b2efc3bde29a38a87",
+  "head_commit": "eee18fe58a98f6315902f56a15b3eceeb1ad7477",
+  "status_checks": [
+    {"name": "CodeRabbit", "state": "SUCCESS"}
+  ],
+  "changed_files": [
+    "cockpit/src/renderer/panels/IntelligencePanel.tsx",
+    "cockpit/src/renderer/stores/coherenceStore.ts",
+    "data/umh/autonomous_lane/phase9_8_first_production_truth_promotion.json",
+    "docs/audits/convergence/phase9_8_production_truth_promotion_scheduled_cadence.md",
+    "docs/audits/convergence/phase9_8_security_preflight_pr42.md",
+    "substrate/organism/autonomous_pr_factory.py",
+    "substrate/organism/daemon.py",
+    "substrate/organism/production_merge_verifier.py",
+    "substrate/organism/production_truth_delta.py",
+    "tests/test_phase9_7_pr_factory.py",
+    "tests/test_phase9_8_production_truth.py",
+    "transports/api/cockpit.py"
+  ],
+  "changed_files_count": 12,
+  "no_runtime_artifact_pollution": true,
+  "verified_at": "2026-05-29T23:16:00Z"
+}

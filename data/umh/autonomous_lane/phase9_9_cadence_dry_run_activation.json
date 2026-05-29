@@ -1,0 +1,44 @@
+{
+  "phase": "9.9E",
+  "description": "Scheduled cadence dry-run activation",
+  "mode_before": "off",
+  "mode_after": "dry_run_only",
+  "set_mode_response": {"ok": true, "mode": "dry_run_only"},
+  "manual_dry_run": {
+    "run_id": "cdr-dea4f9d3",
+    "mode": "dry_run_only",
+    "candidates_found": 0,
+    "candidates_blocked": 0,
+    "candidates_eligible": 0,
+    "dry_run_results": [],
+    "recommendations": [],
+    "pr_queued": false,
+    "pr_created": false,
+    "error": ""
+  },
+  "state_after_dry_run": {
+    "mode": "dry_run_only",
+    "dry_runs_today": 1,
+    "total_runs": 1,
+    "prs_today": 0,
+    "pending_recommendations": 0,
+    "last_run_recorded": true
+  },
+  "safety_verification": {
+    "no_pr_created": true,
+    "no_mutation_occurred": true,
+    "no_production_truth_update": true,
+    "no_file_changes": true,
+    "results_persisted": true,
+    "cockpit_shows_last_dry_run": true
+  },
+  "policy": {
+    "mode": "dry_run_only",
+    "max_dry_runs_per_day": 24,
+    "max_prs_per_day": 1,
+    "require_operator_enable_for_pr_creation": true,
+    "no_auto_merge": true,
+    "interval_seconds": 3600
+  },
+  "verified_at": "2026-05-29T23:20:00Z"
+}
