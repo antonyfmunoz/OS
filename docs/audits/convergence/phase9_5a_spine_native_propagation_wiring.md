@@ -1,8 +1,8 @@
 # Phase 9.5A — Spine-Native Propagation Wiring Proof
 
 ## Date: 2026-05-29
-## Branch: `phase9-5a-spine-propagation-wiring`
-## Base: `abeacd8e` (main)
+## Branch: `worktree-phase9-5a-spine-propagation`
+## Base: `39063a8c` (main, post-PR#36 merge)
 
 ---
 
@@ -168,21 +168,29 @@ No other daemon changes needed — the wiring was already complete in PR #35.
 - Phase 9.2 (Self-Improvement): 47/47 passed
 - Phase 9.3 (Reliability Campaign): included in Phase 9.2 run
 - Phase 9.4 (Coherence Propagation): 64/64 passed
-- Phase 6.1-6.3 (Governed Spine/Enforcement/Autonomous Gate): 236/238 passed
-  - 2 pre-existing failures in `test_phase63_autonomous_gate.py` (outcome_learning.py enum serialization bug, NOT caused by this phase)
+- Phase 6.1-6.3 (Governed Spine/Enforcement/Autonomous Gate): all passed
+  - Prior enum serialization bug in outcome_learning.py FIXED in this pass
+
+### Supplemental Tests (top-level)
+- `tests/test_phase9_5_spine_native_propagation.py`: 65/65 passed
+
+### Total Test Count: 491 passed, 0 failures
 
 ### Gates
-- py_compile: all 4 modified files compile clean
-- Line counts: daemon.py (889), governed_spine.py (591), coherence_propagation.py (534), propagation_wiring.py (296) — all under 3,000
-- Dependency direction: no substrate → transports/services imports
-- Cockpit typecheck: passed clean
+- py_compile: all modified files compile clean
+- Line counts: daemon.py (889), governed_spine.py (591), coherence_propagation.py (534), propagation_wiring.py (296), outcome_learning.py (377) — all under 3,000
+- Dependency direction: no substrate → transports/services imports (test files excluded)
+- Trial runner: zero manual propagation calls
 
 ## 11. Remaining Blockers
 
 **None.** Phase 9.5A is complete.
 
-Pre-existing issue (not blocking):
-- `outcome_learning.py:71` — `OutcomeRecord.status` stored as string, `.to_dict()` calls `.value` on it. This fails when records are loaded from JSONL (deserialized as plain strings). Fix is trivial but outside Phase 9.5A scope.
+## 11a. Bugs Fixed in This Pass
+
+1. **outcome_learning.py enum deserialization** — `OutcomeRecord.status` and `LearningSignal.signal_type` stored as strings when loaded from JSONL, but `to_dict()` called `.value` on them as if they were enums. Fixed by converting strings to enums at load time. Also hardened `LearningSignal.to_dict()` with isinstance guard.
+
+2. **organism_bridge.py `_spine_propagation_status()`** — was creating a fresh empty `ParallelPropagationEngine()` instead of using the daemon's wired instance. Fixed to use `_get_daemon().propagation_engine` and return all required fields: `propagation_engine_wired`, `recent_outcome_committed`, `recent_outcome_failed`, `propagation_target_count`, `recent_propagation_results`, `duplicate_ignored_count`, `failed_target_count`, `last_propagation_timestamp`.
 
 ## 12. Phase 9.5B Clearance
 

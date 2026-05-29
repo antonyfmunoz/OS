@@ -1,68 +1,25 @@
 {
   "phase": "9.5A",
   "test": "spine_native_propagation_proof",
-  "timestamp": 1780086130.2073495,
-  "envelope_id": "349261983e934e50",
+  "timestamp": 1780087185.8113708,
+  "envelope_id": "fc913db8596a4dd7",
   "status": "verified",
   "result_success": true,
   "outcome_committed_emitted": true,
   "outcome_committed_count": 1,
-  "outcome_failed_count": 0,
-  "propagation_engine_invoked_automatically": true,
-  "propagation_event_id": "pe-303df310",
-  "propagation_event_status": "completed",
-  "total_targets": 8,
-  "succeeded_targets": 8,
-  "failed_targets": 0,
-  "skipped_targets": 0,
+  "propagation_event_count": 1,
+  "propagation_event_id": "pe-79684ef9",
+  "targets_succeeded": 8,
+  "targets_failed": 0,
   "template_candidate_generated": true,
   "template_candidate_count": 1,
   "memory_candidate_generated": true,
   "memory_candidate_count": 2,
-  "agent_capability_updated": true,
   "outcome_record_created": true,
   "outcome_record_count": 1,
+  "agent_capability_updated": true,
+  "agent_profile_total_attempts": 2,
   "manual_propagation_called": false,
-  "spine_native": true,
-  "wave_details": [
-    {
-      "wave": 1,
-      "targets": [
-        "outcome_learning",
-        "template_generation",
-        "memory_generation",
-        "agent_capability_update",
-        "world_model_evidence"
-      ],
-      "statuses": {
-        "outcome_learning": "completed",
-        "template_generation": "completed",
-        "memory_generation": "completed",
-        "agent_capability_update": "completed",
-        "world_model_evidence": "completed"
-      }
-    },
-    {
-      "wave": 2,
-      "targets": [
-        "composition_template_refresh",
-        "dependency_recompute",
-        "contradiction_recheck"
-      ],
-      "statuses": {
-        "composition_template_refresh": "completed",
-        "dependency_recompute": "completed",
-        "contradiction_recheck": "completed"
-      }
-    }
-  ],
-  "idempotency_key": "349261983e934e50:1780086130.1917648",
-  "verification": {
-    "outcome_committed_auto_emitted": true,
-    "propagation_auto_invoked": true,
-    "no_manual_call_needed": true,
-    "template_generated": true,
-    "memory_generated": true,
-    "outcome_recorded": true
-  }
+  "propagation_engine_wired": true,
+  "all_success_criteria_met": true
 }
