@@ -8,7 +8,7 @@ import { authMiddleware } from '../../transports/api/http/middleware/auth.js'
 import systemRouter       from '../../transports/api/http/routes/system.js'
 import organismRouter     from '../../transports/api/http/routes/organism.js'
 import governanceRouter   from '../../transports/api/http/routes/governance.js'
-import dexRouter          from '../../transports/api/http/routes/dex.js'
+import chatRouter         from '../../transports/api/http/routes/chat.js'
 import knowledgeRouter    from '../../transports/api/http/routes/knowledge.js'
 import executionRouter    from '../../transports/api/http/routes/execution.js'
 import settingsRouter     from '../../transports/api/http/routes/settings.js'
@@ -40,7 +40,7 @@ app.route('/',             systemRouter)
 app.use('/organism/*',     authMiddleware)
 app.use('/governance',     authMiddleware)
 app.use('/governance/*',   authMiddleware)
-app.use('/dex/*',          authMiddleware)
+app.use('/chat/*',         authMiddleware)
 app.use('/ide/*',          authMiddleware)
 app.use('/observations',   authMiddleware)
 app.use('/memory',         authMiddleware)
@@ -68,7 +68,7 @@ app.use('/analytics/*',    authMiddleware)
 // ── UMH substrate routes ─────────────────────────────────────────────────────
 app.route('/organism',     organismRouter)
 app.route('/governance',   governanceRouter)
-app.route('/dex',          dexRouter)
+app.route('/chat',         chatRouter)
 app.route('/',             knowledgeRouter)
 app.route('/execution',    executionRouter)
 app.route('/settings',     settingsRouter)

@@ -6,7 +6,7 @@ import { authMiddleware } from './middleware/auth.js'
 import systemRouter     from './routes/system.js'
 import organismRouter   from './routes/organism.js'
 import governanceRouter from './routes/governance.js'
-import dexRouter        from './routes/dex.js'
+import chatRouter       from './routes/chat.js'
 import knowledgeRouter  from './routes/knowledge.js'
 import executionRouter  from './routes/execution.js'
 import settingsRouter   from './routes/settings.js'
@@ -19,7 +19,7 @@ app.route('/', systemRouter)
 app.use('/organism/*',   authMiddleware)
 app.use('/governance',   authMiddleware)
 app.use('/governance/*', authMiddleware)
-app.use('/dex/*',        authMiddleware)
+app.use('/chat/*',       authMiddleware)
 app.use('/ide/*',        authMiddleware)
 app.use('/observations', authMiddleware)
 app.use('/memory',       authMiddleware)
@@ -27,7 +27,7 @@ app.use('/tracking',     authMiddleware)
 
 app.route('/organism',   organismRouter)
 app.route('/governance', governanceRouter)
-app.route('/dex',        dexRouter)
+app.route('/chat',       chatRouter)
 app.route('/',           knowledgeRouter)
 app.route('/execution',  executionRouter)
 app.route('/settings',   settingsRouter)

@@ -64,7 +64,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     try {
       if (targetChannel === 'cockpit') {
-        const res = await fetchApi<DexResponse>('/dex/converse', {
+        const res = await fetchApi<DexResponse>('/chat/converse', {
           method: 'POST',
           body: JSON.stringify({ content: content.trim() }),
         })
@@ -82,7 +82,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           sending: false,
         }))
       } else {
-        await fetchApi('/dex/send', {
+        await fetchApi('/chat/send', {
           method: 'POST',
           body: JSON.stringify({ channel: targetChannel, content: content.trim() }),
         })
@@ -105,7 +105,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         response: string | null
         timestamp: string
         origin_channel?: string
-      }>>('/dex/history?limit=50')
+      }>>('/chat/history?limit=50')
 
       const messages: ChatMessage[] = []
       for (const exchange of history) {
