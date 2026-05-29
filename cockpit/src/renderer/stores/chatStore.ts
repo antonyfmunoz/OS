@@ -1,13 +1,31 @@
 import { create } from 'zustand'
 import { fetchApi } from '../api/client'
 
-interface ChatMessage {
+export interface Provenance {
+  node?: string
+  harness?: string
+  session?: string
+  phase?: string
+  pr?: number | string
+  task?: string
+}
+
+export interface Attachment {
+  path: string
+  filename: string
+}
+
+export interface ChatMessage {
   id: string
   sender: 'operator' | 'assistant' | 'system'
   content: string
   timestamp: string
   source?: 'text' | 'voice'
   origin_channel?: string
+  intent?: string
+  title?: string
+  provenance?: Provenance
+  attachment?: Attachment
 }
 
 interface ChatResponse {
@@ -64,7 +82,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     try {
       if (targetChannel === 'cockpit') {
-        const res = await fetchApi<ChatResponse>('/chat/converse', {
+        const res = await fetchApi<ChatResponse>('/dex/converse', {
           method: 'POST',
           body: JSON.stringify({ content: content.trim() }),
         })
@@ -105,20 +123,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
         response: string | null
         timestamp: string
         origin_channel?: string
-      }>>('/chat/history?limit=50')
+        intent?: string
+        title?: string
+        provenance?: Provenance
+        attachment?: Attachment
+      }>>('/dex/history?limit=50')
 
       const messages: ChatMessage[] = []
       for (const exchange of history) {
-        if (exchange.sender === 'system') {
+        if (exchange.intent === 'report') {
           messages.push({
-            id: `h-sys-${exchange.id}`,
-            sender: 'system',
-            content: exchange.content,
+            id: `h-rpt-${exchange.id}`,
+            sender: 'assistant',
+            content: exchange.response || exchange.content || '',
             timestamp: exchange.timestamp,
-            origin_channel: exchange.origin_channel,
+            intent: 'report',
+            title: exchange.title,
+            provenance: exchange.provenance,
+            attachment: exchange.attachment,
           })
           continue
         }
+
         if (exchange.content) {
           messages.push({
             id: `h-op-${exchange.id}`,
