@@ -3163,20 +3163,23 @@ async def chat_push(request: Request):
 @router.get("/chat/attachment")
 async def chat_attachment(path: str):
     """Download an attachment file referenced in a chat message."""
+    from pathlib import Path as PathLib
+
     from fastapi.responses import FileResponse
 
-    _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+    repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
     allowed_dirs = [
-        os.path.realpath(os.path.join(_REPO_ROOT, "docs")),
-        os.path.realpath(os.path.join(_REPO_ROOT, "data", "audits")),
+        PathLib(os.path.realpath(os.path.join(repo_root, "docs"))),
+        PathLib(os.path.realpath(os.path.join(repo_root, "data", "audits"))),
     ]
-    resolved = os.path.realpath(path)
-    if not any(resolved.startswith(d) for d in allowed_dirs):
+    resolved = PathLib(os.path.realpath(path))
+    if not any(resolved.is_relative_to(d) for d in allowed_dirs):
         raise HTTPException(status_code=403, detail="Path outside allowed directories")
-    if not os.path.isfile(resolved):
+    if resolved.name.startswith("."):
+        raise HTTPException(status_code=403, detail="Hidden files not allowed")
+    if not resolved.is_file():
         raise HTTPException(status_code=404, detail="File not found")
-    filename = os.path.basename(resolved)
-    return FileResponse(resolved, filename=filename, media_type="application/octet-stream")
+    return FileResponse(str(resolved), filename=resolved.name, media_type="application/octet-stream")
 
 
 # ── Phase 6.1→6.2: Spine routes extracted to cockpit_spine_router.py ─────────
