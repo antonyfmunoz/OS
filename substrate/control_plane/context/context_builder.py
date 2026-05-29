@@ -23,7 +23,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 _ROOT = Path(_REPO_ROOT)
 
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 
 
 @dataclass
@@ -90,7 +90,7 @@ class ContextBuilder:
 
     def build(
         self,
-        ctx: EntrepreneurOSContext,
+        ctx: SubstrateContext,
         message: str,
         session_id: str,
         agent: str = "executive_assistant",
@@ -111,7 +111,7 @@ class ContextBuilder:
 
     def _build_inner(
         self,
-        ctx: EntrepreneurOSContext,
+        ctx: SubstrateContext,
         message: str,
         session_id: str,
         agent: str = "executive_assistant",
@@ -534,12 +534,12 @@ class ContextBuilder:
 
 
 if __name__ == "__main__":
-    from substrate.state.context.context import EntrepreneurOSContext
+    from substrate.state.context.context import SubstrateContext
     import os
 
-    ctx = EntrepreneurOSContext(
-        org_id=os.getenv("EOS_ORG_ID", "test"),
-        user_id=os.getenv("EOS_USER_ID", "test"),
+    ctx = SubstrateContext(
+        org_id=os.getenv("UMH_ORG_ID") or os.getenv("EOS_ORG_ID", "test"),
+        user_id=os.getenv("UMH_USER_ID") or os.getenv("EOS_USER_ID", "test"),
         active_venture_id="lyfe_institute",
     )
     builder = ContextBuilder()

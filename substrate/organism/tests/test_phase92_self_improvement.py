@@ -697,7 +697,7 @@ class TestAdapterSpineGuardIntegration:
 
 class TestTrialStatusBridge:
     def test_bridge_handler_loads(self):
-        from saas.bridge.organism_bridge import _trial_status
+        from transports.api.organism_bridge import _trial_status
         result = _trial_status({})
         assert result["success"] is True
         assert "data" in result
@@ -714,7 +714,7 @@ class TestTrialStatusBridge:
         old_root = os.environ.get("UMH_ROOT")
         os.environ["UMH_ROOT"] = tmpdir
         try:
-            from saas.bridge.organism_bridge import _trial_status
+            from transports.api.organism_bridge import _trial_status
             result = _trial_status({})
             assert result["success"] is True
             assert result["data"]["has_trial"] is True

@@ -24,7 +24,7 @@ At the start of EVERY Claude Code session run:
       print(f'Org: {ctx.org_id}')
       print(f'Active venture: {ctx.active_venture_id}')
   else:
-      print('Context: EOS_ORG_ID/EOS_USER_ID not set')
+      print('Context: UMH_ORG_ID/UMH_USER_ID not set')
   "
 
 ## Before making any significant change

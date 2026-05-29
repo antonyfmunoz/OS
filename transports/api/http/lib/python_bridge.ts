@@ -3,8 +3,8 @@ import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const AGENT_BRIDGE    = resolve(__dirname, '../../bridge/agent_bridge.py')
-const ORGANISM_BRIDGE = resolve(__dirname, '../../bridge/organism_bridge.py')
+const AGENT_BRIDGE    = resolve(__dirname, '../../agent_bridge.py')
+const ORGANISM_BRIDGE = resolve(__dirname, '../../organism_bridge.py')
 
 export interface BridgeResult {
   success: boolean

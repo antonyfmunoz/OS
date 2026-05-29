@@ -1,8 +1,8 @@
 import type { Context, Next } from 'hono'
 import { eq } from 'drizzle-orm'
 import type { Env } from '../types.js'
-import { db } from '../../db/client.js'
-import { organizations } from '../../db/schema.js'
+import { db } from '../db/client.js'
+import { organizations } from '../db/schema.js'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 

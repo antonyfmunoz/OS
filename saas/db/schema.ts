@@ -8,27 +8,56 @@ import {
   integer,
   numeric,
   jsonb,
-  primaryKey,
   index,
   uniqueIndex,
-  customType,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
-import { z } from 'zod'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ENUMS
-// Note: agentDataTierEnum and autonomyStageEnum remain defined here for
-// backwards compatibility with the DB type (still exists, unused by new columns).
+// RE-EXPORT UMH PLATFORM TABLES
+// EOS projection depends on platform identity (users, orgs, portfolios).
+// Re-exported so existing EOS route imports don't break.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const orgPlanEnum = pgEnum('org_plan', [
-  'free', 'starter', 'growth', 'enterprise',
-])
+export {
+  orgPlanEnum,
+  memberRoleEnum,
+  approvalStatusEnum,
+  vectorType,
+  tokensJsonSchema,
+  type TokensJson,
+  users,
+  type User,
+  type NewUser,
+  portfolios,
+  type Portfolio,
+  type NewPortfolio,
+  organizations,
+  type Organization,
+  type NewOrganization,
+  orgMembers,
+  type OrgMember,
+  type NewOrgMember,
+  userAgentSessions,
+  type UserAgentSession,
+  type NewUserAgentSession,
+  approvals,
+  type Approval,
+  type NewApproval,
+  umhOutcomes,
+  type UmhOutcome,
+  type NewUmhOutcome,
+  embeddings,
+  type Embedding,
+  type NewEmbedding,
+} from '../../transports/api/http/db/schema.js'
 
-export const memberRoleEnum = pgEnum('member_role', [
-  'owner', 'admin', 'member',
-])
+// Re-import for FK references in EOS tables
+import { users, organizations, portfolios } from '../../transports/api/http/db/schema.js'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EOS PROJECTION ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const ventureStageEnum = pgEnum('venture_stage', [
   'idea', 'pre_revenue', 'early', 'growth', 'scale',
@@ -42,125 +71,9 @@ export const autonomyStageEnum = pgEnum('autonomy_stage', [
   'supervised', 'semi_autonomous', 'autonomous',
 ])
 
-export const approvalStatusEnum = pgEnum('approval_status', [
-  'pending', 'approved', 'rejected', 'expired',
-])
-
 export const outcomeTypeEnum = pgEnum('outcome_type', [
   'positive', 'negative', 'neutral', 'skipped',
 ])
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CUSTOM TYPE: pgvector
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const vectorType = customType<{
-  data: number[]
-  driverData: string
-  config: { dimensions: number }
-}>({
-  dataType(config) {
-    return `vector(${config?.dimensions ?? 1536})`
-  },
-  toDriver(value: number[]): string {
-    return `[${value.join(',')}]`
-  },
-  fromDriver(value: string): number[] {
-    return value
-      .slice(1, -1)
-      .split(',')
-      .map(Number)
-  },
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ZOD VALIDATORS
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const tokensJsonSchema = z.object({
-  prompt:     z.number().int().nonnegative(),
-  completion: z.number().int().nonnegative(),
-  total:      z.number().int().nonnegative(),
-  cost_usd:   z.number().nonnegative(),
-})
-
-export type TokensJson = z.infer<typeof tokensJsonSchema>
-
-// ─────────────────────────────────────────────────────────────────────────────
-// USERS
-// Global identity table — not org-scoped, no RLS.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const users = pgTable('users', {
-  id:        uuid('id').primaryKey().defaultRandom(),
-  email:     text('email').notNull().unique(),
-  name:      text('name').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-})
-
-export type User    = typeof users.$inferSelect
-export type NewUser = typeof users.$inferInsert
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PORTFOLIOS
-// Top-level grouping for a founder's companies. No RLS — app layer controls
-// access based on user_id. Declared before organizations (FK dependency).
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const portfolios = pgTable('portfolios', {
-  id:        uuid('id').primaryKey().defaultRandom(),
-  userId:    uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
-  name:      text('name').notNull(),
-  northStar: text('north_star'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({
-  userIdx: index('idx_portfolios_user_id').on(t.userId),
-}))
-
-export type Portfolio    = typeof portfolios.$inferSelect
-export type NewPortfolio = typeof portfolios.$inferInsert
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ORGANIZATIONS
-// A company (operating entity) within a portfolio.
-// portfolioId: which founder portfolio this org belongs to.
-// autonomyStage: 'manual' | 'hybrid' | 'autonomous' — controls agent delegation.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const organizations = pgTable('organizations', {
-  id:            uuid('id').primaryKey().defaultRandom(),
-  name:          text('name').notNull(),
-  ownerId:       uuid('owner_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
-  plan:          orgPlanEnum('plan').notNull().default('free'),
-  portfolioId:   uuid('portfolio_id').references(() => portfolios.id, { onDelete: 'set null' }),
-  autonomyStage: text('autonomy_stage').notNull().default('manual'),
-  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({
-  ownerIdx:     index('idx_organizations_owner_id').on(t.ownerId),
-  portfolioIdx: index('idx_organizations_portfolio_id').on(t.portfolioId),
-}))
-
-export type Organization    = typeof organizations.$inferSelect
-export type NewOrganization = typeof organizations.$inferInsert
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ORG MEMBERS
-// accessLevel: 'owner' | 'admin' | 'member' | 'viewer' — UI permission gate.
-// role: enum kept for backwards compatibility.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const orgMembers = pgTable('org_members', {
-  orgId:       uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-  userId:      uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  role:        memberRoleEnum('role').notNull().default('member'),
-  accessLevel: text('access_level').notNull().default('member'),
-}, (t) => ({
-  pk:      primaryKey({ columns: [t.orgId, t.userId] }),
-  userIdx: index('idx_org_members_user_id').on(t.userId),
-}))
-
-export type OrgMember    = typeof orgMembers.$inferSelect
-export type NewOrgMember = typeof orgMembers.$inferInsert
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VENTURES
@@ -185,14 +98,6 @@ export type NewVenture = typeof ventures.$inferInsert
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AGENTS
-// Hierarchical agent architecture:
-//   portfolio_advisor — portfolioId only, no orgId (board-level, cross-company)
-//   ceo              — orgId, no department, no parent
-//   department       — orgId, department name, parentAgentId → ceo
-//   sub_agent        — orgId, department name, parentAgentId → department agent
-//
-// RLS: org_id = current_setting('app.current_org_id') — portfolio advisors
-// (org_id IS NULL) are invisible to org-scoped queries by design.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const agents = pgTable('agents', {
@@ -217,26 +122,6 @@ export const agents = pgTable('agents', {
 
 export type Agent    = typeof agents.$inferSelect
 export type NewAgent = typeof agents.$inferInsert
-
-// ─────────────────────────────────────────────────────────────────────────────
-// USER AGENT SESSIONS
-// Tracks which agent each user is currently talking to per org.
-// RLS: org_id scoped.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const userAgentSessions = pgTable('user_agent_sessions', {
-  id:            uuid('id').primaryKey().defaultRandom(),
-  userId:        uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
-  orgId:         uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }),
-  activeAgentId: uuid('active_agent_id').references(() => agents.id, { onDelete: 'set null' }),
-  updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({
-  userOrgIdx: index('idx_user_agent_sessions_user_org').on(t.userId, t.orgId),
-  orgIdx:     index('idx_user_agent_sessions_org_id').on(t.orgId),
-}))
-
-export type UserAgentSession    = typeof userAgentSessions.$inferSelect
-export type NewUserAgentSession = typeof userAgentSessions.$inferInsert
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SKILLS
@@ -302,9 +187,6 @@ export type NewSkillVersion = typeof skillVersions.$inferInsert
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WORKFLOWS
-// executorType: 'human' | 'ai' | 'hybrid'
-// autonomyStage: 'manual' | 'hybrid' | 'autonomous'
-// triggerType: 'manual' | 'scheduled' | 'event'
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const workflows = pgTable('workflows', {
@@ -376,33 +258,6 @@ export type Outcome    = typeof outcomes.$inferSelect
 export type NewOutcome = typeof outcomes.$inferInsert
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UMH OUTCOMES
-// Pipeline outcome audit trail — tracks what UMH did to EOS data.
-// Separate from outcomes (interaction-scoped AI quality tracking).
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const umhOutcomes = pgTable('umh_outcomes', {
-  id:            uuid('id').primaryKey().defaultRandom(),
-  orgId:         uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-  traceId:       text('trace_id').notNull(),
-  sourceTable:   text('source_table').notNull(),
-  sourceRowId:   uuid('source_row_id'),
-  outcomeType:   text('outcome_type').notNull(),
-  severity:      integer('severity').notNull(),
-  payload:       jsonb('payload').notNull().default({}),
-  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({
-  orgIdx:     index('idx_umh_outcomes_org_id').on(t.orgId),
-  traceIdx:   index('idx_umh_outcomes_trace_id').on(t.traceId),
-  sourceIdx:  index('idx_umh_outcomes_source').on(t.sourceTable, t.sourceRowId),
-  orgCreated: index('idx_umh_outcomes_org_created').on(t.orgId, t.createdAt),
-  typeIdx:    index('idx_umh_outcomes_type').on(t.outcomeType),
-}))
-
-export type UmhOutcome    = typeof umhOutcomes.$inferSelect
-export type NewUmhOutcome = typeof umhOutcomes.$inferInsert
-
-// ─────────────────────────────────────────────────────────────────────────────
 // HUMAN PROFILES
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -423,49 +278,7 @@ export type HumanProfile    = typeof humanProfiles.$inferSelect
 export type NewHumanProfile = typeof humanProfiles.$inferInsert
 
 // ─────────────────────────────────────────────────────────────────────────────
-// APPROVALS
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const approvals = pgTable('approvals', {
-  id:          uuid('id').primaryKey().defaultRandom(),
-  orgId:       uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-  requestJson: jsonb('request_json').notNull().default({}),
-  status:      approvalStatusEnum('status').notNull().default('pending'),
-  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  resolvedAt:  timestamp('resolved_at', { withTimezone: true }),
-  resolvedBy:  uuid('resolved_by').references(() => users.id, { onDelete: 'set null' }),
-}, (t) => ({
-  orgIdx:      index('idx_approvals_org_id').on(t.orgId),
-  orgStatus:   index('idx_approvals_org_status').on(t.orgId, t.status),
-  resolvedIdx: index('idx_approvals_resolved').on(t.resolvedBy),
-}))
-
-export type Approval    = typeof approvals.$inferSelect
-export type NewApproval = typeof approvals.$inferInsert
-
-// ─────────────────────────────────────────────────────────────────────────────
-// EMBEDDINGS
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const embeddings = pgTable('embeddings', {
-  id:             uuid('id').primaryKey().defaultRandom(),
-  interactionId:  uuid('interaction_id').notNull().references(() => interactions.id, { onDelete: 'cascade' }),
-  orgId:          uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-  embedding:      vectorType('embedding', { dimensions: 384 }),
-  contentPreview: text('content_preview'),
-  embeddingModel: text('embedding_model').default('BAAI/bge-small-en-v1.5'),
-  createdAt:      timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({
-  interactionIdx: index('idx_embeddings_interaction_id').on(t.interactionId),
-  orgIdx:         index('idx_embeddings_org_id').on(t.orgId),
-}))
-
-export type Embedding    = typeof embeddings.$inferSelect
-export type NewEmbedding = typeof embeddings.$inferInsert
-
-// ─────────────────────────────────────────────────────────────────────────────
 // CLIENTS
-// CRM contacts — uses text org_id/venture_id (Python .env string IDs).
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const clients = pgTable('clients', {
@@ -475,7 +288,7 @@ export const clients = pgTable('clients', {
   name:      text('name').notNull(),
   email:     text('email').notNull(),
   phone:     text('phone'),
-  status:    text('status').notNull().default('lead'),  // lead/prospect/client/fulfilled/churned
+  status:    text('status').notNull().default('lead'),
   source:    text('source').notNull().default('unknown'),
   notes:     text('notes').default(''),
   umhStatus: text('umh_status'),
@@ -492,7 +305,6 @@ export type NewClient = typeof clients.$inferInsert
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TRANSACTIONS
-// Revenue events tied to a client. Uses text org_id/venture_id.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const transactions = pgTable('transactions', {
@@ -503,9 +315,9 @@ export const transactions = pgTable('transactions', {
   productName:         text('product_name').notNull(),
   amountCents:         integer('amount_cents').notNull(),
   currency:            text('currency').notNull().default('USD'),
-  status:              text('status').notNull().default('pending'),  // pending/paid/refunded/failed
+  status:              text('status').notNull().default('pending'),
   paymentDate:         timestamp('payment_date', { withTimezone: true }),
-  fulfillmentStatus:   text('fulfillment_status').notNull().default('not_started'),  // not_started/in_progress/complete
+  fulfillmentStatus:   text('fulfillment_status').notNull().default('not_started'),
   templateInstanceId:  text('template_instance_id'),
   notes:               text('notes').default(''),
   createdAt:           timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -521,7 +333,6 @@ export type NewTransaction = typeof transactions.$inferInsert
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FULFILLMENT EVENTS
-// Delivery milestones for a transaction.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const fulfillmentEvents = pgTable('fulfillment_events', {
@@ -545,7 +356,6 @@ export type NewFulfillmentEvent = typeof fulfillmentEvents.$inferInsert
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OFFERS
-// Offer ladder — products/services at each price point.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const offers = pgTable('offers', {
@@ -556,7 +366,7 @@ export const offers = pgTable('offers', {
   positionInLadder: integer('position_in_ladder').notNull().default(1),
   priceCents:       integer('price_cents').notNull(),
   currency:         text('currency').notNull().default('USD'),
-  offerType:        text('offer_type').notNull(),  // coaching/program/service/product/retainer/project/subscription/affiliate/sponsorship/deal
+  offerType:        text('offer_type').notNull(),
   description:      text('description').default(''),
   validated:        boolean('validated').notNull().default(false),
   createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

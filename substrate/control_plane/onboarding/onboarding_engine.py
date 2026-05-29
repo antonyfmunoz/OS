@@ -112,7 +112,7 @@ class OnboardingEngine:
 
     def get_welcome_message(self) -> str:
         return (
-            '**Welcome to EntrepreneurOS.**\n\n'
+            '**Welcome.**\n\n'
             'I am going to ask you a few questions to set up your operating system. '
             'This takes about 5 minutes.\n\n'
             'Be specific — the more context you give me, the better I can serve you.\n\n'

@@ -14,7 +14,7 @@ Usage:
 import os
 from enum import Enum
 
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 
 
 class IntentDomain(Enum):
@@ -48,7 +48,7 @@ class IntentRouter:
         "all three",
     ]
 
-    def __init__(self, ctx: EntrepreneurOSContext) -> None:
+    def __init__(self, ctx: SubstrateContext) -> None:
         self.ctx = ctx
         # Conversational / greeting patterns — must match before CEO to prevent
         # casual questions like "hey <AI> what are we building today?" from

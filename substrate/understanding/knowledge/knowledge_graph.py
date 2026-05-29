@@ -14,7 +14,7 @@ Table: entity_links
 import json
 from datetime import datetime, timezone
 
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 from substrate.state.storage.db import get_conn, resolve_venture, ORG_ID
 
 
@@ -24,7 +24,7 @@ def _utcnow() -> str:
 
 class KnowledgeGraph:
 
-    def __init__(self, ctx: EntrepreneurOSContext):
+    def __init__(self, ctx: SubstrateContext):
         self.ctx = ctx
         self._ensure_table()
 

@@ -46,7 +46,7 @@ DATA_ARTIFACTS = {
 
 BANNER = """
 ================================================================
-  EOS KNOWLEDGE SYSTEM — SESSION BOOTSTRAP
+  UMH KNOWLEDGE SYSTEM — SESSION BOOTSTRAP
   AI MUST read graph before opening raw files.
   Retrieval order: Palace -> Graph -> Summaries -> Raw -> Logs
 ================================================================
@@ -139,10 +139,32 @@ def check_freshness() -> int:
     return 0
 
 
+def register_organism_session(harness: str = "claude_code", intent: str = "") -> None:
+    """Register this coding session with the organism."""
+    try:
+        from substrate.organism.development_session_bridge import DevelopmentSessionBridge
+
+        session_id = os.environ.get("CLAUDE_SESSION_ID", "")
+        bridge = DevelopmentSessionBridge(
+            session_id=session_id or None,
+            harness=harness,
+        )
+        bridge.register_session(intent=intent)
+        print(f"\nOrganism: session {bridge.session_id} registered (harness={harness})")
+    except Exception as exc:
+        print(f"\nOrganism: session registration failed — {exc}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="session_bootstrap")
     parser.add_argument("--compact", action="store_true")
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--register", action="store_true",
+                        help="Register session with organism")
+    parser.add_argument("--harness", default="claude_code",
+                        help="Harness name (claude_code, codex, etc.)")
+    parser.add_argument("--intent", default="",
+                        help="Session intent description")
     args = parser.parse_args(argv)
 
     if args.check:
@@ -150,10 +172,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.compact:
         print_compact()
         check_freshness()
+        if args.register:
+            register_organism_session(args.harness, args.intent)
         return 0
 
     print_full()
     check_freshness()
+    if args.register:
+        register_organism_session(args.harness, args.intent)
     return 0
 
 

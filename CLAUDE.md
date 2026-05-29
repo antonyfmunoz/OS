@@ -190,10 +190,11 @@ Windows Beast (GPU workhorse — C:\dev\dev\):
 Before storing any large artifact, ask:
 does this node's role require it? If no, don't put it here.
 
-## Key files (post-convergence 2026-05-23)
+## Key files (post-convergence 2026-05-23, updated 2026-05-28)
 substrate/types.py                    — single Pydantic type system (30+ models)
 substrate/__init__.py                 — Substrate public API (execute, query, register, status)
-substrate/control_plane/runtime/      — gateway.py, cognitive_loop.py (core runtime)
+substrate/control_plane/runtime/      — gateway.py (Gateway class), substrate_gateway.py (SignalEnvelope API), cognitive_loop.py
+substrate/state/context/context.py    — SubstrateContext (identity), load_context_from_env()
 substrate/execution/spine.py          — 8-stage execution pipeline
 substrate/execution/bridge/           — session management, mode routing, voice sessions
 substrate/sockets/notification.py     — abstract notification port (transports register at boot)
@@ -294,6 +295,70 @@ This law exists because instance context leaked across 70+ substrate files
 during the initial build when canonical and instance were developed together.
 The organism activation sprint (2026-05-27) discovered the pattern and
 installed this gate to make the leak mechanically impossible going forward.
+
+## Projection Boundary Law (NON-NEGOTIABLE — ENFORCED BY PRE-COMMIT)
+substrate/ is universal UMH infrastructure. No projection name may appear in
+substrate/ code — not in class names, env vars, string literals, comments,
+or docstrings.
+
+Projections are applications built ON UMH: EntrepreneurOS (EOS), CreatorOS,
+LyfeOS, and any future projection. They live in projections/ and register
+with UMH at runtime via ports and registries.
+
+What NEVER appears in substrate/:
+- Class names: `EntrepreneurOSGateway` → `Gateway`
+- Context types: `EntrepreneurOSContext` → `SubstrateContext`
+- Env var prefixes: `EOS_ORG_ID` → `UMH_ORG_ID` (with `EOS_ORG_ID` fallback)
+- Branded strings: `"EntrepreneurOS"` → generic terms or runtime lookup
+- Projection prefixes: `eos-ceo`, `creatoros-admin` → projection-agnostic names
+
+The pre-commit hook (`scripts/check_projection_leak.py`) blocks commits that
+introduce projection names into substrate/. Full codebase scan:
+`python3 scripts/check_projection_leak.py --all`
+
+This law exists because the original build used "EntrepreneurOS" as the system
+name. 289 EOS references leaked across 70+ substrate files, making multi-projection
+work impossible. The substrate identity cleanup (2026-05-28) renamed the three
+core classes (Gateway, SubstrateContext, Orchestrator), migrated env vars to
+UMH_* with EOS_* fallback, and installed this gate.
+
+## Architecture Layer Law (NON-NEGOTIABLE — ENFORCED BY PRE-COMMIT)
+UMH has four code layers with strict one-way dependency direction:
+
+  projections/saas (EOS, CreatorOS)
+      ↓ can import from
+  transports/ (discord, api/http)
+      ↓ can import from
+  adapters/ (models, GWS, browser)
+      ↓ can import from
+  substrate/ (types, control_plane, execution, governance, state, organism)
+
+Dependency direction is downward only. Never upward. Never sideways.
+If substrate needs transport functionality, use an abstract port in
+substrate/sockets/ and register the concrete implementation at startup.
+
+Before creating ANY file, ask:
+"Which architectural layer does this belong to?"
+
+What lives where:
+- `substrate/` — universal platform mechanisms (types, execution, governance)
+- `adapters/` — external system adapters (model routing, calendar, browser)
+- `transports/api/http/` — UMH HTTP API infrastructure (auth, middleware,
+  platform DB schema, substrate route handlers, Python bridge spawner)
+- `transports/api/*.py` — Python bridges (stdin/stdout JSON protocol)
+- `saas/` — EOS projection ONLY (EOS routes, EOS schema, EOS seed data)
+- `projections/` — projection-specific logic and configs
+- `services/` — deployment entrypoints only, no business logic
+
+The pre-commit hook (`scripts/check_dependency_direction.py`) blocks commits
+that violate dependency direction. Full codebase scan:
+`python3 scripts/check_dependency_direction.py --all`
+
+This law exists because UMH infrastructure (auth, middleware, DB client, Python
+bridges, substrate routes) leaked into saas/ (an EOS projection) during the
+initial build when UMH and EOS were conflated. The SaaS layer separation
+(2026-05-28) extracted 15 UMH infrastructure files from saas/ into
+transports/api/http/ and installed this gate.
 
 ## Protocol layers
 See PROTOCOLS.md for full 4-layer documentation (L0-L3).

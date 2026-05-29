@@ -39,7 +39,7 @@ Usage:
 import uuid
 from typing import Optional
 
-from substrate.state.context.context import EntrepreneurOSContext
+from substrate.state.context.context import SubstrateContext
 from substrate.state.memory.memory import AgentMemory
 from substrate.understanding.embedding.embedding_engine import EmbeddingEngine
 
@@ -62,7 +62,7 @@ class KnowledgeIntegrator:
     Never overwrites — always adds. Degrades gracefully on any failure.
     """
 
-    def __init__(self, ctx: EntrepreneurOSContext):
+    def __init__(self, ctx: SubstrateContext):
         self.ctx = ctx
         self.ee  = EmbeddingEngine()
 

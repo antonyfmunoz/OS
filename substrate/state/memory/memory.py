@@ -80,7 +80,7 @@ class AgentMemory:
     """
     Persistent memory backed by Neon PostgreSQL.
 
-    All writes are RLS-scoped to EOS_ORG_ID via the db.get_conn() context
+    All writes are RLS-scoped to UMH_ORG_ID via the db.get_conn() context
     manager. interaction_id is now a UUID string instead of an integer.
     """
 

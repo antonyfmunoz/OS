@@ -138,19 +138,19 @@ class TestReportDispatcherLocal:
 
 class TestBridgeIntegration:
     def test_dispatch_report_handler_exists(self):
-        from saas.bridge.organism_bridge import _ACTIONS
+        from transports.api.organism_bridge import _ACTIONS
         assert "organism.dispatch_report" in _ACTIONS
 
     def test_reports_handler_exists(self):
-        from saas.bridge.organism_bridge import _ACTIONS
+        from transports.api.organism_bridge import _ACTIONS
         assert "organism.reports" in _ACTIONS
 
     def test_chat_history_handler_exists(self):
-        from saas.bridge.organism_bridge import _ACTIONS
+        from transports.api.organism_bridge import _ACTIONS
         assert "organism.chat_history" in _ACTIONS
 
     def test_dispatch_requires_title_and_summary(self):
-        from saas.bridge.organism_bridge import _ACTIONS
+        from transports.api.organism_bridge import _ACTIONS
         handler = _ACTIONS["organism.dispatch_report"]
         result = handler({"body": "just a body"})
         assert result["success"] is False

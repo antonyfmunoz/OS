@@ -1,5 +1,5 @@
 /**
- * Database client for eos-saas.
+ * Database client for UMH API.
  *
  * Driver: @neondatabase/serverless WebSocket pool — supports real transactions.
  * The HTTP driver is stateless and cannot run SET LOCAL inside a transaction.
