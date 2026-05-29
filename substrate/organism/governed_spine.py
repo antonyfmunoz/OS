@@ -35,6 +35,11 @@ from substrate.organism.action_envelope import (
     ActionEnvelope,
     EnvelopeStatus,
 )
+from substrate.organism.coherence_propagation import (
+    OutcomeCommitted,
+    OutcomeFailed,
+    ParallelPropagationEngine,
+)
 from substrate.organism.event_spine import EventDomain, EventPriority, EventSpine
 from substrate.organism.execution_journal import ExecutionJournal, JournalPhase
 from substrate.organism.execution_modes import ExecutionMode, ExecutionModeManager
@@ -64,12 +69,14 @@ class GovernedExecutionSpine:
         mutation_registry: MutationRegistry,
         journal: ExecutionJournal,
         leverage_metrics: LeverageMetrics | None = None,
+        propagation_engine: ParallelPropagationEngine | None = None,
     ) -> None:
         self._event_spine = event_spine
         self._mode = execution_mode
         self._registry = mutation_registry
         self._journal = journal
         self._leverage = leverage_metrics
+        self._propagation = propagation_engine
         self._lock = threading.Lock()
 
         self._pending: deque[ActionEnvelope] = deque(maxlen=_MAX_QUEUE)
@@ -353,6 +360,8 @@ class GovernedExecutionSpine:
             priority=EventPriority.HIGH if not envelope.result_success else EventPriority.NORMAL,
         )
 
+        self._emit_outcome(envelope)
+
         with self._lock:
             self._active.pop(envelope.envelope_id, None)
             self._completed.append(envelope)
@@ -431,6 +440,99 @@ class GovernedExecutionSpine:
             )
             logger.warning("rollback failed for %s: %s", envelope.envelope_id, exc)
 
+    def _emit_outcome(self, envelope: ActionEnvelope) -> None:
+        """Emit OutcomeCommitted or OutcomeFailed based on envelope final state.
+
+        If a propagation engine is registered, triggers organism-wide
+        coherence propagation automatically. This is the spine-native
+        propagation path — callers never need to call propagation manually.
+        """
+        duration_ms = max(envelope.completed_at - envelope.started_at, 0) * 1000
+        metadata = envelope.metadata
+
+        if envelope.status in (EnvelopeStatus.VERIFIED, EnvelopeStatus.COMPLETED):
+            validation = "passed" if envelope.status == EnvelopeStatus.VERIFIED else "not_verified"
+            rollback = "not_needed"
+            if envelope.status == EnvelopeStatus.COMPLETED and envelope.rollback is not None:
+                rollback = "not_triggered"
+
+            outcome = OutcomeCommitted(
+                action_envelope_id=envelope.envelope_id,
+                execution_graph_id=metadata.get("execution_graph_id", ""),
+                trial_id=metadata.get("trial_id", ""),
+                action_type=envelope.action_type.value,
+                mutation_type=metadata.get("mutation_name", ""),
+                risk_class=envelope.risk_level,
+                agent_type=metadata.get("agent_type", "developer_agent"),
+                capabilities_used=envelope.required_capabilities,
+                validation_result=validation,
+                rollback_result=rollback,
+                duration_ms=duration_ms,
+                changed_files=metadata.get("changed_files", []),
+                changed_entities=metadata.get("changed_entities", []),
+                affected_subsystems=metadata.get("affected_subsystems", []),
+                evidence=[f"output: {envelope.result_output[:200]}"],
+                completed_at=envelope.completed_at,
+            )
+
+            self._event_spine.emit(
+                EventDomain.EXECUTION,
+                "outcome_committed",
+                "governed_spine",
+                outcome.to_dict(),
+            )
+
+            if self._propagation is not None:
+                try:
+                    self._propagation.handle_outcome(outcome)
+                except Exception as exc:
+                    logger.warning(
+                        "Propagation failed for %s (non-fatal): %s",
+                        envelope.envelope_id, exc,
+                    )
+
+        elif envelope.status in (
+            EnvelopeStatus.FAILED,
+            EnvelopeStatus.VERIFICATION_FAILED,
+            EnvelopeStatus.ROLLED_BACK,
+        ):
+            rollback_result = "not_attempted"
+            if envelope.status == EnvelopeStatus.ROLLED_BACK:
+                rollback_result = "rolled_back"
+
+            failed = OutcomeFailed(
+                action_envelope_id=envelope.envelope_id,
+                execution_graph_id=metadata.get("execution_graph_id", ""),
+                trial_id=metadata.get("trial_id", ""),
+                action_type=envelope.action_type.value,
+                risk_class=envelope.risk_level,
+                agent_type=metadata.get("agent_type", "developer_agent"),
+                failure_reason=envelope.result_output[:500],
+                validation_result=(
+                    "verification_failed"
+                    if envelope.status == EnvelopeStatus.VERIFICATION_FAILED
+                    else "execution_failed"
+                ),
+                evidence=[f"output: {envelope.result_output[:200]}"],
+            )
+
+            self._event_spine.emit(
+                EventDomain.EXECUTION,
+                "outcome_failed",
+                "governed_spine",
+                failed.to_dict(),
+                priority=EventPriority.HIGH,
+            )
+
+            if self._propagation is not None:
+                try:
+                    self._propagation.handle_failure(failed)
+                except Exception as exc:
+                    logger.warning(
+                        "Failure recording failed for %s: %s",
+                        envelope.envelope_id, exc,
+                    )
+
     def _pop_pending(self, envelope_id: str) -> ActionEnvelope | None:
         with self._lock:
             for i, env in enumerate(self._pending):
@@ -459,6 +561,10 @@ class GovernedExecutionSpine:
     def envelope_lifecycle(self, envelope_id: str) -> list[dict[str, Any]]:
         return self._journal.execution_lifecycle(envelope_id)
 
+    @property
+    def propagation_engine(self) -> ParallelPropagationEngine | None:
+        return self._propagation
+
     def to_dict(self) -> dict[str, Any]:
         with self._lock:
             pending_count = len(self._pending)
@@ -481,4 +587,5 @@ class GovernedExecutionSpine:
             "completed_count": completed_count,
             "current_mode": self._mode.current_mode.value,
             "registered_mutations": len(self._registry.all_specs()),
+            "spine_native_propagation": self._propagation is not None,
         }

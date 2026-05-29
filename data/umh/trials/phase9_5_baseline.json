@@ -1,0 +1,25 @@
+{
+  "commit_sha": "60bbceed03df03e16a3be5c1f8093db302742fa4",
+  "branch": "worktree-unified-channel-notifications",
+  "timestamp": 1780074630.2757237,
+  "timestamp_human": "2026-05-29 10:10:30",
+  "readiness_score": 28.3,
+  "contradiction_count_by_severity": {
+    "medium": 1,
+    "info": 14
+  },
+  "contradiction_total": 15,
+  "world_model_entity_count": 70,
+  "dependency_graph_edge_count": 32,
+  "dependency_graph_orphan_count": 43,
+  "outcome_record_count": 0,
+  "memory_candidate_count": 0,
+  "template_candidate_count": 0,
+  "promoted_template_count": 0,
+  "agent_capability_count": 0,
+  "propagation_event_count": 0,
+  "execution_journal_count": 0,
+  "current_propagation_targets": [],
+  "composition_template_index_state": "available",
+  "cockpit_panel_status": "operational"
+}
