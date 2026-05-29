@@ -64,6 +64,7 @@ from substrate.organism.propagation_wiring import build_propagation_engine
 from substrate.organism.template_registry import TemplateRegistry
 from substrate.organism.spine_guard import GuardMode, SpineGuard
 from substrate.organism.autonomous_action_gateway import AutonomousActionGateway, AutonomousPolicy
+from substrate.organism.autonomous_cadence import AutonomousCadence, CadencePolicy
 from substrate.organism.leverage_engine import LeverageEngine
 from substrate.organism.next_action_engine import NextActionEngine
 from substrate.organism.plan_execution_adapter import PlanExecutionAdapter
@@ -293,6 +294,10 @@ class OrganismDaemon:
             autonomous_gateway=self._autonomous_gateway,
         )
 
+        self._autonomous_cadence = AutonomousCadence(
+            policy=CadencePolicy(),
+        )
+
         self._workcell_daemon = WorkcellDaemonV2(
             state_dir=str(self._state_dir / "workcell_daemon"),
         )
@@ -419,6 +424,10 @@ class OrganismDaemon:
         self._autonomous_tick.register_stage(
             "automation_scan",
             self._automation_pipeline.pipeline_tick,
+        )
+        self._autonomous_tick.register_stage(
+            "autonomous_cadence_tick",
+            self._autonomous_cadence.tick,
         )
         self._autonomous_tick.register_stage(
             "projection_broadcast",
@@ -614,6 +623,10 @@ class OrganismDaemon:
     @property
     def autonomous_tick(self) -> AutonomousTick:
         return self._autonomous_tick
+
+    @property
+    def autonomous_cadence(self) -> AutonomousCadence:
+        return self._autonomous_cadence
 
     @property
     def leverage_assimilator(self) -> LeverageAssimilator:
@@ -870,6 +883,7 @@ class OrganismDaemon:
             "spine_guard": self._spine_guard.to_dict(),
             "autonomous_gateway": self._autonomous_gateway.to_dict(),
             "plan_execution_adapter": self._plan_execution_adapter.to_dict(),
+            "autonomous_cadence": self._autonomous_cadence.to_dict(),
             "outcome_learning": self._outcome_learning.to_dict(),
             "template_registry": self._template_registry.summary(),
             "memory_pipeline": self._memory_pipeline.summary(),

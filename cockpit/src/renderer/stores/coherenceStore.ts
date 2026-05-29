@@ -95,11 +95,31 @@ interface PRFactoryData {
   }
 }
 
+interface CadenceData {
+  mode: string
+  interval_seconds: number
+  last_run_at: number
+  dry_runs_today: number
+  prs_today: number
+  total_runs: number
+  pending_recommendations: number
+  should_run: boolean
+  last_run: Record<string, unknown> | null
+  policy: Record<string, unknown>
+}
+
+interface MergeVerificationData {
+  verifications: Array<Record<string, unknown>>
+  count: number
+}
+
 interface CoherenceState {
   templates: TemplateData | null
   agentCapabilities: AgentCapabilityData | null
   propagation: PropagationData | null
   prFactory: PRFactoryData | null
+  cadence: CadenceData | null
+  mergeVerifications: MergeVerificationData | null
   loading: boolean
   error: string | null
   fetchAll: () => Promise<void>
@@ -112,23 +132,29 @@ export const useCoherenceStore = create<CoherenceState>((set, get) => ({
   agentCapabilities: null,
   propagation: null,
   prFactory: null,
+  cadence: null,
+  mergeVerifications: null,
   loading: false,
   error: null,
 
   fetchAll: async () => {
     set({ loading: true })
     try {
-      const [templates, capabilities, propagation, prFactory] = await Promise.all([
+      const [templates, capabilities, propagation, prFactory, cadence, mergeVerifications] = await Promise.all([
         fetchApi<TemplateData>('/organism/templates').catch(() => null),
         fetchApi<AgentCapabilityData>('/organism/agent-capabilities').catch(() => null),
         fetchApi<PropagationData>('/organism/propagation').catch(() => null),
         fetchApi<PRFactoryData>('/organism/autonomous-pr-factory').catch(() => null),
+        fetchApi<CadenceData>('/organism/autonomous-cadence').catch(() => null),
+        fetchApi<MergeVerificationData>('/organism/autonomous-pr-factory/merge-verifications').catch(() => null),
       ])
       set({
         templates: templates && !('error' in templates) ? templates : null,
         agentCapabilities: capabilities && !('error' in capabilities) ? capabilities : null,
         propagation: propagation && !('error' in propagation) ? propagation : null,
         prFactory: prFactory && !('error' in prFactory) ? prFactory : null,
+        cadence: cadence && !('error' in cadence) ? cadence : null,
+        mergeVerifications: mergeVerifications && !('error' in mergeVerifications) ? mergeVerifications : null,
         error: null,
       })
     } catch {
