@@ -1741,16 +1741,31 @@ async def dex_history(limit: int = 50):
         i += 1
 
     for m in messages:
-        if m.get("intent") == "report" and m.get("sender") == "system":
+        if m.get("intent") == "report":
             payload = m.get("payload", {})
             title = payload.get("title", "Report")
             summary = payload.get("summary", "")
+            meta = payload.get("metadata", {})
+            file_path = payload.get("file_path", "")
+
+            provenance_parts = []
+            if meta.get("phase"):
+                provenance_parts.append(f"Phase {meta['phase']}")
+            if meta.get("pr"):
+                provenance_parts.append(f"PR #{meta['pr']}")
+            provenance_parts.append("VPS / Claude Code session")
+            provenance = " · ".join(provenance_parts)
+
+            body = f"📋 {title}\n{provenance}\n\n{summary}"
+            if file_path:
+                body += f"\n\n📎 {file_path}"
+
             exchanges.append({
                 "id": m.get("id", ""),
                 "timestamp": m.get("created_at", ""),
-                "sender": "system",
-                "content": f"**{title}**\n{summary}",
-                "response": None,
+                "sender": m.get("sender", "system"),
+                "content": "",
+                "response": body,
             })
 
     exchanges.sort(key=lambda x: x.get("timestamp", ""))
@@ -3043,17 +3058,31 @@ async def chat_history():
         for m in messages:
             intent = m.get("intent", "")
             payload = m.get("payload", {})
+            sender = m.get("sender", "system")
             if intent == "report":
-                content = f"**{payload.get('title', 'Report')}**\n{payload.get('summary', '')}"
+                meta = payload.get("metadata", {})
+                title = payload.get("title", "Report")
+                summary = payload.get("summary", "")
+                file_path = payload.get("file_path", "")
+                prov = []
+                if meta.get("phase"):
+                    prov.append(f"Phase {meta['phase']}")
+                if meta.get("pr"):
+                    prov.append(f"PR #{meta['pr']}")
+                prov.append("VPS / Claude Code session")
+                content = f"📋 {title}\n{' · '.join(prov)}\n\n{summary}"
+                if file_path:
+                    content += f"\n\n📎 {file_path}"
+                sender = "assistant"
             elif intent == "converse":
                 content = payload.get("content", "")
             else:
                 content = payload.get("content", "") or payload.get("task", "") or str(payload)[:200]
             result.append({
                 "id": m.get("id", ""),
-                "sender": m.get("sender", "system"),
+                "sender": sender,
                 "content": content,
-                "response": None if m.get("sender") == "system" else payload.get("response"),
+                "response": None,
                 "timestamp": m.get("created_at", ""),
                 "origin_channel": m.get("origin_channel"),
             })

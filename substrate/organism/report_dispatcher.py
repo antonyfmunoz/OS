@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from substrate.state.business.business_instance import get_ai_name
+
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
@@ -128,11 +130,12 @@ class ReportDispatcher:
             return False
 
     def _send_to_cockpit(self, report: Report) -> bool:
-        """Write a system message to messages.jsonl so the cockpit chat picks it up."""
+        """Write an AI message to messages.jsonl so the cockpit chat picks it up."""
         try:
+            ai_name = get_ai_name().lower()
             msg = {
                 "id": str(uuid4()),
-                "sender": "system",
+                "sender": ai_name,
                 "recipient": "operator",
                 "intent": "report",
                 "payload": {
@@ -140,6 +143,7 @@ class ReportDispatcher:
                     "summary": report.summary,
                     "file_path": report.file_path,
                     "metadata": report.metadata,
+                    "source": "cockpit_dex_channel",
                 },
                 "conversation_id": str(uuid4()),
                 "parent_message_id": None,
