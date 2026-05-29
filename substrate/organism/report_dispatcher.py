@@ -93,9 +93,37 @@ class ReportDispatcher:
                         return line.split("=", 1)[1].strip()
         return ""
 
+    _DEDUP_WINDOW_SECONDS = 120
+
+    def _is_duplicate(self, report: Report) -> bool:
+        """Prevent the same report from dispatching twice within the dedup window."""
+        lock_path = self._store_dir / ".dispatch_lock.json"
+        now = time.time()
+        try:
+            if lock_path.exists():
+                with open(lock_path) as f:
+                    lock = json.loads(f.read())
+                last_title = lock.get("title", "")
+                last_time = lock.get("timestamp", 0)
+                if last_title == report.title and (now - last_time) < self._DEDUP_WINDOW_SECONDS:
+                    return True
+        except Exception:
+            pass
+        try:
+            with open(lock_path, "w") as f:
+                json.dump({"title": report.title, "timestamp": now}, f)
+        except Exception:
+            pass
+        return False
+
     def dispatch_report(self, report: Report) -> DispatchResult:
         """Send report to all channels. Returns per-channel success status."""
         result = DispatchResult()
+
+        if self._is_duplicate(report):
+            logger.info("Duplicate report suppressed: '%s'", report.title)
+            result.errors.append("duplicate_suppressed")
+            return result
 
         result.store_saved = self._save_to_store(report)
         result.cockpit_sent = self._send_to_cockpit(report)
