@@ -106,6 +106,21 @@ async def lifespan(application):
 
         logger.warning("organism daemon not started: %s\n%s", exc, traceback.format_exc())
 
+    # ── Register notification port implementations ──────────────────────
+    try:
+        from substrate.sockets.notification import (
+            register_approval_alert,
+            register_chat_push,
+        )
+        from transports.api.cockpit import push_chat_message
+        from transports.discord.approval_bridge import handle_approval_alert
+
+        register_chat_push(push_chat_message)
+        register_approval_alert(handle_approval_alert)
+        logger.info("notification ports registered: chat_push, approval_alert")
+    except Exception as exc:
+        logger.warning("notification port registration failed: %s", exc)
+
     yield
 
     if _tick_task is not None:

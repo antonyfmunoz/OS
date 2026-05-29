@@ -1098,6 +1098,18 @@ async def on_ready():
         _record_error("session_watcher_bridge", e)
         print(f"[Discord] Session watcher/bridge setup failed: {e}")
 
+    # ── Wire approval bridge for governance approval buttons ──────────────
+    try:
+        from transports.discord.approval_bridge import set_bot as _set_approval_bot
+        from transports.discord.approval_bridge import set_channel as _set_approval_channel
+
+        _set_approval_bot(bot)
+        _set_approval_channel(os.getenv("DISCORD_FOUNDERS_OFFICE", ""))
+        print("[Discord] Approval bridge registered")
+    except Exception as e:
+        _record_error("approval_bridge", e)
+        print(f"[Discord] Approval bridge setup failed: {e}")
+
     # ── Start Station Daemon (background heartbeat loop) ─────────────────
     try:
         from substrate.execution.bridge.station_daemon import start_station_daemon
@@ -1529,6 +1541,36 @@ async def on_message(message: discord.Message):
         reset_idle_counter()
     except Exception as _ws_err:
         _record_error("work_state_signal", _ws_err)
+
+    # ── Cross-channel relay — mirror Discord messages to cockpit ────────
+    try:
+        _relay_text = message.content.strip()
+        if _relay_text:
+            _relay_channel = message.channel.name if hasattr(message.channel, "name") else "dm"
+            _relay_author = str(message.author)
+            from substrate.organism.store import OrganismStore as _RelayStore
+            from substrate.organism.protocols import AgentMessage as _RelayMsg
+
+            _relay_store = _RelayStore()
+            _relay_store.save_message(_RelayMsg(
+                sender=_relay_author,
+                recipient="system",
+                intent="chat",
+                payload={"content": _relay_text, "source": "discord"},
+                origin_channel=f"discord/{_relay_channel}",
+            ))
+            from transports.api.cockpit import push_chat_message as _relay_push
+
+            _relay_push({
+                "sender": _relay_author,
+                "content": _relay_text,
+                "origin_channel": f"discord/{_relay_channel}",
+                "timestamp": __import__("datetime").datetime.now(
+                    __import__("datetime").timezone.utc
+                ).isoformat(),
+            })
+    except Exception as _relay_err:
+        _record_error("cross_channel_relay", _relay_err)
 
     # ── Attachment handling (audio / image) ──────────────────────────────
     if message.attachments:
