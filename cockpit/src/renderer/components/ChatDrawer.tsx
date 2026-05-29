@@ -1,7 +1,8 @@
-import React, { useRef, useEffect, type FormEvent } from 'react'
+import React, { useRef, useEffect, useCallback, type FormEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChatStore, type ChatMessage, type Provenance, type Attachment } from '../stores/chatStore'
+import { getApiKey } from '../api/client'
 
 function safeUrl(url: string): string {
   return /^https?:\/\//i.test(url) ? url : ''
@@ -88,14 +89,27 @@ function ProvenanceBlock({ provenance }: { provenance: Provenance }) {
 }
 
 function AttachmentBlock({ attachment }: { attachment: Attachment }) {
-  const downloadUrl = `${API_URL}/chat/attachment?path=${encodeURIComponent(attachment.path)}`
+  const handleDownload = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault()
+    const url = `${API_URL}/chat/attachment?path=${encodeURIComponent(attachment.path)}`
+    const headers: Record<string, string> = {}
+    const key = getApiKey()
+    if (key) headers['X-API-Key'] = key
+    const res = await fetch(url, { headers })
+    if (!res.ok) return
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = attachment.filename
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }, [attachment])
 
   return (
-    <a
-      href={downloadUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-2 mt-2 py-1.5 px-2 rounded text-xs font-mono no-underline transition-colors"
+    <button
+      type="button"
+      onClick={handleDownload}
+      className="flex items-center gap-2 mt-2 py-1.5 px-2 rounded text-xs font-mono transition-colors cursor-pointer w-full text-left"
       style={{
         background: 'var(--color-surface-raised)',
         border: '1px solid var(--color-border)',
@@ -107,7 +121,7 @@ function AttachmentBlock({ attachment }: { attachment: Attachment }) {
       <span style={{ fontSize: '14px' }}>&#x1F4CE;</span>
       <span className="truncate">{attachment.filename}</span>
       <span style={{ color: 'var(--color-text-tertiary)', marginLeft: 'auto', flexShrink: 0 }}>DOWNLOAD</span>
-    </a>
+    </button>
   )
 }
 
