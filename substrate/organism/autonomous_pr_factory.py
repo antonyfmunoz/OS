@@ -124,10 +124,24 @@ class ProductionOutcomeCommitted:
     manifest_id: str = ""
     pr_number: int = 0
     merge_commit: str = ""
+    base_commit: str = ""
+    head_commit: str = ""
     branch_name: str = ""
     boundary: str = "production"
+    action_type: str = "autonomous_improvement"
+    mutation_type: str = "code_change"
+    risk_class: str = "low"
+    agent_type: str = "developer_agent"
+    template_id: str = ""
+    action_envelope_ids: list[str] = field(default_factory=list)
+    sandbox_outcome_ids: list[str] = field(default_factory=list)
     post_merge_validation_passed: bool = False
     production_propagation_complete: bool = False
+    production_truth_delta: dict[str, Any] = field(default_factory=dict)
+    changed_files: list[str] = field(default_factory=list)
+    affected_entities: list[str] = field(default_factory=list)
+    affected_subsystems: list[str] = field(default_factory=list)
+    evidence: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, Any]:
@@ -138,10 +152,24 @@ class ProductionOutcomeCommitted:
             "manifest_id": self.manifest_id,
             "pr_number": self.pr_number,
             "merge_commit": self.merge_commit,
+            "base_commit": self.base_commit,
+            "head_commit": self.head_commit,
             "branch_name": self.branch_name,
             "boundary": self.boundary,
+            "action_type": self.action_type,
+            "mutation_type": self.mutation_type,
+            "risk_class": self.risk_class,
+            "agent_type": self.agent_type,
+            "template_id": self.template_id,
+            "action_envelope_ids": self.action_envelope_ids,
+            "sandbox_outcome_ids": self.sandbox_outcome_ids,
             "post_merge_validation_passed": self.post_merge_validation_passed,
             "production_propagation_complete": self.production_propagation_complete,
+            "production_truth_delta": self.production_truth_delta,
+            "changed_files": self.changed_files,
+            "affected_entities": self.affected_entities,
+            "affected_subsystems": self.affected_subsystems,
+            "evidence": self.evidence,
             "timestamp": self.timestamp,
         }
 
@@ -533,66 +561,69 @@ class AutonomousPRFactory:
         self,
         sandbox_id: str,
     ) -> ProductionOutcomeCommitted | None:
+        from substrate.organism.production_merge_verifier import ProductionMergeVerifier
+
         sb = self._sandbox_manager.get_sandbox(sandbox_id)
         if not sb:
             logger.warning("verify_merge: unknown sandbox %s", sandbox_id)
             return None
 
-        result = _run_cmd(["git", "pull", "origin", "main"], cwd=self._repo_root)
-        if result.returncode != 0:
-            logger.warning("git pull failed: %s", result.stderr)
-
-        result = _run_cmd(
-            ["git", "log", "--oneline", "-20", "main"], cwd=self._repo_root
-        )
-        log_output = result.stdout if result.returncode == 0 else ""
-
-        branch_short = sb.branch_name.split("/")[-1] if sb.branch_name else ""
-        merge_found = branch_short and branch_short in log_output
-
-        if not merge_found and sb.pr_number:
-            merge_found = f"#{sb.pr_number}" in log_output
-
-        if not merge_found:
-            logger.info("Merge not detected for sandbox %s", sandbox_id)
-            return None
-
-        result = _run_cmd(
-            ["git", "rev-parse", "HEAD"], cwd=self._repo_root
-        )
-        merge_commit = result.stdout.strip() if result.returncode == 0 else "unknown"
-
-        post_validation = self._run_post_merge_validation()
-
-        manifest_path = os.path.join(
-            self._store_dir, "manifests",
-        )
         manifest_id = ""
+        expected_files: list[str] = []
         for rp in self._review_packets:
             if rp.sandbox_id == sandbox_id:
                 manifest_id = rp.manifest_id
+                if rp.manifest:
+                    expected_files = [cf.path for cf in rp.manifest.changed_files]
                 break
 
-        outcome = ProductionOutcomeCommitted(
+        verifier = ProductionMergeVerifier(
+            sandbox_manager=self._sandbox_manager,
+            repo_root=self._repo_root,
+            store_dir=os.path.join(self._store_dir, "merge_verifications"),
+            on_production_outcome=self._on_production_outcome,
+        )
+
+        verification = verifier.verify_merge(
             sandbox_id=sandbox_id,
-            manifest_id=manifest_id,
             pr_number=sb.pr_number,
-            merge_commit=merge_commit,
-            branch_name=sb.branch_name,
-            post_merge_validation_passed=post_validation,
-            production_propagation_complete=post_validation,
+            manifest_id=manifest_id,
+            expected_files=expected_files,
         )
 
-        self._sandbox_manager.update_status(
-            sandbox_id, SandboxStatus.MERGED, head_commit=merge_commit
+        from substrate.organism.production_merge_verifier import MergeVerificationStatus
+
+        if verification.status in (
+            MergeVerificationStatus.PRODUCTION_VERIFIED,
+            MergeVerificationStatus.CLEANUP_READY,
+        ):
+            outcome = ProductionOutcomeCommitted(
+                sandbox_id=sandbox_id,
+                manifest_id=manifest_id,
+                pr_number=sb.pr_number,
+                merge_commit=verification.merge_commit,
+                base_commit=verification.base_commit,
+                head_commit=verification.head_commit,
+                branch_name=sb.branch_name,
+                post_merge_validation_passed=True,
+                production_propagation_complete=True,
+                production_truth_delta=(
+                    verification.truth_delta.to_dict()
+                    if verification.truth_delta else {}
+                ),
+                changed_files=verification.observed_files,
+                affected_subsystems=[
+                    "world_model", "contradiction_engine", "readiness_model",
+                    "dependency_graph", "template_registry", "agent_capability_model",
+                ],
+            )
+            return outcome
+
+        logger.info(
+            "Merge verification for %s ended with status %s: %s",
+            sandbox_id, verification.status.value, verification.error,
         )
-
-        if self._on_production_outcome:
-            self._on_production_outcome(outcome)
-
-        self._sandbox_manager.cleanup_sandbox(sandbox_id)
-
-        return outcome
+        return None
 
     def _apply_changes(
         self,

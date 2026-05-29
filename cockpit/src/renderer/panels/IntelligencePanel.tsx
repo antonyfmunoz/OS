@@ -329,6 +329,84 @@ export function IntelligencePanel() {
         )}
       </section>
 
+      {/* ── Phase 9.8: Autonomous Cadence ── */}
+      <section>
+        <h3 className="wv-label mb-3">
+          Autonomous Cadence
+          {coherence.cadence && (
+            <span className="ml-2 font-mono text-xs text-cyan">
+              {coherence.cadence.mode}
+            </span>
+          )}
+        </h3>
+        {coherence.cadence ? (
+          <div className="wv-card p-3 space-y-1">
+            <div className="flex items-center gap-3">
+              <span className="wv-label w-40">Mode</span>
+              <span className={`font-mono text-xs px-1.5 py-0.5 rounded uppercase ${
+                coherence.cadence.mode === 'off' ? 'bg-surface-overlay text-text-secondary' :
+                coherence.cadence.mode === 'dry_run_only' ? 'bg-cyan/20 text-cyan' :
+                'bg-warn/20 text-warn'
+              }`}>{coherence.cadence.mode}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="wv-label w-40">Dry runs today</span>
+              <span className="font-mono text-xs">{coherence.cadence.dry_runs_today}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="wv-label w-40">PRs today</span>
+              <span className="font-mono text-xs">{coherence.cadence.prs_today}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="wv-label w-40">Total runs</span>
+              <span className="font-mono text-xs">{coherence.cadence.total_runs}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="wv-label w-40">Pending recs</span>
+              <span className="font-mono text-xs">{coherence.cadence.pending_recommendations}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="wv-label w-40">Should run</span>
+              <span className={`font-mono text-xs ${coherence.cadence.should_run ? 'text-ok' : 'text-text-tertiary'}`}>
+                {coherence.cadence.should_run ? 'yes' : 'no'}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-text-tertiary">Cadence not available</p>
+        )}
+      </section>
+
+      {/* ── Phase 9.8: Merge Verifications ── */}
+      {coherence.mergeVerifications && coherence.mergeVerifications.count > 0 && (
+        <section>
+          <h3 className="wv-label mb-3">
+            Merge Verifications
+            <span className="ml-2 font-mono text-xs text-cyan">{coherence.mergeVerifications.count}</span>
+          </h3>
+          <div className="space-y-1.5">
+            {coherence.mergeVerifications.verifications.slice(-5).reverse().map((mv: Record<string, unknown>) => (
+              <div key={mv.verification_id as string} className="wv-card p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`font-mono text-xs px-1.5 py-0.5 rounded uppercase ${
+                    mv.status === 'production_verified' || mv.status === 'cleanup_ready' ? 'bg-ok/20 text-ok' :
+                    mv.status === 'validation_failed' || mv.status === 'production_rejected' ? 'bg-danger/20 text-danger' :
+                    'bg-surface-overlay text-text-secondary'
+                  }`}>{mv.status as string}</span>
+                  <span className="font-mono text-xs text-text-tertiary">{mv.verification_id as string}</span>
+                </div>
+                {(mv.pr_number as number) > 0 && (
+                  <p className="text-xs font-mono text-ok">PR #{mv.pr_number as number}</p>
+                )}
+                {mv.merge_commit && (
+                  <p className="text-xs font-mono text-text-tertiary">merge: {(mv.merge_commit as string).slice(0, 12)}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ── Phase 9.4: Coherence Propagation ── */}
 
       {/* Template Registry */}
