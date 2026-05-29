@@ -25,6 +25,7 @@ from typing import Any
 
 import psutil
 from fastapi import APIRouter, Depends, HTTPException, Request, Security, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
 
 logger = logging.getLogger(__name__)
@@ -3015,16 +3016,88 @@ async def execution_resume(payload: dict):
     return {"ok": True}
 
 
-# ── Chat push (cross-channel → cockpit real-time) ─────────────────────────────
+# ── Chat endpoints (operator ↔ DEX right-rail conversation) ───────────────────
+
+@router.get("/chat/history")
+async def chat_history():
+    """Return chat history for the cockpit right-rail ChatDrawer."""
+    try:
+        from substrate.organism.store import OrganismStore
+        store = OrganismStore()
+        messages = store.list_messages(limit=50)
+        result = []
+        for m in messages:
+            intent = m.get("intent", "")
+            payload = m.get("payload", {})
+            if intent == "report":
+                content = f"**{payload.get('title', 'Report')}**\n{payload.get('summary', '')}"
+            elif intent == "converse":
+                content = payload.get("content", "")
+            else:
+                content = payload.get("content", "") or payload.get("task", "") or str(payload)[:200]
+            result.append({
+                "id": m.get("id", ""),
+                "sender": m.get("sender", "system"),
+                "content": content,
+                "response": None if m.get("sender") == "system" else payload.get("response"),
+                "timestamp": m.get("created_at", ""),
+                "origin_channel": m.get("origin_channel"),
+            })
+        return result
+    except Exception as e:
+        logger.error("chat_history failed: %s", e)
+        return []
+
+
+@router.post("/chat/converse", dependencies=[Depends(_require_operator_role)])
+async def chat_converse(request: Request):
+    """Route operator message through organism conversation pipeline."""
+    body = await request.json()
+    content = (body.get("content") or "").strip()
+    if not content:
+        return JSONResponse({"error": "content is required"}, status_code=400)
+    try:
+        from substrate.organism.store import OrganismStore
+        store = OrganismStore()
+        inbound, outbound = store.save_conversation_turn(
+            content=content,
+            response="Acknowledged. Processing via organism.",
+            origin_channel="cockpit",
+        )
+        return {
+            "message_id": str(inbound.id),
+            "response": outbound.payload.get("content", "Acknowledged."),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    except Exception as e:
+        logger.error("chat_converse failed: %s", e)
+        return {
+            "message_id": f"dex-{int(time.time() * 1000)}",
+            "response": f"Error: {e}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+
+@router.post("/chat/send", dependencies=[Depends(_require_operator_role)])
+async def chat_send(request: Request):
+    """Send a message to a specific channel (Discord, etc)."""
+    body = await request.json()
+    content = (body.get("content") or "").strip()
+    if not content:
+        return JSONResponse({"error": "content is required"}, status_code=400)
+    try:
+        from substrate.organism.store import OrganismStore
+        store = OrganismStore()
+        channel = body.get("channel", "cockpit")
+        store.save_conversation_turn(content=content, response="", origin_channel=channel)
+        return {"success": True}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 
 @router.post("/chat/push")
 async def chat_push(request: Request):
-    """Push a chat message to connected cockpit WS clients.
-
-    Used by Discord bot and other channels to surface cross-channel
-    messages in the cockpit in near-real-time. Internal-only.
-    API key auth is inherited from the router prefix dependency.
-    """
+    """Push a chat message to connected cockpit WS clients."""
     body = await request.json()
     push_chat_message(body)
     return {"ok": True}
