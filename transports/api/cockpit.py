@@ -3074,7 +3074,7 @@ async def chat_history():
             payload = m.get("payload", {})
             raw_sender = m.get("sender", "system")
             attachment = None
-            if intent == "report":
+            if intent == "report" and raw_sender in ("system", "dex", ""):
                 meta = payload.get("metadata", {})
                 title = str(payload.get("title", "Report"))[:200]
                 summary = payload.get("summary", "")
