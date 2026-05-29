@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send, Pencil, Check, Download } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -8,6 +8,7 @@ import { useChatStore, type ChatMessage, type Provenance, type Attachment } from
 import { usePolling } from '../hooks/usePolling'
 import { relativeTime } from '../lib/time'
 import { useConfigStore } from '../stores/configStore'
+import { getApiKey } from '../api/client'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
 
@@ -127,13 +128,27 @@ function ProvenanceLine({ provenance }: { provenance: Provenance }) {
 }
 
 function AttachmentLink({ attachment }: { attachment: Attachment }) {
-  const href = `${API_URL}/chat/attachment?path=${encodeURIComponent(attachment.path)}`
+  const handleDownload = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault()
+    const url = `${API_URL}/chat/attachment?path=${encodeURIComponent(attachment.path)}`
+    const headers: Record<string, string> = {}
+    const key = getApiKey()
+    if (key) headers['X-API-Key'] = key
+    const res = await fetch(url, { headers })
+    if (!res.ok) return
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = attachment.filename
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }, [attachment])
+
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-1.5 mt-1.5 py-1 px-1.5 rounded text-[10px] font-mono no-underline transition-colors"
+    <button
+      type="button"
+      onClick={handleDownload}
+      className="flex items-center gap-1.5 mt-1.5 py-1 px-1.5 rounded text-[10px] font-mono transition-colors cursor-pointer w-full text-left"
       style={{
         background: 'var(--color-surface)',
         border: '1px solid var(--color-border)',
@@ -145,7 +160,7 @@ function AttachmentLink({ attachment }: { attachment: Attachment }) {
       <Download size={10} />
       <span className="truncate flex-1">{attachment.filename}</span>
       <span style={{ color: 'var(--color-text-tertiary)' }}>DOWNLOAD</span>
-    </a>
+    </button>
   )
 }
 
