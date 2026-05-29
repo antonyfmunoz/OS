@@ -1,20 +1,19 @@
 {
   "phase": "9.5A",
   "test": "failure_isolation_proof",
-  "timestamp": 1780086130.219324,
-  "event_id": "pe-71c2e2e2",
+  "timestamp": 1780087252.5127716,
+  "propagation_event_id": "pe-f9836eee",
+  "total_waves": 2,
   "total_targets": 4,
-  "succeeded_targets": 3,
-  "failed_targets": 1,
-  "results_by_name": {
-    "healthy_target_1": "completed",
-    "healthy_target_2": "completed",
-    "broken_target": "failed",
-    "wave2_dependent": "completed"
-  },
-  "broken_target_failed": true,
-  "healthy_1_completed": true,
-  "healthy_2_completed": true,
-  "wave2_still_ran": true,
-  "execution_not_affected": true
+  "broken_target_status": "failed",
+  "broken_target_error": "intentional target failure",
+  "healthy_w1_a_status": "completed",
+  "healthy_w1_b_status": "completed",
+  "healthy_w2_status": "completed",
+  "sibling_targets_completed": true,
+  "wave2_ran_despite_wave1_failure": true,
+  "overall_event_status": "failed",
+  "succeeded_count": 3,
+  "failed_count": 1,
+  "all_isolation_criteria_met": true
 }
