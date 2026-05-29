@@ -3168,11 +3168,12 @@ async def chat_attachment(path: str):
     from fastapi.responses import FileResponse
 
     repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
-    roots = {repo_root, "/opt/OS"}
-    allowed_dirs = []
-    for r in roots:
-        allowed_dirs.append(PathLib(os.path.realpath(os.path.join(r, "docs"))))
-        allowed_dirs.append(PathLib(os.path.realpath(os.path.join(r, "data", "audits"))))
+    if path.startswith("/opt/OS/") and repo_root != "/opt/OS":
+        path = os.path.join(repo_root, path[len("/opt/OS/"):])
+    allowed_dirs = [
+        PathLib(os.path.realpath(os.path.join(repo_root, "docs"))),
+        PathLib(os.path.realpath(os.path.join(repo_root, "data", "audits"))),
+    ]
     resolved = PathLib(os.path.realpath(path))
     if not any(resolved.is_relative_to(d) for d in allowed_dirs):
         raise HTTPException(status_code=403, detail="Path outside allowed directories")
