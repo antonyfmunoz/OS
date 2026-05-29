@@ -118,54 +118,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const history = await fetchApi<Array<{
         id: string
-        sender?: string
+        sender: string
         content: string
-        response: string | null
         timestamp: string
         origin_channel?: string
         intent?: string
         title?: string
         provenance?: Provenance
         attachment?: Attachment
-      }>>('/dex/history?limit=50')
+      }>>('/chat/history')
 
-      const messages: ChatMessage[] = []
-      for (const exchange of history) {
-        if (exchange.intent === 'report') {
-          messages.push({
-            id: `h-rpt-${exchange.id}`,
-            sender: 'assistant',
-            content: exchange.response || exchange.content || '',
-            timestamp: exchange.timestamp,
-            intent: 'report',
-            title: exchange.title,
-            provenance: exchange.provenance,
-            attachment: exchange.attachment,
-          })
-          continue
-        }
-
-        if (exchange.content) {
-          messages.push({
-            id: `h-op-${exchange.id}`,
-            sender: 'operator',
-            content: exchange.content,
-            timestamp: exchange.timestamp,
-            origin_channel: exchange.origin_channel,
-          })
-        }
-        if (exchange.response) {
-          messages.push({
-            id: `h-ai-${exchange.id}`,
-            sender: 'assistant',
-            content: typeof exchange.response === 'string'
-              ? exchange.response
-              : JSON.stringify(exchange.response),
-            timestamp: exchange.timestamp,
-            origin_channel: exchange.origin_channel,
-          })
-        }
-      }
+      const messages: ChatMessage[] = history.map((m) => ({
+        id: `h-${m.id}`,
+        sender: (m.sender === 'operator' ? 'operator' : 'assistant') as ChatMessage['sender'],
+        content: m.content,
+        timestamp: m.timestamp,
+        origin_channel: m.origin_channel,
+        intent: m.intent as ChatMessage['intent'],
+        title: m.title,
+        provenance: m.provenance,
+        attachment: m.attachment,
+      }))
       set({ messages })
     } catch {
       // History load failure is non-critical

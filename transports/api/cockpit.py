@@ -3072,34 +3072,53 @@ async def chat_history():
         for m in messages:
             intent = m.get("intent", "")
             payload = m.get("payload", {})
-            sender = m.get("sender", "system")
-            if intent == "report" and sender in ("system", "dex"):
+            raw_sender = m.get("sender", "system")
+            attachment = None
+            if intent == "report":
                 meta = payload.get("metadata", {})
                 title = str(payload.get("title", "Report"))[:200]
                 summary = payload.get("summary", "")
                 file_path = str(payload.get("file_path", ""))[:500]
-                prov = []
+                prov_parts = []
                 if meta.get("phase"):
-                    prov.append(f"Phase {str(meta['phase'])[:20]}")
+                    prov_parts.append(f"Phase {str(meta['phase'])[:20]}")
                 if meta.get("pr"):
-                    prov.append(f"PR #{str(meta['pr'])[:20]}")
-                prov.append("VPS / Claude Code session")
-                content = f"📋 {title}\n{' · '.join(prov)}\n\n{summary}"
-                if file_path:
-                    content += f"\n\n📎 {file_path}"
+                    prov_parts.append(f"PR #{str(meta['pr'])[:20]}")
+                prov_parts.append("VPS / Claude Code session")
+                content = f"{title}\n{' · '.join(prov_parts)}\n\n{summary}"
                 sender = "assistant"
+                provenance = {
+                    "node": "VPS",
+                    "harness": "Claude Code",
+                    "phase": str(meta.get("phase", ""))[:20] if meta.get("phase") else None,
+                    "pr": str(meta.get("pr", ""))[:20] if meta.get("pr") else None,
+                }
+                if file_path:
+                    filename = file_path.rsplit("/", 1)[-1] if "/" in file_path else file_path
+                    attachment = {"path": file_path, "filename": filename}
             elif intent == "converse":
                 content = payload.get("content", "")
+                sender = "operator" if raw_sender == "operator" else "assistant"
+                provenance = None
             else:
                 content = payload.get("content", "") or payload.get("task", "") or str(payload)[:200]
-            result.append({
+                sender = "operator" if raw_sender == "operator" else "assistant"
+                provenance = None
+            entry: dict[str, Any] = {
                 "id": m.get("id", ""),
                 "sender": sender,
                 "content": content,
-                "response": None,
                 "timestamp": m.get("created_at", ""),
                 "origin_channel": m.get("origin_channel"),
-            })
+            }
+            if intent == "report":
+                entry["intent"] = "report"
+                entry["title"] = title
+                if provenance:
+                    entry["provenance"] = {k: v for k, v in provenance.items() if v}
+                if attachment:
+                    entry["attachment"] = attachment
+            result.append(entry)
         return result
     except Exception as e:
         logger.error("chat_history failed: %s", e)
