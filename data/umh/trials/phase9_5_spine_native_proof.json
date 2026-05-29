@@ -1,0 +1,23 @@
+{
+  "phase": "9.5",
+  "test": "spine_native_propagation_proof",
+  "timestamp": 1780075443.9856968,
+  "timestamp_human": "2026-05-29 10:24:03",
+  "envelope_id": "61a593cd55e0419e",
+  "envelope_status": "verified",
+  "result_success": true,
+  "outcome_committed_emitted": true,
+  "outcome_committed_event_id": "oc-1234b9e9",
+  "propagation_event_id": "pe-fa89acba",
+  "propagation_targets_total": 4,
+  "propagation_targets_succeeded": 4,
+  "propagation_targets_failed": 0,
+  "template_candidate_generated": true,
+  "template_count": 1,
+  "agent_reliability_updated": true,
+  "world_model_updated": true,
+  "learning_loop_updated": true,
+  "manual_propagation_called": false,
+  "spine_native_propagation": true,
+  "all_success_criteria_met": true
+}
