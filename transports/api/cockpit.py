@@ -3079,20 +3079,21 @@ async def chat_history():
                 title = str(payload.get("title", "Report"))[:200]
                 summary = payload.get("summary", "")
                 file_path = str(payload.get("file_path", ""))[:500]
-                prov_parts = []
-                if meta.get("phase"):
-                    prov_parts.append(f"Phase {str(meta['phase'])[:20]}")
-                if meta.get("pr"):
-                    prov_parts.append(f"PR #{str(meta['pr'])[:20]}")
-                prov_parts.append("VPS / Claude Code session")
-                content = f"{title}\n{' · '.join(prov_parts)}\n\n{summary}"
+                conv_id = m.get("conversation_id", "")
+                content = summary
                 sender = "assistant"
-                provenance = {
+                provenance: dict[str, Any] = {
                     "node": "VPS",
                     "harness": "Claude Code",
-                    "phase": str(meta.get("phase", ""))[:20] if meta.get("phase") else None,
-                    "pr": str(meta.get("pr", ""))[:20] if meta.get("pr") else None,
                 }
+                if conv_id:
+                    provenance["session"] = str(conv_id)[:12]
+                if meta.get("phase"):
+                    provenance["phase"] = str(meta["phase"])[:20]
+                if meta.get("pr"):
+                    provenance["pr"] = int(meta["pr"]) if str(meta["pr"]).isdigit() else str(meta["pr"])[:20]
+                if meta.get("task"):
+                    provenance["task"] = str(meta["task"])[:100]
                 if file_path:
                     filename = file_path.rsplit("/", 1)[-1] if "/" in file_path else file_path
                     attachment = {"path": file_path, "filename": filename}
