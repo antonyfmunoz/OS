@@ -1740,19 +1740,20 @@ async def dex_history(limit: int = 50):
         exchanges.append(exchange)
         i += 1
 
+    _REPORT_SENDERS = {"system", "dex"}
     for m in messages:
-        if m.get("intent") == "report":
+        if m.get("intent") == "report" and m.get("sender", "") in _REPORT_SENDERS:
             payload = m.get("payload", {})
-            title = payload.get("title", "Report")
+            title = str(payload.get("title", "Report"))[:200]
             summary = payload.get("summary", "")
             meta = payload.get("metadata", {})
-            file_path = payload.get("file_path", "")
+            file_path = str(payload.get("file_path", ""))[:500]
 
             provenance_parts = []
             if meta.get("phase"):
-                provenance_parts.append(f"Phase {meta['phase']}")
+                provenance_parts.append(f"Phase {str(meta['phase'])[:20]}")
             if meta.get("pr"):
-                provenance_parts.append(f"PR #{meta['pr']}")
+                provenance_parts.append(f"PR #{str(meta['pr'])[:20]}")
             provenance_parts.append("VPS / Claude Code session")
             provenance = " · ".join(provenance_parts)
 
@@ -3059,16 +3060,16 @@ async def chat_history():
             intent = m.get("intent", "")
             payload = m.get("payload", {})
             sender = m.get("sender", "system")
-            if intent == "report":
+            if intent == "report" and sender in ("system", "dex"):
                 meta = payload.get("metadata", {})
-                title = payload.get("title", "Report")
+                title = str(payload.get("title", "Report"))[:200]
                 summary = payload.get("summary", "")
-                file_path = payload.get("file_path", "")
+                file_path = str(payload.get("file_path", ""))[:500]
                 prov = []
                 if meta.get("phase"):
-                    prov.append(f"Phase {meta['phase']}")
+                    prov.append(f"Phase {str(meta['phase'])[:20]}")
                 if meta.get("pr"):
-                    prov.append(f"PR #{meta['pr']}")
+                    prov.append(f"PR #{str(meta['pr'])[:20]}")
                 prov.append("VPS / Claude Code session")
                 content = f"📋 {title}\n{' · '.join(prov)}\n\n{summary}"
                 if file_path:
