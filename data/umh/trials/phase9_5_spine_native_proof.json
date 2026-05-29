@@ -1,23 +1,294 @@
 {
   "phase": "9.5",
-  "test": "spine_native_propagation_proof",
-  "timestamp": 1780075443.9856968,
-  "timestamp_human": "2026-05-29 10:24:03",
-  "envelope_id": "61a593cd55e0419e",
-  "envelope_status": "verified",
-  "result_success": true,
-  "outcome_committed_emitted": true,
-  "outcome_committed_event_id": "oc-1234b9e9",
-  "propagation_event_id": "pe-fa89acba",
-  "propagation_targets_total": 4,
-  "propagation_targets_succeeded": 4,
-  "propagation_targets_failed": 0,
-  "template_candidate_generated": true,
-  "template_count": 1,
-  "agent_reliability_updated": true,
-  "world_model_updated": true,
-  "learning_loop_updated": true,
+  "test_type": "spine_native_propagation_proof",
+  "timestamp": 1780078234.3059926,
+  "envelope": {
+    "envelope_id": "067dd31369e245e5",
+    "status": "verified",
+    "success": true,
+    "intent": "Phase 9.5 spine-native propagation proof",
+    "action_type": "state",
+    "risk_level": "low"
+  },
+  "propagation_event": {
+    "event_id": "pe-d58e32b4",
+    "outcome_event_id": "oc-37b015f1",
+    "status": "completed",
+    "waves": [
+      {
+        "wave_number": 1,
+        "targets": [
+          {
+            "name": "outcome_learning",
+            "primitive_relationship": "feedback",
+            "wave": 1,
+            "has_handler": true
+          },
+          {
+            "name": "template_generation",
+            "primitive_relationship": "action",
+            "wave": 1,
+            "has_handler": true
+          },
+          {
+            "name": "memory_generation",
+            "primitive_relationship": "feedback",
+            "wave": 1,
+            "has_handler": true
+          },
+          {
+            "name": "agent_capability_update",
+            "primitive_relationship": "resource",
+            "wave": 1,
+            "has_handler": true
+          },
+          {
+            "name": "world_model_evidence",
+            "primitive_relationship": "state",
+            "wave": 1,
+            "has_handler": true
+          }
+        ],
+        "results": [
+          {
+            "target_name": "template_generation",
+            "primitive_relationship": "action",
+            "status": "completed",
+            "duration_ms": 0.7,
+            "input_evidence": [
+              "output: Spine-native propagation test executed successfully"
+            ],
+            "output_artifact": "{\"template_id\": \"tpl-3fdf4a7d\", \"template_type\": \"maintenance_action\", \"confidence\": 0.6}",
+            "error": "",
+            "wave": 1
+          },
+          {
+            "target_name": "outcome_learning",
+            "primitive_relationship": "feedback",
+            "status": "completed",
+            "duration_ms": 3.1,
+            "input_evidence": [
+              "output: Spine-native propagation test executed successfully"
+            ],
+            "output_artifact": "{\"recorded\": true, \"action_type\": \"state\", \"status\": \"success\"}",
+            "error": "",
+            "wave": 1
+          },
+          {
+            "target_name": "agent_capability_update",
+            "primitive_relationship": "resource",
+            "status": "completed",
+            "duration_ms": 2.0,
+            "input_evidence": [
+              "output: Spine-native propagation test executed successfully"
+            ],
+            "output_artifact": "{\"records_created\": 2, \"agent_type\": \"developer_agent\", \"success\": true}",
+            "error": "",
+            "wave": 1
+          },
+          {
+            "target_name": "memory_generation",
+            "primitive_relationship": "feedback",
+            "status": "completed",
+            "duration_ms": 2.7,
+            "input_evidence": [
+              "output: Spine-native propagation test executed successfully"
+            ],
+            "output_artifact": "{\"candidates_generated\": 2, \"ids\": [\"2b635ec5\", \"be713793\"]}",
+            "error": "",
+            "wave": 1
+          },
+          {
+            "target_name": "world_model_evidence",
+            "primitive_relationship": "state",
+            "status": "completed",
+            "duration_ms": 10.4,
+            "input_evidence": [
+              "output: Spine-native propagation test executed successfully"
+            ],
+            "output_artifact": "{\"entities_checked\": 70, \"entities_matched\": 0, \"evidence_attached\": 1}",
+            "error": "",
+            "wave": 1
+          }
+        ],
+        "status": "completed",
+        "started_at": 1780078234.2773592,
+        "completed_at": 1780078234.2918134
+      },
+      {
+        "wave_number": 2,
+        "targets": [
+          {
+            "name": "contradiction_recheck",
+            "primitive_relationship": "constraint",
+            "wave": 2,
+            "has_handler": true
+          },
+          {
+            "name": "readiness_recalculate",
+            "primitive_relationship": "state",
+            "wave": 2,
+            "has_handler": true
+          },
+          {
+            "name": "bottleneck_recalculate",
+            "primitive_relationship": "state",
+            "wave": 2,
+            "has_handler": true
+          },
+          {
+            "name": "composition_template_refresh",
+            "primitive_relationship": "goal",
+            "wave": 2,
+            "has_handler": true
+          },
+          {
+            "name": "dependency_recompute",
+            "primitive_relationship": "constraint",
+            "wave": 2,
+            "has_handler": true
+          }
+        ],
+        "results": [
+          {
+            "target_name": "bottleneck_recalculate",
+            "primitive_relationship": "state",
+            "status": "completed",
+            "duration_ms": 0.0,
+            "input_evidence": [
+              "output: Spine-native propagation test executed successfully"
+            ],
+            "output_artifact": "{\"active_bottlenecks\": 0, \"recalculated\": true}",
+            "error": "",
+            "wave": 2
+          },
+          {
+            "target_name": "composition_template_refresh",
+            "primitive_relationship": "goal",
+            "status": "completed",
+            "duration_ms": 0.0,
+            "input_evidence": [
+              "output: Spine-native propagation test executed successfully"
+            ],
+            "output_artifact": "{\"promoted_templates\": 0, \"total_candidates\": 1, \"index_refreshed\": true}",
+            "error": "",
+            "wave": 2
+          },
+          {
+            "target_name": "readiness_recalculate",
+            "primitive_relationship": "state",
+            "status": "completed",
+            "duration_ms": 4.8,
+            "input_evidence": [
+              "output: Spine-native propagation test executed successfully"
+            ],
+            "output_artifact": "{\"composite_score\": 28.3, \"status\": \"critical\"}",
+            "error": "",
+            "wave": 2
+          },
+          {
+            "target_name": "dependency_recompute",
+            "primitive_relationship": "constraint",
+            "status": "completed",
+            "duration_ms": 8.5,
+            "input_evidence": [
+              "output: Spine-native propagation test executed successfully"
+            ],
+            "output_artifact": "{\"edges\": 32, \"orphans\": 43, \"recomputed\": true}",
+            "error": "",
+            "wave": 2
+          },
+          {
+            "target_name": "contradiction_recheck",
+            "primitive_relationship": "constraint",
+            "status": "completed",
+            "duration_ms": 12.6,
+            "input_evidence": [
+              "output: Spine-native propagation test executed successfully"
+            ],
+            "output_artifact": "{\"contradictions_after\": 15, \"severity_counts\": {\"medium\": 1, \"info\": 14}}",
+            "error": "",
+            "wave": 2
+          }
+        ],
+        "status": "completed",
+        "started_at": 1780078234.2918243,
+        "completed_at": 1780078234.3051941
+      }
+    ],
+    "started_at": 1780078234.2773337,
+    "completed_at": 1780078234.3052115,
+    "total_targets": 10,
+    "succeeded_targets": 10,
+    "failed_targets": 0,
+    "skipped_targets": 0
+  },
   "manual_propagation_called": false,
-  "spine_native_propagation": true,
-  "all_success_criteria_met": true
+  "spine_native": true,
+  "pre_state": {
+    "template_candidates": 0,
+    "outcome_records": 0,
+    "agent_profiles": 0,
+    "propagation_events": 0
+  },
+  "post_state": {
+    "template_candidates": 1,
+    "outcome_records": 1,
+    "agent_profiles": 1,
+    "propagation_events": 1
+  },
+  "assertions_passed": [
+    "envelope verified",
+    "propagation event created automatically",
+    "template candidate generated",
+    "outcome record created",
+    "agent capability updated",
+    "succeeded_targets=10 >= 5"
+  ],
+  "wave_results": {
+    "wave_1": {
+      "template_generation": {
+        "status": "completed",
+        "duration_ms": 0.7
+      },
+      "outcome_learning": {
+        "status": "completed",
+        "duration_ms": 3.1
+      },
+      "agent_capability_update": {
+        "status": "completed",
+        "duration_ms": 2.0
+      },
+      "memory_generation": {
+        "status": "completed",
+        "duration_ms": 2.7
+      },
+      "world_model_evidence": {
+        "status": "completed",
+        "duration_ms": 10.4
+      }
+    },
+    "wave_2": {
+      "bottleneck_recalculate": {
+        "status": "completed",
+        "duration_ms": 0.0
+      },
+      "composition_template_refresh": {
+        "status": "completed",
+        "duration_ms": 0.0
+      },
+      "readiness_recalculate": {
+        "status": "completed",
+        "duration_ms": 4.8
+      },
+      "dependency_recompute": {
+        "status": "completed",
+        "duration_ms": 8.5
+      },
+      "contradiction_recheck": {
+        "status": "completed",
+        "duration_ms": 12.6
+      }
+    }
+  }
 }

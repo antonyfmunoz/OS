@@ -1,0 +1,217 @@
+[
+  {
+    "source": "contradiction",
+    "description": "File has zero bytes",
+    "severity": "medium",
+    "risk": "low",
+    "recommended_fix": "Verify data pipeline writes to data/umh/organism/execution_journal.jsonl",
+    "entity_id": "store_execution_journal_jsonl",
+    "contradiction_type": "data_integrity",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'ActivityPanel' data source",
+    "entity_id": "panel_activity",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'AgentsPanel' data source",
+    "entity_id": "panel_agents",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'ApprovalsPanel' data source",
+    "entity_id": "panel_approvals",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'CompanyPanel' data source",
+    "entity_id": "panel_company",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'ExperimentsPanel' data source",
+    "entity_id": "panel_experiments",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'InfrastructurePanel' data source",
+    "entity_id": "panel_infrastructure",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'IntelligencePanel' data source",
+    "entity_id": "panel_intelligence",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'PortfolioPanel' data source",
+    "entity_id": "panel_portfolio",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'ProfilePanel' data source",
+    "entity_id": "panel_profile",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'SkillsPanel' data source",
+    "entity_id": "panel_skills",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'TasksPanel' data source",
+    "entity_id": "panel_tasks",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'TrackingPanel' data source",
+    "entity_id": "panel_tracking",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'WorkflowsPanel' data source",
+    "entity_id": "panel_workflows",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "contradiction",
+    "description": "Panel may use a shared route or have no backend",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Verify panel 'WorldModelPanel' data source",
+    "entity_id": "panel_worldmodel",
+    "contradiction_type": "route_mismatch",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "dependency_orphan",
+    "description": "Orphaned subsystem in dependency graph: transport_operator_api",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Add dependency edges for transport_operator_api",
+    "entity_id": "transport_operator_api",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "dependency_orphan",
+    "description": "Orphaned subsystem in dependency graph: panel_activity",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Add dependency edges for panel_activity",
+    "entity_id": "panel_activity",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "dependency_orphan",
+    "description": "Orphaned subsystem in dependency graph: panel_agents",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Add dependency edges for panel_agents",
+    "entity_id": "panel_agents",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "dependency_orphan",
+    "description": "Orphaned subsystem in dependency graph: panel_analytics",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Add dependency edges for panel_analytics",
+    "entity_id": "panel_analytics",
+    "reversible": true,
+    "measurable": true
+  },
+  {
+    "source": "dependency_orphan",
+    "description": "Orphaned subsystem in dependency graph: panel_approvals",
+    "severity": "info",
+    "risk": "low",
+    "recommended_fix": "Add dependency edges for panel_approvals",
+    "entity_id": "panel_approvals",
+    "reversible": true,
+    "measurable": true
+  }
+]

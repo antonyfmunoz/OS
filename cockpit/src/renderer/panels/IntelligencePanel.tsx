@@ -336,6 +336,42 @@ export function IntelligencePanel() {
         )}
       </section>
 
+      {/* Spine-Native Propagation Status */}
+      <section>
+        <h3 className="wv-label mb-3">
+          Spine-Native Propagation
+          {coherence.propagation?.spine_native ? (
+            <span className="ml-2 font-mono text-xs text-ok">ACTIVE</span>
+          ) : (
+            <span className="ml-2 font-mono text-xs text-warn">NOT WIRED</span>
+          )}
+        </h3>
+        <div className="wv-card p-3 space-y-1">
+          <div className="flex items-center gap-3">
+            <span className="wv-label w-40">Automatic propagation</span>
+            <span className={`font-mono text-xs ${coherence.propagation?.spine_native ? 'text-ok' : 'text-danger'}`}>
+              {coherence.propagation?.spine_native ? 'Yes — spine emits OutcomeCommitted automatically' : 'No — requires manual calls'}
+            </span>
+          </div>
+          {coherence.propagation?.summary && (
+            <>
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">Targets registered</span>
+                <span className="font-mono text-xs">{coherence.propagation.summary.registered_targets}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">Processed outcomes</span>
+                <span className="font-mono text-xs">{coherence.propagation.processed_outcome_count ?? 0}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="wv-label w-40">Total propagations</span>
+                <span className="font-mono text-xs">{coherence.propagation.summary.total_events}</span>
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+
       {/* Propagation Events */}
       <section>
         <h3 className="wv-label mb-3">

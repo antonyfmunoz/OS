@@ -1,0 +1,175 @@
+{
+  "phase": "9.5",
+  "campaign_type": "template_guided_improvement",
+  "timestamp": 1780078315.202098,
+  "baseline": {
+    "contradictions": 15,
+    "entities": 70,
+    "readiness": 28.3,
+    "templates": 0,
+    "promoted": 0,
+    "agent_profiles": 0
+  },
+  "after": {
+    "contradictions": 15,
+    "entities": 70,
+    "readiness": 28.3,
+    "templates": 4,
+    "promoted": 1,
+    "agent_profiles": 1,
+    "propagation_events": 4
+  },
+  "trials": [
+    {
+      "trial_id": "campaign_trial_1",
+      "description": "Contradiction verification",
+      "template_id": "tpl-3f614958",
+      "source_type": "template_guided",
+      "status": "verified",
+      "success": true,
+      "template_confidence_before": 0.6,
+      "template_confidence_after": 1.0
+    },
+    {
+      "trial_id": "campaign_trial_2",
+      "description": "Readiness dimension assessment",
+      "template_id": "tpl-3f614958",
+      "source_type": "template_guided",
+      "status": "verified",
+      "success": true,
+      "template_confidence_before": 1.0,
+      "template_confidence_after": 1.0
+    },
+    {
+      "trial_id": "campaign_trial_3",
+      "description": "Dependency graph orphan documentation",
+      "template_id": "tpl-3f614958",
+      "source_type": "template_guided",
+      "status": "verified",
+      "success": true,
+      "template_confidence_before": 1.0,
+      "template_confidence_after": 1.0
+    }
+  ],
+  "template_confidence_progression": {
+    "initial": 0.6,
+    "after_seed": 0.6,
+    "after_trial_1": 1.0,
+    "after_trial_2": 1.0,
+    "after_trial_3": 1.0
+  },
+  "agent_capability": {
+    "agent_type": "developer_agent",
+    "overall_reliability": 1.0,
+    "total_attempts": 10,
+    "total_successes": 10,
+    "total_failures": 0,
+    "capabilities": {
+      "code_search": {
+        "agent_type": "developer_agent",
+        "capability": "code_search",
+        "attempts": 4,
+        "successes": 4,
+        "failures": 0,
+        "average_duration_ms": 0.1,
+        "confidence": 1.0,
+        "validation_success_rate": 1.0,
+        "last_success_at": 1780078315.1955779,
+        "last_failure_at": 0.0,
+        "linked_template_ids": [],
+        "linked_outcome_ids": [
+          "oc-10d3e150",
+          "oc-e2e68457",
+          "oc-e51f7a2f",
+          "oc-5d767146"
+        ],
+        "linked_action_envelope_ids": [
+          "56ec01096cea4729",
+          "a0fae43eb244469c",
+          "f5fe0ec11aa84255",
+          "ea828f2fb7414704"
+        ],
+        "risk_classes_handled": [
+          "low"
+        ]
+      },
+      "evidence_verification": {
+        "agent_type": "developer_agent",
+        "capability": "evidence_verification",
+        "attempts": 4,
+        "successes": 4,
+        "failures": 0,
+        "average_duration_ms": 0.1,
+        "confidence": 1.0,
+        "validation_success_rate": 1.0,
+        "last_success_at": 1780078315.1965818,
+        "last_failure_at": 0.0,
+        "linked_template_ids": [],
+        "linked_outcome_ids": [
+          "oc-10d3e150",
+          "oc-e2e68457",
+          "oc-e51f7a2f",
+          "oc-5d767146"
+        ],
+        "linked_action_envelope_ids": [
+          "56ec01096cea4729",
+          "a0fae43eb244469c",
+          "f5fe0ec11aa84255",
+          "ea828f2fb7414704"
+        ],
+        "risk_classes_handled": [
+          "low"
+        ]
+      },
+      "contradiction_detection": {
+        "agent_type": "developer_agent",
+        "capability": "contradiction_detection",
+        "attempts": 1,
+        "successes": 1,
+        "failures": 0,
+        "average_duration_ms": 0.1,
+        "confidence": 1.0,
+        "validation_success_rate": 1.0,
+        "last_success_at": 1780078315.1784048,
+        "last_failure_at": 0.0,
+        "linked_template_ids": [],
+        "linked_outcome_ids": [
+          "oc-e2e68457"
+        ],
+        "linked_action_envelope_ids": [
+          "a0fae43eb244469c"
+        ],
+        "risk_classes_handled": [
+          "low"
+        ]
+      },
+      "dependency_analysis": {
+        "agent_type": "developer_agent",
+        "capability": "dependency_analysis",
+        "attempts": 1,
+        "successes": 1,
+        "failures": 0,
+        "average_duration_ms": 0.1,
+        "confidence": 1.0,
+        "validation_success_rate": 1.0,
+        "last_success_at": 1780078315.1961844,
+        "last_failure_at": 0.0,
+        "linked_template_ids": [],
+        "linked_outcome_ids": [
+          "oc-5d767146"
+        ],
+        "linked_action_envelope_ids": [
+          "ea828f2fb7414704"
+        ],
+        "risk_classes_handled": [
+          "low"
+        ]
+      }
+    },
+    "created_at": 1780078315.1654563,
+    "updated_at": 1780078315.1965873
+  },
+  "propagation_events_total": 4,
+  "spine_native": true,
+  "manual_propagation_called": false
+}
