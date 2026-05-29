@@ -145,7 +145,7 @@ A candidate is RECOMMENDED (not auto-executed) when:
 | Phase 9.6 autonomous lane | 60 | PASS |
 | Phase 9.5B campaign | 19 | PASS |
 | Phase 9.5 spine propagation | 65 | PASS |
-| organism/tests/ (full suite) | (running) | (pending) |
+| organism/tests/ (full suite) | 1159 | PASS |
 
 ## Gates
 
