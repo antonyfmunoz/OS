@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
+
+from substrate.sockets.notification import alert_approval
+
+logger = logging.getLogger(__name__)
 
 
 class ApprovalStore:
@@ -61,6 +66,10 @@ class ApprovalStore:
             "governance_rationale": governance_rationale,
         }
         self._append(record)
+        try:
+            alert_approval({"event": "created", **record})
+        except Exception as exc:
+            logger.warning("approval alert failed: %s", exc)
         return record
 
     def list_approvals(
@@ -88,6 +97,10 @@ class ApprovalStore:
         if target is None:
             return None
         self._rewrite_all(entries)
+        try:
+            alert_approval({"event": "decided", **target})
+        except Exception as exc:
+            logger.warning("approval decision alert failed: %s", exc)
         return target
 
     def pending_count(self) -> int:
