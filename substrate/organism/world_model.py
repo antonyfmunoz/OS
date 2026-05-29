@@ -528,9 +528,9 @@ def _extract_deployment(model: WorldModel) -> None:
     """Extract deployment state from observed artifacts."""
     root = model.repo_root
     deployments = [
-        ("docker_compose", "compose.yml", "Docker Compose configuration"),
+        ("docker_compose", "docker-compose.yml", "Docker Compose configuration"),
         ("dockerfile", "Dockerfile", "Primary Dockerfile"),
-        ("fly_toml", "fly.toml", "Fly.io deployment config"),
+        ("fly_toml", "cockpit/fly.toml", "Fly.io deployment config (cockpit)"),
     ]
     for did, fpath, desc in deployments:
         entity = WorldEntity(
@@ -553,23 +553,27 @@ def _extract_deployment(model: WorldModel) -> None:
 def _extract_api_routes(model: WorldModel) -> None:
     """Extract cockpit API route files."""
     root = model.repo_root
-    routes_dir = os.path.join(root, "saas", "api", "routes")
+    routes_dir = os.path.join(root, "transports", "api", "http", "routes")
+    if not _check_dir(routes_dir):
+        routes_dir = os.path.join(root, "saas", "api", "routes")
     if not _check_dir(routes_dir):
         return
+    rel_routes_dir = os.path.relpath(routes_dir, root)
     try:
         for fname in sorted(os.listdir(routes_dir)):
             if fname.endswith(".ts"):
                 route_name = fname.replace(".ts", "")
+                route_path = f"{rel_routes_dir}/{fname}"
                 entity = WorldEntity(
                     id=f"route_{route_name}",
                     name=f"API Route: {route_name}",
                     category=EntityCategory.INTERFACE,
                     description=f"Cockpit API route group: /api/{route_name}",
-                    module_path=f"saas/api/routes/{fname}",
+                    module_path=route_path,
                 )
                 entity.evidence.append(WorldEvidence(
                     evidence_type=EvidenceType.ROUTE_REGISTERED,
-                    source=f"saas/api/routes/{fname}",
+                    source=route_path,
                     detail="Route file exists",
                 ))
                 entity.status = EntityStatus.OPERATIONAL
