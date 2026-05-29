@@ -1436,6 +1436,39 @@ def _pr_factory_production_truth(_payload: dict) -> dict:
         return {"success": False, "error": "internal_error"}
 
 
+def _pr_factory_merge_verifications(_payload: dict) -> dict:
+    try:
+        import glob as _glob
+        mv_dir = os.path.join(
+            os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "umh", "autonomous_lane", "merge_verifications",
+        )
+        verifications = []
+        if os.path.isdir(mv_dir):
+            for path in sorted(_glob.glob(os.path.join(mv_dir, "pmv-*.json"))):
+                try:
+                    with open(path) as f:
+                        verifications.append(json.load(f))
+                except (json.JSONDecodeError, OSError):
+                    continue
+        return {"success": True, "data": {"verifications": verifications, "count": len(verifications)}}
+    except Exception:
+        logger.exception("organism.pr_factory.merge_verifications failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _autonomous_cadence_status(_payload: dict) -> dict:
+    try:
+        daemon = _get_daemon()
+        cadence = getattr(daemon, "_autonomous_cadence", None)
+        if cadence is None:
+            return {"success": False, "error": "cadence_not_available"}
+        return {"success": True, "data": cadence.to_dict()}
+    except Exception:
+        logger.exception("organism.autonomous_cadence failed")
+        return {"success": False, "error": "internal_error"}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -1516,6 +1549,8 @@ _ACTIONS: dict = {
     "organism.pr_factory.sandboxes": _pr_factory_sandboxes,
     "organism.pr_factory.sandbox_detail": _pr_factory_sandbox_detail,
     "organism.pr_factory.production_truth": _pr_factory_production_truth,
+    "organism.pr_factory.merge_verifications": _pr_factory_merge_verifications,
+    "organism.autonomous_cadence": _autonomous_cadence_status,
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,
