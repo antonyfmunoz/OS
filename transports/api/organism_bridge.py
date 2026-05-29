@@ -703,6 +703,23 @@ def _trial_status(_payload: dict) -> dict:
                     journal_entries.append(json.loads(line))
         result["journal_entries"] = journal_entries[-50:]
 
+    campaign_path = _os.path.join(trials_dir, "phase9_3_campaign_results.json")
+    if _os.path.isfile(campaign_path):
+        with open(campaign_path) as f:
+            campaign_data = json.loads(f.read())
+        result["has_campaign"] = True
+        result["campaign_summary"] = campaign_data.get("summary", {})
+        result["campaign_baseline"] = campaign_data.get("baseline", {})
+        result["campaign_after"] = campaign_data.get("after", {})
+        result["campaign_trials"] = campaign_data.get("trials", [])
+    else:
+        result["has_campaign"] = False
+
+    queue_path = _os.path.join(trials_dir, "phase9_3_candidate_queue.json")
+    if _os.path.isfile(queue_path):
+        with open(queue_path) as f:
+            result["candidate_queue"] = json.loads(f.read())
+
     return {"success": True, "data": result}
 
 
