@@ -3017,12 +3017,13 @@ async def execution_resume(payload: dict):
 
 # ── Chat push (cross-channel → cockpit real-time) ─────────────────────────────
 
-@router.post("/chat/push", dependencies=[Depends(_require_operator_role)])
+@router.post("/chat/push")
 async def chat_push(request: Request):
     """Push a chat message to connected cockpit WS clients.
 
     Used by Discord bot and other channels to surface cross-channel
     messages in the cockpit in near-real-time. Internal-only.
+    API key auth is inherited from the router prefix dependency.
     """
     body = await request.json()
     push_chat_message(body)

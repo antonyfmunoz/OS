@@ -13,10 +13,14 @@ Initialised via init() from discord_bot.py at module load time.
 from __future__ import annotations
 
 import asyncio
+import json as _json
 import logging
 import os
 import re
 import tempfile
+import time as _time
+import urllib.request
+from datetime import datetime as _dt, timezone as _tz
 from pathlib import Path
 
 import discord
@@ -50,6 +54,49 @@ from transports.presence.handlers.pipeline_handler import handle_pipeline_update
 from transports.presence.handlers.cc_command_handler import try_inline_commands
 
 logger = logging.getLogger(__name__)
+
+_OPERATOR_API_BASE = os.environ.get("OPERATOR_API_URL", "http://os-operator:8091")
+
+
+def _persist_and_push(
+    content: str,
+    response: str,
+    username: str = "operator",
+) -> None:
+    """Persist a Discord conversation turn and push to cockpit WebSocket.
+
+    Fire-and-forget — failures are logged but never block Discord.
+    """
+    try:
+        from substrate.organism.store import OrganismStore
+        store = OrganismStore()
+        ai_name = _ai_name() if _ctx else "system"
+        store.save_conversation_turn(
+            content=content,
+            response=response,
+            origin_channel="discord",
+            responder=ai_name,
+        )
+    except Exception as e:
+        logger.warning("discord persist failed (non-fatal): %s", e)
+
+    now = _dt.now(_tz.utc).isoformat()
+    try:
+        for msg in [
+            {"id": f"discord-{int(_time.time() * 1000)}", "sender": "operator",
+             "content": content, "timestamp": now, "origin_channel": "discord"},
+            {"id": f"discord-resp-{int(_time.time() * 1000)}", "sender": "assistant",
+             "content": response, "timestamp": now, "origin_channel": "discord"},
+        ]:
+            req = urllib.request.Request(
+                f"{_OPERATOR_API_BASE}/api/umh/chat/push",
+                data=_json.dumps(msg).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=2)
+    except Exception as e:
+        logger.debug("cockpit push failed (non-fatal): %s", e)
 
 
 # ─── Shared context (set by init()) ──────────────────────────────────────────
@@ -1063,9 +1110,18 @@ async def _handle_organism_command(
         if result.get("success"):
             data = result.get("data", {})
             summary = str(data)[:1800] if isinstance(data, dict) else str(data)[:1800]
-            await _send_reply(message, f"**{cmd.upper()}** ✓\n```\n{summary}\n```")
+            reply_text = f"**{cmd.upper()}** ✓\n```\n{summary}\n```"
+            await _send_reply(message, reply_text)
         else:
-            await _send_reply(message, f"**{cmd.upper()}** failed: {result.get('error', 'unknown')}")
+            reply_text = f"**{cmd.upper()}** failed: {result.get('error', 'unknown')}"
+            await _send_reply(message, reply_text)
+
+        try:
+            await asyncio.get_event_loop().run_in_executor(
+                None, _persist_and_push, text, reply_text, str(message.author),
+            )
+        except Exception as _pp_err:
+            _record_error("discord_gov_persist_push", _pp_err)
 
         return True
     except Exception as e:
@@ -1114,6 +1170,14 @@ async def _handle_gateway_dispatch(
 
         # Always post text response
         await _send_resp(message, output)
+
+        # Persist to organism store + push to cockpit
+        try:
+            await asyncio.get_event_loop().run_in_executor(
+                None, _persist_and_push, text, output, username,
+            )
+        except Exception as _pp_err:
+            _record_error("discord_persist_push", _pp_err)
 
         if founder_in_voice:
             # Also speak via TTS in voice channel
