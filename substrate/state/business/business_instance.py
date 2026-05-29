@@ -450,23 +450,40 @@ class BusinessInstanceManager:
 
 # ─── Standalone resolver ──────────────────────────────────────────────────────
 
-def get_ai_name(ctx, venture_id: str = 'lyfe_institute') -> str:
+def get_ai_name(ctx=None, venture_id: str = '') -> str:
     """
     Resolve AI name for this user.
-    Priority: BIS.ai_name → AI_NAME env var → empty string.
+
+    Priority: config store → BIS.ai_name → AI_NAME env var → empty string.
+    Config store holds the system-level default. BIS overrides per-venture.
     """
     try:
-        bim = BusinessInstanceManager(ctx)
-        bis = bim.get_bis(venture_id)
-        if bis and bis.ai_name:
-            return bis.ai_name
+        from substrate.sockets.config_port import get_config
+        name = get_config("ai_name")
+        if name and name != "Assistant":
+            pass
+        else:
+            name = None
     except Exception:
-        pass
+        name = None
+
+    if not name and ctx is not None and venture_id:
+        try:
+            bim = BusinessInstanceManager(ctx)
+            bis = bim.get_bis(venture_id)
+            if bis and bis.ai_name:
+                return bis.ai_name
+        except Exception:
+            pass
+
+    if name:
+        return name
+
     try:
         import os as _os
-        name = _os.getenv('AI_NAME')
-        if name:
-            return name
+        env_name = _os.getenv('AI_NAME')
+        if env_name:
+            return env_name
     except Exception:
         pass
     return ''

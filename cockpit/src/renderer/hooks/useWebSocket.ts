@@ -4,6 +4,7 @@ import { useSystemStore } from '../stores/systemStore'
 import { useActivityStore } from '../stores/activityStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useChatStore } from '../stores/chatStore'
+import { useConfigStore } from '../stores/configStore'
 import { getWsToken } from '../api/client'
 
 export function useWebSocket() {
@@ -66,6 +67,14 @@ export function useWebSocket() {
         severity: (event.severity as 'info' | 'warning' | 'error') || 'info',
         summary: (event.summary as string) || '',
       })
+    }))
+
+    cleanups.push(client.on('config_changed', (msg) => {
+      const key = msg.key as string
+      const value = msg.value
+      if (key && value !== undefined) {
+        useConfigStore.getState().applyRemoteUpdate(key, value)
+      }
     }))
 
     cleanups.push(client.on('chat_message', (msg) => {
