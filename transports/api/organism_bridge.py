@@ -1176,6 +1176,34 @@ def _outcome_detail(payload: dict) -> dict:
         return {"success": False, "error": str(e)}
 
 
+_OUTCOME_SAFE_FIELDS = {
+    "action_envelope_id", "action_type", "risk_class", "agent_type",
+    "validation_result", "duration_ms", "completed_at", "event_type",
+}
+_FAILURE_SAFE_FIELDS = {
+    "action_envelope_id", "action_type", "risk_class", "agent_type",
+    "validation_result", "event_type",
+}
+
+
+def _redact_outcome(data: dict) -> dict:
+    return {k: v for k, v in data.items() if k in _OUTCOME_SAFE_FIELDS}
+
+
+def _redact_failure(data: dict) -> dict:
+    safe = {k: v for k, v in data.items() if k in _FAILURE_SAFE_FIELDS}
+    reason = str(data.get("failure_reason", ""))
+    if any(pat in reason.lower() for pat in ("sk-", "bearer ", "api_key=", "token=", "password")):
+        safe["failure_category"] = "auth_error"
+    elif "timeout" in reason.lower():
+        safe["failure_category"] = "timeout"
+    elif "quota" in reason.lower() or "rate" in reason.lower():
+        safe["failure_category"] = "quota_error"
+    else:
+        safe["failure_category"] = "other"
+    return safe
+
+
 def _spine_propagation_status(_payload: dict) -> dict:
     try:
         from substrate.organism.event_spine import EventDomain
@@ -1184,12 +1212,12 @@ def _spine_propagation_status(_payload: dict) -> dict:
         spine = daemon.governed_spine
         summary = engine.summary()
         recent_committed = [
-            e.data for e in daemon.event_spine.replay(
+            _redact_outcome(e.data) for e in daemon.event_spine.replay(
                 domains={EventDomain.EXECUTION}
             ) if e.event_type == "outcome_committed"
         ][-10:]
         recent_failed = [
-            e.data for e in daemon.event_spine.replay(
+            _redact_failure(e.data) for e in daemon.event_spine.replay(
                 domains={EventDomain.EXECUTION}
             ) if e.event_type == "outcome_failed"
         ][-10:]
@@ -1208,13 +1236,13 @@ def _spine_propagation_status(_payload: dict) -> dict:
                 if engine.recent_events(1) else None
             ),
             "summary": summary,
-            "registered_targets": [t.to_dict() for t in engine._targets],
+            "registered_targets": [t.name for t in engine._targets],
             "processed_outcome_count": len(engine._processed_keys),
-            "recent_failures": [f.to_dict() for f in engine.failed_outcomes(5)],
+            "recent_failure_count": len(engine.failed_outcomes(5)),
         }}
     except Exception as e:
         logger.exception("organism.spine_propagation_status failed")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": "internal_error"}
 
 
 def _template_reuse_proof(_payload: dict) -> dict:
