@@ -3018,7 +3018,7 @@ async def execution_resume(payload: dict):
 
 # ── Chat endpoints (operator ↔ DEX right-rail conversation) ───────────────────
 
-@router.get("/chat/history", dependencies=[Depends(_require_operator_role)])
+@router.get("/chat/history")
 async def chat_history():
     """Return chat history for the cockpit right-rail ChatDrawer."""
     try:
