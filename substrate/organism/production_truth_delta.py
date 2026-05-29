@@ -41,6 +41,7 @@ class StateSnapshot:
     contradiction_count: int = 0
     readiness_score: float = 0.0
     dependency_node_count: int = 0
+    bottleneck_count: int = 0
     template_count: int = 0
     agent_count: int = 0
     captured_at: float = field(default_factory=time.time)
@@ -51,6 +52,7 @@ class StateSnapshot:
             "contradiction_count": self.contradiction_count,
             "readiness_score": round(self.readiness_score, 4),
             "dependency_node_count": self.dependency_node_count,
+            "bottleneck_count": self.bottleneck_count,
             "template_count": self.template_count,
             "agent_count": self.agent_count,
             "captured_at": self.captured_at,
@@ -103,6 +105,7 @@ class ProductionTruthDelta:
     delta_id: str = field(default_factory=lambda: f"ptd-{uuid4().hex[:8]}")
     sandbox_id: str = ""
     pr_number: int = 0
+    manifest_id: str = ""
     merge_commit: str = ""
     base_commit: str = ""
     head_commit: str = ""
@@ -111,6 +114,11 @@ class ProductionTruthDelta:
     changed_files_observed: list[str] = field(default_factory=list)
     file_divergences: list[FileDivergence] = field(default_factory=list)
 
+    added_lines_expected: int = 0
+    removed_lines_expected: int = 0
+    added_lines_observed: int = 0
+    removed_lines_observed: int = 0
+
     state_before: StateSnapshot = field(default_factory=StateSnapshot)
     state_after: StateSnapshot = field(default_factory=StateSnapshot)
 
@@ -118,11 +126,14 @@ class ProductionTruthDelta:
     contradictions_before_after: dict[str, Any] = field(default_factory=dict)
     readiness_before_after: dict[str, Any] = field(default_factory=dict)
     dependency_graph_before_after: dict[str, Any] = field(default_factory=dict)
+    bottlenecks_before_after: dict[str, Any] = field(default_factory=dict)
     template_confidence_before_after: dict[str, Any] = field(default_factory=dict)
     agent_reliability_before_after: dict[str, Any] = field(default_factory=dict)
 
     validation_results: list[PostMergeValidationResult] = field(default_factory=list)
     evidence: list[str] = field(default_factory=list)
+    mismatch_reasons: list[str] = field(default_factory=list)
+    requires_operator_review: bool = False
     status: DeltaStatus = DeltaStatus.PENDING
     timestamp: float = field(default_factory=time.time)
 
@@ -160,8 +171,50 @@ class ProductionTruthDelta:
             self.status = DeltaStatus.DIVERGED
             diverged_count = sum(1 for fd in self.file_divergences if fd.diverged)
             self.evidence.append(f"file divergence: {diverged_count} files")
+            for fd in self.file_divergences:
+                if fd.diverged:
+                    if fd.expected and not fd.observed:
+                        self.mismatch_reasons.append(f"{fd.path}: expected but not observed")
+                    elif fd.observed and not fd.expected:
+                        self.mismatch_reasons.append(f"{fd.path}: observed but not expected")
         else:
             self.evidence.append("file sets match")
+
+    def compute_line_counts(self, repo_root: str = "") -> None:
+        import subprocess
+
+        if not repo_root or not self.base_commit or not self.merge_commit:
+            return
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--stat", f"{self.base_commit}..{self.merge_commit}"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode == 0:
+                for line in result.stdout.strip().split("\n"):
+                    if "insertion" in line or "deletion" in line:
+                        parts = line.split(",")
+                        for part in parts:
+                            part = part.strip()
+                            if "insertion" in part:
+                                try:
+                                    self.added_lines_observed = int(
+                                        part.split()[0]
+                                    )
+                                except (ValueError, IndexError):
+                                    pass
+                            elif "deletion" in part:
+                                try:
+                                    self.removed_lines_observed = int(
+                                        part.split()[0]
+                                    )
+                                except (ValueError, IndexError):
+                                    pass
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass
 
     def compute_state_delta(
         self,
@@ -191,6 +244,11 @@ class ProductionTruthDelta:
             "after_nodes": after.dependency_node_count,
             "delta": after.dependency_node_count - before.dependency_node_count,
         }
+        self.bottlenecks_before_after = {
+            "before": before.bottleneck_count,
+            "after": after.bottleneck_count,
+            "delta": after.bottleneck_count - before.bottleneck_count,
+        }
         self.template_confidence_before_after = {
             "before_count": before.template_count,
             "after_count": after.template_count,
@@ -202,12 +260,17 @@ class ProductionTruthDelta:
 
     def finalize(self) -> None:
         if self.has_file_divergence:
+            self.requires_operator_review = True
             if self.all_validations_passed:
                 self.status = DeltaStatus.REQUIRES_REVIEW
             else:
                 self.status = DeltaStatus.DIVERGED
         elif not self.all_validations_passed:
             self.status = DeltaStatus.PRODUCTION_PARTIAL
+            self.requires_operator_review = True
+            for v in self.validation_results:
+                if not v.passed:
+                    self.mismatch_reasons.append(f"validation failed: {v.command}")
         else:
             self.status = DeltaStatus.PRODUCTION_VERIFIED
 
@@ -216,6 +279,7 @@ class ProductionTruthDelta:
             "delta_id": self.delta_id,
             "sandbox_id": self.sandbox_id,
             "pr_number": self.pr_number,
+            "manifest_id": self.manifest_id,
             "merge_commit": self.merge_commit,
             "base_commit": self.base_commit,
             "head_commit": self.head_commit,
@@ -223,17 +287,24 @@ class ProductionTruthDelta:
             "changed_files_observed": self.changed_files_observed,
             "file_divergences": [fd.to_dict() for fd in self.file_divergences],
             "has_file_divergence": self.has_file_divergence,
+            "added_lines_expected": self.added_lines_expected,
+            "removed_lines_expected": self.removed_lines_expected,
+            "added_lines_observed": self.added_lines_observed,
+            "removed_lines_observed": self.removed_lines_observed,
             "state_before": self.state_before.to_dict(),
             "state_after": self.state_after.to_dict(),
             "world_model_before_after": self.world_model_before_after,
             "contradictions_before_after": self.contradictions_before_after,
             "readiness_before_after": self.readiness_before_after,
             "dependency_graph_before_after": self.dependency_graph_before_after,
+            "bottlenecks_before_after": self.bottlenecks_before_after,
             "template_confidence_before_after": self.template_confidence_before_after,
             "agent_reliability_before_after": self.agent_reliability_before_after,
             "validation_results": [v.to_dict() for v in self.validation_results],
             "all_validations_passed": self.all_validations_passed,
             "requires_review": self.requires_review,
+            "requires_operator_review": self.requires_operator_review,
+            "mismatch_reasons": self.mismatch_reasons,
             "evidence": self.evidence,
             "status": self.status.value,
             "timestamp": self.timestamp,
