@@ -3131,19 +3131,23 @@ async def autonomous_pr_factory_verify_merge(sandbox_id: str):
     return verification.to_dict()
 
 
-@router.get("/organism/autonomous-pr-factory/production-truth/{delta_id}")
+@router.get("/organism/autonomous-pr-factory/production-truth/{delta_id}", dependencies=[Depends(_require_operator_role)])
 async def autonomous_pr_factory_production_truth_detail(delta_id: str):
-    import glob as _glob
+    import re as _re
+    if not _re.fullmatch(r"ptd-[a-f0-9]{8}", delta_id):
+        raise HTTPException(status_code=400, detail="invalid delta_id format")
     _root = os.environ.get("UMH_ROOT", "/opt/OS")
-    mv_dir = os.path.join(_root, "data", "umh", "autonomous_lane", "merge_verifications")
-    path = os.path.join(mv_dir, f"{delta_id}.json")
-    if os.path.isfile(path):
-        with open(path) as f:
+    mv_dir = Path(_root, "data", "umh", "autonomous_lane", "merge_verifications").resolve()
+    candidate = Path(mv_dir, f"{delta_id}.json").resolve()
+    if not candidate.is_relative_to(mv_dir):
+        raise HTTPException(status_code=400, detail="invalid delta_id")
+    if candidate.is_file():
+        with open(candidate) as f:
             return json.load(f)
     return {"error": f"delta {delta_id} not found"}
 
 
-@router.get("/organism/autonomous-pr-factory/merge-verifications")
+@router.get("/organism/autonomous-pr-factory/merge-verifications", dependencies=[Depends(_require_operator_role)])
 async def autonomous_pr_factory_merge_verifications():
     import glob as _glob
     _root = os.environ.get("UMH_ROOT", "/opt/OS")
@@ -3159,16 +3163,19 @@ async def autonomous_pr_factory_merge_verifications():
     return {"verifications": verifications, "count": len(verifications)}
 
 
-@router.get("/organism/autonomous-pr-factory/merge-verifications/{verification_id}")
+@router.get("/organism/autonomous-pr-factory/merge-verifications/{verification_id}", dependencies=[Depends(_require_operator_role)])
 async def autonomous_pr_factory_merge_verification_detail(verification_id: str):
+    import re as _re
+    if not _re.fullmatch(r"pmv-[a-f0-9]{8}", verification_id):
+        raise HTTPException(status_code=400, detail="invalid verification_id format")
     _root = os.environ.get("UMH_ROOT", "/opt/OS")
-    path = os.path.join(
-        _root, "data", "umh", "autonomous_lane", "merge_verifications",
-        f"{verification_id}.json",
-    )
-    if not os.path.isfile(path):
+    mv_dir = Path(_root, "data", "umh", "autonomous_lane", "merge_verifications").resolve()
+    candidate = Path(mv_dir, f"{verification_id}.json").resolve()
+    if not candidate.is_relative_to(mv_dir):
+        raise HTTPException(status_code=400, detail="invalid verification_id")
+    if not candidate.is_file():
         return {"error": f"verification {verification_id} not found"}
-    with open(path) as f:
+    with open(candidate) as f:
         return json.load(f)
 
 
@@ -3191,7 +3198,7 @@ async def autonomous_pr_factory_cleanup_eligible():
     return {"cleanup_eligible": eligible, "stale": stale, "count": len(eligible) + len(stale)}
 
 
-@router.get("/organism/autonomous-cadence")
+@router.get("/organism/autonomous-cadence", dependencies=[Depends(_require_operator_role)])
 async def autonomous_cadence_status():
     daemon = _get_organism()
     if daemon is None:
