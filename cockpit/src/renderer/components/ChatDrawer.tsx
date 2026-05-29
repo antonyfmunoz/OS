@@ -1,7 +1,7 @@
 import { useRef, useEffect, type FormEvent } from 'react'
 import { useChatStore } from '../stores/chatStore'
 import { useCockpitStore } from '../stores/cockpitStore'
-import { AI_NAME } from '../constants'
+import { useConfigStore } from '../stores/configStore'
 
 const CHANNELS = [
   { id: 'cockpit', label: 'Cockpit', enabled: true },
@@ -43,6 +43,7 @@ function OriginBadge({ channel }: { channel?: string }) {
 }
 
 export function ChatDrawer() {
+  const aiName = useConfigStore((s) => s.aiName)
   const chatOpen = useCockpitStore((s) => s.chatOpen)
   const messages = useChatStore((s) => s.messages)
   const input = useChatStore((s) => s.input)
@@ -89,7 +90,7 @@ export function ChatDrawer() {
             style={{ borderBottom: '1px solid var(--color-border)' }}
           >
             <span className="font-mono text-xs tracking-wider uppercase" style={{ color: 'var(--color-violet)' }}>
-              {AI_NAME}
+              {aiName}
             </span>
             <span className="ml-2 text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
               unified channel
@@ -100,7 +101,7 @@ export function ChatDrawer() {
           <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
             {messages.length === 0 && (
               <p className="text-center text-xs mt-8" style={{ color: 'var(--color-text-tertiary)' }}>
-                Start a conversation with {AI_NAME}
+                Start a conversation with {aiName}
               </p>
             )}
             {messages.map((msg) => (
@@ -116,7 +117,7 @@ export function ChatDrawer() {
                           : 'var(--color-text-secondary)',
                     }}
                   >
-                    {msg.sender === 'assistant' ? AI_NAME : msg.sender === 'system' ? 'UMH' : 'YOU'}
+                    {msg.sender === 'assistant' ? aiName : msg.sender === 'system' ? 'UMH' : 'YOU'}
                   </span>
                   <OriginBadge channel={msg.origin_channel} />
                   {msg.source === 'voice' && (
@@ -142,7 +143,7 @@ export function ChatDrawer() {
             ))}
             {sending && (
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs uppercase" style={{ color: 'var(--color-violet)' }}>{AI_NAME}</span>
+                <span className="font-mono text-xs uppercase" style={{ color: 'var(--color-violet)' }}>{aiName}</span>
                 <span className="text-xs animate-pulse" style={{ color: 'var(--color-text-tertiary)' }}>thinking...</span>
               </div>
             )}
@@ -179,7 +180,7 @@ export function ChatDrawer() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={`Message ${AI_NAME}...`}
+              placeholder={`Message ${aiName}...`}
               disabled={sending}
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--color-text-tertiary)]"
               style={{ color: 'var(--color-text-primary)' }}

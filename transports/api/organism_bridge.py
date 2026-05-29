@@ -983,6 +983,52 @@ def _dev_session_detail(payload: dict) -> dict:
         return {"success": False, "error": str(e)}
 
 
+# ── Config handlers ────────────────────────────────────────
+
+def _config_get(payload: dict) -> dict:
+    """Get resolved config or a single key."""
+    try:
+        from substrate.sockets.config_port import get_config, get_all_config
+        key = payload.get("key")
+        if key:
+            return {"success": True, "data": {"key": key, "value": get_config(key)}}
+        return {"success": True, "data": get_all_config()}
+    except Exception as e:
+        logger.exception("config.get failed")
+        return {"success": False, "error": str(e)}
+
+
+def _config_set(payload: dict) -> dict:
+    """Set a config value. Requires key, value, optional layer (default: system)."""
+    try:
+        from substrate.sockets.config_port import set_config, get_config
+        key = payload.get("key")
+        value = payload.get("value")
+        layer = payload.get("layer", "system")
+        if not key:
+            return {"success": False, "error": "key is required"}
+        if value is None:
+            return {"success": False, "error": "value is required"}
+        set_config(key, value, layer=layer)
+        return {"success": True, "data": {"key": key, "value": get_config(key), "layer": layer}}
+    except Exception as e:
+        logger.exception("config.set failed")
+        return {"success": False, "error": str(e)}
+
+
+def _config_layers(payload: dict) -> dict:
+    """Get raw layer data for debugging/admin."""
+    try:
+        from substrate.state.config import config_store
+        result = {}
+        for layer_name in ("system", "user", "venture", "channel"):
+            result[layer_name] = config_store.get_layer(layer_name)
+        return {"success": True, "data": result}
+    except Exception as e:
+        logger.exception("config.layers failed")
+        return {"success": False, "error": str(e)}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -1041,6 +1087,9 @@ _ACTIONS: dict = {
     "organism.chat_history": _chat_history,
     "organism.dev_sessions": _dev_sessions,
     "organism.dev_session_detail": _dev_session_detail,
+    "config.get": _config_get,
+    "config.set": _config_set,
+    "config.layers": _config_layers,
 }
 
 

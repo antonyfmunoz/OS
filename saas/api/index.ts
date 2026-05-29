@@ -12,6 +12,7 @@ import chatRouter         from '../../transports/api/http/routes/chat.js'
 import knowledgeRouter    from '../../transports/api/http/routes/knowledge.js'
 import executionRouter    from '../../transports/api/http/routes/execution.js'
 import settingsRouter     from '../../transports/api/http/routes/settings.js'
+import configRouter       from '../../transports/api/http/routes/config.js'
 
 // ── EOS projection routes ───────────────────────────────────────────────────
 import venturesRouter     from './routes/ventures.js'
@@ -41,6 +42,8 @@ app.use('/organism/*',     authMiddleware)
 app.use('/governance',     authMiddleware)
 app.use('/governance/*',   authMiddleware)
 app.use('/chat/*',         authMiddleware)
+app.use('/config',         authMiddleware)
+app.use('/config/*',       authMiddleware)
 app.use('/ide/*',          authMiddleware)
 app.use('/observations',   authMiddleware)
 app.use('/memory',         authMiddleware)
@@ -72,6 +75,7 @@ app.route('/chat',         chatRouter)
 app.route('/',             knowledgeRouter)
 app.route('/execution',    executionRouter)
 app.route('/settings',     settingsRouter)
+app.route('/config',       configRouter)
 
 // ── EOS projection routes — canonical /eos/ prefix ───────────────────────────
 const eos = new Hono<Env>()
