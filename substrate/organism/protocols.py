@@ -48,6 +48,7 @@ class AgentMessage(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
     conversation_id: UUID = Field(default_factory=uuid4)
     parent_message_id: UUID | None = None
+    origin_channel: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 

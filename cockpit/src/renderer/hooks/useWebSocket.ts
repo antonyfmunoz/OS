@@ -3,6 +3,7 @@ import { WsClient } from '../api/websocket'
 import { useSystemStore } from '../stores/systemStore'
 import { useActivityStore } from '../stores/activityStore'
 import { useCockpitStore } from '../stores/cockpitStore'
+import { useChatStore } from '../stores/chatStore'
 import { getWsToken } from '../api/client'
 
 export function useWebSocket() {
@@ -64,6 +65,16 @@ export function useWebSocket() {
         type: (event.type as string) || 'info',
         severity: (event.severity as 'info' | 'warning' | 'error') || 'info',
         summary: (event.summary as string) || '',
+      })
+    }))
+
+    cleanups.push(client.on('chat_message', (msg) => {
+      useChatStore.getState().pushExternalMessage({
+        id: (msg.id as string) || `ext-${Date.now()}`,
+        sender: (msg.sender as 'operator' | 'dex' | 'system') || 'system',
+        content: (msg.content as string) || '',
+        timestamp: (msg.timestamp as string) || new Date().toISOString(),
+        origin_channel: (msg.origin_channel as string) || 'unknown',
       })
     }))
 

@@ -2318,6 +2318,19 @@ def push_organism_event(event_dict: dict) -> None:
         _pending_organism_events[:] = _pending_organism_events[-100:]
 
 
+def push_chat_message(message: dict) -> None:
+    """Queue a chat message for delivery to connected cockpit WS clients.
+
+    The message gets wrapped as type='chat_message' and included in
+    the next WS pulse cycle. Used by Discord bot and other channels
+    to push cross-channel messages to the cockpit in near-real-time.
+    """
+    event = {"type": "chat_message", **message}
+    _pending_organism_events.append(event)
+    if len(_pending_organism_events) > 200:
+        _pending_organism_events[:] = _pending_organism_events[-100:]
+
+
 def _extract_ws_token(ws: WebSocket) -> str:
     """Extract auth token from Sec-WebSocket-Protocol header or query param.
 
@@ -2999,6 +3012,20 @@ async def execution_pause(payload: dict):
 @router.post("/execution/resume", dependencies=[Depends(_require_operator_role)])
 async def execution_resume(payload: dict):
     """Resume execution in a slot."""
+    return {"ok": True}
+
+
+# ── Chat push (cross-channel → cockpit real-time) ─────────────────────────────
+
+@router.post("/chat/push", dependencies=[Depends(_require_operator_role)])
+async def chat_push(request: Request):
+    """Push a chat message to connected cockpit WS clients.
+
+    Used by Discord bot and other channels to surface cross-channel
+    messages in the cockpit in near-real-time. Internal-only.
+    """
+    body = await request.json()
+    push_chat_message(body)
     return {"ok": True}
 
 
