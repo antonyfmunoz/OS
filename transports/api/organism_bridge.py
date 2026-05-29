@@ -1266,6 +1266,117 @@ def _template_reuse_proof(_payload: dict) -> dict:
         return {"success": False, "error": str(e)}
 
 
+# ── Autonomous Lane ────────────────────────────────────────
+
+def _get_autonomous_lane():
+    daemon = _get_daemon()
+    from substrate.organism.autonomous_improvement_lane import (
+        AutonomousImprovementLane,
+    )
+    from substrate.organism.composition_engine import CompositionEngine
+    from substrate.organism.plan_execution_adapter import PlanExecutionAdapter
+
+    if not hasattr(daemon, "_autonomous_lane"):
+        adapter = PlanExecutionAdapter(
+            governed_spine=daemon.governed_spine,
+            spine_guard=daemon.spine_guard,
+            autonomous_gateway=daemon.autonomous_gateway,
+        )
+        daemon._autonomous_lane = AutonomousImprovementLane(
+            adapter=adapter,
+            template_registry=daemon.template_registry,
+            agent_capability_model=daemon.agent_capability_model,
+            composition_engine=CompositionEngine(),
+        )
+    return daemon._autonomous_lane
+
+
+def _autonomous_lane_status(_payload: dict) -> dict:
+    try:
+        lane = _get_autonomous_lane()
+        return {"success": True, "data": lane.to_safe_dict()}
+    except Exception:
+        logger.exception("organism.autonomous_lane failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _autonomous_lane_candidates(_payload: dict) -> dict:
+    try:
+        lane = _get_autonomous_lane()
+        run = lane.dry_run()
+        candidates = [c.to_dict() for c in run.candidates]
+        evaluations = [e.to_dict() for e in run.evaluations]
+        return {
+            "success": True,
+            "data": {
+                "candidates": candidates,
+                "evaluations": evaluations,
+                "eligible_count": len(run.eligible_candidates),
+            },
+        }
+    except Exception:
+        logger.exception("organism.autonomous_lane.candidates failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _autonomous_lane_dry_run(_payload: dict) -> dict:
+    try:
+        lane = _get_autonomous_lane()
+        run = lane.dry_run()
+        return {"success": True, "data": run.to_dict()}
+    except Exception:
+        logger.exception("organism.autonomous_lane.dry_run failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _autonomous_lane_run_once(_payload: dict) -> dict:
+    try:
+        lane = _get_autonomous_lane()
+        run = lane.run_once()
+        return {"success": True, "data": run.to_dict()}
+    except Exception:
+        logger.exception("organism.autonomous_lane.run_once failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _autonomous_lane_runs(payload: dict) -> dict:
+    try:
+        lane = _get_autonomous_lane()
+        limit = payload.get("limit", 20)
+        runs = lane.recent_runs[-limit:]
+        return {
+            "success": True,
+            "data": {"runs": [r.to_dict() for r in runs]},
+        }
+    except Exception:
+        logger.exception("organism.autonomous_lane.runs failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _autonomous_lane_run_detail(payload: dict) -> dict:
+    try:
+        run_id = payload.get("run_id", "")
+        if not run_id:
+            return {"success": False, "error": "run_id required"}
+        lane = _get_autonomous_lane()
+        run = lane.get_run(run_id)
+        if not run:
+            return {"success": False, "error": "run not found"}
+        return {"success": True, "data": run.to_dict()}
+    except Exception:
+        logger.exception("organism.autonomous_lane.run_detail failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _autonomous_lane_policy(_payload: dict) -> dict:
+    try:
+        lane = _get_autonomous_lane()
+        return {"success": True, "data": lane.policy.to_dict()}
+    except Exception:
+        logger.exception("organism.autonomous_lane.policy failed")
+        return {"success": False, "error": "internal_error"}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -1335,6 +1446,13 @@ _ACTIONS: dict = {
     "organism.outcomes": _outcomes,
     "organism.outcomes.detail": _outcome_detail,
     "organism.spine_propagation_status": _spine_propagation_status,
+    "organism.autonomous_lane": _autonomous_lane_status,
+    "organism.autonomous_lane.candidates": _autonomous_lane_candidates,
+    "organism.autonomous_lane.dry_run": _autonomous_lane_dry_run,
+    "organism.autonomous_lane.run_once": _autonomous_lane_run_once,
+    "organism.autonomous_lane.runs": _autonomous_lane_runs,
+    "organism.autonomous_lane.run_detail": _autonomous_lane_run_detail,
+    "organism.autonomous_lane.policy": _autonomous_lane_policy,
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,
