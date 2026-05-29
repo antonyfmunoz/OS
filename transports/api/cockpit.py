@@ -3049,6 +3049,12 @@ async def chat_history():
         return []
 
 
+@router.get("/dex/history")
+async def dex_history():
+    """Alias for /chat/history — deployed cockpit build uses this path."""
+    return await chat_history()
+
+
 @router.post("/chat/converse", dependencies=[Depends(_require_operator_role)])
 async def chat_converse(request: Request):
     """Route operator message through organism conversation pipeline."""
@@ -3076,6 +3082,12 @@ async def chat_converse(request: Request):
             "response": "Internal error — check server logs.",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+
+
+@router.post("/dex/converse", dependencies=[Depends(_require_operator_role)])
+async def dex_converse(request: Request):
+    """Alias for /chat/converse — deployed cockpit build uses this path."""
+    return await chat_converse(request)
 
 
 @router.post("/chat/send", dependencies=[Depends(_require_operator_role)])
