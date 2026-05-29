@@ -1178,11 +1178,35 @@ def _outcome_detail(payload: dict) -> dict:
 
 def _spine_propagation_status(_payload: dict) -> dict:
     try:
-        from substrate.organism.coherence_propagation import ParallelPropagationEngine
-        engine = ParallelPropagationEngine()
+        from substrate.organism.event_spine import EventDomain
+        daemon = _get_daemon()
+        engine = daemon.propagation_engine
+        spine = daemon.governed_spine
         summary = engine.summary()
+        recent_committed = [
+            e.data for e in daemon.event_spine.replay(
+                domains={EventDomain.EXECUTION}
+            ) if e.event_type == "outcome_committed"
+        ][-10:]
+        recent_failed = [
+            e.data for e in daemon.event_spine.replay(
+                domains={EventDomain.EXECUTION}
+            ) if e.event_type == "outcome_failed"
+        ][-10:]
         return {"success": True, "data": {
-            "spine_native": True,
+            "propagation_engine_wired": spine.propagation_engine is not None,
+            "recent_outcome_committed": recent_committed,
+            "recent_outcome_failed": recent_failed,
+            "propagation_target_count": len(engine._targets),
+            "recent_propagation_results": [e.to_dict() for e in engine.recent_events(10)],
+            "duplicate_ignored_count": engine.summary().get("total_duplicates_ignored", 0),
+            "failed_target_count": sum(
+                e.failed_targets for e in engine.recent_events(100)
+            ),
+            "last_propagation_timestamp": (
+                engine.recent_events(1)[-1].completed_at
+                if engine.recent_events(1) else None
+            ),
             "summary": summary,
             "registered_targets": [t.to_dict() for t in engine._targets],
             "processed_outcome_count": len(engine._processed_keys),

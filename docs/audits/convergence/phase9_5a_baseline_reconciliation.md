@@ -6,11 +6,11 @@
 
 | Item | Value |
 |------|-------|
-| Active branch | `phase9-5a-spine-propagation-wiring` (forked from `main`) |
-| Active commit | `abeacd8e` (main HEAD at reconciliation time) |
-| Main commit | `abeacd8e` |
-| Worktree commit | `abeacd8e` (working directly in /opt/OS) |
-| Runtime commit | `abeacd8e` (os-operator uses main) |
+| Active branch | `worktree-phase9-5a-spine-propagation` (forked from `main`) |
+| Active commit | `39063a8c` (main HEAD, includes merged PR #36) |
+| Main commit | `39063a8c` |
+| Worktree commit | `39063a8c` (worktree from main) |
+| Runtime commit | `39063a8c` (os-operator uses main) |
 | Data root | `data/umh/organism/` |
 
 ## Baseline Counts
@@ -45,8 +45,8 @@ The test probe created:
 
 ## Reconciliation Status
 
-**Reconciled.** Active target is `main` at `abeacd8e`. The core spine-native propagation wiring was completed in PR #35. Phase 9.5A adds:
-- daemon.status() propagation wiring fields
-- Controlled proof files (success, failure, idempotency, isolation)
-- Daemon wiring integration tests
-- Audit documentation
+**Reconciled.** Active target is `main` at `39063a8c` (includes merged PR #35 + PR #36). This pass adds:
+- Bug fix: outcome_learning.py enum deserialization (was causing test failures)
+- Bug fix: organism_bridge.py spine propagation status handler (was creating empty engine)
+- Refreshed proof files with all criteria met
+- Updated audit documentation

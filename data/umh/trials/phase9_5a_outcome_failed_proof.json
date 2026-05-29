@@ -1,23 +1,19 @@
 {
   "phase": "9.5A",
   "test": "outcome_failed_proof",
-  "timestamp": 1780086130.208381,
-  "envelope_id": "51fee845a05e477d",
-  "status": "verification_failed",
-  "result_success": true,
+  "timestamp": 1780087208.4384663,
+  "envelope_id": "ef9ac85db7674167",
+  "status": "failed",
+  "result_success": false,
   "outcome_committed_emitted": false,
-  "outcome_committed_count": 0,
   "outcome_failed_emitted": true,
   "outcome_failed_count": 1,
-  "failure_learning_captured": true,
-  "failed_outcome_count": 1,
-  "success_template_NOT_generated": true,
+  "failure_recorded_in_engine": true,
+  "failure_reason": "Intentional failure for proof",
+  "success_template_candidate_not_generated": true,
   "template_candidate_count": 0,
-  "verification": {
-    "outcome_failed_auto_emitted": true,
-    "no_outcome_committed": true,
-    "failure_recorded_in_engine": true,
-    "no_success_template": true,
-    "spine_native": true
-  }
+  "success_propagation_not_triggered": true,
+  "propagation_event_count": 0,
+  "agent_success_reliability_not_increased": true,
+  "all_failure_criteria_met": true
 }
