@@ -179,7 +179,8 @@ class OutcomeLearningLoop:
                             try:
                                 fields["status"] = OutcomeStatus(fields["status"])
                             except ValueError:
-                                fields["status"] = OutcomeStatus.SUCCESS
+                                logger.warning("Skipping outcome record with unknown status: %s", fields.get("status"))
+                                continue
                         rec = OutcomeRecord(**fields)
                         self._outcomes.append(rec)
                         self._outcome_counts[rec.action_type][rec.status.value] += 1
@@ -189,7 +190,8 @@ class OutcomeLearningLoop:
                             try:
                                 sig_fields["signal_type"] = SignalType(sig_fields["signal_type"])
                             except ValueError:
-                                sig_fields["signal_type"] = SignalType.RELIABILITY_UPDATE
+                                logger.warning("Skipping signal with unknown type: %s", sig_fields.get("signal_type"))
+                                continue
                         sig = LearningSignal(**sig_fields)
                         self._signals.append(sig)
                     elif data.get("record_type") == "reliability":
