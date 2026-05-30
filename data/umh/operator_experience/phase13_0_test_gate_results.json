@@ -23,7 +23,7 @@
       "files": {
         "substrate/organism/operator_session.py": true,
         "substrate/organism/operator_response.py": true,
-        "substrate/organism/dex_orchestrator.py": true,
+        "substrate/organism/orchestrator_kernel.py": true,
         "transports/api/organism_bridge.py": true,
         "transports/api/cockpit_operator_experience_routes.py": true,
         "substrate/organism/tests/test_phase13_0_operator_experience.py": true

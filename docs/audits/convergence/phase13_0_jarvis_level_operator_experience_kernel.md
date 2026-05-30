@@ -5,7 +5,7 @@
 
 ## Executive Summary
 
-Phase 13.0 delivers the operator experience kernel — the orchestration layer that transforms raw operator input into structured, governed, preview-only work packets, delegation topologies, propagation impact analyses, and system status queries. The kernel integrates all Phase 11-12 subsystems (work packets, universal work queue, propagation graph, impact analysis, roadmap, self-build, templates, agent capabilities, approvals) through a single `DexOrchestrator` class that never executes work without explicit operator approval.
+Phase 13.0 delivers the operator experience kernel — the orchestration layer that transforms raw operator input into structured, governed, preview-only work packets, delegation topologies, propagation impact analyses, and system status queries. The kernel integrates all Phase 11-12 subsystems (work packets, universal work queue, propagation graph, impact analysis, roadmap, self-build, templates, agent capabilities, approvals) through a single `OrchestratorKernel` class that never executes work without explicit operator approval.
 
 ## Preflight Verification
 
@@ -46,7 +46,7 @@ Phase 13.0 delivers the operator experience kernel — the orchestration layer t
 - Safety invariant: `execution_occurred` always false
 - 5 output modes: full, summary, preview, confirmation, error
 
-### DexOrchestrator (`substrate/organism/dex_orchestrator.py`)
+### OrchestratorKernel (`substrate/organism/orchestrator_kernel.py`)
 - Central kernel integrating 12 subsystems
 - Deterministic intent classification via regex patterns
 - Context assembly from real system state
@@ -125,7 +125,7 @@ All proofs use real system state (no mocks, no fake data).
 | Propagation preview | `phase13_0_propagation_preview_flow.json` | Real graph analysis + plan |
 | Topology preview | `phase13_0_topology_preview.json` | Real delegation topology |
 | Universal work integration | `phase13_0_universal_work_propagation_integration.json` | Graph loaded (49 nodes, 19 edges) |
-| Kernel proof | `phase13_0_dex_kernel_proof.json` | 12 subsystems, 8 intent types, safety invariant |
+| Kernel proof | `phase13_0_orchestrator_kernel_proof.json` | 12 subsystems, 8 intent types, safety invariant |
 | API verification | `phase13_0_api_verification.json` | 9 bridge handlers, 9 FastAPI routes, 9 Hono routes |
 | Cockpit verification | `phase13_0_cockpit_verification.json` | Router mounted, auth configured |
 | Test gate results | `phase13_0_test_gate_results.json` | 85+109 = 194 tests pass, compilation clean |
@@ -155,7 +155,7 @@ All proofs use real system state (no mocks, no fake data).
 ### Created (8 files)
 - `substrate/organism/operator_session.py` (295 lines)
 - `substrate/organism/operator_response.py` (198 lines)
-- `substrate/organism/dex_orchestrator.py` (596 lines)
+- `substrate/organism/orchestrator_kernel.py` (596 lines)
 - `transports/api/cockpit_operator_experience_routes.py` (149 lines)
 - `substrate/organism/tests/test_phase13_0_operator_experience.py` (815 lines)
 - `data/umh/operator_experience/` (12 proof/gate JSON files)

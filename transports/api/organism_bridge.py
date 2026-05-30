@@ -1598,15 +1598,15 @@ def _production_truth_status(_payload: dict) -> dict:
 
 # ── Operator experience handlers ──────────────────────────
 
-def _get_dex_orchestrator():
-    from substrate.organism.dex_orchestrator import DexOrchestrator
-    return DexOrchestrator()
+def _get_orchestrator_kernel():
+    from substrate.organism.orchestrator_kernel import OrchestratorKernel
+    return OrchestratorKernel()
 
 
 def _operator_experience(_payload: dict) -> dict:
     """Overview of operator experience system."""
     try:
-        orch = _get_dex_orchestrator()
+        orch = _get_orchestrator_kernel()
         sessions = orch.list_sessions(limit=10)
         return {
             "success": True,
@@ -1625,7 +1625,7 @@ def _operator_experience(_payload: dict) -> dict:
 def _operator_experience_session(payload: dict) -> dict:
     """Get a specific operator session."""
     try:
-        orch = _get_dex_orchestrator()
+        orch = _get_orchestrator_kernel()
         session_id = payload.get("session_id", "")
         session = orch.get_session(session_id)
         if not session:
@@ -1639,7 +1639,7 @@ def _operator_experience_session(payload: dict) -> dict:
 def _operator_experience_sessions(payload: dict) -> dict:
     """List operator sessions."""
     try:
-        orch = _get_dex_orchestrator()
+        orch = _get_orchestrator_kernel()
         limit = int(payload.get("limit", 20))
         return {"success": True, "data": orch.list_sessions(limit=limit)}
     except Exception:
@@ -1650,7 +1650,7 @@ def _operator_experience_sessions(payload: dict) -> dict:
 def _operator_experience_send(payload: dict) -> dict:
     """Send operator input and get response."""
     try:
-        orch = _get_dex_orchestrator()
+        orch = _get_orchestrator_kernel()
         user_input = payload.get("input", "")
         session_id = payload.get("session_id")
         if not user_input:
@@ -1665,7 +1665,7 @@ def _operator_experience_send(payload: dict) -> dict:
 def _operator_experience_status(_payload: dict) -> dict:
     """Operator experience status query."""
     try:
-        orch = _get_dex_orchestrator()
+        orch = _get_orchestrator_kernel()
         response = orch.receive_operator_input("What is the current status?")
         return {"success": True, "data": response.to_dict()}
     except Exception:
@@ -1676,7 +1676,7 @@ def _operator_experience_status(_payload: dict) -> dict:
 def _operator_experience_approvals(_payload: dict) -> dict:
     """Query pending approvals."""
     try:
-        orch = _get_dex_orchestrator()
+        orch = _get_orchestrator_kernel()
         approvals = orch.query_pending_approvals()
         return {"success": True, "data": approvals}
     except Exception:
@@ -1687,7 +1687,7 @@ def _operator_experience_approvals(_payload: dict) -> dict:
 def _operator_experience_packet_preview(payload: dict) -> dict:
     """Preview a work packet from intent."""
     try:
-        orch = _get_dex_orchestrator()
+        orch = _get_orchestrator_kernel()
         user_input = payload.get("input", "")
         if not user_input:
             return {"success": False, "error": "input_required"}
@@ -1701,7 +1701,7 @@ def _operator_experience_packet_preview(payload: dict) -> dict:
 def _operator_experience_propagation_preview(payload: dict) -> dict:
     """Preview propagation impact."""
     try:
-        orch = _get_dex_orchestrator()
+        orch = _get_orchestrator_kernel()
         description = payload.get("description", "")
         source_node_id = payload.get("source_node_id", "")
         if not description:
@@ -1716,7 +1716,7 @@ def _operator_experience_propagation_preview(payload: dict) -> dict:
 def _operator_experience_topology_preview(payload: dict) -> dict:
     """Preview delegation topology."""
     try:
-        orch = _get_dex_orchestrator()
+        orch = _get_orchestrator_kernel()
         user_input = payload.get("input", "")
         if not user_input:
             return {"success": False, "error": "input_required"}
