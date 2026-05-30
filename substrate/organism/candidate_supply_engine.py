@@ -1,16 +1,19 @@
 """Candidate Supply Engine — discovers improvement candidates from real organism sources.
 
 Scans ContradictionEngine, WorldModel, DependencyGraph, ReadinessModel,
-BottleneckEngine, and template audit gaps. Each candidate gets evidence,
-template matching, governance scoring, and a policy decision.
+BottleneckEngine, template audit gaps, stale test paths, missing package
+init files, and stale docstrings. Each candidate gets evidence, template
+matching, governance scoring, and a policy decision.
 
 UMH substrate subsystem. Instance-agnostic.
 """
 
 from __future__ import annotations
 
+import glob
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -149,6 +152,9 @@ class CandidateSupplyEngine:
             ("readiness_model", self._scan_readiness),
             ("bottleneck_engine", self._scan_bottlenecks),
             ("template_audit_gaps", self._scan_template_audit_gaps),
+            ("stale_test_paths", self._scan_stale_test_paths),
+            ("missing_package_init", self._scan_missing_package_init),
+            ("stale_docstrings", self._scan_stale_docstrings),
         ]
 
         for source_name, scan_fn in source_methods:
@@ -239,6 +245,9 @@ class CandidateSupplyEngine:
             "readiness_model": "check_readiness",
             "bottleneck_engine": "run_probes",
             "template_audit_gaps": "identify_panel",
+            "stale_test_paths": "test_repair",
+            "missing_package_init": "test_repair",
+            "stale_docstrings": "documentation_fix",
         }
         return source_to_action.get(candidate.source, "assess_state")
 
@@ -445,6 +454,156 @@ class CandidateSupplyEngine:
                         ))
         except Exception as e:
             logger.debug("Template audit gap scan: %s", e)
+        return candidates
+
+    def _scan_stale_test_paths(self) -> list[SupplyCandidate]:
+        candidates: list[SupplyCandidate] = []
+        stale_pattern = re.compile(
+            r'sys\.path\.insert\(\s*0\s*,\s*["\'](.+?/\.claude/worktrees/[^"\']+)["\']'
+        )
+        test_dir = os.path.join(_REPO_ROOT, "tests")
+        if not os.path.isdir(test_dir):
+            return candidates
+        affected: list[str] = []
+        evidence_details: list[str] = []
+        for path in glob.glob(os.path.join(test_dir, "**", "*.py"), recursive=True):
+            if "/__pycache__/" in path:
+                continue
+            rel = os.path.relpath(path, _REPO_ROOT)
+            try:
+                with open(path) as f:
+                    content = f.read()
+            except OSError:
+                continue
+            for match in stale_pattern.finditer(content):
+                worktree_path = match.group(1)
+                if not os.path.isdir(worktree_path):
+                    affected.append(rel)
+                    evidence_details.append(
+                        f"{rel} references non-existent worktree {worktree_path}"
+                    )
+                    break
+        if affected:
+            candidates.append(SupplyCandidate(
+                source="stale_test_paths",
+                title=f"Stale worktree sys.path in {len(affected)} test files",
+                description=(
+                    f"{len(affected)} test files contain sys.path.insert pointing "
+                    f"to non-existent worktree directories. These are dead code "
+                    f"paths that silently fail."
+                ),
+                evidence=[
+                    {"source": "filesystem_scan", "detail": d, "confidence": 0.95}
+                    for d in evidence_details
+                ],
+                affected_files=affected,
+                risk_class="low",
+                non_mutating=False,
+                expected_delta="Remove stale worktree sys.path.insert lines from test files",
+                recommended_next_step="Replace stale paths with os.environ.get pattern",
+            ))
+        return candidates
+
+    def _scan_missing_package_init(self) -> list[SupplyCandidate]:
+        candidates: list[SupplyCandidate] = []
+        test_dir = os.path.join(_REPO_ROOT, "tests")
+        if not os.path.isdir(test_dir):
+            return candidates
+        for dirpath, dirnames, filenames in os.walk(test_dir):
+            dirnames[:] = [d for d in dirnames if d != "__pycache__"]
+            py_files = [f for f in filenames if f.endswith(".py") and f != "__init__.py"]
+            if py_files and "__init__.py" not in filenames:
+                rel_dir = os.path.relpath(dirpath, _REPO_ROOT)
+                if rel_dir == "tests":
+                    continue
+                init_path = os.path.join(rel_dir, "__init__.py")
+                candidates.append(SupplyCandidate(
+                    source="missing_package_init",
+                    title=f"Missing __init__.py in {rel_dir}",
+                    description=(
+                        f"Directory {rel_dir} contains {len(py_files)} Python "
+                        f"test files but no __init__.py, making it an implicit "
+                        f"namespace rather than a proper package."
+                    ),
+                    evidence=[{
+                        "source": "filesystem_scan",
+                        "detail": (
+                            f"{rel_dir} has {len(py_files)} .py files "
+                            f"({', '.join(py_files[:3])}) but no __init__.py"
+                        ),
+                        "confidence": 0.9,
+                    }],
+                    affected_files=[init_path],
+                    risk_class="low",
+                    non_mutating=True,
+                    expected_delta=f"Create empty __init__.py in {rel_dir}",
+                    recommended_next_step="Create empty __init__.py file",
+                ))
+        return candidates
+
+    def _scan_stale_docstrings(self) -> list[SupplyCandidate]:
+        candidates: list[SupplyCandidate] = []
+        stale_names = ["EntrepreneurOS", "CreatorOS", "LyfeOS"]
+        stale_re = re.compile("|".join(re.escape(n) for n in stale_names))
+        scripts_dir = os.path.join(_REPO_ROOT, "scripts")
+        if not os.path.isdir(scripts_dir):
+            return candidates
+        for path in glob.glob(os.path.join(scripts_dir, "*.py")):
+            rel = os.path.relpath(path, _REPO_ROOT)
+            try:
+                with open(path) as f:
+                    lines = f.readlines()
+            except OSError:
+                continue
+            in_docstring = False
+            for i, line in enumerate(lines[:20]):
+                stripped = line.strip()
+                if stripped.startswith('"""') or stripped.startswith("'''"):
+                    if stripped.count('"""') == 1 or stripped.count("'''") == 1:
+                        in_docstring = not in_docstring
+                    found = stale_re.search(line)
+                    if found:
+                        candidates.append(SupplyCandidate(
+                            source="stale_docstrings",
+                            title=f"Stale project name in {rel} docstring",
+                            description=(
+                                f"Script {rel} line {i+1} contains stale project "
+                                f"name '{found.group()}' in module docstring"
+                            ),
+                            evidence=[{
+                                "source": "docstring_scan",
+                                "detail": f"line {i+1}: {line.rstrip()}",
+                                "confidence": 0.9,
+                            }],
+                            affected_files=[rel],
+                            risk_class="low",
+                            non_mutating=True,
+                            expected_delta=f"Update stale project name in {rel} docstring",
+                            recommended_next_step="Replace stale name with current terminology",
+                        ))
+                        break
+                elif in_docstring:
+                    found = stale_re.search(line)
+                    if found:
+                        candidates.append(SupplyCandidate(
+                            source="stale_docstrings",
+                            title=f"Stale project name in {rel} docstring",
+                            description=(
+                                f"Script {rel} line {i+1} contains stale project "
+                                f"name '{found.group()}' in module docstring"
+                            ),
+                            evidence=[{
+                                "source": "docstring_scan",
+                                "detail": f"line {i+1}: {line.rstrip()}",
+                                "confidence": 0.9,
+                            }],
+                            affected_files=[rel],
+                            risk_class="low",
+                            non_mutating=True,
+                            expected_delta=f"Update stale project name in {rel} docstring",
+                            recommended_next_step="Replace stale name with current terminology",
+                        ))
+                        break
         return candidates
 
     def summary(self) -> dict[str, Any]:

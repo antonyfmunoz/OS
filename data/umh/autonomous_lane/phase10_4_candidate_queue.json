@@ -1,0 +1,348 @@
+{
+  "phase": "10.4",
+  "campaign": "low_risk_production_truth_reliability",
+  "scan_timestamp": 0.054183006286621094,
+  "sources_scanned": [
+    "contradiction_engine",
+    "world_model",
+    "dependency_graph",
+    "readiness_model",
+    "bottleneck_engine",
+    "template_audit_gaps",
+    "stale_test_paths",
+    "missing_package_init",
+    "stale_docstrings"
+  ],
+  "source_scan_proof": {
+    "contradiction_engine": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "world_model": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "dependency_graph": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "readiness_model": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "bottleneck_engine": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "template_audit_gaps": {
+      "scanned": true,
+      "candidates_found": 4,
+      "error": null
+    },
+    "stale_test_paths": {
+      "scanned": true,
+      "candidates_found": 1,
+      "error": null
+    },
+    "missing_package_init": {
+      "scanned": true,
+      "candidates_found": 1,
+      "error": null
+    },
+    "stale_docstrings": {
+      "scanned": true,
+      "candidates_found": 3,
+      "error": null
+    }
+  },
+  "total_candidates": 8,
+  "eligible_candidates": 8,
+  "blocked_candidates": 0,
+  "resolved_suppressed": 1,
+  "resolved_descriptions": [
+    "template audit identified gap: runtime template store path does not exist"
+  ],
+  "candidates": [
+    {
+      "candidate_id": "cse-0146e831",
+      "source": "template_audit_gaps",
+      "title": "Audit gap: require_template=True gates all candidates when registry is empty",
+      "description": "Template audit identified gap: require_template=True gates all candidates when registry is empty. AutonomousLanePolicy.require_template=True (default). CandidateEvaluator.evaluate() lines 499-508: when find_matching() returns [], candidate.matching_template_id='', checks['template_exists']=False, reasons.append('no matching template found'). All candidates are blocked.",
+      "evidence": [
+        {
+          "source": "template_audit",
+          "detail": "gap_id=gap-2, severity=critical, title=require_template=True gates all candidates when registry is empty",
+          "confidence": 0.7
+        }
+      ],
+      "affected_files": [],
+      "risk_class": "low",
+      "matching_templates": [
+        "tpl-seed-cockpit-panel-fix-01"
+      ],
+      "policy_decision": "cadence_eligible",
+      "blocked_reasons": [],
+      "expected_delta": "Close audit gap: require_template=True gates all candidates when registry is empty",
+      "recommended_next_step": "Phase 4 \u2014 seed templates so find_matching() returns non-empty results",
+      "template_confidence": 0.8,
+      "agent_reliability": 0.8,
+      "validation_method": "assertion",
+      "rollback_method": "revert",
+      "non_mutating": false,
+      "created_at": 1780123451.1254036
+    },
+    {
+      "candidate_id": "cse-9db9466d",
+      "source": "template_audit_gaps",
+      "title": "Audit gap: Only existing template data record is at wrong path",
+      "description": "Template audit identified gap: Only existing template data record is at wrong path. tpl-0b21c294 lives at data/umh/trials/proof_templates/template_candidates.jsonl. Runtime registry loads from data/umh/organism/templates/template_candidates.jsonl. These paths have no overlap. The one proof template has never been loadable at runtime.",
+      "evidence": [
+        {
+          "source": "template_audit",
+          "detail": "gap_id=gap-3, severity=high, title=Only existing template data record is at wrong path",
+          "confidence": 0.7
+        }
+      ],
+      "affected_files": [],
+      "risk_class": "low",
+      "matching_templates": [
+        "tpl-seed-cockpit-panel-fix-01"
+      ],
+      "policy_decision": "cadence_eligible",
+      "blocked_reasons": [],
+      "expected_delta": "Close audit gap: Only existing template data record is at wrong path",
+      "recommended_next_step": "Phase 4 \u2014 seed proper templates to organism/templates/ with real evidence",
+      "template_confidence": 0.8,
+      "agent_reliability": 0.8,
+      "validation_method": "assertion",
+      "rollback_method": "revert",
+      "non_mutating": false,
+      "created_at": 1780123451.12541
+    },
+    {
+      "candidate_id": "cse-a557d5b4",
+      "source": "template_audit_gaps",
+      "title": "Audit gap: Zero templates exist for any of the 15 TemplateType values",
+      "description": "Template audit identified gap: Zero templates exist for any of the 15 TemplateType values. 15 TemplateType values are defined. CandidateBuilder._enrich_with_template() uses find_matching(action_type, description) which infers template_type and matches on that. With 0 templates of any type, every find_matching() call returns []. Even after gap-1 is fixed, every template type needed by real candidates must have at least one seeded instance.",
+      "evidence": [
+        {
+          "source": "template_audit",
+          "detail": "gap_id=gap-5, severity=high, title=Zero templates exist for any of the 15 TemplateType values",
+          "confidence": 0.7
+        }
+      ],
+      "affected_files": [],
+      "risk_class": "low",
+      "matching_templates": [
+        "tpl-seed-cockpit-panel-fix-01"
+      ],
+      "policy_decision": "cadence_eligible",
+      "blocked_reasons": [],
+      "expected_delta": "Close audit gap: Zero templates exist for any of the 15 TemplateType values",
+      "recommended_next_step": "Phase 4 \u2014 seed at minimum: MAINTENANCE_ACTION, CONTRADICTION_FIX, READINESS_IMPROVEMENT, OBSERVATION_ACCURACY_FIX, WORLD_MODEL_ACCURACY_FIX",
+      "template_confidence": 0.8,
+      "agent_reliability": 0.8,
+      "validation_method": "assertion",
+      "rollback_method": "revert",
+      "non_mutating": false,
+      "created_at": 1780123451.1254146
+    },
+    {
+      "candidate_id": "cse-d16fed12",
+      "source": "stale_docstrings",
+      "title": "Stale project name in scripts/check_projection_leak.py docstring",
+      "description": "Script scripts/check_projection_leak.py line 5 contains stale project name 'EntrepreneurOS' in module docstring",
+      "evidence": [
+        {
+          "source": "docstring_scan",
+          "detail": "line 5: (EntrepreneurOS, CreatorOS, LyfeOS, or any future projection). Projection",
+          "confidence": 0.9
+        }
+      ],
+      "affected_files": [
+        "scripts/check_projection_leak.py"
+      ],
+      "risk_class": "low",
+      "matching_templates": [
+        "tpl-seed-documentation-alignment-01"
+      ],
+      "policy_decision": "cadence_eligible",
+      "blocked_reasons": [],
+      "expected_delta": "Update stale project name in scripts/check_projection_leak.py docstring",
+      "recommended_next_step": "Replace stale name with current terminology",
+      "template_confidence": 0.8,
+      "agent_reliability": 0.8,
+      "validation_method": "assertion",
+      "rollback_method": "revert",
+      "non_mutating": true,
+      "created_at": 1780123451.1446624
+    },
+    {
+      "candidate_id": "cse-9375aaac",
+      "source": "stale_docstrings",
+      "title": "Stale project name in scripts/notion_setup.py docstring",
+      "description": "Script scripts/notion_setup.py line 3 contains stale project name 'EntrepreneurOS' in module docstring",
+      "evidence": [
+        {
+          "source": "docstring_scan",
+          "detail": "line 3: architecture for EntrepreneurOS.",
+          "confidence": 0.9
+        }
+      ],
+      "affected_files": [
+        "scripts/notion_setup.py"
+      ],
+      "risk_class": "low",
+      "matching_templates": [
+        "tpl-seed-documentation-alignment-01"
+      ],
+      "policy_decision": "cadence_eligible",
+      "blocked_reasons": [],
+      "expected_delta": "Update stale project name in scripts/notion_setup.py docstring",
+      "recommended_next_step": "Replace stale name with current terminology",
+      "template_confidence": 0.8,
+      "agent_reliability": 0.8,
+      "validation_method": "assertion",
+      "rollback_method": "revert",
+      "non_mutating": true,
+      "created_at": 1780123451.1454265
+    },
+    {
+      "candidate_id": "cse-ce34e745",
+      "source": "stale_docstrings",
+      "title": "Stale project name in scripts/github_trinity_ingest.py docstring",
+      "description": "Script scripts/github_trinity_ingest.py line 3 contains stale project name 'EntrepreneurOS' in module docstring",
+      "evidence": [
+        {
+          "source": "docstring_scan",
+          "detail": "line 3: Targets: EntrepreneurOS, CreatorOS, LYFEOS (the \"Trinity\").",
+          "confidence": 0.9
+        }
+      ],
+      "affected_files": [
+        "scripts/github_trinity_ingest.py"
+      ],
+      "risk_class": "low",
+      "matching_templates": [
+        "tpl-seed-documentation-alignment-01"
+      ],
+      "policy_decision": "cadence_eligible",
+      "blocked_reasons": [],
+      "expected_delta": "Update stale project name in scripts/github_trinity_ingest.py docstring",
+      "recommended_next_step": "Replace stale name with current terminology",
+      "template_confidence": 0.8,
+      "agent_reliability": 0.8,
+      "validation_method": "assertion",
+      "rollback_method": "revert",
+      "non_mutating": true,
+      "created_at": 1780123451.1568656
+    },
+    {
+      "candidate_id": "cse-f96bf501",
+      "source": "stale_test_paths",
+      "title": "Stale worktree sys.path in 8 test files",
+      "description": "8 test files contain sys.path.insert pointing to non-existent worktree directories. These are dead code paths that silently fail.",
+      "evidence": [
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/test_node_mesh_ws.py references non-existent worktree /opt/OS/.claude/worktrees/layer3-phase2-slice-d-handoff",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/test_daemon_e2e.py references non-existent worktree /opt/OS/.claude/worktrees/layer3-phase2-slice-d-handoff",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/test_philosophy_lenses.py references non-existent worktree /opt/OS/.claude/worktrees/close-all-gaps-v2",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/test_meeting_types.py references non-existent worktree /opt/OS/.claude/worktrees/close-all-gaps-v2",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/test_override_tracking.py references non-existent worktree /opt/OS/.claude/worktrees/close-all-gaps-v2",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/substrate/test_entity_store.py references non-existent worktree /opt/OS/.claude/worktrees/close-all-gaps-v2",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/substrate/test_feedback_loop.py references non-existent worktree /opt/OS/.claude/worktrees/close-all-gaps-v2",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/substrate/test_types.py references non-existent worktree /opt/OS/.claude/worktrees/substrate-unification",
+          "confidence": 0.95
+        }
+      ],
+      "affected_files": [
+        "tests/test_node_mesh_ws.py",
+        "tests/test_daemon_e2e.py",
+        "tests/test_philosophy_lenses.py",
+        "tests/test_meeting_types.py",
+        "tests/test_override_tracking.py",
+        "tests/substrate/test_entity_store.py",
+        "tests/substrate/test_feedback_loop.py",
+        "tests/substrate/test_types.py"
+      ],
+      "risk_class": "low",
+      "matching_templates": [
+        "tpl-seed-test-repair-01"
+      ],
+      "policy_decision": "cadence_eligible",
+      "blocked_reasons": [],
+      "expected_delta": "Remove stale worktree sys.path.insert lines from test files",
+      "recommended_next_step": "Replace stale paths with os.environ.get pattern",
+      "template_confidence": 0.75,
+      "agent_reliability": 0.75,
+      "validation_method": "assertion",
+      "rollback_method": "revert",
+      "non_mutating": false,
+      "created_at": 1780123451.1351001
+    },
+    {
+      "candidate_id": "cse-8c878ced",
+      "source": "missing_package_init",
+      "title": "Missing __init__.py in tests/substrate",
+      "description": "Directory tests/substrate contains 3 Python test files but no __init__.py, making it an implicit namespace rather than a proper package.",
+      "evidence": [
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/substrate has 3 .py files (test_entity_store.py, test_feedback_loop.py, test_types.py) but no __init__.py",
+          "confidence": 0.9
+        }
+      ],
+      "affected_files": [
+        "tests/substrate/__init__.py"
+      ],
+      "risk_class": "low",
+      "matching_templates": [
+        "tpl-seed-test-repair-01"
+      ],
+      "policy_decision": "cadence_eligible",
+      "blocked_reasons": [],
+      "expected_delta": "Create empty __init__.py in tests/substrate",
+      "recommended_next_step": "Create empty __init__.py file",
+      "template_confidence": 0.75,
+      "agent_reliability": 0.75,
+      "validation_method": "assertion",
+      "rollback_method": "revert",
+      "non_mutating": true,
+      "created_at": 1780123451.135441
+    }
+  ]
+}
