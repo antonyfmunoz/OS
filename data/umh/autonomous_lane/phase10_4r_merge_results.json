@@ -1,0 +1,44 @@
+{
+  "phase": "10.4R",
+  "title": "Merge Results \u2014 PRs #51, #52, #53",
+  "timestamp": "2026-05-30T08:12:47.147898+00:00",
+  "prs": [
+    {
+      "pr_number": 51,
+      "merge_commit": "52e2876c",
+      "state": "MERGED",
+      "files_landed": [
+        "scripts/github_trinity_ingest.py"
+      ]
+    },
+    {
+      "pr_number": 52,
+      "merge_commit": "198569df",
+      "state": "MERGED",
+      "files_landed": [
+        "tests/substrate/__init__.py"
+      ]
+    },
+    {
+      "pr_number": 53,
+      "merge_commit": "78ebf1bb",
+      "state": "MERGED",
+      "files_landed": [
+        "tests/test_node_mesh_ws.py",
+        "tests/test_daemon_e2e.py",
+        "tests/test_philosophy_lenses.py",
+        "tests/test_meeting_types.py",
+        "tests/test_override_tracking.py",
+        "tests/substrate/test_entity_store.py",
+        "tests/substrate/test_feedback_loop.py",
+        "tests/substrate/test_types.py"
+      ]
+    }
+  ],
+  "merge_order": [
+    51,
+    52,
+    53
+  ],
+  "all_merged": true
+}

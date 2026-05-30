@@ -1,0 +1,52 @@
+{
+  "phase": "10.4R",
+  "title": "Post-Campaign Cadence + Suppression Check",
+  "timestamp": "2026-05-30T08:13:04.142209+00:00",
+  "resolved_descriptions": [
+    "runtime template store path",
+    "scripts/notion_setup.py",
+    "scripts/github_trinity_ingest.py",
+    "tests/substrate/__init__.py",
+    "sys.path.insert pointing to non-existent worktree"
+  ],
+  "candidates_remaining": 4,
+  "candidates": [
+    {
+      "id": "cse-7e4a88b8",
+      "description": "Template audit identified gap: require_template=True gates all candidates when registry is empty. AutonomousLanePolicy.r",
+      "affected_files": [],
+      "source": "template_audit_gaps"
+    },
+    {
+      "id": "cse-24871624",
+      "description": "Template audit identified gap: Only existing template data record is at wrong path. tpl-0b21c294 lives at data/umh/trial",
+      "affected_files": [],
+      "source": "template_audit_gaps"
+    },
+    {
+      "id": "cse-4d281638",
+      "description": "Template audit identified gap: Zero templates exist for any of the 15 TemplateType values. 15 TemplateType values are de",
+      "affected_files": [],
+      "source": "template_audit_gaps"
+    },
+    {
+      "id": "cse-16d8ab9b",
+      "description": "Script scripts/check_projection_leak.py line 5 contains stale project name 'EntrepreneurOS' in module docstring",
+      "affected_files": [
+        "scripts/check_projection_leak.py"
+      ],
+      "source": "stale_docstrings"
+    }
+  ],
+  "suppression_proof": {
+    "pr47_suppressed": true,
+    "pr50_suppressed": true,
+    "pr51_suppressed": true,
+    "pr52_suppressed": true,
+    "pr53_suppressed": true
+  },
+  "cadence_mode": "dry_run_only",
+  "no_pr_created": true,
+  "no_production_mutation": true,
+  "verdict": "ALL 4 campaign candidates suppressed after merge+verify"
+}

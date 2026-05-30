@@ -1,0 +1,212 @@
+{
+  "verification_id": "pmv-47a6e167",
+  "sandbox_id": "sb-pr53-stale-paths",
+  "pr_number": 53,
+  "manifest_id": "csm-pr53-stalepath",
+  "status": "cleanup_ready",
+  "merge_commit": "78ebf1bbab3326372096a791a15675fe96d7aec0",
+  "base_commit": "198569df",
+  "head_commit": "9d3a0071",
+  "local_main_commit": "78ebf1bbab3326372096a791a15675fe96d7aec0",
+  "expected_files": [
+    "tests/test_node_mesh_ws.py",
+    "tests/test_daemon_e2e.py",
+    "tests/test_philosophy_lenses.py",
+    "tests/test_meeting_types.py",
+    "tests/test_override_tracking.py",
+    "tests/substrate/test_entity_store.py",
+    "tests/substrate/test_feedback_loop.py",
+    "tests/substrate/test_types.py"
+  ],
+  "observed_files": [
+    "tests/substrate/test_entity_store.py",
+    "tests/substrate/test_feedback_loop.py",
+    "tests/substrate/test_types.py",
+    "tests/test_daemon_e2e.py",
+    "tests/test_meeting_types.py",
+    "tests/test_node_mesh_ws.py",
+    "tests/test_override_tracking.py",
+    "tests/test_philosophy_lenses.py"
+  ],
+  "truth_delta": {
+    "delta_id": "ptd-087e8181",
+    "sandbox_id": "sb-pr53-stale-paths",
+    "pr_number": 53,
+    "manifest_id": "csm-pr53-stalepath",
+    "merge_commit": "78ebf1bbab3326372096a791a15675fe96d7aec0",
+    "base_commit": "198569df",
+    "head_commit": "9d3a0071",
+    "changed_files_expected": [
+      "tests/test_node_mesh_ws.py",
+      "tests/test_daemon_e2e.py",
+      "tests/test_philosophy_lenses.py",
+      "tests/test_meeting_types.py",
+      "tests/test_override_tracking.py",
+      "tests/substrate/test_entity_store.py",
+      "tests/substrate/test_feedback_loop.py",
+      "tests/substrate/test_types.py"
+    ],
+    "changed_files_observed": [
+      "tests/substrate/test_entity_store.py",
+      "tests/substrate/test_feedback_loop.py",
+      "tests/substrate/test_types.py",
+      "tests/test_daemon_e2e.py",
+      "tests/test_meeting_types.py",
+      "tests/test_node_mesh_ws.py",
+      "tests/test_override_tracking.py",
+      "tests/test_philosophy_lenses.py"
+    ],
+    "file_divergences": [
+      {
+        "path": "tests/substrate/test_entity_store.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "tests/substrate/test_feedback_loop.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "tests/substrate/test_types.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "tests/test_daemon_e2e.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "tests/test_meeting_types.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "tests/test_node_mesh_ws.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "tests/test_override_tracking.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "tests/test_philosophy_lenses.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      }
+    ],
+    "has_file_divergence": false,
+    "added_lines_expected": 0,
+    "removed_lines_expected": 0,
+    "added_lines_observed": 0,
+    "removed_lines_observed": 22,
+    "state_before": {
+      "world_model_hash": "default",
+      "contradiction_count": 0,
+      "readiness_score": 0.0,
+      "dependency_node_count": 0,
+      "bottleneck_count": 0,
+      "template_count": 0,
+      "agent_count": 0,
+      "captured_at": 1780128725.2653182
+    },
+    "state_after": {
+      "world_model_hash": "default",
+      "contradiction_count": 0,
+      "readiness_score": 0.0,
+      "dependency_node_count": 0,
+      "bottleneck_count": 0,
+      "template_count": 0,
+      "agent_count": 0,
+      "captured_at": 1780128725.6476836
+    },
+    "world_model_before_after": {
+      "before_hash": "default",
+      "after_hash": "default",
+      "changed": false
+    },
+    "contradictions_before_after": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "readiness_before_after": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0
+    },
+    "dependency_graph_before_after": {
+      "before_nodes": 0,
+      "after_nodes": 0,
+      "delta": 0
+    },
+    "bottlenecks_before_after": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "template_confidence_before_after": {
+      "before_count": 0,
+      "after_count": 0
+    },
+    "agent_reliability_before_after": {
+      "before_count": 0,
+      "after_count": 0
+    },
+    "validation_results": [
+      {
+        "command": "import substrate",
+        "passed": true,
+        "exit_code": 0,
+        "output_summary": "substrate ok\n",
+        "validated_at": 1780128725.6054828
+      },
+      {
+        "command": "py_compile organism",
+        "passed": true,
+        "exit_code": 0,
+        "output_summary": "",
+        "validated_at": 1780128725.647667
+      }
+    ],
+    "all_validations_passed": true,
+    "requires_review": false,
+    "requires_operator_review": false,
+    "mismatch_reasons": [],
+    "evidence": [
+      "file sets match"
+    ],
+    "status": "production_verified",
+    "timestamp": 1780128725.2653127
+  },
+  "error": "",
+  "started_at": 1780128724.7616386,
+  "completed_at": 1780128725.7144053
+}

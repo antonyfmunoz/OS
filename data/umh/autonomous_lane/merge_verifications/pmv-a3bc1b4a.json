@@ -1,0 +1,128 @@
+{
+  "verification_id": "pmv-a3bc1b4a",
+  "sandbox_id": "sb-pr52-init-py",
+  "pr_number": 52,
+  "manifest_id": "csm-pr52-initpy",
+  "status": "cleanup_ready",
+  "merge_commit": "198569df3dd5cd594d17d22da621d063c657a544",
+  "base_commit": "52e2876c",
+  "head_commit": "b50ec6d5",
+  "local_main_commit": "198569df3dd5cd594d17d22da621d063c657a544",
+  "expected_files": [
+    "tests/substrate/__init__.py"
+  ],
+  "observed_files": [
+    "tests/substrate/__init__.py"
+  ],
+  "truth_delta": {
+    "delta_id": "ptd-b84aaa3c",
+    "sandbox_id": "sb-pr52-init-py",
+    "pr_number": 52,
+    "manifest_id": "csm-pr52-initpy",
+    "merge_commit": "198569df3dd5cd594d17d22da621d063c657a544",
+    "base_commit": "52e2876c",
+    "head_commit": "b50ec6d5",
+    "changed_files_expected": [
+      "tests/substrate/__init__.py"
+    ],
+    "changed_files_observed": [
+      "tests/substrate/__init__.py"
+    ],
+    "file_divergences": [
+      {
+        "path": "tests/substrate/__init__.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      }
+    ],
+    "has_file_divergence": false,
+    "added_lines_expected": 0,
+    "removed_lines_expected": 0,
+    "added_lines_observed": 0,
+    "removed_lines_observed": 0,
+    "state_before": {
+      "world_model_hash": "default",
+      "contradiction_count": 0,
+      "readiness_score": 0.0,
+      "dependency_node_count": 0,
+      "bottleneck_count": 0,
+      "template_count": 0,
+      "agent_count": 0,
+      "captured_at": 1780128693.2316332
+    },
+    "state_after": {
+      "world_model_hash": "default",
+      "contradiction_count": 0,
+      "readiness_score": 0.0,
+      "dependency_node_count": 0,
+      "bottleneck_count": 0,
+      "template_count": 0,
+      "agent_count": 0,
+      "captured_at": 1780128693.6525643
+    },
+    "world_model_before_after": {
+      "before_hash": "default",
+      "after_hash": "default",
+      "changed": false
+    },
+    "contradictions_before_after": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "readiness_before_after": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0
+    },
+    "dependency_graph_before_after": {
+      "before_nodes": 0,
+      "after_nodes": 0,
+      "delta": 0
+    },
+    "bottlenecks_before_after": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "template_confidence_before_after": {
+      "before_count": 0,
+      "after_count": 0
+    },
+    "agent_reliability_before_after": {
+      "before_count": 0,
+      "after_count": 0
+    },
+    "validation_results": [
+      {
+        "command": "import substrate",
+        "passed": true,
+        "exit_code": 0,
+        "output_summary": "substrate ok\n",
+        "validated_at": 1780128693.5939417
+      },
+      {
+        "command": "py_compile organism",
+        "passed": true,
+        "exit_code": 0,
+        "output_summary": "",
+        "validated_at": 1780128693.652551
+      }
+    ],
+    "all_validations_passed": true,
+    "requires_review": false,
+    "requires_operator_review": false,
+    "mismatch_reasons": [],
+    "evidence": [
+      "file sets match"
+    ],
+    "status": "production_verified",
+    "timestamp": 1780128693.2316282
+  },
+  "error": "",
+  "started_at": 1780128692.5355234,
+  "completed_at": 1780128693.7243433
+}
