@@ -132,6 +132,11 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "AdvisorScope": ["substrate.organism.advisor_hierarchy"],
     "AdvisorAuthority": ["substrate.organism.advisor_hierarchy"],
     "AdvisorStatus": ["substrate.organism.advisor_hierarchy"],
+    # ── substrate/organism/work_packet.py (Phase 11.1) ─────────────────
+    "PacketLifecycleStatus": ["substrate.organism.work_packet"],
+    # ── substrate/organism/workcell.py (Phase 11.1) ────────────────────
+    "PlanningWorkcellStatus": ["substrate.organism.workcell"],
+    "AdvisorBranchStatus": ["substrate.organism.workcell"],
     # ── substrate/organism/leverage_assimilation.py ──────────────────
     "LeveragePrimitiveType": ["substrate.organism.leverage_assimilation"],
     # ── substrate/organism/event_spine.py ─────────────────────────────
