@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-29)
 Phase: 4
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-05-30
+Last activity: 2026-05-31 - Phase 13.0R production truth promotion complete
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -93,9 +93,10 @@ None yet.
 |------|------|--------|---------|
 | Phase 11.0 — Self-Build Engineering Queue | 2026-05-30 | 5c65e7bb | SelfBuildQueueEngine (694 lines), RoadmapEngine (151 lines), 11 API routes, SelfBuildPanel, 68 tests, 18 real work items seeded, 7 roadmap phases linked |
 | Phase 13.0 — Operator Experience Kernel | 2026-05-30 | 68671c03..43bf7f3a | DexOrchestrator kernel (898 lines), OperatorSession/Response models, 9 bridge handlers, 9 FastAPI routes, 9 Hono routes, 85 tests, 14 proof artifacts, never-execute safety invariant, all routes auth-gated |
+| Phase 13.0R — Production Truth Promotion | 2026-05-31 | ad53f5e3 | PTD ptd-b504636a, POC poc-37f0509. 12 proof artifacts, 761 tests (0 new failures), 9 live API routes verified, lifecycle/status/approval/propagation proofs, audit report |
 
 ## Session Continuity
 
 Last session: 2026-05-30
-Stopped at: Phase 13.0 committed
+Stopped at: Phase 13.0R production truth — ready for Phase 13.1
 Resume file: None
