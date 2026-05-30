@@ -316,7 +316,7 @@ class TemplateRegistry:
     """Registry of reusable execution templates extracted from governed outcomes."""
 
     def __init__(self, store_dir: str | None = None):
-        self._store_dir = store_dir or os.path.join(_REPO_ROOT, "data", "umh", "templates")
+        self._store_dir = store_dir or os.path.join(_REPO_ROOT, "data", "umh", "organism", "templates")
         self._candidates_path = os.path.join(self._store_dir, "template_candidates.jsonl")
         self._templates_path = os.path.join(self._store_dir, "templates.jsonl")
         self._decisions_path = os.path.join(self._store_dir, "template_decisions.jsonl")
