@@ -2268,8 +2268,17 @@ def _mount_propagation_graph_router() -> None:
     router.include_router(cockpit_propagation_graph_routes.propagation_graph_router)
 
 
+def _mount_operator_experience_router() -> None:
+    from transports.api import cockpit_operator_experience_routes
+    cockpit_operator_experience_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_operator_experience_routes.operator_experience_router)
+
+
 _mount_economy_router()
 _mount_autonomous_router()
 _mount_self_build_router()
 _mount_universal_work_router()
 _mount_propagation_graph_router()
+_mount_operator_experience_router()

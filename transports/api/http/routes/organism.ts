@@ -468,4 +468,65 @@ router.get('/production-truth', operatorGuard, async (c) => {
   return c.json(result.data)
 })
 
+// ── Operator experience routes ─────────────────────────────
+
+router.get('/operator-experience', async (c) => {
+  const result = await callOrganism('organism.operator_experience')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operator-experience/sessions', async (c) => {
+  const limit = Number(c.req.query('limit') || '20')
+  const result = await callOrganism('organism.operator_experience.sessions', { limit })
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operator-experience/sessions/:id', async (c) => {
+  const result = await callOrganism('organism.operator_experience.session', { session_id: c.req.param('id') })
+  if (!result.success) return c.json({ error: result.error }, 404)
+  return c.json(result.data)
+})
+
+router.get('/operator-experience/status', async (c) => {
+  const result = await callOrganism('organism.operator_experience.status')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operator-experience/approvals', async (c) => {
+  const result = await callOrganism('organism.operator_experience.approvals')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.post('/operator-experience/send', operatorGuard, async (c) => {
+  const body = await c.req.json()
+  const result = await callOrganism('organism.operator_experience.send', body)
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.post('/operator-experience/packet-preview', operatorGuard, async (c) => {
+  const body = await c.req.json()
+  const result = await callOrganism('organism.operator_experience.packet_preview', body)
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.post('/operator-experience/propagation-preview', operatorGuard, async (c) => {
+  const body = await c.req.json()
+  const result = await callOrganism('organism.operator_experience.propagation_preview', body)
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.post('/operator-experience/topology-preview', operatorGuard, async (c) => {
+  const body = await c.req.json()
+  const result = await callOrganism('organism.operator_experience.topology_preview', body)
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
 export default router

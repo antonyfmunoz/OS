@@ -274,7 +274,16 @@ class DexOrchestrator:
             desired_end_state=intent.extracted_subject,
             constraints=intent.extracted_constraints,
         )
-        topology = planner.plan_topology(packet)
+        topology = planner.plan(
+            risk_class=classification.risk_class,
+            complexity=classification.complexity,
+            work_type=classification.work_type,
+            human_action_required=classification.human_action_required,
+            approval_required=classification.approval_required,
+            execution_possible=classification.execution_possible,
+            parallel_needed=classification.parallel_workcells_needed,
+            packet_id=packet.packet_id,
+        )
         return {
             "topology": topology.to_dict(),
             "classification": classification.to_dict(),
@@ -348,7 +357,7 @@ class DexOrchestrator:
             "impact_analysis": analysis.to_dict(),
             "propagation_plan": plan.to_dict(),
             "affected_count": len(analysis.affected_nodes),
-            "waves": plan.total_waves,
+            "waves": len(plan.propagation_waves),
             "requires_approval": len(analysis.approval_required) > 0,
             "requires_human": len(analysis.human_required) > 0,
         }
