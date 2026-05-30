@@ -1,0 +1,29 @@
+{
+  "all_endpoints_reachable": true,
+  "endpoints": {
+    "cadence": {
+      "success": true,
+      "has_data": true
+    },
+    "candidate_supply": {
+      "success": true,
+      "has_data": true
+    },
+    "sandboxes": {
+      "success": true,
+      "has_data": true
+    },
+    "approval_packets": {
+      "success": true,
+      "has_data": true
+    },
+    "production_truth": {
+      "success": true,
+      "has_data": true
+    },
+    "pr_factory": {
+      "success": true,
+      "has_data": true
+    }
+  }
+}

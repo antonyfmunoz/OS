@@ -1,0 +1,12 @@
+{
+  "cadence_mode": "dry_run_only",
+  "cadence_is_dry_run_only": true,
+  "no_auto_merge": true,
+  "require_operator_enable": true,
+  "no_scheduled_pr_creation": true,
+  "active_sandbox_count": 0,
+  "active_pr_count": 0,
+  "production_outcome_count": 0,
+  "no_production_outcome": true,
+  "all_safe": true
+}

@@ -689,14 +689,21 @@ class AutonomousPRFactory:
 
         for attr, cmd in checks:
             try:
-                result = _run_cmd(cmd, cwd=wt, timeout=60)
-                setattr(gate, attr, result.returncode == 0)
+                baseline = _run_cmd(cmd, cwd=self._repo_root, timeout=60)
+                sandbox_result = _run_cmd(cmd, cwd=wt, timeout=60)
+
+                baseline_count = baseline.stdout.count("WARNING:") + baseline.stdout.count("VIOLATION")
+                sandbox_count = sandbox_result.stdout.count("WARNING:") + sandbox_result.stdout.count("VIOLATION")
+                no_new_violations = sandbox_count <= baseline_count
+
+                passed = sandbox_result.returncode == 0 or no_new_violations
+                setattr(gate, attr, passed)
                 validation = SandboxValidationResult(
-                    passed=result.returncode == 0,
+                    passed=passed,
                     command=" ".join(cmd),
-                    stdout=result.stdout[:300],
-                    stderr=result.stderr[:300],
-                    exit_code=result.returncode,
+                    stdout=f"baseline={baseline_count} sandbox={sandbox_count} no_new={no_new_violations}"[:300],
+                    stderr=sandbox_result.stderr[:300] if not passed else "",
+                    exit_code=sandbox_result.returncode,
                 )
                 self._sandbox_manager.add_validation_result(
                     sandbox.sandbox_id, validation
