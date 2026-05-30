@@ -1,0 +1,22 @@
+{
+  "phase": "10.3H",
+  "sandbox_id": "sb-pr47cse",
+  "pr_number": 47,
+  "production_verified": true,
+  "cleanup_eligible": true,
+  "cleanup_actions": {
+    "worktree": {
+      "path": "/opt/OS/.claude/worktrees/auto-ed2e7b56",
+      "branch": "auto/low-risk/audit-gap--runtime-template-st-ed2e7b56",
+      "action": "remove_eligible",
+      "note": "worktree exists, branch merged — safe to remove"
+    },
+    "manifest_preserved": true,
+    "production_truth_delta_preserved": true,
+    "audit_artifacts_preserved": true,
+    "merge_verification_preserved": true
+  },
+  "cleanup_policy": "on_merge",
+  "cleanup_deferred": true,
+  "deferral_reason": "Phase 10.3 prioritizes proof over cleanup. Worktree can be cleaned by periodic maintenance."
+}
