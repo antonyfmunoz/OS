@@ -1,6 +1,6 @@
 """
 Notion Setup — creates the full per-venture primitive database
-architecture for EntrepreneurOS.
+architecture for UMH.
 
 UNIVERSAL (all roles, all stages):
   Goals/OKRs, Tasks, Meetings, Documents,
