@@ -40,11 +40,14 @@ interface ChatState {
   sending: boolean
   error: string | null
   targetChannel: string
+  _pollTimer: ReturnType<typeof setInterval> | null
 
   setInput: (input: string) => void
   setTargetChannel: (channel: string) => void
   sendMessage: (content: string, source?: 'text' | 'voice') => Promise<void>
   loadHistory: () => Promise<void>
+  startPolling: () => void
+  stopPolling: () => void
   addVoiceTranscript: (text: string) => void
   pushExternalMessage: (msg: ChatMessage) => void
 }
@@ -55,6 +58,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sending: false,
   error: null,
   targetChannel: 'cockpit',
+  _pollTimer: null,
 
   setInput: (input) => set({ input }),
   setTargetChannel: (channel) => set({ targetChannel: channel }),
@@ -142,6 +146,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ messages })
     } catch {
       // History load failure is non-critical
+    }
+  },
+
+  startPolling: () => {
+    const { _pollTimer, loadHistory } = get()
+    if (_pollTimer) return
+    const timer = setInterval(() => { loadHistory() }, 30_000)
+    set({ _pollTimer: timer })
+  },
+
+  stopPolling: () => {
+    const { _pollTimer } = get()
+    if (_pollTimer) {
+      clearInterval(_pollTimer)
+      set({ _pollTimer: null })
     }
   },
 
