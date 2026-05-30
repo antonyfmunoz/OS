@@ -91,6 +91,14 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/autonomous-cadence/run-dry-run", _autonomous_cadence_run_dry_run, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/autonomous-cadence/set-mode", _autonomous_cadence_set_mode, methods=["POST"], dependencies=auth)
 
+    # ── Template registry + Candidate supply + Governance routes ──────────
+    r.add_api_route("/organism/template-registry", _template_registry_summary, methods=["GET"])
+    r.add_api_route("/organism/template-registry/promoted", _template_registry_promoted, methods=["GET"])
+    r.add_api_route("/organism/template-registry/candidates", _template_registry_candidates, methods=["GET"])
+    r.add_api_route("/organism/candidate-supply", _candidate_supply_scan, methods=["GET"])
+    r.add_api_route("/organism/candidate-supply/run", _candidate_supply_run, methods=["POST"], dependencies=auth)
+    r.add_api_route("/organism/template-governance/evaluate", _template_governance_evaluate, methods=["GET"])
+
     return r
 
 
@@ -331,3 +339,113 @@ async def _autonomous_cadence_set_mode(payload: dict):
     except ValueError:
         return {"error": f"invalid mode: {mode_str}"}
     return {"ok": True, "mode": cadence.mode.value}
+
+
+# ── Template Registry handlers ────────────────────────────────────────────────
+
+
+async def _template_registry_summary():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    registry = getattr(daemon, "_template_registry", None)
+    if registry is None:
+        return {"error": "template registry not available"}
+    return registry.to_safe_dict()
+
+
+async def _template_registry_promoted():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    registry = getattr(daemon, "_template_registry", None)
+    if registry is None:
+        return {"error": "template registry not available"}
+    promoted = registry.list_promoted()
+    return {
+        "count": len(promoted),
+        "templates": [
+            {
+                "template_id": t.template_id,
+                "template_type": t.template_type.value,
+                "confidence": round(t.confidence, 3),
+                "observed_success_count": t.observed_success_count,
+                "observed_failure_count": t.observed_failure_count,
+                "risk_class": t.risk_class,
+                "status": t.status.value,
+            }
+            for t in promoted
+        ],
+    }
+
+
+async def _template_registry_candidates():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    registry = getattr(daemon, "_template_registry", None)
+    if registry is None:
+        return {"error": "template registry not available"}
+    candidates = registry.list_candidates()
+    return {
+        "count": len(candidates),
+        "candidates": [
+            {
+                "template_id": t.template_id,
+                "template_type": t.template_type.value,
+                "confidence": round(t.confidence, 3),
+                "status": t.status.value,
+            }
+            for t in candidates[-20:]
+        ],
+    }
+
+
+# ── Candidate Supply handlers ─────────────────────────────────────────────────
+
+
+async def _candidate_supply_scan():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    supply = getattr(daemon, "_candidate_supply_engine", None)
+    if supply is None:
+        return {"error": "candidate supply engine not available"}
+    return supply.summary()
+
+
+async def _candidate_supply_run():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    supply = getattr(daemon, "_candidate_supply_engine", None)
+    if supply is None:
+        return {"error": "candidate supply engine not available"}
+    result = supply.discover()
+    return result.to_dict()
+
+
+# ── Template Governance handlers ───────────────────────────────────────────────
+
+
+async def _template_governance_evaluate():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    registry = getattr(daemon, "_template_registry", None)
+    if registry is None:
+        return {"error": "template registry not available"}
+    from substrate.organism.template_governance import TemplateGovernance
+    gov = TemplateGovernance()
+    promoted = registry.list_promoted()
+    scores = gov.evaluate_batch(promoted)
+    return {
+        "template_count": len(promoted),
+        "scores": [s.to_dict() for s in scores],
+        "summary": {
+            "cadence_eligible": sum(1 for s in scores if s.decision.value == "cadence_eligible"),
+            "candidate_only": sum(1 for s in scores if s.decision.value == "candidate_only"),
+            "operator_review_required": sum(1 for s in scores if s.decision.value == "operator_review_required"),
+            "blocked": sum(1 for s in scores if s.decision.value == "blocked"),
+        },
+    }
