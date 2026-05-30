@@ -268,6 +268,8 @@ _ACTION_TO_TEMPLATE_TYPE: dict[str, TemplateType] = {
     "plan_execution": TemplateType.GOVERNANCE_VALIDATION,
     "execute": TemplateType.MAINTENANCE_ACTION,
     "verify": TemplateType.EVIDENCE_ALIGNMENT_FIX,
+    "documentation_fix": TemplateType.DOCUMENTATION_ALIGNMENT,
+    "test_repair": TemplateType.TEST_REPAIR,
 }
 
 
@@ -285,6 +287,8 @@ def _infer_template_type(action_type: str, description: str = "") -> TemplateTyp
         return TemplateType.COCKPIT_PANEL_FIX
     if "world model" in desc or "observation" in desc:
         return TemplateType.WORLD_MODEL_ACCURACY_FIX
+    if "docstring" in desc or "documentation" in desc or "stale project name" in desc:
+        return TemplateType.DOCUMENTATION_ALIGNMENT
     if "test" in desc:
         return TemplateType.TEST_REPAIR
     if "route" in desc or "endpoint" in desc:
