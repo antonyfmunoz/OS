@@ -1,0 +1,596 @@
+{
+  "phase": "12.0",
+  "task": "impact_analysis",
+  "timestamp": "2026-05-30T15:01:13Z",
+  "test_event_count": 3,
+  "proofs": [
+    {
+      "event": {
+        "change_id": "ce-2ca1aeb4bbd7",
+        "change_type": "work_packet_updated",
+        "source_node_id": "pgn-wp-9e9f7de0fc",
+        "source_type": "",
+        "source_id": "",
+        "title": "Work Packet updated: Build first EOS operating dashboard",
+        "description": "",
+        "before_state": {
+          "status": "classified"
+        },
+        "after_state": {
+          "status": "planned"
+        },
+        "changed_fields": [
+          "status"
+        ],
+        "changed_files": [],
+        "changed_entities": [],
+        "changed_relationships": [],
+        "risk_class": "low",
+        "initiated_by": "operator",
+        "timestamp": 1780178473.0275304,
+        "evidence": [],
+        "idempotency_key": "idem-5dc6f881da90"
+      },
+      "analysis": {
+        "analysis_id": "ia-7cb458b149bd",
+        "change_event_id": "ce-2ca1aeb4bbd7",
+        "source_node_id": "pgn-wp-9e9f7de0fc",
+        "affected_nodes": [],
+        "affected_edges": [],
+        "direct_impact": [],
+        "indirect_impact": [],
+        "impact_depth": 0,
+        "impact_radius": 0,
+        "required_waves": 0,
+        "parallelizable_groups": [],
+        "validation_required": [],
+        "approval_required": [],
+        "human_required": [],
+        "reconvergence_required": [],
+        "no_op_nodes": [],
+        "stale_nodes": [],
+        "blocked_nodes": [],
+        "risk_summary": {
+          "event_risk_class": "low",
+          "total_affected": 0,
+          "direct_count": 0,
+          "indirect_count": 0,
+          "approval_required_count": 0,
+          "human_required_count": 0,
+          "validation_required_count": 0,
+          "blocked_count": 0,
+          "no_op_count": 0,
+          "risk_distribution": {
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "max_depth": 0,
+          "wave_count": 0
+        },
+        "computed_at": 1780178473.027573
+      }
+    },
+    {
+      "event": {
+        "change_id": "ce-ce14d4c66375",
+        "change_type": "production_truth_committed",
+        "source_node_id": "pgn-ptd-a28b34c292",
+        "source_type": "",
+        "source_id": "",
+        "title": "ProductionTruthDelta committed",
+        "description": "",
+        "before_state": {},
+        "after_state": {},
+        "changed_fields": [],
+        "changed_files": [],
+        "changed_entities": [],
+        "changed_relationships": [],
+        "risk_class": "low",
+        "initiated_by": "operator",
+        "timestamp": 1780178473.027543,
+        "evidence": [],
+        "idempotency_key": "idem-9c70237b73fa"
+      },
+      "analysis": {
+        "analysis_id": "ia-d8b4f94cc76a",
+        "change_event_id": "ce-ce14d4c66375",
+        "source_node_id": "pgn-ptd-a28b34c292",
+        "affected_nodes": [
+          {
+            "node_id": "pgn-poc-91c98329da",
+            "node_type": "outcome",
+            "title": "ProductionOutcomeCommitted poc-532ce3d",
+            "impact_depth": 1,
+            "impact_score": 1.0,
+            "edge_path": [
+              "pge-01a1eae6f4f0"
+            ],
+            "propagation_mode": "notify_only",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "medium"
+          },
+          {
+            "node_id": "pgn-api-365df039ea",
+            "node_type": "api_route",
+            "title": "Universal Work Overview",
+            "impact_depth": 1,
+            "impact_score": 0.66,
+            "edge_path": [
+              "pge-28ee7814e748"
+            ],
+            "propagation_mode": "revalidate",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "medium"
+          },
+          {
+            "node_id": "pgn-api-bb1748b441",
+            "node_type": "api_route",
+            "title": "Universal Work Summary",
+            "impact_depth": 1,
+            "impact_score": 0.66,
+            "edge_path": [
+              "pge-d0d3571c108c"
+            ],
+            "propagation_mode": "revalidate",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "medium"
+          },
+          {
+            "node_id": "pgn-api-c89ec1d306",
+            "node_type": "api_route",
+            "title": "Work Packets List",
+            "impact_depth": 1,
+            "impact_score": 0.66,
+            "edge_path": [
+              "pge-2794224d4571"
+            ],
+            "propagation_mode": "revalidate",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "medium"
+          },
+          {
+            "node_id": "pgn-api-1350c6eac9",
+            "node_type": "api_route",
+            "title": "Next Best Packet",
+            "impact_depth": 1,
+            "impact_score": 0.66,
+            "edge_path": [
+              "pge-874e7a40303e"
+            ],
+            "propagation_mode": "revalidate",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "medium"
+          },
+          {
+            "node_id": "pgn-api-25088e540c",
+            "node_type": "api_route",
+            "title": "Blocked Packets",
+            "impact_depth": 1,
+            "impact_score": 0.66,
+            "edge_path": [
+              "pge-4807e046b931"
+            ],
+            "propagation_mode": "revalidate",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "medium"
+          },
+          {
+            "node_id": "pgn-api-803e6e3d67",
+            "node_type": "api_route",
+            "title": "Human Required Packets",
+            "impact_depth": 1,
+            "impact_score": 0.66,
+            "edge_path": [
+              "pge-222181a7c6fa"
+            ],
+            "propagation_mode": "revalidate",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "medium"
+          },
+          {
+            "node_id": "pgn-api-e2cbcbc3ca",
+            "node_type": "api_route",
+            "title": "Approval Required Packets",
+            "impact_depth": 1,
+            "impact_score": 0.66,
+            "edge_path": [
+              "pge-16954469b858"
+            ],
+            "propagation_mode": "revalidate",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "medium"
+          },
+          {
+            "node_id": "pgn-api-4e3b68c943",
+            "node_type": "api_route",
+            "title": "Create Packet",
+            "impact_depth": 1,
+            "impact_score": 0.66,
+            "edge_path": [
+              "pge-60c3469b0a0b"
+            ],
+            "propagation_mode": "revalidate",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "medium"
+          },
+          {
+            "node_id": "pgn-api-793b281191",
+            "node_type": "api_route",
+            "title": "Packets By Domain",
+            "impact_depth": 1,
+            "impact_score": 0.66,
+            "edge_path": [
+              "pge-3019a253ad81"
+            ],
+            "propagation_mode": "revalidate",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "medium"
+          },
+          {
+            "node_id": "pgn-api-ce558d5dae",
+            "node_type": "api_route",
+            "title": "Packet Detail",
+            "impact_depth": 1,
+            "impact_score": 0.66,
+            "edge_path": [
+              "pge-f58a59cd3c4f"
+            ],
+            "propagation_mode": "revalidate",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "medium"
+          }
+        ],
+        "affected_edges": [
+          "pge-01a1eae6f4f0",
+          "pge-28ee7814e748",
+          "pge-d0d3571c108c",
+          "pge-2794224d4571",
+          "pge-874e7a40303e",
+          "pge-4807e046b931",
+          "pge-222181a7c6fa",
+          "pge-16954469b858",
+          "pge-60c3469b0a0b",
+          "pge-3019a253ad81",
+          "pge-f58a59cd3c4f"
+        ],
+        "direct_impact": [
+          "pgn-poc-91c98329da",
+          "pgn-api-365df039ea",
+          "pgn-api-bb1748b441",
+          "pgn-api-c89ec1d306",
+          "pgn-api-1350c6eac9",
+          "pgn-api-25088e540c",
+          "pgn-api-803e6e3d67",
+          "pgn-api-e2cbcbc3ca",
+          "pgn-api-4e3b68c943",
+          "pgn-api-793b281191",
+          "pgn-api-ce558d5dae"
+        ],
+        "indirect_impact": [],
+        "impact_depth": 1,
+        "impact_radius": 11,
+        "required_waves": 1,
+        "parallelizable_groups": [
+          [
+            "pgn-poc-91c98329da",
+            "pgn-api-365df039ea",
+            "pgn-api-bb1748b441",
+            "pgn-api-c89ec1d306",
+            "pgn-api-1350c6eac9",
+            "pgn-api-25088e540c",
+            "pgn-api-803e6e3d67",
+            "pgn-api-e2cbcbc3ca",
+            "pgn-api-4e3b68c943",
+            "pgn-api-793b281191",
+            "pgn-api-ce558d5dae"
+          ]
+        ],
+        "validation_required": [],
+        "approval_required": [],
+        "human_required": [],
+        "reconvergence_required": [],
+        "no_op_nodes": [],
+        "stale_nodes": [],
+        "blocked_nodes": [],
+        "risk_summary": {
+          "event_risk_class": "low",
+          "total_affected": 11,
+          "direct_count": 11,
+          "indirect_count": 0,
+          "approval_required_count": 0,
+          "human_required_count": 0,
+          "validation_required_count": 0,
+          "blocked_count": 0,
+          "no_op_count": 0,
+          "risk_distribution": {
+            "low": 0,
+            "medium": 11,
+            "high": 0
+          },
+          "max_depth": 1,
+          "wave_count": 1
+        },
+        "computed_at": 1780178473.0276003
+      }
+    },
+    {
+      "event": {
+        "change_id": "ce-483b5725a974",
+        "change_type": "roadmap_phase_updated",
+        "source_node_id": "pgn-rp-80b8062fef",
+        "source_type": "",
+        "source_id": "",
+        "title": "Roadmap Phase 12 status planned -> active",
+        "description": "",
+        "before_state": {
+          "status": "planned"
+        },
+        "after_state": {
+          "status": "active"
+        },
+        "changed_fields": [],
+        "changed_files": [],
+        "changed_entities": [],
+        "changed_relationships": [],
+        "risk_class": "low",
+        "initiated_by": "operator",
+        "timestamp": 1780178473.0275512,
+        "evidence": [],
+        "idempotency_key": "idem-f9a5eac59c6d"
+      },
+      "analysis": {
+        "analysis_id": "ia-b28253a54214",
+        "change_event_id": "ce-483b5725a974",
+        "source_node_id": "pgn-rp-80b8062fef",
+        "affected_nodes": [
+          {
+            "node_id": "pgn-rp-56824d16dc",
+            "node_type": "roadmap_phase",
+            "title": "Self-Build Engineering Queue",
+            "impact_depth": 1,
+            "impact_score": 1.0,
+            "edge_path": [
+              "pge-6151b82bea4d"
+            ],
+            "propagation_mode": "notify_only",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "medium"
+          },
+          {
+            "node_id": "pgn-rp-6b51d431df",
+            "node_type": "roadmap_phase",
+            "title": "Universal Propagation Graph",
+            "impact_depth": 2,
+            "impact_score": 0.5,
+            "edge_path": [
+              "pge-6151b82bea4d",
+              "pge-91d649203a9a"
+            ],
+            "propagation_mode": "notify_only",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "low"
+          },
+          {
+            "node_id": "pgn-rp-3fdba35f04",
+            "node_type": "roadmap_phase",
+            "title": "Jarvis-Level Operator Experience",
+            "impact_depth": 3,
+            "impact_score": 0.3333,
+            "edge_path": [
+              "pge-6151b82bea4d",
+              "pge-91d649203a9a",
+              "pge-9b1a43d24f70"
+            ],
+            "propagation_mode": "notify_only",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "low"
+          },
+          {
+            "node_id": "pgn-rp-8527a891e2",
+            "node_type": "roadmap_phase",
+            "title": "Product Projections: EOS/CreatorOS/LyfeOS",
+            "impact_depth": 4,
+            "impact_score": 0.25,
+            "edge_path": [
+              "pge-6151b82bea4d",
+              "pge-91d649203a9a",
+              "pge-9b1a43d24f70",
+              "pge-f17926331a0c"
+            ],
+            "propagation_mode": "notify_only",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "low"
+          },
+          {
+            "node_id": "pgn-rp-e629fa6598",
+            "node_type": "roadmap_phase",
+            "title": "Empyrean Studios via EOS",
+            "impact_depth": 5,
+            "impact_score": 0.2,
+            "edge_path": [
+              "pge-6151b82bea4d",
+              "pge-91d649203a9a",
+              "pge-9b1a43d24f70",
+              "pge-f17926331a0c",
+              "pge-2147c1f26c19"
+            ],
+            "propagation_mode": "notify_only",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "low"
+          },
+          {
+            "node_id": "pgn-rp-f5ca38f748",
+            "node_type": "roadmap_phase",
+            "title": "Empire-Scale Leverage Infrastructure",
+            "impact_depth": 6,
+            "impact_score": 0.1667,
+            "edge_path": [
+              "pge-6151b82bea4d",
+              "pge-91d649203a9a",
+              "pge-9b1a43d24f70",
+              "pge-f17926331a0c",
+              "pge-2147c1f26c19",
+              "pge-de39395de4d0"
+            ],
+            "propagation_mode": "notify_only",
+            "requires_validation": false,
+            "requires_approval": false,
+            "requires_human": false,
+            "is_blocked": false,
+            "is_no_op": false,
+            "is_stale": false,
+            "risk_class": "low"
+          }
+        ],
+        "affected_edges": [
+          "pge-6151b82bea4d",
+          "pge-91d649203a9a",
+          "pge-9b1a43d24f70",
+          "pge-f17926331a0c",
+          "pge-2147c1f26c19",
+          "pge-de39395de4d0"
+        ],
+        "direct_impact": [
+          "pgn-rp-56824d16dc"
+        ],
+        "indirect_impact": [
+          "pgn-rp-6b51d431df",
+          "pgn-rp-3fdba35f04",
+          "pgn-rp-8527a891e2",
+          "pgn-rp-e629fa6598",
+          "pgn-rp-f5ca38f748"
+        ],
+        "impact_depth": 6,
+        "impact_radius": 6,
+        "required_waves": 6,
+        "parallelizable_groups": [
+          [
+            "pgn-rp-56824d16dc"
+          ],
+          [
+            "pgn-rp-6b51d431df"
+          ],
+          [
+            "pgn-rp-3fdba35f04"
+          ],
+          [
+            "pgn-rp-8527a891e2"
+          ],
+          [
+            "pgn-rp-e629fa6598"
+          ],
+          [
+            "pgn-rp-f5ca38f748"
+          ]
+        ],
+        "validation_required": [],
+        "approval_required": [],
+        "human_required": [],
+        "reconvergence_required": [],
+        "no_op_nodes": [],
+        "stale_nodes": [],
+        "blocked_nodes": [],
+        "risk_summary": {
+          "event_risk_class": "low",
+          "total_affected": 6,
+          "direct_count": 1,
+          "indirect_count": 5,
+          "approval_required_count": 0,
+          "human_required_count": 0,
+          "validation_required_count": 0,
+          "blocked_count": 0,
+          "no_op_count": 0,
+          "risk_distribution": {
+            "low": 5,
+            "medium": 1,
+            "high": 0
+          },
+          "max_depth": 6,
+          "wave_count": 6
+        },
+        "computed_at": 1780178473.0277545
+      }
+    }
+  ]
+}

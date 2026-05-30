@@ -1,0 +1,550 @@
+{
+  "phase": "12.0",
+  "task": "propagation_plans",
+  "timestamp": "2026-05-30T15:01:13Z",
+  "plan_count": 3,
+  "proofs": [
+    {
+      "event_title": "Work Packet updated: Build first EOS operating dashboard",
+      "plan": {
+        "plan_id": "pp-a1861e7c4bb8",
+        "change_event_id": "ce-2ca1aeb4bbd7",
+        "root_node_id": "pgn-wp-9e9f7de0fc",
+        "affected_nodes": [],
+        "propagation_waves": [],
+        "blocked_nodes": [],
+        "approval_required_nodes": [],
+        "human_required_nodes": [],
+        "validation_required_nodes": [],
+        "no_op_nodes": [],
+        "expected_updates": 0,
+        "risk_summary": {
+          "event_risk_class": "low",
+          "total_affected": 0,
+          "direct_count": 0,
+          "indirect_count": 0,
+          "approval_required_count": 0,
+          "human_required_count": 0,
+          "validation_required_count": 0,
+          "blocked_count": 0,
+          "no_op_count": 0,
+          "risk_distribution": {
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "max_depth": 0,
+          "wave_count": 0
+        },
+        "execution_mode": "dry_run",
+        "created_at": 1780178473.028718
+      }
+    },
+    {
+      "event_title": "ProductionTruthDelta committed",
+      "plan": {
+        "plan_id": "pp-5f4bcd73b3b9",
+        "change_event_id": "ce-ce14d4c66375",
+        "root_node_id": "pgn-ptd-a28b34c292",
+        "affected_nodes": [
+          "pgn-poc-91c98329da",
+          "pgn-api-365df039ea",
+          "pgn-api-bb1748b441",
+          "pgn-api-c89ec1d306",
+          "pgn-api-1350c6eac9",
+          "pgn-api-25088e540c",
+          "pgn-api-803e6e3d67",
+          "pgn-api-e2cbcbc3ca",
+          "pgn-api-4e3b68c943",
+          "pgn-api-793b281191",
+          "pgn-api-ce558d5dae"
+        ],
+        "propagation_waves": [
+          {
+            "wave_id": "pw-d903f6362748",
+            "wave_number": 2,
+            "nodes": [
+              "pgn-poc-91c98329da"
+            ],
+            "actions": [
+              {
+                "action_id": "pa-c6a917c4454b",
+                "node_id": "pgn-poc-91c98329da",
+                "action_type": "notify",
+                "reason": "Propagation from change ce-ce14d4c66375: ProductionTruthDelta committed",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-ce14d4c66375",
+                    "change_type": "production_truth_committed",
+                    "impact_depth": 1,
+                    "impact_score": 1.0
+                  }
+                ],
+                "output_expected": "Update outcome ProductionOutcomeCommitted poc-532ce3d",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "medium",
+                "idempotency_key": "idem-ce-ce14d4c66375-pgn-poc-91c98329da",
+                "status": "pending"
+              }
+            ],
+            "can_run_parallel": true,
+            "dependencies": [
+              "wave-1"
+            ],
+            "reconvergence_required": false
+          },
+          {
+            "wave_id": "pw-2fddf14d88e7",
+            "wave_number": 3,
+            "nodes": [
+              "pgn-api-365df039ea",
+              "pgn-api-bb1748b441",
+              "pgn-api-c89ec1d306",
+              "pgn-api-1350c6eac9",
+              "pgn-api-25088e540c",
+              "pgn-api-803e6e3d67",
+              "pgn-api-e2cbcbc3ca",
+              "pgn-api-4e3b68c943",
+              "pgn-api-793b281191",
+              "pgn-api-ce558d5dae"
+            ],
+            "actions": [
+              {
+                "action_id": "pa-1e8d6b8c432f",
+                "node_id": "pgn-api-365df039ea",
+                "action_type": "revalidate",
+                "reason": "Propagation from change ce-ce14d4c66375: ProductionTruthDelta committed",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-ce14d4c66375",
+                    "change_type": "production_truth_committed",
+                    "impact_depth": 1,
+                    "impact_score": 0.66
+                  }
+                ],
+                "output_expected": "Update api_route Universal Work Overview",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "medium",
+                "idempotency_key": "idem-ce-ce14d4c66375-pgn-api-365df039ea",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-4760cc5294d1",
+                "node_id": "pgn-api-bb1748b441",
+                "action_type": "revalidate",
+                "reason": "Propagation from change ce-ce14d4c66375: ProductionTruthDelta committed",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-ce14d4c66375",
+                    "change_type": "production_truth_committed",
+                    "impact_depth": 1,
+                    "impact_score": 0.66
+                  }
+                ],
+                "output_expected": "Update api_route Universal Work Summary",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "medium",
+                "idempotency_key": "idem-ce-ce14d4c66375-pgn-api-bb1748b441",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-8673855623ae",
+                "node_id": "pgn-api-c89ec1d306",
+                "action_type": "revalidate",
+                "reason": "Propagation from change ce-ce14d4c66375: ProductionTruthDelta committed",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-ce14d4c66375",
+                    "change_type": "production_truth_committed",
+                    "impact_depth": 1,
+                    "impact_score": 0.66
+                  }
+                ],
+                "output_expected": "Update api_route Work Packets List",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "medium",
+                "idempotency_key": "idem-ce-ce14d4c66375-pgn-api-c89ec1d306",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-06ab3310d2e4",
+                "node_id": "pgn-api-1350c6eac9",
+                "action_type": "revalidate",
+                "reason": "Propagation from change ce-ce14d4c66375: ProductionTruthDelta committed",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-ce14d4c66375",
+                    "change_type": "production_truth_committed",
+                    "impact_depth": 1,
+                    "impact_score": 0.66
+                  }
+                ],
+                "output_expected": "Update api_route Next Best Packet",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "medium",
+                "idempotency_key": "idem-ce-ce14d4c66375-pgn-api-1350c6eac9",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-a13d8d6619be",
+                "node_id": "pgn-api-25088e540c",
+                "action_type": "revalidate",
+                "reason": "Propagation from change ce-ce14d4c66375: ProductionTruthDelta committed",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-ce14d4c66375",
+                    "change_type": "production_truth_committed",
+                    "impact_depth": 1,
+                    "impact_score": 0.66
+                  }
+                ],
+                "output_expected": "Update api_route Blocked Packets",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "medium",
+                "idempotency_key": "idem-ce-ce14d4c66375-pgn-api-25088e540c",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-e673076557bb",
+                "node_id": "pgn-api-803e6e3d67",
+                "action_type": "revalidate",
+                "reason": "Propagation from change ce-ce14d4c66375: ProductionTruthDelta committed",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-ce14d4c66375",
+                    "change_type": "production_truth_committed",
+                    "impact_depth": 1,
+                    "impact_score": 0.66
+                  }
+                ],
+                "output_expected": "Update api_route Human Required Packets",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "medium",
+                "idempotency_key": "idem-ce-ce14d4c66375-pgn-api-803e6e3d67",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-eedec3462bce",
+                "node_id": "pgn-api-e2cbcbc3ca",
+                "action_type": "revalidate",
+                "reason": "Propagation from change ce-ce14d4c66375: ProductionTruthDelta committed",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-ce14d4c66375",
+                    "change_type": "production_truth_committed",
+                    "impact_depth": 1,
+                    "impact_score": 0.66
+                  }
+                ],
+                "output_expected": "Update api_route Approval Required Packets",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "medium",
+                "idempotency_key": "idem-ce-ce14d4c66375-pgn-api-e2cbcbc3ca",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-e3b9b3976327",
+                "node_id": "pgn-api-4e3b68c943",
+                "action_type": "revalidate",
+                "reason": "Propagation from change ce-ce14d4c66375: ProductionTruthDelta committed",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-ce14d4c66375",
+                    "change_type": "production_truth_committed",
+                    "impact_depth": 1,
+                    "impact_score": 0.66
+                  }
+                ],
+                "output_expected": "Update api_route Create Packet",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "medium",
+                "idempotency_key": "idem-ce-ce14d4c66375-pgn-api-4e3b68c943",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-8b54da961213",
+                "node_id": "pgn-api-793b281191",
+                "action_type": "revalidate",
+                "reason": "Propagation from change ce-ce14d4c66375: ProductionTruthDelta committed",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-ce14d4c66375",
+                    "change_type": "production_truth_committed",
+                    "impact_depth": 1,
+                    "impact_score": 0.66
+                  }
+                ],
+                "output_expected": "Update api_route Packets By Domain",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "medium",
+                "idempotency_key": "idem-ce-ce14d4c66375-pgn-api-793b281191",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-fa38194ec720",
+                "node_id": "pgn-api-ce558d5dae",
+                "action_type": "revalidate",
+                "reason": "Propagation from change ce-ce14d4c66375: ProductionTruthDelta committed",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-ce14d4c66375",
+                    "change_type": "production_truth_committed",
+                    "impact_depth": 1,
+                    "impact_score": 0.66
+                  }
+                ],
+                "output_expected": "Update api_route Packet Detail",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "medium",
+                "idempotency_key": "idem-ce-ce14d4c66375-pgn-api-ce558d5dae",
+                "status": "pending"
+              }
+            ],
+            "can_run_parallel": true,
+            "dependencies": [
+              "wave-2"
+            ],
+            "reconvergence_required": false
+          }
+        ],
+        "blocked_nodes": [],
+        "approval_required_nodes": [],
+        "human_required_nodes": [],
+        "validation_required_nodes": [],
+        "no_op_nodes": [],
+        "expected_updates": 11,
+        "risk_summary": {
+          "event_risk_class": "low",
+          "total_affected": 11,
+          "direct_count": 11,
+          "indirect_count": 0,
+          "approval_required_count": 0,
+          "human_required_count": 0,
+          "validation_required_count": 0,
+          "blocked_count": 0,
+          "no_op_count": 0,
+          "risk_distribution": {
+            "low": 0,
+            "medium": 11,
+            "high": 0
+          },
+          "max_depth": 1,
+          "wave_count": 1
+        },
+        "execution_mode": "dry_run",
+        "created_at": 1780178473.0288525
+      }
+    },
+    {
+      "event_title": "Roadmap Phase 12 status planned -> active",
+      "plan": {
+        "plan_id": "pp-ba7f9ec66739",
+        "change_event_id": "ce-483b5725a974",
+        "root_node_id": "pgn-rp-80b8062fef",
+        "affected_nodes": [
+          "pgn-rp-56824d16dc",
+          "pgn-rp-6b51d431df",
+          "pgn-rp-3fdba35f04",
+          "pgn-rp-8527a891e2",
+          "pgn-rp-e629fa6598",
+          "pgn-rp-f5ca38f748"
+        ],
+        "propagation_waves": [
+          {
+            "wave_id": "pw-e3ce30fd42e3",
+            "wave_number": 2,
+            "nodes": [
+              "pgn-rp-56824d16dc",
+              "pgn-rp-6b51d431df",
+              "pgn-rp-3fdba35f04",
+              "pgn-rp-8527a891e2",
+              "pgn-rp-e629fa6598",
+              "pgn-rp-f5ca38f748"
+            ],
+            "actions": [
+              {
+                "action_id": "pa-cf1126859e54",
+                "node_id": "pgn-rp-56824d16dc",
+                "action_type": "notify",
+                "reason": "Propagation from change ce-483b5725a974: Roadmap Phase 12 status planned -> active",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-483b5725a974",
+                    "change_type": "roadmap_phase_updated",
+                    "impact_depth": 1,
+                    "impact_score": 1.0
+                  }
+                ],
+                "output_expected": "Update roadmap_phase Self-Build Engineering Queue",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "medium",
+                "idempotency_key": "idem-ce-483b5725a974-pgn-rp-56824d16dc",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-9017bdbb2b78",
+                "node_id": "pgn-rp-6b51d431df",
+                "action_type": "notify",
+                "reason": "Propagation from change ce-483b5725a974: Roadmap Phase 12 status planned -> active",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-483b5725a974",
+                    "change_type": "roadmap_phase_updated",
+                    "impact_depth": 2,
+                    "impact_score": 0.5
+                  }
+                ],
+                "output_expected": "Update roadmap_phase Universal Propagation Graph",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "low",
+                "idempotency_key": "idem-ce-483b5725a974-pgn-rp-6b51d431df",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-2548665bebe7",
+                "node_id": "pgn-rp-3fdba35f04",
+                "action_type": "notify",
+                "reason": "Propagation from change ce-483b5725a974: Roadmap Phase 12 status planned -> active",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-483b5725a974",
+                    "change_type": "roadmap_phase_updated",
+                    "impact_depth": 3,
+                    "impact_score": 0.3333333333333333
+                  }
+                ],
+                "output_expected": "Update roadmap_phase Jarvis-Level Operator Experience",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "low",
+                "idempotency_key": "idem-ce-483b5725a974-pgn-rp-3fdba35f04",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-18e48161ccc8",
+                "node_id": "pgn-rp-8527a891e2",
+                "action_type": "notify",
+                "reason": "Propagation from change ce-483b5725a974: Roadmap Phase 12 status planned -> active",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-483b5725a974",
+                    "change_type": "roadmap_phase_updated",
+                    "impact_depth": 4,
+                    "impact_score": 0.25
+                  }
+                ],
+                "output_expected": "Update roadmap_phase Product Projections: EOS/CreatorOS/LyfeOS",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "low",
+                "idempotency_key": "idem-ce-483b5725a974-pgn-rp-8527a891e2",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-73634ad070f5",
+                "node_id": "pgn-rp-e629fa6598",
+                "action_type": "notify",
+                "reason": "Propagation from change ce-483b5725a974: Roadmap Phase 12 status planned -> active",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-483b5725a974",
+                    "change_type": "roadmap_phase_updated",
+                    "impact_depth": 5,
+                    "impact_score": 0.2
+                  }
+                ],
+                "output_expected": "Update roadmap_phase Empyrean Studios via EOS",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "low",
+                "idempotency_key": "idem-ce-483b5725a974-pgn-rp-e629fa6598",
+                "status": "pending"
+              },
+              {
+                "action_id": "pa-9f2b9dfebd0a",
+                "node_id": "pgn-rp-f5ca38f748",
+                "action_type": "notify",
+                "reason": "Propagation from change ce-483b5725a974: Roadmap Phase 12 status planned -> active",
+                "input_evidence": [
+                  {
+                    "change_event_id": "ce-483b5725a974",
+                    "change_type": "roadmap_phase_updated",
+                    "impact_depth": 6,
+                    "impact_score": 0.16666666666666666
+                  }
+                ],
+                "output_expected": "Update roadmap_phase Empire-Scale Leverage Infrastructure",
+                "approval_required": false,
+                "validation_required": false,
+                "human_required": false,
+                "risk_class": "low",
+                "idempotency_key": "idem-ce-483b5725a974-pgn-rp-f5ca38f748",
+                "status": "pending"
+              }
+            ],
+            "can_run_parallel": true,
+            "dependencies": [
+              "wave-1"
+            ],
+            "reconvergence_required": false
+          }
+        ],
+        "blocked_nodes": [],
+        "approval_required_nodes": [],
+        "human_required_nodes": [],
+        "validation_required_nodes": [],
+        "no_op_nodes": [],
+        "expected_updates": 6,
+        "risk_summary": {
+          "event_risk_class": "low",
+          "total_affected": 6,
+          "direct_count": 1,
+          "indirect_count": 5,
+          "approval_required_count": 0,
+          "human_required_count": 0,
+          "validation_required_count": 0,
+          "blocked_count": 0,
+          "no_op_count": 0,
+          "risk_distribution": {
+            "low": 5,
+            "medium": 1,
+            "high": 0
+          },
+          "max_depth": 6,
+          "wave_count": 6
+        },
+        "execution_mode": "dry_run",
+        "created_at": 1780178473.0290782
+      }
+    }
+  ]
+}

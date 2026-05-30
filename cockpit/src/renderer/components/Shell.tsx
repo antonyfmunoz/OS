@@ -33,6 +33,7 @@ import { IntelligencePanel } from '../panels/IntelligencePanel'
 import { WorldModelPanel } from '../panels/WorldModelPanel'
 import { SelfBuildPanel } from '../panels/SelfBuildPanel'
 import { UniversalWorkPanel } from '../panels/UniversalWorkPanel'
+import PropagationGraphPanel from '../panels/PropagationGraphPanel'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -86,6 +87,8 @@ function ActivePanel() {
       return <SelfBuildPanel />
     case 'universalwork':
       return <UniversalWorkPanel />
+    case 'propagation':
+      return <PropagationGraphPanel />
     default:
       return <DashboardPanel />
   }

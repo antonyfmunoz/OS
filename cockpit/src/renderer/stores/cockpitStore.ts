@@ -25,6 +25,7 @@ export type Panel =
   | 'worldmodel'
   | 'selfbuild'
   | 'universalwork'
+  | 'propagation'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

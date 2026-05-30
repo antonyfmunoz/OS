@@ -1,0 +1,114 @@
+{
+  "phase": "12.0",
+  "task": "correspondence_layer",
+  "timestamp": "2026-05-30T15:01:13Z",
+  "scale_count": 2,
+  "scales": [
+    {
+      "name": "UMH Self-Build Level",
+      "change_description": "Phase 12 roadmap status planned -> active",
+      "source_node": {
+        "node_id": "pgn-rp-80b8062fef",
+        "node_type": "roadmap_phase",
+        "title": "Reliability-Weighted Cadence Ranking",
+        "description": "Rank candidates using production-backed reliability",
+        "source_type": "roadmap_phase",
+        "source_id": "10.5",
+        "source_path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl",
+        "entity_ref": "",
+        "domain": "roadmap",
+        "projection": "",
+        "status": "complete",
+        "metadata": {
+          "prerequisites": [],
+          "success_criteria": [
+            "Signals computed",
+            "Candidates ranked",
+            "Thresholds enforced"
+          ]
+        },
+        "evidence": [
+          {
+            "type": "roadmap_store",
+            "path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl"
+          }
+        ],
+        "created_at": 1780178473.0228677,
+        "updated_at": 1780178473.0228677
+      },
+      "affected_count": 6,
+      "wave_count": 1,
+      "result_status": "completed",
+      "analysis_summary": {
+        "event_risk_class": "low",
+        "total_affected": 6,
+        "direct_count": 1,
+        "indirect_count": 5,
+        "approval_required_count": 0,
+        "human_required_count": 0,
+        "validation_required_count": 0,
+        "blocked_count": 0,
+        "no_op_count": 0,
+        "risk_distribution": {
+          "low": 5,
+          "medium": 1,
+          "high": 0
+        },
+        "max_depth": 6,
+        "wave_count": 6
+      }
+    },
+    {
+      "name": "Business/EOS Level",
+      "change_description": "Work Packet 'Build first EOS operating dashboard' status planned -> ready_for_review",
+      "source_node": {
+        "node_id": "pgn-wp-9e9f7de0fc",
+        "node_type": "work_packet",
+        "title": "Implementation: EOS",
+        "description": "Build the first EOS operating dashboard for Empyrean Studios",
+        "source_type": "work_packet",
+        "source_id": "wp-0a39c075bbe2",
+        "source_path": "/opt/OS/data/umh/universal_work/work_packets.jsonl",
+        "entity_ref": "",
+        "domain": "product",
+        "projection": "",
+        "status": "classified",
+        "metadata": {
+          "risk_class": "low",
+          "leverage_score": 0.8
+        },
+        "evidence": [
+          {
+            "type": "work_packet_store",
+            "path": "/opt/OS/data/umh/universal_work/work_packets.jsonl"
+          }
+        ],
+        "created_at": 1780178473.022034,
+        "updated_at": 1780178473.0220344
+      },
+      "affected_count": 0,
+      "wave_count": 0,
+      "result_status": "completed",
+      "analysis_summary": {
+        "event_risk_class": "low",
+        "total_affected": 0,
+        "direct_count": 0,
+        "indirect_count": 0,
+        "approval_required_count": 0,
+        "human_required_count": 0,
+        "validation_required_count": 0,
+        "blocked_count": 0,
+        "no_op_count": 0,
+        "risk_distribution": {
+          "low": 0,
+          "medium": 0,
+          "high": 0
+        },
+        "max_depth": 0,
+        "wave_count": 0
+      }
+    }
+  ],
+  "law_of_correspondence": "Same propagation pattern works at self-build, business/EOS, and knowledge/workflow scales",
+  "proven": true
+}

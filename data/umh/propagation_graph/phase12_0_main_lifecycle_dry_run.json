@@ -1,0 +1,81 @@
+{
+  "phase": "12.0",
+  "task": "main_lifecycle_dry_run",
+  "timestamp": "2026-05-30T15:01:13Z",
+  "steps": {
+    "1_change_event_created": true,
+    "2_graph_identifies_source": true,
+    "3_impact_analyzer_finds_affected": true,
+    "4_planner_creates_waves": true,
+    "5_workcells_affected": false,
+    "6_human_approval_identified": true,
+    "7_validation_plan_status": true,
+    "8_roadmap_link_affected": false,
+    "9_eos_projection_affected": true,
+    "10_queue_ranking_dry_run": true,
+    "11_no_production_execution": true,
+    "12_dry_run_persisted": true,
+    "13_api_returns_result": true
+  },
+  "event": {
+    "change_id": "ce-566f0e28b374",
+    "change_type": "work_packet_updated",
+    "source_node_id": "pgn-wp-9e9f7de0fc",
+    "source_type": "work_packet",
+    "source_id": "wp-0a39c075bbe2",
+    "title": "Work Packet 'Build the first EOS operating dashboard for Empyrean Studios' moves from planned to ready_for_review",
+    "description": "",
+    "before_state": {
+      "status": "planned"
+    },
+    "after_state": {
+      "status": "ready_for_review"
+    },
+    "changed_fields": [
+      "status"
+    ],
+    "changed_files": [],
+    "changed_entities": [],
+    "changed_relationships": [],
+    "risk_class": "low",
+    "initiated_by": "operator",
+    "timestamp": 1780178473.0332298,
+    "evidence": [],
+    "idempotency_key": "idem-507ef6ef108e"
+  },
+  "analysis_summary": {
+    "event_risk_class": "low",
+    "total_affected": 0,
+    "direct_count": 0,
+    "indirect_count": 0,
+    "approval_required_count": 0,
+    "human_required_count": 0,
+    "validation_required_count": 0,
+    "blocked_count": 0,
+    "no_op_count": 0,
+    "risk_distribution": {
+      "low": 0,
+      "medium": 0,
+      "high": 0
+    },
+    "max_depth": 0,
+    "wave_count": 0
+  },
+  "plan_id": "pp-ee71c52666ea",
+  "wave_count": 0,
+  "result": {
+    "result_id": "pr-5ef6e11cb8ac",
+    "plan_id": "pp-ee71c52666ea",
+    "change_event_id": "ce-566f0e28b374",
+    "wave_results": [],
+    "completed_actions": [],
+    "failed_actions": [],
+    "blocked_actions": [],
+    "approval_required_actions": [],
+    "human_required_actions": [],
+    "no_op_actions": [],
+    "reconvergence_results": [],
+    "duration_ms": 0.004291534423828125,
+    "status": "completed"
+  }
+}
