@@ -1,0 +1,52 @@
+{
+  "phase": "12.0R",
+  "task": "live_impact_proof",
+  "timestamp": "2026-05-30T00:00:00Z",
+  "proofs": [
+    {
+      "test": "PTD change impact",
+      "change_event_id": "ce-2b2d34962c60",
+      "source_node": "pgn-ptd-a28b34c292 — Production Truth Delta ptd-85fb7318",
+      "change_type": "production_truth_committed",
+      "direct_impact": 11,
+      "indirect_impact": 0,
+      "total_affected": 11,
+      "impact_depth": 1,
+      "affected_summary": "1 POC node + 10 API routes (revalidate)",
+      "approval_required": 0,
+      "human_required": 0,
+      "validation_required": 0,
+      "blocked": 0,
+      "waves": 1
+    },
+    {
+      "test": "Roadmap phase change impact",
+      "source_node": "pgn-rp-e629fa6598 — Empyrean Studios via EOS",
+      "change_type": "roadmap_phase_updated",
+      "direct_impact": 1,
+      "indirect_impact": 0,
+      "total_affected": 1,
+      "affected_summary": "Empire-Scale Leverage Infrastructure (unlocks dependency)",
+      "impact_depth": 1,
+      "waves": 1
+    },
+    {
+      "test": "Work packet impact (orphan node)",
+      "source_node": "pgn-wp-4a1279877f — Deployment: Empyrean Studios",
+      "change_type": "work_packet_updated",
+      "direct_impact": 0,
+      "indirect_impact": 0,
+      "total_affected": 0,
+      "reason": "Work packet currently has no outgoing edges. This is correct — edges form when workcells reference this packet_id."
+    }
+  ],
+  "checks": {
+    "change_event_created": "PASS",
+    "source_node_identified": "PASS",
+    "impact_analyzer_finds_affected": "PASS — 11 nodes from PTD, 1 from roadmap",
+    "direct_indirect_separated": "PASS — direct only at depth 1 for PTD",
+    "no_production_execution": "PASS — dry-run only, no mutation",
+    "dry_run_safe": "PASS"
+  },
+  "verdict": "PASS — live impact analysis works across node types"
+}

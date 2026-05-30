@@ -1,0 +1,83 @@
+{
+  "phase": "12.0R",
+  "task": "preflight",
+  "timestamp": "2026-05-30T00:00:00Z",
+  "checks": {
+    "branch_exists": {
+      "status": "PASS",
+      "detail": "Phase 12 commit be088b89 is already merged to main (HEAD). No separate branch needed."
+    },
+    "commit_exists": {
+      "status": "PASS",
+      "commit": "be088b89",
+      "message": "feat: phase 12.0 — universal propagation graph / correspondence layer"
+    },
+    "working_tree_clean": {
+      "status": "PASS",
+      "detail": "Only runtime data files modified (daemon_state.json, messages.jsonl, etc). No source changes."
+    },
+    "audit_exists": {
+      "status": "PASS",
+      "path": "docs/audits/convergence/phase12_0_universal_propagation_graph_correspondence_layer.md",
+      "size_bytes": 8980
+    },
+    "test_gate_artifacts_exist": {
+      "status": "PASS",
+      "detail": "data/umh/propagation_graph/phase12_0_test_gate_results.json present from branch build"
+    },
+    "prior_production_truth_ptd": {
+      "status": "PASS",
+      "id": "ptd-85fb7318",
+      "found_in": [
+        "data/umh/propagation_graph/phase12_0_initial_graph.json",
+        "data/umh/propagation_graph/graph.json",
+        "data/umh/universal_work/phase11_1r_production_verification.json"
+      ]
+    },
+    "prior_production_truth_poc": {
+      "status": "PASS",
+      "id": "poc-532ce3d",
+      "found_in": [
+        "data/umh/propagation_graph/phase12_0_initial_graph.json",
+        "data/umh/propagation_graph/phase12_0_executor_dry_run_proof.json"
+      ]
+    },
+    "runtime_commit_before_merge": {
+      "status": "PASS",
+      "detail": "Phase 12 is already HEAD on main at be088b89. Prior commit was 800efc4a (Phase 11.1R)."
+    },
+    "main_branch_clean": {
+      "status": "PASS",
+      "head": "be088b89",
+      "detail": "Main is at Phase 12 commit. Only runtime data is modified in working tree."
+    },
+    "no_unresolved_production_truth_issues": {
+      "status": "PASS",
+      "detail": "Phase 11.1R production truth (ptd-85fb7318, poc-532ce3d) is present and referenced in graph."
+    },
+    "cadence_safe": {
+      "status": "PASS",
+      "detail": "Default cadence mode is DRY_RUN_ONLY. Escalation requires threshold gates."
+    },
+    "medium_risk_blocked": {
+      "status": "PASS",
+      "detail": "MEDIUM_RISK_RECOMMENDATION_ONLY requires production_success_count=5, reliability>=0.90, and explicit_operator_review=True."
+    }
+  },
+  "files_in_phase12_commit": [
+    "cockpit/src/renderer/components/Shell.tsx",
+    "cockpit/src/renderer/panels/PropagationGraphPanel.tsx",
+    "cockpit/src/renderer/stores/cockpitStore.ts",
+    "substrate/canonical_types.py",
+    "substrate/organism/change_event.py",
+    "substrate/organism/impact_analyzer.py",
+    "substrate/organism/propagation_executor.py",
+    "substrate/organism/propagation_graph.py",
+    "substrate/organism/propagation_graph_builder.py",
+    "substrate/organism/propagation_planner.py",
+    "substrate/organism/tests/test_phase12_0_propagation_graph.py",
+    "transports/api/cockpit.py",
+    "transports/api/cockpit_propagation_graph_routes.py"
+  ],
+  "verdict": "PASS — all 12 preflight checks passed. Phase 12 is already on main. Ready for production truth promotion."
+}

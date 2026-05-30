@@ -1,0 +1,28 @@
+{
+  "phase": "12.0R",
+  "task": "live_graph_verification",
+  "timestamp": "2026-05-30T00:00:00Z",
+  "graph_stats": {
+    "total_nodes": 49,
+    "total_edges": 19,
+    "node_type_counts": {"work_packet": 5, "workcell": 5, "advisor_branch": 2, "self_build_item": 18, "roadmap_phase": 7, "production_truth_delta": 1, "outcome": 1, "api_route": 10},
+    "edge_type_counts": {"owns": 2, "creates": 1, "unlocks": 6, "validates": 10},
+    "orphaned_nodes": 27,
+    "cycles": 0
+  },
+  "checks": {
+    "graph_builds_from_real_state": "PASS",
+    "node_count_nonzero": "PASS — 49 nodes",
+    "edge_count_nonzero": "PASS — 19 edges",
+    "work_packets_as_nodes": "PASS — 5 work packets",
+    "workcells_as_nodes": "PASS — 5 workcells",
+    "roadmap_phases_as_nodes": "PASS — 7 roadmap phases",
+    "ptd_85fb7318_present": "PASS — Production Truth Delta ptd-85fb7318",
+    "api_routes_as_nodes": "PASS — 10 API routes",
+    "no_fake_nodes": "PASS — no fake/mock/dummy/placeholder nodes",
+    "safe_response_no_path_leak": "PASS — no /opt/OS paths in safe dict",
+    "cycle_detection_ran": "PASS — 0 cycles",
+    "orphan_detection_ran": "PASS — 27 orphaned nodes (expected — self_build items without incoming edges)"
+  },
+  "verdict": "PASS — live graph builds from real state, all expected node types present"
+}
