@@ -1,0 +1,96 @@
+{
+  "packet_id": "apk-4709dc5e",
+  "candidate_id": "cse-ba39a708",
+  "candidate_source": "template_audit_gaps",
+  "candidate_title": "Audit gap: Runtime template store path does not exist",
+  "candidate_description": "Template audit identified gap: Runtime template store path does not exist. daemon.py initializes TemplateRegistry at data/umh/organism/templates/ (str(self._state_dir / 'templates')). This directory has never been created. TemplateRegistry._load_from_path() opens template_candidates.jsonl and templates.jsonl \u2014 both 404. Result: _candidates={} and _promoted={}.",
+  "candidate_evidence": [
+    {
+      "source": "template_audit",
+      "detail": "gap_id=gap-1, severity=critical, title=Runtime template store path does not exist",
+      "confidence": 0.7
+    }
+  ],
+  "matched_template_id": "tpl-seed-cockpit-panel-fix-01",
+  "matched_template_type": "cockpit_panel_fix",
+  "template_confidence": 0.8,
+  "governance_score": 0.903,
+  "governance_decision": "cadence_eligible",
+  "governance_dimensions": [
+    {
+      "name": "evidence",
+      "score": 0.825,
+      "weight": 1.0,
+      "reason": ""
+    },
+    {
+      "name": "validation",
+      "score": 0.8999999999999999,
+      "weight": 1.0,
+      "reason": ""
+    },
+    {
+      "name": "rollback",
+      "score": 0.8999999999999999,
+      "weight": 1.0,
+      "reason": ""
+    },
+    {
+      "name": "risk",
+      "score": 1.0,
+      "weight": 1.0,
+      "reason": ""
+    },
+    {
+      "name": "reliability",
+      "score": 0.8,
+      "weight": 1.0,
+      "reason": ""
+    },
+    {
+      "name": "specificity",
+      "score": 1.0,
+      "weight": 1.0,
+      "reason": ""
+    },
+    {
+      "name": "reversibility",
+      "score": 0.9,
+      "weight": 1.0,
+      "reason": ""
+    },
+    {
+      "name": "blast_radius",
+      "score": 1.0,
+      "weight": 1.0,
+      "reason": ""
+    },
+    {
+      "name": "agent_capability",
+      "score": 0.8,
+      "weight": 1.0,
+      "reason": ""
+    }
+  ],
+  "affected_files": [],
+  "expected_delta": "Close audit gap: Runtime template store path does not exist",
+  "validation_plan": "assertion",
+  "rollback_plan": "revert",
+  "sandbox_branch_name": "auto/low-risk/audit-gap:-runtime-template-st-70748d",
+  "risk_class": "low",
+  "why_safe": "LOW risk candidate (low) with governance score 0.90. Template tpl-seed-cockpit-panel-fix-01 (confidence 0.80) provides validated execution pattern. Sandbox isolation prevents production mutation. Validation: assertion. Rollback: revert.",
+  "what_will_not_happen": [
+    "No production truth mutation until merge + post-merge verification",
+    "No auto-merge \u2014 operator must merge PR manually",
+    "No HIGH/CRITICAL actions \u2014 only LOW risk operations",
+    "No credential, DNS, or auth changes",
+    "No destructive cleanup or broad refactors",
+    "No direct mutation on main branch"
+  ],
+  "status": "approved",
+  "decided_by": "operator-cockpit",
+  "decided_at": 1780110963.2807877,
+  "rejection_reason": "",
+  "created_at": 1780110963.2805252,
+  "expires_at": 1780197363.2805073
+}

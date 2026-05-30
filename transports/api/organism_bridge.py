@@ -1469,6 +1469,133 @@ def _autonomous_cadence_status(_payload: dict) -> dict:
         return {"success": False, "error": "internal_error"}
 
 
+# ── Phase 10.2: Cadence / Approval / Sandbox bridge handlers ─
+
+def _get_approval_gate():
+    from substrate.organism.approval_gate import OperatorApprovalGate
+    daemon = _get_daemon()
+    gate = getattr(daemon, "_approval_gate", None)
+    if gate is None:
+        gate = OperatorApprovalGate()
+        daemon._approval_gate = gate
+    return gate
+
+
+def _cadence_status(_payload: dict) -> dict:
+    try:
+        daemon = _get_daemon()
+        cadence = getattr(daemon, "_autonomous_cadence", None)
+        if cadence is None:
+            return {"success": True, "data": {"mode": "off", "message": "cadence not initialized"}}
+        return {"success": True, "data": cadence.to_dict()}
+    except Exception:
+        logger.exception("organism.cadence failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _candidate_supply_status(_payload: dict) -> dict:
+    try:
+        from substrate.organism.template_registry import TemplateRegistry
+        from substrate.organism.template_governance import TemplateGovernance
+        from substrate.organism.candidate_supply_engine import CandidateSupplyEngine
+
+        tr = TemplateRegistry()
+        gov = TemplateGovernance()
+        engine = CandidateSupplyEngine(template_registry=tr, governance=gov)
+        result = engine.discover()
+        return {
+            "success": True,
+            "data": {
+                "candidates": [c.to_dict() for c in result.candidates],
+                "total": len(result.candidates),
+                "scan_duration": result.scan_duration_seconds,
+            },
+        }
+    except Exception:
+        logger.exception("organism.candidate_supply failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _sandboxes_status(_payload: dict) -> dict:
+    try:
+        manager, _ = _get_pr_factory()
+        return {"success": True, "data": manager.to_dict()}
+    except Exception:
+        logger.exception("organism.sandboxes failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _sandbox_detail(payload: dict) -> dict:
+    try:
+        manager, _ = _get_pr_factory()
+        sandbox_id = payload.get("sandbox_id", "")
+        sb = manager.get_sandbox(sandbox_id)
+        if sb is None:
+            return {"success": False, "error": f"sandbox {sandbox_id} not found"}
+        return {"success": True, "data": sb.to_dict()}
+    except Exception:
+        logger.exception("organism.sandbox.detail failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _approval_packets_list(_payload: dict) -> dict:
+    try:
+        gate = _get_approval_gate()
+        return {"success": True, "data": gate.to_dict()}
+    except Exception:
+        logger.exception("organism.approval_packets failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _approval_packet_detail(payload: dict) -> dict:
+    try:
+        gate = _get_approval_gate()
+        packet_id = payload.get("packet_id", "")
+        pkt = gate.get_packet(packet_id)
+        if pkt is None:
+            return {"success": False, "error": f"packet {packet_id} not found"}
+        return {"success": True, "data": pkt.to_dict()}
+    except Exception:
+        logger.exception("organism.approval_packet.detail failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _approval_packet_approve(payload: dict) -> dict:
+    try:
+        gate = _get_approval_gate()
+        packet_id = payload.get("packet_id", "")
+        result = gate.approve(packet_id, decided_by="cockpit-operator")
+        if result is None:
+            return {"success": False, "error": f"cannot approve {packet_id}"}
+        return {"success": True, "data": result.to_dict()}
+    except Exception:
+        logger.exception("organism.approval_packet.approve failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _approval_packet_reject(payload: dict) -> dict:
+    try:
+        gate = _get_approval_gate()
+        packet_id = payload.get("packet_id", "")
+        reason = payload.get("reason", "")
+        result = gate.reject(packet_id, reason=reason, decided_by="cockpit-operator")
+        if result is None:
+            return {"success": False, "error": f"cannot reject {packet_id}"}
+        return {"success": True, "data": result.to_dict()}
+    except Exception:
+        logger.exception("organism.approval_packet.reject failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _production_truth_status(_payload: dict) -> dict:
+    try:
+        manager, _ = _get_pr_factory()
+        return {"success": True, "data": manager.production_truth()}
+    except Exception:
+        logger.exception("organism.production_truth failed")
+        return {"success": False, "error": "internal_error"}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -1551,6 +1678,15 @@ _ACTIONS: dict = {
     "organism.pr_factory.production_truth": _pr_factory_production_truth,
     "organism.pr_factory.merge_verifications": _pr_factory_merge_verifications,
     "organism.autonomous_cadence": _autonomous_cadence_status,
+    "organism.cadence": _cadence_status,
+    "organism.candidate_supply": _candidate_supply_status,
+    "organism.sandboxes": _sandboxes_status,
+    "organism.sandbox.detail": _sandbox_detail,
+    "organism.approval_packets": _approval_packets_list,
+    "organism.approval_packet.detail": _approval_packet_detail,
+    "organism.approval_packet.approve": _approval_packet_approve,
+    "organism.approval_packet.reject": _approval_packet_reject,
+    "organism.production_truth": _production_truth_status,
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,

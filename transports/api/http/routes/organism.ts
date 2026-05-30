@@ -386,7 +386,7 @@ router.get('/delegations', async (c) => {
   return c.json({ followups: result.data })
 })
 
-router.post('/control', async (c) => {
+router.post('/control', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const action = (body as Record<string, unknown>).action as string
   if (action === 'kill') return c.json((await callOrganism('organism.kill')).data)
@@ -400,6 +400,72 @@ router.post('/handoff', async (c) => {
 
 router.post('/parallel', async (c) => {
   return c.json({ ok: true, results: [] })
+})
+
+// ── Phase 10.2: Cadence, Sandbox, Approval, PR Factory ──────
+router.get('/cadence', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.cadence')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/candidate-supply', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.candidate_supply')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/sandboxes', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.sandboxes')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/sandboxes/:id', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.sandbox.detail', { sandbox_id: c.req.param('id') })
+  if (!result.success) return c.json({ error: result.error }, 404)
+  return c.json(result.data)
+})
+
+router.get('/approval-packets', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.approval_packets')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/approval-packets/:id', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.approval_packet.detail', { packet_id: c.req.param('id') })
+  if (!result.success) return c.json({ error: result.error }, 404)
+  return c.json(result.data)
+})
+
+router.post('/approval-packets/:id/approve', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.approval_packet.approve', { packet_id: c.req.param('id') })
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
+router.post('/approval-packets/:id/reject', operatorGuard, async (c) => {
+  const body = await c.req.json().catch(() => ({}))
+  const reason = (body as Record<string, unknown>).reason as string
+  const result = await callOrganism('organism.approval_packet.reject', {
+    packet_id: c.req.param('id'),
+    reason,
+  })
+  if (!result.success) return c.json({ error: result.error }, 400)
+  return c.json(result.data)
+})
+
+router.get('/pr-factory', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.pr_factory')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/production-truth', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.production_truth')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
 })
 
 export default router
