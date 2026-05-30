@@ -92,7 +92,7 @@ None yet.
 | Task | Date | Commit | Summary |
 |------|------|--------|---------|
 | Phase 11.0 — Self-Build Engineering Queue | 2026-05-30 | 5c65e7bb | SelfBuildQueueEngine (694 lines), RoadmapEngine (151 lines), 11 API routes, SelfBuildPanel, 68 tests, 18 real work items seeded, 7 roadmap phases linked |
-| Phase 13.0 — Operator Experience Kernel | 2026-05-30 | 68671c03, f4cc6db8, 9deb4ed5 | DexOrchestrator kernel (596 lines), OperatorSession/Response models, 9 bridge handlers, 9 FastAPI routes, 9 Hono routes, 85 tests, 12 lifecycle proofs, never-execute safety invariant |
+| Phase 13.0 — Operator Experience Kernel | 2026-05-30 | 68671c03..43bf7f3a | DexOrchestrator kernel (898 lines), OperatorSession/Response models, 9 bridge handlers, 9 FastAPI routes, 9 Hono routes, 85 tests, 14 proof artifacts, never-execute safety invariant, all routes auth-gated |
 
 ## Session Continuity
 
