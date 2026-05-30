@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tempfile
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -318,23 +319,35 @@ class SelfBuildQueueEngine:
     def _load(self) -> None:
         if not os.path.exists(self._store_path):
             return
-        try:
-            with open(self._store_path, "r") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
+        parsed: dict[str, SelfBuildWorkItem] = {}
+        with open(self._store_path, "r") as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
                     d = json.loads(line)
                     item = SelfBuildWorkItem.from_dict(d)
-                    self._items[item.work_item_id] = item
-        except (json.JSONDecodeError, OSError) as exc:
-            logger.warning("Failed to load work items: %s", exc)
+                    parsed[item.work_item_id] = item
+                except (json.JSONDecodeError, KeyError, TypeError) as exc:
+                    raise ValueError(
+                        f"Corrupt work item at line {line_num}: {exc}"
+                    ) from exc
+        self._items = parsed
 
     def _save(self) -> None:
-        os.makedirs(os.path.dirname(self._store_path), exist_ok=True)
-        with open(self._store_path, "w") as f:
-            for item in self._items.values():
-                f.write(json.dumps(item.to_dict()) + "\n")
+        dir_path = os.path.dirname(self._store_path)
+        os.makedirs(dir_path, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as f:
+                for item in self._items.values():
+                    f.write(json.dumps(item.to_dict()) + "\n")
+            os.replace(tmp_path, self._store_path)
+        except BaseException:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
     def create_work_item(
         self,

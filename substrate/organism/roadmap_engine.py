@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tempfile
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -83,23 +84,35 @@ class RoadmapEngine:
     def _load(self) -> None:
         if not os.path.exists(self._store_path):
             return
-        try:
-            with open(self._store_path, "r") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
+        parsed: dict[str, RoadmapPhase] = {}
+        with open(self._store_path, "r") as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
                     d = json.loads(line)
                     phase = RoadmapPhase.from_dict(d)
-                    self._phases[phase.phase_id] = phase
-        except (json.JSONDecodeError, OSError) as exc:
-            logger.warning("Failed to load roadmap phases: %s", exc)
+                    parsed[phase.phase_id] = phase
+                except (json.JSONDecodeError, KeyError, TypeError) as exc:
+                    raise ValueError(
+                        f"Corrupt roadmap phase at line {line_num}: {exc}"
+                    ) from exc
+        self._phases = parsed
 
     def _save(self) -> None:
-        os.makedirs(os.path.dirname(self._store_path), exist_ok=True)
-        with open(self._store_path, "w") as f:
-            for phase in self._phases.values():
-                f.write(json.dumps(phase.to_dict()) + "\n")
+        dir_path = os.path.dirname(self._store_path)
+        os.makedirs(dir_path, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as f:
+                for phase in self._phases.values():
+                    f.write(json.dumps(phase.to_dict()) + "\n")
+            os.replace(tmp_path, self._store_path)
+        except BaseException:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
     def add_phase(self, phase: RoadmapPhase) -> RoadmapPhase:
         self._phases[phase.phase_id] = phase
