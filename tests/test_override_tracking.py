@@ -4,10 +4,6 @@ Covers: record_override(), record_override_outcome(), override_history(),
 override_stats(), backwards compatibility, cap enforcement.
 """
 
-import sys
-
-sys.path.insert(0, "/opt/OS/.claude/worktrees/close-all-gaps-v2")
-
 from datetime import datetime, timezone
 
 import pytest

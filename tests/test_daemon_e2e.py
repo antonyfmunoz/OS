@@ -14,8 +14,6 @@ import asyncio
 import json
 import sys
 
-sys.path.insert(0, "/opt/OS/.claude/worktrees/layer3-phase2-slice-d-handoff")
-
 import websockets
 
 from nodes.windows.umh_node.client import NodeClient

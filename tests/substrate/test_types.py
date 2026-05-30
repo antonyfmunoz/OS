@@ -1,7 +1,5 @@
 import sys
 
-sys.path.insert(0, "/opt/OS/.claude/worktrees/substrate-unification")
-
 import pytest
 from uuid import UUID
 from pydantic import ValidationError
