@@ -1,6 +1,6 @@
 """github_trinity_ingest.py — Clone and ingest the three core repos via canonical pipeline.
 
-Targets: EntrepreneurOS, CreatorOS, LYFEOS (the "Trinity").
+Targets: EOS, CreatorOS, LYFEOS projections (the "Trinity").
 Uses GenericIngestionOrchestrator + LocalFileSource for each relevant file.
 
 Usage:
