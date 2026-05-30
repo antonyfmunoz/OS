@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-30T23:17:44Z",
+  "cockpit_router_mounted": true,
+  "mount_function": "_mount_operator_experience_router",
+  "configure_function": "cockpit_operator_experience_routes.configure",
+  "auth_dependency": "_require_operator_role"
+}

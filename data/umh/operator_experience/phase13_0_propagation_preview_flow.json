@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-05-30T23:17:44Z",
+  "preview": {
+    "impact_analysis": {
+      "analysis_id": "ia-e61553e024c4",
+      "change_event_id": "ce-a8dd45a176f5",
+      "source_node_id": "preview",
+      "affected_nodes": [],
+      "affected_edges": [],
+      "direct_impact": [],
+      "indirect_impact": [],
+      "impact_depth": 0,
+      "impact_radius": 0,
+      "required_waves": 0,
+      "parallelizable_groups": [],
+      "validation_required": [],
+      "approval_required": [],
+      "human_required": [],
+      "reconvergence_required": [],
+      "no_op_nodes": [],
+      "stale_nodes": [],
+      "blocked_nodes": [],
+      "risk_summary": {},
+      "computed_at": 1780183065.4098344
+    },
+    "propagation_plan": {
+      "plan_id": "pp-d9576973c182",
+      "change_event_id": "ce-a8dd45a176f5",
+      "root_node_id": "preview",
+      "affected_nodes": [],
+      "propagation_waves": [],
+      "blocked_nodes": [],
+      "approval_required_nodes": [],
+      "human_required_nodes": [],
+      "validation_required_nodes": [],
+      "no_op_nodes": [],
+      "expected_updates": 0,
+      "risk_summary": {},
+      "execution_mode": "dry_run",
+      "created_at": 1780183065.4099286
+    },
+    "affected_count": 0,
+    "waves": 0,
+    "requires_approval": false,
+    "requires_human": false
+  },
+  "has_analysis": true,
+  "has_plan": true
+}

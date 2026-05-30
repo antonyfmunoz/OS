@@ -1,0 +1,115 @@
+{
+  "timestamp": "2026-05-30T23:17:44Z",
+  "response": {
+    "response_id": "or-8e54091f354b",
+    "session_id": "os-b6069b63e66a",
+    "turn_id": "ot-46b977d9559d",
+    "intent_type": "query_status",
+    "output_mode": "full",
+    "summary": "System status assembled from real state.",
+    "work_packet_preview": null,
+    "delegation_topology_preview": null,
+    "workcells_preview": null,
+    "propagation_preview": null,
+    "human_required_actions": [],
+    "approval_required_actions": [],
+    "risks": [],
+    "blockers": [],
+    "options": [],
+    "system_confidence": 0.95,
+    "linked_packet_ids": [],
+    "linked_propagation_plan_ids": [],
+    "linked_approval_ids": [],
+    "data": {
+      "roadmap": {
+        "total_phases": 7,
+        "status_counts": {
+          "complete": 1,
+          "active": 1,
+          "planned": 4,
+          "north_star": 1
+        },
+        "phases": [
+          {
+            "phase_id": "10.5",
+            "title": "Reliability-Weighted Cadence Ranking",
+            "status": "complete",
+            "work_items": 0,
+            "unlocks": [
+              "11.0"
+            ]
+          },
+          {
+            "phase_id": "11.0",
+            "title": "Self-Build Engineering Queue",
+            "status": "active",
+            "work_items": 5,
+            "unlocks": [
+              "12"
+            ]
+          },
+          {
+            "phase_id": "12",
+            "title": "Universal Propagation Graph",
+            "status": "planned",
+            "work_items": 1,
+            "unlocks": [
+              "13"
+            ]
+          },
+          {
+            "phase_id": "13",
+            "title": "Jarvis-Level Operator Experience",
+            "status": "planned",
+            "work_items": 1,
+            "unlocks": [
+              "14"
+            ]
+          },
+          {
+            "phase_id": "14",
+            "title": "Product Projections: EOS/CreatorOS/LyfeOS",
+            "status": "planned",
+            "work_items": 4,
+            "unlocks": [
+              "15"
+            ]
+          },
+          {
+            "phase_id": "15",
+            "title": "Empyrean Studios via EOS",
+            "status": "planned",
+            "work_items": 1,
+            "unlocks": [
+              "20"
+            ]
+          },
+          {
+            "phase_id": "20",
+            "title": "Empire-Scale Leverage Infrastructure",
+            "status": "north_star",
+            "work_items": 0,
+            "unlocks": []
+          }
+        ]
+      },
+      "work_queue": {
+        "total_count": 1,
+        "active_count": 1,
+        "status_breakdown": {
+          "classified": 1
+        }
+      },
+      "approvals": {
+        "pending_count": 0,
+        "total_count": 0,
+        "pending": []
+      }
+    },
+    "errors": [],
+    "timestamp": 1780183065.3912914,
+    "execution_occurred": false
+  },
+  "has_roadmap": true,
+  "no_exec": true
+}
