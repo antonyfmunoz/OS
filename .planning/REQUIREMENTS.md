@@ -64,9 +64,9 @@
 
 ### PR Factory Preview
 
-- [ ] **PRF-01**: Top eligible candidate can feed PR factory in preview mode
-- [ ] **PRF-02**: Review packet generated without creating actual PR
-- [ ] **PRF-03**: Preview shows candidate evidence, template match, policy decision
+- [x] **PRF-01**: Top eligible candidate can feed PR factory in preview mode
+- [x] **PRF-02**: Review packet generated without creating actual PR
+- [x] **PRF-03**: Preview shows candidate evidence, template match, policy decision
 
 ### Browser Verification
 
@@ -155,9 +155,9 @@
 | CKP-02 | Phase 8 | Complete |
 | CKP-03 | Phase 8 | Complete |
 | CKP-04 | Phase 8 | Complete |
-| PRF-01 | Phase 9 | Pending |
-| PRF-02 | Phase 9 | Pending |
-| PRF-03 | Phase 9 | Pending |
+| PRF-01 | Phase 9 | Complete |
+| PRF-02 | Phase 9 | Complete |
+| PRF-03 | Phase 9 | Complete |
 | BRW-01 | Phase 10 | Pending |
 | BRW-02 | Phase 10 | Pending |
 | BRW-03 | Phase 10 | Pending |

@@ -98,6 +98,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/candidate-supply", _candidate_supply_scan, methods=["GET"])
     r.add_api_route("/organism/candidate-supply/run", _candidate_supply_run, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/template-governance/evaluate", _template_governance_evaluate, methods=["GET"])
+    r.add_api_route("/organism/pr-factory-preview", _pr_factory_preview, methods=["GET"])
 
     return r
 
@@ -448,4 +449,60 @@ async def _template_governance_evaluate():
             "operator_review_required": sum(1 for s in scores if s.decision.value == "operator_review_required"),
             "blocked": sum(1 for s in scores if s.decision.value == "blocked"),
         },
+    }
+
+
+# ── PR Factory Preview handler ─────────────────────────────────────────────────
+
+
+async def _pr_factory_preview():
+    """Generate a preview review packet from the top eligible candidate without creating a PR."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    supply = getattr(daemon, "_candidate_supply_engine", None)
+    if supply is None:
+        return {"error": "candidate supply engine not available"}
+    registry = getattr(daemon, "_template_registry", None)
+    if registry is None:
+        return {"error": "template registry not available"}
+
+    result = supply.discover()
+    if not result.candidates:
+        return {
+            "preview": None,
+            "reason": "no candidates discovered",
+            "source_scan_proof": result.source_scan_proof,
+        }
+
+    best = result.candidates[0]
+
+    template = None
+    if best.matching_templates:
+        template = registry.get_template(best.matching_templates[0])
+
+    from substrate.organism.template_governance import TemplateGovernance
+    gov_score = None
+    if template:
+        gov = TemplateGovernance()
+        gov_score = gov.evaluate(template)
+
+    return {
+        "preview": {
+            "candidate": best.to_dict(),
+            "template_match": {
+                "template_id": template.template_id if template else None,
+                "template_type": template.template_type.value if template else None,
+                "confidence": round(template.confidence, 3) if template else None,
+                "steps": [s.to_dict() for s in template.reusable_steps] if template else [],
+                "validation": template.validation.to_dict() if template and template.validation else None,
+                "rollback": template.rollback.to_dict() if template and template.rollback else None,
+            } if template else None,
+            "governance": gov_score.to_dict() if gov_score else None,
+            "policy_decision": best.policy_decision,
+            "would_create_pr": best.policy_decision == "cadence_eligible",
+        },
+        "pr_created": False,
+        "reason": "preview mode — no actual PR created",
+        "source_scan_proof": result.source_scan_proof,
     }
