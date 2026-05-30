@@ -1,0 +1,50 @@
+{
+  "verification_type": "phase10_1_cockpit_verification",
+  "timestamp": 1780108644.9788308,
+  "api_endpoint_verification": {
+    "/organism/template-registry": {
+      "returns_data": true,
+      "promoted_count": 10,
+      "total_candidates": 0
+    },
+    "/organism/template-registry/promoted": {
+      "returns_data": true,
+      "count": 10
+    },
+    "/organism/candidate-supply/run": {
+      "returns_data": true,
+      "candidate_count": 4,
+      "all_sources_scanned": true
+    },
+    "/organism/template-governance/evaluate": {
+      "returns_data": true,
+      "cadence_eligible": 6,
+      "blocked": 1,
+      "operator_review_required": 3
+    },
+    "/organism/autonomous-cadence/run-dry-run": {
+      "returns_data": true,
+      "candidates_found": 4,
+      "no_mutation": true,
+      "no_pr_created": true
+    },
+    "/organism/pr-factory-preview": {
+      "returns_data": true,
+      "top_candidate_visible": true,
+      "template_match_present": true
+    }
+  },
+  "cockpit_panel_data": {
+    "template_library_summary": "10 promoted, 6 eligible",
+    "candidate_supply_count": 4,
+    "top_candidate": "Audit gap: Runtime template store path does not exist",
+    "matching_template": "tpl-seed-cockpit-panel-fix-01",
+    "governance_score": 0.921111111111111,
+    "cadence_dry_run_result": "4 eligible, no mutation",
+    "blocked_reasons_visible": true,
+    "expected_delta_visible": true,
+    "production_truth_unchanged": true
+  },
+  "browser_auth_blocker": "Clerk auth required for full browser walkthrough \u2014 API data verified instead",
+  "all_panels_return_data": true
+}

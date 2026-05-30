@@ -1,0 +1,167 @@
+{
+  "verification_type": "phase10_1_live_template_verification",
+  "timestamp": 1780108584.897715,
+  "timestamp_iso": "2026-05-29T00:00:00Z",
+  "template_count": 10,
+  "cadence_eligible_count": 6,
+  "blocked_count": 1,
+  "operator_review_count": 3,
+  "templates": [
+    {
+      "template_id": "tpl-seed-contradiction-fix-01",
+      "template_type": "contradiction_fix",
+      "status": "promoted",
+      "risk_class": "low",
+      "confidence": 0.9,
+      "governance_decision": "operator_review_required",
+      "governance_weighted_score": 0.921,
+      "governance_reason_codes": [
+        "validation_below_cadence_threshold:0.70<0.8"
+      ],
+      "cadence_eligible": false,
+      "observed_success_count": 3,
+      "observed_failure_count": 0,
+      "evidence_count": 2
+    },
+    {
+      "template_id": "tpl-seed-readiness-improvement-01",
+      "template_type": "readiness_improvement",
+      "status": "promoted",
+      "risk_class": "low",
+      "confidence": 0.8,
+      "governance_decision": "operator_review_required",
+      "governance_weighted_score": 0.878,
+      "governance_reason_codes": [
+        "validation_below_cadence_threshold:0.70<0.8"
+      ],
+      "cadence_eligible": false,
+      "observed_success_count": 2,
+      "observed_failure_count": 0,
+      "evidence_count": 1
+    },
+    {
+      "template_id": "tpl-seed-observation-accuracy-fix-01",
+      "template_type": "observation_accuracy_fix",
+      "status": "promoted",
+      "risk_class": "low",
+      "confidence": 0.75,
+      "governance_decision": "cadence_eligible",
+      "governance_weighted_score": 0.894,
+      "governance_reason_codes": [],
+      "cadence_eligible": true,
+      "observed_success_count": 1,
+      "observed_failure_count": 0,
+      "evidence_count": 1
+    },
+    {
+      "template_id": "tpl-seed-world-model-accuracy-fix-01",
+      "template_type": "world_model_accuracy_fix",
+      "status": "promoted",
+      "risk_class": "low",
+      "confidence": 0.8,
+      "governance_decision": "operator_review_required",
+      "governance_weighted_score": 0.9,
+      "governance_reason_codes": [
+        "validation_below_cadence_threshold:0.70<0.8"
+      ],
+      "cadence_eligible": false,
+      "observed_success_count": 2,
+      "observed_failure_count": 0,
+      "evidence_count": 1
+    },
+    {
+      "template_id": "tpl-seed-api-contract-fix-01",
+      "template_type": "api_contract_fix",
+      "status": "promoted",
+      "risk_class": "low",
+      "confidence": 0.85,
+      "governance_decision": "cadence_eligible",
+      "governance_weighted_score": 0.914,
+      "governance_reason_codes": [],
+      "cadence_eligible": true,
+      "observed_success_count": 2,
+      "observed_failure_count": 0,
+      "evidence_count": 2
+    },
+    {
+      "template_id": "tpl-seed-test-repair-01",
+      "template_type": "test_repair",
+      "status": "promoted",
+      "risk_class": "low",
+      "confidence": 0.75,
+      "governance_decision": "cadence_eligible",
+      "governance_weighted_score": 0.864,
+      "governance_reason_codes": [],
+      "cadence_eligible": true,
+      "observed_success_count": 3,
+      "observed_failure_count": 1,
+      "evidence_count": 2
+    },
+    {
+      "template_id": "tpl-seed-cockpit-panel-fix-01",
+      "template_type": "cockpit_panel_fix",
+      "status": "promoted",
+      "risk_class": "low",
+      "confidence": 0.8,
+      "governance_decision": "cadence_eligible",
+      "governance_weighted_score": 0.903,
+      "governance_reason_codes": [],
+      "cadence_eligible": true,
+      "observed_success_count": 2,
+      "observed_failure_count": 0,
+      "evidence_count": 2
+    },
+    {
+      "template_id": "tpl-seed-route-extraction-fix-01",
+      "template_type": "route_extraction_fix",
+      "status": "promoted",
+      "risk_class": "low",
+      "confidence": 0.9,
+      "governance_decision": "cadence_eligible",
+      "governance_weighted_score": 0.942,
+      "governance_reason_codes": [],
+      "cadence_eligible": true,
+      "observed_success_count": 3,
+      "observed_failure_count": 0,
+      "evidence_count": 2
+    },
+    {
+      "template_id": "tpl-seed-dependency-graph-fix-01",
+      "template_type": "dependency_graph_fix",
+      "status": "promoted",
+      "risk_class": "low",
+      "confidence": 0.85,
+      "governance_decision": "cadence_eligible",
+      "governance_weighted_score": 0.95,
+      "governance_reason_codes": [],
+      "cadence_eligible": true,
+      "observed_success_count": 4,
+      "observed_failure_count": 0,
+      "evidence_count": 1
+    },
+    {
+      "template_id": "tpl-seed-maintenance-action-01",
+      "template_type": "maintenance_action",
+      "status": "promoted",
+      "risk_class": "low",
+      "confidence": 0.7,
+      "governance_decision": "blocked",
+      "governance_weighted_score": 0.849,
+      "governance_reason_codes": [
+        "mutation_keyword:container"
+      ],
+      "cadence_eligible": false,
+      "observed_success_count": 2,
+      "observed_failure_count": 1,
+      "evidence_count": 2
+    }
+  ],
+  "summary": {
+    "total_candidates": 0,
+    "by_status": {},
+    "promoted_count": 10,
+    "pending_approvals": 0,
+    "total_decisions": 0
+  },
+  "no_invented_templates": true
+}
