@@ -1,0 +1,43 @@
+{
+  "phase": "10.4R",
+  "title": "Sandbox Hygiene Recommendation \u2014 .planning/config.json",
+  "timestamp": "2026-05-30T08:13:22.179450+00:00",
+  "issue": ".planning/config.json auto-created by GSD plugin in every sandbox worktree, appears as unplanned file in all 4 PRs",
+  "impact": "Harmless \u2014 config file for GSD plugin, does not affect production code",
+  "options": {
+    "A": {
+      "description": "Add .planning/ to sandbox worktree .gitignore",
+      "risk": "low",
+      "effort": "minimal",
+      "verdict": "RECOMMENDED \u2014 prevents the file from being committed in sandbox PRs"
+    },
+    "B": {
+      "description": "Update ChangeSetManifest to ignore known planning artifacts",
+      "risk": "low",
+      "effort": "small code change in sandbox_orchestrator.py",
+      "verdict": "Alternative \u2014 treats symptom not cause"
+    },
+    "C": {
+      "description": "Update ProductionMergeVerifier to classify .planning/ as non-candidate",
+      "risk": "low",
+      "effort": "small code change in production_merge_verifier.py",
+      "verdict": "Alternative \u2014 only helps post-merge, not pre-merge"
+    },
+    "D": {
+      "description": "Document only, no code change",
+      "risk": "none",
+      "effort": "none",
+      "verdict": "Insufficient \u2014 issue will recur every sandbox cycle"
+    }
+  },
+  "recommendation": "Option A \u2014 add .planning/ to .gitignore. Create as cadence candidate for next cycle.",
+  "candidate_for_next_cycle": {
+    "description": "Add .planning/ to .gitignore to prevent GSD plugin config from appearing in sandbox PRs",
+    "affected_files": [
+      ".gitignore"
+    ],
+    "template": "tpl-seed-maintenance-action-01",
+    "risk": "low",
+    "non_mutating": true
+  }
+}

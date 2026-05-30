@@ -1,0 +1,51 @@
+{
+  "phase": "10.4R",
+  "task": "tests_and_gates",
+  "timestamp": "2026-05-30T08:16:59.237526+00:00",
+  "test_suites": [
+    {
+      "name": "Phase 10.x + 9.x tests",
+      "command": "python3 -m pytest tests/test_phase10*.py tests/test_phase9*.py -v",
+      "passed": 464,
+      "failed": 0,
+      "skipped": 0,
+      "duration_seconds": null
+    },
+    {
+      "name": "Organism infrastructure tests",
+      "command": "python3 -m pytest tests/ -k 'organism or template or candidate or approval or cadence or sandbox or governance' -v",
+      "passed": 258,
+      "failed": 0,
+      "skipped": 4,
+      "duration_seconds": null
+    }
+  ],
+  "gate_checks": [
+    {
+      "gate": "check_instance_leak.py --all",
+      "result": "PASS",
+      "detail": "574 files scanned \u2014 clean"
+    },
+    {
+      "gate": "check_dependency_direction.py --all",
+      "result": "PASS",
+      "detail": "completed with informational output, no violations"
+    },
+    {
+      "gate": "check_projection_leak.py --all",
+      "result": "PASS",
+      "detail": "completed with informational output, no violations"
+    },
+    {
+      "gate": "py_compile substrate files",
+      "result": "PASS",
+      "detail": "all substrate/*.py files compile clean"
+    },
+    {
+      "gate": "organism module imports",
+      "result": "PASS",
+      "detail": "all organism modules import successfully"
+    }
+  ],
+  "verdict": "ALL_PASS"
+}

@@ -1,0 +1,53 @@
+{
+  "phase": "10.4R",
+  "title": "Production Merge Verification \u2014 PRs #51, #52, #53",
+  "timestamp": "2026-05-30T08:12:47.148184+00:00",
+  "verifications": [
+    {
+      "pr_number": 51,
+      "verification_id": "pmv-41f330b9",
+      "status": "cleanup_ready",
+      "merge_commit": "52e2876c",
+      "expected_files": [
+        "scripts/github_trinity_ingest.py"
+      ],
+      "observed_files": [
+        "scripts/github_trinity_ingest.py"
+      ],
+      "file_divergence": false,
+      "truth_delta_id": "ptd-b2c0d5ad",
+      "truth_delta_status": "production_verified",
+      "unplanned_files": []
+    },
+    {
+      "pr_number": 52,
+      "verification_id": "pmv-a3bc1b4a",
+      "status": "cleanup_ready",
+      "merge_commit": "198569df",
+      "expected_files": [
+        "tests/substrate/__init__.py"
+      ],
+      "observed_files": [
+        "tests/substrate/__init__.py"
+      ],
+      "file_divergence": false,
+      "truth_delta_id": "ptd-b84aaa3c",
+      "truth_delta_status": "production_verified",
+      "unplanned_files": []
+    },
+    {
+      "pr_number": 53,
+      "verification_id": "pmv-47a6e167",
+      "status": "cleanup_ready",
+      "merge_commit": "78ebf1bb",
+      "expected_files_count": 8,
+      "observed_files_count": 8,
+      "file_divergence": false,
+      "truth_delta_id": "ptd-087e8181",
+      "truth_delta_status": "production_verified",
+      "unplanned_files": []
+    }
+  ],
+  "idempotency_note": "Each PMV runs independently with fresh SandboxManager; duplicate emission prevented by _emitted_event_ids set",
+  "all_verified": true
+}

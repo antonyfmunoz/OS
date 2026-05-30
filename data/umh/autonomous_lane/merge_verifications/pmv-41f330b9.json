@@ -1,0 +1,128 @@
+{
+  "verification_id": "pmv-41f330b9",
+  "sandbox_id": "sb-pr51-github-trinity",
+  "pr_number": 51,
+  "manifest_id": "csm-pr51-trinity",
+  "status": "cleanup_ready",
+  "merge_commit": "52e2876c1af6eb77c7dd1cb615ebbb681f3918c9",
+  "base_commit": "f9ea2b96",
+  "head_commit": "a08f064b",
+  "local_main_commit": "52e2876c1af6eb77c7dd1cb615ebbb681f3918c9",
+  "expected_files": [
+    "scripts/github_trinity_ingest.py"
+  ],
+  "observed_files": [
+    "scripts/github_trinity_ingest.py"
+  ],
+  "truth_delta": {
+    "delta_id": "ptd-b2c0d5ad",
+    "sandbox_id": "sb-pr51-github-trinity",
+    "pr_number": 51,
+    "manifest_id": "csm-pr51-trinity",
+    "merge_commit": "52e2876c1af6eb77c7dd1cb615ebbb681f3918c9",
+    "base_commit": "f9ea2b96",
+    "head_commit": "a08f064b",
+    "changed_files_expected": [
+      "scripts/github_trinity_ingest.py"
+    ],
+    "changed_files_observed": [
+      "scripts/github_trinity_ingest.py"
+    ],
+    "file_divergences": [
+      {
+        "path": "scripts/github_trinity_ingest.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      }
+    ],
+    "has_file_divergence": false,
+    "added_lines_expected": 0,
+    "removed_lines_expected": 0,
+    "added_lines_observed": 1,
+    "removed_lines_observed": 1,
+    "state_before": {
+      "world_model_hash": "default",
+      "contradiction_count": 0,
+      "readiness_score": 0.0,
+      "dependency_node_count": 0,
+      "bottleneck_count": 0,
+      "template_count": 0,
+      "agent_count": 0,
+      "captured_at": 1780128646.5991933
+    },
+    "state_after": {
+      "world_model_hash": "default",
+      "contradiction_count": 0,
+      "readiness_score": 0.0,
+      "dependency_node_count": 0,
+      "bottleneck_count": 0,
+      "template_count": 0,
+      "agent_count": 0,
+      "captured_at": 1780128646.9906037
+    },
+    "world_model_before_after": {
+      "before_hash": "default",
+      "after_hash": "default",
+      "changed": false
+    },
+    "contradictions_before_after": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "readiness_before_after": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0
+    },
+    "dependency_graph_before_after": {
+      "before_nodes": 0,
+      "after_nodes": 0,
+      "delta": 0
+    },
+    "bottlenecks_before_after": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "template_confidence_before_after": {
+      "before_count": 0,
+      "after_count": 0
+    },
+    "agent_reliability_before_after": {
+      "before_count": 0,
+      "after_count": 0
+    },
+    "validation_results": [
+      {
+        "command": "import substrate",
+        "passed": true,
+        "exit_code": 0,
+        "output_summary": "substrate ok\n",
+        "validated_at": 1780128646.9361727
+      },
+      {
+        "command": "py_compile organism",
+        "passed": true,
+        "exit_code": 0,
+        "output_summary": "",
+        "validated_at": 1780128646.990588
+      }
+    ],
+    "all_validations_passed": true,
+    "requires_review": false,
+    "requires_operator_review": false,
+    "mismatch_reasons": [],
+    "evidence": [
+      "file sets match"
+    ],
+    "status": "production_verified",
+    "timestamp": 1780128646.5991886
+  },
+  "error": "",
+  "started_at": 1780128646.1224673,
+  "completed_at": 1780128647.072365
+}

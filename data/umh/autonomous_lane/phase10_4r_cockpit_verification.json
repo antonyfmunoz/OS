@@ -1,0 +1,41 @@
+{
+  "phase": "10.4R",
+  "title": "Cockpit / API Verification \u2014 Post-Closure",
+  "timestamp": "2026-05-30T08:13:49.878041+00:00",
+  "endpoints": {
+    "health": {
+      "status": "ok"
+    },
+    "cadence": {
+      "mode": "off",
+      "no_auto_merge": true
+    },
+    "production_truth": {
+      "main_commit": "78ebf1bb",
+      "pending_prs": 0
+    },
+    "template_registry": {
+      "promoted": 11
+    },
+    "approvals": {
+      "pending": 0
+    }
+  },
+  "pr_status": {
+    "pr50": "MERGED + production_verified (pmv-2276623d)",
+    "pr51": "MERGED + production_verified (pmv-41f330b9)",
+    "pr52": "MERGED + production_verified (pmv-a3bc1b4a)",
+    "pr53": "MERGED + production_verified (pmv-47a6e167)"
+  },
+  "production_truth_deltas": [
+    "ptd-4c14024d",
+    "ptd-b2c0d5ad",
+    "ptd-b84aaa3c",
+    "ptd-087e8181"
+  ],
+  "candidate_suppression": "4/4 campaign candidates suppressed",
+  "cadence_dry_run_only": true,
+  "unsafe_approvals": 0,
+  "clerk_blocker": "Cockpit frontend auth blocks automated browser testing; API endpoints verified directly",
+  "verdict": "PASS"
+}
