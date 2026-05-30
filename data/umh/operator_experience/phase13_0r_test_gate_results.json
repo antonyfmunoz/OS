@@ -1,0 +1,36 @@
+{
+  "phase": "13.0R",
+  "timestamp": "2026-05-31T00:12:00Z",
+  "test_suites": {
+    "phase_13_0": {"file": "test_phase13_0_operator_experience.py", "passed": 85, "failed": 0, "total": 85},
+    "phase_12_0": {"file": "test_phase12_0_propagation_graph.py", "passed": 77, "failed": 1, "total": 78, "note": "1 pre-existing data-state failure (test_builder_includes_workcells)"},
+    "phase_11_1": {"file": "test_phase11_1_universal_work.py", "passed": 109, "failed": 0, "total": 109},
+    "phase_11_0": {"file": "test_phase11_self_build_queue.py", "passed": 68, "failed": 0, "total": 68},
+    "phase_10_template": {"file": "test_phase10_template_supply.py", "passed": 70, "failed": 11, "total": 81, "note": "11 pre-existing failures (worktree path-dependent tests)"},
+    "phase_10_2_10_5": {"files": ["test_phase10_2", "test_phase10_3", "test_phase10_4", "test_phase10_5"], "passed": 172, "failed": 0, "total": 172},
+    "phase_9_8": {"file": "test_phase9_8_production_truth.py", "passed": 140, "failed": 0, "total": 140},
+    "core_organism": {"file": "test_phase9_integration.py", "passed": 40, "failed": 0, "total": 40}
+  },
+  "totals": {
+    "passed": 761,
+    "failed": 12,
+    "total": 773,
+    "new_failures": 0,
+    "pre_existing_failures": 12,
+    "note": "All 12 failures are pre-existing (1 data-state, 11 worktree-path-dependent). No Phase 13 regressions."
+  },
+  "quality_gates": {
+    "py_compile": {"passed": true, "files_checked": 4},
+    "type_divergence": {"passed": false, "new_violations": 0, "pre_existing": 1, "note": "GovernanceDecision in template_governance.py (pre-existing, not from Phase 13)"},
+    "instance_leak": {"passed": true, "files_scanned": 596},
+    "dependency_direction": {"passed": false, "new_violations": 0, "pre_existing": 25, "note": "All in test files and legacy entity routes (none from Phase 13)"},
+    "line_count": {"passed": true, "max_file": "cockpit.py at 2284 lines"},
+    "cockpit_compile": {"passed": true}
+  },
+  "phase_13_specific_gates": {
+    "route_auth_check": true,
+    "path_traversal_check": true,
+    "no_fake_data_check": true,
+    "no_execution_safety_invariant": true
+  }
+}
