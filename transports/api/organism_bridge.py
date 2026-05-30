@@ -1596,6 +1596,139 @@ def _production_truth_status(_payload: dict) -> dict:
         return {"success": False, "error": "internal_error"}
 
 
+# ── Operator experience handlers ──────────────────────────
+
+def _get_dex_orchestrator():
+    from substrate.organism.dex_orchestrator import DexOrchestrator
+    return DexOrchestrator()
+
+
+def _operator_experience(_payload: dict) -> dict:
+    """Overview of operator experience system."""
+    try:
+        orch = _get_dex_orchestrator()
+        sessions = orch.list_sessions(limit=10)
+        return {
+            "success": True,
+            "data": {
+                "status": "operational",
+                "phase": "13.0",
+                "session_count": len(sessions),
+                "recent_sessions": sessions,
+            },
+        }
+    except Exception:
+        logger.exception("organism.operator_experience failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_experience_session(payload: dict) -> dict:
+    """Get a specific operator session."""
+    try:
+        orch = _get_dex_orchestrator()
+        session_id = payload.get("session_id", "")
+        session = orch.get_session(session_id)
+        if not session:
+            return {"success": False, "error": "session_not_found"}
+        return {"success": True, "data": session.to_dict()}
+    except Exception:
+        logger.exception("organism.operator_experience.session failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_experience_sessions(payload: dict) -> dict:
+    """List operator sessions."""
+    try:
+        orch = _get_dex_orchestrator()
+        limit = int(payload.get("limit", 20))
+        return {"success": True, "data": orch.list_sessions(limit=limit)}
+    except Exception:
+        logger.exception("organism.operator_experience.sessions failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_experience_send(payload: dict) -> dict:
+    """Send operator input and get response."""
+    try:
+        orch = _get_dex_orchestrator()
+        user_input = payload.get("input", "")
+        session_id = payload.get("session_id")
+        if not user_input:
+            return {"success": False, "error": "input_required"}
+        response = orch.receive_operator_input(user_input, session_id=session_id)
+        return {"success": True, "data": response.to_dict()}
+    except Exception:
+        logger.exception("organism.operator_experience.send failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_experience_status(_payload: dict) -> dict:
+    """Operator experience status query."""
+    try:
+        orch = _get_dex_orchestrator()
+        response = orch.receive_operator_input("What is the current status?")
+        return {"success": True, "data": response.to_dict()}
+    except Exception:
+        logger.exception("organism.operator_experience.status failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_experience_approvals(_payload: dict) -> dict:
+    """Query pending approvals."""
+    try:
+        orch = _get_dex_orchestrator()
+        approvals = orch.query_pending_approvals()
+        return {"success": True, "data": approvals}
+    except Exception:
+        logger.exception("organism.operator_experience.approvals failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_experience_packet_preview(payload: dict) -> dict:
+    """Preview a work packet from intent."""
+    try:
+        orch = _get_dex_orchestrator()
+        user_input = payload.get("input", "")
+        if not user_input:
+            return {"success": False, "error": "input_required"}
+        response = orch.receive_operator_input(user_input)
+        return {"success": True, "data": response.to_dict()}
+    except Exception:
+        logger.exception("organism.operator_experience.packet_preview failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_experience_propagation_preview(payload: dict) -> dict:
+    """Preview propagation impact."""
+    try:
+        orch = _get_dex_orchestrator()
+        description = payload.get("description", "")
+        source_node_id = payload.get("source_node_id", "")
+        if not description:
+            return {"success": False, "error": "description_required"}
+        preview = orch.preview_propagation_impact(description, source_node_id)
+        return {"success": True, "data": preview}
+    except Exception:
+        logger.exception("organism.operator_experience.propagation_preview failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_experience_topology_preview(payload: dict) -> dict:
+    """Preview delegation topology."""
+    try:
+        orch = _get_dex_orchestrator()
+        user_input = payload.get("input", "")
+        if not user_input:
+            return {"success": False, "error": "input_required"}
+        from substrate.organism.operator_session import OperatorIntent
+        intent = orch.classify_intent(user_input)
+        result = orch.preview_delegation_topology(intent)
+        return {"success": True, "data": result}
+    except Exception:
+        logger.exception("organism.operator_experience.topology_preview failed")
+        return {"success": False, "error": "internal_error"}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -1687,6 +1820,15 @@ _ACTIONS: dict = {
     "organism.approval_packet.approve": _approval_packet_approve,
     "organism.approval_packet.reject": _approval_packet_reject,
     "organism.production_truth": _production_truth_status,
+    "organism.operator_experience": _operator_experience,
+    "organism.operator_experience.session": _operator_experience_session,
+    "organism.operator_experience.sessions": _operator_experience_sessions,
+    "organism.operator_experience.send": _operator_experience_send,
+    "organism.operator_experience.status": _operator_experience_status,
+    "organism.operator_experience.approvals": _operator_experience_approvals,
+    "organism.operator_experience.packet_preview": _operator_experience_packet_preview,
+    "organism.operator_experience.propagation_preview": _operator_experience_propagation_preview,
+    "organism.operator_experience.topology_preview": _operator_experience_topology_preview,
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,
