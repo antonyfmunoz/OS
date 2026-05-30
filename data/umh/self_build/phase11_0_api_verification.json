@@ -1,0 +1,22 @@
+{
+  "phase": "11.0",
+  "title": "Self-Build Queue API Verification",
+  "verified_at": "2026-05-30T17:30:00Z",
+  "routes": {
+    "GET /api/umh/organism/self-build": {"auth": "none", "status": "implemented"},
+    "GET /api/umh/organism/self-build/summary": {"auth": "none", "status": "implemented"},
+    "GET /api/umh/organism/self-build/items": {"auth": "none", "status": "implemented"},
+    "GET /api/umh/organism/self-build/next": {"auth": "none", "status": "implemented"},
+    "GET /api/umh/organism/self-build/blocked": {"auth": "none", "status": "implemented"},
+    "GET /api/umh/organism/self-build/ready-for-approval": {"auth": "none", "status": "implemented"},
+    "GET /api/umh/organism/self-build/items/{id}": {"auth": "none", "status": "implemented"},
+    "POST /api/umh/organism/self-build/items/{id}/status": {"auth": "operator_token", "status": "implemented"},
+    "POST /api/umh/organism/self-build/items/{id}/link": {"auth": "operator_token", "status": "implemented"},
+    "GET /api/umh/organism/roadmap": {"auth": "none", "status": "implemented"},
+    "GET /api/umh/organism/roadmap/{phase_id}": {"auth": "none", "status": "implemented"}
+  },
+  "module": "transports/api/cockpit_self_build_routes.py",
+  "mounted_in": "transports/api/cockpit.py",
+  "compile_check": "pass",
+  "auth_model": "POST routes require operator token, GET routes are read-only"
+}

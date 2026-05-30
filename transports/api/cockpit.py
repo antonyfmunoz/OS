@@ -2243,5 +2243,15 @@ def _mount_autonomous_router() -> None:
     router.include_router(cockpit_autonomous_routes.autonomous_router)
 
 
+def _mount_self_build_router() -> None:
+    from transports.api import cockpit_self_build_routes
+    cockpit_self_build_routes.configure(
+        get_organism_fn=_get_organism,
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_self_build_routes.self_build_router)
+
+
 _mount_economy_router()
 _mount_autonomous_router()
+_mount_self_build_router()

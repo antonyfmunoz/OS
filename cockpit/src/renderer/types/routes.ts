@@ -22,6 +22,7 @@ import {
   Brain,
   Lightbulb,
   Globe,
+  Hammer,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -47,6 +48,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, group: 'operations', key: 'p' },
   { id: 'company', label: 'Company', icon: Building2, group: 'operations', key: 'c' },
   { id: 'worldmodel', label: 'World Model', icon: Globe, group: 'operations', key: 'g' },
+  { id: 'selfbuild', label: 'Self-Build', icon: Hammer, group: 'operations', key: 'b' },
   { id: 'intelligence', label: 'Intelligence', icon: Lightbulb, group: 'intelligence', key: 'n' },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'intelligence', key: '5' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'intelligence', key: '6' },

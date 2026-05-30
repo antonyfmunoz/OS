@@ -87,8 +87,14 @@ None yet.
 - cockpit.py is currently 3542 lines (above 3000-line gate) — Phase 2 must close this
 - Cadence returns 0 candidates in current state — template supply too thin until Phases 4-6 complete
 
+## Quick Tasks Completed
+
+| Task | Date | Commit | Summary |
+|------|------|--------|---------|
+| Phase 11.0 — Self-Build Engineering Queue | 2026-05-30 | 5c65e7bb | SelfBuildQueueEngine (694 lines), RoadmapEngine (151 lines), 11 API routes, SelfBuildPanel, 68 tests, 18 real work items seeded, 7 roadmap phases linked |
+
 ## Session Continuity
 
-Last session: 2026-05-30T00:45:29.755Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-05-30
+Stopped at: Phase 11.0 committed
 Resume file: None

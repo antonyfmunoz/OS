@@ -23,6 +23,7 @@ export type Panel =
   | 'organism'
   | 'intelligence'
   | 'worldmodel'
+  | 'selfbuild'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
