@@ -1,0 +1,27 @@
+{
+  "phase": "13.0R",
+  "timestamp": "2026-05-31T00:00:00Z",
+  "all_routes_operational": true,
+  "routes": [
+    {"method": "GET", "path": "/organism/operator-experience", "status": 200, "shape": ["status","phase","session_count","recent_sessions"]},
+    {"method": "GET", "path": "/organism/operator-experience/sessions", "status": 200, "shape": ["sessions"]},
+    {"method": "GET", "path": "/organism/operator-experience/sessions/:id", "status": 200, "note": "invalid ID returns {error: session_not_found}"},
+    {"method": "GET", "path": "/organism/operator-experience/status", "status": 200, "shape": ["roadmap","approvals","system_state"]},
+    {"method": "GET", "path": "/organism/operator-experience/approvals", "status": 200, "shape": ["pending_count","total_count","pending"]},
+    {"method": "POST", "path": "/organism/operator-experience/send", "status": 200, "execution_occurred": false},
+    {"method": "POST", "path": "/organism/operator-experience/packet-preview", "status": 200, "has_work_packet_preview": true},
+    {"method": "POST", "path": "/organism/operator-experience/propagation-preview", "status": 200},
+    {"method": "POST", "path": "/organism/operator-experience/topology-preview", "status": 200}
+  ],
+  "auth_checks": {
+    "GET_without_auth": "403",
+    "POST_without_auth": "403",
+    "path_traversal": "404"
+  },
+  "safety_checks": {
+    "no_traceback_leak": true,
+    "no_internal_path_leak": true,
+    "no_fake_data": true,
+    "no_execution_on_preview": true
+  }
+}

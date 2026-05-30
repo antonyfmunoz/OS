@@ -1,0 +1,26 @@
+{
+  "poc_id": "poc-37f0509",
+  "phase": "13.0R",
+  "ptd_id": "ptd-b504636a",
+  "merge_commit": "fb4ae105",
+  "timestamp": 1780184809.9240456,
+  "validation_passed": true,
+  "status": "committed",
+  "outcomes": [
+    "OperatorSession model production-verified",
+    "OperatorTurn model production-verified",
+    "OperatorIntent model production-verified",
+    "OperatorResponse contract production-verified",
+    "OrchestratorKernel production-verified",
+    "9 FastAPI routes live and authenticated",
+    "Intent classification deterministic",
+    "Never-execute safety invariant enforced",
+    "85 Phase 13 tests passing",
+    "No instance context leaks",
+    "No dependency direction violations"
+  ],
+  "prior_ptd": "ptd-b2d90fc6",
+  "prior_poc": "poc-e915a7e",
+  "duplicate_suppression": true,
+  "duplicate_note": "First POC for Phase 13.0R \u2014 no duplicate to suppress"
+}

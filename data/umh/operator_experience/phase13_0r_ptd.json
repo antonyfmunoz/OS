@@ -1,0 +1,127 @@
+{
+  "delta_id": "ptd-7284290a",
+  "sandbox_id": "",
+  "pr_number": 0,
+  "manifest_id": "ptd-b504636a",
+  "merge_commit": "fb4ae105",
+  "base_commit": "95a4d40b",
+  "head_commit": "fb4ae105",
+  "changed_files_expected": [],
+  "changed_files_observed": [],
+  "file_divergences": [
+    {
+      "path": "substrate/organism/orchestrator_kernel.py",
+      "expected": true,
+      "observed": true,
+      "expected_change_type": "modified",
+      "observed_change_type": "added",
+      "diverged": false
+    },
+    {
+      "path": "substrate/organism/operator_session.py",
+      "expected": true,
+      "observed": true,
+      "expected_change_type": "modified",
+      "observed_change_type": "added",
+      "diverged": false
+    },
+    {
+      "path": "substrate/organism/operator_response.py",
+      "expected": true,
+      "observed": true,
+      "expected_change_type": "modified",
+      "observed_change_type": "added",
+      "diverged": false
+    },
+    {
+      "path": "transports/api/cockpit_operator_experience_routes.py",
+      "expected": true,
+      "observed": true,
+      "expected_change_type": "modified",
+      "observed_change_type": "added",
+      "diverged": false
+    },
+    {
+      "path": "transports/api/organism_bridge.py",
+      "expected": true,
+      "observed": true,
+      "expected_change_type": "modified",
+      "observed_change_type": "added",
+      "diverged": false
+    },
+    {
+      "path": "substrate/organism/tests/test_phase13_0_operator_experience.py",
+      "expected": true,
+      "observed": true,
+      "expected_change_type": "added",
+      "observed_change_type": "added",
+      "diverged": false
+    },
+    {
+      "path": "docs/audits/convergence/phase13_0_jarvis_level_operator_experience_kernel.md",
+      "expected": true,
+      "observed": true,
+      "expected_change_type": "added",
+      "observed_change_type": "added",
+      "diverged": false
+    },
+    {
+      "path": "docs/audits/convergence/phase13_0_preflight_120r_verification.md",
+      "expected": true,
+      "observed": true,
+      "expected_change_type": "added",
+      "observed_change_type": "added",
+      "diverged": false
+    },
+    {
+      "path": "data/umh/operator_experience/phase13_0_preflight.json",
+      "expected": true,
+      "observed": true,
+      "expected_change_type": "added",
+      "observed_change_type": "added",
+      "diverged": false
+    }
+  ],
+  "has_file_divergence": false,
+  "added_lines_expected": 0,
+  "removed_lines_expected": 0,
+  "added_lines_observed": 0,
+  "removed_lines_observed": 0,
+  "state_before": {
+    "world_model_hash": "",
+    "contradiction_count": 0,
+    "readiness_score": 0.0,
+    "dependency_node_count": 0,
+    "bottleneck_count": 0,
+    "template_count": 0,
+    "agent_count": 0,
+    "captured_at": 1780184799.8229728
+  },
+  "state_after": {
+    "world_model_hash": "",
+    "contradiction_count": 0,
+    "readiness_score": 0.0,
+    "dependency_node_count": 0,
+    "bottleneck_count": 0,
+    "template_count": 0,
+    "agent_count": 0,
+    "captured_at": 1780184799.822974
+  },
+  "world_model_before_after": {},
+  "contradictions_before_after": {},
+  "readiness_before_after": {},
+  "dependency_graph_before_after": {},
+  "bottlenecks_before_after": {},
+  "template_confidence_before_after": {},
+  "agent_reliability_before_after": {},
+  "validation_results": [],
+  "all_validations_passed": false,
+  "requires_review": true,
+  "requires_operator_review": false,
+  "mismatch_reasons": [],
+  "evidence": [],
+  "status": "production_verified",
+  "timestamp": 1780184799.8229764,
+  "all_files_present": true,
+  "ptd_id": "ptd-b504636a"
+}

@@ -1,0 +1,15 @@
+{
+  "phase": "13.0R",
+  "timestamp": "2026-05-30T23:58:00Z",
+  "ptd_id": "ptd-b504636a",
+  "poc_id": "poc-37f0509",
+  "merge_commit": "fb4ae105",
+  "expected_files_match": true,
+  "unplanned_source_files": 0,
+  "py_compile_passed": true,
+  "phase13_tests_passed": true,
+  "prior_ptd": "ptd-b2d90fc6",
+  "prior_poc": "poc-e915a7e",
+  "duplicate_verification_suppressed": true,
+  "duplicate_note": "First POC for 13.0R - no duplicate exists"
+}
