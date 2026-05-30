@@ -248,12 +248,22 @@ async def _autonomous_pr_factory_production_truth_detail(delta_id: str):
         raise HTTPException(status_code=400, detail="invalid delta_id format")
     _root = os.environ.get("UMH_ROOT", "/opt/OS")
     mv_dir = Path(_root, "data", "umh", "autonomous_lane", "merge_verifications").resolve()
-    candidate = Path(mv_dir, f"{delta_id}.json").resolve()
-    if not candidate.is_relative_to(mv_dir):
-        raise HTTPException(status_code=400, detail="invalid delta_id")
-    if candidate.is_file():
-        with open(candidate) as f:
+    direct = Path(mv_dir, f"{delta_id}.json").resolve()
+    if direct.is_relative_to(mv_dir) and direct.is_file():
+        with open(direct) as f:
             return json.load(f)
+    if mv_dir.is_dir():
+        for pmv_file in mv_dir.iterdir():
+            if not pmv_file.name.endswith(".json"):
+                continue
+            try:
+                with open(pmv_file) as f:
+                    data = json.load(f)
+                td = data.get("truth_delta") or {}
+                if td.get("delta_id") == delta_id:
+                    return td
+            except (json.JSONDecodeError, OSError):
+                continue
     return {"error": f"delta {delta_id} not found"}
 
 

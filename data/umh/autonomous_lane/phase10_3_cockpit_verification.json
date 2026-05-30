@@ -1,0 +1,63 @@
+{
+  "phase": "10.3G",
+  "verification_method": "API-backed panel data verification",
+  "browser_blocker": "Clerk authentication blocks automated browser testing",
+  "endpoints_verified": {
+    "autonomous_pr_factory": {
+      "endpoint": "/api/umh/organism/autonomous-pr-factory",
+      "status": 200,
+      "sandbox_count": 1,
+      "review_packets": 0,
+      "notes": "sb-pr43prod from prior phase; PR #47 sandbox registered in verification script only"
+    },
+    "sandboxes": {
+      "endpoint": "/api/umh/organism/autonomous-pr-factory/sandboxes",
+      "status": 200,
+      "sandbox_id": "sb-pr43prod",
+      "sandbox_status": "merged"
+    },
+    "merge_verifications": {
+      "endpoint": "/api/umh/organism/autonomous-pr-factory/merge-verifications",
+      "status": 200,
+      "verification_id": "pmv-0210d9b7",
+      "verification_status": "cleanup_ready",
+      "pr_number": 47,
+      "merge_commit": "03fe81d86fd6092338a3e9388649abbc9f2f7b00",
+      "delta_id": "ptd-968247f8",
+      "delta_status": "production_verified"
+    },
+    "production_truth": {
+      "endpoint": "/api/umh/organism/autonomous-pr-factory/production-truth",
+      "status": 200,
+      "main_commit": "bd5b55ed",
+      "active_sandboxes": 0
+    },
+    "autonomous_cadence": {
+      "endpoint": "/api/umh/organism/autonomous-cadence",
+      "status": 200,
+      "mode": "off",
+      "no_auto_merge": true,
+      "dry_run_only_policy": true
+    },
+    "template_registry": {
+      "endpoint": "/api/umh/organism/template-registry",
+      "status": 200,
+      "promoted_count": 10,
+      "includes_pr47_template": true
+    },
+    "approvals": {
+      "endpoint": "/api/umh/approvals",
+      "status": 200,
+      "pending": 0
+    }
+  },
+  "lifecycle_visibility": {
+    "candidate_to_approval": "PR body contains candidate_id and template_id",
+    "approval_to_sandbox": "sandbox_id linked in merge verification",
+    "sandbox_to_pr": "PR #47 URL in sandbox record",
+    "pr_to_merge": "merge_commit captured in verification",
+    "merge_to_production_truth": "ProductionTruthDelta ptd-968247f8 computed",
+    "production_truth_to_learning": "template confidence updated, outcome recorded"
+  },
+  "production_truth_changed_only_after_verifier": true
+}
