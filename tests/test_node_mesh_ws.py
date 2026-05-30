@@ -11,8 +11,6 @@ import json
 import sys
 import time
 
-sys.path.insert(0, "/opt/OS/.claude/worktrees/layer3-phase2-slice-d-handoff")
-
 import websockets
 
 from substrate.execution.executor import WorkPacketExecutor
