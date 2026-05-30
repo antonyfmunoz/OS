@@ -37,11 +37,11 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter()
     auth = [Depends(require_operator_dep)]
 
-    r.add_api_route("/organism/operator-experience", _overview, methods=["GET"])
-    r.add_api_route("/organism/operator-experience/sessions", _sessions, methods=["GET"])
-    r.add_api_route("/organism/operator-experience/sessions/{session_id}", _session_detail, methods=["GET"])
-    r.add_api_route("/organism/operator-experience/status", _status, methods=["GET"])
-    r.add_api_route("/organism/operator-experience/approvals", _approvals, methods=["GET"])
+    r.add_api_route("/organism/operator-experience", _overview, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/operator-experience/sessions", _sessions, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/operator-experience/sessions/{session_id}", _session_detail, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/operator-experience/status", _status, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/operator-experience/approvals", _approvals, methods=["GET"], dependencies=auth)
     r.add_api_route("/organism/operator-experience/send", _send, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/operator-experience/packet-preview", _packet_preview, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/operator-experience/propagation-preview", _propagation_preview, methods=["POST"], dependencies=auth)
