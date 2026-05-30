@@ -33,11 +33,11 @@
 
 ### Template Governance
 
-- [ ] **GOV-01**: TemplateGovernanceScore evaluates 9 dimensions (evidence, validation, rollback, risk, reliability, specificity, reversibility, blast_radius, agent_capability)
-- [ ] **GOV-02**: Governance produces cadence_eligible, candidate_only, operator_review_required, or blocked decisions
-- [ ] **GOV-03**: Cadence eligibility requires LOW risk, evidence >= 0.70, validation >= 0.80, rollback >= 0.70 OR non_mutating, reliability >= 0.70
-- [ ] **GOV-04**: Governance blocks templates with sensitive paths, sensitive keywords, broad file patterns, or auth/credential/DNS/container mutation
-- [ ] **GOV-05**: Every governance rejection includes reason codes
+- [x] **GOV-01**: TemplateGovernanceScore evaluates 9 dimensions (evidence, validation, rollback, risk, reliability, specificity, reversibility, blast_radius, agent_capability)
+- [x] **GOV-02**: Governance produces cadence_eligible, candidate_only, operator_review_required, or blocked decisions
+- [x] **GOV-03**: Cadence eligibility requires LOW risk, evidence >= 0.70, validation >= 0.80, rollback >= 0.70 OR non_mutating, reliability >= 0.70
+- [x] **GOV-04**: Governance blocks templates with sensitive paths, sensitive keywords, broad file patterns, or auth/credential/DNS/container mutation
+- [x] **GOV-05**: Every governance rejection includes reason codes
 
 ### Candidate Supply
 
@@ -136,11 +136,11 @@
 | TPL-05 | Phase 4 | Complete |
 | TPL-06 | Phase 4 | Complete |
 | TPL-07 | Phase 4 | Complete |
-| GOV-01 | Phase 5 | Pending |
-| GOV-02 | Phase 5 | Pending |
-| GOV-03 | Phase 5 | Pending |
-| GOV-04 | Phase 5 | Pending |
-| GOV-05 | Phase 5 | Pending |
+| GOV-01 | Phase 5 | Complete |
+| GOV-02 | Phase 5 | Complete |
+| GOV-03 | Phase 5 | Complete |
+| GOV-04 | Phase 5 | Complete |
+| GOV-05 | Phase 5 | Complete |
 | CSE-01 | Phase 6 | Pending |
 | CSE-02 | Phase 6 | Pending |
 | CSE-03 | Phase 6 | Pending |
