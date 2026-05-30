@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-05-30T00:18:29.669Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-05-30T00:23:18.661Z"
 last_activity: 2026-05-30
 progress:
   total_phases: 12
   completed_phases: 1
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-29)
 ## Current Position
 
 Phase: 02 (cockpit-quality-gate) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-05-30
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 02-cockpit-quality-gate P02-01 | 193 | 2 tasks | 2 files |
+| Phase 02-cockpit-quality-gate P02 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,8 @@ Recent decisions affecting current work:
 - Phase 10.0 init: cockpit.py route extraction prioritized early (Phase 2) — architectural drag compounds
 - Phase 10.0 init: Template audit before seeding — inspect what exists first (Phase 3 before Phase 4)
 - [Phase 02-cockpit-quality-gate]: Follow cockpit_spine_router.py configure/inject/mount pattern exactly for organism route extraction
+- [Phase 02-cockpit-quality-gate]: No operator auth added to upsert_company or refresh_product_connections — preserved exactly from original cockpit.py
+- [Phase 02-cockpit-quality-gate]: Entity router configure() takes only get_org_id_fn + require_operator_dep (no check_rate_limit_fn) since no rate-limited routes in entity block
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-30T00:18:29.665Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-05-30T00:23:18.658Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
