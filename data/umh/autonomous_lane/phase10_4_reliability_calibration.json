@@ -1,0 +1,112 @@
+{
+  "phase": "10.4",
+  "campaign": "low_risk_production_truth_reliability",
+  "calibration_timestamp": 1780124053.3604505,
+  "campaign_metrics": {
+    "total_candidates_reviewed": 8,
+    "eligible_candidates": 5,
+    "blocked_candidates": 3,
+    "selected_candidates": 4,
+    "approved_candidates": 4,
+    "sandbox_prs_created": 4,
+    "prs_merged": 1,
+    "prs_awaiting_merge": 3,
+    "prs_rejected": 0,
+    "production_verifications_passed": 1,
+    "production_verifications_failed": 0
+  },
+  "template_reliability": {
+    "tpl-seed-documentation-alignment-01": {
+      "confidence_before": 0.8,
+      "confidence_after": 0.8,
+      "note": "New template, 1 production success (PR #50). Confidence stable at seed level. Needs more observations for meaningful update.",
+      "prs_using": [
+        50,
+        51
+      ],
+      "merged_prs": [
+        50
+      ]
+    },
+    "tpl-seed-test-repair-01": {
+      "confidence_before": 0.75,
+      "confidence_after": 0.75,
+      "note": "0 PRs merged yet for this template in Phase 10.4 (PRs #52, #53 awaiting operator merge).",
+      "prs_using": [
+        52,
+        53
+      ],
+      "merged_prs": []
+    }
+  },
+  "agent_reliability": {
+    "developer_agent": {
+      "reliability_before": 0.6,
+      "reliability_after": 0.6,
+      "note": "1 successful sandbox execution + PR creation (PR #50 merged). Awaiting more merges for meaningful update.",
+      "successful_executions_this_campaign": 4,
+      "production_verified_this_campaign": 1
+    }
+  },
+  "candidate_source_reliability": {
+    "stale_docstrings": {
+      "candidates_produced": 3,
+      "candidates_selected": 2,
+      "prs_merged": 1,
+      "production_verified": 1,
+      "reliability": 1.0
+    },
+    "missing_package_init": {
+      "candidates_produced": 1,
+      "candidates_selected": 1,
+      "prs_merged": 0,
+      "production_verified": 0,
+      "reliability": "pending_merge"
+    },
+    "stale_test_paths": {
+      "candidates_produced": 1,
+      "candidates_selected": 1,
+      "prs_merged": 0,
+      "production_verified": 0,
+      "reliability": "pending_merge"
+    },
+    "template_audit_gaps": {
+      "candidates_produced": 4,
+      "candidates_selected": 0,
+      "note": "Excluded: no affected files \u2014 meta-problems about template infrastructure",
+      "reliability": "not_applicable"
+    }
+  },
+  "validation_method_reliability": {
+    "assertion_with_py_compile": {
+      "attempts": 4,
+      "passed": 4,
+      "reliability": 1.0
+    }
+  },
+  "rollback_method_reliability": {
+    "git_revert": {
+      "needed": 0,
+      "executed": 0,
+      "note": "No rollbacks needed \u2014 all PRs safe"
+    }
+  },
+  "failure_modes": {
+    "unplanned_file_in_pr": {
+      "count": 4,
+      "files": [
+        ".planning/config.json"
+      ],
+      "impact": "harmless \u2014 GSD plugin auto-creates config in worktrees",
+      "recommendation": "Add .planning/ to .gitignore in sandbox worktrees, or strip untracked files before commit"
+    },
+    "auto_merge_blocked_by_classifier": {
+      "count": 1,
+      "impact": "correct behavior \u2014 Phase 10.4 rules prohibit auto-merge",
+      "recommendation": "No change needed, classifier enforced the correct policy"
+    }
+  },
+  "duplicate_suppression_behavior": "Idempotency key sb-pr50-notion-setup:12085c42 prevents double emission",
+  "resolved_candidate_suppression_behavior": "PR #47 candidate still suppressed. PR #50 candidate will be suppressed after mark_resolved()",
+  "average_time_per_loop_seconds": "N/A \u2014 only 1 full loop completed, 3 pending operator merge"
+}

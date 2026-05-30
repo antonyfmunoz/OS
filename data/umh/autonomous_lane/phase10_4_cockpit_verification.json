@@ -1,0 +1,85 @@
+{
+  "phase": "10.4J",
+  "title": "Cockpit / API Verification",
+  "timestamp": "2026-05-30T06:59:02.477952+00:00",
+  "operator_container": "98feb7f20fc4_os-operator",
+  "operator_port": 8091,
+  "health": {
+    "status": "ok"
+  },
+  "endpoints_verified": [
+    {
+      "endpoint": "/api/umh/organism/candidate-supply",
+      "status": 200,
+      "key_data": "0 sources active (runtime instance, campaign sources are file-based)",
+      "verdict": "PASS"
+    },
+    {
+      "endpoint": "/api/umh/organism/template-registry",
+      "status": 200,
+      "key_data": "10 promoted templates, 0 candidates, 0 pending approvals",
+      "verdict": "PASS"
+    },
+    {
+      "endpoint": "/api/umh/organism/autonomous-cadence",
+      "status": 200,
+      "key_data": "mode=off, no_auto_merge=true, allowed_risk=low, require_template=true",
+      "verdict": "PASS"
+    },
+    {
+      "endpoint": "/api/umh/organism/autonomous-pr-factory/production-truth",
+      "status": 200,
+      "key_data": "main_commit=c163a048, 0 pending PRs, 2 sandboxes (both merged)",
+      "verdict": "PASS"
+    },
+    {
+      "endpoint": "/api/umh/organism/autonomous-pr-factory/merge-verifications",
+      "status": 200,
+      "key_data": "14 verifications (PR #43: 5, PR #47: 9), pmv-0210d9b7 cleanup_ready",
+      "verdict": "PASS"
+    },
+    {
+      "endpoint": "/api/umh/organism/autonomous-pr-factory",
+      "status": 200,
+      "key_data": "0 review packets, 2 sandboxes (sb-pr43prod merged, sb-pr47cse merged)",
+      "verdict": "PASS"
+    },
+    {
+      "endpoint": "/api/umh/approvals",
+      "status": 200,
+      "key_data": "0 pending approvals",
+      "verdict": "PASS"
+    },
+    {
+      "endpoint": "/health",
+      "status": 200,
+      "key_data": "status=ok",
+      "verdict": "PASS"
+    }
+  ],
+  "campaign_data_files": {
+    "candidate_queue": "phase10_4_candidate_queue.json (8 candidates from 9 sources)",
+    "selected_batch": "phase10_4_selected_batch.json (4 selected)",
+    "approval_packets": "phase10_4_approval_packets.json (4 auto-approved)",
+    "sandbox_pr_results": "phase10_4_sandbox_pr_results.json (PRs #50-53)",
+    "pr_review_merge": "phase10_4_pr_review_merge_results.json (PR #50 merged, #51-53 awaiting)",
+    "production_truth": "phase10_4_production_truth_results.json (PR #50 verified)",
+    "reliability_calibration": "phase10_4_reliability_calibration.json",
+    "cadence_check": "phase10_4_post_campaign_cadence_check.json",
+    "merge_verification": "merge_verifications/pmv-2276623d.json (PR #50 ptd)"
+  },
+  "safety_invariants": {
+    "cadence_mode": "off (runtime), dry_run_only (campaign)",
+    "no_auto_merge": true,
+    "allowed_risk": "low",
+    "require_template": true,
+    "require_operator_enable_for_pr_creation": true
+  },
+  "notes": [
+    "PR #50 merge verification (pmv-2276623d) is a file artifact, not in runtime store \u2014 campaign ran outside operator process",
+    "Runtime template registry shows 10 promoted templates (pre-campaign baseline from Phase 10.3)",
+    "Campaign-created templates (documentation_alignment) exist in worktree code, will be available after merge",
+    "PRs #51-53 awaiting operator merge \u2014 their production truth verifications will follow"
+  ],
+  "verdict": "PASS \u2014 all 8 endpoints live, all 9 campaign data files present, safety invariants intact"
+}

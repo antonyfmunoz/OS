@@ -1,0 +1,77 @@
+{
+  "phase": "10.4",
+  "cadence_check_timestamp": 1780124110.2882757,
+  "cadence_mode": "dry_run_only",
+  "cadence_mode_confirmed": true,
+  "no_auto_merge": true,
+  "no_production_mutation": true,
+  "resolved_candidates": {
+    "pr47_candidate_suppressed": true,
+    "pr50_candidate_suppressed": true,
+    "resolved_descriptions": [
+      "template audit identified gap: runtime template store path does not exist",
+      "scripts/notion_setup.py"
+    ]
+  },
+  "post_suppression_candidates": {
+    "total": 7,
+    "eligible": 5,
+    "by_source": {
+      "template_audit_gaps": 3,
+      "stale_test_paths": 1,
+      "missing_package_init": 1,
+      "stale_docstrings": 2
+    }
+  },
+  "dry_run_result": {
+    "run_id": "cdr-44401e6c",
+    "mode": "dry_run_only",
+    "candidates_found": 7,
+    "candidates_blocked": 2,
+    "candidates_eligible": 5,
+    "dry_run_results": [
+      {
+        "candidate_id": "cse-4cbd54b0",
+        "dry_run": true,
+        "would_proceed": true,
+        "risk_class": "low"
+      },
+      {
+        "candidate_id": "cse-93c250b6",
+        "dry_run": true,
+        "would_proceed": true,
+        "risk_class": "low"
+      },
+      {
+        "candidate_id": "cse-349e4625",
+        "dry_run": true,
+        "would_proceed": true,
+        "risk_class": "low"
+      },
+      {
+        "candidate_id": "cse-eef4b9c8",
+        "dry_run": true,
+        "would_proceed": true,
+        "risk_class": "low"
+      },
+      {
+        "candidate_id": "cse-14210522",
+        "dry_run": true,
+        "would_proceed": true,
+        "risk_class": "low"
+      }
+    ],
+    "recommendations": [],
+    "pr_queued": false,
+    "pr_created": false,
+    "error": "",
+    "started_at": 1780124110.2751193,
+    "completed_at": 1780124110.2882695
+  },
+  "observations": [
+    "Cadence remains dry_run_only",
+    "PR #47 resolved candidate suppressed",
+    "PR #50 resolved candidate suppressed",
+    "No production mutation occurred during cadence check"
+  ]
+}
