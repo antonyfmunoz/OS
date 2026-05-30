@@ -57,10 +57,10 @@
 
 ### Cockpit Surface
 
-- [ ] **CKP-01**: Cockpit displays template audit summary, promoted/candidate/blocked templates
-- [ ] **CKP-02**: Cockpit displays candidate supply count, source breakdown, best candidate, matching template, policy decision
-- [ ] **CKP-03**: Cockpit displays dry-run history and next scheduled dry-run
-- [ ] **CKP-04**: Template/candidate mutation controls require operator token
+- [x] **CKP-01**: Cockpit displays template audit summary, promoted/candidate/blocked templates
+- [x] **CKP-02**: Cockpit displays candidate supply count, source breakdown, best candidate, matching template, policy decision
+- [x] **CKP-03**: Cockpit displays dry-run history and next scheduled dry-run
+- [x] **CKP-04**: Template/candidate mutation controls require operator token
 
 ### PR Factory Preview
 
@@ -151,10 +151,10 @@
 | CAD-03 | Phase 7 | Complete |
 | CAD-04 | Phase 7 | Complete |
 | CAD-05 | Phase 7 | Complete |
-| CKP-01 | Phase 8 | Pending |
-| CKP-02 | Phase 8 | Pending |
-| CKP-03 | Phase 8 | Pending |
-| CKP-04 | Phase 8 | Pending |
+| CKP-01 | Phase 8 | Complete |
+| CKP-02 | Phase 8 | Complete |
+| CKP-03 | Phase 8 | Complete |
+| CKP-04 | Phase 8 | Complete |
 | PRF-01 | Phase 9 | Pending |
 | PRF-02 | Phase 9 | Pending |
 | PRF-03 | Phase 9 | Pending |
