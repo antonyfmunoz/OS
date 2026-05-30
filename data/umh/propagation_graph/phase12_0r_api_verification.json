@@ -1,0 +1,28 @@
+{
+  "phase": "12.0R",
+  "task": "api_verification",
+  "timestamp": "2026-05-30T00:00:00Z",
+  "routes": {
+    "GET /organism/propagation-graph": {"status": 200, "shape": ["status", "phase", "graph"]},
+    "GET /organism/propagation-graph/summary": {"status": 200, "shape": ["total_nodes", "total_edges", "node_type_counts", "edge_type_counts"]},
+    "GET /organism/propagation-graph/nodes": {"status": 200, "shape": ["total", "nodes"], "total": 49},
+    "GET /organism/propagation-graph/edges": {"status": 200, "shape": ["total", "edges"], "total": 19},
+    "GET /organism/propagation-graph/change-events": {"status": 200, "shape": ["total", "events"], "total": 3},
+    "GET /organism/propagation-graph/results": {"status": 200, "shape": ["total", "results"], "total": 0},
+    "GET /organism/propagation-graph/correspondence-proof": {"status": 200, "shape": ["status", "proof"]},
+    "POST /organism/propagation-graph/impact": {"status": "403 without auth"},
+    "POST /organism/propagation-graph/plan": {"status": "403 without auth"},
+    "POST /organism/propagation-graph/execute-dry-run": {"status": "403 without auth"}
+  },
+  "security": {
+    "get_routes_api_auth": "PASS — all GET routes behind cockpit router APIRouter(dependencies=[Depends(_require_api_key)])",
+    "post_routes_operator_token": "PASS — all POST routes return 403 without operator token",
+    "no_unauthenticated_decision_route": "PASS — no decision-state route without auth",
+    "path_traversal_safe": "PASS — returns 404",
+    "invalid_id_safe": "PASS — graceful handling",
+    "no_traceback_leak_overview": "PASS — overview endpoint uses to_safe_dict(), no /opt/OS paths",
+    "detail_endpoints_contain_paths": "NOTE — /nodes and /edges include source_path (cockpit-internal, same pattern as other organism endpoints, behind API key auth)",
+    "no_raw_traceback": "PASS — FastAPI returns JSON error responses"
+  },
+  "verdict": "PASS — all 10 routes verified, auth enforced, security checks pass"
+}
