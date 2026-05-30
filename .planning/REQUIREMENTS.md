@@ -70,9 +70,9 @@
 
 ### Browser Verification
 
-- [ ] **BRW-01**: Authenticated browser smoke test completed OR exact auth blocker documented
+- [x] **BRW-01**: Authenticated browser smoke test completed OR exact auth blocker documented
 - [ ] **BRW-02**: If testable: all major cockpit panels load, build hash matches, WebSocket connected, no console errors
-- [ ] **BRW-03**: Template registry and candidate supply visible in cockpit
+- [x] **BRW-03**: Template registry and candidate supply visible in cockpit
 
 ### Testing
 
@@ -158,9 +158,9 @@
 | PRF-01 | Phase 9 | Complete |
 | PRF-02 | Phase 9 | Complete |
 | PRF-03 | Phase 9 | Complete |
-| BRW-01 | Phase 10 | Pending |
-| BRW-02 | Phase 10 | Pending |
-| BRW-03 | Phase 10 | Pending |
+| BRW-01 | Phase 10 | Complete |
+| BRW-02 | Phase 10 | Blocked — new routes not deployed |
+| BRW-03 | Phase 10 | Complete |
 | TST-01 | Phase 11 | Pending |
 | TST-02 | Phase 11 | Pending |
 | TST-03 | Phase 11 | Pending |
