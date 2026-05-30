@@ -1,0 +1,297 @@
+{
+  "phase": "12.0",
+  "task": "executor_dry_run",
+  "timestamp": "2026-05-30T15:01:13Z",
+  "result_count": 3,
+  "proofs": [
+    {
+      "event_title": "Work Packet updated: Build first EOS operating dashboard",
+      "result": {
+        "result_id": "pr-d9a41c36d86f",
+        "plan_id": "pp-b09188b0eb6f",
+        "change_event_id": "ce-2ca1aeb4bbd7",
+        "wave_results": [],
+        "completed_actions": [],
+        "failed_actions": [],
+        "blocked_actions": [],
+        "approval_required_actions": [],
+        "human_required_actions": [],
+        "no_op_actions": [],
+        "reconvergence_results": [],
+        "duration_ms": 0.011920928955078125,
+        "status": "completed"
+      }
+    },
+    {
+      "event_title": "ProductionTruthDelta committed",
+      "result": {
+        "result_id": "pr-708c5d734e13",
+        "plan_id": "pp-7cafce8cc41c",
+        "change_event_id": "ce-ce14d4c66375",
+        "wave_results": [
+          {
+            "wave_id": "pw-0846f7da70c7",
+            "wave_number": 2,
+            "action_results": [
+              {
+                "action_id": "pa-ab9915b6add9",
+                "node_id": "pgn-poc-91c98329da",
+                "node_title": "ProductionOutcomeCommitted poc-532ce3d",
+                "action_type": "notify",
+                "status": "dry_run",
+                "would_execute": "notify",
+                "output_expected": "Update outcome ProductionOutcomeCommitted poc-532ce3d",
+                "risk_class": "medium",
+                "timestamp": 1780178473.030078
+              }
+            ],
+            "started_at": 1780178473.0300727,
+            "completed_at": 1780178473.0300798,
+            "duration_ms": 0.007152557373046875
+          },
+          {
+            "wave_id": "pw-f40f79fcd4a6",
+            "wave_number": 3,
+            "action_results": [
+              {
+                "action_id": "pa-d61873c91992",
+                "node_id": "pgn-api-365df039ea",
+                "node_title": "Universal Work Overview",
+                "action_type": "revalidate",
+                "status": "dry_run",
+                "would_execute": "revalidate",
+                "output_expected": "Update api_route Universal Work Overview",
+                "risk_class": "medium",
+                "timestamp": 1780178473.0300844
+              },
+              {
+                "action_id": "pa-647f2f4b3b61",
+                "node_id": "pgn-api-bb1748b441",
+                "node_title": "Universal Work Summary",
+                "action_type": "revalidate",
+                "status": "dry_run",
+                "would_execute": "revalidate",
+                "output_expected": "Update api_route Universal Work Summary",
+                "risk_class": "medium",
+                "timestamp": 1780178473.0300865
+              },
+              {
+                "action_id": "pa-f88430d6013d",
+                "node_id": "pgn-api-c89ec1d306",
+                "node_title": "Work Packets List",
+                "action_type": "revalidate",
+                "status": "dry_run",
+                "would_execute": "revalidate",
+                "output_expected": "Update api_route Work Packets List",
+                "risk_class": "medium",
+                "timestamp": 1780178473.0300877
+              },
+              {
+                "action_id": "pa-fd55778e005e",
+                "node_id": "pgn-api-1350c6eac9",
+                "node_title": "Next Best Packet",
+                "action_type": "revalidate",
+                "status": "dry_run",
+                "would_execute": "revalidate",
+                "output_expected": "Update api_route Next Best Packet",
+                "risk_class": "medium",
+                "timestamp": 1780178473.030089
+              },
+              {
+                "action_id": "pa-dcfc83595e70",
+                "node_id": "pgn-api-25088e540c",
+                "node_title": "Blocked Packets",
+                "action_type": "revalidate",
+                "status": "dry_run",
+                "would_execute": "revalidate",
+                "output_expected": "Update api_route Blocked Packets",
+                "risk_class": "medium",
+                "timestamp": 1780178473.03009
+              },
+              {
+                "action_id": "pa-9d065021447a",
+                "node_id": "pgn-api-803e6e3d67",
+                "node_title": "Human Required Packets",
+                "action_type": "revalidate",
+                "status": "dry_run",
+                "would_execute": "revalidate",
+                "output_expected": "Update api_route Human Required Packets",
+                "risk_class": "medium",
+                "timestamp": 1780178473.030091
+              },
+              {
+                "action_id": "pa-ac7ee0efb2d0",
+                "node_id": "pgn-api-e2cbcbc3ca",
+                "node_title": "Approval Required Packets",
+                "action_type": "revalidate",
+                "status": "dry_run",
+                "would_execute": "revalidate",
+                "output_expected": "Update api_route Approval Required Packets",
+                "risk_class": "medium",
+                "timestamp": 1780178473.0300918
+              },
+              {
+                "action_id": "pa-a21276443860",
+                "node_id": "pgn-api-4e3b68c943",
+                "node_title": "Create Packet",
+                "action_type": "revalidate",
+                "status": "dry_run",
+                "would_execute": "revalidate",
+                "output_expected": "Update api_route Create Packet",
+                "risk_class": "medium",
+                "timestamp": 1780178473.0300925
+              },
+              {
+                "action_id": "pa-f7caa8b399db",
+                "node_id": "pgn-api-793b281191",
+                "node_title": "Packets By Domain",
+                "action_type": "revalidate",
+                "status": "dry_run",
+                "would_execute": "revalidate",
+                "output_expected": "Update api_route Packets By Domain",
+                "risk_class": "medium",
+                "timestamp": 1780178473.0300932
+              },
+              {
+                "action_id": "pa-c720d05f4f4b",
+                "node_id": "pgn-api-ce558d5dae",
+                "node_title": "Packet Detail",
+                "action_type": "revalidate",
+                "status": "dry_run",
+                "would_execute": "revalidate",
+                "output_expected": "Update api_route Packet Detail",
+                "risk_class": "medium",
+                "timestamp": 1780178473.0300941
+              }
+            ],
+            "started_at": 1780178473.0300822,
+            "completed_at": 1780178473.0300946,
+            "duration_ms": 0.01239776611328125
+          }
+        ],
+        "completed_actions": [
+          "pa-ab9915b6add9",
+          "pa-d61873c91992",
+          "pa-647f2f4b3b61",
+          "pa-f88430d6013d",
+          "pa-fd55778e005e",
+          "pa-dcfc83595e70",
+          "pa-9d065021447a",
+          "pa-ac7ee0efb2d0",
+          "pa-a21276443860",
+          "pa-f7caa8b399db",
+          "pa-c720d05f4f4b"
+        ],
+        "failed_actions": [],
+        "blocked_actions": [],
+        "approval_required_actions": [],
+        "human_required_actions": [],
+        "no_op_actions": [],
+        "reconvergence_results": [],
+        "duration_ms": 0.02956390380859375,
+        "status": "completed"
+      }
+    },
+    {
+      "event_title": "Roadmap Phase 12 status planned -> active",
+      "result": {
+        "result_id": "pr-69ca04ab5f54",
+        "plan_id": "pp-ff3f47c070e1",
+        "change_event_id": "ce-483b5725a974",
+        "wave_results": [
+          {
+            "wave_id": "pw-e7c779bf21f5",
+            "wave_number": 2,
+            "action_results": [
+              {
+                "action_id": "pa-0fe9b17856ab",
+                "node_id": "pgn-rp-56824d16dc",
+                "node_title": "Self-Build Engineering Queue",
+                "action_type": "notify",
+                "status": "dry_run",
+                "would_execute": "notify",
+                "output_expected": "Update roadmap_phase Self-Build Engineering Queue",
+                "risk_class": "medium",
+                "timestamp": 1780178473.0302062
+              },
+              {
+                "action_id": "pa-20e70aede9ec",
+                "node_id": "pgn-rp-6b51d431df",
+                "node_title": "Universal Propagation Graph",
+                "action_type": "notify",
+                "status": "dry_run",
+                "would_execute": "notify",
+                "output_expected": "Update roadmap_phase Universal Propagation Graph",
+                "risk_class": "low",
+                "timestamp": 1780178473.0302076
+              },
+              {
+                "action_id": "pa-a1e80dc9664c",
+                "node_id": "pgn-rp-3fdba35f04",
+                "node_title": "Jarvis-Level Operator Experience",
+                "action_type": "notify",
+                "status": "dry_run",
+                "would_execute": "notify",
+                "output_expected": "Update roadmap_phase Jarvis-Level Operator Experience",
+                "risk_class": "low",
+                "timestamp": 1780178473.0302088
+              },
+              {
+                "action_id": "pa-d385bf65550e",
+                "node_id": "pgn-rp-8527a891e2",
+                "node_title": "Product Projections: EOS/CreatorOS/LyfeOS",
+                "action_type": "notify",
+                "status": "dry_run",
+                "would_execute": "notify",
+                "output_expected": "Update roadmap_phase Product Projections: EOS/CreatorOS/LyfeOS",
+                "risk_class": "low",
+                "timestamp": 1780178473.0302095
+              },
+              {
+                "action_id": "pa-5d70152a6f19",
+                "node_id": "pgn-rp-e629fa6598",
+                "node_title": "Empyrean Studios via EOS",
+                "action_type": "notify",
+                "status": "dry_run",
+                "would_execute": "notify",
+                "output_expected": "Update roadmap_phase Empyrean Studios via EOS",
+                "risk_class": "low",
+                "timestamp": 1780178473.03021
+              },
+              {
+                "action_id": "pa-b47c805c05f4",
+                "node_id": "pgn-rp-f5ca38f748",
+                "node_title": "Empire-Scale Leverage Infrastructure",
+                "action_type": "notify",
+                "status": "dry_run",
+                "would_execute": "notify",
+                "output_expected": "Update roadmap_phase Empire-Scale Leverage Infrastructure",
+                "risk_class": "low",
+                "timestamp": 1780178473.030211
+              }
+            ],
+            "started_at": 1780178473.030205,
+            "completed_at": 1780178473.0302112,
+            "duration_ms": 0.006198883056640625
+          }
+        ],
+        "completed_actions": [
+          "pa-0fe9b17856ab",
+          "pa-20e70aede9ec",
+          "pa-a1e80dc9664c",
+          "pa-d385bf65550e",
+          "pa-5d70152a6f19",
+          "pa-b47c805c05f4"
+        ],
+        "failed_actions": [],
+        "blocked_actions": [],
+        "approval_required_actions": [],
+        "human_required_actions": [],
+        "no_op_actions": [],
+        "reconvergence_results": [],
+        "duration_ms": 0.014781951904296875,
+        "status": "completed"
+      }
+    }
+  ]
+}

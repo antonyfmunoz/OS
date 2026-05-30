@@ -153,6 +153,14 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # ── substrate/self_model.py ────────────────────────────────────────
     "Layer": ["substrate.self_model"],
     "ContextKind": ["substrate.self_model"],
+    # ── substrate/organism/propagation_graph.py (Phase 12.0) ──────────
+    "PropagationNodeType": ["substrate.organism.propagation_graph"],
+    "PropagationEdgeType": ["substrate.organism.propagation_graph"],
+    "PropagationMode": ["substrate.organism.propagation_graph"],
+    "EdgeStrength": ["substrate.organism.propagation_graph"],
+    # ── substrate/organism/change_event.py (Phase 12.0) ───────────────
+    "ChangeType": ["substrate.organism.change_event"],
+    "PropagationActionStatus": ["substrate.organism.change_event"],
 }
 
 

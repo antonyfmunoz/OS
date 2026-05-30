@@ -1,0 +1,39 @@
+{
+  "phase": "12.0",
+  "task": "test_gate_results",
+  "timestamp": "2026-05-30T15:08:05Z",
+  "tests": {
+    "phase_12_0": {
+      "passed": true,
+      "output": "\u001b[32m\u001b[32m\u001b[1m78 passed\u001b[0m\u001b[32m in 0.65s\u001b[0m\u001b[0m"
+    },
+    "phase_11_1": {
+      "passed": true,
+      "output": "\u001b[32m\u001b[32m\u001b[1m109 passed\u001b[0m\u001b[32m in 0.64s\u001b[0m\u001b[0m"
+    }
+  },
+  "gates": {
+    "py_compile": {
+      "passed": true
+    },
+    "type_divergence": {
+      "passed": true
+    },
+    "dependency_direction": {
+      "passed": true,
+      "detail": "grep verified: no substrate imports from transports/services"
+    },
+    "line_count": {
+      "passed": true,
+      "detail": "all files under 1000 lines"
+    },
+    "route_auth": {
+      "passed": true,
+      "detail": "all POST routes require operator auth"
+    },
+    "no_fake_data": {
+      "passed": true,
+      "detail": "all nodes backed by evidence from real system state"
+    }
+  }
+}

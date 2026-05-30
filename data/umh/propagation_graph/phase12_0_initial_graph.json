@@ -1,0 +1,1546 @@
+{
+  "version": "12.0.0",
+  "built_at": 1780178473.021879,
+  "source_summary": "Built from live system state: 49 nodes, 19 edges",
+  "graph_stats": {
+    "total_nodes": 49,
+    "total_edges": 19,
+    "node_type_counts": {
+      "work_packet": 5,
+      "workcell": 5,
+      "advisor_branch": 2,
+      "self_build_item": 18,
+      "roadmap_phase": 7,
+      "production_truth_delta": 1,
+      "outcome": 1,
+      "api_route": 10
+    },
+    "edge_type_counts": {
+      "owns": 2,
+      "creates": 1,
+      "unlocks": 6,
+      "validates": 10
+    },
+    "orphaned_node_count": 27,
+    "cycle_count": 0,
+    "built_at": 1780178473.021879,
+    "version": "12.0.0"
+  },
+  "nodes": [
+    {
+      "node_id": "pgn-wp-9e9f7de0fc",
+      "node_type": "work_packet",
+      "title": "Implementation: EOS",
+      "description": "Build the first EOS operating dashboard for Empyrean Studios",
+      "source_type": "work_packet",
+      "source_id": "wp-0a39c075bbe2",
+      "source_path": "/opt/OS/data/umh/universal_work/work_packets.jsonl",
+      "entity_ref": "",
+      "domain": "product",
+      "projection": "",
+      "status": "classified",
+      "metadata": {
+        "risk_class": "low",
+        "leverage_score": 0.8
+      },
+      "evidence": [
+        {
+          "type": "work_packet_store",
+          "path": "/opt/OS/data/umh/universal_work/work_packets.jsonl"
+        }
+      ],
+      "created_at": 1780178473.022034,
+      "updated_at": 1780178473.0220344
+    },
+    {
+      "node_id": "pgn-wp-6cc1b487ef",
+      "node_type": "work_packet",
+      "title": "Research: UMH",
+      "description": "Deep dive Polsia and explain what it means for UMH",
+      "source_type": "work_packet",
+      "source_id": "wp-a6bb596db315",
+      "source_path": "/opt/OS/data/umh/universal_work/work_packets.jsonl",
+      "entity_ref": "",
+      "domain": "learning",
+      "projection": "",
+      "status": "classified",
+      "metadata": {
+        "risk_class": "low",
+        "leverage_score": 0.6
+      },
+      "evidence": [
+        {
+          "type": "work_packet_store",
+          "path": "/opt/OS/data/umh/universal_work/work_packets.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0220716,
+      "updated_at": 1780178473.0220718
+    },
+    {
+      "node_id": "pgn-wp-4a1279877f",
+      "node_type": "work_packet",
+      "title": "Deployment: Empyrean Studios",
+      "description": "Launch the B2B AI Automation offer for Empyrean Studios",
+      "source_type": "work_packet",
+      "source_id": "wp-732dcacd6a3d",
+      "source_path": "/opt/OS/data/umh/universal_work/work_packets.jsonl",
+      "entity_ref": "",
+      "domain": "business",
+      "projection": "",
+      "status": "classified",
+      "metadata": {
+        "risk_class": "low",
+        "leverage_score": 0.8
+      },
+      "evidence": [
+        {
+          "type": "work_packet_store",
+          "path": "/opt/OS/data/umh/universal_work/work_packets.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0220985,
+      "updated_at": 1780178473.0220988
+    },
+    {
+      "node_id": "pgn-wp-868c68360d",
+      "node_type": "work_packet",
+      "title": "Cleanup: Clean up stale config artifacts from old worktrees",
+      "description": "Clean up stale config artifacts from old worktrees",
+      "source_type": "work_packet",
+      "source_id": "wp-61bd1b54f04c",
+      "source_path": "/opt/OS/data/umh/universal_work/work_packets.jsonl",
+      "entity_ref": "",
+      "domain": "admin",
+      "projection": "",
+      "status": "classified",
+      "metadata": {
+        "risk_class": "low",
+        "leverage_score": 0.6
+      },
+      "evidence": [
+        {
+          "type": "work_packet_store",
+          "path": "/opt/OS/data/umh/universal_work/work_packets.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0221334,
+      "updated_at": 1780178473.0221336
+    },
+    {
+      "node_id": "pgn-wp-7b2b270670",
+      "node_type": "work_packet",
+      "title": "Planning: Prepare Phase 12 Universal Propagation Graph roadmap strategy",
+      "description": "Prepare Phase 12 Universal Propagation Graph roadmap strategy",
+      "source_type": "work_packet",
+      "source_id": "wp-1a86b5bfe437",
+      "source_path": "/opt/OS/data/umh/universal_work/work_packets.jsonl",
+      "entity_ref": "",
+      "domain": "strategy",
+      "projection": "",
+      "status": "classified",
+      "metadata": {
+        "risk_class": "low",
+        "leverage_score": 0.7
+      },
+      "evidence": [
+        {
+          "type": "work_packet_store",
+          "path": "/opt/OS/data/umh/universal_work/work_packets.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0221574,
+      "updated_at": 1780178473.0221577
+    },
+    {
+      "node_id": "pgn-wc-ee8a7fbd0d",
+      "node_type": "workcell",
+      "title": "Primary: Implementation: EOS",
+      "description": "",
+      "source_type": "workcell",
+      "source_id": "wc-88933f5e2a",
+      "source_path": "/opt/OS/data/umh/universal_work/workcells.jsonl",
+      "entity_ref": "",
+      "domain": "",
+      "projection": "",
+      "status": "pending",
+      "metadata": {
+        "packet_id": ""
+      },
+      "evidence": [
+        {
+          "type": "workcell_store",
+          "path": "/opt/OS/data/umh/universal_work/workcells.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0222323,
+      "updated_at": 1780178473.0222325
+    },
+    {
+      "node_id": "pgn-wc-b1df516429",
+      "node_type": "workcell",
+      "title": "Primary: Research: UMH",
+      "description": "",
+      "source_type": "workcell",
+      "source_id": "wc-eb6f64b563",
+      "source_path": "/opt/OS/data/umh/universal_work/workcells.jsonl",
+      "entity_ref": "",
+      "domain": "",
+      "projection": "",
+      "status": "pending",
+      "metadata": {
+        "packet_id": ""
+      },
+      "evidence": [
+        {
+          "type": "workcell_store",
+          "path": "/opt/OS/data/umh/universal_work/workcells.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0222495,
+      "updated_at": 1780178473.0222495
+    },
+    {
+      "node_id": "pgn-wc-2c574bc153",
+      "node_type": "workcell",
+      "title": "Primary: Deployment: Empyrean Studios",
+      "description": "",
+      "source_type": "workcell",
+      "source_id": "wc-fdc31f6136",
+      "source_path": "/opt/OS/data/umh/universal_work/workcells.jsonl",
+      "entity_ref": "",
+      "domain": "",
+      "projection": "",
+      "status": "pending",
+      "metadata": {
+        "packet_id": ""
+      },
+      "evidence": [
+        {
+          "type": "workcell_store",
+          "path": "/opt/OS/data/umh/universal_work/workcells.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0222633,
+      "updated_at": 1780178473.0222635
+    },
+    {
+      "node_id": "pgn-wc-1dd929d2dd",
+      "node_type": "workcell",
+      "title": "Primary: Cleanup: Clean up stale config artifacts from old worktrees",
+      "description": "",
+      "source_type": "workcell",
+      "source_id": "wc-f595529328",
+      "source_path": "/opt/OS/data/umh/universal_work/workcells.jsonl",
+      "entity_ref": "",
+      "domain": "",
+      "projection": "",
+      "status": "pending",
+      "metadata": {
+        "packet_id": ""
+      },
+      "evidence": [
+        {
+          "type": "workcell_store",
+          "path": "/opt/OS/data/umh/universal_work/workcells.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0222745,
+      "updated_at": 1780178473.0222747
+    },
+    {
+      "node_id": "pgn-wc-df645f95a9",
+      "node_type": "workcell",
+      "title": "Primary: Planning: Prepare Phase 12 Universal Propagation Graph roadmap strategy",
+      "description": "",
+      "source_type": "workcell",
+      "source_id": "wc-636d7aeb0a",
+      "source_path": "/opt/OS/data/umh/universal_work/workcells.jsonl",
+      "entity_ref": "",
+      "domain": "",
+      "projection": "",
+      "status": "branched",
+      "metadata": {
+        "packet_id": ""
+      },
+      "evidence": [
+        {
+          "type": "workcell_store",
+          "path": "/opt/OS/data/umh/universal_work/workcells.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0222917,
+      "updated_at": 1780178473.022292
+    },
+    {
+      "node_id": "pgn-adv-2e20af4bb4",
+      "node_type": "advisor_branch",
+      "title": "Perspective from role-strategy-op",
+      "description": "",
+      "source_type": "advisor_branch",
+      "source_id": "adv-90fa6935",
+      "source_path": "",
+      "entity_ref": "",
+      "domain": "",
+      "projection": "",
+      "status": "pending",
+      "metadata": {
+        "workcell_id": "wc-636d7aeb0a"
+      },
+      "evidence": [
+        {
+          "type": "workcell_store",
+          "path": "/opt/OS/data/umh/universal_work/workcells.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0222967,
+      "updated_at": 1780178473.0222967
+    },
+    {
+      "node_id": "pgn-adv-6e49f8d7e8",
+      "node_type": "advisor_branch",
+      "title": "Perspective from role-research-op",
+      "description": "",
+      "source_type": "advisor_branch",
+      "source_id": "adv-51120214",
+      "source_path": "",
+      "entity_ref": "",
+      "domain": "",
+      "projection": "",
+      "status": "pending",
+      "metadata": {
+        "workcell_id": "wc-636d7aeb0a"
+      },
+      "evidence": [
+        {
+          "type": "workcell_store",
+          "path": "/opt/OS/data/umh/universal_work/workcells.jsonl"
+        }
+      ],
+      "created_at": 1780178473.022339,
+      "updated_at": 1780178473.0223393
+    },
+    {
+      "node_id": "pgn-sb-1b92c688c5",
+      "node_type": "self_build_item",
+      "title": "Stale project name in check_projection_leak.py docstring",
+      "description": "Script check_projection_leak.py line 5 contains stale project name",
+      "source_type": "self_build_item",
+      "source_id": "wk-4ff684c4",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0224478,
+      "updated_at": 1780178473.022448
+    },
+    {
+      "node_id": "pgn-sb-79381c5f97",
+      "node_type": "self_build_item",
+      "title": "Stale project name in github_trinity_ingest.py docstring",
+      "description": "Script github_trinity_ingest.py line 3 contains stale project name",
+      "source_type": "self_build_item",
+      "source_id": "wk-a50524a6",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.022471,
+      "updated_at": 1780178473.0224712
+    },
+    {
+      "node_id": "pgn-sb-22badd5277",
+      "node_type": "self_build_item",
+      "title": "Runtime template store path does not exist",
+      "description": "daemon.py initializes TemplateRegistry at nonexistent path",
+      "source_type": "self_build_item",
+      "source_id": "wk-55468999",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.022511,
+      "updated_at": 1780178473.022511
+    },
+    {
+      "node_id": "pgn-sb-8fc2eef5aa",
+      "node_type": "self_build_item",
+      "title": "require_template=True gates all candidates when empty",
+      "description": "AutonomousLanePolicy.require_template blocks all when empty",
+      "source_type": "self_build_item",
+      "source_id": "wk-5d6a5306",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0225317,
+      "updated_at": 1780178473.0225317
+    },
+    {
+      "node_id": "pgn-sb-b3152246c5",
+      "node_type": "self_build_item",
+      "title": "Template data record at wrong path",
+      "description": "tpl-0b21c294 lives at wrong path",
+      "source_type": "self_build_item",
+      "source_id": "wk-0a2fd07f",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0225494,
+      "updated_at": 1780178473.0225494
+    },
+    {
+      "node_id": "pgn-sb-b15ba10f23",
+      "node_type": "self_build_item",
+      "title": "Zero templates for 15 TemplateType values",
+      "description": "15 TemplateType values defined but no templates match",
+      "source_type": "self_build_item",
+      "source_id": "wk-927dae1c",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0225782,
+      "updated_at": 1780178473.0225782
+    },
+    {
+      "node_id": "pgn-sb-aece807008",
+      "node_type": "self_build_item",
+      "title": ".planning/config.json in sandbox worktrees",
+      "description": "Sandbox worktrees include .planning/config.json not part of codebase",
+      "source_type": "self_build_item",
+      "source_id": "wk-806651ee",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0225954,
+      "updated_at": 1780178473.0225954
+    },
+    {
+      "node_id": "pgn-sb-0bedbd2e6c",
+      "node_type": "self_build_item",
+      "title": "PMV pass rate 0.5 (target 0.8)",
+      "description": "ProductionMergeVerifier pass rate is 50%",
+      "source_type": "self_build_item",
+      "source_id": "wk-9de56899",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0226114,
+      "updated_at": 1780178473.0226114
+    },
+    {
+      "node_id": "pgn-sb-8027125442",
+      "node_type": "self_build_item",
+      "title": "10 file divergence instances",
+      "description": "Sandbox branches diverge from main for 10 paths",
+      "source_type": "self_build_item",
+      "source_id": "wk-3805e14a",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0226288,
+      "updated_at": 1780178473.0226288
+    },
+    {
+      "node_id": "pgn-sb-62153591d5",
+      "node_type": "self_build_item",
+      "title": "Phase 12: Universal propagation graph",
+      "description": "Correspondence layer connecting state transitions to outcomes",
+      "source_type": "self_build_item",
+      "source_id": "wk-71da312d",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0226479,
+      "updated_at": 1780178473.0226479
+    },
+    {
+      "node_id": "pgn-sb-1aa3a70496",
+      "node_type": "self_build_item",
+      "title": "Phase 13: Jarvis-level operator experience",
+      "description": "Conversational operator control of UMH organism",
+      "source_type": "self_build_item",
+      "source_id": "wk-8e1b717c",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.022665,
+      "updated_at": 1780178473.022665
+    },
+    {
+      "node_id": "pgn-sb-e788209308",
+      "node_type": "self_build_item",
+      "title": "Phase 14: EOS/CreatorOS/LyfeOS projections",
+      "description": "Product projections as governed apps on UMH",
+      "source_type": "self_build_item",
+      "source_id": "wk-f6c7fbe8",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.022699,
+      "updated_at": 1780178473.0226994
+    },
+    {
+      "node_id": "pgn-sb-3379ec9702",
+      "node_type": "self_build_item",
+      "title": "Phase 15: Empyrean Studios via EOS",
+      "description": "Full company ops through EOS projection",
+      "source_type": "self_build_item",
+      "source_id": "wk-394f4fdf",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0227146,
+      "updated_at": 1780178473.0227149
+    },
+    {
+      "node_id": "pgn-sb-5181387a27",
+      "node_type": "self_build_item",
+      "title": "Self-build queue cockpit panel",
+      "description": "Queue visibility in cockpit",
+      "source_type": "self_build_item",
+      "source_id": "wk-372ed577",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0227296,
+      "updated_at": 1780178473.0227296
+    },
+    {
+      "node_id": "pgn-sb-f92137c23e",
+      "node_type": "self_build_item",
+      "title": "Close template reliability gaps",
+      "description": "Improve template_audit_gaps source_reliability from 0.3",
+      "source_type": "self_build_item",
+      "source_id": "wk-61ea36a1",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.022745,
+      "updated_at": 1780178473.022745
+    },
+    {
+      "node_id": "pgn-sb-baf27276c3",
+      "node_type": "self_build_item",
+      "title": "EOS portfolio/entity management",
+      "description": "EOS portfolio/entity management",
+      "source_type": "self_build_item",
+      "source_id": "wk-1f2e876d",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0227637,
+      "updated_at": 1780178473.022764
+    },
+    {
+      "node_id": "pgn-sb-2a949d7f43",
+      "node_type": "self_build_item",
+      "title": "CreatorOS content/audience projection",
+      "description": "CreatorOS content/audience projection",
+      "source_type": "self_build_item",
+      "source_id": "wk-ed155e57",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0227816,
+      "updated_at": 1780178473.0227816
+    },
+    {
+      "node_id": "pgn-sb-4544b152ff",
+      "node_type": "self_build_item",
+      "title": "LyfeOS operator performance projection",
+      "description": "LyfeOS operator performance projection",
+      "source_type": "self_build_item",
+      "source_id": "wk-0412e821",
+      "source_path": "/opt/OS/data/umh/self_build/work_items.jsonl",
+      "entity_ref": "",
+      "domain": "self_build",
+      "projection": "",
+      "status": "discovered",
+      "metadata": {
+        "risk_class": "low"
+      },
+      "evidence": [
+        {
+          "type": "self_build_store",
+          "path": "/opt/OS/data/umh/self_build/work_items.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0227964,
+      "updated_at": 1780178473.0227964
+    },
+    {
+      "node_id": "pgn-rp-80b8062fef",
+      "node_type": "roadmap_phase",
+      "title": "Reliability-Weighted Cadence Ranking",
+      "description": "Rank candidates using production-backed reliability",
+      "source_type": "roadmap_phase",
+      "source_id": "10.5",
+      "source_path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl",
+      "entity_ref": "",
+      "domain": "roadmap",
+      "projection": "",
+      "status": "complete",
+      "metadata": {
+        "prerequisites": [],
+        "success_criteria": [
+          "Signals computed",
+          "Candidates ranked",
+          "Thresholds enforced"
+        ]
+      },
+      "evidence": [
+        {
+          "type": "roadmap_store",
+          "path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0228677,
+      "updated_at": 1780178473.0228677
+    },
+    {
+      "node_id": "pgn-rp-56824d16dc",
+      "node_type": "roadmap_phase",
+      "title": "Self-Build Engineering Queue",
+      "description": "Canonical queue connecting cadence to governed work",
+      "source_type": "roadmap_phase",
+      "source_id": "11.0",
+      "source_path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl",
+      "entity_ref": "",
+      "domain": "roadmap",
+      "projection": "",
+      "status": "active",
+      "metadata": {
+        "prerequisites": [
+          "10.5"
+        ],
+        "success_criteria": [
+          "Model exists",
+          "Engine exists",
+          "Real candidates ingested",
+          "Governance integrated",
+          "API routes live",
+          "Cockpit panel",
+          "Lifecycle proof",
+          "Tests pass"
+        ]
+      },
+      "evidence": [
+        {
+          "type": "roadmap_store",
+          "path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0228815,
+      "updated_at": 1780178473.0228817
+    },
+    {
+      "node_id": "pgn-rp-6b51d431df",
+      "node_type": "roadmap_phase",
+      "title": "Universal Propagation Graph",
+      "description": "Correspondence layer for state transitions to outcomes",
+      "source_type": "roadmap_phase",
+      "source_id": "12",
+      "source_path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl",
+      "entity_ref": "",
+      "domain": "roadmap",
+      "projection": "",
+      "status": "planned",
+      "metadata": {
+        "prerequisites": [
+          "11.0"
+        ],
+        "success_criteria": [
+          "Graph model",
+          "Transitions traced"
+        ]
+      },
+      "evidence": [
+        {
+          "type": "roadmap_store",
+          "path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl"
+        }
+      ],
+      "created_at": 1780178473.022893,
+      "updated_at": 1780178473.022893
+    },
+    {
+      "node_id": "pgn-rp-3fdba35f04",
+      "node_type": "roadmap_phase",
+      "title": "Jarvis-Level Operator Experience",
+      "description": "Conversational operator control of UMH",
+      "source_type": "roadmap_phase",
+      "source_id": "13",
+      "source_path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl",
+      "entity_ref": "",
+      "domain": "roadmap",
+      "projection": "",
+      "status": "planned",
+      "metadata": {
+        "prerequisites": [
+          "12"
+        ],
+        "success_criteria": [
+          "Conversational control",
+          "Full state access"
+        ]
+      },
+      "evidence": [
+        {
+          "type": "roadmap_store",
+          "path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl"
+        }
+      ],
+      "created_at": 1780178473.022903,
+      "updated_at": 1780178473.022903
+    },
+    {
+      "node_id": "pgn-rp-8527a891e2",
+      "node_type": "roadmap_phase",
+      "title": "Product Projections: EOS/CreatorOS/LyfeOS",
+      "description": "Governed app projections on UMH",
+      "source_type": "roadmap_phase",
+      "source_id": "14",
+      "source_path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl",
+      "entity_ref": "",
+      "domain": "roadmap",
+      "projection": "",
+      "status": "planned",
+      "metadata": {
+        "prerequisites": [
+          "13"
+        ],
+        "success_criteria": [
+          "EOS active",
+          "CreatorOS active",
+          "LyfeOS active"
+        ]
+      },
+      "evidence": [
+        {
+          "type": "roadmap_store",
+          "path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0229132,
+      "updated_at": 1780178473.0229132
+    },
+    {
+      "node_id": "pgn-rp-e629fa6598",
+      "node_type": "roadmap_phase",
+      "title": "Empyrean Studios via EOS",
+      "description": "Full company ops through EOS",
+      "source_type": "roadmap_phase",
+      "source_id": "15",
+      "source_path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl",
+      "entity_ref": "",
+      "domain": "roadmap",
+      "projection": "",
+      "status": "planned",
+      "metadata": {
+        "prerequisites": [
+          "14"
+        ],
+        "success_criteria": [
+          "Empyrean operational in EOS"
+        ]
+      },
+      "evidence": [
+        {
+          "type": "roadmap_store",
+          "path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0229228,
+      "updated_at": 1780178473.0229228
+    },
+    {
+      "node_id": "pgn-rp-f5ca38f748",
+      "node_type": "roadmap_phase",
+      "title": "Empire-Scale Leverage Infrastructure",
+      "description": "11-figure empire infrastructure",
+      "source_type": "roadmap_phase",
+      "source_id": "20",
+      "source_path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl",
+      "entity_ref": "",
+      "domain": "roadmap",
+      "projection": "",
+      "status": "north_star",
+      "metadata": {
+        "prerequisites": [
+          "15"
+        ],
+        "success_criteria": [
+          "Empire-scale ops",
+          "Multi-company governance"
+        ]
+      },
+      "evidence": [
+        {
+          "type": "roadmap_store",
+          "path": "/opt/OS/data/umh/self_build/roadmap_phases.jsonl"
+        }
+      ],
+      "created_at": 1780178473.0229323,
+      "updated_at": 1780178473.0229323
+    },
+    {
+      "node_id": "pgn-ptd-a28b34c292",
+      "node_type": "production_truth_delta",
+      "title": "Production Truth Delta ptd-85fb7318",
+      "description": "PR #57 merge verification",
+      "source_type": "production_truth_delta",
+      "source_id": "ptd-85fb7318",
+      "source_path": "/opt/OS/data/umh/universal_work/phase11_1r_production_verification.json",
+      "entity_ref": "",
+      "domain": "production",
+      "projection": "",
+      "status": "verified",
+      "metadata": {
+        "pr": 57,
+        "merge_commit": "fbf2ccd6",
+        "files_match": true,
+        "py_compile_pass": true
+      },
+      "evidence": [
+        {
+          "type": "production_verification",
+          "path": "/opt/OS/data/umh/universal_work/phase11_1r_production_verification.json"
+        }
+      ],
+      "created_at": 1780178473.023066,
+      "updated_at": 1780178473.023066
+    },
+    {
+      "node_id": "pgn-poc-91c98329da",
+      "node_type": "outcome",
+      "title": "ProductionOutcomeCommitted poc-532ce3d",
+      "description": "Phase 11.1R production outcome",
+      "source_type": "production_outcome",
+      "source_id": "poc-532ce3d",
+      "source_path": "",
+      "entity_ref": "",
+      "domain": "production",
+      "projection": "",
+      "status": "committed",
+      "metadata": {},
+      "evidence": [
+        {
+          "type": "production_verification",
+          "path": "/opt/OS/data/umh/universal_work/phase11_1r_production_verification.json"
+        }
+      ],
+      "created_at": 1780178473.0230727,
+      "updated_at": 1780178473.023073
+    },
+    {
+      "node_id": "pgn-api-365df039ea",
+      "node_type": "api_route",
+      "title": "Universal Work Overview",
+      "description": "API route: /api/umh/organism/universal-work",
+      "source_type": "api_route",
+      "source_id": "organism-universal-work",
+      "source_path": "/opt/OS/transports/api/cockpit_universal_work_routes.py",
+      "entity_ref": "",
+      "domain": "api",
+      "projection": "",
+      "status": "active",
+      "metadata": {},
+      "evidence": [
+        {
+          "type": "route_file",
+          "path": "/opt/OS/transports/api/cockpit_universal_work_routes.py"
+        }
+      ],
+      "created_at": 1780178473.0231159,
+      "updated_at": 1780178473.0231159
+    },
+    {
+      "node_id": "pgn-api-bb1748b441",
+      "node_type": "api_route",
+      "title": "Universal Work Summary",
+      "description": "API route: /api/umh/organism/universal-work/summary",
+      "source_type": "api_route",
+      "source_id": "organism-universal-work-summary",
+      "source_path": "/opt/OS/transports/api/cockpit_universal_work_routes.py",
+      "entity_ref": "",
+      "domain": "api",
+      "projection": "",
+      "status": "active",
+      "metadata": {},
+      "evidence": [
+        {
+          "type": "route_file",
+          "path": "/opt/OS/transports/api/cockpit_universal_work_routes.py"
+        }
+      ],
+      "created_at": 1780178473.0231216,
+      "updated_at": 1780178473.0231216
+    },
+    {
+      "node_id": "pgn-api-c89ec1d306",
+      "node_type": "api_route",
+      "title": "Work Packets List",
+      "description": "API route: /api/umh/organism/universal-work/packets",
+      "source_type": "api_route",
+      "source_id": "organism-universal-work-packets",
+      "source_path": "/opt/OS/transports/api/cockpit_universal_work_routes.py",
+      "entity_ref": "",
+      "domain": "api",
+      "projection": "",
+      "status": "active",
+      "metadata": {},
+      "evidence": [
+        {
+          "type": "route_file",
+          "path": "/opt/OS/transports/api/cockpit_universal_work_routes.py"
+        }
+      ],
+      "created_at": 1780178473.0231264,
+      "updated_at": 1780178473.0231264
+    },
+    {
+      "node_id": "pgn-api-1350c6eac9",
+      "node_type": "api_route",
+      "title": "Next Best Packet",
+      "description": "API route: /api/umh/organism/universal-work/next",
+      "source_type": "api_route",
+      "source_id": "organism-universal-work-next",
+      "source_path": "/opt/OS/transports/api/cockpit_universal_work_routes.py",
+      "entity_ref": "",
+      "domain": "api",
+      "projection": "",
+      "status": "active",
+      "metadata": {},
+      "evidence": [
+        {
+          "type": "route_file",
+          "path": "/opt/OS/transports/api/cockpit_universal_work_routes.py"
+        }
+      ],
+      "created_at": 1780178473.0231316,
+      "updated_at": 1780178473.0231316
+    },
+    {
+      "node_id": "pgn-api-25088e540c",
+      "node_type": "api_route",
+      "title": "Blocked Packets",
+      "description": "API route: /api/umh/organism/universal-work/blocked",
+      "source_type": "api_route",
+      "source_id": "organism-universal-work-blocked",
+      "source_path": "/opt/OS/transports/api/cockpit_universal_work_routes.py",
+      "entity_ref": "",
+      "domain": "api",
+      "projection": "",
+      "status": "active",
+      "metadata": {},
+      "evidence": [
+        {
+          "type": "route_file",
+          "path": "/opt/OS/transports/api/cockpit_universal_work_routes.py"
+        }
+      ],
+      "created_at": 1780178473.0231369,
+      "updated_at": 1780178473.0231369
+    },
+    {
+      "node_id": "pgn-api-803e6e3d67",
+      "node_type": "api_route",
+      "title": "Human Required Packets",
+      "description": "API route: /api/umh/organism/universal-work/human-required",
+      "source_type": "api_route",
+      "source_id": "organism-universal-work-human-required",
+      "source_path": "/opt/OS/transports/api/cockpit_universal_work_routes.py",
+      "entity_ref": "",
+      "domain": "api",
+      "projection": "",
+      "status": "active",
+      "metadata": {},
+      "evidence": [
+        {
+          "type": "route_file",
+          "path": "/opt/OS/transports/api/cockpit_universal_work_routes.py"
+        }
+      ],
+      "created_at": 1780178473.0231411,
+      "updated_at": 1780178473.0231414
+    },
+    {
+      "node_id": "pgn-api-e2cbcbc3ca",
+      "node_type": "api_route",
+      "title": "Approval Required Packets",
+      "description": "API route: /api/umh/organism/universal-work/approval-required",
+      "source_type": "api_route",
+      "source_id": "organism-universal-work-approval-required",
+      "source_path": "/opt/OS/transports/api/cockpit_universal_work_routes.py",
+      "entity_ref": "",
+      "domain": "api",
+      "projection": "",
+      "status": "active",
+      "metadata": {},
+      "evidence": [
+        {
+          "type": "route_file",
+          "path": "/opt/OS/transports/api/cockpit_universal_work_routes.py"
+        }
+      ],
+      "created_at": 1780178473.0231454,
+      "updated_at": 1780178473.0231454
+    },
+    {
+      "node_id": "pgn-api-4e3b68c943",
+      "node_type": "api_route",
+      "title": "Create Packet",
+      "description": "API route: /api/umh/organism/universal-work/create",
+      "source_type": "api_route",
+      "source_id": "organism-universal-work-create",
+      "source_path": "/opt/OS/transports/api/cockpit_universal_work_routes.py",
+      "entity_ref": "",
+      "domain": "api",
+      "projection": "",
+      "status": "active",
+      "metadata": {},
+      "evidence": [
+        {
+          "type": "route_file",
+          "path": "/opt/OS/transports/api/cockpit_universal_work_routes.py"
+        }
+      ],
+      "created_at": 1780178473.0231493,
+      "updated_at": 1780178473.0231493
+    },
+    {
+      "node_id": "pgn-api-793b281191",
+      "node_type": "api_route",
+      "title": "Packets By Domain",
+      "description": "API route: /api/umh/organism/universal-work/domain/{domain}",
+      "source_type": "api_route",
+      "source_id": "organism-universal-work-domain-{domain}",
+      "source_path": "/opt/OS/transports/api/cockpit_universal_work_routes.py",
+      "entity_ref": "",
+      "domain": "api",
+      "projection": "",
+      "status": "active",
+      "metadata": {},
+      "evidence": [
+        {
+          "type": "route_file",
+          "path": "/opt/OS/transports/api/cockpit_universal_work_routes.py"
+        }
+      ],
+      "created_at": 1780178473.023153,
+      "updated_at": 1780178473.023153
+    },
+    {
+      "node_id": "pgn-api-ce558d5dae",
+      "node_type": "api_route",
+      "title": "Packet Detail",
+      "description": "API route: /api/umh/organism/universal-work/packets/{packet_id}",
+      "source_type": "api_route",
+      "source_id": "organism-universal-work-packets-{packet_id}",
+      "source_path": "/opt/OS/transports/api/cockpit_universal_work_routes.py",
+      "entity_ref": "",
+      "domain": "api",
+      "projection": "",
+      "status": "active",
+      "metadata": {},
+      "evidence": [
+        {
+          "type": "route_file",
+          "path": "/opt/OS/transports/api/cockpit_universal_work_routes.py"
+        }
+      ],
+      "created_at": 1780178473.023157,
+      "updated_at": 1780178473.0231574
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "pge-f1a584af236d",
+      "from_node_id": "pgn-wc-df645f95a9",
+      "to_node_id": "pgn-adv-2e20af4bb4",
+      "edge_type": "owns",
+      "propagation_mode": "recompute",
+      "strength": "hard",
+      "reason": "workcell owns advisor branch",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0223296,
+      "updated_at": 1780178473.02233
+    },
+    {
+      "edge_id": "pge-5a3086a89d12",
+      "from_node_id": "pgn-wc-df645f95a9",
+      "to_node_id": "pgn-adv-6e49f8d7e8",
+      "edge_type": "owns",
+      "propagation_mode": "recompute",
+      "strength": "hard",
+      "reason": "workcell owns advisor branch",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0223494,
+      "updated_at": 1780178473.0223496
+    },
+    {
+      "edge_id": "pge-01a1eae6f4f0",
+      "from_node_id": "pgn-ptd-a28b34c292",
+      "to_node_id": "pgn-poc-91c98329da",
+      "edge_type": "creates",
+      "propagation_mode": "notify_only",
+      "strength": "hard",
+      "reason": "PTD creates ProductionOutcomeCommitted",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0230908,
+      "updated_at": 1780178473.0230913
+    },
+    {
+      "edge_id": "pge-6151b82bea4d",
+      "from_node_id": "pgn-rp-80b8062fef",
+      "to_node_id": "pgn-rp-56824d16dc",
+      "edge_type": "unlocks",
+      "propagation_mode": "notify_only",
+      "strength": "hard",
+      "reason": "prerequisite phase unlocks this phase",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0232642,
+      "updated_at": 1780178473.0232642
+    },
+    {
+      "edge_id": "pge-91d649203a9a",
+      "from_node_id": "pgn-rp-56824d16dc",
+      "to_node_id": "pgn-rp-6b51d431df",
+      "edge_type": "unlocks",
+      "propagation_mode": "notify_only",
+      "strength": "hard",
+      "reason": "prerequisite phase unlocks this phase",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.023273,
+      "updated_at": 1780178473.0232732
+    },
+    {
+      "edge_id": "pge-9b1a43d24f70",
+      "from_node_id": "pgn-rp-6b51d431df",
+      "to_node_id": "pgn-rp-3fdba35f04",
+      "edge_type": "unlocks",
+      "propagation_mode": "notify_only",
+      "strength": "hard",
+      "reason": "prerequisite phase unlocks this phase",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.02328,
+      "updated_at": 1780178473.02328
+    },
+    {
+      "edge_id": "pge-f17926331a0c",
+      "from_node_id": "pgn-rp-3fdba35f04",
+      "to_node_id": "pgn-rp-8527a891e2",
+      "edge_type": "unlocks",
+      "propagation_mode": "notify_only",
+      "strength": "hard",
+      "reason": "prerequisite phase unlocks this phase",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0232933,
+      "updated_at": 1780178473.0232933
+    },
+    {
+      "edge_id": "pge-2147c1f26c19",
+      "from_node_id": "pgn-rp-8527a891e2",
+      "to_node_id": "pgn-rp-e629fa6598",
+      "edge_type": "unlocks",
+      "propagation_mode": "notify_only",
+      "strength": "hard",
+      "reason": "prerequisite phase unlocks this phase",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0232992,
+      "updated_at": 1780178473.0232997
+    },
+    {
+      "edge_id": "pge-de39395de4d0",
+      "from_node_id": "pgn-rp-e629fa6598",
+      "to_node_id": "pgn-rp-f5ca38f748",
+      "edge_type": "unlocks",
+      "propagation_mode": "notify_only",
+      "strength": "hard",
+      "reason": "prerequisite phase unlocks this phase",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.023305,
+      "updated_at": 1780178473.0233052
+    },
+    {
+      "edge_id": "pge-28ee7814e748",
+      "from_node_id": "pgn-ptd-a28b34c292",
+      "to_node_id": "pgn-api-365df039ea",
+      "edge_type": "validates",
+      "propagation_mode": "revalidate",
+      "strength": "soft",
+      "reason": "production truth validates API routes",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0233216,
+      "updated_at": 1780178473.0233216
+    },
+    {
+      "edge_id": "pge-d0d3571c108c",
+      "from_node_id": "pgn-ptd-a28b34c292",
+      "to_node_id": "pgn-api-bb1748b441",
+      "edge_type": "validates",
+      "propagation_mode": "revalidate",
+      "strength": "soft",
+      "reason": "production truth validates API routes",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0233276,
+      "updated_at": 1780178473.0233276
+    },
+    {
+      "edge_id": "pge-2794224d4571",
+      "from_node_id": "pgn-ptd-a28b34c292",
+      "to_node_id": "pgn-api-c89ec1d306",
+      "edge_type": "validates",
+      "propagation_mode": "revalidate",
+      "strength": "soft",
+      "reason": "production truth validates API routes",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0233333,
+      "updated_at": 1780178473.0233335
+    },
+    {
+      "edge_id": "pge-874e7a40303e",
+      "from_node_id": "pgn-ptd-a28b34c292",
+      "to_node_id": "pgn-api-1350c6eac9",
+      "edge_type": "validates",
+      "propagation_mode": "revalidate",
+      "strength": "soft",
+      "reason": "production truth validates API routes",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0233395,
+      "updated_at": 1780178473.0233395
+    },
+    {
+      "edge_id": "pge-4807e046b931",
+      "from_node_id": "pgn-ptd-a28b34c292",
+      "to_node_id": "pgn-api-25088e540c",
+      "edge_type": "validates",
+      "propagation_mode": "revalidate",
+      "strength": "soft",
+      "reason": "production truth validates API routes",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0233448,
+      "updated_at": 1780178473.023345
+    },
+    {
+      "edge_id": "pge-222181a7c6fa",
+      "from_node_id": "pgn-ptd-a28b34c292",
+      "to_node_id": "pgn-api-803e6e3d67",
+      "edge_type": "validates",
+      "propagation_mode": "revalidate",
+      "strength": "soft",
+      "reason": "production truth validates API routes",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0233502,
+      "updated_at": 1780178473.0233502
+    },
+    {
+      "edge_id": "pge-16954469b858",
+      "from_node_id": "pgn-ptd-a28b34c292",
+      "to_node_id": "pgn-api-e2cbcbc3ca",
+      "edge_type": "validates",
+      "propagation_mode": "revalidate",
+      "strength": "soft",
+      "reason": "production truth validates API routes",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0233555,
+      "updated_at": 1780178473.0233557
+    },
+    {
+      "edge_id": "pge-60c3469b0a0b",
+      "from_node_id": "pgn-ptd-a28b34c292",
+      "to_node_id": "pgn-api-4e3b68c943",
+      "edge_type": "validates",
+      "propagation_mode": "revalidate",
+      "strength": "soft",
+      "reason": "production truth validates API routes",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0233731,
+      "updated_at": 1780178473.0233731
+    },
+    {
+      "edge_id": "pge-3019a253ad81",
+      "from_node_id": "pgn-ptd-a28b34c292",
+      "to_node_id": "pgn-api-793b281191",
+      "edge_type": "validates",
+      "propagation_mode": "revalidate",
+      "strength": "soft",
+      "reason": "production truth validates API routes",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.0233786,
+      "updated_at": 1780178473.0233786
+    },
+    {
+      "edge_id": "pge-f58a59cd3c4f",
+      "from_node_id": "pgn-ptd-a28b34c292",
+      "to_node_id": "pgn-api-ce558d5dae",
+      "edge_type": "validates",
+      "propagation_mode": "revalidate",
+      "strength": "soft",
+      "reason": "production truth validates API routes",
+      "evidence": [],
+      "conditions": [],
+      "validation_required": false,
+      "approval_required": false,
+      "idempotency_key": "",
+      "created_at": 1780178473.023384,
+      "updated_at": 1780178473.0233843
+    }
+  ]
+}
