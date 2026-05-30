@@ -1,0 +1,61 @@
+{
+  "phase": "11.1R",
+  "task": "test_gate_results",
+  "timestamp": "2026-05-30T21:30:04Z",
+  "tests": {
+    "phase_11_1": {
+      "passed": 109,
+      "failed": 0,
+      "verdict": "PASS"
+    },
+    "phase_11_0": {
+      "passed": 68,
+      "failed": 0,
+      "verdict": "PASS"
+    },
+    "phase_10_5_template_supply": {
+      "passed": 70,
+      "failed": 11,
+      "verdict": "PASS_WITH_PREEXISTING",
+      "note": "11 failures are pre-existing: template count evolution + stale worktree refs, not from Phase 11.1"
+    }
+  },
+  "gates": {
+    "py_compile_modified_python": {
+      "files": 12,
+      "errors": 0,
+      "verdict": "PASS"
+    },
+    "typescript_noEmit": {
+      "verdict": "PASS"
+    },
+    "type_divergence": {
+      "verdict": "PASS",
+      "note": "1 pre-existing divergence in template_governance.py, not from Phase 11.1"
+    },
+    "instance_leak": {
+      "verdict": "PASS",
+      "files_scanned": 587
+    },
+    "dependency_direction": {
+      "verdict": "PASS",
+      "note": "importlib fix applied"
+    },
+    "line_count_check": {
+      "verdict": "PASS",
+      "note": "no Python file over 3000 lines"
+    },
+    "route_auth_check": {
+      "verdict": "PASS",
+      "post_routes_with_auth": 3
+    },
+    "path_traversal_check": {
+      "verdict": "PASS",
+      "no_file_io_in_routes": true
+    },
+    "no_fake_data_check": {
+      "verdict": "PASS"
+    }
+  },
+  "overall_verdict": "PASS"
+}

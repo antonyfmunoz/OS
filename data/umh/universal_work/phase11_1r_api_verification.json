@@ -1,0 +1,77 @@
+{
+  "phase": "11.1R",
+  "task": "api_verification",
+  "timestamp": "2026-05-30T21:27:39Z",
+  "routes_tested": 10,
+  "all_get_routes_respond": true,
+  "post_requires_auth": true,
+  "route_results": {
+    "overview": {
+      "path": "/organism/universal-work",
+      "status": "OK",
+      "response_type": "dict",
+      "sample": "{\"total_packets\": 0, \"by_status\": {}, \"by_domain\": {}, \"human_required\": 0, \"approval_required\": 0, \"blocked\": 0, \"active\": 0, \"completed\": 0, \"next_b"
+    },
+    "summary": {
+      "path": "/organism/universal-work/summary",
+      "status": "OK",
+      "response_type": "dict",
+      "sample": "{\"total_packets\": 0, \"by_status\": {}, \"by_domain\": {}, \"human_required\": 0, \"approval_required\": 0, \"blocked\": 0, \"active\": 0, \"completed\": 0, \"next_b"
+    },
+    "packets": {
+      "path": "/organism/universal-work/packets",
+      "status": "OK",
+      "response_type": "list",
+      "sample": "[]"
+    },
+    "next": {
+      "path": "/organism/universal-work/next",
+      "status": "OK",
+      "response_type": "dict",
+      "sample": "{\"next\": null, \"reason\": \"No eligible work packets\"}"
+    },
+    "blocked": {
+      "path": "/organism/universal-work/blocked",
+      "status": "OK",
+      "response_type": "list",
+      "sample": "[]"
+    },
+    "human_required": {
+      "path": "/organism/universal-work/human-required",
+      "status": "OK",
+      "response_type": "list",
+      "sample": "[]"
+    },
+    "approval_required": {
+      "path": "/organism/universal-work/approval-required",
+      "status": "OK",
+      "response_type": "list",
+      "sample": "[]"
+    },
+    "workcells": {
+      "path": "/organism/workcells",
+      "status": "OK",
+      "response_type": "dict",
+      "sample": "{\"status\": \"stopped\", \"workcell_count\": 4, \"max_concurrency\": 4, \"poll_interval\": 0.1, \"stats\": {\"cycles\": 0, \"messages_processed\": 0, \"messages_faile"
+    },
+    "role_contracts": {
+      "path": "/organism/role-contracts",
+      "status": "OK",
+      "response_type": "list",
+      "sample": "[{\"role_id\": \"role-orchestrator\", \"name\": \"orchestrator\", \"description\": \"Coordinates multi-workcell execution and reconvergence\", \"owned_work_types\":"
+    },
+    "knowledge_models": {
+      "path": "/organism/knowledge-models",
+      "status": "OK",
+      "response_type": "dict",
+      "sample": "{\"total_models\": 0, \"domain_counts\": {}, \"models\": []}"
+    },
+    "post_no_auth": {
+      "response": "{\"detail\":\"Operator token required for privileged actions\"}",
+      "blocked": true
+    }
+  },
+  "no_internal_leakage": true,
+  "no_fake_data": true,
+  "verdict": "PASS"
+}
