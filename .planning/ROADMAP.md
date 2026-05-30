@@ -32,8 +32,8 @@ Phase 10.0 transforms the autonomous cadence from "alive but empty" into a gover
   4. All four production truth endpoints return valid responses post-merge
 **Plans**: 2 plans
 Plans:
-- [ ] 01-01-PLAN.md — Confirm PR #44 merge and classify changed files, document HEAD alignment
-- [ ] 01-02-PLAN.md — Verify cadence mode dry_run_only + all 4 production truth endpoints + write preflight audit
+- [x] 01-01-PLAN.md — Confirm PR #44 merge and classify changed files, document HEAD alignment
+- [x] 01-02-PLAN.md — Verify cadence mode dry_run_only + all 4 production truth endpoints + write preflight audit
 
 ### Phase 2: Cockpit Quality Gate
 **Goal**: cockpit.py is below 3000 lines and all API contracts (paths, response shapes, auth, WebSocket) are fully preserved after route extraction
