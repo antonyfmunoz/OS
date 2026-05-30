@@ -1,0 +1,217 @@
+{
+  "phase": "10.4",
+  "campaign": "low_risk_production_truth_reliability",
+  "approval_timestamp": 1780123510.289226,
+  "total_packets": 4,
+  "approved_count": 4,
+  "rejected_count": 0,
+  "expired_count": 0,
+  "packets": [
+    {
+      "packet_id": "apk-369e936d",
+      "candidate_id": "cse-9375aaac",
+      "source": "stale_docstrings",
+      "title": "Stale project name in scripts/notion_setup.py docstring",
+      "description": "Script scripts/notion_setup.py line 3 contains stale project name 'EntrepreneurOS' in module docstring",
+      "candidate_evidence": [
+        {
+          "source": "docstring_scan",
+          "detail": "line 3: architecture for EntrepreneurOS.",
+          "confidence": 0.9
+        }
+      ],
+      "matched_template_id": "tpl-seed-documentation-alignment-01",
+      "template_type": "documentation_alignment",
+      "template_confidence": 0.8,
+      "governance_score": 0.8,
+      "governance_decision": "cadence_eligible",
+      "affected_files": [
+        "scripts/notion_setup.py"
+      ],
+      "expected_delta": "Update stale project name in scripts/notion_setup.py docstring",
+      "validation_plan": "py_compile on all affected files. assertion validation.",
+      "rollback_plan": "git revert <commit>. revert rollback.",
+      "sandbox_branch_name": "auto/low-risk/stale-project-name-in-scripts-notion_set-749974",
+      "risk_class": "low",
+      "why_safe": "LOW risk candidate (risk_class=low) with governance score 0.80. Template tpl-seed-documentation-alignment-01 (confidence 0.80) provides validated execution pattern. Sandbox isolation prevents production mutation. Non-mutating: only documentation/additive changes. Validation: assertion. Rollback: revert.",
+      "what_will_not_happen": [
+        "No production truth mutation until merge + post-merge verification",
+        "No auto-merge \u2014 operator must merge PR manually",
+        "No HIGH/CRITICAL actions \u2014 only LOW risk",
+        "No credential, DNS, or auth changes",
+        "No destructive cleanup or broad refactors",
+        "No direct mutation on main branch"
+      ],
+      "status": "approved",
+      "decided_by": "operator_phase10_4_campaign",
+      "decided_at": 1780123510.2892246,
+      "created_at": 1780123510.2891843,
+      "expires_at": 1780209910.2891846
+    },
+    {
+      "packet_id": "apk-2ec5e4f1",
+      "candidate_id": "cse-ce34e745",
+      "source": "stale_docstrings",
+      "title": "Stale project name in scripts/github_trinity_ingest.py docstring",
+      "description": "Script scripts/github_trinity_ingest.py line 3 contains stale project name 'EntrepreneurOS' in module docstring",
+      "candidate_evidence": [
+        {
+          "source": "docstring_scan",
+          "detail": "line 3: Targets: EntrepreneurOS, CreatorOS, LYFEOS (the \"Trinity\").",
+          "confidence": 0.9
+        }
+      ],
+      "matched_template_id": "tpl-seed-documentation-alignment-01",
+      "template_type": "documentation_alignment",
+      "template_confidence": 0.8,
+      "governance_score": 0.8,
+      "governance_decision": "cadence_eligible",
+      "affected_files": [
+        "scripts/github_trinity_ingest.py"
+      ],
+      "expected_delta": "Update stale project name in scripts/github_trinity_ingest.py docstring",
+      "validation_plan": "py_compile on all affected files. assertion validation.",
+      "rollback_plan": "git revert <commit>. revert rollback.",
+      "sandbox_branch_name": "auto/low-risk/stale-project-name-in-scripts-github_tri-45fd31",
+      "risk_class": "low",
+      "why_safe": "LOW risk candidate (risk_class=low) with governance score 0.80. Template tpl-seed-documentation-alignment-01 (confidence 0.80) provides validated execution pattern. Sandbox isolation prevents production mutation. Non-mutating: only documentation/additive changes. Validation: assertion. Rollback: revert.",
+      "what_will_not_happen": [
+        "No production truth mutation until merge + post-merge verification",
+        "No auto-merge \u2014 operator must merge PR manually",
+        "No HIGH/CRITICAL actions \u2014 only LOW risk",
+        "No credential, DNS, or auth changes",
+        "No destructive cleanup or broad refactors",
+        "No direct mutation on main branch"
+      ],
+      "status": "approved",
+      "decided_by": "operator_phase10_4_campaign",
+      "decided_at": 1780123510.289225,
+      "created_at": 1780123510.2891996,
+      "expires_at": 1780209910.2891998
+    },
+    {
+      "packet_id": "apk-e8d1a46d",
+      "candidate_id": "cse-8c878ced",
+      "source": "missing_package_init",
+      "title": "Missing __init__.py in tests/substrate",
+      "description": "Directory tests/substrate contains 3 Python test files but no __init__.py, making it an implicit namespace rather than a proper package.",
+      "candidate_evidence": [
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/substrate has 3 .py files (test_entity_store.py, test_feedback_loop.py, test_types.py) but no __init__.py",
+          "confidence": 0.9
+        }
+      ],
+      "matched_template_id": "tpl-seed-test-repair-01",
+      "template_type": "test_repair",
+      "template_confidence": 0.75,
+      "governance_score": 0.75,
+      "governance_decision": "cadence_eligible",
+      "affected_files": [
+        "tests/substrate/__init__.py"
+      ],
+      "expected_delta": "Create empty __init__.py in tests/substrate",
+      "validation_plan": "py_compile on all affected files. assertion validation.",
+      "rollback_plan": "git revert <commit>. revert rollback.",
+      "sandbox_branch_name": "auto/low-risk/missing-__init__.py-in-tests-substrate-68fcbb",
+      "risk_class": "low",
+      "why_safe": "LOW risk candidate (risk_class=low) with governance score 0.75. Template tpl-seed-test-repair-01 (confidence 0.75) provides validated execution pattern. Sandbox isolation prevents production mutation. Non-mutating: only documentation/additive changes. Validation: assertion. Rollback: revert.",
+      "what_will_not_happen": [
+        "No production truth mutation until merge + post-merge verification",
+        "No auto-merge \u2014 operator must merge PR manually",
+        "No HIGH/CRITICAL actions \u2014 only LOW risk",
+        "No credential, DNS, or auth changes",
+        "No destructive cleanup or broad refactors",
+        "No direct mutation on main branch"
+      ],
+      "status": "approved",
+      "decided_by": "operator_phase10_4_campaign",
+      "decided_at": 1780123510.2892256,
+      "created_at": 1780123510.2892125,
+      "expires_at": 1780209910.2892125
+    },
+    {
+      "packet_id": "apk-b8748096",
+      "candidate_id": "cse-f96bf501",
+      "source": "stale_test_paths",
+      "title": "Stale worktree sys.path in 8 test files",
+      "description": "8 test files contain sys.path.insert pointing to non-existent worktree directories. These are dead code paths that silently fail.",
+      "candidate_evidence": [
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/test_node_mesh_ws.py references non-existent worktree /opt/OS/.claude/worktrees/layer3-phase2-slice-d-handoff",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/test_daemon_e2e.py references non-existent worktree /opt/OS/.claude/worktrees/layer3-phase2-slice-d-handoff",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/test_philosophy_lenses.py references non-existent worktree /opt/OS/.claude/worktrees/close-all-gaps-v2",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/test_meeting_types.py references non-existent worktree /opt/OS/.claude/worktrees/close-all-gaps-v2",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/test_override_tracking.py references non-existent worktree /opt/OS/.claude/worktrees/close-all-gaps-v2",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/substrate/test_entity_store.py references non-existent worktree /opt/OS/.claude/worktrees/close-all-gaps-v2",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/substrate/test_feedback_loop.py references non-existent worktree /opt/OS/.claude/worktrees/close-all-gaps-v2",
+          "confidence": 0.95
+        },
+        {
+          "source": "filesystem_scan",
+          "detail": "tests/substrate/test_types.py references non-existent worktree /opt/OS/.claude/worktrees/substrate-unification",
+          "confidence": 0.95
+        }
+      ],
+      "matched_template_id": "tpl-seed-test-repair-01",
+      "template_type": "test_repair",
+      "template_confidence": 0.75,
+      "governance_score": 0.75,
+      "governance_decision": "cadence_eligible",
+      "affected_files": [
+        "tests/test_node_mesh_ws.py",
+        "tests/test_daemon_e2e.py",
+        "tests/test_philosophy_lenses.py",
+        "tests/test_meeting_types.py",
+        "tests/test_override_tracking.py",
+        "tests/substrate/test_entity_store.py",
+        "tests/substrate/test_feedback_loop.py",
+        "tests/substrate/test_types.py"
+      ],
+      "expected_delta": "Remove stale worktree sys.path.insert lines from test files",
+      "validation_plan": "py_compile on all affected files. assertion validation.",
+      "rollback_plan": "git revert <commit>. revert rollback.",
+      "sandbox_branch_name": "auto/low-risk/stale-worktree-sys.path-in-8-test-files-c3e22b",
+      "risk_class": "low",
+      "why_safe": "LOW risk candidate (risk_class=low) with governance score 0.75. Template tpl-seed-test-repair-01 (confidence 0.75) provides validated execution pattern. Sandbox isolation prevents production mutation. Reversible via git revert. Validation: assertion. Rollback: revert.",
+      "what_will_not_happen": [
+        "No production truth mutation until merge + post-merge verification",
+        "No auto-merge \u2014 operator must merge PR manually",
+        "No HIGH/CRITICAL actions \u2014 only LOW risk",
+        "No credential, DNS, or auth changes",
+        "No destructive cleanup or broad refactors",
+        "No direct mutation on main branch"
+      ],
+      "status": "approved",
+      "decided_by": "operator_phase10_4_campaign",
+      "decided_at": 1780123510.2892258,
+      "created_at": 1780123510.2892232,
+      "expires_at": 1780209910.2892232
+    }
+  ]
+}

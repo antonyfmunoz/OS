@@ -1,0 +1,76 @@
+{
+  "phase": "10.4",
+  "campaign": "low_risk_production_truth_reliability",
+  "sandbox_execution_timestamp": 1780123759.6666665,
+  "total_prs_created": 4,
+  "production_outcome_committed_before_merge": false,
+  "prs": [
+    {
+      "pr_number": 50,
+      "pr_url": "https://github.com/antonyfmunoz/OS/pull/50",
+      "branch": "auto/low-risk/stale-docstring-notion-setup",
+      "candidate_source": "stale_docstrings",
+      "title": "auto: update stale project name in notion_setup.py docstring",
+      "affected_files": [
+        "scripts/notion_setup.py"
+      ],
+      "template_id": "tpl-seed-documentation-alignment-01",
+      "risk_class": "low",
+      "non_mutating": true,
+      "validation_passed": true,
+      "status": "open"
+    },
+    {
+      "pr_number": 51,
+      "pr_url": "https://github.com/antonyfmunoz/OS/pull/51",
+      "branch": "auto/low-risk/stale-docstring-github-trinity",
+      "candidate_source": "stale_docstrings",
+      "title": "auto: update stale project name in github_trinity_ingest.py docstring",
+      "affected_files": [
+        "scripts/github_trinity_ingest.py"
+      ],
+      "template_id": "tpl-seed-documentation-alignment-01",
+      "risk_class": "low",
+      "non_mutating": true,
+      "validation_passed": true,
+      "status": "open"
+    },
+    {
+      "pr_number": 52,
+      "pr_url": "https://github.com/antonyfmunoz/OS/pull/52",
+      "branch": "auto/low-risk/missing-init-py-tests-substrate",
+      "candidate_source": "missing_package_init",
+      "title": "auto: add missing __init__.py to tests/substrate/",
+      "affected_files": [
+        "tests/substrate/__init__.py"
+      ],
+      "template_id": "tpl-seed-test-repair-01",
+      "risk_class": "low",
+      "non_mutating": true,
+      "validation_passed": true,
+      "status": "open"
+    },
+    {
+      "pr_number": 53,
+      "pr_url": "https://github.com/antonyfmunoz/OS/pull/53",
+      "branch": "auto/low-risk/stale-worktree-syspath-test-files",
+      "candidate_source": "stale_test_paths",
+      "title": "auto: remove stale worktree sys.path.insert from 8 test files",
+      "affected_files": [
+        "tests/test_node_mesh_ws.py",
+        "tests/test_daemon_e2e.py",
+        "tests/test_philosophy_lenses.py",
+        "tests/test_meeting_types.py",
+        "tests/test_override_tracking.py",
+        "tests/substrate/test_entity_store.py",
+        "tests/substrate/test_feedback_loop.py",
+        "tests/substrate/test_types.py"
+      ],
+      "template_id": "tpl-seed-test-repair-01",
+      "risk_class": "low",
+      "non_mutating": false,
+      "validation_passed": true,
+      "status": "open"
+    }
+  ]
+}

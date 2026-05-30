@@ -119,6 +119,7 @@ class TemplateSeeder:
             self._build_route_extraction_fix(),
             self._build_dependency_graph_fix(),
             self._build_maintenance_action(),
+            self._build_documentation_alignment(),
         ]
 
     def _build_contradiction_fix(self) -> TemplateCandidate:
@@ -1045,6 +1046,95 @@ class TemplateSeeder:
                 agent_type=AgentType.DEVELOPER_AGENT,
                 capabilities=[CapabilityName.CODE_SEARCH.value, CapabilityName.EVIDENCE_VERIFICATION.value],
                 confidence=0.70,
+            ),
+            created_at=_SEEDING_EPOCH,
+            status=TemplateStatus.PROMOTED,
+        )
+
+
+    def _build_documentation_alignment(self) -> TemplateCandidate:
+        return TemplateCandidate(
+            template_id="tpl-seed-documentation-alignment-01",
+            template_type=TemplateType.DOCUMENTATION_ALIGNMENT,
+            trigger_conditions=[
+                "module docstring references a stale or renamed project name",
+                "code comment contains outdated terminology that no longer matches the codebase",
+                "documentation file has factual inaccuracies relative to current code state",
+            ],
+            required_context=["file path with stale reference", "current correct terminology"],
+            required_capabilities=[CapabilityName.FILE_EDIT.value, CapabilityName.CODE_SEARCH.value],
+            required_agent_type=AgentType.DEVELOPER_AGENT,
+            reusable_steps=[
+                TemplateStep(
+                    order=0,
+                    description="Identify all instances of the stale reference in the target file",
+                    action="assess_state",
+                    requires_capability=CapabilityName.CODE_SEARCH.value,
+                    risk_class="low",
+                    governance_mode="autonomous",
+                    verification="grep confirms all stale reference locations identified",
+                ),
+                TemplateStep(
+                    order=1,
+                    description="Replace stale references with current correct terminology in docstrings only",
+                    action="file_edit",
+                    requires_capability=CapabilityName.FILE_EDIT.value,
+                    risk_class="low",
+                    governance_mode="autonomous",
+                    verification="diff shows only docstring or comment changes, no logic changes",
+                ),
+                TemplateStep(
+                    order=2,
+                    description="Verify file still compiles after documentation change",
+                    action="verify_health",
+                    requires_capability=CapabilityName.TEST_RUN.value,
+                    risk_class="low",
+                    governance_mode="autonomous",
+                    verification="py_compile succeeds on modified file",
+                ),
+            ],
+            risk_class="low",
+            governance_mode="autonomous",
+            validation=TemplateValidation(
+                description=(
+                    "py_compile on modified file succeeds. "
+                    "grep for stale reference returns zero matches in modified file. "
+                    "No logic or import changes — only docstring or comment text."
+                ),
+                method="assertion",
+                timeout_seconds=30.0,
+            ),
+            rollback=TemplateRollback(
+                description=(
+                    "git checkout -- <file_path>. "
+                    "Non-destructive: only docstring text was changed."
+                ),
+                method="revert",
+                timeout_seconds=15.0,
+            ),
+            evidence_requirements=["stale reference text", "current correct terminology", "file path"],
+            known_failure_modes=[
+                "stale name appears in a string literal that is used programmatically, not just documentation",
+            ],
+            expected_outcome="Stale project names replaced with current terminology. No logic changes. File compiles.",
+            observed_success_count=2,
+            observed_failure_count=0,
+            confidence=0.8,
+            source_outcome_ids=[],
+            source_trial_ids=["phase10_4"],
+            source_action_envelope_ids=[],
+            evidence=[
+                TemplateEvidence(
+                    source="phase10_4_codebase_scan",
+                    detail="Projection boundary cleanup (phase 2026-05-28) established naming rules; stale references remain in scripts/",
+                    confidence=0.9,
+                    observed_at=_SEEDING_EPOCH,
+                ),
+            ],
+            agent_capability_binding=AgentCapabilityBinding(
+                agent_type=AgentType.DEVELOPER_AGENT,
+                capabilities=[CapabilityName.FILE_EDIT.value, CapabilityName.CODE_SEARCH.value],
+                confidence=0.8,
             ),
             created_at=_SEEDING_EPOCH,
             status=TemplateStatus.PROMOTED,
