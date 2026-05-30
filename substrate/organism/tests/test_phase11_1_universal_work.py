@@ -822,9 +822,10 @@ class TestGovernance:
 
 class TestAPIRouteShape:
     def test_universal_work_routes_module_importable(self):
-        from transports.api import cockpit_universal_work_routes
-        assert hasattr(cockpit_universal_work_routes, 'configure')
-        assert hasattr(cockpit_universal_work_routes, 'universal_work_router')
+        import importlib
+        mod = importlib.import_module('transports.api.cockpit_universal_work_routes')
+        assert hasattr(mod, 'configure')
+        assert hasattr(mod, 'universal_work_router')
 
     def test_routes_compile(self):
         import py_compile
