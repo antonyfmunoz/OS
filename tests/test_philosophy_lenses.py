@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import sys
-
-sys.path.insert(0, "/opt/OS/.claude/worktrees/close-all-gaps-v2")
-
 from substrate.understanding.knowledge.philosophy_lenses import (
     LENSES,
     LensEngine,

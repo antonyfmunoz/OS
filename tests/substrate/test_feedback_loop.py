@@ -9,8 +9,6 @@ from datetime import datetime, timezone
 from types import ModuleType
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, "/opt/OS/.claude/worktrees/close-all-gaps-v2")
-
 # ─── Mock the db module before feedback_loop imports it ──────────────────────
 _mock_db = ModuleType("substrate.state.storage.db")
 _mock_db.get_conn = MagicMock()

@@ -4,8 +4,6 @@ import os
 import sys
 from unittest.mock import MagicMock, patch, call
 
-sys.path.insert(0, "/opt/OS/.claude/worktrees/close-all-gaps-v2")
-
 os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
 os.environ.setdefault("EOS_ORG_ID", "test-org-id")
 os.environ.setdefault("EOS_USER_ID", "test-user-id")
