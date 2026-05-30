@@ -24,12 +24,16 @@ function AuthenticatedApp() {
   useOrganismRealtime()
 
   const loadHistory = useChatStore((s) => s.loadHistory)
+  const startPolling = useChatStore((s) => s.startPolling)
+  const stopPolling = useChatStore((s) => s.stopPolling)
   const loadConfig = useConfigStore((s) => s.loadConfig)
 
   useEffect(() => {
     loadConfig()
     loadHistory()
-  }, [loadConfig, loadHistory])
+    startPolling()
+    return () => { stopPolling() }
+  }, [loadConfig, loadHistory, startPolling, stopPolling])
 
   return <Shell />
 }

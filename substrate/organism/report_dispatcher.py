@@ -66,11 +66,11 @@ class ReportDispatcher:
 
     def __init__(
         self,
-        store_dir: str | Path = "data/umh/organism",
+        store_dir: str | Path = "",
         discord_token: str | None = None,
         discord_channel_id: str | None = None,
     ) -> None:
-        self._store_dir = Path(store_dir)
+        self._store_dir = Path(store_dir) if store_dir else Path(_REPO_ROOT) / "data" / "umh" / "organism"
         self._store_dir.mkdir(parents=True, exist_ok=True)
         self._messages_path = self._store_dir / "messages.jsonl"
         self._reports_path = self._store_dir / "reports.jsonl"
@@ -205,6 +205,7 @@ class ReportDispatcher:
                 allowed_roots = [
                     os.path.realpath(os.path.join(_REPO_ROOT, "docs")),
                     os.path.realpath(os.path.join(_REPO_ROOT, "data")),
+                    os.path.realpath(os.path.join(_REPO_ROOT, ".claude", "worktrees")),
                 ]
                 if not any(resolved.startswith(root + os.sep) for root in allowed_roots):
                     return False, f"file_path outside allowed directories: {resolved}"
