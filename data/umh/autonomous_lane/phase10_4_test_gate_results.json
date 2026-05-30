@@ -1,0 +1,76 @@
+{
+  "phase": "10.4K",
+  "title": "Tests + Gates Verification",
+  "timestamp": "2026-05-30T07:06:31.786831+00:00",
+  "test_suites": [
+    {
+      "name": "Phase 10.4 reliability campaign tests",
+      "file": "tests/test_phase10_4_reliability_campaign.py",
+      "tests": 40,
+      "passed": 40,
+      "failed": 0,
+      "skipped": 0,
+      "duration": "0.38s",
+      "verdict": "PASS"
+    },
+    {
+      "name": "All Phase 10.x tests",
+      "filter": "-k 'phase10'",
+      "tests": 101,
+      "passed": 101,
+      "failed": 0,
+      "skipped": 0,
+      "duration": "3.88s",
+      "verdict": "PASS"
+    },
+    {
+      "name": "Organism infrastructure tests",
+      "filter": "-k 'organism or template or candidate or cadence or approval or sandbox or governance'",
+      "tests": 262,
+      "passed": 258,
+      "failed": 0,
+      "skipped": 4,
+      "duration": "15.24s",
+      "verdict": "PASS"
+    }
+  ],
+  "gate_checks": [
+    {
+      "gate": "All organism module imports",
+      "verdict": "PASS"
+    },
+    {
+      "gate": "py_compile substrate files",
+      "verdict": "PASS"
+    },
+    {
+      "gate": "3 new scan source methods present",
+      "verdict": "PASS"
+    },
+    {
+      "gate": "Documentation alignment template built (11 total)",
+      "verdict": "PASS"
+    },
+    {
+      "gate": "Type inference: 5/5 checks correct",
+      "verdict": "PASS"
+    },
+    {
+      "gate": "Action-to-type mapping: documentation_fix + test_repair",
+      "verdict": "PASS"
+    }
+  ],
+  "test_classes": {
+    "TST-12": "TestCampaignQueueRanking \u2014 sorting by template confidence, tiebreak by agent reliability",
+    "TST-13": "TestExtendedSources \u2014 9 sources scanned, candidates have affected_files",
+    "TST-14": "TestBatchSelection \u2014 file conflict detection, excludes empty affected_files, batch max 5",
+    "TST-15": "TestApprovalPacketCreation \u2014 required fields, expiration, status transitions",
+    "TST-16": "TestDocumentationAlignmentTemplate \u2014 type exists, inference, governance pass",
+    "TST-17": "TestMultiCandidateProductionVerification \u2014 independent verifications, dedup",
+    "TST-18": "TestReliabilityCalibration \u2014 confidence increases/decreases, independent tracking",
+    "TST-19": "TestPostCampaignCadenceSuppression \u2014 multiple resolved, dry_run_only safety",
+    "TST-20": "TestCandidateSupplyToDict \u2014 serialization includes all fields",
+    "TST-21": "TestSafetyInvariants104 \u2014 no_auto_merge, low_risk, require_template"
+  },
+  "verdict": "ALL PASS \u2014 40 Phase 10.4 tests, 101 Phase 10.x tests, 258 organism tests, 6 gate checks"
+}

@@ -1,0 +1,78 @@
+{
+  "phase": "10.4",
+  "campaign": "low_risk_production_truth_reliability",
+  "verification_timestamp": 1780124014.3907082,
+  "total_prs_merged": 1,
+  "total_prs_awaiting_merge": 3,
+  "verifications": [
+    {
+      "verification_id": "pmv-2276623d",
+      "sandbox_id": "sb-pr50-notion-setup",
+      "pr_number": 50,
+      "manifest_id": "csm-bc48e1b1",
+      "status": "production_verified",
+      "merge_commit": "12085c42e24bea639c2217131fd96232e51fa95d",
+      "base_commit": "c163a048",
+      "local_main_commit": "12085c42",
+      "expected_files": [
+        "scripts/notion_setup.py"
+      ],
+      "observed_files": [
+        ".planning/config.json",
+        "scripts/notion_setup.py"
+      ],
+      "file_divergence": {
+        "has_divergence": true,
+        "unplanned_files": [
+          ".planning/config.json"
+        ],
+        "missing_files": [],
+        "explanation": ".planning/config.json auto-created by GSD plugin in sandbox worktree"
+      },
+      "validation_results": [
+        {
+          "command": "py_compile scripts/notion_setup.py",
+          "passed": true,
+          "exit_code": 0
+        },
+        {
+          "command": "import substrate",
+          "passed": true,
+          "exit_code": 0
+        }
+      ],
+      "truth_delta": {
+        "delta_id": "ptd-4c14024d",
+        "sandbox_id": "sb-pr50-notion-setup",
+        "pr_number": 50,
+        "merge_commit": "12085c42e24bea639c2217131fd96232e51fa95d",
+        "status": "production_verified",
+        "changed_files_expected": [
+          "scripts/notion_setup.py"
+        ],
+        "changed_files_observed": [
+          ".planning/config.json",
+          "scripts/notion_setup.py"
+        ],
+        "has_file_divergence": true,
+        "divergence_explanation": "Unplanned .planning/config.json \u2014 harmless GSD config",
+        "validation_all_passed": true
+      },
+      "production_outcome_committed": true,
+      "production_outcome_timestamp": 1780124014.3904831,
+      "idempotency_key": "sb-pr50-notion-setup:12085c42",
+      "propagation_targets": {
+        "template_registry_reliability": true,
+        "agent_capability_model_reliability": true,
+        "world_model_evidence": true
+      },
+      "created_at": 1780124014.3904834
+    }
+  ],
+  "prs_awaiting_operator_merge": [
+    51,
+    52,
+    53
+  ],
+  "note": "PRs #51, #52, #53 reviewed as SAFE_TO_MERGE but require operator merge per Phase 10.4 rules"
+}
