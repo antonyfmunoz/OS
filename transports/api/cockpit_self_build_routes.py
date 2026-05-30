@@ -136,19 +136,55 @@ async def _self_build_update_status(item_id: str, request: Request):
     return {"success": ok, "item_id": item_id, "new_status": new_status_str}
 
 
+_MAX_ARTIFACT_ID_LEN = 256
+
+
+def _validate_pr_url(url: str) -> str | None:
+    if not url.startswith("https://github.com/"):
+        return "pr_url must start with https://github.com/"
+    if len(url) > _MAX_ARTIFACT_ID_LEN:
+        return "pr_url too long"
+    return None
+
+
+def _validate_artifact_id(value: str, label: str) -> str | None:
+    if not value or len(value) > _MAX_ARTIFACT_ID_LEN:
+        return f"{label} must be 1-{_MAX_ARTIFACT_ID_LEN} characters"
+    if any(ord(c) < 32 for c in value):
+        return f"{label} contains non-printable characters"
+    return None
+
+
 async def _self_build_link_artifact(item_id: str, request: Request):
     body = await request.json()
     artifact_type = body.get("type", "")
     queue = _get_queue()
 
     if artifact_type == "approval_packet":
-        ok = queue.link_approval_packet(item_id, body.get("packet_id", ""))
+        packet_id = body.get("packet_id", "")
+        err = _validate_artifact_id(packet_id, "packet_id")
+        if err:
+            return {"success": False, "error": err}
+        ok = queue.link_approval_packet(item_id, packet_id)
     elif artifact_type == "sandbox":
-        ok = queue.link_sandbox(item_id, body.get("sandbox_id", ""), body.get("branch_name", ""))
+        sandbox_id = body.get("sandbox_id", "")
+        branch_name = body.get("branch_name", "")
+        err = _validate_artifact_id(sandbox_id, "sandbox_id") or _validate_artifact_id(branch_name, "branch_name")
+        if err:
+            return {"success": False, "error": err}
+        ok = queue.link_sandbox(item_id, sandbox_id, branch_name)
     elif artifact_type == "pr":
-        ok = queue.link_pr(item_id, body.get("pr_url", ""))
+        pr_url = body.get("pr_url", "")
+        err = _validate_pr_url(pr_url)
+        if err:
+            return {"success": False, "error": err}
+        ok = queue.link_pr(item_id, pr_url)
     elif artifact_type == "production_truth":
-        ok = queue.link_production_truth(item_id, body.get("delta_id", ""))
+        delta_id = body.get("delta_id", "")
+        err = _validate_artifact_id(delta_id, "delta_id")
+        if err:
+            return {"success": False, "error": err}
+        ok = queue.link_production_truth(item_id, delta_id)
     else:
         return {"success": False, "error": f"Unknown artifact type: {artifact_type}"}
 
