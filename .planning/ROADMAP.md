@@ -74,7 +74,10 @@ Plans:
   2. Every seeded template includes all required fields: template_id, name, type, action_type, trigger/applicability/contraindication conditions, steps, validation_strategy, rollback_strategy, risk_class, required_capabilities, confidence, evidence_ids, source_phase
   3. Templates without validated evidence or rollback proof remain in candidate status, not production_ready
   4. Every seeded template's evidence_ids reference actual ProductionOutcomeCommitted records or Phase 9.2-9.9 artifacts
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 04-01-PLAN.md — Write template_seeder.py with 10 _build_*() methods, execute seeder to populate data/umh/organism/templates/templates.jsonl
+- [ ] 04-02-PLAN.md — Verify runtime registry loads all promoted templates, find_matching() returns results, all 3 critical audit gaps confirmed closed
 
 ### Phase 5: Template Governance
 **Goal**: A governance scoring engine evaluates every template on 9 dimensions and produces a cadence_eligible, candidate_only, operator_review_required, or blocked decision with reason codes
@@ -176,7 +179,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 1. Preflight | 0/2 | Planning complete | - |
 | 2. Cockpit Quality Gate | 0/3 | Planning complete | - |
 | 3. Template Audit | 1/1 | Complete   | 2026-05-30 |
-| 4. Template Seeding | 0/TBD | Not started | - |
+| 4. Template Seeding | 0/2 | Planning complete | - |
 | 5. Template Governance | 0/TBD | Not started | - |
 | 6. Candidate Supply Engine | 0/TBD | Not started | - |
 | 7. Cadence Integration | 0/TBD | Not started | - |
