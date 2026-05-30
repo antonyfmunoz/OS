@@ -1,0 +1,112 @@
+{
+  "phase": "11.0",
+  "title": "Self-Build Queue Lifecycle Dry-Run Proof",
+  "verified_at": "2026-05-30T17:35:00Z",
+  "all_pass": true,
+  "results": {
+    "1_candidate_becomes_work_item": "PASS",
+    "2_ready_for_approval": "PASS",
+    "3_approval_packet_generated": "PASS",
+    "4_approval_linked": "PASS",
+    "5_execution_fields_empty": "PASS",
+    "6_blocked_items_cannot_advance": "PASS",
+    "7_duplicate_suppression": "PASS",
+    "8_roadmap_phase_linked": "PASS",
+    "9_api_returns_correctly": "PASS"
+  },
+  "item_snapshot": {
+    "work_item_id": "wk-47562041",
+    "title": "Test lifecycle candidate",
+    "description": "Dry-run lifecycle proof item",
+    "source_type": "reliability_ranked_candidate",
+    "source_id": "test-cand-1",
+    "source_evidence": [
+      {
+        "type": "ranked_candidate",
+        "data": {
+          "candidate_id": "test-cand-1",
+          "title": "Test lifecycle candidate",
+          "description": "Dry-run lifecycle proof item",
+          "weighted_score": 0.85,
+          "promotion_class": "execute_ready_low_risk",
+          "risk_class": "low",
+          "template_id": "tpl-seed-test-repair-01",
+          "agent_type": "developer_agent",
+          "affected_files": [
+            "tests/test_example.py"
+          ],
+          "validation_plan": "py_compile + pytest",
+          "rollback_plan": "git revert"
+        }
+      }
+    ],
+    "linked_candidate_id": "test-cand-1",
+    "linked_template_id": "tpl-seed-test-repair-01",
+    "linked_agent_type": "developer_agent",
+    "linked_capabilities": [],
+    "risk_class": "low",
+    "promotion_class": "execute_ready_low_risk",
+    "weighted_score": 0.6425,
+    "expected_leverage": 0.0,
+    "expected_readiness_delta": 0.0,
+    "affected_files": [
+      "tests/test_example.py"
+    ],
+    "affected_subsystems": [],
+    "validation_plan": "py_compile + pytest",
+    "rollback_plan": "git revert",
+    "governance_requirements": [],
+    "approval_packet_id": "apk-e497278c",
+    "sandbox_id": "",
+    "branch_name": "",
+    "pr_url": "",
+    "production_truth_delta_id": "",
+    "outcome_ids": [],
+    "memory_candidate_ids": [],
+    "status": "ready_for_approval",
+    "status_reason": "Eligibility checks passed",
+    "created_at": 1780162737.7140253,
+    "updated_at": 1780162737.7177095,
+    "expires_at": 0.0,
+    "blocked_reasons": [],
+    "dependency_ids": [],
+    "parent_goal_id": "",
+    "roadmap_phase": "",
+    "operator_notes": ""
+  },
+  "approval_packet_id": "apk-e497278c",
+  "summary": {
+    "total_items": 2,
+    "status_counts": {
+      "ready_for_approval": 1,
+      "discovered": 1
+    },
+    "risk_counts": {
+      "low": 1,
+      "medium": 1
+    },
+    "source_counts": {
+      "reliability_ranked_candidate": 1,
+      "audit_finding": 1
+    },
+    "ready_for_approval": 1,
+    "active_work": 0,
+    "blocked": 0,
+    "production_verified": 0,
+    "next_best": {
+      "work_item_id": "wk-47562041",
+      "title": "Test lifecycle candidate",
+      "description": "Dry-run lifecycle proof item",
+      "source_type": "reliability_ranked_candidate",
+      "risk_class": "low",
+      "promotion_class": "execute_ready_low_risk",
+      "weighted_score": 0.6425,
+      "status": "ready_for_approval",
+      "status_reason": "Eligibility checks passed",
+      "roadmap_phase": "",
+      "blocked_reasons": [],
+      "created_at": 1780162737.7140253,
+      "updated_at": 1780162737.7177095
+    }
+  }
+}
