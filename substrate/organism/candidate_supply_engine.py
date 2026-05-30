@@ -124,6 +124,18 @@ class CandidateSupplyEngine:
         self._governance = governance or TemplateGovernance()
         self._state_dir = state_dir or os.path.join(_REPO_ROOT, "data", "umh", "organism")
         self._sources: dict[str, bool] = {}
+        self._resolved_descriptions: set[str] = set()
+
+    def mark_resolved(self, description: str) -> None:
+        """Mark a candidate description as resolved so it won't be re-proposed."""
+        self._resolved_descriptions.add(description.lower().strip())
+
+    def _is_resolved(self, candidate: SupplyCandidate) -> bool:
+        desc = candidate.description.lower().strip()
+        for resolved in self._resolved_descriptions:
+            if resolved in desc or desc in resolved:
+                return True
+        return False
 
     def discover(self) -> SupplyResult:
         start = time.time()
@@ -157,6 +169,8 @@ class CandidateSupplyEngine:
                 }
                 self._sources[source_name] = False
                 logger.warning("Source %s scan failed: %s", source_name, e)
+
+        all_candidates = [c for c in all_candidates if not self._is_resolved(c)]
 
         for c in all_candidates:
             self._match_template(c)
