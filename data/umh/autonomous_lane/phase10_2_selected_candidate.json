@@ -1,0 +1,105 @@
+{
+  "selected_at": 1780110413.1783555,
+  "candidate": {
+    "candidate_id": "cse-7e2b3a29",
+    "source": "template_audit_gaps",
+    "title": "Audit gap: Runtime template store path does not exist",
+    "description": "Template audit identified gap: Runtime template store path does not exist. daemon.py initializes TemplateRegistry at data/umh/organism/templates/ (str(self._state_dir / 'templates')). This directory has never been created. TemplateRegistry._load_from_path() opens template_candidates.jsonl and templates.jsonl \u2014 both 404. Result: _candidates={} and _promoted={}.",
+    "evidence": [
+      {
+        "source": "template_audit",
+        "detail": "gap_id=gap-1, severity=critical, title=Runtime template store path does not exist",
+        "confidence": 0.7
+      }
+    ],
+    "affected_files": [],
+    "risk_class": "low",
+    "matching_templates": [
+      "tpl-seed-cockpit-panel-fix-01"
+    ],
+    "policy_decision": "cadence_eligible",
+    "blocked_reasons": [],
+    "expected_delta": "Close audit gap: Runtime template store path does not exist",
+    "recommended_next_step": "Phase 4 \u2014 create directory and seed production templates there",
+    "template_confidence": 0.8,
+    "agent_reliability": 0.8,
+    "validation_method": "assertion",
+    "rollback_method": "revert",
+    "non_mutating": false,
+    "created_at": 1780110413.1775393
+  },
+  "cadence_run_id": "cdr-phase10_2",
+  "gates": {
+    "low_risk": true,
+    "cadence_eligible": true,
+    "evidence_present": true,
+    "matching_template_present": true,
+    "validation_method_exists": true,
+    "rollback_method_exists_or_non_mutating": true,
+    "affected_files_under_limit": true,
+    "no_blocked_reasons": true
+  },
+  "all_gates_passed": true,
+  "governance_score": {
+    "template_id": "tpl-seed-cockpit-panel-fix-01",
+    "dimensions": [
+      {
+        "name": "evidence",
+        "score": 0.825,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "validation",
+        "score": 0.9,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "rollback",
+        "score": 0.9,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "risk",
+        "score": 1.0,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "reliability",
+        "score": 0.8,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "specificity",
+        "score": 1.0,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "reversibility",
+        "score": 0.9,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "blast_radius",
+        "score": 1.0,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "agent_capability",
+        "score": 0.8,
+        "weight": 1.0,
+        "reason": ""
+      }
+    ],
+    "decision": "cadence_eligible",
+    "reason_codes": [],
+    "weighted_score": 0.903
+  }
+}

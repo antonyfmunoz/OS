@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "packet_id": "apk-4709dc5e",
+  "candidate_id": "cse-ba39a708",
+  "sandbox_id": "sb-ed2e7b56",
+  "branch_name": "auto/low-risk/audit-gap--runtime-template-st-ed2e7b56",
+  "pr_url": "https://github.com/antonyfmunoz/OS/pull/47",
+  "pr_number": 47,
+  "manifest_id": "csm-af5aff16",
+  "sandbox_outcome_id": "soc-34c7fcf3",
+  "validation_passed": true,
+  "production_truth_unchanged": true,
+  "error": "",
+  "created_at": 1780110963.2810721
+}
