@@ -1,9 +1,5 @@
 """Tests for substrate.execution.bridge.meeting_types."""
 
-import sys
-
-sys.path.insert(0, "/opt/OS/.claude/worktrees/close-all-gaps-v2")
-
 import pytest
 
 from substrate.execution.bridge.meeting_types import (
