@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-05-30T23:04:46Z",
+  "phase": "13.0",
+  "phase_12_0r_audit_exists": true,
+  "propagation_graph_loads": true,
+  "propagation_graph_stats": {
+    "total_nodes": 49,
+    "total_edges": 19,
+    "node_type_counts": {
+      "work_packet": 5,
+      "workcell": 5,
+      "advisor_branch": 2,
+      "self_build_item": 18,
+      "roadmap_phase": 7,
+      "production_truth_delta": 1,
+      "outcome": 1,
+      "api_route": 10
+    },
+    "edge_type_counts": {
+      "owns": 2,
+      "creates": 1,
+      "unlocks": 6,
+      "validates": 10
+    },
+    "orphaned_node_count": 27,
+    "cycle_count": 0,
+    "version": "12.0.0"
+  },
+  "work_packets_count": 0,
+  "pending_approvals": 0,
+  "roadmap_phases": 7,
+  "preflight_passed": true,
+  "prerequisites_satisfied": [
+    "Phase 12.0R audit document exists",
+    "Propagation graph loads with 49 nodes / 19 edges",
+    "Work packet engine importable",
+    "Intent classifier importable",
+    "Approval store importable",
+    "Roadmap engine with 7 phases linked"
+  ]
+}
