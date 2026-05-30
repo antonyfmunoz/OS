@@ -49,11 +49,11 @@
 
 ### Cadence Integration
 
-- [ ] **CAD-01**: Cadence dry-run uses real candidate supply (not hardcoded)
-- [ ] **CAD-02**: Cadence discovers > 0 candidates OR truthfully explains why zero with source scan proof
-- [ ] **CAD-03**: Every discovered candidate has evidence and policy decision
-- [ ] **CAD-04**: No PR created and no mutation during dry-run
-- [ ] **CAD-05**: Dry-run results persisted and cockpit-visible
+- [x] **CAD-01**: Cadence dry-run uses real candidate supply (not hardcoded)
+- [x] **CAD-02**: Cadence discovers > 0 candidates OR truthfully explains why zero with source scan proof
+- [x] **CAD-03**: Every discovered candidate has evidence and policy decision
+- [x] **CAD-04**: No PR created and no mutation during dry-run
+- [x] **CAD-05**: Dry-run results persisted and cockpit-visible
 
 ### Cockpit Surface
 
@@ -146,11 +146,11 @@
 | CSE-03 | Phase 6 | Complete |
 | CSE-04 | Phase 6 | Complete |
 | CSE-05 | Phase 6 | Complete |
-| CAD-01 | Phase 7 | Pending |
-| CAD-02 | Phase 7 | Pending |
-| CAD-03 | Phase 7 | Pending |
-| CAD-04 | Phase 7 | Pending |
-| CAD-05 | Phase 7 | Pending |
+| CAD-01 | Phase 7 | Complete |
+| CAD-02 | Phase 7 | Complete |
+| CAD-03 | Phase 7 | Complete |
+| CAD-04 | Phase 7 | Complete |
+| CAD-05 | Phase 7 | Complete |
 | CKP-01 | Phase 8 | Pending |
 | CKP-02 | Phase 8 | Pending |
 | CKP-03 | Phase 8 | Pending |

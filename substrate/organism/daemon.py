@@ -66,6 +66,7 @@ from substrate.organism.template_registry import TemplateRegistry
 from substrate.organism.spine_guard import GuardMode, SpineGuard
 from substrate.organism.autonomous_action_gateway import AutonomousActionGateway, AutonomousPolicy
 from substrate.organism.autonomous_cadence import AutonomousCadence, CadencePolicy
+from substrate.organism.candidate_supply_engine import CandidateSupplyEngine
 from substrate.organism.leverage_engine import LeverageEngine
 from substrate.organism.next_action_engine import NextActionEngine
 from substrate.organism.plan_execution_adapter import PlanExecutionAdapter
@@ -296,8 +297,13 @@ class OrganismDaemon:
             autonomous_gateway=self._autonomous_gateway,
         )
 
+        self._candidate_supply_engine = CandidateSupplyEngine(
+            template_registry=self._template_registry,
+            state_dir=str(self._state_dir),
+        )
         self._autonomous_cadence = AutonomousCadence(
             policy=CadencePolicy(),
+            candidate_discovery_fn=self._candidate_supply_engine.discover_for_cadence,
         )
 
         self._workcell_daemon = WorkcellDaemonV2(
