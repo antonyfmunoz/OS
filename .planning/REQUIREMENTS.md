@@ -41,11 +41,11 @@
 
 ### Candidate Supply
 
-- [ ] **CSE-01**: CandidateSupplyEngine discovers candidates from ContradictionEngine, WorldModel gaps, DependencyGraph issues, ReadinessModel weaknesses, BottleneckEngine, cockpit truth matrix, route/API mismatches, template audit gaps, test failures, line count gates
-- [ ] **CSE-02**: Each candidate includes candidate_id, source, title, description, evidence, affected_files, risk_class, matching_templates, policy_decision, blocked_reasons, expected_delta, recommended_next_step
-- [ ] **CSE-03**: No candidate created without evidence
-- [ ] **CSE-04**: Candidates ranked by template confidence and agent reliability
-- [ ] **CSE-05**: Unsafe candidates blocked with reasons
+- [x] **CSE-01**: CandidateSupplyEngine discovers candidates from ContradictionEngine, WorldModel gaps, DependencyGraph issues, ReadinessModel weaknesses, BottleneckEngine, cockpit truth matrix, route/API mismatches, template audit gaps, test failures, line count gates
+- [x] **CSE-02**: Each candidate includes candidate_id, source, title, description, evidence, affected_files, risk_class, matching_templates, policy_decision, blocked_reasons, expected_delta, recommended_next_step
+- [x] **CSE-03**: No candidate created without evidence
+- [x] **CSE-04**: Candidates ranked by template confidence and agent reliability
+- [x] **CSE-05**: Unsafe candidates blocked with reasons
 
 ### Cadence Integration
 
@@ -141,11 +141,11 @@
 | GOV-03 | Phase 5 | Complete |
 | GOV-04 | Phase 5 | Complete |
 | GOV-05 | Phase 5 | Complete |
-| CSE-01 | Phase 6 | Pending |
-| CSE-02 | Phase 6 | Pending |
-| CSE-03 | Phase 6 | Pending |
-| CSE-04 | Phase 6 | Pending |
-| CSE-05 | Phase 6 | Pending |
+| CSE-01 | Phase 6 | Complete |
+| CSE-02 | Phase 6 | Complete |
+| CSE-03 | Phase 6 | Complete |
+| CSE-04 | Phase 6 | Complete |
+| CSE-05 | Phase 6 | Complete |
 | CAD-01 | Phase 7 | Pending |
 | CAD-02 | Phase 7 | Pending |
 | CAD-03 | Phase 7 | Pending |
