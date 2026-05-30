@@ -1,0 +1,318 @@
+{
+  "audit_version": "1.0",
+  "phase": "10.0",
+  "audit_date": "2026-05-30",
+  "audited_by": "Phase 3 template audit plan",
+
+  "audit_summary": {
+    "total_sources_inspected": 9,
+    "template_data_records_found": 1,
+    "template_data_records_runtime_accessible": 0,
+    "production_ready_count": 2,
+    "candidate_ready_count": 0,
+    "needs_evidence_count": 2,
+    "missing_validation_count": 2,
+    "missing_rollback_count": 1,
+    "unsafe_risk_count": 0,
+    "stale_count": 4,
+    "duplicate_count": 0,
+    "missing_categories_count": 10,
+    "candidate_discovery_gaps_count": 5
+  },
+
+  "classified_items": [
+    {
+      "item_id": "src-organism-template-registry-module",
+      "item_type": "python_module",
+      "path": "substrate/organism/template_registry.py",
+      "description": "TemplateCandidate schema + TemplateRegistry class. 15 TemplateType values, 7 TemplateStatus values, full CRUD, find_matching(), generate_candidate_from_outcome(). Loads from data/umh/templates/ by default.",
+      "classifications": ["production_ready"],
+      "notes": "Code is complete and correct. The mechanism is sound. The gap is data, not code.",
+      "phase_action_required": "none — already production_ready"
+    },
+    {
+      "item_id": "src-autonomous-improvement-lane-module",
+      "item_type": "python_module",
+      "path": "substrate/organism/autonomous_improvement_lane.py",
+      "description": "CandidateBuilder builds candidates from contradictions and world model gaps. AutonomousLanePolicy.require_template=True gates all candidates on template match. _evaluate() check: checks['template_exists'] = bool(candidate.matching_template_id).",
+      "classifications": ["production_ready"],
+      "notes": "Code is correct. The require_template gate is intentional — it enforces that no candidate executes without a proven pattern. The fix is seeding templates, not relaxing the gate.",
+      "phase_action_required": "none — gate behavior is correct"
+    },
+    {
+      "item_id": "src-state-template-registry-module",
+      "item_type": "python_module",
+      "path": "substrate/state/registries/template_registry.py",
+      "description": "Ontological blueprint system — TemplateSlot, Template, TemplateInstance for business/personal/audience/universal templates. 8 business templates (coaching_program, agency, digital_product, ecommerce, saas, incubator_studio, real_estate_development, personal_brand). Different system from execution templates.",
+      "classifications": ["stale"],
+      "notes": "This module is not relevant to the execution template supply chain. It is an older ontological schema that is orthogonal to organism execution templates. No action needed for Phase 10.0.",
+      "phase_action_required": "none — out of scope for execution template supply"
+    },
+    {
+      "item_id": "src-template-candidate-inventory-doc",
+      "item_type": "document",
+      "path": "docs/operations/template_candidate_inventory_v1.md",
+      "description": "Phase 89 business template inventory: revenue ops, outreach, sales, onboarding templates. 40 candidates from 2026-05-03.",
+      "classifications": ["stale"],
+      "notes": "Business operation templates (outreach playbooks, sales scripts, CRM formats). Not execution templates. Out of scope for Phase 10.0 which targets the autonomous improvement supply chain.",
+      "phase_action_required": "none — different domain"
+    },
+    {
+      "item_id": "src-template-promotion-policy-doc",
+      "item_type": "document",
+      "path": "docs/operations/template_pattern_promotion_policy_v1.md",
+      "description": "Phase 96.3/96.4 business template promotion policy: 7-step promotion lifecycle with privacy review. For instance pattern abstraction.",
+      "classifications": ["stale"],
+      "notes": "Business template governance policy, not execution template governance. Execution governance is in autonomous_improvement_lane.py (code) and will be extended in Phase 5.",
+      "phase_action_required": "none — different domain"
+    },
+    {
+      "item_id": "tpl-0b21c294",
+      "item_type": "template_data_record",
+      "path": "data/umh/trials/proof_templates/template_candidates.jsonl",
+      "description": "Single template candidate from Phase 9.5b proof trial. Type=maintenance_action, status=raw, confidence=0.6, 1 observed success. source_trial_ids=['proof-phase95-001'].",
+      "classifications": ["needs_evidence", "missing_validation", "missing_rollback"],
+      "notes": "Evidence comes from a proof trial (trial_id=proof-phase95-001), not from real phase execution. Validation stub is generic: 'Re-run verification after action'. Rollback stub is generic: 'Revert to pre-execution state'. Also stored at wrong path — runtime registry does not load from trials/proof_templates/. Confidence=0.6 meets the threshold but evidence quality is insufficient for candidate_ready.",
+      "stored_at": "data/umh/trials/proof_templates/template_candidates.jsonl",
+      "runtime_accessible_at": "data/umh/organism/templates/template_candidates.jsonl",
+      "path_mismatch": true,
+      "phase_action_required": "Phase 4: copy/seed with real evidence reference + specific validation/rollback"
+    },
+    {
+      "item_id": "phase9-5b-batch-17-templates",
+      "item_type": "template_data_batch",
+      "path": "data/umh/trials/phase9_5b_campaign_results.json",
+      "description": "17 template candidates generated during Phase 9.5b trial campaign, 1 promoted to canonical. All were in a temporary test store_dir — not persisted to any runtime path.",
+      "classifications": ["needs_evidence"],
+      "notes": "Campaign results confirm the generation mechanism works. But these templates were never written to data/umh/organism/templates/ or data/umh/templates/. They exist only in the campaign results JSON as counts. Cannot be loaded by runtime registry.",
+      "phase_action_required": "Phase 4: use as evidence source for seeding, not as templates themselves"
+    },
+    {
+      "item_id": "trial-outcomes-12-records",
+      "item_type": "template_evidence_source",
+      "path": "data/umh/trials/trial_outcomes.jsonl",
+      "description": "12 outcome records that could feed generate_candidate_from_outcome(). All have outcome_id=null, success=null, phase=null. Record keys: id, action_type, plan_id, step_id, description, status, expected_result, actual_result, duration_seconds, error, recorded_at, record_type.",
+      "classifications": ["missing_validation", "stale"],
+      "notes": "The null outcome_id means any template generated from these would have source_outcome_ids=[]. Templates would have no traceable evidence back to real phase outcomes. These records are structurally incomplete and cannot be used as evidence for candidate_ready templates. Phase 4 must use Phase 9.x autonomous_lane artifacts as evidence instead.",
+      "phase_action_required": "Phase 4: do NOT use these as evidence. Use autonomous_lane/ phase JSONs instead."
+    }
+  ],
+
+  "candidate_discovery_gaps": [
+    {
+      "gap_id": "gap-1",
+      "severity": "critical",
+      "title": "Runtime template store path does not exist",
+      "description": "daemon.py initializes TemplateRegistry at data/umh/organism/templates/ (str(self._state_dir / 'templates')). This directory has never been created. TemplateRegistry._load_from_path() opens template_candidates.jsonl and templates.jsonl — both 404. Result: _candidates={} and _promoted={}.",
+      "affected_code": "substrate/organism/daemon.py line 246 — store_dir=str(self._state_dir / 'templates')",
+      "root_cause": "require_template=True + empty data/umh/organism/templates/",
+      "fix_in_phase": "Phase 4 — create directory and seed production templates there"
+    },
+    {
+      "gap_id": "gap-2",
+      "severity": "critical",
+      "title": "require_template=True gates all candidates when registry is empty",
+      "description": "AutonomousLanePolicy.require_template=True (default). CandidateEvaluator.evaluate() lines 499-508: when find_matching() returns [], candidate.matching_template_id='', checks['template_exists']=False, reasons.append('no matching template found'). All candidates are blocked.",
+      "affected_code": "substrate/organism/autonomous_improvement_lane.py lines 499-508 — checks['template_exists'] = bool(candidate.matching_template_id)",
+      "fix_in_phase": "Phase 4 — seed templates so find_matching() returns non-empty results"
+    },
+    {
+      "gap_id": "gap-3",
+      "severity": "high",
+      "title": "Only existing template data record is at wrong path",
+      "description": "tpl-0b21c294 lives at data/umh/trials/proof_templates/template_candidates.jsonl. Runtime registry loads from data/umh/organism/templates/template_candidates.jsonl. These paths have no overlap. The one proof template has never been loadable at runtime.",
+      "affected_code": "data/umh/trials/proof_templates/template_candidates.jsonl",
+      "fix_in_phase": "Phase 4 — seed proper templates to organism/templates/ with real evidence"
+    },
+    {
+      "gap_id": "gap-4",
+      "severity": "medium",
+      "title": "trial_outcomes.jsonl records have null outcome_id and success fields",
+      "description": "All 12 records in trial_outcomes.jsonl have outcome_id=null, success=null, phase=null. Record schema uses id/action_type/plan_id not outcome_id/success — structurally incompatible with generate_candidate_from_outcome(). Templates from these records are untraceable — no verifiable evidence chain.",
+      "affected_code": "data/umh/trials/trial_outcomes.jsonl",
+      "fix_in_phase": "Phase 4 — use autonomous_lane/ phase artifacts (phase9_6, phase9_7, phase9_8, phase9_9) as evidence sources instead"
+    },
+    {
+      "gap_id": "gap-5",
+      "severity": "high",
+      "title": "Zero templates exist for any of the 15 TemplateType values",
+      "description": "15 TemplateType values are defined. CandidateBuilder._enrich_with_template() uses find_matching(action_type, description) which infers template_type and matches on that. With 0 templates of any type, every find_matching() call returns []. Even after gap-1 is fixed, every template type needed by real candidates must have at least one seeded instance.",
+      "affected_code": "substrate/organism/template_registry.py TemplateType enum — 15 values, 0 populated instances in runtime path",
+      "fix_in_phase": "Phase 4 — seed at minimum: MAINTENANCE_ACTION, CONTRADICTION_FIX, READINESS_IMPROVEMENT, OBSERVATION_ACCURACY_FIX, WORLD_MODEL_ACCURACY_FIX"
+    }
+  ],
+
+  "missing_categories": [
+    {
+      "category_slug": "observation_path_fix",
+      "template_type_mapping": "OBSERVATION_ACCURACY_FIX",
+      "description": "Fix a declared file path in world model or config that does not match filesystem reality",
+      "evidence_reference": "data/umh/trials/phase9_2_composition_plan.json",
+      "priority": "high"
+    },
+    {
+      "category_slug": "contradiction_resolution",
+      "template_type_mapping": "CONTRADICTION_FIX",
+      "description": "Clear a specific contradiction engine flag by correcting the divergent state or declaration",
+      "evidence_reference": "data/umh/trials/trial_outcomes.jsonl — verify_current_state for governance_router contradiction",
+      "priority": "high"
+    },
+    {
+      "category_slug": "readiness_dimension_improvement",
+      "template_type_mapping": "READINESS_IMPROVEMENT",
+      "description": "Execute a targeted improvement to raise one readiness dimension score above threshold",
+      "evidence_reference": "data/umh/trials/trial_outcomes.jsonl — Reliability updated from 0.500 to 1.000",
+      "priority": "high"
+    },
+    {
+      "category_slug": "world_model_staleness_fix",
+      "template_type_mapping": "WORLD_MODEL_ACCURACY_FIX",
+      "description": "Update stale world model observations by triggering a re-scan of changed file or endpoint",
+      "evidence_reference": "substrate/organism/coherence_propagation.py — wired to template registry",
+      "priority": "medium"
+    },
+    {
+      "category_slug": "test_failure_repair",
+      "template_type_mapping": "TEST_REPAIR",
+      "description": "Fix a specific failing test assertion without modifying the feature under test",
+      "evidence_reference": "data/umh/autonomous_lane/phase9_6_first_execution.json",
+      "priority": "medium"
+    },
+    {
+      "category_slug": "documentation_alignment_fix",
+      "template_type_mapping": "DOCUMENTATION_ALIGNMENT",
+      "description": "Update a documentation file to match current code state, removing stale references",
+      "evidence_reference": "data/audits/ — multiple drift reports document this pattern",
+      "priority": "low"
+    },
+    {
+      "category_slug": "dependency_graph_refresh",
+      "template_type_mapping": "DEPENDENCY_GRAPH_FIX",
+      "description": "Trigger graph rebuild when graph staleness is detected and graph is older than 24h",
+      "evidence_reference": "substrate/organism/autonomous_improvement_lane.py _from_dependency_orphans()",
+      "priority": "medium"
+    },
+    {
+      "category_slug": "cockpit_endpoint_gap_fix",
+      "template_type_mapping": "COCKPIT_PANEL_FIX",
+      "description": "Add a missing cockpit API route for an existing substrate feature that has no surface",
+      "evidence_reference": "data/umh/autonomous_lane/phase9_9_cadence_dry_run_activation.json",
+      "priority": "medium"
+    },
+    {
+      "category_slug": "line_count_gate_fix",
+      "template_type_mapping": "ROUTE_EXTRACTION_FIX",
+      "description": "Extract route groups from a Python file exceeding the 3000-line quality gate",
+      "evidence_reference": "Phase 2 execution — cockpit.py went from 3542 to under 3000 lines using this exact pattern",
+      "priority": "medium"
+    },
+    {
+      "category_slug": "api_contract_alignment",
+      "template_type_mapping": "API_CONTRACT_FIX",
+      "description": "Align an API response shape with the declared contract when a drift is detected",
+      "evidence_reference": "data/umh/autonomous_lane/phase9_8_first_production_truth_promotion.json",
+      "priority": "high"
+    }
+  ],
+
+  "template_type_coverage": {
+    "total_types_defined": 15,
+    "types_with_seeded_instances": 0,
+    "coverage_percent": 0.0,
+    "types_list": [
+      {"type": "CONTRADICTION_FIX", "seeded_count": 0, "maps_to_category": "contradiction_resolution"},
+      {"type": "API_CONTRACT_FIX", "seeded_count": 0, "maps_to_category": "api_contract_alignment"},
+      {"type": "COCKPIT_PANEL_FIX", "seeded_count": 0, "maps_to_category": "cockpit_endpoint_gap_fix"},
+      {"type": "READINESS_IMPROVEMENT", "seeded_count": 0, "maps_to_category": "readiness_dimension_improvement"},
+      {"type": "GOVERNANCE_VALIDATION", "seeded_count": 0, "maps_to_category": null},
+      {"type": "DEPLOYMENT_VALIDATION", "seeded_count": 0, "maps_to_category": null},
+      {"type": "OBSERVATION_ACCURACY_FIX", "seeded_count": 0, "maps_to_category": "observation_path_fix"},
+      {"type": "MAINTENANCE_ACTION", "seeded_count": 0, "maps_to_category": "multiple"},
+      {"type": "TEST_REPAIR", "seeded_count": 0, "maps_to_category": "test_failure_repair"},
+      {"type": "DOCUMENTATION_ALIGNMENT", "seeded_count": 0, "maps_to_category": "documentation_alignment_fix"},
+      {"type": "DEPENDENCY_GRAPH_FIX", "seeded_count": 0, "maps_to_category": "dependency_graph_refresh"},
+      {"type": "WORLD_MODEL_ACCURACY_FIX", "seeded_count": 0, "maps_to_category": "world_model_staleness_fix"},
+      {"type": "ROUTE_EXTRACTION_FIX", "seeded_count": 0, "maps_to_category": "line_count_gate_fix"},
+      {"type": "ENDPOINT_CONTRACT_FIX", "seeded_count": 0, "maps_to_category": "cockpit_endpoint_gap_fix"},
+      {"type": "EVIDENCE_ALIGNMENT_FIX", "seeded_count": 0, "maps_to_category": "api_contract_alignment"}
+    ]
+  },
+
+  "eight_label_summary": {
+    "production_ready": {
+      "count": 2,
+      "items": ["src-organism-template-registry-module", "src-autonomous-improvement-lane-module"]
+    },
+    "candidate_ready": {
+      "count": 0,
+      "items": [],
+      "note": "Nothing qualifies — all data records lack real phase evidence or have path mismatches"
+    },
+    "needs_evidence": {
+      "count": 2,
+      "items": ["tpl-0b21c294 (proof-trial evidence only)", "phase9-5b-batch-17-templates (temp store only)"]
+    },
+    "missing_validation": {
+      "count": 2,
+      "items": ["tpl-0b21c294 (generic stub: 'Re-run verification after action')", "trial-outcomes-12-records (null outcome_id — no traceable evidence)"]
+    },
+    "missing_rollback": {
+      "count": 1,
+      "items": ["tpl-0b21c294 (generic stub: 'Revert to pre-execution state')"]
+    },
+    "unsafe_risk": {
+      "count": 0,
+      "items": [],
+      "note": "No templates touch auth/credentials/DNS/containers"
+    },
+    "stale": {
+      "count": 4,
+      "items": [
+        "src-state-template-registry-module (different ontological domain — business blueprints not execution templates)",
+        "src-template-candidate-inventory-doc (business ops domain — outreach/sales templates)",
+        "src-template-promotion-policy-doc (business ops domain — instance pattern abstraction)",
+        "trial-outcomes-12-records (null outcome_id and success fields make them structurally unusable for generation)"
+      ]
+    },
+    "duplicate": {
+      "count": 0,
+      "items": [],
+      "note": "Too few templates to produce duplicates"
+    }
+  },
+
+  "phase4_seeding_instructions": {
+    "runtime_path": "data/umh/organism/templates/",
+    "files_to_create": [
+      "data/umh/organism/templates/template_candidates.jsonl",
+      "data/umh/organism/templates/templates.jsonl"
+    ],
+    "minimum_templates_required": 10,
+    "required_types_to_seed": [
+      "MAINTENANCE_ACTION",
+      "CONTRADICTION_FIX",
+      "READINESS_IMPROVEMENT",
+      "OBSERVATION_ACCURACY_FIX",
+      "WORLD_MODEL_ACCURACY_FIX",
+      "API_CONTRACT_FIX",
+      "TEST_REPAIR",
+      "COCKPIT_PANEL_FIX",
+      "ROUTE_EXTRACTION_FIX",
+      "DEPENDENCY_GRAPH_FIX"
+    ],
+    "evidence_sources_to_use": [
+      "data/umh/autonomous_lane/phase9_6_first_execution.json",
+      "data/umh/autonomous_lane/phase9_7_first_sandboxed_pr.json",
+      "data/umh/autonomous_lane/phase9_8_first_production_truth_promotion.json",
+      "data/umh/autonomous_lane/phase9_9_cadence_dry_run_activation.json",
+      "data/umh/trials/phase9_5b_campaign_results.json (as structural reference only)"
+    ],
+    "evidence_to_avoid": [
+      "data/umh/trials/trial_outcomes.jsonl (all outcome_id=null — untraceable)",
+      "data/umh/trials/proof_templates/template_candidates.jsonl (proof trial only — not real phase execution)"
+    ],
+    "validation_requirement": "Each seeded template must have a specific, actionable validation_strategy — NOT the generic 'Re-run verification after action'",
+    "rollback_requirement": "Each seeded template must have a specific rollback_strategy — NOT the generic 'Revert to pre-execution state'",
+    "status_requirement": "Seed to templates.jsonl (promoted) not template_candidates.jsonl (candidates) so find_matching() returns them immediately — TemplateRegistry._promoted dict is checked first"
+  }
+}
