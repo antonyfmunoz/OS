@@ -470,32 +470,32 @@ router.get('/production-truth', operatorGuard, async (c) => {
 
 // ── Operator experience routes ─────────────────────────────
 
-router.get('/operator-experience', async (c) => {
+router.get('/operator-experience', operatorGuard, async (c) => {
   const result = await callOrganism('organism.operator_experience')
   if (!result.success) return c.json({ error: result.error }, 502)
   return c.json(result.data)
 })
 
-router.get('/operator-experience/sessions', async (c) => {
+router.get('/operator-experience/sessions', operatorGuard, async (c) => {
   const limit = Number(c.req.query('limit') || '20')
   const result = await callOrganism('organism.operator_experience.sessions', { limit })
   if (!result.success) return c.json({ error: result.error }, 502)
   return c.json(result.data)
 })
 
-router.get('/operator-experience/sessions/:id', async (c) => {
+router.get('/operator-experience/sessions/:id', operatorGuard, async (c) => {
   const result = await callOrganism('organism.operator_experience.session', { session_id: c.req.param('id') })
   if (!result.success) return c.json({ error: result.error }, 404)
   return c.json(result.data)
 })
 
-router.get('/operator-experience/status', async (c) => {
+router.get('/operator-experience/status', operatorGuard, async (c) => {
   const result = await callOrganism('organism.operator_experience.status')
   if (!result.success) return c.json({ error: result.error }, 502)
   return c.json(result.data)
 })
 
-router.get('/operator-experience/approvals', async (c) => {
+router.get('/operator-experience/approvals', operatorGuard, async (c) => {
   const result = await callOrganism('organism.operator_experience.approvals')
   if (!result.success) return c.json({ error: result.error }, 502)
   return c.json(result.data)
