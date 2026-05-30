@@ -45,7 +45,11 @@ Plans:
   3. Operator token gates on extracted routes reject unauthenticated requests identically to before
   4. WebSocket handshake and message flow behave identically after extraction
   5. Zero endpoints were removed — count before equals count after
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 02-01-PLAN.md — Extract organism core routes (30 handlers) into cockpit_organism_routes.py
+- [ ] 02-02-PLAN.md — Extract entity/product routes (9 handlers) into cockpit_entity_routes.py
+- [ ] 02-03-PLAN.md — Extract economy/topology + autonomous PR factory + cadence routes (38 handlers) into cockpit_economy_routes.py + cockpit_autonomous_routes.py; verify final line count < 3000
 **UI hint**: yes
 
 ### Phase 3: Template Audit
@@ -168,7 +172,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Preflight | 0/2 | Planning complete | - |
-| 2. Cockpit Quality Gate | 0/TBD | Not started | - |
+| 2. Cockpit Quality Gate | 0/3 | Planning complete | - |
 | 3. Template Audit | 0/TBD | Not started | - |
 | 4. Template Seeding | 0/TBD | Not started | - |
 | 5. Template Governance | 0/TBD | Not started | - |
