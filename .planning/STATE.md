@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-05-30T00:31:01.325Z"
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-05-30T00:45:29.759Z"
 last_activity: 2026-05-30
 progress:
   total_phases: 12
-  completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 3
+  total_plans: 6
+  completed_plans: 6
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29)
 
 **Core value:** UMH continuously identifies evidence-backed, template-matched, low-risk improvements for operator-governed execution
-**Current focus:** Phase 02 — cockpit-quality-gate
+**Current focus:** Phase 03 — template-audit
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
+Phase: 03 (template-audit) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-05-30
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-cockpit-quality-gate P02-01 | 193 | 2 tasks | 2 files |
 | Phase 02-cockpit-quality-gate P02 | 3 | 2 tasks | 2 files |
 | Phase 02-cockpit-quality-gate P03 | 5 | 3 tasks | 3 files |
+| Phase 03-template-audit P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ Recent decisions affecting current work:
 - [Phase 02-cockpit-quality-gate]: Entity router configure() takes only get_org_id_fn + require_operator_dep (no check_rate_limit_fn) since no rate-limited routes in entity block
 - [Phase 02-cockpit-quality-gate]: Economy/autonomous configure() takes only get_organism_fn + require_operator_dep (no rate-limit fn needed)
 - [Phase 02-cockpit-quality-gate]: _get_pr_factory() helper copied verbatim into cockpit_autonomous_routes.py as module-level function
+- [Phase 03-template-audit]: Phase 4 must seed to data/umh/organism/templates/ (runtime path) — daemon.py passes this path to TemplateRegistry, not the default data/umh/templates/
+- [Phase 03-template-audit]: trial_outcomes.jsonl records unusable as evidence for templates — null outcome_id means untraceable; use autonomous_lane/ phase9_6-9_9 artifacts instead
+- [Phase 03-template-audit]: require_template gate is correct behavior — fix is seeding templates to runtime path, not relaxing the gate policy
 
 ### Pending Todos
 
@@ -85,6 +89,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-30T00:30:11.546Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-05-30T00:45:29.755Z
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None
