@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-05-30T23:17:44Z",
+  "phase": "13.0",
+  "proofs": [
+    {
+      "id": "A",
+      "input": "System status assembled from real state.",
+      "intent": "query_status",
+      "no_exec": true,
+      "data_keys": [
+        "roadmap",
+        "work_queue",
+        "approvals"
+      ]
+    },
+    {
+      "id": "B",
+      "input": "Pending approvals from real state. 0 pending.",
+      "intent": "query_approvals",
+      "no_exec": true,
+      "pending": 0
+    },
+    {
+      "id": "C",
+      "input": "Propagation impact preview computed. 0 node(s) affected.",
+      "intent": "preview_propagation",
+      "no_exec": true,
+      "affected": 0
+    }
+  ]
+}

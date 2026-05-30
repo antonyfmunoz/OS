@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-05-30T23:17:44Z",
+  "response": {
+    "response_id": "or-64aeeee19e93",
+    "session_id": "os-538200b5f7a2",
+    "turn_id": "ot-6314fc520b82",
+    "intent_type": "query_approvals",
+    "output_mode": "full",
+    "summary": "Pending approvals from real state. 0 pending.",
+    "work_packet_preview": null,
+    "delegation_topology_preview": null,
+    "workcells_preview": null,
+    "propagation_preview": null,
+    "human_required_actions": [],
+    "approval_required_actions": [],
+    "risks": [],
+    "blockers": [],
+    "options": [],
+    "system_confidence": 0.95,
+    "linked_packet_ids": [],
+    "linked_propagation_plan_ids": [],
+    "linked_approval_ids": [],
+    "data": {
+      "approvals": {
+        "pending_count": 0,
+        "total_count": 0,
+        "pending": []
+      }
+    },
+    "errors": [],
+    "timestamp": 1780183065.3920987,
+    "execution_occurred": false
+  },
+  "has_approvals": true,
+  "no_exec": true
+}

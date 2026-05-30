@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-05-30T23:17:44Z",
+  "bridge_handlers": [
+    "organism.operator_experience",
+    "organism.operator_experience.session",
+    "organism.operator_experience.sessions",
+    "organism.operator_experience.send",
+    "organism.operator_experience.status",
+    "organism.operator_experience.approvals",
+    "organism.operator_experience.packet_preview",
+    "organism.operator_experience.propagation_preview",
+    "organism.operator_experience.topology_preview"
+  ],
+  "fastapi_routes": [
+    "GET /organism/operator-experience",
+    "GET /organism/operator-experience/sessions",
+    "GET /organism/operator-experience/sessions/{session_id}",
+    "GET /organism/operator-experience/status",
+    "GET /organism/operator-experience/approvals",
+    "POST /organism/operator-experience/send",
+    "POST /organism/operator-experience/packet-preview",
+    "POST /organism/operator-experience/propagation-preview",
+    "POST /organism/operator-experience/topology-preview"
+  ],
+  "hono_routes": [
+    "GET /operator-experience",
+    "GET /operator-experience/sessions",
+    "GET /operator-experience/sessions/:id",
+    "GET /operator-experience/status",
+    "GET /operator-experience/approvals",
+    "POST /operator-experience/send",
+    "POST /operator-experience/packet-preview",
+    "POST /operator-experience/propagation-preview",
+    "POST /operator-experience/topology-preview"
+  ],
+  "post_routes_require_auth": true
+}

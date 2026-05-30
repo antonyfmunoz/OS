@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-05-30T23:17:44Z",
+  "graph_stats": {
+    "total_nodes": 49,
+    "total_edges": 19,
+    "node_type_counts": {
+      "work_packet": 5,
+      "workcell": 5,
+      "advisor_branch": 2,
+      "self_build_item": 18,
+      "roadmap_phase": 7,
+      "production_truth_delta": 1,
+      "outcome": 1,
+      "api_route": 10
+    },
+    "edge_type_counts": {
+      "owns": 2,
+      "creates": 1,
+      "unlocks": 6,
+      "validates": 10
+    },
+    "orphaned_node_count": 27,
+    "cycle_count": 0,
+    "built_at": 1780178473.021879,
+    "version": "12.0.0"
+  },
+  "graph_loaded": true,
+  "node_count": 49,
+  "edge_count": 19
+}
