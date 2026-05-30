@@ -23,13 +23,13 @@
 
 ### Template Library
 
-- [ ] **TPL-01**: Template audit classifies all existing templates (production_ready, candidate_ready, needs_evidence, missing_validation, missing_rollback, unsafe_risk, stale, duplicate)
-- [ ] **TPL-02**: Template audit identifies missing template categories and candidate discovery gaps
-- [ ] **TPL-03**: Evidence-backed templates seeded from Phase 9.2-9.9 outcomes and ProductionOutcomeCommitted records
-- [ ] **TPL-04**: Each seeded template includes template_id, name, type, action_type, trigger/applicability/contraindication conditions, steps, validation_strategy, rollback_strategy, risk_class, required_capabilities, confidence, evidence_ids, source_phase
-- [ ] **TPL-05**: All seeded templates default to candidate status unless evidence threshold met
-- [ ] **TPL-06**: No template promoted without validation and rollback/non-mutating proof
-- [ ] **TPL-07**: Minimum 10 template categories seeded (observation_path_fix through docs_audit_update)
+- [x] **TPL-01**: Template audit classifies all existing templates (production_ready, candidate_ready, needs_evidence, missing_validation, missing_rollback, unsafe_risk, stale, duplicate)
+- [x] **TPL-02**: Template audit identifies missing template categories and candidate discovery gaps
+- [x] **TPL-03**: Evidence-backed templates seeded from Phase 9.2-9.9 outcomes and ProductionOutcomeCommitted records
+- [x] **TPL-04**: Each seeded template includes template_id, name, type, action_type, trigger/applicability/contraindication conditions, steps, validation_strategy, rollback_strategy, risk_class, required_capabilities, confidence, evidence_ids, source_phase
+- [x] **TPL-05**: All seeded templates default to candidate status unless evidence threshold met
+- [x] **TPL-06**: No template promoted without validation and rollback/non-mutating proof
+- [x] **TPL-07**: Minimum 10 template categories seeded (observation_path_fix through docs_audit_update)
 
 ### Template Governance
 
@@ -129,13 +129,13 @@
 | CQG-04 | Phase 2 | Complete |
 | CQG-05 | Phase 2 | Complete |
 | CQG-06 | Phase 2 | Complete |
-| TPL-01 | Phase 3 | Pending |
-| TPL-02 | Phase 3 | Pending |
-| TPL-03 | Phase 4 | Pending |
-| TPL-04 | Phase 4 | Pending |
-| TPL-05 | Phase 4 | Pending |
-| TPL-06 | Phase 4 | Pending |
-| TPL-07 | Phase 4 | Pending |
+| TPL-01 | Phase 3 | Complete |
+| TPL-02 | Phase 3 | Complete |
+| TPL-03 | Phase 4 | Complete |
+| TPL-04 | Phase 4 | Complete |
+| TPL-05 | Phase 4 | Complete |
+| TPL-06 | Phase 4 | Complete |
+| TPL-07 | Phase 4 | Complete |
 | GOV-01 | Phase 5 | Pending |
 | GOV-02 | Phase 5 | Pending |
 | GOV-03 | Phase 5 | Pending |
