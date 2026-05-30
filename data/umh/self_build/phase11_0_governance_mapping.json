@@ -1,0 +1,59 @@
+{
+  "phase": "11.0",
+  "title": "Self-Build Queue Governance Mapping",
+  "governance_transitions": {
+    "discovered_to_ranked": {
+      "gate": "automatic",
+      "requirements": ["source_evidence exists"]
+    },
+    "ranked_to_ready_for_approval": {
+      "gate": "eligibility_check",
+      "requirements": [
+        "source_evidence exists",
+        "template_match exists OR roadmap/operator request",
+        "risk_class is set",
+        "validation_plan exists (non-low-risk)",
+        "rollback_plan exists (non-low-risk)",
+        "affected_files known OR planning-only",
+        "no sensitive paths unless reviewed",
+        "no blocked keywords unless recommend_only",
+        "candidate not resolved",
+        "dependencies satisfied"
+      ]
+    },
+    "ready_for_approval_to_approval_pending": {
+      "gate": "creates_approval_packet",
+      "requirements": ["ApprovalPacket generated from work item"]
+    },
+    "approval_pending_to_approved": {
+      "gate": "operator_token_required",
+      "requirements": ["operator approves via approval gate"]
+    },
+    "approved_to_sandbox_ready": {
+      "gate": "approval_current",
+      "requirements": ["approval not expired"]
+    },
+    "sandbox_ready_to_pr_created": {
+      "gate": "governed_execution",
+      "requirements": ["SandboxOrchestrator or GovernedExecutionSpine"]
+    },
+    "merged_to_production_verified": {
+      "gate": "production_merge_verifier",
+      "requirements": ["ProductionMergeVerifier validates merge"]
+    }
+  },
+  "risk_gates": {
+    "low": "eligible for automatic ranking + supervised execution",
+    "medium": "BLOCKED by policy — execution not permitted",
+    "high": "BLOCKED — requires explicit architecture review"
+  },
+  "integration_points": {
+    "approval_gate": "substrate.organism.approval_gate.ApprovalPacket",
+    "governed_spine": "substrate.organism.governed_spine.GovernedExecutionSpine",
+    "sandbox_orchestrator": "substrate.organism.sandbox_orchestrator.SandboxOrchestrator",
+    "production_merge_verifier": "substrate.organism.production_merge_verifier.ProductionMergeVerifier",
+    "reliability_weighted_ranker": "substrate.organism.reliability_weighted_ranker.ReliabilityWeightedRanker",
+    "template_registry": "substrate.organism.template_registry.TemplateRegistry",
+    "candidate_supply_engine": "substrate.organism.candidate_supply_engine.CandidateSupplyEngine"
+  }
+}
