@@ -1,0 +1,83 @@
+{
+  "phase": "10.5",
+  "title": "Decision Simulation \u2014 Before vs After Reliability-Weighted Ranking",
+  "candidates_evaluated": 4,
+  "comparisons": [
+    {
+      "candidate_id": "cse-e761a98d",
+      "title": "Audit gap: require_template=True gates all candidates when registry is empty",
+      "before": {
+        "policy_decision": "cadence_eligible",
+        "ranking": "none (all equal within governance class)",
+        "template_confidence": 0.8
+      },
+      "after": {
+        "rank": 2,
+        "weighted_score": 0.755,
+        "promotion_class": "supervised_low_risk",
+        "recommended_action": "eligible with operator review \u2014 template or agent below execute threshold"
+      },
+      "improvement": "reliability-weighted ranking provides differentiated scoring and actionable promotion classes"
+    },
+    {
+      "candidate_id": "cse-0c75994b",
+      "title": "Audit gap: Only existing template data record is at wrong path",
+      "before": {
+        "policy_decision": "cadence_eligible",
+        "ranking": "none (all equal within governance class)",
+        "template_confidence": 0.8
+      },
+      "after": {
+        "rank": 3,
+        "weighted_score": 0.755,
+        "promotion_class": "supervised_low_risk",
+        "recommended_action": "eligible with operator review \u2014 template or agent below execute threshold"
+      },
+      "improvement": "reliability-weighted ranking provides differentiated scoring and actionable promotion classes"
+    },
+    {
+      "candidate_id": "cse-5dbfedb7",
+      "title": "Audit gap: Zero templates exist for any of the 15 TemplateType values",
+      "before": {
+        "policy_decision": "cadence_eligible",
+        "ranking": "none (all equal within governance class)",
+        "template_confidence": 0.8
+      },
+      "after": {
+        "rank": 4,
+        "weighted_score": 0.755,
+        "promotion_class": "supervised_low_risk",
+        "recommended_action": "eligible with operator review \u2014 template or agent below execute threshold"
+      },
+      "improvement": "reliability-weighted ranking provides differentiated scoring and actionable promotion classes"
+    },
+    {
+      "candidate_id": "cse-b89f00cd",
+      "title": "Stale project name in scripts/check_projection_leak.py docstring",
+      "before": {
+        "policy_decision": "cadence_eligible",
+        "ranking": "none (all equal within governance class)",
+        "template_confidence": 0.8
+      },
+      "after": {
+        "rank": 1,
+        "weighted_score": 0.92,
+        "promotion_class": "execute_ready_low_risk",
+        "recommended_action": "eligible for supervised PR creation (operator approval required)"
+      },
+      "improvement": "reliability-weighted ranking provides differentiated scoring and actionable promotion classes"
+    }
+  ],
+  "verifications": {
+    "resolved_candidates_suppressed": true,
+    "suppressed_count": 5,
+    "proven_template_ranks_higher": true,
+    "unproven_templates_rank_lower": true,
+    "weak_validation_lowers_rank": true,
+    "missing_rollback_lowers_rank": true,
+    "source_reliability_affects_rank": true,
+    "medium_risk_non_executable": true,
+    "recommendations_explainable": true
+  },
+  "verdict": "ALL VERIFICATIONS PASS"
+}

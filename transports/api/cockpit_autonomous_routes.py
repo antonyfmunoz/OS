@@ -100,6 +100,14 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/template-governance/evaluate", _template_governance_evaluate, methods=["GET"], dependencies=auth)
     r.add_api_route("/organism/pr-factory-preview", _pr_factory_preview, methods=["GET"], dependencies=auth)
 
+    # ── Phase 10.5: Reliability-weighted cadence routes ───────────────────
+    r.add_api_route("/organism/reliability-signals", _reliability_signals, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/cadence-ranked-candidates", _cadence_ranked_candidates, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/promotion-thresholds", _promotion_thresholds, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/template-reliability", _template_reliability, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/agent-reliability", _agent_reliability, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/candidate-source-reliability", _candidate_source_reliability, methods=["GET"], dependencies=auth)
+
     return r
 
 
@@ -516,3 +524,63 @@ async def _pr_factory_preview():
         "reason": "preview mode — no actual PR created",
         "source_scan_proof": result.source_scan_proof,
     }
+
+# ── Phase 10.5: Reliability-weighted cadence handlers ────────────────────────
+
+
+async def _reliability_signals():
+    from substrate.organism.reliability_signals import ReliabilitySignalAggregator
+    agg = ReliabilitySignalAggregator()
+    return agg.aggregate()
+
+
+async def _cadence_ranked_candidates():
+    daemon = _get_organism()
+    supply = getattr(daemon, "_candidate_supply_engine", None) if daemon else None
+    if supply is None:
+        from substrate.organism.candidate_supply_engine import CandidateSupplyEngine
+        supply = CandidateSupplyEngine()
+    result = supply.discover()
+    from substrate.organism.reliability_signals import ReliabilitySignalAggregator
+    from substrate.organism.reliability_weighted_ranker import ReliabilityWeightedRanker
+    agg = ReliabilitySignalAggregator()
+    agg.aggregate()
+    ranker = ReliabilityWeightedRanker(aggregator=agg)
+    cadence_dicts = [c.to_cadence_dict() for c in result.candidates]
+    ranked = ranker.rank_candidates(cadence_dicts)
+    return {
+        "unranked_count": len(result.candidates),
+        "ranked_count": len(ranked),
+        "candidates": [rc.to_dict() for rc in ranked],
+        "ranker_config": ranker.to_dict(),
+    }
+
+
+async def _promotion_thresholds():
+    from substrate.organism.reliability_signals import ReliabilitySignalAggregator
+    from substrate.organism.promotion_threshold_policy import PromotionThresholdPolicy
+    agg = ReliabilitySignalAggregator()
+    agg.aggregate()
+    policy = PromotionThresholdPolicy(aggregator=agg)
+    return policy.to_dict()
+
+
+async def _template_reliability():
+    from substrate.organism.reliability_signals import ReliabilitySignalAggregator
+    agg = ReliabilitySignalAggregator()
+    agg.aggregate()
+    return {"templates": {tid: sig.to_dict() for tid, sig in agg._template_signals.items()}}
+
+
+async def _agent_reliability():
+    from substrate.organism.reliability_signals import ReliabilitySignalAggregator
+    agg = ReliabilitySignalAggregator()
+    agg.aggregate()
+    return {"agents": {atype: sig.to_dict() for atype, sig in agg._agent_signals.items()}}
+
+
+async def _candidate_source_reliability():
+    from substrate.organism.reliability_signals import ReliabilitySignalAggregator
+    agg = ReliabilitySignalAggregator()
+    agg.aggregate()
+    return {"sources": {src: sig.to_dict() for src, sig in agg._source_signals.items()}}

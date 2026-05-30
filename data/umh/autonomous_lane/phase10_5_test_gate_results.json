@@ -1,0 +1,64 @@
+{
+  "phase": "10.5",
+  "title": "Tests + Gates",
+  "timestamp": "2026-05-30T08:36:29.303366+00:00",
+  "test_suites": [
+    {
+      "name": "Phase 10.5 tests",
+      "passed": 71,
+      "failed": 0,
+      "skipped": 0,
+      "duration": "1.06s"
+    },
+    {
+      "name": "Phase 10.x + 9.x tests",
+      "passed": 535,
+      "failed": 0,
+      "skipped": 0,
+      "duration": "5.87s"
+    },
+    {
+      "name": "Organism infrastructure tests",
+      "passed": 329,
+      "failed": 0,
+      "skipped": 4,
+      "duration": "11.81s"
+    }
+  ],
+  "gate_checks": [
+    {
+      "gate": "py_compile (4 modified files)",
+      "result": "PASS"
+    },
+    {
+      "gate": "check_instance_leak.py --all",
+      "result": "PASS",
+      "detail": "577 files scanned \u2014 clean"
+    },
+    {
+      "gate": "check_dependency_direction.py --all",
+      "result": "PASS"
+    },
+    {
+      "gate": "check_type_divergence.py --all",
+      "result": "PASS",
+      "detail": "No new divergences from Phase 10.5"
+    },
+    {
+      "gate": "line count check",
+      "result": "PASS",
+      "detail": "max=712 (test file), all under 3000"
+    },
+    {
+      "gate": "API route auth",
+      "result": "PASS",
+      "detail": "6 endpoints return 403 without auth"
+    },
+    {
+      "gate": "no fake data",
+      "result": "PASS",
+      "detail": "All signals trace to real Phase 10.3/10.4/10.4R artifacts"
+    }
+  ],
+  "verdict": "ALL PASS"
+}

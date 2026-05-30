@@ -1,0 +1,206 @@
+{
+  "templates": {
+    "tpl-seed-documentation-alignment-01": {
+      "template_id": "tpl-seed-documentation-alignment-01",
+      "confidence": 0.85,
+      "production_successes": 3,
+      "production_failures": 0,
+      "sandbox_successes": 2,
+      "sandbox_failures": 0,
+      "reuse_count": 3,
+      "last_outcome_status": "production_verified",
+      "score": 0.8
+    },
+    "tpl-seed-test-repair-01": {
+      "template_id": "tpl-seed-test-repair-01",
+      "confidence": 0.82,
+      "production_successes": 5,
+      "production_failures": 0,
+      "sandbox_successes": 2,
+      "sandbox_failures": 0,
+      "reuse_count": 5,
+      "last_outcome_status": "production_verified",
+      "score": 0.828
+    },
+    "tpl-seed-contradiction-fix-01": {
+      "template_id": "tpl-seed-contradiction-fix-01",
+      "confidence": 0.9,
+      "production_successes": 3,
+      "production_failures": 0,
+      "sandbox_successes": 0,
+      "sandbox_failures": 0,
+      "reuse_count": 3,
+      "last_outcome_status": "",
+      "score": 0.82
+    },
+    "tpl-seed-readiness-improvement-01": {
+      "template_id": "tpl-seed-readiness-improvement-01",
+      "confidence": 0.8,
+      "production_successes": 2,
+      "production_failures": 0,
+      "sandbox_successes": 0,
+      "sandbox_failures": 0,
+      "reuse_count": 2,
+      "last_outcome_status": "",
+      "score": 0.76
+    },
+    "tpl-seed-observation-accuracy-fix-01": {
+      "template_id": "tpl-seed-observation-accuracy-fix-01",
+      "confidence": 0.75,
+      "production_successes": 1,
+      "production_failures": 0,
+      "sandbox_successes": 0,
+      "sandbox_failures": 0,
+      "reuse_count": 1,
+      "last_outcome_status": "",
+      "score": 0.72
+    },
+    "tpl-seed-world-model-accuracy-fix-01": {
+      "template_id": "tpl-seed-world-model-accuracy-fix-01",
+      "confidence": 0.8,
+      "production_successes": 2,
+      "production_failures": 0,
+      "sandbox_successes": 0,
+      "sandbox_failures": 0,
+      "reuse_count": 2,
+      "last_outcome_status": "",
+      "score": 0.76
+    },
+    "tpl-seed-api-contract-fix-01": {
+      "template_id": "tpl-seed-api-contract-fix-01",
+      "confidence": 0.85,
+      "production_successes": 2,
+      "production_failures": 0,
+      "sandbox_successes": 0,
+      "sandbox_failures": 0,
+      "reuse_count": 2,
+      "last_outcome_status": "",
+      "score": 0.78
+    },
+    "tpl-seed-cockpit-panel-fix-01": {
+      "template_id": "tpl-seed-cockpit-panel-fix-01",
+      "confidence": 0.8,
+      "production_successes": 2,
+      "production_failures": 0,
+      "sandbox_successes": 0,
+      "sandbox_failures": 0,
+      "reuse_count": 2,
+      "last_outcome_status": "",
+      "score": 0.76
+    },
+    "tpl-seed-route-extraction-fix-01": {
+      "template_id": "tpl-seed-route-extraction-fix-01",
+      "confidence": 0.9,
+      "production_successes": 3,
+      "production_failures": 0,
+      "sandbox_successes": 0,
+      "sandbox_failures": 0,
+      "reuse_count": 3,
+      "last_outcome_status": "",
+      "score": 0.82
+    },
+    "tpl-seed-dependency-graph-fix-01": {
+      "template_id": "tpl-seed-dependency-graph-fix-01",
+      "confidence": 0.85,
+      "production_successes": 4,
+      "production_failures": 0,
+      "sandbox_successes": 0,
+      "sandbox_failures": 0,
+      "reuse_count": 4,
+      "last_outcome_status": "",
+      "score": 0.82
+    },
+    "tpl-seed-maintenance-action-01": {
+      "template_id": "tpl-seed-maintenance-action-01",
+      "confidence": 0.7,
+      "production_successes": 2,
+      "production_failures": 1,
+      "sandbox_successes": 0,
+      "sandbox_failures": 0,
+      "reuse_count": 3,
+      "last_outcome_status": "",
+      "score": 0.607
+    }
+  },
+  "agents": {
+    "developer_agent": {
+      "agent_type": "developer_agent",
+      "capabilities": [
+        "FILE_EDIT",
+        "CODE_SEARCH"
+      ],
+      "production_successes": 4,
+      "production_failures": 0,
+      "average_validation_pass_rate": 1.0,
+      "average_execution_duration": 0.0,
+      "score": 1.0
+    }
+  },
+  "sources": {
+    "template_audit_gaps": {
+      "source_name": "template_audit_gaps",
+      "candidates_produced": 3,
+      "candidates_approved": 3,
+      "prs_created": 0,
+      "prs_merged": 0,
+      "production_verified": 0,
+      "rejected_blocked": 0,
+      "score": 0.3
+    },
+    "stale_docstrings": {
+      "source_name": "stale_docstrings",
+      "candidates_produced": 3,
+      "candidates_approved": 2,
+      "prs_created": 2,
+      "prs_merged": 2,
+      "production_verified": 2,
+      "rejected_blocked": 0,
+      "score": 0.9
+    },
+    "stale_test_paths": {
+      "source_name": "stale_test_paths",
+      "candidates_produced": 1,
+      "candidates_approved": 1,
+      "prs_created": 1,
+      "prs_merged": 1,
+      "production_verified": 1,
+      "rejected_blocked": 0,
+      "score": 1.0
+    },
+    "missing_package_init": {
+      "source_name": "missing_package_init",
+      "candidates_produced": 1,
+      "candidates_approved": 1,
+      "prs_created": 1,
+      "prs_merged": 1,
+      "production_verified": 1,
+      "rejected_blocked": 0,
+      "score": 1.0
+    }
+  },
+  "validations": {
+    "import substrate": {
+      "validation_method": "import substrate",
+      "pass_rate": 1.0,
+      "false_positive_count": 0,
+      "false_negative_count": 0,
+      "baseline_comparison_support": true,
+      "score": 1.0
+    },
+    "py_compile organism": {
+      "validation_method": "py_compile organism",
+      "pass_rate": 1.0,
+      "false_positive_count": 0,
+      "false_negative_count": 0,
+      "baseline_comparison_support": true,
+      "score": 1.0
+    }
+  },
+  "production_truth": {
+    "pmv_pass_rate": 0.5,
+    "file_divergence_count": 10,
+    "idempotency_pass_rate": 1.0,
+    "duplicate_suppression_pass_rate": 1.0,
+    "score": 0.77
+  }
+}

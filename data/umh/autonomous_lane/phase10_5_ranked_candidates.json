@@ -1,0 +1,165 @@
+{
+  "ranked_candidates": [
+    {
+      "candidate_id": "cse-af691e02",
+      "raw_scores": {
+        "template_reliability": 0.8,
+        "agent_capability": 1.0,
+        "validation_strength": 1.0,
+        "rollback_safety": 1.0,
+        "source_reliability": 0.9,
+        "expected_leverage": 0.8,
+        "blast_radius_safety": 1.0
+      },
+      "weighted_score": 0.92,
+      "rank": 1,
+      "eligible": true,
+      "blocking_reasons": [],
+      "promotion_class": "execute_ready_low_risk",
+      "recommended_action": "eligible for supervised PR creation (operator approval required)",
+      "evidence_trace": {
+        "template_id": "tpl-seed-documentation-alignment-01",
+        "template_confidence": 0.85,
+        "template_production_successes": 3,
+        "agent_type": "developer_agent",
+        "agent_score": 1.0,
+        "source": "stale_docstrings",
+        "source_score": 0.9,
+        "validation_method": "assertion",
+        "validation_score": 1.0,
+        "rollback_score": 1.0,
+        "production_truth_score": 0.7699999999999999
+      }
+    },
+    {
+      "candidate_id": "cse-7d173828",
+      "raw_scores": {
+        "template_reliability": 0.76,
+        "agent_capability": 1.0,
+        "validation_strength": 1.0,
+        "rollback_safety": 0.7,
+        "source_reliability": 0.3,
+        "expected_leverage": 0.3,
+        "blast_radius_safety": 1.0
+      },
+      "weighted_score": 0.755,
+      "rank": 2,
+      "eligible": true,
+      "blocking_reasons": [],
+      "promotion_class": "supervised_low_risk",
+      "recommended_action": "eligible with operator review \u2014 template or agent below execute threshold",
+      "evidence_trace": {
+        "template_id": "tpl-seed-cockpit-panel-fix-01",
+        "template_confidence": 0.8,
+        "template_production_successes": 2,
+        "agent_type": "developer_agent",
+        "agent_score": 1.0,
+        "source": "template_audit_gaps",
+        "source_score": 0.3,
+        "validation_method": "assertion",
+        "validation_score": 1.0,
+        "rollback_score": 0.7,
+        "production_truth_score": 0.7699999999999999
+      }
+    },
+    {
+      "candidate_id": "cse-cf52300e",
+      "raw_scores": {
+        "template_reliability": 0.76,
+        "agent_capability": 1.0,
+        "validation_strength": 1.0,
+        "rollback_safety": 0.7,
+        "source_reliability": 0.3,
+        "expected_leverage": 0.3,
+        "blast_radius_safety": 1.0
+      },
+      "weighted_score": 0.755,
+      "rank": 3,
+      "eligible": true,
+      "blocking_reasons": [],
+      "promotion_class": "supervised_low_risk",
+      "recommended_action": "eligible with operator review \u2014 template or agent below execute threshold",
+      "evidence_trace": {
+        "template_id": "tpl-seed-cockpit-panel-fix-01",
+        "template_confidence": 0.8,
+        "template_production_successes": 2,
+        "agent_type": "developer_agent",
+        "agent_score": 1.0,
+        "source": "template_audit_gaps",
+        "source_score": 0.3,
+        "validation_method": "assertion",
+        "validation_score": 1.0,
+        "rollback_score": 0.7,
+        "production_truth_score": 0.7699999999999999
+      }
+    },
+    {
+      "candidate_id": "cse-bc552c93",
+      "raw_scores": {
+        "template_reliability": 0.76,
+        "agent_capability": 1.0,
+        "validation_strength": 1.0,
+        "rollback_safety": 0.7,
+        "source_reliability": 0.3,
+        "expected_leverage": 0.3,
+        "blast_radius_safety": 1.0
+      },
+      "weighted_score": 0.755,
+      "rank": 4,
+      "eligible": true,
+      "blocking_reasons": [],
+      "promotion_class": "supervised_low_risk",
+      "recommended_action": "eligible with operator review \u2014 template or agent below execute threshold",
+      "evidence_trace": {
+        "template_id": "tpl-seed-cockpit-panel-fix-01",
+        "template_confidence": 0.8,
+        "template_production_successes": 2,
+        "agent_type": "developer_agent",
+        "agent_score": 1.0,
+        "source": "template_audit_gaps",
+        "source_score": 0.3,
+        "validation_method": "assertion",
+        "validation_score": 1.0,
+        "rollback_score": 0.7,
+        "production_truth_score": 0.7699999999999999
+      }
+    }
+  ],
+  "ranker_config": {
+    "weights": {
+      "template_reliability": 0.25,
+      "agent_capability": 0.2,
+      "validation_strength": 0.15,
+      "rollback_safety": 0.15,
+      "source_reliability": 0.1,
+      "expected_leverage": 0.1,
+      "blast_radius_safety": 0.05
+    },
+    "execute_ready_thresholds": {
+      "template_reliability": 0.8,
+      "agent_reliability": 0.75,
+      "validation_reliability": 0.8,
+      "min_production_successes": 2
+    },
+    "supervised_thresholds": {
+      "template_reliability": 0.65,
+      "agent_reliability": 0.65
+    },
+    "hard_gates": [
+      "risk must be LOW",
+      "evidence must exist",
+      "template match must exist",
+      "validation method must exist",
+      "rollback method or non-mutating proof must exist",
+      "no sensitive path",
+      "no blocked keywords",
+      "candidate not already resolved"
+    ],
+    "promotion_classes": [
+      "execute_ready_low_risk",
+      "supervised_low_risk",
+      "recommend_only",
+      "blocked"
+    ]
+  }
+}
