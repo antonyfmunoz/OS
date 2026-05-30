@@ -1,0 +1,18 @@
+{
+  "phase": "10.3C",
+  "pr_number": 47,
+  "merge_date": "2026-05-30T03:59:49Z",
+  "merge_commit": "03fe81d86fd6092338a3e9388649abbc9f2f7b00",
+  "merge_method": "merge",
+  "main_sha_after_merge": "03fe81d8",
+  "worktree_sha": "03fe81d8",
+  "opt_os_sha": "bd5b55ed (merge of origin/main containing 03fe81d8)",
+  "changed_files_verified": [
+    {"path": "data/umh/organism/templates/.gitkeep", "exists": true},
+    {"path": "scripts/verify_template_store.py", "exists": true}
+  ],
+  "production_truth_before_verifier": {
+    "note": "No ProductionTruthDelta exists yet — verifier has not run",
+    "production_truth_deltas": 0
+  }
+}

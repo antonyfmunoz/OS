@@ -1,0 +1,42 @@
+{
+  "phase": "10.3B",
+  "pr_number": 47,
+  "review_date": "2026-05-30",
+  "review_result": "PASS",
+  "branch": "auto/low-risk/audit-gap--runtime-template-st-ed2e7b56",
+  "base_ref": "main",
+  "title": "auto: Template audit identified gap: Runtime template store path d",
+  "candidate_id": "cse-ba39a708",
+  "template_id": "tpl-seed-cockpit-panel-fix-01",
+  "manifest_id": "csm-af5aff16",
+  "commit_sha": "1e00b829fac0d7f84c91c86e92197c4e29a58598",
+  "changed_files": [
+    {"path": "data/umh/organism/templates/.gitkeep", "change_type": "ADDED", "additions": 0, "deletions": 0},
+    {"path": "scripts/verify_template_store.py", "change_type": "ADDED", "additions": 49, "deletions": 0}
+  ],
+  "risk_class": "LOW",
+  "safety_checks": {
+    "branch_pattern_match": true,
+    "pr_body_has_governance_evidence": true,
+    "risk_class_low": true,
+    "no_auth_changes": true,
+    "no_credential_changes": true,
+    "no_dns_changes": true,
+    "no_deployment_changes": true,
+    "no_destructive_ops": true,
+    "no_sensitive_files": true,
+    "no_direct_main_mutation": true,
+    "no_broad_refactor": true,
+    "production_truth_unchanged_before_merge": true,
+    "validation_proof_in_body": true,
+    "rollback_plan_exists": true,
+    "code_quality_clean": true
+  },
+  "manifest_discrepancy": {
+    "body_claims_files": 7,
+    "actual_pr_diff_files": 2,
+    "explanation": "Manifest lists all files touched during sandbox execution including data artifacts already on main. PR diff shows only net-new files."
+  },
+  "validation_note": "PR body shows exit 1 for type_divergence and dependency_direction checks — these are pre-existing gate issues, not introduced by this PR",
+  "recommendation": "SAFE_TO_MERGE"
+}

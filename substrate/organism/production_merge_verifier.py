@@ -358,18 +358,30 @@ class ProductionMergeVerifier:
         return True
 
     def _compute_observed_files(self, verification: ProductionMergeVerification) -> None:
-        if not verification.merge_commit or not verification.base_commit:
+        if not verification.merge_commit:
             return
 
         result = _run_cmd(
             ["git", "diff", "--name-only",
-             f"{verification.base_commit}..{verification.merge_commit}"],
+             f"{verification.merge_commit}^1", verification.merge_commit],
             cwd=self._repo_root,
         )
         if result.returncode == 0:
             verification.observed_files = [
                 f for f in result.stdout.strip().split("\n") if f.strip()
             ]
+            return
+
+        if verification.base_commit:
+            result = _run_cmd(
+                ["git", "diff", "--name-only",
+                 f"{verification.base_commit}..{verification.merge_commit}"],
+                cwd=self._repo_root,
+            )
+            if result.returncode == 0:
+                verification.observed_files = [
+                    f for f in result.stdout.strip().split("\n") if f.strip()
+                ]
 
     def _run_post_merge_validation(
         self, verification: ProductionMergeVerification
