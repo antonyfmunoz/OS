@@ -1,0 +1,262 @@
+{
+  "verification_type": "phase10_1_template_supplied_pr_preview",
+  "timestamp": 1780108618.5754752,
+  "candidate": {
+    "candidate_id": "cse-e9c81eab",
+    "source": "template_audit_gaps",
+    "title": "Audit gap: Runtime template store path does not exist",
+    "description": "Template audit identified gap: Runtime template store path does not exist. daemon.py initializes TemplateRegistry at data/umh/organism/templates/ (str(self._state_dir / 'templates')). This directory has never been created. TemplateRegistry._load_from_path() opens template_candidates.jsonl and templates.jsonl \u2014 both 404. Result: _candidates={} and _promoted={}.",
+    "evidence": [
+      {
+        "source": "template_audit",
+        "detail": "gap_id=gap-1, severity=critical, title=Runtime template store path does not exist",
+        "confidence": 0.7
+      }
+    ],
+    "affected_files": [],
+    "risk_class": "low",
+    "matching_templates": [
+      "tpl-seed-cockpit-panel-fix-01"
+    ],
+    "policy_decision": "cadence_eligible",
+    "blocked_reasons": [],
+    "expected_delta": "Close audit gap: Runtime template store path does not exist",
+    "recommended_next_step": "Phase 4 \u2014 create directory and seed production templates there",
+    "template_confidence": 0.8,
+    "agent_reliability": 0.8,
+    "validation_method": "assertion",
+    "rollback_method": "revert",
+    "non_mutating": false,
+    "created_at": 1780108618.574289
+  },
+  "template_match": {
+    "template_id": "tpl-seed-cockpit-panel-fix-01",
+    "template_type": "cockpit_panel_fix",
+    "trigger_conditions": [
+      "cockpit API endpoint for a substrate feature returns 404 or is missing entirely",
+      "substrate module is production_ready but has no cockpit surface (no /api/umh/ route)",
+      "cockpit truth matrix reports missing_endpoint=true for a feature"
+    ],
+    "required_context": [
+      "substrate feature module path",
+      "missing endpoint path",
+      "response contract for the endpoint"
+    ],
+    "required_capabilities": [
+      "route_discovery",
+      "file_edit",
+      "endpoint_verify"
+    ],
+    "required_agent_type": "developer_agent",
+    "reusable_steps": [
+      {
+        "order": 0,
+        "description": "Confirm endpoint is missing and identify target cockpit route file",
+        "action": "identify_panel",
+        "requires_capability": "route_discovery",
+        "risk_class": "low",
+        "governance_mode": "autonomous",
+        "verification": "curl /api/umh/<endpoint> returns 404, target route file identified"
+      },
+      {
+        "order": 1,
+        "description": "Add GET route handler to appropriate cockpit route module",
+        "action": "file_edit",
+        "requires_capability": "file_edit",
+        "risk_class": "low",
+        "governance_mode": "autonomous",
+        "verification": "route handler added, py_compile passes, router mounts new route"
+      },
+      {
+        "order": 2,
+        "description": "Probe new endpoint to verify response contract",
+        "action": "verify_panel",
+        "requires_capability": "endpoint_verify",
+        "risk_class": "low",
+        "governance_mode": "autonomous",
+        "verification": "curl /api/umh/<endpoint> returns 200 with expected response fields"
+      }
+    ],
+    "dependencies": [],
+    "risk_class": "low",
+    "governance_mode": "autonomous",
+    "validation": {
+      "description": "curl /api/umh/<endpoint> returns HTTP 200 with all expected fields. py_compile on modified cockpit route file passes. No existing routes return 404 after change.",
+      "method": "assertion",
+      "timeout_seconds": 60.0
+    },
+    "rollback": {
+      "description": "git checkout -- <cockpit_route_file>. docker restart os-operator to restore prior routing.",
+      "method": "revert",
+      "timeout_seconds": 60.0
+    },
+    "evidence_requirements": [
+      "cockpit truth matrix showing missing endpoint",
+      "substrate module that needs exposure"
+    ],
+    "known_failure_modes": [
+      "new route conflicts with existing route pattern",
+      "service restart required to pick up route change"
+    ],
+    "expected_outcome": "Cockpit surface exposes substrate feature \u2014 endpoint returns valid response, truth matrix no longer shows missing_endpoint",
+    "observed_success_count": 2,
+    "observed_failure_count": 0,
+    "confidence": 0.8,
+    "source_outcome_ids": [],
+    "source_trial_ids": [
+      "phase9_9"
+    ],
+    "source_action_envelope_ids": [],
+    "evidence": [
+      {
+        "source": "data/umh/autonomous_lane/phase9_9_cadence_dry_run_activation.json",
+        "detail": "mode_after=dry_run_only, set_mode_response={ok: true, mode: dry_run_only} \u2014 cockpit endpoint successfully activated cadence mode",
+        "confidence": 0.85,
+        "observed_at": 1748649600.0
+      },
+      {
+        "source": "data/umh/autonomous_lane/phase9_9_cadence_dry_run_activation.json",
+        "detail": "safety_verification.cockpit_shows_last_dry_run=true \u2014 cockpit panel correctly surfaced dry-run result",
+        "confidence": 0.8,
+        "observed_at": 1748649600.0
+      }
+    ],
+    "agent_capability_binding": {
+      "agent_type": "developer_agent",
+      "capabilities": [
+        "route_discovery",
+        "file_edit",
+        "endpoint_verify"
+      ],
+      "confidence": 0.8
+    },
+    "created_at": 1748649600.0,
+    "status": "promoted"
+  },
+  "governance_score": {
+    "template_id": "tpl-seed-cockpit-panel-fix-01",
+    "dimensions": [
+      {
+        "name": "evidence",
+        "score": 0.825,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "validation",
+        "score": 0.9,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "rollback",
+        "score": 0.9,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "risk",
+        "score": 1.0,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "reliability",
+        "score": 0.8,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "specificity",
+        "score": 1.0,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "reversibility",
+        "score": 0.9,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "blast_radius",
+        "score": 1.0,
+        "weight": 1.0,
+        "reason": ""
+      },
+      {
+        "name": "agent_capability",
+        "score": 0.8,
+        "weight": 1.0,
+        "reason": ""
+      }
+    ],
+    "decision": "cadence_eligible",
+    "reason_codes": [],
+    "weighted_score": 0.903
+  },
+  "changeset_manifest_preview": {
+    "manifest_id": "csm-preview-1780108618",
+    "candidate_id": "cse-e9c81eab",
+    "template_id": "tpl-seed-cockpit-panel-fix-01",
+    "description": "Template audit identified gap: Runtime template store path does not exist. daemon.py initializes TemplateRegistry at data/umh/organism/templates/ (str(self._state_dir / 'templates')). This directory has never been created. TemplateRegistry._load_from_path() opens template_candidates.jsonl and templates.jsonl \u2014 both 404. Result: _candidates={} and _promoted={}.",
+    "affected_files": [],
+    "risk_class": "low",
+    "validation_method": "assertion",
+    "rollback_method": "revert",
+    "expected_delta": "Close audit gap: Runtime template store path does not exist",
+    "preview_only": true,
+    "would_create_worktree": true,
+    "would_execute_through_spine": true,
+    "would_create_pr": false,
+    "governed_execution_mode": "sandbox_preview"
+  },
+  "review_packet": {
+    "candidate_title": "Audit gap: Runtime template store path does not exist",
+    "template_type": "cockpit_panel_fix",
+    "governance_decision": "cadence_eligible",
+    "governance_weighted_score": 0.903,
+    "risk_class": "low",
+    "evidence_count": 1,
+    "template_confidence": 0.8,
+    "steps_count": 3,
+    "validation_present": true,
+    "rollback_present": true
+  },
+  "source_scan_proof": {
+    "contradiction_engine": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "world_model": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "dependency_graph": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "readiness_model": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "bottleneck_engine": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "template_audit_gaps": {
+      "scanned": true,
+      "candidates_found": 4,
+      "error": null
+    }
+  },
+  "pr_created": false,
+  "production_truth_unchanged": true,
+  "sandbox_execution_mode": "preview_only",
+  "governed_execution_spine_required": true
+}
