@@ -61,7 +61,9 @@ Plans:
   2. All eight classification labels (production_ready, candidate_ready, needs_evidence, missing_validation, missing_rollback, unsafe_risk, stale, duplicate) appear or are documented as not present
   3. At least one "missing template category" gap is identified and documented
   4. Audit output is persisted and cockpit-visible
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 03-01-PLAN.md — Inspect all template sources, classify with 8-label scheme, document 5 discovery gaps, write structured audit JSON to data/umh/templates/phase10_0_template_audit.json
 
 ### Phase 4: Template Seeding
 **Goal**: At least 10 evidence-backed template categories exist in the library, each with full metadata, defaulting to candidate status, with no template promoted without validation and rollback proof
@@ -173,7 +175,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|-----------|
 | 1. Preflight | 0/2 | Planning complete | - |
 | 2. Cockpit Quality Gate | 0/3 | Planning complete | - |
-| 3. Template Audit | 0/TBD | Not started | - |
+| 3. Template Audit | 0/1 | Planning complete | - |
 | 4. Template Seeding | 0/TBD | Not started | - |
 | 5. Template Governance | 0/TBD | Not started | - |
 | 6. Candidate Supply Engine | 0/TBD | Not started | - |
