@@ -1,0 +1,65 @@
+{
+  "phase": "10.5",
+  "endpoints": {
+    "/organism/reliability-signals": {
+      "status": 200,
+      "key_data": {
+        "count": 11
+      }
+    },
+    "/organism/cadence-ranked-candidates": {
+      "status": 200,
+      "key_data": {
+        "count": 6
+      }
+    },
+    "/organism/promotion-thresholds": {
+      "status": 200,
+      "key_data": {
+        "highest_eligible": "dry_run_only"
+      }
+    },
+    "/organism/template-reliability": {
+      "status": 200,
+      "key_data": {
+        "count": 11
+      }
+    },
+    "/organism/agent-reliability": {
+      "status": 200,
+      "key_data": {
+        "count": 1
+      }
+    },
+    "/organism/candidate-source-reliability": {
+      "status": 200,
+      "key_data": {
+        "count": 4
+      }
+    },
+    "/health": {
+      "status": "error",
+      "error": "HTTP Error 404: Not Found"
+    },
+    "/organism/autonomous-cadence": {
+      "status": 200,
+      "key_data": {
+        "mode": "off"
+      }
+    },
+    "/organism/template-registry": {
+      "status": 200,
+      "key_data": {
+        "count": 0
+      }
+    },
+    "auth_test_/organism/reliability-signals": {
+      "status": 403,
+      "auth_enforced": true
+    },
+    "auth_test_/organism/promotion-thresholds": {
+      "status": 403,
+      "auth_enforced": true
+    }
+  }
+}

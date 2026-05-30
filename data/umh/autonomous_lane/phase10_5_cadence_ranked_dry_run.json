@@ -1,0 +1,325 @@
+{
+  "phase": "10.5",
+  "title": "Cadence Ranked Dry Run",
+  "unranked_candidate_count": 4,
+  "ranked_candidate_count": 4,
+  "top_candidate": {
+    "candidate_id": "cse-af691e02",
+    "raw_scores": {
+      "template_reliability": 0.8,
+      "agent_capability": 1.0,
+      "validation_strength": 1.0,
+      "rollback_safety": 1.0,
+      "source_reliability": 0.9,
+      "expected_leverage": 0.8,
+      "blast_radius_safety": 1.0
+    },
+    "weighted_score": 0.92,
+    "rank": 1,
+    "eligible": true,
+    "blocking_reasons": [],
+    "promotion_class": "execute_ready_low_risk",
+    "recommended_action": "eligible for supervised PR creation (operator approval required)",
+    "evidence_trace": {
+      "template_id": "tpl-seed-documentation-alignment-01",
+      "template_confidence": 0.85,
+      "template_production_successes": 3,
+      "agent_type": "developer_agent",
+      "agent_score": 1.0,
+      "source": "stale_docstrings",
+      "source_score": 0.9,
+      "validation_method": "assertion",
+      "validation_score": 1.0,
+      "rollback_score": 1.0,
+      "production_truth_score": 0.7699999999999999
+    }
+  },
+  "all_ranked": [
+    {
+      "candidate_id": "cse-af691e02",
+      "raw_scores": {
+        "template_reliability": 0.8,
+        "agent_capability": 1.0,
+        "validation_strength": 1.0,
+        "rollback_safety": 1.0,
+        "source_reliability": 0.9,
+        "expected_leverage": 0.8,
+        "blast_radius_safety": 1.0
+      },
+      "weighted_score": 0.92,
+      "rank": 1,
+      "eligible": true,
+      "blocking_reasons": [],
+      "promotion_class": "execute_ready_low_risk",
+      "recommended_action": "eligible for supervised PR creation (operator approval required)",
+      "evidence_trace": {
+        "template_id": "tpl-seed-documentation-alignment-01",
+        "template_confidence": 0.85,
+        "template_production_successes": 3,
+        "agent_type": "developer_agent",
+        "agent_score": 1.0,
+        "source": "stale_docstrings",
+        "source_score": 0.9,
+        "validation_method": "assertion",
+        "validation_score": 1.0,
+        "rollback_score": 1.0,
+        "production_truth_score": 0.7699999999999999
+      }
+    },
+    {
+      "candidate_id": "cse-7d173828",
+      "raw_scores": {
+        "template_reliability": 0.76,
+        "agent_capability": 1.0,
+        "validation_strength": 1.0,
+        "rollback_safety": 0.7,
+        "source_reliability": 0.3,
+        "expected_leverage": 0.3,
+        "blast_radius_safety": 1.0
+      },
+      "weighted_score": 0.755,
+      "rank": 2,
+      "eligible": true,
+      "blocking_reasons": [],
+      "promotion_class": "supervised_low_risk",
+      "recommended_action": "eligible with operator review \u2014 template or agent below execute threshold",
+      "evidence_trace": {
+        "template_id": "tpl-seed-cockpit-panel-fix-01",
+        "template_confidence": 0.8,
+        "template_production_successes": 2,
+        "agent_type": "developer_agent",
+        "agent_score": 1.0,
+        "source": "template_audit_gaps",
+        "source_score": 0.3,
+        "validation_method": "assertion",
+        "validation_score": 1.0,
+        "rollback_score": 0.7,
+        "production_truth_score": 0.7699999999999999
+      }
+    },
+    {
+      "candidate_id": "cse-cf52300e",
+      "raw_scores": {
+        "template_reliability": 0.76,
+        "agent_capability": 1.0,
+        "validation_strength": 1.0,
+        "rollback_safety": 0.7,
+        "source_reliability": 0.3,
+        "expected_leverage": 0.3,
+        "blast_radius_safety": 1.0
+      },
+      "weighted_score": 0.755,
+      "rank": 3,
+      "eligible": true,
+      "blocking_reasons": [],
+      "promotion_class": "supervised_low_risk",
+      "recommended_action": "eligible with operator review \u2014 template or agent below execute threshold",
+      "evidence_trace": {
+        "template_id": "tpl-seed-cockpit-panel-fix-01",
+        "template_confidence": 0.8,
+        "template_production_successes": 2,
+        "agent_type": "developer_agent",
+        "agent_score": 1.0,
+        "source": "template_audit_gaps",
+        "source_score": 0.3,
+        "validation_method": "assertion",
+        "validation_score": 1.0,
+        "rollback_score": 0.7,
+        "production_truth_score": 0.7699999999999999
+      }
+    },
+    {
+      "candidate_id": "cse-bc552c93",
+      "raw_scores": {
+        "template_reliability": 0.76,
+        "agent_capability": 1.0,
+        "validation_strength": 1.0,
+        "rollback_safety": 0.7,
+        "source_reliability": 0.3,
+        "expected_leverage": 0.3,
+        "blast_radius_safety": 1.0
+      },
+      "weighted_score": 0.755,
+      "rank": 4,
+      "eligible": true,
+      "blocking_reasons": [],
+      "promotion_class": "supervised_low_risk",
+      "recommended_action": "eligible with operator review \u2014 template or agent below execute threshold",
+      "evidence_trace": {
+        "template_id": "tpl-seed-cockpit-panel-fix-01",
+        "template_confidence": 0.8,
+        "template_production_successes": 2,
+        "agent_type": "developer_agent",
+        "agent_score": 1.0,
+        "source": "template_audit_gaps",
+        "source_score": 0.3,
+        "validation_method": "assertion",
+        "validation_score": 1.0,
+        "rollback_score": 0.7,
+        "production_truth_score": 0.7699999999999999
+      }
+    }
+  ],
+  "promotion_thresholds": {
+    "levels": [
+      {
+        "level": "dry_run_only",
+        "threshold": {},
+        "met": true,
+        "checks": {
+          "always_available": true
+        },
+        "unmet_reasons": []
+      },
+      {
+        "level": "supervised_pr_creation",
+        "threshold": {
+          "template_reliability": 0.8,
+          "agent_reliability": 0.75,
+          "validation_reliability": 0.8,
+          "production_success_count": 3,
+          "rollback_required": true,
+          "no_unresolved_failures": true
+        },
+        "met": false,
+        "checks": {
+          "template_reliability": true,
+          "agent_reliability": true,
+          "validation_reliability": true,
+          "production_success_count": true,
+          "rollback_required": true,
+          "no_unresolved_failures": false
+        },
+        "unmet_reasons": [
+          "unresolved production failures exist"
+        ]
+      },
+      {
+        "level": "low_risk_batch_mode",
+        "threshold": {
+          "template_reliability": 0.8,
+          "agent_reliability": 0.75,
+          "validation_reliability": 0.8,
+          "production_success_count": 5,
+          "rollback_required": true,
+          "no_unresolved_failures": true,
+          "last_n_verifications_pass": 5,
+          "no_duplicate_emission_failures": true,
+          "no_unresolved_sandbox_hygiene": true,
+          "no_active_pr_conflicts": true,
+          "operator_enables_batch": true
+        },
+        "met": false,
+        "checks": {
+          "template_reliability": true,
+          "agent_reliability": true,
+          "validation_reliability": true,
+          "production_success_count": true,
+          "rollback_required": true,
+          "no_unresolved_failures": false,
+          "last_n_verifications_pass": false,
+          "no_duplicate_emission_failures": true,
+          "no_unresolved_sandbox_hygiene": true,
+          "no_active_pr_conflicts": true,
+          "operator_enables_batch": false
+        },
+        "unmet_reasons": [
+          "unresolved production failures exist",
+          "last 5 verifications not all passing",
+          "operator has not enabled batch mode"
+        ]
+      },
+      {
+        "level": "medium_risk_recommendation_only",
+        "threshold": {
+          "template_reliability": 0.9,
+          "agent_reliability": 0.85,
+          "validation_reliability": 0.9,
+          "production_success_count": 5,
+          "explicit_operator_review": true
+        },
+        "met": false,
+        "checks": {
+          "template_reliability": false,
+          "agent_reliability": true,
+          "validation_reliability": true,
+          "production_success_count": true,
+          "explicit_operator_review": false
+        },
+        "unmet_reasons": [
+          "template_reliability 0.83 < 0.9",
+          "explicit operator review required"
+        ]
+      },
+      {
+        "level": "medium_risk_supervised_review",
+        "threshold": {
+          "execution_blocked": true
+        },
+        "met": false,
+        "checks": {
+          "execution_blocked": true
+        },
+        "unmet_reasons": [
+          "execution blocked until future phase"
+        ]
+      }
+    ],
+    "highest_eligible": "dry_run_only",
+    "medium_risk_execution_blocked": true
+  },
+  "source_scan_proof": {
+    "contradiction_engine": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "world_model": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "dependency_graph": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "readiness_model": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "bottleneck_engine": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "template_audit_gaps": {
+      "scanned": true,
+      "candidates_found": 4,
+      "error": null
+    },
+    "stale_test_paths": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "missing_package_init": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "stale_docstrings": {
+      "scanned": true,
+      "candidates_found": 2,
+      "error": null
+    }
+  },
+  "resolved_suppressions": [
+    "scripts/github_trinity_ingest.py",
+    "scripts/notion_setup.py",
+    "runtime template store path",
+    "tests/substrate/__init__.py",
+    "sys.path.insert pointing to non-existent worktree"
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "levels": [
+    {
+      "level": "dry_run_only",
+      "threshold": {},
+      "met": true,
+      "checks": {
+        "always_available": true
+      },
+      "unmet_reasons": []
+    },
+    {
+      "level": "supervised_pr_creation",
+      "threshold": {
+        "template_reliability": 0.8,
+        "agent_reliability": 0.75,
+        "validation_reliability": 0.8,
+        "production_success_count": 3,
+        "rollback_required": true,
+        "no_unresolved_failures": true
+      },
+      "met": false,
+      "checks": {
+        "template_reliability": true,
+        "agent_reliability": true,
+        "validation_reliability": true,
+        "production_success_count": true,
+        "rollback_required": true,
+        "no_unresolved_failures": false
+      },
+      "unmet_reasons": [
+        "unresolved production failures exist"
+      ]
+    },
+    {
+      "level": "low_risk_batch_mode",
+      "threshold": {
+        "template_reliability": 0.8,
+        "agent_reliability": 0.75,
+        "validation_reliability": 0.8,
+        "production_success_count": 5,
+        "rollback_required": true,
+        "no_unresolved_failures": true,
+        "last_n_verifications_pass": 5,
+        "no_duplicate_emission_failures": true,
+        "no_unresolved_sandbox_hygiene": true,
+        "no_active_pr_conflicts": true,
+        "operator_enables_batch": true
+      },
+      "met": false,
+      "checks": {
+        "template_reliability": true,
+        "agent_reliability": true,
+        "validation_reliability": true,
+        "production_success_count": true,
+        "rollback_required": true,
+        "no_unresolved_failures": false,
+        "last_n_verifications_pass": false,
+        "no_duplicate_emission_failures": true,
+        "no_unresolved_sandbox_hygiene": true,
+        "no_active_pr_conflicts": true,
+        "operator_enables_batch": false
+      },
+      "unmet_reasons": [
+        "unresolved production failures exist",
+        "last 5 verifications not all passing",
+        "operator has not enabled batch mode"
+      ]
+    },
+    {
+      "level": "medium_risk_recommendation_only",
+      "threshold": {
+        "template_reliability": 0.9,
+        "agent_reliability": 0.85,
+        "validation_reliability": 0.9,
+        "production_success_count": 5,
+        "explicit_operator_review": true
+      },
+      "met": false,
+      "checks": {
+        "template_reliability": false,
+        "agent_reliability": true,
+        "validation_reliability": true,
+        "production_success_count": true,
+        "explicit_operator_review": false
+      },
+      "unmet_reasons": [
+        "template_reliability 0.83 < 0.9",
+        "explicit operator review required"
+      ]
+    },
+    {
+      "level": "medium_risk_supervised_review",
+      "threshold": {
+        "execution_blocked": true
+      },
+      "met": false,
+      "checks": {
+        "execution_blocked": true
+      },
+      "unmet_reasons": [
+        "execution blocked until future phase"
+      ]
+    }
+  ],
+  "highest_eligible": "dry_run_only",
+  "medium_risk_execution_blocked": true
+}

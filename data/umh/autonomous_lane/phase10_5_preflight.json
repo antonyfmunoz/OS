@@ -1,0 +1,81 @@
+{
+  "phase": "10.5",
+  "title": "Preflight Verification \u2014 Phase 10.4R Complete",
+  "timestamp": "2026-05-30T08:26:23.672383+00:00",
+  "checks": {
+    "1_phase10_4r_audit_exists": {
+      "status": "PASS",
+      "path": "docs/audits/convergence/phase10_4r_low_risk_campaign_closure.md"
+    },
+    "2_main_includes_10_4r_artifacts": {
+      "status": "PASS",
+      "commit": "cbaf5593",
+      "artifact_count": 9
+    },
+    "3_runtime_commit_matches_main": {
+      "status": "PASS",
+      "runtime_health": "ok"
+    },
+    "4_prs_closed_merged": {
+      "status": "PASS",
+      "pr50": "MERGED",
+      "pr51": "MERGED",
+      "pr52": "MERGED",
+      "pr53": "MERGED"
+    },
+    "5_production_truth_deltas": {
+      "status": "PASS",
+      "deltas": {
+        "pr50": {
+          "pmv": "pmv-2276623d",
+          "delta": "ptd-4c14024d",
+          "verified": true
+        },
+        "pr51": {
+          "pmv": "pmv-41f330b9",
+          "delta": "ptd-b2c0d5ad",
+          "verified": true
+        },
+        "pr52": {
+          "pmv": "pmv-a3bc1b4a",
+          "delta": "ptd-b84aaa3c",
+          "verified": true
+        },
+        "pr53": {
+          "pmv": "pmv-47a6e167",
+          "delta": "ptd-087e8181",
+          "verified": true
+        }
+      }
+    },
+    "6_production_outcome_committed_once_each": {
+      "status": "PASS",
+      "note": "Each PMV has exactly one truth delta; duplicate suppression via _emitted_event_ids"
+    },
+    "7_candidate_suppression": {
+      "status": "PASS",
+      "suppressed": [
+        "pr47",
+        "pr50",
+        "pr51",
+        "pr52",
+        "pr53"
+      ],
+      "remaining": 4
+    },
+    "8_template_reliability_present": {
+      "status": "PASS",
+      "tpl-seed-documentation-alignment-01": 0.85,
+      "tpl-seed-test-repair-01": 0.82
+    },
+    "9_agent_reliability_present": {
+      "status": "PASS",
+      "developer_agent": 1.0
+    },
+    "10_cadence_dry_run_only": {
+      "status": "PASS",
+      "mode": "dry_run_only"
+    }
+  },
+  "verdict": "ALL 10 CHECKS PASS \u2014 clear to build Phase 10.5"
+}
