@@ -29,8 +29,8 @@ def configure(require_operator_dep: Any) -> None:
 
 
 def _get_orchestrator():
-    from substrate.organism.dex_orchestrator import DexOrchestrator
-    return DexOrchestrator()
+    from substrate.organism.orchestrator_kernel import OrchestratorKernel
+    return OrchestratorKernel()
 
 
 def _build_router(require_operator_dep: Any) -> APIRouter:

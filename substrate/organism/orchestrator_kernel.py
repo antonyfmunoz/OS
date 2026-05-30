@@ -95,7 +95,7 @@ _ENTITY_PATTERNS: list[tuple[str, str]] = [
 ]
 
 
-class DexOrchestrator:
+class OrchestratorKernel:
     """Central orchestrator kernel for operator interaction.
 
     Integrates all Phase 11-12 subsystems. Never executes work

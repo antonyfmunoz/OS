@@ -1,7 +1,7 @@
 """Phase 13.0 — Jarvis-Level Operator Experience Kernel tests.
 
 Covers: OperatorSession, OperatorTurn, OperatorIntent, OperatorResponse,
-Option, DexOrchestrator intent classification, context assembly, packet
+Option, OrchestratorKernel intent classification, context assembly, packet
 creation, duplicate suppression, topology preview, propagation preview,
 status query, approval query, governance invariants, API route shapes,
 session persistence, response persistence, and safety guarantees.
@@ -38,7 +38,7 @@ from substrate.organism.operator_response import (
     persist_responses,
     load_responses,
 )
-from substrate.organism.dex_orchestrator import DexOrchestrator
+from substrate.organism.orchestrator_kernel import OrchestratorKernel
 
 
 # ── OperatorIntent serialization ─────────────────────────────────────────
@@ -406,11 +406,11 @@ class TestTurnIntentPersistence:
         assert data["raw_input"] == "test"
 
 
-# ── DexOrchestrator intent classification ────────────────────────────────
+# ── OrchestratorKernel intent classification ────────────────────────────────
 
-class TestDexOrchestratorIntentClassification:
+class TestOrchestratorKernelIntentClassification:
     def setup_method(self):
-        self.orch = DexOrchestrator(
+        self.orch = OrchestratorKernel(
             sessions_path="/dev/null",
             responses_path="/dev/null",
         )
@@ -475,11 +475,11 @@ class TestDexOrchestratorIntentClassification:
         assert intent.requires_approval is False
 
 
-# ── DexOrchestrator context assembly ─────────────────────────────────────
+# ── OrchestratorKernel context assembly ─────────────────────────────────────
 
-class TestDexOrchestratorContextAssembly:
+class TestOrchestratorKernelContextAssembly:
     def setup_method(self):
-        self.orch = DexOrchestrator(
+        self.orch = OrchestratorKernel(
             sessions_path="/dev/null",
             responses_path="/dev/null",
         )
@@ -506,15 +506,15 @@ class TestDexOrchestratorContextAssembly:
         assert "graph_summary" in context
 
 
-# ── DexOrchestrator flows ────────────────────────────────────────────────
+# ── OrchestratorKernel flows ────────────────────────────────────────────────
 
-class TestDexOrchestratorFlows:
+class TestOrchestratorKernelFlows:
     def setup_method(self):
         self.tmp_dir = tempfile.mkdtemp()
         self.sessions_path = os.path.join(self.tmp_dir, "sessions.jsonl")
         self.responses_path = os.path.join(self.tmp_dir, "responses.jsonl")
         self.work_packets_path = os.path.join(self.tmp_dir, "work_packets.jsonl")
-        self.orch = DexOrchestrator(
+        self.orch = OrchestratorKernel(
             sessions_path=self.sessions_path,
             responses_path=self.responses_path,
             work_packets_path=self.work_packets_path,
@@ -580,7 +580,7 @@ class TestDexOrchestratorFlows:
 class TestGovernanceSafety:
     def setup_method(self):
         self.tmp_dir = tempfile.mkdtemp()
-        self.orch = DexOrchestrator(
+        self.orch = OrchestratorKernel(
             sessions_path=os.path.join(self.tmp_dir, "sessions.jsonl"),
             responses_path=os.path.join(self.tmp_dir, "responses.jsonl"),
             work_packets_path=os.path.join(self.tmp_dir, "work_packets.jsonl"),
@@ -633,7 +633,7 @@ class TestGovernanceSafety:
 class TestDuplicateSuppression:
     def setup_method(self):
         self.tmp_dir = tempfile.mkdtemp()
-        self.orch = DexOrchestrator(
+        self.orch = OrchestratorKernel(
             sessions_path=os.path.join(self.tmp_dir, "sessions.jsonl"),
             responses_path=os.path.join(self.tmp_dir, "responses.jsonl"),
             work_packets_path=os.path.join(self.tmp_dir, "work_packets.jsonl"),
@@ -650,7 +650,7 @@ class TestDuplicateSuppression:
 class TestSessionPacketLinkage:
     def setup_method(self):
         self.tmp_dir = tempfile.mkdtemp()
-        self.orch = DexOrchestrator(
+        self.orch = OrchestratorKernel(
             sessions_path=os.path.join(self.tmp_dir, "sessions.jsonl"),
             responses_path=os.path.join(self.tmp_dir, "responses.jsonl"),
             work_packets_path=os.path.join(self.tmp_dir, "work_packets.jsonl"),
@@ -674,7 +674,7 @@ class TestSessionPacketLinkage:
 class TestPropagationPreview:
     def setup_method(self):
         self.tmp_dir = tempfile.mkdtemp()
-        self.orch = DexOrchestrator(
+        self.orch = OrchestratorKernel(
             sessions_path=os.path.join(self.tmp_dir, "sessions.jsonl"),
             responses_path=os.path.join(self.tmp_dir, "responses.jsonl"),
             work_packets_path=os.path.join(self.tmp_dir, "work_packets.jsonl"),
@@ -699,7 +699,7 @@ class TestPropagationPreview:
 class TestTopologyPreview:
     def setup_method(self):
         self.tmp_dir = tempfile.mkdtemp()
-        self.orch = DexOrchestrator(
+        self.orch = OrchestratorKernel(
             sessions_path=os.path.join(self.tmp_dir, "sessions.jsonl"),
             responses_path=os.path.join(self.tmp_dir, "responses.jsonl"),
             work_packets_path=os.path.join(self.tmp_dir, "work_packets.jsonl"),
@@ -764,7 +764,7 @@ class TestAPIResponseShape:
 class TestNoFakeData:
     def setup_method(self):
         self.tmp_dir = tempfile.mkdtemp()
-        self.orch = DexOrchestrator(
+        self.orch = OrchestratorKernel(
             sessions_path=os.path.join(self.tmp_dir, "sessions.jsonl"),
             responses_path=os.path.join(self.tmp_dir, "responses.jsonl"),
             work_packets_path=os.path.join(self.tmp_dir, "work_packets.jsonl"),
@@ -795,7 +795,7 @@ class TestNoFakeData:
 class TestNoProductionMutation:
     def setup_method(self):
         self.tmp_dir = tempfile.mkdtemp()
-        self.orch = DexOrchestrator(
+        self.orch = OrchestratorKernel(
             sessions_path=os.path.join(self.tmp_dir, "sessions.jsonl"),
             responses_path=os.path.join(self.tmp_dir, "responses.jsonl"),
             work_packets_path=os.path.join(self.tmp_dir, "work_packets.jsonl"),
@@ -823,7 +823,7 @@ class TestNoProductionMutation:
 class TestConcurrentSessions:
     def setup_method(self):
         self.tmp_dir = tempfile.mkdtemp()
-        self.orch = DexOrchestrator(
+        self.orch = OrchestratorKernel(
             sessions_path=os.path.join(self.tmp_dir, "sessions.jsonl"),
             responses_path=os.path.join(self.tmp_dir, "responses.jsonl"),
             work_packets_path=os.path.join(self.tmp_dir, "work_packets.jsonl"),
