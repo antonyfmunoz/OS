@@ -1,0 +1,96 @@
+{
+  "phase": "11.1",
+  "date": "2026-05-30",
+  "topologies": [
+    {
+      "intent": "Build the first EOS operating dashboard for Empyrean Studios.",
+      "topology": {
+        "topology_id": "topo-d4eeebbb",
+        "packet_id": "",
+        "topology_type": "single_agent",
+        "reason": "Simple work suitable for single agent",
+        "lead_role_contract": "",
+        "supporting_role_contracts": [],
+        "workcells": [],
+        "advisor_council": [],
+        "subdivision_policy": "",
+        "reconvergence_protocol": "",
+        "governance_boundary": "",
+        "expected_outputs": [],
+        "confidence": 0.9
+      }
+    },
+    {
+      "intent": "Deep dive Polsia and explain what it means for UMH.",
+      "topology": {
+        "topology_id": "topo-edd5ef3a",
+        "packet_id": "",
+        "topology_type": "single_agent",
+        "reason": "Simple work suitable for single agent",
+        "lead_role_contract": "",
+        "supporting_role_contracts": [],
+        "workcells": [],
+        "advisor_council": [],
+        "subdivision_policy": "",
+        "reconvergence_protocol": "",
+        "governance_boundary": "",
+        "expected_outputs": [],
+        "confidence": 0.9
+      }
+    },
+    {
+      "intent": "Launch the B2B AI Automation offer for Empyrean Studios.",
+      "topology": {
+        "topology_id": "topo-43586b43",
+        "packet_id": "",
+        "topology_type": "single_agent",
+        "reason": "Simple work suitable for single agent",
+        "lead_role_contract": "",
+        "supporting_role_contracts": [],
+        "workcells": [],
+        "advisor_council": [],
+        "subdivision_policy": "",
+        "reconvergence_protocol": "",
+        "governance_boundary": "",
+        "expected_outputs": [],
+        "confidence": 0.9
+      }
+    },
+    {
+      "intent": "Clean up sandbox .planning/config.json artifacts.",
+      "topology": {
+        "topology_id": "topo-92eb5b8d",
+        "packet_id": "",
+        "topology_type": "single_agent",
+        "reason": "Simple work suitable for single agent",
+        "lead_role_contract": "",
+        "supporting_role_contracts": [],
+        "workcells": [],
+        "advisor_council": [],
+        "subdivision_policy": "",
+        "reconvergence_protocol": "",
+        "governance_boundary": "",
+        "expected_outputs": [],
+        "confidence": 0.9
+      }
+    },
+    {
+      "intent": "Prepare Phase 12 Universal Propagation Graph.",
+      "topology": {
+        "topology_id": "topo-6934390f",
+        "packet_id": "",
+        "topology_type": "single_agent",
+        "reason": "Simple work suitable for single agent",
+        "lead_role_contract": "",
+        "supporting_role_contracts": [],
+        "workcells": [],
+        "advisor_council": [],
+        "subdivision_policy": "",
+        "reconvergence_protocol": "",
+        "governance_boundary": "",
+        "expected_outputs": [],
+        "confidence": 0.9
+      }
+    }
+  ]
+}

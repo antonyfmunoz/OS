@@ -49,6 +49,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'company', label: 'Company', icon: Building2, group: 'operations', key: 'c' },
   { id: 'worldmodel', label: 'World Model', icon: Globe, group: 'operations', key: 'g' },
   { id: 'selfbuild', label: 'Self-Build', icon: Hammer, group: 'operations', key: 'b' },
+  { id: 'universalwork', label: 'Universal Work', icon: Layers, group: 'operations', key: 'w' },
   { id: 'intelligence', label: 'Intelligence', icon: Lightbulb, group: 'intelligence', key: 'n' },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'intelligence', key: '5' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'intelligence', key: '6' },

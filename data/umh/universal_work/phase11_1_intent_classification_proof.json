@@ -1,0 +1,120 @@
+{
+  "phase": "11.1",
+  "date": "2026-05-30",
+  "classifications": [
+    {
+      "intent": "Build the first EOS operating dashboard for Empyrean Studios.",
+      "classification": {
+        "domain": "product",
+        "subdomain": "general",
+        "entity": "EOS",
+        "company": "Empyrean Studios",
+        "project": "",
+        "product": "EOS",
+        "work_type": "implementation",
+        "desired_output": "Working code with tests",
+        "required_knowledge": [
+          "entity_eos"
+        ],
+        "required_executor_type": "implementation_operator",
+        "risk_class": "low",
+        "complexity": "simple",
+        "parallel_workcells_needed": false,
+        "human_action_required": false,
+        "approval_required": false,
+        "execution_possible": true
+      }
+    },
+    {
+      "intent": "Deep dive Polsia and explain what it means for UMH.",
+      "classification": {
+        "domain": "learning",
+        "subdomain": "general",
+        "entity": "UMH",
+        "company": "",
+        "project": "",
+        "product": "",
+        "work_type": "research",
+        "desired_output": "Research report with findings",
+        "required_knowledge": [
+          "entity_umh"
+        ],
+        "required_executor_type": "research_operator",
+        "risk_class": "low",
+        "complexity": "simple",
+        "parallel_workcells_needed": false,
+        "human_action_required": false,
+        "approval_required": false,
+        "execution_possible": true
+      }
+    },
+    {
+      "intent": "Launch the B2B AI Automation offer for Empyrean Studios.",
+      "classification": {
+        "domain": "business",
+        "subdomain": "offer_development",
+        "entity": "Empyrean Studios",
+        "company": "Empyrean Studios",
+        "project": "",
+        "product": "",
+        "work_type": "deployment",
+        "desired_output": "Deployed and verified service",
+        "required_knowledge": [
+          "business_operations",
+          "entity_empyrean_studios"
+        ],
+        "required_executor_type": "operations_operator",
+        "risk_class": "low",
+        "complexity": "simple",
+        "parallel_workcells_needed": false,
+        "human_action_required": false,
+        "approval_required": false,
+        "execution_possible": true
+      }
+    },
+    {
+      "intent": "Clean up sandbox .planning/config.json artifacts.",
+      "classification": {
+        "domain": "admin",
+        "subdomain": "general",
+        "entity": "",
+        "company": "",
+        "project": "",
+        "product": "",
+        "work_type": "planning",
+        "desired_output": "Plan document with phases and milestones",
+        "required_knowledge": [],
+        "required_executor_type": "strategy_operator",
+        "risk_class": "low",
+        "complexity": "simple",
+        "parallel_workcells_needed": false,
+        "human_action_required": false,
+        "approval_required": false,
+        "execution_possible": true
+      }
+    },
+    {
+      "intent": "Prepare Phase 12 Universal Propagation Graph.",
+      "classification": {
+        "domain": "self_build",
+        "subdomain": "implementation",
+        "entity": "",
+        "company": "",
+        "project": "",
+        "product": "",
+        "work_type": "planning",
+        "desired_output": "Plan document with phases and milestones",
+        "required_knowledge": [
+          "umh_architecture"
+        ],
+        "required_executor_type": "strategy_operator",
+        "risk_class": "low",
+        "complexity": "simple",
+        "parallel_workcells_needed": false,
+        "human_action_required": false,
+        "approval_required": false,
+        "execution_possible": true
+      }
+    }
+  ]
+}
