@@ -1,0 +1,73 @@
+{
+  "phase": "11.1",
+  "date": "2026-05-30",
+  "routes": {
+    "GET /api/umh/organism/universal-work": {
+      "registered": true,
+      "auth": "none"
+    },
+    "GET /api/umh/organism/universal-work/summary": {
+      "registered": true,
+      "auth": "none"
+    },
+    "GET /api/umh/organism/universal-work/packets": {
+      "registered": true,
+      "auth": "none"
+    },
+    "GET /api/umh/organism/universal-work/packets/:id": {
+      "registered": true,
+      "auth": "none"
+    },
+    "GET /api/umh/organism/universal-work/next": {
+      "registered": true,
+      "auth": "none"
+    },
+    "GET /api/umh/organism/universal-work/domain/:domain": {
+      "registered": true,
+      "auth": "none"
+    },
+    "GET /api/umh/organism/universal-work/blocked": {
+      "registered": true,
+      "auth": "none"
+    },
+    "GET /api/umh/organism/universal-work/human-required": {
+      "registered": true,
+      "auth": "none"
+    },
+    "GET /api/umh/organism/universal-work/approval-required": {
+      "registered": true,
+      "auth": "none"
+    },
+    "POST /api/umh/organism/universal-work/create": {
+      "registered": true,
+      "auth": "operator_token"
+    },
+    "POST /api/umh/organism/universal-work/packets/:id/status": {
+      "registered": true,
+      "auth": "operator_token"
+    },
+    "POST /api/umh/organism/universal-work/packets/:id/link": {
+      "registered": true,
+      "auth": "operator_token"
+    },
+    "GET /api/umh/organism/workcells": {
+      "registered": true,
+      "auth": "none"
+    },
+    "GET /api/umh/organism/workcells/:id": {
+      "registered": true,
+      "auth": "none"
+    },
+    "GET /api/umh/organism/role-contracts": {
+      "registered": true,
+      "auth": "none"
+    },
+    "GET /api/umh/organism/knowledge-models": {
+      "registered": true,
+      "auth": "none"
+    }
+  },
+  "post_routes_require_auth": true,
+  "input_validation": true,
+  "all_pass": true
+}
