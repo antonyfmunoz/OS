@@ -1,0 +1,168 @@
+{
+  "verification_type": "phase10_1_live_candidate_supply",
+  "timestamp": 1780108597.379599,
+  "candidate_count": 4,
+  "scan_duration_seconds": 0.013,
+  "source_scan_proof": {
+    "contradiction_engine": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "world_model": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "dependency_graph": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "readiness_model": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "bottleneck_engine": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "template_audit_gaps": {
+      "scanned": true,
+      "candidates_found": 4,
+      "error": null
+    }
+  },
+  "candidates": [
+    {
+      "candidate_id": "cse-5cf61f97",
+      "source": "template_audit_gaps",
+      "title": "Audit gap: Runtime template store path does not exist",
+      "description": "Template audit identified gap: Runtime template store path does not exist. daemon.py initializes TemplateRegistry at data/umh/organism/templates/ (str(self._state_dir / 'templates')). This directory has never been created. TemplateRegistry._load_from_path() opens template_candidates.jsonl and templates.jsonl \u2014 both 404. Result: _candidates={} and _promoted={}.",
+      "evidence": [
+        {
+          "source": "template_audit",
+          "detail": "gap_id=gap-1, severity=critical, title=Runtime template store path does not exist",
+          "confidence": 0.7
+        }
+      ],
+      "affected_files": [],
+      "risk_class": "low",
+      "matching_templates": [
+        "tpl-seed-cockpit-panel-fix-01"
+      ],
+      "policy_decision": "cadence_eligible",
+      "blocked_reasons": [],
+      "expected_delta": "Close audit gap: Runtime template store path does not exist",
+      "recommended_next_step": "Phase 4 \u2014 create directory and seed production templates there",
+      "template_confidence": 0.8,
+      "agent_reliability": 0.8,
+      "validation_method": "assertion",
+      "rollback_method": "revert",
+      "non_mutating": false,
+      "created_at": 1780108597.378944
+    },
+    {
+      "candidate_id": "cse-dad1935f",
+      "source": "template_audit_gaps",
+      "title": "Audit gap: require_template=True gates all candidates when registry is empty",
+      "description": "Template audit identified gap: require_template=True gates all candidates when registry is empty. AutonomousLanePolicy.require_template=True (default). CandidateEvaluator.evaluate() lines 499-508: when find_matching() returns [], candidate.matching_template_id='', checks['template_exists']=False, reasons.append('no matching template found'). All candidates are blocked.",
+      "evidence": [
+        {
+          "source": "template_audit",
+          "detail": "gap_id=gap-2, severity=critical, title=require_template=True gates all candidates when registry is empty",
+          "confidence": 0.7
+        }
+      ],
+      "affected_files": [],
+      "risk_class": "low",
+      "matching_templates": [
+        "tpl-seed-cockpit-panel-fix-01"
+      ],
+      "policy_decision": "cadence_eligible",
+      "blocked_reasons": [],
+      "expected_delta": "Close audit gap: require_template=True gates all candidates when registry is empty",
+      "recommended_next_step": "Phase 4 \u2014 seed templates so find_matching() returns non-empty results",
+      "template_confidence": 0.8,
+      "agent_reliability": 0.8,
+      "validation_method": "assertion",
+      "rollback_method": "revert",
+      "non_mutating": false,
+      "created_at": 1780108597.3789556
+    },
+    {
+      "candidate_id": "cse-94f39772",
+      "source": "template_audit_gaps",
+      "title": "Audit gap: Only existing template data record is at wrong path",
+      "description": "Template audit identified gap: Only existing template data record is at wrong path. tpl-0b21c294 lives at data/umh/trials/proof_templates/template_candidates.jsonl. Runtime registry loads from data/umh/organism/templates/template_candidates.jsonl. These paths have no overlap. The one proof template has never been loadable at runtime.",
+      "evidence": [
+        {
+          "source": "template_audit",
+          "detail": "gap_id=gap-3, severity=high, title=Only existing template data record is at wrong path",
+          "confidence": 0.7
+        }
+      ],
+      "affected_files": [],
+      "risk_class": "low",
+      "matching_templates": [
+        "tpl-seed-cockpit-panel-fix-01"
+      ],
+      "policy_decision": "cadence_eligible",
+      "blocked_reasons": [],
+      "expected_delta": "Close audit gap: Only existing template data record is at wrong path",
+      "recommended_next_step": "Phase 4 \u2014 seed proper templates to organism/templates/ with real evidence",
+      "template_confidence": 0.8,
+      "agent_reliability": 0.8,
+      "validation_method": "assertion",
+      "rollback_method": "revert",
+      "non_mutating": false,
+      "created_at": 1780108597.3789618
+    },
+    {
+      "candidate_id": "cse-4a83147f",
+      "source": "template_audit_gaps",
+      "title": "Audit gap: Zero templates exist for any of the 15 TemplateType values",
+      "description": "Template audit identified gap: Zero templates exist for any of the 15 TemplateType values. 15 TemplateType values are defined. CandidateBuilder._enrich_with_template() uses find_matching(action_type, description) which infers template_type and matches on that. With 0 templates of any type, every find_matching() call returns []. Even after gap-1 is fixed, every template type needed by real candidates must have at least one seeded instance.",
+      "evidence": [
+        {
+          "source": "template_audit",
+          "detail": "gap_id=gap-5, severity=high, title=Zero templates exist for any of the 15 TemplateType values",
+          "confidence": 0.7
+        }
+      ],
+      "affected_files": [],
+      "risk_class": "low",
+      "matching_templates": [
+        "tpl-seed-cockpit-panel-fix-01"
+      ],
+      "policy_decision": "cadence_eligible",
+      "blocked_reasons": [],
+      "expected_delta": "Close audit gap: Zero templates exist for any of the 15 TemplateType values",
+      "recommended_next_step": "Phase 4 \u2014 seed at minimum: MAINTENANCE_ACTION, CONTRADICTION_FIX, READINESS_IMPROVEMENT, OBSERVATION_ACCURACY_FIX, WORLD_MODEL_ACCURACY_FIX",
+      "template_confidence": 0.8,
+      "agent_reliability": 0.8,
+      "validation_method": "assertion",
+      "rollback_method": "revert",
+      "non_mutating": false,
+      "created_at": 1780108597.37897
+    }
+  ],
+  "engine_summary": {
+    "sources_scanned": {
+      "contradiction_engine": true,
+      "world_model": true,
+      "dependency_graph": true,
+      "readiness_model": true,
+      "bottleneck_engine": true,
+      "template_audit_gaps": true
+    },
+    "sources_active": 6,
+    "sources_failed": 0
+  },
+  "all_sources_scanned": true,
+  "candidates_with_evidence": 4,
+  "candidates_with_templates": 4,
+  "candidates_with_governance": 4
+}
