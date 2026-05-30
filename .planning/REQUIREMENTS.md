@@ -76,19 +76,19 @@
 
 ### Testing
 
-- [ ] **TST-01**: TemplateSeeder tests (evidence loading, candidate creation, risk assignment, validation/rollback requirements)
-- [ ] **TST-02**: TemplateGovernance tests (eligibility pass, risk blocking, evidence blocking, validation blocking, rollback blocking, sensitive path blocking, reason codes)
-- [ ] **TST-03**: CandidateSupplyEngine tests (builds from each source type, template matching, ranking, unsafe blocking, serialization)
-- [ ] **TST-04**: Cadence integration tests (dry-run uses supply, no mutation, persists candidates, truthful empty supply)
-- [ ] **TST-05**: Route extraction tests (routes imported, routers mounted, auth preserved, response shapes unchanged)
-- [ ] **TST-06**: All prior phase test suites pass (8 through 9.9)
-- [ ] **TST-07**: Pre-commit gates pass (type divergence, instance leak, dependency direction, projection boundary)
-- [ ] **TST-08**: Minimum 80 new tests for new production code
+- [x] **TST-01**: TemplateSeeder tests (evidence loading, candidate creation, risk assignment, validation/rollback requirements)
+- [x] **TST-02**: TemplateGovernance tests (eligibility pass, risk blocking, evidence blocking, validation blocking, rollback blocking, sensitive path blocking, reason codes)
+- [x] **TST-03**: CandidateSupplyEngine tests (builds from each source type, template matching, ranking, unsafe blocking, serialization)
+- [x] **TST-04**: Cadence integration tests (dry-run uses supply, no mutation, persists candidates, truthful empty supply)
+- [x] **TST-05**: Route extraction tests (routes imported, routers mounted, auth preserved, response shapes unchanged)
+- [x] **TST-06**: All prior phase test suites pass (8 through 9.9)
+- [x] **TST-07**: Pre-commit gates pass (type divergence, instance leak, dependency direction, projection boundary)
+- [x] **TST-08**: Minimum 80 new tests for new production code
 
 ### Audit
 
-- [ ] **AUD-01**: Phase 10.0 audit report created with all verification evidence
-- [ ] **AUD-02**: Report includes preflight, template audit, seeded library, governance, candidate supply, cadence proof, route extraction proof, cockpit line count before/after, browser proof or blocker, PR preview, test results, remaining blockers
+- [x] **AUD-01**: Phase 10.0 audit report created with all verification evidence
+- [x] **AUD-02**: Report includes preflight, template audit, seeded library, governance, candidate supply, cadence proof, route extraction proof, cockpit line count before/after, browser proof or blocker, PR preview, test results, remaining blockers
 
 ## v2 Requirements
 
@@ -161,16 +161,16 @@
 | BRW-01 | Phase 10 | Complete |
 | BRW-02 | Phase 10 | Blocked — new routes not deployed |
 | BRW-03 | Phase 10 | Complete |
-| TST-01 | Phase 11 | Pending |
-| TST-02 | Phase 11 | Pending |
-| TST-03 | Phase 11 | Pending |
-| TST-04 | Phase 11 | Pending |
-| TST-05 | Phase 11 | Pending |
-| TST-06 | Phase 11 | Pending |
-| TST-07 | Phase 11 | Pending |
-| TST-08 | Phase 11 | Pending |
-| AUD-01 | Phase 12 | Pending |
-| AUD-02 | Phase 12 | Pending |
+| TST-01 | Phase 11 | Complete |
+| TST-02 | Phase 11 | Complete |
+| TST-03 | Phase 11 | Complete |
+| TST-04 | Phase 11 | Complete |
+| TST-05 | Phase 11 | Complete |
+| TST-06 | Phase 11 | Complete |
+| TST-07 | Phase 11 | Complete |
+| TST-08 | Phase 11 | Complete |
+| AUD-01 | Phase 12 | Complete |
+| AUD-02 | Phase 12 | Complete |
 
 **Coverage:**
 - v1 requirements: 48 total
