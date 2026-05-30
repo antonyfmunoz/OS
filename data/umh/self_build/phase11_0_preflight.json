@@ -1,0 +1,85 @@
+{
+  "phase": "11.0",
+  "title": "Self-Build Engineering Queue Preflight",
+  "verified_at": "2026-05-30T17:25:00Z",
+  "checks": {
+    "phase_10_5_audit_exists": {
+      "status": "pass",
+      "evidence": "docs/audits/convergence/phase10_5_reliability_weighted_cadence_ranking.md exists"
+    },
+    "main_includes_phase_10_5": {
+      "status": "pass",
+      "evidence": "commit c2509865 on main: 'feat: phase 10.5 — reliability-weighted cadence ranking + promotion thresholds'"
+    },
+    "cadence_mode_safe": {
+      "status": "pass",
+      "evidence": "CadencePolicy default mode is 'off' (not auto-executing). DRY_RUN_ONLY available as explicit mode."
+    },
+    "reliability_weighted_ranker_live": {
+      "status": "pass",
+      "evidence": "ReliabilityWeightedRanker imports clean, 7 weights configured, execute-ready thresholds set"
+    },
+    "promotion_threshold_policy_live": {
+      "status": "pass",
+      "evidence": "PromotionThresholdPolicy imports clean, 5 cadence levels defined, evaluate_all/evaluate_level methods available"
+    },
+    "candidate_supply_live": {
+      "status": "pass",
+      "evidence": "CandidateSupplyEngine imports clean, discover/discover_for_cadence/mark_resolved methods available"
+    },
+    "template_registry_live": {
+      "status": "pass",
+      "evidence": "TemplateRegistry imports clean, 11 promoted templates, 0 pending approvals"
+    },
+    "agent_reliability_live": {
+      "status": "pass",
+      "evidence": "ReliabilitySignalAggregator returns agent signals: developer_agent score=1.0 (4 successes, 0 failures)"
+    },
+    "production_truth_artifacts_exist": {
+      "status": "pass",
+      "evidence": "data/umh/templates/ contains phase10_0 and phase10_1 audit files; production_truth score=0.77"
+    },
+    "no_unresolved_prs": {
+      "status": "pass",
+      "evidence": "gh pr list --state open returns 0 PRs. PRs #51-54 all merged."
+    },
+    "medium_risk_blocked": {
+      "status": "pass",
+      "evidence": "ReliabilityWeightedRanker blocks medium-risk via _SENSITIVE_PATHS and _BLOCKED_KEYWORDS; PromotionClass.BLOCKED for failures"
+    },
+    "phase_10_audits_complete": {
+      "status": "pass",
+      "evidence": "All Phase 10.x audits exist: 10.3, 10.4, 10.4R, 10.5"
+    }
+  },
+  "template_signals": {
+    "tpl-seed-documentation-alignment-01": {"score": 0.8, "production_successes": 3},
+    "tpl-seed-test-repair-01": {"score": 0.828, "production_successes": 5},
+    "tpl-seed-contradiction-fix-01": {"score": 0.82, "production_successes": 3},
+    "tpl-seed-readiness-improvement-01": {"score": 0.76, "production_successes": 2},
+    "tpl-seed-dependency-graph-fix-01": {"score": 0.82, "production_successes": 4},
+    "tpl-seed-route-extraction-fix-01": {"score": 0.82, "production_successes": 3},
+    "tpl-seed-api-contract-fix-01": {"score": 0.78, "production_successes": 2},
+    "tpl-seed-cockpit-panel-fix-01": {"score": 0.76, "production_successes": 2},
+    "tpl-seed-world-model-accuracy-fix-01": {"score": 0.76, "production_successes": 2},
+    "tpl-seed-observation-accuracy-fix-01": {"score": 0.72, "production_successes": 1},
+    "tpl-seed-maintenance-action-01": {"score": 0.607, "production_successes": 2}
+  },
+  "agent_signals": {
+    "developer_agent": {"score": 1.0, "production_successes": 4, "failures": 0}
+  },
+  "source_signals": {
+    "stale_test_paths": {"score": 1.0},
+    "missing_package_init": {"score": 1.0},
+    "stale_docstrings": {"score": 0.9},
+    "template_audit_gaps": {"score": 0.3}
+  },
+  "production_truth": {
+    "pmv_pass_rate": 0.5,
+    "file_divergence_count": 10,
+    "idempotency_pass_rate": 1.0,
+    "duplicate_suppression_pass_rate": 1.0,
+    "score": 0.77
+  },
+  "verdict": "PASS — all 12 preflight checks pass. Ready for Phase 11.0 build."
+}

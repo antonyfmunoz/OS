@@ -1,0 +1,40 @@
+{
+  "phase": "11.0",
+  "title": "Self-Build Queue Engine Summary",
+  "module": "substrate/organism/self_build_queue.py",
+  "class": "SelfBuildQueueEngine",
+  "methods": {
+    "create_work_item": "Create with duplicate suppression by source_id",
+    "ingest_ranked_candidates": "Batch ingest from reliability-weighted ranker output",
+    "ingest_audit_findings": "Batch ingest from audit reports",
+    "ingest_roadmap_requirements": "Batch ingest from roadmap phase requirements",
+    "rank_work_items": "Deterministic 8-dimension ranking",
+    "update_status": "Governed transition with transition matrix enforcement",
+    "link_approval_packet": "Connect to ApprovalPacket from approval_gate.py",
+    "link_sandbox": "Connect to sandbox execution (ID + branch)",
+    "link_pr": "Connect to GitHub PR URL",
+    "link_production_truth": "Connect to ProductionTruthDelta",
+    "mark_resolved": "Only from PRODUCTION_VERIFIED status",
+    "mark_blocked": "Set blocked reasons and transition to BLOCKED",
+    "mark_superseded": "Mark as superseded by another work item",
+    "get_ready_for_approval": "Items awaiting operator review",
+    "get_active_work": "Items in execution pipeline (approved through merged)",
+    "get_blocked_work": "Items with BLOCKED status",
+    "get_production_verified": "Items with PRODUCTION_VERIFIED status",
+    "get_next_best_work": "Highest-score eligible non-blocked non-medium-risk item",
+    "compute_queue_summary": "Full queue state with counts and next-best"
+  },
+  "ranking_weights": {
+    "reliability_score": 0.25,
+    "expected_leverage": 0.20,
+    "roadmap_priority": 0.15,
+    "template_reliability": 0.10,
+    "agent_reliability": 0.10,
+    "validation_strength": 0.10,
+    "rollback_strength": 0.05,
+    "freshness": 0.05
+  },
+  "status_count": 20,
+  "source_type_count": 13,
+  "persistence": "JSONL at data/umh/self_build/work_items.jsonl"
+}

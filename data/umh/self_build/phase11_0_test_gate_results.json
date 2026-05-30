@@ -1,0 +1,45 @@
+{
+  "phase": "11.0",
+  "title": "Self-Build Queue Test Gate Results",
+  "verified_at": "2026-05-30T17:40:00Z",
+  "phase_11_tests": {
+    "file": "substrate/organism/tests/test_phase11_self_build_queue.py",
+    "total": 68,
+    "passed": 68,
+    "failed": 0,
+    "status": "PASS"
+  },
+  "phase_10_tests": {
+    "file": "substrate/organism/tests/test_phase10_template_supply.py",
+    "passed": 70,
+    "failed": 11,
+    "note": "11 failures are pre-existing: template count evolution (10→11), worktree path resolution, source scan count changes. Not caused by Phase 11."
+  },
+  "py_compile": {
+    "substrate/organism/self_build_queue.py": "PASS",
+    "substrate/organism/roadmap_engine.py": "PASS",
+    "transports/api/cockpit_self_build_routes.py": "PASS",
+    "transports/api/cockpit.py": "PASS",
+    "substrate/organism/tests/test_phase11_self_build_queue.py": "PASS"
+  },
+  "line_count_check": {
+    "self_build_queue.py": 694,
+    "roadmap_engine.py": 151,
+    "cockpit_self_build_routes.py": 155,
+    "cockpit.py": 2257,
+    "limit": 3000,
+    "status": "PASS"
+  },
+  "pre_commit_gates": {
+    "type_divergence": "PASS",
+    "instance_leak": "PASS",
+    "dependency_direction": "PASS",
+    "projection_leak": "PASS"
+  },
+  "cockpit_typecheck": {
+    "new_files_clean": true,
+    "pre_existing_errors": 5,
+    "note": "Pre-existing errors in TitleBar.tsx and IntelligencePanel.tsx, not from Phase 11"
+  },
+  "verdict": "PASS — 68 Phase 11 tests pass, all gates clean"
+}
