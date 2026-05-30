@@ -92,13 +92,13 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/autonomous-cadence/set-mode", _autonomous_cadence_set_mode, methods=["POST"], dependencies=auth)
 
     # ── Template registry + Candidate supply + Governance routes ──────────
-    r.add_api_route("/organism/template-registry", _template_registry_summary, methods=["GET"])
-    r.add_api_route("/organism/template-registry/promoted", _template_registry_promoted, methods=["GET"])
-    r.add_api_route("/organism/template-registry/candidates", _template_registry_candidates, methods=["GET"])
-    r.add_api_route("/organism/candidate-supply", _candidate_supply_scan, methods=["GET"])
+    r.add_api_route("/organism/template-registry", _template_registry_summary, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/template-registry/promoted", _template_registry_promoted, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/template-registry/candidates", _template_registry_candidates, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/candidate-supply", _candidate_supply_scan, methods=["GET"], dependencies=auth)
     r.add_api_route("/organism/candidate-supply/run", _candidate_supply_run, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/template-governance/evaluate", _template_governance_evaluate, methods=["GET"])
-    r.add_api_route("/organism/pr-factory-preview", _pr_factory_preview, methods=["GET"])
+    r.add_api_route("/organism/template-governance/evaluate", _template_governance_evaluate, methods=["GET"], dependencies=auth)
+    r.add_api_route("/organism/pr-factory-preview", _pr_factory_preview, methods=["GET"], dependencies=auth)
 
     return r
 
