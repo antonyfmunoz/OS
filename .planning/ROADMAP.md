@@ -47,7 +47,7 @@ Plans:
   5. Zero endpoints were removed — count before equals count after
 **Plans**: 3 plans
 Plans:
-- [ ] 02-01-PLAN.md — Extract organism core routes (30 handlers) into cockpit_organism_routes.py
+- [x] 02-01-PLAN.md — Extract organism core routes (30 handlers) into cockpit_organism_routes.py
 - [ ] 02-02-PLAN.md — Extract entity/product routes (9 handlers) into cockpit_entity_routes.py
 - [ ] 02-03-PLAN.md — Extract economy/topology + autonomous PR factory + cadence routes (38 handlers) into cockpit_economy_routes.py + cockpit_autonomous_routes.py; verify final line count < 3000
 **UI hint**: yes

@@ -14,12 +14,12 @@
 
 ### Cockpit Quality
 
-- [ ] **CQG-01**: cockpit.py route groups extracted into dedicated route modules
+- [x] **CQG-01**: cockpit.py route groups extracted into dedicated route modules
 - [ ] **CQG-02**: cockpit.py under 3000 lines after extraction
-- [ ] **CQG-03**: All extracted routes preserve API paths and response shapes
-- [ ] **CQG-04**: All extracted routes preserve auth/operator token requirements
+- [x] **CQG-03**: All extracted routes preserve API paths and response shapes
+- [x] **CQG-04**: All extracted routes preserve auth/operator token requirements
 - [ ] **CQG-05**: WebSocket behavior preserved after extraction
-- [ ] **CQG-06**: No endpoint removal during extraction
+- [x] **CQG-06**: No endpoint removal during extraction
 
 ### Template Library
 
@@ -123,12 +123,12 @@
 | PRE-02 | Phase 1 | Pending |
 | PRE-03 | Phase 1 | Pending |
 | PRE-04 | Phase 1 | Pending |
-| CQG-01 | Phase 2 | Pending |
+| CQG-01 | Phase 2 | Complete |
 | CQG-02 | Phase 2 | Pending |
-| CQG-03 | Phase 2 | Pending |
-| CQG-04 | Phase 2 | Pending |
+| CQG-03 | Phase 2 | Complete |
+| CQG-04 | Phase 2 | Complete |
 | CQG-05 | Phase 2 | Pending |
-| CQG-06 | Phase 2 | Pending |
+| CQG-06 | Phase 2 | Complete |
 | TPL-01 | Phase 3 | Pending |
 | TPL-02 | Phase 3 | Pending |
 | TPL-03 | Phase 4 | Pending |
