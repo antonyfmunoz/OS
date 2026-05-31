@@ -1,0 +1,3 @@
+{"id": "665cd00e", "action_type": "test_probe", "plan_id": "", "step_id": "", "description": "sanity check", "status": "success", "expected_result": "", "actual_result": "", "duration_seconds": 0.1, "error": "", "recorded_at": 1780005899.4072216, "record_type": "outcome"}
+{"id": "0ccdb380", "signal_type": "reliability_update", "action_type": "test_probe", "description": "Reliability updated from 0.500 to 1.000", "old_value": 0.5, "new_value": 1.0, "evidence": "1/1 successful outcomes", "generated_at": 1780005899.4074695, "record_type": "signal"}
+{"record_type": "reliability", "action_type": "test_probe", "value": 1.0}

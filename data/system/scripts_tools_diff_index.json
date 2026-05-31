@@ -1,0 +1,1885 @@
+{
+  "phase": "96.8BK",
+  "generated": "2026-05-09",
+  "stats": {
+    "duplicate_exact": 2,
+    "duplicate_near": 183,
+    "unique_scripts": 23,
+    "unique_tools": 26
+  },
+  "total_files": 234,
+  "entries": [
+    {
+      "file": "__init__.py",
+      "classification": "duplicate_exact",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": true,
+      "action": "DELETE_TOOLS_COPY"
+    },
+    {
+      "file": "_tme_common.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "action_system.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "agent_executor.log",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "agent_task_executor.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "apify_scraper.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "auth_monitor/cc_keepalive.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "auth_monitor/credential_coordinator.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "auth_monitor/credential_watcher.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "auth_monitor/health_check.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "auth_monitor/session_resurrector.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "auth_monitor/setup_isolation.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "auth_monitor/start_session.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "backup.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "benchmark_semantic_space.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "bis_context.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "build_notion_databases.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "build_notion_workspace.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "build_palace.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "build_semantic_coords.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "build_skill_graph.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "calendar_invite_handler.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "call_prep.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "cc_reply_webhook.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "check_skill_staleness.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "check_stop_condition.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "codebase_graph.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "control_plane_run.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "cost_tracker.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "create_meetings_db.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "day_reminder.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "deadline_monitor.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "decisions.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "deferred.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "demo_mvp_loop.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "detemplatize_skills.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "direct_watcher_path_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "discord_daily_clear.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "discord_setup_channels.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "emit_signal.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "env_upsert.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "eod_sync.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "eos_os.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "eos_os_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "eos_status.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "fix_founder_refs.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "fix_merge_conflicts.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "force_execution_loop.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "goals.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "graph_hooks/post-merge",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "graph_hooks/pre-commit",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "healthcheck.sh",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "heartbeat.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "higgsfield_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "icp_scorer.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "inbox_gps_afternoon.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "inbox_zero_init.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "incremental_graph.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "install_graph_hooks.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "install_windows_relay_autostart.ps1",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "kpi_tracker.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "local_bridge_client.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "local_bridge_server.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "measure_phase8_batch.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "meet_caption_writer.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "memory_neon.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "merge_graphs.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "midday_checkin.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "morning_intel.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "nightly_consolidation.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "noshow_detector.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "notion_cleanup.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "notion_outcome_sync.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "notion_seed.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "notion_seed_all.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "notion_setup.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "notion_sync_poller.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "notion_sync_state.json",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "notion_tasks_sync.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "notion_tasks_sync_state.json",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "orchestrator.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "orchestrator_loop.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "orchestrator_status.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "overnight_scrape.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "parsers_lib/__init__.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "parsers_lib/base.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "parsers_lib/config_parser.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "parsers_lib/js_parser.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "parsers_lib/python_parser.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "parsers_lib/sql_parser.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "parsers_lib/ts_parser.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "permission_notify.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "phase75a_classifier.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "phase75a_dep_scanner.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "portfolio_brief.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "post_meeting_capture.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "pre_tool_use_log.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "promote_to_wiki.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "prove_routed_chrome_execution.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "prove_w0_canonical_memory_query.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "prove_w0_doc_extraction.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "prove_w0_doc_ingestion_candidate.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "prove_w0_drive_docs_interaction.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "prove_w0_interpretation_engine.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "prove_w0_memory_promotion_governance.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "pump_meet_source.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "query_graph.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "query_semantic_space.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "query_skills.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "relationship_nurture.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "requirements.txt",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "router_claude_runtime_debug.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "run_graphify.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "run_pipeline_trace.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "run_prod.sh",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "run_ui.sh",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "salience.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "sandbox_runner.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "sandbox_safety_verifier.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "sandbox_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "scheduled/morning_prep.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "scheduled/morning_prep_cp.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "scheduled/nightly_consolidation.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "scheduled/nightly_consolidation_cp.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "scheduled/nightly_maintenance.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "scheduled/weekly_review.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "scheduled/weekly_review_cp.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "security_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "send_to_builder.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "session_bootstrap.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "session_discord_control_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "session_start_context.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "session_watcher_concurrency_smoke_test.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "session_watcher_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "start_windows_relay_node.ps1",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "subagent_start_context.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_audio_loop_cli.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_audio_loop_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_claude_responder_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_claude_session_bridge_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_claude_session_cli.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_control_layer_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_coordination_intelligence_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_discord_claude_hardswitch_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_discord_mode_routing_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_discord_text_tts_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_discord_tts_body_only_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_discord_voice_playback_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_discord_voice_transport_cli.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_discord_voice_transport_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_drain_station.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_drainer_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_durable_result_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_execution_intelligence_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_execution_linkage_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_execution_trace_cli.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_execution_trace_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_google_meet_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_hybrid_execution_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_local_listener.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_local_listener_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_meeting_attachment_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_meeting_intelligence_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_meeting_intelligence_upgrade_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_meeting_transport_cli.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_meeting_transport_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_mode_behavior_control_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_operator_cli.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_operator_interface_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_operator_state_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_operator_tick.sh",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_product_linkage_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_ptt_binding_cli.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_ptt_binding_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_remote_execution_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_remote_executor_daemon.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_resolution_intelligence_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_resource_context_guard_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_result_loop_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_router_claude_primary_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_router_claude_runtime_activation_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_session_orchestration_cli.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_session_orchestration_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_session_soul_doc_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_stt_producer_cli.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_stt_producer_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_stt_workstation_readiness_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_temporal_intelligence_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_transport_report_cli.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_transport_report_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_voice_eos_responder_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_voice_router_responder_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_voice_session_cli.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_voice_session_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_wake_producer_cli.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_wake_producer_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_workflow_delegation_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_workflow_execution_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "substrate_workflow_execution_v11_smoke_test.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "summarize_conversations.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "summarize_nodes.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "sync_skills_to_neon.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "test_adaptive_orchestration.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "test_builder_delivery.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "test_execution_contract.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "test_plan_executor.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "test_session_rhythm.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "tme_quality_audit.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "tme_staleness_sweep.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "tool_mastery_author.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "tool_mastery_manager.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "tool_mastery_research_dispatcher.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "uninstall_windows_relay_autostart.ps1",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "update-graph",
+      "classification": "duplicate_exact",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": true,
+      "action": "DELETE_TOOLS_COPY"
+    },
+    {
+      "file": "user_prompt_capture.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "userscript_meet_captions.example.js",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "validate_stabilized_complete.py",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "validate_w0_coherence_dry.py",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "vault_backlink_audit.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "verify_knowledge_system.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "verify_tool_skill.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "waiting_on_checker.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "watch-cognition",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "watch_graph.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "week_architect.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "weekly_review.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "wiki_session_start_hook.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "wiki_stop_hook.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "windows_interactive_desktop_relay.ps1",
+      "classification": "unique_scripts",
+      "in_scripts": true,
+      "in_tools": false,
+      "hashes_match": null,
+      "action": "KEEP"
+    },
+    {
+      "file": "workers/discord_approval_worker.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "workflow_engine.py",
+      "classification": "duplicate_near",
+      "in_scripts": true,
+      "in_tools": true,
+      "hashes_match": false,
+      "action": "REVIEW_DIFF"
+    },
+    {
+      "file": "workstation_daemon.bat",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    },
+    {
+      "file": "workstation_daemon.sh",
+      "classification": "unique_tools",
+      "in_scripts": false,
+      "in_tools": true,
+      "hashes_match": null,
+      "action": "MOVE_TO_SCRIPTS_CANDIDATE"
+    }
+  ]
+}

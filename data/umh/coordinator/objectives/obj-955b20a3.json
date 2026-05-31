@@ -1,0 +1,24 @@
+{
+  "id": "obj-955b20a3",
+  "title": "Track me",
+  "status": "executing",
+  "completion_rate": 0.0,
+  "work_units": [
+    {
+      "id": "wu-8dc90f4d",
+      "objective_id": "obj-955b20a3",
+      "title": "Track me",
+      "unit_type": "execute",
+      "status": "pending",
+      "assigned_runtime": "",
+      "required_capability": "shell",
+      "blocked_by": [],
+      "blocks": [],
+      "attempt_count": 0,
+      "generation": 1,
+      "result": "",
+      "error": ""
+    }
+  ],
+  "generation": 1
+}

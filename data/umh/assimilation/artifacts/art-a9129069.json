@@ -1,0 +1,23 @@
+{
+  "id": "art-a9129069",
+  "name": "test-system",
+  "source_url": "https://example.com",
+  "artifact_type": "unknown",
+  "status": "scored",
+  "primitives_count": 1,
+  "leverage_summary": {
+    "count": 1,
+    "avg_score": 0.85,
+    "max_score": 0.85
+  },
+  "redundancy_report": {
+    "artifact_id": "art-a9129069",
+    "total_primitives": 1,
+    "redundant": [],
+    "novel": [
+      "prim-312daf1b"
+    ],
+    "partial_overlap": []
+  },
+  "created_at": 1780181211.6267858
+}

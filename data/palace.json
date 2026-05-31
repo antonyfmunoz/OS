@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-05-23T04:31:20.969850+00:00",
-  "source_graph_generated_at": "2026-05-23T04:31:18.738017+00:00",
+  "generated_at": "2026-05-31T17:57:42.709233+00:00",
+  "source_graph_generated_at": "2026-05-31T17:51:10.306072+00:00",
   "source_graph_stale": false,
-  "source_graph_age_hours": 0.0,
+  "source_graph_age_hours": 0.11,
   "stale_threshold_hours": 24,
   "rooms": [
     {
@@ -74,124 +74,124 @@
       ],
       "loci": [
         {
-          "path": "services/umh/sockets/envelopes.py",
-          "score": 71,
-          "module": "services.umh.sockets.envelopes",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "Envelope dataclasses \u2014 the data shapes that cross the socket boundary."
+          "path": "services/discord_bot.py",
+          "score": 29,
+          "module": "services.discord_bot",
+          "critical": true,
+          "entry_point": true,
+          "docstring": "EntrepreneurOS Discord Bot \u2014 DEX conversational layer."
         },
         {
-          "path": "services/umh/governance/risk_classes.py",
-          "score": 53,
-          "module": "services.umh.governance.risk_classes",
+          "path": "services/discord_message_handlers.py",
+          "score": 8,
+          "module": "services.discord_message_handlers",
           "critical": false,
           "entry_point": false,
-          "docstring": "Risk classes \u2014 domain-specific action classifications that map to governance risk levels."
+          "docstring": "Discord message handlers \u2014 extracted from discord_bot.py."
         },
         {
-          "path": "services/umh/sockets/protocols.py",
-          "score": 50,
-          "module": "services.umh.sockets.protocols",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "Protocol definitions for integration-side contracts."
-        },
-        {
-          "path": "services/umh/control_plane/pipeline.py",
-          "score": 28,
-          "module": "services.umh.control_plane.pipeline",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "ExecutionPipeline \u2014 the master success loop."
-        },
-        {
-          "path": "services/umh/protocols/signal.py",
-          "score": 28,
-          "module": "services.umh.protocols.signal",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "Signal protocol \u2014 the universal intake type. Everything enters as a Signal."
-        },
-        {
-          "path": "services/umh/organism/store.py",
-          "score": 19,
-          "module": "services.umh.organism.store",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "Organism store \u2014 JSONL persistence for deliverables, messages, agent state."
-        },
-        {
-          "path": "services/umh/organism/protocols.py",
-          "score": 18,
-          "module": "services.umh.organism.protocols",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "Organism protocols \u2014 typed contracts for the agent society."
-        },
-        {
-          "path": "services/umh/execution/executor.py",
-          "score": 16,
-          "module": "services.umh.execution.executor",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "Work packet executor \u2014 the governed execution pipeline."
-        },
-        {
-          "path": "services/umh/protocols/capability.py",
-          "score": 16,
-          "module": "services.umh.protocols.capability",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "Capability protocol \u2014 what the substrate CAN do and how to invoke it."
-        },
-        {
-          "path": "services/umh/organism/worker_cell.py",
-          "score": 15,
-          "module": "services.umh.organism.worker_cell",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "Worker cell \u2014 bounded task execution through the existing pipeline."
-        },
-        {
-          "path": "services/umh/integrations/eos/tables.py",
-          "score": 14,
-          "module": "services.umh.integrations.eos.tables",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "Typed query helpers for EOS database tables."
-        },
-        {
-          "path": "services/umh/integrations/notion/watermarks.py",
-          "score": 14,
-          "module": "services.umh.integrations.notion.watermarks",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "Watermark persistence \u2014 JSONL append-log for per-database poll high-water marks."
-        },
-        {
-          "path": "services/umh/memory/candidate_generator.py",
-          "score": 14,
-          "module": "services.umh.memory.candidate_generator",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "MemoryCandidateGenerator \u2014 stages memory candidates from completed traces."
-        },
-        {
-          "path": "services/umh/organism/advisor.py",
-          "score": 14,
-          "module": "services.umh.organism.advisor",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "DEX Advisor cell \u2014 the top-level orchestrator of the organism."
-        },
-        {
-          "path": "services/umh/tests/test_e2e.py",
-          "score": 14,
-          "module": "services.umh.tests.test_e2e",
+          "path": "services/icp_scorer.py",
+          "score": 5,
+          "module": "services.icp_scorer",
           "critical": false,
           "entry_point": true,
-          "docstring": "End-to-end test for UMH subsystems and ExecutionPipeline."
+          "docstring": ""
+        },
+        {
+          "path": "services/discord_bot_commands.py",
+          "score": 4,
+          "module": "services.discord_bot_commands",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Discord bot commands \u2014 extracted from discord_bot.py."
+        },
+        {
+          "path": "services/goal_api.py",
+          "score": 4,
+          "module": "services.goal_api",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Goal API \u2014 REST endpoints for goal selection + focus management."
+        },
+        {
+          "path": "services/higgsfield_webhook.py",
+          "score": 4,
+          "module": "services.higgsfield_webhook",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Higgsfield Cloud API webhook receiver."
+        },
+        {
+          "path": "services/magic_link_server.py",
+          "score": 4,
+          "module": "services.magic_link_server",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "magic_link_server.py \u2014 Standalone VPS server for magic-link email interception."
+        },
+        {
+          "path": "services/operator_api.py",
+          "score": 4,
+          "module": "services.operator_api",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "UMH Operator Workstation API \u2014 FastAPI backend for the operator UI."
+        },
+        {
+          "path": "services/bridge_health.py",
+          "score": 3,
+          "module": "services.bridge_health",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "bridge_health.py \u2014 VPS-side watchdog for the Windows bridge."
+        },
+        {
+          "path": "services/heartbeat.py",
+          "score": 3,
+          "module": "services.heartbeat",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "EOS Heartbeat Service"
+        },
+        {
+          "path": "services/kpi_tracker.py",
+          "score": 3,
+          "module": "services.kpi_tracker",
+          "critical": false,
+          "entry_point": true,
+          "docstring": ""
+        },
+        {
+          "path": "services/local_bridge_server.py",
+          "score": 3,
+          "module": "services.local_bridge_server",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Local Bridge Server \u2014 runs on Antony's Windows machine (WSL2)."
+        },
+        {
+          "path": "services/oauth_device_flow.py",
+          "score": 3,
+          "module": "services.oauth_device_flow",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "oauth_device_flow.py \u2014 Headless OAuth re-auth via Tailscale-routed callback."
+        },
+        {
+          "path": "services/overnight_scrape.py",
+          "score": 3,
+          "module": "services.overnight_scrape",
+          "critical": false,
+          "entry_point": true,
+          "docstring": ""
+        },
+        {
+          "path": "services/trigger_export.py",
+          "score": 3,
+          "module": "services.trigger_export",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "trigger_export.py \u2014 VPS-side trigger for browser exports on Windows."
         }
       ]
     },
@@ -206,59 +206,91 @@
       "loci": [
         {
           "path": "scripts/_tme_common.py",
-          "score": 14,
+          "score": 16,
           "module": "scripts._tme_common",
           "critical": false,
           "entry_point": false,
           "docstring": "Shared helpers for Tool Mastery Engine system scripts."
         },
         {
-          "path": "scripts/query_graph.py",
+          "path": "scripts/orchestrator_status.py",
           "score": 9,
+          "module": "scripts.orchestrator_status",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "orchestrator_status.py \u2014 operator-friendly snapshot of the Control Plane."
+        },
+        {
+          "path": "scripts/check_skill_staleness.py",
+          "score": 8,
+          "module": "scripts.check_skill_staleness",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "check_skill_staleness.py \u2014 Tool Mastery Engine staleness audit."
+        },
+        {
+          "path": "scripts/measure_phase8_batch.py",
+          "score": 8,
+          "module": "scripts.measure_phase8_batch",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Phase 8 batch measurement \u2014 full re-extraction."
+        },
+        {
+          "path": "scripts/memory_continuous_sync.py",
+          "score": 8,
+          "module": "scripts.memory_continuous_sync",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Continuous memory synchronization."
+        },
+        {
+          "path": "scripts/run_reconciliation_ingestion.py",
+          "score": 8,
+          "module": "scripts.run_reconciliation_ingestion",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Multi-document ingestion with reconciliation."
+        },
+        {
+          "path": "scripts/tool_mastery_manager.py",
+          "score": 8,
+          "module": "scripts.tool_mastery_manager",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Tool Mastery Manager \u2014 CLI."
+        },
+        {
+          "path": "scripts/query_graph.py",
+          "score": 7,
           "module": "scripts.query_graph",
           "critical": false,
           "entry_point": true,
           "docstring": "query_graph.py \u2014 Retrieval layer over the EOS codebase knowledge graph."
         },
         {
-          "path": "scripts/workflow_engine.py",
-          "score": 9,
-          "module": "scripts.workflow_engine",
-          "critical": false,
-          "entry_point": true,
-          "docstring": "WorkflowEngine \u2014 goal-driven, graph-aware, agent-executed workflows."
-        },
-        {
-          "path": "scripts/action_system.py",
-          "score": 8,
-          "module": "scripts.action_system",
-          "critical": false,
-          "entry_point": true,
-          "docstring": "action_system.py \u2014 Controlled execution layer on top of the EOS cognition stack."
-        },
-        {
-          "path": "scripts/smoke_eos.py",
-          "score": 8,
-          "module": "scripts.smoke_eos",
-          "critical": false,
-          "entry_point": true,
-          "docstring": "Smoke test \u2014 exercises EOS integration polling against a real EOS database."
-        },
-        {
-          "path": "scripts/smoke_eos_phase3.py",
+          "path": "scripts/run_reconciliation_replay_validation.py",
           "score": 7,
-          "module": "scripts.smoke_eos_phase3",
+          "module": "scripts.run_reconciliation_replay_validation",
           "critical": false,
           "entry_point": true,
-          "docstring": "Smoke test \u2014 exercises EOS Phase 3 outcome writeback against a real database."
+          "docstring": "Reconciliation replay validation."
         },
         {
-          "path": "scripts/check_skill_staleness.py",
+          "path": "scripts/deferred.py",
           "score": 6,
-          "module": "scripts.check_skill_staleness",
+          "module": "scripts.deferred",
           "critical": false,
           "entry_point": true,
-          "docstring": "check_skill_staleness.py \u2014 Tool Mastery Engine staleness audit."
+          "docstring": "deferred.py \u2014 operator CLI for the Control Plane deferred queue."
+        },
+        {
+          "path": "scripts/github_trinity_ingest.py",
+          "score": 6,
+          "module": "scripts.github_trinity_ingest",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "github_trinity_ingest.py \u2014 Clone and ingest the three core repos via canonical pipeline."
         },
         {
           "path": "scripts/incremental_graph.py",
@@ -269,60 +301,28 @@
           "docstring": "incremental_graph.py \u2014 Dirty-set incremental updates for the codebase graph."
         },
         {
+          "path": "scripts/ingest_conversations.py",
+          "score": 6,
+          "module": "scripts.ingest_conversations",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Batch ingest conversation exports into UMH canonical memory store."
+        },
+        {
+          "path": "scripts/orchestrator_loop.py",
+          "score": 6,
+          "module": "scripts.orchestrator_loop",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Orchestrator loop runner."
+        },
+        {
           "path": "scripts/seed_eos_watermarks_to_now.py",
           "score": 6,
           "module": "scripts.seed_eos_watermarks_to_now",
           "critical": false,
           "entry_point": true,
           "docstring": "Seed EOS watermarks to NOW \u2014 skip historical replay on next poller start."
-        },
-        {
-          "path": "scripts/codebase_graph.py",
-          "score": 5,
-          "module": "scripts.codebase_graph",
-          "critical": false,
-          "entry_point": true,
-          "docstring": "codebase_graph.py \u2014 Persistent codebase knowledge graph for EOS."
-        },
-        {
-          "path": "scripts/query_skills.py",
-          "score": 5,
-          "module": "scripts.query_skills",
-          "critical": false,
-          "entry_point": true,
-          "docstring": "query_skills.py \u2014 Tool Mastery Engine CLI registry."
-        },
-        {
-          "path": "scripts/sandbox_safety_verifier.py",
-          "score": 5,
-          "module": "scripts.sandbox_safety_verifier",
-          "critical": false,
-          "entry_point": true,
-          "docstring": "sandbox_safety_verifier.py \u2014 Adversarial tests for the sandbox boundary."
-        },
-        {
-          "path": "scripts/sandbox_smoke_test.py",
-          "score": 5,
-          "module": "scripts.sandbox_smoke_test",
-          "critical": false,
-          "entry_point": true,
-          "docstring": "sandbox_smoke_test.py \u2014 End-to-end proof that the sandbox layer works."
-        },
-        {
-          "path": "scripts/smoke_notion.py",
-          "score": 5,
-          "module": "scripts.smoke_notion",
-          "critical": false,
-          "entry_point": true,
-          "docstring": "Smoke test \u2014 exercises Notion integration operations against a real workspace."
-        },
-        {
-          "path": "scripts/build_palace.py",
-          "score": 4,
-          "module": "scripts.build_palace",
-          "critical": false,
-          "entry_point": true,
-          "docstring": "build_palace.py \u2014 Generates the EOS memory palace from the graph."
         }
       ]
     },

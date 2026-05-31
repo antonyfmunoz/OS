@@ -1,0 +1,260 @@
+{
+  "verification_id": "pmv-ab288b08",
+  "sandbox_id": "sb-pr43prod",
+  "pr_number": 43,
+  "manifest_id": "csm-phase98",
+  "status": "cleanup_ready",
+  "merge_commit": "dbafd0be",
+  "base_commit": "d1543edf",
+  "head_commit": "eee18fe5",
+  "local_main_commit": "dbafd0be6b9688d91d21a0a8bc76a75f7f0f5d54",
+  "expected_files": [
+    "cockpit/src/renderer/panels/IntelligencePanel.tsx",
+    "cockpit/src/renderer/stores/coherenceStore.ts",
+    "data/umh/autonomous_lane/phase9_8_first_production_truth_promotion.json",
+    "docs/audits/convergence/phase9_8_production_truth_promotion_scheduled_cadence.md",
+    "docs/audits/convergence/phase9_8_security_preflight_pr42.md",
+    "substrate/organism/autonomous_pr_factory.py",
+    "substrate/organism/daemon.py",
+    "substrate/organism/production_merge_verifier.py",
+    "substrate/organism/production_truth_delta.py",
+    "tests/test_phase9_7_pr_factory.py",
+    "tests/test_phase9_8_production_truth.py",
+    "transports/api/cockpit.py"
+  ],
+  "observed_files": [
+    "cockpit/src/renderer/panels/IntelligencePanel.tsx",
+    "cockpit/src/renderer/stores/coherenceStore.ts",
+    "data/umh/autonomous_lane/phase9_8_first_production_truth_promotion.json",
+    "docs/audits/convergence/phase9_8_production_truth_promotion_scheduled_cadence.md",
+    "docs/audits/convergence/phase9_8_security_preflight_pr42.md",
+    "substrate/organism/autonomous_pr_factory.py",
+    "substrate/organism/daemon.py",
+    "substrate/organism/production_merge_verifier.py",
+    "substrate/organism/production_truth_delta.py",
+    "tests/test_phase9_7_pr_factory.py",
+    "tests/test_phase9_8_production_truth.py",
+    "transports/api/cockpit.py"
+  ],
+  "truth_delta": {
+    "delta_id": "ptd-9508476f",
+    "sandbox_id": "sb-pr43prod",
+    "pr_number": 43,
+    "manifest_id": "csm-phase98",
+    "merge_commit": "dbafd0be",
+    "base_commit": "d1543edf",
+    "head_commit": "eee18fe5",
+    "changed_files_expected": [
+      "cockpit/src/renderer/panels/IntelligencePanel.tsx",
+      "cockpit/src/renderer/stores/coherenceStore.ts",
+      "data/umh/autonomous_lane/phase9_8_first_production_truth_promotion.json",
+      "docs/audits/convergence/phase9_8_production_truth_promotion_scheduled_cadence.md",
+      "docs/audits/convergence/phase9_8_security_preflight_pr42.md",
+      "substrate/organism/autonomous_pr_factory.py",
+      "substrate/organism/daemon.py",
+      "substrate/organism/production_merge_verifier.py",
+      "substrate/organism/production_truth_delta.py",
+      "tests/test_phase9_7_pr_factory.py",
+      "tests/test_phase9_8_production_truth.py",
+      "transports/api/cockpit.py"
+    ],
+    "changed_files_observed": [
+      "cockpit/src/renderer/panels/IntelligencePanel.tsx",
+      "cockpit/src/renderer/stores/coherenceStore.ts",
+      "data/umh/autonomous_lane/phase9_8_first_production_truth_promotion.json",
+      "docs/audits/convergence/phase9_8_production_truth_promotion_scheduled_cadence.md",
+      "docs/audits/convergence/phase9_8_security_preflight_pr42.md",
+      "substrate/organism/autonomous_pr_factory.py",
+      "substrate/organism/daemon.py",
+      "substrate/organism/production_merge_verifier.py",
+      "substrate/organism/production_truth_delta.py",
+      "tests/test_phase9_7_pr_factory.py",
+      "tests/test_phase9_8_production_truth.py",
+      "transports/api/cockpit.py"
+    ],
+    "file_divergences": [
+      {
+        "path": "cockpit/src/renderer/panels/IntelligencePanel.tsx",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "cockpit/src/renderer/stores/coherenceStore.ts",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "data/umh/autonomous_lane/phase9_8_first_production_truth_promotion.json",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "docs/audits/convergence/phase9_8_production_truth_promotion_scheduled_cadence.md",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "docs/audits/convergence/phase9_8_security_preflight_pr42.md",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "substrate/organism/autonomous_pr_factory.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "substrate/organism/daemon.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "substrate/organism/production_merge_verifier.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "substrate/organism/production_truth_delta.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "tests/test_phase9_7_pr_factory.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "tests/test_phase9_8_production_truth.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "transports/api/cockpit.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      }
+    ],
+    "has_file_divergence": false,
+    "added_lines_expected": 0,
+    "removed_lines_expected": 0,
+    "added_lines_observed": 1324,
+    "removed_lines_observed": 101,
+    "state_before": {
+      "world_model_hash": "default",
+      "contradiction_count": 0,
+      "readiness_score": 0.0,
+      "dependency_node_count": 0,
+      "bottleneck_count": 0,
+      "template_count": 0,
+      "agent_count": 0,
+      "captured_at": 1780096760.7695642
+    },
+    "state_after": {
+      "world_model_hash": "default",
+      "contradiction_count": 0,
+      "readiness_score": 0.0,
+      "dependency_node_count": 0,
+      "bottleneck_count": 0,
+      "template_count": 0,
+      "agent_count": 0,
+      "captured_at": 1780096761.0958583
+    },
+    "world_model_before_after": {
+      "before_hash": "default",
+      "after_hash": "default",
+      "changed": false
+    },
+    "contradictions_before_after": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "readiness_before_after": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0
+    },
+    "dependency_graph_before_after": {
+      "before_nodes": 0,
+      "after_nodes": 0,
+      "delta": 0
+    },
+    "bottlenecks_before_after": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "template_confidence_before_after": {
+      "before_count": 0,
+      "after_count": 0
+    },
+    "agent_reliability_before_after": {
+      "before_count": 0,
+      "after_count": 0
+    },
+    "validation_results": [
+      {
+        "command": "import substrate",
+        "passed": true,
+        "exit_code": 0,
+        "output_summary": "substrate ok\n",
+        "validated_at": 1780096761.0578527
+      },
+      {
+        "command": "py_compile organism",
+        "passed": true,
+        "exit_code": 0,
+        "output_summary": "",
+        "validated_at": 1780096761.095843
+      }
+    ],
+    "all_validations_passed": true,
+    "requires_review": false,
+    "requires_operator_review": false,
+    "mismatch_reasons": [],
+    "evidence": [
+      "file sets match"
+    ],
+    "status": "production_verified",
+    "timestamp": 1780096760.7695599
+  },
+  "error": "",
+  "started_at": 1780096760.2235796,
+  "completed_at": 1780096761.1680877
+}

@@ -1,0 +1,122 @@
+{
+  "sandboxes": [
+    {
+      "sandbox_id": "sb-pr43prod",
+      "branch_name": "worktree-phase9-8-production-truth",
+      "worktree_path": "",
+      "base_commit": "d1543edf",
+      "head_commit": "dbafd0be",
+      "candidate_id": "",
+      "template_id": "",
+      "agent_type": "developer_agent",
+      "created_at": 1780096791.4790878,
+      "status": "merged",
+      "affected_files": [],
+      "locks": [],
+      "validation_results": [],
+      "cleanup_policy": "on_merge",
+      "pr_url": "",
+      "pr_number": 43,
+      "error": "",
+      "completed_at": 1780096792.9554183
+    },
+    {
+      "sandbox_id": "sb-pr47cse",
+      "branch_name": "auto/low-risk/audit-gap--runtime-template-st-ed2e7b56",
+      "worktree_path": "",
+      "base_commit": "83f1da82",
+      "head_commit": "03fe81d86fd6092338a3e9388649abbc9f2f7b00",
+      "candidate_id": "cse-ba39a708",
+      "template_id": "tpl-seed-cockpit-panel-fix-01",
+      "agent_type": "developer_agent",
+      "created_at": 1780110203.5243192,
+      "status": "merged",
+      "affected_files": [
+        "data/umh/organism/templates/.gitkeep",
+        "scripts/verify_template_store.py"
+      ],
+      "locks": [],
+      "validation_results": [],
+      "cleanup_policy": "on_merge",
+      "pr_url": "https://github.com/antonyfmunoz/OS/pull/47",
+      "pr_number": 47,
+      "error": "",
+      "completed_at": 1780113805.21719
+    },
+    {
+      "sandbox_id": "sb-pr51-github-trinity",
+      "branch_name": "auto/low-risk/stale-docstring-github-trinity",
+      "worktree_path": "",
+      "base_commit": "f9ea2b96",
+      "head_commit": "52e2876c1af6eb77c7dd1cb615ebbb681f3918c9",
+      "candidate_id": "cse-13eebcf2",
+      "template_id": "tpl-seed-documentation-alignment-01",
+      "agent_type": "developer_agent",
+      "created_at": 1780128646.1224296,
+      "status": "merged",
+      "affected_files": [
+        "scripts/github_trinity_ingest.py"
+      ],
+      "locks": [],
+      "validation_results": [],
+      "cleanup_policy": "on_merge",
+      "pr_url": "",
+      "pr_number": 51,
+      "error": "",
+      "completed_at": 1780128647.0717843
+    },
+    {
+      "sandbox_id": "sb-pr52-init-py",
+      "branch_name": "auto/low-risk/missing-init-py-tests-substrate",
+      "worktree_path": "",
+      "base_commit": "52e2876c",
+      "head_commit": "198569df3dd5cd594d17d22da621d063c657a544",
+      "candidate_id": "cse-d924fc41",
+      "template_id": "tpl-seed-test-repair-01",
+      "agent_type": "developer_agent",
+      "created_at": 1780128692.5354705,
+      "status": "merged",
+      "affected_files": [
+        "tests/substrate/__init__.py"
+      ],
+      "locks": [],
+      "validation_results": [],
+      "cleanup_policy": "on_merge",
+      "pr_url": "",
+      "pr_number": 52,
+      "error": "",
+      "completed_at": 1780128693.723862
+    },
+    {
+      "sandbox_id": "sb-pr53-stale-paths",
+      "branch_name": "auto/low-risk/stale-worktree-syspath-test-files",
+      "worktree_path": "",
+      "base_commit": "198569df",
+      "head_commit": "78ebf1bbab3326372096a791a15675fe96d7aec0",
+      "candidate_id": "cse-486f8b8c",
+      "template_id": "tpl-seed-test-repair-01",
+      "agent_type": "developer_agent",
+      "created_at": 1780128724.761599,
+      "status": "merged",
+      "affected_files": [
+        "tests/test_node_mesh_ws.py",
+        "tests/test_daemon_e2e.py",
+        "tests/test_philosophy_lenses.py",
+        "tests/test_meeting_types.py",
+        "tests/test_override_tracking.py",
+        "tests/substrate/test_entity_store.py",
+        "tests/substrate/test_feedback_loop.py",
+        "tests/substrate/test_types.py"
+      ],
+      "locks": [],
+      "validation_results": [],
+      "cleanup_policy": "on_merge",
+      "pr_url": "",
+      "pr_number": 53,
+      "error": "",
+      "completed_at": 1780128725.713898
+    }
+  ],
+  "file_locks": {},
+  "updated_at": 1780128725.714
+}

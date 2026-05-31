@@ -1,0 +1,23 @@
+{
+  "id": "art-b36a30a8",
+  "name": "Flaky Tool",
+  "source_url": "",
+  "artifact_type": "tool_integration",
+  "status": "scored",
+  "primitives_count": 1,
+  "leverage_summary": {
+    "count": 1,
+    "avg_score": 0.69,
+    "max_score": 0.69
+  },
+  "redundancy_report": {
+    "artifact_id": "art-b36a30a8",
+    "total_primitives": 1,
+    "redundant": [],
+    "novel": [
+      "prim-f6daa6a6"
+    ],
+    "partial_overlap": []
+  },
+  "created_at": 1779942427.560403
+}

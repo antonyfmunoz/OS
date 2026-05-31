@@ -1,0 +1,24 @@
+{
+  "id": "obj-5396d0f6",
+  "title": "Track me",
+  "status": "executing",
+  "completion_rate": 0.0,
+  "work_units": [
+    {
+      "id": "wu-f53a8997",
+      "objective_id": "obj-5396d0f6",
+      "title": "Track me",
+      "unit_type": "execute",
+      "status": "pending",
+      "assigned_runtime": "",
+      "required_capability": "shell",
+      "blocked_by": [],
+      "blocks": [],
+      "attempt_count": 0,
+      "generation": 1,
+      "result": "",
+      "error": ""
+    }
+  ],
+  "generation": 1
+}

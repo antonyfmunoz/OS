@@ -1,0 +1,92 @@
+{
+  "supervised": {
+    "cc_sdk": {
+      "runtime_id": "cc_sdk",
+      "health": "dead",
+      "generation": 15,
+      "restart_count": 15,
+      "daily_restart_count": 15,
+      "crashes_in_window": 0,
+      "backoff_seconds": 300.0,
+      "is_paused": false,
+      "error": ""
+    },
+    "codex": {
+      "runtime_id": "codex",
+      "health": "dead",
+      "generation": 15,
+      "restart_count": 15,
+      "daily_restart_count": 15,
+      "crashes_in_window": 0,
+      "backoff_seconds": 300.0,
+      "is_paused": false,
+      "error": "still unavailable"
+    },
+    "hermes": {
+      "runtime_id": "hermes",
+      "health": "dead",
+      "generation": 15,
+      "restart_count": 15,
+      "daily_restart_count": 15,
+      "crashes_in_window": 0,
+      "backoff_seconds": 300.0,
+      "is_paused": false,
+      "error": "still unavailable"
+    },
+    "opencode": {
+      "runtime_id": "opencode",
+      "health": "dead",
+      "generation": 15,
+      "restart_count": 15,
+      "daily_restart_count": 15,
+      "crashes_in_window": 0,
+      "backoff_seconds": 300.0,
+      "is_paused": false,
+      "error": "still unavailable"
+    },
+    "gemini": {
+      "runtime_id": "gemini",
+      "health": "dead",
+      "generation": 15,
+      "restart_count": 15,
+      "daily_restart_count": 15,
+      "crashes_in_window": 0,
+      "backoff_seconds": 300.0,
+      "is_paused": false,
+      "error": ""
+    },
+    "ollama": {
+      "runtime_id": "ollama",
+      "health": "dead",
+      "generation": 15,
+      "restart_count": 15,
+      "daily_restart_count": 15,
+      "crashes_in_window": 0,
+      "backoff_seconds": 300.0,
+      "is_paused": false,
+      "error": "still unavailable"
+    },
+    "beast_gpu": {
+      "runtime_id": "beast_gpu",
+      "health": "dead",
+      "generation": 15,
+      "restart_count": 15,
+      "daily_restart_count": 15,
+      "crashes_in_window": 0,
+      "backoff_seconds": 300.0,
+      "is_paused": false,
+      "error": "still unavailable"
+    },
+    "operator_api": {
+      "runtime_id": "operator_api",
+      "health": "dead",
+      "generation": 15,
+      "restart_count": 15,
+      "daily_restart_count": 15,
+      "crashes_in_window": 0,
+      "backoff_seconds": 300.0,
+      "is_paused": false,
+      "error": ""
+    }
+  }
+}
