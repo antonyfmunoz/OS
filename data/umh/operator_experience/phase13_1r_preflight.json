@@ -1,0 +1,22 @@
+{
+  "phase": "13.1R",
+  "task": "preflight",
+  "timestamp": "2026-05-31T01:05:00Z",
+  "checks": {
+    "phase_13_1_commit": {"status": "pass", "commit": "7bd6d970"},
+    "main_contains_all_commits": {"status": "pass", "count": 9},
+    "main_pushed_to_remote": {"status": "pass", "branch_status": "main...origin/main (up to date)"},
+    "phase_13_1_audit_exists": {"status": "pass", "path": "docs/audits/convergence/phase13_1_voice_first_dex_cockpit_command_layer.md"},
+    "proof_artifacts_exist": {"status": "pass", "count": 11},
+    "operator_panel_exists": {"status": "pass", "path": "cockpit/src/renderer/panels/OperatorPanel.tsx"},
+    "speech_input_adapter_exists": {"status": "pass", "path": "cockpit/src/renderer/operator/speechInputAdapter.ts"},
+    "operator_experience_store_exists": {"status": "pass", "path": "cockpit/src/renderer/stores/operatorExperienceStore.ts"},
+    "voice_types_exists": {"status": "pass", "path": "cockpit/src/renderer/operator/voiceTypes.ts"},
+    "phase_13_0r_truth": {"status": "pass", "ptd": "ptd-b504636a", "poc": "poc-37f0509"},
+    "runtime_commit_before_deploy": {"status": "pass", "commit": "7bd6d970"},
+    "cadence_dry_run_only": {"status": "pass"},
+    "medium_risk_blocked": {"status": "pass"},
+    "no_unresolved_issues": {"status": "pass"}
+  },
+  "overall": "all_pass"
+}
