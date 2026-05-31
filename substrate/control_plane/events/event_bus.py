@@ -66,6 +66,7 @@ EVENT_TYPES = frozenset(
         "goal_opportunity_penalty",  # → active goal penalized by opportunity cost (9F)
         "goal_executed",  # → goal execution completed (11A execution loop)
         "goal_priority_decayed",  # → priority decay applied after sustained failure (9H)
+        "loop_cycle_business_ops",  # → PersistentLoop business_ops cycle diagnostic
     }
 )
 
@@ -433,6 +434,29 @@ def _handle_morning_cycle(payload: dict) -> dict:
     return {"status": "morning_cycle_complete"}
 
 
+def _handle_loop_cycle(payload: dict) -> dict:
+    """Diagnostic handler for loop_cycle_* events from PersistentLoop.
+
+    Records that the cycle ran and its outcome without triggering execution.
+    This prevents the 'no handlers registered' log message while cadence
+    remains in OFF/dry_run_only mode.
+    """
+    loop_name = payload.get("loop_name", "unknown")
+    cycle_num = payload.get("cycle_num", 0)
+    actions = payload.get("actions_taken", 0)
+    errors = payload.get("errors", 0)
+    print(
+        f"[EventBus:loop_cycle] {loop_name} cycle={cycle_num} "
+        f"actions={actions} errors={errors} — diagnostic handler (cadence off/dry-run)"
+    )
+    return {
+        "loop_name": loop_name,
+        "cycle_num": cycle_num,
+        "handled_by": "diagnostic_handler",
+        "cadence_status": "off_or_dry_run",
+    }
+
+
 def _handle_skill_threshold(payload: dict) -> dict:
     """
     skill_threshold → trigger skill_improvement.check_and_improve.
@@ -572,6 +596,7 @@ class EventRegistry:
             ("goal_dropped", _handle_goal_dropped),
             ("goal_task_completed", _handle_goal_task_completed),
             ("goal_task_failed", _handle_goal_task_failed),
+            ("loop_cycle_business_ops", _handle_loop_cycle),
         ]
         for event_type, handler in mappings:
             self._bus.subscribe(event_type, handler)

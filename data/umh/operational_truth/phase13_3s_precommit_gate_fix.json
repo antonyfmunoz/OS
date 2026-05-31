@@ -1,0 +1,14 @@
+{
+  "date": "2026-05-31",
+  "phase": "13.3S",
+  "issue": "Only 2/4 pre-commit gates wired in .git/hooks/pre-commit",
+  "fix_applied": "Updated .git/hooks/pre-commit to wire all four gates",
+  "gates": {
+    "check_type_divergence": {"was_wired": true, "now_wired": true},
+    "check_instance_leak": {"was_wired": true, "now_wired": true},
+    "check_projection_leak": {"was_wired": false, "now_wired": true},
+    "check_dependency_direction": {"was_wired": false, "now_wired": true}
+  },
+  "files_modified": [".git/hooks/pre-commit"],
+  "hook_executable": true
+}

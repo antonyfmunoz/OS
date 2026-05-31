@@ -1,0 +1,26 @@
+{
+  "date": "2026-05-31",
+  "phase": "13.3S",
+  "model_file": "substrate/organism/operational_truth.py",
+  "types_defined": [
+    "OperationalTruthSnapshot",
+    "OperationalIssue",
+    "OperationalReadinessStatus",
+    "ContainerState",
+    "ServiceState",
+    "LLMProviderState",
+    "IssuePriority",
+    "IssueStatus",
+    "FixEffort"
+  ],
+  "functions_defined": [
+    "collect_snapshot",
+    "persist_snapshot",
+    "persist_issues"
+  ],
+  "persistence": {
+    "snapshots": "data/umh/operational_truth/snapshots.jsonl",
+    "issues": "data/umh/operational_truth/issues.jsonl"
+  },
+  "compiles": true
+}

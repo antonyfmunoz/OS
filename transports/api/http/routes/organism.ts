@@ -529,4 +529,55 @@ router.post('/operator-experience/topology-preview', operatorGuard, async (c) =>
   return c.json(result.data)
 })
 
+// ── Operational Truth ────────────────────────────────────
+
+router.get('/operational-truth', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.operational_truth')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operational-truth/issues', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.operational_truth.issues')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operational-truth/readiness', operatorGuard, async (c) => {
+  const deterministicOnly = c.req.query('deterministic_only') === 'true'
+  const result = await callOrganism('organism.operational_truth.readiness', { deterministic_only: deterministicOnly })
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operational-truth/provider-health', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.operational_truth.provider_health')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operational-truth/data-hygiene', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.operational_truth.data_hygiene')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operational-truth/knowledge-graph', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.operational_truth.knowledge_graph')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operational-truth/eventbus', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.operational_truth.eventbus')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operational-truth/precommit-gates', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.operational_truth.precommit_gates')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
 export default router

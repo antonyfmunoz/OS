@@ -1,0 +1,18 @@
+{
+  "date": "2026-05-31",
+  "phase": "13.3S",
+  "issue": "execution_journal.jsonl had 0 lines — spine executes but never records",
+  "root_cause": "GovernedExecutionSpine.submit() records correctly, but no ActionEnvelopes flow through it in production. The organism daemon ticks run subsystem checks but produce no governed mutations.",
+  "fix_applied": "Added _record_tick_heartbeat() to daemon.tick() — records a heartbeat journal entry every 60 ticks (~5 minutes). Also conducted diagnostic probe to verify journal write path.",
+  "files_modified": [
+    "substrate/organism/daemon.py"
+  ],
+  "verification": {
+    "probe_entry_recorded": true,
+    "journal_lines_before": 0,
+    "journal_lines_after": 2,
+    "no_secrets_in_journal": true,
+    "schema_valid": true,
+    "entry_fields": ["entry_id", "envelope_id", "phase", "source", "details", "timestamp", "correlation_id"]
+  }
+}
