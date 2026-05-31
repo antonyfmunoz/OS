@@ -35,6 +35,7 @@ import { SelfBuildPanel } from '../panels/SelfBuildPanel'
 import { UniversalWorkPanel } from '../panels/UniversalWorkPanel'
 import PropagationGraphPanel from '../panels/PropagationGraphPanel'
 import { OperatorPanel } from '../panels/OperatorPanel'
+import { RuntimePanel } from '../panels/RuntimePanel'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -92,6 +93,8 @@ function ActivePanel() {
       return <PropagationGraphPanel />
     case 'operator':
       return <OperatorPanel />
+    case 'runtime':
+      return <RuntimePanel />
     default:
       return <DashboardPanel />
   }

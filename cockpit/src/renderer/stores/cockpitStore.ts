@@ -27,6 +27,7 @@ export type Panel =
   | 'universalwork'
   | 'propagation'
   | 'operator'
+  | 'runtime'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

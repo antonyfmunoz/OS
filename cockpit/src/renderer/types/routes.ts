@@ -24,6 +24,7 @@ import {
   Globe,
   Hammer,
   Mic,
+  Play,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -44,6 +45,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'activity', label: 'Activity', icon: Activity, group: 'core', key: '9' },
   { id: 'approvals', label: 'Approvals', icon: ShieldCheck, group: 'operations', key: '4' },
   { id: 'organism', label: 'Organism', icon: Brain, group: 'operations', key: 'o' },
+  { id: 'runtime', label: 'Runtime', icon: Play, group: 'operations', key: 'r' },
   { id: 'execution', label: 'Execution', icon: Layers, group: 'operations', key: '0' },
   { id: 'tracking', label: 'Tracking', icon: Target, group: 'operations', key: 't' },
   { id: 'infrastructure', label: 'Infrastructure', icon: Server, group: 'operations', key: 'i' },
