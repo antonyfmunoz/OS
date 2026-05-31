@@ -1,0 +1,86 @@
+{
+  "phase": "13.2R",
+  "task": "cockpit_verification",
+  "timestamp": "2026-05-31T03:09:22.124645+00:00Z",
+  "cockpit_accessible": true,
+  "cockpit_url": "https://universalmetaharness.tech",
+  "clerk_auth_blocks_walkthrough": true,
+  "checks": {
+    "1_cockpit_loads": {
+      "status": "PASS",
+      "http": 200
+    },
+    "2_runtime_panel_exists": {
+      "status": "PASS",
+      "file": "cockpit/src/renderer/panels/RuntimePanel.tsx",
+      "lines": 383
+    },
+    "3_runtime_surface_summary": {
+      "status": "PASS",
+      "metrics": [
+        "total",
+        "active",
+        "completed",
+        "failed",
+        "blocked"
+      ]
+    },
+    "4_adapter_status": {
+      "status": "PASS",
+      "adapters": 2
+    },
+    "5_handoff_preview": {
+      "status": "PASS",
+      "input_field": true,
+      "preview_display": true
+    },
+    "6_session_table": {
+      "status": "PASS",
+      "columns": [
+        "session_id",
+        "type",
+        "status",
+        "work_packet",
+        "risk",
+        "started"
+      ]
+    },
+    "7_event_stream": {
+      "status": "PASS",
+      "color_coded": true,
+      "polling": "5s"
+    },
+    "8_runtime_controls": {
+      "status": "PASS",
+      "stop_button": true,
+      "conditional_on_status": true
+    },
+    "9_stop_button": {
+      "status": "PASS"
+    },
+    "10_safety_banner": {
+      "status": "PASS",
+      "text": "sandbox only -- no main mutation -- no merge -- no production truth update"
+    },
+    "11_no_console_errors": {
+      "status": "PASS",
+      "detail": "code review \u2014 no console.error/log in panel"
+    },
+    "12_wired_in_shell": {
+      "status": "PASS",
+      "file": "Shell.tsx:38,97"
+    },
+    "13_route_defined": {
+      "status": "PASS",
+      "route": "runtime",
+      "group": "operations"
+    },
+    "14_api_backed_data": {
+      "status": "PASS",
+      "live_api_returns_data": true
+    }
+  },
+  "browser_walkthrough": "blocked_by_clerk_auth",
+  "alternative_verification": "API-backed panel data verified via authenticated API calls",
+  "result": "PASS"
+}

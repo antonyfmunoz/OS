@@ -1,0 +1,88 @@
+{
+  "phase": "13.2R",
+  "task": "api_verification",
+  "timestamp": "2026-05-31T02:58:14.635275+00:00Z",
+  "routes_tested": {
+    "GET /runtime-surface": {
+      "status": 200,
+      "auth_required": true
+    },
+    "GET /runtime-surface/sessions": {
+      "status": 200,
+      "auth_required": true
+    },
+    "GET /runtime-surface/sessions/:id": {
+      "status": 200,
+      "auth_required": true
+    },
+    "GET /runtime-surface/sessions/:id/events": {
+      "status": 200,
+      "auth_required": true
+    },
+    "GET /runtime-surface/adapters": {
+      "status": 200,
+      "auth_required": true
+    },
+    "POST /runtime-surface/create": {
+      "status": 200,
+      "auth_required": true,
+      "operator_token_required": true
+    },
+    "POST /runtime-surface/sessions/:id/start": {
+      "status": 200,
+      "auth_required": true,
+      "operator_token_required": true
+    },
+    "POST /runtime-surface/sessions/:id/inject": {
+      "tested": true,
+      "operator_token_required": true
+    },
+    "POST /runtime-surface/sessions/:id/stop": {
+      "tested": true,
+      "operator_token_required": true
+    },
+    "POST /runtime-surface/handoff-preview": {
+      "status": 200,
+      "auth_required": true,
+      "operator_token_required": true
+    }
+  },
+  "security_checks": {
+    "1_get_requires_auth": {
+      "status": "PASS",
+      "no_auth_code": 403
+    },
+    "2_post_requires_operator": {
+      "status": "PASS",
+      "no_token_code": 403
+    },
+    "3_response_shape": {
+      "status": "PASS"
+    },
+    "4_invalid_id_safe": {
+      "status": "PASS",
+      "response": "error:session not found"
+    },
+    "5_path_traversal_blocked": {
+      "status": "PASS",
+      "code": 404
+    },
+    "6_no_traceback_leak": {
+      "status": "PASS"
+    },
+    "7_no_path_leak": {
+      "status": "PASS"
+    },
+    "8_no_secret_leak": {
+      "status": "PASS"
+    },
+    "9_no_fake_data": {
+      "status": "PASS"
+    },
+    "10_no_main_start": {
+      "status": "PASS",
+      "blocked_at_create": true
+    }
+  },
+  "result": "ALL_CHECKS_PASS"
+}

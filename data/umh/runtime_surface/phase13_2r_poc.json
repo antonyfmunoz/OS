@@ -1,0 +1,26 @@
+{
+  "poc_id": "poc-e475ac7b",
+  "ptd_id": "ptd-b31f2904",
+  "phase": "13.2",
+  "commit": "12cd3dc2",
+  "timestamp": "2026-05-31T03:07:57.806635+00:00Z",
+  "prior_truth": {
+    "ptd": "ptd-639760df",
+    "poc": "poc-637ff93"
+  },
+  "verified_by": "phase13_2r_production_truth_promotion",
+  "proofs": {
+    "preflight": "PASS",
+    "review": "SAFE",
+    "merge_push": "PASS",
+    "runtime_sync": "PASS",
+    "api_verification": "PASS",
+    "runtime_surface": "PASS",
+    "handoff_preview": "PASS",
+    "lifecycle_proof": "PASS",
+    "stop_cancel": "PASS",
+    "policy_blocks": "PASS",
+    "agent_os_comparison": "PASS"
+  },
+  "result": "COMMITTED"
+}

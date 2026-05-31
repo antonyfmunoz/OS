@@ -1,0 +1,59 @@
+{
+  "phase": "13.2R",
+  "task": "live_handoff_preview_proof",
+  "timestamp": "2026-05-31T02:59:16.956622+00:00Z",
+  "intent": "Run a sandboxed developer workcell to inspect what would be needed to build the EOS dashboard.",
+  "preview_id": "rhp-573446dd",
+  "checks": {
+    "1_dex_receives_intent": {
+      "status": "PASS"
+    },
+    "2_work_packet_context": {
+      "status": "PASS",
+      "note": "empty = preview-only, expected"
+    },
+    "3_preview_created": {
+      "status": "PASS",
+      "preview_id": "rhp-573446dd"
+    },
+    "4_recommended_runtime": {
+      "status": "PASS",
+      "value": "shell"
+    },
+    "5_risk_class_low": {
+      "status": "PASS",
+      "value": "low"
+    },
+    "6_sandbox_required": {
+      "status": "PASS",
+      "value": true
+    },
+    "7_expected_artifacts": {
+      "status": "PASS",
+      "count": 2
+    },
+    "8_validation_plan": {
+      "status": "PASS",
+      "value": "exit_code_check + output_inspection + artifact_collection"
+    },
+    "9_approval_required": {
+      "status": "PASS",
+      "value": true
+    },
+    "10_what_will_happen": {
+      "status": "PASS",
+      "count": 6
+    },
+    "11_what_will_not_happen": {
+      "status": "PASS",
+      "count": 8
+    },
+    "12_no_runtime_started": {
+      "status": "PASS"
+    },
+    "13_no_production_mutation": {
+      "status": "PASS"
+    }
+  },
+  "result": "ALL_CHECKS_PASS"
+}

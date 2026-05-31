@@ -1,0 +1,26 @@
+{
+  "phase": "13.2R",
+  "task": "merge_result",
+  "timestamp": "2026-05-31T02:54:16.156043+00:00Z",
+  "main_commit": "12cd3dc2",
+  "origin_main_commit": "12cd3dc2",
+  "commits_ahead": 0,
+  "commits_behind": 0,
+  "already_merged": true,
+  "already_pushed": true,
+  "source_files_on_main": {
+    "substrate/organism/runtime_session.py": true,
+    "substrate/organism/runtime_adapter.py": true,
+    "substrate/organism/shell_runtime_adapter.py": true,
+    "substrate/organism/claude_code_runtime_adapter.py": true,
+    "substrate/organism/runtime_manager.py": true,
+    "substrate/organism/runtime_handoff.py": true,
+    "transports/api/cockpit_runtime_surface_routes.py": true,
+    "cockpit/src/renderer/panels/RuntimePanel.tsx": true,
+    "tests/phase13_2_runtime_proofs.py": true,
+    "docs/audits/convergence/phase13_2_native_agent_runtime_workcell_execution_surface.md": true,
+    "docs/research/cortextos_runtime_surface_comparison.md": true
+  },
+  "all_files_present": true,
+  "result": "PASS"
+}

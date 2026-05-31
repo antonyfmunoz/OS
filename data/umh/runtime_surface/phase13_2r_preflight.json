@@ -1,0 +1,52 @@
+{
+  "phase": "13.2R",
+  "task": "preflight",
+  "timestamp": "2026-05-31T02:52:30.383585+00:00Z",
+  "checks": {
+    "1_commit_exists": {
+      "status": "PASS",
+      "commit": "12cd3dc2"
+    },
+    "2_main_contains_commits": {
+      "status": "PASS"
+    },
+    "3_modules_present": {
+      "status": "PASS",
+      "location": "substrate/organism/",
+      "count": 6
+    },
+    "4_audit_exists": {
+      "status": "PASS"
+    },
+    "5_proof_artifacts": {
+      "status": "PASS"
+    },
+    "6_cortextos_comparison": {
+      "status": "PASS"
+    },
+    "7_phase_13_1r_truth": {
+      "status": "PASS",
+      "ptd": "ptd-639760df",
+      "poc": "poc-637ff93"
+    },
+    "8_runtime_commit": {
+      "status": "PASS",
+      "commit": "12cd3dc2"
+    },
+    "9_cadence_state": {
+      "status": "PASS",
+      "mode": "off"
+    },
+    "10_medium_risk_blocked": {
+      "status": "PASS"
+    },
+    "11_no_unresolved_issues": {
+      "status": "PASS"
+    },
+    "12_no_orphan_sessions": {
+      "status": "PASS"
+    }
+  },
+  "result": "ALL_CHECKS_PASS",
+  "ready_for_review": true
+}

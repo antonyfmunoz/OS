@@ -1,0 +1,66 @@
+{
+  "phase": "13.2R",
+  "task": "review",
+  "timestamp": "2026-05-31T02:57:22.673465+00:00Z",
+  "files_reviewed": {
+    "runtime_session.py": {
+      "lines": 263,
+      "verdict": "SAFE",
+      "blockers": 0
+    },
+    "runtime_adapter.py": {
+      "lines": 105,
+      "verdict": "SAFE",
+      "blockers": 0
+    },
+    "shell_runtime_adapter.py": {
+      "lines": 377,
+      "verdict": "SAFE",
+      "blockers": 0
+    },
+    "claude_code_runtime_adapter.py": {
+      "lines": 179,
+      "verdict": "SAFE",
+      "blockers": 0
+    },
+    "runtime_manager.py": {
+      "lines": 385,
+      "verdict": "SAFE",
+      "blockers": 0
+    },
+    "runtime_handoff.py": {
+      "lines": 208,
+      "verdict": "SAFE",
+      "blockers": 0
+    },
+    "cockpit_runtime_surface_routes.py": {
+      "lines": 163,
+      "verdict": "SAFE",
+      "blockers": 0
+    },
+    "RuntimePanel.tsx": {
+      "lines": 383,
+      "verdict": "SAFE",
+      "blockers": 0
+    },
+    "phase13_2_runtime_proofs.py": {
+      "lines": 631,
+      "verdict": "SAFE",
+      "blockers": 0
+    }
+  },
+  "checks_passed": 32,
+  "checks_failed": 0,
+  "total_advisories": 6,
+  "advisories": [
+    "Silent json.JSONDecodeError catch in load functions",
+    "risk_class as str instead of RiskClass enum",
+    "Duplicate RuntimeAdapter class name (graph vs session)",
+    "Unregistered dataclasses in canonical_types.py",
+    "uuid import unused in runtime_manager.py",
+    "GET handlers lack explicit try/except"
+  ],
+  "total_lines": 2694,
+  "verdict": "SAFE",
+  "result": "ALL_CHECKS_PASS"
+}

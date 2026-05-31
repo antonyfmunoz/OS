@@ -1,0 +1,51 @@
+{
+  "phase": "13.2R",
+  "task": "live_runtime_surface_verification",
+  "timestamp": "2026-05-31T02:58:44.800169+00:00Z",
+  "checks": {
+    "1_surface_summary_loads": {
+      "status": "PASS",
+      "total_sessions": 1,
+      "active": 0,
+      "blocked": 1
+    },
+    "2_adapter_list_loads": {
+      "status": "PASS",
+      "count": 2
+    },
+    "3_shell_adapter_truthful": {
+      "status": "PASS",
+      "available": true,
+      "blocked_patterns": 19
+    },
+    "4_cc_adapter_truthful": {
+      "status": "PASS",
+      "available": true,
+      "binary_found": true,
+      "policy": "sandbox_only"
+    },
+    "5_sessions_list_loads": {
+      "status": "PASS",
+      "count": 1
+    },
+    "6_no_orphan_sessions": {
+      "status": "PASS",
+      "detail": "only blocked test session from API verification"
+    },
+    "7_event_list_loads": {
+      "status": "PASS"
+    },
+    "8_policies_visible": {
+      "status": "PASS",
+      "detail": "blocked_patterns_count=19, policy_reason=sandbox_only"
+    },
+    "9_safety_state_visible": {
+      "status": "PASS",
+      "detail": "blocked session shows failure_reason"
+    },
+    "10_no_secrets_exposed": {
+      "status": "PASS"
+    }
+  },
+  "result": "ALL_CHECKS_PASS"
+}

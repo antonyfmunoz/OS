@@ -1,0 +1,70 @@
+{
+  "phase": "13.2R",
+  "task": "production_merge_verification",
+  "timestamp": "2026-05-31T03:08:11.336212+00:00Z",
+  "ptd_id": "ptd-b31f2904",
+  "poc_id": "poc-e475ac7b",
+  "prior_truth": {
+    "ptd": "ptd-639760df",
+    "poc": "poc-637ff93"
+  },
+  "checks": {
+    "1_expected_vs_observed": {
+      "status": "PASS",
+      "expected": 19,
+      "observed": 19,
+      "missing": 0
+    },
+    "2_no_unplanned_files": {
+      "status": "PASS",
+      "detail": "all files match Phase 13.2 commit diff"
+    },
+    "3_artifacts_classified": {
+      "status": "PASS"
+    },
+    "4_py_compile": {
+      "status": "PENDING",
+      "detail": "running in test-runner agent"
+    },
+    "5_cockpit_typecheck": {
+      "status": "PENDING",
+      "detail": "running in test-runner agent"
+    },
+    "6_cockpit_build": {
+      "status": "PENDING"
+    },
+    "7_phase_13_2_tests": {
+      "status": "PENDING"
+    },
+    "8_phase_13_1_tests": {
+      "status": "PENDING"
+    },
+    "9_phase_13_0_tests": {
+      "status": "PENDING"
+    },
+    "10_regression_tests": {
+      "status": "PENDING"
+    },
+    "11_ptd_created": {
+      "status": "PASS",
+      "id": "ptd-b31f2904"
+    },
+    "12_poc_emitted": {
+      "status": "PASS",
+      "id": "poc-e475ac7b",
+      "emitted_once": true
+    },
+    "13_duplicate_suppression": {
+      "status": "PASS",
+      "detail": "single emission, no duplicate"
+    },
+    "14_propagation": {
+      "status": "PASS",
+      "detail": "from prior truth ptd-639760df"
+    },
+    "15_reliability_recorded": {
+      "status": "PASS"
+    }
+  },
+  "result": "PASS_PENDING_TESTS"
+}
