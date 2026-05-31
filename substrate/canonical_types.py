@@ -161,6 +161,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # ── substrate/organism/change_event.py (Phase 12.0) ───────────────
     "ChangeType": ["substrate.organism.change_event"],
     "PropagationActionStatus": ["substrate.organism.change_event"],
+    # ── substrate/organism/runtime_session.py (Phase 13.2) ───────────────
+    "RuntimeStatus": ["substrate.organism.runtime_session"],
+    "RuntimeType": ["substrate.organism.runtime_session"],
+    "RuntimeEventType": ["substrate.organism.runtime_session"],
 }
 
 
