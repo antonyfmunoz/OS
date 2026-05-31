@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: verifying
 stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-05-30T00:46:15.149Z"
-last_activity: 2026-05-30
+last_updated: "2026-05-31T02:30:00.000Z"
+last_activity: 2026-05-31
 progress:
   total_phases: 12
   completed_phases: 3
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-29)
 Phase: 4
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-05-31 - Completed quick task 260530-ocp: Phase 13.1 — Voice-First DEX Cockpit Command Layer
+Last activity: 2026-05-31 - Completed Phase 13.2 — Native Agent Runtime / Workcell Execution Surface
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -96,9 +96,10 @@ None yet.
 | Phase 13.0R — Production Truth Promotion | 2026-05-31 | ad53f5e3 | PTD ptd-b504636a, POC poc-37f0509. 12 proof artifacts, 761 tests (0 new failures), 9 live API routes verified, lifecycle/status/approval/propagation proofs, audit report |
 | Phase 13.1 — Voice-First DEX Cockpit Command Layer | 2026-05-31 | 27fdc02a | OperatorPanel (529 lines), voiceTypes (137), speechInputAdapter (197), operatorExperienceStore (376). 9-section cockpit command surface, push-to-talk Web Speech adapter, DEX API integration, 7 proof artifacts, 395 tests pass, all gates clean. Ready for 13.1R. |
 | Phase 13.1R — Production Truth Promotion | 2026-05-31 | f44d465b | PTD ptd-639760df, POC poc-637ff93. 10 proof artifacts, 395 tests (0 new failures), 9 live API endpoints verified (all HTTP 200, auth-gated), text command proof (create_work → wp-437343aa328b), voice limitation documented truthfully (headless VPS), tsc clean, all 4 gates clean for Phase 13.1. |
+| Phase 13.2 — Native Agent Runtime | 2026-05-31 | 88c6b252..2dfb31a2 | RuntimeSession model (11-state FSM, 6 types, 17 event types), ShellRuntimeAdapter (19 blocked commands, secret redaction, env stripping, process group isolation, 3 rounds security hardening), ClaudeCodeRuntimeAdapter skeleton (truthful degradation), RuntimeManager (policy enforcement, worktree sandbox, lifecycle orchestration), RuntimeHandoffPreview (what_will/won't_happen), 10 auth-gated API routes, RuntimePanel cockpit panel, 36/36 proofs (lifecycle + stop/cancel + policy blocks), cortextOS comparison audit. 11 commits, 18 files, +2969 lines, 0 gate violations. |
 
 ## Session Continuity
 
 Last session: 2026-05-31
-Stopped at: Phase 13.1R complete — production truth promoted
+Stopped at: Phase 13.2 complete — merged to main, pushed to origin (2dfb31a2)
 Resume file: None
