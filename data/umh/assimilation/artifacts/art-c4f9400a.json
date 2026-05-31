@@ -1,0 +1,23 @@
+{
+  "id": "art-c4f9400a",
+  "name": "test-system",
+  "source_url": "https://example.com",
+  "artifact_type": "unknown",
+  "status": "scored",
+  "primitives_count": 1,
+  "leverage_summary": {
+    "count": 1,
+    "avg_score": 0.85,
+    "max_score": 0.85
+  },
+  "redundancy_report": {
+    "artifact_id": "art-c4f9400a",
+    "total_primitives": 1,
+    "redundant": [],
+    "novel": [
+      "prim-551cffab"
+    ],
+    "partial_overlap": []
+  },
+  "created_at": 1780182986.1009576
+}

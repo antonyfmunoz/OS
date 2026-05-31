@@ -12,9 +12,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 26,
+      "observation_count": 31,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:45:21.273929+00:00",
+      "last_seen": "2026-05-30T22:42:47.171886+00:00",
       "domain": "{'command': \"echo 'Researcher task: Audit cognitive_loop.py for state mutations outside canonical paths'\", 'returncode': 0, 'stdout': 'Researcher task: Audit cognitive_loop.py for state mutations outs"
     },
     {
@@ -26,9 +26,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 25,
+      "observation_count": 31,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:45:21.654748+00:00",
+      "last_seen": "2026-05-30T22:42:54.641989+00:00",
       "domain": "{'command': 'echo hello', 'returncode': 0, 'stdout': 'hello\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -40,9 +40,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 25,
+      "observation_count": 31,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:45:21.678770+00:00",
+      "last_seen": "2026-05-30T22:42:54.972105+00:00",
       "domain": "{'command': 'echo test', 'returncode': 0, 'stdout': 'test\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -54,9 +54,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 25,
+      "observation_count": 31,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:45:21.708208+00:00",
+      "last_seen": "2026-05-30T22:42:55.357440+00:00",
       "domain": "{'command': 'echo status', 'returncode': 0, 'stdout': 'status\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -71,9 +71,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 27,
+      "observation_count": 31,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:48:31.608553+00:00",
+      "last_seen": "2026-05-30T22:44:03.598902+00:00",
       "domain": "{'command': \"echo 'Researcher task: Audit the services/umh/organism/ directory for any missing __init__.py files'\", 'returncode': 0, 'stdout': 'Researcher task: Audit the services/umh/organism/ direct"
     },
     {
@@ -88,9 +88,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 23,
+      "observation_count": 26,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:49:21.480689+00:00",
+      "last_seen": "2026-05-30T22:45:09.812820+00:00",
       "domain": "{'command': \"echo 'Researcher task: Check for unused imports in app.py'\", 'returncode': 0, 'stdout': 'Researcher task: Check for unused imports in app.py\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -105,9 +105,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 18,
+      "observation_count": 21,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:50:12.242384+00:00",
+      "last_seen": "2026-05-30T22:46:20.772615+00:00",
       "domain": "{'command': \"echo 'Researcher task: Search for TODO comments in the codebase'\", 'returncode': 0, 'stdout': 'Researcher task: Search for TODO comments in the codebase\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -122,9 +122,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 15,
-      "success_rate": 1.0,
-      "last_seen": "2026-05-28T03:51:00.812682+00:00",
+      "observation_count": 18,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-30T22:47:33.172068+00:00",
       "domain": "{'command': \"echo 'Researcher task: List all Python files in services/umh/'\", 'returncode': 0, 'stdout': 'Researcher task: List all Python files in services/umh/\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -139,9 +139,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 12,
+      "observation_count": 15,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:19:41.135648+00:00",
+      "last_seen": "2026-05-30T23:19:26.181209+00:00",
       "domain": "{'command': \"echo 'Researcher task: Audit services/umh/organism/ for missing files'\", 'returncode': 0, 'stdout': 'Researcher task: Audit services/umh/organism/ for missing files\\n', 'stderr': '', 'suc"
     },
     {
@@ -155,9 +155,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 12,
+      "observation_count": 15,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:19:41.166867+00:00",
+      "last_seen": "2026-05-30T23:19:26.247461+00:00",
       "domain": "{'command': \"echo 'Researcher task: Check for unused imports'\", 'returncode': 0, 'stdout': 'Researcher task: Check for unused imports\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -171,9 +171,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 22,
+      "observation_count": 30,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:19:41.195716+00:00",
+      "last_seen": "2026-05-30T23:19:26.434818+00:00",
       "domain": "{'command': \"echo 'Researcher task: Search for TODO comments'\", 'returncode': 0, 'stdout': 'Researcher task: Search for TODO comments\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -185,9 +185,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 12,
+      "observation_count": 15,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:19:41.227813+00:00",
+      "last_seen": "2026-05-30T23:19:26.505281+00:00",
       "domain": "{'command': \"echo 'Researcher task: List files'\", 'returncode': 0, 'stdout': 'Researcher task: List files\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -200,9 +200,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 12,
+      "observation_count": 16,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:19:41.532860+00:00",
+      "last_seen": "2026-05-30T23:39:30.563002+00:00",
       "domain": "{'command': 'query', 'returncode': 127, 'stdout': '', 'stderr': '/bin/sh: 1: query: not found\\n', 'success': False}"
     },
     {
@@ -214,9 +214,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 12,
+      "observation_count": 16,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:19:41.556139+00:00",
+      "last_seen": "2026-05-30T23:39:30.777693+00:00",
       "domain": "{'command': 'query', 'returncode': 127, 'stdout': '', 'stderr': '/bin/sh: 1: query: not found\\n', 'success': False}"
     },
     {
@@ -229,9 +229,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 31,
+      "observation_count": 42,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:45:21.491782+00:00",
+      "last_seen": "2026-05-30T22:47:35.159648+00:00",
       "domain": "{'command': \"echo 'Researcher task: search for files'\", 'returncode': 0, 'stdout': 'Researcher task: search for files\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -244,10 +244,112 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 10,
+      "observation_count": 15,
       "success_rate": 0.5,
-      "last_seen": "2026-05-28T03:18:49.955451+00:00",
+      "last_seen": "2026-05-30T22:47:35.725043+00:00",
       "domain": "{'command': \"echo 'Researcher task: search for patterns'\", 'returncode': 0, 'stdout': 'Researcher task: search for patterns\\n', 'stderr': '', 'success': True}"
+    },
+    {
+      "pattern_id": "p_a_advisor_are_strategic_you",
+      "description": "Pattern from: You are a strategic advisor conducting a company position audit. Reason from first principles and re",
+      "trigger_conditions": [
+        "you",
+        "are",
+        "a",
+        "strategic",
+        "advisor"
+      ],
+      "predicted_outcome": "Failed to authenticate. API Error: 401 Invalid authentication credentials\nFailed to authenticate. API Error: 401 Invalid authentication credentials",
+      "confidence": 1.0,
+      "observation_count": 6,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-31T13:22:55.502473+00:00",
+      "domain": "business_sales"
+    },
+    {
+      "pattern_id": "p_are_board-level_strategic_the_you",
+      "description": "Pattern from: You are the board-level strategic advisor reasoning across an entire portfolio. You have just comple",
+      "trigger_conditions": [
+        "you",
+        "are",
+        "the",
+        "board-level",
+        "strategic"
+      ],
+      "predicted_outcome": "Failed to authenticate. API Error: 401 Invalid authentication credentials\nFailed to authenticate. API Error: 401 Invalid authentication credentials",
+      "confidence": 1.0,
+      "observation_count": 2,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-31T13:29:12.409226+00:00",
+      "domain": "business_finance"
+    },
+    {
+      "pattern_id": "p_a_are_behavioral_building_you",
+      "description": "Pattern from: You are building a behavioral communication profile of a founder-operator. Analyze the following sam",
+      "trigger_conditions": [
+        "you",
+        "are",
+        "building",
+        "a",
+        "behavioral"
+      ],
+      "predicted_outcome": "Failed to authenticate. API Error: 401 Invalid authentication credentials\nFailed to authenticate. API Error: 401 Invalid authentication credentials",
+      "confidence": 1.0,
+      "observation_count": 2,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-30T13:14:11.676937+00:00",
+      "domain": "business_sales"
+    },
+    {
+      "pattern_id": "p_(apply_every_operating_principles_to",
+      "description": "Pattern from: OPERATING PRINCIPLES (apply to every output):\nROOT: The system must always seek the highest justifie",
+      "trigger_conditions": [
+        "operating",
+        "principles",
+        "(apply",
+        "to",
+        "every"
+      ],
+      "predicted_outcome": "Failed to authenticate. API Error: 401 Invalid authentication credentials\nFailed to authenticate. API Error: 401 Invalid authentication credentials",
+      "confidence": 1.0,
+      "observation_count": 6,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-31T15:13:16.601012+00:00",
+      "domain": "general"
+    },
+    {
+      "pattern_id": "p_break_into_objective_specific,_this",
+      "description": "Pattern from: Break this objective into specific, executable tasks:\n\nOBJECTIVE: Failed to authenticate. API Error:",
+      "trigger_conditions": [
+        "break",
+        "this",
+        "objective",
+        "into",
+        "specific,"
+      ],
+      "predicted_outcome": "Failed to authenticate. API Error: 401 Invalid authentication credentials\nFailed to authenticate. API Error: 401 Invalid authentication credentials",
+      "confidence": 1.0,
+      "observation_count": 6,
+      "success_rate": 0.5,
+      "last_seen": "2026-05-31T15:25:52.005774+00:00",
+      "domain": "business_strategy"
+    },
+    {
+      "pattern_id": "p_a_are_intelligence_market_you",
+      "description": "Pattern from: You are a market intelligence analyst conducting a real-time scan. Using the venture context below, ",
+      "trigger_conditions": [
+        "you",
+        "are",
+        "a",
+        "market",
+        "intelligence"
+      ],
+      "predicted_outcome": "This conversation contains sensitive signals, specifically regarding acquisition strategy. This information will not be logged.\n\nHere are 6 specific, plausible market signals for Antony in the current landscape:\n\nSIGNAL: COMPETITOR | Tony Robbins' organization is observed to be increasing micro-cont",
+      "confidence": 1.0,
+      "observation_count": 37,
+      "success_rate": 1.0,
+      "last_seen": "2026-05-31T18:40:48.708199+00:00",
+      "domain": "business_sales"
     }
   ]
 }

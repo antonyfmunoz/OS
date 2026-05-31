@@ -1,0 +1,140 @@
+{
+  "verification_id": "pmv-0210d9b7",
+  "sandbox_id": "sb-pr47cse",
+  "pr_number": 47,
+  "manifest_id": "csm-af5aff16",
+  "status": "cleanup_ready",
+  "merge_commit": "03fe81d86fd6092338a3e9388649abbc9f2f7b00",
+  "base_commit": "83f1da82",
+  "head_commit": "1e00b829",
+  "local_main_commit": "bd5b55ed19ad05956fa3396d02181e01d9cbe7e7",
+  "expected_files": [
+    "data/umh/organism/templates/.gitkeep",
+    "scripts/verify_template_store.py"
+  ],
+  "observed_files": [
+    "data/umh/organism/templates/.gitkeep",
+    "scripts/verify_template_store.py"
+  ],
+  "truth_delta": {
+    "delta_id": "ptd-968247f8",
+    "sandbox_id": "sb-pr47cse",
+    "pr_number": 47,
+    "manifest_id": "csm-af5aff16",
+    "merge_commit": "03fe81d86fd6092338a3e9388649abbc9f2f7b00",
+    "base_commit": "83f1da82",
+    "head_commit": "1e00b829",
+    "changed_files_expected": [
+      "data/umh/organism/templates/.gitkeep",
+      "scripts/verify_template_store.py"
+    ],
+    "changed_files_observed": [
+      "data/umh/organism/templates/.gitkeep",
+      "scripts/verify_template_store.py"
+    ],
+    "file_divergences": [
+      {
+        "path": "data/umh/organism/templates/.gitkeep",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "scripts/verify_template_store.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      }
+    ],
+    "has_file_divergence": false,
+    "added_lines_expected": 0,
+    "removed_lines_expected": 0,
+    "added_lines_observed": 1940,
+    "removed_lines_observed": 7,
+    "state_before": {
+      "world_model_hash": "pre-pr47",
+      "contradiction_count": 0,
+      "readiness_score": 0.75,
+      "dependency_node_count": 0,
+      "bottleneck_count": 0,
+      "template_count": 10,
+      "agent_count": 2,
+      "captured_at": 1780113804.0066004
+    },
+    "state_after": {
+      "world_model_hash": "pre-pr47",
+      "contradiction_count": 0,
+      "readiness_score": 0.75,
+      "dependency_node_count": 0,
+      "bottleneck_count": 0,
+      "template_count": 10,
+      "agent_count": 2,
+      "captured_at": 1780113804.3265269
+    },
+    "world_model_before_after": {
+      "before_hash": "pre-pr47",
+      "after_hash": "pre-pr47",
+      "changed": false
+    },
+    "contradictions_before_after": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "readiness_before_after": {
+      "before": 0.75,
+      "after": 0.75,
+      "delta": 0.0
+    },
+    "dependency_graph_before_after": {
+      "before_nodes": 0,
+      "after_nodes": 0,
+      "delta": 0
+    },
+    "bottlenecks_before_after": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "template_confidence_before_after": {
+      "before_count": 10,
+      "after_count": 10
+    },
+    "agent_reliability_before_after": {
+      "before_count": 2,
+      "after_count": 2
+    },
+    "validation_results": [
+      {
+        "command": "import substrate",
+        "passed": true,
+        "exit_code": 0,
+        "output_summary": "substrate ok\n",
+        "validated_at": 1780113804.2908654
+      },
+      {
+        "command": "py_compile organism",
+        "passed": true,
+        "exit_code": 0,
+        "output_summary": "",
+        "validated_at": 1780113804.3263004
+      }
+    ],
+    "all_validations_passed": true,
+    "requires_review": false,
+    "requires_operator_review": false,
+    "mismatch_reasons": [],
+    "evidence": [
+      "file sets match"
+    ],
+    "status": "production_verified",
+    "timestamp": 1780113804.0064204
+  },
+  "error": "",
+  "started_at": 1780113803.524447,
+  "completed_at": 1780113804.3886514
+}

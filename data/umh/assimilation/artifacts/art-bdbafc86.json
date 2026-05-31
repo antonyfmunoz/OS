@@ -1,0 +1,24 @@
+{
+  "id": "art-bdbafc86",
+  "name": "Test Framework",
+  "source_url": "",
+  "artifact_type": "framework",
+  "status": "scored",
+  "primitives_count": 2,
+  "leverage_summary": {
+    "count": 2,
+    "avg_score": 0.708,
+    "max_score": 0.725
+  },
+  "redundancy_report": {
+    "artifact_id": "art-bdbafc86",
+    "total_primitives": 2,
+    "redundant": [],
+    "novel": [
+      "prim-4d2732e5",
+      "prim-86f42c72"
+    ],
+    "partial_overlap": []
+  },
+  "created_at": 1780180855.4505794
+}

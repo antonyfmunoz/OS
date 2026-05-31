@@ -1,0 +1,58 @@
+{
+  "phase": "10.3F",
+  "cadence_mode": "dry_run_only",
+  "cadence_dry_run_only": true,
+  "pr47_candidate_suppressed": true,
+  "duplicate_suppression_works": true,
+  "total_candidates_after_suppression": 3,
+  "unblocked_candidates": 0,
+  "candidate_summary": [
+    {
+      "id": "cse-e3194d31",
+      "desc": "Template audit identified gap: require_template=True gates all candidates when r",
+      "decision": "blocked"
+    },
+    {
+      "id": "cse-43ba4a9d",
+      "desc": "Template audit identified gap: Only existing template data record is at wrong pa",
+      "decision": "blocked"
+    },
+    {
+      "id": "cse-b6e36a44",
+      "desc": "Template audit identified gap: Zero templates exist for any of the 15 TemplateTy",
+      "decision": "blocked"
+    }
+  ],
+  "source_scan_proof": {
+    "contradiction_engine": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "world_model": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "dependency_graph": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "readiness_model": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "bottleneck_engine": {
+      "scanned": true,
+      "candidates_found": 0,
+      "error": null
+    },
+    "template_audit_gaps": {
+      "scanned": true,
+      "candidates_found": 4,
+      "error": null
+    }
+  }
+}

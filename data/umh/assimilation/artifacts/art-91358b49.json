@@ -1,0 +1,15 @@
+{
+  "id": "art-91358b49",
+  "name": "test",
+  "source_url": "",
+  "artifact_type": "unknown",
+  "status": "extracted",
+  "primitives_count": 1,
+  "leverage_summary": {
+    "count": 1,
+    "avg_score": 0.35,
+    "max_score": 0.35
+  },
+  "redundancy_report": {},
+  "created_at": 1780183168.2487357
+}

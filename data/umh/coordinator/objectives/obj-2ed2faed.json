@@ -1,0 +1,24 @@
+{
+  "id": "obj-2ed2faed",
+  "title": "Quick",
+  "status": "executing",
+  "completion_rate": 0.0,
+  "work_units": [
+    {
+      "id": "wu-c1d71ca4",
+      "objective_id": "obj-2ed2faed",
+      "title": "Quick",
+      "unit_type": "execute",
+      "status": "pending",
+      "assigned_runtime": "",
+      "required_capability": "shell",
+      "blocked_by": [],
+      "blocks": [],
+      "attempt_count": 0,
+      "generation": 1,
+      "result": "",
+      "error": ""
+    }
+  ],
+  "generation": 1
+}

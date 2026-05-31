@@ -1,0 +1,105 @@
+{
+  "phase": "13.4",
+  "scenarios": [
+    {
+      "scenario_id": "scenario-a-eos-dashboard",
+      "name": "Primary EOS Dashboard Build Intent",
+      "input_text": "I want to build the first EOS operating dashboard for Empyrean Studios. Use what UMH knows, inspect the current state, and run a sandboxed developer workcell to tell me the highest-leverage implementation plan.",
+      "input_mode": "text",
+      "description": "Full Jarvis loop: operator expresses build intent, DEX classifies, Work Packet created, context diagnostic used, permission checked, propagation previewed, runtime handoff previewed, sandbox runtime produces implementation report, no production mutation.",
+      "expected_intent_type": "create_work",
+      "expects_work_packet": true,
+      "expects_runtime": true,
+      "expects_reconciliation": false,
+      "expects_permission": false,
+      "expects_propagation": true,
+      "expects_artifact": true,
+      "expects_no_production_mutation": true,
+      "expects_no_external_write": true,
+      "success_criteria": [
+        "DEX classifies create_work intent",
+        "Work Packet created with low risk",
+        "Context diagnostic referenced",
+        "Propagation preview generated",
+        "Runtime handoff preview generated",
+        "Runtime executes in sandbox only",
+        "Implementation report artifact created",
+        "No production mutation",
+        "No external write"
+      ],
+      "metadata": {}
+    },
+    {
+      "scenario_id": "scenario-b-roadmap-status",
+      "name": "Roadmap Status + Next Action",
+      "input_text": "Where are we in the roadmap and what is the highest-leverage next action?",
+      "input_mode": "text",
+      "description": "DEX answers from real roadmap/production truth state. No runtime required. Next action references current phase transition truthfully.",
+      "expected_intent_type": "roadmap_query",
+      "expects_work_packet": false,
+      "expects_runtime": false,
+      "expects_reconciliation": false,
+      "expects_permission": false,
+      "expects_propagation": false,
+      "expects_artifact": false,
+      "expects_no_production_mutation": true,
+      "expects_no_external_write": true,
+      "success_criteria": [
+        "DEX answers from real roadmap state",
+        "Current phase identified",
+        "Next phase/action identified",
+        "No runtime starts",
+        "No production mutation"
+      ],
+      "metadata": {}
+    },
+    {
+      "scenario_id": "scenario-c-reconciliation",
+      "name": "Canonical Reconciliation",
+      "input_text": "Reconcile what UMH understands about EOS handling companies, entities, and portfolios.",
+      "input_mode": "text",
+      "description": "DEX classifies reconciliation intent. ReconciliationSession created. Proposals generated if needed. No canonical update auto-applied. Approval required for canonization.",
+      "expected_intent_type": "general_query",
+      "expects_work_packet": false,
+      "expects_runtime": false,
+      "expects_reconciliation": true,
+      "expects_permission": false,
+      "expects_propagation": false,
+      "expects_artifact": false,
+      "expects_no_production_mutation": true,
+      "expects_no_external_write": true,
+      "success_criteria": [
+        "DEX processes reconciliation input",
+        "ReconciliationSession created",
+        "No canonical update applied silently",
+        "Approval required for canonization",
+        "No external write"
+      ],
+      "metadata": {}
+    },
+    {
+      "scenario_id": "scenario-d-permissioned-cross-source",
+      "name": "Permissioned Cross-Source Diagnostic",
+      "input_text": "If there is evidence I pay for a tool in email and it appears in files or workflows, ask me before linking it.",
+      "input_mode": "text",
+      "description": "Socratic permission request generated. Cross-source linking blocked until confirmed. No external account accessed. No canonization.",
+      "expected_intent_type": "general_query",
+      "expects_work_packet": false,
+      "expects_runtime": false,
+      "expects_reconciliation": false,
+      "expects_permission": true,
+      "expects_propagation": false,
+      "expects_artifact": false,
+      "expects_no_production_mutation": true,
+      "expects_no_external_write": true,
+      "success_criteria": [
+        "Permission request created",
+        "Cross-source linking blocked before approval",
+        "No external account accessed",
+        "No canonization without approval"
+      ],
+      "metadata": {}
+    }
+  ],
+  "total": 4
+}

@@ -1,0 +1,44 @@
+{
+  "phase": "10.3E",
+  "template_id": "tpl-seed-cockpit-panel-fix-01",
+  "template_confidence_before": 0.8,
+  "template_confidence_after": 1.0,
+  "template_confidence_delta": 0.19999999999999996,
+  "template_success_count_before": 2,
+  "template_success_count_after": 3,
+  "template_usage_delta": 1,
+  "agent_type": "developer_agent",
+  "agent_capability_names": [
+    "sandbox_execution",
+    "pr_creation",
+    "template_application"
+  ],
+  "agent_reliability_before": 0.5,
+  "agent_reliability_after": 0.6,
+  "agent_reliability_delta": 0.09999999999999998,
+  "outcome_learning_record": {
+    "outcome_id": "olt-dffea46a",
+    "template_id": "tpl-seed-cockpit-panel-fix-01",
+    "candidate_id": "cse-ba39a708",
+    "pr_number": 47,
+    "agent_type": "developer_agent",
+    "success": true,
+    "confidence_before": 0.8,
+    "confidence_after": 1.0,
+    "timestamp": 1780113876.400802
+  },
+  "memory_candidate": {
+    "memory_id": "mem-c0730802",
+    "source": "production_outcome",
+    "template_id": "tpl-seed-cockpit-panel-fix-01",
+    "summary": "Template tpl-seed-cockpit-panel-fix-01 successfully applied via PR #47",
+    "confidence": 1.0,
+    "timestamp": 1780113876.4008048
+  },
+  "production_propagation_records": [
+    "template_registry_reliability",
+    "agent_capability_model_reliability",
+    "memory_promotion_pipeline",
+    "world_model_evidence"
+  ]
+}

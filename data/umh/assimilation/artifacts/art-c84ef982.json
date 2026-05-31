@@ -1,0 +1,23 @@
+{
+  "id": "art-c84ef982",
+  "name": "Test",
+  "source_url": "",
+  "artifact_type": "unknown",
+  "status": "scored",
+  "primitives_count": 1,
+  "leverage_summary": {
+    "count": 1,
+    "avg_score": 0.85,
+    "max_score": 0.85
+  },
+  "redundancy_report": {
+    "artifact_id": "art-c84ef982",
+    "total_primitives": 1,
+    "redundant": [],
+    "novel": [
+      "prim-16279412"
+    ],
+    "partial_overlap": []
+  },
+  "created_at": 1780176823.431881
+}

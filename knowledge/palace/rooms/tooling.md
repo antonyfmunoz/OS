@@ -2,7 +2,7 @@
 type: palace-room
 room_id: tooling
 wing: scripts
-generated: 2026-05-26
+generated: 2026-05-31
 ---
 
 # Room — Tooling & Scripts
