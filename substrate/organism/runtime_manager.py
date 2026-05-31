@@ -252,10 +252,8 @@ class RuntimeManager:
         allowed_paths = []
         if sandbox.get("worktree_path"):
             allowed_paths.append(sandbox["worktree_path"])
-        if cwd and cwd not in allowed_paths:
-            allowed_paths.append(cwd)
 
-        main_repo = os.path.abspath(_REPO_ROOT)
+        main_repo = os.path.realpath(os.path.abspath(_REPO_ROOT))
         blocked_paths = [main_repo]
 
         request = RuntimeStartRequest(

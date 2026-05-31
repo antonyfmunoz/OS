@@ -112,7 +112,13 @@ def _sandbox_env() -> dict[str, str]:
     return env
 
 
-_WORKTREE_BASE_SUFFIX = os.sep + ".claude" + os.sep + "worktrees" + os.sep
+_REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+_WORKTREE_BASE = os.path.realpath(os.path.join(_REPO_ROOT, ".claude", "worktrees")) + os.sep
+
+
+def _is_inside_worktree_base(path: str) -> bool:
+    real = os.path.realpath(os.path.abspath(path))
+    return real.startswith(_WORKTREE_BASE) or real == _WORKTREE_BASE.rstrip(os.sep)
 
 
 def is_path_allowed(cwd: str, allowed_paths: list[str], blocked_paths: list[str], sandbox_required: bool = True) -> tuple[bool, str]:
@@ -128,14 +134,12 @@ def is_path_allowed(cwd: str, allowed_paths: list[str], blocked_paths: list[str]
                 break
         if not in_allowed:
             return False, f"cwd {real_cwd} not inside any allowed path"
-        # Allowed path matched — verify it's inside the designated
-        # worktree base before overriding blocked_paths.
         for bp in blocked_paths:
             real_bp = os.path.realpath(os.path.abspath(bp))
             if real_cwd == real_bp or real_cwd.startswith(real_bp + os.sep):
-                if _WORKTREE_BASE_SUFFIX in real_cwd:
+                if _is_inside_worktree_base(real_cwd):
                     return True, ""
-                return False, f"cwd {real_cwd} is inside blocked path {real_bp} and not a worktree"
+                return False, f"cwd {real_cwd} is inside blocked path {real_bp} and not in worktree base"
         return True, ""
     for bp in blocked_paths:
         real_bp = os.path.realpath(os.path.abspath(bp))
