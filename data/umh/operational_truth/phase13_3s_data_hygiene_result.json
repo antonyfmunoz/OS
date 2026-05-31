@@ -1,0 +1,36 @@
+{
+  "date": "2026-05-31",
+  "phase": "13.3S",
+  "metrics_rotation": {
+    "file": "data/umh/mesh/metrics.jsonl",
+    "before_lines": 1307164,
+    "before_size_mb": 238,
+    "after_lines": 10000,
+    "after_size_mb": 1.9,
+    "archive": "data/umh/mesh/archive/metrics_archive_20260531.jsonl.gz",
+    "archive_size_mb": 24,
+    "policy": "keep tail 10000 lines, compress archive"
+  },
+  "log_rotation": {
+    "stale_processed_signals": {
+      "files": 20084,
+      "size_mb": 80,
+      "action": "archived to tar.gz",
+      "archive": "logs/signals/deferred_stale/processed_archive_20260531.tar.gz"
+    }
+  },
+  "worktree_cleanup": {
+    "stale_removed": 19,
+    "remaining_active": ["ground-truth-audit", "phase-13-1-voice-dex", "phase-13-3"],
+    "disk_recovered_mb": 930
+  },
+  "disk_state": {
+    "before_percent": 80,
+    "after_percent": 78,
+    "free_gb": 22
+  },
+  "no_source_deleted": true,
+  "no_audits_deleted": true,
+  "no_proofs_deleted": true,
+  "no_active_runtime_deleted": true
+}

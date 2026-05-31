@@ -1,0 +1,34 @@
+{
+  "date": "2026-05-31",
+  "phase": "13.3S",
+  "status": "completed",
+  "graph": {
+    "python_files_scanned": 896,
+    "non_py_files": 18,
+    "classes": 2101,
+    "functions": 10291,
+    "edges": 41976,
+    "output_size_bytes": 22217791
+  },
+  "palace": {
+    "loci": 30,
+    "rooms": 7,
+    "source_graph_age_hours": 0.11,
+    "status": "fresh"
+  },
+  "summaries": {
+    "total_nodes": 21954,
+    "new_or_changed": 12369,
+    "version": 11
+  },
+  "files_updated": [
+    "data/codebase_graph.json",
+    "data/node_summaries.json",
+    "knowledge/palace/index.md",
+    "knowledge/palace/wings/",
+    "knowledge/palace/rooms/",
+    "data/palace.json"
+  ],
+  "verification_command": "python3 scripts/verify_knowledge_system.py",
+  "retrieval_hierarchy_restored": true
+}

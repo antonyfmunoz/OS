@@ -1,0 +1,91 @@
+{
+  "canonicality": "operational_truth_snapshot",
+  "scope": "/opt/OS",
+  "date": "2026-05-31",
+  "source_audit": "data/audits/2026-05-31_definitive_ground_truth_audit.md",
+  "repo": {
+    "total_files": 114817,
+    "active_python_files": 1186,
+    "active_ts_files": 141,
+    "total_disk_gb": 2.1
+  },
+  "infrastructure": {
+    "disk_usage_percent": 80,
+    "disk_free_gb": 21,
+    "disk_total_gb": 96,
+    "ram_total_gb": 7.8,
+    "ram_usage_percent": 53
+  },
+  "containers": [
+    {"name": "os-discord", "status": "Up", "port": "8765", "function": "Discord bot + cognitive loop"},
+    {"name": "os-operator", "status": "Up", "port": "8091", "function": "FastAPI operator API + organism daemon"},
+    {"name": "os-webhook", "status": "Up", "port": "8080", "function": "Calendly webhook receiver"},
+    {"name": "os-scraper", "status": "Not running", "port": null, "function": "On-demand nightly cron"}
+  ],
+  "services": [
+    {"name": "caddy.service", "status": "running"},
+    {"name": "ollama.service", "status": "running"},
+    {"name": "tailscaled.service", "status": "running"},
+    {"name": "ttyd.service", "status": "running"},
+    {"name": "umh-mesh.service", "status": "running (degraded)"}
+  ],
+  "cron_jobs": 31,
+  "llm_providers": {
+    "claude_cli": {"configured": true, "available": "dev_sessions_only"},
+    "cc_sdk": {"configured": true, "available": "dev_sessions_only"},
+    "gemini": {"configured": true, "available": false, "error": "429 free tier exhausted"},
+    "groq": {"configured": true, "available": false, "error": "429 TPD limit"},
+    "anthropic": {"configured": true, "available": false, "error": "401 auth / needs credits"},
+    "perplexity": {"configured": true, "available": false, "error": "401 quota exceeded"},
+    "ollama": {"configured": true, "available": true, "model": "qwen2.5:0.5b", "capability": "emergency_minimal"},
+    "codex": {"configured": false, "available": false, "error": "reconnect issues"},
+    "hermes": {"configured": false, "available": false, "error": "experimental"},
+    "opencode": {"configured": false, "available": false, "error": "experimental"}
+  },
+  "organism": {
+    "daemon_tick_count": 2463,
+    "tick_interval_s": 5,
+    "events_jsonl_lines": 17152,
+    "execution_journal_lines": 0,
+    "coordinator_files": 493,
+    "assimilation_files": 387
+  },
+  "eventbus": {
+    "loop_cycle_business_ops": "no_handlers_registered",
+    "registered_event_types": 15,
+    "missing_handlers": ["loop_cycle_business_ops"]
+  },
+  "precommit_gates": {
+    "wired": ["check_type_divergence", "check_instance_leak"],
+    "missing": ["check_projection_leak", "check_dependency_direction"],
+    "total_wired": 2,
+    "total_required": 4
+  },
+  "cockpit": {
+    "fly_machine": "started",
+    "domain": "universalmetaharness.tech",
+    "external_access": "timed_out",
+    "api_healthy": true
+  },
+  "knowledge_graph": {
+    "last_rebuild": "2026-05-26",
+    "stale_days": 5,
+    "files_modified_since": 412
+  },
+  "data_hygiene": {
+    "metrics_jsonl_mb": 238,
+    "metrics_jsonl_lines": 1307164,
+    "logs_mb": 153,
+    "stale_worktrees_gb": 1.1,
+    "rotation_policy": "none"
+  },
+  "critical_issues": [
+    {"id": "P0", "title": "All LLM providers exhausted", "impact": "System brain-dead"},
+    {"id": "P1", "title": "execution_journal.jsonl 0 lines", "impact": "No evidence trail"},
+    {"id": "P2", "title": "Only 2/4 pre-commit gates wired", "impact": "Architecture violations can slip"},
+    {"id": "P3", "title": "EventBus loop_cycle_business_ops no handlers", "impact": "Cadence is no-op"},
+    {"id": "P4", "title": "metrics.jsonl 238MB, disk 80%", "impact": "Will fill disk"},
+    {"id": "P5", "title": "Knowledge graph 5 days stale", "impact": "Retrieval hierarchy compromised"},
+    {"id": "P6", "title": "Cockpit external access timed out", "impact": "External users blocked"}
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "date": "2026-05-31",
+  "phase": "13.3S",
+  "bridge_handlers_added": [
+    "organism.operational_truth",
+    "organism.operational_truth.issues",
+    "organism.operational_truth.readiness",
+    "organism.operational_truth.provider_health",
+    "organism.operational_truth.data_hygiene",
+    "organism.operational_truth.knowledge_graph",
+    "organism.operational_truth.eventbus",
+    "organism.operational_truth.precommit_gates"
+  ],
+  "http_routes_added": [
+    "GET /api/umh/organism/operational-truth",
+    "GET /api/umh/organism/operational-truth/issues",
+    "GET /api/umh/organism/operational-truth/readiness",
+    "GET /api/umh/organism/operational-truth/provider-health",
+    "GET /api/umh/organism/operational-truth/data-hygiene",
+    "GET /api/umh/organism/operational-truth/knowledge-graph",
+    "GET /api/umh/organism/operational-truth/eventbus",
+    "GET /api/umh/organism/operational-truth/precommit-gates"
+  ],
+  "auth_required": true,
+  "no_secrets_exposed": true,
+  "errors_categorized": true,
+  "files_modified": [
+    "transports/api/organism_bridge.py",
+    "transports/api/http/routes/organism.ts"
+  ],
+  "bridge_compiles": true
+}
