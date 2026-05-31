@@ -1,0 +1,46 @@
+{
+  "phase": "13.3",
+  "preflight_target": "13.2R",
+  "timestamp": 1780201168.350781,
+  "all_pass": true,
+  "checks": [
+    {
+      "check": "13.2R audit exists",
+      "pass": true
+    },
+    {
+      "check": "PTD ptd-b31f2904 exists",
+      "pass": true
+    },
+    {
+      "check": "POC poc-e475ac7b exists",
+      "pass": true
+    },
+    {
+      "check": "runtime_session.py exists",
+      "pass": true
+    },
+    {
+      "check": "runtime_supervisor.py exists",
+      "pass": true
+    },
+    {
+      "check": "runtime_manager.py exists",
+      "pass": true
+    },
+    {
+      "check": "sandbox_orchestrator.py exists",
+      "pass": true
+    },
+    {
+      "check": "cadence dry_run_only",
+      "pass": true
+    },
+    {
+      "check": "medium-risk blocked by governance",
+      "pass": true
+    }
+  ],
+  "ptd": "ptd-b31f2904",
+  "poc": "poc-e475ac7b"
+}

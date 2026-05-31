@@ -1,0 +1,21 @@
+{
+  "phase": "13.3",
+  "task": "ingestion_engine",
+  "timestamp": 1780201470.2519715,
+  "status": "verified",
+  "capabilities": [
+    "register_source",
+    "list_sources",
+    "create_ingestion_job",
+    "run_metadata_scan",
+    "run_local_audit_ingestion",
+    "run_local_artifact_ingestion",
+    "seed_local_sources",
+    "prevent_duplicate_ingestion",
+    "summarize_ingestion",
+    "redact_secrets",
+    "classify_freshness",
+    "extension_allowlist",
+    "size_limits"
+  ]
+}

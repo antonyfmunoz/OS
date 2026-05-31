@@ -1,0 +1,15 @@
+{
+  "phase": "13.3",
+  "task": "sync_policy",
+  "timestamp": 1780201470.2524347,
+  "status": "verified",
+  "policies": [
+    "read_only",
+    "suggest_update",
+    "operator_approved_write",
+    "deprecated_source",
+    "canonical_source"
+  ],
+  "no_external_writes": true,
+  "dry_run_only": true
+}
