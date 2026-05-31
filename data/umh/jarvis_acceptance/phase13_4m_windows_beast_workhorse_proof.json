@@ -1,0 +1,30 @@
+{
+  "proof_id": "wbp-6deb3246",
+  "checks": {
+    "tailscale_reachable": {
+      "value": true,
+      "evidence": "PING 100.74.199.102: 1 packets transmitted, 1 received, 0% packet loss, rtt 199.851 ms"
+    },
+    "ssh_status": {
+      "value": "connected",
+      "evidence": "SSH returned 'beast_alive' -- full interactive access confirmed via BatchMode."
+    },
+    "mesh_port_listening": {
+      "value": true,
+      "evidence": "ss -tlnp shows LISTEN on 0.0.0.0:8094 (python3 pid 651413)"
+    },
+    "mesh_codebase_exists": {
+      "value": true,
+      "evidence": "transports/node_mesh/ contains: __init__.py, config.py, integration/, metrics_buffer.py, registry.py, run.py, server.py"
+    },
+    "role_confirmed": "heavy_workstation",
+    "beast_status_summary": {
+      "tailscale": "reachable at 100.74.199.102 (~200ms)",
+      "ssh": "authenticated and responding",
+      "node_mesh_server": "listening on port 8094 (VPS side)",
+      "node_mesh_code": "complete (7 files + integration dir)"
+    },
+    "recommended_next_action": "Beast is reachable and SSH-accessible. Node mesh server is running on VPS side (port 8094). Next step: verify the Beast-side daemon is running (ssh to Beast, check for node_mesh client process), and confirm bidirectional heartbeat exchange between VPS mesh server and Beast daemon."
+  },
+  "timestamp": "2026-05-31T21:03:59Z"
+}

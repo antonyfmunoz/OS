@@ -1,0 +1,63 @@
+{
+  "proof_id": "tgr-13m-v1",
+  "phase": "13.4M",
+  "test_file": "substrate/organism/tests/test_phase13_4m.py",
+  "total_tests": 48,
+  "passed": 48,
+  "failed": 0,
+  "test_classes": {
+    "TestDeviceRoleRegistry": {
+      "tests": 7,
+      "passed": 7
+    },
+    "TestRuntimeFleetModel": {
+      "tests": 7,
+      "passed": 7
+    },
+    "TestWorkloadPlacementPolicy": {
+      "tests": 7,
+      "passed": 7
+    },
+    "TestJarvisReadinessGate": {
+      "tests": 4,
+      "passed": 4
+    },
+    "TestJarvisAcceptanceMode": {
+      "tests": 10,
+      "passed": 10
+    },
+    "TestSafetyInvariants": {
+      "tests": 4,
+      "passed": 4
+    },
+    "TestAPIBridgeHandlers": {
+      "tests": 5,
+      "passed": 5
+    },
+    "TestReadinessGateUsesFleet": {
+      "tests": 3,
+      "passed": 3
+    },
+    "TestNoFakeData": {
+      "tests": 2,
+      "passed": 2
+    }
+  },
+  "gates": {
+    "type_divergence": "pass",
+    "instance_leak": "pass",
+    "projection_leak": "pass",
+    "dependency_direction": "pass"
+  },
+  "py_compile_results": {
+    "jarvis_readiness_gate": "pass",
+    "jarvis_acceptance_mode": "pass",
+    "jarvis_acceptance": "pass",
+    "jarvis_acceptance_scenarios": "pass",
+    "device_role_registry": "pass",
+    "runtime_fleet": "pass",
+    "workload_placement_policy": "pass",
+    "organism_bridge": "pass"
+  },
+  "timestamp": "2026-05-31T21:26:17Z"
+}

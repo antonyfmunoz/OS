@@ -1,0 +1,22 @@
+{
+  "phase": "13.4MR",
+  "task": "live_readiness_gate",
+  "timestamp": "2026-05-31T23:42:32Z",
+  "mode": "standard_multi_runtime",
+  "deterministic_only": false,
+  "degraded": false,
+  "standard_ready": true,
+  "capable_runtime_path_exists": true,
+  "capable_runtimes": ["claude_code", "shell", "codex", "opencode", "hermes", "ollama"],
+  "capable_runtime_count": 6,
+  "selected_primary_runtime": "claude_code",
+  "cloud_api_exhaustion_is_warning_only": true,
+  "cloud_api_available": false,
+  "blocking_issues": [],
+  "warnings": ["Cloud API quota exhausted — using subscription/CLI runtimes: claude_code, shell, codex, opencode, hermes, ollama"],
+  "medium_risk_blocked": true,
+  "no_production_mutation": true,
+  "no_external_write": true,
+  "decision_id": "jamd-f036770a",
+  "result": "PASS"
+}
