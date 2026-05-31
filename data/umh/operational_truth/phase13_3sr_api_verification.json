@@ -1,0 +1,51 @@
+{
+  "phase": "13.3SR",
+  "task": "api_verification",
+  "timestamp": "2026-05-31T19:49:03.905279+00:00",
+  "routes_tested": 8,
+  "routes_passed": 8,
+  "routes": {
+    "/api/umh/organism/operational-truth": {
+      "auth": "operatorGuard",
+      "status": "pass",
+      "secrets": false
+    },
+    "/api/umh/organism/operational-truth/issues": {
+      "auth": "operatorGuard",
+      "status": "pass",
+      "secrets": false
+    },
+    "/api/umh/organism/operational-truth/readiness": {
+      "auth": "operatorGuard",
+      "status": "pass",
+      "secrets": false
+    },
+    "/api/umh/organism/operational-truth/provider-health": {
+      "auth": "operatorGuard",
+      "status": "pass",
+      "secrets": false
+    },
+    "/api/umh/organism/operational-truth/data-hygiene": {
+      "auth": "operatorGuard",
+      "status": "pass",
+      "secrets": false
+    },
+    "/api/umh/organism/operational-truth/knowledge-graph": {
+      "auth": "operatorGuard",
+      "status": "pass",
+      "secrets": false
+    },
+    "/api/umh/organism/operational-truth/eventbus": {
+      "auth": "operatorGuard",
+      "status": "pass",
+      "secrets": false
+    },
+    "/api/umh/organism/operational-truth/precommit-gates": {
+      "auth": "operatorGuard",
+      "status": "pass",
+      "secrets": false
+    }
+  },
+  "no_raw_tracebacks": true,
+  "no_internal_path_leaks": true
+}
