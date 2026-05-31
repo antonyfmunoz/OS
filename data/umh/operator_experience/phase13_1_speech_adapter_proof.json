@@ -1,0 +1,52 @@
+{
+  "phase": "13.1",
+  "task": "speech_input_adapter",
+  "timestamp": "2026-05-31T00:42:00Z",
+  "adapter": {
+    "file": "cockpit/src/renderer/operator/speechInputAdapter.ts",
+    "class": "SpeechInputAdapter",
+    "singleton": "speechAdapter"
+  },
+  "capabilities": {
+    "isSupported": "detects window.SpeechRecognition or window.webkitSpeechRecognition",
+    "startListening": "creates SpeechRecognition instance, push-to-talk, single utterance",
+    "stopListening": "stops recognition gracefully",
+    "abort": "aborts recognition and resets state to idle",
+    "onInterimTranscript": "fires with partial transcript text during speech",
+    "onFinalTranscript": "fires with final transcript and confidence score",
+    "onError": "fires on recognition error with message",
+    "onStateChange": "fires on state transitions (idle→listening→processing→transcribed→etc)"
+  },
+  "state_machine": [
+    "idle → listening (startListening called, recognition.onstart fires)",
+    "listening → processing (interim result received)",
+    "processing → transcribed (final result received)",
+    "listening → idle (recognition ends without result)",
+    "any → error (recognition.onerror fires)",
+    "any → unsupported (isSupported returns false)"
+  ],
+  "safety": {
+    "no_raw_audio_persistence": true,
+    "push_to_talk_only": true,
+    "no_always_on_listening": true,
+    "no_wake_word": true,
+    "interim_visible_not_submitted": true,
+    "final_editable_before_send": true,
+    "text_fallback_on_unsupported": true,
+    "text_fallback_on_mic_denied": true
+  },
+  "testing_limitation": {
+    "browser_mic_testable": false,
+    "reason": "VPS headless environment — no microphone hardware, no browser with mic permissions",
+    "what_was_verified": [
+      "TypeScript compilation passes (tsc --noEmit)",
+      "SpeechInputAdapter class structure correct",
+      "State machine transitions defined",
+      "Event listener registration/unregistration works",
+      "Fallback detection (isSupported) works",
+      "Text fallback path verified through operatorExperienceStore"
+    ],
+    "truthful_disclosure": "Real microphone capture requires a browser with mic permissions. This cannot be tested in headless/SSH environment."
+  },
+  "overall": "pass_with_truthful_limitation"
+}

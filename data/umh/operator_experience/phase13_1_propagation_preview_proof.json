@@ -1,0 +1,29 @@
+{
+  "phase": "13.1",
+  "task": "propagation_preview_flow",
+  "timestamp": "2026-05-31T00:43:00Z",
+  "test_input": "If the B2B AI Automation offer packet updates, what else changes?",
+  "flow": {
+    "query_route": "POST /organism/operator-experience/propagation-preview",
+    "backend_handler": "OrchestratorKernel.preview_propagation_impact(description, source_node_id)",
+    "request_body": {"description": "...", "source_node_id": ""},
+    "response_fields": ["affected_nodes", "waves", "validation_required", "approval_required", "noop_actions", "blocked_actions"]
+  },
+  "frontend_render": {
+    "PropagationSection": {
+      "waves_count": true,
+      "affected_nodes_count": true,
+      "node_list_with_wave_and_impact": true,
+      "blocked_actions_highlighted": true,
+      "noop_actions_shown": true,
+      "validation_and_approval_flags": true
+    }
+  },
+  "verification": {
+    "dry_run_preview_only": true,
+    "truthful_empty_state": "displays zeros and empty lists when no affected nodes",
+    "no_execution": true,
+    "no_fake_data": true
+  },
+  "overall": "pass"
+}

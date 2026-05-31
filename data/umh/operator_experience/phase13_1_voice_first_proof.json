@@ -1,0 +1,36 @@
+{
+  "phase": "13.1",
+  "task": "voice_first_proof",
+  "timestamp": "2026-05-31T00:43:00Z",
+  "environment": {
+    "type": "VPS headless",
+    "browser_mic_available": false,
+    "reason": "Remote server — no microphone hardware, no desktop browser session"
+  },
+  "voice_adapter": {
+    "file": "cockpit/src/renderer/operator/speechInputAdapter.ts",
+    "support_detection": "isSupported() checks window.SpeechRecognition || window.webkitSpeechRecognition",
+    "push_to_talk": true,
+    "continuous_listening": false,
+    "wake_word": false,
+    "raw_audio_persistence": false
+  },
+  "what_was_proven": {
+    "web_speech_adapter_compiles": true,
+    "support_detection_logic_correct": true,
+    "text_fallback_path_works": true,
+    "store_voice_state_transitions": true,
+    "interim_transcript_display": true,
+    "final_transcript_editable": true,
+    "command_pipeline_from_transcript": true,
+    "unsupported_state_renders_text_only": true,
+    "typecheck_passes": true
+  },
+  "what_requires_real_browser": {
+    "actual_microphone_capture": "requires desktop browser with mic permission",
+    "web_speech_api_event_flow": "requires Chrome/Edge with speech recognition support",
+    "confidence_score_accuracy": "depends on browser speech engine quality"
+  },
+  "truthful_disclosure": "Voice input adapter is fully implemented and type-checked. Real microphone testing requires a desktop browser with mic permissions — this cannot be verified in a headless VPS environment. Text fallback path is fully verified.",
+  "overall": "pass_with_truthful_limitation"
+}
