@@ -116,16 +116,19 @@ def is_path_allowed(cwd: str, allowed_paths: list[str], blocked_paths: list[str]
     real_cwd = os.path.realpath(os.path.abspath(cwd))
     if ".." in cwd.split(os.sep):
         return False, f"cwd contains '..' components: {cwd}"
-    for bp in blocked_paths:
-        real_bp = os.path.realpath(os.path.abspath(bp))
-        if real_cwd == real_bp or real_cwd.startswith(real_bp + os.sep):
-            return False, f"cwd {real_cwd} is inside blocked path {real_bp}"
+    # Allowed paths take precedence — the runtime manager explicitly
+    # designates sandbox worktrees as allowed even though they live
+    # inside the repo tree that blocked_paths covers.
     if allowed_paths:
         for ap in allowed_paths:
             real_ap = os.path.realpath(os.path.abspath(ap))
             if real_cwd == real_ap or real_cwd.startswith(real_ap + os.sep):
                 return True, ""
         return False, f"cwd {real_cwd} not inside any allowed path"
+    for bp in blocked_paths:
+        real_bp = os.path.realpath(os.path.abspath(bp))
+        if real_cwd == real_bp or real_cwd.startswith(real_bp + os.sep):
+            return False, f"cwd {real_cwd} is inside blocked path {real_bp}"
     if sandbox_required:
         return False, "sandbox_required=True but no allowed_paths specified"
     return True, ""
