@@ -1,0 +1,43 @@
+{
+  "phase": "13.1R",
+  "task": "tests_and_gates",
+  "timestamp": "2026-05-31T01:40:00Z",
+  "python_tests": {
+    "total": 405,
+    "passed": 395,
+    "failed": 1,
+    "skipped": 9,
+    "duration_seconds": 224,
+    "failure_is_phase_13_1_related": false,
+    "failure_detail": "test_gap_closures.py::TestCompaniesEndpoint — pre-existing import error for entity_companies"
+  },
+  "typescript_check": {
+    "command": "tsc --noEmit",
+    "result": "pass",
+    "errors": 0
+  },
+  "gates": {
+    "type_divergence": {
+      "status": "clean_for_phase_13_1",
+      "pre_existing_warnings": 5,
+      "new_violations": 0
+    },
+    "instance_leak": {
+      "status": "pass",
+      "files_scanned": 596,
+      "new_violations": 0
+    },
+    "dependency_direction": {
+      "status": "clean_for_phase_13_1",
+      "pre_existing_violations": 25,
+      "new_violations": 0
+    },
+    "projection_leak": {
+      "status": "clean_for_phase_13_1",
+      "pre_existing_violations": 3,
+      "new_violations": 0
+    }
+  },
+  "phase_13_1_files_in_violations": false,
+  "verdict": "ALL_GATES_CLEAN_FOR_PHASE_13_1"
+}
