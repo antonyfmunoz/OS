@@ -84,10 +84,13 @@ class RuntimeManager:
             }
 
         if cwd:
-            abs_cwd = os.path.abspath(cwd)
-            main_repo = os.path.abspath(_REPO_ROOT)
-            if abs_cwd == main_repo:
+            real_cwd = os.path.realpath(os.path.abspath(cwd))
+            main_repo = os.path.realpath(os.path.abspath(_REPO_ROOT))
+            worktree_base = os.path.join(main_repo, ".claude", "worktrees") + os.sep
+            if real_cwd == main_repo:
                 violations.append("runtime must not operate directly on main repo root — use sandbox/worktree")
+            elif real_cwd.startswith(main_repo + os.sep) and not real_cwd.startswith(worktree_base):
+                violations.append("runtime cwd is inside main repo but not in worktree base — use sandbox/worktree")
 
         from substrate.organism.shell_runtime_adapter import is_command_blocked
         blocked, reason = is_command_blocked(command)

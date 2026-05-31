@@ -112,19 +112,31 @@ def _sandbox_env() -> dict[str, str]:
     return env
 
 
+_WORKTREE_BASE_SUFFIX = os.sep + ".claude" + os.sep + "worktrees" + os.sep
+
+
 def is_path_allowed(cwd: str, allowed_paths: list[str], blocked_paths: list[str], sandbox_required: bool = True) -> tuple[bool, str]:
     real_cwd = os.path.realpath(os.path.abspath(cwd))
     if ".." in cwd.split(os.sep):
         return False, f"cwd contains '..' components: {cwd}"
-    # Allowed paths take precedence — the runtime manager explicitly
-    # designates sandbox worktrees as allowed even though they live
-    # inside the repo tree that blocked_paths covers.
     if allowed_paths:
+        in_allowed = False
         for ap in allowed_paths:
             real_ap = os.path.realpath(os.path.abspath(ap))
             if real_cwd == real_ap or real_cwd.startswith(real_ap + os.sep):
-                return True, ""
-        return False, f"cwd {real_cwd} not inside any allowed path"
+                in_allowed = True
+                break
+        if not in_allowed:
+            return False, f"cwd {real_cwd} not inside any allowed path"
+        # Allowed path matched — verify it's inside the designated
+        # worktree base before overriding blocked_paths.
+        for bp in blocked_paths:
+            real_bp = os.path.realpath(os.path.abspath(bp))
+            if real_cwd == real_bp or real_cwd.startswith(real_bp + os.sep):
+                if _WORKTREE_BASE_SUFFIX in real_cwd:
+                    return True, ""
+                return False, f"cwd {real_cwd} is inside blocked path {real_bp} and not a worktree"
+        return True, ""
     for bp in blocked_paths:
         real_bp = os.path.realpath(os.path.abspath(bp))
         if real_cwd == real_bp or real_cwd.startswith(real_bp + os.sep):
