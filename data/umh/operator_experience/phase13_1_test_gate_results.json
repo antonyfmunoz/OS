@@ -1,0 +1,79 @@
+{
+  "phase": "13.1",
+  "task": "tests_and_gates",
+  "timestamp": "2026-05-31T00:50:00Z",
+  "frontend_gates": {
+    "typecheck": {
+      "command": "tsc --noEmit",
+      "status": "pass",
+      "errors": 0
+    },
+    "build": {
+      "command": "electron-vite build",
+      "status": "pass",
+      "targets": ["main (6.08 kB)", "preload (1.35 kB)", "renderer (1,691.50 kB)"]
+    },
+    "new_files_line_count": {
+      "OperatorPanel.tsx": 529,
+      "operatorExperienceStore.ts": 376,
+      "voiceTypes.ts": 137,
+      "speechInputAdapter.ts": 197,
+      "total": 1239,
+      "all_under_3000": true
+    }
+  },
+  "backend_tests": {
+    "pytest_full_suite": {
+      "status": "pass",
+      "passed": 395,
+      "failed": 1,
+      "skipped": 9,
+      "pre_existing_failure": "test_gap_closures.py::TestCompaniesEndpoint::test_endpoints_exist (entity_companies import — not Phase 13.1)"
+    },
+    "orchestrator_kernel_import": {
+      "status": "pass",
+      "all_methods_present": true,
+      "methods_verified": [
+        "classify_intent", "receive_operator_input", "never_execute_without_approval",
+        "preview_propagation_impact", "preview_delegation_topology",
+        "query_roadmap_status", "query_pending_approvals",
+        "list_sessions", "get_session"
+      ]
+    }
+  },
+  "pre_commit_gates": {
+    "type_divergence": {
+      "command": "check_type_divergence.py --all",
+      "status": "pass",
+      "new_warnings": 0,
+      "note": "pre-existing warnings unchanged"
+    },
+    "instance_leak": {
+      "command": "check_instance_leak.py --all",
+      "status": "pass",
+      "new_leaks": 0
+    },
+    "dependency_direction": {
+      "command": "check_dependency_direction.py --all",
+      "status": "pass",
+      "new_violations": 0,
+      "note": "pre-existing violations unchanged"
+    },
+    "projection_leak": {
+      "command": "check_projection_leak.py --all",
+      "status": "pass",
+      "new_leaks": 0
+    }
+  },
+  "security_gates": {
+    "all_routes_operator_guarded": true,
+    "no_fake_data": true,
+    "no_production_mutation": true,
+    "no_execution_flag_always_false": true,
+    "empty_input_guarded": true,
+    "invalid_session_safe": true,
+    "no_path_traversal": true,
+    "no_traceback_leak": true
+  },
+  "overall": "pass"
+}
