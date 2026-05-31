@@ -1,0 +1,67 @@
+{
+  "phase": "13.2R",
+  "task": "agent_os_comparison_confirmation",
+  "timestamp": "2026-05-31T02:53:45.966527+00:00Z",
+  "document": "docs/research/cortextos_runtime_surface_comparison.md",
+  "checks": {
+    "1_internal_name_mapped": {
+      "status": "PASS",
+      "evidence": "Line 6: saadnvd1/agent-os, Line 18-19: clarification that cortextOS != ivanuser/cortex-os"
+    },
+    "2_agent_os_runtime_first": {
+      "status": "PASS",
+      "evidence": "Line 23-25, Section 7 line 237"
+    },
+    "3_umh_governance_first": {
+      "status": "PASS",
+      "evidence": "Line 238, Section 7 lines 242-248"
+    },
+    "4_real_code_patterns": {
+      "status": "PASS",
+      "evidence": "Sections 2.1-2.9 reference actual files: server.ts, lib/claude/process-manager.ts, lib/orchestration.ts, mcp/orchestration-server.ts, lib/providers/registry.ts",
+      "patterns": [
+        "node-pty + tmux",
+        "ClaudeProcessManager",
+        "stream parser",
+        "tmux buffer paste",
+        "PWA / Tauri surface",
+        "MCP orchestration server",
+        "multi-provider runtime adapters"
+      ]
+    },
+    "5_rejected_patterns": {
+      "status": "PASS",
+      "evidence": "Section 4 table with 7 entries",
+      "patterns": [
+        "auto-approve/dangerously-skip-permissions",
+        "direct working tree operation",
+        "no approval gates",
+        "permissive execution model"
+      ]
+    },
+    "6_umh_adopted": {
+      "status": "PASS",
+      "evidence": "Section 3 table with 6 entries",
+      "patterns": [
+        "runtime adapter abstraction",
+        "lifecycle state machine",
+        "session/event persistence",
+        "handoff preview",
+        "stop/cancel semantics"
+      ]
+    },
+    "7_umh_added": {
+      "status": "PASS",
+      "evidence": "Throughout sections 2 and 5",
+      "patterns": [
+        "sandbox/worktree boundary",
+        "Work Packet lineage",
+        "risk/governance policy",
+        "secret redaction",
+        "environment stripping",
+        "no production truth mutation from runtime proof"
+      ]
+    }
+  },
+  "result": "ALL_CHECKS_PASS"
+}

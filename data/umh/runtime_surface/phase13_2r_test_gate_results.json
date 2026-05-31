@@ -1,0 +1,95 @@
+{
+  "phase": "13.2R",
+  "task": "test_gate_results",
+  "timestamp": "2026-05-31T03:09:03.788117+00:00Z",
+  "tests": {
+    "phase_13_2": {
+      "passed": 36,
+      "failed": 0,
+      "total": 36,
+      "breakdown": {
+        "lifecycle": 7,
+        "stop_cancel": 4,
+        "policy_blocks": 25
+      }
+    },
+    "phase_13_1": {
+      "status": "N/A",
+      "detail": "no test file found"
+    },
+    "phase_13_0": {
+      "status": "N/A",
+      "detail": "no test file found"
+    },
+    "phase_12": {
+      "status": "N/A",
+      "detail": "no test file found"
+    },
+    "phase_11_1": {
+      "status": "N/A",
+      "detail": "no test file found"
+    },
+    "phase_11_0": {
+      "status": "N/A",
+      "detail": "no test file found"
+    },
+    "phase_10_5": {
+      "status": "N/A",
+      "detail": "no test file found"
+    }
+  },
+  "gates": {
+    "py_compile": {
+      "status": "PASS",
+      "files": 7,
+      "clean": 7
+    },
+    "type_divergence": {
+      "status": "PASS",
+      "detail": "7 warnings pre-existing, 0 in Phase 13.2"
+    },
+    "instance_leak": {
+      "status": "PASS",
+      "files_scanned": 602
+    },
+    "dependency_direction": {
+      "status": "PASS_WITH_LEGACY",
+      "violations": 25,
+      "in_phase_13_2": 0
+    },
+    "projection_leak": {
+      "status": "PASS_WITH_LEGACY",
+      "violations": 3,
+      "in_phase_13_2": 0
+    },
+    "line_count": {
+      "status": "PASS",
+      "total": 1678,
+      "largest": 385,
+      "limit": 3000
+    },
+    "cockpit_typecheck": {
+      "status": "PASS"
+    },
+    "route_auth": {
+      "status": "PASS",
+      "all_routes_authed": true
+    },
+    "path_traversal": {
+      "status": "PASS"
+    },
+    "no_fake_data": {
+      "status": "PASS"
+    },
+    "no_secrets": {
+      "status": "PASS"
+    },
+    "sandbox_boundary": {
+      "status": "PASS"
+    },
+    "orphan_process": {
+      "status": "PASS"
+    }
+  },
+  "result": "ALL_PASS"
+}

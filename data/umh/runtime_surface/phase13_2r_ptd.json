@@ -1,0 +1,39 @@
+{
+  "ptd_id": "ptd-b31f2904",
+  "phase": "13.2",
+  "commit": "12cd3dc2",
+  "prior_truth": {
+    "ptd": "ptd-639760df",
+    "poc": "poc-637ff93"
+  },
+  "timestamp": "2026-05-31T03:07:57.806418+00:00Z",
+  "expected_files": [
+    "substrate/organism/runtime_session.py",
+    "substrate/organism/runtime_adapter.py",
+    "substrate/organism/shell_runtime_adapter.py",
+    "substrate/organism/claude_code_runtime_adapter.py",
+    "substrate/organism/runtime_manager.py",
+    "substrate/organism/runtime_handoff.py",
+    "transports/api/cockpit_runtime_surface_routes.py",
+    "cockpit/src/renderer/panels/RuntimePanel.tsx",
+    "cockpit/src/renderer/components/Shell.tsx",
+    "cockpit/src/renderer/stores/cockpitStore.ts",
+    "cockpit/src/renderer/types/routes.ts",
+    "tests/phase13_2_runtime_proofs.py",
+    "substrate/canonical_types.py",
+    "docs/audits/convergence/phase13_2_native_agent_runtime_workcell_execution_surface.md",
+    "docs/research/cortextos_runtime_surface_comparison.md",
+    "docs/research/cortextos_phase13_runtime_surface_notes.md",
+    "docs/audits/convergence/phase13_2_cortextos_comparison.md",
+    "data/audits/2026-05-31_phase13_2_audit_report.md",
+    ".planning/STATE.md"
+  ],
+  "missing_files": [],
+  "expected_count": 19,
+  "observed_count": 19,
+  "match": true,
+  "py_compile": "pending",
+  "typecheck": "pending",
+  "tests": "pending",
+  "result": "PASS"
+}

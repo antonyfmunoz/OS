@@ -1,0 +1,46 @@
+{
+  "phase": "13.2R",
+  "task": "live_stop_cancel_proof",
+  "timestamp": "2026-05-31T03:05:49.293657+00:00Z",
+  "session_id": "rs-1ec1d3f6d509",
+  "command": "echo stop-proof-started && sleep 300",
+  "checks": {
+    "1_session_started": {
+      "status": "PASS",
+      "runtime_status": "starting"
+    },
+    "2_stop_requested": {
+      "status": "PASS",
+      "event": "stop_requested"
+    },
+    "3_process_terminated": {
+      "status": "PASS",
+      "exit_code": -15,
+      "signal": "SIGTERM"
+    },
+    "4_session_stopped": {
+      "status": "PASS",
+      "runtime_status": "stopped"
+    },
+    "5_stop_reason_recorded": {
+      "status": "PASS",
+      "reason": "operator-stop-proof: testing stop behavior"
+    },
+    "6_events_persisted": {
+      "status": "PASS",
+      "count": 7
+    },
+    "7_no_orphan_process": {
+      "status": "PASS",
+      "pids_checked": [
+        1932,
+        1942
+      ],
+      "all_cleaned": true
+    },
+    "8_no_production_mutation": {
+      "status": "PASS"
+    }
+  },
+  "result": "ALL_CHECKS_PASS"
+}
