@@ -1,76 +1,83 @@
-# Phase 13.2 — cortextOS Comparison Audit
+# Phase 13.2 — cortextOS / agent-os Comparison Audit
 
-**Date:** 2026-05-31
+**Date:** 2026-05-31 (corrected)
 **Phase:** 13.2 — Native Agent Runtime / Workcell Execution Surface
-**Scope:** Compare UMH runtime surface architecture against cortextOS patterns
+**Scope:** Compare UMH runtime surface against real agent-os codebase patterns
+**Source repo:** https://github.com/saadnvd1/agent-os
+**Full research:** [docs/research/cortextos_runtime_surface_comparison.md](../../research/cortextos_runtime_surface_comparison.md)
 
 ---
 
-## 1. What cortextOS Does
+## 1. What agent-os Is
 
-cortextOS is a hypothetical "agent OS" pattern that provides:
-- Agent runtime lifecycle management (spawn, monitor, terminate)
-- Sandboxed execution environments per agent task
-- Event streaming from running agents to operator dashboards
-- Policy-gated launch (approval gates, risk classification)
-- Artifact collection and validation after execution
+agent-os (`saadnvd1/agent-os`) is a real, public repository implementing a
+runtime-control-first agent operating system. Internally referenced as
+"cortextOS" in UMH planning — corrected here to the actual repo name.
 
-## 2. What UMH Phase 13.2 Implements
+Concrete patterns studied from the codebase:
 
-| Capability | cortextOS Pattern | UMH 13.2 Implementation |
+| Pattern | agent-os Implementation | Key File |
 |---|---|---|
-| **Runtime session model** | Agent session with state machine | `RuntimeSession` with 11-state FSM (drafted → completed/failed/stopped/expired) |
-| **Adapter abstraction** | Pluggable runtime backends | `RuntimeAdapter` ABC with `ShellRuntimeAdapter` + `ClaudeCodeRuntimeAdapter` skeleton |
-| **Sandbox isolation** | Container/VM per agent | Git worktree per session + env stripping + blocked command patterns |
-| **Event streaming** | WebSocket event feed | JSONL event persistence + polling API (5s/15s intervals) |
-| **Policy enforcement** | Pre-launch policy check | `validate_runtime_policy()` — risk class, command blocking, linkage requirement, repo root guard |
-| **Handoff transparency** | Pre-launch preview | `RuntimeHandoffPreview` — what_will_happen / what_will_not_happen lists |
-| **Stop/cancel** | Graceful termination | SIGTERM → wait → SIGKILL process group cascade |
-| **Artifact collection** | Post-execution artifact sweep | `collect_artifacts()` + `validate()` on adapter interface |
-| **Operator dashboard** | Runtime monitoring UI | `RuntimePanel.tsx` — overview stats, adapter status, session table, event stream |
-| **Secret protection** | Credential isolation | `_redact_secrets()` on all output + `_sandbox_env()` stripping 8 sensitive prefixes |
+| **Persistent PTY** | node-pty + tmux sessions (survive disconnects) | `server.ts`, `lib/orchestration.ts` |
+| **Agent lifecycle** | `ClaudeProcessManager` + worker state machine (7 states) | `lib/claude/process-manager.ts` |
+| **Claude Code runtime** | Two paths: structured JSON (child_process) + interactive tmux | `lib/claude/stream-parser.ts` |
+| **Message injection** | tmux buffer paste (temp file → load-buffer → paste-buffer) | `app/api/sessions/[id]/send-keys/route.ts` |
+| **Mobile surface** | PWA (no Telegram) + Tauri desktop wrapper | `components/mobile/`, `app/sw.ts` |
+| **Cron scheduler** | NOT PRESENT | — |
+| **Agent bus** | MCP orchestration server + SQLite persistence | `mcp/orchestration-server.ts` |
+| **Approvals** | NOT PRESENT (auto-approve via CLI flags by default) | `lib/providers/registry.ts` |
+| **Multi-runtime** | 10 providers (claude, codex, gemini, aider, cursor, etc.) | `lib/providers.ts` |
 
-## 3. Key Differences from cortextOS
+## 2. What UMH Phase 13.2 Implements (Adapted from agent-os Study)
 
-### 3.1 UMH Is Governance-First, Not Autonomy-First
-cortextOS patterns typically aim to maximize agent autonomy — the system asks "what can the agent do unsupervised?" UMH inverts this: the system asks "what has the operator explicitly approved?" Every runtime session requires:
-- Work Packet or OperatorSession linkage
-- Operator approval for medium+ risk
-- Sandbox/worktree boundary
-- Blocked command filtering
+| Capability | agent-os Pattern | UMH 13.2 Implementation |
+|---|---|---|
+| **Runtime lifecycle** | ClaudeProcessManager + worker functions | `RuntimeManager` + `RuntimeSession` 11-state FSM |
+| **Adapter abstraction** | AgentProvider interface (10 providers) | `RuntimeAdapter` ABC + `ShellRuntimeAdapter` + `ClaudeCodeRuntimeAdapter` |
+| **Sandbox isolation** | None (operates on working tree) | Git worktree per session + env stripping + 19 blocked patterns |
+| **Event streaming** | NDJSON StreamParser | JSONL event persistence + polling API (5s/15s) |
+| **Policy enforcement** | None (auto-approve by default) | `validate_runtime_policy()` — mandatory risk/linkage/command checks |
+| **Handoff transparency** | Not present | `RuntimeHandoffPreview` — what_will/what_will_not_happen |
+| **Stop/cancel** | `SIGTERM` / `killWorker()` | SIGTERM → wait → SIGKILL process group cascade |
+| **Message injection** | tmux buffer paste | `RuntimeInjectRequest` + stdin write |
+| **Secret protection** | Not present | `_redact_secrets()` + `_sandbox_env()` |
 
-### 3.2 No Container Isolation (Intentional)
-cortextOS often uses Docker containers or VM isolation. UMH Phase 13.2 uses git worktrees + process groups instead. Reasons:
-- VPS is lightweight orchestrator, not a compute beast
-- Git worktrees give full repo context without main mutation risk
-- Process group isolation (start_new_session=True) prevents zombie cascades
-- Container isolation planned for Phase 13.3+ when Beast node is active
+## 3. Key Differences
 
-### 3.3 Synchronous Shell Adapter (Not Async Streaming)
-The shell adapter blocks on `proc.communicate()` and persists events after completion. A true streaming adapter would read stdout line-by-line in real-time. This is intentional for Phase 13.2 — the safety model is simpler when the entire output is available before any event persistence. Async streaming is a Phase 13.3+ enhancement.
+### 3.1 Governance-First vs Velocity-First
+agent-os defaults to `--dangerously-skip-permissions` for all providers.
+UMH requires explicit operator approval for every runtime session.
 
-### 3.4 No Auto-Merge / No Production Truth Mutation
-cortextOS patterns often include automated merge workflows. UMH explicitly forbids this:
-- Runtime sessions operate in sandbox only
-- No PR creation from runtime
-- No merge capability
-- No ProductionOutcomeCommitted emission
-- The _WILL_NOT_HAPPEN list is a governance contract, not a TODO
+### 3.2 Work Packet Tracing vs Direct Execution
+agent-os uses MCP tool calls for conductor→worker communication.
+UMH routes all work through Work Packets with lineage and risk classification.
 
-## 4. What UMH Does That cortextOS Typically Doesn't
+### 3.3 Secret Protection
+agent-os captures raw terminal output with no redaction.
+UMH redacts API keys, tokens, JWTs, and connection strings from all persisted output.
 
-| UMH Feature | Description |
+### 3.4 Sandbox Isolation
+agent-os operates directly on the working tree.
+UMH allocates git worktrees, blocks the main repo root, and strips sensitive env vars.
+
+## 4. Patterns Rejected
+
+| Pattern | Why |
 |---|---|
-| **Idempotency keys** | Prevent duplicate sessions from retried requests |
-| **19 blocked command patterns** | Regex-based command denylist covering destructive, credential, and mutation commands |
-| **Secret redaction in events** | API keys, JWT tokens, connection strings scrubbed from all persisted output |
-| **Environment stripping** | Child processes don't inherit ANTHROPIC_*, OPENAI_*, GITHUB_TOKEN, etc. |
-| **Truthful degradation** | Claude Code adapter honestly reports "not available" instead of faking capabilities |
-| **Handoff preview with negatives** | Explicitly tells operator what will NOT happen, not just what will |
-| **Main repo root guard** | Runtime cannot operate directly on the main working tree |
+| Auto-approve (`--dangerously-skip-permissions`) | Antithetical to governance-first |
+| No approval gates | Approvals are mandatory in UMH |
+| tmux persistence layer | Hard to sandbox; deferred to 13.3+ with containers |
+| Direct working tree operation | UMH enforces worktree sandbox |
+| 10 provider adapters | Scoped to 2 until governance model supports more |
 
 ## 5. Convergence Assessment
 
-Phase 13.2 implements the core cortextOS runtime surface pattern while maintaining UMH governance principles. The key architectural difference is intentional: UMH favors operator control over agent autonomy, which means the runtime surface is a tool the operator wields, not a self-directing agent infrastructure.
+Phase 13.2 adopts agent-os's core runtime patterns (adapter abstraction,
+lifecycle state machine, multi-runtime concept) while adding governance
+layers that agent-os intentionally omits. The gap is philosophical:
+agent-os is a development tool optimizing for agent velocity; UMH is
+an operational system optimizing for production truth integrity.
 
-**Status:** Phase 13.2 achieves parity with cortextOS core runtime patterns while exceeding it in governance, transparency, and security hardening.
+**Status:** Phase 13.2 achieves and exceeds agent-os runtime surface
+capabilities with governance, transparency, and security hardening
+that agent-os does not implement.
