@@ -1844,6 +1844,49 @@ def _operational_truth_precommit_gates(payload: dict) -> dict:
         return {"success": False, "error": "internal_error"}
 
 
+# ── Runtime fleet / device roles (Phase 13.4M) ────────────
+
+
+def _operational_truth_runtime_fleet(payload: dict) -> dict:
+    try:
+        from substrate.organism.runtime_fleet import load_fleet
+        members = load_fleet()
+        return {"success": True, "data": {"members": [m.to_dict() for m in members], "count": len(members)}}
+    except Exception:
+        logger.exception("organism.operational_truth.runtime_fleet failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operational_truth_device_roles(payload: dict) -> dict:
+    try:
+        from substrate.organism.device_role_registry import load_registry
+        nodes = load_registry()
+        return {"success": True, "data": {"nodes": [n.to_dict() for n in nodes], "count": len(nodes)}}
+    except Exception:
+        logger.exception("organism.operational_truth.device_roles failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operational_truth_workload_placement(payload: dict) -> dict:
+    try:
+        from substrate.organism.workload_placement_policy import load_decisions
+        decisions = load_decisions()
+        return {"success": True, "data": {"decisions": [d.to_dict() for d in decisions], "count": len(decisions)}}
+    except Exception:
+        logger.exception("organism.operational_truth.workload_placement failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operational_truth_runtime_readiness(payload: dict) -> dict:
+    try:
+        from substrate.organism.jarvis_readiness_gate import assess_readiness
+        report = assess_readiness()
+        return {"success": True, "data": report.to_dict()}
+    except Exception:
+        logger.exception("organism.operational_truth.runtime_readiness failed")
+        return {"success": False, "error": "internal_error"}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -1952,6 +1995,10 @@ _ACTIONS: dict = {
     "organism.operator_experience.packet_preview": _operator_experience_packet_preview,
     "organism.operator_experience.propagation_preview": _operator_experience_propagation_preview,
     "organism.operator_experience.topology_preview": _operator_experience_topology_preview,
+    "organism.operational_truth.runtime_fleet": _operational_truth_runtime_fleet,
+    "organism.operational_truth.device_roles": _operational_truth_device_roles,
+    "organism.operational_truth.workload_placement": _operational_truth_workload_placement,
+    "organism.operational_truth.runtime_readiness": _operational_truth_runtime_readiness,
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,

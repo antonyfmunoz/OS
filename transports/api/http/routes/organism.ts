@@ -580,4 +580,28 @@ router.get('/operational-truth/precommit-gates', operatorGuard, async (c) => {
   return c.json(result.data)
 })
 
+router.get('/operational-truth/runtime-fleet', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.operational_truth.runtime_fleet')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operational-truth/device-roles', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.operational_truth.device_roles')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operational-truth/workload-placement', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.operational_truth.workload_placement')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/operational-truth/runtime-readiness', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.operational_truth.runtime_readiness')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
 export default router

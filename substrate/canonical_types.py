@@ -177,6 +177,12 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "OperationalTruthSnapshot": ["substrate.organism.operational_truth"],
     # ── substrate/organism/jarvis_readiness_gate.py (Phase 13.3S) ────────
     "JarvisReadinessReport": ["substrate.organism.jarvis_readiness_gate"],
+    # ── substrate/organism/runtime_fleet.py (Phase 13.4M) ────────────────
+    "RuntimeProvider": ["substrate.organism.runtime_fleet"],
+    "RuntimeCostModel": ["substrate.organism.runtime_fleet"],
+    "RuntimeReadiness": ["substrate.organism.runtime_fleet"],
+    "RuntimeFleetMember": ["substrate.organism.runtime_fleet"],
+    "RuntimeSelection": ["substrate.organism.runtime_fleet"],
 }
 
 

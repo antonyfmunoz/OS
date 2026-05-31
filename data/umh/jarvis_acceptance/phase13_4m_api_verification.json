@@ -1,0 +1,23 @@
+{
+  "proof_id": "api-13m-v1",
+  "phase": "13.4M",
+  "new_bridge_handlers": [
+    "organism.operational_truth.runtime_fleet",
+    "organism.operational_truth.device_roles",
+    "organism.operational_truth.workload_placement",
+    "organism.operational_truth.runtime_readiness"
+  ],
+  "new_ts_routes": [
+    "GET /api/umh/organism/operational-truth/runtime-fleet",
+    "GET /api/umh/organism/operational-truth/device-roles",
+    "GET /api/umh/organism/operational-truth/workload-placement",
+    "GET /api/umh/organism/operational-truth/runtime-readiness"
+  ],
+  "auth_required": true,
+  "secrets_exposed": false,
+  "bridge_file": "transports/api/organism_bridge.py",
+  "route_file": "transports/api/http/routes/organism.ts",
+  "bridge_compiles": true,
+  "bridge_line_count": 2037,
+  "timestamp": "2026-05-31T21:04:19Z"
+}
