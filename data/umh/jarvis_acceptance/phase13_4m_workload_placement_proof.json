@@ -1,0 +1,72 @@
+{
+  "phase": "13.4M",
+  "module": "substrate/organism/workload_placement_policy.py",
+  "description": "Workload placement policy \u2014 selects correct runtime + device for Work Packets",
+  "timestamp": "2026-05-31T20:53:32.402123+00:00",
+  "tests": [
+    {
+      "test": "preferred_placement",
+      "device": "windows_beast",
+      "runtime": "claude_code",
+      "approval": false,
+      "degraded": false,
+      "pass": true
+    },
+    {
+      "test": "governance_placement",
+      "device": "vps",
+      "runtime": "shell",
+      "pass": true
+    },
+    {
+      "test": "medium_risk_approval",
+      "approval": true,
+      "degraded": false,
+      "pass": true
+    },
+    {
+      "test": "degraded_mode",
+      "device": "vps",
+      "runtime": "shell",
+      "degraded": true,
+      "pass": true
+    },
+    {
+      "test": "string_coercion",
+      "workload_type": "governance",
+      "pass": true
+    },
+    {
+      "test": "to_dict_roundtrip",
+      "pass": true
+    },
+    {
+      "test": "persist_load",
+      "pass": true
+    }
+  ],
+  "all_pass": true,
+  "workload_type_count": 19,
+  "compile_check": "pass",
+  "enum_members": [
+    "governance",
+    "api_serving",
+    "scheduling",
+    "lightweight_probe",
+    "audit_persistence",
+    "coordination",
+    "heavy_code_execution",
+    "long_running_coding",
+    "browser_automation",
+    "computer_use",
+    "media_generation",
+    "local_model_inference",
+    "containerized_workload",
+    "cockpit_rendering",
+    "operator_interaction",
+    "deterministic_classification",
+    "ai_reasoning",
+    "code_review",
+    "sandbox_runtime"
+  ]
+}

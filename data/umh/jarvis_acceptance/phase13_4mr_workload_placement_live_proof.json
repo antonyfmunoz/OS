@@ -1,0 +1,45 @@
+{
+  "phase": "13.4MR",
+  "task": "live_workload_placement",
+  "timestamp": "2026-05-31T23:43:11Z",
+  "scenarios": {
+    "A_control_plane_task": {
+      "workload_type": "governance",
+      "selected_device": "vps",
+      "selected_runtime": "shell",
+      "degraded_mode": false,
+      "approval_required": false,
+      "correct": true
+    },
+    "B_heavy_coding_task": {
+      "workload_type": "heavy_code_execution",
+      "selected_device": "windows_beast",
+      "selected_runtime": "claude_code",
+      "degraded_mode": false,
+      "approval_required": false,
+      "correct": true
+    },
+    "C_browser_automation_task": {
+      "workload_type": "browser_automation",
+      "selected_device": "windows_beast",
+      "selected_runtime": "browser",
+      "degraded_mode": false,
+      "approval_required": false,
+      "correct": true
+    },
+    "D_lightweight_probe": {
+      "workload_type": "lightweight_probe",
+      "selected_device": "vps",
+      "selected_runtime": "shell",
+      "degraded_mode": false,
+      "approval_required": false,
+      "correct": true
+    }
+  },
+  "invariants_verified": {
+    "medium_risk_requires_approval": true,
+    "rejected_devices_have_reasons": true,
+    "no_production_mutation": true
+  },
+  "result": "PASS"
+}

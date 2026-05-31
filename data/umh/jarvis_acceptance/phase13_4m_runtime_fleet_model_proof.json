@@ -1,0 +1,27 @@
+{
+  "proof_id": "rfm-91ab3cae",
+  "phase": "13.4M",
+  "module": "substrate/organism/runtime_fleet.py",
+  "providers_defined": 11,
+  "cost_models_defined": 5,
+  "readiness_states_defined": 7,
+  "dataclasses_defined": [
+    "RuntimeFleetMember",
+    "RuntimeSelection"
+  ],
+  "functions_defined": [
+    "create_fleet_member",
+    "create_selection",
+    "persist_fleet",
+    "persist_selection",
+    "load_fleet",
+    "load_selections",
+    "member_from_dict",
+    "selection_from_dict",
+    "get_capable_runtimes",
+    "has_capable_runtime"
+  ],
+  "model_compiles": true,
+  "canonical_types_registered": true,
+  "timestamp": "2026-05-31T20:48:50Z"
+}

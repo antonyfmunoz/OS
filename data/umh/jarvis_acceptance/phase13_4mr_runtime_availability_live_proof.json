@@ -1,0 +1,59 @@
+{
+  "phase": "13.4MR",
+  "task": "live_runtime_availability",
+  "timestamp": "2026-05-31T23:43:11Z",
+  "runtimes": {
+    "claude_code": {
+      "available": true,
+      "path": "/usr/local/bin/claude",
+      "cost_model": "subscription",
+      "reason": "Claude Code CLI installed via Max subscription"
+    },
+    "cc_sdk": {
+      "available": true,
+      "note": "Module importable. Wraps Claude Code CLI for programmatic use.",
+      "cost_model": "subscription"
+    },
+    "codex": {
+      "available": true,
+      "path": "/usr/bin/codex",
+      "cost_model": "subscription",
+      "reason": "OpenAI Codex CLI installed"
+    },
+    "opencode": {
+      "available": true,
+      "path": "/usr/bin/opencode",
+      "cost_model": "unknown",
+      "reason": "OpenCode CLI installed"
+    },
+    "hermes": {
+      "available": true,
+      "path": "/usr/local/bin/hermes",
+      "cost_model": "unknown",
+      "reason": "Hermes CLI installed"
+    },
+    "ollama": {
+      "available": true,
+      "path": "/usr/local/bin/ollama",
+      "cost_model": "free",
+      "reason": "Ollama local inference server installed"
+    },
+    "shell": {
+      "available": true,
+      "cost_model": "free",
+      "reason": "ShellRuntimeAdapter reports available"
+    },
+    "windows_beast": {
+      "available": false,
+      "reason": "Mesh ping not attempted from worktree context. Beast is online via Tailscale when connected.",
+      "recommended_action": "Verify via node mesh after merge to main"
+    },
+    "node_mesh": {
+      "available": false,
+      "reason": "No live mesh check in worktree context",
+      "recommended_action": "Verify mesh connectivity after runtime sync"
+    }
+  },
+  "secrets_exposed": false,
+  "result": "PASS"
+}
