@@ -1,0 +1,23 @@
+{
+  "phase": "13.1R",
+  "task": "live_voice_proof",
+  "timestamp": "2026-05-31T01:34:00Z",
+  "environment": "VPS (headless, no browser)",
+  "voice_available": false,
+  "reason": "Web Speech API (SpeechRecognition/webkitSpeechRecognition) requires a browser with microphone access. VPS is headless — no browser runtime, no microphone hardware.",
+  "fallback_behavior": {
+    "speechAdapter_isSupported": false,
+    "voiceState_initial": "unsupported",
+    "text_input_available": true,
+    "text_commands_verified": true
+  },
+  "design_verification": {
+    "push_to_talk_only": true,
+    "no_always_on_mic": true,
+    "no_wake_word": true,
+    "no_raw_audio_persistence": true,
+    "no_external_stt_provider": true,
+    "graceful_degradation": true
+  },
+  "truthful_statement": "Voice input requires a browser environment with SpeechRecognition API. This proof documents the headless limitation truthfully. Text input works identically and was verified via live API."
+}

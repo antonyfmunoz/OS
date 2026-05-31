@@ -1,0 +1,72 @@
+{
+  "phase": "13.1R",
+  "task": "live_api_verification",
+  "timestamp": "2026-05-31T01:32:00Z",
+  "endpoints": [
+    {
+      "path": "/api/umh/organism/operator-experience",
+      "method": "GET",
+      "http_status": 200,
+      "returns": "overview with 9 sessions",
+      "auth_required": true
+    },
+    {
+      "path": "/api/umh/organism/operator-experience/sessions",
+      "method": "GET",
+      "http_status": 200,
+      "returns": "9 session objects with turns",
+      "auth_required": true
+    },
+    {
+      "path": "/api/umh/organism/operator-experience/sessions/{session_id}",
+      "method": "GET",
+      "http_status": 200,
+      "returns": "single session with turns array",
+      "auth_required": true
+    },
+    {
+      "path": "/api/umh/organism/operator-experience/status",
+      "method": "GET",
+      "http_status": 200,
+      "returns": "roadmap (7 phases), approvals (0 pending), system_state: operational",
+      "auth_required": true
+    },
+    {
+      "path": "/api/umh/organism/operator-experience/approvals",
+      "method": "GET",
+      "http_status": 200,
+      "returns": "pending_count: 0, total_count: 0",
+      "auth_required": true
+    },
+    {
+      "path": "/api/umh/organism/operator-experience/send",
+      "method": "POST",
+      "http_status": 200,
+      "returns": "OperatorResponse with intent classification, work packet preview, execution_occurred: false",
+      "auth_required": true
+    },
+    {
+      "path": "/api/umh/organism/operator-experience/packet-preview",
+      "method": "POST",
+      "http_status": 200,
+      "returns": "full work packet preview with delegation topology and propagation plan",
+      "auth_required": true
+    },
+    {
+      "path": "/api/umh/organism/operator-experience/propagation-preview",
+      "method": "POST",
+      "http_status": 200,
+      "returns": "impact_analysis with affected_nodes, waves, execution_mode: dry_run",
+      "auth_required": true
+    },
+    {
+      "path": "/api/umh/organism/operator-experience/topology-preview",
+      "method": "POST",
+      "http_status": 200,
+      "returns": "topology with type, confidence, governance_boundary",
+      "auth_required": true
+    }
+  ],
+  "auth_403_on_missing_token": true,
+  "all_pass": true
+}
