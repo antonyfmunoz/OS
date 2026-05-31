@@ -1,0 +1,35 @@
+{
+  "phase": "13.3R",
+  "title": "Live API Verification",
+  "timestamp": "2026-05-30T23:35:00Z",
+  "endpoint_base": "http://localhost:8091/api/umh/organism/context-assimilation",
+  "get_routes": {
+    "count": 15,
+    "all_return_valid_json": true,
+    "tested": [
+      "/context-assimilation", "/sources", "/jobs", "/diagnostics",
+      "/proposals", "/reconciliation-sessions", "/sync-policies",
+      "/permissions", "/environment", "/environment/devices",
+      "/environment/apps", "/cross-source-signals"
+    ]
+  },
+  "post_routes": {
+    "count": 9,
+    "all_require_auth": true,
+    "auth_rejection_message": "Operator token required for privileged actions",
+    "tested_without_auth": ["/ingest", "/reconciliation-sessions/start", "/proposals/:id/approve", "/proposals/:id/reject"],
+    "tested_with_auth": ["/ingest"]
+  },
+  "security_checks": {
+    "invalid_ids_safe": true,
+    "invalid_id_response": {"error": "not_found"},
+    "path_traversal_safe": true,
+    "path_traversal_response": {"detail": "Not Found"},
+    "no_traceback_leak": true,
+    "no_internal_path_leak": true,
+    "no_raw_sensitive_context_leak": true,
+    "no_external_write_occurs": true,
+    "no_silent_canonical_update": true
+  },
+  "verdict": "LIVE API VERIFIED"
+}

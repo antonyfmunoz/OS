@@ -1,0 +1,27 @@
+{
+  "phase": "13.3R",
+  "title": "Cockpit Verification",
+  "timestamp": "2026-05-31T06:06:00Z",
+  "method": "API-backed panel data verification (Clerk auth blocks direct browser)",
+  "panels_verified": {
+    "context_assimilation_overview": {"accessible": true, "keys": 11, "safety_banners": true},
+    "source_registry": {"accessible": true, "total": 12},
+    "ingestion_jobs": {"accessible": true},
+    "diagnostics": {"accessible": true, "total": 15},
+    "proposals": {"accessible": true},
+    "reconciliation_sessions": {"accessible": true},
+    "sync_policies": {"accessible": true},
+    "permissions": {"accessible": true},
+    "environment": {"accessible": true}
+  },
+  "safety_banners": {
+    "no_canonical_update_without_approval": true,
+    "external_writes_disabled": true
+  },
+  "auth_gate": {
+    "approve_reject_no_auth": "Operator token required for privileged actions",
+    "approve_reject_with_auth": "not_found (correct — no proposal with test ID)"
+  },
+  "blocker": "Clerk auth prevents direct browser walkthrough from VPS",
+  "verdict": "COCKPIT API-BACKED PANELS VERIFIED"
+}
