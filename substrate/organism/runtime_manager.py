@@ -246,6 +246,15 @@ class RuntimeManager:
         session.updated_at = time.time()
         persist_session(session)
 
+        allowed_paths = []
+        if sandbox.get("worktree_path"):
+            allowed_paths.append(sandbox["worktree_path"])
+        if cwd and cwd not in allowed_paths:
+            allowed_paths.append(cwd)
+
+        main_repo = os.path.abspath(_REPO_ROOT)
+        blocked_paths = [main_repo]
+
         request = RuntimeStartRequest(
             session_id=session_id,
             runtime_type=session.runtime_type,
@@ -254,6 +263,8 @@ class RuntimeManager:
             prompt=session.prompt,
             timeout_seconds=300,
             sandbox_required=True,
+            allowed_paths=allowed_paths,
+            blocked_paths=blocked_paths,
             risk_class=session.risk_class,
             work_packet_id=session.work_packet_id,
             workcell_id=session.workcell_id,
