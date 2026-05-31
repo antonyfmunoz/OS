@@ -1,0 +1,63 @@
+{
+  "phase": "13.1",
+  "preflight_for": "13.0R",
+  "timestamp": "2026-05-31T00:35:00Z",
+  "checks": {
+    "phase_13_0r_audit_exists": {
+      "status": "pass",
+      "path": "docs/audits/convergence/phase13_0r_jarvis_operator_experience_production_truth.md"
+    },
+    "production_truth_delta": {
+      "status": "pass",
+      "id": "ptd-b504636a"
+    },
+    "production_outcome_committed": {
+      "status": "pass",
+      "id": "poc-37f0509"
+    },
+    "runtime_commit_matches_main": {
+      "status": "pass",
+      "commit": "fa1c4ba3"
+    },
+    "operator_experience_routes_live": {
+      "status": "pass",
+      "routes": [
+        "/organism/operator-experience",
+        "/organism/operator-experience/sessions",
+        "/organism/operator-experience/sessions/{session_id}",
+        "/organism/operator-experience/status",
+        "/organism/operator-experience/approvals",
+        "/organism/operator-experience/send",
+        "/organism/operator-experience/packet-preview",
+        "/organism/operator-experience/propagation-preview",
+        "/organism/operator-experience/topology-preview"
+      ],
+      "count": 9
+    },
+    "dex_never_execute_invariant": {
+      "status": "pass",
+      "evidence": "OrchestratorKernel.never_execute_without_approval() called on every response at line 167"
+    },
+    "universal_work_routes_live": {
+      "status": "pass",
+      "mounted_at": "cockpit.py:2282"
+    },
+    "propagation_graph_routes_live": {
+      "status": "pass",
+      "mounted_at": "cockpit.py:2283"
+    },
+    "cadence_dry_run_only": {
+      "status": "pass",
+      "note": "no cadence execution in operator experience routes"
+    },
+    "medium_risk_blocked": {
+      "status": "pass",
+      "evidence": "governance risk classification enforced"
+    },
+    "no_unresolved_issues": {
+      "status": "pass"
+    }
+  },
+  "overall": "all_pass",
+  "ready_for_13_1": true
+}
