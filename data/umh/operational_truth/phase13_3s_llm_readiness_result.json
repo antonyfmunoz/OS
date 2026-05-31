@@ -1,0 +1,20 @@
+{
+  "date": "2026-05-31",
+  "phase": "13.3S",
+  "capable_llm_available": false,
+  "emergency_llm_available": true,
+  "deterministic_fallback_active": true,
+  "degradation_visible_in_api": true,
+  "jarvis_acceptance_aware_of_degradation": true,
+  "phase_13_4_blocked": true,
+  "phase_13_4_unblock_conditions": [
+    "Restore at least one capable provider (Gemini paid, Groq reset, or Anthropic credits)",
+    "OR explicitly run in deterministic-only mode"
+  ],
+  "provider_health_endpoint": "/api/umh/organism/operational-truth/provider-health",
+  "evidence": {
+    "ollama_models": ["qwen2.5:0.5b"],
+    "claude_cli_available": true,
+    "cloud_providers_all_exhausted": true
+  }
+}

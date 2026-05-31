@@ -820,6 +820,9 @@ class OrganismDaemon:
             self._persist_state()
             self._last_state_persist = now
 
+        if self._tick_count % 60 == 1:
+            self._record_tick_heartbeat(report)
+
         return {
             "cycle": report.cycle_number,
             "stages_executed": report.stages_executed,
@@ -828,6 +831,25 @@ class OrganismDaemon:
             "had_work": report.had_work,
             "stage_details": report.stage_details,
         }
+
+    def _record_tick_heartbeat(self, report: Any) -> None:
+        """Record a periodic heartbeat to the execution journal."""
+        try:
+            from substrate.organism.execution_journal import JournalPhase
+            self._execution_journal.record(
+                envelope_id=f"tick-heartbeat-{self._tick_count}",
+                phase=JournalPhase.EXECUTION_COMPLETED,
+                source="organism_daemon",
+                details={
+                    "tick_count": self._tick_count,
+                    "stages_executed": getattr(report, "stages_executed", 0),
+                    "stages_failed": getattr(report, "stages_failed", 0),
+                    "elapsed_ms": round(getattr(report, "elapsed_ms", 0), 2),
+                    "type": "heartbeat",
+                },
+            )
+        except Exception as exc:
+            logger.debug("tick heartbeat journal record failed: %s", exc)
 
     def stop(self) -> None:
         self._persist_state()

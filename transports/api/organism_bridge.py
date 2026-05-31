@@ -1729,253 +1729,118 @@ def _operator_experience_topology_preview(payload: dict) -> dict:
         return {"success": False, "error": "internal_error"}
 
 
-# ── Context assimilation bridge handlers ───────────────────
+# ── Operational truth handlers ─────────────────────────────
 
-
-def _context_assimilation(payload: dict) -> dict:
+def _operational_truth(payload: dict) -> dict:
     try:
-        from substrate.organism.context_ingestion_engine import ContextIngestionEngine
-        from substrate.organism.context_diagnostic import DiagnosticReportStore
-        from substrate.organism.canonical_update import ProposalStore
-        from substrate.organism.reconciliation_session import ReconciliationSessionStore
-        from substrate.organism.permission_dialogue import SocraticPermissionEngine
-        from substrate.organism.environment_discovery import EnvironmentDiscoveryStore
-        from substrate.organism.cross_source_reconciler import CrossSourceReconciler
-        engine = ContextIngestionEngine()
-        return {"success": True, "data": {
-            "sources": engine.registry.summary(),
-            "ingestion": engine.summarize_ingestion(),
-            "diagnostics": {"total": DiagnosticReportStore().count()},
-            "proposals": {"total": ProposalStore().count(), "pending": ProposalStore().pending_count()},
-            "sessions": {"total": ReconciliationSessionStore().count()},
-            "permissions": SocraticPermissionEngine().summary(),
-            "environment": EnvironmentDiscoveryStore().summary(),
-            "cross_source": CrossSourceReconciler().summary(),
-            "phase": "13.3",
-            "external_writes_disabled": True,
-        }}
+        from substrate.organism.operational_truth import collect_snapshot
+        snap = collect_snapshot()
+        return {"success": True, "data": snap.to_dict()}
     except Exception:
-        logger.exception("organism.context_assimilation failed")
+        logger.exception("organism.operational_truth failed")
         return {"success": False, "error": "internal_error"}
 
 
-def _context_assimilation_sources(payload: dict) -> dict:
+def _operational_truth_issues(payload: dict) -> dict:
     try:
-        from substrate.organism.context_ingestion_engine import ContextIngestionEngine
-        engine = ContextIngestionEngine()
-        sources = engine.list_sources()
-        return {"success": True, "data": [s.to_dict() for s in sources]}
+        import json as _json
+        from pathlib import Path
+        issues_path = Path(_os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "operational_truth" / "issues.jsonl"
+        issues = []
+        if issues_path.exists():
+            for line in issues_path.read_text().strip().split("\n"):
+                if line.strip():
+                    issues.append(_json.loads(line))
+        return {"success": True, "data": {"issues": issues, "total": len(issues)}}
     except Exception:
-        logger.exception("organism.context_assimilation.sources failed")
+        logger.exception("organism.operational_truth.issues failed")
         return {"success": False, "error": "internal_error"}
 
 
-def _context_assimilation_ingest(payload: dict) -> dict:
+def _operational_truth_readiness(payload: dict) -> dict:
     try:
-        from substrate.organism.context_ingestion_engine import ContextIngestionEngine
-        engine = ContextIngestionEngine()
-        source_id = payload.get("source_id", "")
-        if not source_id:
-            seeds = engine.seed_local_sources()
-            return {"success": True, "data": {"action": "seeded", "count": len(seeds)}}
-        job = engine.run_local_audit_ingestion(source_id)
-        if not job:
-            return {"success": False, "error": "ingestion_failed"}
-        return {"success": True, "data": job.to_dict()}
-    except Exception:
-        logger.exception("organism.context_assimilation.ingest failed")
-        return {"success": False, "error": "internal_error"}
-
-
-def _context_assimilation_diagnostics(payload: dict) -> dict:
-    try:
-        from substrate.organism.context_diagnostic import DiagnosticReportStore
-        store = DiagnosticReportStore()
-        reports = store.list_reports()
-        return {"success": True, "data": [r.to_dict() for r in reports]}
-    except Exception:
-        logger.exception("organism.context_assimilation.diagnostics failed")
-        return {"success": False, "error": "internal_error"}
-
-
-def _context_assimilation_diagnostic_detail(payload: dict) -> dict:
-    try:
-        from substrate.organism.context_diagnostic import DiagnosticReportStore
-        store = DiagnosticReportStore()
-        report_id = payload.get("report_id", "")
-        report = store.get_report(report_id)
-        if not report:
-            return {"success": False, "error": "not_found"}
+        from substrate.organism.jarvis_readiness_gate import assess_readiness
+        report = assess_readiness(deterministic_only=payload.get("deterministic_only", False))
         return {"success": True, "data": report.to_dict()}
     except Exception:
-        logger.exception("organism.context_assimilation.diagnostic_detail failed")
+        logger.exception("organism.operational_truth.readiness failed")
         return {"success": False, "error": "internal_error"}
 
 
-def _context_assimilation_proposals(payload: dict) -> dict:
+def _operational_truth_provider_health(payload: dict) -> dict:
     try:
-        from substrate.organism.canonical_update import ProposalStore
-        store = ProposalStore()
-        proposals = store.list_proposals()
-        return {"success": True, "data": [p.to_dict() for p in proposals]}
+        import json as _json
+        from pathlib import Path
+        diag_path = Path(_os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "operational_truth" / "phase13_3s_llm_provider_diagnostic.json"
+        if diag_path.exists():
+            data = _json.loads(diag_path.read_text())
+            return {"success": True, "data": data}
+        return {"success": True, "data": {"providers": [], "note": "no diagnostic available"}}
     except Exception:
-        logger.exception("organism.context_assimilation.proposals failed")
+        logger.exception("organism.operational_truth.provider_health failed")
         return {"success": False, "error": "internal_error"}
 
 
-def _context_assimilation_proposal_detail(payload: dict) -> dict:
+def _operational_truth_data_hygiene(payload: dict) -> dict:
     try:
-        from substrate.organism.canonical_update import ProposalStore
-        store = ProposalStore()
-        proposal_id = payload.get("proposal_id", "")
-        prop = store.get_proposal(proposal_id)
-        if not prop:
-            return {"success": False, "error": "not_found"}
-        return {"success": True, "data": prop.to_dict()}
+        import json as _json
+        from pathlib import Path
+        path = Path(_os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "operational_truth" / "phase13_3s_data_hygiene_result.json"
+        if path.exists():
+            return {"success": True, "data": _json.loads(path.read_text())}
+        return {"success": True, "data": {"note": "no hygiene report available"}}
     except Exception:
-        logger.exception("organism.context_assimilation.proposal_detail failed")
+        logger.exception("organism.operational_truth.data_hygiene failed")
         return {"success": False, "error": "internal_error"}
 
 
-def _context_assimilation_approve_proposal(payload: dict) -> dict:
+def _operational_truth_knowledge_graph(payload: dict) -> dict:
     try:
-        from substrate.organism.canonical_update import ProposalStore
-        store = ProposalStore()
-        proposal_id = payload.get("proposal_id", "")
-        if not store.approve(proposal_id):
-            return {"success": False, "error": "not_found"}
-        return {"success": True, "data": {"status": "approved", "proposal_id": proposal_id}}
+        import time as _time
+        from pathlib import Path
+        root = Path(_os.environ.get("UMH_ROOT", "/opt/OS"))
+        graph_path = root / "data" / "codebase_graph.json"
+        if graph_path.exists():
+            mtime = graph_path.stat().st_mtime
+            age_h = (_time.time() - mtime) / 3600
+            return {"success": True, "data": {"exists": True, "age_hours": round(age_h, 1), "fresh": age_h < 48}}
+        return {"success": True, "data": {"exists": False}}
     except Exception:
-        logger.exception("organism.context_assimilation.approve_proposal failed")
+        logger.exception("organism.operational_truth.knowledge_graph failed")
         return {"success": False, "error": "internal_error"}
 
 
-def _context_assimilation_reject_proposal(payload: dict) -> dict:
+def _operational_truth_eventbus(payload: dict) -> dict:
     try:
-        from substrate.organism.canonical_update import ProposalStore
-        store = ProposalStore()
-        proposal_id = payload.get("proposal_id", "")
-        if not store.reject(proposal_id):
-            return {"success": False, "error": "not_found"}
-        return {"success": True, "data": {"status": "rejected", "proposal_id": proposal_id}}
-    except Exception:
-        logger.exception("organism.context_assimilation.reject_proposal failed")
-        return {"success": False, "error": "internal_error"}
-
-
-def _context_assimilation_sessions(payload: dict) -> dict:
-    try:
-        from substrate.organism.reconciliation_session import ReconciliationSessionStore
-        store = ReconciliationSessionStore()
-        sessions = store.list_sessions()
-        return {"success": True, "data": [s.to_dict() for s in sessions]}
-    except Exception:
-        logger.exception("organism.context_assimilation.reconciliation_sessions failed")
-        return {"success": False, "error": "internal_error"}
-
-
-def _context_assimilation_start_reconciliation(payload: dict) -> dict:
-    try:
-        from substrate.organism.reconciliation_engine import ReconciliationEngine
-        engine = ReconciliationEngine()
-        topic = payload.get("topic", "")
-        scope = payload.get("scope", "full")
-        mode = payload.get("mode", "exploration")
-        if not topic:
-            return {"success": False, "error": "topic_required"}
-        session = engine.start_session(topic=topic, scope=scope, mode=mode)
-        engine.attach_sources(session.session_id)
-        return {"success": True, "data": session.to_dict()}
-    except Exception:
-        logger.exception("organism.context_assimilation.start_reconciliation failed")
-        return {"success": False, "error": "internal_error"}
-
-
-def _context_assimilation_session_detail(payload: dict) -> dict:
-    try:
-        from substrate.organism.reconciliation_session import ReconciliationSessionStore
-        store = ReconciliationSessionStore()
-        session_id = payload.get("session_id", "")
-        session = store.get_session(session_id)
-        if not session:
-            return {"success": False, "error": "not_found"}
-        return {"success": True, "data": session.to_dict()}
-    except Exception:
-        logger.exception("organism.context_assimilation.session_detail failed")
-        return {"success": False, "error": "internal_error"}
-
-
-def _context_assimilation_sync_policies(payload: dict) -> dict:
-    try:
-        from substrate.organism.sync_policy import SyncPolicyStore
-        store = SyncPolicyStore()
-        policies = store.list_policies()
-        return {"success": True, "data": [p.to_dict() for p in policies]}
-    except Exception:
-        logger.exception("organism.context_assimilation.sync_policies failed")
-        return {"success": False, "error": "internal_error"}
-
-
-def _context_assimilation_permissions(payload: dict) -> dict:
-    try:
-        from substrate.organism.permission_dialogue import SocraticPermissionEngine
-        engine = SocraticPermissionEngine()
+        from substrate.control_plane.events.event_bus import get_bus, EVENT_TYPES
+        bus = get_bus()
+        registered = list(bus._handlers.keys())
         return {"success": True, "data": {
-            "requests": [r.to_dict() for r in engine.list_requests()],
-            "pending": engine.pending_count(),
-            "summary": engine.summary(),
+            "registered_handlers": registered,
+            "defined_event_types": sorted(EVENT_TYPES),
+            "handler_count": sum(len(v) for v in bus._handlers.values()),
         }}
     except Exception:
-        logger.exception("organism.context_assimilation.permissions failed")
+        logger.exception("organism.operational_truth.eventbus failed")
         return {"success": False, "error": "internal_error"}
 
 
-def _context_assimilation_environment(payload: dict) -> dict:
+def _operational_truth_precommit_gates(payload: dict) -> dict:
     try:
-        from substrate.organism.environment_discovery import EnvironmentDiscoveryStore
-        store = EnvironmentDiscoveryStore()
-        return {"success": True, "data": {
-            "summary": store.summary(),
-            "devices": [d.to_dict() for d in store.list_devices()],
-            "apps": [a.to_dict() for a in store.list_apps()],
-        }}
+        from pathlib import Path
+        root = Path(_os.environ.get("UMH_ROOT", "/opt/OS"))
+        hook_path = root / ".git" / "hooks" / "pre-commit"
+        gates = {}
+        for gate_name in ["check_type_divergence", "check_instance_leak", "check_projection_leak", "check_dependency_direction"]:
+            gates[gate_name] = False
+        if hook_path.exists():
+            content = hook_path.read_text()
+            for gate_name in gates:
+                gates[gate_name] = gate_name in content
+        wired = sum(1 for v in gates.values() if v)
+        return {"success": True, "data": {"gates": gates, "wired": wired, "total": 4, "hook_exists": hook_path.exists()}}
     except Exception:
-        logger.exception("organism.context_assimilation.environment failed")
-        return {"success": False, "error": "internal_error"}
-
-
-def _context_assimilation_cross_source(payload: dict) -> dict:
-    try:
-        from substrate.organism.cross_source_reconciler import CrossSourceReconciler
-        reconciler = CrossSourceReconciler()
-        return {"success": True, "data": {
-            "signals": [s.to_dict() for s in reconciler.list_signals()],
-            "summary": reconciler.summary(),
-        }}
-    except Exception:
-        logger.exception("organism.context_assimilation.cross_source failed")
-        return {"success": False, "error": "internal_error"}
-
-
-def _context_assimilation_instantiation(payload: dict) -> dict:
-    try:
-        from substrate.organism.context_ingestion_engine import ContextIngestionEngine
-        from substrate.organism.diagnostic_engine import DiagnosticEngine
-        engine = ContextIngestionEngine()
-        engine.seed_local_sources()
-        sources = engine.list_sources()
-        for src in sources:
-            if not engine.prevent_duplicate_ingestion(src.source_id):
-                engine.run_local_audit_ingestion(src.source_id)
-        diag = DiagnosticEngine()
-        report = diag.build_diagnostic_report(scope="instantiation")
-        return {"success": True, "data": {
-            "report": report.to_dict(),
-            "sources_analyzed": len(sources),
-            "external_writes_disabled": True,
-        }}
-    except Exception:
-        logger.exception("organism.context_assimilation.instantiation failed")
+        logger.exception("organism.operational_truth.precommit_gates failed")
         return {"success": False, "error": "internal_error"}
 
 
@@ -2069,6 +1934,14 @@ _ACTIONS: dict = {
     "organism.approval_packet.detail": _approval_packet_detail,
     "organism.approval_packet.approve": _approval_packet_approve,
     "organism.approval_packet.reject": _approval_packet_reject,
+    "organism.operational_truth": _operational_truth,
+    "organism.operational_truth.issues": _operational_truth_issues,
+    "organism.operational_truth.readiness": _operational_truth_readiness,
+    "organism.operational_truth.provider_health": _operational_truth_provider_health,
+    "organism.operational_truth.data_hygiene": _operational_truth_data_hygiene,
+    "organism.operational_truth.knowledge_graph": _operational_truth_knowledge_graph,
+    "organism.operational_truth.eventbus": _operational_truth_eventbus,
+    "organism.operational_truth.precommit_gates": _operational_truth_precommit_gates,
     "organism.production_truth": _production_truth_status,
     "organism.operator_experience": _operator_experience,
     "organism.operator_experience.session": _operator_experience_session,
@@ -2082,23 +1955,6 @@ _ACTIONS: dict = {
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,
-    "organism.context_assimilation": _context_assimilation,
-    "organism.context_assimilation.sources": _context_assimilation_sources,
-    "organism.context_assimilation.ingest": _context_assimilation_ingest,
-    "organism.context_assimilation.diagnostics": _context_assimilation_diagnostics,
-    "organism.context_assimilation.diagnostic_detail": _context_assimilation_diagnostic_detail,
-    "organism.context_assimilation.proposals": _context_assimilation_proposals,
-    "organism.context_assimilation.proposal_detail": _context_assimilation_proposal_detail,
-    "organism.context_assimilation.approve_proposal": _context_assimilation_approve_proposal,
-    "organism.context_assimilation.reject_proposal": _context_assimilation_reject_proposal,
-    "organism.context_assimilation.reconciliation_sessions": _context_assimilation_sessions,
-    "organism.context_assimilation.start_reconciliation": _context_assimilation_start_reconciliation,
-    "organism.context_assimilation.session_detail": _context_assimilation_session_detail,
-    "organism.context_assimilation.sync_policies": _context_assimilation_sync_policies,
-    "organism.context_assimilation.permissions": _context_assimilation_permissions,
-    "organism.context_assimilation.environment": _context_assimilation_environment,
-    "organism.context_assimilation.cross_source": _context_assimilation_cross_source,
-    "organism.context_assimilation.instantiation_diagnostic": _context_assimilation_instantiation,
 }
 
 

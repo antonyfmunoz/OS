@@ -1,0 +1,17 @@
+{
+  "date": "2026-05-31",
+  "phase": "13.3S",
+  "issue": "EventBus publishes loop_cycle_business_ops with no handlers registered",
+  "root_cause": "PersistentLoop._publish_event() publishes loop_cycle_{name} to EventBus singleton. EventRegistry.register_defaults() never registers a handler for loop_cycle_business_ops.",
+  "fix_applied": "Option A — registered diagnostic handler _handle_loop_cycle that records cycle metadata without triggering execution. Added loop_cycle_business_ops to EVENT_TYPES frozenset and to register_defaults() mappings.",
+  "cadence_safety": {
+    "autonomous_execution_enabled": false,
+    "cadence_mode": "OFF (default CadencePolicy)",
+    "dry_run_only": true,
+    "auto_merge": false
+  },
+  "files_modified": [
+    "substrate/control_plane/events/event_bus.py"
+  ],
+  "no_handler_message_eliminated": true
+}
