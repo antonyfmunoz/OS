@@ -88,8 +88,14 @@ class EventBus:
             if cls._instance is None:
                 instance = super().__new__(cls)
                 instance._handlers: dict[str, list[Callable]] = {}
+                instance._defaults_registered = False
                 cls._instance = instance
         return cls._instance
+
+    def _ensure_defaults(self) -> None:
+        if not self._defaults_registered:
+            self._defaults_registered = True
+            EventRegistry(self).register_defaults()
 
     def _log_event(
         self,
@@ -607,8 +613,10 @@ class EventRegistry:
 
 
 def get_bus() -> EventBus:
-    """Return the singleton EventBus instance."""
-    return EventBus()
+    """Return the singleton EventBus instance with default handlers registered."""
+    bus = EventBus()
+    bus._ensure_defaults()
+    return bus
 
 
 # ─── CLI test ─────────────────────────────────────────────────────────────────
