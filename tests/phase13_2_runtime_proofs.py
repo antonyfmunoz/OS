@@ -17,11 +17,12 @@ import sys
 import tempfile
 import time
 
-_WORKTREE = "/opt/OS/.claude/worktrees/phase-13-2-runtime-surface"
-sys.path.insert(0, _WORKTREE)
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_REPO_ROOT = os.path.dirname(_SCRIPT_DIR)
+sys.path.insert(0, _REPO_ROOT)
 
 # Remove /opt/OS from path to avoid loading stale substrate from main repo
-sys.path = [p for p in sys.path if p != "/opt/OS"]
+sys.path = [p for p in sys.path if os.path.abspath(p) != os.path.abspath("/opt/OS") or p == _REPO_ROOT]
 
 passed: list[str] = []
 failed: list[str] = []

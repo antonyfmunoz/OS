@@ -1,12 +1,13 @@
-# cortextOS — Phase 13 Runtime Surface Study
+# cortextOS / agent-os — Phase 13 Runtime Surface Study
 
 **Date:** 2026-05-31
-**Phase:** 13.1 research artifact
+**Phase:** 13.1 research artifact (pre-code-level analysis)
 **Purpose:** Document what UMH learned from cortextOS for operator surface design
+**Superseded by:** [cortextos_runtime_surface_comparison.md](cortextos_runtime_surface_comparison.md) (code-level analysis of `saadnvd1/agent-os`)
 
-## What cortextOS Is
+## What cortextOS / agent-os Is
 
-cortextOS is a runtime-control-first system — it prioritizes direct access to
+agent-os (`saadnvd1/agent-os`) is a runtime-control-first system — it prioritizes direct access to
 persistent PTY sessions, agent runtimes, and command execution. The operator
 interacts with agents through a live terminal/chat interface.
 
