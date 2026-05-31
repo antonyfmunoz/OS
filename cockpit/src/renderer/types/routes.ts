@@ -23,6 +23,7 @@ import {
   Lightbulb,
   Globe,
   Hammer,
+  Mic,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -35,6 +36,7 @@ export interface RouteEntry {
 }
 
 export const ROUTES: RouteEntry[] = [
+  { id: 'operator', label: 'Operator', icon: Mic, group: 'core', key: 'd' },
   { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, group: 'core', key: '1' },
   { id: 'agents', label: 'Agents', icon: Bot, group: 'core', key: '2' },
   { id: 'tasks', label: 'Tasks', icon: ListChecks, group: 'core', key: '3' },
