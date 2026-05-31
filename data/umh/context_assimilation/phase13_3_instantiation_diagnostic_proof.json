@@ -1,0 +1,42 @@
+{
+  "phase": "13.3",
+  "task": "instantiation_diagnostic",
+  "timestamp": 1780201373.8243308,
+  "report_summary": {
+    "report_id": "diag-876b514b",
+    "status": "completed",
+    "sources_analyzed": 6,
+    "item_count": 88,
+    "canonical_claims": 328,
+    "outdated_claims": 0,
+    "contradictions": 319,
+    "missing_context": [
+      "No context found for expected entity: Lyfe Institute",
+      "No context found for expected entity: Munoz Conglomerate",
+      "No context found for expected entity: OST",
+      "No context found for expected entity: Lyfe Spectrum"
+    ],
+    "open_questions": [
+      "What is the relationship between DEX and Jarvis? Are they the same interface?",
+      "What is the current scope of EOS? Does it handle portfolios beyond companies?"
+    ],
+    "entity_map_keys": [
+      "CreatorOS",
+      "DEX",
+      "EOS",
+      "Empyrean Studios",
+      "EntrepreneurOS",
+      "Initiate Arena",
+      "Jarvis",
+      "Lyfe Institute",
+      "Lyfe Spectrum",
+      "LyfeOS",
+      "Munoz Conglomerate",
+      "OST",
+      "UMH"
+    ],
+    "recommended_updates": 319,
+    "confidence": 0.09999999999999995
+  },
+  "proposals_generated": 319
+}

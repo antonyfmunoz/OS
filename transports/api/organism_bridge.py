@@ -1729,6 +1729,256 @@ def _operator_experience_topology_preview(payload: dict) -> dict:
         return {"success": False, "error": "internal_error"}
 
 
+# ── Context assimilation bridge handlers ───────────────────
+
+
+def _context_assimilation(payload: dict) -> dict:
+    try:
+        from substrate.organism.context_ingestion_engine import ContextIngestionEngine
+        from substrate.organism.context_diagnostic import DiagnosticReportStore
+        from substrate.organism.canonical_update import ProposalStore
+        from substrate.organism.reconciliation_session import ReconciliationSessionStore
+        from substrate.organism.permission_dialogue import SocraticPermissionEngine
+        from substrate.organism.environment_discovery import EnvironmentDiscoveryStore
+        from substrate.organism.cross_source_reconciler import CrossSourceReconciler
+        engine = ContextIngestionEngine()
+        return {"success": True, "data": {
+            "sources": engine.registry.summary(),
+            "ingestion": engine.summarize_ingestion(),
+            "diagnostics": {"total": DiagnosticReportStore().count()},
+            "proposals": {"total": ProposalStore().count(), "pending": ProposalStore().pending_count()},
+            "sessions": {"total": ReconciliationSessionStore().count()},
+            "permissions": SocraticPermissionEngine().summary(),
+            "environment": EnvironmentDiscoveryStore().summary(),
+            "cross_source": CrossSourceReconciler().summary(),
+            "phase": "13.3",
+            "external_writes_disabled": True,
+        }}
+    except Exception:
+        logger.exception("organism.context_assimilation failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_sources(payload: dict) -> dict:
+    try:
+        from substrate.organism.context_ingestion_engine import ContextIngestionEngine
+        engine = ContextIngestionEngine()
+        sources = engine.list_sources()
+        return {"success": True, "data": [s.to_dict() for s in sources]}
+    except Exception:
+        logger.exception("organism.context_assimilation.sources failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_ingest(payload: dict) -> dict:
+    try:
+        from substrate.organism.context_ingestion_engine import ContextIngestionEngine
+        engine = ContextIngestionEngine()
+        source_id = payload.get("source_id", "")
+        if not source_id:
+            seeds = engine.seed_local_sources()
+            return {"success": True, "data": {"action": "seeded", "count": len(seeds)}}
+        job = engine.run_local_audit_ingestion(source_id)
+        if not job:
+            return {"success": False, "error": "ingestion_failed"}
+        return {"success": True, "data": job.to_dict()}
+    except Exception:
+        logger.exception("organism.context_assimilation.ingest failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_diagnostics(payload: dict) -> dict:
+    try:
+        from substrate.organism.context_diagnostic import DiagnosticReportStore
+        store = DiagnosticReportStore()
+        reports = store.list_reports()
+        return {"success": True, "data": [r.to_dict() for r in reports]}
+    except Exception:
+        logger.exception("organism.context_assimilation.diagnostics failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_diagnostic_detail(payload: dict) -> dict:
+    try:
+        from substrate.organism.context_diagnostic import DiagnosticReportStore
+        store = DiagnosticReportStore()
+        report_id = payload.get("report_id", "")
+        report = store.get_report(report_id)
+        if not report:
+            return {"success": False, "error": "not_found"}
+        return {"success": True, "data": report.to_dict()}
+    except Exception:
+        logger.exception("organism.context_assimilation.diagnostic_detail failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_proposals(payload: dict) -> dict:
+    try:
+        from substrate.organism.canonical_update import ProposalStore
+        store = ProposalStore()
+        proposals = store.list_proposals()
+        return {"success": True, "data": [p.to_dict() for p in proposals]}
+    except Exception:
+        logger.exception("organism.context_assimilation.proposals failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_proposal_detail(payload: dict) -> dict:
+    try:
+        from substrate.organism.canonical_update import ProposalStore
+        store = ProposalStore()
+        proposal_id = payload.get("proposal_id", "")
+        prop = store.get_proposal(proposal_id)
+        if not prop:
+            return {"success": False, "error": "not_found"}
+        return {"success": True, "data": prop.to_dict()}
+    except Exception:
+        logger.exception("organism.context_assimilation.proposal_detail failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_approve_proposal(payload: dict) -> dict:
+    try:
+        from substrate.organism.canonical_update import ProposalStore
+        store = ProposalStore()
+        proposal_id = payload.get("proposal_id", "")
+        if not store.approve(proposal_id):
+            return {"success": False, "error": "not_found"}
+        return {"success": True, "data": {"status": "approved", "proposal_id": proposal_id}}
+    except Exception:
+        logger.exception("organism.context_assimilation.approve_proposal failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_reject_proposal(payload: dict) -> dict:
+    try:
+        from substrate.organism.canonical_update import ProposalStore
+        store = ProposalStore()
+        proposal_id = payload.get("proposal_id", "")
+        if not store.reject(proposal_id):
+            return {"success": False, "error": "not_found"}
+        return {"success": True, "data": {"status": "rejected", "proposal_id": proposal_id}}
+    except Exception:
+        logger.exception("organism.context_assimilation.reject_proposal failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_sessions(payload: dict) -> dict:
+    try:
+        from substrate.organism.reconciliation_session import ReconciliationSessionStore
+        store = ReconciliationSessionStore()
+        sessions = store.list_sessions()
+        return {"success": True, "data": [s.to_dict() for s in sessions]}
+    except Exception:
+        logger.exception("organism.context_assimilation.reconciliation_sessions failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_start_reconciliation(payload: dict) -> dict:
+    try:
+        from substrate.organism.reconciliation_engine import ReconciliationEngine
+        engine = ReconciliationEngine()
+        topic = payload.get("topic", "")
+        scope = payload.get("scope", "full")
+        mode = payload.get("mode", "exploration")
+        if not topic:
+            return {"success": False, "error": "topic_required"}
+        session = engine.start_session(topic=topic, scope=scope, mode=mode)
+        engine.attach_sources(session.session_id)
+        return {"success": True, "data": session.to_dict()}
+    except Exception:
+        logger.exception("organism.context_assimilation.start_reconciliation failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_session_detail(payload: dict) -> dict:
+    try:
+        from substrate.organism.reconciliation_session import ReconciliationSessionStore
+        store = ReconciliationSessionStore()
+        session_id = payload.get("session_id", "")
+        session = store.get_session(session_id)
+        if not session:
+            return {"success": False, "error": "not_found"}
+        return {"success": True, "data": session.to_dict()}
+    except Exception:
+        logger.exception("organism.context_assimilation.session_detail failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_sync_policies(payload: dict) -> dict:
+    try:
+        from substrate.organism.sync_policy import SyncPolicyStore
+        store = SyncPolicyStore()
+        policies = store.list_policies()
+        return {"success": True, "data": [p.to_dict() for p in policies]}
+    except Exception:
+        logger.exception("organism.context_assimilation.sync_policies failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_permissions(payload: dict) -> dict:
+    try:
+        from substrate.organism.permission_dialogue import SocraticPermissionEngine
+        engine = SocraticPermissionEngine()
+        return {"success": True, "data": {
+            "requests": [r.to_dict() for r in engine.list_requests()],
+            "pending": engine.pending_count(),
+            "summary": engine.summary(),
+        }}
+    except Exception:
+        logger.exception("organism.context_assimilation.permissions failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_environment(payload: dict) -> dict:
+    try:
+        from substrate.organism.environment_discovery import EnvironmentDiscoveryStore
+        store = EnvironmentDiscoveryStore()
+        return {"success": True, "data": {
+            "summary": store.summary(),
+            "devices": [d.to_dict() for d in store.list_devices()],
+            "apps": [a.to_dict() for a in store.list_apps()],
+        }}
+    except Exception:
+        logger.exception("organism.context_assimilation.environment failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_cross_source(payload: dict) -> dict:
+    try:
+        from substrate.organism.cross_source_reconciler import CrossSourceReconciler
+        reconciler = CrossSourceReconciler()
+        return {"success": True, "data": {
+            "signals": [s.to_dict() for s in reconciler.list_signals()],
+            "summary": reconciler.summary(),
+        }}
+    except Exception:
+        logger.exception("organism.context_assimilation.cross_source failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _context_assimilation_instantiation(payload: dict) -> dict:
+    try:
+        from substrate.organism.context_ingestion_engine import ContextIngestionEngine
+        from substrate.organism.diagnostic_engine import DiagnosticEngine
+        engine = ContextIngestionEngine()
+        engine.seed_local_sources()
+        sources = engine.list_sources()
+        for src in sources:
+            if not engine.prevent_duplicate_ingestion(src.source_id):
+                engine.run_local_audit_ingestion(src.source_id)
+        diag = DiagnosticEngine()
+        report = diag.build_diagnostic_report(scope="instantiation")
+        return {"success": True, "data": {
+            "report": report.to_dict(),
+            "sources_analyzed": len(sources),
+            "external_writes_disabled": True,
+        }}
+    except Exception:
+        logger.exception("organism.context_assimilation.instantiation failed")
+        return {"success": False, "error": "internal_error"}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -1832,6 +2082,23 @@ _ACTIONS: dict = {
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,
+    "organism.context_assimilation": _context_assimilation,
+    "organism.context_assimilation.sources": _context_assimilation_sources,
+    "organism.context_assimilation.ingest": _context_assimilation_ingest,
+    "organism.context_assimilation.diagnostics": _context_assimilation_diagnostics,
+    "organism.context_assimilation.diagnostic_detail": _context_assimilation_diagnostic_detail,
+    "organism.context_assimilation.proposals": _context_assimilation_proposals,
+    "organism.context_assimilation.proposal_detail": _context_assimilation_proposal_detail,
+    "organism.context_assimilation.approve_proposal": _context_assimilation_approve_proposal,
+    "organism.context_assimilation.reject_proposal": _context_assimilation_reject_proposal,
+    "organism.context_assimilation.reconciliation_sessions": _context_assimilation_sessions,
+    "organism.context_assimilation.start_reconciliation": _context_assimilation_start_reconciliation,
+    "organism.context_assimilation.session_detail": _context_assimilation_session_detail,
+    "organism.context_assimilation.sync_policies": _context_assimilation_sync_policies,
+    "organism.context_assimilation.permissions": _context_assimilation_permissions,
+    "organism.context_assimilation.environment": _context_assimilation_environment,
+    "organism.context_assimilation.cross_source": _context_assimilation_cross_source,
+    "organism.context_assimilation.instantiation_diagnostic": _context_assimilation_instantiation,
 }
 
 
