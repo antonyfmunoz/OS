@@ -1,0 +1,23 @@
+{
+  "phase": "13.3SR",
+  "task": "test_gate_results",
+  "timestamp": "2026-05-31T19:49:03.905279+00:00",
+  "phase_13_3s_tests": {
+    "passed": 60,
+    "failed": 0
+  },
+  "py_compile": {
+    "files_checked": 6,
+    "all_pass": true
+  },
+  "type_divergence_gate": "clean for Phase 13.3S files (pre-existing violations in other files)",
+  "instance_leak_gate": "clean \u2014 604 files scanned",
+  "projection_leak_gate": "3 pre-existing violations in candidate_supply_engine.py (not Phase 13.3S)",
+  "dependency_direction_gate": "clean for Phase 13.3S files (25 pre-existing legacy violations)",
+  "api_auth_check": "all 8 routes have operatorGuard",
+  "no_fake_data": true,
+  "no_secret_leakage": true,
+  "no_unsafe_deletion": true,
+  "no_autonomy_enablement": true,
+  "canonical_types_registered": 10
+}
