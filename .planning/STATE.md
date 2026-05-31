@@ -95,9 +95,10 @@ None yet.
 | Phase 13.0 — Operator Experience Kernel | 2026-05-30 | 68671c03..43bf7f3a | DexOrchestrator kernel (898 lines), OperatorSession/Response models, 9 bridge handlers, 9 FastAPI routes, 9 Hono routes, 85 tests, 14 proof artifacts, never-execute safety invariant, all routes auth-gated |
 | Phase 13.0R — Production Truth Promotion | 2026-05-31 | ad53f5e3 | PTD ptd-b504636a, POC poc-37f0509. 12 proof artifacts, 761 tests (0 new failures), 9 live API routes verified, lifecycle/status/approval/propagation proofs, audit report |
 | Phase 13.1 — Voice-First DEX Cockpit Command Layer | 2026-05-31 | 27fdc02a | OperatorPanel (529 lines), voiceTypes (137), speechInputAdapter (197), operatorExperienceStore (376). 9-section cockpit command surface, push-to-talk Web Speech adapter, DEX API integration, 7 proof artifacts, 395 tests pass, all gates clean. Ready for 13.1R. |
+| Phase 13.1R — Production Truth Promotion | 2026-05-31 | f44d465b | PTD ptd-639760df, POC poc-637ff93. 10 proof artifacts, 395 tests (0 new failures), 9 live API endpoints verified (all HTTP 200, auth-gated), text command proof (create_work → wp-437343aa328b), voice limitation documented truthfully (headless VPS), tsc clean, all 4 gates clean for Phase 13.1. |
 
 ## Session Continuity
 
 Last session: 2026-05-31
-Stopped at: Phase 13.1 complete — ready for Phase 13.1R
+Stopped at: Phase 13.1R complete — production truth promoted
 Resume file: None
