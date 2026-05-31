@@ -26,6 +26,7 @@ export type Panel =
   | 'selfbuild'
   | 'universalwork'
   | 'propagation'
+  | 'operator'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
