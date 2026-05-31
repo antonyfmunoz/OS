@@ -1,0 +1,56 @@
+{
+  "phase": "13.3",
+  "title": "Context Assimilation + Continuous Reconciliation Kernel",
+  "timestamp": "2026-05-30T22:30:00Z",
+  "test_suite": {
+    "file": "tests/test_phase13_3_context_assimilation.py",
+    "total_tests": 106,
+    "passed": 106,
+    "failed": 0,
+    "test_classes": [
+      "TestSourceRegistry (10)",
+      "TestIngestionJob (6)",
+      "TestContextIngestionEngine (7)",
+      "TestContextDiagnostic (5)",
+      "TestDiagnosticEngine (2)",
+      "TestCanonicalUpdate (6)",
+      "TestReconciliationSession (5)",
+      "TestReconciliationEngine (8)",
+      "TestDexReconciliation (8)",
+      "TestEnvironmentDiscovery (8)",
+      "TestPermissionDialogue (8)",
+      "TestCrossSourceReconciler (6)",
+      "TestSyncPolicy (7)",
+      "TestAPIRoutes (6)",
+      "TestCockpitShape (8)",
+      "TestInvariants (6)"
+    ]
+  },
+  "prior_phase_tests": {
+    "total": 172,
+    "passed": 172,
+    "failed": 0,
+    "phases": ["10.2", "10.3", "10.4", "10.5"]
+  },
+  "gate_checks": {
+    "py_compile_all_16_files": "PASS",
+    "type_divergence_gate": "PASS — no Phase 13.3 warnings",
+    "instance_leak_gate": "PASS — all Phase 13.3 files clean",
+    "dependency_direction_gate": "PASS",
+    "line_count_check": "PASS — all files under 3000 lines",
+    "cockpit_line_count": "2304 (under 3000)",
+    "organism_bridge_line_count": "2134 (under 3000)",
+    "route_auth_check": "PASS — 9 POST routes have operator auth, 15 GET routes read-only",
+    "path_traversal_check": "PASS — no ../ in route files",
+    "no_fake_data_check": "PASS — 0 matches for fake/mock/dummy/placeholder in proofs",
+    "no_raw_secrets_check": "PASS — only metadata references to auth, no actual secrets",
+    "cadence_dry_run_check": "PASS — dry_run_only confirmed in proofs",
+    "no_external_write_check": "PASS — sync policy enforces no external writes"
+  },
+  "instance_context_fixes": {
+    "diagnostic_engine.py": "Replaced _KNOWN_ENTITIES, _EXPECTED_PRODUCTS, _EXPECTED_COMPANIES hardcoded dicts with runtime-loaded entity_knowledge.json",
+    "context_ingestion_engine.py": "Replaced _ENTITY_PATTERNS and entity-specific _CLAIM_PATTERNS with data-file-driven _load_entity_patterns()",
+    "dex_reconciliation.py": "Removed AI name from docstring"
+  },
+  "verdict": "ALL GATES PASS"
+}
