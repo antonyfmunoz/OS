@@ -1,0 +1,33 @@
+{
+  "phase": "13.3R",
+  "title": "Live Instantiation Diagnostic",
+  "timestamp": "2026-05-31T06:01:53Z",
+  "sources_registered": 1,
+  "source": "Convergence Audit Documents (/opt/OS/docs/audits/convergence)",
+  "items_ingested": 91,
+  "canonical_claims": 332,
+  "entity_map_count": 13,
+  "entity_names": [
+    "CreatorOS", "DEX", "EOS", "Empyrean Studios", "EntrepreneurOS",
+    "Initiate Arena", "Jarvis", "Lyfe Institute", "Lyfe Spectrum",
+    "LyfeOS", "Munoz Conglomerate", "OST", "UMH"
+  ],
+  "missing_context": [
+    "No context found for expected entity: Lyfe Spectrum",
+    "No context found for expected entity: Munoz Conglomerate",
+    "No context found for expected entity: Lyfe Institute",
+    "No context found for expected entity: OST"
+  ],
+  "open_questions": [
+    "What is the relationship between the operator interface aliases? Are they the same?",
+    "What is the current scope of this projection? Does it handle portfolios beyond companies?"
+  ],
+  "proposals_generated": 331,
+  "work_packet_implications": 10,
+  "auto_applied_count": 0,
+  "no_proposal_auto_applied": true,
+  "no_external_write": true,
+  "no_fake_sources": true,
+  "entity_knowledge_data_driven": true,
+  "verdict": "INSTANTIATION DIAGNOSTIC VERIFIED"
+}
