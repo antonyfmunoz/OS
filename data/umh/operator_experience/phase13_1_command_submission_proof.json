@@ -1,0 +1,36 @@
+{
+  "phase": "13.1",
+  "task": "command_submission_flow",
+  "timestamp": "2026-05-31T00:43:00Z",
+  "test_input": "I want to build the first EOS operating dashboard for Empyrean Studios.",
+  "flow": {
+    "step_1": "User types or speaks input in OperatorPanel command box",
+    "step_2": "Transcript/text is editable in textarea before submission",
+    "step_3": "submitCommand() dispatches to sendTextCommand() or sendVoiceTranscript()",
+    "step_4": "Store POSTs to /organism/operator-experience/send with {input, session_id}",
+    "step_5": "OrchestratorKernel.receive_operator_input() returns OperatorResponse.to_dict()",
+    "step_6": "parseDexResponse() maps backend fields to frontend DexResponse type",
+    "step_7": "OperatorPanel renders: intent, summary, packet preview, topology, human actions, approvals, propagation",
+    "step_8": "Session history updates with new turn (input + response)",
+    "step_9": "execution_occurred verified false via never_execute_without_approval()"
+  },
+  "api_contract_match": {
+    "backend_field": "frontend_field",
+    "intent_type": "intent",
+    "summary": "summary",
+    "system_confidence": "confidence",
+    "output_mode": "safety_state",
+    "work_packet_preview": "packet_preview",
+    "delegation_topology_preview": "topology_preview",
+    "human_required_actions": "human_actions",
+    "approval_required_actions": "approval_gates",
+    "propagation_preview": "propagation_preview",
+    "execution_occurred": "execution_occurred"
+  },
+  "safety_invariants": {
+    "execution_occurred_always_false": true,
+    "never_execute_without_approval_called": true,
+    "preview_only_badge_displayed": true
+  },
+  "overall": "pass"
+}

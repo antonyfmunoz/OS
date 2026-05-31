@@ -1,0 +1,20 @@
+{
+  "phase": "13.1",
+  "task": "approval_query_flow",
+  "timestamp": "2026-05-31T00:43:00Z",
+  "test_input": "What needs my approval?",
+  "flow": {
+    "query_route": "GET /organism/operator-experience/approvals",
+    "backend_handler": "OrchestratorKernel.query_pending_approvals()",
+    "response_fields": ["pending", "total"],
+    "frontend_render": "RoadmapSection.approvals list or 'none' empty state"
+  },
+  "verification": {
+    "real_approval_state": true,
+    "truthful_empty_state": "displays 'Pending Approvals: none' when no approvals exist",
+    "pending_approvals_render": "each approval shows dot, description, status badge",
+    "no_fake_data": true,
+    "no_execution": true
+  },
+  "overall": "pass"
+}
