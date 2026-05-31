@@ -1,0 +1,195 @@
+{
+  "phase": "13.3",
+  "task": "source_registry_proof",
+  "timestamp": 1780201182.1985207,
+  "seeded_sources": 6,
+  "source_details": [
+    {
+      "source_id": "src-065249a2",
+      "source_type": "github_repo",
+      "title": "UMH OS Repository",
+      "description": "Primary UMH codebase",
+      "owner": "",
+      "account_ref": "",
+      "location_ref": "/opt/OS",
+      "connector_ref": "",
+      "sync_policy": "canonical_source",
+      "trust_level": 0.9,
+      "freshness_policy": "manual",
+      "canonicality": "canonical",
+      "status": "active",
+      "domain_tags": [
+        "infrastructure",
+        "substrate",
+        "codebase"
+      ],
+      "entity_refs": [],
+      "project_refs": [],
+      "last_seen_at": 1780201181.9403174,
+      "last_ingested_at": 0.0,
+      "metadata": {},
+      "evidence": []
+    },
+    {
+      "source_id": "src-a4410f1a",
+      "source_type": "audit_doc",
+      "title": "Convergence Audit Documents",
+      "description": "Phase audit reports in docs/audits/convergence/",
+      "owner": "",
+      "account_ref": "",
+      "location_ref": "/opt/OS/docs/audits/convergence",
+      "connector_ref": "",
+      "sync_policy": "read_only",
+      "trust_level": 0.85,
+      "freshness_policy": "manual",
+      "canonicality": "canonical",
+      "status": "ingested",
+      "domain_tags": [
+        "audits",
+        "phases",
+        "convergence"
+      ],
+      "entity_refs": [],
+      "project_refs": [],
+      "last_seen_at": 1780201181.9403305,
+      "last_ingested_at": 1780201182.1975775,
+      "metadata": {},
+      "evidence": []
+    },
+    {
+      "source_id": "src-56758a9b",
+      "source_type": "runtime_artifact",
+      "title": "UMH Runtime Artifacts",
+      "description": "Production data artifacts in data/umh/",
+      "owner": "",
+      "account_ref": "",
+      "location_ref": "/opt/OS/data/umh",
+      "connector_ref": "",
+      "sync_policy": "read_only",
+      "trust_level": 0.8,
+      "freshness_policy": "manual",
+      "canonicality": "canonical",
+      "status": "active",
+      "domain_tags": [
+        "runtime",
+        "artifacts",
+        "organism"
+      ],
+      "entity_refs": [],
+      "project_refs": [],
+      "last_seen_at": 1780201181.9403384,
+      "last_ingested_at": 0.0,
+      "metadata": {},
+      "evidence": []
+    },
+    {
+      "source_id": "src-40c3c053",
+      "source_type": "work_packet",
+      "title": "Universal Work Queue",
+      "description": "Work packets in substrate/organism/",
+      "owner": "",
+      "account_ref": "",
+      "location_ref": "/opt/OS/data/umh/organism",
+      "connector_ref": "",
+      "sync_policy": "read_only",
+      "trust_level": 0.85,
+      "freshness_policy": "manual",
+      "canonicality": "canonical",
+      "status": "active",
+      "domain_tags": [
+        "work_packets",
+        "execution"
+      ],
+      "entity_refs": [],
+      "project_refs": [],
+      "last_seen_at": 1780201181.9403448,
+      "last_ingested_at": 0.0,
+      "metadata": {},
+      "evidence": []
+    },
+    {
+      "source_id": "src-0ecc62b3",
+      "source_type": "local_doc",
+      "title": "Planning State",
+      "description": "Project planning state in .planning/",
+      "owner": "",
+      "account_ref": "",
+      "location_ref": "/opt/OS/.planning",
+      "connector_ref": "",
+      "sync_policy": "read_only",
+      "trust_level": 0.9,
+      "freshness_policy": "manual",
+      "canonicality": "canonical",
+      "status": "active",
+      "domain_tags": [
+        "planning",
+        "roadmap",
+        "state"
+      ],
+      "entity_refs": [],
+      "project_refs": [],
+      "last_seen_at": 1780201181.940351,
+      "last_ingested_at": 0.0,
+      "metadata": {},
+      "evidence": []
+    },
+    {
+      "source_id": "src-9d1cf075",
+      "source_type": "knowledge_model",
+      "title": "Knowledge System",
+      "description": "Wiki and knowledge docs in knowledge/",
+      "owner": "",
+      "account_ref": "",
+      "location_ref": "/opt/OS/knowledge",
+      "connector_ref": "",
+      "sync_policy": "read_only",
+      "trust_level": 0.7,
+      "freshness_policy": "manual",
+      "canonicality": "reference_only",
+      "status": "active",
+      "domain_tags": [
+        "knowledge",
+        "wiki",
+        "reference"
+      ],
+      "entity_refs": [],
+      "project_refs": [],
+      "last_seen_at": 1780201181.9403563,
+      "last_ingested_at": 0.0,
+      "metadata": {},
+      "evidence": []
+    }
+  ],
+  "ingestion_summary": {
+    "total_jobs": 1,
+    "total_items": 88,
+    "completed_jobs": 1,
+    "unique_entities": [
+      "CreatorOS",
+      "DEX",
+      "EOS",
+      "Empyrean Studios",
+      "EntrepreneurOS",
+      "Initiate Arena",
+      "Jarvis",
+      "LyfeOS",
+      "UMH"
+    ],
+    "total_claims": 330,
+    "sources": {
+      "total": 6,
+      "by_type": {
+        "github_repo": 1,
+        "audit_doc": 1,
+        "runtime_artifact": 1,
+        "work_packet": 1,
+        "local_doc": 1,
+        "knowledge_model": 1
+      },
+      "by_status": {
+        "active": 5,
+        "ingested": 1
+      }
+    }
+  }
+}

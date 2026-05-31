@@ -1,0 +1,61 @@
+{
+  "phase": "13.3",
+  "timestamp": 1780201445.8217828,
+  "all_pass": true,
+  "proofs": {
+    "exploration": {
+      "input": "I am just thinking out loud: maybe EOS should include all portfolios.",
+      "intent": "exploration",
+      "action": "exploration_started",
+      "canon_safe": true,
+      "pass": true
+    },
+    "reconciliation": {
+      "input": "Actually EOS handles multiple portfolios, not just companies.",
+      "intent": "reconciliation",
+      "action": "reconciliation_started",
+      "proposals_count": 0,
+      "canon_safe": true,
+      "pass": true
+    },
+    "decision": {
+      "input": "Canonize that EOS includes companies, entities, and portfolios.",
+      "intent": "decision",
+      "action": "decision_proposals_ready",
+      "approval_required": true,
+      "canon_safe": true,
+      "pass": true
+    },
+    "outdated_source": {
+      "input": "This old doc saying InvestorOS is separate is outdated.",
+      "intent": "reconciliation",
+      "action": "none",
+      "canon_safe": false,
+      "pass": true
+    },
+    "classify_query": {
+      "input": "What do you understand about my empire model?",
+      "expected": "query",
+      "actual": "query",
+      "pass": true
+    },
+    "classify_none": {
+      "input": "Nothing about reconciliation here",
+      "expected": "none",
+      "actual": "none",
+      "pass": true
+    },
+    "classify_exploration": {
+      "input": "Maybe we should try a different approach",
+      "expected": "exploration",
+      "actual": "exploration",
+      "pass": true
+    },
+    "classify_decision": {
+      "input": "Approve this change",
+      "expected": "decision",
+      "actual": "decision",
+      "pass": true
+    }
+  }
+}

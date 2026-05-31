@@ -2291,3 +2291,14 @@ _mount_universal_work_router()
 _mount_propagation_graph_router()
 _mount_operator_experience_router()
 _mount_runtime_surface_router()
+
+
+def _mount_context_assimilation_router() -> None:
+    from transports.api import cockpit_context_assimilation_routes
+    cockpit_context_assimilation_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_context_assimilation_routes.context_assimilation_router)
+
+
+_mount_context_assimilation_router()

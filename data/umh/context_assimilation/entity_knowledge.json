@@ -1,0 +1,36 @@
+{
+  "known_entities": {
+    "UMH": {"type": "platform", "description": "Universal Mastery Hierarchy substrate"},
+    "EOS": {"type": "projection", "description": "Entrepreneur Operating System projection"},
+    "CreatorOS": {"type": "projection", "description": "Creator operating system projection"},
+    "LyfeOS": {"type": "projection", "description": "Personal development projection"},
+    "DEX": {"type": "interface", "description": "Operator-facing AI interface"},
+    "Jarvis": {"type": "interface", "description": "Interface north star for operator experience"},
+    "Empyrean Studios": {"type": "company", "description": "Startup incubator/agency vehicle"},
+    "Lyfe Institute": {"type": "company", "description": "Parent entity for Initiate Arena"},
+    "Initiate Arena": {"type": "product", "description": "First revenue product"},
+    "Lyfe Spectrum": {"type": "brand", "description": "Incubated apparel brand"},
+    "OST": {"type": "company", "description": "Builds UMH/EOS/LOS/COS"},
+    "Munoz Conglomerate": {"type": "holding", "description": "Holding company"}
+  },
+  "expected_products": ["UMH", "EOS", "CreatorOS", "LyfeOS", "Initiate Arena"],
+  "expected_companies": ["Empyrean Studios", "Lyfe Institute", "Lyfe Spectrum", "OST", "Munoz Conglomerate"],
+  "entity_patterns": [
+    "\\b(UMH|EntrepreneurOS|EOS|CreatorOS|LyfeOS|DEX|Jarvis)\\b",
+    "\\b(Empyrean\\s+Studios?|Lyfe\\s+Institute|Initiate\\s+Arena|Lyfe\\s+Spectrum)\\b",
+    "\\b(OST|Munoz\\s+Conglomerate)\\b"
+  ],
+  "claim_patterns_with_entities": [
+    "(?:UMH|EOS|DEX)\\s+(?:is|handles?|manages?)\\s+([\\w\\s]{5,80})"
+  ],
+  "open_question_rules": [
+    {
+      "requires": ["DEX", "Jarvis"],
+      "question": "What is the relationship between the operator interface aliases? Are they the same?"
+    },
+    {
+      "requires": ["EOS"],
+      "question": "What is the current scope of this projection? Does it handle portfolios beyond companies?"
+    }
+  ]
+}

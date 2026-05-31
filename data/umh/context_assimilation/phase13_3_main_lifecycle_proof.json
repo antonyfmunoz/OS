@@ -1,0 +1,22 @@
+{
+  "phase": "13.3",
+  "task": "main_lifecycle_proof",
+  "timestamp": 1780201397.417594,
+  "result": {
+    "session_id": "recon-c095b25f",
+    "diagnostic_generated": true,
+    "questions_count": 13,
+    "proposals_count": 319,
+    "propagation_preview": {
+      "session_id": "recon-c095b25f",
+      "approved_proposals": 0,
+      "affected_entities": [],
+      "affected_work_packets": [],
+      "affected_knowledge_models": [],
+      "dry_run": true
+    },
+    "summary": "Reconciliation Session: empire roadmap reconciliation\nScope: full\nMode: reconciliation\nSources analyzed: 6\nProposals generated: 319\nApproved: 0\nRejected: 0\nDecisions recorded: 0\nWork packets generated: 0",
+    "no_auto_apply": true,
+    "approval_required": true
+  }
+}
