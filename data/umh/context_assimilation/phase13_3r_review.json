@@ -1,38 +1,189 @@
 {
   "phase": "13.3R",
-  "title": "Phase 13.3 Code Review",
-  "timestamp": "2026-05-30T23:15:00Z",
+  "title": "Phase 13.3 Code Review — Independent Verification",
+  "timestamp": "2026-05-30T23:10:00Z",
+  "reviewer": "independent_code_review_agent",
   "checks": [
-    {"id": 1, "check": "SourceRegistry model correct", "result": "PASS", "detail": "ContextSource dataclass, 4 enums, JSONL persistence, dedup by location_ref"},
-    {"id": 2, "check": "IngestionJob model correct", "result": "PASS", "detail": "IngestionJob/IngestedItem dataclasses, JobType/JobStatus enums, dual JSONL"},
-    {"id": 3, "check": "IngestedItem model correct", "result": "PASS", "detail": "raw_content_stored=False default, extracted_claims/entities/decisions fields"},
-    {"id": 4, "check": "ContextIngestionEngine uses real local/system sources only", "result": "PASS", "detail": "seed_local_sources registers paths under UMH_ROOT only, no external URLs/APIs"},
-    {"id": 5, "check": "DiagnosticReport model correct", "result": "PASS", "detail": "canonical_claims, competing_claims, outdated_claims, contradictions, missing_context, open_questions, entity_map"},
-    {"id": 6, "check": "DiagnosticEngine detects canonical/outdated/contradictory/missing", "result": "PASS", "detail": "_collect_claims, _detect_contradictions, _detect_outdated_claims, _detect_missing_context all present"},
-    {"id": 7, "check": "CanonicalUpdateProposal requires approval by default", "result": "PASS", "detail": "approval_required: bool = True at line 72"},
-    {"id": 8, "check": "ReconciliationSession model correct", "result": "PASS", "detail": "SessionStatus/ReconciliationMode enums, session/decision dataclasses"},
-    {"id": 9, "check": "ReconciliationEngine preserves mode boundaries", "result": "PASS", "detail": "is_exploration_mode check at line 253 prevents proposals in exploration"},
-    {"id": 10, "check": "DEX reconciliation integration exists", "result": "PASS", "detail": "classify_reconciliation_intent + process_operator_input in dex_reconciliation.py"},
-    {"id": 11, "check": "SyncPolicy model exists and is dry-run only", "result": "PASS", "detail": "WritePolicy.DISABLED default at line 76, evaluate_operation blocks writes"},
-    {"id": 12, "check": "Environment discovery model exists", "result": "PASS", "detail": "DeviceEnvironment, FilesystemScope, ApplicationInventoryItem dataclasses"},
-    {"id": 13, "check": "Filesystem scopes default to permission_required and not allowed", "result": "PASS", "detail": "permission_required=True, allowed=False defaults"},
-    {"id": 14, "check": "Application inventory model exists", "result": "PASS", "detail": "ApplicationInventoryItem dataclass in environment_discovery.py"},
-    {"id": 15, "check": "SocraticPermissionEngine asks before expanding access", "result": "PASS", "detail": "create_request, to_dialogue, is_permitted methods present"},
-    {"id": 16, "check": "CrossSourceReconciler requires confirmation for sensitive linking", "result": "PASS", "detail": "confirm_signal checks permission_granted, financial/personal auto-requires"},
-    {"id": 17, "check": "Entity knowledge is data-driven", "result": "PASS", "detail": "_load_entity_knowledge loads from entity_knowledge.json, no hardcoded dicts"},
-    {"id": 18, "check": "No instance-specific entity leakage in substrate code", "result": "PASS", "detail": "check_instance_leak.py returns no hits for Phase 13.3 files"},
-    {"id": 19, "check": "No external write capability active", "result": "PASS", "detail": "WritePolicy.DISABLED default, evaluate_operation blocks writes"},
-    {"id": 20, "check": "No external account mass crawling", "result": "PASS", "detail": "No requests/urllib/aiohttp/http imports in any Phase 13.3 substrate file"},
-    {"id": 21, "check": "No raw secrets persisted", "result": "PASS", "detail": "Only metadata references to auth in proof JSONs"},
-    {"id": 22, "check": "No fake proof data", "result": "PASS", "detail": "0 matches for fake/mock/dummy/placeholder in proof JSONs"},
-    {"id": 23, "check": "API routes are authenticated", "result": "PASS", "detail": "auth = [Depends(require_operator_dep)] for all POST routes"},
-    {"id": 24, "check": "POST routes require operator token", "result": "PASS", "detail": "All 9 POST routes have dependencies=auth"},
-    {"id": 25, "check": "Approve/reject routes require operator token", "result": "PASS", "detail": "/approve and /reject POST routes both have dependencies=auth"},
-    {"id": 26, "check": "No unauthenticated canonical state mutation route", "result": "PASS", "detail": "All POST routes gated, GET routes are read-only"},
-    {"id": 27, "check": "No dependency-direction violation", "result": "PASS", "detail": "check_dependency_direction.py clean for Phase 13.3 files"},
-    {"id": 28, "check": "No type divergence introduced", "result": "PASS", "detail": "ExternalSyncStatus renamed to avoid SyncStatus collision, all types registered"},
-    {"id": 29, "check": "All files under line-count gates", "result": "PASS", "detail": "Max: cockpit_context_assimilation_routes.py at 551 lines"},
-    {"id": 30, "check": "No production execution or mutation introduced", "result": "PASS", "detail": "No subprocess/os.system/shutil.rmtree in any Phase 13.3 substrate file"}
+    {
+      "id": 1,
+      "check": "SourceRegistry model correct",
+      "result": "PASS",
+      "detail": "ContextSource dataclass with 20 fields (source_id through evidence), 4 enums (SourceType 18 values, SyncPolicy 8, Canonicality 7, SourceStatus 8), JSONL persistence via _SOURCES_PATH, dedup by source_type+location_ref in register()"
+    },
+    {
+      "id": 2,
+      "check": "IngestionJob model correct",
+      "result": "PASS",
+      "detail": "IngestionJob dataclass (27 fields) and IngestedItem dataclass (15 fields), JobType enum (9 values), JobStatus enum (8 values), dual JSONL persistence via _JOBS_PATH and _ITEMS_PATH"
+    },
+    {
+      "id": 3,
+      "check": "IngestedItem model correct",
+      "result": "PASS",
+      "detail": "raw_content_stored: bool = False at line 71, extracted_claims/extracted_entities/extracted_decisions all list[str] with default_factory=list"
+    },
+    {
+      "id": 4,
+      "check": "ContextIngestionEngine uses real local/system sources only",
+      "result": "PASS",
+      "detail": "seed_local_sources() registers 6 sources all constructed via os.path.join(_REPO_ROOT, ...) — UMH repo, audit docs, runtime artifacts, work queue, planning state, knowledge system. No external URLs, APIs, or web endpoints."
+    },
+    {
+      "id": 5,
+      "check": "DiagnosticReport model correct",
+      "result": "PASS",
+      "detail": "ContextDiagnosticReport has canonical_claims, competing_claims, outdated_claims, contradictions (all list[dict]), missing_context, open_questions (list[str]), entity_map, project_map, product_map (dict[str,Any]) plus 8 recommendation/implication fields"
+    },
+    {
+      "id": 6,
+      "check": "DiagnosticEngine detects canonical/outdated/contradictory/missing",
+      "result": "PASS",
+      "detail": "_collect_claims (line 120), _detect_contradictions (line 142) with _check_contradiction helper, _detect_outdated_claims (line 177, filters by freshness=stale), _detect_missing_context (line 180, compares against expected entities from JSON)"
+    },
+    {
+      "id": 7,
+      "check": "CanonicalUpdateProposal requires approval by default",
+      "result": "PASS",
+      "detail": "approval_required: bool = True at line 72 of canonical_update.py. Default status is DRAFTED, not auto-applied."
+    },
+    {
+      "id": 8,
+      "check": "ReconciliationSession model correct",
+      "result": "PASS",
+      "detail": "SessionStatus enum (8 values: DRAFTED through ARCHIVED), ReconciliationMode enum (4 values: EXPLORATION, RECONCILIATION, DECISION, EXECUTION_PLANNING), ReconciliationSession (16 fields) and ReconciliationDecision (8 fields) dataclasses with dual JSONL persistence"
+    },
+    {
+      "id": 9,
+      "check": "ReconciliationEngine preserves exploration/reconciliation/decision boundaries",
+      "result": "PASS",
+      "detail": "is_exploration_mode(session_id) at line 253. Boundary enforced at DexReconciliation layer: _handle_exploration (line 136) starts exploration session and returns without calling generate_canonical_update_proposals. Engine provides the utility, integration layer enforces it."
+    },
+    {
+      "id": 10,
+      "check": "DEX reconciliation integration exists",
+      "result": "PASS",
+      "detail": "classify_reconciliation_intent() at line 79 uses 4 regex pattern sets (7 exploration, 9 reconciliation, 7 decision, 5 query patterns). DexReconciliation.process_operator_input() at line 113 routes through 4 handlers. Both functions present and complete."
+    },
+    {
+      "id": 11,
+      "check": "SyncPolicy model exists and is dry-run only",
+      "result": "PASS",
+      "detail": "ExternalSyncPolicy with write_policy=WritePolicy.DISABLED (line 76). evaluate_operation (line 108) returns allowed:False for any write* operation when DISABLED. Also blocked by approval_required=True default. No code path enables actual external writes."
+    },
+    {
+      "id": 12,
+      "check": "Environment discovery model exists",
+      "result": "PASS",
+      "detail": "DeviceEnvironment (12 fields, line 187), FilesystemScope (13 fields, line 101), ApplicationInventoryItem (13 fields, line 145) dataclasses with EnvironmentDiscoveryStore managing 3 JSONL files"
+    },
+    {
+      "id": 13,
+      "check": "Filesystem scopes default to permission_required and not allowed",
+      "result": "PASS",
+      "detail": "allowed: bool = False (line 107), permission_required: bool = True (line 112), status: str = ScopeStatus.PENDING_PERMISSION (line 114). blocked_patterns auto-populated with .env/credentials/secret/private_key/token in __post_init__."
+    },
+    {
+      "id": 14,
+      "check": "Application inventory model exists",
+      "result": "PASS",
+      "detail": "ApplicationInventoryItem dataclass at line 145 of environment_discovery.py with 13 fields: app_id, app_name, app_type, install_path, detected_from, account_refs, subscription_refs, related_projects, related_companies, usage_status, canonicality, confidence, evidence"
+    },
+    {
+      "id": 15,
+      "check": "SocraticPermissionEngine asks before expanding access",
+      "result": "PASS",
+      "detail": "create_request (line 216) creates PermissionRequest with PENDING status and builds approval options. to_dialogue (line 126) renders human-readable Socratic question with what_will/will_not_happen and options. is_permitted (line 311) checks APPROVED status before allowing access."
+    },
+    {
+      "id": 16,
+      "check": "CrossSourceReconciler requires confirmation for sensitive cross-linking",
+      "result": "PASS",
+      "detail": "confirm_signal (line 197) checks self._permissions.is_permitted(signal.permission_request_id) when requires_permission is True. detect_signal (line 157-161) auto-sets requires_permission=True for FINANCIAL/PERSONAL/SENSITIVE. detect_subscription_signal uses FINANCIAL sensitivity."
+    },
+    {
+      "id": 17,
+      "check": "Entity knowledge is data-driven",
+      "result": "PASS",
+      "detail": "diagnostic_engine.py _load_entity_knowledge() reads from data/umh/context_assimilation/entity_knowledge.json. Fallback returns empty structures. context_ingestion_engine.py _load_entity_patterns() also reads from same JSON. No hardcoded entity dicts in substrate/ code."
+    },
+    {
+      "id": 18,
+      "check": "No instance-specific entity leakage in substrate code",
+      "result": "PASS",
+      "detail": "scripts/check_instance_leak.py --all produces zero output for all Phase 13.3 files (source_registry, ingestion_job, context_ingestion_engine, diagnostic_engine, dex_reconciliation, reconciliation_engine, reconciliation_session, canonical_update, context_diagnostic, sync_policy, environment_discovery, permission_dialogue, cross_source_reconciler)"
+    },
+    {
+      "id": 19,
+      "check": "No external write capability active",
+      "result": "PASS",
+      "detail": "WritePolicy.DISABLED is default (line 76). evaluate_operation returns {allowed:False, reason:writes_disabled} for write* operations (line 112-113). approval_required=True provides second gate. No write bypass exists."
+    },
+    {
+      "id": 20,
+      "check": "No external account mass crawling",
+      "result": "PASS",
+      "detail": "grep for 'import requests|from requests|import urllib|from urllib|import aiohttp|from aiohttp|import httpx|from httpx' across all 13 Phase 13.3 substrate files returns zero matches"
+    },
+    {
+      "id": 21,
+      "check": "No raw secrets persisted",
+      "result": "PASS",
+      "detail": "grep for api_key/secret_key/password/private_key across all phase13_3*.json data files returns zero matches. context_ingestion_engine.py has _redact_secrets() (line 99) that strips key/token/secret/password patterns before storage."
+    },
+    {
+      "id": 22,
+      "check": "No fake proof data",
+      "result": "PASS",
+      "detail": "Only match across phase13_3*.json is meta-check in test_gate_results.json line 45: 'no_fake_data_check: PASS -- 0 matches for fake/mock/dummy/placeholder in proofs'. No actual synthetic content in proof data."
+    },
+    {
+      "id": 23,
+      "check": "API routes are authenticated",
+      "result": "PASS",
+      "detail": "configure() receives require_operator_dep at line 30-36. _build_router (line 94) sets auth=[Depends(require_operator_dep)] at line 96. All 9 POST routes use dependencies=auth. 15 GET routes are read-only with no mutation capability."
+    },
+    {
+      "id": 24,
+      "check": "POST routes require operator token",
+      "result": "PASS",
+      "detail": "9 POST routes verified: /ingest (line 178), /start (line 185), /approve (line 191), /reject (line 196), /instantiation-diagnostic (line 201), /decide (line 208), /revoke (line 214), /confirm (line 220), /reject-cross-source (line 226) — all have dependencies=auth"
+    },
+    {
+      "id": 25,
+      "check": "Approve/reject routes require operator token",
+      "result": "PASS",
+      "detail": "proposals/{proposal_id}/approve at line 191-195 has dependencies=auth. proposals/{proposal_id}/reject at line 196-200 has dependencies=auth."
+    },
+    {
+      "id": 26,
+      "check": "No unauthenticated canonical state mutation route",
+      "result": "PASS",
+      "detail": "All 9 POST routes gated with dependencies=auth. All 15 GET routes are read-only queries returning list/detail data. No mutation path exists without operator auth."
+    },
+    {
+      "id": 27,
+      "check": "No dependency-direction violation",
+      "result": "PASS",
+      "detail": "scripts/check_dependency_direction.py --all output filtered for FAIL/context_assimilation/cockpit_context produces zero matches. Routes in transports/ import from substrate/ (downward). substrate/ files only import from substrate/organism/ (same layer)."
+    },
+    {
+      "id": 28,
+      "check": "No type divergence introduced",
+      "result": "PASS",
+      "detail": "scripts/check_type_divergence.py --all output filtered for FAIL produces zero matches. Phase 13.3 enums (SourceType, SyncPolicy, Canonicality, etc.) are new domain types, not duplicates of existing ones."
+    },
+    {
+      "id": 29,
+      "check": "All files under line-count gates",
+      "result": "PASS",
+      "detail": "14 Phase 13.3 files total 4225 lines. Largest: cockpit_context_assimilation_routes.py (551). Others range 173-450. All well under 3000 line limit."
+    },
+    {
+      "id": 30,
+      "check": "No production execution or mutation introduced",
+      "result": "PASS",
+      "detail": "grep for subprocess.run/os.system/shutil.rmtree/subprocess.Popen/subprocess.call/os.remove/os.unlink across all 13 Phase 13.3 substrate files returns zero matches. Only file I/O is JSONL persistence to data/umh/context_assimilation/."
+    }
   ],
   "blockers": [],
   "verdict": "SAFE"
