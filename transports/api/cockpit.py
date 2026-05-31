@@ -2276,9 +2276,18 @@ def _mount_operator_experience_router() -> None:
     router.include_router(cockpit_operator_experience_routes.operator_experience_router)
 
 
+def _mount_runtime_surface_router() -> None:
+    from transports.api import cockpit_runtime_surface_routes
+    cockpit_runtime_surface_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_runtime_surface_routes.runtime_surface_router)
+
+
 _mount_economy_router()
 _mount_autonomous_router()
 _mount_self_build_router()
 _mount_universal_work_router()
 _mount_propagation_graph_router()
 _mount_operator_experience_router()
+_mount_runtime_surface_router()
