@@ -1,0 +1,31 @@
+{
+  "phase": "13.3R",
+  "title": "Tests + Gates Results",
+  "timestamp": "2026-05-31T06:10:00Z",
+  "tests": {
+    "phase_13_3": {"total": 106, "passed": 106, "failed": 0},
+    "phase_10_2": {"passed": true},
+    "phase_10_3": {"passed": true},
+    "phase_10_4": {"passed": true},
+    "phase_10_5": {"passed": true},
+    "prior_phases_total": {"total": 172, "passed": 172, "failed": 0},
+    "grand_total": {"total": 278, "passed": 278, "failed": 0}
+  },
+  "gates": {
+    "py_compile_all_16_files": "PASS",
+    "type_divergence_gate": "PASS",
+    "instance_leak_gate": "PASS",
+    "dependency_direction_gate": "PASS",
+    "line_count_check": "PASS — cockpit 2304, bridge 2134, CA routes 551",
+    "route_auth_check": "PASS — 9 POST routes require operator token",
+    "path_traversal_check": "PASS",
+    "no_fake_data_check": "PASS — meta-references only, no synthetic content",
+    "no_execution_invariant_check": "PASS — no subprocess/os.system in substrate files",
+    "no_external_write_check": "PASS — WritePolicy.DISABLED default",
+    "no_silent_canon_mutation_check": "PASS — approval_required=True default",
+    "socratic_permission_enforcement_check": "PASS — permission_required=True, allowed=False defaults",
+    "sensitive_cross_source_confirmation_check": "PASS — requires_permission=True for FINANCIAL/PERSONAL/SENSITIVE",
+    "raw_secret_diagnostic_leakage_check": "PASS — no secrets in proof JSONs"
+  },
+  "verdict": "ALL TESTS AND GATES PASS"
+}
