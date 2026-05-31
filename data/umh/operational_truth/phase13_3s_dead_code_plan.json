@@ -1,0 +1,41 @@
+{
+  "date": "2026-05-31",
+  "phase": "13.3S",
+  "source": "data/audits/2026-05-31_definitive_ground_truth_audit.md — Dead Code Map section",
+  "candidates": {
+    "delete": [
+      {"path": ".claire/", "files": 6, "size_kb": 68, "reason": "Abandoned worktree remnant", "risk": "none", "safe_for_automated": true},
+      {"path": "10_Wiki/", "files": 37, "size_kb": 176, "reason": "Duplicate of knowledge/ pages", "risk": "none", "safe_for_automated": true},
+      {"path": "archive/stale_backups/", "files": 1, "size_kb": 340, "reason": "March 2026 backup tar", "risk": "none", "safe_for_automated": true},
+      {"path": "services/jarvis/", "files": 0, "size_kb": 0, "reason": "14 empty dirs, never populated", "risk": "none", "safe_for_automated": true},
+      {"path": "services/handlers/", "files": 0, "size_kb": 0, "reason": "Empty dir", "risk": "none", "safe_for_automated": true},
+      {"path": "adapters/model_adapters/", "files": 0, "size_kb": 0, "reason": "Empty dir, code in adapters/models/", "risk": "none", "safe_for_automated": true},
+      {"path": "substrate/deployment/", "files": 0, "size_kb": 0, "reason": "Empty dir", "risk": "none", "safe_for_automated": true},
+      {"path": "substrate/distribution/", "files": 0, "size_kb": 0, "reason": "Empty dir", "risk": "none", "safe_for_automated": true},
+      {"path": "substrate/execution/environments/", "files": 0, "size_kb": 0, "reason": "Empty dir", "risk": "none", "safe_for_automated": true},
+      {"path": "substrate/integrations/{eos,creatoros,lyfeos,notion,node_mesh}", "files": 0, "size_kb": 0, "reason": "5 empty dirs", "risk": "none", "safe_for_automated": true},
+      {"path": "substrate/control_plane/orchestrator/approvals/{approved,pending}", "files": 0, "size_kb": 0, "reason": "2 empty dirs", "risk": "none", "safe_for_automated": true},
+      {"path": "scripts/phase75a_classifier.py", "files": 1, "size_kb": 10, "reason": "References non-existent directory", "risk": "none", "safe_for_automated": true},
+      {"path": "scripts/phase75a_dep_scanner.py", "files": 1, "size_kb": 8, "reason": "Same — references dead dir", "risk": "none", "safe_for_automated": true},
+      {"path": "scripts/shim_retirement_monitor.py", "files": 1, "size_kb": 10, "reason": "Convergence complete, shims retired", "risk": "none", "safe_for_automated": true},
+      {"path": "scripts/measure_phase8_batch.py", "files": 1, "size_kb": 12, "reason": "Historical metric script", "risk": "none", "safe_for_automated": true},
+      {"path": "scripts/migrate_module.sh", "files": 1, "size_kb": 3, "reason": "Completed migration", "risk": "none", "safe_for_automated": true},
+      {"path": "data/runtime/*.sqlite (4 files)", "files": 4, "size_kb": 20, "reason": "Empty SQLite DBs, nothing reads them", "risk": "low", "safe_for_automated": true}
+    ],
+    "archive": [
+      {"path": "data/repos/", "files": 191, "size_kb": 0, "reason": "Stale source snapshots from earlier SaaS frontend", "risk": "low", "safe_for_automated": false, "requires_operator_approval": true}
+    ],
+    "reclassify": [
+      {"path": "runtime/", "files": 0, "size_kb": 0, "reason": "Zero Python imports; only state files remain — should move state files to data/", "risk": "low", "safe_for_automated": false, "requires_operator_approval": true}
+    ],
+    "keep": [
+      {"path": "substrate/execution/workers/workstation/ (42 files)", "reason": "Imported by report handlers — dormant but wired", "classification": "DORMANT_WIRED"},
+      {"path": "substrate/intelligence/ (4 files)", "reason": "Future capability (finetune harness)", "classification": "DORMANT_DESIGN"},
+      {"path": "substrate/reality_model/ (4 files)", "reason": "Design artifacts", "classification": "DORMANT_DESIGN"},
+      {"path": "substrate/foundation/ (9 files)", "reason": "Philosophical primitives — identity layer", "classification": "DORMANT_DESIGN"}
+    ]
+  },
+  "total_disk_recoverable_mb": 2,
+  "total_disk_recoverable_with_archive_mb": 200,
+  "operator_approval_required_for": ["data/repos/ archive", "runtime/ reclassification"]
+}

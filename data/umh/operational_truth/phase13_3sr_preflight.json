@@ -1,0 +1,27 @@
+{
+  "phase": "13.3SR",
+  "task": "preflight",
+  "timestamp": "2026-05-31T19:09:48.407950+00:00",
+  "checks": {
+    "phase13_3s_audit_exists": true,
+    "definitive_audit_ingestion_exists": true,
+    "ground_truth_snapshot_exists": true,
+    "operational_truth_module_exists": true,
+    "jarvis_readiness_gate_exists": true,
+    "execution_journal_fix_exists": true,
+    "eventbus_handler_exists": true,
+    "precommit_gates_wired": "4/4",
+    "knowledge_graph_rebuild_exists": true,
+    "data_hygiene_artifact_exists": true,
+    "provider_diagnostic_exists": true,
+    "cockpit_diagnostic_exists": true,
+    "phase13_3r_production_truth": {
+      "ptd": "ptd-504f0da7",
+      "poc": "poc-e694d9e3 (referenced in audit, not persisted in data files)",
+      "exists_in_audit": true
+    },
+    "main_clean_except_runtime": true,
+    "runtime_commit_before_merge": "7d95821f"
+  },
+  "all_checks_passed": true
+}

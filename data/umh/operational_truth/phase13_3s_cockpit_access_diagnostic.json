@@ -1,0 +1,50 @@
+{
+  "date": "2026-05-31",
+  "phase": "13.3S",
+  "fly_machine": {
+    "app": "umh-cockpit",
+    "machine_id": "d8976eec9e1258",
+    "region": "lax",
+    "state": "started",
+    "version": 36,
+    "last_updated": "2026-05-30T08:03:37Z",
+    "image": "nginx:alpine + tailscale",
+    "spec": "shared-cpu-1x, 512MB"
+  },
+  "root_cause": "Tailscale process OOM-killed repeatedly on 512MB Fly machine. nginx proxies /api/* to VPS via socat over Tailscale. With Tailscale dead, all API proxy requests time out (504). Static HTML likely still serves but panels that call /api/* fail.",
+  "evidence": [
+    "Out of memory: Killed process 28812 (tailscale) total-vm:1261556kB",
+    "Out of memory: Killed process 28782 (tailscale) — multiple kills per minute",
+    "upstream timed out (110: Operation timed out) while reading response header from upstream",
+    "GET /api/umh/organism/spine/pending HTTP/1.1 -> 504"
+  ],
+  "operator_api_local": "reachable on port 8091 (healthy)",
+  "universalmetaharness_tech": "timed_out (Tailscale bridge broken by OOM)",
+  "fix_options": [
+    {
+      "option": "A",
+      "description": "Upgrade Fly machine to 1GB RAM",
+      "risk": "low",
+      "cost": "~$5/month increase",
+      "requires_operator_approval": true
+    },
+    {
+      "option": "B",
+      "description": "Remove Tailscale from Fly machine; use Fly wireguard or direct VPS API proxy",
+      "risk": "medium",
+      "cost": "free but requires architecture change",
+      "requires_operator_approval": true
+    },
+    {
+      "option": "C",
+      "description": "Deploy cockpit static files only; API calls go direct to VPS (requires CORS/auth changes)",
+      "risk": "medium",
+      "cost": "free",
+      "requires_operator_approval": true
+    }
+  ],
+  "recommendation": "Option A is the safest — upgrade Fly machine to 1GB. Tailscale needs ~500MB which leaves 512MB too tight with nginx also running.",
+  "requires_dns_change": false,
+  "requires_credential_change": false,
+  "operator_approval_required": true
+}

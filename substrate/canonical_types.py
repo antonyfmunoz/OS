@@ -165,6 +165,18 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "RuntimeStatus": ["substrate.organism.runtime_session"],
     "RuntimeType": ["substrate.organism.runtime_session"],
     "RuntimeEventType": ["substrate.organism.runtime_session"],
+    # ── substrate/organism/operational_truth.py (Phase 13.3S) ────────────
+    "OperationalReadinessStatus": ["substrate.organism.operational_truth"],
+    "IssuePriority": ["substrate.organism.operational_truth"],
+    "IssueStatus": ["substrate.organism.operational_truth"],
+    "FixEffort": ["substrate.organism.operational_truth"],
+    "OperationalIssue": ["substrate.organism.operational_truth"],
+    "ContainerState": ["substrate.organism.operational_truth"],
+    "ServiceState": ["substrate.organism.operational_truth"],
+    "LLMProviderState": ["substrate.organism.operational_truth"],
+    "OperationalTruthSnapshot": ["substrate.organism.operational_truth"],
+    # ── substrate/organism/jarvis_readiness_gate.py (Phase 13.3S) ────────
+    "JarvisReadinessReport": ["substrate.organism.jarvis_readiness_gate"],
 }
 
 

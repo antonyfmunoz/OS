@@ -1,0 +1,98 @@
+{
+  "diagnostic_date": "2026-05-31",
+  "phase": "13.3S",
+  "summary": "All cloud LLM providers degraded. Only Ollama (emergency local) and Claude CLI (dev session only) available.",
+  "providers": [
+    {
+      "name": "claude_cli",
+      "configured": true,
+      "available": true,
+      "quota_exhausted": false,
+      "auth_error": false,
+      "last_error_category": "none",
+      "notes": "Available only during active Claude Code sessions — not available to Discord bot or cron",
+      "recommended_action": "none — inherent limitation of CLI tool"
+    },
+    {
+      "name": "cc_sdk",
+      "configured": true,
+      "available": true,
+      "quota_exhausted": false,
+      "auth_error": false,
+      "last_error_category": "none",
+      "notes": "Available only during active Claude Code sessions via OAuth token inheritance",
+      "recommended_action": "none — same limitation as claude_cli"
+    },
+    {
+      "name": "gemini",
+      "configured": true,
+      "available": false,
+      "quota_exhausted": true,
+      "auth_error": false,
+      "last_error_category": "rate_limit_429",
+      "notes": "Free tier RPM/RPD exhausted. Key present (39 chars).",
+      "recommended_action": "Upgrade to Gemini paid billing or wait for daily reset"
+    },
+    {
+      "name": "groq",
+      "configured": true,
+      "available": false,
+      "quota_exhausted": true,
+      "auth_error": false,
+      "last_error_category": "rate_limit_429",
+      "notes": "Tokens-per-day limit reached. Key present (56 chars).",
+      "recommended_action": "Wait for daily TPD reset or upgrade Groq plan"
+    },
+    {
+      "name": "anthropic",
+      "configured": true,
+      "available": false,
+      "quota_exhausted": false,
+      "auth_error": true,
+      "last_error_category": "auth_401",
+      "notes": "API key set in umh.env (108 chars) but empty in .env and services/.env. Needs credits.",
+      "recommended_action": "Add credits to Anthropic account"
+    },
+    {
+      "name": "perplexity",
+      "configured": true,
+      "available": false,
+      "quota_exhausted": true,
+      "auth_error": false,
+      "last_error_category": "quota_exceeded_401",
+      "notes": "Quota exceeded. Key present (53 chars).",
+      "recommended_action": "Upgrade Perplexity plan or wait for quota reset"
+    },
+    {
+      "name": "ollama",
+      "configured": true,
+      "available": true,
+      "quota_exhausted": false,
+      "auth_error": false,
+      "last_error_category": "none",
+      "notes": "Emergency local fallback. qwen2.5:0.5b (397MB). Minimal capability.",
+      "recommended_action": "Sufficient as emergency fallback"
+    },
+    {
+      "name": "openai",
+      "configured": true,
+      "available": false,
+      "quota_exhausted": false,
+      "auth_error": false,
+      "last_error_category": "not_in_fallback_chain",
+      "notes": "Key present (164 chars) but not in model_router fallback chain.",
+      "recommended_action": "Could be added to fallback chain if needed"
+    }
+  ],
+  "deterministic_fallback": {
+    "active": true,
+    "description": "Rules/regex/lookup tables produce template responses when all providers fail",
+    "coverage": "greeting, question, command, status, analysis, schedule, send"
+  },
+  "verdict": {
+    "any_capable_provider": false,
+    "emergency_provider_available": true,
+    "deterministic_fallback_active": true,
+    "recommended_for_phase_13_4": "blocked_unless_deterministic_only_mode"
+  }
+}

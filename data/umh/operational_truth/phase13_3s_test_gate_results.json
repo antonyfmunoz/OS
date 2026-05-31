@@ -1,0 +1,40 @@
+{
+  "date": "2026-05-31",
+  "phase": "13.3S",
+  "test_results": {
+    "phase_13_3s_tests": {
+      "total": 60,
+      "passed": 60,
+      "failed": 0,
+      "duration_s": 219.11,
+      "file": "tests/test_phase13_3s_operational_truth.py"
+    }
+  },
+  "pre_commit_gates": {
+    "type_divergence": "pass",
+    "instance_leak": "pass",
+    "projection_leak": "pass",
+    "dependency_direction": "pass"
+  },
+  "compile_checks": {
+    "substrate/organism/operational_truth.py": "pass",
+    "substrate/organism/jarvis_readiness_gate.py": "pass",
+    "substrate/organism/daemon.py": "pass",
+    "substrate/control_plane/events/event_bus.py": "pass",
+    "transports/api/organism_bridge.py": "pass"
+  },
+  "security_checks": {
+    "no_secrets_in_journal": true,
+    "no_secrets_in_snapshots": true,
+    "no_secrets_in_readiness_report": true,
+    "no_secrets_in_provider_diagnostic": true,
+    "api_routes_behind_auth": true
+  },
+  "safety_checks": {
+    "no_unsafe_deletion": true,
+    "no_autonomy_enabled": true,
+    "cadence_mode": "OFF",
+    "no_auto_merge": true,
+    "no_medium_risk_execution": true
+  }
+}

@@ -1729,6 +1729,121 @@ def _operator_experience_topology_preview(payload: dict) -> dict:
         return {"success": False, "error": "internal_error"}
 
 
+# ── Operational truth handlers ─────────────────────────────
+
+def _operational_truth(payload: dict) -> dict:
+    try:
+        from substrate.organism.operational_truth import collect_snapshot
+        snap = collect_snapshot()
+        return {"success": True, "data": snap.to_dict()}
+    except Exception:
+        logger.exception("organism.operational_truth failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operational_truth_issues(payload: dict) -> dict:
+    try:
+        import json as _json
+        from pathlib import Path
+        issues_path = Path(_os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "operational_truth" / "issues.jsonl"
+        issues = []
+        if issues_path.exists():
+            for line in issues_path.read_text().strip().split("\n"):
+                if line.strip():
+                    issues.append(_json.loads(line))
+        return {"success": True, "data": {"issues": issues, "total": len(issues)}}
+    except Exception:
+        logger.exception("organism.operational_truth.issues failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operational_truth_readiness(payload: dict) -> dict:
+    try:
+        from substrate.organism.jarvis_readiness_gate import assess_readiness
+        report = assess_readiness(deterministic_only=payload.get("deterministic_only", False))
+        return {"success": True, "data": report.to_dict()}
+    except Exception:
+        logger.exception("organism.operational_truth.readiness failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operational_truth_provider_health(payload: dict) -> dict:
+    try:
+        import json as _json
+        from pathlib import Path
+        diag_path = Path(_os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "operational_truth" / "phase13_3s_llm_provider_diagnostic.json"
+        if diag_path.exists():
+            data = _json.loads(diag_path.read_text())
+            return {"success": True, "data": data}
+        return {"success": True, "data": {"providers": [], "note": "no diagnostic available"}}
+    except Exception:
+        logger.exception("organism.operational_truth.provider_health failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operational_truth_data_hygiene(payload: dict) -> dict:
+    try:
+        import json as _json
+        from pathlib import Path
+        path = Path(_os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "operational_truth" / "phase13_3s_data_hygiene_result.json"
+        if path.exists():
+            return {"success": True, "data": _json.loads(path.read_text())}
+        return {"success": True, "data": {"note": "no hygiene report available"}}
+    except Exception:
+        logger.exception("organism.operational_truth.data_hygiene failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operational_truth_knowledge_graph(payload: dict) -> dict:
+    try:
+        import time as _time
+        from pathlib import Path
+        root = Path(_os.environ.get("UMH_ROOT", "/opt/OS"))
+        graph_path = root / "data" / "codebase_graph.json"
+        if graph_path.exists():
+            mtime = graph_path.stat().st_mtime
+            age_h = (_time.time() - mtime) / 3600
+            return {"success": True, "data": {"exists": True, "age_hours": round(age_h, 1), "fresh": age_h < 48}}
+        return {"success": True, "data": {"exists": False}}
+    except Exception:
+        logger.exception("organism.operational_truth.knowledge_graph failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operational_truth_eventbus(payload: dict) -> dict:
+    try:
+        from substrate.control_plane.events.event_bus import get_bus, EVENT_TYPES
+        bus = get_bus()
+        registered = list(bus._handlers.keys())
+        return {"success": True, "data": {
+            "registered_handlers": registered,
+            "defined_event_types": sorted(EVENT_TYPES),
+            "handler_count": sum(len(v) for v in bus._handlers.values()),
+        }}
+    except Exception:
+        logger.exception("organism.operational_truth.eventbus failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operational_truth_precommit_gates(payload: dict) -> dict:
+    try:
+        from pathlib import Path
+        root = Path(_os.environ.get("UMH_ROOT", "/opt/OS"))
+        hook_path = root / ".git" / "hooks" / "pre-commit"
+        gates = {}
+        for gate_name in ["check_type_divergence", "check_instance_leak", "check_projection_leak", "check_dependency_direction"]:
+            gates[gate_name] = False
+        if hook_path.exists():
+            content = hook_path.read_text()
+            for gate_name in gates:
+                gates[gate_name] = gate_name in content
+        wired = sum(1 for v in gates.values() if v)
+        return {"success": True, "data": {"gates": gates, "wired": wired, "total": 4, "hook_exists": hook_path.exists()}}
+    except Exception:
+        logger.exception("organism.operational_truth.precommit_gates failed")
+        return {"success": False, "error": "internal_error"}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -1819,6 +1934,14 @@ _ACTIONS: dict = {
     "organism.approval_packet.detail": _approval_packet_detail,
     "organism.approval_packet.approve": _approval_packet_approve,
     "organism.approval_packet.reject": _approval_packet_reject,
+    "organism.operational_truth": _operational_truth,
+    "organism.operational_truth.issues": _operational_truth_issues,
+    "organism.operational_truth.readiness": _operational_truth_readiness,
+    "organism.operational_truth.provider_health": _operational_truth_provider_health,
+    "organism.operational_truth.data_hygiene": _operational_truth_data_hygiene,
+    "organism.operational_truth.knowledge_graph": _operational_truth_knowledge_graph,
+    "organism.operational_truth.eventbus": _operational_truth_eventbus,
+    "organism.operational_truth.precommit_gates": _operational_truth_precommit_gates,
     "organism.production_truth": _production_truth_status,
     "organism.operator_experience": _operator_experience,
     "organism.operator_experience.session": _operator_experience_session,
