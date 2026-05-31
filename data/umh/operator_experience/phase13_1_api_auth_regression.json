@@ -1,0 +1,47 @@
+{
+  "phase": "13.1",
+  "task": "api_auth_regression",
+  "timestamp": "2026-05-31T00:45:00Z",
+  "route_auth_audit": {
+    "total_routes": 9,
+    "all_operator_guarded": true,
+    "routes": [
+      {"path": "/organism/operator-experience", "method": "GET", "auth": "operator_guard", "status": "pass"},
+      {"path": "/organism/operator-experience/sessions", "method": "GET", "auth": "operator_guard", "status": "pass"},
+      {"path": "/organism/operator-experience/sessions/{session_id}", "method": "GET", "auth": "operator_guard", "status": "pass"},
+      {"path": "/organism/operator-experience/status", "method": "GET", "auth": "operator_guard", "status": "pass"},
+      {"path": "/organism/operator-experience/approvals", "method": "GET", "auth": "operator_guard", "status": "pass"},
+      {"path": "/organism/operator-experience/send", "method": "POST", "auth": "operator_guard", "status": "pass"},
+      {"path": "/organism/operator-experience/packet-preview", "method": "POST", "auth": "operator_guard", "status": "pass"},
+      {"path": "/organism/operator-experience/propagation-preview", "method": "POST", "auth": "operator_guard", "status": "pass"},
+      {"path": "/organism/operator-experience/topology-preview", "method": "POST", "auth": "operator_guard", "status": "pass"}
+    ]
+  },
+  "security_checks": {
+    "invalid_session_id_safe": {
+      "status": "pass",
+      "behavior": "returns {error: 'session_not_found'} — no crash, no traceback"
+    },
+    "path_traversal_safe": {
+      "status": "pass",
+      "reason": "session_id is string-compared against in-memory list, never used as file path"
+    },
+    "no_raw_traceback_leak": {
+      "status": "pass",
+      "reason": "propagation_preview and topology_preview wrap exceptions in try/except, return {error: str(e)}"
+    },
+    "no_internal_path_leak": {
+      "status": "pass",
+      "reason": "error messages use str(e) from exceptions, not full tracebacks"
+    },
+    "no_unauthenticated_route": {
+      "status": "pass",
+      "reason": "all routes use dependencies=[Depends(require_operator_dep)]"
+    },
+    "empty_input_guarded": {
+      "status": "pass",
+      "reason": "_send, _packet_preview, _propagation_preview, _topology_preview all check for empty input"
+    }
+  },
+  "overall": "pass"
+}

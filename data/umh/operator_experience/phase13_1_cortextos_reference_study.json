@@ -1,0 +1,14 @@
+{
+  "phase": "13.1",
+  "task": "cortextos_reference_study",
+  "timestamp": "2026-05-31T00:46:00Z",
+  "artifact": "docs/research/cortextos_phase13_runtime_surface_notes.md",
+  "key_findings": [
+    "cortextOS is runtime-control-first; UMH is truth/governance-first",
+    "Persistent PTY is cortextOS's strongest pattern — target for Phase 13.2",
+    "Mobile command surface (Telegram) maps to /operator-experience/send endpoint",
+    "Skip-permissions pattern must NOT be adopted without full sandbox stack"
+  ],
+  "roadmap_implication": "Phase 13.2 should build Native Agent Runtime / Workcell Execution Surface",
+  "overall": "complete"
+}
