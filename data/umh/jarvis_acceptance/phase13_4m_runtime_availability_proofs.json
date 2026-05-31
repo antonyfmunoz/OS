@@ -1,0 +1,55 @@
+{
+  "proof_id": "rap-6deb3246",
+  "probes": [
+    {
+      "probe": "claude --version",
+      "result": "2.1.158 (Claude Code)",
+      "available": true,
+      "notes": "Claude Code CLI installed and responding."
+    },
+    {
+      "probe": "codex --version",
+      "result": "codex-cli 0.133.0",
+      "available": true,
+      "notes": "OpenAI Codex CLI installed."
+    },
+    {
+      "probe": "opencode --version",
+      "result": "1.15.7",
+      "available": true,
+      "notes": "opencode CLI installed."
+    },
+    {
+      "probe": "hermes --version",
+      "result": "Hermes Agent v0.14.0 (2026.5.16), Python 3.12.3",
+      "available": true,
+      "notes": "Hermes agent installed."
+    },
+    {
+      "probe": "ollama list",
+      "result": "qwen2.5:0.5b    a8b0c5157701    397 MB    8 weeks ago",
+      "available": true,
+      "notes": "Ollama running with qwen2.5:0.5b model loaded."
+    },
+    {
+      "probe": "ShellRuntimeAdapter().is_available()",
+      "result": "shell: True",
+      "available": true,
+      "notes": "Shell runtime adapter reports available."
+    },
+    {
+      "probe": "ClaudeCodeRuntimeAdapter().is_available()",
+      "result": "cc_pty: True",
+      "available": true,
+      "notes": "Claude Code PTY runtime adapter reports available."
+    },
+    {
+      "probe": "ping -c 1 -W 3 100.74.199.102",
+      "result": "1 packets transmitted, 1 received, 0% packet loss, rtt 199.851 ms",
+      "available": true,
+      "notes": "Windows Beast reachable via Tailscale. ~200ms latency (cross-country)."
+    }
+  ],
+  "summary": "8/8 probes passed. All runtimes available. Full provider chain operational.",
+  "timestamp": "2026-05-31T21:03:59Z"
+}

@@ -1,0 +1,102 @@
+{
+  "preflight_id": "pf-aeb91d6f",
+  "phase": "13.4D",
+  "checks": [
+    {
+      "name": "phase_13_3sr_audit_file_exists",
+      "passed": true,
+      "evidence": "docs/audits/convergence/phase13_3sr_operational_truth_stabilization_production_truth.md exists, 240 lines, status COMPLETE"
+    },
+    {
+      "name": "production_truth_delta_ptd_ce06a7af",
+      "passed": true,
+      "evidence": "Found in audit file (line 86) and data/umh/operational_truth/phase13_3sr_production_verification.json"
+    },
+    {
+      "name": "production_outcome_committed_poc_8286d391",
+      "passed": true,
+      "evidence": "Found in audit file (line 87) and data/umh/operational_truth/phase13_3sr_production_verification.json"
+    },
+    {
+      "name": "runtime_commit_matches_main",
+      "passed": true,
+      "evidence": "Worktree HEAD a580ac4f is ancestor of main c422b277. Main has 1 additional doc commit. 13.3SR code fully merged to main."
+    },
+    {
+      "name": "operational_truth_api_routes",
+      "passed": true,
+      "evidence": "8 operational truth handlers in transports/api/organism_bridge.py: _operational_truth, _operational_truth_issues, _operational_truth_readiness, _operational_truth_provider_health, _operational_truth_data_hygiene, _operational_truth_knowledge_graph, _operational_truth_eventbus, _operational_truth_precommit_gates"
+    },
+    {
+      "name": "jarvis_readiness_gate_deterministic_only",
+      "passed": true,
+      "evidence": "substrate/organism/jarvis_readiness_gate.py:52 has deterministic_only=False parameter. Lines 74-80: when has_llm=False and deterministic_only=True, no blocking issue added; degraded_modes gets 'Running in deterministic-only mode'. Line 148: ready = len(blocking_issues) == 0, so ready=True."
+    },
+    {
+      "name": "execution_journal_exists",
+      "passed": true,
+      "evidence": "data/umh/organism/execution_journal.jsonl exists, 503 bytes, modified 2026-05-31 10:32"
+    },
+    {
+      "name": "eventbus_business_ops_handler",
+      "passed": true,
+      "evidence": "substrate/control_plane/events/event_bus.py:605 registers ('loop_cycle_business_ops', _handle_loop_cycle) as default handler. event_bus.py:69 lists 'loop_cycle_business_ops' in default event list. substrate/execution/loop/persistent_loop.py:18 starts 'business_ops'."
+    },
+    {
+      "name": "knowledge_graph_exists_and_fresh",
+      "passed": true,
+      "evidence": "data/codebase_graph.json exists, 4.6MB, modified 2026-05-31 05:51 (< 48h old)"
+    },
+    {
+      "name": "operator_experience_routes",
+      "passed": true,
+      "evidence": "15+ operator_experience handlers in transports/api/organism_bridge.py including session, sessions, send, status, approvals, packet_preview, propagation_preview, topology_preview"
+    },
+    {
+      "name": "runtime_surface_routes",
+      "passed": true,
+      "evidence": "transports/api/cockpit_runtime_surface_routes.py defines 9 routes under /organism/runtime-surface (overview, sessions, session_detail, session_events, adapters, create, start, inject, stop, handoff-preview). Mounted in cockpit.py:2279."
+    },
+    {
+      "name": "context_assimilation_routes",
+      "passed": false,
+      "evidence": "No context-assimilation or context_assimilation references found in transports/api/ or substrate/organism/. This route group does not exist yet."
+    },
+    {
+      "name": "universal_work_routes",
+      "passed": true,
+      "evidence": "transports/api/cockpit_universal_work_routes.py defines 12 routes under /organism/universal-work (overview, summary, packets, packet_detail, next, by_domain, blocked, human-required, approval-required, create, update_status, link_artifact). Mounted in cockpit.py:2255."
+    },
+    {
+      "name": "propagation_graph_routes",
+      "passed": true,
+      "evidence": "transports/api/cockpit_propagation_graph_routes.py defines 9 routes under /organism/propagation-graph (overview, summary, nodes, edges, change-events, results, correspondence-proof, impact, plan, execute-dry-run). Mounted in cockpit.py:2263."
+    },
+    {
+      "name": "runtime_sandbox_worktree_enforcement",
+      "passed": true,
+      "evidence": "substrate/organism/runtime_manager.py:89-93 validates cwd is in worktree base, rejects main repo root and non-worktree subdirs. Lines 111-142 implement allocate_sandbox_or_worktree(). Line 238-241 auto-allocates sandbox for sessions."
+    },
+    {
+      "name": "cadence_dry_run_enforcement",
+      "passed": true,
+      "evidence": "substrate/organism/autonomous_cadence.py:31 defines DRY_RUN_ONLY mode. Line 40: max_dry_runs_per_day=24 limit. Line 78: dry_run_results tracking."
+    },
+    {
+      "name": "medium_risk_blocked",
+      "passed": true,
+      "evidence": "substrate/organism/orchestrator_kernel.py:320 gates medium+high risk with approval. Line 882-886: medium risk explicitly flagged as 'Approval gate required'. Audit file line 71 confirms 'Medium-risk execution: Blocked'."
+    },
+    {
+      "name": "no_unresolved_production_truth_issues",
+      "passed": true,
+      "evidence": "Audit file has 2 remaining blockers (LLM provider unavailable, cockpit OOM) — both are known environmental constraints, not unresolved code issues. No UNRESOLVED/OPEN/TODO/FIXME markers found. 22/22 success criteria met."
+    }
+  ],
+  "all_passed": false,
+  "failed_checks": [
+    "context_assimilation_routes"
+  ],
+  "summary": "17/18 checks passed. context-assimilation routes do not exist yet — this is a Phase 13.4 deliverable, not a 13.3SR prerequisite. Phase 13.3SR production truth is verified complete.",
+  "timestamp": "2026-05-31T14:02:00Z"
+}

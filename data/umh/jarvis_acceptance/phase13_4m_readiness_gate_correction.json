@@ -1,0 +1,27 @@
+{
+  "proof_id": "rgc-13m-v1",
+  "correction": "JarvisReadinessGate now uses runtime fleet readiness, not only cloud API readiness",
+  "before": "standard_ready blocked when no cloud LLM provider available",
+  "after": "standard_ready when ANY capable governed runtime exists (Claude Code, Codex, shell, etc.)",
+  "key_changes": [
+    "Added _detect_runtime_fleet() \u2014 detects Claude Code, Shell, Codex, OpenCode, Hermes, Ollama, cloud API",
+    "standard_ready = no blocking issues AND has capable runtime",
+    "deterministic_only_ready = no blocking issues (runtime not required)",
+    "Cloud API exhaustion is a warning, not a blocker",
+    "Added capable_runtimes list to report",
+    "Fixed worktree .git hook detection"
+  ],
+  "test_result": {
+    "standard_ready": true,
+    "capable_runtimes": [
+      "claude_code",
+      "shell",
+      "codex",
+      "opencode",
+      "hermes",
+      "ollama"
+    ],
+    "blocking_issues": []
+  },
+  "timestamp": "2026-05-31T21:04:43Z"
+}

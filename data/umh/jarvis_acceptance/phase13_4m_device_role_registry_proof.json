@@ -1,0 +1,132 @@
+{
+  "proof_id": "drr-95a8df9f",
+  "nodes_seeded": 3,
+  "nodes": [
+    {
+      "node_id": "dn-a1b2c3d4",
+      "device_name": "VPS Control Plane",
+      "role": "control_plane",
+      "os": "linux",
+      "location": "vps",
+      "trust_level": "full",
+      "online_status": "online",
+      "capabilities": [
+        "cpu_light",
+        "code_execution",
+        "file_access",
+        "network_access",
+        "long_running_sessions",
+        "canonical_state",
+        "public_api",
+        "private_mesh"
+      ],
+      "allowed_workloads": [
+        "governance",
+        "api",
+        "scheduling",
+        "lightweight_probes",
+        "audit_persistence",
+        "coordination",
+        "eventbus"
+      ],
+      "blocked_workloads": [
+        "heavy_computation",
+        "gpu_workloads",
+        "browser_automation",
+        "media_generation",
+        "large_model_inference"
+      ],
+      "max_risk_class": "low",
+      "preferred_runtimes": [
+        "shell",
+        "claude_code",
+        "cc_sdk"
+      ],
+      "resource_notes": "Lightweight orchestrator. No GPU. Avoid heavy compute.",
+      "last_seen_at": "",
+      "evidence": {}
+    },
+    {
+      "node_id": "dn-e5f6a7b8",
+      "device_name": "Windows Beast",
+      "role": "heavy_workstation",
+      "os": "windows",
+      "location": "home",
+      "trust_level": "full",
+      "online_status": "online",
+      "capabilities": [
+        "cpu_heavy",
+        "gpu_available",
+        "browser_automation",
+        "desktop_automation",
+        "container_runtime",
+        "local_models",
+        "code_execution",
+        "media_generation",
+        "file_access",
+        "network_access",
+        "long_running_sessions",
+        "private_mesh"
+      ],
+      "allowed_workloads": [
+        "heavy_execution",
+        "coding_workcells",
+        "browser_automation",
+        "computer_use",
+        "media_generation",
+        "local_models",
+        "containerized_workloads",
+        "long_running_agents",
+        "sandbox_runtime"
+      ],
+      "blocked_workloads": [
+        "canonical_state_ownership",
+        "production_truth_mutations"
+      ],
+      "max_risk_class": "medium",
+      "preferred_runtimes": [
+        "claude_code",
+        "codex",
+        "opencode",
+        "hermes",
+        "shell",
+        "browser"
+      ],
+      "resource_notes": "GPU workhorse. Full compute. Not canonical state owner.",
+      "last_seen_at": "",
+      "evidence": {}
+    },
+    {
+      "node_id": "dn-c9d0e1f2",
+      "device_name": "Fly Cockpit",
+      "role": "cockpit_ui",
+      "os": "web",
+      "location": "cloud",
+      "trust_level": "medium",
+      "online_status": "online",
+      "capabilities": [
+        "low_latency_ui",
+        "network_access",
+        "public_api"
+      ],
+      "allowed_workloads": [
+        "operator_interface",
+        "cockpit_rendering",
+        "api_proxy"
+      ],
+      "blocked_workloads": [
+        "heavy_execution",
+        "canonical_state",
+        "source_of_truth",
+        "runtime_execution"
+      ],
+      "max_risk_class": "low",
+      "preferred_runtimes": [],
+      "resource_notes": "UI surface only. No execution capability.",
+      "last_seen_at": "",
+      "evidence": {}
+    }
+  ],
+  "loaded_roundtrip": 3,
+  "timestamp": "2026-05-31T20:48:03Z"
+}

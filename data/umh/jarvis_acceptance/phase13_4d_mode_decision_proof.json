@@ -1,0 +1,42 @@
+{
+  "decision_id": "jamd-aa3aaa3f",
+  "mode": "deterministic_only",
+  "accepted_by_operator": true,
+  "llm_provider_available": false,
+  "degraded": true,
+  "what_this_proves": [
+    "full Jarvis plumbing: operator\u2192DEX\u2192WorkPacket\u2192context\u2192permission\u2192propagation\u2192runtime\u2192artifact\u2192review",
+    "sandboxed runtime execution with event streaming",
+    "policy enforcement blocks unsafe actions",
+    "API/cockpit expose acceptance state"
+  ],
+  "what_this_does_not_prove": [
+    "full AI intelligence quality",
+    "LLM-backed intent interpretation",
+    "multi-provider model routing under load",
+    "production-grade autonomous reasoning"
+  ],
+  "allowed_capabilities": [
+    "deterministic_intent_classification",
+    "work_packet_creation",
+    "context_lookup",
+    "reconciliation_proposal_generation",
+    "permission_request_generation",
+    "propagation_preview",
+    "sandboxed_low_risk_runtime_execution",
+    "artifact_report_generation",
+    "api_cockpit_proof"
+  ],
+  "blocked_capabilities": [
+    "full_ai_reasoning",
+    "medium_risk_execution",
+    "external_writes",
+    "production_mutation",
+    "auto_merge",
+    "autonomous_cadence_execution",
+    "external_account_crawling"
+  ],
+  "readiness_report_id": "pf-preflight",
+  "timestamp": "2026-05-31T20:39:43Z",
+  "metadata": {}
+}

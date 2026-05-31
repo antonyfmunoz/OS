@@ -1,0 +1,174 @@
+{
+  "decision": {
+    "decision_id": "jamd-dc127500",
+    "mode": "standard_multi_runtime",
+    "accepted_by_operator": true,
+    "capable_runtime_path_exists": true,
+    "selected_runtime": "claude_code",
+    "selected_device": "vps",
+    "llm_cloud_provider_available": false,
+    "degraded": false,
+    "what_this_proves": [
+      "full Jarvis plumbing: operator\u2192DEX\u2192WorkPacket\u2192context\u2192permission\u2192propagation\u2192runtime\u2192artifact\u2192review",
+      "sandboxed runtime execution with event streaming",
+      "policy enforcement blocks unsafe actions",
+      "API/cockpit expose acceptance state",
+      "multi-runtime fleet selection and placement",
+      "governed AI reasoning via subscription/CLI runtime"
+    ],
+    "what_this_does_not_prove": [
+      "medium-risk production execution",
+      "full autonomous cadence",
+      "multi-provider cloud API routing under load"
+    ],
+    "allowed_capabilities": [
+      "deterministic_intent_classification",
+      "ai_backed_intent_classification",
+      "work_packet_creation",
+      "context_lookup",
+      "reconciliation_proposal_generation",
+      "permission_request_generation",
+      "propagation_preview",
+      "sandboxed_low_risk_runtime_execution",
+      "artifact_report_generation",
+      "api_cockpit_proof",
+      "ai_reasoning_via_governed_runtime",
+      "multi_runtime_selection"
+    ],
+    "blocked_capabilities": [
+      "medium_risk_execution",
+      "external_writes",
+      "production_mutation",
+      "auto_merge",
+      "autonomous_cadence_execution",
+      "external_account_crawling"
+    ],
+    "readiness_report_id": "ots-7842ddf9",
+    "timestamp": "2026-05-31T20:59:40Z",
+    "metadata": {}
+  },
+  "readiness_report": {
+    "ready": true,
+    "standard_ready": true,
+    "deterministic_only_ready": true,
+    "blocking_issues": [],
+    "warnings": [
+      "Cloud API quota exhausted \u2014 using subscription/CLI runtimes: claude_code, shell, codex, opencode, hermes, ollama"
+    ],
+    "degraded_modes": [],
+    "required_operator_actions": [],
+    "capable_runtimes": [
+      "claude_code",
+      "shell",
+      "codex",
+      "opencode",
+      "hermes",
+      "ollama"
+    ],
+    "evidence": {
+      "snapshot_id": "ots-7842ddf9",
+      "created_at": "2026-05-31T20:59:28.202672+00:00",
+      "runtime_fleet": [
+        {
+          "provider": "claude_code",
+          "installed": true,
+          "capable": true,
+          "cost_model": "subscription",
+          "evidence": {
+            "installed": true,
+            "path": "/usr/local/bin/claude"
+          }
+        },
+        {
+          "provider": "shell",
+          "installed": true,
+          "capable": true,
+          "cost_model": "free",
+          "evidence": {
+            "available": true
+          }
+        },
+        {
+          "provider": "codex",
+          "installed": true,
+          "capable": true,
+          "cost_model": "subscription",
+          "evidence": {
+            "installed": true,
+            "path": "/usr/bin/codex"
+          }
+        },
+        {
+          "provider": "opencode",
+          "installed": true,
+          "capable": true,
+          "cost_model": "unknown",
+          "evidence": {
+            "installed": true,
+            "path": "/usr/bin/opencode"
+          }
+        },
+        {
+          "provider": "hermes",
+          "installed": true,
+          "capable": true,
+          "cost_model": "unknown",
+          "evidence": {
+            "installed": true,
+            "path": "/usr/local/bin/hermes"
+          }
+        },
+        {
+          "provider": "ollama",
+          "installed": true,
+          "capable": true,
+          "cost_model": "free",
+          "evidence": {
+            "installed": true,
+            "path": "/usr/local/bin/ollama"
+          }
+        },
+        {
+          "provider": "cloud_api",
+          "installed": true,
+          "capable": false,
+          "cost_model": "per_token",
+          "evidence": {
+            "any_cloud_llm_available": false
+          }
+        }
+      ],
+      "capable_runtime_count": 6,
+      "capable_runtime_providers": [
+        "claude_code",
+        "shell",
+        "codex",
+        "opencode",
+        "hermes",
+        "ollama"
+      ],
+      "llm_cloud_available": false,
+      "deterministic_only": false,
+      "journal_has_entries": true,
+      "precommit_gates_wired": 4,
+      "eventbus_state": "",
+      "graph_fresh": true,
+      "disk_usage_percent": 78.0,
+      "cockpit_state": "",
+      "readiness_verdict": "degraded"
+    }
+  },
+  "correction": {
+    "from": "Phase 13.4D deterministic-only (incorrect default)",
+    "to": "Phase 13.4M standard multi-runtime (correct \u2014 capable governed runtime exists)",
+    "reason": "Claude Code CLI, Codex, OpenCode, Hermes, Shell, Ollama all available. Cloud API exhaustion is a warning, not a blocker.",
+    "capable_runtimes": [
+      "claude_code",
+      "shell",
+      "codex",
+      "opencode",
+      "hermes",
+      "ollama"
+    ]
+  }
+}

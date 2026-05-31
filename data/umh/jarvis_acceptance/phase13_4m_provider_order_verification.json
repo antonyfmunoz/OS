@@ -1,0 +1,61 @@
+{
+  "proof_id": "pov-6deb3246",
+  "corrected_order": [
+    {
+      "rank": 1,
+      "provider": "claude_code",
+      "cost_model": "subscription",
+      "notes": "Max subscription, no API cost, Opus-class via CLI. Version 2.1.158."
+    },
+    {
+      "rank": 2,
+      "provider": "claude_sdk",
+      "cost_model": "subscription",
+      "notes": "Subprocess wrapper around same CLI. Same subscription tier as claude_code."
+    },
+    {
+      "rank": 3,
+      "provider": "codex",
+      "cost_model": "subscription",
+      "notes": "OpenAI Codex CLI v0.133.0 installed. Subscription-based."
+    },
+    {
+      "rank": 4,
+      "provider": "opencode",
+      "cost_model": "varies",
+      "notes": "Installed v1.15.7. Provider varies by configuration."
+    },
+    {
+      "rank": 5,
+      "provider": "hermes",
+      "cost_model": "varies",
+      "notes": "Hermes Agent v0.14.0 installed. Provider varies by configuration."
+    },
+    {
+      "rank": 6,
+      "provider": "shell",
+      "cost_model": "free",
+      "notes": "Deterministic, always available. ShellRuntimeAdapter.is_available() = True."
+    },
+    {
+      "rank": 7,
+      "provider": "ollama",
+      "cost_model": "free",
+      "notes": "Local inference. Emergency quality fallback. qwen2.5:0.5b (397 MB) installed."
+    },
+    {
+      "rank": 8,
+      "provider": "cloud_api",
+      "cost_model": "per-token",
+      "notes": "Requires env vars (ANTHROPIC_API_KEY, etc.). Currently not in shell env."
+    },
+    {
+      "rank": 9,
+      "provider": "deterministic_fallback",
+      "cost_model": "free",
+      "notes": "No intelligence. Template-based output. Last resort."
+    }
+  ],
+  "correction_from_13_4d": "Cloud API exhaustion no longer blocks standard mode. Subscription/CLI runtimes are prioritized.",
+  "timestamp": "2026-05-31T21:03:59Z"
+}
