@@ -1,0 +1,17 @@
+{
+  "phase": "13.3SR",
+  "task": "cockpit_status_proof",
+  "timestamp": "2026-05-31T19:49:03.905279+00:00",
+  "fly_machine_status": "started",
+  "fly_machine_id": "d8976eec9e1258",
+  "fly_region": "lax",
+  "fly_version": 36,
+  "memory_status": "degraded \u2014 256MB, OOM likely on full page load",
+  "universalmetaharness_tech_reachable": true,
+  "umh_cockpit_fly_dev_reachable": true,
+  "response_degraded": true,
+  "degradation_reason": "256MB Fly machine OOMs on full page render",
+  "recommended_action": "Upgrade Fly machine to 1GB RAM: fly scale memory 1024 -a umh-cockpit",
+  "api_proxy_to_operator": "operational via Tailscale bridge",
+  "tailscale_bridge": "operational"
+}

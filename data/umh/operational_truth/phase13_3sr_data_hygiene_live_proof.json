@@ -1,0 +1,13 @@
+{
+  "phase": "13.3SR",
+  "task": "data_hygiene_proof",
+  "timestamp": "2026-05-31T19:49:03.905279+00:00",
+  "disk_usage_percent": 77.9,
+  "disk_free_gb": 21.1,
+  "metrics_rotation": "active \u2014 archive exists",
+  "no_source_deleted": true,
+  "no_audits_deleted": true,
+  "no_proofs_deleted": true,
+  "1_2gb_recovered": true,
+  "logs_archived_safely": true
+}

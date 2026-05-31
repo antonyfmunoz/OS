@@ -1,0 +1,22 @@
+{
+  "phase": "13.3SR",
+  "task": "runtime_sync",
+  "timestamp": "2026-05-31T19:47:35.805323+00:00",
+  "operator_restarted": true,
+  "operator_container": "98feb7f20fc4_os-operator",
+  "operator_healthy": true,
+  "health_endpoint": "ok",
+  "organism_daemon_started": true,
+  "daemon_tick_stages": 17,
+  "execution_journal_has_entries": true,
+  "execution_journal_heartbeat": true,
+  "eventbus_handlers_registered": true,
+  "eventbus_auto_registration_fix": "get_bus() now calls _ensure_defaults()",
+  "cadence_status": "off_or_dry_run",
+  "medium_risk_blocked": true,
+  "api_handlers_tested": 8,
+  "api_handlers_pass": 8,
+  "api_no_secrets": true,
+  "merge_commit": "d6eebde6",
+  "eventbus_fix_commit": "4f0e1e1b"
+}
