@@ -72,18 +72,62 @@ def is_command_blocked(command: str) -> tuple[bool, str]:
     return False, ""
 
 
-def is_path_allowed(cwd: str, allowed_paths: list[str], blocked_paths: list[str]) -> tuple[bool, str]:
-    abs_cwd = os.path.abspath(cwd)
+_SECRET_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"sk-[A-Za-z0-9]{20,}"),
+    re.compile(r"ghp_[A-Za-z0-9]{36,}"),
+    re.compile(r"AKIA[A-Z0-9]{16}"),
+    re.compile(r"eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}"),
+    re.compile(r"postgres://[^\s]+:[^\s]+@"),
+    re.compile(r"(token|password|secret|api.key)\s*[:=]\s*\S+", re.IGNORECASE),
+]
+
+_STRIPPED_ENV_PATTERNS: list[str] = [
+    "ANTHROPIC_", "GROQ_", "GEMINI_", "OPENAI_", "GITHUB_TOKEN",
+    "NEON_", "_API_KEY", "_TOKEN", "_SECRET", "CLERK_",
+    "UMH_OPERATOR_TOKEN",
+]
+
+
+def _redact_secrets(text: str) -> str:
+    for pat in _SECRET_PATTERNS:
+        text = pat.sub("[REDACTED]", text)
+    return text
+
+
+def _sandbox_env() -> dict[str, str]:
+    safe_keys = {"PATH", "HOME", "TERM", "LANG", "LC_ALL", "USER", "SHELL", "TMPDIR"}
+    env: dict[str, str] = {}
+    for k, v in os.environ.items():
+        if k in safe_keys:
+            env[k] = v
+            continue
+        skip = False
+        for pat in _STRIPPED_ENV_PATTERNS:
+            if pat in k.upper():
+                skip = True
+                break
+        if not skip:
+            env[k] = v
+    env["TERM"] = "dumb"
+    return env
+
+
+def is_path_allowed(cwd: str, allowed_paths: list[str], blocked_paths: list[str], sandbox_required: bool = True) -> tuple[bool, str]:
+    real_cwd = os.path.realpath(os.path.abspath(cwd))
+    if ".." in cwd.split(os.sep):
+        return False, f"cwd contains '..' components: {cwd}"
     for bp in blocked_paths:
-        abs_bp = os.path.abspath(bp)
-        if abs_cwd.startswith(abs_bp):
-            return False, f"cwd {abs_cwd} is inside blocked path {abs_bp}"
+        real_bp = os.path.realpath(os.path.abspath(bp))
+        if real_cwd == real_bp or real_cwd.startswith(real_bp + os.sep):
+            return False, f"cwd {real_cwd} is inside blocked path {real_bp}"
     if allowed_paths:
         for ap in allowed_paths:
-            abs_ap = os.path.abspath(ap)
-            if abs_cwd.startswith(abs_ap):
+            real_ap = os.path.realpath(os.path.abspath(ap))
+            if real_cwd == real_ap or real_cwd.startswith(real_ap + os.sep):
                 return True, ""
-        return False, f"cwd {abs_cwd} not inside any allowed path"
+        return False, f"cwd {real_cwd} not inside any allowed path"
+    if sandbox_required:
+        return False, "sandbox_required=True but no allowed_paths specified"
     return True, ""
 
 
@@ -115,7 +159,8 @@ class ShellRuntimeAdapter(RuntimeAdapter):
             return {"ready": False, "reason": "sandbox cwd required but not provided"}
         if request.cwd:
             path_ok, path_reason = is_path_allowed(
-                request.cwd, request.allowed_paths, request.blocked_paths
+                request.cwd, request.allowed_paths, request.blocked_paths,
+                sandbox_required=request.sandbox_required,
             )
             if not path_ok:
                 return {"ready": False, "reason": path_reason}
@@ -135,7 +180,7 @@ class ShellRuntimeAdapter(RuntimeAdapter):
         persist_event(RuntimeEvent.create(
             session_id=request.session_id,
             event_type=RuntimeEventType.RUNTIME_STARTING,
-            message=f"starting shell: {request.command}",
+            message=f"starting shell: {_redact_secrets(request.command[:120])}",
         ))
 
         try:
@@ -146,7 +191,8 @@ class ShellRuntimeAdapter(RuntimeAdapter):
                 stderr=subprocess.STDOUT,
                 cwd=request.cwd or None,
                 text=True,
-                env={**os.environ, "TERM": "dumb"},
+                env=_sandbox_env(),
+                start_new_session=True,
             )
             self._processes[request.session_id] = proc
             self._outputs[request.session_id] = ""
@@ -161,8 +207,11 @@ class ShellRuntimeAdapter(RuntimeAdapter):
             try:
                 stdout, _ = proc.communicate(timeout=request.timeout_seconds)
             except subprocess.TimeoutExpired:
-                proc.kill()
-                stdout, _ = proc.communicate()
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    proc.kill()
+                stdout, _ = proc.communicate(timeout=5)
                 stdout = (stdout or "") + "\n[TIMEOUT — process killed]"
 
             output = stdout or ""
@@ -178,7 +227,7 @@ class ShellRuntimeAdapter(RuntimeAdapter):
                     persist_event(RuntimeEvent.create(
                         session_id=request.session_id,
                         event_type=RuntimeEventType.STDOUT,
-                        message=line,
+                        message=_redact_secrets(line),
                         stream="stdout",
                         sequence=seq,
                     ))
@@ -199,16 +248,18 @@ class ShellRuntimeAdapter(RuntimeAdapter):
                 metadata={"exit_code": proc.returncode},
             )
         except Exception as exc:
+            logger.exception("shell adapter start failed for session %s", request.session_id)
+            sanitized = f"shell start failed: {type(exc).__name__}"
             persist_event(RuntimeEvent.create(
                 session_id=request.session_id,
                 event_type=RuntimeEventType.FAILED,
-                message=str(exc),
+                message=sanitized,
                 severity="error",
             ))
             return RuntimeStartResult(
                 session_id=request.session_id,
                 started=False,
-                error=str(exc),
+                error=sanitized,
             )
 
     def inject(self, request: RuntimeInjectRequest) -> dict[str, Any]:
@@ -246,14 +297,21 @@ class ShellRuntimeAdapter(RuntimeAdapter):
         ))
 
         try:
-            proc.send_signal(signal.SIGTERM)
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                proc.send_signal(signal.SIGTERM)
             try:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                proc.kill()
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    proc.kill()
                 proc.wait(timeout=3)
         except Exception as exc:
-            return {"stopped": False, "reason": str(exc)}
+            logger.exception("stop failed for session %s", session_id)
+            return {"stopped": False, "reason": f"stop failed: {type(exc).__name__}"}
 
         persist_event(RuntimeEvent.create(
             session_id=session_id,
