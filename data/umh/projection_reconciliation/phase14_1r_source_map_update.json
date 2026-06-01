@@ -1,0 +1,56 @@
+{
+  "phase": "14.1R",
+  "task": "source_map_update",
+  "timestamp": "2026-06-01T14:50:06Z",
+  "sources": [
+    {
+      "id": "vps_saas_partial_eos_backend",
+      "path": "/opt/OS/saas (deleted)",
+      "status": "decommissioned",
+      "canonicality": "deprecated",
+      "reason": "Redundant partial backend/shell; UMH platform API already extracted to transports/api/http; EOS canonical source is Beast/GitHub app",
+      "recovery": "git history (commit e3bd216e and prior)",
+      "deletion_commit": "e3bd216e"
+    },
+    {
+      "id": "eos_beast_github_app",
+      "repository": "EntrepreneurOS (GitHub)",
+      "local_path": "Beast C:\\dev\\dev\\EntrepreneurOS",
+      "status": "operator_selected_canonical",
+      "auth": "Clerk",
+      "file_count": 603,
+      "notes": "Full-stack EOS source on Beast/GitHub; canonical going forward per operator decision"
+    },
+    {
+      "id": "creatoros_beast_github_app",
+      "repository": "CreatorOS (GitHub)",
+      "local_path": "Beast C:\\dev\\dev\\CreatorOS",
+      "status": "candidate_canonical",
+      "auth": "Passport.js",
+      "auth_designation": "legacy",
+      "target_auth": "Clerk",
+      "file_count": 272,
+      "migration_required": true,
+      "migration_scope": "Auth migration from Passport.js to Clerk"
+    },
+    {
+      "id": "lyfeos_beast_github_app",
+      "repository": "LyfeOS (GitHub)",
+      "local_path": "Beast C:\\dev\\dev\\LyfeOS",
+      "status": "candidate_canonical",
+      "auth": ["Passport.js", "Firebase"],
+      "auth_designation": "legacy",
+      "target_auth": "Clerk",
+      "file_count": 854,
+      "migration_required": true,
+      "migration_scope": "Auth migration from Passport.js + Firebase to Clerk"
+    },
+    {
+      "id": "umh_platform_api",
+      "path": "transports/api/http",
+      "status": "canonical_platform_infrastructure",
+      "note": "UMH platform API, not EOS app source; serves organism, governance, system, execution, and settings endpoints"
+    }
+  ],
+  "total_sources": 5
+}

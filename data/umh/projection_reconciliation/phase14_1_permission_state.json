@@ -1,0 +1,128 @@
+{
+  "phase": "14.1",
+  "task": "permission_state_check",
+  "timestamp": "2026-06-01T13:22:24Z",
+  "sources": [
+    {
+      "source": "Google Docs / Drive",
+      "access_state": "metadata_only",
+      "evidence": [
+        "google.oauth2 module available",
+        "GWS adapter exists at adapters/data_source_adapters/gws_source.py",
+        "No service account credentials configured for Drive API in this session",
+        "Google Docs API requires OAuth or service account \u2014 not available in CLI context",
+        "Phase 14.0 permission request perm-req-001 remains pending"
+      ],
+      "what_is_accessible": "Python SDK importable, adapter code readable, no live API calls possible without credentials",
+      "what_is_blocked": "Live document listing, content reading, metadata extraction from Google Drive",
+      "recommended_action": "Operator to provide Google Drive service account credentials or approve OAuth flow",
+      "permission_request_id": "perm-req-001"
+    },
+    {
+      "source": "GitHub",
+      "access_state": "access_granted",
+      "evidence": [
+        "gh auth status confirms logged in as antonyfmunoz",
+        "Token scopes: gist, read:org, repo",
+        "Can list repos, read branches, read PRs, read source trees",
+        "Read-only inspection fully available"
+      ],
+      "what_is_accessible": "Full read access to all repos, branches, PRs, commits, source trees",
+      "what_is_blocked": "Nothing \u2014 full read access confirmed",
+      "recommended_action": "Proceed with GitHub inspection",
+      "permission_request_id": null
+    },
+    {
+      "source": "Windows Beast /dev",
+      "access_state": "access_granted",
+      "evidence": [
+        "SSH to 100.74.199.102 returned BEAST_ACCESSIBLE",
+        "Tailscale connection active",
+        "Can execute read-only ls/find/cat commands via SSH"
+      ],
+      "what_is_accessible": "Full read access to Beast filesystem via SSH",
+      "what_is_blocked": "Nothing \u2014 SSH access confirmed",
+      "recommended_action": "Proceed with Windows Beast /dev inspection",
+      "permission_request_id": null
+    },
+    {
+      "source": "Device filesystem discovery",
+      "access_state": "access_granted",
+      "evidence": [
+        "Beast accessible via SSH",
+        "VPS local filesystem accessible",
+        "No other devices in mesh to discover"
+      ],
+      "what_is_accessible": "Both VPS and Beast filesystems",
+      "what_is_blocked": "No additional devices known",
+      "recommended_action": "Inspect Beast /dev and VPS /opt/OS",
+      "permission_request_id": null
+    },
+    {
+      "source": "/opt/OS local",
+      "access_state": "already_local",
+      "evidence": [
+        "Working directory is /opt/OS worktree",
+        "All files readable",
+        "Git repo with full history"
+      ],
+      "what_is_accessible": "Everything",
+      "what_is_blocked": "Nothing",
+      "recommended_action": "Proceed with local inspection",
+      "permission_request_id": null
+    },
+    {
+      "source": "/opt/OS/saas local",
+      "access_state": "already_local",
+      "evidence": [
+        "saas/ directory present in worktree",
+        "All TypeScript/SQL files readable",
+        "package.json, schema.ts, routes, migrations all present"
+      ],
+      "what_is_accessible": "Everything",
+      "what_is_blocked": "Nothing",
+      "recommended_action": "Proceed with saas inspection",
+      "permission_request_id": null
+    }
+  ],
+  "summary": {
+    "access_granted": [
+      "GitHub",
+      "Windows Beast /dev",
+      "Device filesystem discovery"
+    ],
+    "already_local": [
+      "/opt/OS local",
+      "/opt/OS/saas local"
+    ],
+    "metadata_only": [
+      "Google Docs / Drive"
+    ],
+    "access_denied": [],
+    "access_pending": [],
+    "unavailable": [],
+    "total_sources": 6,
+    "inspectable_now": 5,
+    "blocked": 1
+  },
+  "google_docs_permission_request": {
+    "request_id": "perm-req-001",
+    "status": "pending",
+    "why_access_requested": "Inspect UMH, EOS, CreatorOS, LyfeOS documentation for cross-source reconciliation",
+    "what_will_be_read": "Document titles, content, modified dates, folder structure",
+    "what_will_not_happen": "No documents modified, deleted, created, or shared",
+    "inferences": "Staleness detection, claim-vs-code comparison, architecture doc currency",
+    "least_privilege_options": [
+      "Full read access to projection Drive folders",
+      "Metadata-only (titles/dates)",
+      "Operator-selected documents only"
+    ],
+    "options": [
+      "deny",
+      "approve_full",
+      "approve_metadata_only",
+      "approve_specific_docs",
+      "ask_later"
+    ]
+  }
+}

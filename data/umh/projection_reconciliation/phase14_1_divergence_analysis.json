@@ -1,0 +1,162 @@
+{
+  "phase": "14.1",
+  "task": "divergence_analysis",
+  "timestamp": "2026-06-01T13:35:56Z",
+  "divergences": [
+    {
+      "id": "div-141-01",
+      "type": "uninspected_source",
+      "severity": "high",
+      "description": "Google Docs uninspected \u2014 no API credentials available",
+      "impact": "Cannot verify architecture/product docs match code state",
+      "requires_permission": true,
+      "requires_operator_decision": true
+    },
+    {
+      "id": "div-141-02",
+      "type": "schema_version_split",
+      "severity": "high",
+      "description": "EOS schema v1 (projections/eos/integration/tables.py: crm_contacts, crm_deals, crm_activities) vs v2 (saas/db/schema.ts: events, clients, ventures, transactions, offers)",
+      "impact": "Two incompatible schema models for the same projection \u2014 agents query v2 tables but integration polls v1 tables",
+      "requires_operator_decision": true
+    },
+    {
+      "id": "div-141-03",
+      "type": "partial_backend",
+      "severity": "high",
+      "description": "/opt/OS/saas is a partial EOS backend \u2014 Hono API + Drizzle schema but no frontend, no deployment proof",
+      "impact": "Cannot build features on saas/ without knowing if it's canonical or superseded by Beast source",
+      "requires_operator_decision": true
+    },
+    {
+      "id": "div-141-04",
+      "type": "code_duplication",
+      "severity": "medium",
+      "description": "7-file integration pattern duplicated across projections/eos, projections/creatoros, projections/lyfeos \u2014 503 diff lines between EOS and CreatorOS tables.py alone",
+      "impact": "Bug fixes or pattern changes must be applied 3x; shared code should be extracted",
+      "requires_operator_decision": false
+    },
+    {
+      "id": "div-141-05",
+      "type": "schema_drift",
+      "severity": "medium",
+      "description": "saas/db/schema.ts missing 7 tables that exist in migrations (model_preferences, cross_product_permissions, user_intelligence_profiles, product_connections, higgsfield_jobs, goals, goal_outcomes); migration 0004 missing from sequence",
+      "impact": "Schema.ts does not represent full database state",
+      "requires_operator_decision": true
+    },
+    {
+      "id": "div-141-06",
+      "type": "type_inconsistency",
+      "severity": "medium",
+      "description": "saas/db/schema.ts uses text type for org_id/venture_id in clients/transactions/offers but uuid FK in ventures.org_id",
+      "impact": "Type inconsistency across tables \u2014 potential join/FK issues",
+      "requires_operator_decision": true
+    },
+    {
+      "id": "div-141-07",
+      "type": "instance_context_in_data",
+      "severity": "low",
+      "description": "saas/db/seed.ts contains instance-specific values (founder name, company names, product names, projection-specific DB role)",
+      "impact": "Seed data is not portable to other UMH instances",
+      "requires_operator_decision": false
+    },
+    {
+      "id": "div-141-08",
+      "type": "unknown_canonicality",
+      "severity": "high",
+      "description": "EOS canonical source unknown \u2014 3 competing locations (projections/eos, saas/, Windows /dev)",
+      "impact": "Cannot build EOS features without operator decision on canonical source",
+      "requires_operator_decision": true
+    },
+    {
+      "id": "div-141-09",
+      "type": "unknown_canonicality",
+      "severity": "medium",
+      "description": "CreatorOS full source location unknown \u2014 only integration skeleton on VPS",
+      "impact": "Cannot verify CreatorOS state without Beast/GitHub inspection",
+      "requires_operator_decision": true
+    },
+    {
+      "id": "div-141-10",
+      "type": "unknown_canonicality",
+      "severity": "medium",
+      "description": "LyfeOS full source location unknown \u2014 only integration skeleton on VPS",
+      "impact": "Cannot verify LyfeOS state",
+      "requires_operator_decision": true
+    },
+    {
+      "id": "div-141-11",
+      "type": "stale_code",
+      "severity": "low",
+      "description": "16 substrate files still contain projection name references (EntrepreneurOS, CreatorOS, LyfeOS) \u2014 legacy aliases and hardcoded names",
+      "impact": "Projection boundary law violations \u2014 tech debt from pre-convergence era",
+      "requires_operator_decision": false
+    },
+    {
+      "id": "div-141-12",
+      "type": "local_uncommitted_source",
+      "severity": "low",
+      "description": "umh/voice_server.py sits outside standard architecture layers \u2014 orphaned directory",
+      "impact": "Not following architecture layer law",
+      "requires_operator_decision": false
+    },
+    {
+      "id": "div-141-13",
+      "type": "code_duplication",
+      "severity": "low",
+      "description": "Split test locations: tests/ (80 files) and substrate/organism/tests/ (~200 files)",
+      "impact": "Inconsistent test discovery; potential for missed tests in CI",
+      "requires_operator_decision": false
+    },
+    {
+      "id": "div-141-16",
+      "type": "conflicting_claim",
+      "severity": "critical",
+      "description": "EOS auth system DIVERGED: Beast uses Clerk, VPS saas/ uses UMH platform auth. Cannot merge without auth decision.",
+      "impact": "Fundamental architectural incompatibility between Beast EOS and VPS EOS",
+      "requires_operator_decision": true
+    },
+    {
+      "id": "div-141-17",
+      "type": "schema_version_split",
+      "severity": "critical",
+      "description": "Beast EOS schema is monolith Replit-era (all tables in one shared/schema.ts). VPS saas/ has separated UMH platform tables from EOS tables. Different structures for same data.",
+      "impact": "Schema migration required regardless of which direction is chosen",
+      "requires_operator_decision": true
+    },
+    {
+      "id": "div-141-18",
+      "type": "duplicate_source",
+      "severity": "medium",
+      "description": "Two OS repo copies on Beast: dev/OS (current) and Projects/OS (stale, pre-convergence). Projects/OS should be deleted.",
+      "impact": "Confusion about which is current; wasted disk space",
+      "requires_operator_decision": false
+    },
+    {
+      "id": "div-141-19",
+      "type": "stale_code",
+      "severity": "low",
+      "description": "5 empty placeholder directories on Beast: Initiate Arena, OSv2, REAL FUTURE LLM, REAL FUTURE OS, UMH",
+      "impact": "Clutter",
+      "requires_operator_decision": false
+    },
+    {
+      "id": "div-141-20",
+      "type": "github_lag",
+      "severity": "medium",
+      "description": "Beast dev/OS behind VPS main by several commits \u2014 Beast has worldview design as latest, VPS has Phase 14.0R commits",
+      "impact": "Beast OS copy not current",
+      "requires_operator_decision": false
+    }
+  ],
+  "summary": {
+    "total_divergences": 18,
+    "by_severity": {
+      "critical": 2,
+      "high": 4,
+      "medium": 7,
+      "low": 5
+    },
+    "requires_operator_decision": 10
+  }
+}

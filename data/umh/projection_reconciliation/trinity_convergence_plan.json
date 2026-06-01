@@ -4,16 +4,16 @@
   "timestamp": "2026-05-31T00:00:00Z",
   "plan": {
     "1_discovery_sequence": [
-      "1a. Local discovery (COMPLETE) — /opt/OS, /opt/OS/saas, projections/, substrate/",
-      "1b. Windows Beast /dev inspection (BLOCKED — permission pending)",
-      "1c. GitHub repository inspection (BLOCKED — permission pending)",
-      "1d. Google Docs documentation inspection (BLOCKED — permission pending)"
+      "1a. Local discovery (COMPLETE) \u2014 /opt/OS, /opt/OS/saas, projections/, substrate/",
+      "1b. Windows Beast /dev inspection (BLOCKED \u2014 permission pending)",
+      "1c. GitHub repository inspection (BLOCKED \u2014 permission pending)",
+      "1d. Google Docs documentation inspection (BLOCKED \u2014 permission pending)"
     ],
     "2_permission_sequence": [
-      "2a. Request Windows Beast SSH read access to /dev — highest priority (contains full Trinity apps)",
-      "2b. Request GitHub repository listing and read access — second priority",
-      "2c. Request Google Docs read access — third priority (docs supplement code)",
-      "2d. Each permission request is independent — can proceed in parallel"
+      "2a. Request Windows Beast SSH read access to /dev \u2014 highest priority (contains full Trinity apps)",
+      "2b. Request GitHub repository listing and read access \u2014 second priority",
+      "2c. Request Google Docs read access \u2014 third priority (docs supplement code)",
+      "2d. Each permission request is independent \u2014 can proceed in parallel"
     ],
     "3_source_inspection_sequence": [
       "3a. Windows Beast /dev: ls /dev, identify Trinity app directories, map package.json/tsconfig/routes/schema per app",
@@ -23,10 +23,10 @@
     ],
     "4_canonicality_decision_points": [
       "4a. For each projection: which source is canonical? (Operator decides, not UMH)",
-      "4b. /opt/OS/saas vs Windows /dev EOS — which is ahead? Which is canonical?",
-      "4c. Google Docs architecture claims vs actual code — which takes precedence?",
-      "4d. GitHub committed state vs local working state — which is truth?",
-      "4e. Schema v1 (integration) vs v2 (saas) — which survives?"
+      "4b. /opt/OS/saas vs Windows /dev EOS \u2014 which is ahead? Which is canonical?",
+      "4c. Google Docs architecture claims vs actual code \u2014 which takes precedence?",
+      "4d. GitHub committed state vs local working state \u2014 which is truth?",
+      "4e. Schema v1 (integration) vs v2 (saas) \u2014 which survives?"
     ],
     "5_eos_saas_vs_beast_comparison_plan": {
       "step_1": "SSH to Beast, list /dev/eos or equivalent directory",
@@ -78,7 +78,7 @@
       "Credential rotation or DNS changes"
     ],
     "11_proposed_canonical_source_architecture": {
-      "UMH_substrate": "/opt/OS on VPS — production truth (already canonical)",
+      "UMH_substrate": "/opt/OS on VPS \u2014 production truth (already canonical)",
       "EOS_backend": "To be determined after Beast/GitHub inspection. Candidate: merge /opt/OS/saas + Beast source into single canonical location.",
       "EOS_frontend": "To be determined after Beast inspection. Likely on Beast at /dev.",
       "CreatorOS": "To be determined. Integration layer on VPS, full app likely on Beast.",
@@ -98,13 +98,93 @@
       "WP-010: Phase 14.1 implementation readiness gate"
     ],
     "13_risk_register": [
-      {"risk": "Beast source may be significantly ahead of VPS — large merge conflict potential", "mitigation": "Compare before any sync. Use diff-first approach."},
-      {"risk": "Google Docs may contain outdated architecture claims that mislead development", "mitigation": "Cross-reference all claims against actual code state."},
-      {"risk": "Schema v1/v2 split may require data migration", "mitigation": "Assess migration complexity before choosing canonical schema."},
-      {"risk": "Integration layer code duplication makes bugs harder to fix", "mitigation": "Extract shared base before building new features."},
-      {"risk": "Seed data contains instance context that could leak into production", "mitigation": "Parametrize seed data before any deployment."}
+      {
+        "risk": "Beast source may be significantly ahead of VPS \u2014 large merge conflict potential",
+        "mitigation": "Compare before any sync. Use diff-first approach."
+      },
+      {
+        "risk": "Google Docs may contain outdated architecture claims that mislead development",
+        "mitigation": "Cross-reference all claims against actual code state."
+      },
+      {
+        "risk": "Schema v1/v2 split may require data migration",
+        "mitigation": "Assess migration complexity before choosing canonical schema."
+      },
+      {
+        "risk": "Integration layer code duplication makes bugs harder to fix",
+        "mitigation": "Extract shared base before building new features."
+      },
+      {
+        "risk": "Seed data contains instance context that could leak into production",
+        "mitigation": "Parametrize seed data before any deployment."
+      }
     ],
     "14_rollback_strategy": "No destructive operations in Phase 14.0. All inspection is read-only. Source registry and divergence data are additive. If any inspection produces incorrect results, the data files can be corrected without affecting source code.",
     "15_no_destructive_sync_guarantee": "Phase 14.0 performs ZERO writes to external systems (GitHub, Google Docs, Windows Beast). All data generated is local to /opt/OS/data/umh/projection_reconciliation/. No source is auto-canonized. No files are copied, overwritten, or deleted."
+  },
+  "phase14_1_update": {
+    "timestamp": "2026-06-01T13:46:03Z",
+    "what_was_inspected": [
+      "/opt/OS local filesystem \u2014 4765 files across 16 directories",
+      "/opt/OS/saas \u2014 30 files, Hono backend, 22 tables, 12 route files, severe schema drift",
+      "projections/ \u2014 EOS (31 files), CreatorOS (8 files), LyfeOS (8 files)",
+      "GitHub \u2014 4 repos found: OS, EntrepreneurOS, CreatorOS, LYFEOS \u2014 all Trinity apps are full-stack",
+      "Permission state \u2014 5 of 6 sources accessible"
+    ],
+    "what_was_blocked": [
+      "Google Docs / Drive \u2014 no API credentials in CLI context",
+      "Windows Beast /dev \u2014 inspection agent still running (SSH confirmed accessible)"
+    ],
+    "what_remains_uninspected": [
+      "Google Docs architecture/product documentation",
+      "Windows Beast /dev Trinity app directories (pending agent completion)",
+      "Deep content comparison of GitHub repos vs VPS state"
+    ],
+    "what_appears_canonical": {
+      "UMH_substrate": "/opt/OS on VPS \u2014 production truth",
+      "UMH_shared_infra": "transports/api/http/ + substrate/ \u2014 production truth",
+      "EOS_candidate": "GitHub EntrepreneurOS (full-stack, dormant) \u2014 strongest candidate for full app",
+      "CreatorOS_candidate": "GitHub CreatorOS (full-stack, active May 20)",
+      "LyfeOS_candidate": "GitHub LYFEOS (full-stack with tests, active May 20)"
+    },
+    "what_appears_partial": {
+      "saas": "/opt/OS/saas \u2014 server-only extract of EntrepreneurOS, severe schema drift",
+      "projections_eos": "projections/eos \u2014 Python runtime layer, no frontend, v1 CRM schema",
+      "projections_creatoros": "projections/creatoros \u2014 integration skeleton only",
+      "projections_lyfeos": "projections/lyfeos \u2014 integration skeleton only"
+    },
+    "what_appears_stale": {
+      "eos_github": "EntrepreneurOS repo dormant since 2026-04-16",
+      "saas_schema": "7 orphan migration tables, 4 tables with no migration, broken journal",
+      "substrate_projections_refs": "16 substrate files with legacy EntrepreneurOS references"
+    },
+    "eos_saas_convergence_implications": [
+      "saas/ is a server-side extract of GitHub EntrepreneurOS \u2014 missing client/ directory",
+      "saas/ has severe schema drift \u2014 migration journal only tracks 3 of 9 migrations",
+      "saas/ serves as unified API entrypoint (mounts both UMH and EOS routes)",
+      "Moving or restructuring saas/ would break UMH API routes",
+      "CRM tables (clients, transactions, etc.) use text org_id breaking RLS",
+      "Parallel Python/TypeScript type systems for same EOS domain"
+    ],
+    "windows_dev_implications": "Beast inspection will reveal if /dev contains cloned copies of GitHub repos or independent working copies",
+    "github_implications": [
+      "All 3 Trinity repos are full-stack Replit-origin apps",
+      "EntrepreneurOS is dormant \u2014 development migrated to OS/saas/",
+      "CreatorOS and LYFEOS are active (May 20 pushes)",
+      "62+ stale worktree-runtime-rs branches in OS repo need pruning"
+    ],
+    "google_docs_implications": "Cannot verify architecture/product docs \u2014 blocker until credentials provided",
+    "required_operator_decisions": [
+      "EOS canonical source (4 candidates)",
+      "CreatorOS canonical source (GitHub vs VPS skeleton)",
+      "LyfeOS canonical source and priority (GitHub vs VPS skeleton)",
+      "Schema v1/v2 direction",
+      "saas/ future (keep as API server, merge with GitHub, restructure)",
+      "EntrepreneurOS repo (archive, merge, maintain)",
+      "Monorepo vs multi-repo for Trinity apps",
+      "Google Docs access method"
+    ],
+    "next_work_packets": "10 work packets generated \u2014 see phase14_1_updated_work_packets.json",
+    "no_destructive_sync_guarantee": true
   }
 }

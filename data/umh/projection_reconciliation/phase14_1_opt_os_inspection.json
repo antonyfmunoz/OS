@@ -1,0 +1,283 @@
+{
+  "timestamp": "2026-06-01T13:45:00Z",
+  "total_file_count": 4765,
+  "directories": {
+    "substrate": {
+      "file_count": 699,
+      "subdirs": [
+        "composition",
+        "contracts",
+        "control_plane",
+        "execution",
+        "foundation",
+        "governance",
+        "integrations",
+        "intelligence",
+        "memory",
+        "observability",
+        "ontology",
+        "organism",
+        "reality_model",
+        "sockets",
+        "state",
+        "understanding",
+        "workstation"
+      ],
+      "purpose": "Universal platform substrate",
+      "status": "active",
+      "projection_relevance": "universal",
+      "source_type": "code",
+      "canonicality_note": "Canonical source for all UMH domain types, execution pipeline, organism coordination",
+      "known_risks": [
+        "16 files contain projection name references in substrate (legacy aliases + hardcoded)",
+        "organism/ is 200 files \u2014 potential god-package",
+        "Legacy EntrepreneurOS* aliases still present in gateway.py, orchestrator.py, context.py"
+      ]
+    },
+    "transports": {
+      "file_count": 91,
+      "subdirs": [
+        "api",
+        "channels",
+        "discord",
+        "node_mesh",
+        "presence"
+      ],
+      "purpose": "I/O surfaces \u2014 Discord, HTTP API, webhooks, node mesh",
+      "status": "active",
+      "projection_relevance": "universal",
+      "source_type": "code",
+      "canonicality_note": "Canonical location for UMH HTTP API infrastructure",
+      "known_risks": []
+    },
+    "adapters": {
+      "file_count": 89,
+      "subdirs": [
+        "adapter_engine",
+        "browser",
+        "capabilities",
+        "data_source_adapters",
+        "google_workspace",
+        "higgsfield",
+        "models",
+        "notion",
+        "scrapling",
+        "tool_adapters"
+      ],
+      "purpose": "External system adapters \u2014 model routing, browser, calendar, GWS",
+      "status": "mixed",
+      "projection_relevance": "universal",
+      "source_type": "code",
+      "canonicality_note": "Canonical source for intelligence routing (model_router.py)",
+      "known_risks": []
+    },
+    "services": {
+      "file_count": 38,
+      "subdirs": [
+        "auth_flows"
+      ],
+      "purpose": "Deployment entrypoints only",
+      "status": "active",
+      "projection_relevance": "EOS-primary",
+      "source_type": "code",
+      "canonicality_note": "discord_bot.py is canonical Discord entrypoint",
+      "known_risks": []
+    },
+    "projections": {
+      "file_count": 48,
+      "subdirs": [
+        "creatoros",
+        "eos",
+        "lyfeos"
+      ],
+      "purpose": "Application projections",
+      "status": "active",
+      "projection_relevance": "per-projection",
+      "source_type": "code",
+      "canonicality_note": "EOS=31 files, CreatorOS=8, LyfeOS=8",
+      "known_risks": [
+        "Code duplication across integration patterns"
+      ]
+    },
+    "saas": {
+      "file_count": 30,
+      "subdirs": [
+        "api",
+        "db"
+      ],
+      "purpose": "EOS SaaS projection (TypeScript)",
+      "status": "active",
+      "projection_relevance": "EOS only",
+      "source_type": "code",
+      "canonicality_note": "Partial EOS backend \u2014 convergence candidate",
+      "known_risks": [
+        "Schema v1/v2 split with projections/eos"
+      ]
+    },
+    "docs": {
+      "file_count": 582,
+      "subdirs": [
+        "audits",
+        "canonical",
+        "changes",
+        "design-system",
+        "mvp",
+        "operations",
+        "plans",
+        "research",
+        "sessions",
+        "setup",
+        "strategy",
+        "superpowers",
+        "system"
+      ],
+      "purpose": "Architecture specs, contracts, audits",
+      "status": "active",
+      "projection_relevance": "universal",
+      "source_type": "docs",
+      "canonicality_note": "107 convergence audit files in docs/audits/convergence/",
+      "known_risks": []
+    },
+    "data_umh": {
+      "file_count": 1353,
+      "subdirs": [
+        "assimilation",
+        "autonomous_lane",
+        "config",
+        "context_assimilation",
+        "coordinator",
+        "intelligence",
+        "organism",
+        "projection_reconciliation",
+        "operational_truth",
+        "operator_acceptance",
+        "operator_experience"
+      ],
+      "purpose": "UMH runtime data",
+      "status": "active",
+      "projection_relevance": "universal",
+      "source_type": "data",
+      "canonicality_note": "coordinator=525 files, assimilation=419 files",
+      "known_risks": [
+        "Data accumulation in coordinator/ and assimilation/"
+      ]
+    },
+    "cockpit": {
+      "file_count": 108,
+      "subdirs": [
+        "src"
+      ],
+      "purpose": "UMH cockpit UI (Electron + Vite)",
+      "status": "active",
+      "projection_relevance": "universal",
+      "source_type": "code",
+      "canonicality_note": "Canonical UI layer deployed to universalmetaharness.tech",
+      "known_risks": []
+    },
+    "nodes": {
+      "file_count": 44,
+      "subdirs": [
+        "distribution",
+        "environments",
+        "windows"
+      ],
+      "purpose": "Distributed execution \u2014 Windows daemon, work packets",
+      "status": "active",
+      "projection_relevance": "universal",
+      "source_type": "code",
+      "canonicality_note": "work_packet.py canonical types",
+      "known_risks": []
+    },
+    "scripts": {
+      "file_count": 160,
+      "subdirs": [
+        "auth_monitor",
+        "cron",
+        "graph_hooks",
+        "hooks",
+        "scheduled",
+        "workers"
+      ],
+      "purpose": "Operator tooling \u2014 pre-commit hooks, graph rebuild, cron",
+      "status": "active",
+      "projection_relevance": "universal",
+      "source_type": "code",
+      "canonicality_note": "Canonical pre-commit gate scripts",
+      "known_risks": []
+    },
+    "knowledge": {
+      "file_count": 289,
+      "subdirs": [
+        "concepts",
+        "decisions",
+        "domains",
+        "entities",
+        "palace",
+        "skills",
+        "sources",
+        "synthesis"
+      ],
+      "purpose": "Wiki system, memory palace, domain knowledge",
+      "status": "active",
+      "projection_relevance": "universal",
+      "source_type": "docs",
+      "canonicality_note": "Canonical wiki and memory palace",
+      "known_risks": []
+    },
+    "tests": {
+      "file_count": 80,
+      "subdirs": [
+        "fixtures",
+        "substrate"
+      ],
+      "purpose": "Test suite",
+      "status": "active",
+      "projection_relevance": "universal",
+      "source_type": "tests",
+      "canonicality_note": "Primary test directory + substrate/organism/tests/",
+      "known_risks": [
+        "Split test locations"
+      ]
+    },
+    "runtime": {
+      "file_count": 0,
+      "subdirs": [],
+      "purpose": "Legacy runtime \u2014 removed",
+      "status": "legacy",
+      "projection_relevance": "N/A",
+      "source_type": "code",
+      "canonicality_note": "Absorbed into substrate/",
+      "known_risks": [
+        "References to runtime.* imports would be broken"
+      ]
+    },
+    "umh": {
+      "file_count": 1,
+      "subdirs": [],
+      "purpose": "Orphaned voice_server.py",
+      "status": "active",
+      "projection_relevance": "universal",
+      "source_type": "code",
+      "canonicality_note": "Single file outside standard architecture layers",
+      "known_risks": [
+        "Orphaned directory"
+      ]
+    }
+  },
+  "cadence_state": "off (default CadenceMode.OFF)",
+  "medium_risk_blocked": true,
+  "projection_leak_summary": {
+    "total_files_with_projection_names_in_substrate": 16,
+    "legacy_aliases": [
+      "gateway.py:1927 EntrepreneurOSGateway=Gateway",
+      "orchestrator.py:1910 EntrepreneurOSOrchestrator=Orchestrator",
+      "context.py:59 EntrepreneurOSContext=SubstrateContext"
+    ],
+    "hardcoded": [
+      "os_registry.py",
+      "product_connections.py",
+      "candidate_supply_engine.py:546"
+    ]
+  },
+  "summary": "4765 files total. substrate/ (699), data_umh/ (1353), docs/ (582), knowledge/ (289), scripts/ (160). Cadence OFF. Medium-risk blocked. 16 substrate files still have projection name references."
+}
