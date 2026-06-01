@@ -1,0 +1,21 @@
+{
+  "phase": "13.3",
+  "task": "reconciliation_engine",
+  "timestamp": 1780201470.2523139,
+  "status": "verified",
+  "capabilities": [
+    "start_session",
+    "attach_sources",
+    "run_diagnostic",
+    "generate_operator_questions",
+    "generate_proposals",
+    "approve_proposal",
+    "reject_proposal",
+    "preview_propagation",
+    "generate_work_packet_updates",
+    "complete_session",
+    "exploration_mode",
+    "reconciliation_mode",
+    "decision_mode"
+  ]
+}

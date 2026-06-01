@@ -1,0 +1,14 @@
+[Unit]
+Description=UMH Node Mesh Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/OS
+ExecStart=/usr/bin/python3 /opt/OS/transports/node_mesh/run.py
+Restart=always
+RestartSec=5
+Environment=PYTHONPATH=/opt/OS
+
+[Install]
+WantedBy=multi-user.target

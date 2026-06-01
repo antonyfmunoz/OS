@@ -1,0 +1,39 @@
+{
+  "phase": "13.3R",
+  "title": "Live Reconciliation Proof",
+  "timestamp": "2026-05-31T06:06:25Z",
+  "input": "Let's reconcile what UMH understands about the empire roadmap and tell me what should be canonical.",
+  "intent_classified": "reconciliation",
+  "session_started": true,
+  "session_mode": "reconciliation",
+  "diagnostic_report_generated": true,
+  "proposals_count": 331,
+  "operator_questions": [
+    "Which is correct: 'was never merged to main' or 'is not wired\n   into'?",
+    "Which is correct: 'was never merged to main' or 'will NOT happen'?",
+    "Which is correct: 'are\nworktree' or 'is not wired\n   into'?",
+    "Which is correct: 'are\nworktree' or 'will NOT happen'?",
+    "Which is correct: 'is imported' or 'is not wired\n   into'?",
+    "Which is correct: 'is imported' or 'will NOT happen'?",
+    "Which is correct: 'was started 22 hours ago from a prior version' or 'is not wired\n   into'?",
+    "Which is correct: 'was started 22 hours ago from a prior version' or 'will NOT happen'?",
+    "Which is correct: 'have\n   crashed' or 'is not wired\n   into'?",
+    "Which is correct: 'have\n   crashed' or 'will NOT happen'?",
+    "Can you provide context for: No context found for expected entity: Munoz Conglomerate",
+    "Can you provide context for: No context found for expected entity: OST",
+    "Can you provide context for: No context found for expected entity: Lyfe Spectrum"
+  ],
+  "propagation_preview": {
+    "session_id": "recon-cc39ad4b",
+    "approved_proposals": 0,
+    "affected_entities": [],
+    "affected_work_packets": [],
+    "affected_knowledge_models": [],
+    "dry_run": true
+  },
+  "work_packet_implications": 0,
+  "no_canonical_auto_applied": true,
+  "approval_required": false,
+  "no_external_write": true,
+  "verdict": "RECONCILIATION PROOF VERIFIED"
+}

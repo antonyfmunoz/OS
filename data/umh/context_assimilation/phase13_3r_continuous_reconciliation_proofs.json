@@ -1,0 +1,47 @@
+{
+  "phase": "13.3R",
+  "title": "Continuous Reconciliation Proofs",
+  "timestamp": "2026-05-31T06:05:41Z",
+  "proofs": [
+    {
+      "scenario": "A_exploration",
+      "input": "I'm just thinking out loud: maybe EOS should include all portfolios.",
+      "intent": "exploration",
+      "mode": "exploration",
+      "proposals_generated": 0,
+      "canon_safe": true,
+      "pass": true
+    },
+    {
+      "scenario": "B_reconciliation",
+      "input": "Actually EOS handles multiple portfolios, not just companies.",
+      "intent": "reconciliation",
+      "mode": "reconciliation",
+      "proposals_count": 0,
+      "approval_required": true,
+      "pass": true
+    },
+    {
+      "scenario": "C_decision",
+      "input": "Canonize that EOS includes companies, entities, and portfolios.",
+      "intent": "decision",
+      "mode": "decision",
+      "proposals_count": 0,
+      "approval_required": true,
+      "canon_safe": true,
+      "pass": true
+    },
+    {
+      "scenario": "D_outdated",
+      "input": "This old doc saying InvestorOS is separate is outdated.",
+      "intent": "reconciliation",
+      "mode": "reconciliation",
+      "canon_safe": true,
+      "pass": true
+    }
+  ],
+  "all_pass": true,
+  "no_canonical_auto_applied": true,
+  "external_writes_disabled": true,
+  "verdict": "CONTINUOUS RECONCILIATION VERIFIED"
+}

@@ -1,0 +1,24 @@
+{
+  "id": "art-fd2de76e",
+  "name": "Test Framework",
+  "source_url": "",
+  "artifact_type": "framework",
+  "status": "scored",
+  "primitives_count": 2,
+  "leverage_summary": {
+    "count": 2,
+    "avg_score": 0.708,
+    "max_score": 0.725
+  },
+  "redundancy_report": {
+    "artifact_id": "art-fd2de76e",
+    "total_primitives": 2,
+    "redundant": [],
+    "novel": [
+      "prim-a0c5407b",
+      "prim-483a188b"
+    ],
+    "partial_overlap": []
+  },
+  "created_at": 1780177181.6692727
+}

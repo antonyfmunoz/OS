@@ -1,82 +1,29 @@
 # GWS Document Context
-Last scanned: 2026-05-09 06:35
-Total documents: 17
-
-## empyrean_creative
-### Untitled document
-Relevance: high
-Summary: Untitled document — 32 relevant keywords
-Key: ﻿Tab 1
-
-
-Tab 2
-# THE HOUSE
-
-
-**An AI-native record label and artist development system.**
-**A module of CreatorOS / Operating System Technologies.**
-
-
-
-### Untitled document
-Relevance: high
-Summary: Untitled document — 6 relevant keywords
-Key: ﻿Tab 1
-That means the ln command probably failed, but the script still printed “Created” because the echo ran anyway.
-Run this exact version. It uses 
-
-## eos_platform
-### Untitled document
-Relevance: high
-Summary: Untitled document — 6 relevant keywords
-Key: ﻿Tab 1
-
-
-
-
-You are implementing the next EOS integration slice in /opt/OS.
-
-
-SYSTEM STATE:
-
-
-- InfluenceOrchestrator produces UnifiedInfluence via res
-
-### Untitled document
-Relevance: low
-Summary: Untitled document — 2 relevant keywords
-Key: ﻿Solid. Here’s the full picture:
-claude-agent-sdk v0.1.55 — Confirmed API
-Same query() pattern as the deprecated package, but significantly richer:
-
-
-
+Last scanned: 2026-05-30 06:40
+Total documents: 11
 
 ## lyfe_institute
-### SKILL.md
+### THE MUNOZ EMPIRE — Elite Structural Architecture
 Relevance: high
-Summary: SKILL.md — 18 relevant keywords
-Key: ﻿________________
+Summary: THE MUNOZ EMPIRE — Elite Structural Architecture — 38 relevant keywords
+Key: ﻿Tab 1
+THE MUNOZ EMPIRE — Elite Structural Architecture
+Restructured as a professional estate planner, family office advisor, and BlackRock-level corp
 
-
-name: leverage-principle description: Apply the OST leverage principle when reasoning about any build, architecture, dependency, s
-
-### SKILL.md
+### CreatorOS
 Relevance: high
-Summary: SKILL.md — 18 relevant keywords
-Key: ﻿________________
+Summary: CreatorOS — 43 relevant keywords
+Key: ﻿Tab 1
 
 
-name: leverage-principle description: Apply the OST leverage principle when reasoning about any build, architecture, dependency, s
-
-### UMH
-Relevance: high
-Summary: UMH — 38 relevant keywords
-Key: ﻿Tab 10
-The important realization is:
-* the “universal harness” is NOT universal execution
-* it is universal orchestration + protocol standardization
-
+Product Requirements Document
+Product Requirements Document
+Creator OS
+The Operating System for Creators
+Version
+	2.90
+	Date
+	February 2nd, 2
 
 ### EntrepreneurOS
 Relevance: high
@@ -107,21 +54,6 @@ http://lyfeos.net/login?access=beta
 
 
 Add to your 
-
-### CreatorOS
-Relevance: high
-Summary: CreatorOS — 43 relevant keywords
-Key: ﻿Tab 1
-
-
-Product Requirements Document
-Product Requirements Document
-Creator OS
-The Operating System for Creators
-Version
-	2.90
-	Date
-	February 2nd, 2
 
 ### Life Coaching (E-Learning/Info-Product Brand)
 Relevance: high

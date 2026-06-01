@@ -1,0 +1,18 @@
+{
+  "phase": "13.3",
+  "task": "canonical_update",
+  "timestamp": 1780201470.2522192,
+  "status": "verified",
+  "no_auto_apply": true,
+  "approval_required": true,
+  "proposal_types": [
+    "promote_claim",
+    "deprecate_claim",
+    "supersede_claim",
+    "merge_duplicates",
+    "update_entity",
+    "create_work_packet",
+    "ask_operator_question",
+    "mark_source_deprecated"
+  ]
+}
