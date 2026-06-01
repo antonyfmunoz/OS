@@ -1,0 +1,58 @@
+{
+  "phase": "14.0R",
+  "task": "local_discovery_live_proof",
+  "timestamp": "2026-06-01T05:27:42Z",
+  "verified_directories": {
+    "/opt/OS": {
+      "status": "production_truth",
+      "projection": "UMH",
+      "verified": true
+    },
+    "/opt/OS/saas": {
+      "status": "partial_eos_backend",
+      "projection": "EOS",
+      "verified": true,
+      "details": "No frontend, no auth, 12 route files, 13 DB tables, 9 migrations, schema drift present"
+    },
+    "docs/audits/convergence": {
+      "verified": true,
+      "contains": "Phase audit documents"
+    },
+    "data/umh/operator_acceptance": {
+      "verified": true,
+      "contains": "Operator acceptance proof data"
+    },
+    "data/umh/projection_reconciliation": {
+      "verified": true,
+      "contains": "Phase 14.0 reconciliation artifacts"
+    },
+    "projections/": {
+      "verified": true,
+      "contains": "EOS (31 files), CreatorOS (8), LyfeOS (8)"
+    },
+    "substrate/": {
+      "verified": true,
+      "contains": "UMH brain, organism, types, execution"
+    },
+    "transports/": {
+      "verified": true,
+      "contains": "API routes, Discord, presence handlers"
+    },
+    "saas/": {
+      "verified": true,
+      "contains": "Partial EOS backend only"
+    }
+  },
+  "saas_classification": {
+    "is_partial": true,
+    "has_frontend": false,
+    "has_auth": false,
+    "has_deploy_config": false,
+    "route_count": 12,
+    "table_count": 13,
+    "migration_count": 9,
+    "schema_drift_present": true,
+    "convergence_required_with_beast": true
+  },
+  "all_verified": true
+}

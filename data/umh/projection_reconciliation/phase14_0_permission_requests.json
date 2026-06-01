@@ -1,0 +1,155 @@
+{
+  "phase": "14.0",
+  "task": "permission_requests",
+  "timestamp": "2026-05-31T00:00:00Z",
+  "requests": [
+    {
+      "request_id": "perm-req-001",
+      "source_id": "psrc-google-docs",
+      "title": "Google Docs / Drive Documentation Read Access",
+      "purpose": "Inspect UMH, EOS, CreatorOS, and LyfeOS documentation to identify current vs outdated docs, map product claims, and extract architecture plans for cross-source reconciliation.",
+      "what_will_be_read": [
+        "Document titles, descriptions, and content",
+        "Folder structure and organization",
+        "Last-modified dates and authorship",
+        "Product specifications, architecture docs, implementation plans",
+        "Strategy documents referencing projections"
+      ],
+      "what_will_not_happen": [
+        "No documents will be modified, deleted, or created",
+        "No content will be copied to external systems",
+        "No sharing permissions will be changed",
+        "No comments will be added to documents",
+        "No documents will be auto-canonized without operator approval"
+      ],
+      "inferences_that_may_be_made": [
+        "Which documents are current vs stale based on last-modified dates",
+        "Which product claims in docs match or diverge from code state",
+        "Which architecture decisions documented in Docs are implemented vs planned",
+        "Cross-reference between Doc content and /opt/OS code"
+      ],
+      "least_privilege_options": [
+        "Full read access to all projection-related Drive folders",
+        "Read access to specific named documents only",
+        "Metadata-only access (titles, dates, folder structure — no content)",
+        "Operator-guided document selection (tell UMH which docs to read)"
+      ],
+      "operator_options": ["deny", "approve_full", "approve_metadata_only", "approve_specific_docs", "ask_later"],
+      "status": "pending",
+      "risk_class": "low"
+    },
+    {
+      "request_id": "perm-req-002",
+      "source_id": "psrc-github-repos",
+      "title": "GitHub Repository Read Access",
+      "purpose": "Inspect repository structure, branch state, committed source code, and PR history to compare committed code with local/device sources and identify stale or divergent source.",
+      "what_will_be_read": [
+        "Repository names and descriptions",
+        "Branch names and last-commit dates",
+        "Source tree structure (file/directory listing)",
+        "Committed source code for EOS, CreatorOS, LyfeOS repositories",
+        "Open/closed PR metadata",
+        "Commit history (recent)"
+      ],
+      "what_will_not_happen": [
+        "No branches will be created, deleted, or force-pushed",
+        "No PRs will be created, merged, or closed",
+        "No code will be pushed to any repository",
+        "No repository settings will be changed",
+        "No issues will be created or modified"
+      ],
+      "inferences_that_may_be_made": [
+        "Which repos contain which projection source",
+        "Whether GitHub source matches /opt/OS/saas or Windows /dev source",
+        "Which branches are stale vs active",
+        "Whether committed code represents latest product state"
+      ],
+      "least_privilege_options": [
+        "Full read access to all user repositories",
+        "Read access to specific named repositories only",
+        "Metadata-only access (repo names, branch names, file trees — no content)",
+        "Operator-guided repository selection"
+      ],
+      "operator_options": ["deny", "approve_full", "approve_metadata_only", "approve_specific_repos", "ask_later"],
+      "status": "pending",
+      "risk_class": "low"
+    },
+    {
+      "request_id": "perm-req-003",
+      "source_id": "psrc-windows-beast-dev",
+      "title": "Windows Beast /dev Filesystem Read Access",
+      "purpose": "Inspect Trinity app source trees on the Windows Beast to map EOS, CreatorOS, and LyfeOS files and compare with /opt/OS/saas.",
+      "what_will_be_read": [
+        "Directory structure under /dev (or C:\\dev)",
+        "Package manifests (package.json, tsconfig.json, etc.)",
+        "Source file listings per app directory",
+        "Git status and branch state per app",
+        "Database schema and migration files",
+        "Route definitions and API structure"
+      ],
+      "what_will_not_happen": [
+        "No files will be modified, deleted, or created",
+        "No files will be copied to VPS without explicit approval",
+        "No git operations will be performed (no commits, no pushes)",
+        "No npm/package operations will be run",
+        "No builds will be triggered",
+        "No private/sensitive directories outside /dev will be accessed"
+      ],
+      "inferences_that_may_be_made": [
+        "Which Trinity app source lives where",
+        "Whether Windows /dev EOS matches /opt/OS/saas",
+        "Which apps have frontend vs backend vs both",
+        "Which apps are actively developed vs dormant",
+        "Package dependency overlap between Trinity apps"
+      ],
+      "least_privilege_options": [
+        "Full read access to /dev directory tree",
+        "Read access to specific app directories only (e.g., /dev/eos, /dev/creatoros)",
+        "Metadata-only access (directory listing + package.json — no source code)",
+        "Operator-guided file selection"
+      ],
+      "operator_options": ["deny", "approve_full", "approve_metadata_only", "approve_specific_apps", "ask_later"],
+      "status": "pending",
+      "risk_class": "low"
+    },
+    {
+      "request_id": "perm-req-004",
+      "source_id": "psrc-device-discovery",
+      "title": "Device Filesystem Source Discovery",
+      "purpose": "Identify other local app, design, or build artifacts on connected devices that may contain projection-relevant source or documentation.",
+      "what_will_be_read": [
+        "Top-level directory listings on known devices",
+        "Development-related directory names and structures",
+        "Build artifact locations",
+        "Design file locations (Figma exports, mockups)"
+      ],
+      "what_will_not_happen": [
+        "No private/personal directories will be read",
+        "No sensitive files (credentials, keys, personal documents) will be accessed",
+        "No files will be modified or copied",
+        "No network services will be accessed",
+        "Scope is strictly development-related directories"
+      ],
+      "inferences_that_may_be_made": [
+        "Whether design assets exist alongside code",
+        "Whether additional build artifacts exist beyond /dev",
+        "Whether other devices have projection-related source"
+      ],
+      "least_privilege_options": [
+        "Top-level /dev listing only",
+        "Specific directories named by operator",
+        "Skip entirely — rely on operator-provided inventory"
+      ],
+      "operator_options": ["deny", "approve_dev_only", "approve_specific_dirs", "ask_later"],
+      "status": "pending",
+      "risk_class": "low"
+    }
+  ],
+  "policy": {
+    "no_access_without_approval": true,
+    "read_only_until_reconciliation": true,
+    "no_destructive_operations": true,
+    "no_auto_canonization": true,
+    "operator_decision_required_for_writes": true
+  }
+}

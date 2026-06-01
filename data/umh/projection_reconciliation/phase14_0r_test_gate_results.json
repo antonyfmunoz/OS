@@ -1,0 +1,72 @@
+{
+  "phase": "14.0R",
+  "task": "test_gate_results",
+  "timestamp": "2026-06-01T05:24:37Z",
+  "tests": {
+    "phase14_0_projection_source_registry": {
+      "passed": 29,
+      "failed": 0,
+      "total": 29
+    },
+    "phase14_0_projection_reconciliation_engine": {
+      "passed": 31,
+      "failed": 0,
+      "total": 31
+    },
+    "phase13_0_operator_experience": {
+      "passed": 32,
+      "failed": 0,
+      "total": 32
+    },
+    "operator_compression": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7
+    }
+  },
+  "gates": {
+    "type_divergence": {
+      "exit_code": 0,
+      "passed": true
+    },
+    "instance_leak": {
+      "exit_code": 0,
+      "passed": true
+    },
+    "projection_leak": {
+      "exit_code": 0,
+      "passed": true
+    },
+    "dependency_direction": {
+      "exit_code": 0,
+      "passed": true
+    },
+    "py_compile": {
+      "files_checked": 5,
+      "all_passed": true
+    },
+    "no_jarvis_terminology": {
+      "checked": true,
+      "found": false
+    },
+    "no_external_writes": {
+      "checked": true,
+      "found": false
+    },
+    "no_secrets_exposed": {
+      "checked": true,
+      "found": false
+    },
+    "api_auth_verified": {
+      "checked": true,
+      "all_guarded": true
+    },
+    "readiness_blocks_feature_build": {
+      "checked": true,
+      "blocks": true
+    }
+  },
+  "total_tests_passed": 99,
+  "total_tests_failed": 0,
+  "all_gates_passed": true
+}

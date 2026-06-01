@@ -1,0 +1,168 @@
+{
+  "divergences": [
+    {
+      "divergence_id": "div-7263e375",
+      "projection": "SharedTrinity",
+      "source_a": "psrc-google-docs",
+      "source_b": "",
+      "divergence_type": "uninspected_source",
+      "severity": "high",
+      "evidence": [
+        "Source 'google_docs_projection_docs' has read_status=unread"
+      ],
+      "recommendation": "Request permission to inspect google_docs_projection_docs",
+      "requires_permission": true,
+      "requires_operator_decision": true
+    },
+    {
+      "divergence_id": "div-547e2f09",
+      "projection": "SharedTrinity",
+      "source_a": "psrc-github-repos",
+      "source_b": "",
+      "divergence_type": "uninspected_source",
+      "severity": "high",
+      "evidence": [
+        "Source 'github_projection_repositories' has read_status=unread"
+      ],
+      "recommendation": "Request permission to inspect github_projection_repositories",
+      "requires_permission": true,
+      "requires_operator_decision": true
+    },
+    {
+      "divergence_id": "div-c06ff28b",
+      "projection": "SharedTrinity",
+      "source_a": "psrc-windows-beast-dev",
+      "source_b": "",
+      "divergence_type": "uninspected_source",
+      "severity": "high",
+      "evidence": [
+        "Source 'windows_beast_dev_trinity_apps' has read_status=unread"
+      ],
+      "recommendation": "Request permission to inspect windows_beast_dev_trinity_apps",
+      "requires_permission": true,
+      "requires_operator_decision": true
+    },
+    {
+      "divergence_id": "div-62ad9e50",
+      "projection": "EOS",
+      "source_a": "psrc-vps-saas",
+      "source_b": "",
+      "divergence_type": "partial_backend",
+      "severity": "high",
+      "evidence": [
+        "Source 'vps_saas_partial_eos_backend' is classified as partial",
+        "Path: /opt/OS/saas",
+        "Contains: partial EOS backend, Hono API routes, Drizzle ORM schema"
+      ],
+      "recommendation": "Compare with full source on other device/repo to identify gaps",
+      "requires_permission": true,
+      "requires_operator_decision": true
+    },
+    {
+      "divergence_id": "div-50117d55",
+      "projection": "EOS",
+      "source_a": "psrc-vps-saas",
+      "source_b": "projections/eos/integration",
+      "divergence_type": "schema_version_split",
+      "severity": "high",
+      "evidence": [
+        "saas/db/schema.ts uses v2 schema (events, clients, ventures, transactions, offers)",
+        "projections/eos/integration/tables.py uses v1 schema (crm_contacts, crm_deals, crm_activities)",
+        "EOS agents/views query events table (v2) while integration layer polls crm_* tables (v1)"
+      ],
+      "recommendation": "Reconcile schema versions \u2014 determine which is canonical and migrate the other",
+      "requires_permission": false,
+      "requires_operator_decision": true
+    },
+    {
+      "divergence_id": "div-9f161b8f",
+      "projection": "SharedTrinity",
+      "source_a": "projections/eos/integration",
+      "source_b": "projections/creatoros/integration + projections/lyfeos/integration",
+      "divergence_type": "code_duplication",
+      "severity": "medium",
+      "evidence": [
+        "7-file integration pattern is nearly identical across all 3 projections",
+        "_require_str, _require_int, outcome severity, OutcomeReceiver duplicated",
+        "Connection management pattern copy-pasted"
+      ],
+      "recommendation": "Extract shared integration base into substrate or adapters",
+      "requires_permission": false,
+      "requires_operator_decision": false
+    },
+    {
+      "divergence_id": "div-a41d5e8b",
+      "projection": "EOS",
+      "source_a": "saas/db/schema.ts",
+      "source_b": "saas/db/migrations/",
+      "divergence_type": "schema_drift",
+      "severity": "medium",
+      "evidence": [
+        "7 tables exist in migrations but not in schema.ts",
+        "Missing: model_preferences, cross_product_permissions, user_intelligence_profiles",
+        "Missing: product_connections, higgsfield_jobs, goals, goal_outcomes",
+        "Migration 0004 is missing from sequence"
+      ],
+      "recommendation": "Add missing tables to schema.ts or mark migrations as deprecated",
+      "requires_permission": false,
+      "requires_operator_decision": true
+    },
+    {
+      "divergence_id": "div-6dd93216",
+      "projection": "EOS",
+      "source_a": "saas/db/seed.ts",
+      "source_b": "",
+      "divergence_type": "instance_context_in_data",
+      "severity": "low",
+      "evidence": [
+        "Seed data contains instance-specific values (Antony Munoz, Lyfe Institute, Empyrean Creative, Initiate Arena)",
+        "Seed data references eos_app database role"
+      ],
+      "recommendation": "Parametrize seed data or move to instance config",
+      "requires_permission": false,
+      "requires_operator_decision": false
+    },
+    {
+      "divergence_id": "div-493c15c4",
+      "projection": "EOS",
+      "source_a": "saas/db/schema.ts (clients, transactions, fulfillment_events, offers)",
+      "source_b": "",
+      "divergence_type": "type_inconsistency",
+      "severity": "medium",
+      "evidence": [
+        "clients.org_id and clients.venture_id are text type",
+        "transactions, fulfillment_events, offers also use text for org_id/venture_id",
+        "ventures.org_id is uuid FK to organizations \u2014 inconsistent"
+      ],
+      "recommendation": "Standardize org_id/venture_id as uuid FKs across all tables",
+      "requires_permission": false,
+      "requires_operator_decision": true
+    }
+  ],
+  "summary": {
+    "total_divergences": 9,
+    "by_severity": {
+      "high": 5,
+      "medium": 3,
+      "low": 1
+    },
+    "by_type": {
+      "uninspected_source": 3,
+      "partial_backend": 1,
+      "schema_version_split": 1,
+      "code_duplication": 1,
+      "schema_drift": 1,
+      "instance_context_in_data": 1,
+      "type_inconsistency": 1
+    },
+    "by_projection": {
+      "SharedTrinity": 4,
+      "EOS": 5
+    },
+    "requires_permission_count": 4,
+    "requires_operator_decision_count": 7
+  },
+  "phase": "14.0",
+  "task": "divergence_diagnostic",
+  "timestamp": "2026-05-31T00:00:00Z"
+}

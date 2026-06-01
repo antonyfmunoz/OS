@@ -1,0 +1,113 @@
+{
+  "phase": "14.0",
+  "task": "projection_claims",
+  "timestamp": "2026-05-31T00:00:00Z",
+  "extraction_sources": [
+    "ARCHITECTURE.md",
+    "PHILOSOPHY.md",
+    "CLAUDE.md",
+    "docs/corporate-structure.md",
+    "projections/eos/",
+    "projections/creatoros/",
+    "projections/lyfeos/",
+    "saas/",
+    "substrate/"
+  ],
+  "projections": {
+    "UMH": {
+      "purpose": "Universal Mastery Hierarchy — modular, AI-native, role-driven business operating system substrate that formalizes how businesses are structured and run",
+      "architecture": "4-layer canonical architecture: substrate → adapters → transports → projections. Single type system. Abstract ports for cross-layer communication. Instance-agnostic substrate.",
+      "runtime_model": "Organism model with OrchestratorKernel, WorkPackets, runtime fleet (VPS + Windows Beast), sandbox/worktree scoped execution, dry-run-only cadence",
+      "operator_experience": "Operator loop coordinator with acceptance testing, permission dialogues, approval gates. Operator must approve all mutations.",
+      "governance": "Deterministic-first principle. Risk classification. Recursion governance. 4-gate pre-commit system (type coherence, instance context, projection boundary, dependency direction).",
+      "source_of_truth": "/opt/OS on VPS is production truth for UMH substrate. 695 substrate files, 131 organism files.",
+      "evidence": ["ARCHITECTURE.md §1-2", "CLAUDE.md", "substrate/ codebase inspection"]
+    },
+    "EOS": {
+      "purpose": "EntrepreneurOS — the Operating System That Makes Business Plug and Play. AI-native business operating system for entrepreneurs.",
+      "target_user": "Entrepreneurs, founders. Initial product: Initiate Arena ($750, 90-day discipline/execution program for men 18-25).",
+      "saas_functions": [
+        "10 department agents (CEO, Sales, Marketing, Finance, Customer Success, HR, Legal, Operations, Product, Engineering)",
+        "CRM pipeline (prospect → qualified → proposal → negotiation → closed → active)",
+        "Lead scoring and outreach automation",
+        "Content calendar generation",
+        "Follow-up workflows",
+        "KPI dashboards (revenue, leads, conversion, outreach, response rate)",
+        "Activity feed",
+        "Venture management",
+        "Skill management",
+        "Agent management"
+      ],
+      "backend_state": "PARTIAL on VPS at /opt/OS/saas — Hono/Drizzle/Neon. 12 API route files, 13 DB tables, 9 migrations. Missing frontend, auth, deployment config.",
+      "frontend_state": "NOT PRESENT on VPS. Likely on Windows Beast at /dev. Technology unknown until inspected.",
+      "current_source_locations": [
+        "/opt/OS/saas — partial backend (Hono/Drizzle/Neon)",
+        "/opt/OS/projections/eos — 31 files (agents, entities, workflows, views, integration)",
+        "Windows Beast /dev — candidate full app source (uninspected)",
+        "GitHub — candidate committed source (uninspected)",
+        "Google Docs — candidate product documentation (uninspected)"
+      ],
+      "relation_to_empyrean_studios": "Empyrean Studio is a creative studio entity under Lyfe Corp. Separate from EOS but may share UMH substrate.",
+      "relation_to_portfolios": "EOS manages ventures within portfolios. Portfolio → Company → Department → Role hierarchy defined in projections/eos/entities.py.",
+      "schema_version_split": "Integration layer uses v1 schema (crm_contacts, crm_deals, crm_activities). SaaS backend uses v2 schema (events, clients, ventures, transactions, offers). These are divergent.",
+      "evidence": ["ARCHITECTURE.md §3", "PHILOSOPHY.md", "projections/eos/", "saas/db/schema.ts"]
+    },
+    "CreatorOS": {
+      "purpose": "Creator platform OS — for content creators managing posts, products, revenue, stories, and audience.",
+      "target_user": "Content creators, influencers, creative professionals.",
+      "saas_functions": [
+        "Post management (text, image, video, story, reel, thread, blog, newsletter)",
+        "Product listing (digital, physical, course, template, merch, service, subscription)",
+        "Revenue tracking",
+        "Story/content management",
+        "Signal emission on post/product/revenue events"
+      ],
+      "source_locations": [
+        "/opt/OS/projections/creatoros — 8 files (integration layer only, no agents/workflows/views)",
+        "Windows Beast /dev — candidate full app source (uninspected)",
+        "GitHub — candidate committed source (uninspected)",
+        "Google Docs — candidate product documentation (uninspected)"
+      ],
+      "relation_to_creators": "SaaS for creators to manage their entire creative business. References schema at /opt/OS/data/repos/creatoros/shared/schema.ts (existence unverified on VPS).",
+      "canonicality_assessment": "INTEGRATION_ONLY on VPS. No application-layer code. Full app likely on Windows Beast.",
+      "evidence": ["projections/creatoros/", "ARCHITECTURE.md §14", "docs/corporate-structure.md"]
+    },
+    "LyfeOS": {
+      "purpose": "Life optimization/gamification OS — comprehensive personal development system with quests, stats, daily logs, vision goals.",
+      "target_user": "Individuals pursuing personal development, self-improvement. Linked to Game of Lyfe concept.",
+      "saas_functions": [
+        "Quest system (categories: general, setup, rituals, life_pillars; difficulties: S/A/B/C/D)",
+        "User stats tracking (XP, level, streaks, completion rates)",
+        "Daily reflection logs",
+        "Vision goals management",
+        "Gamified progress (levels, streaks, XP rewards)"
+      ],
+      "source_locations": [
+        "/opt/OS/projections/lyfeos — 8 files (integration layer only, no agents/workflows/views)",
+        "Windows Beast /dev — candidate full app source (uninspected)",
+        "GitHub — candidate committed source (uninspected)",
+        "Google Docs — candidate product documentation (uninspected)"
+      ],
+      "relation_to_game_of_lyfe": "Game of Lyfe is the next rung on Lyfe Institute's offer ladder after Initiate Arena. LyfeOS is the technology platform. Gamified, AI-powered. IN DEVELOPMENT — after Initiate Arena succeeds.",
+      "canonicality_assessment": "INTEGRATION_ONLY on VPS. No application-layer code. Full app likely on Windows Beast.",
+      "evidence": ["projections/lyfeos/", "docs/corporate-structure.md", "ARCHITECTURE.md"]
+    },
+    "SharedTrinity": {
+      "shared_infrastructure": [
+        "UMH substrate (types, execution, governance) — universal across all projections",
+        "Model router (call_with_fallback) — shared intelligence routing",
+        "Python bridge pattern — shared API-to-substrate communication",
+        "Organism state — shared observation/governance layer",
+        "Auth middleware (transports/api/http/middleware/) — shared authentication"
+      ],
+      "shared_auth": "Firebase auth planned (ARCHITECTURE.md). Auth middleware exists in transports/api/http/middleware/. Not yet confirmed which auth system is deployed.",
+      "shared_runtime": "All three projections share the organism runtime (coordinator, workcells, execution pipeline). Runtime fleet manages VPS + Windows Beast.",
+      "shared_data_model": "substrate/types.py defines 30+ Pydantic models shared across projections. Each projection has its own DB schema but shares SignalEnvelope, OutcomeEnvelope, CapabilityRequest/Response types.",
+      "shared_ui_patterns": "Unknown — no frontend source on VPS. Must inspect Windows Beast /dev.",
+      "shared_agent_workflow_systems": "EOS has DepartmentAgent base class. Pattern not shared to CreatorOS/LyfeOS yet. Workflow base pattern exists in substrate but projection-specific workflows are per-projection.",
+      "code_duplication_concern": "Integration layer pattern (7 files) is nearly identical across all three projections. _require_str, _require_int, outcome severity, OutcomeReceiver, connection management are copy-pasted. Candidate for shared base package.",
+      "cross_product_permissions": "ARCHITECTURE.md references cross_product_permissions for user-granted data sharing between projections. Not yet implemented.",
+      "evidence": ["ARCHITECTURE.md §14", "projections/", "substrate/types.py"]
+    }
+  }
+}
