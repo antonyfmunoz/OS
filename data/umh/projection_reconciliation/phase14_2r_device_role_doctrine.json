@@ -1,0 +1,75 @@
+{
+  "phase": "14.2R",
+  "task": "device_role_doctrine",
+  "timestamp": "2026-06-01T23:03:00Z",
+  "description": "Device role doctrine — UMH is one organism with specialized organs",
+  "doctrine": {
+    "principle": "UMH is one organism with specialized organs. Device role assignment should be capability-aware: diagnose each node/device during onboarding, inspect capabilities, assign role based on constraints, route Work Packets to the right node.",
+    "generalized_assignment": {
+      "on_node_join": [
+        "diagnose CPU, GPU, memory, storage, uptime, network, trust, access, available runtimes",
+        "assign role based on capabilities and constraints",
+        "register node in organism runtime graph",
+        "route Work Packets based on node capability profile"
+      ]
+    }
+  },
+  "current_instance_role_map": {
+    "vps_opt_os": {
+      "role": "control_plane / orchestrator",
+      "host": "VPS",
+      "path": "/opt/OS",
+      "responsibilities": [
+        "UMH substrate",
+        "governance",
+        "source truth",
+        "operator experience",
+        "production truth",
+        "APIs",
+        "audits",
+        "source reconciliation",
+        "Work Packet generation",
+        "workload placement",
+        "lightweight probes"
+      ],
+      "constraints": [
+        "limited memory",
+        "limited storage/compute",
+        "4 CPU cores shared with host + Docker"
+      ],
+      "rules": [
+        "UMH code may be developed here",
+        "Trinity app coding/building should NOT default here",
+        "orchestrates Trinity app work but does not execute heavy builds"
+      ]
+    },
+    "windows_beast": {
+      "role": "workhorse / app development node",
+      "host": "Windows Beast",
+      "path": "C:\\dev\\dev\\",
+      "responsibilities": [
+        "EOS / CreatorOS / LyfeOS codebases",
+        "heavy app coding",
+        "builds/tests",
+        "browser/computer-use",
+        "CPU/GPU/storage-heavy workcells"
+      ],
+      "rules": [
+        "default execution node for Trinity app coding/build tasks",
+        "receives Work Packets from VPS orchestrator",
+        "reports results back to VPS for truth recording"
+      ]
+    },
+    "mobile": {
+      "role": "operator remote / approval/control/voice surface",
+      "responsibilities": [
+        "monitoring",
+        "approvals",
+        "voice commands",
+        "notifications",
+        "remote command interface"
+      ]
+    }
+  },
+  "key_distinction": "Code for Trinity apps does not live on the VPS. The VPS orchestrates that work: creates Work Packets, routes to Windows Beast, monitors execution, receives artifacts, verifies, records, reconciles, and promotes truth."
+}

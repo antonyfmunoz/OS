@@ -1,0 +1,78 @@
+{
+  "phase": "14.2R",
+  "task": "source_truth_ratification",
+  "timestamp": "2026-06-01T23:05:00Z",
+  "description": "Source truth model ratification — verified production-ready",
+  "source_truth_model": {
+    "code_source_truth": {
+      "description": "GitHub repositories + Windows Beast /dev app codebases",
+      "apps": {
+        "entrepreneuros": {
+          "github": "GitHub antonyfmunoz/EntrepreneurOS",
+          "local": "Beast C:\\dev\\dev\\EntrepreneurOS",
+          "auth": "Clerk",
+          "status": "operator_selected_canonical"
+        },
+        "creatoros": {
+          "github": "GitHub antonyfmunoz/CreatorOS",
+          "local": "Beast C:\\dev\\dev\\CreatorOS",
+          "auth": "Passport.js (legacy, target: Clerk)",
+          "status": "candidate_canonical"
+        },
+        "lyfeos": {
+          "github": "GitHub antonyfmunoz/LyfeOS",
+          "local": "Beast C:\\dev\\dev\\LyfeOS",
+          "auth": "Passport.js + Firebase (legacy, target: Clerk)",
+          "status": "candidate_canonical"
+        }
+      }
+    },
+    "umh_source_truth": {
+      "path": "/opt/OS",
+      "description": "UMH substrate, governance, execution, organism — universal platform code",
+      "status": "canonical"
+    },
+    "umh_platform_api": {
+      "path": "transports/api/http",
+      "description": "UMH HTTP API infrastructure — auth, middleware, routes, DB schema",
+      "status": "canonical_platform_infrastructure"
+    },
+    "deprecated": {
+      "path": "/opt/OS/saas",
+      "status": "decommissioned",
+      "deletion_commit": "e3bd216e",
+      "recovery": "git history"
+    },
+    "documentation_product_design_source": {
+      "provider": "Google Docs / Google Drive",
+      "status": "uninspected_blocked",
+      "nature": "product documentation, requirements, strategy, end-state design",
+      "explicitly_not": "code source truth"
+    },
+    "auth_target": {
+      "provider": "Clerk",
+      "status": "operator_approved",
+      "eos_status": "already_on_clerk",
+      "creatoros_status": "migration_required",
+      "lyfeos_status": "migration_required"
+    },
+    "projection_packages": {
+      "path": "/opt/OS/projections",
+      "nature": "UMH integration packages — NOT full app sources",
+      "contains": ["eos (31 files)", "creatoros (8 files)", "lyfeos (8 files)"]
+    }
+  },
+  "ratification_checks": {
+    "github_is_code_source": true,
+    "beast_dev_is_code_source": true,
+    "opt_os_is_umh_source": true,
+    "transports_api_http_is_platform_api": true,
+    "saas_is_decommissioned": true,
+    "google_docs_is_not_code_source": true,
+    "google_docs_is_product_docs_source": true,
+    "clerk_is_auth_target": true,
+    "projections_are_integration_packages": true,
+    "canonicality_question_resolved": true
+  },
+  "verdict": "PASS"
+}
