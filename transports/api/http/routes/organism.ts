@@ -604,4 +604,57 @@ router.get('/operational-truth/runtime-readiness', operatorGuard, async (c) => {
   return c.json(result.data)
 })
 
+// ── Projection Reconciliation (Phase 14.0) ─────────────────
+
+router.get('/projection-reconciliation', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.projection_reconciliation')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/projection-reconciliation/sources', operatorGuard, async (c) => {
+  const projection = c.req.query('projection')
+  const result = await callOrganism('organism.projection_reconciliation.sources', { projection })
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/projection-reconciliation/source-map', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.projection_reconciliation.source_map')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/projection-reconciliation/divergences', operatorGuard, async (c) => {
+  const projection = c.req.query('projection')
+  const severity = c.req.query('severity')
+  const result = await callOrganism('organism.projection_reconciliation.divergences', { projection, severity })
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/projection-reconciliation/convergence-plan', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.projection_reconciliation.convergence_plan')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/projection-reconciliation/permissions', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.projection_reconciliation.permissions')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/projection-reconciliation/work-packets', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.projection_reconciliation.work_packets')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
+router.get('/projection-reconciliation/readiness', operatorGuard, async (c) => {
+  const result = await callOrganism('organism.projection_reconciliation.readiness')
+  if (!result.success) return c.json({ error: result.error }, 502)
+  return c.json(result.data)
+})
+
 export default router

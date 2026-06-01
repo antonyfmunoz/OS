@@ -1,0 +1,59 @@
+{
+  "phase": "14.0",
+  "task": "source_registry",
+  "timestamp": "2026-05-31T00:00:00Z",
+  "sources_registered": 5,
+  "sources": [
+    {
+      "source_id": "psrc-google-docs",
+      "projection": "SharedTrinity",
+      "source_type": "google_docs",
+      "name": "google_docs_projection_docs",
+      "canonicality": "candidate_canonical",
+      "permission_required": true,
+      "read_status": "unread"
+    },
+    {
+      "source_id": "psrc-github-repos",
+      "projection": "SharedTrinity",
+      "source_type": "github_repository",
+      "name": "github_projection_repositories",
+      "canonicality": "candidate_canonical",
+      "permission_required": true,
+      "read_status": "unread"
+    },
+    {
+      "source_id": "psrc-windows-beast-dev",
+      "projection": "SharedTrinity",
+      "source_type": "device_filesystem",
+      "name": "windows_beast_dev_trinity_apps",
+      "canonicality": "candidate_canonical",
+      "permission_required": true,
+      "read_status": "unread"
+    },
+    {
+      "source_id": "psrc-vps-umh",
+      "projection": "UMH",
+      "source_type": "local_filesystem",
+      "name": "vps_umh_operating_substrate",
+      "canonicality": "production_truth",
+      "permission_required": false,
+      "read_status": "inspected"
+    },
+    {
+      "source_id": "psrc-vps-saas",
+      "projection": "EOS",
+      "source_type": "local_filesystem",
+      "name": "vps_saas_partial_eos_backend",
+      "canonicality": "partial",
+      "permission_required": false,
+      "read_status": "inspected"
+    }
+  ],
+  "summary": {
+    "by_projection": {"SharedTrinity": 3, "UMH": 1, "EOS": 1},
+    "by_canonicality": {"candidate_canonical": 3, "production_truth": 1, "partial": 1},
+    "permission_required_count": 3,
+    "uninspected_count": 3
+  }
+}

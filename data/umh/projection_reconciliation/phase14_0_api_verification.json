@@ -1,0 +1,35 @@
+{
+  "phase": "14.0",
+  "task": "api_verification",
+  "timestamp": "2026-05-31T00:00:00Z",
+  "bridge_handlers_added": [
+    "organism.projection_reconciliation",
+    "organism.projection_reconciliation.sources",
+    "organism.projection_reconciliation.source_map",
+    "organism.projection_reconciliation.divergences",
+    "organism.projection_reconciliation.convergence_plan",
+    "organism.projection_reconciliation.permissions",
+    "organism.projection_reconciliation.work_packets",
+    "organism.projection_reconciliation.readiness"
+  ],
+  "api_routes_added": [
+    "GET /api/umh/organism/projection-reconciliation",
+    "GET /api/umh/organism/projection-reconciliation/sources",
+    "GET /api/umh/organism/projection-reconciliation/source-map",
+    "GET /api/umh/organism/projection-reconciliation/divergences",
+    "GET /api/umh/organism/projection-reconciliation/convergence-plan",
+    "GET /api/umh/organism/projection-reconciliation/permissions",
+    "GET /api/umh/organism/projection-reconciliation/work-packets",
+    "GET /api/umh/organism/projection-reconciliation/readiness"
+  ],
+  "auth_verification": {
+    "all_routes_use_operator_guard": true,
+    "no_public_routes": true,
+    "no_sensitive_source_content_exposed": true,
+    "no_raw_credentials_in_responses": true,
+    "no_external_writes": true
+  },
+  "bridge_compile_check": "PASS",
+  "bridge_line_count": 2294,
+  "bridge_under_3000_limit": true
+}

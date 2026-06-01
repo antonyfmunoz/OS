@@ -1,0 +1,142 @@
+{
+  "phase": "14.0",
+  "task": "remote_device_discovery_plan",
+  "timestamp": "2026-05-31T00:00:00Z",
+  "status": "plans_created_awaiting_permission",
+  "google_docs_plan": {
+    "permission_status": "pending",
+    "docs_to_search": [
+      "UMH architecture documents",
+      "EOS product specification",
+      "CreatorOS product specification",
+      "LyfeOS product specification",
+      "Initiate Arena product docs",
+      "Empyrean Studio AI offer docs",
+      "Game of Lyfe design docs",
+      "Trinity shared infrastructure docs",
+      "Corporate structure documentation",
+      "Brand identity documents",
+      "Content strategy documents"
+    ],
+    "expected_entities": [
+      "Universal Mastery Hierarchy (UMH)",
+      "EntrepreneurOS (EOS)",
+      "CreatorOS",
+      "LyfeOS",
+      "Initiate Arena",
+      "Empyrean Studio",
+      "Game of Lyfe",
+      "Lyfe Institute",
+      "Lyfe Spectrum",
+      "Munoz Conglomerate"
+    ],
+    "metadata_to_collect": [
+      "document title",
+      "last modified date",
+      "author/editor",
+      "folder location",
+      "document length/complexity",
+      "linked documents"
+    ],
+    "claims_to_extract": [
+      "product purpose and target user",
+      "architecture decisions",
+      "feature specifications",
+      "launch timeline claims",
+      "technology stack decisions",
+      "shared infrastructure plans",
+      "revenue model claims",
+      "user journey definitions"
+    ],
+    "outdated_doc_detection_rules": [
+      "Last modified > 90 days ago AND references active product = flag as potentially stale",
+      "References deprecated system names (AgentOS, old class names) = flag as stale",
+      "Architecture claims that contradict current codebase = flag as divergent",
+      "Documents superseded by newer versions = flag as historical"
+    ]
+  },
+  "github_plan": {
+    "permission_status": "pending",
+    "repos_to_identify": [
+      "Main UMH/OS repository (this one)",
+      "EOS frontend/backend repositories",
+      "CreatorOS repositories",
+      "LyfeOS repositories",
+      "Shared component repositories",
+      "Initiate Arena specific repos",
+      "Any Empyrean Studio repos"
+    ],
+    "branches_to_inspect": [
+      "main/master on each repo",
+      "active feature branches",
+      "stale branches (>30 days no commits)"
+    ],
+    "commit_recency_checks": [
+      "Last commit date per repo",
+      "Commit frequency over last 90 days",
+      "Active contributors"
+    ],
+    "source_tree_mapping": [
+      "Package manifests (package.json, requirements.txt, pyproject.toml)",
+      "Framework detection (React, Vite, Hono, Express, etc.)",
+      "Database config (drizzle.config.ts, schema files)",
+      "Deployment config (Dockerfile, fly.toml, vercel.json)",
+      "CI/CD config (.github/workflows, etc.)"
+    ],
+    "divergence_checks": [
+      "Compare /opt/OS/saas with any remote EOS repo",
+      "Compare projections/ with remote projection repos",
+      "Identify commits in remote not in local",
+      "Identify commits in local not in remote"
+    ]
+  },
+  "windows_beast_plan": {
+    "permission_status": "pending",
+    "access_method": "SSH via Tailscale (100.74.199.102)",
+    "directories_to_inspect": [
+      "/dev or C:\\dev — primary development directory",
+      "Subdirectories per Trinity app (EOS, CreatorOS, LyfeOS)",
+      "Any shared/common directories"
+    ],
+    "expected_app_names": [
+      "eos or entrepreneur-os or initiate-arena",
+      "creatoros or creator-os",
+      "lyfeos or lyfe-os or game-of-lyfe"
+    ],
+    "source_tree_mapping": [
+      "Directory structure per app",
+      "package.json contents (deps, scripts, name)",
+      "tsconfig.json",
+      "Framework detection (React, Next.js, Vite, etc.)",
+      "Database schema files",
+      "Migration files",
+      "API route structure"
+    ],
+    "package_manager_detection": [
+      "package-lock.json → npm",
+      "yarn.lock → yarn",
+      "pnpm-lock.yaml → pnpm",
+      "bun.lockb → bun"
+    ],
+    "frontend_backend_detection": [
+      "src/ with .tsx files → frontend",
+      "server/ or api/ → backend",
+      "Both → full-stack app",
+      "Shared/ or packages/ → monorepo"
+    ],
+    "git_status_detection": [
+      "Is .git present per app?",
+      "Current branch per app",
+      "Uncommitted changes",
+      "Remote tracking branch"
+    ],
+    "comparison_against_saas": [
+      "Compare package.json dependencies",
+      "Compare database schema (if Drizzle used)",
+      "Compare route structure",
+      "Compare migration files",
+      "Identify files in Beast /dev not in /opt/OS/saas",
+      "Identify files in /opt/OS/saas not in Beast /dev"
+    ]
+  }
+}

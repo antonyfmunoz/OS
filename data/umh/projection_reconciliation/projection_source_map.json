@@ -1,0 +1,123 @@
+{
+  "phase": "14.0",
+  "task": "source_map",
+  "timestamp": "2026-05-31T00:00:00Z",
+  "projections": {
+    "UMH": {
+      "known_source_locations": [
+        {"path": "/opt/OS/substrate/", "type": "local_filesystem", "status": "inspected", "file_count": 695},
+        {"path": "/opt/OS/adapters/", "type": "local_filesystem", "status": "inspected", "file_count": 89},
+        {"path": "/opt/OS/transports/", "type": "local_filesystem", "status": "inspected", "file_count": 91},
+        {"path": "/opt/OS/services/", "type": "local_filesystem", "status": "inspected", "file_count": 38},
+        {"path": "/opt/OS/nodes/", "type": "local_filesystem", "status": "inspected", "file_count": 44},
+        {"path": "/opt/OS/scripts/", "type": "local_filesystem", "status": "inspected", "file_count": 160}
+      ],
+      "documentation_locations": [
+        {"path": "/opt/OS/docs/", "type": "local_filesystem", "status": "inspected", "file_count": 578},
+        {"path": "/opt/OS/knowledge/", "type": "local_filesystem", "status": "inspected", "file_count": 289},
+        {"path": "/opt/OS/ARCHITECTURE.md", "type": "local_filesystem", "status": "inspected"},
+        {"path": "/opt/OS/PHILOSOPHY.md", "type": "local_filesystem", "status": "inspected"},
+        {"path": "Google Docs", "type": "google_docs", "status": "uninspected"}
+      ],
+      "canonical_runtime_source": "/opt/OS on VPS",
+      "production_truth_artifacts": [
+        {"path": "/opt/OS/docs/audits/convergence/", "count": 99},
+        {"path": "/opt/OS/data/umh/operator_acceptance/", "count": 56},
+        {"path": "/opt/OS/data/umh/operational_truth/", "count": 31}
+      ],
+      "unknowns": [
+        "Google Docs may contain UMH architecture docs not reflected in code",
+        "GitHub may have branches with substrate changes not merged to main"
+      ]
+    },
+    "EOS": {
+      "google_docs_status": "uninspected — operator confirmed docs exist, permission pending",
+      "github_status": "uninspected — permission pending",
+      "windows_dev_status": "uninspected — operator confirmed Trinity apps at /dev, permission pending",
+      "saas_status": {
+        "path": "/opt/OS/saas",
+        "classification": "partial_backend",
+        "details": "12 API routes, 13 DB tables, 9 migrations. Hono/Drizzle/Neon. No frontend. No auth impl. No deployment config.",
+        "file_count": 30
+      },
+      "projections_eos_status": {
+        "path": "/opt/OS/projections/eos",
+        "classification": "active_projection",
+        "details": "10 department agents, 3 workflows, 3 views, entity hierarchy, complete Postgres integration layer. Most developed projection.",
+        "file_count": 31
+      },
+      "canonicality_assessment": "DIVERGENT — /opt/OS/saas is partial backend with v2 schema; projections/eos/integration uses v1 schema. Windows Beast likely has full app. Cannot determine canonical source without inspecting all locations.",
+      "unknowns": [
+        "Full EOS app structure on Windows Beast (frontend + backend)",
+        "Whether Windows /dev version is ahead of, behind, or divergent from /opt/OS/saas",
+        "Whether GitHub has additional EOS source",
+        "Whether Google Docs have EOS specs that contradict code",
+        "Schema version reconciliation (v1 integration vs v2 saas)"
+      ]
+    },
+    "CreatorOS": {
+      "google_docs_status": "uninspected — permission pending",
+      "github_status": "uninspected — permission pending",
+      "windows_dev_status": "uninspected — operator confirmed at /dev, permission pending",
+      "projections_creatoros_status": {
+        "path": "/opt/OS/projections/creatoros",
+        "classification": "integration_stub",
+        "details": "8 files. Integration layer only (manifest, signals, handlers, tables, correlation, outcomes). No agents, workflows, views, or entities.",
+        "file_count": 8
+      },
+      "canonicality_assessment": "UNKNOWN — integration layer exists on VPS but full app is elsewhere. Cannot assess until Windows /dev and GitHub are inspected.",
+      "unknowns": [
+        "Full CreatorOS app structure on Windows Beast",
+        "Whether /opt/OS/data/repos/creatoros/ exists (referenced in tables.py)",
+        "Whether Google Docs have CreatorOS specs",
+        "Whether GitHub has a CreatorOS repo"
+      ]
+    },
+    "LyfeOS": {
+      "google_docs_status": "uninspected — permission pending",
+      "github_status": "uninspected — permission pending",
+      "windows_dev_status": "uninspected — operator confirmed at /dev, permission pending",
+      "projections_lyfeos_status": {
+        "path": "/opt/OS/projections/lyfeos",
+        "classification": "integration_stub",
+        "details": "8 files. Integration layer only. Gamification domain model (quests, XP, levels, streaks) in tables.py. No agents, workflows, views, or entities.",
+        "file_count": 8
+      },
+      "canonicality_assessment": "UNKNOWN — same as CreatorOS. Integration layer exists but full app is elsewhere.",
+      "unknowns": [
+        "Full LyfeOS app structure on Windows Beast",
+        "Whether /opt/OS/data/repos/LYFEOS/ exists (referenced in tables.py)",
+        "Whether Google Docs have LyfeOS/Game of Lyfe specs",
+        "Whether GitHub has a LyfeOS repo"
+      ]
+    },
+    "SharedTrinity": {
+      "shared_systems": [
+        "UMH substrate (universal across all projections)",
+        "Model router (adapters/models/model_router.py)",
+        "Python bridge (transports/api/organism_bridge.py)",
+        "Auth middleware (transports/api/http/middleware/)",
+        "Shared Pydantic types (substrate/types.py)"
+      ],
+      "shared_code_candidates": [
+        "Integration layer base pattern (7 files duplicated across 3 projections)",
+        "Outcome writeback pattern (severity ladder, dual writeback)",
+        "Connection management pattern",
+        "Validation helpers (_require_str, _require_int)"
+      ],
+      "shared_docs": "ARCHITECTURE.md §14 defines cross-system principle. corporate-structure.md maps entity relationships.",
+      "shared_risks": [
+        "Integration layer code duplication across 3 projections — maintenance burden",
+        "Schema version split in EOS (v1 integration vs v2 saas) may exist in other projections",
+        "Cross-product permissions not yet implemented",
+        "Shared UI patterns unknown until Windows Beast inspected"
+      ],
+      "unknowns": [
+        "Whether Trinity apps share a monorepo on Windows Beast or are separate repos",
+        "Whether there is a shared component library",
+        "Whether there is a shared design system",
+        "Whether auth is consistent across all three apps"
+      ]
+    }
+  }
+}

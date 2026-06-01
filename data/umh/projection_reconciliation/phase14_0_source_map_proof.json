@@ -1,0 +1,18 @@
+{
+  "phase": "14.0",
+  "task": "source_map_proof",
+  "timestamp": "2026-05-31T00:00:00Z",
+  "source_map_file": "data/umh/projection_reconciliation/projection_source_map.json",
+  "projections_mapped": ["UMH", "EOS", "CreatorOS", "LyfeOS", "SharedTrinity"],
+  "local_sources_inspected": true,
+  "remote_sources_inspected": false,
+  "remote_inspection_blocked_by": "pending_permission_requests",
+  "key_findings": [
+    "UMH substrate is production truth on VPS — 695 substrate files, 131 organism files",
+    "EOS has TWO divergent local sources: saas/ (partial v2 backend) and projections/eos (v1 integration + full agents)",
+    "CreatorOS and LyfeOS are integration stubs on VPS — full apps likely on Windows Beast",
+    "3 external sources uninspected: Google Docs, GitHub repos, Windows Beast /dev",
+    "Schema version split in EOS integration vs saas backend"
+  ],
+  "completeness": "local_only — 40% of known sources inspected"
+}
