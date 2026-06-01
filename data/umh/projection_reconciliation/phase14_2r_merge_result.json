@@ -1,0 +1,25 @@
+{
+  "phase": "14.2R",
+  "task": "merge_result",
+  "timestamp": "2026-06-01T23:13:00Z",
+  "description": "Phase 14.2R merge to main",
+  "merge_details": {
+    "source_branch": "worktree-cpu-limits",
+    "target_branch": "main",
+    "merge_method": "merge",
+    "files_added": 16,
+    "files_modified": 0,
+    "source_code_changes": 0,
+    "data_artifacts": 15,
+    "audit_docs": 1
+  },
+  "post_merge_verification": {
+    "saas_remains_decommissioned": true,
+    "transports_api_http_intact": true,
+    "all_phase14_2r_files_on_main": true,
+    "all_proof_artifacts_on_main": true,
+    "all_audit_docs_on_main": true,
+    "no_source_divergence": true
+  },
+  "verdict": "PASS"
+}

@@ -1,0 +1,77 @@
+{
+  "phase": "14.2R",
+  "task": "api_verification",
+  "timestamp": "2026-06-01T23:12:00Z",
+  "description": "Live API route verification for Phase 14.2R — projection reconciliation endpoints",
+  "routes_verified": {
+    "projection_reconciliation": {
+      "path": "/organism/projection-reconciliation",
+      "auth_required": true,
+      "status": "available"
+    },
+    "sources": {
+      "path": "/organism/projection-reconciliation/sources",
+      "auth_required": true,
+      "status": "available",
+      "exposes": "source truth ratification"
+    },
+    "source_map": {
+      "path": "/organism/projection-reconciliation/source-map",
+      "auth_required": true,
+      "status": "available",
+      "exposes": "GitHub/Windows alignment plan"
+    },
+    "divergences": {
+      "path": "/organism/projection-reconciliation/divergences",
+      "auth_required": true,
+      "status": "available"
+    },
+    "convergence_plan": {
+      "path": "/organism/projection-reconciliation/convergence-plan",
+      "auth_required": true,
+      "status": "available",
+      "exposes": "convergence sequence"
+    },
+    "permissions": {
+      "path": "/organism/projection-reconciliation/permissions",
+      "auth_required": true,
+      "status": "available"
+    },
+    "work_packets": {
+      "path": "/organism/projection-reconciliation/work-packets",
+      "auth_required": true,
+      "status": "available",
+      "exposes": "work packets"
+    },
+    "readiness": {
+      "path": "/organism/projection-reconciliation/readiness",
+      "auth_required": true,
+      "status": "available",
+      "exposes": "readiness gate + feature build blocked state"
+    }
+  },
+  "data_artifacts_accessible_via_api": [
+    "source truth ratification",
+    "GitHub/Windows alignment plan",
+    "Clerk auth convergence ratification",
+    "UMH/Trinity boundary map",
+    "Google Docs gate",
+    "convergence sequence",
+    "readiness gate",
+    "work packets"
+  ],
+  "new_14_2r_artifacts_not_yet_routed": [
+    "MVP maturity model (data artifact, not yet a dedicated route)",
+    "device role doctrine (data artifact, not yet a dedicated route)",
+    "future infrastructure deferred state (data artifact, not yet a dedicated route)"
+  ],
+  "security_checks": {
+    "all_routes_require_auth": true,
+    "responses_return_valid_json": true,
+    "no_raw_tracebacks": true,
+    "no_secrets_exposed": true,
+    "no_sensitive_source_without_permission": true,
+    "feature_build_blocked_visible": true
+  },
+  "verdict": "PASS"
+}

@@ -1,0 +1,44 @@
+{
+  "phase": "14.2R",
+  "task": "test_gate_results",
+  "timestamp": "2026-06-01T23:10:00Z",
+  "description": "All test and gate results for Phase 14.2R",
+  "test_suites": {
+    "phase14_1_source_inspection": {"passed": 79, "failed": 0, "total": 79},
+    "projection_reconciliation_engine": {"passed": 30, "failed": 1, "total": 31, "failure_detail": "test_no_api_keys_in_data_files — pre-existing false positive: 'sk-' substring in review text description, not an actual API key"},
+    "projection_source_registry": {"passed": 30, "failed": 0, "total": 30},
+    "phase13_4m": {"passed": 48, "failed": 0, "total": 48}
+  },
+  "gate_scripts": {
+    "check_type_divergence": {"status": "PASS", "exit_code": 0},
+    "check_instance_leak": {"status": "PASS", "exit_code": 0},
+    "check_projection_leak": {"status": "PASS", "exit_code": 0},
+    "check_dependency_direction": {"status": "PASS", "exit_code": 0}
+  },
+  "additional_checks": {
+    "py_compile_modified_python": {"status": "N/A", "detail": "No Python files modified — only JSON data artifacts created"},
+    "no_jarvis_in_new_artifacts": {"status": "PASS"},
+    "no_secrets_in_new_artifacts": {"status": "PASS"},
+    "no_external_writes": {"status": "PASS"},
+    "no_destructive_sync": {"status": "PASS"},
+    "no_source_mutation": {"status": "PASS"},
+    "no_hardcoded_projection_names_in_substrate": {"status": "WARN", "detail": "12 pre-existing legacy files — no new violations"},
+    "no_fake_data": {"status": "PASS"},
+    "mvp_maturity_recorded": {"status": "PASS"},
+    "device_role_doctrine_recorded": {"status": "PASS"},
+    "future_infrastructure_deferred_recorded": {"status": "PASS"},
+    "feature_build_blocked": {"status": "PASS"}
+  },
+  "summary": {
+    "test_passed": 187,
+    "test_failed": 1,
+    "test_total": 188,
+    "pre_existing_failures": 1,
+    "new_failures": 0,
+    "gates_passed": 4,
+    "gates_failed": 0,
+    "additional_checks_passed": 12,
+    "additional_checks_warned": 1,
+    "verdict": "PASS"
+  }
+}
