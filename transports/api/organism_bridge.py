@@ -2005,6 +2005,128 @@ def _operator_acceptance_safety_proof(payload: dict) -> dict:
         return {"success": False, "error": "internal_error"}
 
 
+# ── Projection Reconciliation (Phase 14.0) ─────────────────
+
+def _projection_reconciliation(payload: dict) -> dict:
+    try:
+        from substrate.organism.projection_source_registry import ProjectionSourceRegistry
+        from substrate.organism.projection_reconciliation_engine import ProjectionReconciliationEngine
+        registry = ProjectionSourceRegistry()
+        engine = ProjectionReconciliationEngine(registry=registry)
+        return {"success": True, "data": {
+            "sources": registry.summary(),
+            "divergences": engine.summary(),
+        }}
+    except Exception:
+        logger.exception("organism.projection_reconciliation failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _projection_reconciliation_sources(payload: dict) -> dict:
+    try:
+        from substrate.organism.projection_source_registry import ProjectionSourceRegistry
+        registry = ProjectionSourceRegistry()
+        projection = payload.get("projection")
+        sources = registry.list_sources(projection=projection)
+        return {"success": True, "data": [s.to_dict() for s in sources]}
+    except Exception:
+        logger.exception("organism.projection_reconciliation.sources failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _projection_reconciliation_source_map(payload: dict) -> dict:
+    try:
+        import json as _json
+        path = _os.path.join(
+            _os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "umh", "projection_reconciliation", "projection_source_map.json",
+        )
+        if not _os.path.isfile(path):
+            return {"success": False, "error": "source map not generated yet"}
+        with open(path) as f:
+            data = _json.load(f)
+        return {"success": True, "data": data}
+    except Exception:
+        logger.exception("organism.projection_reconciliation.source_map failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _projection_reconciliation_divergences(payload: dict) -> dict:
+    try:
+        from substrate.organism.projection_source_registry import ProjectionSourceRegistry
+        from substrate.organism.projection_reconciliation_engine import ProjectionReconciliationEngine
+        registry = ProjectionSourceRegistry()
+        engine = ProjectionReconciliationEngine(registry=registry)
+        projection = payload.get("projection")
+        severity = payload.get("severity")
+        divergences = engine.list_divergences(projection=projection, severity=severity)
+        return {"success": True, "data": [d.to_dict() for d in divergences]}
+    except Exception:
+        logger.exception("organism.projection_reconciliation.divergences failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _projection_reconciliation_convergence_plan(payload: dict) -> dict:
+    try:
+        import json as _json
+        path = _os.path.join(
+            _os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "umh", "projection_reconciliation", "trinity_convergence_plan.json",
+        )
+        if not _os.path.isfile(path):
+            return {"success": False, "error": "convergence plan not generated yet"}
+        with open(path) as f:
+            data = _json.load(f)
+        return {"success": True, "data": data}
+    except Exception:
+        logger.exception("organism.projection_reconciliation.convergence_plan failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _projection_reconciliation_permissions(payload: dict) -> dict:
+    try:
+        import json as _json
+        path = _os.path.join(
+            _os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "umh", "projection_reconciliation", "phase14_0_permission_requests.json",
+        )
+        if not _os.path.isfile(path):
+            return {"success": False, "error": "permission requests not generated yet"}
+        with open(path) as f:
+            data = _json.load(f)
+        return {"success": True, "data": data}
+    except Exception:
+        logger.exception("organism.projection_reconciliation.permissions failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _projection_reconciliation_work_packets(payload: dict) -> dict:
+    try:
+        import json as _json
+        path = _os.path.join(
+            _os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "umh", "projection_reconciliation", "phase14_0_work_packets.json",
+        )
+        if not _os.path.isfile(path):
+            return {"success": False, "error": "work packets not generated yet"}
+        with open(path) as f:
+            data = _json.load(f)
+        return {"success": True, "data": data}
+    except Exception:
+        logger.exception("organism.projection_reconciliation.work_packets failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _projection_reconciliation_readiness(payload: dict) -> dict:
+    try:
+        from substrate.organism.projection_readiness_gate import assess_projection_readiness
+        report = assess_projection_readiness()
+        return {"success": True, "data": report}
+    except Exception:
+        logger.exception("organism.projection_reconciliation.readiness failed")
+        return {"success": False, "error": "internal_error"}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -2126,6 +2248,14 @@ _ACTIONS: dict = {
     "organism.operator_acceptance.start": _operator_acceptance_start,
     "organism.operator_acceptance.primary_proof": _operator_acceptance_primary_proof,
     "organism.operator_acceptance.safety_proof": _operator_acceptance_safety_proof,
+    "organism.projection_reconciliation": _projection_reconciliation,
+    "organism.projection_reconciliation.sources": _projection_reconciliation_sources,
+    "organism.projection_reconciliation.source_map": _projection_reconciliation_source_map,
+    "organism.projection_reconciliation.divergences": _projection_reconciliation_divergences,
+    "organism.projection_reconciliation.convergence_plan": _projection_reconciliation_convergence_plan,
+    "organism.projection_reconciliation.permissions": _projection_reconciliation_permissions,
+    "organism.projection_reconciliation.work_packets": _projection_reconciliation_work_packets,
+    "organism.projection_reconciliation.readiness": _projection_reconciliation_readiness,
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,
