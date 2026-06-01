@@ -1,0 +1,76 @@
+{
+  "phase": "14.1R",
+  "task": "canonicality_decisions",
+  "timestamp": "2026-06-01T14:50:06Z",
+  "decisions": [
+    {
+      "id": "eos_canonical_source",
+      "decision": "Beast/GitHub EntrepreneurOS app is canonical EOS source",
+      "operator_approved": true,
+      "details": {
+        "canonical_location": "Beast local + GitHub EntrepreneurOS repository",
+        "deprecated_location": "/opt/OS/saas",
+        "deletion_commit": "e3bd216e",
+        "deletion_commit_message": "feat(14.2): delete saas/ — Beast EntrepreneurOS is canonical EOS source",
+        "platform_api_retained": "transports/api/http remains UMH platform API infrastructure",
+        "rationale": "saas/ was a redundant partial backend/shell; the full-stack EOS app lives on Beast/GitHub with complete git history, Clerk auth, and all frontend/backend code"
+      },
+      "effective_date": "2026-06-01"
+    },
+    {
+      "id": "auth_canonical_direction",
+      "decision": "Clerk is the target auth provider for all Trinity apps",
+      "operator_approved": true,
+      "details": {
+        "target_provider": "Clerk",
+        "app_status": {
+          "entrepreneuros": {
+            "current_auth": "Clerk",
+            "migration_required": false,
+            "status": "already_on_target"
+          },
+          "creatoros": {
+            "current_auth": "Passport.js",
+            "legacy_designation": true,
+            "migration_required": true,
+            "target_auth": "Clerk"
+          },
+          "lyfeos": {
+            "current_auth": ["Passport.js", "Firebase"],
+            "legacy_designation": true,
+            "firebase_note": "original/legacy auth provider for LyfeOS",
+            "passportjs_note": "legacy auth provider shared with CreatorOS",
+            "migration_required": true,
+            "target_auth": "Clerk"
+          }
+        }
+      },
+      "effective_date": "2026-06-01"
+    },
+    {
+      "id": "vps_platform_api",
+      "decision": "transports/api/http remains UMH platform API layer",
+      "operator_approved": true,
+      "details": {
+        "path": "transports/api/http",
+        "role": "UMH platform/shared infrastructure API",
+        "not_conflated_with": "EOS app source",
+        "extracted_from": "saas/ during Phase 14.1 architecture layer separation",
+        "serves": "platform-level endpoints (organism, governance, system, execution, settings)"
+      },
+      "effective_date": "2026-06-01"
+    },
+    {
+      "id": "feature_build_status",
+      "decision": "Feature builds blocked until Phase 14.2 canonical source decisions promoted",
+      "operator_approved": true,
+      "details": {
+        "blocked_reason": "canonical source decisions must be finalized and promoted to production truth before any feature work proceeds",
+        "dependency": "Phase 14.2 production truth promotion",
+        "unblock_condition": "Phase 14.2 canonicality decisions promoted and source map updated"
+      },
+      "effective_date": "2026-06-01"
+    }
+  ],
+  "note": "These are data artifacts recording operator decisions, not substrate mechanism changes"
+}
