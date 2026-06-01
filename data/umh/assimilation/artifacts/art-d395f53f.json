@@ -1,0 +1,23 @@
+{
+  "id": "art-d395f53f",
+  "name": "Test",
+  "source_url": "",
+  "artifact_type": "unknown",
+  "status": "scored",
+  "primitives_count": 1,
+  "leverage_summary": {
+    "count": 1,
+    "avg_score": 0.85,
+    "max_score": 0.85
+  },
+  "redundancy_report": {
+    "artifact_id": "art-d395f53f",
+    "total_primitives": 1,
+    "redundant": [],
+    "novel": [
+      "prim-f3575a4a"
+    ],
+    "partial_overlap": []
+  },
+  "created_at": 1780029221.807697
+}

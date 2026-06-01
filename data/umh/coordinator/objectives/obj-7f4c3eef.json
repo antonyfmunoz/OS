@@ -1,0 +1,24 @@
+{
+  "id": "obj-7f4c3eef",
+  "title": "Evented",
+  "status": "executing",
+  "completion_rate": 0.0,
+  "work_units": [
+    {
+      "id": "wu-56fe6a1d",
+      "objective_id": "obj-7f4c3eef",
+      "title": "Evented",
+      "unit_type": "execute",
+      "status": "pending",
+      "assigned_runtime": "",
+      "required_capability": "shell",
+      "blocked_by": [],
+      "blocks": [],
+      "attempt_count": 0,
+      "generation": 1,
+      "result": "",
+      "error": ""
+    }
+  ],
+  "generation": 1
+}

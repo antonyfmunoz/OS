@@ -1,0 +1,23 @@
+{
+  "id": "art-168393c9",
+  "name": "Test",
+  "source_url": "",
+  "artifact_type": "unknown",
+  "status": "scored",
+  "primitives_count": 1,
+  "leverage_summary": {
+    "count": 1,
+    "avg_score": 0.85,
+    "max_score": 0.85
+  },
+  "redundancy_report": {
+    "artifact_id": "art-168393c9",
+    "total_primitives": 1,
+    "redundant": [],
+    "novel": [
+      "prim-8977729d"
+    ],
+    "partial_overlap": []
+  },
+  "created_at": 1779943445.441951
+}

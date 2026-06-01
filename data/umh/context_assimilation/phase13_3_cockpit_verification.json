@@ -1,0 +1,18 @@
+{
+  "phase": "13.3",
+  "task": "cockpit_verification",
+  "timestamp": 1780201470.257661,
+  "status": "verified_api_backed",
+  "panels": [
+    "context_summary",
+    "source_registry",
+    "diagnostics",
+    "proposals",
+    "reconciliation_sessions",
+    "permissions",
+    "environment",
+    "cross_source_signals",
+    "sync_policies"
+  ],
+  "external_writes_disabled": true
+}

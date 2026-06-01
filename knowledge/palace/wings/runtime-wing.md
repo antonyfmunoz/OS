@@ -1,7 +1,7 @@
 ---
 type: palace-wing
 wing: runtime
-generated: 2026-05-26
+generated: 2026-05-31
 ---
 
 # Wing — runtime

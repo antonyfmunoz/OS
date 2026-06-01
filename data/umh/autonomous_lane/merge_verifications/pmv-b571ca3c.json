@@ -1,0 +1,306 @@
+{
+  "verification_id": "pmv-b571ca3c",
+  "sandbox_id": "sb-pr47cse",
+  "pr_number": 47,
+  "manifest_id": "csm-af5aff16",
+  "status": "expected_observed_mismatch",
+  "merge_commit": "03fe81d86fd6092338a3e9388649abbc9f2f7b00",
+  "base_commit": "83f1da82",
+  "head_commit": "1e00b829",
+  "local_main_commit": "bd5b55ed19ad05956fa3396d02181e01d9cbe7e7",
+  "expected_files": [
+    "data/umh/organism/templates/.gitkeep",
+    "scripts/verify_template_store.py"
+  ],
+  "observed_files": [
+    "data/umh/autonomous_lane/phase10_2_cockpit_verification.json",
+    "data/umh/autonomous_lane/phase10_2_operator_approval_packet.json",
+    "data/umh/autonomous_lane/phase10_2_safety_reset.json",
+    "data/umh/autonomous_lane/phase10_2_sandbox_execution.json",
+    "data/umh/autonomous_lane/phase10_2_selected_candidate.json",
+    "data/umh/organism/templates/.gitkeep",
+    "docs/audits/convergence/phase10_2_operator_approved_template_supplied_sandbox_pr.md",
+    "docs/audits/convergence/phase10_2_preflight_101_verification.md",
+    "docs/audits/convergence/phase10_2_route_auth_matrix.md",
+    "scripts/verify_template_store.py",
+    "substrate/organism/approval_gate.py",
+    "substrate/organism/autonomous_pr_factory.py",
+    "substrate/organism/sandbox_orchestrator.py",
+    "tests/test_phase10_2_sandbox_pr.py",
+    "transports/api/http/routes/organism.ts",
+    "transports/api/http/server.ts",
+    "transports/api/organism_bridge.py"
+  ],
+  "truth_delta": {
+    "delta_id": "ptd-827168d7",
+    "sandbox_id": "sb-pr47cse",
+    "pr_number": 47,
+    "manifest_id": "csm-af5aff16",
+    "merge_commit": "03fe81d86fd6092338a3e9388649abbc9f2f7b00",
+    "base_commit": "83f1da82",
+    "head_commit": "1e00b829",
+    "changed_files_expected": [
+      "data/umh/organism/templates/.gitkeep",
+      "scripts/verify_template_store.py"
+    ],
+    "changed_files_observed": [
+      "data/umh/autonomous_lane/phase10_2_cockpit_verification.json",
+      "data/umh/autonomous_lane/phase10_2_operator_approval_packet.json",
+      "data/umh/autonomous_lane/phase10_2_safety_reset.json",
+      "data/umh/autonomous_lane/phase10_2_sandbox_execution.json",
+      "data/umh/autonomous_lane/phase10_2_selected_candidate.json",
+      "data/umh/organism/templates/.gitkeep",
+      "docs/audits/convergence/phase10_2_operator_approved_template_supplied_sandbox_pr.md",
+      "docs/audits/convergence/phase10_2_preflight_101_verification.md",
+      "docs/audits/convergence/phase10_2_route_auth_matrix.md",
+      "scripts/verify_template_store.py",
+      "substrate/organism/approval_gate.py",
+      "substrate/organism/autonomous_pr_factory.py",
+      "substrate/organism/sandbox_orchestrator.py",
+      "tests/test_phase10_2_sandbox_pr.py",
+      "transports/api/http/routes/organism.ts",
+      "transports/api/http/server.ts",
+      "transports/api/organism_bridge.py"
+    ],
+    "file_divergences": [
+      {
+        "path": "data/umh/autonomous_lane/phase10_2_cockpit_verification.json",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "data/umh/autonomous_lane/phase10_2_operator_approval_packet.json",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "data/umh/autonomous_lane/phase10_2_safety_reset.json",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "data/umh/autonomous_lane/phase10_2_sandbox_execution.json",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "data/umh/autonomous_lane/phase10_2_selected_candidate.json",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "data/umh/organism/templates/.gitkeep",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "docs/audits/convergence/phase10_2_operator_approved_template_supplied_sandbox_pr.md",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "docs/audits/convergence/phase10_2_preflight_101_verification.md",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "docs/audits/convergence/phase10_2_route_auth_matrix.md",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "scripts/verify_template_store.py",
+        "expected": true,
+        "observed": true,
+        "expected_change_type": "modified",
+        "observed_change_type": "modified",
+        "diverged": false
+      },
+      {
+        "path": "substrate/organism/approval_gate.py",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "substrate/organism/autonomous_pr_factory.py",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "substrate/organism/sandbox_orchestrator.py",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "tests/test_phase10_2_sandbox_pr.py",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "transports/api/http/routes/organism.ts",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "transports/api/http/server.ts",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      },
+      {
+        "path": "transports/api/organism_bridge.py",
+        "expected": false,
+        "observed": true,
+        "expected_change_type": "",
+        "observed_change_type": "modified",
+        "diverged": true
+      }
+    ],
+    "has_file_divergence": true,
+    "added_lines_expected": 0,
+    "removed_lines_expected": 0,
+    "added_lines_observed": 1940,
+    "removed_lines_observed": 7,
+    "state_before": {
+      "world_model_hash": "pre-pr47",
+      "contradiction_count": 0,
+      "readiness_score": 0.75,
+      "dependency_node_count": 0,
+      "bottleneck_count": 0,
+      "template_count": 10,
+      "agent_count": 2,
+      "captured_at": 1780113791.6042595
+    },
+    "state_after": {
+      "world_model_hash": "pre-pr47",
+      "contradiction_count": 0,
+      "readiness_score": 0.75,
+      "dependency_node_count": 0,
+      "bottleneck_count": 0,
+      "template_count": 10,
+      "agent_count": 2,
+      "captured_at": 1780113792.0229583
+    },
+    "world_model_before_after": {
+      "before_hash": "pre-pr47",
+      "after_hash": "pre-pr47",
+      "changed": false
+    },
+    "contradictions_before_after": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "readiness_before_after": {
+      "before": 0.75,
+      "after": 0.75,
+      "delta": 0.0
+    },
+    "dependency_graph_before_after": {
+      "before_nodes": 0,
+      "after_nodes": 0,
+      "delta": 0
+    },
+    "bottlenecks_before_after": {
+      "before": 0,
+      "after": 0,
+      "delta": 0
+    },
+    "template_confidence_before_after": {
+      "before_count": 10,
+      "after_count": 10
+    },
+    "agent_reliability_before_after": {
+      "before_count": 2,
+      "after_count": 2
+    },
+    "validation_results": [
+      {
+        "command": "import substrate",
+        "passed": true,
+        "exit_code": 0,
+        "output_summary": "substrate ok\n",
+        "validated_at": 1780113791.981872
+      },
+      {
+        "command": "py_compile organism",
+        "passed": true,
+        "exit_code": 0,
+        "output_summary": "",
+        "validated_at": 1780113792.0227854
+      }
+    ],
+    "all_validations_passed": true,
+    "requires_review": true,
+    "requires_operator_review": true,
+    "mismatch_reasons": [
+      "data/umh/autonomous_lane/phase10_2_cockpit_verification.json: observed but not expected",
+      "data/umh/autonomous_lane/phase10_2_operator_approval_packet.json: observed but not expected",
+      "data/umh/autonomous_lane/phase10_2_safety_reset.json: observed but not expected",
+      "data/umh/autonomous_lane/phase10_2_sandbox_execution.json: observed but not expected",
+      "data/umh/autonomous_lane/phase10_2_selected_candidate.json: observed but not expected",
+      "docs/audits/convergence/phase10_2_operator_approved_template_supplied_sandbox_pr.md: observed but not expected",
+      "docs/audits/convergence/phase10_2_preflight_101_verification.md: observed but not expected",
+      "docs/audits/convergence/phase10_2_route_auth_matrix.md: observed but not expected",
+      "substrate/organism/approval_gate.py: observed but not expected",
+      "substrate/organism/autonomous_pr_factory.py: observed but not expected",
+      "substrate/organism/sandbox_orchestrator.py: observed but not expected",
+      "tests/test_phase10_2_sandbox_pr.py: observed but not expected",
+      "transports/api/http/routes/organism.ts: observed but not expected",
+      "transports/api/http/server.ts: observed but not expected",
+      "transports/api/organism_bridge.py: observed but not expected"
+    ],
+    "evidence": [
+      "file divergence: 15 files"
+    ],
+    "status": "requires_review",
+    "timestamp": 1780113791.6041045
+  },
+  "error": "file divergence between expected and observed",
+  "started_at": 1780113791.0631042,
+  "completed_at": 1780113792.0311751
+}

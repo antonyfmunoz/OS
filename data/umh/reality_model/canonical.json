@@ -1,0 +1,101 @@
+{
+  "patterns": [
+    {
+      "id": "874306c5-67b1-49ff-9bcd-f08e9adf9b93",
+      "name": "test",
+      "domain": "test",
+      "description": "test",
+      "evidence_count": 100,
+      "confidence": 1.0,
+      "promoted_at": "2026-05-25T02:08:38.283029Z",
+      "last_confirmed": "2026-05-31T01:33:34.830186Z",
+      "tags": [],
+      "metadata": {}
+    },
+    {
+      "id": "63cf228a-73f5-4ab7-9f3d-b751f899dc3f",
+      "name": "test-pattern",
+      "domain": "business",
+      "description": "A test pattern",
+      "evidence_count": 12,
+      "confidence": 1.0,
+      "promoted_at": "2026-05-25T02:11:47.371898Z",
+      "last_confirmed": "2026-05-25T07:18:57.946262Z",
+      "tags": [],
+      "metadata": {}
+    },
+    {
+      "id": "aa373e3c-4c27-4afd-b36a-10708c272e2c",
+      "name": "retrieval-test",
+      "domain": "general",
+      "description": "Test retrieval",
+      "evidence_count": 10,
+      "confidence": 1.0,
+      "promoted_at": "2026-05-25T02:11:47.378256Z",
+      "last_confirmed": "2026-05-25T07:18:57.947693Z",
+      "tags": [],
+      "metadata": {}
+    },
+    {
+      "id": "a24c9dd7-b47a-424b-9732-07af23ec5279",
+      "name": "biz-0",
+      "domain": "business",
+      "description": "Business pattern 0",
+      "evidence_count": 9,
+      "confidence": 1.0,
+      "promoted_at": "2026-05-25T02:11:47.379831Z",
+      "last_confirmed": "2026-05-25T07:13:05.292738Z",
+      "tags": [],
+      "metadata": {}
+    },
+    {
+      "id": "f79dd560-e186-4de6-86ef-b39619da0b5e",
+      "name": "biz-1",
+      "domain": "business",
+      "description": "Business pattern 1",
+      "evidence_count": 10,
+      "confidence": 1.0,
+      "promoted_at": "2026-05-25T02:11:47.380164Z",
+      "last_confirmed": "2026-05-25T07:13:05.293076Z",
+      "tags": [],
+      "metadata": {}
+    },
+    {
+      "id": "6b81a4fd-74ef-4e12-8372-bd96aef9c43c",
+      "name": "biz-2",
+      "domain": "business",
+      "description": "Business pattern 2",
+      "evidence_count": 11,
+      "confidence": 1.0,
+      "promoted_at": "2026-05-25T02:11:47.380491Z",
+      "last_confirmed": "2026-05-25T07:13:05.293393Z",
+      "tags": [],
+      "metadata": {}
+    },
+    {
+      "id": "fa2bacb7-706b-4c4a-9e1e-c8dfc9a88008",
+      "name": "life-0",
+      "domain": "life",
+      "description": "Life pattern",
+      "evidence_count": 10,
+      "confidence": 1.0,
+      "promoted_at": "2026-05-25T02:11:47.382625Z",
+      "last_confirmed": "2026-05-25T07:13:05.293718Z",
+      "tags": [],
+      "metadata": {}
+    },
+    {
+      "id": "97247773-0195-425e-9c6b-3441eaf7b74f",
+      "name": "immutable-test",
+      "domain": "general",
+      "description": "Should not change",
+      "evidence_count": 12,
+      "confidence": 1.0,
+      "promoted_at": "2026-05-25T02:15:25.506298Z",
+      "last_confirmed": "2026-05-25T07:18:57.950771Z",
+      "tags": [],
+      "metadata": {}
+    }
+  ],
+  "relationships": []
+}

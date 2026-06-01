@@ -1,0 +1,24 @@
+{
+  "id": "obj-ba6cd4db",
+  "title": "Task",
+  "status": "executing",
+  "completion_rate": 0.0,
+  "work_units": [
+    {
+      "id": "wu-9a74ade9",
+      "objective_id": "obj-ba6cd4db",
+      "title": "Task",
+      "unit_type": "execute",
+      "status": "pending",
+      "assigned_runtime": "",
+      "required_capability": "shell",
+      "blocked_by": [],
+      "blocks": [],
+      "attempt_count": 0,
+      "generation": 1,
+      "result": "",
+      "error": ""
+    }
+  ],
+  "generation": 1
+}

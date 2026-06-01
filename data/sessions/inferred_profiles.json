@@ -1,0 +1,14 @@
+{
+  "primary_mode": "developer",
+  "suggestions": [
+    {
+      "mode": "developer",
+      "confidence": 0.5,
+      "evidence": "Insufficient data (0 events, need 10)",
+      "source": "default"
+    }
+  ],
+  "category_distribution": {},
+  "inferred_at": "2026-05-24T02:29:10.971772+00:00",
+  "event_count": 0
+}

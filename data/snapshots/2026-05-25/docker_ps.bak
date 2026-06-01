@@ -1,0 +1,4 @@
+NAMES         STATUS      PORTS
+os-webhook    Up 3 days   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+os-operator   Up 3 days   0.0.0.0:8091->8091/tcp, [::]:8091->8091/tcp
+os-discord    Up 2 days   0.0.0.0:8765->8765/tcp

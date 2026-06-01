@@ -1,0 +1,34 @@
+/* Import RemixIcon for Document Vault */
+@import url("https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-white text-foreground;
+  }
+
+  :root {
+    --primary: 221.2 83.2% 53.3%;
+    --secondary: 239.6 83.9% 66.3%;
+    --accent: 328.6 85.5% 70.2%;
+    --success: 158.4 64.4% 51.6%;
+    --warning: 37.7 92.1% 50.2%;
+    --error: 0 84.2% 60.2%;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

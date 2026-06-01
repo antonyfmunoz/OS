@@ -2,7 +2,7 @@
 type: palace-room
 room_id: transports
 wing: services
-generated: 2026-05-26
+generated: 2026-05-31
 ---
 
 # Room — Transports
@@ -28,12 +28,12 @@ These are the files you most often need; open them before grepping.
 | 5 | [[services-goal_api-py]] | 4 | `entry` | Goal API — REST endpoints for goal selection + focus management. |
 | 6 | [[services-higgsfield_webhook-py]] | 4 | `entry` | Higgsfield Cloud API webhook receiver. |
 | 7 | [[services-magic_link_server-py]] | 4 | `entry` | magic_link_server.py — Standalone VPS server for magic-link email interception. |
-| 8 | [[services-bridge_health-py]] | 3 | `entry` | bridge_health.py — VPS-side watchdog for the Windows bridge. |
-| 9 | [[services-heartbeat-py]] | 3 | `entry` | EOS Heartbeat Service |
-| 10 | [[services-kpi_tracker-py]] | 3 | `entry` |  |
-| 11 | [[services-local_bridge_server-py]] | 3 | `entry` | Local Bridge Server — runs on Antony's Windows machine (WSL2). |
-| 12 | [[services-oauth_device_flow-py]] | 3 | `entry` | oauth_device_flow.py — Headless OAuth re-auth via Tailscale-routed callback. |
-| 13 | [[services-operator_api-py]] | 3 | `entry` | UMH Operator Workstation API — FastAPI backend for the operator UI. |
+| 8 | [[services-operator_api-py]] | 4 | `entry` | UMH Operator Workstation API — FastAPI backend for the operator UI. |
+| 9 | [[services-bridge_health-py]] | 3 | `entry` | bridge_health.py — VPS-side watchdog for the Windows bridge. |
+| 10 | [[services-heartbeat-py]] | 3 | `entry` | EOS Heartbeat Service |
+| 11 | [[services-kpi_tracker-py]] | 3 | `entry` |  |
+| 12 | [[services-local_bridge_server-py]] | 3 | `entry` | Local Bridge Server — runs on Antony's Windows machine (WSL2). |
+| 13 | [[services-oauth_device_flow-py]] | 3 | `entry` | oauth_device_flow.py — Headless OAuth re-auth via Tailscale-routed callback. |
 | 14 | [[services-overnight_scrape-py]] | 3 | `entry` |  |
 | 15 | [[services-trigger_export-py]] | 3 | `entry` | trigger_export.py — VPS-side trigger for browser exports on Windows. |
 
@@ -53,12 +53,12 @@ These are the files you most often need; open them before grepping.
   services/goal_api.py
   services/higgsfield_webhook.py
   services/magic_link_server.py
+  services/operator_api.py
   services/bridge_health.py
   services/heartbeat.py
   services/kpi_tracker.py
   services/local_bridge_server.py
   services/oauth_device_flow.py
-  services/operator_api.py
   services/overnight_scrape.py
   services/trigger_export.py
 ```

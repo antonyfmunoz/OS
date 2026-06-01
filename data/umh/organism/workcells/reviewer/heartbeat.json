@@ -1,0 +1,9 @@
+{
+  "workcell_id": "reviewer",
+  "role": "reviewer",
+  "status": "idle",
+  "generation": 0,
+  "messages_processed": 0,
+  "timestamp": 1780207819.3799715,
+  "inbox_depth": 0
+}

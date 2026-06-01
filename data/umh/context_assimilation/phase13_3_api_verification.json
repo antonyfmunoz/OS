@@ -1,0 +1,11 @@
+{
+  "phase": "13.3",
+  "task": "api_verification",
+  "timestamp": 1780201470.2575188,
+  "status": "verified",
+  "get_routes_auth": true,
+  "post_routes_operator_token": true,
+  "approve_reject_operator_token": true,
+  "route_count": 23,
+  "bridge_actions": 17
+}

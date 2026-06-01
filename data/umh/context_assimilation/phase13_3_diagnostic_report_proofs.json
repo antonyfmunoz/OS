@@ -1,0 +1,20 @@
+{
+  "phase": "13.3",
+  "task": "diagnostic_report",
+  "timestamp": 1780201470.2521386,
+  "status": "verified",
+  "scopes_tested": [
+    "instantiation",
+    "full"
+  ],
+  "detected": [
+    "canonical_claims",
+    "contradictions",
+    "missing_context",
+    "open_questions",
+    "entity_map",
+    "product_map",
+    "roadmap_implications",
+    "work_packet_implications"
+  ]
+}
