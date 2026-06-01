@@ -1,0 +1,167 @@
+{
+  "phase": "14.0",
+  "task": "work_packets",
+  "timestamp": "2026-05-31T00:00:00Z",
+  "work_packets": [
+    {
+      "id": "WP-14.1-001",
+      "title": "Google Docs Projection Documentation Ingestion",
+      "objective": "Read and index all projection-related documentation in Google Docs/Drive to extract product claims, architecture decisions, and feature specifications.",
+      "source_scope": ["Google Docs", "Google Drive"],
+      "permissions_required": ["Google Docs read access (perm-req-001)"],
+      "selected_device_runtime": "VPS (API calls to Google Workspace)",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "data/umh/projection_reconciliation/google_docs_inventory.json",
+        "data/umh/projection_reconciliation/google_docs_claims.json",
+        "data/umh/projection_reconciliation/google_docs_staleness_report.json"
+      ],
+      "validation_plan": "Cross-reference extracted claims against local code state. Flag any claim that contradicts codebase reality.",
+      "rollback_no_mutation_rule": "Read-only. No Google Docs will be modified. Extracted data stored locally only.",
+      "human_decisions_required": ["Approve Google Docs read access", "Confirm which folders to scan"]
+    },
+    {
+      "id": "WP-14.1-002",
+      "title": "GitHub Projection Repository Inspection",
+      "objective": "List all user/org repositories, inspect projection-related repos, compare branch state with local source.",
+      "source_scope": ["GitHub repositories"],
+      "permissions_required": ["GitHub read access (perm-req-002)"],
+      "selected_device_runtime": "VPS (gh CLI)",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "data/umh/projection_reconciliation/github_repo_inventory.json",
+        "data/umh/projection_reconciliation/github_branch_report.json",
+        "data/umh/projection_reconciliation/github_divergence_report.json"
+      ],
+      "validation_plan": "Compare remote main branches with local source. Count commits ahead/behind.",
+      "rollback_no_mutation_rule": "Read-only. No pushes, no PR creation, no branch changes.",
+      "human_decisions_required": ["Approve GitHub read access", "Confirm which repos to inspect"]
+    },
+    {
+      "id": "WP-14.1-003",
+      "title": "Windows Beast /dev Trinity Source Inspection",
+      "objective": "SSH to Windows Beast, map /dev directory structure, identify EOS/CreatorOS/LyfeOS app directories, capture package manifests and source tree layouts.",
+      "source_scope": ["Windows Beast /dev filesystem"],
+      "permissions_required": ["Windows Beast /dev read access (perm-req-003)"],
+      "selected_device_runtime": "VPS → SSH to Windows Beast (100.74.199.102)",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "data/umh/projection_reconciliation/beast_dev_inventory.json",
+        "data/umh/projection_reconciliation/beast_eos_structure.json",
+        "data/umh/projection_reconciliation/beast_creatoros_structure.json",
+        "data/umh/projection_reconciliation/beast_lyfeos_structure.json"
+      ],
+      "validation_plan": "Verify SSH connection works. Cross-check directory listing with operator-stated locations.",
+      "rollback_no_mutation_rule": "Read-only SSH. No files modified on Beast. No files copied to VPS without explicit approval.",
+      "human_decisions_required": ["Approve Beast /dev read access", "Confirm correct directory paths"]
+    },
+    {
+      "id": "WP-14.1-004",
+      "title": "EOS /opt/OS/saas Partial Backend Mapping",
+      "objective": "Deep map the partial EOS backend: document every route handler, schema table, migration, and identify all gaps relative to a complete EOS product.",
+      "source_scope": ["/opt/OS/saas"],
+      "permissions_required": [],
+      "selected_device_runtime": "VPS (local read)",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "data/umh/projection_reconciliation/saas_deep_map.json",
+        "data/umh/projection_reconciliation/saas_gap_analysis.json"
+      ],
+      "validation_plan": "Every route file, schema table, and migration accounted for. Gap count matches actual missing functionality.",
+      "rollback_no_mutation_rule": "Read-only analysis. No saas/ files modified.",
+      "human_decisions_required": []
+    },
+    {
+      "id": "WP-14.1-005",
+      "title": "EOS Windows Source vs /opt/OS/saas Convergence Analysis",
+      "objective": "Compare EOS source on Windows Beast /dev with /opt/OS/saas. Generate diff report classifying each file as ahead/behind/divergent/identical.",
+      "source_scope": ["/opt/OS/saas", "Windows Beast /dev EOS directory"],
+      "permissions_required": ["Windows Beast /dev read access (perm-req-003)"],
+      "selected_device_runtime": "VPS (SSH comparison)",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "data/umh/projection_reconciliation/eos_convergence_diff.json",
+        "data/umh/projection_reconciliation/eos_convergence_recommendation.json"
+      ],
+      "validation_plan": "Diff report covers every file in both locations. Classification is verifiable.",
+      "rollback_no_mutation_rule": "Read-only comparison. No files copied, merged, or modified.",
+      "human_decisions_required": ["Which source is canonical if divergent", "Whether to merge and in which direction"]
+    },
+    {
+      "id": "WP-14.1-006",
+      "title": "CreatorOS Source Tree Mapping",
+      "objective": "Map complete CreatorOS source across all locations (VPS projections, Beast /dev, GitHub). Determine completeness and canonical location.",
+      "source_scope": ["projections/creatoros", "Windows Beast /dev", "GitHub"],
+      "permissions_required": ["Windows Beast /dev read access", "GitHub read access"],
+      "selected_device_runtime": "VPS (local + SSH + gh CLI)",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "data/umh/projection_reconciliation/creatoros_source_map.json"
+      ],
+      "validation_plan": "All known CreatorOS locations accounted for. File counts match reality.",
+      "rollback_no_mutation_rule": "Read-only mapping.",
+      "human_decisions_required": ["Canonical source location for CreatorOS"]
+    },
+    {
+      "id": "WP-14.1-007",
+      "title": "LyfeOS Source Tree Mapping",
+      "objective": "Map complete LyfeOS source across all locations. Determine completeness and canonical location.",
+      "source_scope": ["projections/lyfeos", "Windows Beast /dev", "GitHub"],
+      "permissions_required": ["Windows Beast /dev read access", "GitHub read access"],
+      "selected_device_runtime": "VPS (local + SSH + gh CLI)",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "data/umh/projection_reconciliation/lyfeos_source_map.json"
+      ],
+      "validation_plan": "All known LyfeOS locations accounted for.",
+      "rollback_no_mutation_rule": "Read-only mapping.",
+      "human_decisions_required": ["Canonical source location for LyfeOS"]
+    },
+    {
+      "id": "WP-14.1-008",
+      "title": "Shared Trinity Architecture Map",
+      "objective": "Identify shared infrastructure, components, patterns, and dependencies across the Trinity apps. Map what is shared vs projection-specific.",
+      "source_scope": ["All projection sources"],
+      "permissions_required": ["All source inspection permissions"],
+      "selected_device_runtime": "VPS",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "data/umh/projection_reconciliation/trinity_shared_architecture.json"
+      ],
+      "validation_plan": "Shared components list is verifiable against actual code. No false claims about sharing.",
+      "rollback_no_mutation_rule": "Analysis only.",
+      "human_decisions_required": ["Whether to extract shared integration base", "Shared component architecture"]
+    },
+    {
+      "id": "WP-14.1-009",
+      "title": "Canonical Source Structure Recommendation",
+      "objective": "Produce a recommendation for canonical source locations, sync direction, and repository structure for all projections.",
+      "source_scope": ["All source inspection results"],
+      "permissions_required": [],
+      "selected_device_runtime": "VPS",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "data/umh/projection_reconciliation/canonical_source_recommendation.json",
+        "docs/audits/convergence/phase14_1_canonical_source_recommendation.md"
+      ],
+      "validation_plan": "Recommendation addresses all known divergences. Each divergence has a proposed resolution.",
+      "rollback_no_mutation_rule": "Recommendation only. No code changes.",
+      "human_decisions_required": ["Approve or modify canonical source architecture", "Approve sync direction for each divergence"]
+    },
+    {
+      "id": "WP-14.1-010",
+      "title": "Phase 14.1 Implementation Readiness Gate",
+      "objective": "Verify all source inspections are complete, all divergences are classified, all canonicality decisions are made, and the system is ready for feature build.",
+      "source_scope": ["All Phase 14.0 and 14.1 artifacts"],
+      "permissions_required": [],
+      "selected_device_runtime": "VPS",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "data/umh/projection_reconciliation/phase14_1_readiness_gate.json"
+      ],
+      "validation_plan": "Every divergence has a resolution. Every source has a canonical classification. Readiness gate passes.",
+      "rollback_no_mutation_rule": "Assessment only.",
+      "human_decisions_required": ["Approve readiness for feature build", "Approve Phase 14.2+ scope"]
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "phase": "14.0",
+  "task": "trinity_convergence_plan",
+  "timestamp": "2026-05-31T00:00:00Z",
+  "plan": {
+    "1_discovery_sequence": [
+      "1a. Local discovery (COMPLETE) — /opt/OS, /opt/OS/saas, projections/, substrate/",
+      "1b. Windows Beast /dev inspection (BLOCKED — permission pending)",
+      "1c. GitHub repository inspection (BLOCKED — permission pending)",
+      "1d. Google Docs documentation inspection (BLOCKED — permission pending)"
+    ],
+    "2_permission_sequence": [
+      "2a. Request Windows Beast SSH read access to /dev — highest priority (contains full Trinity apps)",
+      "2b. Request GitHub repository listing and read access — second priority",
+      "2c. Request Google Docs read access — third priority (docs supplement code)",
+      "2d. Each permission request is independent — can proceed in parallel"
+    ],
+    "3_source_inspection_sequence": [
+      "3a. Windows Beast /dev: ls /dev, identify Trinity app directories, map package.json/tsconfig/routes/schema per app",
+      "3b. GitHub: gh repo list, identify projection repos, compare branches with local",
+      "3c. Google Docs: list docs by folder, extract titles/dates, read key product specs",
+      "3d. Each inspection produces a structured discovery report"
+    ],
+    "4_canonicality_decision_points": [
+      "4a. For each projection: which source is canonical? (Operator decides, not UMH)",
+      "4b. /opt/OS/saas vs Windows /dev EOS — which is ahead? Which is canonical?",
+      "4c. Google Docs architecture claims vs actual code — which takes precedence?",
+      "4d. GitHub committed state vs local working state — which is truth?",
+      "4e. Schema v1 (integration) vs v2 (saas) — which survives?"
+    ],
+    "5_eos_saas_vs_beast_comparison_plan": {
+      "step_1": "SSH to Beast, list /dev/eos or equivalent directory",
+      "step_2": "Compare package.json (deps, scripts, name, version)",
+      "step_3": "Compare database schema files (Drizzle config, schema.ts, migrations)",
+      "step_4": "Compare route structure (API endpoints, handlers)",
+      "step_5": "Compare frontend structure (src/, components/, pages/)",
+      "step_6": "Identify files in Beast not in VPS and vice versa",
+      "step_7": "Generate diff report with classification (ahead/behind/divergent/identical)"
+    },
+    "6_github_branch_repo_comparison_plan": {
+      "step_1": "List all repos for user/org",
+      "step_2": "For each projection-related repo: list branches, last commit dates",
+      "step_3": "Compare main branch source tree with /opt/OS local state",
+      "step_4": "Identify commits in remote not in local (and vice versa)",
+      "step_5": "Flag stale branches (>30 days no activity)"
+    },
+    "7_google_docs_claim_reconciliation_plan": {
+      "step_1": "List all docs in relevant Drive folders",
+      "step_2": "Categorize by projection (UMH, EOS, CreatorOS, LyfeOS, shared)",
+      "step_3": "Extract architecture/feature claims from key docs",
+      "step_4": "Cross-reference claims against actual code state",
+      "step_5": "Flag stale docs (claims that contradict current code)",
+      "step_6": "Flag aspirational docs (claims about unbuilt features)"
+    },
+    "8_automation_opportunities": [
+      "Automated: file tree comparison between VPS and Beast (SSH + find)",
+      "Automated: package.json diff generation",
+      "Automated: schema.ts diff generation",
+      "Automated: GitHub repo listing and branch staleness check",
+      "Automated: Google Docs metadata extraction (titles, dates, folders)",
+      "Semi-automated: claim extraction from docs (AI-assisted with operator review)",
+      "Manual: canonicality decisions (operator only)"
+    ],
+    "9_requires_operator_approval": [
+      "Source canonicality decisions for each projection",
+      "Schema version reconciliation direction (v1 vs v2)",
+      "File copy/sync from Beast to VPS (if needed)",
+      "GitHub push/merge operations",
+      "Google Docs update/deprecation decisions",
+      "Integration layer code deduplication approach"
+    ],
+    "10_must_never_be_automated": [
+      "Canonicality designation (production_truth status)",
+      "Destructive file operations (delete, overwrite)",
+      "Force-push to any remote",
+      "Database schema migration on production",
+      "Cross-device file sync without explicit approval",
+      "Credential rotation or DNS changes"
+    ],
+    "11_proposed_canonical_source_architecture": {
+      "UMH_substrate": "/opt/OS on VPS — production truth (already canonical)",
+      "EOS_backend": "To be determined after Beast/GitHub inspection. Candidate: merge /opt/OS/saas + Beast source into single canonical location.",
+      "EOS_frontend": "To be determined after Beast inspection. Likely on Beast at /dev.",
+      "CreatorOS": "To be determined. Integration layer on VPS, full app likely on Beast.",
+      "LyfeOS": "To be determined. Integration layer on VPS, full app likely on Beast.",
+      "shared_components": "To be determined. May exist as shared packages on Beast or as standalone repos."
+    },
+    "12_proposed_work_packets_for_next_phases": [
+      "WP-001: Google Docs documentation ingestion",
+      "WP-002: GitHub repository inspection",
+      "WP-003: Windows Beast /dev Trinity source inspection",
+      "WP-004: EOS /opt/OS/saas partial backend mapping",
+      "WP-005: EOS Beast vs VPS convergence analysis",
+      "WP-006: CreatorOS source tree mapping",
+      "WP-007: LyfeOS source tree mapping",
+      "WP-008: Shared Trinity architecture map",
+      "WP-009: Canonical source structure recommendation",
+      "WP-010: Phase 14.1 implementation readiness gate"
+    ],
+    "13_risk_register": [
+      {"risk": "Beast source may be significantly ahead of VPS — large merge conflict potential", "mitigation": "Compare before any sync. Use diff-first approach."},
+      {"risk": "Google Docs may contain outdated architecture claims that mislead development", "mitigation": "Cross-reference all claims against actual code state."},
+      {"risk": "Schema v1/v2 split may require data migration", "mitigation": "Assess migration complexity before choosing canonical schema."},
+      {"risk": "Integration layer code duplication makes bugs harder to fix", "mitigation": "Extract shared base before building new features."},
+      {"risk": "Seed data contains instance context that could leak into production", "mitigation": "Parametrize seed data before any deployment."}
+    ],
+    "14_rollback_strategy": "No destructive operations in Phase 14.0. All inspection is read-only. Source registry and divergence data are additive. If any inspection produces incorrect results, the data files can be corrected without affecting source code.",
+    "15_no_destructive_sync_guarantee": "Phase 14.0 performs ZERO writes to external systems (GitHub, Google Docs, Windows Beast). All data generated is local to /opt/OS/data/umh/projection_reconciliation/. No source is auto-canonized. No files are copied, overwritten, or deleted."
+  }
+}

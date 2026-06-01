@@ -1,0 +1,168 @@
+{
+  "phase": "14.0",
+  "task": "local_discovery",
+  "timestamp": "2026-05-31T00:00:00Z",
+  "scope": "VPS /opt/OS read-only inspection",
+  "directory_summary": {
+    "substrate": {"file_count": 695, "description": "UMH brain — control plane, execution, governance, state, organism, types"},
+    "adapters": {"file_count": 89, "description": "External system adapters — models, GWS, browser, capabilities"},
+    "transports": {"file_count": 91, "description": "I/O surfaces — Discord, API/HTTP, node mesh, presence handlers"},
+    "projections": {"file_count": 48, "description": "Application projections — EOS (31), CreatorOS (8), LyfeOS (8)"},
+    "saas": {"file_count": 30, "description": "Partial EOS backend — Hono API + Drizzle ORM + Neon migrations"},
+    "services": {"file_count": 38, "description": "Deployment entrypoints — discord_bot, operator_api, webhooks"},
+    "nodes": {"file_count": 44, "description": "Distributed execution — Windows daemon, environments, distribution"},
+    "scripts": {"file_count": 160, "description": "Operational scripts — cron, verification, graph rebuild"},
+    "knowledge": {"file_count": 289, "description": "Wiki, memory palace, concept docs"},
+    "data": {"file_count": 1760, "description": "Generated data — proofs, audits, graph files, runtime artifacts"},
+    "docs": {"file_count": 578, "description": "Architecture specs, contracts, convergence audits (99 audit docs)"}
+  },
+  "saas_inspection": {
+    "package_type": "TypeScript/Node.js",
+    "framework": "Hono",
+    "orm": "Drizzle",
+    "database": "Neon (PostgreSQL)",
+    "routes": [
+      "activity.ts",
+      "agent.ts",
+      "agents.ts",
+      "analytics.ts",
+      "approvals.ts",
+      "events.ts",
+      "interactions.ts",
+      "outcomes.ts",
+      "skills.ts",
+      "tasks.ts",
+      "ventures.ts",
+      "workflows.ts"
+    ],
+    "database_tables": [
+      "ventures",
+      "agents",
+      "skills",
+      "events",
+      "skill_versions",
+      "workflows",
+      "interactions",
+      "outcomes",
+      "human_profiles",
+      "clients",
+      "transactions",
+      "fulfillment_events",
+      "offers"
+    ],
+    "migrations": [
+      "0000_shallow_jamie_braddock.sql — initial schema",
+      "0001_portfolio_agents_workflows.sql — portfolio/agent/workflow tables",
+      "0002_python_layer_columns.sql — columns for Python layer integration",
+      "0003_model_preferences.sql — model preferences",
+      "0005_harness_layer.sql — harness layer columns",
+      "0006_higgsfield_jobs.sql — Higgsfield jobs",
+      "0007_goals.sql — goals table",
+      "0008_goal_performance.sql — goal performance tracking",
+      "0009_umh_outcome_writeback.sql — UMH outcome writeback"
+    ],
+    "eos_specific_assumptions": [
+      "ventures table — EOS venture management",
+      "agents table — EOS agent definitions",
+      "skills table — EOS skill management",
+      "clients table — EOS client tracking",
+      "transactions table — EOS revenue tracking",
+      "fulfillment_events — EOS service delivery",
+      "offers table — EOS product offers",
+      "autonomy_stage enum — EOS-specific automation levels",
+      "venture_stage enum — EOS business stages"
+    ],
+    "missing_pieces": [
+      "No frontend (React/Vite) in /opt/OS/saas — likely on Windows Beast",
+      "No auth implementation visible (middleware exists in transports/api/http/)",
+      "No deployment config (Dockerfile, fly.toml) in saas/",
+      "No email/notification system",
+      "No payment/billing integration",
+      "No file upload handling",
+      "Missing migration 0004 (gap in sequence)"
+    ],
+    "overlap_with_umh_infra": [
+      "UMH outcome writeback migration (0009) — bridges to substrate",
+      "Python bridge pattern connects saas API to organism substrate",
+      "Auth middleware lives in transports/api/http/ not saas/",
+      "Route handlers delegate to organism_bridge.py for all organism state"
+    ],
+    "canonicality_assessment": "PARTIAL — backend only, no frontend, missing auth, likely incomplete relative to Windows /dev version"
+  },
+  "projections_inspection": {
+    "eos": {
+      "file_count": 31,
+      "status": "active — most populated projection",
+      "key_contents": "EOS-specific agent configs, workflows, projection logic"
+    },
+    "creatoros": {
+      "file_count": 8,
+      "status": "stub/minimal — likely documentation or config only"
+    },
+    "lyfeos": {
+      "file_count": 8,
+      "status": "stub/minimal — likely documentation or config only"
+    }
+  },
+  "audit_docs_state": {
+    "convergence_audit_count": 99,
+    "operator_acceptance_artifacts": 56,
+    "operational_truth_artifacts": 31,
+    "latest_phase": "13.4R"
+  },
+  "organism_api_state": {
+    "bridge_handlers_count": "100+",
+    "route_file": "transports/api/http/routes/organism.ts",
+    "bridge_file": "transports/api/organism_bridge.py",
+    "pattern": "Hono route → callOrganism(action) → Python bridge → substrate module → JSON response",
+    "existing_route_groups": [
+      "organism.snapshot/status/health",
+      "organism.objectives",
+      "organism.agents",
+      "organism.economy",
+      "organism.runtimes",
+      "organism.governor",
+      "organism.advisors",
+      "organism.approvals",
+      "organism.workcells",
+      "organism.templates",
+      "organism.autonomous_lane",
+      "organism.pr_factory",
+      "organism.cadence",
+      "organism.sandboxes",
+      "organism.approval_packets",
+      "organism.production_truth",
+      "organism.operator_experience",
+      "organism.operational_truth",
+      "organism.operator_acceptance"
+    ]
+  },
+  "substrate_structure": {
+    "subdirectories": [
+      "composition/",
+      "contracts/",
+      "control_plane/",
+      "execution/",
+      "foundation/",
+      "governance/",
+      "integrations/",
+      "intelligence/",
+      "memory/",
+      "observability/",
+      "ontology/",
+      "organism/",
+      "reality_model/",
+      "sockets/",
+      "state/",
+      "understanding/",
+      "workstation/"
+    ],
+    "organism_file_count": 131,
+    "key_modules": [
+      "types.py — 30+ Pydantic models (single type system)",
+      "__init__.py — Substrate public API",
+      "canonical_types.py — type registry (~80+ types)",
+      "organism/ — 131 files (largest subsystem)"
+    ]
+  }
+}

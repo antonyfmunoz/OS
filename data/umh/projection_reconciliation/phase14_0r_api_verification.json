@@ -1,0 +1,56 @@
+{
+  "phase": "14.0R",
+  "task": "api_verification",
+  "timestamp": "2026-06-01T05:28:32Z",
+  "routes_verified": 8,
+  "all_require_auth": true,
+  "routes": [
+    {
+      "path": "/api/umh/organism/projection-reconciliation",
+      "auth": "operatorGuard",
+      "handler": "_projection_reconciliation"
+    },
+    {
+      "path": "/api/umh/organism/projection-reconciliation/sources",
+      "auth": "operatorGuard",
+      "handler": "_projection_reconciliation_sources"
+    },
+    {
+      "path": "/api/umh/organism/projection-reconciliation/source-map",
+      "auth": "operatorGuard",
+      "handler": "_projection_reconciliation_source_map"
+    },
+    {
+      "path": "/api/umh/organism/projection-reconciliation/divergences",
+      "auth": "operatorGuard",
+      "handler": "_projection_reconciliation_divergences"
+    },
+    {
+      "path": "/api/umh/organism/projection-reconciliation/convergence-plan",
+      "auth": "operatorGuard",
+      "handler": "_projection_reconciliation_convergence_plan"
+    },
+    {
+      "path": "/api/umh/organism/projection-reconciliation/permissions",
+      "auth": "operatorGuard",
+      "handler": "_projection_reconciliation_permissions"
+    },
+    {
+      "path": "/api/umh/organism/projection-reconciliation/work-packets",
+      "auth": "operatorGuard",
+      "handler": "_projection_reconciliation_work_packets"
+    },
+    {
+      "path": "/api/umh/organism/projection-reconciliation/readiness",
+      "auth": "operatorGuard",
+      "handler": "_projection_reconciliation_readiness"
+    }
+  ],
+  "security_checks": {
+    "all_routes_guarded": true,
+    "no_raw_tracebacks": true,
+    "no_credentials_exposed": true,
+    "no_sensitive_source_contents": true,
+    "error_responses_safe": true
+  }
+}

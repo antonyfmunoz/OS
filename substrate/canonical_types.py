@@ -183,6 +183,18 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "RuntimeReadiness": ["substrate.organism.runtime_fleet"],
     "RuntimeFleetMember": ["substrate.organism.runtime_fleet"],
     "RuntimeSelection": ["substrate.organism.runtime_fleet"],
+    # ── substrate/organism/projection_source_registry.py (Phase 14.0) ──────
+    "ProjectionSourceType": ["substrate.organism.projection_source_registry"],
+    "ProjectionName": ["substrate.organism.projection_source_registry"],
+    "SourceCanonicality": ["substrate.organism.projection_source_registry"],
+    "ReadStatus": ["substrate.organism.projection_source_registry"],
+    "ProjectionSource": ["substrate.organism.projection_source_registry"],
+    "ProjectionSourceRegistry": ["substrate.organism.projection_source_registry"],
+    # ── substrate/organism/projection_reconciliation_engine.py (Phase 14.0) ─
+    "DivergenceType": ["substrate.organism.projection_reconciliation_engine"],
+    "DivergenceSeverity": ["substrate.organism.projection_reconciliation_engine"],
+    "ProjectionDivergence": ["substrate.organism.projection_reconciliation_engine"],
+    "ProjectionReconciliationEngine": ["substrate.organism.projection_reconciliation_engine"],
 }
 
 
