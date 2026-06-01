@@ -1,0 +1,303 @@
+{
+  "run": {
+    "run_id": "jar-c55a882e",
+    "acceptance_mode": "standard_multi_runtime",
+    "operator_session_id": "",
+    "input_text": "Reconcile what UMH understands about EOS handling companies, entities, and portfolios.",
+    "input_mode": "text",
+    "status": "completed",
+    "started_at": "2026-06-01T01:36:29Z",
+    "completed_at": "2026-06-01T01:36:29Z",
+    "dex_intent_id": "general_query",
+    "work_packet_id": "wp-4dd731af1f0b",
+    "reconciliation_session_id": "",
+    "diagnostic_report_id": "jcd-57691265",
+    "permission_request_ids": [],
+    "propagation_plan_id": "jpv-6cfd749b",
+    "runtime_session_id": "",
+    "selected_runtime": "claude_code",
+    "selected_device": "dn-a1b2c3d4",
+    "placement_decision_id": "",
+    "artifact_paths": [],
+    "approval_required": false,
+    "human_required": false,
+    "execution_occurred": false,
+    "production_mutation_occurred": false,
+    "external_write_occurred": false,
+    "deterministic_only": false,
+    "degraded_reason": "",
+    "success_criteria": [],
+    "failure_reason": "",
+    "metadata": {
+      "intent_classification": {
+        "intent_type": "general_query",
+        "response_id": "or-325242743dd0",
+        "session_id": "os-65470f57593c"
+      }
+    }
+  },
+  "steps": [
+    {
+      "step": "verify_mode",
+      "result": {
+        "decision_id": "jamd-c13cc35b",
+        "mode": "standard_multi_runtime",
+        "accepted_by_operator": true,
+        "capable_runtime_path_exists": true,
+        "selected_runtime": "claude_code",
+        "selected_device": "dn-a1b2c3d4",
+        "selected_runtime_reason": "claude_code detected as primary governed runtime via binary check",
+        "cloud_api_available": false,
+        "cloud_api_status": "quota_exhausted",
+        "llm_cloud_provider_available": false,
+        "degraded": false,
+        "what_this_proves": [
+          "full Jarvis plumbing: operator\u2192AI\u2192WorkPacket\u2192context\u2192permission\u2192propagation\u2192runtime\u2192artifact\u2192review",
+          "sandboxed runtime execution with event streaming",
+          "policy enforcement blocks unsafe actions",
+          "API/cockpit expose acceptance state",
+          "multi-runtime fleet selection and placement",
+          "governed AI reasoning via subscription/CLI runtime"
+        ],
+        "what_this_does_not_prove": [
+          "medium-risk production execution",
+          "full autonomous cadence",
+          "multi-provider cloud API routing under load"
+        ],
+        "allowed_capabilities": [
+          "deterministic_intent_classification",
+          "ai_backed_intent_classification",
+          "work_packet_creation",
+          "context_lookup",
+          "reconciliation_proposal_generation",
+          "permission_request_generation",
+          "propagation_preview",
+          "sandboxed_low_risk_runtime_execution",
+          "artifact_report_generation",
+          "api_cockpit_proof",
+          "ai_reasoning_via_governed_runtime",
+          "multi_runtime_selection"
+        ],
+        "blocked_capabilities": [
+          "medium_risk_execution",
+          "external_writes",
+          "production_mutation",
+          "auto_merge",
+          "autonomous_cadence_execution",
+          "external_account_crawling"
+        ],
+        "readiness_report_id": "ots-d8383f44",
+        "timestamp": "2026-06-01T01:36:28Z",
+        "metadata": {}
+      }
+    },
+    {
+      "step": "start_run",
+      "run_id": "jar-c55a882e",
+      "status": "running"
+    },
+    {
+      "step": "orchestrator",
+      "result": {
+        "intent_type": "general_query",
+        "response_id": "or-325242743dd0",
+        "session_id": "os-65470f57593c",
+        "response_summary": "Intent not specifically classified. Providing system overview.",
+        "options_count": 0
+      }
+    },
+    {
+      "step": "work_packet",
+      "result": {
+        "work_packet_created": true,
+        "packet_id": "wp-4dd731af1f0b",
+        "classification": {
+          "domain": "learning",
+          "subdomain": "general",
+          "entity": "EOS",
+          "company": "",
+          "project": "",
+          "product": "EOS",
+          "work_type": "implementation",
+          "desired_output": "Working code with tests",
+          "required_knowledge": [
+            "entity_eos"
+          ],
+          "required_executor_type": "implementation_operator",
+          "risk_class": "low",
+          "complexity": "simple",
+          "parallel_workcells_needed": false,
+          "human_action_required": false,
+          "approval_required": false,
+          "execution_possible": true
+        },
+        "packet_summary": {
+          "packet_id": "wp-4dd731af1f0b",
+          "title": "Implementation: EOS",
+          "user_intent": "Reconcile what UMH understands about EOS handling companies, entities, and portfolios.",
+          "desired_end_state": "Implementation plan generated via governed runtime",
+          "intent_summary": "implementation in learning",
+          "domain": "learning",
+          "subdomain": "general",
+          "project": "",
+          "company": "",
+          "product": "EOS",
+          "related_entities": [
+            "EOS"
+          ],
+          "source_type": "jarvis_acceptance",
+          "source_id": "jar-c55a882e",
+          "source_evidence": [
+            {
+              "type": "user_intent",
+              "text": "Reconcile what UMH understands about EOS handling companies, entities, and portfolios."
+            }
+          ],
+          "context_summary": "Domain: learning | Subdomain: general | Entity: EOS | Product: EOS | Work type: implementation | Risk: low | Complexity: simple",
+          "current_state": "",
+          "desired_state": "",
+          "constraints": [],
+          "assumptions": [],
+          "success_criteria": [
+            "Desired end state achieved: Implementation plan generated via governed runtime",
+            "Work type 'implementation' completed",
+            "All tests pass",
+            "No regressions"
+          ],
+          "failure_criteria": [
+            "Desired end state not achieved",
+            "Tests fail",
+            "Regressions detected"
+          ],
+          "leverage_score": 0.6,
+          "effectiveness_score": 0.9,
+          "efficiency_score": 0.9,
+          "risk_class": "low",
+          "risk_factors": [],
+          "expected_impact": "Working code with tests",
+          "expected_readiness_delta": 0.0,
+          "priority": 50,
+          "urgency": 50,
+          "dependencies": [],
+          "blockers": [],
+          "required_knowledge_models": [],
+          "required_templates": [],
+          "required_workflows": [],
+          "required_tools": [],
+          "required_role_contracts": [
+            "role-research-op",
+            "role-impl-op",
+            "role-memory-op"
+          ],
+          "delegation_topology_id": "topo-95856cfd",
+          "workcells": [
+            "wc-f48ebbc6ca"
+          ],
+          "advisor_council": [],
+          "reconvergence_protocol": "",
+          "human_required_actions": [],
+          "approval_gates": [],
+          "validation_plan": "py_compile + test_suite + type_check + code_review",
+          "rollback_plan": "git_revert + test_verification",
+          "propagation_plan": "update_tests + update_documentation + propagate_to_eos",
+          "output_contracts": [],
+          "executor_policy": "",
+          "memory_update_targets": [],
+          "template_update_targets": [],
+          "agent_reliability_targets": [],
+          "status": "classified",
+          "status_reason": "",
+          "created_at": 1780277789.8064632,
+          "updated_at": 1780277789.8065267,
+          "expires_at": 0.0,
+          "parent_packet_id": "",
+          "child_packet_ids": [],
+          "linked_self_build_item_id": "",
+          "linked_roadmap_phase": "",
+          "linked_approval_packet_id": "",
+          "linked_sandbox_id": "",
+          "linked_pr_url": "",
+          "linked_production_truth_delta_id": "",
+          "outcome_ids": []
+        }
+      }
+    },
+    {
+      "step": "context_diagnostic",
+      "result": {
+        "diagnostic_id": "jcd-57691265",
+        "run_id": "jar-c55a882e",
+        "timestamp": "2026-06-01T01:36:29Z",
+        "operational_truth_available": true,
+        "operational_truth_files": [
+          "phase13_3sr_review.json",
+          "phase13_3s_knowledge_graph_rebuild.json",
+          "phase13_3sr_cockpit_status_proof.json",
+          "phase13_3sr_knowledge_graph_live_proof.json",
+          "phase13_3s_cockpit_access_diagnostic.json",
+          "phase13_3s_ground_truth_snapshot.json",
+          "phase13_3sr_data_hygiene_live_proof.json",
+          "phase13_3s_execution_journal_fix.json",
+          "phase13_3sr_preflight.json",
+          "phase13_3s_dead_code_plan.json"
+        ],
+        "prior_acceptance_artifacts": 34,
+        "phase13_audits": 20
+      }
+    },
+    {
+      "step": "permission",
+      "result": {
+        "permission_required": false,
+        "reason": "intent does not require permission"
+      }
+    },
+    {
+      "step": "propagation_preview",
+      "result": {
+        "plan_id": "jpv-6cfd749b",
+        "affected_areas": [
+          "operator_session_state"
+        ],
+        "total_affected": 1,
+        "safe_actions_only": true,
+        "approval_required_nodes": [],
+        "blocked_nodes": [],
+        "execution_mode": "dry_run"
+      }
+    },
+    {
+      "step": "safety_verification",
+      "result": {
+        "production_mutation_occurred": false,
+        "external_write_occurred": false,
+        "verified": true,
+        "safe": true
+      }
+    },
+    {
+      "step": "operator_summary",
+      "result": {
+        "run_id": "jar-c55a882e",
+        "status": "running",
+        "acceptance_mode": "standard_multi_runtime",
+        "selected_runtime": "claude_code",
+        "selected_device": "dn-a1b2c3d4",
+        "input_text": "Reconcile what UMH understands about EOS handling companies, entities, and portfolios.",
+        "intent": "general_query",
+        "work_packet_id": "wp-4dd731af1f0b",
+        "runtime_session_id": "",
+        "artifacts": [],
+        "production_mutation_occurred": false,
+        "external_write_occurred": false,
+        "execution_occurred": false,
+        "approval_required": false
+      }
+    },
+    {
+      "step": "complete",
+      "status": "completed"
+    }
+  ],
+  "completed": true
+}

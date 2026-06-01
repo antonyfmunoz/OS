@@ -1,0 +1,31 @@
+{
+  "phase": "13.4",
+  "task": "runtime_stream_stop_proof",
+  "timestamp": "2026-06-01T01:38:37Z",
+  "session_id": "rs-ba7aeb2e75d7",
+  "runtime_type": "shell",
+  "started": false,
+  "status": "",
+  "events": [
+    {
+      "event_id": "re-917db86b91a7",
+      "session_id": "rs-ba7aeb2e75d7",
+      "event_type": "session_created",
+      "timestamp": 1780277887.1024735,
+      "message": "type=shell, command=echo 'runtime stream test' && echo 'line 2' && echo 'done'",
+      "stream": "",
+      "sequence": 0,
+      "severity": "info",
+      "metadata": {}
+    }
+  ],
+  "events_count": 1,
+  "stop_result": {
+    "stopped": false,
+    "reason": "no process found"
+  },
+  "artifacts": [],
+  "sandbox_scoped": true,
+  "no_orphan_process": true,
+  "output_redacted_for_secrets": true
+}

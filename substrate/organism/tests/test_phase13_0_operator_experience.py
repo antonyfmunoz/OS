@@ -1,4 +1,4 @@
-"""Phase 13.0 — Jarvis-Level Operator Experience Kernel tests.
+"""Phase 13.0 — Operator Experience Kernel tests.
 
 Covers: OperatorSession, OperatorTurn, OperatorIntent, OperatorResponse,
 Option, OrchestratorKernel intent classification, context assembly, packet

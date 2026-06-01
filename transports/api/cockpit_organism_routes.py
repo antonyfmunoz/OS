@@ -90,6 +90,17 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/maintenance/run", _organism_run_maintenance, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/assisted/execute", _organism_assisted_execute, methods=["POST"], dependencies=auth)
 
+    # ── Operator acceptance endpoints ────────────────────────────────────
+    r.add_api_route("/organism/operator-acceptance", _operator_acceptance_overview, methods=["GET"])
+    r.add_api_route("/organism/operator-acceptance/runs", _operator_acceptance_runs, methods=["GET"])
+    r.add_api_route("/organism/operator-acceptance/runs/{run_id}", _operator_acceptance_run_detail, methods=["GET"])
+    r.add_api_route("/organism/operator-acceptance/artifacts", _operator_acceptance_artifacts, methods=["GET"])
+    r.add_api_route("/organism/operator-acceptance/scenarios", _operator_acceptance_scenarios, methods=["GET"])
+    r.add_api_route("/organism/operator-acceptance/readiness", _operator_acceptance_readiness, methods=["GET"])
+    r.add_api_route("/organism/operator-acceptance/start", _operator_acceptance_start, methods=["POST"], dependencies=auth)
+    r.add_api_route("/organism/operator-acceptance/primary-proof", _operator_acceptance_primary_proof, methods=["GET"])
+    r.add_api_route("/organism/operator-acceptance/safety-proof", _operator_acceptance_safety_proof, methods=["GET"])
+
     return r
 
 
@@ -469,3 +480,78 @@ async def _organism_signal(payload: dict):
     if not content:
         return {"error": "content required"}
     return daemon.advisor.handle_signal(content)
+
+
+# ── Operator acceptance handlers ──────────────────────────────────────────
+
+
+async def _operator_acceptance_overview():
+    from substrate.organism.operator_loop_coordinator import OperatorLoopCoordinator
+    return OperatorLoopCoordinator().get_overview()
+
+
+async def _operator_acceptance_runs():
+    from substrate.organism.operator_acceptance import load_runs
+    return [r.to_dict() for r in load_runs()]
+
+
+async def _operator_acceptance_run_detail(run_id: str):
+    from substrate.organism.operator_acceptance import get_run
+    run = get_run(run_id)
+    if not run:
+        return {"error": "run not found"}
+    return run.to_dict()
+
+
+async def _operator_acceptance_artifacts():
+    from substrate.organism.operator_acceptance import load_artifacts
+    return [a.to_dict() for a in load_artifacts()]
+
+
+async def _operator_acceptance_scenarios():
+    from substrate.organism.operator_acceptance_scenarios import get_all_scenarios
+    return [s.to_dict() for s in get_all_scenarios()]
+
+
+async def _operator_acceptance_readiness():
+    from substrate.organism.operator_readiness_gate import assess_readiness
+    return assess_readiness().to_dict()
+
+
+async def _operator_acceptance_start(payload: dict):
+    input_text = payload.get("input_text", "")
+    if not input_text:
+        return {"error": "input_text required"}
+    from substrate.organism.operator_loop_coordinator import OperatorLoopCoordinator
+    coord = OperatorLoopCoordinator()
+    return coord.run_scenario_e2e(
+        input_text,
+        payload.get("input_mode", "text"),
+        skip_runtime=payload.get("skip_runtime", False),
+    )
+
+
+async def _operator_acceptance_primary_proof():
+    import json as _json
+    import os
+    path = os.path.join(
+        os.environ.get("UMH_ROOT", "/opt/OS"),
+        "data", "umh", "operator_acceptance", "phase13_4_primary_e2e_proof.json",
+    )
+    if not os.path.isfile(path):
+        return {"error": "primary proof not found"}
+    with open(path) as f:
+        return _json.load(f)
+
+
+async def _operator_acceptance_safety_proof():
+    import json as _json
+    import os
+    path = os.path.join(
+        os.environ.get("UMH_ROOT", "/opt/OS"),
+        "data", "umh", "operator_acceptance", "phase13_4_policy_safety_proof.json",
+    )
+    if not os.path.isfile(path):
+        return {"error": "safety proof not found"}
+    with open(path) as f:
+        return _json.load(f)

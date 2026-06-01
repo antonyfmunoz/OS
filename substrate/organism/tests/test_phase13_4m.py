@@ -1,11 +1,11 @@
-"""Phase 13.4M tests — multi-runtime Jarvis acceptance correction.
+"""Phase 13.4M tests — multi-runtime operator acceptance correction.
 
 Validates:
 - Device role registry
 - Runtime fleet model
 - Workload placement policy
-- Jarvis readiness gate (corrected)
-- Jarvis acceptance mode (corrected)
+- Operator readiness gate (corrected)
+- Operator acceptance mode (corrected)
 - API bridge handlers
 - Safety invariants
 """
@@ -303,18 +303,18 @@ class TestWorkloadPlacementPolicy:
         assert restored.workload_type == d.workload_type
 
 
-# ── Jarvis Readiness Gate (corrected) ────────────────────────────
+# ── Operator Readiness Gate (corrected) ──────────────────────────
 
 
-class TestJarvisReadinessGate:
+class TestOperatorReadinessGate:
     def test_standard_ready_with_subscription_runtime(self):
-        from substrate.organism.jarvis_readiness_gate import assess_readiness
+        from substrate.organism.operator_readiness_gate import assess_readiness
         r = assess_readiness(repo_root=_REPO)
         assert len(r.capable_runtimes) > 0
         assert "claude_code" in r.capable_runtimes
 
     def test_cloud_api_exhaustion_is_warning_not_blocker(self):
-        from substrate.organism.jarvis_readiness_gate import assess_readiness
+        from substrate.organism.operator_readiness_gate import assess_readiness
         r = assess_readiness(repo_root=_REPO)
         for issue in r.blocking_issues:
             assert "cloud api" not in issue.lower()
@@ -322,14 +322,14 @@ class TestJarvisReadinessGate:
         assert cloud_warning or r.evidence.get("llm_cloud_available", False)
 
     def test_report_has_fleet_evidence(self):
-        from substrate.organism.jarvis_readiness_gate import assess_readiness
+        from substrate.organism.operator_readiness_gate import assess_readiness
         r = assess_readiness(repo_root=_REPO)
         assert "runtime_fleet" in r.evidence
         assert "capable_runtime_count" in r.evidence
         assert "capable_runtime_providers" in r.evidence
 
     def test_report_serialization(self):
-        from substrate.organism.jarvis_readiness_gate import assess_readiness
+        from substrate.organism.operator_readiness_gate import assess_readiness
         r = assess_readiness(repo_root=_REPO)
         d = r.to_dict()
         assert "standard_ready" in d
@@ -337,38 +337,38 @@ class TestJarvisReadinessGate:
         assert "capable_runtimes" in d
 
 
-# ── Jarvis Acceptance Mode (corrected) ───────────────────────────
+# ── Operator Acceptance Mode (corrected) ─────────────────────────
 
 
-class TestJarvisAcceptanceMode:
+class TestOperatorAcceptanceMode:
     def test_standard_multi_runtime_mode_exists(self):
-        from substrate.organism.jarvis_acceptance_mode import JarvisAcceptanceMode
-        assert JarvisAcceptanceMode.STANDARD_MULTI_RUNTIME.value == "standard_multi_runtime"
+        from substrate.organism.operator_acceptance_mode import OperatorAcceptanceMode
+        assert OperatorAcceptanceMode.STANDARD_MULTI_RUNTIME.value == "standard_multi_runtime"
 
     def test_create_standard_decision(self):
-        from substrate.organism.jarvis_acceptance_mode import (
-            JarvisAcceptanceMode,
+        from substrate.organism.operator_acceptance_mode import (
+            OperatorAcceptanceMode,
             create_standard_mode_decision,
         )
         d = create_standard_mode_decision("rpt-1", "claude_code", "vps")
-        assert d.mode == JarvisAcceptanceMode.STANDARD_MULTI_RUNTIME
+        assert d.mode == OperatorAcceptanceMode.STANDARD_MULTI_RUNTIME
         assert d.capable_runtime_path_exists is True
         assert d.degraded is False
         assert d.selected_runtime == "claude_code"
 
     def test_create_deterministic_decision(self):
-        from substrate.organism.jarvis_acceptance_mode import (
-            JarvisAcceptanceMode,
+        from substrate.organism.operator_acceptance_mode import (
+            OperatorAcceptanceMode,
             create_deterministic_mode_decision,
         )
         d = create_deterministic_mode_decision("rpt-2")
-        assert d.mode == JarvisAcceptanceMode.DETERMINISTIC_ONLY
+        assert d.mode == OperatorAcceptanceMode.DETERMINISTIC_ONLY
         assert d.capable_runtime_path_exists is False
         assert d.degraded is True
 
     def test_select_standard_when_capable_runtime(self):
-        from substrate.organism.jarvis_acceptance_mode import (
-            JarvisAcceptanceMode,
+        from substrate.organism.operator_acceptance_mode import (
+            OperatorAcceptanceMode,
             select_acceptance_mode,
         )
         d = select_acceptance_mode(
@@ -378,11 +378,11 @@ class TestJarvisAcceptanceMode:
             llm_cloud_available=False,
             readiness_report_id="rpt-3",
         )
-        assert d.mode == JarvisAcceptanceMode.STANDARD_MULTI_RUNTIME
+        assert d.mode == OperatorAcceptanceMode.STANDARD_MULTI_RUNTIME
 
     def test_select_blocked_when_no_runtime_no_acceptance(self):
-        from substrate.organism.jarvis_acceptance_mode import (
-            JarvisAcceptanceMode,
+        from substrate.organism.operator_acceptance_mode import (
+            OperatorAcceptanceMode,
             select_acceptance_mode,
         )
         d = select_acceptance_mode(
@@ -393,11 +393,11 @@ class TestJarvisAcceptanceMode:
             readiness_report_id="rpt-4",
             operator_accepts_degraded=False,
         )
-        assert d.mode == JarvisAcceptanceMode.BLOCKED
+        assert d.mode == OperatorAcceptanceMode.BLOCKED
 
     def test_select_deterministic_when_operator_accepts(self):
-        from substrate.organism.jarvis_acceptance_mode import (
-            JarvisAcceptanceMode,
+        from substrate.organism.operator_acceptance_mode import (
+            OperatorAcceptanceMode,
             select_acceptance_mode,
         )
         d = select_acceptance_mode(
@@ -408,11 +408,11 @@ class TestJarvisAcceptanceMode:
             readiness_report_id="rpt-5",
             operator_accepts_degraded=True,
         )
-        assert d.mode == JarvisAcceptanceMode.DETERMINISTIC_ONLY
+        assert d.mode == OperatorAcceptanceMode.DETERMINISTIC_ONLY
 
     def test_cloud_exhaustion_not_blocker(self):
-        from substrate.organism.jarvis_acceptance_mode import (
-            JarvisAcceptanceMode,
+        from substrate.organism.operator_acceptance_mode import (
+            OperatorAcceptanceMode,
             select_acceptance_mode,
         )
         d = select_acceptance_mode(
@@ -422,11 +422,11 @@ class TestJarvisAcceptanceMode:
             llm_cloud_available=False,
             readiness_report_id="rpt-6",
         )
-        assert d.mode == JarvisAcceptanceMode.STANDARD_MULTI_RUNTIME
+        assert d.mode == OperatorAcceptanceMode.STANDARD_MULTI_RUNTIME
         assert d.degraded is False
 
     def test_serialization_roundtrip(self):
-        from substrate.organism.jarvis_acceptance_mode import (
+        from substrate.organism.operator_acceptance_mode import (
             create_standard_mode_decision,
             from_dict,
         )
@@ -438,7 +438,7 @@ class TestJarvisAcceptanceMode:
         assert restored.capable_runtime_path_exists is True
 
     def test_persist_and_load(self):
-        from substrate.organism.jarvis_acceptance_mode import (
+        from substrate.organism.operator_acceptance_mode import (
             create_standard_mode_decision,
             load_mode_decisions,
             persist_mode_decision,
@@ -467,7 +467,7 @@ class TestSafetyInvariants:
     def test_no_secret_values_in_fleet_audit(self):
         path = os.path.join(
             _REPO,
-            "data", "umh", "jarvis_acceptance", "phase13_4m_runtime_fleet_audit.json",
+            "data", "umh", "operator_acceptance", "phase13_4m_runtime_fleet_audit.json",
         )
         if os.path.exists(path):
             content = open(path).read()
@@ -477,7 +477,7 @@ class TestSafetyInvariants:
     def test_no_secrets_in_mode_decision(self):
         path = os.path.join(
             _REPO,
-            "data", "umh", "jarvis_acceptance", "phase13_4m_mode_selection_decision.json",
+            "data", "umh", "operator_acceptance", "phase13_4m_mode_selection_decision.json",
         )
         if os.path.exists(path):
             content = open(path).read()
@@ -485,8 +485,8 @@ class TestSafetyInvariants:
                 assert secret_pattern not in content
 
     def test_deterministic_only_requires_explicit_acceptance(self):
-        from substrate.organism.jarvis_acceptance_mode import (
-            JarvisAcceptanceMode,
+        from substrate.organism.operator_acceptance_mode import (
+            OperatorAcceptanceMode,
             select_acceptance_mode,
         )
         d = select_acceptance_mode(
@@ -497,7 +497,7 @@ class TestSafetyInvariants:
             readiness_report_id="safety-test",
             operator_accepts_degraded=False,
         )
-        assert d.mode == JarvisAcceptanceMode.BLOCKED
+        assert d.mode == OperatorAcceptanceMode.BLOCKED
         assert d.accepted_by_operator is False
 
 
@@ -553,7 +553,7 @@ class TestAPIBridgeHandlers:
 
 class TestReadinessGateUsesFleet:
     def test_gate_detects_claude_code(self):
-        from substrate.organism.jarvis_readiness_gate import _detect_runtime_fleet
+        from substrate.organism.operator_readiness_gate import _detect_runtime_fleet
         from pathlib import Path
         fleet = _detect_runtime_fleet(Path(_REPO))
         cc = [r for r in fleet if r["provider"] == "claude_code"]
@@ -561,7 +561,7 @@ class TestReadinessGateUsesFleet:
         assert cc[0]["installed"] is True
 
     def test_gate_detects_shell(self):
-        from substrate.organism.jarvis_readiness_gate import _detect_runtime_fleet
+        from substrate.organism.operator_readiness_gate import _detect_runtime_fleet
         from pathlib import Path
         fleet = _detect_runtime_fleet(Path(_REPO))
         shell = [r for r in fleet if r["provider"] == "shell"]
@@ -569,11 +569,11 @@ class TestReadinessGateUsesFleet:
         assert shell[0]["capable"] is True
 
     def test_mode_decision_uses_fleet(self):
-        from substrate.organism.jarvis_acceptance_mode import (
-            JarvisAcceptanceMode,
+        from substrate.organism.operator_acceptance_mode import (
+            OperatorAcceptanceMode,
             select_acceptance_mode,
         )
-        from substrate.organism.jarvis_readiness_gate import assess_readiness
+        from substrate.organism.operator_readiness_gate import assess_readiness
         r = assess_readiness(repo_root=_REPO)
         d = select_acceptance_mode(
             capable_runtime_exists=r.standard_ready,
@@ -583,7 +583,7 @@ class TestReadinessGateUsesFleet:
             readiness_report_id="test",
         )
         if r.standard_ready:
-            assert d.mode == JarvisAcceptanceMode.STANDARD_MULTI_RUNTIME
+            assert d.mode == OperatorAcceptanceMode.STANDARD_MULTI_RUNTIME
 
 
 # ── No Fake Data ─────────────────────────────────────────────────
@@ -593,7 +593,7 @@ class TestNoFakeData:
     def test_fleet_audit_is_real(self):
         path = os.path.join(
             _REPO,
-            "data", "umh", "jarvis_acceptance", "phase13_4m_runtime_fleet_audit.json",
+            "data", "umh", "operator_acceptance", "phase13_4m_runtime_fleet_audit.json",
         )
         if os.path.exists(path):
             data = json.load(open(path))
@@ -604,7 +604,7 @@ class TestNoFakeData:
     def test_mode_decision_matches_fleet(self):
         path = os.path.join(
             _REPO,
-            "data", "umh", "jarvis_acceptance", "phase13_4m_mode_selection_decision.json",
+            "data", "umh", "operator_acceptance", "phase13_4m_mode_selection_decision.json",
         )
         if os.path.exists(path):
             data = json.load(open(path))

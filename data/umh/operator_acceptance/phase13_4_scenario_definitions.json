@@ -1,0 +1,147 @@
+{
+  "scenarios": [
+    {
+      "scenario_id": "jas-a",
+      "name": "Primary EOS Dashboard Build Intent",
+      "input_text": "I want to build the first EOS operating dashboard for Empyrean Studios. Use what UMH knows, inspect the current state, and run a governed developer workcell to tell me the highest-leverage implementation plan.",
+      "input_mode": "text",
+      "expected_intent_type": "create_work",
+      "expected_steps": [
+        "classify_intent",
+        "create_or_load_work_packet",
+        "run_context_diagnostic",
+        "generate_propagation_preview",
+        "generate_workload_placement",
+        "generate_runtime_handoff_preview",
+        "require_operator_approval",
+        "execute_sandbox_runtime",
+        "collect_artifacts",
+        "produce_implementation_report"
+      ],
+      "expected_artifacts": [
+        "work_packet",
+        "context_diagnostic",
+        "propagation_preview",
+        "workload_placement_decision",
+        "runtime_handoff_preview",
+        "implementation_report"
+      ],
+      "requires_runtime": true,
+      "requires_permission": false,
+      "requires_reconciliation": false,
+      "requires_propagation": true,
+      "expected_production_mutation": false,
+      "expected_external_write": false,
+      "success_criteria": [
+        "deterministic intent classification to create_work or runtime_handoff",
+        "Work Packet created or loaded",
+        "context diagnostic references current known state",
+        "propagation preview generated",
+        "workload placement decision generated",
+        "runtime handoff preview generated with selected runtime and device",
+        "Claude Code selected if available, otherwise justified alternative",
+        "operator approval required before runtime start",
+        "low-risk sandbox runtime produces implementation report artifact",
+        "selected runtime and device recorded truthfully",
+        "no production mutation"
+      ],
+      "metadata": {}
+    },
+    {
+      "scenario_id": "jas-b",
+      "name": "Roadmap Status + Next Action",
+      "input_text": "Where are we in the roadmap and what is the highest-leverage next action?",
+      "input_mode": "text",
+      "expected_intent_type": "query_status",
+      "expected_steps": [
+        "classify_intent",
+        "load_roadmap_state",
+        "identify_current_phase",
+        "identify_blockers",
+        "identify_next_action",
+        "produce_status_report"
+      ],
+      "expected_artifacts": [
+        "status_report"
+      ],
+      "requires_runtime": false,
+      "requires_permission": false,
+      "requires_reconciliation": false,
+      "requires_propagation": false,
+      "expected_production_mutation": false,
+      "expected_external_write": false,
+      "success_criteria": [
+        "answer from real roadmap/production truth/operational truth state",
+        "current phase identified",
+        "standard_multi_runtime mode referenced truthfully",
+        "Phase 14 identified as next after 13.4/13.4R completion",
+        "next action identified truthfully",
+        "no runtime starts",
+        "no production mutation"
+      ],
+      "metadata": {}
+    },
+    {
+      "scenario_id": "jas-c",
+      "name": "Reconciliation / Canonical Truth",
+      "input_text": "Reconcile what UMH understands about EOS handling companies, entities, and portfolios.",
+      "input_mode": "text",
+      "expected_intent_type": "reconcile",
+      "expected_steps": [
+        "classify_intent",
+        "create_reconciliation_session",
+        "gather_source_representations",
+        "generate_proposals",
+        "present_proposals_for_approval"
+      ],
+      "expected_artifacts": [
+        "reconciliation_session",
+        "reconciliation_proposals"
+      ],
+      "requires_runtime": false,
+      "requires_permission": false,
+      "requires_reconciliation": true,
+      "requires_propagation": false,
+      "expected_production_mutation": false,
+      "expected_external_write": false,
+      "success_criteria": [
+        "reconciliation intent classified",
+        "ReconciliationSession created",
+        "proposals generated if needed",
+        "no canonical update auto-applied",
+        "approval required for canonization"
+      ],
+      "metadata": {}
+    },
+    {
+      "scenario_id": "jas-d",
+      "name": "Permissioned Cross-Source Diagnostic",
+      "input_text": "If there is evidence I pay for a tool in email and it appears in files or workflows, ask me before linking it.",
+      "input_mode": "text",
+      "expected_intent_type": "configure_policy",
+      "expected_steps": [
+        "classify_intent",
+        "generate_socratic_permission_request",
+        "block_cross_source_linking"
+      ],
+      "expected_artifacts": [
+        "permission_request"
+      ],
+      "requires_runtime": false,
+      "requires_permission": true,
+      "requires_reconciliation": false,
+      "requires_propagation": false,
+      "expected_production_mutation": false,
+      "expected_external_write": false,
+      "success_criteria": [
+        "Socratic permission request generated",
+        "cross-source linking blocked until confirmed",
+        "no external account accessed",
+        "no canonization"
+      ],
+      "metadata": {}
+    }
+  ],
+  "count": 4,
+  "timestamp": "2026-06-01T01:38:06.106012+00:00"
+}

@@ -1,0 +1,106 @@
+{
+  "phase": "13.4",
+  "task": "preflight_134mr_verification",
+  "timestamp": "2026-06-01T01:14:36Z",
+  "predecessor": {
+    "phase": "13.4MR",
+    "audit": "docs/audits/convergence/phase13_4mr_multi_runtime_jarvis_acceptance_correction_production_truth.md",
+    "ptd": "ptd-13m4mr01",
+    "poc": "poc-13m4mr01",
+    "merge_commit": "0630e202"
+  },
+  "checks": {
+    "01_audit_exists": {
+      "status": "PASS",
+      "detail": "phase13_4mr audit file exists"
+    },
+    "02_ptd_exists": {
+      "status": "PASS",
+      "detail": "ptd-13m4mr01 in production_verification.json"
+    },
+    "03_poc_exists": {
+      "status": "PASS",
+      "detail": "poc-13m4mr01 in production_verification.json"
+    },
+    "04_runtime_commit": {
+      "status": "PASS",
+      "detail": "merge commit 0630e202 is in main history"
+    },
+    "05_runtime_fleet_api": {
+      "status": "PASS",
+      "detail": "readiness gate detects 6 capable runtimes via binary detection"
+    },
+    "06_device_role_registry": {
+      "status": "PASS",
+      "detail": "3 devices: control_plane, heavy_workstation, cockpit_ui"
+    },
+    "07_workload_placement": {
+      "status": "PASS",
+      "detail": "19 workload types defined"
+    },
+    "08_readiness_gate": {
+      "status": "PASS",
+      "detail": "ready=True, standard_ready=True, capable=[claude_code, shell, codex, opencode, hermes, ollama]"
+    },
+    "09_operator_experience_routes": {
+      "status": "PASS",
+      "detail": "cockpit_operator_experience_routes.py exists"
+    },
+    "10_runtime_surface_routes": {
+      "status": "PASS",
+      "detail": "cockpit_runtime_surface_routes.py exists"
+    },
+    "11_context_assimilation_routes": {
+      "status": "PASS",
+      "detail": "handled via organism routes"
+    },
+    "12_universal_work_routes": {
+      "status": "PASS",
+      "detail": "cockpit_universal_work_routes.py exists"
+    },
+    "13_propagation_graph_routes": {
+      "status": "PASS",
+      "detail": "cockpit_propagation_graph_routes.py exists"
+    },
+    "14_operational_truth_routes": {
+      "status": "PASS",
+      "detail": "handled via organism intelligence routes"
+    },
+    "15_execution_journal": {
+      "status": "PASS",
+      "detail": "execution_journal.jsonl exists with 2 entries"
+    },
+    "16_eventbus_handlers": {
+      "status": "PASS",
+      "detail": "EventBus with subscribe/unsubscribe/emit \u2014 handlers registered on get_bus()"
+    },
+    "17_sandbox_scoped": {
+      "status": "PASS",
+      "detail": "operating in worktree /opt/OS/.claude/worktrees/ground-truth-audit"
+    },
+    "18_cadence_dry_run": {
+      "status": "PASS",
+      "detail": "AutonomousCadence has DRY_RUN_ONLY mode"
+    },
+    "19_medium_risk_blocked": {
+      "status": "PASS",
+      "detail": "medium_risk_execution in blocked_capabilities for all modes"
+    },
+    "20_no_unresolved_issues": {
+      "status": "PASS",
+      "detail": "Phase 13.4MR production truth verified, no outstanding issues"
+    }
+  },
+  "result": "ALL_PASS",
+  "capable_runtimes": [
+    "claude_code",
+    "shell",
+    "codex",
+    "opencode",
+    "hermes",
+    "ollama"
+  ],
+  "mode": "standard_multi_runtime",
+  "deterministic_only": false,
+  "degraded": false
+}

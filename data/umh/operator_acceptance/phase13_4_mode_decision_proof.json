@@ -1,0 +1,56 @@
+{
+  "phase": "13.4",
+  "task": "mode_decision_proof",
+  "timestamp": "2026-06-01T01:38:44Z",
+  "decision": {
+    "decision_id": "jamd-0b081a4b",
+    "mode": "standard_multi_runtime",
+    "accepted_by_operator": true,
+    "capable_runtime_path_exists": true,
+    "selected_runtime": "claude_code",
+    "selected_device": "dn-a1b2c3d4",
+    "selected_runtime_reason": "claude_code detected as primary governed runtime via binary check",
+    "cloud_api_available": false,
+    "cloud_api_status": "quota_exhausted",
+    "llm_cloud_provider_available": false,
+    "degraded": false,
+    "what_this_proves": [
+      "full Jarvis plumbing: operator\u2192AI\u2192WorkPacket\u2192context\u2192permission\u2192propagation\u2192runtime\u2192artifact\u2192review",
+      "sandboxed runtime execution with event streaming",
+      "policy enforcement blocks unsafe actions",
+      "API/cockpit expose acceptance state",
+      "multi-runtime fleet selection and placement",
+      "governed AI reasoning via subscription/CLI runtime"
+    ],
+    "what_this_does_not_prove": [
+      "medium-risk production execution",
+      "full autonomous cadence",
+      "multi-provider cloud API routing under load"
+    ],
+    "allowed_capabilities": [
+      "deterministic_intent_classification",
+      "ai_backed_intent_classification",
+      "work_packet_creation",
+      "context_lookup",
+      "reconciliation_proposal_generation",
+      "permission_request_generation",
+      "propagation_preview",
+      "sandboxed_low_risk_runtime_execution",
+      "artifact_report_generation",
+      "api_cockpit_proof",
+      "ai_reasoning_via_governed_runtime",
+      "multi_runtime_selection"
+    ],
+    "blocked_capabilities": [
+      "medium_risk_execution",
+      "external_writes",
+      "production_mutation",
+      "auto_merge",
+      "autonomous_cadence_execution",
+      "external_account_crawling"
+    ],
+    "readiness_report_id": "ots-c4e88cab",
+    "timestamp": "2026-06-01T01:38:44Z",
+    "metadata": {}
+  }
+}
