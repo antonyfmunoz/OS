@@ -1,0 +1,35 @@
+{
+  "phase": "14.1R",
+  "task": "canonicality_decision_proof",
+  "timestamp": "2026-06-01T14:50:06Z",
+  "proof_type": "operator_decision_recording",
+  "artifact_recorded": "data/umh/projection_reconciliation/phase14_1r_canonicality_decisions.json",
+  "decisions_recorded": [
+    {
+      "id": "eos_canonical_source",
+      "recorded": true,
+      "summary": "Beast/GitHub EntrepreneurOS is canonical; /opt/OS/saas deleted at e3bd216e"
+    },
+    {
+      "id": "auth_canonical_direction",
+      "recorded": true,
+      "summary": "Clerk is target auth for all Trinity apps; EOS already migrated; CreatorOS and LyfeOS require migration from Passport.js/Firebase"
+    },
+    {
+      "id": "vps_platform_api",
+      "recorded": true,
+      "summary": "transports/api/http is UMH platform API infrastructure, not EOS app source"
+    },
+    {
+      "id": "feature_build_status",
+      "recorded": true,
+      "summary": "Feature builds blocked until Phase 14.2 canonical source decisions promoted"
+    }
+  ],
+  "total_decisions": 4,
+  "all_operator_approved": true,
+  "verification": {
+    "method": "artifact file creation with operator-supplied decision content",
+    "status": "pass"
+  }
+}

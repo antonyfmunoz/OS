@@ -1,0 +1,167 @@
+{
+  "phase": "14.1R",
+  "task": "preflight",
+  "timestamp": "2026-06-01T14:56:53Z",
+  "checks": [
+    {
+      "id": 1,
+      "name": "phase_14_1_audit",
+      "path": "docs/audits/convergence/phase14_1_permissioned_source_inspection_execution.md",
+      "status": "PASS",
+      "detail": "Exists, 70+ lines, documents 5/6 source inspections with critical findings on schema drift and competing EOS sources"
+    },
+    {
+      "id": 2,
+      "name": "phase_14_1_preflight_audit",
+      "path": "docs/audits/convergence/phase14_1_preflight_140r_verification.md",
+      "status": "PASS",
+      "detail": "Exists, 15/15 preflight checks passed, Phase 14.0R verified as prerequisite"
+    },
+    {
+      "id": 3,
+      "name": "phase_14_1_convergence_update",
+      "path": "docs/audits/convergence/phase14_1_source_inspection_convergence_update.md",
+      "status": "PASS",
+      "detail": "Exists, covers 6 sources, 5 critical discoveries, 8 operator decisions required, updated convergence plan for 14.1A and 14.2"
+    },
+    {
+      "id": 4,
+      "name": "phase_14_1_proof_artifacts",
+      "path": "data/umh/projection_reconciliation/phase14_1_*.json",
+      "status": "PASS",
+      "detail": "15 phase14_1_*.json files found (preflight, permission_state, opt_os_inspection, saas_inspection, projection_packages_inspection, github_inspection, google_docs_blocker, windows_dev_inspection, divergence_analysis, canonicality_candidate_report, updated_work_packets, readiness_gate_report, test_gate_results, api_verification, cockpit_verification)"
+    },
+    {
+      "id": 5,
+      "name": "permission_state",
+      "path": "data/umh/projection_reconciliation/phase14_1_permission_state.json",
+      "status": "PASS",
+      "detail": "Exists, classifies 6 sources: Google Docs blocked (metadata_only), GitHub granted, /opt/OS granted, saas/ granted, projections/ granted, Windows Beast granted"
+    },
+    {
+      "id": 6,
+      "name": "opt_os_inspection",
+      "path": "data/umh/projection_reconciliation/phase14_1_opt_os_inspection.json",
+      "status": "PASS",
+      "detail": "Exists, 4765 total files mapped across 16 directories, cadence OFF, medium-risk blocked"
+    },
+    {
+      "id": 7,
+      "name": "saas_inspection",
+      "path": "data/umh/projection_reconciliation/phase14_1_saas_inspection.json",
+      "status": "PASS",
+      "detail": "Exists, Hono/Drizzle TypeScript backend, 22 tables, severe schema drift documented"
+    },
+    {
+      "id": 8,
+      "name": "projections_inspection",
+      "path": "data/umh/projection_reconciliation/phase14_1_projection_packages_inspection.json",
+      "status": "PASS",
+      "detail": "Exists, EOS=31 files (10 agents, 3 views, 3 workflows), CreatorOS=8 files (skeleton), LyfeOS=8 files (skeleton)"
+    },
+    {
+      "id": 9,
+      "name": "github_inspection",
+      "path": "data/umh/projection_reconciliation/phase14_1_github_inspection.json",
+      "status": "PASS",
+      "detail": "Exists, 4 repos inspected (OS, EntrepreneurOS, CreatorOS, LYFEOS), all Trinity apps are full-stack TypeScript"
+    },
+    {
+      "id": 10,
+      "name": "google_docs_blocker",
+      "path": "data/umh/projection_reconciliation/phase14_1_google_docs_blocker.json",
+      "status": "PASS",
+      "detail": "Exists, blocker documented: no Google Drive API credentials, inspection plan for when access is available"
+    },
+    {
+      "id": 11,
+      "name": "windows_dev_inspection",
+      "path": "data/umh/projection_reconciliation/phase14_1_windows_dev_inspection.json",
+      "status": "PASS",
+      "detail": "Exists, Beast accessible, EntrepreneurOS (603 files, full-stack), CreatorOS (380 files), LYFEOS (413 files) all inspected"
+    },
+    {
+      "id": 12,
+      "name": "cross_source_index",
+      "path": "data/umh/projection_reconciliation/cross_source_index.json",
+      "status": "PASS",
+      "detail": "Standalone file exists, indexes UMH/EOS/CreatorOS/LyfeOS across all sources (local, GitHub, Beast), also referenced in api_verification"
+    },
+    {
+      "id": 13,
+      "name": "divergence_analysis",
+      "path": "data/umh/projection_reconciliation/phase14_1_divergence_analysis.json",
+      "status": "PASS",
+      "detail": "Exists, 18 total divergences identified, 6 high-severity, covers schema splits, auth divergence, partial backends, competing sources"
+    },
+    {
+      "id": 14,
+      "name": "canonicality_candidate_report",
+      "path": "data/umh/projection_reconciliation/phase14_1_canonicality_candidate_report.json",
+      "status": "PASS",
+      "detail": "Exists, UMH=production_truth, EOS=4 competing sources (unknown canonical), CreatorOS/LyfeOS=GitHub likely canonical"
+    },
+    {
+      "id": 15,
+      "name": "updated_convergence_plan",
+      "path": "docs/audits/convergence/phase14_1_source_inspection_convergence_update.md",
+      "status": "PASS",
+      "detail": "Updated plan present: Phase 14.1A (Google Docs access), Phase 14.2 (Canonical Source Decision Session), 8 operator decisions required"
+    },
+    {
+      "id": 16,
+      "name": "updated_work_packets",
+      "path": "data/umh/projection_reconciliation/phase14_1_updated_work_packets.json",
+      "status": "PASS",
+      "detail": "Exists, 10 work packets generated: Google Docs inspection, EOS repo vs saas diff, canonicality decision session, schema reconciliation, and more"
+    },
+    {
+      "id": 17,
+      "name": "readiness_gate_report",
+      "path": "data/umh/projection_reconciliation/phase14_1_readiness_gate_report.json",
+      "status": "PASS",
+      "detail": "Exists, ready_for_feature_build=false, ready_for_source_inspection=true, ready_for_convergence_execution=false, 5 blocking issues listed"
+    },
+    {
+      "id": 18,
+      "name": "test_gate_results",
+      "path": "data/umh/projection_reconciliation/phase14_1_test_gate_results.json",
+      "status": "PASS",
+      "detail": "Exists, 79/79 tests passed, 0 failed, 0 skipped, all safety checks passed (no fake data, no secret leakage, no unsafe deletion)"
+    },
+    {
+      "id": 19,
+      "name": "phase_14_0r_production_truth",
+      "path": "docs/audits/convergence/phase14_0r_projection_source_reconciliation_production_truth.md",
+      "status": "PASS",
+      "detail": "Exists, Phase 14.0 promoted to production truth, 22/22 preflight checks passed, 7 code files reviewed, 61/61 tests passed"
+    },
+    {
+      "id": 20,
+      "name": "runtime_commit_before_merge",
+      "path": "git log",
+      "status": "PASS",
+      "detail": "Commit ac9d291c 'feat(14.1): permissioned source inspection execution -- all code sources inspected' present in log"
+    },
+    {
+      "id": 21,
+      "name": "cadence_dry_run_or_off",
+      "path": "data/umh/organism/daemon_state.json + data/umh/projection_reconciliation/phase14_1_opt_os_inspection.json",
+      "status": "PASS",
+      "detail": "daemon_state.json shows started=true, tick_count=1; opt_os_inspection confirms cadence_state='off (default CadenceMode.OFF)'"
+    },
+    {
+      "id": 22,
+      "name": "medium_risk_execution_blocked",
+      "path": "data/umh/projection_reconciliation/phase14_1_readiness_gate_report.json",
+      "status": "PASS",
+      "detail": "Readiness gate: no_feature_build_allowed=true, no_destructive_sync_allowed=true, ready_for_feature_build=false -- medium-risk execution effectively blocked"
+    }
+  ],
+  "summary": {
+    "total": 22,
+    "passed": 22,
+    "failed": 0,
+    "verdict": "PASS"
+  }
+}

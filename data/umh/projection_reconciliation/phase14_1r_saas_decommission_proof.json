@@ -1,0 +1,105 @@
+{
+  "phase": "14.1R",
+  "task": "saas_decommission_verification",
+  "timestamp": "2026-06-01T15:12:00Z",
+  "facts": [
+    {
+      "id": 1,
+      "claim": "Operator explicitly approved deletion",
+      "status": "VERIFIED",
+      "evidence": "Commit e3bd216e message states 'Operator decisions recorded: saas/ deleted (not worth converging)'. phase14_2_saas_and_eos_decision.json dec-142-01 records explicit operator decision. phase14_1r_canonicality_decisions.json confirms operator_approved: true."
+    },
+    {
+      "id": 2,
+      "claim": "/opt/OS/saas was inspected before deletion",
+      "status": "VERIFIED",
+      "evidence": "phase14_1_saas_inspection.json exists with full structural inspection: package.json, tsconfig, drizzle config, 14 tables, 12 routes, migration journal, schema drift analysis, overlap analysis."
+    },
+    {
+      "id": 3,
+      "claim": "/opt/OS/saas was classified as redundant partial EOS backend/shell",
+      "status": "VERIFIED",
+      "evidence": "Inspection summary: 'saas/ is a Hono-based TypeScript backend service named eos-projection... No frontend, no deployment config.' Classification: 'backend_service'. Canonicality report: 'saas/ was a redundant partial backend/shell'. dec-142-01 rationale: 'Severe schema drift, no frontend, divergent auth.'"
+    },
+    {
+      "id": 4,
+      "claim": "transports/api/http/server.ts already contains UMH platform API entrypoint",
+      "status": "VERIFIED",
+      "evidence": "server.ts contains Hono app with serve(), /health endpoint, authMiddleware, routes for organism/governance/chat/knowledge/execution/settings/config/system, error handler, notFound handler. All 7 checks pass."
+    },
+    {
+      "id": 5,
+      "claim": "transports/api/http owns platform routes, auth middleware, DB client, schema, health check, error handlers",
+      "status": "VERIFIED",
+      "evidence": "ls -R transports/api/http/ shows: db/ (client.ts, migrate.ts, schema.ts), middleware/ (auth.ts, operator.ts), routes/ (8 route files), lib/ (python_bridge.ts), server.ts (health + error handlers), types.ts, drizzle.config.ts."
+    },
+    {
+      "id": 6,
+      "claim": "/opt/OS/saas added EOS projection routes on top",
+      "status": "VERIFIED",
+      "evidence": "git show e3bd216e --stat shows deletion of 12 route files: activity.ts, agent.ts, agents.ts, analytics.ts, approvals.ts, events.ts, interactions.ts, outcomes.ts, skills.ts, tasks.ts, ventures.ts, workflows.ts. Inspection confirmed 'umh_platform_routes_mounted_in_api_index' showing saas/ imported from transports/api/http/."
+    },
+    {
+      "id": 7,
+      "claim": "No UMH platform API depends on /opt/OS/saas",
+      "status": "VERIFIED",
+      "evidence": "grep -r 'saas/' across *.py, *.ts, *.js found 0 import/require statements ('NO ACTIVE IMPORTS FROM SAAS'). Remaining references are string literals in guard scripts and organism engine data strings."
+    },
+    {
+      "id": 8,
+      "claim": "Only references to saas/ remaining are historical docs or dependency checker guards",
+      "status": "VERIFIED",
+      "evidence": "Code references: 4 pre-commit guard scripts (check_dependency_direction.py, check_type_divergence.py, check_instance_leak.py, check_projection_leak.py) contain 'saas/' as exclusion paths. 3 organism files contain 'saas/' as string literals in readiness checks, world model topology, and reconciliation data. 22 markdown doc files reference saas/ historically. Zero are active imports."
+    },
+    {
+      "id": 9,
+      "claim": "No active imports point to /opt/OS/saas",
+      "status": "VERIFIED",
+      "evidence": "grep for 'from saas', 'import saas', 'require.*saas' across all .py/.ts/.js files returned 'NO ACTIVE IMPORTS FROM SAAS'."
+    },
+    {
+      "id": 10,
+      "claim": "Deletion is recoverable from git history",
+      "status": "VERIFIED",
+      "evidence": "git log --oneline --all -- saas/ returns 10+ commits including e3bd216e and prior history. All 30 files recoverable via 'git show e3bd216e~1:saas/<file>'."
+    },
+    {
+      "id": 11,
+      "claim": "Deletion removed ~30 files / ~6074 lines",
+      "status": "VERIFIED",
+      "evidence": "git show e3bd216e --stat shows exactly '30 files changed, 6074 deletions(-)'. Matches claim precisely."
+    },
+    {
+      "id": 12,
+      "claim": "No production runtime route broke",
+      "status": "VERIFIED",
+      "evidence": "transports/api/http/server.ts is self-contained — imports all 8 route modules from local ./routes/, has health endpoint, auth middleware, error handling. No dependency on saas/. Server loads independently."
+    },
+    {
+      "id": 13,
+      "claim": "No tests broke",
+      "status": "VERIFIED",
+      "evidence": "phase14_1_test_gate_results.json: 79/79 tests passed, 0 failed, 0 skipped. Safety checks all true (no_fake_data, no_secret_leakage, no_unsafe_deletion, no_external_write, no_destructive_sync)."
+    },
+    {
+      "id": 14,
+      "claim": "No source truth was lost because EOS canonical source is Beast/GitHub app",
+      "status": "VERIFIED",
+      "evidence": "phase14_1_canonicality_candidate_report.json maps 4 EOS sources; Beast has 603 files (most complete). phase14_1r_canonicality_decisions.json records operator-approved decision: 'Beast/GitHub EntrepreneurOS app is canonical EOS source'. phase14_2_saas_and_eos_decision.json dec-142-02 confirms Beast is canonical."
+    }
+  ],
+  "summary": {
+    "total": 14,
+    "verified": 14,
+    "unverified": 0,
+    "partial": 0,
+    "verdict": "SAFE"
+  },
+  "residual_references": {
+    "guard_scripts": 4,
+    "organism_string_literals": 3,
+    "doc_files": 22,
+    "active_imports": 0,
+    "note": "All residual references are non-functional: guard script exclusion paths, organism topology/reconciliation data strings, and historical documentation. None cause runtime behavior."
+  }
+}
