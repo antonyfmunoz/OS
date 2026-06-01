@@ -1,7 +1,7 @@
 """OperationalTruthSnapshot — scoreboard for UMH operational reality.
 
 Captures the truthful state of UMH's runtime infrastructure at a point
-in time. Used by JarvisReadinessGate and the cockpit to display whether
+in time. Used by OperatorReadinessGate and the cockpit to display whether
 the system is actually operational vs. what documentation claims.
 
 Persistence: JSONL append to data/umh/operational_truth/snapshots.jsonl

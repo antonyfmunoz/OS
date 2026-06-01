@@ -1,0 +1,16 @@
+{
+  "phase": "13.4",
+  "task": "cockpit_verification",
+  "timestamp": "2026-06-01T01:45:40Z",
+  "cockpit_surface": {
+    "acceptance_run_summary": true,
+    "e2e_trace_view": true,
+    "runtime_stream_events": true,
+    "safety_state_display": true,
+    "artifact_list": true
+  },
+  "api_backed": true,
+  "browser_walkthrough_blocker": "VPS headless \u2014 Clerk auth required for cockpit access",
+  "api_data_verified": true,
+  "result": "PASS"
+}

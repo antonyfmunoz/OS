@@ -1,0 +1,70 @@
+{
+  "phase": "13.4R",
+  "task": "terminology_correction",
+  "timestamp": "2026-06-01T02:57:15Z",
+  "renames_completed": {
+    "jarvis_acceptance.py": "operator_acceptance.py",
+    "jarvis_acceptance_mode.py": "operator_acceptance_mode.py",
+    "jarvis_acceptance_scenarios.py": "operator_acceptance_scenarios.py",
+    "jarvis_loop_coordinator.py": "operator_loop_coordinator.py",
+    "jarvis_readiness_gate.py": "operator_readiness_gate.py",
+    "test_phase13_4_jarvis_e2e_acceptance.py": "test_phase13_4_operator_e2e_acceptance.py",
+    "data/umh/jarvis_acceptance/": "data/umh/operator_acceptance/"
+  },
+  "class_renames": {
+    "JarvisAcceptanceRun": "OperatorAcceptanceRun",
+    "JarvisAcceptanceArtifact": "OperatorAcceptanceArtifact",
+    "JarvisAcceptanceMode": "OperatorAcceptanceMode",
+    "JarvisAcceptanceModeDecision": "OperatorAcceptanceModeDecision",
+    "JarvisLoopCoordinator": "OperatorLoopCoordinator",
+    "JarvisReadinessReport": "OperatorReadinessReport"
+  },
+  "route_renames": {
+    "/organism/jarvis-acceptance": "/organism/operator-acceptance",
+    "/organism/jarvis-acceptance/runs": "/organism/operator-acceptance/runs",
+    "/organism/jarvis-acceptance/runs/{run_id}": "/organism/operator-acceptance/runs/{run_id}",
+    "/organism/jarvis-acceptance/artifacts": "/organism/operator-acceptance/artifacts",
+    "/organism/jarvis-acceptance/scenarios": "/organism/operator-acceptance/scenarios",
+    "/organism/jarvis-acceptance/readiness": "/organism/operator-acceptance/readiness",
+    "/organism/jarvis-acceptance/start": "/organism/operator-acceptance/start",
+    "/organism/jarvis-acceptance/primary-proof": "/organism/operator-acceptance/primary-proof",
+    "/organism/jarvis-acceptance/safety-proof": "/organism/operator-acceptance/safety-proof"
+  },
+  "bridge_handler_renames": {
+    "organism.jarvis_acceptance": "organism.operator_acceptance",
+    "organism.jarvis_acceptance.runs": "organism.operator_acceptance.runs",
+    "organism.jarvis_acceptance.run_detail": "organism.operator_acceptance.run_detail",
+    "organism.jarvis_acceptance.artifacts": "organism.operator_acceptance.artifacts",
+    "organism.jarvis_acceptance.scenarios": "organism.operator_acceptance.scenarios",
+    "organism.jarvis_acceptance.readiness": "organism.operator_acceptance.readiness",
+    "organism.jarvis_acceptance.start": "organism.operator_acceptance.start",
+    "organism.jarvis_acceptance.primary_proof": "organism.operator_acceptance.primary_proof",
+    "organism.jarvis_acceptance.safety_proof": "organism.operator_acceptance.safety_proof"
+  },
+  "id_prefix_changes": {
+    "jar-": "oar-",
+    "jaa-": "oaa-",
+    "jamd-": "oamd-",
+    "jcd-": "ocd-",
+    "jpr-": "opr-",
+    "jpv-": "opv-",
+    "jas-": "oas-"
+  },
+  "canonical_types_updated": true,
+  "operational_truth_docstring_updated": true,
+  "old_files_deleted": true,
+  "old_data_dir_deleted": true,
+  "data_migrated_to_new_dir": true,
+  "prior_phase_tests_updated": [
+    "test_phase13_4m.py",
+    "test_phase13_0_operator_experience.py"
+  ],
+  "verification": {
+    "zero_jarvis_in_substrate": true,
+    "zero_jarvis_in_transports": true,
+    "zero_jarvis_in_new_tests": true,
+    "all_py_compile_clean": true,
+    "85_tests_pass": true,
+    "48_prior_phase_tests_pass": true
+  }
+}

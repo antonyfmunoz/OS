@@ -1,0 +1,36 @@
+{
+  "phase": "13.4",
+  "task": "coordinator_proof",
+  "timestamp": "2026-06-01T01:38:37Z",
+  "coordinator_module": "substrate/organism/jarvis_loop_coordinator.py",
+  "methods": [
+    "verify_acceptance_mode",
+    "start_acceptance_run",
+    "send_input_to_orchestrator",
+    "load_or_create_work_packet",
+    "run_context_diagnostic",
+    "create_permission_request_if_needed",
+    "generate_propagation_preview",
+    "generate_workload_placement_decision",
+    "generate_runtime_handoff_preview",
+    "require_operator_approval",
+    "start_sandbox_runtime",
+    "collect_runtime_artifacts",
+    "generate_implementation_report",
+    "generate_operator_summary",
+    "verify_no_production_mutation",
+    "complete_run",
+    "check_safety_policy",
+    "run_scenario_e2e",
+    "get_overview"
+  ],
+  "orchestrates": [
+    "OrchestratorKernel",
+    "WorkPacketEngine",
+    "RuntimeManager",
+    "WorkloadPlacementPolicy",
+    "DeviceRoleRegistry",
+    "JarvisReadinessGate"
+  ],
+  "verified": true
+}

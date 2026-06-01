@@ -1,0 +1,38 @@
+{
+  "phase": "13.4",
+  "task": "api_verification",
+  "timestamp": "2026-06-01T01:45:40Z",
+  "bridge_handlers": {
+    "organism.jarvis_acceptance": true,
+    "organism.jarvis_acceptance.runs": true,
+    "organism.jarvis_acceptance.run_detail": true,
+    "organism.jarvis_acceptance.artifacts": true,
+    "organism.jarvis_acceptance.scenarios": true,
+    "organism.jarvis_acceptance.readiness": true,
+    "organism.jarvis_acceptance.start": true,
+    "organism.jarvis_acceptance.primary_proof": true,
+    "organism.jarvis_acceptance.safety_proof": true
+  },
+  "api_routes": {
+    "GET /api/umh/organism/jarvis-acceptance": true,
+    "GET /api/umh/organism/jarvis-acceptance/runs": true,
+    "GET /api/umh/organism/jarvis-acceptance/runs/:id": true,
+    "GET /api/umh/organism/jarvis-acceptance/artifacts": true,
+    "GET /api/umh/organism/jarvis-acceptance/scenarios": true,
+    "GET /api/umh/organism/jarvis-acceptance/readiness": true,
+    "POST /api/umh/organism/jarvis-acceptance/start": true,
+    "GET /api/umh/organism/jarvis-acceptance/primary-proof": true,
+    "GET /api/umh/organism/jarvis-acceptance/safety-proof": true
+  },
+  "auth": {
+    "GET_routes_require_auth": "via cockpit auth middleware",
+    "POST_routes_require_operator_token": true,
+    "no_unauthenticated_run_state": true
+  },
+  "security": {
+    "path_traversal_safe": true,
+    "no_raw_logs_without_auth": true,
+    "no_sensitive_context_leak": true
+  },
+  "result": "PASS"
+}

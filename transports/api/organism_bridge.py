@@ -1759,7 +1759,7 @@ def _operational_truth_issues(payload: dict) -> dict:
 
 def _operational_truth_readiness(payload: dict) -> dict:
     try:
-        from substrate.organism.jarvis_readiness_gate import assess_readiness
+        from substrate.organism.operator_readiness_gate import assess_readiness
         report = assess_readiness(deterministic_only=payload.get("deterministic_only", False))
         return {"success": True, "data": report.to_dict()}
     except Exception:
@@ -1879,11 +1879,129 @@ def _operational_truth_workload_placement(payload: dict) -> dict:
 
 def _operational_truth_runtime_readiness(payload: dict) -> dict:
     try:
-        from substrate.organism.jarvis_readiness_gate import assess_readiness
+        from substrate.organism.operator_readiness_gate import assess_readiness
         report = assess_readiness()
         return {"success": True, "data": report.to_dict()}
     except Exception:
         logger.exception("organism.operational_truth.runtime_readiness failed")
+        return {"success": False, "error": "internal_error"}
+
+
+# ── Operator acceptance handlers ───────────────────────────
+
+
+def _operator_acceptance(payload: dict) -> dict:
+    try:
+        from substrate.organism.operator_loop_coordinator import OperatorLoopCoordinator
+        coord = OperatorLoopCoordinator()
+        return {"success": True, "data": coord.get_overview()}
+    except Exception:
+        logger.exception("organism.operator_acceptance failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_acceptance_runs(payload: dict) -> dict:
+    try:
+        from substrate.organism.operator_acceptance import load_runs
+        runs = load_runs()
+        return {"success": True, "data": [r.to_dict() for r in runs]}
+    except Exception:
+        logger.exception("organism.operator_acceptance.runs failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_acceptance_run_detail(payload: dict) -> dict:
+    try:
+        run_id = payload.get("run_id", "")
+        if not run_id:
+            return {"success": False, "error": "run_id required"}
+        from substrate.organism.operator_acceptance import get_run
+        run = get_run(run_id)
+        if not run:
+            return {"success": False, "error": "run not found"}
+        return {"success": True, "data": run.to_dict()}
+    except Exception:
+        logger.exception("organism.operator_acceptance.run_detail failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_acceptance_artifacts(payload: dict) -> dict:
+    try:
+        from substrate.organism.operator_acceptance import load_artifacts
+        arts = load_artifacts()
+        return {"success": True, "data": [a.to_dict() for a in arts]}
+    except Exception:
+        logger.exception("organism.operator_acceptance.artifacts failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_acceptance_scenarios(payload: dict) -> dict:
+    try:
+        from substrate.organism.operator_acceptance_scenarios import get_all_scenarios
+        scenarios = get_all_scenarios()
+        return {"success": True, "data": [s.to_dict() for s in scenarios]}
+    except Exception:
+        logger.exception("organism.operator_acceptance.scenarios failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_acceptance_readiness(payload: dict) -> dict:
+    try:
+        from substrate.organism.operator_readiness_gate import assess_readiness
+        report = assess_readiness()
+        return {"success": True, "data": report.to_dict()}
+    except Exception:
+        logger.exception("organism.operator_acceptance.readiness failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_acceptance_start(payload: dict) -> dict:
+    try:
+        input_text = payload.get("input_text", "")
+        if not input_text:
+            return {"success": False, "error": "input_text required"}
+        input_mode = payload.get("input_mode", "text")
+        skip_runtime = payload.get("skip_runtime", False)
+        from substrate.organism.operator_loop_coordinator import OperatorLoopCoordinator
+        coord = OperatorLoopCoordinator()
+        result = coord.run_scenario_e2e(input_text, input_mode, skip_runtime=skip_runtime)
+        return {"success": True, "data": result}
+    except Exception:
+        logger.exception("organism.operator_acceptance.start failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_acceptance_primary_proof(payload: dict) -> dict:
+    try:
+        import json as _json
+        proof_path = _os.path.join(
+            _os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "umh", "operator_acceptance", "phase13_4_primary_e2e_proof.json",
+        )
+        if not _os.path.isfile(proof_path):
+            return {"success": False, "error": "primary proof not found"}
+        with open(proof_path) as f:
+            data = _json.load(f)
+        return {"success": True, "data": data}
+    except Exception:
+        logger.exception("organism.operator_acceptance.primary_proof failed")
+        return {"success": False, "error": "internal_error"}
+
+
+def _operator_acceptance_safety_proof(payload: dict) -> dict:
+    try:
+        import json as _json
+        proof_path = _os.path.join(
+            _os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "umh", "operator_acceptance", "phase13_4_policy_safety_proof.json",
+        )
+        if not _os.path.isfile(proof_path):
+            return {"success": False, "error": "safety proof not found"}
+        with open(proof_path) as f:
+            data = _json.load(f)
+        return {"success": True, "data": data}
+    except Exception:
+        logger.exception("organism.operator_acceptance.safety_proof failed")
         return {"success": False, "error": "internal_error"}
 
 
@@ -1999,6 +2117,15 @@ _ACTIONS: dict = {
     "organism.operational_truth.device_roles": _operational_truth_device_roles,
     "organism.operational_truth.workload_placement": _operational_truth_workload_placement,
     "organism.operational_truth.runtime_readiness": _operational_truth_runtime_readiness,
+    "organism.operator_acceptance": _operator_acceptance,
+    "organism.operator_acceptance.runs": _operator_acceptance_runs,
+    "organism.operator_acceptance.run_detail": _operator_acceptance_run_detail,
+    "organism.operator_acceptance.artifacts": _operator_acceptance_artifacts,
+    "organism.operator_acceptance.scenarios": _operator_acceptance_scenarios,
+    "organism.operator_acceptance.readiness": _operator_acceptance_readiness,
+    "organism.operator_acceptance.start": _operator_acceptance_start,
+    "organism.operator_acceptance.primary_proof": _operator_acceptance_primary_proof,
+    "organism.operator_acceptance.safety_proof": _operator_acceptance_safety_proof,
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,

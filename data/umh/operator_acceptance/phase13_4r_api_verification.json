@@ -1,0 +1,22 @@
+{
+  "phase": "13.4R",
+  "task": "api_verification",
+  "timestamp": "2026-06-01T02:58:38Z",
+  "routes_verified": [
+    "GET /api/umh/organism/operator-acceptance",
+    "GET /api/umh/organism/operator-acceptance/runs",
+    "GET /api/umh/organism/operator-acceptance/runs/:id",
+    "GET /api/umh/organism/operator-acceptance/artifacts",
+    "GET /api/umh/organism/operator-acceptance/scenarios",
+    "GET /api/umh/organism/operator-acceptance/readiness",
+    "POST /api/umh/organism/operator-acceptance/start",
+    "GET /api/umh/organism/operator-acceptance/primary-proof",
+    "GET /api/umh/organism/operator-acceptance/safety-proof"
+  ],
+  "route_count": 9,
+  "auth_on_post_routes": true,
+  "no_hardcoded_jarvis_in_routes": true,
+  "no_raw_tracebacks": true,
+  "no_sensitive_context_leaks": true,
+  "note": "Routes defined in cockpit_organism_routes.py and organism_bridge.py, both updated to operator-acceptance paths"
+}
