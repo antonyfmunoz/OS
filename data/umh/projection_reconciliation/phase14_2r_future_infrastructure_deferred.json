@@ -1,0 +1,36 @@
+{
+  "phase": "14.2R",
+  "task": "future_infrastructure_deferred",
+  "timestamp": "2026-06-01T23:04:00Z",
+  "description": "Future intended infrastructure direction — deferred pending product docs convergence",
+  "future_intended_infrastructure": {
+    "deployment": {
+      "provider": "Fly.io",
+      "status": "deferred_pending_product_docs_convergence"
+    },
+    "database": {
+      "provider": "Neon PostgreSQL",
+      "status": "deferred_pending_product_docs_convergence"
+    },
+    "analytics": {
+      "provider": "PostHog",
+      "status": "deferred_pending_product_docs_convergence"
+    },
+    "auth": {
+      "provider": "Clerk",
+      "status": "target_approved_migration_deferred",
+      "note": "Clerk is the approved auth target for all Trinity apps. EOS already uses Clerk. CreatorOS and LyfeOS migrations are deferred pending product docs convergence."
+    }
+  },
+  "reason": "Infrastructure implementation should not be finalized until Google Docs / product documentation is converged into complete end-state designs. Feature scope, app boundaries, database shape, event taxonomy, analytics needs, and deployment architecture depend on product docs / end-state design.",
+  "rules": [
+    "do not deploy to Fly.io yet",
+    "do not create Neon databases yet",
+    "do not install/configure PostHog yet",
+    "do not modify env vars yet",
+    "do not touch secrets yet",
+    "do not migrate databases yet",
+    "do not plan infra in detail beyond future intention until docs/end-state design converge"
+  ],
+  "unblock_condition": "Google Docs / product documentation convergence completes (Phase 14.3 or later)"
+}

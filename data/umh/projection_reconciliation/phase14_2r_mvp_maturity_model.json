@@ -1,0 +1,74 @@
+{
+  "phase": "14.2R",
+  "task": "mvp_maturity_model",
+  "timestamp": "2026-06-01T23:02:00Z",
+  "description": "MVP maturity model for all Trinity apps — records current state and requirements for full UMH-connected MVP",
+  "full_mvp_definition": {
+    "description": "A Trinity app is a full UMH-connected MVP only when all criteria are met",
+    "criteria": [
+      "isolated app source is stable",
+      "product docs/end-state design are converged",
+      "GitHub/Windows source alignment is complete",
+      "UMH integration boundary is defined",
+      "auth path is implemented or approved",
+      "deployment path is defined",
+      "database path is defined",
+      "analytics path is defined",
+      "operator/runtime workflows are connected where relevant"
+    ]
+  },
+  "apps": {
+    "entrepreneuros": {
+      "maturity_status": "partially_built_mvp",
+      "code_source_truth": "GitHub + Windows Beast C:\\dev\\dev\\EntrepreneurOS",
+      "current_auth": "Clerk",
+      "auth_target": "Clerk",
+      "auth_migration_required": false,
+      "current_status": "partial isolated app / partial product system",
+      "full_umh_connected_mvp": false,
+      "file_count": 603,
+      "needs": [
+        "GitHub/Windows source alignment verification",
+        "product docs/end-state design convergence (Google Docs)",
+        "UMH integration boundary definition",
+        "deployment/database/analytics path (after docs converge)"
+      ]
+    },
+    "creatoros": {
+      "maturity_status": "partially_built_mvp",
+      "code_source_truth": "GitHub + Windows Beast C:\\dev\\dev\\CreatorOS",
+      "current_auth": "Passport.js",
+      "auth_designation": "legacy",
+      "auth_target": "Clerk",
+      "auth_migration_required": true,
+      "current_status": "partial isolated app / partial product system",
+      "full_umh_connected_mvp": false,
+      "file_count": 272,
+      "needs": [
+        "Clerk migration plan",
+        "GitHub/Windows source alignment verification",
+        "product docs/end-state design convergence (Google Docs)",
+        "UMH integration boundary definition",
+        "deployment/database/analytics path (after docs converge)"
+      ]
+    },
+    "lyfeos": {
+      "maturity_status": "completed_isolated_mvp",
+      "code_source_truth": "GitHub + Windows Beast C:\\dev\\dev\\LyfeOS",
+      "current_auth": ["Passport.js", "Firebase"],
+      "auth_designation": "legacy",
+      "auth_target": "Clerk",
+      "auth_migration_required": true,
+      "current_status": "completed isolated MVP",
+      "caveat": "not connected to UMH yet — therefore not a full UMH-connected MVP",
+      "full_umh_connected_mvp": false,
+      "file_count": 854,
+      "needs": [
+        "UMH integration boundary definition",
+        "Clerk migration plan",
+        "product docs/end-state design convergence (Google Docs)",
+        "deployment/database/analytics path (after docs converge)"
+      ]
+    }
+  }
+}
