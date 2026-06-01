@@ -1,0 +1,127 @@
+{
+  "phase": "14.1",
+  "task": "windows_dev_inspection",
+  "timestamp": "2026-06-01T13:51:42Z",
+  "inspected": true,
+  "beast_accessible": true,
+  "dev_directories": [
+    {
+      "name": "EntrepreneurOS",
+      "path": "C:\\Users\\antonys beast pc\\dev\\EntrepreneurOS",
+      "is_git_repo": true,
+      "git_branch": "feature/company-system",
+      "framework": "React 18 + Vite",
+      "backend": "Express",
+      "database": "Drizzle + Neon",
+      "auth": "Clerk",
+      "has_frontend": true,
+      "has_backend": true,
+      "file_count": 603,
+      "projection_relevance": "EOS",
+      "ai_providers": [
+        "Anthropic",
+        "Gemini",
+        "OpenAI",
+        "Perplexity",
+        "xAI"
+      ],
+      "unique": "Most architecturally complex. AI gateway with 5 providers. Clerk auth. CRM + org chart + task board + workflows."
+    },
+    {
+      "name": "CreatorOS",
+      "path": "C:\\Users\\antonys beast pc\\dev\\CreatorOS",
+      "is_git_repo": true,
+      "git_branch": "main",
+      "framework": "React 18 + Vite",
+      "backend": "Express",
+      "database": "Drizzle + Neon",
+      "auth": "Passport.js",
+      "has_frontend": true,
+      "has_backend": true,
+      "file_count": 272,
+      "projection_relevance": "CreatorOS",
+      "unique": "Social creator platform. Passport auth. Posts/marketplace/communities. SendGrid email. Simplest."
+    },
+    {
+      "name": "LyfeOS",
+      "path": "C:\\Users\\antonys beast pc\\dev\\LyfeOS",
+      "is_git_repo": true,
+      "git_branch": "main",
+      "framework": "React 18 + Vite",
+      "backend": "Express",
+      "database": "Drizzle + Neon",
+      "auth": "Passport + Firebase",
+      "has_frontend": true,
+      "has_backend": true,
+      "file_count": 854,
+      "projection_relevance": "LyfeOS",
+      "unique": "Most feature-rich. Life gamification. Quests/missions/rituals. Stripe billing. Firebase + Passport dual auth. 7 migrations."
+    },
+    {
+      "name": "OS",
+      "path": "C:\\Users\\antonys beast pc\\dev\\OS",
+      "is_git_repo": true,
+      "git_branch": "main",
+      "projection_relevance": "UMH",
+      "notes": "Full OS repo mirror. Behind VPS by several commits. Post-convergence structure."
+    },
+    {
+      "name": "OS (Projects)",
+      "path": "C:\\Users\\antonys beast pc\\Projects\\OS",
+      "is_git_repo": true,
+      "git_branch": "main",
+      "projection_relevance": "UMH",
+      "notes": "STALE copy \u2014 pre-convergence era structure. Should be considered dead."
+    }
+  ],
+  "empty_directories": [
+    "Initiate Arena",
+    "OSv2",
+    "REAL FUTURE LLM",
+    "REAL FUTURE OS",
+    "UMH"
+  ],
+  "trinity_apps_found": {
+    "eos": {
+      "path": "dev/EntrepreneurOS",
+      "completeness": "full",
+      "branch": "feature/company-system",
+      "file_count": 603,
+      "auth": "Clerk",
+      "schema_divergence": "Monolith Replit-era schema vs VPS UMH-separated schema"
+    },
+    "creatoros": {
+      "path": "dev/CreatorOS",
+      "completeness": "full",
+      "branch": "main",
+      "file_count": 272,
+      "auth": "Passport.js"
+    },
+    "lyfeos": {
+      "path": "dev/LyfeOS",
+      "completeness": "full",
+      "branch": "main",
+      "file_count": 854,
+      "auth": "Passport + Firebase"
+    }
+  },
+  "comparison_with_vps_saas": {
+    "schema_diverged": true,
+    "auth_diverged": true,
+    "routes_diverged": true,
+    "notes": "Beast EOS is Replit-era monolith (Clerk auth, all-in-one schema). VPS saas/ is post-architecture-separation (UMH auth, split platform/projection tables). Same domain, divergent implementation."
+  },
+  "os_repo_on_beast": {
+    "dev_os": {
+      "exists": true,
+      "branch": "main",
+      "status": "behind VPS by several commits"
+    },
+    "projects_os": {
+      "exists": true,
+      "branch": "main",
+      "status": "STALE \u2014 pre-convergence era"
+    }
+  },
+  "summary": "Beast /dev has 3 full Trinity apps (EOS=603 files, CreatorOS=272, LyfeOS=854) + 2 OS copies + 5 empty dirs. All apps share Replit-origin stack but differ in auth (Clerk/Passport/Firebase), AI providers, and domain. EOS Beast version has DIVERGED from VPS saas/ \u2014 different auth system (Clerk vs UMH), different schema structure (monolith vs separated). LyfeOS is largest by files, EOS is most complex architecturally."
+}

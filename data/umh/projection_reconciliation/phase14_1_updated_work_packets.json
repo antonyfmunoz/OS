@@ -1,0 +1,184 @@
+{
+  "phase": "14.1",
+  "task": "updated_work_packets",
+  "timestamp": "2026-06-01T13:44:41Z",
+  "work_packets": [
+    {
+      "id": "wp-141-01",
+      "objective": "Complete Google Docs inspection \u2014 read UMH/EOS/CreatorOS/LyfeOS architecture and product docs",
+      "source_scope": "Google Drive/Docs",
+      "permission_requirements": "Google Drive API credentials (service account or OAuth2)",
+      "selected_device": "VPS (API call)",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "phase14_1_google_docs_inspection.json"
+      ],
+      "validation_plan": "Verify document count matches Drive listing; cross-reference claims with code state",
+      "no_mutation_rule": "Read-only \u2014 no document modification",
+      "human_decisions_required": [
+        "Provide Google Drive credentials or select specific docs to share"
+      ]
+    },
+    {
+      "id": "wp-141-02",
+      "objective": "Deep comparison of GitHub EntrepreneurOS repo vs VPS saas/ \u2014 identify what's in repo but not on VPS",
+      "source_scope": "GitHub antonyfmunoz/EntrepreneurOS + /opt/OS/saas",
+      "permission_requirements": "None \u2014 GitHub access confirmed, saas/ is local",
+      "selected_device": "VPS",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "phase14_2_eos_repo_vs_saas_diff.json"
+      ],
+      "validation_plan": "Compare package.json, schema files, route files, and client/ directory between repo and VPS",
+      "no_mutation_rule": "Read-only comparison \u2014 no file copy",
+      "human_decisions_required": [
+        "None for comparison; operator decides canonicality after review"
+      ]
+    },
+    {
+      "id": "wp-141-03",
+      "objective": "Complete Windows Beast /dev inspection if blocker exists, or validate Beast inspection results",
+      "source_scope": "Windows Beast C:\\dev\\",
+      "permission_requirements": "SSH access (confirmed available)",
+      "selected_device": "Beast via SSH",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "phase14_1_windows_dev_inspection.json"
+      ],
+      "validation_plan": "Verify Trinity app directories exist; compare with GitHub repos",
+      "no_mutation_rule": "Read-only \u2014 no file modification on Beast",
+      "human_decisions_required": [
+        "None for inspection"
+      ]
+    },
+    {
+      "id": "wp-141-04",
+      "objective": "EOS source tree canonicality decision \u2014 operator selects which EOS source is canonical",
+      "source_scope": "GitHub EntrepreneurOS, VPS saas/, VPS projections/eos, Beast /dev EOS",
+      "permission_requirements": "None \u2014 all sources inspected or inspection pending",
+      "selected_device": "N/A \u2014 operator decision",
+      "risk_class": "LOW (decision only, no mutation)",
+      "expected_artifacts": [
+        "phase14_2_eos_canonicality_decision.json"
+      ],
+      "validation_plan": "Operator reviews source comparison and declares canonical source",
+      "no_mutation_rule": "Decision only \u2014 no source modification",
+      "human_decisions_required": [
+        "Which EOS source is canonical?",
+        "Is saas/ the active development target?",
+        "Should EntrepreneurOS repo be archived?",
+        "Should projections/eos Python layer be reconciled with saas/ TypeScript layer?"
+      ]
+    },
+    {
+      "id": "wp-141-05",
+      "objective": "EOS /opt/OS/saas convergence analysis \u2014 schema drift remediation plan",
+      "source_scope": "/opt/OS/saas/db/schema.ts, migrations/, GitHub EntrepreneurOS",
+      "permission_requirements": "None \u2014 local and GitHub access confirmed",
+      "selected_device": "VPS",
+      "risk_class": "MEDIUM (schema analysis, no mutation yet)",
+      "expected_artifacts": [
+        "phase14_2_eos_schema_convergence_plan.json"
+      ],
+      "validation_plan": "Map all tables, migrations, schema definitions; identify gaps; propose convergence path",
+      "no_mutation_rule": "Analysis only \u2014 no schema changes",
+      "human_decisions_required": [
+        "Which schema version survives (v1 CRM vs v2 events)?",
+        "What to do with 7 orphan migration tables?",
+        "Fix migration journal?",
+        "Fix text\u2192uuid FK type inconsistencies?"
+      ]
+    },
+    {
+      "id": "wp-141-06",
+      "objective": "CreatorOS source canonicality decision \u2014 operator confirms GitHub repo is canonical",
+      "source_scope": "GitHub antonyfmunoz/CreatorOS, VPS projections/creatoros",
+      "permission_requirements": "None",
+      "selected_device": "N/A \u2014 operator decision",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "phase14_2_creatoros_canonicality_decision.json"
+      ],
+      "validation_plan": "Compare GitHub full app with VPS integration skeleton",
+      "no_mutation_rule": "Decision only",
+      "human_decisions_required": [
+        "Confirm GitHub CreatorOS as canonical source"
+      ]
+    },
+    {
+      "id": "wp-141-07",
+      "objective": "LyfeOS source canonicality decision \u2014 operator confirms GitHub repo is canonical",
+      "source_scope": "GitHub antonyfmunoz/LYFEOS, VPS projections/lyfeos",
+      "permission_requirements": "None",
+      "selected_device": "N/A \u2014 operator decision",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "phase14_2_lyfeos_canonicality_decision.json"
+      ],
+      "validation_plan": "Compare GitHub full app with VPS integration skeleton",
+      "no_mutation_rule": "Decision only",
+      "human_decisions_required": [
+        "Confirm GitHub LYFEOS as canonical source",
+        "Is LyfeOS still planned or deprioritized?"
+      ]
+    },
+    {
+      "id": "wp-141-08",
+      "objective": "Shared infrastructure extraction decision \u2014 extract duplicated integration pattern",
+      "source_scope": "projections/eos/integration, projections/creatoros/integration, projections/lyfeos/integration",
+      "permission_requirements": "None \u2014 local code",
+      "selected_device": "VPS",
+      "risk_class": "MEDIUM (code refactoring)",
+      "expected_artifacts": [
+        "phase14_2_shared_integration_base_plan.json"
+      ],
+      "validation_plan": "Diff all 3 integration packages; extract shared base; verify projections still work",
+      "no_mutation_rule": "Analysis and planning only \u2014 no code changes yet",
+      "human_decisions_required": [
+        "Approve shared base extraction approach"
+      ]
+    },
+    {
+      "id": "wp-141-09",
+      "objective": "GitHub repo/branch normalization plan \u2014 prune stale branches, decide on repo structure",
+      "source_scope": "GitHub antonyfmunoz/OS, antonyfmunoz/EntrepreneurOS",
+      "permission_requirements": "GitHub write access (not used during planning)",
+      "selected_device": "VPS (gh CLI)",
+      "risk_class": "LOW (plan only)",
+      "expected_artifacts": [
+        "phase14_2_github_normalization_plan.json"
+      ],
+      "validation_plan": "List all stale branches; propose archive/delete plan; propose monorepo vs multi-repo decision",
+      "no_mutation_rule": "Planning only \u2014 no branch deletion or repo changes",
+      "human_decisions_required": [
+        "Archive EntrepreneurOS repo?",
+        "Prune 62+ stale worktree-runtime-rs branches?",
+        "Monorepo vs multi-repo for Trinity apps?"
+      ]
+    },
+    {
+      "id": "wp-141-10",
+      "objective": "Phase 14.2 \u2014 Canonical Source Decision Session with operator",
+      "source_scope": "All inspected sources",
+      "permission_requirements": "Operator availability",
+      "selected_device": "N/A \u2014 decision session",
+      "risk_class": "LOW (decisions only)",
+      "expected_artifacts": [
+        "phase14_2_canonical_source_decisions.json"
+      ],
+      "validation_plan": "Operator reviews all inspection artifacts and makes canonicality decisions",
+      "no_mutation_rule": "Decision recording only",
+      "human_decisions_required": [
+        "EOS canonical source",
+        "CreatorOS canonical source",
+        "LyfeOS canonical source",
+        "Schema version direction",
+        "Monorepo vs multi-repo",
+        "saas/ future (keep/merge/archive)",
+        "EntrepreneurOS repo future",
+        "Google Docs review priority"
+      ]
+    }
+  ],
+  "summary": "10 work packets generated. WP-01 blocked on Google Docs credentials. WP-02/03 can proceed immediately. WP-04-10 require operator decisions or are planning tasks."
+}
