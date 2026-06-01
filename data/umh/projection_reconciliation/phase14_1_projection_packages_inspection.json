@@ -1,0 +1,169 @@
+{
+  "phase": "14.1",
+  "task": "projection_packages_inspection",
+  "timestamp": "2026-06-01T13:26:34Z",
+  "projections": {
+    "eos": {
+      "file_count": 31,
+      "directories": {
+        "agents": {
+          "files": [
+            "base.py",
+            "ceo.py",
+            "customer_success.py",
+            "engineering.py",
+            "finance.py",
+            "hr.py",
+            "legal.py",
+            "marketing.py",
+            "operations.py",
+            "product.py",
+            "sales.py",
+            "__init__.py"
+          ],
+          "count": 12,
+          "notes": "10 department agents + base class + init"
+        },
+        "integration": {
+          "files": [
+            "DESIGN.md",
+            "correlation.py",
+            "handlers.py",
+            "manifest.py",
+            "outcomes.py",
+            "poller.py",
+            "signals.py",
+            "tables.py",
+            "__init__.py"
+          ],
+          "count": 9,
+          "notes": "Full 7-file integration pattern + design doc + init"
+        },
+        "views": {
+          "files": [
+            "activity.py",
+            "kpis.py",
+            "pipeline.py",
+            "__init__.py"
+          ],
+          "count": 4,
+          "notes": "EOS-specific view generators"
+        },
+        "workflows": {
+          "files": [
+            "content.py",
+            "followup.py",
+            "outreach.py",
+            "__init__.py"
+          ],
+          "count": 4,
+          "notes": "EOS business workflows"
+        },
+        "root": {
+          "files": [
+            "entities.py",
+            "__init__.py"
+          ],
+          "count": 2,
+          "notes": "Entity model definitions importing from substrate.types"
+        }
+      },
+      "integration_schema": "v1 CRM-style (crm_contacts, crm_deals, crm_activities, tasks, agent_actions)",
+      "runtime_activation_state": "active \u2014 agents registered, integration handlers wired",
+      "relation_to_saas": "DIVERGENT \u2014 saas/db/schema.ts has v2 events-style schema, integration/tables.py has v1 CRM schema",
+      "relation_to_windows_dev": "unknown \u2014 Beast inspection pending",
+      "completeness_level": "substantial \u2014 agents, views, workflows, integration all present but no frontend",
+      "risks": [
+        "Schema v1/v2 split between projections/eos and saas/",
+        "entities.py references eos-ceo, eos-sales etc projection-prefixed agent names",
+        "No frontend \u2014 only backend integration + agent layer",
+        "Integration tables.py references deprecated CRM_CONTACTS_TABLE etc"
+      ]
+    },
+    "creatoros": {
+      "file_count": 8,
+      "directories": {
+        "integration": {
+          "files": [
+            "correlation.py",
+            "handlers.py",
+            "manifest.py",
+            "outcomes.py",
+            "signals.py",
+            "tables.py",
+            "__init__.py"
+          ],
+          "count": 7,
+          "notes": "Integration skeleton only \u2014 same 7-file pattern as EOS"
+        },
+        "root": {
+          "files": [
+            "__init__.py"
+          ],
+          "count": 1
+        }
+      },
+      "integration_schema": "CreatorOS-specific (posts, products, revenue, stories) \u2014 references /opt/OS/data/repos/creatoros/shared/schema.ts",
+      "runtime_activation_state": "dormant \u2014 integration code exists but no agents, views, or workflows",
+      "relation_to_saas": "none \u2014 saas/ is EOS-specific",
+      "relation_to_windows_dev": "unknown \u2014 Beast inspection will reveal if full CreatorOS app exists",
+      "completeness_level": "minimal \u2014 integration skeleton only, no agents, no views, no workflows, no frontend",
+      "risks": [
+        "Integration tables.py references data/repos/creatoros/shared/schema.ts which may not exist locally",
+        "No agents or business logic \u2014 skeleton only",
+        "Code duplication with EOS integration pattern (503 diff lines)"
+      ]
+    },
+    "lyfeos": {
+      "file_count": 8,
+      "directories": {
+        "integration": {
+          "files": [
+            "correlation.py",
+            "handlers.py",
+            "manifest.py",
+            "outcomes.py",
+            "signals.py",
+            "tables.py",
+            "__init__.py"
+          ],
+          "count": 7,
+          "notes": "Integration skeleton only \u2014 same 7-file pattern"
+        },
+        "root": {
+          "files": [
+            "__init__.py"
+          ],
+          "count": 1
+        }
+      },
+      "integration_schema": "LyfeOS-specific \u2014 likely personal optimization tables",
+      "runtime_activation_state": "dormant \u2014 integration code exists but no agents, views, or workflows",
+      "relation_to_saas": "none",
+      "relation_to_windows_dev": "unknown \u2014 Beast inspection will reveal if full LyfeOS app exists",
+      "completeness_level": "minimal \u2014 integration skeleton only",
+      "risks": [
+        "Code duplication with EOS/CreatorOS integration pattern",
+        "No agents or business logic",
+        "Likely placeholder until LyfeOS app development begins"
+      ]
+    }
+  },
+  "code_duplication_analysis": {
+    "pattern": "7-file integration pattern duplicated across all 3 projections",
+    "diff_lines_eos_vs_creatoros": {
+      "tables": 503,
+      "signals": 145,
+      "outcomes": 36
+    },
+    "shared_functions": [
+      "_require_str",
+      "_require_int",
+      "outcome severity",
+      "OutcomeReceiver",
+      "connection management"
+    ],
+    "recommendation": "Extract shared integration base into substrate or adapters \u2014 only schema-specific code differs"
+  },
+  "summary": "EOS is the most complete projection (31 files, agents, views, workflows). CreatorOS and LyfeOS are integration skeletons only (8 files each). All three share a duplicated 7-file integration pattern. Schema v1/v2 split exists between projections/eos and saas/."
+}

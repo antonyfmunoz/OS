@@ -1,0 +1,637 @@
+{
+  "timestamp": "2026-06-01T00:00:00Z",
+  "package_json": {
+    "name": "eos-projection",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+      "@hono/node-server": "^1.19.11",
+      "@neondatabase/serverless": "^0.10.4",
+      "dotenv": "^16.4.5",
+      "drizzle-orm": "^0.39.3",
+      "hono": "^4.12.8",
+      "ws": "^8.20.0",
+      "zod": "^3.23.8"
+    },
+    "devDependencies": {
+      "@types/node": "^20.0.0",
+      "@types/ws": "^8.18.1",
+      "drizzle-kit": "^0.30.4",
+      "tsx": "^4.19.2",
+      "typescript": "^5.4.0"
+    },
+    "scripts": {
+      "db:generate": "drizzle-kit generate",
+      "db:migrate": "tsx db/migrate.ts",
+      "db:seed": "tsx db/seed.ts",
+      "db:push": "drizzle-kit push",
+      "db:studio": "drizzle-kit studio",
+      "start": "tsx api/index.ts",
+      "dev": "tsx watch api/index.ts"
+    }
+  },
+  "tsconfig": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "drizzle_config": {
+    "schema": "./db/schema.ts",
+    "out": "./db/migrations",
+    "dialect": "postgresql",
+    "db_url_env": "DATABASE_URL"
+  },
+  "tables": [
+    {
+      "name": "users",
+      "source": "re-exported from transports/api/http/db/schema.ts",
+      "columns": ["id (uuid PK)", "email (text, unique)", "name (text)", "created_at (timestamptz)"],
+      "relations": [],
+      "schema_version": "v1",
+      "notes": "UMH platform table, defined in transports/api/http/db/schema.ts, re-exported by saas/db/schema.ts"
+    },
+    {
+      "name": "portfolios",
+      "source": "re-exported from transports/api/http/db/schema.ts",
+      "columns": ["id (uuid PK)", "user_id (uuid FK->users)", "name (text)", "north_star (text)", "created_at (timestamptz)"],
+      "relations": ["users.id"],
+      "schema_version": "v1",
+      "notes": "UMH platform table, re-exported"
+    },
+    {
+      "name": "organizations",
+      "source": "re-exported from transports/api/http/db/schema.ts",
+      "columns": ["id (uuid PK)", "name (text)", "owner_id (uuid FK->users)", "plan (org_plan enum)", "portfolio_id (uuid FK->portfolios)", "autonomy_stage (text)", "created_at (timestamptz)"],
+      "relations": ["users.id", "portfolios.id"],
+      "schema_version": "v1",
+      "notes": "UMH platform table, re-exported"
+    },
+    {
+      "name": "org_members",
+      "source": "re-exported from transports/api/http/db/schema.ts",
+      "columns": ["org_id (uuid PK, FK->organizations)", "user_id (uuid PK, FK->users)", "role (member_role enum)", "access_level (text)"],
+      "relations": ["organizations.id", "users.id"],
+      "schema_version": "v1",
+      "notes": "UMH platform table, re-exported"
+    },
+    {
+      "name": "user_agent_sessions",
+      "source": "re-exported from transports/api/http/db/schema.ts",
+      "columns": ["id (uuid PK)", "user_id (uuid FK->users)", "org_id (uuid FK->organizations)", "active_agent_id (uuid)", "updated_at (timestamptz)"],
+      "relations": ["users.id", "organizations.id"],
+      "schema_version": "v1",
+      "notes": "UMH platform table, re-exported"
+    },
+    {
+      "name": "approvals",
+      "source": "re-exported from transports/api/http/db/schema.ts",
+      "columns": ["id (uuid PK)", "org_id (uuid FK->organizations)", "request_json (jsonb)", "status (approval_status enum)", "created_at (timestamptz)", "resolved_at (timestamptz)", "resolved_by (uuid FK->users)"],
+      "relations": ["organizations.id", "users.id"],
+      "schema_version": "v1",
+      "notes": "UMH platform table, re-exported. But approvals route is in saas/ — ambiguous ownership"
+    },
+    {
+      "name": "umh_outcomes",
+      "source": "re-exported from transports/api/http/db/schema.ts",
+      "columns": ["id (uuid PK)", "org_id (uuid FK->organizations)", "trace_id (text)", "source_table (text)", "source_row_id (uuid)", "outcome_type (text)", "severity (int)", "payload (jsonb)", "created_at (timestamptz)"],
+      "relations": ["organizations.id"],
+      "schema_version": "v2",
+      "notes": "UMH platform table, re-exported"
+    },
+    {
+      "name": "embeddings",
+      "source": "re-exported from transports/api/http/db/schema.ts",
+      "columns": ["id (uuid PK)", "interaction_id (uuid)", "org_id (uuid FK->organizations)", "embedding (vector(384))", "content_preview (text)", "embedding_model (text)", "created_at (timestamptz)"],
+      "relations": ["organizations.id"],
+      "schema_version": "v1",
+      "notes": "UMH platform table, re-exported. Schema divergence: migration 0000 uses vector(1536), transports schema uses vector(384)"
+    },
+    {
+      "name": "ventures",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "org_id (uuid FK->organizations)", "name (text)", "stage (venture_stage enum)", "config_json (jsonb)", "monthly_revenue (numeric)", "monthly_target (numeric)", "umh_status (text)", "created_at (timestamptz)"],
+      "relations": ["organizations.id"],
+      "schema_version": "v1",
+      "notes": "EOS projection table. CRM-style business tracking"
+    },
+    {
+      "name": "agents",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "org_id (uuid FK->organizations, nullable)", "portfolio_id (uuid FK->portfolios)", "name (text)", "agent_type (text)", "department (text)", "parent_agent_id (uuid FK->self)", "soul (jsonb)", "domain_rules (jsonb)", "tools (jsonb)", "data_tier (text)", "is_active (boolean)", "created_at (timestamptz)"],
+      "relations": ["organizations.id", "portfolios.id", "agents.id (self-ref)"],
+      "schema_version": "v1",
+      "notes": "EOS projection table. Hierarchical agent registry"
+    },
+    {
+      "name": "skills",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "org_id (uuid FK->organizations)", "name (text)", "content (text)", "version (int)", "fitness_function (text)", "created_at (timestamptz)"],
+      "relations": ["organizations.id"],
+      "schema_version": "v1",
+      "notes": "EOS projection table. Versioned skill definitions"
+    },
+    {
+      "name": "skill_versions",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "skill_id (uuid FK->skills)", "org_id (uuid FK->organizations)", "content (text)", "version (int)", "created_at (timestamptz)", "improvement_event_id (uuid FK->events)"],
+      "relations": ["skills.id", "organizations.id", "events.id"],
+      "schema_version": "v1",
+      "notes": "EOS projection table. Skill version archive"
+    },
+    {
+      "name": "events",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "org_id (uuid FK->organizations)", "event_type (text)", "payload_json (jsonb)", "handled_by (text)", "umh_status (text)", "created_at (timestamptz)"],
+      "relations": ["organizations.id"],
+      "schema_version": "v2",
+      "notes": "EOS projection table. Generic event log"
+    },
+    {
+      "name": "workflows",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "org_id (uuid FK->organizations)", "name (text)", "description (text)", "executor_type (text)", "autonomy_stage (text)", "steps (jsonb)", "trigger_type (text)", "is_active (boolean)", "created_at (timestamptz)"],
+      "relations": ["organizations.id"],
+      "schema_version": "v1",
+      "notes": "EOS projection table. Workflow definitions with step sequences"
+    },
+    {
+      "name": "interactions",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "org_id (uuid FK->organizations)", "user_id (uuid FK->users)", "venture_id (uuid FK->ventures)", "agent_id (uuid FK->agents)", "skill_id (uuid FK->skills)", "task_type (text)", "model_used (text)", "input_summary (text)", "output_summary (text)", "tokens_json (jsonb)", "created_at (timestamptz)"],
+      "relations": ["organizations.id", "users.id", "ventures.id", "agents.id", "skills.id"],
+      "schema_version": "v1",
+      "notes": "EOS projection table. LLM interaction log with token cost tracking. Migration 0002 added agent_label and lead_username columns not reflected in schema.ts"
+    },
+    {
+      "name": "outcomes",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "interaction_id (uuid FK->interactions)", "org_id (uuid FK->organizations)", "outcome_type (outcome_type enum)", "score (numeric)", "notes (text)", "created_at (timestamptz)"],
+      "relations": ["interactions.id", "organizations.id"],
+      "schema_version": "v1",
+      "notes": "EOS projection table. Outcome grading per interaction. Migration 0002 added outcome_label column not in schema.ts"
+    },
+    {
+      "name": "human_profiles",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "org_id (uuid FK->organizations)", "username (text)", "venture_id (uuid FK->ventures)", "profile_json (jsonb)", "updated_at (timestamptz)"],
+      "relations": ["organizations.id", "ventures.id"],
+      "schema_version": "v1",
+      "notes": "EOS projection table. Social lead profiles"
+    },
+    {
+      "name": "clients",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "org_id (text)", "venture_id (text)", "name (text)", "email (text)", "phone (text)", "status (text)", "source (text)", "notes (text)", "umh_status (text)", "created_at (timestamptz)", "updated_at (timestamptz)"],
+      "relations": [],
+      "schema_version": "v1",
+      "notes": "EOS projection table. CRM-style client/lead tracking. NOTE: org_id and venture_id are text, NOT uuid FK references — inconsistent with all other tables"
+    },
+    {
+      "name": "transactions",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "org_id (text)", "venture_id (text)", "client_id (uuid FK->clients)", "product_name (text)", "amount_cents (int)", "currency (text)", "status (text)", "payment_date (timestamptz)", "fulfillment_status (text)", "template_instance_id (text)", "notes (text)", "created_at (timestamptz)"],
+      "relations": ["clients.id"],
+      "schema_version": "v1",
+      "notes": "EOS projection table. Financial transaction records. NOTE: org_id and venture_id are text, NOT uuid FK references"
+    },
+    {
+      "name": "fulfillment_events",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "transaction_id (uuid FK->transactions)", "org_id (text)", "venture_id (text)", "description (text)", "completed_at (timestamptz)", "completed_by (text)", "evidence_url (text)", "notes (text)"],
+      "relations": ["transactions.id"],
+      "schema_version": "v1",
+      "notes": "EOS projection table. Fulfillment evidence chain. NOTE: org_id and venture_id are text, NOT uuid FK references"
+    },
+    {
+      "name": "offers",
+      "source": "saas/db/schema.ts (EOS-owned)",
+      "columns": ["id (uuid PK)", "org_id (text)", "venture_id (text)", "name (text)", "position_in_ladder (int)", "price_cents (int)", "currency (text)", "offer_type (text)", "description (text)", "validated (boolean)", "created_at (timestamptz)"],
+      "relations": [],
+      "schema_version": "v1",
+      "notes": "EOS projection table. Offer ladder definitions. NOTE: org_id and venture_id are text, NOT uuid FK references"
+    },
+    {
+      "name": "model_preferences",
+      "source": "migration 0003 only (not in schema.ts)",
+      "columns": ["id (uuid PK)", "org_id (uuid FK->organizations, unique)", "prefer_local (boolean)", "cost_mode (text)", "session_override (text)", "per_task_overrides (jsonb)", "updated_at (timestamptz)"],
+      "relations": ["organizations.id"],
+      "schema_version": "v1",
+      "notes": "Created by migration 0003 but NOT defined in schema.ts — orphan migration table"
+    },
+    {
+      "name": "cross_product_permissions",
+      "source": "migration 0005 only (not in schema.ts)",
+      "columns": ["id (uuid PK)", "user_id (uuid FK->users)", "source_product (text)", "target_product (text)", "data_category (text)", "permitted (boolean)", "granted_at (timestamptz)", "revoked_at (timestamptz)", "created_at (timestamptz)"],
+      "relations": ["users.id"],
+      "schema_version": "v1",
+      "notes": "Created by migration 0005 but NOT defined in schema.ts — orphan migration table"
+    },
+    {
+      "name": "user_intelligence_profiles",
+      "source": "migration 0005 only (not in schema.ts)",
+      "columns": ["id (uuid PK)", "user_id (uuid FK->users, unique)", "communication_style (jsonb)", "peak_performance_windows (jsonb)", "decision_patterns (jsonb)", "content_strengths (jsonb)", "learning_style (jsonb)", "stress_indicators (jsonb)", "north_star (text)", "cross_product_insights (jsonb)", "last_updated (timestamptz)"],
+      "relations": ["users.id"],
+      "schema_version": "v1",
+      "notes": "Created by migration 0005 but NOT defined in schema.ts — orphan migration table"
+    },
+    {
+      "name": "product_connections",
+      "source": "migration 0005 only (not in schema.ts)",
+      "columns": ["id (uuid PK)", "user_id (uuid FK->users)", "product (text)", "connection_config (jsonb)", "status (text)", "connected_at (timestamptz)", "last_sync (timestamptz)"],
+      "relations": ["users.id"],
+      "schema_version": "v1",
+      "notes": "Created by migration 0005 but NOT defined in schema.ts — orphan migration table"
+    },
+    {
+      "name": "higgsfield_jobs",
+      "source": "migration 0006 only (not in schema.ts)",
+      "columns": ["id (uuid PK)", "request_id (text, unique)", "venture (text)", "model_id (text)", "arguments (jsonb)", "status (text)", "output_url (text)", "local_path (text)", "error (text)", "submitted_at (timestamptz)", "finished_at (timestamptz)"],
+      "relations": [],
+      "schema_version": "v1",
+      "notes": "Created by migration 0006 but NOT defined in schema.ts — orphan migration table. References eos_ai/ Python module"
+    },
+    {
+      "name": "goals",
+      "source": "migration 0007 only (not in schema.ts)",
+      "columns": ["id (text PK)", "org_id (uuid FK->organizations)", "title (text)", "description (text)", "state (text, CHECK constraint)", "priority (int)", "expected_impact (float)", "estimated_cost (float)", "confidence (float)", "dependency_unlock (int)", "venture_id (uuid FK->ventures)", "blocked_by (jsonb)", "score (float)", "rank (int)", "score_explanation (jsonb)", "performance (jsonb, added migration 0008)", "created_at (timestamptz)", "updated_at (timestamptz)"],
+      "relations": ["organizations.id", "ventures.id"],
+      "schema_version": "v2",
+      "notes": "Created by migration 0007 (extended by 0008) but NOT defined in schema.ts — orphan migration table. Has RLS policy"
+    },
+    {
+      "name": "goal_outcomes",
+      "source": "migration 0008 only (not in schema.ts)",
+      "columns": ["id (uuid PK)", "org_id (uuid FK->organizations)", "goal_id (text FK->goals)", "outcome_type (text, CHECK constraint)", "task_type (text)", "execution_time (float)", "impact_delta (float)", "metadata (jsonb)", "created_at (timestamptz)"],
+      "relations": ["organizations.id", "goals.id"],
+      "schema_version": "v2",
+      "notes": "Created by migration 0008 but NOT defined in schema.ts — orphan migration table. Has RLS policy"
+    }
+  ],
+  "routes": [
+    {
+      "file": "api/routes/ventures.ts",
+      "endpoints": ["GET /ventures", "GET /ventures/:id", "PATCH /ventures/:id"],
+      "tables_queried": ["ventures"],
+      "auth_required": true,
+      "notes": "Full CRUD for ventures. Zod validation on PATCH."
+    },
+    {
+      "file": "api/routes/agents.ts",
+      "endpoints": ["GET /agents", "POST /agents/:id/signal"],
+      "tables_queried": ["agents"],
+      "auth_required": true,
+      "notes": "List agents and stub signal endpoint (returns {ok:true} only)"
+    },
+    {
+      "file": "api/routes/skills.ts",
+      "endpoints": ["GET /skills", "GET /skills/:id", "PATCH /skills/:id", "POST /skills/:id/improve"],
+      "tables_queried": ["skills", "skillVersions"],
+      "auth_required": true,
+      "notes": "CRUD + AI improvement via Python bridge. Uses callBridge from transports/api/http/lib/python_bridge.js"
+    },
+    {
+      "file": "api/routes/events.ts",
+      "endpoints": ["GET /events", "POST /events/publish"],
+      "tables_queried": ["events"],
+      "auth_required": true,
+      "notes": "Event log read and publish"
+    },
+    {
+      "file": "api/routes/workflows.ts",
+      "endpoints": ["GET /workflows", "POST /workflows/:id/trigger"],
+      "tables_queried": ["workflows"],
+      "auth_required": true,
+      "notes": "List workflows and stub trigger endpoint (returns {ok:true} only)"
+    },
+    {
+      "file": "api/routes/interactions.ts",
+      "endpoints": ["GET /interactions", "GET /interactions/stats"],
+      "tables_queried": ["interactions"],
+      "auth_required": true,
+      "notes": "Recent interactions + aggregate stats by venture/skill with raw SQL"
+    },
+    {
+      "file": "api/routes/outcomes.ts",
+      "endpoints": ["POST /outcomes", "GET /outcomes/skill-performance"],
+      "tables_queried": ["outcomes", "interactions", "skills"],
+      "auth_required": true,
+      "notes": "Log outcomes and skill success rate analytics with raw SQL joins"
+    },
+    {
+      "file": "api/routes/approvals.ts",
+      "endpoints": ["GET /approvals", "GET /approvals/pending", "POST /approvals/:id/approve", "POST /approvals/:id/reject", "POST /approvals/:id/deny"],
+      "tables_queried": ["approvals"],
+      "auth_required": true,
+      "notes": "Approval workflow. Queries approvals table (re-exported from transports/api/http). /deny duplicates /reject"
+    },
+    {
+      "file": "api/routes/agent.ts",
+      "endpoints": ["POST /agent/run", "POST /agent/team", "POST /agent/brief"],
+      "tables_queried": [],
+      "auth_required": true,
+      "notes": "Proxies to Python bridge via callBridge. No direct DB access. Agent execution endpoints"
+    },
+    {
+      "file": "api/routes/tasks.ts",
+      "endpoints": ["GET /tasks"],
+      "tables_queried": ["interactions"],
+      "auth_required": true,
+      "notes": "Maps interactions to task-shaped responses. All statuses hardcoded to 'completed'"
+    },
+    {
+      "file": "api/routes/activity.ts",
+      "endpoints": ["GET /activity/stream"],
+      "tables_queried": ["events"],
+      "auth_required": true,
+      "notes": "Activity stream from events table. Max 500 limit"
+    },
+    {
+      "file": "api/routes/analytics.ts",
+      "endpoints": ["GET /analytics", "GET /analytics/kpis", "GET /analytics/pipeline", "GET /analytics/accountability", "GET /analytics/intelligence"],
+      "tables_queried": ["interactions", "clients", "transactions"],
+      "auth_required": true,
+      "notes": "Dashboard analytics. /accountability and /intelligence call callOrganism (Python bridge to organism subsystem). /kpis reads clients and transactions CRM tables"
+    }
+  ],
+  "umh_platform_routes_mounted_in_api_index": [
+    {"path": "/", "router": "systemRouter", "source": "transports/api/http/routes/system.ts", "auth": false},
+    {"path": "/organism", "router": "organismRouter", "source": "transports/api/http/routes/organism.ts", "auth": true},
+    {"path": "/governance", "router": "governanceRouter", "source": "transports/api/http/routes/governance.ts", "auth": true},
+    {"path": "/chat", "router": "chatRouter", "source": "transports/api/http/routes/chat.ts", "auth": true},
+    {"path": "/", "router": "knowledgeRouter", "source": "transports/api/http/routes/knowledge.ts", "auth": true},
+    {"path": "/execution", "router": "executionRouter", "source": "transports/api/http/routes/execution.ts", "auth": true},
+    {"path": "/settings", "router": "settingsRouter", "source": "transports/api/http/routes/settings.ts", "auth": true},
+    {"path": "/config", "router": "configRouter", "source": "transports/api/http/routes/config.ts", "auth": true}
+  ],
+  "migrations": [
+    {
+      "file": "0000_shallow_jamie_braddock.sql",
+      "description": "Initial schema creation. All core tables, enums, FK constraints, indexes. Drizzle-generated.",
+      "tables_affected": ["agents", "approvals", "embeddings", "events", "human_profiles", "interactions", "org_members", "organizations", "outcomes", "skill_versions", "skills", "users", "ventures", "workflows"],
+      "in_journal": true
+    },
+    {
+      "file": "0001_portfolio_agents_workflows.sql",
+      "description": "Portfolio architecture overhaul. CREATE portfolios + user_agent_sessions. ALTER organizations (add portfolio_id, autonomy_stage), org_members (add access_level). DROP+RECREATE agents (hierarchy: nullable org_id, portfolio_id, agent_type, department, parent, is_active, rename JSON columns). DROP+RECREATE workflows (add description, executor_type, trigger_type, is_active, rename steps_json to steps).",
+      "tables_affected": ["portfolios", "organizations", "org_members", "agents", "workflows", "user_agent_sessions"],
+      "in_journal": true
+    },
+    {
+      "file": "0002_python_layer_columns.sql",
+      "description": "Add Python AI layer columns: interactions.agent_label, interactions.lead_username, outcomes.outcome_label with indexes.",
+      "tables_affected": ["interactions", "outcomes"],
+      "in_journal": true,
+      "notes": "These columns are NOT reflected in saas/db/schema.ts Drizzle definitions — schema drift"
+    },
+    {
+      "file": "0003_model_preferences.sql",
+      "description": "CREATE model_preferences table with RLS for per-org model routing config.",
+      "tables_affected": ["model_preferences"],
+      "in_journal": false,
+      "notes": "NOT in _journal.json and NOT in schema.ts — fully orphaned migration"
+    },
+    {
+      "file": "0004 — MISSING",
+      "description": "Gap in migration sequence. No 0004 file exists.",
+      "tables_affected": [],
+      "in_journal": false,
+      "notes": "Clients and transactions tables exist in schema.ts but have no migration file. Migration 0004_clients_transactions.sql was expected but missing"
+    },
+    {
+      "file": "0005_harness_layer.sql",
+      "description": "CREATE cross_product_permissions, user_intelligence_profiles, product_connections tables with RLS.",
+      "tables_affected": ["cross_product_permissions", "user_intelligence_profiles", "product_connections"],
+      "in_journal": false,
+      "notes": "NOT in _journal.json and NOT in schema.ts — fully orphaned migration"
+    },
+    {
+      "file": "0006_higgsfield_jobs.sql",
+      "description": "CREATE higgsfield_jobs table for Higgsfield Cloud API job tracking.",
+      "tables_affected": ["higgsfield_jobs"],
+      "in_journal": false,
+      "notes": "NOT in _journal.json and NOT in schema.ts — fully orphaned migration. References eos_ai/ Python module"
+    },
+    {
+      "file": "0007_goals.sql",
+      "description": "CREATE goals table with CHECK constraints, RLS policy, and indexes for goal selection/scoring.",
+      "tables_affected": ["goals"],
+      "in_journal": false,
+      "notes": "NOT in _journal.json and NOT in schema.ts — fully orphaned migration"
+    },
+    {
+      "file": "0008_goal_performance.sql",
+      "description": "ALTER goals ADD performance JSONB column. CREATE goal_outcomes table with RLS.",
+      "tables_affected": ["goals", "goal_outcomes"],
+      "in_journal": false,
+      "notes": "NOT in _journal.json and NOT in schema.ts — fully orphaned migration"
+    },
+    {
+      "file": "0009_umh_outcome_writeback.sql",
+      "description": "ALTER events, clients, ventures ADD umh_status column. CREATE umh_outcomes table.",
+      "tables_affected": ["events", "clients", "ventures", "umh_outcomes"],
+      "in_journal": false,
+      "notes": "NOT in _journal.json. umh_outcomes IS defined in transports/api/http/db/schema.ts and re-exported. umh_status columns ARE reflected in saas/db/schema.ts for events and ventures (via schema definition) but may have been added via migration before schema update"
+    }
+  ],
+  "migration_journal": {
+    "version": "7",
+    "dialect": "postgresql",
+    "tracked_count": 3,
+    "total_migration_files": 9,
+    "untracked_migrations": ["0003", "0005", "0006", "0007", "0008", "0009"],
+    "missing_migration_files": ["0004"],
+    "notes": "Only migrations 0000, 0001, 0002 are tracked in _journal.json. 6 migration files exist without journal entries. Migration 0004 is missing entirely."
+  },
+  "seed_data": {
+    "entities_seeded": [
+      "1 user (Antony F. Munoz, antonyfm@empyreanstudios.co)",
+      "1 portfolio (Munoz Holdings Portfolio)",
+      "2 organizations (Empyrean Creative, Lyfe Institute)",
+      "2 org_members (owner in both orgs)",
+      "2 ventures (Empyrean Creative, Lyfe Institute)",
+      "8 skills (Lyfe Institute org — sales/outreach/ICP analysis focused)",
+      "6 agents (1 Portfolio Advisor, 2 CEOs, 3 department agents: Sales, Research, Content)",
+      "1 workflow (Outreach Pipeline — Lyfe Institute, 5 steps)"
+    ],
+    "hardcoded_instance_values": [
+      "antonyfm@empyreanstudios.co",
+      "Antony F. Munoz",
+      "Munoz Holdings Portfolio",
+      "$100K/month net profit across portfolio",
+      "Empyrean Creative",
+      "Lyfe Institute",
+      "Initiate Arena",
+      "$750 founding rate",
+      "$10K/month net profit from Initiate Arena",
+      "Outreach Pipeline",
+      "AFM personal brand voice",
+      "tactical luxury, anti-hustle-bro",
+      "B2B AI infrastructure and brand systems",
+      "Warm/cold outreach openers hardcoded",
+      "Specific ICP criteria (men 18-25)",
+      "eos_app (DB role name)"
+    ],
+    "projection_specific_names": [
+      "EOS (in comments, schema comments, variable naming)",
+      "eos_app (DB role name in RLS tests)",
+      "eos-projection (package.json name)",
+      "eos_ai (referenced in migration 0006 comment)"
+    ]
+  },
+  "overlap_with_transports_api_http": [
+    {
+      "area": "Platform identity schema",
+      "detail": "saas/db/schema.ts re-exports users, portfolios, organizations, orgMembers, userAgentSessions, approvals, umhOutcomes, embeddings from transports/api/http/db/schema.ts. Clean separation — saas imports, does not redefine."
+    },
+    {
+      "area": "Auth middleware",
+      "detail": "api/index.ts imports authMiddleware from transports/api/http/middleware/auth.ts. Correct dependency direction."
+    },
+    {
+      "area": "DB client (withOrg)",
+      "detail": "All route files import withOrg from transports/api/http/db/client.ts. Correct dependency direction."
+    },
+    {
+      "area": "Python bridge",
+      "detail": "skills.ts and agent.ts import callBridge from transports/api/http/lib/python_bridge.ts. analytics.ts imports callOrganism. Correct dependency direction."
+    },
+    {
+      "area": "UMH routes mounted in saas entrypoint",
+      "detail": "api/index.ts imports and mounts 8 UMH platform route files (system, organism, governance, chat, knowledge, execution, settings, config) from transports/api/http/routes/. This means saas/ IS the unified API server entrypoint, not just the EOS projection."
+    },
+    {
+      "area": "Type definitions",
+      "detail": "api/index.ts imports Env type from transports/api/http/types.ts. All route files use this type."
+    },
+    {
+      "area": "Approvals table",
+      "detail": "approvals is defined in transports/api/http/db/schema.ts but the CRUD routes are in saas/api/routes/approvals.ts. Ambiguous ownership — could be UMH platform or EOS projection."
+    }
+  ],
+  "overlap_with_projections_eos": [
+    {
+      "area": "Agent definitions",
+      "detail": "projections/eos/ has Python agent classes (ceo.py, sales.py, marketing.py, etc.) while saas/ has DB agent records and TypeScript route handlers. These represent the same domain concept in two languages. projections/eos/ agents are runtime Python classes; saas/ agents are persisted DB records. No direct code overlap but semantic overlap."
+    },
+    {
+      "area": "Workflows",
+      "detail": "projections/eos/workflows/ has Python workflow definitions (outreach.py, followup.py, content.py) while saas/ has DB workflow records. Same overlap pattern as agents."
+    },
+    {
+      "area": "Entity model",
+      "detail": "projections/eos/entities.py defines Python EOS entity types. saas/db/schema.ts defines TypeScript Drizzle table types. These are parallel type systems for the same domain."
+    },
+    {
+      "area": "Views / Analytics",
+      "detail": "projections/eos/views/ has Python view generators (kpis.py, pipeline.py, activity.py). saas/api/routes/analytics.ts has TypeScript analytics endpoints. These may compute overlapping metrics."
+    },
+    {
+      "area": "Integration layer",
+      "detail": "projections/eos/integration/ has signals.py, handlers.py, outcomes.py, correlation.py, tables.py — a Python integration layer that likely reads/writes the same DB tables that saas/ route handlers operate on."
+    }
+  ],
+  "has_frontend": false,
+  "has_deployment_config": false,
+  "stale_naming": [
+    "package.json name is 'eos-projection' — contains projection name",
+    "EOS referenced in comments throughout schema.ts and index.ts",
+    "eos_app DB role referenced in seed.ts RLS tests",
+    "eos_ai referenced in migration 0006 comment",
+    "/eos/ route prefix in api/index.ts (intentional projection namespace)",
+    "Route paths duplicated as both /eos/ventures and /ventures (backward compat)"
+  ],
+  "missing_elements": [
+    "No src/ directory — no frontend",
+    "No Dockerfile — not independently deployable",
+    "No fly.toml — no Fly.io deployment config",
+    "No .env.example or .env.template",
+    "No db/migrate.ts file (referenced by npm run db:migrate but not found in file listing)",
+    "Migration 0004 missing entirely (gap in sequence)",
+    "6 of 9 migrations not tracked in _journal.json",
+    "schema.ts does not define: model_preferences, cross_product_permissions, user_intelligence_profiles, product_connections, higgsfield_jobs, goals, goal_outcomes (7 orphan migration-only tables)",
+    "schema.ts interactions missing agent_label, lead_username columns (added by migration 0002)",
+    "schema.ts outcomes missing outcome_label column (added by migration 0002)",
+    "clients, transactions, fulfillment_events, offers have no migration file — likely created by db:push or manual SQL",
+    "clients/transactions/fulfillment_events/offers use text org_id/venture_id instead of uuid FK — type inconsistency"
+  ],
+  "schema_drift_details": {
+    "columns_in_migration_not_in_schema_ts": [
+      "interactions.agent_label (migration 0002)",
+      "interactions.lead_username (migration 0002)",
+      "outcomes.outcome_label (migration 0002)"
+    ],
+    "tables_in_migration_not_in_schema_ts": [
+      "model_preferences (migration 0003)",
+      "cross_product_permissions (migration 0005)",
+      "user_intelligence_profiles (migration 0005)",
+      "product_connections (migration 0005)",
+      "higgsfield_jobs (migration 0006)",
+      "goals (migration 0007)",
+      "goal_outcomes (migration 0008)"
+    ],
+    "tables_in_schema_ts_not_in_any_migration": [
+      "clients",
+      "transactions",
+      "fulfillment_events",
+      "offers"
+    ],
+    "type_inconsistencies": [
+      "clients.org_id is text, not uuid FK — breaks withOrg RLS pattern",
+      "clients.venture_id is text, not uuid FK",
+      "transactions.org_id is text, not uuid FK",
+      "transactions.venture_id is text, not uuid FK",
+      "fulfillment_events.org_id is text, not uuid FK",
+      "fulfillment_events.venture_id is text, not uuid FK",
+      "offers.org_id is text, not uuid FK",
+      "offers.venture_id is text, not uuid FK",
+      "embeddings: migration 0000 uses vector(1536), transports schema uses vector(384)"
+    ]
+  },
+  "classification": "backend_service",
+  "divergence_risks": [
+    {
+      "risk": "CRITICAL: Migration journal out of sync — only 3 of 9 migrations tracked",
+      "detail": "Running drizzle-kit will not know about migrations 0003-0009. Any future generate/push could conflict or duplicate."
+    },
+    {
+      "risk": "CRITICAL: Schema drift — 7 tables exist in DB but not in schema.ts",
+      "detail": "model_preferences, cross_product_permissions, user_intelligence_profiles, product_connections, higgsfield_jobs, goals, goal_outcomes exist via SQL migrations but Drizzle does not know about them."
+    },
+    {
+      "risk": "CRITICAL: 4 tables in schema.ts have no migration — clients, transactions, fulfillment_events, offers",
+      "detail": "These were likely created via db:push (schema-first) rather than migration files. Migration 0004 is missing."
+    },
+    {
+      "risk": "HIGH: Type inconsistency in CRM tables",
+      "detail": "clients, transactions, fulfillment_events, offers use text for org_id/venture_id instead of uuid FK references. This breaks the withOrg RLS pattern and means RLS does not protect these tables."
+    },
+    {
+      "risk": "HIGH: saas/ is the unified API entrypoint, not just EOS",
+      "detail": "api/index.ts mounts both UMH platform routes and EOS projection routes. If saas/ is moved or restructured, all UMH API routes break."
+    },
+    {
+      "risk": "MEDIUM: Dual Python/TypeScript type systems for same domain",
+      "detail": "projections/eos/ (Python) and saas/ (TypeScript) define parallel representations of agents, workflows, entities, views. Changes to one may not propagate to the other."
+    },
+    {
+      "risk": "MEDIUM: Seed data is fully instance-specific",
+      "detail": "seed.ts hardcodes Antony's email, company names, product details, pricing, and outreach strategies. Not parameterized for other users."
+    },
+    {
+      "risk": "MEDIUM: Stub endpoints that return {ok:true}",
+      "detail": "agents/:id/signal and workflows/:id/trigger are stubs returning static responses. Could mislead consumers."
+    },
+    {
+      "risk": "LOW: Dual route mounting (/eos/ventures and /ventures)",
+      "detail": "EOS routes are mounted twice — once under /eos/ prefix and once at root for backward compatibility. This doubles the attack surface and may cause confusion."
+    }
+  ],
+  "summary": "saas/ is a Hono-based TypeScript backend service named 'eos-projection' serving as the UNIFIED API entrypoint for both UMH platform routes (imported from transports/api/http/) and EOS projection routes (defined locally). It has 12 local route files covering ventures, agents, skills, events, workflows, interactions, outcomes, approvals, agent execution, tasks, activity, and analytics. The DB schema defines 14 EOS-owned tables plus re-exports 8 UMH platform tables from transports/api/http/db/schema.ts. There is severe schema drift: 9 migration SQL files exist but only 3 are tracked in the Drizzle journal; 7 tables created by migrations are not reflected in schema.ts; 4 tables in schema.ts have no migration file (migration 0004 is missing). The CRM tables (clients, transactions, fulfillment_events, offers) use text columns for org_id/venture_id instead of uuid FKs, breaking the RLS pattern used by all other tables. The seed file is entirely instance-specific with hardcoded founder data. No frontend, no deployment config. There is semantic overlap with projections/eos/ (Python) which defines parallel agent classes, workflows, entities, and views for the same domain."
+}

@@ -1,0 +1,159 @@
+{
+  "phase": "14.1",
+  "task": "canonicality_candidate_report",
+  "timestamp": "2026-06-01T13:38:38Z",
+  "no_auto_canonization": true,
+  "projections": {
+    "UMH": {
+      "strongest_canonical_documentation_candidate": "/opt/OS/docs/ (582 files) + /opt/OS/knowledge/ (289 files) + ARCHITECTURE.md + PHILOSOPHY.md",
+      "strongest_canonical_code_candidate": "/opt/OS/substrate/ (699 files) \u2014 production truth on VPS",
+      "strongest_runtime_operational_candidate": "/opt/OS on VPS \u2014 running services, organism, runtime data",
+      "known_partial_sources": [],
+      "known_stale_sources": [
+        "16 substrate files with legacy EntrepreneurOS references"
+      ],
+      "known_uninspected_sources": [
+        "Google Docs architecture/strategy docs"
+      ],
+      "confidence": "high",
+      "evidence": [
+        "4765 total files",
+        "production services running",
+        "107 convergence audits",
+        "4 pre-commit gates enforcing laws"
+      ],
+      "required_operator_decision": "None \u2014 UMH /opt/OS is already production truth",
+      "required_next_inspection": "Google Docs inspection to verify docs match code",
+      "canonicality_status": "production_truth"
+    },
+    "EOS": {
+      "strongest_canonical_documentation_candidate": "projections/eos/integration/DESIGN.md (only local doc found), Google Docs expected but uninspected",
+      "strongest_canonical_code_candidate": "UNKNOWN \u2014 three competing sources",
+      "code_candidates": {
+        "projections_eos": {
+          "description": "31 files \u2014 Python agents, views, workflows, integration (v1 CRM schema)",
+          "strength": "Active runtime integration, 10 department agents, 3 workflow types",
+          "weakness": "No frontend, v1 CRM schema may be outdated"
+        },
+        "saas": {
+          "description": "30 files \u2014 TypeScript Hono backend (v2 events schema), unified API entrypoint",
+          "strength": "Serves as unified API server, 14 EOS tables, 12 route files",
+          "weakness": "No frontend, severe schema drift (7 orphan tables, broken migration journal), no deployment config"
+        },
+        "windows_beast_dev": {
+          "description": "603 files \u2014 React+Express+Drizzle full-stack app, Clerk auth, AI gateway (5 providers), CRM + org chart + task board + workflows",
+          "strength": "MOST COMPLETE standalone EOS app \u2014 full frontend, full backend, full AI integration, full feature set",
+          "weakness": "On feature/company-system branch (not main), Clerk auth incompatible with UMH platform auth, monolith schema not separated"
+        },
+        "github_entrepreneuros": {
+          "description": "Full-stack TypeScript app \u2014 client/ + server/ + shared/ + Drizzle + Vite + Tailwind",
+          "strength": "Original full EOS app with frontend, dormant since April but may be the most complete source",
+          "weakness": "Dormant since 2026-04-16, development moved to OS/saas/, Replit origin (may have Replit-specific code)"
+        }
+      },
+      "strongest_runtime_operational_candidate": "saas/ API + projections/eos/ agents running on VPS",
+      "known_partial_sources": [
+        "saas/ (backend only, no frontend)",
+        "projections/eos/ (no frontend, v1 schema)"
+      ],
+      "known_stale_sources": [
+        "saas/ schema drift \u2014 7 orphan migration tables",
+        "projections/eos/ v1 CRM schema vs saas/ v2 events schema"
+      ],
+      "known_uninspected_sources": [
+        "Windows Beast /dev (expected full app)",
+        "GitHub repos",
+        "Google Docs"
+      ],
+      "confidence": "high \u2014 all sources now inspected, but operator decision required due to auth/schema divergence",
+      "evidence": [
+        "Schema v1/v2 split across projections/eos and saas/",
+        "saas/ is unified API entrypoint, not just EOS projection",
+        "CRM tables have text org_id breaking RLS",
+        "7 tables exist only in migrations not schema.ts",
+        "4 tables in schema.ts with no migration"
+      ],
+      "required_operator_decision": "FOUR sources fully mapped. Beast is most complete standalone app but uses Clerk (not UMH auth). VPS saas/ is UMH-integrated but backend-only. Key decision: migrate Beast frontend to UMH auth, or rebuild frontend on VPS?",
+      "required_next_inspection": "Windows Beast /dev EOS app comparison; GitHub EOS repo comparison",
+      "canonicality_status": "unknown_pending_inspection"
+    },
+    "CreatorOS": {
+      "strongest_canonical_documentation_candidate": "None found locally \u2014 Google Docs expected",
+      "strongest_canonical_code_candidate": "UNKNOWN \u2014 only integration skeleton (8 files) on VPS",
+      "code_candidates": {
+        "projections_creatoros": {
+          "description": "8 files \u2014 integration skeleton only (tables.py references data/repos/creatoros/shared/schema.ts)",
+          "strength": "Follows standard integration pattern",
+          "weakness": "Skeleton only \u2014 no agents, no views, no workflows, no frontend"
+        },
+        "windows_beast_dev": {
+          "description": "272 files \u2014 full-stack social/creator platform, Passport auth, OpenAI only",
+          "strength": "Complete app on main branch, matches GitHub",
+          "weakness": "Different auth from EOS (Passport vs Clerk)"
+        },
+        "github_creatoros": {
+          "description": "Full-stack TypeScript app \u2014 client/ + server/ + shared/ + migrations/ + uploads/",
+          "strength": "Complete app with frontend, active as of May 20",
+          "weakness": "Only on GitHub, not synced to VPS"
+        }
+      },
+      "known_partial_sources": [
+        "projections/creatoros/ (integration skeleton only)"
+      ],
+      "known_stale_sources": [],
+      "known_uninspected_sources": [
+        "Windows Beast /dev",
+        "GitHub repos",
+        "Google Docs"
+      ],
+      "confidence": "high \u2014 GitHub and Beast match, full app exists",
+      "required_operator_decision": "Where is the full CreatorOS source? Is it on Beast? Is it a separate repo?",
+      "required_next_inspection": "Windows Beast /dev inspection; GitHub repo search",
+      "canonicality_status": "unknown_pending_inspection"
+    },
+    "LyfeOS": {
+      "strongest_canonical_documentation_candidate": "None found locally",
+      "strongest_canonical_code_candidate": "UNKNOWN \u2014 only integration skeleton (8 files) on VPS",
+      "known_partial_sources": [
+        "projections/lyfeos/ (integration skeleton only)"
+      ],
+      "known_uninspected_sources": [
+        "Windows Beast /dev",
+        "GitHub repos",
+        "Google Docs"
+      ],
+      "confidence": "high \u2014 GitHub and Beast match, full app with tests exists",
+      "required_operator_decision": "Where is the full LyfeOS source? Is it planned or deprioritized?",
+      "required_next_inspection": "Windows Beast /dev inspection; GitHub repo search",
+      "canonicality_status": "unknown_pending_inspection",
+      "code_candidates": {
+        "github_lyfeos": {
+          "description": "Full-stack TypeScript app \u2014 client/ + server/ + shared/ + migrations/ + tests/ + Vitest",
+          "strength": "Most complete of all Trinity apps (has tests), active as of May 20",
+          "weakness": "Only on GitHub, not synced to VPS"
+        },
+        "projections_lyfeos": {
+          "description": "Integration skeleton (8 files)",
+          "strength": "Follows standard pattern",
+          "weakness": "Skeleton only"
+        },
+        "windows_beast_dev": {
+          "description": "854 files \u2014 LARGEST Trinity app, life gamification, Passport+Firebase auth, Stripe, 7 migrations, Vitest",
+          "strength": "Most feature-rich, has tests, most schema evolution (7 migrations)",
+          "weakness": "Dual auth (Passport + Firebase) \u2014 most complex auth to migrate"
+        }
+      }
+    },
+    "Shared": {
+      "strongest_canonical_code_candidate": "transports/api/http/ (auth, middleware, DB client, platform schema) + substrate/ (universal platform)",
+      "known_partial_sources": [],
+      "known_stale_sources": [
+        "Integration pattern duplicated 3x across projections \u2014 should be shared"
+      ],
+      "confidence": "high for existing shared infra; unknown for shared Trinity app code",
+      "required_operator_decision": "Extract shared integration base? Shared TypeScript packages?",
+      "canonicality_status": "production_truth_for_platform_infra"
+    }
+  },
+  "summary": "UMH is canonical on VPS. EOS has 3 competing sources with low confidence \u2014 operator decision required after Beast/GitHub inspection. CreatorOS and LyfeOS have no visible full source \u2014 very low confidence. Shared platform infra is canonical in substrate/ and transports/."
+}
