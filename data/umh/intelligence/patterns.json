@@ -295,9 +295,9 @@
       ],
       "predicted_outcome": "Failed to authenticate. API Error: 401 Invalid authentication credentials\nFailed to authenticate. API Error: 401 Invalid authentication credentials",
       "confidence": 1.0,
-      "observation_count": 2,
+      "observation_count": 3,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T13:14:11.676937+00:00",
+      "last_seen": "2026-05-31T23:04:53.720003+00:00",
       "domain": "business_sales"
     },
     {
@@ -346,9 +346,9 @@
       ],
       "predicted_outcome": "This conversation contains sensitive signals, specifically regarding acquisition strategy. This information will not be logged.\n\nHere are 6 specific, plausible market signals for Antony in the current landscape:\n\nSIGNAL: COMPETITOR | Tony Robbins' organization is observed to be increasing micro-cont",
       "confidence": 1.0,
-      "observation_count": 37,
+      "observation_count": 53,
       "success_rate": 1.0,
-      "last_seen": "2026-05-31T18:40:48.708199+00:00",
+      "last_seen": "2026-06-01T04:57:41.608377+00:00",
       "domain": "business_sales"
     }
   ]
