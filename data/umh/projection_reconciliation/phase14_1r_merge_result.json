@@ -1,0 +1,32 @@
+{
+  "phase": "14.1R",
+  "task": "merge_result",
+  "timestamp": "2026-06-01T15:25:00Z",
+  "merge_commit": "c9882df7",
+  "merge_strategy": "ort",
+  "branch_merged": "worktree-ground-truth-audit",
+  "target_branch": "main",
+  "pushed_to_remote": true,
+  "remote": "origin (github.com/antonyfmunoz/OS.git)",
+  "files_changed": 61,
+  "insertions": 4471,
+  "deletions": 6093,
+  "verification": {
+    "saas_tracked_files_deleted": true,
+    "saas_untracked_residue": ["saas/bridge/", "saas/node_modules/"],
+    "saas_untracked_residue_note": "Untracked directories never in git. bridge/ is 1 directory, node_modules/ is npm cache. Both safe to rm -rf but not code.",
+    "transports_api_http_intact": true,
+    "phase_14_1_artifacts_on_main": 16,
+    "phase_14_1r_artifacts_on_main": 8,
+    "phase_14_1_audit_docs_on_main": 3,
+    "phase_14_1r_audit_docs_on_main": 2,
+    "test_file_on_main": true,
+    "working_tree_clean": true,
+    "remote_up_to_date": true
+  },
+  "commits_merged": [
+    "ac9d291c — feat(14.1): permissioned source inspection execution",
+    "e3bd216e — feat(14.2): delete saas/",
+    "955b786a — feat(14.1R): phase 14.1 production truth verification"
+  ]
+}

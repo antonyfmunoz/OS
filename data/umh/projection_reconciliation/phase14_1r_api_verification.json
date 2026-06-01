@@ -1,0 +1,93 @@
+{
+  "phase": "14.1R",
+  "task": "api_verification",
+  "timestamp": "2026-06-01T16:30:00Z",
+  "description": "Live verification of projection reconciliation API routes",
+  "operator_health": {
+    "status": "ok",
+    "url": "http://localhost:8091/health",
+    "verified": true
+  },
+  "routes_tested": [
+    {
+      "name": "projection-reconciliation",
+      "bridge_function": "_projection_reconciliation",
+      "status": "PASS",
+      "returns_valid_json": true,
+      "requires_auth": true,
+      "note": "Returns reconciliation overview via ProjectionReconciliationEngine"
+    },
+    {
+      "name": "sources",
+      "bridge_function": "_projection_reconciliation_sources",
+      "status": "PASS",
+      "returns_valid_json": true,
+      "requires_auth": true,
+      "note": "Returns source inventory per projection"
+    },
+    {
+      "name": "source-map",
+      "bridge_function": "_projection_reconciliation_source_map",
+      "status": "PASS",
+      "returns_valid_json": true,
+      "requires_auth": true,
+      "note": "Returns projection_source_map.json data"
+    },
+    {
+      "name": "divergences",
+      "bridge_function": "_projection_reconciliation_divergences",
+      "status": "PASS",
+      "returns_valid_json": true,
+      "requires_auth": true,
+      "note": "Returns divergence analysis via ProjectionReconciliationEngine"
+    },
+    {
+      "name": "convergence-plan",
+      "bridge_function": "_projection_reconciliation_convergence_plan",
+      "status": "PASS",
+      "returns_valid_json": true,
+      "requires_auth": true,
+      "note": "Returns trinity_convergence_plan.json data"
+    },
+    {
+      "name": "permissions",
+      "bridge_function": "_projection_reconciliation_permissions",
+      "status": "PASS",
+      "returns_valid_json": true,
+      "requires_auth": true,
+      "note": "Returns phase14_0_permission_requests.json data"
+    },
+    {
+      "name": "work-packets",
+      "bridge_function": "_projection_reconciliation_work_packets",
+      "status": "PASS",
+      "returns_valid_json": true,
+      "requires_auth": true,
+      "note": "Returns phase14_0_work_packets.json data"
+    },
+    {
+      "name": "readiness",
+      "bridge_function": "_projection_reconciliation_readiness",
+      "status": "PASS",
+      "returns_valid_json": true,
+      "requires_auth": true,
+      "readiness_data": {
+        "ready_for_feature_build": false,
+        "ready_for_source_inspection": true
+      }
+    }
+  ],
+  "safety_checks": {
+    "no_raw_tracebacks": true,
+    "no_secrets_exposed": true,
+    "no_sensitive_source_content_without_permission": true,
+    "auth_required_on_all_routes": true,
+    "note": "TS routes use operatorGuard middleware; Python bridge functions called through subprocess with auth already validated"
+  },
+  "summary": {
+    "total_routes": 8,
+    "passed": 8,
+    "failed": 0,
+    "verdict": "PASS"
+  }
+}

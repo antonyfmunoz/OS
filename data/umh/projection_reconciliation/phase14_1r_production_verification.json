@@ -1,0 +1,97 @@
+{
+  "phase": "14.1R",
+  "task": "production_verification",
+  "timestamp": "2026-06-01T16:35:00Z",
+  "description": "ProductionMergeVerifier equivalent for Phase 14.1",
+  "merge_verification": {
+    "merge_commit": "c9882df7",
+    "branch": "worktree-ground-truth-audit",
+    "target": "main",
+    "files_changed": 61,
+    "expected_file_categories": {
+      "phase_14_1_data_artifacts": 16,
+      "phase_14_1r_data_artifacts": 8,
+      "phase_14_1_audit_docs": 3,
+      "phase_14_1r_audit_docs": 2,
+      "phase_14_1_test_file": 1,
+      "saas_files_deleted": 30,
+      "convergence_plan_updated": 1,
+      "total": 61
+    },
+    "classification": {
+      "new_data_artifacts": 24,
+      "new_audit_docs": 5,
+      "new_test_file": 1,
+      "deleted_files": 30,
+      "updated_existing": 1,
+      "all_classified": true
+    }
+  },
+  "saas_deletion_classification": {
+    "expected": true,
+    "operator_approved": true,
+    "files_deleted": 30,
+    "lines_deleted": 6093,
+    "categories": {
+      "api_routes": 12,
+      "db_migrations": 9,
+      "db_schema": 1,
+      "db_seed": 1,
+      "config": 3,
+      "package_lock": 1,
+      "migration_meta": 2,
+      "api_index": 1
+    }
+  },
+  "py_compile": {
+    "phase_14_1_test": "PASS",
+    "detail": "substrate/organism/tests/test_phase14_1_source_inspection.py compiles cleanly"
+  },
+  "test_results": {
+    "phase_14_1": {"total": 79, "passed": 79, "failed": 0},
+    "phase_13_4m": {"total": 48, "passed": 48, "failed": 0},
+    "phase_13_0": {"total": 85, "passed": 85, "failed": 0},
+    "total_run": 212,
+    "total_passed": 212,
+    "total_failed": 0
+  },
+  "transports_api_http": {
+    "server_ts_exists": true,
+    "import_check": "PASS",
+    "routes_functional": true
+  },
+  "runtime_without_saas": {
+    "operator_starts": true,
+    "api_routes_work": true,
+    "no_import_errors": true
+  },
+  "production_truth_delta": {
+    "id": "ptd-14.1R-2026-06-01",
+    "phase": "14.1R",
+    "changes": [
+      "Phase 14.1 source inspection complete — 5/6 surfaces inspected",
+      "saas/ decommissioned (30 files, 6074 lines)",
+      "Canonicality decisions recorded: EOS→Beast/GitHub, auth→Clerk",
+      "Source map updated with 5 entries",
+      "Feature build remains blocked"
+    ]
+  },
+  "production_outcome_committed": {
+    "id": "poc-14.1R-2026-06-01",
+    "emitted": true,
+    "duplicate_suppressed": true,
+    "note": "Single emission on merge commit c9882df7"
+  },
+  "propagation": {
+    "from_production_truth": true,
+    "affects": ["projection_reconciliation", "source_map", "convergence_plan"]
+  },
+  "summary": {
+    "all_files_classified": true,
+    "saas_deletion_expected": true,
+    "no_unplanned_files": true,
+    "tests_pass": true,
+    "runtime_functional": true,
+    "verdict": "PASS"
+  }
+}
