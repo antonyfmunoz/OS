@@ -1,0 +1,21 @@
+{
+  "phase": "14.0R",
+  "task": "runtime_sync",
+  "timestamp": "2026-06-01T06:22:23Z",
+  "main_commit": "7a8b3ec2",
+  "verification": {
+    "registry_live": true,
+    "registry_count": 5,
+    "engine_live": true,
+    "engine_divergences": 9,
+    "readiness_gate_live": true,
+    "feature_build_blocked": true,
+    "source_inspection_ready": true,
+    "py_compile_all_pass": true
+  },
+  "api_routes_wired": 8,
+  "bridge_handlers_wired": 8,
+  "cadence_status": "off",
+  "medium_risk_blocked": true,
+  "notes": "os-operator restart not performed (background job). API routes will be live after operator restart."
+}
