@@ -1,0 +1,30 @@
+{
+  "phase": "14.1",
+  "task": "test_gate_results",
+  "timestamp": "2026-06-01T13:58:28Z",
+  "test_file": "substrate/organism/tests/test_phase14_1_source_inspection.py",
+  "total_tests": 79,
+  "passed": 79,
+  "failed": 0,
+  "skipped": 0,
+  "notes": "All 79 tests passed on final run.",
+  "prior_phase_tests": {
+    "phase14_0r": "61/61 passed (verified in preflight)",
+    "phase14_0": "present in phase14_0_test_gate_results.json"
+  },
+  "pre_commit_gates": {
+    "type_divergence": "enforced by scripts/check_type_divergence.py",
+    "instance_leak": "enforced by scripts/check_instance_leak.py",
+    "projection_leak": "enforced by scripts/check_projection_leak.py",
+    "dependency_direction": "enforced by scripts/check_dependency_direction.py"
+  },
+  "safety_checks": {
+    "no_fake_data": true,
+    "no_secret_leakage": true,
+    "no_unsafe_deletion": true,
+    "no_external_write": true,
+    "no_destructive_sync": true,
+    "no_hardcoded_jarvis": true,
+    "no_new_projection_names_in_substrate": true
+  }
+}

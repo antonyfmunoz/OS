@@ -1,0 +1,53 @@
+{
+  "phase": "14.1",
+  "task": "google_docs_blocker",
+  "timestamp": "2026-06-01T13:27:31Z",
+  "inspected": false,
+  "blocker_reason": "No Google Drive/Docs API credentials available in CLI context",
+  "evidence": [
+    "google.oauth2 module importable but no service account JSON configured",
+    "GWS adapter exists but requires credentials to make API calls",
+    "No GOOGLE_APPLICATION_CREDENTIALS env var set",
+    "No OAuth2 token for Drive/Docs API available in this session"
+  ],
+  "what_is_known": [
+    "Phase 14.0 confirmed Google Docs contain UMH and projection SaaS documentation",
+    "Docs likely include architecture plans, product specs, strategy docs",
+    "Docs may be ahead of or behind current code state",
+    "Permission request perm-req-001 exists from Phase 14.0"
+  ],
+  "inspection_plan_when_access_available": {
+    "step_1": "List all documents in projection-related Drive folders",
+    "step_2": "Categorize by projection (UMH, EOS, CreatorOS, LyfeOS, shared)",
+    "step_3": "Extract document titles, modified dates, owners",
+    "step_4": "Read key architecture/product spec documents",
+    "step_5": "Cross-reference claims against actual code state",
+    "step_6": "Flag stale docs (claims contradicting current code)",
+    "step_7": "Flag aspirational docs (unbuilt features)",
+    "step_8": "Produce google_docs_inspection.json",
+    "search_terms": [
+      "UMH",
+      "Universal Mastery Hierarchy",
+      "EOS",
+      "EntrepreneurOS",
+      "CreatorOS",
+      "LyfeOS",
+      "Trinity apps",
+      "product projection",
+      "SaaS projections",
+      "Empyrean Studios",
+      "Lyfe Institute",
+      "Game of Lyfe",
+      "platform architecture",
+      "roadmap",
+      "product specs"
+    ]
+  },
+  "required_access_action": {
+    "option_a": "Provide Google service account JSON with Drive read scope",
+    "option_b": "Run OAuth2 flow for Drive API in an interactive session",
+    "option_c": "Operator manually exports key docs as PDF/text and places in data/umh/projection_reconciliation/google_docs/",
+    "option_d": "Skip Google Docs inspection and proceed with code-only reconciliation"
+  },
+  "impact_of_blocker": "Cannot verify whether Google Docs contain architecture decisions or product specs that diverge from code. Cross-source reconciliation will be incomplete for documentation layer."
+}

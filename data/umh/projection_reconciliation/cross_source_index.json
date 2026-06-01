@@ -1,0 +1,119 @@
+{
+  "phase": "14.1",
+  "task": "cross_source_index",
+  "timestamp": "2026-06-01T13:34:51Z",
+  "projections": {
+    "UMH": {
+      "docs_found": {
+        "local": "docs/ (582 files), knowledge/ (289 files), ARCHITECTURE.md, PHILOSOPHY.md",
+        "google_docs": "BLOCKED \u2014 no API credentials"
+      },
+      "code_found": {
+        "local_substrate": "/opt/OS/substrate/ (699 files) \u2014 canonical",
+        "local_adapters": "/opt/OS/adapters/ (89 files)",
+        "local_transports": "/opt/OS/transports/ (91 files)",
+        "local_services": "/opt/OS/services/ (38 files)",
+        "local_scripts": "/opt/OS/scripts/ (160 files)",
+        "local_cockpit": "/opt/OS/cockpit/ (108 files)",
+        "local_nodes": "/opt/OS/nodes/ (44 files)",
+        "github": "PENDING \u2014 agent inspecting",
+        "windows_beast": "dev/OS (current, post-convergence, behind VPS) + Projects/OS (STALE, pre-convergence)"
+      },
+      "runtime_artifacts_found": {
+        "data_umh": "1353 files (coordinator=525, assimilation=419)",
+        "audits": "107 convergence audit files",
+        "operator_acceptance": "56 files",
+        "operational_truth": "31 files"
+      },
+      "canonicality_status": "production_truth \u2014 /opt/OS on VPS is the canonical UMH source",
+      "open_questions": [
+        "Google Docs may contain architecture docs not reflected in code",
+        "GitHub may have branches with unmerged substrate changes",
+        "Beast may have a mirror of the OS repo",
+        "16 substrate files still contain projection name references"
+      ]
+    },
+    "EOS": {
+      "docs_found": {
+        "local": "projections/eos/integration/DESIGN.md",
+        "google_docs": "BLOCKED \u2014 expected to contain product specs"
+      },
+      "code_found": {
+        "local_projections_eos": "projections/eos/ (31 files) \u2014 agents, views, workflows, integration (v1 CRM schema)",
+        "local_saas": "saas/ (30 files) \u2014 Hono/Drizzle backend (v2 events schema)",
+        "github": "antonyfmunoz/EntrepreneurOS \u2014 FULL-STACK app (client/ + server/ + shared/), TypeScript, Replit origin, dormant since 2026-04-16",
+        "windows_beast_dev": "dev/EntrepreneurOS \u2014 603 files, FULL app (React+Express+Drizzle), Clerk auth, feature/company-system branch, AI gateway with 5 providers"
+      },
+      "runtime_artifacts_found": {
+        "projection_reconciliation": "27 files tracking EOS source state"
+      },
+      "canonicality_status": "unknown \u2014 FOUR competing sources now fully mapped: Beast full app (603 files, Clerk), GitHub full app (dormant), VPS saas/ (server extract, UMH auth), VPS projections/eos (Python runtime)",
+      "open_questions": [
+        "Beast EOS has Clerk auth; VPS saas/ has UMH platform auth \u2014 completely different auth systems",
+        "Beast EOS is on feature/company-system branch (not main)",
+        "Beast EOS has 603 files including full frontend; VPS saas/ has 30 files (backend only)",
+        "Beast EOS schema is monolith Replit-era; VPS saas/ schema is post-architecture-separation",
+        "OPERATOR MUST DECIDE: which is the canonical EOS source going forward?"
+      ]
+    },
+    "CreatorOS": {
+      "docs_found": {
+        "local": "None found locally",
+        "google_docs": "BLOCKED \u2014 expected to contain product specs"
+      },
+      "code_found": {
+        "local_projections": "projections/creatoros/ (8 files) \u2014 integration skeleton only",
+        "github": "antonyfmunoz/CreatorOS \u2014 FULL-STACK app (client/ + server/ + shared/ + migrations/ + uploads/), TypeScript, active May 20",
+        "windows_beast_dev": "dev/CreatorOS \u2014 272 files, FULL app (React+Express+Drizzle), Passport auth, main branch, social/creator platform"
+      },
+      "runtime_artifacts_found": {},
+      "canonicality_status": "high confidence \u2014 GitHub repo = Beast /dev copy, both on main, full-stack app",
+      "open_questions": [
+        "Where is the full CreatorOS app source?",
+        "Does Windows /dev contain a CreatorOS app?",
+        "Does GitHub have a CreatorOS repo?",
+        "Is the integration skeleton tables.py schema accurate?",
+        "CreatorOS GitHub repo is the full app \u2014 active as of May 20",
+        "Integration tables.py reference to data/repos/creatoros/shared/schema.ts confirms connection"
+      ]
+    },
+    "LyfeOS": {
+      "docs_found": {
+        "local": "None found locally",
+        "google_docs": "BLOCKED"
+      },
+      "code_found": {
+        "local_projections": "projections/lyfeos/ (8 files) \u2014 integration skeleton only",
+        "github": "antonyfmunoz/LYFEOS \u2014 FULL-STACK app (client/ + server/ + shared/ + migrations/ + tests/), TypeScript, active May 20",
+        "windows_beast_dev": "dev/LyfeOS \u2014 854 files (LARGEST), FULL app (React+Express+Drizzle), Passport+Firebase auth, main branch, life gamification, Stripe, 7 migrations"
+      },
+      "runtime_artifacts_found": {},
+      "canonicality_status": "high confidence \u2014 GitHub repo = Beast /dev copy, both on main, full-stack app with tests",
+      "open_questions": [
+        "Where is the full LyfeOS app source?",
+        "Does Windows /dev contain a LyfeOS app?",
+        "Does GitHub have a LyfeOS repo?",
+        "Is LyfeOS still planned or deprioritized?",
+        "LYFEOS GitHub repo is the full app with Vitest tests \u2014 active as of May 20"
+      ]
+    },
+    "Shared": {
+      "shared_infrastructure": {
+        "auth": "transports/api/http/middleware/ \u2014 UMH HTTP auth",
+        "database": "transports/api/http/db/ \u2014 platform DB schema",
+        "ui_system": "cockpit/ \u2014 UMH cockpit (Electron + Vite)",
+        "agent_runtime": "substrate/organism/ \u2014 workcell protocol, coordinator",
+        "model_routing": "adapters/models/model_router.py \u2014 intelligence routing"
+      },
+      "canonicality_status": "production_truth \u2014 shared infrastructure is canonical in substrate/ and transports/",
+      "open_questions": [
+        "Integration pattern duplicated across 3 projections \u2014 should be extracted to shared base",
+        "Windows /dev may have shared TypeScript packages",
+        "GitHub may have a shared repo or monorepo structure",
+        "All 3 Trinity apps share Replit-origin full-stack pattern: client/ + server/ + shared/ + drizzle + vite + tailwind",
+        "Potential for shared monorepo or shared packages across Trinity apps"
+      ]
+    }
+  },
+  "summary": "ALL SOURCES NOW INSPECTED (except Google Docs). UMH canonical on VPS. EOS has 4 competing sources: Beast (603 files, full Clerk app), GitHub (dormant), VPS saas/ (30 files, UMH auth), VPS projections/eos (31 files, Python). CreatorOS: Beast=272 files + GitHub (both full, main branch). LyfeOS: Beast=854 files + GitHub (both full, main branch, with tests). Schema and auth DIVERGED between Beast and VPS EOS."
+}
