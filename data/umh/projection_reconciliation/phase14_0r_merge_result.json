@@ -1,0 +1,28 @@
+{
+  "phase": "14.0R",
+  "task": "merge_result",
+  "timestamp": "2026-06-01T06:20:14Z",
+  "worktree_commit": "dd677ad8",
+  "merge_commit": "7a8b3ec2",
+  "push_commit": "7a8b3ec2",
+  "branch": "main",
+  "remote": "origin",
+  "files_merged": 38,
+  "lines_added": 4288,
+  "lines_removed": 0,
+  "jarvis_files_deleted": 4,
+  "new_modules": 3,
+  "new_test_files": 2,
+  "new_api_routes": 8,
+  "new_bridge_handlers": 8,
+  "new_canonical_types": 10,
+  "data_artifacts": 26,
+  "audit_docs": 4,
+  "merge_conflicts": 0,
+  "pre_commit_gates": {
+    "type_divergence": "pass",
+    "instance_leak": "pass",
+    "projection_leak": "pass",
+    "dependency_direction": "pass"
+  }
+}
