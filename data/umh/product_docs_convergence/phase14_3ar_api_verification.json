@@ -1,0 +1,44 @@
+{
+  "phase": "14.3AR",
+  "task": "api_verification",
+  "timestamp": "2026-06-02T06:30:00Z",
+  "api_checks": {
+    "health": {
+      "status": 200,
+      "body": {"status": "ok"}
+    },
+    "organism_status": {
+      "status": 200,
+      "running": true,
+      "graph_available": true,
+      "supervisor_available": true,
+      "tick_stages": 17
+    },
+    "operator_acceptance_readiness": {
+      "status": 200,
+      "available": true
+    },
+    "execution_journal": {
+      "status": 200,
+      "entries_available": true
+    },
+    "total_api_routes": 262,
+    "key_route_categories": [
+      "organism/status — running",
+      "organism/operator-acceptance — available",
+      "organism/runtime-surface — available",
+      "organism/context-assimilation — available",
+      "organism/universal-work — available",
+      "organism/propagation-graph — available",
+      "organism/journal — recording",
+      "organism/autonomous-cadence — dry_run_only"
+    ]
+  },
+  "safety_checks": {
+    "all_routes_respond": true,
+    "no_raw_tracebacks": true,
+    "no_secrets_exposed": true,
+    "feature_build_blocked_visible": true,
+    "no_fake_inspection_exposed": true
+  }
+}

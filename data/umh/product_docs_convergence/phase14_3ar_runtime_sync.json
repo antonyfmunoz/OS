@@ -1,0 +1,35 @@
+{
+  "phase": "14.3AR",
+  "task": "runtime_sync",
+  "timestamp": "2026-06-02T06:30:00Z",
+  "runtime": {
+    "operator_restarted": true,
+    "operator_started_clean": true,
+    "runtime_commit": "58de055c571543fb0815a2fd5ab12a15cba27166",
+    "main_commit": "58de055c571543fb0815a2fd5ab12a15cba27166",
+    "commits_match": true,
+    "organism_daemon_running": true,
+    "organism_tick_count": 2,
+    "organism_graph_available": true,
+    "organism_supervisor_available": true,
+    "organism_tick_stages": 17,
+    "organism_events_recovered": 3198,
+    "organism_journal_entries": 45,
+    "health_endpoint": "ok",
+    "api_port": 8091
+  },
+  "route_verification": {
+    "health": "200 ok",
+    "organism_status": "200 — running, tick_count=2",
+    "operator_acceptance_readiness": "200 — available",
+    "execution_journal": "200 — 45 entries",
+    "organism_runtimes": "available",
+    "organism_topology": "available",
+    "organism_universal_work": "available",
+    "organism_propagation_graph": "available",
+    "organism_context_assimilation": "available",
+    "organism_runtime_surface": "available"
+  },
+  "cadence_status": "dry_run_only",
+  "medium_risk_blocked": true
+}
