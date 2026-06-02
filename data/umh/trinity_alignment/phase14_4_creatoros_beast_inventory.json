@@ -1,0 +1,308 @@
+{
+  "app": "CreatorOS",
+  "source": "windows_beast",
+  "path": "C:\\dev\\dev\\CreatorOS",
+  "audit_date": "2026-06-02",
+  "audit_type": "read_only_alignment",
+  "branch": "main",
+  "latest_commit": {
+    "hash": "9081c01",
+    "message": "merge Development branch into main",
+    "date": "2026-05-20 02:21:13 -0700"
+  },
+  "uncommitted_changes_count": 2,
+  "uncommitted_files": [
+    ".env",
+    "dump (1).sql"
+  ],
+  "file_count": 271,
+  "top_level_structure": [
+    ".env",
+    ".gitignore",
+    ".replit",
+    "attached_assets/",
+    "client/",
+    "drizzle.config.ts",
+    "dump (1).sql",
+    "generated-icon.png",
+    "migrations/",
+    "node_modules/",
+    "package-lock.json",
+    "package.json",
+    "postcss.config.js",
+    "replit.nix",
+    "scripts/",
+    "server/",
+    "shared/",
+    "tailwind.config.ts",
+    "theme.json",
+    "tsconfig.json",
+    "uploads/",
+    "vite.config.ts"
+  ],
+  "package_manager": "npm",
+  "app_framework": {
+    "frontend": "React 18 + Vite + Tailwind + shadcn/ui + wouter",
+    "backend": "Express + tsx",
+    "orm": "Drizzle ORM",
+    "database": "Neon Postgres (serverless via postgres.js)",
+    "auth": "Passport.js (local strategy, username/password, express-session)",
+    "ai_sdks": ["openai"],
+    "email": "@sendgrid/mail",
+    "state_management": "zustand + @tanstack/react-query",
+    "testing": null,
+    "type_system": "TypeScript 5.6.3 + Zod"
+  },
+  "frontend_structure": {
+    "entry": "client/src/main.tsx",
+    "app": "client/src/App.tsx",
+    "pages": [
+      "ai.tsx",
+      "auth-page.tsx",
+      "communities.tsx",
+      "contacts.tsx",
+      "create-post.tsx",
+      "create-product.tsx",
+      "documents.tsx",
+      "explore.tsx",
+      "followers.tsx",
+      "following.tsx",
+      "marketplace.tsx",
+      "new-text-post.tsx",
+      "not-found.tsx",
+      "profile.tsx",
+      "revenue.tsx",
+      "saved-posts.tsx"
+    ],
+    "page_count": 16,
+    "components": {
+      "ai": ["AgentCard.tsx", "ChatInterface.tsx"],
+      "communities": ["ChannelSidebar.tsx", "ChatMessage.tsx"],
+      "explore": ["CommentSection.tsx", "Post.tsx", "Stories.tsx", "StoryProgress.tsx"],
+      "feed": [
+        "FilterDropdown.tsx", "FloatingActionButton.tsx", "LocationPicker.tsx",
+        "PhotoUploader.tsx", "PollCreator.tsx", "PostOptionsPanel.tsx",
+        "StoriesBar.tsx", "StoryCreator.tsx", "Tabs.tsx", "TagEditor.tsx",
+        "TextComposer.tsx", "VideoRecorder.tsx", "VoicePostCard.tsx",
+        "VoiceRecorder.tsx", "index.ts"
+      ],
+      "layout": ["BottomNavigation.tsx"],
+      "marketplace": ["ProductCard.tsx", "ProductList.tsx"],
+      "messages": [
+        "MessageButton.tsx", "MessageCard.tsx", "MessagePanel.tsx",
+        "MessagePanel.tsx.bak", "MessagePanel.tsx.new", "index.ts"
+      ],
+      "notifications": [
+        "NotificationBell.tsx", "NotificationPanel.tsx",
+        "Toast.tsx", "ToastContainer.tsx", "index.ts"
+      ],
+      "profile": [
+        "ContactList.tsx", "DocumentEditor.tsx", "EditProfilePage.tsx",
+        "InstagramImagePicker.tsx", "ProductForm.tsx", "ProfileEditForm.tsx",
+        "ProfileFeed.tsx", "ProfileImagePicker.tsx", "ProfileImageUploader.tsx",
+        "RevenueChart.tsx", "SimpleImagePicker.tsx", "StatCard.tsx"
+      ]
+    },
+    "custom_component_count": 46,
+    "ui_components_count": 46,
+    "ui_components": [
+      "accordion.tsx", "alert-dialog.tsx", "alert.tsx", "aspect-ratio.tsx",
+      "avatar-group.tsx", "avatar.tsx", "badge.tsx", "breadcrumb.tsx",
+      "button.tsx", "calendar.tsx", "card.tsx", "carousel.tsx", "chart.tsx",
+      "checkbox.tsx", "collapsible.tsx", "command.tsx", "context-menu.tsx",
+      "dialog.tsx", "drawer.tsx", "dropdown-menu.tsx", "form.tsx",
+      "hover-card.tsx", "input-otp.tsx", "input.tsx", "label.tsx",
+      "menubar.tsx", "navigation-menu.tsx", "pagination.tsx", "popover.tsx",
+      "progress.tsx", "radio-group.tsx", "resizable.tsx", "scroll-area.tsx",
+      "select.tsx", "separator.tsx", "sheet.tsx", "sidebar.tsx", "skeleton.tsx",
+      "slider.tsx", "switch.tsx", "table.tsx", "tabs.tsx", "textarea.tsx",
+      "toast.tsx", "toaster.tsx", "toggle-group.tsx", "toggle.tsx", "tooltip.tsx"
+    ],
+    "hooks": [
+      "use-auth.tsx",
+      "use-mobile.tsx",
+      "use-toast.ts"
+    ],
+    "lib": [
+      "protected-route.tsx",
+      "queryClient.ts",
+      "stores.ts",
+      "textParser.ts",
+      "utils.ts"
+    ],
+    "types": [
+      "types.ts",
+      "types/index.ts"
+    ],
+    "routing": "wouter (client-side)"
+  },
+  "backend_structure": {
+    "entry": "server/index.ts",
+    "files": [
+      "server/auth.ts",
+      "server/cleanup.ts",
+      "server/db.ts",
+      "server/index.ts",
+      "server/routes.ts",
+      "server/storage.ts",
+      "server/upload.ts",
+      "server/vite.ts"
+    ],
+    "file_sizes": {
+      "auth.ts": 6509,
+      "cleanup.ts": 3352,
+      "db.ts": 344,
+      "index.ts": 2308,
+      "routes.ts": 53388,
+      "storage.ts": 104725,
+      "upload.ts": 4666,
+      "vite.ts": 2339
+    },
+    "god_files": {
+      "storage.ts": "104,725 bytes — likely needs splitting",
+      "routes.ts": "53,388 bytes — likely needs splitting"
+    },
+    "ai_services": [],
+    "middleware": [],
+    "route_files": ["server/routes.ts"],
+    "note": "All routes in single routes.ts, all storage in single storage.ts — no route/storage splitting like EOS"
+  },
+  "shared_structure": {
+    "files": ["shared/schema.ts"],
+    "schema_tables": [
+      "users", "posts", "savedPosts", "comments", "products",
+      "aiAgents", "aiChats", "communities", "channels", "channelMessages",
+      "followers", "revenue", "contacts", "documents", "stories",
+      "notifications", "conversations", "conversationParticipants",
+      "directMessages", "taggedUsers"
+    ],
+    "schema_table_count": 20,
+    "schema_tech": "Drizzle ORM + drizzle-zod + Zod validation",
+    "exported_types": [
+      "User", "InsertUser", "Post", "InsertPost", "Comment", "InsertComment",
+      "Product", "InsertProduct", "AIAgent", "InsertAIAgent", "AIChat", "InsertAIChat",
+      "Community", "InsertCommunity", "Channel", "InsertChannel",
+      "ChannelMessage", "InsertChannelMessage", "Revenue", "InsertRevenue",
+      "Contact", "InsertContact", "Document", "InsertDocument",
+      "Notification", "InsertNotification", "Conversation", "InsertConversation",
+      "ConversationParticipant", "InsertConversationParticipant",
+      "DirectMessage", "InsertDirectMessage", "Story", "InsertStory",
+      "SavedPost", "InsertSavedPost", "Follower", "InsertFollower",
+      "TaggedUser", "InsertTaggedUser"
+    ]
+  },
+  "auth_implementation": {
+    "provider": "Passport.js (local strategy)",
+    "session_store": "connect-pg-simple (Postgres-backed sessions) + memorystore fallback",
+    "password_hashing": "Node crypto scrypt (64-byte hash + salt)",
+    "client_files": [
+      "client/src/hooks/use-auth.tsx",
+      "client/src/lib/protected-route.tsx",
+      "client/src/pages/auth-page.tsx"
+    ],
+    "server_files": [
+      "server/auth.ts"
+    ],
+    "packages": ["passport", "passport-local", "express-session", "connect-pg-simple", "memorystore"],
+    "endpoints": ["/api/register", "/api/login", "/api/logout", "/api/user"],
+    "security_notes": [
+      "Dev mode bypasses password check for plaintext passwords (return true for all)",
+      "Hardcoded fallback session secret: 'creatorOS-secret-key'",
+      "No rate limiting on auth endpoints"
+    ]
+  },
+  "database_implementation": {
+    "provider": "Neon Postgres (via postgres.js driver)",
+    "orm": "Drizzle ORM",
+    "config": "drizzle.config.ts",
+    "main_schema": "shared/schema.ts",
+    "db_client": "server/db.ts",
+    "additional_schemas": [],
+    "migrations": [
+      "migrations/0000_lyrical_vance_astro.sql",
+      "migrations/meta/0000_snapshot.json",
+      "migrations/meta/_journal.json",
+      "migrations/seed-stories.ts"
+    ],
+    "migration_count": 1,
+    "seed_scripts": ["scripts/seed-db.ts"]
+  },
+  "routes_api": [
+    "server/routes.ts"
+  ],
+  "routes_note": "All API routes in single monolithic routes.ts (53KB). No route splitting into subdirectories.",
+  "components_screens": {
+    "pages_dir": "client/src/pages/",
+    "page_count": 16,
+    "components_dir": "client/src/components/",
+    "component_subdirs": ["ai", "communities", "explore", "feed", "layout", "marketplace", "messages", "notifications", "profile", "ui"],
+    "custom_component_count": 46,
+    "ui_dir": "client/src/components/ui/",
+    "ui_count": 48,
+    "layout_dir": "client/src/components/layout/",
+    "layout_count": 1
+  },
+  "tests": [],
+  "test_note": "No test files found. No testing framework in dependencies (no vitest, jest, playwright).",
+  "deployment_config": {
+    "dockerfile": null,
+    "docker_compose": null,
+    "fly_toml": null,
+    "replit": ".replit",
+    "replit_deployment_target": "autoscale",
+    "replit_node_version": "nodejs-20",
+    "note": "No Docker or Fly.io deployment config. Replit-only deployment configured with autoscale target."
+  },
+  "env_var_names": [
+    "DATABASE_URL",
+    "SESSION_SECRET",
+    "OPENAI_API_KEY",
+    "PORT",
+    "NODE_ENV",
+    "REPL_ID"
+  ],
+  "build_scripts": {
+    "dev": "tsx server/index.ts",
+    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "start": "NODE_ENV=production node dist/index.js",
+    "check": "tsc",
+    "db:push": "drizzle-kit push"
+  },
+  "scripts_directory": [
+    "scripts/seed-db.ts"
+  ],
+  "attached_assets": {
+    "image_count": 80,
+    "text_paste_count": 10,
+    "total_size_bytes": 83908223,
+    "note": "90 design reference files (screenshots, UI mockups, Replit prompts). All committed to git."
+  },
+  "uploads": {
+    "file_count": 28,
+    "note": "User-uploaded media files committed to git (images, profile photos, story images, 1 video). Should be gitignored."
+  },
+  "design_config": {
+    "theme": {
+      "variant": "professional",
+      "primary": "hsl(222.2 47.4% 11.2%)",
+      "appearance": "light",
+      "radius": 0.5
+    },
+    "tailwind": true,
+    "css_entry": "client/src/index.css",
+    "postcss": true
+  },
+  "key_differences_from_eos": {
+    "auth": "Passport.js local strategy (CreatorOS) vs Clerk (EOS)",
+    "ai_integrations": "OpenAI only (CreatorOS) vs multi-provider Anthropic+OpenAI+Gemini+xAI+Perplexity (EOS)",
+    "testing": "None (CreatorOS) vs Vitest+Playwright (EOS)",
+    "deployment": "Replit-only (CreatorOS) vs Replit (EOS)",
+    "schema_complexity": "20 tables (CreatorOS) vs fewer core tables but more generated schemas (EOS)",
+    "route_organization": "Single monolithic routes.ts (CreatorOS) vs split into subdirectories (EOS)",
+    "storage_organization": "Single monolithic storage.ts (CreatorOS) vs split (EOS)",
+    "features_domain": "Social/creator platform (posts, stories, marketplace, communities, DMs) vs business operations (agents, tasks, portfolios, CRM, workflows)",
+    "claude_md": "None (CreatorOS) vs extensive .claude/ config (EOS)",
+    "docs": "None (CreatorOS) vs docs/ directory (EOS)",
+    "generation_pipeline": "None (CreatorOS) vs server/generated/ code gen pipeline (EOS)"
+  }
+}

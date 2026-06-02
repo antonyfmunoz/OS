@@ -1,0 +1,90 @@
+{
+  "phase": "14.4",
+  "task": "feature_preservation_matrices",
+  "timestamp": "2026-06-02T12:00:00Z",
+  "apps": {
+    "EOS": {
+      "features": [
+        {"name": "Auth / Entry", "desired": "Single sign-in, workspace creation", "current_github": "Passport.js + Firebase OAuth", "current_beast": "Clerk (migrated)", "classification": "partially_implemented", "detail": "Beast has target auth. GitHub has legacy."},
+        {"name": "Company Setup", "desired": "Define company name, type, stage, offer, target, goals", "current_github": "missing", "current_beast": "implemented (company system)", "classification": "code_ahead_of_docs", "detail": "Beast company system exists but GitHub main lacks it."},
+        {"name": "Home Dashboard", "desired": "KPI strip, today panel, AI copilot, operating memory", "current_github": "basic dashboard page", "current_beast": "expanded dashboard", "classification": "partially_implemented"},
+        {"name": "Company Settings/Profile", "desired": "Company configuration", "current_github": "settings page exists", "current_beast": "company settings implemented", "classification": "partially_implemented"},
+        {"name": "Department/Role Management", "desired": "Departments, roles, responsibilities, linked workflows", "current_github": "missing", "current_beast": "unknown extent", "classification": "missing"},
+        {"name": "Workflow Library", "desired": "Browse, create, manage workflows/SOPs", "current_github": "missing", "current_beast": "workflow routes exist", "classification": "partially_implemented"},
+        {"name": "Workflow Run View", "desired": "Step-through execution, AI assistance", "current_github": "missing", "current_beast": "unknown", "classification": "missing"},
+        {"name": "Task Board/List", "desired": "Tasks, assign to roles, workflows, status", "current_github": "task page exists", "current_beast": "task system exists", "classification": "partially_implemented"},
+        {"name": "AI Copilot Workspace", "desired": "Business questions, summaries, drafts, next-best-action", "current_github": "agent chat page", "current_beast": "AI/conversations routes", "classification": "partially_implemented"},
+        {"name": "Docs/Notes Workspace", "desired": "SOP notes, role notes, strategy notes", "current_github": "documents page", "current_beast": "documents routes", "classification": "partially_implemented"},
+        {"name": "Settings", "desired": "User and workspace config", "current_github": "settings page", "current_beast": "settings page", "classification": "implemented"},
+        {"name": "Portfolio Multi-Company", "desired": "Multiple companies, cross-company metrics", "current_github": "missing", "current_beast": "portfolio routes exist", "classification": "partially_implemented"},
+        {"name": "Org Chart Engine", "desired": "AI-generated org charts", "current_github": "missing", "current_beast": "missing", "classification": "missing"},
+        {"name": "Universal Dashboard Architecture", "desired": "Header, AI panel, Left Rail, Workspace, Right Rail", "current_github": "basic layout", "current_beast": "expanded layout", "classification": "partially_implemented"},
+        {"name": "Agent Runtime", "desired": "Role-specific agents with planner, skill router", "current_github": "agent system (chief/manager/laborer)", "current_beast": "agent system exists", "classification": "partially_implemented"},
+        {"name": "AI Model Routing", "desired": "Centralized gateway, cost-aware routing", "current_github": "5 AI providers wired", "current_beast": "6 AI providers", "classification": "partially_implemented"},
+        {"name": "CRM System", "desired": "Not in core PRD modules but exists in code", "current_github": "CRM pages (contacts, deals, activities)", "current_beast": "CRM routes", "classification": "code_ahead_of_docs"},
+        {"name": "Memory/Knowledge", "desired": "Working/session/long-term memory, knowledge graph", "current_github": "missing", "current_beast": "unknown", "classification": "missing"},
+        {"name": "UBOS Template Engine", "desired": "Franchise-like business templates", "current_github": "missing", "current_beast": "missing", "classification": "missing"},
+        {"name": "Universal Business Primitives", "desired": "16 primitive categories", "current_github": "missing", "current_beast": "missing", "classification": "docs_ahead_of_code"},
+        {"name": "Self-Improvement Loop", "desired": "Pattern detection, workflow refinement", "current_github": "missing", "current_beast": "missing", "classification": "docs_ahead_of_code"},
+        {"name": "Cross-Platform Integration", "desired": "CreatorOS + LyfeOS integration", "current_github": "missing", "current_beast": "missing", "classification": "defer_candidate"},
+        {"name": "Governance & Permissions", "desired": "RBAC+ABAC, approval gates", "current_github": "basic agent approval workflow", "current_beast": "unknown", "classification": "partially_implemented"},
+        {"name": "Reality Intelligence Engine", "desired": "Market/competitor intelligence", "current_github": "missing", "current_beast": "missing", "classification": "docs_ahead_of_code"},
+        {"name": "Human Intelligence Layer", "desired": "Contact profiles, communication style", "current_github": "CRM contacts", "current_beast": "CRM", "classification": "partially_implemented"},
+        {"name": "Notifications", "desired": "Push, in-app, email", "current_github": "notifications page + table", "current_beast": "notifications routes", "classification": "partially_implemented"},
+        {"name": "Integrations", "desired": "External platform integrations", "current_github": "integrations page + OAuth tokens", "current_beast": "integrations routes", "classification": "partially_implemented"}
+      ]
+    },
+    "CreatorOS": {
+      "features": [
+        {"name": "Auth / Login", "desired": "Email + social OAuth (Google, Apple)", "current_github": "Passport.js local (BROKEN: comparePasswords returns true)", "current_beast": "pending_inspection", "classification": "partially_implemented", "detail": "Auth exists but has critical security bypass."},
+        {"name": "Content Distribution Hub", "desired": "Single editor, multi-platform distribution", "current_github": "posts table + create page", "current_beast": "pending", "classification": "partially_implemented"},
+        {"name": "Community Hub", "desired": "Discord-like channels, tiers, live events", "current_github": "communities + channels tables + pages", "current_beast": "pending", "classification": "partially_implemented"},
+        {"name": "Course Platform", "desired": "Drag-and-drop builder, video hosting, progress", "current_github": "missing", "current_beast": "pending", "classification": "missing"},
+        {"name": "Marketplace", "desired": "Unified product marketplace", "current_github": "products table exists", "current_beast": "pending", "classification": "partially_implemented"},
+        {"name": "Consumer Feed", "desired": "Unified feed from followed creators", "current_github": "home feed page", "current_beast": "pending", "classification": "partially_implemented"},
+        {"name": "Creator Dashboard", "desired": "Cross-platform analytics, revenue", "current_github": "business dashboard page", "current_beast": "pending", "classification": "partially_implemented"},
+        {"name": "In-App Editing Studio", "desired": "Video editing (CapCut-like)", "current_github": "missing", "current_beast": "pending", "classification": "missing"},
+        {"name": "UGC Campaigns", "desired": "Campaign creation, review, pay workflow", "current_github": "missing", "current_beast": "pending", "classification": "missing"},
+        {"name": "Ads Platform", "desired": "Campaign creation, targeting, bidding", "current_github": "missing", "current_beast": "pending", "classification": "missing"},
+        {"name": "Cross-Posting", "desired": "Multi-platform distribution", "current_github": "missing", "current_beast": "pending", "classification": "missing"},
+        {"name": "Automation Builder", "desired": "Visual flow builder (Manychat-style)", "current_github": "missing", "current_beast": "pending", "classification": "missing"},
+        {"name": "Email/Newsletter", "desired": "List management, broadcasts, templates", "current_github": "missing", "current_beast": "pending", "classification": "missing"},
+        {"name": "Stories System", "desired": "24-hour ephemeral content", "current_github": "stories table + page", "current_beast": "pending", "classification": "partially_implemented"},
+        {"name": "Notifications & Messaging", "desired": "DMs, notification feed", "current_github": "notifications + conversations/DMs tables", "current_beast": "pending", "classification": "partially_implemented"},
+        {"name": "AI Agents", "desired": "AI utility (not in Tab 1 PRD as agent system)", "current_github": "agents + AI chats tables", "current_beast": "pending", "classification": "code_ahead_of_docs"},
+        {"name": "Creator Profile", "desired": "Public profile with tabs", "current_github": "profile page", "current_beast": "pending", "classification": "partially_implemented"},
+        {"name": "Settings", "desired": "Account settings, connected accounts", "current_github": "settings page", "current_beast": "pending", "classification": "implemented"},
+        {"name": "Bookmarks", "desired": "Saved posts, courses, communities", "current_github": "bookmarks page", "current_beast": "pending", "classification": "partially_implemented"},
+        {"name": "Roles & Permissions", "desired": "Business roles with granular permissions", "current_github": "missing", "current_beast": "pending", "classification": "missing"},
+        {"name": "Moderation Suite", "desired": "Auto-mod, manual review, appeals", "current_github": "missing", "current_beast": "pending", "classification": "missing"},
+        {"name": "Revenue Tracking", "desired": "Revenue dashboard", "current_github": "revenue table exists", "current_beast": "pending", "classification": "partially_implemented"},
+        {"name": "Content Calendar", "desired": "Monthly/weekly calendar views", "current_github": "calendar page", "current_beast": "pending", "classification": "partially_implemented"}
+      ]
+    },
+    "LyfeOS": {
+      "features": [
+        {"name": "Dashboard / Stats HUD", "desired": "8 stat meters, 7 log types, active missions", "current_github": "dashboard page with extensive components", "current_beast": "same as github", "classification": "implemented"},
+        {"name": "Missions System", "desired": "7 categories, scope calibration, failure handling", "current_github": "quests routes + mission pages", "current_beast": "same", "classification": "implemented"},
+        {"name": "NOVA AI System", "desired": "6 roles, 10+ tool functions, voice", "current_github": "OpenAI GPT-4o + Anthropic integration, tool functions", "current_beast": "same", "classification": "partially_implemented", "detail": "AI exists but NOVA multi-role system may not be fully wired."},
+        {"name": "Chronilog", "desired": "7 subsystems (logs, reflections, timeline, rolodex)", "current_github": "content routes, reflection pages", "current_beast": "same", "classification": "partially_implemented"},
+        {"name": "Systems Page", "desired": "9 cross-view modules (Calendar, Boards, Canvas, etc.)", "current_github": "widget system exists (canvas, graph, kanban, media, spreadsheet, rolodex)", "current_beast": "same", "classification": "partially_implemented"},
+        {"name": "Player Profile / Character Sheet", "desired": "10 identity sections", "current_github": "profile routes + pages", "current_beast": "same", "classification": "implemented"},
+        {"name": "Onboarding (Awakening Protocol)", "desired": "9 missions, 100+ questions", "current_github": "onboarding pages exist", "current_beast": "same", "classification": "implemented"},
+        {"name": "Gamification (XP/Levels/Streaks)", "desired": "XP, tiered levels, streak bonuses, efficiency", "current_github": "xp-calculations.test.ts exists, gamification tables in schema", "current_beast": "same", "classification": "implemented"},
+        {"name": "Archetypes", "desired": "6 archetypes, 54-question quiz", "current_github": "archetype system in schema", "current_beast": "same", "classification": "implemented"},
+        {"name": "Character Affirmation", "desired": "AI-generated affirmation", "current_github": "Anthropic SDK for content generation", "current_beast": "same", "classification": "partially_implemented"},
+        {"name": "Transformation Thread", "desired": "Developmental engine", "current_github": "unknown coverage", "current_beast": "same", "classification": "partially_implemented"},
+        {"name": "Integration Architecture", "desired": "Google Calendar/Tasks/Drive, health apps", "current_github": "Google OAuth2 + Calendar/Tasks/Drive integration", "current_beast": "same", "classification": "partially_implemented"},
+        {"name": "Auth", "desired": "Clerk or Auth0", "current_github": "Firebase + Passport.js", "current_beast": "same", "classification": "stale", "detail": "Current auth is Firebase+Passport.js. Target is Clerk."},
+        {"name": "Voice Control", "desired": "NOVA voice interaction (Phase 2+)", "current_github": "voice control exists", "current_beast": "same", "classification": "code_ahead_of_docs", "detail": "Voice already implemented, docs say Phase 2+."},
+        {"name": "PWA / Push Notifications", "desired": "Not explicitly in PRD", "current_github": "Firebase Cloud Messaging, service worker", "current_beast": "same", "classification": "code_ahead_of_docs"},
+        {"name": "Stripe Payments", "desired": "Subscription SaaS", "current_github": "Schema fields exist but no active Stripe integration", "current_beast": "same", "classification": "partially_implemented"},
+        {"name": "Theta Beats / Blue Light Filter / Haptic", "desired": "Not in PRD", "current_github": "implemented", "current_beast": "same", "classification": "code_ahead_of_docs"},
+        {"name": "Multi-agent Orchestration", "desired": "Phase 3: 5 agent types", "current_github": "missing", "current_beast": "same", "classification": "docs_ahead_of_code"},
+        {"name": "Cross-Platform Integration", "desired": "EOS + CreatorOS shared kernel", "current_github": "missing", "current_beast": "same", "classification": "defer_candidate"}
+      ]
+    }
+  },
+  "no_features_silently_dropped": true,
+  "all_conflicts_preserved_and_classified": true
+}

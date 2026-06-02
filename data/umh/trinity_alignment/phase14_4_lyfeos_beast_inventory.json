@@ -1,0 +1,511 @@
+{
+  "app": "LyfeOS",
+  "source": "windows_beast",
+  "path": "C:\\dev\\dev\\LyfeOS",
+  "branch": "main",
+  "latest_commit": {
+    "sha": "ee1bb0f3",
+    "message": "merge Development branch into main",
+    "date": "2026-05-20T02:21:59-07:00"
+  },
+  "recent_commits": [
+    {
+      "sha": "ee1bb0f3",
+      "message": "merge Development branch into main",
+      "date": "2026-05-20"
+    },
+    {
+      "sha": "17dad598",
+      "message": "chore: add dotenv, localhost config, and gitignore .env for local development",
+      "date": null
+    },
+    {
+      "sha": "07f05952",
+      "message": "Add a search bar to filter connected applications on the profile page",
+      "date": null
+    },
+    {
+      "sha": "b0c8963b",
+      "message": "Transitioned from Plan to Build mode",
+      "date": null
+    },
+    {
+      "sha": "5bcf13ae",
+      "message": "Add hierarchical organization for mission ritual groups",
+      "date": null
+    }
+  ],
+  "uncommitted_changes_count": 2,
+  "uncommitted_changes": [
+    "?? .env",
+    "?? dump.sql"
+  ],
+  "file_count": 853,
+  "top_level_structure": [
+    ".env (untracked)",
+    ".gitignore",
+    ".replit",
+    "attached_assets/",
+    "build.sh",
+    "client/",
+    "cookies.txt",
+    "cookies2.txt",
+    "drizzle.config.ts",
+    "dump.sql (untracked)",
+    "generated-icon.png",
+    "migrations/",
+    "node_modules/",
+    "package-lock.json",
+    "package.json",
+    "postcss.config.js",
+    "replit.md",
+    "scripts/",
+    "server/",
+    "shared/",
+    "tailwind.config.ts",
+    "tests/",
+    "theme.json",
+    "tsconfig.json",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
+  "package_manager": "npm",
+  "app_framework": {
+    "frontend": "React 18 + Vite 5 + wouter (routing) + TanStack Query",
+    "backend": "Express 4 + Node.js (tsx dev runner, esbuild prod build)",
+    "ui_library": "shadcn/ui (Radix primitives + Tailwind CSS 3)",
+    "orm": "Drizzle ORM 0.39",
+    "database": "PostgreSQL (Neon serverless)",
+    "auth": "Passport.js (local strategy) + Firebase (Google OAuth + email/password + MFA)",
+    "ai_providers": [
+      "Anthropic (@anthropic-ai/sdk ^0.72.1)",
+      "OpenAI (openai ^4.96.0)"
+    ],
+    "language": "TypeScript 5.6",
+    "runtime": "Node.js (Replit origin)",
+    "test_framework": "Vitest 4"
+  },
+  "frontend_structure": {
+    "entry": "client/src/main.tsx",
+    "router": "wouter",
+    "state": "TanStack React Query (@tanstack/react-query ^5.60.5)",
+    "pages": [
+      "client/src/pages/AIPage.tsx",
+      "client/src/pages/AnalyticsPage.tsx",
+      "client/src/pages/AttentionDetailPage.tsx",
+      "client/src/pages/CeremonyPage.tsx",
+      "client/src/pages/ChronilogPage.tsx",
+      "client/src/pages/CodexPage.tsx",
+      "client/src/pages/DashboardPage.tsx",
+      "client/src/pages/DocumentVaultPage.tsx",
+      "client/src/pages/EfficiencyDetailPage.tsx",
+      "client/src/pages/EnergyDetailPage.tsx",
+      "client/src/pages/EnhancedMissionPage.tsx",
+      "client/src/pages/ExperienceDetailPage.tsx",
+      "client/src/pages/ForgotPasswordPage.tsx",
+      "client/src/pages/GoalsArchivePage.tsx",
+      "client/src/pages/HealthDetailPage.tsx",
+      "client/src/pages/JournalArchivePage.tsx",
+      "client/src/pages/KanbanBoardPage.tsx",
+      "client/src/pages/KanbanPage.tsx",
+      "client/src/pages/KnowledgeArchivePage.tsx",
+      "client/src/pages/LandingPage.tsx",
+      "client/src/pages/LoginPage.tsx",
+      "client/src/pages/LoginSuccessPage.tsx",
+      "client/src/pages/MissionArchivePage.tsx",
+      "client/src/pages/MissionDetailPage.tsx",
+      "client/src/pages/not-found.tsx",
+      "client/src/pages/OnboardingPage.tsx",
+      "client/src/pages/ProfilePage.tsx",
+      "client/src/pages/QuestsPage.tsx",
+      "client/src/pages/RegisterPage.tsx",
+      "client/src/pages/ResetPasswordPage.tsx",
+      "client/src/pages/RitualsArchivePage.tsx",
+      "client/src/pages/RolodexPage.tsx",
+      "client/src/pages/StatDetailPage.tsx",
+      "client/src/pages/StreakDetailPage.tsx",
+      "client/src/pages/SubscriptionPage.tsx",
+      "client/src/pages/TimeDetailPage.tsx",
+      "client/src/pages/TimelineDetailPage.tsx",
+      "client/src/pages/TimelinePage.tsx",
+      "client/src/pages/VerifyEmailPage.tsx",
+      "client/src/pages/WaitlistPage.tsx",
+      "client/src/pages/WaitlistThankYouPage.tsx",
+      "client/src/pages/WealthDetailPage.tsx"
+    ],
+    "pages_count": 42,
+    "custom_components": {
+      "ai": ["client/src/components/ai/AICompanionPanel.tsx"],
+      "chronilog": [
+        "client/src/components/chronilog/RolodexWidget.tsx",
+        "client/src/components/chronilog/TimelineWidget.tsx"
+      ],
+      "dailyInit": ["client/src/components/dailyInit/DailyInitModal.tsx"],
+      "dashboard": [
+        "client/src/components/dashboard/AICompanionPreview.tsx",
+        "client/src/components/dashboard/CalendarPreview.tsx",
+        "client/src/components/dashboard/CompactStatsWidget.tsx",
+        "client/src/components/dashboard/DailyQuests.tsx",
+        "client/src/components/dashboard/EnhancedMissionWidget.tsx",
+        "client/src/components/dashboard/ExperienceBar.tsx",
+        "client/src/components/dashboard/InfoButton.tsx",
+        "client/src/components/dashboard/InfoIconButton.tsx",
+        "client/src/components/dashboard/LevelUpModal.tsx",
+        "client/src/components/dashboard/MissionInfoButton.tsx",
+        "client/src/components/dashboard/MissionLogSystem.tsx",
+        "client/src/components/dashboard/MissionLogWidget.tsx",
+        "client/src/components/dashboard/MissionTimer.tsx",
+        "client/src/components/dashboard/QuestItem.tsx",
+        "client/src/components/dashboard/StatsWidget.tsx",
+        "client/src/components/dashboard/StatWidget.tsx"
+      ],
+      "layout": [
+        "client/src/components/layout/MobileNav.tsx",
+        "client/src/components/layout/RootLayout.tsx",
+        "client/src/components/layout/Sidebar.tsx"
+      ],
+      "markdown": [
+        "client/src/components/markdown/MarkdownEditor.tsx",
+        "client/src/components/markdown/MissionPage.tsx"
+      ],
+      "stats": ["client/src/components/stats/AIStatTip.tsx"],
+      "timeline": ["client/src/components/timeline/EditTimelineItemDialog.tsx"],
+      "standalone": [
+        "client/src/components/BlueLightFilter.tsx",
+        "client/src/components/CelebrationOverlay.tsx",
+        "client/src/components/PWAInstallPrompt.tsx",
+        "client/src/components/VoiceOverlay.tsx"
+      ]
+    },
+    "custom_components_count": 30,
+    "ui_components_count": 58,
+    "ui_component_highlights": [
+      "ai-agent-fab.tsx",
+      "canvas-widget.tsx",
+      "collapsible-widget.tsx",
+      "custom-time-picker.tsx",
+      "dashboard-widget.tsx",
+      "documents-widget.tsx",
+      "draggable-widget.tsx",
+      "graph-widget.tsx",
+      "kanban-widget.tsx",
+      "markdown-editor.tsx",
+      "media-widget.tsx",
+      "mission-info-dialog.tsx",
+      "obsidian-markdown.tsx",
+      "PageTutorial.tsx",
+      "progress-trackers-widget.tsx",
+      "quick-action-menu.tsx",
+      "quick-mission-fab.tsx",
+      "rich-text-toolbar.tsx",
+      "rolodex-widget.tsx",
+      "spreadsheet-widget.tsx",
+      "stat-info-dialog.tsx",
+      "templates-widget.tsx"
+    ],
+    "hooks": [
+      "client/src/hooks/use-draggable.ts",
+      "client/src/hooks/use-mobile.tsx",
+      "client/src/hooks/use-nova-actions.ts",
+      "client/src/hooks/use-page-title.ts",
+      "client/src/hooks/use-toast.ts",
+      "client/src/hooks/use-tutorial.ts",
+      "client/src/hooks/use-voice-control.ts",
+      "client/src/hooks/use-widget-state.ts",
+      "client/src/hooks/usePushNotifications.ts"
+    ],
+    "lib": [
+      "client/src/lib/applyPrimaryColor.ts",
+      "client/src/lib/authContext.tsx",
+      "client/src/lib/celebrationContext.tsx",
+      "client/src/lib/context.tsx",
+      "client/src/lib/experienceUtils.ts",
+      "client/src/lib/firebase.ts",
+      "client/src/lib/firebaseAuth.ts",
+      "client/src/lib/gamified-toast.ts",
+      "client/src/lib/haptics.ts",
+      "client/src/lib/queryClient.ts",
+      "client/src/lib/ranks.ts",
+      "client/src/lib/sounds.ts",
+      "client/src/lib/theta-beats.ts",
+      "client/src/lib/themeContext.tsx",
+      "client/src/lib/types.ts",
+      "client/src/lib/utils.ts"
+    ],
+    "public_assets": [
+      "client/public/firebase-messaging-sw.js"
+    ]
+  },
+  "backend_structure": {
+    "entry": "server/index.ts",
+    "routes_main": "server/routes.ts",
+    "route_modules": [
+      "server/routes/auth.ts",
+      "server/routes/content.ts",
+      "server/routes/documents.ts",
+      "server/routes/goals.ts",
+      "server/routes/google.ts",
+      "server/routes/middleware.ts",
+      "server/routes/profile.ts",
+      "server/routes/quests.ts",
+      "server/routes/waitlist.ts"
+    ],
+    "core_files": [
+      "server/db.ts",
+      "server/firebaseAdmin.ts",
+      "server/index.ts",
+      "server/notificationScheduler.ts",
+      "server/openai.ts",
+      "server/storage.ts",
+      "server/utils.ts",
+      "server/vite.ts"
+    ],
+    "replit_integrations": [
+      "server/replit_integrations/batch/index.ts",
+      "server/replit_integrations/batch/utils.ts",
+      "server/replit_integrations/chat/index.ts",
+      "server/replit_integrations/chat/knowledge-base.ts",
+      "server/replit_integrations/chat/routes.ts",
+      "server/replit_integrations/chat/storage.ts"
+    ],
+    "port": 5000,
+    "server_framework": "Express 4"
+  },
+  "shared_structure": {
+    "schema": "shared/schema.ts",
+    "schema_line_count": 1448,
+    "note": "Monolithic schema file — no separate client/server/shared package.json files"
+  },
+  "auth_implementation": {
+    "strategy": "Passport.js local + Firebase (Google OAuth + email/password + MFA)",
+    "server_files": [
+      "server/firebaseAdmin.ts",
+      "server/routes/auth.ts"
+    ],
+    "client_files": [
+      "client/src/lib/authContext.tsx",
+      "client/src/lib/firebase.ts",
+      "client/src/lib/firebaseAuth.ts",
+      "client/src/pages/LoginPage.tsx",
+      "client/src/pages/LoginSuccessPage.tsx",
+      "client/src/pages/RegisterPage.tsx",
+      "client/src/pages/ForgotPasswordPage.tsx",
+      "client/src/pages/ResetPasswordPage.tsx",
+      "client/src/pages/VerifyEmailPage.tsx"
+    ],
+    "session": {
+      "store": "connect-pg-simple (PostgreSQL) or memorystore fallback",
+      "secret": "SESSION_SECRET env var (auto-generated if not set)",
+      "cookie_secure": "production only"
+    },
+    "firebase_config": {
+      "client_env_vars": [
+        "VITE_FIREBASE_API_KEY",
+        "VITE_FIREBASE_PROJECT_ID",
+        "VITE_FIREBASE_ACTUAL_PROJECT_ID",
+        "VITE_FIREBASE_APP_ID",
+        "VITE_FIREBASE_AUTH_DOMAIN",
+        "VITE_FIREBASE_MESSAGING_SENDER_ID"
+      ],
+      "server_env_vars": [
+        "FIREBASE_SERVICE_ACCOUNT_KEY"
+      ],
+      "features": ["Google OAuth", "Email/password", "2FA (email + phone)", "Password reset", "Email verification", "Push notifications (FCM)"]
+    },
+    "password_hashing": "bcrypt (^6.0.0)",
+    "features_list": [
+      "Login/Register (email+password)",
+      "Firebase Google OAuth",
+      "2FA (email code + phone code)",
+      "Email verification with token",
+      "Password reset with token",
+      "Stripe customer/subscription IDs on user"
+    ]
+  },
+  "database_implementation": {
+    "orm": "Drizzle ORM 0.39",
+    "driver": "@neondatabase/serverless (^0.10.4)",
+    "schema_file": "shared/schema.ts",
+    "config_file": "drizzle.config.ts",
+    "connection": "DATABASE_URL env var",
+    "tables": [
+      "users",
+      "userStats",
+      "userProfile",
+      "userDailyLogs",
+      "userIntegrations",
+      "quests",
+      "aiMessages",
+      "calendarEvents",
+      "missionPages",
+      "contacts",
+      "spreadsheets",
+      "pushSubscriptions",
+      "canvases",
+      "graphs",
+      "folders",
+      "documents",
+      "templates",
+      "integrations",
+      "progressTrackers",
+      "kanbanBoards",
+      "kanbanColumns",
+      "kanbanTasks",
+      "mediaAlbums",
+      "mediaItems",
+      "conversations",
+      "messages",
+      "dismissedKnowledge",
+      "visionGoals",
+      "userCategories",
+      "ritualGroups",
+      "widgetStates",
+      "userActivityEvents",
+      "smartReminders",
+      "missionViews",
+      "waitlistEmails"
+    ],
+    "table_count": 35,
+    "migrations": [
+      "migrations/0000_hesitant_star_brand.sql",
+      "migrations/0001_fixed_jimmy_woo.sql",
+      "migrations/0002_tranquil_albert_cleary.sql",
+      "migrations/0003_gigantic_makkari.sql",
+      "migrations/0004_dizzy_zarda.sql",
+      "migrations/0005_simple_stardust.sql",
+      "migrations/0006_foamy_vulture.sql"
+    ],
+    "migration_count": 7
+  },
+  "routes_api": {
+    "route_files": [
+      "server/routes.ts",
+      "server/routes/auth.ts",
+      "server/routes/content.ts",
+      "server/routes/documents.ts",
+      "server/routes/goals.ts",
+      "server/routes/google.ts",
+      "server/routes/middleware.ts",
+      "server/routes/profile.ts",
+      "server/routes/quests.ts",
+      "server/routes/waitlist.ts",
+      "server/replit_integrations/chat/routes.ts"
+    ],
+    "route_file_count": 11,
+    "domains": [
+      "auth (login, register, firebase, 2FA, password reset, email verify)",
+      "quests (CRUD, rituals, categories, daily boosts)",
+      "profile (onboarding, user stats, settings)",
+      "goals (vision goals, progress tracking)",
+      "documents (vault, folders, templates, canvases, graphs)",
+      "content (AI chat, knowledge, media)",
+      "google (calendar integration, OAuth)",
+      "waitlist (email collection)"
+    ]
+  },
+  "components_screens": {
+    "pages_count": 42,
+    "custom_components_count": 30,
+    "ui_components_count": 58,
+    "hooks_count": 9,
+    "lib_files_count": 16,
+    "total_component_files": 155
+  },
+  "tests": {
+    "files": [
+      "tests/api-auth.test.ts",
+      "tests/xp-calculations.test.ts"
+    ],
+    "test_count": 2,
+    "framework": "Vitest 4",
+    "config": "vitest.config.ts"
+  },
+  "deployment_config": {
+    "files": [],
+    "platform": "Replit (origin) — no Docker/Fly/Vercel config found",
+    "replit_config": ".replit file present",
+    "build_command": "npm install && npm run build",
+    "note": "No Dockerfile, docker-compose, or fly.toml found"
+  },
+  "env_var_names": {
+    "required": [
+      "DATABASE_URL"
+    ],
+    "firebase_client": [
+      "VITE_FIREBASE_API_KEY",
+      "VITE_FIREBASE_PROJECT_ID",
+      "VITE_FIREBASE_ACTUAL_PROJECT_ID",
+      "VITE_FIREBASE_APP_ID",
+      "VITE_FIREBASE_AUTH_DOMAIN",
+      "VITE_FIREBASE_MESSAGING_SENDER_ID"
+    ],
+    "firebase_server": [
+      "FIREBASE_SERVICE_ACCOUNT_KEY"
+    ],
+    "ai": [
+      "OPENAI_API_KEY"
+    ],
+    "session": [
+      "SESSION_SECRET"
+    ],
+    "runtime": [
+      "NODE_ENV",
+      "PORT"
+    ]
+  },
+  "build_scripts": {
+    "dev": "tsx server/index.ts",
+    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "start": "NODE_ENV=production node dist/index.js",
+    "check": "tsc",
+    "db:push": "drizzle-kit push"
+  },
+  "scripts_directory": [
+    "scripts/capture-screenshots.ts",
+    "scripts/kill-port.sh",
+    "scripts/seed-demo-user.ts"
+  ],
+  "attached_assets": {
+    "note": "Large directory of design assets (screenshots, icons, mockups) from Replit Agent sessions",
+    "types": ["PNG", "JPEG", "ZIP"]
+  },
+  "theme": {
+    "variant": "professional",
+    "primary": "hsl(188 100% 50%)",
+    "appearance": "dark",
+    "radius": 0.5
+  },
+  "key_dependencies": {
+    "ai": ["@anthropic-ai/sdk ^0.72.1", "openai ^4.96.0"],
+    "auth": ["firebase ^11.6.1", "firebase-admin ^13.6.1", "passport ^0.7.0", "passport-local ^1.0.0", "bcrypt ^6.0.0"],
+    "session": ["express-session ^1.18.1", "connect-pg-simple ^10.0.0", "memorystore ^1.6.7"],
+    "db": ["drizzle-orm ^0.39.1", "drizzle-zod ^0.7.1", "@neondatabase/serverless ^0.10.4"],
+    "ui": ["@radix-ui/* (full shadcn/ui set)", "lucide-react ^0.453.0", "framer-motion ^11.13.1", "recharts ^2.13.0", "react-beautiful-dnd ^13.1.1", "react-dnd ^16.0.1", "cmdk ^1.0.0", "vaul ^1.1.0", "embla-carousel-react ^8.3.0"],
+    "content": ["react-markdown ^10.1.0", "turndown ^7.2.2", "cheerio ^1.2.0", "remark-gfm ^4.0.1", "rehype-katex ^7.0.1"],
+    "utilities": ["date-fns ^3.6.0", "zod ^3.25.76", "canvas-confetti ^1.9.3", "puppeteer-core ^24.37.2", "googleapis ^171.4.0"],
+    "server": ["express ^4.21.2", "helmet ^8.1.0", "compression ^1.8.1", "multer ^2.0.2", "ws ^8.18.0"],
+    "scraping": ["cheerio ^1.2.0", "puppeteer-core ^24.37.2", "adm-zip ^0.5.16", "xml2js ^0.6.2"]
+  },
+  "observations": {
+    "origin": "Built via Replit Agent — commit messages show 'Transitioned from Plan to Build mode' pattern",
+    "last_activity": "2026-05-20 (merge Development → main) — active development ongoing",
+    "gamification_heavy": "XP system, levels, streaks, energy/health/wealth/attention tokens, archetype system, ritual groups, mission ranks (S/A/B/C/D)",
+    "life_management_app": "Full life OS: quests, rituals, daily logs, journals, goals, contacts (rolodex), kanban, documents, spreadsheets, media, timelines, analytics",
+    "onboarding_deep": "9-section onboarding covering identity, personality, vision, learning, projects, health, wealth, performance, style",
+    "schema_massive": "1448 lines, 35 tables — significantly larger than EOS (15 tables)",
+    "monorepo_flat": "Single package.json (no workspaces) — client/server/shared in one",
+    "no_deployment_infra": "Replit-only deployment — no Docker, Fly, or Vercel config",
+    "stripe_ready": "stripe_customer_id and stripe_subscription_id on users table + SubscriptionPage",
+    "pwa_features": "Push notifications (FCM), firebase-messaging-sw.js, PWAInstallPrompt component",
+    "voice_control": "use-voice-control.ts hook + VoiceOverlay component",
+    "ai_companion": "AI companion panel (NOVA) with customizable name per user",
+    "google_integration": "Google Calendar via googleapis + OAuth routes",
+    "widget_system": "Extensive widget library: canvas, graph, kanban, media, documents, spreadsheet, rolodex, progress-trackers, templates, dashboard, draggable",
+    "haptic_feedback": "Haptics library for mobile feel",
+    "theta_beats": "Theta beats audio feature (focus/meditation aid)",
+    "blue_light_filter": "Built-in blue light filter toggle",
+    "test_coverage_minimal": "Only 2 test files (api-auth, xp-calculations)",
+    "dump_sql_present": "dump.sql (182KB) in root — database export, untracked",
+    "cookies_files": "cookies.txt and cookies2.txt in root — likely scraping artifacts"
+  }
+}

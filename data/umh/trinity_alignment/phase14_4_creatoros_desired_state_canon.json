@@ -1,0 +1,220 @@
+{
+  "phase": "14.4",
+  "task": "creatoros_desired_state_canon",
+  "timestamp": "2026-06-02T12:00:00Z",
+  "app": "CreatorOS",
+  "source_docs": [
+    "Google Doc: CreatorOS (doc_id: 1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI)",
+    "Phase 14.3A: full_content_extracted_claims.json CreatorOS section",
+    "Phase 14.3A: end_state_design_map.json CreatorOS section",
+    "Phase 14.3A: doc_classification.json CreatorOS classification"
+  ],
+  "purpose": "The command center for modern creators — a single platform combining cross-platform content distribution, community hosting (Discord-like), course creation (Teachable-like), digital product sales (Gumroad-like), and a built-in marketplace for discovery. For consumers, a unified feed experience aggregating all content from followed creators across platforms.",
+  "target_users": [
+    "Primary: Creators (Emerging 1K-50K, Established 50K-500K, Creator Businesses 500K+)",
+    "Secondary: Consumers (Superfans, Learners, Community Members)",
+    "Tertiary: UGC Creators (subtype), Advertisers"
+  ],
+  "product_promise": "Post once, publish everywhere. Host everything, sell to everyone.",
+  "vision_statement": "To be the single operating system that powers every creator's business — where content, community, courses, and commerce converge.",
+  "modules": [
+    "Content Distribution Hub / Universal Composer",
+    "Community Hub (Discord-like)",
+    "Course Platform",
+    "Marketplace",
+    "Consumer Feed Experience",
+    "Creator Dashboard & Analytics",
+    "In-App Editing Studio (CapCut/TikTok-like)",
+    "UGC Campaigns",
+    "Ads Platform (YouTube/Meta-like)",
+    "Cross-Posting + Multistreaming",
+    "Automation Builder (Manychat-style)",
+    "Email/Newsletter",
+    "Stories System",
+    "Notifications & Messaging",
+    "Moderation, Trust & Safety, Compliance",
+    "Roles & Permissions"
+  ],
+  "screens": [
+    {"name": "Landing Page (/)", "description": "Public marketing page with hero, platform explanation, waitlist capture"},
+    {"name": "Consumer Landing Page", "description": "Consumer-focused marketing page"},
+    {"name": "Creator SaaS Landing Page", "description": "Creator-focused SaaS pricing/feature marketing page"},
+    {"name": "Sign Up / Login", "description": "Auth pages with email + social OAuth (Google, Apple)"},
+    {"name": "Home Feed (/home)", "description": "Unified feed with For You / Following toggle, stories row, search"},
+    {"name": "Explore (/explore)", "description": "Discovery surface with search bar, stories row, feed toggle, content feed"},
+    {"name": "Creator Profile (/[username])", "description": "Public creator profile with tabs for content, series/collections, products, community"},
+    {"name": "Create Post (/create)", "description": "Universal Composer with rich text, media upload, platform selector, preview mode, scheduling"},
+    {"name": "My Posts (/posts)", "description": "Creator's post management view with status filters"},
+    {"name": "Post Detail (/posts/[id])", "description": "Individual post view with engagement metrics per platform"},
+    {"name": "Content Calendar (/calendar)", "description": "Monthly/weekly/list calendar views with scheduled posts"},
+    {"name": "Community View (/c/[slug])", "description": "Discord-like community space with channels, members, chat"},
+    {"name": "Channel View (/c/[slug]/[channel])", "description": "Individual channel with real-time chat"},
+    {"name": "My Communities (/communities)", "description": "Consumer's joined communities list"},
+    {"name": "Marketplace", "description": "Product discovery with filters by type, price, category, creator"},
+    {"name": "Product Detail Page", "description": "Product landing page with description, pricing, reviews, creator info, checkout CTA"},
+    {"name": "My Courses", "description": "Student's purchased courses with progress indicators"},
+    {"name": "Course Player", "description": "Lesson viewer with video player, progress tracking, navigation"},
+    {"name": "Course Builder", "description": "Creator's drag-and-drop curriculum editor"},
+    {"name": "Business Dashboard", "description": "Creator's business management: products, orders, revenue, analytics"},
+    {"name": "Messages Tab", "description": "DM threads, notification feed, mark-read"},
+    {"name": "Bookmarks (/bookmarks)", "description": "Saved posts, courses, communities"},
+    {"name": "Settings (/settings)", "description": "Account settings, connected accounts, preferences"},
+    {"name": "Connected Accounts (/settings/connections)", "description": "OAuth platform connection management"},
+    {"name": "UGC Campaign Dashboard", "description": "Business view of UGC campaigns with applicants, submissions, payments"},
+    {"name": "Ad Campaign Manager", "description": "Advertiser campaign creation, targeting, budgets, metrics"},
+    {"name": "Automation Builder", "description": "Visual flow builder for trigger/action automations"},
+    {"name": "Analytics Views", "description": "Content, creator, business, UGC, and ads analytics dashboards"}
+  ],
+  "workflows": [
+    "Create and distribute content to multiple platforms from single composer",
+    "Build and manage branded community with channels and membership tiers",
+    "Create and sell online courses with progress tracking",
+    "List and sell digital products through marketplace",
+    "Manage UGC campaigns (create listing, review applicants, approve deliverables, pay)",
+    "Run advertising campaigns with targeting and analytics",
+    "Set up automations for commerce, community, and email triggers",
+    "Send email broadcasts and newsletters to subscriber lists",
+    "Monitor analytics across content, community, courses, revenue",
+    "Manage business settings, connected accounts, team permissions"
+  ],
+  "feature_list": [
+    "Single-editor content creation with per-platform format adaptation",
+    "One-click distribution to 8+ social platforms",
+    "AI-powered smart scheduling and content calendar",
+    "Discord-like branded community spaces with text/voice/video channels",
+    "Free and paid community tiers with membership gating",
+    "Drag-and-drop course builder with video hosting",
+    "Progress tracking, drip content, quizzes, certificates",
+    "Unified marketplace for all product types",
+    "Consumer feed aggregating content from followed creators",
+    "Creator dashboard with cross-platform analytics",
+    "In-app video editing studio (CapCut-like)",
+    "UGC campaign management with full workflow",
+    "Self-serve ads platform with targeting and bidding",
+    "Live multistreaming to multiple platforms",
+    "Visual automation builder (Manychat-style)",
+    "Email/newsletter with list management and templates",
+    "24-hour ephemeral stories",
+    "DM messaging and notification center",
+    "Moderation suite with auto-mod and appeals",
+    "Granular roles and permissions per business"
+  ],
+  "data_concepts": [
+    "Users", "Businesses", "Posts", "Media", "Platforms", "ConnectedAccounts",
+    "Communities", "Channels", "CommunityMembers", "Courses", "Modules", "Lessons",
+    "Enrollments", "Products", "Orders", "Transactions", "Reviews",
+    "UGCCampaigns", "UGCApplications", "UGCDeliverables",
+    "Ads", "AdCampaigns", "AdTargeting",
+    "Automations", "AutomationTriggers", "AutomationActions",
+    "EmailLists", "Subscribers", "Broadcasts",
+    "Stories", "DMs", "Notifications", "Bookmarks"
+  ],
+  "ai_agent_concepts": [
+    "AI-powered smart scheduling",
+    "AI content suggestions and optimization",
+    "Ecosystem AI runtime (shared with EOS/LyfeOS via Tab 8 architecture)",
+    "No standalone AI agent system in PRD Tab 1 — AI is utility-level, not agent-level"
+  ],
+  "umh_integration_assumptions": [
+    "Tab 8 positions CreatorOS as Layer 3 (Distribution/Audience OS) in Lyfe ecosystem",
+    "Shared platform kernel includes: identity, permissions, AI runtime, workflow engine, event bus, memory graph",
+    "Tab 1 PRD contains ZERO explicit UMH references — written as standalone SaaS",
+    "Ecosystem integration exists only in Tab 8 strategic architecture layer",
+    "UMH integration is aspirational, not specified in implementation terms"
+  ],
+  "auth_assumptions": {
+    "current_in_code": "Passport.js legacy",
+    "prd_primary": "Firebase Auth with JWT, 7-day expiry, refresh tokens",
+    "prd_alternative_1": "Clerk/NextAuth (Build Guide section)",
+    "prd_alternative_2": "Supabase Auth (Tech Architecture section)",
+    "target": "Clerk (aligned with EOS target)",
+    "contradiction_preserved": true,
+    "contradiction_detail": "3 different auth providers referenced in different sections of the same doc"
+  },
+  "analytics_assumptions": {
+    "target": "PostHog",
+    "status": "planned, not implemented",
+    "deferred": true
+  },
+  "deployment_assumptions": {
+    "target": "Separate deployment per app",
+    "hosting_options": ["Fly.io", "Render", "Railway"],
+    "status": "not decided — multiple options mentioned",
+    "deferred": true
+  },
+  "database_assumptions": {
+    "target": "Neon Postgres with Drizzle ORM",
+    "alternative": "Drizzle ORM or Prisma",
+    "schema_appears_twice": "Full version and MVP version with differences"
+  },
+  "open_questions": [
+    "Content aggregation: pull actual content from other platforms via API, or only show content posted through CreatorOS?",
+    "Free tier limits: balance adoption vs cannibalization?",
+    "Marketplace curation: fully open or quality review?",
+    "Mobile priority: iOS-first, Android-first, or simultaneous?",
+    "White-label: allow custom branding/domains for Business tier?",
+    "Auth provider: Firebase vs Clerk/NextAuth vs Supabase — 3 different recommendations in same doc",
+    "Backend framework: NestJS vs Express — both mentioned",
+    "Backend hosting: Fly.io vs Render vs Railway",
+    "MVP scope: original excludes courses/marketplace/payments, later Copy of MVP includes them",
+    "Feed algorithm: when to introduce algorithmic ranking?",
+    "Live features priority: live streaming vs recorded content?"
+  ],
+  "contradictions": [
+    "3 separate MVP PRDs layered on each other with different scope boundaries",
+    "Auth provider: Firebase (Section 6.1) vs Clerk/NextAuth (Build Guide) vs Supabase Auth (Tech Architecture)",
+    "Backend framework: NestJS (Tech Architecture) vs Express (Build Guide)",
+    "Database spec appears twice with different levels of detail and schema differences",
+    "API spec appears twice with different endpoint structures",
+    "Tech stack described 4+ times with minor variations",
+    "Timeline: 5-phase over 2 years vs 13 phases vs 7.4 weeks MVP",
+    "ORM: sometimes Drizzle or Prisma, sometimes just Drizzle"
+  ],
+  "acceptance_criteria_candidates": [
+    "Creator can sign up and create a business profile",
+    "Creator can compose and publish content to multiple platforms",
+    "Creator can view content analytics across platforms",
+    "Creator can create a community with channels",
+    "Creator can build and publish a course",
+    "Creator can list digital products in marketplace",
+    "Consumer can browse feed and follow creators",
+    "Consumer can join communities and enroll in courses",
+    "Creator can view revenue dashboard with cross-product analytics",
+    "Creator can manage team roles and permissions",
+    "Platform handles payments via Stripe Connect"
+  ],
+  "mvp_definition_conflicts": {
+    "version_1": {
+      "scope": "Content distribution + community + basic analytics",
+      "excludes": "courses, marketplace, payments"
+    },
+    "version_2_copy_of_mvp": {
+      "scope": "Content + community + courses + marketplace + payments",
+      "includes_everything_v1_excludes": true
+    },
+    "build_guide": {
+      "scope": "7.4 weeks, references Clerk, includes courses",
+      "contradicts_v1": true
+    },
+    "resolution_required": true,
+    "operator_decision_needed": "Which MVP scope is canonical?"
+  },
+  "business_model": {
+    "tiers": [
+      {"name": "Starter", "price": "Free", "platforms": 3, "communities": 1, "courses": 1, "transaction_fee": "8%"},
+      {"name": "Pro", "price": "$29/mo", "platforms": "unlimited", "communities": "unlimited", "courses": "unlimited", "transaction_fee": "5%"},
+      {"name": "Business", "price": "$99/mo", "team_seats": true, "api_access": true, "white_label": true, "transaction_fee": "3%"},
+      {"name": "Enterprise", "price": "custom"}
+    ],
+    "payment_processing": "Stripe Connect, weekly payouts, $25 minimum, 135+ countries, instant payouts for verified (1% fee)"
+  },
+  "prd_quality": {
+    "completeness": 7,
+    "specificity": 6,
+    "actionability": 5,
+    "strengths": "12 full systems defined with feature tables, data models, API endpoints; most complete PRD in entire corpus",
+    "weaknesses": "Significant redundancy and contradictions from iterative building; 3 MVP definitions; auth provider inconsistency"
+  },
+  "not_collapsed_into_shared_doc": true,
+  "canon_status": "separate_product_canon"
+}

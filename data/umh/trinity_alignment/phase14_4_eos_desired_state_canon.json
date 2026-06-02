@@ -1,0 +1,196 @@
+{
+  "phase": "14.4",
+  "task": "eos_desired_state_canon",
+  "timestamp": "2026-06-02T12:00:00Z",
+  "app": "EOS",
+  "source_docs": [
+    "Google Doc: EntrepreneurOS (doc_id: 1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo)",
+    "Phase 14.3A: full_content_extracted_claims.json EOS section",
+    "Phase 14.3A: end_state_design_map.json EOS section",
+    "Phase 14.3A: doc_classification.json EOS classification"
+  ],
+  "purpose": "AI-native business operating system that enables founders and operators to run one or more companies through unified organizational structure, role-based dashboards, workflows/SOPs, agentic execution, strategic intelligence, memory/knowledge systems, governance/approvals, and cross-platform integration with CreatorOS and LYFEOS.",
+  "target_users": [
+    "Primary: Solo founders and owner-operators running one or more companies",
+    "Secondary: Small teams (2-10 people)",
+    "Future: Enterprise teams, AI-first solo operators"
+  ],
+  "product_promise": "EntrepreneurOS is the AI-assisted company command center — a cognitive operating system for business execution that lets founders run multiple businesses from anywhere in a few focused hours per day.",
+  "vision_statement": "To build the world's first truly AI-native operating system for entrepreneurs: a platform that structures companies, guides founders, deploys agentic labor, manages workflows, learns continuously, and helps humans operate at a world-class level regardless of prior experience.",
+  "modules": [
+    "Portfolio & Multi-Company Management",
+    "Org Chart Engine",
+    "Role System",
+    "Universal Dashboard Architecture",
+    "Workflow & SOP Engine",
+    "Skill System",
+    "Agent Runtime",
+    "AI Compute & Model Routing",
+    "Memory & Knowledge Architecture",
+    "Knowledge Graph",
+    "Human Intelligence Layer",
+    "Reality Intelligence Engine",
+    "Governance & Permissions",
+    "Resilience & Failure Architecture",
+    "Cross-Platform Integration (CreatorOS + LyfeOS)",
+    "Founder Command Center",
+    "UBOS Template Engine",
+    "Universal Business Primitives (16 categories)",
+    "Self-Improvement Loop"
+  ],
+  "screens": [
+    {"name": "Auth / Entry", "description": "Sign in, create or access workspace"},
+    {"name": "Company Setup", "description": "Define company name, type, stage, offer, target customer, core goals"},
+    {"name": "Home Dashboard", "description": "Company summary, KPI strip, today panel (priorities, next-best action, upcoming workflow steps), AI copilot panel, operating memory/notes"},
+    {"name": "Company Settings/Profile", "description": "Company configuration and profile management"},
+    {"name": "Department/Role Management", "description": "Create departments, roles, responsibilities with linked workflows/tasks/docs"},
+    {"name": "Workflow Library", "description": "Browse, create, and manage workflows/SOPs"},
+    {"name": "Workflow Run View", "description": "Execute workflow — step through, mark complete, generate AI assistance at steps, store notes/results"},
+    {"name": "Task Board/List", "description": "Create tasks, assign to roles, link to workflows, update status, priority, due dates"},
+    {"name": "AI Copilot Workspace", "description": "Ask business questions, get summaries, draft workflows/SOPs/plans/documents, receive next-best action suggestions"},
+    {"name": "Docs/Notes Workspace", "description": "SOP notes, role notes, operating notes, strategy notes"},
+    {"name": "Settings", "description": "User and workspace configuration"}
+  ],
+  "workflows": [
+    "Set up business operating system (create workspace, define company, get AI-generated org structure)",
+    "See what matters today (home dashboard, KPIs, alerts, next-best actions, active workflows)",
+    "Define org structure (departments, roles, responsibilities)",
+    "Store and run workflows/SOPs (create or AI-generate, step through with AI)",
+    "Use AI to plan and draft work (plans, documents, role definitions, workflow drafts, summaries)",
+    "Track tasks and priorities (create/assign tasks, link to workflows, status dashboard)",
+    "Keep business context persistent (memory stores company context, workflow context, preferences)",
+    "Review key metrics and next-best actions (KPI cards, AI recommendations, portfolio views)"
+  ],
+  "feature_list": [
+    "Portfolio multi-company management with cross-company metrics",
+    "AI-generated org charts based on business model and stage",
+    "First-class role objects with human/AI ownership",
+    "Universal dashboard with Header, AI Control Panel, Left Rail, Workspace, Right Rail",
+    "Workflow engine with approval gates, retries, checkpoints, branching",
+    "Reusable skill system with versioning and trust scoring",
+    "Role-specific agent runtime with planner, skill router, tool executor",
+    "Centralized AI Gateway with model routing and cost-aware selection",
+    "Working/session/long-term memory with knowledge graph",
+    "Semantic retrieval and relationship reasoning",
+    "Human intelligence profiles for contacts",
+    "External market/competitor intelligence pipeline",
+    "Hybrid RBAC+ABAC governance with autonomy levels",
+    "Resilience: retries, circuit breakers, saga compensation, failover",
+    "Cross-platform integration with CreatorOS and LyfeOS",
+    "Strategic command center with KPIs and next-best actions",
+    "UBOS template library (franchise-like business templates)",
+    "16 universal business primitive categories",
+    "Self-improvement loop (pattern detection, workflow refinement)"
+  ],
+  "data_concepts": [
+    "Users", "Companies", "Departments", "Roles", "Workflows", "WorkflowSteps",
+    "WorkflowRuns", "Tasks", "Documents", "MemoryObjects", "AIThreads", "AIMessages",
+    "KnowledgeGraph nodes/edges", "Skills", "AgentConfigs", "Metrics",
+    "UniversalBusinessPrimitives (16 categories)"
+  ],
+  "ai_agent_concepts": [
+    "Strategy agents (CEO/strategic level)",
+    "Planning agents (mid-level coordination)",
+    "Execution agents (task-level operation)",
+    "Agent hierarchical orchestration",
+    "Skill router with trust scoring",
+    "AI copilot (mentor + operator + chief of staff)",
+    "Confidence escalation to frontier models",
+    "Cost-aware model routing (local → mid-tier → frontier)"
+  ],
+  "umh_integration_assumptions": [
+    "EOS is one projection built on UMH substrate",
+    "Substrate provides: identity, memory, knowledge graph, skills, workflows, AI gateway, governance, observability",
+    "EOS registers with UMH at runtime via abstract ports",
+    "Strict layer separation: substrate/ never imports from transports/ or services/",
+    "Intelligence routing via adapters/models/model_router.py",
+    "Current cc_sdk (Opus 4.6 via subscription) → Gemini 2.5 Flash → Groq → Ollama fallback chain"
+  ],
+  "auth_assumptions": {
+    "current": "Clerk (EOS SaaS layer)",
+    "target": "Clerk",
+    "end_state": "Hybrid RBAC+ABAC+policy-based with org/resource/execution authority layers",
+    "status": "EOS uses Clerk; OS Platform Standard v1 Firebase recommendation is STALE"
+  },
+  "analytics_assumptions": {
+    "target": "PostHog",
+    "status": "planned, not implemented",
+    "deferred": true
+  },
+  "deployment_assumptions": {
+    "target": "Separate deployment per app",
+    "status": "deferred — no production deployment yet for SaaS layer",
+    "deferred": true
+  },
+  "database_assumptions": {
+    "current": "Neon Postgres with RLS scoped by org_id, Drizzle ORM",
+    "target": "Neon Postgres + Drizzle ORM",
+    "embedding_dimension_mismatch": "384 vs 1536 — unresolved"
+  },
+  "open_questions": [
+    "No specific auth provider comparison finalized (Clerk selected but end-state SSO/magic-link undefined)",
+    "Pricing tiers not defined — no mention of free vs paid plans",
+    "Embedding dimension mismatch (384 vs 1536) unresolved",
+    "Whether UBOS template library will be community-contributed or curated only",
+    "Local/private AI runtime scope undefined beyond aspiration",
+    "Multi-region deployment strategy not decided",
+    "How to bridge Python substrate and TypeScript SaaS frontend",
+    "No competitive analysis included (vs Monday.com, Notion AI, ClickUp Brain)",
+    "Skill marketplace economics undefined",
+    "Mobile app strategy not specified (web-responsive vs native)"
+  ],
+  "contradictions": [
+    "End-State PRD appears twice in Tab 1 with slight variations",
+    "Substrate audit appears 3 times in Tab 15",
+    "Reality Mimicry content duplicated in Tab 12",
+    "North star referenced as $100K in one section, $10K/month in current reality",
+    "EOSGateway class name in docs, renamed to Gateway in code",
+    "EOSContext in docs, renamed to SubstrateContext in code",
+    "eos_ai/ module paths in docs, reorganized to substrate/+adapters/+transports/ in code"
+  ],
+  "acceptance_criteria_candidates": [
+    "Founder can create one company workspace",
+    "Founder can define a basic org structure (departments, roles, responsibilities)",
+    "Founder can create or AI-generate workflows",
+    "Founder can run workflows with AI assistance at each step",
+    "Founder can manage tasks from one dashboard",
+    "Founder can ask AI for useful, context-aware help",
+    "Founder can return later and see retained meaningful context",
+    "End-state: manage multiple businesses from one portfolio view",
+    "End-state: generate and evolve org structures automatically",
+    "End-state: execute workflows manually, hybrid, or autonomously",
+    "End-state: route work through agents and skills reliably",
+    "End-state: integrate with CreatorOS and LYFEOS through shared intelligence substrate"
+  ],
+  "mvp_definition": {
+    "scope": "AI-assisted company command center for one founder and one business",
+    "releases": [
+      "R1: Core Shell (auth, company, settings)",
+      "R2: Org+Tasks (departments, roles, task board)",
+      "R3: Workflows (library, runner, AI drafting)",
+      "R4: AI Copilot (chat, memory, recommendations)",
+      "R5: Docs+Memory (notes, operating docs, persistent context)"
+    ],
+    "explicit_exclusions": [
+      "Portfolio multi-company orchestration",
+      "Full autonomous agents",
+      "Multi-agent collaboration",
+      "Advanced market intelligence",
+      "Human intelligence graph",
+      "Local/offline AI",
+      "Multi-region production",
+      "Full creator/business/life shared runtime",
+      "Enterprise permissions",
+      "Skill marketplace"
+    ]
+  },
+  "prd_quality": {
+    "completeness": 8,
+    "specificity": 6,
+    "actionability": 5,
+    "strengths": "Comprehensive WHAT, novel universal business primitive taxonomy, well-scoped MVP with clear non-goals",
+    "weaknesses": "No wireframes, no API contracts, no UI component specs, aspirational vision mixed with current-system audits, pricing absent, competitive analysis absent"
+  },
+  "not_collapsed_into_shared_doc": true,
+  "canon_status": "separate_product_canon"
+}

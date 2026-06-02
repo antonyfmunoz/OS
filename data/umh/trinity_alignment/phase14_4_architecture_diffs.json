@@ -1,0 +1,163 @@
+{
+  "phase": "14.4",
+  "task": "architecture_diffs",
+  "timestamp": "2026-06-02T12:00:00Z",
+  "apps": {
+    "EOS": {
+      "frontend_architecture": {
+        "desired": "React, role-based dashboards, universal dashboard architecture",
+        "github": "React 18 + Vite 5 + wouter + TanStack Query + shadcn/ui",
+        "beast": "Same stack, expanded pages/components",
+        "os_standard_v1": "Shared glassmorphic UI — partially aligns with shadcn/ui",
+        "gap": "Stack is solid. Dashboard architecture needs product-level work, not tech.",
+        "umh_boundary": "Frontend is pure SaaS — no substrate dependency"
+      },
+      "backend_api_architecture": {
+        "desired": "Not specified in PRD (weakness)",
+        "github": "Express 4 + TypeScript, monorepo with server/ directory",
+        "beast": "Same + 14 route modules + generated code layer (server/generated/)",
+        "os_standard_v1": "Shared API conventions (response envelope, cursor pagination, Zod)",
+        "gap": "Backend exists and works. API conventions from standard not verified.",
+        "umh_boundary": "Backend is independent. UMH integration would be via Python bridges or API."
+      },
+      "database_schema_architecture": {
+        "desired": "Neon Postgres + Drizzle ORM, RLS by org_id",
+        "github": "Neon Postgres + Drizzle, 15 tables, no RLS visible",
+        "beast": "Expanded schema with company/portfolio/workflow tables",
+        "gap": "Schema foundation exists. RLS not yet implemented. Embedding dimension mismatch unresolved."
+      },
+      "auth_architecture": {
+        "desired": "Clerk → RBAC+ABAC end-state",
+        "github": "Passport.js + Firebase (stale)",
+        "beast": "Clerk (target achieved)",
+        "os_standard_v1": "Firebase (STALE)",
+        "gap": "Beast has target auth. GitHub needs branch merge."
+      },
+      "deployment_architecture": {
+        "desired": "Separate deployment per app",
+        "github": "Replit autoscale only",
+        "beast": "Replit scaffold only",
+        "gap": "No production deployment architecture. Replit is development-only."
+      },
+      "event_analytics_architecture": {
+        "desired": "PostHog",
+        "current": "Not implemented",
+        "beast_env": "POSTHOG key in env vars (wired but not active)",
+        "gap": "PostHog key exists on Beast but not integrated."
+      },
+      "agent_workflow_architecture": {
+        "desired": "Role-specific agents with hierarchical orchestration",
+        "current": "Agent hierarchy (chief/manager/laborer), action approval workflow",
+        "gap": "Foundation exists. Full skill router and orchestration missing."
+      },
+      "umh_integration_architecture": {
+        "desired": "EOS as UMH projection registering via abstract ports",
+        "current": "No UMH integration in SaaS layer",
+        "gap": "Complete gap. Boundary not defined."
+      }
+    },
+    "CreatorOS": {
+      "frontend_architecture": {
+        "desired": "React, content/community/course/marketplace platform",
+        "github": "React 18 + Vite 5 + wouter + TanStack Query + Zustand + shadcn/ui",
+        "beast": "Same stack",
+        "os_standard_v1": "Shared glassmorphic UI",
+        "gap": "Stack matches EOS. Additional Zustand for state management."
+      },
+      "backend_api_architecture": {
+        "desired": "NestJS or Express (contradicting specs)",
+        "github": "Express 4 + monolithic routes.ts (1523 lines) + storage.ts (104KB)",
+        "beast": "Same god files",
+        "os_standard_v1": "Shared API conventions",
+        "gap": "CRITICAL: God files need splitting. 89 routes in one file. Storage.ts is 104KB."
+      },
+      "database_schema_architecture": {
+        "desired": "Neon Postgres + Drizzle ORM",
+        "github": "Neon Postgres + Drizzle, 20 tables",
+        "beast": "Same schema",
+        "gap": "Schema foundation exists. Matches desired stack."
+      },
+      "auth_architecture": {
+        "desired": "Clerk (target)",
+        "github": "Passport.js local with CRITICAL dev bypass",
+        "beast": "Same broken auth",
+        "os_standard_v1": "Firebase (STALE)",
+        "gap": "CRITICAL: Auth is broken in dev mode. Migration to Clerk required."
+      },
+      "deployment_architecture": {
+        "desired": "Fly.io/Render/Railway",
+        "current": "Replit only",
+        "gap": "No production deployment."
+      },
+      "event_analytics_architecture": {
+        "desired": "PostHog",
+        "current": "Not implemented",
+        "gap": "Clean slate."
+      },
+      "agent_workflow_architecture": {
+        "desired": "Utility-level AI (Tab 1), ecosystem AI (Tab 8)",
+        "current": "Agent tables + AI chat (code_ahead_of_Tab1_docs)",
+        "gap": "AI agent features exist in code but not in main PRD."
+      },
+      "umh_integration_architecture": {
+        "desired": "Layer 3 in ecosystem (Tab 8 strategic only)",
+        "current": "No UMH integration",
+        "gap": "Tab 1 PRD has zero UMH references. Low priority gap."
+      },
+      "repo_bloat": {
+        "issue": "90 design reference files (80MB+) + 28 media files committed to git",
+        "impact": "101MB repo size for a 296-file app",
+        "recommendation": "Git LFS or .gitignore cleanup needed"
+      }
+    },
+    "LyfeOS": {
+      "frontend_architecture": {
+        "desired": "React, 5-tab navigation, dark futuristic UI",
+        "github": "React 18 + Vite 5 + wouter + TanStack Query + shadcn/ui",
+        "beast": "Same",
+        "gap": "Stack matches. 42 pages exceed 7 desired screens (code ahead)."
+      },
+      "backend_api_architecture": {
+        "desired": "Express or Fastify (not decided)",
+        "github": "Express 4 with 10 route modules (well-structured)",
+        "beast": "Same",
+        "gap": "Backend is well-structured. Best of the three apps."
+      },
+      "database_schema_architecture": {
+        "desired": "Neon Postgres + Drizzle ORM, Phase 3 vector DB",
+        "github": "Neon Postgres + Drizzle, 35 tables, 7 migrations",
+        "beast": "Same",
+        "gap": "Most mature schema. Exceeds desired spec."
+      },
+      "auth_architecture": {
+        "desired": "Clerk or Auth0",
+        "github": "Firebase + Passport.js with 2FA, email verification, password reset",
+        "beast": "Same",
+        "os_standard_v1": "Firebase (partially current for LyfeOS, but target is Clerk)",
+        "gap": "Auth is functional and feature-rich. Migration to Clerk is the gap."
+      },
+      "deployment_architecture": {
+        "desired": "Vercel or AWS",
+        "current": "Replit + lyfeos.net (isolated MVP deployed)",
+        "gap": "Deployed at lyfeos.net but via Replit. Production deployment strategy undefined."
+      },
+      "event_analytics_architecture": {
+        "desired": "PostHog",
+        "current": "Not implemented",
+        "gap": "Clean slate."
+      },
+      "agent_workflow_architecture": {
+        "desired": "NOVA multi-role AI (6 roles), Phase 3 multi-agent",
+        "current": "OpenAI GPT-4o + Anthropic, tool functions, voice",
+        "gap": "AI utility exists. Full 6-role NOVA orchestration not verified."
+      },
+      "umh_integration_architecture": {
+        "desired": "Shared platform kernel (Tabs 52-53), NOVA→substrate mapping",
+        "current": "Standalone, no UMH connection",
+        "gap": "Complete gap between aspirational architecture and reality."
+      }
+    }
+  },
+  "os_platform_standard_v1_stale_auth": "Firebase auth recommendation is STALE. Clerk is target for all apps.",
+  "shared_stack_finding": "All three apps share identical tech stack: React 18 + Vite 5 + Express 4 + TypeScript + shadcn/ui + Tailwind + Drizzle ORM + Neon Postgres + wouter. This makes OS Platform Standard v2 kit extraction practical."
+}

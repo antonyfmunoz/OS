@@ -1,0 +1,50 @@
+{
+  "phase": "14.4",
+  "task": "cockpit_verification",
+  "timestamp": "2026-06-02T12:00:00Z",
+  "cockpit_data_available": {
+    "trinity_alignment_artifacts": 22,
+    "directory": "data/umh/trinity_alignment/",
+    "artifacts": [
+      "phase14_4_preflight.json",
+      "phase14_4_product_end_state_input_verification.json",
+      "phase14_4_eos_desired_state_canon.json",
+      "phase14_4_creatoros_desired_state_canon.json",
+      "phase14_4_lyfeos_desired_state_canon.json",
+      "phase14_4_device_runtime_plan.json",
+      "phase14_4_source_access_state.json",
+      "phase14_4_current_source_inventory.json",
+      "phase14_4_eos_github_inventory.json",
+      "phase14_4_creatoros_github_inventory.json",
+      "phase14_4_lyfeos_github_inventory.json",
+      "phase14_4_eos_beast_inventory.json",
+      "phase14_4_creatoros_beast_inventory.json",
+      "phase14_4_lyfeos_beast_inventory.json",
+      "phase14_4_github_windows_alignment.json",
+      "phase14_4_feature_preservation_matrices.json",
+      "phase14_4_product_design_diffs.json",
+      "phase14_4_architecture_diffs.json",
+      "phase14_4_current_state_summaries.json",
+      "phase14_4_gap_maps_build_sequences.json",
+      "phase14_4_cross_trinity_shared_standard_diff.json",
+      "phase14_4_work_packets.json",
+      "phase14_4_readiness_gate_report.json",
+      "phase14_4_policy_safety_proof.json",
+      "phase14_4_api_verification.json",
+      "phase14_4_cockpit_verification.json"
+    ],
+    "key_metrics": {
+      "eos_github_files": 202,
+      "eos_beast_files": 603,
+      "creatoros_github_files": 296,
+      "creatoros_beast_files": 271,
+      "lyfeos_github_files": 883,
+      "lyfeos_beast_files": 853,
+      "total_gaps": 26,
+      "work_packets": 16,
+      "feature_build_blocked": true,
+      "convergence_planning_ready": true
+    }
+  },
+  "verified": true
+}

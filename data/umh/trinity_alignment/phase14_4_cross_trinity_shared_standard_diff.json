@@ -1,0 +1,117 @@
+{
+  "phase": "14.4",
+  "task": "cross_trinity_shared_standard_diff",
+  "timestamp": "2026-06-02T12:00:00Z",
+  "source": "Phase 14.3A shared_trinity_architecture.json + per-app canons + OS Platform Standard v1",
+  "comparisons": {
+    "shared_repo_strategy": {
+      "os_platform_standard_v1": "Separate repos per app",
+      "github_reality": "Separate repos confirmed — antonyfmunoz/EntrepreneurOS, antonyfmunoz/CreatorOS, antonyfmunoz/LYFEOS",
+      "beast_reality": "Separate directories — C:\\dev\\dev\\EntrepreneurOS, C:\\dev\\dev\\CreatorOS, C:\\dev\\dev\\LyfeOS",
+      "alignment": "aligned",
+      "notes": "Standard and reality match. Monorepo never adopted."
+    },
+    "shared_auth_target": {
+      "os_platform_standard_v1": "Firebase (STALE)",
+      "eos_current": "Passport.js + Firebase (Google OAuth)",
+      "creatoros_current": "Passport.js legacy",
+      "lyfeos_current": "Passport.js + Firebase legacy",
+      "target": "Clerk for all three apps",
+      "alignment": "divergent",
+      "notes": "No app uses Clerk yet. Firebase recommendation in OS Platform Standard v1 is STALE. Each app has different legacy auth. Migration to Clerk is a Work Packet for all three.",
+      "stale_items": ["Firebase auth recommendation in OS Platform Standard v1"]
+    },
+    "shared_database_assumptions": {
+      "os_platform_standard_v1": "Separate DB per app",
+      "eos": "Neon Postgres + Drizzle ORM",
+      "creatoros": "awaiting_inspection",
+      "lyfeos": "awaiting_inspection",
+      "alignment": "partially_aligned",
+      "notes": "Separate DBs per app matches standard. ORM choice (Drizzle) is consistent for EOS, needs verification for others."
+    },
+    "shared_deployment_assumptions": {
+      "os_platform_standard_v1": "Separate deployments per app",
+      "eos": "Replit (autoscale) — no Docker/Fly/Vercel",
+      "creatoros": "awaiting_inspection",
+      "lyfeos": "lyfeos.net (isolated MVP deployed) — host unknown",
+      "alignment": "partially_aligned",
+      "notes": "Separate deployments match standard. But deployment targets are fragmented — Replit for EOS, unknown for others. No unified deployment strategy."
+    },
+    "shared_ui_design_system_opportunities": {
+      "os_platform_standard_v1": "Shared glassmorphic + light/dark UI design system",
+      "eos": "shadcn/ui + Tailwind CSS + Radix primitives",
+      "creatoros": "awaiting_inspection",
+      "lyfeos": "Dark futuristic UI (specific hex codes in PRD)",
+      "alignment": "divergent",
+      "notes": "EOS uses shadcn/ui (standard React component library). LyfeOS has custom dark theme with specific colors. No shared design system exists. Glassmorphic recommendation partially aligns with LyfeOS dark aesthetic but not with EOS shadcn defaults."
+    },
+    "shared_api_conventions": {
+      "os_platform_standard_v1": "Shared response envelope, cursor pagination, Zod validation",
+      "reality": "Each app likely has independent API patterns",
+      "alignment": "unknown",
+      "notes": "Needs code inspection to verify if any app follows the standard conventions. Standard defines patterns but adoption is unverified."
+    },
+    "shared_analytics_event_taxonomy_opportunities": {
+      "target": "PostHog for all apps",
+      "current": "No app has analytics implemented",
+      "opportunity": "Define shared event taxonomy before any app implements PostHog",
+      "alignment": "not_started",
+      "notes": "Clean slate opportunity — no legacy analytics to migrate."
+    },
+    "shared_portable_kit_opportunities": {
+      "os_platform_standard_v1_kits": [
+        "Kit 1: Auth + Session (Firebase recommended — STALE, target is Clerk)",
+        "Kit 2: UI Component Library (GlassCard, DataTable, etc.)",
+        "Kit 3: API Layer (response envelope, pagination, validation)",
+        "Kit 4: Agent/Action/Notification patterns",
+        "Kit 5: Shared folder conventions (/client, /server, /shared)"
+      ],
+      "os_core_kit_transfer_plan": "AI Tools Tab 3 — 44,993 chars implementation checklist",
+      "current_adoption": "Kit 5 (folder conventions) appears partially adopted in EOS (/client, /server, /shared structure)",
+      "alignment": "partially_started",
+      "notes": "Kits defined but not extracted as reusable packages. Each app implements patterns independently. Kit extraction is a future Work Packet."
+    },
+    "duplicate_cross_platform_tabs_docs": {
+      "finding": "Cross-platform operating architecture tab content appears in all three product docs (EOS Tab 10, CreatorOS Tab 8, LyfeOS Tab 52)",
+      "recommendation": "Extract shared architecture content once, reference from each canon",
+      "alignment": "duplicate_content_identified"
+    },
+    "os_platform_standard_v1_alignment_summary": {
+      "aligned_items": ["separate_repos", "separate_db", "separate_deployments", "folder_conventions_partial"],
+      "stale_items": ["firebase_auth_recommendation"],
+      "partially_aligned": ["ui_design_system", "api_conventions", "portable_kits"],
+      "not_started": ["shared_analytics", "shared_notification_patterns", "shared_agent_patterns"]
+    },
+    "os_platform_standard_v1_stale_items": [
+      "Firebase token auth recommendation — Clerk is target",
+      "Glassmorphic UI assumption may not match all apps",
+      "Kit 1 (Auth) assumes Firebase — needs complete rewrite for Clerk"
+    ],
+    "what_should_become_os_platform_standard_v2": [
+      "Clerk auth as standard across all apps",
+      "PostHog analytics as standard across all apps",
+      "Neon Postgres + Drizzle ORM as standard across all apps",
+      "shadcn/ui + Tailwind as shared component baseline",
+      "Shared API response envelope + Zod validation",
+      "Shared event taxonomy for analytics",
+      "Updated portable kit definitions reflecting Clerk and current stack",
+      "UMH substrate integration boundary definition",
+      "Deployment target standardization (Fly.io, Vercel, or specific provider)"
+    ],
+    "what_must_remain_app_specific": [
+      "Business logic and domain models",
+      "Screen/workflow designs",
+      "Pricing models",
+      "Target user personas",
+      "Gamification mechanics (LyfeOS-specific)",
+      "Content distribution integrations (CreatorOS-specific)",
+      "Business primitive taxonomy (EOS-specific)",
+      "NOVA AI system (LyfeOS-specific)",
+      "Agent hierarchy (EOS-specific)",
+      "Community/marketplace features (CreatorOS-specific)"
+    ]
+  },
+  "premature_shared_packages_warning": "Do not force premature shared package extraction. Each app must prove its patterns work independently before extracting reusable kits.",
+  "monolith_warning": "Do not collapse apps into one monolith. Separate repos, separate deployments, separate DBs.",
+  "evidence_based_extraction": "Only extract shared kits when 2+ apps implement the same pattern independently and extraction would reduce maintenance burden."
+}
