@@ -1,26 +1,35 @@
 {
   "phase": "14.3",
   "task": "google_docs_access_state",
-  "timestamp": "2026-06-01T23:35:00Z",
-  "description": "Google Docs / Drive access state classification for Phase 14.3",
-  "access_classification": "metadata_only",
+  "timestamp": "2026-06-02T00:30:00Z",
+  "description": "Google Docs / Drive access state classification for Phase 14.3 — UPDATED: full access confirmed",
+  "access_classification": "access_granted",
+  "previous_classification": "metadata_only",
+  "reclassification_reason": "GWS CLI auth was valid all along. Previous 30s timeout was insufficient for CLI cold start. 60s timeout succeeds. token_valid=true, has_refresh_token=true confirmed by auth status.",
   "evidence": {
-    "cached_scan_exists": true,
-    "cached_scan_date": "2026-05-30T06:40:00Z",
-    "cached_scan_document_count": 11,
-    "cached_scan_path": "data/gws_context.md",
-    "cached_scan_content_depth": "truncated_summaries_only",
-    "live_api_call_result": "timeout",
-    "live_api_call_method": "npx @googleworkspace/cli docs documents.list",
-    "live_api_timeout_seconds": 30,
+    "gws_cli_version": "0.22.0",
+    "auth_method": "oauth2",
+    "user": "antonyfm@empyreanstudios.co",
+    "project_id": "os-2026",
+    "token_valid": true,
+    "has_refresh_token": true,
+    "storage": "encrypted",
+    "scopes": [
+      "email",
+      "profile",
+      "https://www.googleapis.com/auth/drive.readonly",
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "openid"
+    ],
+    "live_api_call_result": "success",
+    "live_api_call_method": "npx @googleworkspace/cli drive files list",
+    "live_api_timeout_seconds": 60,
+    "total_documents_found": 33,
     "gws_scanner_code_exists": true,
     "gws_scanner_path": "adapters/google_workspace/gws_scanner.py",
     "gws_connector_path": "adapters/google_workspace/gws_connector.py",
-    "google_api_credentials_in_env": false,
-    "google_application_credentials_set": false,
-    "oauth_token_available": false,
-    "npx_available": true,
-    "previous_blocker_artifact": "data/umh/projection_reconciliation/phase14_1_google_docs_blocker.json"
+    "npx_available": true
   },
   "what_is_available": {
     "document_titles": true,
@@ -28,33 +37,21 @@
     "document_summaries_truncated": true,
     "document_key_excerpts_truncated": true,
     "venture_routing": true,
-    "full_document_content": false,
-    "document_ids": false,
-    "document_urls": false,
-    "document_modified_dates": false,
-    "document_created_dates": false
+    "full_document_content": true,
+    "document_ids": true,
+    "document_urls": true,
+    "document_modified_dates": true,
+    "document_created_dates": true
   },
-  "documents_in_cache": [
-    "THE MUNOZ EMPIRE — Elite Structural Architecture",
-    "CreatorOS",
-    "EntrepreneurOS",
-    "LyfeOS",
-    "Life Coaching (E-Learning/Info-Product Brand)",
-    "Coaching Philosophy/Methodology",
-    "Coaching Frameworks & Workbooks",
-    "Antony F. Munoz (Personal Brand)",
-    "Empyrean Studios (Agency Brand)",
-    "Business Template",
-    "Antony Munoz Email Sequence"
+  "total_documents": 33,
+  "key_product_docs": [
+    {"name": "CreatorOS", "id": "1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI", "modified": "2026-05-15", "created": "2026-02-02"},
+    {"name": "EntrepreneurOS", "id": "1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo", "modified": "2026-04-06", "created": "2026-02-02"},
+    {"name": "LyfeOS", "id": "1-6vPlqwlG5ud5hRNnL2sFiKmNmofDI2ZITmFxoecWog", "modified": "2026-03-09", "created": "2026-01-27"},
+    {"name": "UMH", "id": "11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8", "modified": "2026-05-10", "created": "2026-04-23"},
+    {"name": "THE MUNOZ EMPIRE — Elite Structural Architecture", "id": "11p9ts6TTVDlCgOX1oV5u_0BGuHyHmgwclqEUgI4b6yM", "modified": "2026-05-25", "created": "2026-05-16"},
+    {"name": "Empyrean Studios (Agency Brand)", "id": "1GO2F5vvxvoWfOD1jantn52WBo-ejc3U0Ki6arg7uTn0", "modified": "2026-02-01", "created": "2025-08-21"}
   ],
-  "impact": "Can classify documents by title and summary. Cannot read full content, extract detailed product claims, or verify document currency. Phase 14.3 will proceed with available cached data but full content ingestion requires live API access.",
-  "resolution_required": {
-    "primary": "Resolve GWS CLI authentication — the scanner worked on 2026-05-30 but CLI calls now timeout",
-    "alternatives": [
-      "Debug npx @googleworkspace/cli auth state — may need re-auth in interactive session",
-      "Operator manually exports key docs as text/PDF to data/umh/product_docs_convergence/google_docs_exports/",
-      "Set up Google service account with Drive read scope",
-      "Run OAuth2 flow interactively via SSH"
-    ]
-  }
+  "resolution_required": null,
+  "impact": "Full Google Docs read access is available. All 33 documents can be listed, read, and content-extracted. Phase 14.3A access resolution is no longer needed."
 }
