@@ -1,0 +1,26 @@
+{
+  "phase": "14.3AR",
+  "task": "merge_result",
+  "timestamp": "2026-06-02T06:30:00Z",
+  "merge": {
+    "source_branch": "worktree-cpu-limits",
+    "target_branch": "main",
+    "merge_type": "fast-forward",
+    "merge_commit": "58de055c571543fb0815a2fd5ab12a15cba27166",
+    "files_changed": 34,
+    "insertions": 3717,
+    "deletions": 5,
+    "pushed_to_remote": true,
+    "push_result": "e838ecab..58de055c  main -> main"
+  },
+  "verification": {
+    "phase_14_3a_files_on_main": 18,
+    "phase_14_3ar_files_on_main": 11,
+    "audit_docs_on_main": true,
+    "test_files_on_main": true,
+    "no_source_files_modified": true,
+    "saas_decommissioned": true,
+    "transports_api_http_intact": true,
+    "working_tree_clean": true
+  }
+}
