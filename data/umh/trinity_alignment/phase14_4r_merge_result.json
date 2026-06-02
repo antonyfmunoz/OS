@@ -6,20 +6,23 @@
   "merge": {
     "source_branch": "worktree-cpu-limits",
     "target_branch": "main",
-    "status": "pending",
-    "note": "Merge will be executed after all proof artifacts are created and verified"
+    "status": "complete",
+    "merge_type": "fast-forward",
+    "commit": "a712efb3",
+    "pushed": true,
+    "pushed_to": "origin/main"
   },
   "files_included": {
     "phase14_4_artifacts": 27,
-    "phase14_4r_proof_artifacts": 13,
-    "audit_docs": 3,
+    "phase14_4r_proof_artifacts": 15,
+    "audit_docs": 4,
     "test_files": 1,
-    "total": 44
+    "total": 47
   },
   "verification_checks": {
-    "all_phase14_4_files_on_main": "pending_merge",
-    "all_phase14_4r_proof_artifacts_on_main": "pending_merge",
-    "all_audit_docs_on_main": "pending_merge",
+    "all_phase14_4_files_on_main": true,
+    "all_phase14_4r_proof_artifacts_on_main": true,
+    "all_audit_docs_on_main": true,
     "no_existing_source_files_modified": true,
     "saas_remains_decommissioned": true,
     "transports_api_http_remains_intact": true,
