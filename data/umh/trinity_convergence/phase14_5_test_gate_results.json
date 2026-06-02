@@ -1,0 +1,103 @@
+{
+  "phase": "14.5",
+  "task": "test_gate_results",
+  "timestamp": "2026-06-02T20:00:00Z",
+  "test_suites": {
+    "phase14_5_tests": {
+      "file": "tests/test_phase14_5_convergence_planning.py",
+      "passed": 105,
+      "failed": 0,
+      "total": 105,
+      "status": "pass"
+    },
+    "phase14_4_tests": {
+      "file": "tests/test_phase14_4_trinity_alignment.py",
+      "passed": 95,
+      "failed": 0,
+      "total": 95,
+      "status": "pass"
+    },
+    "phase14_3ar_tests": {
+      "file": "tests/test_phase14_3_product_docs_convergence.py",
+      "passed": 0,
+      "failed": 0,
+      "total": 0,
+      "status": "pass",
+      "note": "included in combined 14.3 run"
+    },
+    "phase14_3a_tests": {
+      "file": "tests/test_phase14_3a_full_content_convergence.py",
+      "passed": 0,
+      "failed": 0,
+      "total": 0,
+      "status": "pass",
+      "note": "included in combined 14.3 run"
+    },
+    "phase14_3_combined": {
+      "passed": 204,
+      "failed": 0,
+      "total": 204,
+      "status": "pass"
+    }
+  },
+  "gate_checks": {
+    "py_compile": {
+      "status": "pass"
+    },
+    "type_divergence": {
+      "status": "pass",
+      "note": "clean"
+    },
+    "instance_leak": {
+      "status": "pass",
+      "note": "clean"
+    },
+    "projection_leak": {
+      "status": "pass",
+      "note": "clean"
+    },
+    "dependency_direction": {
+      "status": "pass",
+      "note": "clean"
+    },
+    "no_fake_data": {
+      "status": "pass",
+      "note": "All data sourced from Phase 14.4R artifacts"
+    },
+    "no_secret_leakage": {
+      "status": "pass",
+      "note": "No .env, API keys, or credentials in convergence artifacts"
+    },
+    "no_external_write": {
+      "status": "pass",
+      "note": "No SSH write, git push, scp, rsync commands executed"
+    },
+    "no_destructive_sync": {
+      "status": "pass",
+      "note": "No branch merges, no file deletions, no force operations"
+    },
+    "no_source_mutation": {
+      "status": "pass",
+      "note": "Only JSON planning artifacts and test files created"
+    },
+    "no_feature_build": {
+      "status": "pass",
+      "note": "No component creation, no feature code"
+    },
+    "auth_migration_blocked": {
+      "status": "pass",
+      "note": "No Clerk setup, no auth code changes"
+    },
+    "infrastructure_blocked": {
+      "status": "pass",
+      "note": "No Fly, Neon, PostHog implementation"
+    },
+    "device_role": {
+      "status": "pass",
+      "note": "VPS=orchestrator, Beast=workhorse confirmed in artifacts"
+    }
+  },
+  "total_tests_passed": 404,
+  "total_tests_failed": 0,
+  "all_pass": true
+}

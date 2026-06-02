@@ -1,0 +1,30 @@
+{
+  "phase": "14.5",
+  "task": "cockpit_verification",
+  "timestamp": "2026-06-02T20:00:00Z",
+  "cockpit_state": {
+    "current_phase": "14.5",
+    "phase_type": "planning_decision_session",
+    "active_decisions": 8,
+    "decisions_ratified": 0,
+    "decisions_pending": 8,
+    "convergence_plans": {
+      "eos": true,
+      "creatoros": true,
+      "lyfeos": true
+    },
+    "work_packets_total": 35,
+    "work_packets_executable": 1,
+    "risk_items": 16,
+    "critical_risks": 3,
+    "readiness_gates_passed": 3,
+    "readiness_gates_blocked": 5
+  },
+  "blocked_states": {
+    "feature_build": "BLOCKED \u2014 convergence decisions not ratified",
+    "infrastructure": "BLOCKED \u2014 plan only, no implementation",
+    "auth_migration": "BLOCKED \u2014 requires planning and operator approval",
+    "source_mutation": "BLOCKED \u2014 no writes to app repos"
+  },
+  "recommended_next": "Phase 14.5R \u2014 Production Truth Promotion"
+}

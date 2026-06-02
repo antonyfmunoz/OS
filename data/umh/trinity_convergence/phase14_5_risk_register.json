@@ -1,0 +1,167 @@
+{
+  "phase": "14.5",
+  "task": "risk_register",
+  "timestamp": "2026-06-02T20:00:00Z",
+  "risks": [
+    {
+      "id": "RISK-001",
+      "name": "EOS branch divergence",
+      "severity": "critical",
+      "probability": "certain",
+      "impact": "GitHub main is unusable until resolved",
+      "mitigation": "Promote Beast branch with validation",
+      "owner": "Operator + Developer Agent",
+      "phase_to_address": "14.7"
+    },
+    {
+      "id": "RISK-002",
+      "name": "EOS blind-merge",
+      "severity": "critical",
+      "probability": "possible if rushed",
+      "impact": "Could break both branches",
+      "mitigation": "Require review + build validation + rollback plan",
+      "owner": "Developer Agent",
+      "phase_to_address": "14.7"
+    },
+    {
+      "id": "RISK-003",
+      "name": "CreatorOS auth bypass",
+      "severity": "critical",
+      "probability": "certain (exists now)",
+      "impact": "Any password works for any user \u2014 cannot ship",
+      "mitigation": "Clerk migration or immediate fix",
+      "owner": "Operator + Developer Agent",
+      "phase_to_address": "14.8"
+    },
+    {
+      "id": "RISK-004",
+      "name": "CreatorOS god-file",
+      "severity": "high",
+      "probability": "certain",
+      "impact": "Blocks parallel development and maintainability",
+      "mitigation": "Split routes.ts and storage.ts into modules",
+      "owner": "Developer Agent",
+      "phase_to_address": "14.8"
+    },
+    {
+      "id": "RISK-005",
+      "name": "CreatorOS repo bloat",
+      "severity": "medium",
+      "probability": "certain",
+      "impact": "Slow clones, wasted disk",
+      "mitigation": "Remove attached_assets, git filter-branch if needed",
+      "owner": "Developer Agent",
+      "phase_to_address": "14.8"
+    },
+    {
+      "id": "RISK-006",
+      "name": "LyfeOS production regression",
+      "severity": "medium",
+      "probability": "possible during migration",
+      "impact": "lyfeos.net breaks",
+      "mitigation": "Preserve isolated MVP, new deployment for UMH-connected",
+      "owner": "Developer Agent",
+      "phase_to_address": "14.9"
+    },
+    {
+      "id": "RISK-007",
+      "name": "LyfeOS auth migration",
+      "severity": "medium",
+      "probability": "possible",
+      "impact": "Could disrupt working MVP",
+      "mitigation": "Migrate after CreatorOS proves pattern",
+      "owner": "Developer Agent",
+      "phase_to_address": "14.9+"
+    },
+    {
+      "id": "RISK-008",
+      "name": "Stale docs",
+      "severity": "medium",
+      "probability": "likely",
+      "impact": "Plans based on outdated information",
+      "mitigation": "Always verify against source code, not just docs",
+      "owner": "Developer Agent",
+      "phase_to_address": "ongoing"
+    },
+    {
+      "id": "RISK-009",
+      "name": "Stale OS Platform Standard auth",
+      "severity": "high",
+      "probability": "certain",
+      "impact": "Firebase recommendation misleads",
+      "mitigation": "Deprecate in v2, replace with Clerk",
+      "owner": "Developer Agent",
+      "phase_to_address": "14.6"
+    },
+    {
+      "id": "RISK-010",
+      "name": "Premature shared package extraction",
+      "severity": "high",
+      "probability": "possible",
+      "impact": "Coupling before patterns stabilize",
+      "mitigation": "Block extraction until all apps converged",
+      "owner": "Operator",
+      "phase_to_address": "15.0+"
+    },
+    {
+      "id": "RISK-011",
+      "name": "Premature infrastructure",
+      "severity": "medium",
+      "probability": "possible",
+      "impact": "Wasted resources on wrong config",
+      "mitigation": "Plan only until convergence complete",
+      "owner": "Operator",
+      "phase_to_address": "15.0+"
+    },
+    {
+      "id": "RISK-012",
+      "name": "VPS resource constraint",
+      "severity": "medium",
+      "probability": "known",
+      "impact": "90% steal on Hostinger, limited compute",
+      "mitigation": "VPS is orchestrator only, Beast does heavy work",
+      "owner": "Developer Agent",
+      "phase_to_address": "ongoing"
+    },
+    {
+      "id": "RISK-013",
+      "name": "Beast dependency",
+      "severity": "medium",
+      "probability": "possible",
+      "impact": "All Trinity work blocked if Beast unavailable",
+      "mitigation": "Ensure Beast is online and accessible via SSH/Tailscale",
+      "owner": "Operator",
+      "phase_to_address": "ongoing"
+    },
+    {
+      "id": "RISK-014",
+      "name": "No test coverage",
+      "severity": "high",
+      "probability": "certain",
+      "impact": "Regressions undetected during convergence",
+      "mitigation": "Add test suites as first convergence step per app",
+      "owner": "Developer Agent",
+      "phase_to_address": "14.7-14.9"
+    },
+    {
+      "id": "RISK-015",
+      "name": "Feature build before convergence",
+      "severity": "high",
+      "probability": "possible if gates bypassed",
+      "impact": "Build on wrong foundation",
+      "mitigation": "Readiness gates block feature build",
+      "owner": "Operator + Developer Agent",
+      "phase_to_address": "15.0"
+    },
+    {
+      "id": "RISK-016",
+      "name": "App collapse / monolith",
+      "severity": "critical",
+      "probability": "low",
+      "impact": "Products lose identity, maintenance nightmare",
+      "mitigation": "Separate repo doctrine, separate convergence plans",
+      "owner": "Operator",
+      "phase_to_address": "ongoing"
+    }
+  ]
+}

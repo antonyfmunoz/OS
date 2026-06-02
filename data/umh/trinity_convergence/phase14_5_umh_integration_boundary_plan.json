@@ -1,0 +1,92 @@
+{
+  "phase": "14.5",
+  "task": "umh_integration_boundary_plan",
+  "timestamp": "2026-06-02T20:00:00Z",
+  "umh_owns": {
+    "orchestration": "Work packet lifecycle, approval gates, execution routing",
+    "operator_experience": "Cockpit, operator dashboard, governance UI",
+    "source_truth": "Source inventories, artifact tracking, production truth",
+    "production_truth": "Deployment state, runtime health, configuration",
+    "runtime_fleet": "Device assignment, node roles, health monitoring",
+    "work_packets": "Creation, lifecycle, validation, approval",
+    "governance": "Risk classification, approval workflows, policy enforcement",
+    "cross_app_intelligence": "Cross-product insights, pattern detection, recommendations",
+    "reconciliation": "Source vs production truth alignment, drift detection",
+    "context_assimilation": "External data ingestion, knowledge graph",
+    "device_role_assignment": "VPS=orchestrator, Beast=workhorse, Mobile=approval surface",
+    "execution_routing": "Route work to appropriate device/runtime"
+  },
+  "apps_own": {
+    "product_ux": "User-facing UI, navigation, interactions",
+    "app_flows": "Domain-specific user journeys and workflows",
+    "domain_models": "App-specific data models and schemas",
+    "product_modules": "Feature-specific code and logic",
+    "frontend_backend": "App-specific client and server code",
+    "customer_experience": "End-user feature experience"
+  },
+  "boundary_candidates": [
+    {
+      "candidate": "App event export to UMH",
+      "priority": "high",
+      "type": "data flow",
+      "direction": "app\u2192UMH"
+    },
+    {
+      "candidate": "App task/workflow handoff to UMH",
+      "priority": "medium",
+      "type": "orchestration",
+      "direction": "bidirectional"
+    },
+    {
+      "candidate": "UMH-generated Work Packets for app changes",
+      "priority": "high",
+      "type": "governance",
+      "direction": "UMH\u2192app"
+    },
+    {
+      "candidate": "Read-only source introspection",
+      "priority": "high",
+      "type": "monitoring",
+      "direction": "UMH reads app state"
+    },
+    {
+      "candidate": "Future agent workflow APIs",
+      "priority": "low",
+      "type": "integration",
+      "direction": "bidirectional"
+    },
+    {
+      "candidate": "Future analytics/event bridge",
+      "priority": "low",
+      "type": "data flow",
+      "direction": "app\u2192UMH"
+    },
+    {
+      "candidate": "Future approval/control bridge",
+      "priority": "medium",
+      "type": "governance",
+      "direction": "UMH\u2192app"
+    }
+  ],
+  "integrate_first": [
+    "Read-only source introspection",
+    "App event export",
+    "Work Packet generation"
+  ],
+  "defer": [
+    "Agent workflow APIs",
+    "Analytics event bridge",
+    "Approval/control bridge"
+  ],
+  "do_not_couple": [
+    "App-specific business logic",
+    "App database schemas",
+    "App auth/session management",
+    "App UI rendering"
+  ],
+  "app_specific_notes": {
+    "eos": "Strongest UMH integration candidate \u2014 agent runtime and work packets align naturally. Beast branch has AI/conversations routes that could bridge.",
+    "creatoros": "Lightest UMH integration \u2014 content distribution automation is main touch point. Fix auth and god files before any integration.",
+    "lyfeos": "NOVA AI system is natural UMH bridge \u2014 6 AI roles could map to UMH agent types. Most mature for integration but preserve isolated MVP first."
+  }
+}
