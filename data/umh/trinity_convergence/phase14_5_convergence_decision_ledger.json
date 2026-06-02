@@ -1,0 +1,350 @@
+{
+  "phase": "14.5",
+  "task": "convergence_decision_ledger",
+  "timestamp": "2026-06-02T20:00:00Z",
+  "description": "8 convergence decisions requiring operator ratification before any implementation begins",
+  "planning_only": true,
+  "implementation_allowed": false,
+  "decisions": [
+    {
+      "decision_id": "DEC-145-001",
+      "decision_name": "EOS Source Strategy",
+      "question": "Which EOS source becomes the canonical main branch?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Promote Beast feature/company-system",
+          "description": "Beast branch becomes new main. GitHub main archived or rebased."
+        },
+        {
+          "id": "B",
+          "label": "Selectively merge Beast to main",
+          "description": "Cherry-pick Beast features into GitHub main. Keep GitHub as base."
+        },
+        {
+          "id": "C",
+          "label": "Keep GitHub main, discard Beast",
+          "description": "Treat Beast as experimental. Continue from GitHub main."
+        },
+        {
+          "id": "D",
+          "label": "Preserve both temporarily",
+          "description": "Maintain both branches until a later decision point."
+        }
+      ],
+      "recommended_option": "A",
+      "rationale": "Beast is 3x larger (603 vs 202 files), already has Clerk auth integrated, company/portfolio/workflow expansion, and represents months of active development. GitHub main is stale (last commit 2026-02-20, all Replit Agent authored). But: require operator review, full test/build validation, secret scan, and rollback plan before promotion. Do not merge blindly.",
+      "evidence_refs": [
+        "data/umh/trinity_alignment/phase14_4_eos_github_inventory.json",
+        "data/umh/trinity_alignment/phase14_4_eos_beast_inventory.json",
+        "data/umh/trinity_alignment/phase14_4_gap_maps_build_sequences.json"
+      ],
+      "risk": "HIGH",
+      "risk_detail": "Branch divergence is massive \u2014 blind merge could break everything. Beast branch has never been CI-validated against main.",
+      "dependencies": [
+        "Operator approval",
+        "Build validation on Beast",
+        "Secret scan of Beast branch"
+      ],
+      "operator_approval_required": true,
+      "implementation_allowed_now": false
+    },
+    {
+      "decision_id": "DEC-145-002",
+      "decision_name": "CreatorOS MVP Scope",
+      "question": "What scope defines the CreatorOS MVP?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Creator/community only",
+          "description": "Minimal scope \u2014 creator profiles and community features only."
+        },
+        {
+          "id": "B",
+          "label": "Creator + course/product",
+          "description": "Smallest coherent creator OS \u2014 content creation, community, and course/product delivery."
+        },
+        {
+          "id": "C",
+          "label": "Creator + course + distribution + analytics",
+          "description": "Broader MVP \u2014 adds distribution channels and analytics."
+        },
+        {
+          "id": "D",
+          "label": "Full PRD scope",
+          "description": "Everything in the product requirements document."
+        }
+      ],
+      "recommended_option": "B",
+      "rationale": "Staged MVP approach. Resolve auth bypass vulnerability first \u2014 it is a critical security issue that blocks any user-facing work. Smallest coherent creator OS = content + community + courses. Option A is too thin to be useful. Option C/D risks scope creep before foundations are solid.",
+      "evidence_refs": [
+        "data/umh/trinity_alignment/phase14_4_creatoros_desired_state_canon.json",
+        "data/umh/trinity_alignment/phase14_4_creatoros_github_inventory.json"
+      ],
+      "risk": "MEDIUM",
+      "risk_detail": "Scope creep risk if not gated. Auth bypass must be fixed before any user-facing work. God file splitting needed before feature development.",
+      "dependencies": [
+        "Auth bypass fix",
+        "God file splitting",
+        "MVP scope operator decision"
+      ],
+      "operator_approval_required": true,
+      "implementation_allowed_now": false
+    },
+    {
+      "decision_id": "DEC-145-003",
+      "decision_name": "LyfeOS PRD Version",
+      "question": "Which PRD version governs LyfeOS development direction?",
+      "options": [
+        {
+          "id": "A",
+          "label": "v1.0 canonical",
+          "description": "Original PRD governs. v2.0 shelved."
+        },
+        {
+          "id": "B",
+          "label": "v2.0 canonical",
+          "description": "v2.0 replaces v1.0 entirely."
+        },
+        {
+          "id": "C",
+          "label": "v2.0 current, v1.0 historical",
+          "description": "v2.0 as current direction. v1.0 preserved as historical context for decisions that led to v2.0."
+        },
+        {
+          "id": "D",
+          "label": "Hybrid",
+          "description": "Selectively combine elements from both versions."
+        }
+      ],
+      "recommended_option": "C",
+      "rationale": "v2.0 as current direction, v1.0 as historical context. The isolated MVP at lyfeos.net is the current implementation truth. UMH-connected MVP is the future state. LyfeOS is the most mature of the Trinity \u2014 clear evolutionary path from v1.0 to v2.0 is valuable context to preserve.",
+      "evidence_refs": [
+        "data/umh/trinity_alignment/phase14_4_lyfeos_desired_state_canon.json",
+        "data/umh/trinity_alignment/phase14_4_lyfeos_github_inventory.json"
+      ],
+      "risk": "LOW",
+      "risk_detail": "LyfeOS is most mature with clearest path forward. Risk is minimal.",
+      "dependencies": [
+        "Operator confirmation of v2.0 direction"
+      ],
+      "operator_approval_required": true,
+      "implementation_allowed_now": false
+    },
+    {
+      "decision_id": "DEC-145-004",
+      "decision_name": "Clerk Migration Order",
+      "question": "Which app gets Clerk auth migration first?",
+      "options": [
+        {
+          "id": "A",
+          "label": "EOS first",
+          "description": "Migrate EOS to Clerk before others."
+        },
+        {
+          "id": "B",
+          "label": "CreatorOS first",
+          "description": "Migrate CreatorOS to Clerk first \u2014 fix auth bypass vulnerability."
+        },
+        {
+          "id": "C",
+          "label": "LyfeOS first",
+          "description": "Migrate LyfeOS to Clerk first."
+        },
+        {
+          "id": "D",
+          "label": "All at once",
+          "description": "Parallel migration across all three apps."
+        }
+      ],
+      "recommended_option": "B",
+      "rationale": "CreatorOS first because the auth bypass is a critical security vulnerability that must be fixed before any user-facing work. EOS already has Clerk integrated on Beast (just needs branch promotion via DEC-145-001). LyfeOS is the most mature and least urgent for auth changes. Never all-at-once \u2014 each migration is independent risk that should be isolated.",
+      "evidence_refs": [
+        "data/umh/trinity_alignment/phase14_4_gap_maps_build_sequences.json",
+        "data/umh/trinity_alignment/phase14_4_cross_trinity_shared_standard_diff.json"
+      ],
+      "risk": "MEDIUM",
+      "risk_detail": "Each migration is independent risk. CreatorOS auth bypass is actively exploitable if deployed. Sequencing reduces blast radius.",
+      "dependencies": [
+        "DEC-145-001 (EOS source strategy) ratified",
+        "DEC-145-002 (CreatorOS MVP scope) ratified"
+      ],
+      "operator_approval_required": true,
+      "implementation_allowed_now": false
+    },
+    {
+      "decision_id": "DEC-145-005",
+      "decision_name": "OS Platform Standard v2",
+      "question": "How should the cross-Trinity platform standard be created?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Write from docs only",
+          "description": "Derive standard purely from product documentation."
+        },
+        {
+          "id": "B",
+          "label": "Write from docs + code evidence",
+          "description": "Derive standard from product docs AND actual code analysis. Mark implementation deferred."
+        },
+        {
+          "id": "C",
+          "label": "Wait until converged",
+          "description": "Defer standard creation until all three apps are converged."
+        },
+        {
+          "id": "D",
+          "label": "Avoid standard",
+          "description": "Let each app diverge, no shared standard."
+        }
+      ],
+      "recommended_option": "B",
+      "rationale": "Create a planning standard from product docs + code evidence gathered in Phase 14.4/14.4R. Mark all implementation as deferred. Do not extract shared packages yet \u2014 that is an implementation concern for post-convergence. The standard is a planning artifact that guides convergence decisions.",
+      "evidence_refs": [
+        "data/umh/trinity_alignment/phase14_4_cross_trinity_shared_standard_diff.json",
+        "data/umh/trinity_alignment/phase14_4_architecture_diffs.json"
+      ],
+      "risk": "LOW",
+      "risk_detail": "Planning artifact only. No code changes. No risk of breaking anything.",
+      "dependencies": [
+        "Phase 14.4R complete"
+      ],
+      "operator_approval_required": false,
+      "implementation_allowed_now": false
+    },
+    {
+      "decision_id": "DEC-145-006",
+      "decision_name": "UMH Integration Boundary",
+      "question": "How deeply does UMH integrate with Trinity apps?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Deep embed",
+          "description": "UMH deeply embedded in each app \u2014 shared runtime, shared DB, tight coupling."
+        },
+        {
+          "id": "B",
+          "label": "Independent + external orchestration",
+          "description": "Apps fully independent. UMH orchestrates externally via APIs only."
+        },
+        {
+          "id": "C",
+          "label": "Hybrid",
+          "description": "Apps own product UX/workflows/business logic. UMH owns orchestration, agents, source truth, production truth, work packets, governance, cross-app intelligence, and operator control."
+        },
+        {
+          "id": "D",
+          "label": "No integration",
+          "description": "Trinity apps are standalone. UMH does not integrate."
+        }
+      ],
+      "recommended_option": "C",
+      "rationale": "Hybrid boundary. Apps own their product UX, workflows, and business logic \u2014 they are products, not UMH modules. UMH owns orchestration, agents, source truth, production truth, work packets, governance, cross-app intelligence, and operator control. This preserves app autonomy while giving UMH the coordination layer it needs.",
+      "evidence_refs": [
+        "data/umh/trinity_alignment/phase14_4_architecture_diffs.json",
+        "data/umh/trinity_alignment/phase14_4_work_packets.json"
+      ],
+      "risk": "LOW",
+      "risk_detail": "Boundary definition only. No code changes. Establishes the contract for all future integration work.",
+      "dependencies": [
+        "DEC-145-005 (OS Platform Standard v2)"
+      ],
+      "operator_approval_required": true,
+      "implementation_allowed_now": false
+    },
+    {
+      "decision_id": "DEC-145-007",
+      "decision_name": "Infrastructure Timing",
+      "question": "When should shared infrastructure (CI/CD, monitoring, shared packages) be implemented?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Implement now",
+          "description": "Build shared infrastructure immediately."
+        },
+        {
+          "id": "B",
+          "label": "Plan now, implement after convergence",
+          "description": "Create infrastructure plans and specs now. Implement only after convergence plans and app readiness gates pass."
+        },
+        {
+          "id": "C",
+          "label": "Defer all",
+          "description": "No infrastructure planning or implementation until apps are converged."
+        },
+        {
+          "id": "D",
+          "label": "Deploy immediately",
+          "description": "Deploy infrastructure to production now."
+        }
+      ],
+      "recommended_option": "B",
+      "rationale": "Plan now, do not implement. Infrastructure is blocked until convergence plans are ratified and app readiness gates pass. Premature infrastructure wastes resources and creates coupling before the apps are stable. Planning ensures infrastructure is ready to execute when the gate opens.",
+      "evidence_refs": [
+        "data/umh/trinity_alignment/phase14_4r_readiness_gate_live_proof.json",
+        "data/umh/trinity_alignment/phase14_4_device_runtime_plan.json"
+      ],
+      "risk": "MEDIUM",
+      "risk_detail": "Premature infrastructure implementation wastes resources and creates dependencies on apps that are not yet converged.",
+      "dependencies": [
+        "Source convergence plans ratified",
+        "App readiness gates pass"
+      ],
+      "operator_approval_required": true,
+      "implementation_allowed_now": false
+    },
+    {
+      "decision_id": "DEC-145-008",
+      "decision_name": "Feature Build Readiness",
+      "question": "Should feature building be allowed now?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Allow now",
+          "description": "Unblock feature development across all Trinity apps."
+        },
+        {
+          "id": "B",
+          "label": "Allow LyfeOS only",
+          "description": "LyfeOS is mature enough for feature work. Block EOS and CreatorOS."
+        },
+        {
+          "id": "C",
+          "label": "Block all until convergence",
+          "description": "No feature building until convergence decisions are ratified. Allow security-fix planning only."
+        },
+        {
+          "id": "D",
+          "label": "Allow security fixes only",
+          "description": "Only security vulnerability fixes permitted. No features."
+        }
+      ],
+      "recommended_option": "C",
+      "rationale": "Block all feature build. Allow security-fix planning only. The CreatorOS auth bypass should become a high-priority repair work packet but should NOT be executed in Phase 14.5 \u2014 this is a planning phase. Feature development on unconverged codebases creates more divergence. Convergence decisions must be ratified first.",
+      "evidence_refs": [
+        "data/umh/trinity_alignment/phase14_4r_readiness_gate_live_proof.json",
+        "data/umh/trinity_alignment/phase14_4_gap_maps_build_sequences.json"
+      ],
+      "risk": "LOW",
+      "risk_detail": "Correct gate. Blocking features prevents further divergence. Security-fix planning captures the auth bypass without premature execution.",
+      "dependencies": [
+        "All convergence decisions ratified"
+      ],
+      "operator_approval_required": true,
+      "implementation_allowed_now": false
+    }
+  ],
+  "summary": {
+    "total_decisions": 8,
+    "operator_approval_required": 7,
+    "auto_approved": 1,
+    "implementation_allowed_now": 0,
+    "risk_distribution": {
+      "HIGH": 1,
+      "MEDIUM": 3,
+      "LOW": 4
+    },
+    "decision_dependency_chain": "DEC-145-001 \u2192 DEC-145-004, DEC-145-002 \u2192 DEC-145-004, DEC-145-005 \u2192 DEC-145-006, all \u2192 DEC-145-008",
+    "note": "All 8 decisions are planning artifacts. Zero implementation is permitted in Phase 14.5. Operator ratification required before any execution phase."
+  }
+}

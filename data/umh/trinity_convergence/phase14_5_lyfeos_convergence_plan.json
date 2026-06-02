@@ -1,0 +1,219 @@
+{
+  "phase": "14.5",
+  "task": "lyfeos_convergence_plan",
+  "timestamp": "2026-06-02T20:00:00Z",
+  "app": "LyfeOS",
+  "product_name": "LyfeOS",
+  "current_implementation_truth": {
+    "github": {
+      "files": "~200+",
+      "auth": "Passport.js + Firebase legacy",
+      "status": "aligned with Beast"
+    },
+    "beast": {
+      "files": "aligned with GitHub",
+      "status": "same codebase"
+    },
+    "deployed_mvp": {
+      "url": "lyfeos.net",
+      "status": "isolated MVP deployed",
+      "tables": 35,
+      "features": "Dashboard, Missions, NOVA AI, Chronilog, Systems, Profile"
+    },
+    "umh_connected": false
+  },
+  "desired_product_truth": {
+    "source": "phase14_4_lyfeos_desired_state_canon.json",
+    "purpose": "Personal Life Operating System treating human life as a stateful system",
+    "modules": 10,
+    "screens": 7,
+    "target_auth": "Clerk",
+    "target_db": "Neon Postgres + Drizzle ORM",
+    "target_deploy": "Fly.io (separate from current lyfeos.net)"
+  },
+  "top_gaps": [
+    {
+      "id": "LOS-PRD-001",
+      "description": "v1.0 vs v2.0 PRD conflict \u2014 both exist in docs",
+      "severity": "medium"
+    },
+    {
+      "id": "LOS-AUTH-001",
+      "description": "Passport.js + Firebase legacy auth",
+      "severity": "medium"
+    },
+    {
+      "id": "LOS-UMH-001",
+      "description": "Isolated MVP not connected to UMH",
+      "severity": "medium"
+    },
+    {
+      "id": "LOS-DEPLOY-001",
+      "description": "lyfeos.net deployed but not on target infrastructure",
+      "severity": "low"
+    },
+    {
+      "id": "LOS-TEST-001",
+      "description": "Test coverage unknown",
+      "severity": "medium"
+    }
+  ],
+  "contradictions": [
+    {
+      "type": "prd_version",
+      "description": "v1.0 and v2.0 PRDs both exist. v2.0 is current direction, v1.0 is historical."
+    },
+    {
+      "type": "mvp_identity",
+      "description": "Isolated MVP at lyfeos.net is complete but NOT a UMH-connected MVP."
+    },
+    {
+      "type": "auth_legacy",
+      "description": "Working Firebase/Passport auth \u2014 functional but not target."
+    }
+  ],
+  "source_divergence": {
+    "primary_conflict": "No source divergence \u2014 GitHub and Beast aligned. Divergence is between isolated MVP and UMH-connected future.",
+    "recommended_resolution": "Preserve isolated MVP as current truth, plan UMH-connected MVP as future state"
+  },
+  "auth_session_state": {
+    "current": "Passport.js + Firebase (functional but legacy)",
+    "severity": "medium \u2014 works but not target",
+    "target": "Clerk",
+    "migration_path": "Lower priority than CreatorOS (no security vulnerability)",
+    "recommended": "Migrate after CreatorOS Clerk migration is proven"
+  },
+  "schema_data_state": {
+    "current": "35 tables in Neon Postgres + Drizzle ORM",
+    "status": "Most mature schema of all three apps",
+    "target": "Same stack, add UMH integration tables"
+  },
+  "ui_module_state": {
+    "current": "Dashboard, Missions, NOVA AI, Chronilog, Systems, Profile \u2014 all implemented",
+    "status": "Most complete UI of all three apps",
+    "missing": [
+      "Some Phase 2+ features",
+      "UMH integration surfaces"
+    ]
+  },
+  "workflow_agent_state": {
+    "current": "NOVA AI system with 6 roles",
+    "status": "Most advanced AI integration of all three apps",
+    "umh_potential": "NOVA could integrate with UMH agent runtime"
+  },
+  "umh_integration_boundary": {
+    "current": "No integration \u2014 isolated MVP",
+    "planned": "LyfeOS registers as UMH projection, NOVA connects to UMH agent runtime",
+    "boundary": "UMH owns cross-life intelligence, LyfeOS owns personal UX"
+  },
+  "infrastructure_deployment_state": {
+    "current": "lyfeos.net \u2014 deployed isolated MVP",
+    "target": "Fly.io with UMH integration",
+    "blocked": true,
+    "note": "Current deployment works \u2014 migration is enhancement, not repair"
+  },
+  "analytics_state": {
+    "current": "Not implemented",
+    "target": "PostHog analytics",
+    "blocked": true
+  },
+  "prd_version_resolution": {
+    "v1_0": {
+      "status": "historical",
+      "purpose": "Original vision document"
+    },
+    "v2_0": {
+      "status": "current direction",
+      "purpose": "Evolved product spec"
+    },
+    "recommendation": "Treat v2.0 as canonical, preserve v1.0 as historical context"
+  },
+  "recommended_sequence": [
+    {
+      "step": 1,
+      "action": "Operator confirms v2.0 as canonical PRD",
+      "risk": "LOW"
+    },
+    {
+      "step": 2,
+      "action": "Preserve isolated MVP at lyfeos.net",
+      "risk": "LOW"
+    },
+    {
+      "step": 3,
+      "action": "Plan UMH-connected MVP (new deployment)",
+      "risk": "LOW"
+    },
+    {
+      "step": 4,
+      "action": "Clerk auth migration (after CreatorOS proves pattern)",
+      "risk": "MEDIUM",
+      "device": "Beast"
+    },
+    {
+      "step": 5,
+      "action": "UMH integration boundary implementation",
+      "risk": "MEDIUM",
+      "device": "Beast + VPS"
+    },
+    {
+      "step": 6,
+      "action": "Production deployment on Fly.io",
+      "risk": "MEDIUM",
+      "device": "Beast + Fly"
+    }
+  ],
+  "blocked_items": [
+    "Clerk migration (lower priority, after CreatorOS)",
+    "UMH integration (needs boundary finalization)",
+    "New infrastructure (needs convergence plan)",
+    "Feature build beyond current MVP (needs convergence)"
+  ],
+  "operator_decisions_needed": [
+    "DEC-145-003: LyfeOS PRD version",
+    "DEC-145-004: Clerk migration order",
+    "DEC-145-006: UMH integration boundary",
+    "DEC-145-007: Infrastructure timing"
+  ],
+  "work_packets": [
+    {
+      "id": "WP-LOS-001",
+      "objective": "PRD v2.0 canonization",
+      "risk": "LOW",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-LOS-002",
+      "objective": "UMH-connected MVP planning",
+      "risk": "LOW",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-LOS-003",
+      "objective": "Clerk auth migration",
+      "risk": "MEDIUM",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-LOS-004",
+      "objective": "Production deployment migration",
+      "risk": "MEDIUM",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-LOS-005",
+      "objective": "NOVA AI + UMH agent runtime integration",
+      "risk": "MEDIUM",
+      "can_execute_now": false
+    }
+  ],
+  "readiness_gates": {
+    "prd_version_decided": false,
+    "isolated_mvp_preserved": true,
+    "umh_connected_planned": false,
+    "auth_migrated": false,
+    "deployment_on_target": false,
+    "umh_boundary_defined": false,
+    "feature_build_ready": false
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "phase": "14.5",
+  "task": "os_platform_standard_v2_plan",
+  "timestamp": "2026-06-02T20:00:00Z",
+  "shared_stack_standard": {
+    "framework": "React 18",
+    "bundler": "Vite 5",
+    "language": "TypeScript",
+    "ui": "shadcn/ui + Tailwind CSS",
+    "router": "wouter",
+    "server": "Express 4",
+    "orm": "Drizzle ORM",
+    "db": "Neon Postgres",
+    "state": "TanStack Query"
+  },
+  "separate_repo_doctrine": "Each app maintains its own repository. No monorepo. Separate deploys.",
+  "auth_boundary_doctrine": {
+    "target": "Clerk",
+    "current_standard_v1": "Firebase (STALE \u2014 deprecated)",
+    "migration": "Per-app, not simultaneous",
+    "app_owns": "User session, permissions, roles",
+    "umh_owns": "Operator auth, governance"
+  },
+  "database_doctrine": {
+    "target": "Neon Postgres per app",
+    "orm": "Drizzle ORM",
+    "rls": "Per-org row-level security",
+    "separate": "Each app has own database"
+  },
+  "deployment_doctrine": {
+    "target": "Fly.io per app",
+    "separate": true,
+    "no_shared_infra": true
+  },
+  "analytics_doctrine": {
+    "target": "PostHog per app",
+    "implementation": "deferred",
+    "event_taxonomy": "to be defined"
+  },
+  "design_system_direction": {
+    "components": "shadcn/ui + Tailwind",
+    "per_app_themes": true,
+    "shared_primitives": "shadcn components",
+    "no_shared_package_yet": true
+  },
+  "api_convention_direction": {
+    "response_envelope": true,
+    "cursor_pagination": true,
+    "validation": "Zod",
+    "versioning": "TBD"
+  },
+  "event_taxonomy_direction": {
+    "standard": "to be defined",
+    "per_app_events": true,
+    "umh_bridge": "future"
+  },
+  "portable_kit_candidates": [
+    "shared Drizzle utilities",
+    "shared API response envelope",
+    "shared Zod validators",
+    "shared shadcn component config"
+  ],
+  "portable_kit_status": "DO NOT EXTRACT YET",
+  "app_specific_items": [
+    "Auth configuration",
+    "Database schema",
+    "Route definitions",
+    "Business logic",
+    "UI themes",
+    "Domain models"
+  ],
+  "stale_items_deprecated": [
+    "Firebase auth recommendation in OS Platform Standard v1"
+  ],
+  "no_package_extraction": true,
+  "no_implementation": true,
+  "implementation_deferred": true
+}

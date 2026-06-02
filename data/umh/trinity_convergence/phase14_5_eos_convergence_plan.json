@@ -1,0 +1,250 @@
+{
+  "phase": "14.5",
+  "task": "eos_convergence_plan",
+  "timestamp": "2026-06-02T20:00:00Z",
+  "app": "EOS",
+  "product_name": "EntrepreneurOS",
+  "current_implementation_truth": {
+    "github_main": {
+      "files": 202,
+      "last_commit": "2026-02-20",
+      "author": "Replit Agent",
+      "auth": "Passport.js + Firebase",
+      "status": "stale"
+    },
+    "beast_feature_branch": {
+      "files": 603,
+      "branch": "feature/company-system",
+      "auth": "Clerk",
+      "status": "active development",
+      "additions": [
+        "company system",
+        "portfolio management",
+        "workflow routes",
+        "14 route modules",
+        "generated code layer"
+      ]
+    }
+  },
+  "desired_product_truth": {
+    "source": "phase14_4_eos_desired_state_canon.json",
+    "purpose": "AI-native business operating system for founders",
+    "modules": 19,
+    "screens": 11,
+    "target_auth": "Clerk",
+    "target_db": "Neon Postgres + Drizzle ORM",
+    "target_deploy": "Fly.io (separate)"
+  },
+  "top_gaps": [
+    {
+      "id": "EOS-SRC-001",
+      "description": "Beast branch not merged to main \u2014 401 file divergence",
+      "severity": "critical"
+    },
+    {
+      "id": "EOS-AUTH-001",
+      "description": "GitHub main has legacy auth, Beast has Clerk",
+      "severity": "high"
+    },
+    {
+      "id": "EOS-PROD-001",
+      "description": "Department/role management missing from both",
+      "severity": "medium"
+    },
+    {
+      "id": "EOS-PROD-002",
+      "description": "Workflow run view missing",
+      "severity": "medium"
+    },
+    {
+      "id": "EOS-PROD-003",
+      "description": "Memory/knowledge architecture missing",
+      "severity": "medium"
+    },
+    {
+      "id": "EOS-ARCH-001",
+      "description": "No production deployment (Replit only)",
+      "severity": "medium"
+    },
+    {
+      "id": "EOS-TEST-001",
+      "description": "0-2 test files across both environments",
+      "severity": "high"
+    },
+    {
+      "id": "EOS-UMH-001",
+      "description": "No UMH integration boundary defined",
+      "severity": "medium"
+    }
+  ],
+  "contradictions": [
+    {
+      "type": "source_divergence",
+      "description": "GitHub main and Beast branch represent fundamentally different codebases. Beast is canonical candidate."
+    },
+    {
+      "type": "auth_conflict",
+      "description": "OS Platform Standard v1 recommends Firebase. Target is Clerk. Beast already has Clerk."
+    },
+    {
+      "type": "deployment_gap",
+      "description": "No production deploy target \u2014 Replit is dev-only."
+    }
+  ],
+  "source_divergence": {
+    "primary_conflict": "GitHub main (202 files, Passport.js) vs Beast feature/company-system (603 files, Clerk)",
+    "recommended_resolution": "Promote Beast branch as canonical. GitHub main is 3+ months stale with Replit Agent code.",
+    "resolution_prerequisites": [
+      "Build validation on Beast",
+      "Secret scan",
+      "Operator review",
+      "Rollback plan"
+    ],
+    "no_blind_merge": true
+  },
+  "auth_session_state": {
+    "github_main": "Passport.js + Firebase OAuth (legacy, not target)",
+    "beast_branch": "Clerk (target auth achieved)",
+    "target": "Clerk with RBAC+ABAC end-state",
+    "migration_needed": "Branch promotion resolves this for EOS"
+  },
+  "schema_data_state": {
+    "github": "15 tables, Neon Postgres + Drizzle, no RLS",
+    "beast": "Expanded schema with company/portfolio/workflow tables",
+    "target": "Neon Postgres + Drizzle ORM with RLS by org_id",
+    "gaps": [
+      "RLS not implemented",
+      "Embedding dimension mismatch unresolved"
+    ]
+  },
+  "ui_module_state": {
+    "github": "Basic dashboard, task page, documents page, agent chat",
+    "beast": "Expanded: company dashboard, portfolio, workflow routes, AI/conversations",
+    "missing": [
+      "Department/role management",
+      "Workflow run view",
+      "AI copilot workspace full",
+      "Memory/knowledge UI"
+    ]
+  },
+  "workflow_agent_state": {
+    "current": "Agent hierarchy (chief/manager/laborer), action approval workflow",
+    "missing": [
+      "Full skill router",
+      "Orchestration system",
+      "Role-specific agents"
+    ],
+    "umh_potential": "Agent runtime could integrate with UMH substrate"
+  },
+  "umh_integration_boundary": {
+    "current": "No integration \u2014 EOS SaaS is completely separate",
+    "planned": "EOS registers as UMH projection via abstract ports",
+    "boundary": "UMH owns orchestration/intelligence, EOS owns product UX/business logic"
+  },
+  "infrastructure_deployment_state": {
+    "current": "Replit autoscale only \u2014 no Docker, no Fly, no CI/CD",
+    "target": "Fly.io with separate deployment",
+    "blocked": true
+  },
+  "analytics_state": {
+    "current": "PostHog key exists in Beast env but not integrated",
+    "target": "PostHog analytics",
+    "blocked": true
+  },
+  "recommended_sequence": [
+    {
+      "step": 1,
+      "action": "Operator reviews Beast feature/company-system branch",
+      "risk": "LOW",
+      "device": "Beast"
+    },
+    {
+      "step": 2,
+      "action": "Build validation and secret scan on Beast",
+      "risk": "LOW",
+      "device": "Beast"
+    },
+    {
+      "step": 3,
+      "action": "Promote Beast branch to main (with rollback plan)",
+      "risk": "HIGH",
+      "device": "Beast + GitHub"
+    },
+    {
+      "step": 4,
+      "action": "Verify Clerk auth works end-to-end",
+      "risk": "MEDIUM",
+      "device": "Beast"
+    },
+    {
+      "step": 5,
+      "action": "Set up production deployment on Fly.io",
+      "risk": "MEDIUM",
+      "device": "Beast + Fly"
+    },
+    {
+      "step": 6,
+      "action": "Begin feature development against canonical branch",
+      "risk": "LOW",
+      "device": "Beast"
+    }
+  ],
+  "blocked_items": [
+    "Branch merge (needs operator approval)",
+    "Feature build (needs source convergence)",
+    "Deployment (needs infrastructure plan)",
+    "PostHog integration (needs infrastructure plan)",
+    "UMH integration (needs boundary finalization)"
+  ],
+  "operator_decisions_needed": [
+    "DEC-145-001: EOS source strategy (Beast promotion recommended)",
+    "DEC-145-004: Clerk migration order",
+    "DEC-145-007: Infrastructure timing"
+  ],
+  "work_packets": [
+    {
+      "id": "WP-EOS-001",
+      "objective": "Beast branch review and validation",
+      "risk": "LOW",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-EOS-002",
+      "objective": "Beast branch promotion to main",
+      "risk": "HIGH",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-EOS-003",
+      "objective": "Clerk auth verification",
+      "risk": "MEDIUM",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-EOS-004",
+      "objective": "Production deployment setup",
+      "risk": "MEDIUM",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-EOS-005",
+      "objective": "Test suite creation",
+      "risk": "LOW",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-EOS-006",
+      "objective": "UMH integration boundary implementation",
+      "risk": "LOW",
+      "can_execute_now": false
+    }
+  ],
+  "readiness_gates": {
+    "source_converged": false,
+    "auth_verified": false,
+    "tests_passing": false,
+    "deployment_ready": false,
+    "umh_boundary_defined": false,
+    "feature_build_ready": false
+  }
+}

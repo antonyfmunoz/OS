@@ -1,0 +1,256 @@
+{
+  "phase": "14.5",
+  "task": "creatoros_convergence_plan",
+  "timestamp": "2026-06-02T20:00:00Z",
+  "app": "CreatorOS",
+  "product_name": "CreatorOS",
+  "current_implementation_truth": {
+    "github_main": {
+      "files": "~300+",
+      "auth": "Passport.js (broken \u2014 comparePasswords returns true for all)",
+      "status": "critical security vulnerability"
+    },
+    "beast": {
+      "files": "aligned with GitHub",
+      "status": "same codebase, no divergent branch"
+    }
+  },
+  "desired_product_truth": {
+    "source": "phase14_4_creatoros_desired_state_canon.json",
+    "purpose": "Command center for modern creators \u2014 content distribution, community, courses, marketplace",
+    "modules": 16,
+    "screens": "20+",
+    "target_auth": "Clerk",
+    "target_db": "Neon Postgres + Drizzle ORM",
+    "target_deploy": "Fly.io (separate)"
+  },
+  "top_gaps": [
+    {
+      "id": "COS-AUTH-001",
+      "description": "CRITICAL: comparePasswords() returns true for ALL passwords",
+      "severity": "critical"
+    },
+    {
+      "id": "COS-ARCH-001",
+      "description": "God files: routes.ts and storage.ts are monolithic",
+      "severity": "high"
+    },
+    {
+      "id": "COS-ARCH-002",
+      "description": "Repo bloat from attached_assets directory",
+      "severity": "medium"
+    },
+    {
+      "id": "COS-AUTH-002",
+      "description": "Passport.js is broken/legacy \u2014 Clerk is target",
+      "severity": "high"
+    },
+    {
+      "id": "COS-SCOPE-001",
+      "description": "3 conflicting MVP scope definitions in product docs",
+      "severity": "medium"
+    },
+    {
+      "id": "COS-TEST-001",
+      "description": "No test coverage",
+      "severity": "high"
+    },
+    {
+      "id": "COS-UMH-001",
+      "description": "No UMH integration boundary",
+      "severity": "medium"
+    }
+  ],
+  "contradictions": [
+    {
+      "type": "auth_broken",
+      "description": "comparePasswords returns true for all \u2014 any password works for any user. Cannot ship any user-facing features."
+    },
+    {
+      "type": "scope_conflict",
+      "description": "3 different MVP scope definitions exist in product docs. Must pick one."
+    },
+    {
+      "type": "god_files",
+      "description": "routes.ts and storage.ts contain all logic monolithically \u2014 blocks parallel development."
+    }
+  ],
+  "source_divergence": {
+    "primary_conflict": "GitHub and Beast are aligned \u2014 no branch divergence. The divergence is between current code quality and desired product state.",
+    "recommended_resolution": "Fix auth bypass first, split god files second, then build to MVP scope",
+    "resolution_prerequisites": [
+      "Operator decides MVP scope",
+      "Auth bypass repair planned",
+      "God file splitting strategy"
+    ]
+  },
+  "auth_session_state": {
+    "current": "Passport.js with broken comparePasswords \u2014 returns true for ALL passwords",
+    "severity": "CRITICAL SECURITY VULNERABILITY",
+    "target": "Clerk",
+    "migration_path": "Fix bypass immediately (even before Clerk) OR migrate directly to Clerk",
+    "recommended": "Migrate directly to Clerk \u2014 fixing Passport.js is wasted work if Clerk is target"
+  },
+  "schema_data_state": {
+    "current": "Drizzle ORM with Neon Postgres (needs verification)",
+    "god_files": "storage.ts contains all storage logic monolithically",
+    "target": "Neon Postgres + Drizzle ORM with proper module separation"
+  },
+  "ui_module_state": {
+    "current": "Basic implementation of content, community, some course features",
+    "god_files": "routes.ts contains all routes monolithically",
+    "missing": [
+      "Marketplace",
+      "In-app editing studio",
+      "Automation builder",
+      "Analytics dashboard",
+      "Most advanced features"
+    ]
+  },
+  "workflow_agent_state": {
+    "current": "None",
+    "planned": "Automation builder (Manychat-style)",
+    "umh_potential": "Content distribution automation via UMH agents"
+  },
+  "umh_integration_boundary": {
+    "current": "No integration",
+    "planned": "CreatorOS registers as UMH projection",
+    "boundary": "UMH owns cross-platform intelligence, CreatorOS owns creator UX"
+  },
+  "infrastructure_deployment_state": {
+    "current": "Unknown deployment target",
+    "target": "Fly.io with separate deployment",
+    "blocked": true
+  },
+  "analytics_state": {
+    "current": "Not implemented",
+    "target": "PostHog analytics",
+    "blocked": true
+  },
+  "mvp_scope_definitions": {
+    "option_a": {
+      "name": "Creator/Community Only",
+      "scope": "Content posting, community spaces, basic profiles",
+      "effort": "smallest"
+    },
+    "option_b": {
+      "name": "Creator + Course/Product",
+      "scope": "Content, community, course creation, digital product sales",
+      "effort": "medium",
+      "recommended": true
+    },
+    "option_c": {
+      "name": "Creator + Full Distribution",
+      "scope": "Content, community, courses, cross-platform distribution, analytics",
+      "effort": "large"
+    },
+    "option_d": {
+      "name": "Full PRD Scope",
+      "scope": "Everything including marketplace, ads, UGC, multistreaming",
+      "effort": "massive, not recommended for MVP"
+    }
+  },
+  "recommended_sequence": [
+    {
+      "step": 1,
+      "action": "Operator decides MVP scope (recommended: B)",
+      "risk": "LOW"
+    },
+    {
+      "step": 2,
+      "action": "Plan and execute Clerk auth migration (fixes auth bypass)",
+      "risk": "HIGH",
+      "device": "Beast"
+    },
+    {
+      "step": 3,
+      "action": "Split god files (routes.ts, storage.ts) into modules",
+      "risk": "MEDIUM",
+      "device": "Beast"
+    },
+    {
+      "step": 4,
+      "action": "Clean repo bloat (attached_assets)",
+      "risk": "LOW",
+      "device": "Beast"
+    },
+    {
+      "step": 5,
+      "action": "Add test coverage",
+      "risk": "LOW",
+      "device": "Beast"
+    },
+    {
+      "step": 6,
+      "action": "Build to MVP scope",
+      "risk": "MEDIUM",
+      "device": "Beast"
+    },
+    {
+      "step": 7,
+      "action": "Production deployment",
+      "risk": "MEDIUM",
+      "device": "Beast + Fly"
+    }
+  ],
+  "blocked_items": [
+    "Feature build (auth bypass blocks everything)",
+    "User-facing deployment (security vulnerability)",
+    "Clerk migration (needs planning)",
+    "Infrastructure setup (needs convergence)",
+    "UMH integration (needs boundary finalization)"
+  ],
+  "operator_decisions_needed": [
+    "DEC-145-002: CreatorOS MVP scope",
+    "DEC-145-004: Clerk migration order (CreatorOS first recommended)",
+    "DEC-145-007: Infrastructure timing"
+  ],
+  "work_packets": [
+    {
+      "id": "WP-COS-001",
+      "objective": "Clerk auth migration planning",
+      "risk": "HIGH",
+      "can_execute_now": false,
+      "priority": "P0"
+    },
+    {
+      "id": "WP-COS-002",
+      "objective": "God file splitting plan (routes.ts + storage.ts)",
+      "risk": "MEDIUM",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-COS-003",
+      "objective": "Repo bloat cleanup (attached_assets)",
+      "risk": "LOW",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-COS-004",
+      "objective": "MVP scope stabilization",
+      "risk": "LOW",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-COS-005",
+      "objective": "Test suite creation",
+      "risk": "LOW",
+      "can_execute_now": false
+    },
+    {
+      "id": "WP-COS-006",
+      "objective": "Production deployment setup",
+      "risk": "MEDIUM",
+      "can_execute_now": false
+    }
+  ],
+  "readiness_gates": {
+    "auth_vulnerability_fixed": false,
+    "god_files_split": false,
+    "mvp_scope_decided": false,
+    "tests_passing": false,
+    "deployment_ready": false,
+    "umh_boundary_defined": false,
+    "feature_build_ready": false
+  }
+}

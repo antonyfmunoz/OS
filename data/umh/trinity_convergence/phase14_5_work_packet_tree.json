@@ -1,0 +1,771 @@
+{
+  "phase": "14.5",
+  "task": "work_packet_tree",
+  "timestamp": "2026-06-02T20:00:00Z",
+  "categories": [
+    {
+      "category": "1_ratification",
+      "packets": [
+        {
+          "id": "WP-RAT-001",
+          "parent_id": null,
+          "app": "Trinity",
+          "objective": "Phase 14.5R production truth promotion",
+          "evidence_refs": [
+            "All Phase 14.5 artifacts"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-write VPS",
+          "blocked_actions": [
+            "source mutation"
+          ],
+          "expected_artifacts": [
+            "merge_result.json",
+            "runtime_sync.json"
+          ],
+          "validation_plan": "All tests pass, audit complete",
+          "operator_decision_required": false,
+          "can_execute_now": true
+        },
+        {
+          "id": "WP-RAT-002",
+          "parent_id": "WP-RAT-001",
+          "app": "Trinity",
+          "objective": "Decision ledger operator ratification",
+          "evidence_refs": [
+            "phase14_5_convergence_decision_ledger.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "operator approval",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "ratified_decision_ledger.json"
+          ],
+          "validation_plan": "All 8 decisions have operator approval",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        }
+      ]
+    },
+    {
+      "category": "2_decision_ledger",
+      "packets": [
+        {
+          "id": "WP-DEC-001",
+          "parent_id": null,
+          "app": "EOS",
+          "objective": "EOS source strategy decision",
+          "evidence_refs": [
+            "phase14_4_eos_github_inventory.json",
+            "phase14_4_eos_beast_inventory.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [
+            "branch merge"
+          ],
+          "expected_artifacts": [
+            "operator_decision_record.json"
+          ],
+          "validation_plan": "Decision recorded with rationale",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-DEC-002",
+          "parent_id": null,
+          "app": "CreatorOS",
+          "objective": "CreatorOS MVP scope decision",
+          "evidence_refs": [
+            "phase14_4_creatoros_desired_state_canon.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [
+            "feature build"
+          ],
+          "expected_artifacts": [
+            "mvp_scope_decision.json"
+          ],
+          "validation_plan": "Scope locked to one option",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-DEC-003",
+          "parent_id": null,
+          "app": "LyfeOS",
+          "objective": "LyfeOS PRD version decision",
+          "evidence_refs": [
+            "phase14_4_lyfeos_desired_state_canon.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "prd_version_decision.json"
+          ],
+          "validation_plan": "v1.0/v2.0 canonicity resolved",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-DEC-004",
+          "parent_id": null,
+          "app": "Trinity",
+          "objective": "Clerk migration order decision",
+          "evidence_refs": [
+            "phase14_4_gap_maps_build_sequences.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [
+            "auth migration"
+          ],
+          "expected_artifacts": [
+            "migration_order_decision.json"
+          ],
+          "validation_plan": "Order decided with rationale",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        }
+      ]
+    },
+    {
+      "category": "3_shared_standard",
+      "packets": [
+        {
+          "id": "WP-STD-001",
+          "parent_id": null,
+          "app": "Trinity",
+          "objective": "OS Platform Standard v2 finalization",
+          "evidence_refs": [
+            "phase14_5_os_platform_standard_v2_plan.json",
+            "phase14_4_cross_trinity_shared_standard_diff.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-write VPS",
+          "blocked_actions": [
+            "package extraction",
+            "implementation"
+          ],
+          "expected_artifacts": [
+            "os_platform_standard_v2.md"
+          ],
+          "validation_plan": "Standard document complete, Firebase deprecated",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-STD-002",
+          "parent_id": "WP-STD-001",
+          "app": "Trinity",
+          "objective": "Stale Firebase auth deprecation",
+          "evidence_refs": [
+            "phase14_4_cross_trinity_shared_standard_diff.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-write VPS",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "firebase_deprecation_notice.md"
+          ],
+          "validation_plan": "Firebase removed from standard, Clerk added",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        }
+      ]
+    },
+    {
+      "category": "4_umh_boundary",
+      "packets": [
+        {
+          "id": "WP-UMH-001",
+          "parent_id": null,
+          "app": "UMH",
+          "objective": "UMH integration boundary finalization",
+          "evidence_refs": [
+            "phase14_5_umh_integration_boundary_plan.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-write VPS",
+          "blocked_actions": [
+            "implementation"
+          ],
+          "expected_artifacts": [
+            "umh_integration_contract.md"
+          ],
+          "validation_plan": "Boundary clear for all 3 apps",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-UMH-002",
+          "parent_id": "WP-UMH-001",
+          "app": "EOS",
+          "objective": "EOS integration contract definition",
+          "evidence_refs": [
+            "phase14_5_eos_convergence_plan.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [
+            "implementation"
+          ],
+          "expected_artifacts": [
+            "eos_integration_contract.json"
+          ],
+          "validation_plan": "EOS boundary defined",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-UMH-003",
+          "parent_id": "WP-UMH-001",
+          "app": "CreatorOS",
+          "objective": "CreatorOS integration contract definition",
+          "evidence_refs": [
+            "phase14_5_creatoros_convergence_plan.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [
+            "implementation"
+          ],
+          "expected_artifacts": [
+            "creatoros_integration_contract.json"
+          ],
+          "validation_plan": "CreatorOS boundary defined",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-UMH-004",
+          "parent_id": "WP-UMH-001",
+          "app": "LyfeOS",
+          "objective": "LyfeOS integration contract definition",
+          "evidence_refs": [
+            "phase14_5_lyfeos_convergence_plan.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [
+            "implementation"
+          ],
+          "expected_artifacts": [
+            "lyfeos_integration_contract.json"
+          ],
+          "validation_plan": "LyfeOS boundary defined",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        }
+      ]
+    },
+    {
+      "category": "5_eos_convergence",
+      "packets": [
+        {
+          "id": "WP-EOS-101",
+          "parent_id": null,
+          "app": "EOS",
+          "objective": "Beast branch review and build validation",
+          "evidence_refs": [
+            "phase14_4_eos_beast_inventory.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "Windows Beast",
+          "permissions": "Beast read access",
+          "blocked_actions": [
+            "merge"
+          ],
+          "expected_artifacts": [
+            "beast_review_report.json",
+            "build_validation.json"
+          ],
+          "validation_plan": "npm install + npm run build + npm test on Beast",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-EOS-102",
+          "parent_id": "WP-EOS-101",
+          "app": "EOS",
+          "objective": "Secret scan on Beast branch",
+          "evidence_refs": [
+            "phase14_4_eos_beast_inventory.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "Windows Beast",
+          "permissions": "Beast read access",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "secret_scan_report.json"
+          ],
+          "validation_plan": "No secrets in committed code",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-EOS-103",
+          "parent_id": "WP-EOS-102",
+          "app": "EOS",
+          "objective": "Branch promotion to main with rollback plan",
+          "evidence_refs": [
+            "DEC-145-001"
+          ],
+          "risk_class": "HIGH",
+          "device_runtime": "Windows Beast + GitHub",
+          "permissions": "Beast write + GitHub push",
+          "blocked_actions": [
+            "blind merge"
+          ],
+          "expected_artifacts": [
+            "promotion_plan.json",
+            "rollback_plan.json"
+          ],
+          "validation_plan": "Operator approves, build passes, rollback tested",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-EOS-104",
+          "parent_id": "WP-EOS-103",
+          "app": "EOS",
+          "objective": "Clerk auth end-to-end verification",
+          "evidence_refs": [
+            "phase14_4_eos_beast_inventory.json"
+          ],
+          "risk_class": "MEDIUM",
+          "device_runtime": "Windows Beast",
+          "permissions": "Beast access + Clerk API",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "clerk_verification.json"
+          ],
+          "validation_plan": "Auth flow works end-to-end",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-EOS-105",
+          "parent_id": "WP-EOS-104",
+          "app": "EOS",
+          "objective": "Test suite creation",
+          "evidence_refs": [
+            "phase14_4_eos_github_inventory.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "Windows Beast",
+          "permissions": "Beast write",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "test_suite/"
+          ],
+          "validation_plan": "npm test passes with >50% coverage",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        }
+      ]
+    },
+    {
+      "category": "6_creatoros_convergence",
+      "packets": [
+        {
+          "id": "WP-COS-101",
+          "parent_id": null,
+          "app": "CreatorOS",
+          "objective": "Clerk auth migration plan",
+          "evidence_refs": [
+            "phase14_4_creatoros_desired_state_canon.json",
+            "DEC-145-004"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [
+            "implementation"
+          ],
+          "expected_artifacts": [
+            "clerk_migration_plan.json"
+          ],
+          "validation_plan": "Migration steps documented",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-COS-102",
+          "parent_id": "WP-COS-101",
+          "app": "CreatorOS",
+          "objective": "Clerk auth migration execution",
+          "evidence_refs": [
+            "WP-COS-101"
+          ],
+          "risk_class": "HIGH",
+          "device_runtime": "Windows Beast",
+          "permissions": "Beast write + Clerk API",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "auth_migrated_codebase/"
+          ],
+          "validation_plan": "comparePasswords removed, Clerk works end-to-end",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-COS-103",
+          "parent_id": null,
+          "app": "CreatorOS",
+          "objective": "God file splitting (routes.ts + storage.ts)",
+          "evidence_refs": [
+            "phase14_4_creatoros_github_inventory.json"
+          ],
+          "risk_class": "MEDIUM",
+          "device_runtime": "Windows Beast",
+          "permissions": "Beast write",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "split_modules/"
+          ],
+          "validation_plan": "No file >500 lines, all routes working",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-COS-104",
+          "parent_id": null,
+          "app": "CreatorOS",
+          "objective": "Repo bloat cleanup",
+          "evidence_refs": [
+            "phase14_4_creatoros_github_inventory.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "Windows Beast",
+          "permissions": "Beast write + GitHub push",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "cleaned_repo/"
+          ],
+          "validation_plan": "attached_assets removed, repo size reduced",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-COS-105",
+          "parent_id": "WP-COS-102",
+          "app": "CreatorOS",
+          "objective": "MVP scope build",
+          "evidence_refs": [
+            "DEC-145-002"
+          ],
+          "risk_class": "MEDIUM",
+          "device_runtime": "Windows Beast",
+          "permissions": "Beast write",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "mvp_features/"
+          ],
+          "validation_plan": "MVP scope features working",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        }
+      ]
+    },
+    {
+      "category": "7_lyfeos_convergence",
+      "packets": [
+        {
+          "id": "WP-LOS-101",
+          "parent_id": null,
+          "app": "LyfeOS",
+          "objective": "PRD v2.0 canonization",
+          "evidence_refs": [
+            "phase14_4_lyfeos_desired_state_canon.json",
+            "DEC-145-003"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-write VPS",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "prd_v2_canon.json"
+          ],
+          "validation_plan": "v2.0 marked canonical, v1.0 marked historical",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-LOS-102",
+          "parent_id": "WP-LOS-101",
+          "app": "LyfeOS",
+          "objective": "UMH-connected MVP planning",
+          "evidence_refs": [
+            "phase14_5_lyfeos_convergence_plan.json",
+            "phase14_5_umh_integration_boundary_plan.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [
+            "implementation"
+          ],
+          "expected_artifacts": [
+            "umh_connected_mvp_plan.json"
+          ],
+          "validation_plan": "Plan covers migration from isolated to connected",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-LOS-103",
+          "parent_id": "WP-LOS-102",
+          "app": "LyfeOS",
+          "objective": "Clerk auth migration",
+          "evidence_refs": [
+            "DEC-145-004"
+          ],
+          "risk_class": "MEDIUM",
+          "device_runtime": "Windows Beast",
+          "permissions": "Beast write + Clerk API",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "clerk_migrated_lyfeos/"
+          ],
+          "validation_plan": "Clerk working, isolated MVP preserved",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-LOS-104",
+          "parent_id": "WP-LOS-103",
+          "app": "LyfeOS",
+          "objective": "NOVA AI + UMH agent integration plan",
+          "evidence_refs": [
+            "phase14_5_umh_integration_boundary_plan.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [
+            "implementation"
+          ],
+          "expected_artifacts": [
+            "nova_umh_integration_plan.json"
+          ],
+          "validation_plan": "6 NOVA roles mapped to UMH agents",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        }
+      ]
+    },
+    {
+      "category": "8_infrastructure_planning",
+      "packets": [
+        {
+          "id": "WP-INF-001",
+          "parent_id": null,
+          "app": "Trinity",
+          "objective": "Fly.io deployment architecture plan",
+          "evidence_refs": [
+            "phase14_5_os_platform_standard_v2_plan.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [
+            "implementation",
+            "deployment"
+          ],
+          "expected_artifacts": [
+            "fly_deployment_plan.json"
+          ],
+          "validation_plan": "Per-app deployment config documented",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-INF-002",
+          "parent_id": null,
+          "app": "Trinity",
+          "objective": "Neon database provisioning plan",
+          "evidence_refs": [
+            "phase14_5_os_platform_standard_v2_plan.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [
+            "db creation"
+          ],
+          "expected_artifacts": [
+            "neon_db_plan.json"
+          ],
+          "validation_plan": "Per-app DB config documented",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-INF-003",
+          "parent_id": null,
+          "app": "Trinity",
+          "objective": "PostHog analytics integration plan",
+          "evidence_refs": [
+            "phase14_5_os_platform_standard_v2_plan.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [
+            "implementation"
+          ],
+          "expected_artifacts": [
+            "posthog_plan.json"
+          ],
+          "validation_plan": "Event taxonomy and per-app config documented",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        }
+      ]
+    },
+    {
+      "category": "9_security_quality",
+      "packets": [
+        {
+          "id": "WP-SEC-001",
+          "parent_id": null,
+          "app": "CreatorOS",
+          "objective": "Auth bypass emergency repair",
+          "evidence_refs": [
+            "phase14_4_gap_maps_build_sequences.json"
+          ],
+          "risk_class": "CRITICAL",
+          "device_runtime": "Windows Beast",
+          "permissions": "Beast write",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "auth_fixed_codebase/"
+          ],
+          "validation_plan": "comparePasswords properly hashes and compares",
+          "operator_decision_required": true,
+          "can_execute_now": false,
+          "priority": "P0"
+        },
+        {
+          "id": "WP-SEC-002",
+          "parent_id": null,
+          "app": "Trinity",
+          "objective": "Secret scan across all 3 repos",
+          "evidence_refs": [
+            "phase14_4_current_source_inventory.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "Windows Beast",
+          "permissions": "Beast read",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "secret_scan_results.json"
+          ],
+          "validation_plan": "No secrets in any committed code",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-SEC-003",
+          "parent_id": null,
+          "app": "Trinity",
+          "objective": "Test coverage baseline per app",
+          "evidence_refs": [
+            "phase14_4_current_source_inventory.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "Windows Beast",
+          "permissions": "Beast read",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "test_coverage_baseline.json"
+          ],
+          "validation_plan": "Coverage numbers for all 3 apps",
+          "operator_decision_required": false,
+          "can_execute_now": false
+        }
+      ]
+    },
+    {
+      "category": "10_readiness_gates",
+      "packets": [
+        {
+          "id": "WP-GATE-001",
+          "parent_id": null,
+          "app": "EOS",
+          "objective": "EOS implementation readiness gate",
+          "evidence_refs": [
+            "phase14_5_eos_convergence_plan.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "eos_readiness_gate.json"
+          ],
+          "validation_plan": "All prerequisites met",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-GATE-002",
+          "parent_id": null,
+          "app": "CreatorOS",
+          "objective": "CreatorOS implementation readiness gate",
+          "evidence_refs": [
+            "phase14_5_creatoros_convergence_plan.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "creatoros_readiness_gate.json"
+          ],
+          "validation_plan": "All prerequisites met",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        },
+        {
+          "id": "WP-GATE-003",
+          "parent_id": null,
+          "app": "LyfeOS",
+          "objective": "LyfeOS implementation readiness gate",
+          "evidence_refs": [
+            "phase14_5_lyfeos_convergence_plan.json"
+          ],
+          "risk_class": "LOW",
+          "device_runtime": "VPS",
+          "permissions": "read-only",
+          "blocked_actions": [],
+          "expected_artifacts": [
+            "lyfeos_readiness_gate.json"
+          ],
+          "validation_plan": "All prerequisites met",
+          "operator_decision_required": true,
+          "can_execute_now": false
+        }
+      ]
+    }
+  ],
+  "total_work_packets": 35,
+  "can_execute_now_count": 1,
+  "operator_decisions_required_count": 10,
+  "planning_only_count": 34
+}
