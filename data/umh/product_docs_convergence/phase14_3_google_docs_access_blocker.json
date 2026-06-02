@@ -1,32 +1,14 @@
 {
   "phase": "14.3",
   "task": "google_docs_access_blocker",
-  "timestamp": "2026-06-01T23:36:00Z",
-  "description": "Google Docs full content access blocker — metadata available, full content blocked",
-  "blocker_type": "partial_access",
-  "blocker_severity": "medium",
-  "what_is_blocked": "Full document content reading via GWS CLI API",
-  "what_is_available": "Cached document titles, truncated summaries, and relevance ratings from 2026-05-30 scan",
-  "impact_on_phase_14_3": {
-    "task_3_inventory": "partial — can inventory by title/summary from cache, cannot get doc_ids/URLs/dates",
-    "task_4_content_ingestion": "blocked — cannot read full document content",
-    "task_5_classification": "partial — can classify by title/summary, cannot verify content freshness",
-    "task_6_end_state_design_map": "partial — can build from available summaries, existing codebase knowledge, and Phase 14.1/14.2 source reality",
-    "task_7_docs_vs_source_reality": "partial — can compare title/summary level claims only",
-    "task_8_requirements_gap_report": "achievable — gap identification doesn't require full docs if gaps are visible from code inspection",
-    "remaining_tasks": "achievable — policy/safety, tests, gates, work packets can proceed"
-  },
-  "resolution_work_packet": {
-    "objective": "Resolve Google Docs API access to enable full content reading",
-    "steps": [
-      "SSH to VPS interactively",
-      "Run: npx @googleworkspace/cli auth login",
-      "Complete OAuth2 flow in browser",
-      "Verify: npx @googleworkspace/cli drive files.list --params '{\"pageSize\": 1}'",
-      "Re-run Phase 14.3 Task 4 with live access"
-    ],
-    "alternative": "Operator exports key docs (CreatorOS PRD, EntrepreneurOS PRD, LyfeOS PRD, Empire Architecture, Empyrean Studios) as .txt or .pdf to data/umh/product_docs_convergence/google_docs_exports/",
-    "risk_class": "LOW",
-    "no_mutation": true
-  }
+  "timestamp": "2026-06-02T00:30:00Z",
+  "description": "Google Docs full content access blocker — RESOLVED",
+  "blocker_type": "resolved",
+  "blocker_severity": "none",
+  "previous_blocker": "GWS CLI timeout at 30s was misdiagnosed as expired auth. CLI cold start requires ~40-50s. Using 60s timeout resolves.",
+  "resolution": "Increased CLI timeout from 30s to 60s. Auth was valid all along (token_valid=true, has_refresh_token=true, user=antonyfm@empyreanstudios.co).",
+  "resolved_at": "2026-06-02T00:30:00Z",
+  "full_access_confirmed": true,
+  "total_documents_accessible": 33,
+  "phase_14_3a_required": false
 }
