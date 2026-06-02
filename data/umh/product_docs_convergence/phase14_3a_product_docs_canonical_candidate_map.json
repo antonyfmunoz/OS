@@ -1,0 +1,58 @@
+{
+  "phase": "14.3A",
+  "task": "product_docs_canonical_candidate_map",
+  "timestamp": "2026-06-02T04:20:02Z",
+  "canonical_candidates": {
+    "EOS": {
+      "primary": "EntrepreneurOS Google Doc (2.1M chars, 10 tabs)",
+      "doc_id": "1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo",
+      "supporting": [
+        "EOS integration notes (Untitled 2026-04-22)",
+        "EOS Substrate Audit in Tab 15",
+        "OS Platform Standard v1 (AI Tools Tab 2)"
+      ],
+      "status": "canonical_candidate \u2014 requires operator review for promotion"
+    },
+    "CreatorOS": {
+      "primary": "CreatorOS Google Doc \u2014 PRD v2.90 (1.6M chars, 2 tabs)",
+      "doc_id": "1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI",
+      "supporting": [
+        "OS Platform Standard v1 (AI Tools Tab 2)",
+        "Music production agent specs (files (2) folder) \u2014 tangential Empyrean Studios integration"
+      ],
+      "status": "canonical_candidate \u2014 strongest PRD in corpus"
+    },
+    "LyfeOS": {
+      "primary": "LyfeOS Google Doc \u2014 PRD v2.0 (1.4M chars, 5 tabs)",
+      "doc_id": "1-6vPlqwlG5ud5hRNnL2sFiKmNmofDI2ZITmFxoecWog",
+      "supporting": [
+        "LYFEOS_Product_Development_Roadmap.docx (10.9K chars)",
+        "Initiate Arena product design (47K chars)",
+        "Outreach context (6.6K chars)",
+        "OS Platform Standard v1 (AI Tools Tab 2)"
+      ],
+      "status": "canonical_candidate \u2014 most detailed PRD with completed isolated MVP"
+    },
+    "UMH": {
+      "primary": "UMH Google Doc (220K chars, 12 tabs)",
+      "doc_id": "11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8",
+      "supporting": [
+        "THE MUNOZ EMPIRE \u2014 Elite Structural Architecture (89K chars)",
+        "Core Architecture Audit (260K chars \u2014 historical)"
+      ],
+      "status": "canonical_candidate \u2014 multi-generation architecture evolution"
+    },
+    "Trinity_Shared": {
+      "primary": "OS Platform Standard v1 (AI Tools Tab 2, 33K chars)",
+      "doc_id": "1N8XHmKXnJHHmbK8F-I6NQLayukiX1HJU5vQv2ge_p-g",
+      "supporting": [
+        "OS-Core-Kit Transfer Plan (AI Tools Tab 3, 45K chars)",
+        "THE MUNOZ EMPIRE \u2014 Elite Structural Architecture",
+        "Cross-platform architecture tab (shared across EOS/CreatorOS/LyfeOS docs)"
+      ],
+      "status": "canonical_candidate \u2014 defines separation + reuse strategy"
+    }
+  },
+  "total_canonical_candidates": 5,
+  "note": "All marked as candidate \u2014 operator review required for promotion to canonical"
+}

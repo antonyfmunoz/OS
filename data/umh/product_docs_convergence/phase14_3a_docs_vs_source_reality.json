@@ -1,0 +1,141 @@
+{
+  "phase": "14.3A",
+  "task": "docs_vs_source_reality",
+  "timestamp": "2026-06-02T04:21:36Z",
+  "known_source_reality": {
+    "code_source_truth": "GitHub + Windows Beast /dev",
+    "eos_auth": "Clerk",
+    "creatoros_auth": "Passport.js legacy",
+    "lyfeos_auth": "Passport.js + Firebase legacy",
+    "target_auth": "Clerk for all apps",
+    "saas_status": "/opt/OS/saas is decommissioned",
+    "umh_api": "transports/api/http is UMH platform API",
+    "projections": "/opt/OS/projections are integration packages, not full app sources",
+    "lyfeos_mvp": "Completed isolated MVP, NOT full UMH-connected MVP",
+    "device_roles": "VPS orchestrates; Windows Beast executes Trinity app coding/build work"
+  },
+  "discrepancies": [
+    {
+      "category": "docs_ahead_of_code",
+      "items": [
+        {
+          "claim": "OS Platform Standard v1 defines shared platform skeleton for all 3 apps",
+          "reality": "Standard exists as design doc but not fully implemented \u2014 each app evolved independently",
+          "severity": "medium",
+          "action": "Evaluate which parts of the standard are implemented vs aspirational"
+        },
+        {
+          "claim": "CreatorOS PRD v2.90 defines full content distribution hub, marketplace, community platform",
+          "reality": "CreatorOS is partially built \u2014 PRD describes end-state features not yet implemented",
+          "severity": "expected \u2014 PRD is forward-looking by design",
+          "action": "Map PRD features against actual code to find implementation gaps"
+        },
+        {
+          "claim": "LyfeOS PRD v2.0 describes 120 pages of systems including NOVA AI, Chronilog, transformation engine",
+          "reality": "Isolated MVP exists at lyfeos.net \u2014 likely implements a subset of the full PRD",
+          "severity": "expected \u2014 PRD is end-state, MVP is phase 1",
+          "action": "Map MVP features against PRD to identify what's built vs planned"
+        },
+        {
+          "claim": "UMH doc describes full organism/runtime/governance architecture",
+          "reality": "UMH substrate exists in /opt/OS/substrate/ \u2014 but docs may describe aspirational features",
+          "severity": "medium",
+          "action": "Compare UMH doc architecture against actual substrate/ implementation"
+        }
+      ]
+    },
+    {
+      "category": "code_ahead_of_docs",
+      "items": [
+        {
+          "claim": "Docs may not reflect post-convergence architecture (2026-05-23)",
+          "reality": "UMH underwent massive convergence \u2014 616 files absorbed, architecture restructured",
+          "severity": "high",
+          "action": "UMH docs need update to reflect 4-layer architecture law, type coherence, etc."
+        },
+        {
+          "claim": "Docs may not reflect organism activation (2026-05-27)",
+          "reality": "substrate/organism/ exists with runtime graph, coordinator, workcell protocol",
+          "severity": "high",
+          "action": "No Google Doc captures the organism architecture \u2014 exists only in code + CLAUDE.md"
+        },
+        {
+          "claim": "saas/ decommissioned",
+          "reality": "Docs may still reference saas/ as active \u2014 code reality has moved UMH infra to transports/api/http/",
+          "severity": "medium",
+          "action": "Identify stale saas/ references in docs"
+        }
+      ]
+    },
+    {
+      "category": "stale_auth_claims",
+      "items": [
+        {
+          "claim": "OS Platform Standard v1 recommends Firebase token auth",
+          "reality": "EOS has moved to Clerk \u2014 Firebase is LyfeOS legacy, Passport.js is CreatorOS legacy",
+          "severity": "high",
+          "action": "Auth standard in docs is stale \u2014 Clerk is the target for all three apps"
+        }
+      ]
+    },
+    {
+      "category": "stale_infrastructure_claims",
+      "items": [
+        {
+          "claim": "Docs may reference 'AgentOS' as the EOS name",
+          "reality": "AgentOS was an earlier name \u2014 current name is EntrepreneurOS/EOS",
+          "severity": "low",
+          "action": "Historical naming \u2014 note but don't action"
+        }
+      ]
+    },
+    {
+      "category": "missing_umh_integration_requirements",
+      "items": [
+        "No doc defines the exact UMH integration boundary for any app",
+        "No doc describes how apps register as UMH projections",
+        "No doc maps substrate/sockets/ ports to app requirements",
+        "No doc describes the dev_session_bridge for coding agents"
+      ]
+    },
+    {
+      "category": "missing_mvp_definitions",
+      "items": [
+        "EOS MVP scope not explicitly defined in the doc (PRD covers full product)",
+        "CreatorOS MVP scope not explicitly defined (PRD covers full product, MVP phases mentioned)",
+        "LyfeOS MVP is defined and built \u2014 but UMH-connected MVP scope undefined"
+      ]
+    },
+    {
+      "category": "feature_claims_not_in_code",
+      "items": [
+        "Pending subagent analysis \u2014 will be populated when EOS/CreatorOS/LyfeOS analyzers complete"
+      ]
+    },
+    {
+      "category": "unresolved_contradictions",
+      "items": [
+        {
+          "contradiction": "OS Platform Standard says 'separate auth, separate DB, separate deployments' but shared standards",
+          "vs": "Current reality has no shared standard implemented \u2014 each app evolved independently",
+          "decision_required": "Operator must decide: enforce OS Platform Standard v1, update it, or create v2"
+        },
+        {
+          "contradiction": "LyfeOS PRD v2.0 describes NOVA AI system with multi-agent architecture",
+          "vs": "LyfeOS MVP may use simpler AI integration \u2014 needs code inspection",
+          "decision_required": "None \u2014 PRD is end-state, MVP is phase 1"
+        }
+      ]
+    },
+    {
+      "category": "docs_requiring_operator_decision",
+      "items": [
+        "Which Google Doc tabs should be promoted to canonical?",
+        "Should OS Platform Standard v1 be updated to v2 reflecting Clerk + current architecture?",
+        "Should cross-platform architecture tabs (shared across all 3 docs) be consolidated into one canonical doc?",
+        "Should UMH doc be updated to reflect post-convergence architecture?",
+        "Should Initiate Arena product design be incorporated into LyfeOS canonical docs?"
+      ]
+    }
+  ]
+}
