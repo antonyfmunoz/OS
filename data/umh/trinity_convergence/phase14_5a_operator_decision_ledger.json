@@ -1,0 +1,265 @@
+{
+  "phase": "14.5A",
+  "task": "operator_decision_ledger",
+  "timestamp": "2026-06-02T22:00:00Z",
+  "description": "Consolidated operator decision ledger — carries forward Phase 14.5 decisions with status tracking, adds new decisions from 13-layer design pass",
+  "implementation_allowed": false,
+  "note": "System recommendations are NOT operator decisions. If the operator has not explicitly selected an option, status remains 'pending'.",
+  "decisions": [
+    {
+      "decision_id": "DEC-145-001",
+      "decision_name": "EOS Source Strategy",
+      "app_or_scope": "EOS",
+      "options": [
+        "A: Promote Beast feature/company-system to main",
+        "B: Selectively merge Beast features to GitHub main",
+        "C: Keep GitHub main, discard Beast",
+        "D: Preserve both temporarily"
+      ],
+      "system_recommendation": "A: Promote Beast (after validation)",
+      "evidence_refs": ["data/umh/trinity_alignment/phase14_4_eos_github_inventory.json", "data/umh/trinity_alignment/phase14_4_eos_beast_inventory.json"],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": false,
+      "blocked_actions": ["ALL EOS development", "EOS CI/CD", "EOS deployment"],
+      "timestamp": "2026-06-02T20:00:00Z",
+      "rationale": "Beast is 3x larger, has Clerk, has company system. GitHub main is stale Replit code."
+    },
+    {
+      "decision_id": "DEC-145-002",
+      "decision_name": "CreatorOS MVP Scope",
+      "app_or_scope": "CreatorOS",
+      "options": [
+        "A: Creator/community only",
+        "B: Creator + course/product",
+        "C: Creator + course + distribution + analytics",
+        "D: Full PRD scope"
+      ],
+      "system_recommendation": "B: Creator + course/product",
+      "evidence_refs": ["data/umh/trinity_alignment/phase14_4_creatoros_desired_state_canon.json"],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": false,
+      "blocked_actions": ["CreatorOS feature build", "CreatorOS scope estimation"],
+      "timestamp": "2026-06-02T20:00:00Z",
+      "rationale": "Smallest coherent product. Fix auth first, then build minimum useful."
+    },
+    {
+      "decision_id": "DEC-145-003",
+      "decision_name": "LyfeOS PRD Version",
+      "app_or_scope": "LyfeOS",
+      "options": [
+        "A: PRD v1 only",
+        "B: PRD v1 + selective v2 features",
+        "C: PRD v2 as canonical"
+      ],
+      "system_recommendation": "C: PRD v2 as canonical",
+      "evidence_refs": ["data/umh/trinity_alignment/phase14_4_lyfeos_desired_state_canon.json"],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": true,
+      "blocked_actions": ["LyfeOS feature expansion planning"],
+      "timestamp": "2026-06-02T20:00:00Z",
+      "rationale": "v2 likely reflects current deployed state. MVP already works."
+    },
+    {
+      "decision_id": "DEC-145-004",
+      "decision_name": "Clerk Migration Order",
+      "app_or_scope": "Shared",
+      "options": [
+        "A: CreatorOS first (fix bypass, then Clerk)",
+        "B: EOS first (Beast already has Clerk)",
+        "C: LyfeOS first (most stable)",
+        "D: CreatorOS bypass fix first, then EOS, then LyfeOS"
+      ],
+      "system_recommendation": "D: CreatorOS bypass fix → EOS validation → LyfeOS standardization",
+      "evidence_refs": ["data/umh/trinity_convergence/phase14_5_convergence_decision_ledger.json"],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": false,
+      "blocked_actions": ["Auth migration execution for any app"],
+      "timestamp": "2026-06-02T20:00:00Z",
+      "rationale": "CreatorOS auth bypass is P0 security. EOS Clerk needs validation. LyfeOS auth works and can wait."
+    },
+    {
+      "decision_id": "DEC-145-005",
+      "decision_name": "OS Platform Standard v2 Scope",
+      "app_or_scope": "Shared",
+      "options": [
+        "A: Technology stack only (React/Vite/Express/etc.)",
+        "B: Technology stack + 13-layer defaults",
+        "C: Full standard with enforced CI gates"
+      ],
+      "system_recommendation": "B: Technology stack + 13-layer defaults",
+      "evidence_refs": ["data/umh/trinity_convergence/phase14_5_os_platform_standard_v2_plan.json"],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": true,
+      "blocked_actions": [],
+      "timestamp": "2026-06-02T20:00:00Z",
+      "rationale": "13-layer defaults are now defined. Enforcement requires CI which doesn't exist yet."
+    },
+    {
+      "decision_id": "DEC-145-006",
+      "decision_name": "UMH Integration Boundary",
+      "app_or_scope": "UMH",
+      "options": [
+        "A: Minimal — governance and source truth only",
+        "B: Moderate — governance + deployment orchestration",
+        "C: Full — governance + orchestration + intelligence + agents"
+      ],
+      "system_recommendation": "B: Governance + deployment orchestration (near term), C (long term)",
+      "evidence_refs": ["data/umh/trinity_convergence/phase14_5_umh_integration_boundary_plan.json"],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": true,
+      "blocked_actions": [],
+      "timestamp": "2026-06-02T20:00:00Z",
+      "rationale": "Start with governance, expand to orchestration. Full integration requires APIs that don't exist yet."
+    },
+    {
+      "decision_id": "DEC-145-007",
+      "decision_name": "Infrastructure Timing",
+      "app_or_scope": "Shared",
+      "options": [
+        "A: Provision infrastructure immediately",
+        "B: After source convergence and auth decisions",
+        "C: After first app is deployment-ready"
+      ],
+      "system_recommendation": "B: After source convergence and auth decisions",
+      "evidence_refs": [],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": true,
+      "blocked_actions": ["Infrastructure provisioning"],
+      "timestamp": "2026-06-02T20:00:00Z",
+      "rationale": "Provisioning before decisions wastes resources on potentially wrong configuration."
+    },
+    {
+      "decision_id": "DEC-145-008",
+      "decision_name": "Feature Build Readiness",
+      "app_or_scope": "Shared",
+      "options": [
+        "A: Start building immediately",
+        "B: After source convergence only",
+        "C: After all decisions ratified + 13-layer design complete"
+      ],
+      "system_recommendation": "C: After all decisions ratified + 13-layer design complete",
+      "evidence_refs": [],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": true,
+      "blocked_actions": ["Feature build for any app"],
+      "timestamp": "2026-06-02T20:00:00Z",
+      "rationale": "Building before decisions are ratified risks building the wrong thing."
+    },
+    {
+      "decision_id": "DEC-145A-001",
+      "decision_name": "Minimum Viable Production Definition",
+      "app_or_scope": "Shared",
+      "options": [
+        "A: Define per-app MVP production criteria",
+        "B: All 13 layers must be implemented",
+        "C: Minimum 8 critical layers (auth, DB, deploy, security, errors, recovery, CI/CD, frontend)",
+        "D: Per-app risk-based criteria"
+      ],
+      "system_recommendation": "A: Per-app MVP production criteria",
+      "evidence_refs": ["data/umh/trinity_convergence/phase14_5a_operator_question_ledger.json"],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": true,
+      "blocked_actions": ["Readiness gate evaluation has no concrete threshold"],
+      "timestamp": "2026-06-02T22:00:00Z",
+      "rationale": "Each app has different risk profiles and maturity. LyfeOS may need hardening, not 13-layer completion."
+    },
+    {
+      "decision_id": "DEC-145A-002",
+      "decision_name": "LyfeOS Backup Verification Priority",
+      "app_or_scope": "LyfeOS",
+      "options": [
+        "A: Verify immediately (next session)",
+        "B: Add to hardening work packet",
+        "C: Accept risk"
+      ],
+      "system_recommendation": "A: Verify immediately",
+      "evidence_refs": [],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": true,
+      "blocked_actions": [],
+      "timestamp": "2026-06-02T22:00:00Z",
+      "rationale": "Data loss is irreversible. Verification takes minutes."
+    },
+    {
+      "decision_id": "DEC-145A-003",
+      "decision_name": "Error Tracking Service",
+      "app_or_scope": "Shared",
+      "options": [
+        "A: PostHog for both analytics and error tracking",
+        "B: PostHog + Sentry",
+        "C: PostHog + Highlight.io",
+        "D: Defer"
+      ],
+      "system_recommendation": "D: Defer until closer to deployment",
+      "evidence_refs": [],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": true,
+      "blocked_actions": [],
+      "timestamp": "2026-06-02T22:00:00Z",
+      "rationale": "No app is close to deployment. Decision can wait."
+    },
+    {
+      "decision_id": "DEC-145A-004",
+      "decision_name": "EOS RLS Scope",
+      "app_or_scope": "EOS",
+      "options": [
+        "A: Single-tenant RLS",
+        "B: Multi-tenant org-scoped RLS",
+        "C: Defer"
+      ],
+      "system_recommendation": "B: Multi-tenant from the start",
+      "evidence_refs": ["data/umh/trinity_alignment/phase14_4_eos_beast_inventory.json"],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": true,
+      "blocked_actions": [],
+      "timestamp": "2026-06-02T22:00:00Z",
+      "rationale": "Beast branch has company/org features suggesting multi-tenant intent."
+    },
+    {
+      "decision_id": "DEC-145A-005",
+      "decision_name": "UMH Near-Term Integration Level",
+      "app_or_scope": "UMH",
+      "options": [
+        "A: Passive — governance and source truth only",
+        "B: Active governance — deployment gates, security gates",
+        "C: Active orchestration — agents, AI, intelligence",
+        "D: Full integration"
+      ],
+      "system_recommendation": "B: Active governance",
+      "evidence_refs": ["data/umh/trinity_convergence/phase14_5a_umh_13_layer_integration_boundary.json"],
+      "operator_selected_option": null,
+      "status": "pending",
+      "can_proceed_without_decision": true,
+      "blocked_actions": [],
+      "timestamp": "2026-06-02T22:00:00Z",
+      "rationale": "Governance is achievable now. Full orchestration requires APIs that don't exist."
+    }
+  ],
+  "summary": {
+    "total_decisions": 13,
+    "from_phase_14_5": 8,
+    "new_in_14_5a": 5,
+    "status_breakdown": {
+      "pending": 13,
+      "operator_approved": 0,
+      "operator_rejected": 0,
+      "deferred": 0
+    },
+    "blocking_decisions": 4,
+    "blocking_decision_ids": ["DEC-145-001", "DEC-145-002", "DEC-145-004", "DEC-145-008"],
+    "non_blocking_decisions": 9,
+    "doctrine": "System recommendations are informational. They are NOT operator decisions. Status remains 'pending' until the operator explicitly selects an option."
+  }
+}

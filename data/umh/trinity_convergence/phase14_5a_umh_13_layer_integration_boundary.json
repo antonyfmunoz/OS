@@ -1,0 +1,497 @@
+{
+  "phase": "14.5A",
+  "task": "umh_13_layer_integration_boundary",
+  "timestamp": "2026-06-02T22:00:00Z",
+  "description": "UMH role classification for each of the 13 production stack layers, per Trinity app. Defines what UMH owns vs what each app owns.",
+  "implementation_allowed": false,
+  "role_taxonomy": {
+    "owner": "UMH directly owns and operates this layer for the app",
+    "orchestrator": "UMH coordinates and sequences actions across apps for this layer",
+    "observer": "UMH monitors and reports on this layer but does not control it",
+    "policy_governance": "UMH defines policies and gates that the app must satisfy",
+    "integration_layer": "UMH provides integration points that the app connects to",
+    "no_direct_role": "UMH has no involvement in this layer for this app"
+  },
+  "boundaries": [
+    {
+      "layer_number": 1,
+      "layer_name": "Frontend Foundations",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "no_direct_role",
+          "app_role": "owner",
+          "integration_boundary": "None — EOS frontend is fully app-owned. UMH does not serve or control EOS UI.",
+          "data_flow_if_any": "None",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "no_direct_role",
+          "app_role": "owner",
+          "integration_boundary": "None — CreatorOS frontend is fully app-owned.",
+          "data_flow_if_any": "None",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "no_direct_role",
+          "app_role": "owner",
+          "integration_boundary": "None — LyfeOS frontend is fully app-owned.",
+          "data_flow_if_any": "None",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        }
+      ]
+    },
+    {
+      "layer_number": 2,
+      "layer_name": "APIs + Backend Logic",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "integration_layer",
+          "app_role": "owner",
+          "integration_boundary": "EOS owns its API. UMH may provide integration endpoints for cross-app intelligence, agent orchestration, and governance queries. Integration is via defined API contracts, not direct substrate access.",
+          "data_flow_if_any": "EOS → UMH: governance queries, work packet status. UMH → EOS: agent results, intelligence insights (future).",
+          "approval_required": false,
+          "blocked_actions": ["No direct substrate access from EOS backend"],
+          "future_work_packets": ["WP-UMH-002 (EOS integration contract)"]
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "integration_layer",
+          "app_role": "owner",
+          "integration_boundary": "Same as EOS — CreatorOS owns its API. UMH integration via contracts.",
+          "data_flow_if_any": "Similar to EOS pattern.",
+          "approval_required": false,
+          "blocked_actions": ["No direct substrate access"],
+          "future_work_packets": ["WP-UMH-003"]
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "integration_layer",
+          "app_role": "owner",
+          "integration_boundary": "Same pattern. NOVA AI coaching may route through UMH intelligence layer (future).",
+          "data_flow_if_any": "LyfeOS → UMH: coaching requests (future). UMH → LyfeOS: AI responses via model router (future).",
+          "approval_required": false,
+          "blocked_actions": ["No direct substrate access"],
+          "future_work_packets": ["WP-UMH-004", "WP-LOS-104"]
+        }
+      ]
+    },
+    {
+      "layer_number": 3,
+      "layer_name": "Database + Storage",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "observer",
+          "app_role": "owner",
+          "integration_boundary": "EOS owns its database. UMH may observe schema health and migration status but does not access EOS data directly.",
+          "data_flow_if_any": "UMH observes migration status and schema health metrics.",
+          "approval_required": false,
+          "blocked_actions": ["UMH never queries EOS database directly"],
+          "future_work_packets": []
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "observer",
+          "app_role": "owner",
+          "integration_boundary": "Same — CreatorOS owns its database.",
+          "data_flow_if_any": "Schema health observation.",
+          "approval_required": false,
+          "blocked_actions": ["UMH never queries CreatorOS database directly"],
+          "future_work_packets": []
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "observer",
+          "app_role": "owner",
+          "integration_boundary": "Same — LyfeOS owns its database.",
+          "data_flow_if_any": "Schema health observation.",
+          "approval_required": false,
+          "blocked_actions": ["UMH never queries LyfeOS database directly"],
+          "future_work_packets": []
+        }
+      ]
+    },
+    {
+      "layer_number": 4,
+      "layer_name": "Auth + Permissions",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "policy_governance",
+          "app_role": "owner",
+          "integration_boundary": "EOS owns its auth. UMH sets the policy (Clerk required) and gates deployment readiness on auth compliance.",
+          "data_flow_if_any": "UMH governance checks auth status before approving deployment work packets.",
+          "approval_required": true,
+          "blocked_actions": ["Cannot deploy without Clerk migration complete"],
+          "future_work_packets": ["WP-EOS-104"]
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "policy_governance",
+          "app_role": "owner",
+          "integration_boundary": "Same — UMH policy requires auth bypass elimination before any deployment.",
+          "data_flow_if_any": "UMH governance blocks deployment until comparePasswords vulnerability eliminated.",
+          "approval_required": true,
+          "blocked_actions": ["CANNOT deploy until auth bypass fixed", "Cannot deploy without Clerk"],
+          "future_work_packets": ["WP-SEC-001", "WP-COS-102"]
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "policy_governance",
+          "app_role": "owner",
+          "integration_boundary": "Same — UMH policy requires Clerk standardization.",
+          "data_flow_if_any": "UMH governance tracks auth migration status.",
+          "approval_required": true,
+          "blocked_actions": ["Clerk migration required for standardization"],
+          "future_work_packets": ["WP-LOS-103"]
+        }
+      ]
+    },
+    {
+      "layer_number": 5,
+      "layer_name": "Hosting + Deployment",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "orchestrator",
+          "app_role": "owner",
+          "integration_boundary": "EOS owns its deployment config. UMH orchestrates deployment sequencing, readiness gate verification, and rollback decisions.",
+          "data_flow_if_any": "UMH → EOS: deployment approval. EOS → UMH: deployment status.",
+          "approval_required": true,
+          "blocked_actions": ["Cannot deploy without readiness gate clearance"],
+          "future_work_packets": ["WP-GATE-001"]
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "orchestrator",
+          "app_role": "owner",
+          "integration_boundary": "Same pattern.",
+          "data_flow_if_any": "Same pattern.",
+          "approval_required": true,
+          "blocked_actions": ["Cannot deploy without auth fix AND readiness gate"],
+          "future_work_packets": ["WP-GATE-002"]
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "orchestrator",
+          "app_role": "owner",
+          "integration_boundary": "Same pattern. LyfeOS already deployed — migration to Fly.io is the deployment action.",
+          "data_flow_if_any": "Same pattern.",
+          "approval_required": true,
+          "blocked_actions": ["Migration to Fly.io requires readiness gate"],
+          "future_work_packets": ["WP-GATE-003"]
+        }
+      ]
+    },
+    {
+      "layer_number": 6,
+      "layer_name": "Cloud + Compute",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "no_direct_role",
+          "app_role": "owner",
+          "integration_boundary": "EOS cloud compute is managed services (Fly.io, Neon, Clerk). UMH has no compute role for EOS.",
+          "data_flow_if_any": "None",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "no_direct_role",
+          "app_role": "owner",
+          "integration_boundary": "Same.",
+          "data_flow_if_any": "None",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "no_direct_role",
+          "app_role": "owner",
+          "integration_boundary": "Same.",
+          "data_flow_if_any": "None",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        }
+      ]
+    },
+    {
+      "layer_number": 7,
+      "layer_name": "CI/CD + Version Control",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "orchestrator",
+          "app_role": "owner",
+          "integration_boundary": "EOS owns its GitHub repo and CI/CD. UMH orchestrates source truth reconciliation (production truth promotion, source strategy decisions).",
+          "data_flow_if_any": "UMH tracks source truth status per app. UMH production truth promotion includes source reconciliation.",
+          "approval_required": true,
+          "blocked_actions": ["Source strategy (DEC-145-001) must be resolved before CI/CD setup"],
+          "future_work_packets": ["WP-EOS-101", "WP-EOS-103"]
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "observer",
+          "app_role": "owner",
+          "integration_boundary": "CreatorOS owns its repo. UMH observes source health.",
+          "data_flow_if_any": "Source health observation.",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "observer",
+          "app_role": "owner",
+          "integration_boundary": "Same — LyfeOS has clean source state.",
+          "data_flow_if_any": "Source health observation.",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        }
+      ]
+    },
+    {
+      "layer_number": 8,
+      "layer_name": "Security + Row-Level Security",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "policy_governance",
+          "app_role": "owner",
+          "integration_boundary": "EOS owns security implementation. UMH defines security policy and gates deployment on security compliance.",
+          "data_flow_if_any": "UMH governance verifies security requirements before deployment approval.",
+          "approval_required": true,
+          "blocked_actions": ["Cannot deploy without RLS and security review"],
+          "future_work_packets": ["WP-SEC-002"]
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "policy_governance",
+          "app_role": "owner",
+          "integration_boundary": "Same — PLUS auth bypass is a P0 security gate.",
+          "data_flow_if_any": "UMH governance blocks ALL deployment until auth bypass eliminated.",
+          "approval_required": true,
+          "blocked_actions": ["Auth bypass must be fixed before any deployment"],
+          "future_work_packets": ["WP-SEC-001", "WP-SEC-002"]
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "policy_governance",
+          "app_role": "owner",
+          "integration_boundary": "Same governance pattern.",
+          "data_flow_if_any": "Security compliance verification.",
+          "approval_required": true,
+          "blocked_actions": [],
+          "future_work_packets": ["WP-SEC-002"]
+        }
+      ]
+    },
+    {
+      "layer_number": 9,
+      "layer_name": "Rate Limiting",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "policy_governance",
+          "app_role": "owner",
+          "integration_boundary": "UMH sets rate limiting policy (from OS Platform Standard v2). App implements.",
+          "data_flow_if_any": "Policy definition only.",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "policy_governance",
+          "app_role": "owner",
+          "integration_boundary": "Same.",
+          "data_flow_if_any": "Policy definition only.",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "policy_governance",
+          "app_role": "owner",
+          "integration_boundary": "Same.",
+          "data_flow_if_any": "Policy definition only.",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        }
+      ]
+    },
+    {
+      "layer_number": 10,
+      "layer_name": "Caching + CDN",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "no_direct_role",
+          "app_role": "owner",
+          "integration_boundary": "App-owned. UMH has no caching role.",
+          "data_flow_if_any": "None",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "no_direct_role",
+          "app_role": "owner",
+          "integration_boundary": "Same.",
+          "data_flow_if_any": "None",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "no_direct_role",
+          "app_role": "owner",
+          "integration_boundary": "Same.",
+          "data_flow_if_any": "None",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        }
+      ]
+    },
+    {
+      "layer_number": 11,
+      "layer_name": "Load Balancing + Scaling",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "no_direct_role",
+          "app_role": "owner",
+          "integration_boundary": "App-owned via Fly.io. UMH does not manage app scaling.",
+          "data_flow_if_any": "None",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "no_direct_role",
+          "app_role": "owner",
+          "integration_boundary": "Same.",
+          "data_flow_if_any": "None",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "no_direct_role",
+          "app_role": "owner",
+          "integration_boundary": "Same.",
+          "data_flow_if_any": "None",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        }
+      ]
+    },
+    {
+      "layer_number": 12,
+      "layer_name": "Error Tracking + Logs",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "observer",
+          "app_role": "owner",
+          "integration_boundary": "EOS owns its error tracking and logging. UMH may observe critical error notifications for cross-app health monitoring.",
+          "data_flow_if_any": "Critical error events → UMH for cross-app health dashboard (future).",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "observer",
+          "app_role": "owner",
+          "integration_boundary": "Same.",
+          "data_flow_if_any": "Same.",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "observer",
+          "app_role": "owner",
+          "integration_boundary": "Same.",
+          "data_flow_if_any": "Same.",
+          "approval_required": false,
+          "blocked_actions": [],
+          "future_work_packets": []
+        }
+      ]
+    },
+    {
+      "layer_number": 13,
+      "layer_name": "Availability + Recovery",
+      "apps": [
+        {
+          "app": "EOS",
+          "umh_role": "orchestrator",
+          "app_role": "owner",
+          "integration_boundary": "EOS owns its recovery. UMH orchestrates cross-app incident response and coordinates rollback decisions.",
+          "data_flow_if_any": "Incident status → UMH. Rollback decisions coordinated via UMH governance.",
+          "approval_required": true,
+          "blocked_actions": ["Production rollback requires operator approval via UMH governance"],
+          "future_work_packets": []
+        },
+        {
+          "app": "CreatorOS",
+          "umh_role": "orchestrator",
+          "app_role": "owner",
+          "integration_boundary": "Same.",
+          "data_flow_if_any": "Same.",
+          "approval_required": true,
+          "blocked_actions": ["Same"],
+          "future_work_packets": []
+        },
+        {
+          "app": "LyfeOS",
+          "umh_role": "orchestrator",
+          "app_role": "owner",
+          "integration_boundary": "Same — PLUS LyfeOS is already deployed so recovery is more urgent.",
+          "data_flow_if_any": "Same.",
+          "approval_required": true,
+          "blocked_actions": ["Same"],
+          "future_work_packets": []
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "umh_role_distribution": {
+      "owner": 0,
+      "orchestrator": 9,
+      "observer": 9,
+      "policy_governance": 12,
+      "integration_layer": 3,
+      "no_direct_role": 15
+    },
+    "note": "UMH never owns a Trinity app layer. It orchestrates (deployment, recovery, source truth), governs (auth, security, rate limiting policy), observes (database health, error tracking, source state), and provides integration points (API contracts). App ownership is always with the app.",
+    "key_principle": "UMH owns orchestration, governance, and cross-app intelligence. Each app owns its own product, code, data, and infrastructure."
+  }
+}
