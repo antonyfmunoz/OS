@@ -1,0 +1,103 @@
+{
+  "phase": "14.3",
+  "task": "doc_classification",
+  "timestamp": "2026-06-01T23:39:00Z",
+  "description": "Document classification and deduplication — based on cached summaries only",
+  "classification_depth": "title_and_summary_level",
+  "full_content_verified": false,
+  "classifications": [
+    {
+      "title": "CreatorOS",
+      "classification": "canonical_candidate",
+      "reason": "PRD Version 2.90 — strongest candidate for CreatorOS product specification. Title matches app name directly.",
+      "confidence": "high",
+      "deduplication": "no duplicates detected in inventory"
+    },
+    {
+      "title": "EntrepreneurOS",
+      "classification": "unknown",
+      "reason": "Contains Claude Code session artifacts mixed with product content. May be a working doc, a dev notes doc, or a PRD contaminated with session output. Requires full content read to classify.",
+      "confidence": "low",
+      "deduplication": "no duplicates detected, but may overlap with Empyrean Studios business plan"
+    },
+    {
+      "title": "LyfeOS",
+      "classification": "canonical_candidate",
+      "reason": "Direct app name match. Contains beta URLs indicating product launch state.",
+      "confidence": "medium",
+      "deduplication": "no duplicates detected, but Life Coaching docs may contain overlapping product requirements"
+    },
+    {
+      "title": "THE MUNOZ EMPIRE — Elite Structural Architecture",
+      "classification": "strategy_note",
+      "reason": "Corporate architecture document — strategy/structure level, not a product spec for any single app.",
+      "confidence": "high",
+      "deduplication": "no duplicates detected"
+    },
+    {
+      "title": "Life Coaching (E-Learning/Info-Product Brand)",
+      "classification": "current_supporting",
+      "reason": "Supports Initiate Arena / LyfeOS business model definition. Not a product spec but defines delivery model.",
+      "confidence": "high",
+      "deduplication": "may overlap with Coaching Philosophy/Methodology and Coaching Frameworks"
+    },
+    {
+      "title": "Coaching Philosophy/Methodology",
+      "classification": "current_supporting",
+      "reason": "Core methodology for coaching brand. Supporting doc for Initiate Arena product design.",
+      "confidence": "high",
+      "deduplication": "related to Life Coaching and Coaching Frameworks — three coaching docs may have overlapping content"
+    },
+    {
+      "title": "Coaching Frameworks & Workbooks",
+      "classification": "current_supporting",
+      "reason": "Practical content/tools for coaching. Supporting doc for Initiate Arena.",
+      "confidence": "high",
+      "deduplication": "related to Life Coaching and Coaching Philosophy"
+    },
+    {
+      "title": "Antony F. Munoz (Personal Brand)",
+      "classification": "strategy_note",
+      "reason": "Brand strategy document. Supports marketing direction but not a product spec.",
+      "confidence": "high",
+      "deduplication": "no duplicates detected"
+    },
+    {
+      "title": "Empyrean Studios (Agency Brand)",
+      "classification": "canonical_candidate",
+      "reason": "Business plan for the agency that uses EOS. Critical for understanding EOS's primary user and use case.",
+      "confidence": "high",
+      "deduplication": "may overlap with EntrepreneurOS doc on agency/business operations"
+    },
+    {
+      "title": "Business Template",
+      "classification": "strategy_note",
+      "reason": "High-level business architecture philosophy — modular thinking. Informs UMH platform design but not a product spec.",
+      "confidence": "high",
+      "deduplication": "no duplicates detected"
+    },
+    {
+      "title": "Antony Munoz Email Sequence",
+      "classification": "implementation_note",
+      "reason": "Marketing implementation content. Specific email copy for outreach. Not a product spec.",
+      "confidence": "high",
+      "deduplication": "no duplicates detected"
+    }
+  ],
+  "stale_indicators": {
+    "detected": ["EntrepreneurOS doc may contain stale Claude Code session artifacts"],
+    "cannot_verify_without_full_content": [
+      "CreatorOS PRD v2.90 — date partially truncated, cannot verify if Feb 2025 or 2026",
+      "All docs — modified dates not available in cache"
+    ]
+  },
+  "duplicate_groups": [
+    {
+      "group": "coaching_content",
+      "documents": ["Life Coaching (E-Learning/Info-Product Brand)", "Coaching Philosophy/Methodology", "Coaching Frameworks & Workbooks"],
+      "likely_master": "Life Coaching (E-Learning/Info-Product Brand)",
+      "evidence": "Three docs covering coaching from different angles — may be sections of one master doc or intentionally separate",
+      "action": "none — do not delete or modify"
+    }
+  ]
+}

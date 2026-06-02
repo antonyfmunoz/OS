@@ -1,0 +1,58 @@
+{
+  "phase": "14.3",
+  "task": "mvp_maturity_update",
+  "timestamp": "2026-06-01T23:43:00Z",
+  "description": "Updated MVP maturity report based on docs + code reality — preserves Phase 14.2R findings, adds documentation readiness dimension",
+  "apps": {
+    "entrepreneuros": {
+      "maturity_status": "partially_built_mvp",
+      "changed_from_14_2r": false,
+      "isolated_mvp_status": "partially_built",
+      "umh_connected_mvp_status": "not_started",
+      "documentation_readiness": "insufficient — Google Doc may not be clean PRD, full content unreadable",
+      "source_readiness": "exists — 603 files on GitHub/Beast, Clerk auth implemented",
+      "integration_readiness": "not_started — UMH integration boundary not defined",
+      "deployment_readiness": "not_started — deferred pending product docs convergence",
+      "analytics_readiness": "not_started — PostHog deferred",
+      "overall_readiness": "blocked_on_documentation"
+    },
+    "creatoros": {
+      "maturity_status": "partially_built_mvp",
+      "changed_from_14_2r": false,
+      "isolated_mvp_status": "partially_built",
+      "umh_connected_mvp_status": "not_started",
+      "documentation_readiness": "exists_but_unreadable — PRD v2.90 exists in Google Docs, content not accessible",
+      "source_readiness": "exists — 272 files on GitHub/Beast, Passport.js auth (legacy)",
+      "integration_readiness": "not_started — UMH integration boundary not defined, Clerk migration required",
+      "deployment_readiness": "not_started — deferred",
+      "analytics_readiness": "not_started — deferred",
+      "overall_readiness": "blocked_on_documentation_and_auth_migration_plan"
+    },
+    "lyfeos": {
+      "maturity_status": "completed_isolated_mvp",
+      "changed_from_14_2r": false,
+      "isolated_mvp_status": "completed",
+      "umh_connected_mvp_status": "not_started",
+      "distinction": "LyfeOS has a completed, deployed, standalone web application at lyfeos.net with beta access. This is NOT a full UMH-connected MVP. Full MVP requires UMH substrate integration, Clerk auth migration, and defined integration boundaries.",
+      "documentation_readiness": "exists_but_unreadable — LyfeOS doc exists in Google Docs, content not accessible",
+      "source_readiness": "deployed — live at lyfeos.net with Passport.js + Firebase auth",
+      "integration_readiness": "not_started — UMH integration boundary not defined",
+      "deployment_readiness": "partial — deployed but not on target infrastructure (Fly.io)",
+      "analytics_readiness": "not_started — deferred",
+      "overall_readiness": "isolated_mvp_complete_umh_mvp_blocked_on_documentation"
+    }
+  },
+  "full_mvp_criteria_status": {
+    "all_apps": {
+      "isolated_app_source_stable": {"eos": true, "creatoros": "partial", "lyfeos": true},
+      "product_docs_converged": {"eos": false, "creatoros": false, "lyfeos": false},
+      "github_windows_alignment_complete": {"eos": "pending", "creatoros": "pending", "lyfeos": "pending"},
+      "umh_integration_boundary_defined": {"eos": false, "creatoros": false, "lyfeos": false},
+      "auth_path_implemented": {"eos": true, "creatoros": false, "lyfeos": false},
+      "deployment_path_defined": {"eos": false, "creatoros": false, "lyfeos": false},
+      "database_path_defined": {"eos": false, "creatoros": false, "lyfeos": false},
+      "analytics_path_defined": {"eos": false, "creatoros": false, "lyfeos": false},
+      "operator_workflows_connected": {"eos": false, "creatoros": false, "lyfeos": false}
+    }
+  }
+}

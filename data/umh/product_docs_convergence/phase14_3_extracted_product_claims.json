@@ -1,0 +1,142 @@
+{
+  "phase": "14.3",
+  "task": "extracted_product_claims",
+  "timestamp": "2026-06-01T23:38:00Z",
+  "description": "Product claims extracted from available Google Docs cached summaries — PARTIAL due to metadata_only access",
+  "extraction_depth": "summary_level_only",
+  "full_content_available": false,
+  "claims": [
+    {
+      "claim_id": "claim-001",
+      "source_doc": "CreatorOS",
+      "projection": "creatoros",
+      "claim_type": "product_definition",
+      "claim_text_summary": "CreatorOS is 'The Operating System for Creators' — a PRD exists at Version 2.90",
+      "confidence": "high",
+      "evidence": "Title and version number visible in cached summary",
+      "current_stale_unknown": "unknown — version date shows 'February 2nd' but year truncated. Content not readable.",
+      "conflicts_with": null,
+      "requires_operator_decision": false
+    },
+    {
+      "claim_id": "claim-002",
+      "source_doc": "EntrepreneurOS",
+      "projection": "entrepreneuros",
+      "claim_type": "product_definition",
+      "claim_text_summary": "EntrepreneurOS doc exists but cached content shows Claude Code session artifacts mixed with product content — may not be a clean PRD",
+      "confidence": "medium",
+      "evidence": "Summary shows 'User approved Claude's plan' and plan save paths",
+      "current_stale_unknown": "unknown — may be a working doc rather than formal PRD",
+      "conflicts_with": null,
+      "requires_operator_decision": true
+    },
+    {
+      "claim_id": "claim-003",
+      "source_doc": "LyfeOS",
+      "projection": "lyfeos",
+      "claim_type": "product_definition",
+      "claim_text_summary": "LyfeOS doc references lyfeos.net beta URLs — indicates a live or near-live web app",
+      "confidence": "high",
+      "evidence": "lyfeos.net/login?access=beta, lyfeos.net/register?access=beta URLs visible",
+      "current_stale_unknown": "current — consistent with Phase 14.2R MVP maturity (completed isolated MVP)",
+      "conflicts_with": null,
+      "requires_operator_decision": false
+    },
+    {
+      "claim_id": "claim-004",
+      "source_doc": "Life Coaching (E-Learning/Info-Product Brand)",
+      "projection": "initiate_arena",
+      "claim_type": "business_model",
+      "claim_text_summary": "Coaching curriculum distributed via WHOP (delivery + PDFs) and Discord (community + live coaching). This is the Initiate Arena delivery model.",
+      "confidence": "high",
+      "evidence": "WHOP and Discord mentioned as distribution channels",
+      "current_stale_unknown": "current — aligns with known Initiate Arena strategy",
+      "conflicts_with": null,
+      "requires_operator_decision": false
+    },
+    {
+      "claim_id": "claim-005",
+      "source_doc": "Coaching Philosophy/Methodology",
+      "projection": "initiate_arena",
+      "claim_type": "methodology",
+      "claim_text_summary": "Layered Framework Philosophy with Spinal/Nested/Sub-Nested hierarchy — core coaching methodology",
+      "confidence": "high",
+      "evidence": "Framework structure visible in summary",
+      "current_stale_unknown": "current",
+      "conflicts_with": null,
+      "requires_operator_decision": false
+    },
+    {
+      "claim_id": "claim-006",
+      "source_doc": "Empyrean Studios (Agency Brand)",
+      "projection": "empyrean_studios",
+      "claim_type": "business_model",
+      "claim_text_summary": "Empyrean Creative is a 'tactical automation agency that installs AI agent infrastructure' — positions EOS as the internal tool for this agency service",
+      "confidence": "high",
+      "evidence": "Business plan header visible in summary",
+      "current_stale_unknown": "current — aligns with known Empyrean Studios positioning",
+      "conflicts_with": null,
+      "requires_operator_decision": false
+    },
+    {
+      "claim_id": "claim-007",
+      "source_doc": "THE MUNOZ EMPIRE — Elite Structural Architecture",
+      "projection": "all",
+      "claim_type": "corporate_architecture",
+      "claim_text_summary": "Empire restructured as professional estate planner, family office advisor, and BlackRock-level corporate structure",
+      "confidence": "high",
+      "evidence": "Summary shows restructuring concept",
+      "current_stale_unknown": "unknown — may be aspirational/future-state rather than current operational structure",
+      "conflicts_with": null,
+      "requires_operator_decision": true
+    },
+    {
+      "claim_id": "claim-008",
+      "source_doc": "Business Template",
+      "projection": "umh",
+      "claim_type": "architecture_philosophy",
+      "claim_text_summary": "Business should be 'plug-and-play' — think in modules, interfaces, and architecture rather than individual companies",
+      "confidence": "high",
+      "evidence": "Summary shows modular business thinking",
+      "current_stale_unknown": "current — aligns with UMH projection architecture philosophy",
+      "conflicts_with": null,
+      "requires_operator_decision": false
+    },
+    {
+      "claim_id": "claim-009",
+      "source_doc": "Antony Munoz Email Sequence",
+      "projection": "initiate_arena",
+      "claim_type": "marketing",
+      "claim_text_summary": "Email marketing sequence with 'Retire By Treating Life Like A Video Game' positioning — gamified life approach for outreach",
+      "confidence": "high",
+      "evidence": "Email subject line visible",
+      "current_stale_unknown": "current — aligns with Game of Lyfe / Initiate Arena positioning",
+      "conflicts_with": null,
+      "requires_operator_decision": false
+    },
+    {
+      "claim_id": "claim-010",
+      "source_doc": "Antony F. Munoz (Personal Brand)",
+      "projection": "personal_brand",
+      "claim_type": "brand_strategy",
+      "claim_text_summary": "Building a governance-grade personal development canon — concept multiplication strategy",
+      "confidence": "high",
+      "evidence": "Summary shows brand strategy concept",
+      "current_stale_unknown": "current",
+      "conflicts_with": null,
+      "requires_operator_decision": false
+    }
+  ],
+  "extraction_limitations": {
+    "total_claims_extracted": 10,
+    "estimated_claims_in_full_docs": "50-200+",
+    "reason": "Only truncated summaries available. Full PRDs (CreatorOS v2.90, EntrepreneurOS, LyfeOS) likely contain detailed feature specs, user journeys, screen definitions, data models, and integration requirements that cannot be read.",
+    "critical_missing_claims": [
+      "CreatorOS PRD v2.90 — full feature list, user journeys, screens",
+      "EntrepreneurOS — clean PRD content (if it exists separate from Claude session artifacts)",
+      "LyfeOS — full product spec beyond beta URLs",
+      "Empire Architecture — detailed corporate structure and entity relationships",
+      "Empyrean Studios — full business plan and service definitions"
+    ]
+  }
+}

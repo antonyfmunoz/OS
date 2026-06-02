@@ -1,0 +1,36 @@
+{
+  "phase": "14.3R",
+  "task": "test_gate_results",
+  "timestamp": "2026-06-02T00:10:00Z",
+  "description": "Phase 14.3R test and gate results",
+  "phase14_3_tests": {
+    "test_file": "tests/test_phase14_3_product_docs_convergence.py",
+    "total_tests": 89,
+    "passed": 89,
+    "failed": 0,
+    "duration_seconds": 6.0,
+    "verdict": "PASS"
+  },
+  "gate_checks": {
+    "py_compile": "PASS — test file compiles cleanly",
+    "type_divergence": "PASS — 0 new violations",
+    "instance_leak": "PASS — 627 files scanned clean",
+    "projection_leak": "PASS — 0 new violations",
+    "dependency_direction": "PASS — legacy only, no new violations",
+    "no_google_docs_writes": "PASS",
+    "no_full_content_fake_claim": "PASS",
+    "no_source_mutation": "PASS",
+    "no_hardcoded_projection_names_in_substrate": "PASS",
+    "no_hardcoded_jarvis": "PASS",
+    "mvp_maturity_preserved": "PASS",
+    "device_role_doctrine_preserved": "PASS",
+    "future_infrastructure_deferred": "PASS",
+    "feature_build_blocked": "PASS",
+    "infrastructure_blocked": "PASS",
+    "no_fake_data": "PASS",
+    "no_secret_leakage": "PASS",
+    "no_external_writes": "PASS",
+    "no_destructive_sync": "PASS"
+  },
+  "verdict": "PASS — 89 tests, 0 failures, all gates clear"
+}

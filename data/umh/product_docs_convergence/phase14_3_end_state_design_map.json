@@ -1,0 +1,211 @@
+{
+  "phase": "14.3",
+  "task": "end_state_design_map",
+  "timestamp": "2026-06-01T23:40:00Z",
+  "description": "Per-app end-state design maps — synthesized from cached Google Docs summaries, Phase 14.1/14.2 source reality, and codebase knowledge",
+  "data_completeness": "partial — full Google Docs content required for complete maps",
+  "umh": {
+    "purpose": "Universal Mastery Hierarchy — the governance-grade intelligence substrate that all Trinity apps are projections of. Provides types, execution, governance, state management, organism coordination, and operator experience.",
+    "operator_experience_end_state": {
+      "cockpit": "Web-based operator interface at universalmetaharness.tech (Fly.io)",
+      "discord": "Primary interaction surface via os-discord bot",
+      "voice": "Voice sessions via execution bridge",
+      "mobile": "Operator remote/approval/voice surface via SSH/Tailscale",
+      "status": "cockpit deployed, discord bot running, voice partially implemented"
+    },
+    "organism_runtime_end_state": {
+      "runtime_graph": "substrate/organism/ — nodes, workcells, coordinator",
+      "execution_economics": "governed recursive execution with budget tracking",
+      "capability_routing": "28 capabilities, auto-assignment to workcells",
+      "dev_session_bridge": "coding harnesses as governed organs",
+      "status": "implemented through Phase 3, tests passing"
+    },
+    "device_role_intelligence_end_state": {
+      "vps": "control_plane / orchestrator — lightweight, always-on",
+      "beast": "workhorse / app development node — GPU, heavy compute",
+      "mobile": "operator remote / approval / voice surface",
+      "node_discovery": "capability-aware diagnosis on join",
+      "status": "doctrine recorded, node mesh in transports/"
+    },
+    "source_truth_reconciliation_end_state": {
+      "source_truth_ratification": "complete — GitHub + Beast = code truth, /opt/OS = UMH truth, Google Docs = product docs truth",
+      "projection_reconciliation": "Phase 14 series — converging all sources",
+      "status": "Phase 14.2R complete, Phase 14.3 in progress"
+    },
+    "relation_to_apps": "UMH is the platform substrate. EOS, CreatorOS, and LyfeOS are projections built on UMH. Each app registers via projection ports and inherits governance, execution, types, and operator experience.",
+    "open_questions": [
+      "How will projection-specific routes register with UMH HTTP API?",
+      "How will projection-specific databases connect to UMH substrate?",
+      "How will UMH coordinate cross-projection analytics?",
+      "How will UMH handle multi-tenant projection deployment?",
+      "What is the projection registration contract at runtime?"
+    ]
+  },
+  "entrepreneuros": {
+    "purpose": "Business operating system for the Munoz Conglomerate. Primary tool for Empyrean Studios agency. Portfolio management, venture tracking, agent workforce, client management.",
+    "target_user": "Antony F. Munoz (founder), Empyrean Studios agency clients, entrepreneurs/business operators",
+    "core_workflows": {
+      "known_from_code": ["venture management", "skill tracking", "agent deployment", "analytics dashboards", "client management"],
+      "unknown_pending_full_docs": ["full user journeys", "onboarding flow", "agency client workflows"]
+    },
+    "core_screens_modules": {
+      "known_from_code": ["dashboard", "ventures", "skills", "agents", "analytics", "settings"],
+      "unknown_pending_full_docs": ["complete screen inventory", "modal flows", "admin vs client views"]
+    },
+    "business_model": "Internal tool for Empyrean Studios agency + potential SaaS for other entrepreneurs. Empyrean positions as 'tactical automation agency that installs AI agent infrastructure' — EOS is the delivery platform.",
+    "umh_integration_boundary": {
+      "status": "not_yet_defined",
+      "known": "EOS code lives on GitHub/Beast, uses Clerk auth, TypeScript/React/Vite/Tailwind/shadcn/Express/Drizzle",
+      "needed": "formal boundary definition — which UMH substrate services EOS consumes, how EOS registers as projection"
+    },
+    "source_code_reality": {
+      "location": "GitHub + Windows Beast C:\\dev\\dev\\EntrepreneurOS",
+      "file_count": 603,
+      "auth": "Clerk",
+      "stack": "TypeScript, React 18, Vite, Tailwind, shadcn/ui, Express, Drizzle ORM"
+    },
+    "mvp_maturity": "partially_built_mvp",
+    "missing_requirements": [
+      "Full PRD content from Google Doc (may be mixed with Claude session artifacts)",
+      "Complete user journey definitions",
+      "Data model specification",
+      "API contract with UMH",
+      "Deployment architecture for production",
+      "Analytics event taxonomy"
+    ],
+    "open_questions": [
+      "Is the EntrepreneurOS Google Doc a clean PRD or a contaminated working doc?",
+      "What is the relationship between EOS features and Empyrean Studios service offerings?",
+      "Does EOS need multi-tenant support for agency clients?",
+      "What are the acceptance criteria for EOS MVP?"
+    ]
+  },
+  "creatoros": {
+    "purpose": "The Operating System for Creators — platform for community management, course delivery, content creation, creator tooling.",
+    "target_user": "Content creators, course creators, community builders",
+    "core_workflows": {
+      "known_from_code": ["community management", "course delivery", "content creation"],
+      "known_from_docs": "PRD Version 2.90 exists — full content not readable",
+      "unknown_pending_full_docs": ["complete feature list from PRD v2.90", "user journeys", "screen definitions"]
+    },
+    "core_screens_modules": {
+      "known_from_code": ["community dashboard", "course builder", "content tools"],
+      "unknown_pending_full_docs": ["complete screen inventory from PRD v2.90"]
+    },
+    "business_model": "Creator platform — likely SaaS subscription for creators. Details in PRD v2.90 (not readable).",
+    "umh_integration_boundary": {
+      "status": "not_yet_defined",
+      "known": "CreatorOS code lives on GitHub/Beast, uses Passport.js (legacy), TypeScript/React",
+      "needed": "Clerk migration plan, formal UMH integration boundary"
+    },
+    "source_code_reality": {
+      "location": "GitHub + Windows Beast C:\\dev\\dev\\CreatorOS",
+      "file_count": 272,
+      "auth": "Passport.js (legacy — Clerk migration required)",
+      "stack": "TypeScript, React"
+    },
+    "mvp_maturity": "partially_built_mvp",
+    "missing_requirements": [
+      "Full PRD v2.90 content from Google Doc",
+      "Complete user journey definitions",
+      "Creator onboarding flow",
+      "Monetization/billing model",
+      "Community feature specifications",
+      "Course builder specifications",
+      "Data model specification",
+      "Clerk auth migration plan",
+      "API contract with UMH"
+    ],
+    "open_questions": [
+      "What features does CreatorOS PRD v2.90 specify?",
+      "How does CreatorOS relate to Initiate Arena / LyfeOS community features?",
+      "Is CreatorOS a standalone product or tightly coupled to LyfeOS?",
+      "What is the CreatorOS monetization model?",
+      "What are the acceptance criteria for CreatorOS MVP?"
+    ]
+  },
+  "lyfeos": {
+    "purpose": "Life operating system — gamified personal development platform. Vehicle for Initiate Arena offer. Game of Lyfe concept.",
+    "target_user": "Personal development seekers, Initiate Arena participants, gamified life trackers",
+    "core_workflows": {
+      "known_from_code": ["login/register", "beta access gating", "life tracking", "gamification"],
+      "known_from_docs": ["curriculum delivery via WHOP", "community via Discord", "live coaching", "email outreach"],
+      "unknown_pending_full_docs": ["complete feature list", "Game of Lyfe mechanics", "gamification system design"]
+    },
+    "core_screens_modules": {
+      "known_from_code": ["login", "register", "dashboard"],
+      "unknown_pending_full_docs": ["complete screen inventory", "game interface", "tracking views"]
+    },
+    "business_model": "Initiate Arena is the revenue vehicle — coaching/curriculum product. LyfeOS is the platform. WHOP handles payments/delivery. Discord handles community.",
+    "umh_integration_boundary": {
+      "status": "not_yet_defined",
+      "known": "LyfeOS code lives on GitHub/Beast, uses Passport.js + Firebase (legacy), completed isolated MVP at lyfeos.net",
+      "needed": "Clerk migration plan, formal UMH integration boundary, define what 'full UMH-connected MVP' means"
+    },
+    "source_code_reality": {
+      "location": "GitHub + Windows Beast",
+      "auth": "Passport.js + Firebase (legacy — Clerk migration required)",
+      "deployed_url": "lyfeos.net",
+      "status": "completed_isolated_mvp"
+    },
+    "mvp_maturity": {
+      "isolated_mvp": "completed",
+      "umh_connected_mvp": "not_started",
+      "distinction": "LyfeOS is a completed standalone web app (lyfeos.net). It is NOT a full UMH-connected MVP. Full MVP requires UMH integration, Clerk auth migration, and defined UMH substrate boundaries."
+    },
+    "missing_requirements": [
+      "Full product spec from Google Doc",
+      "Game of Lyfe mechanics specification",
+      "Gamification system design",
+      "UMH integration requirements",
+      "Clerk auth migration plan",
+      "What 'full UMH-connected MVP' adds to isolated MVP",
+      "Analytics/tracking event taxonomy",
+      "Coaching content structure beyond WHOP/Discord"
+    ],
+    "open_questions": [
+      "What features distinguish LyfeOS (full UMH-connected MVP) from the current isolated MVP?",
+      "How does Game of Lyfe relate to LyfeOS?",
+      "Is Initiate Arena the product and LyfeOS the platform, or are they separate?",
+      "What UMH substrate services does LyfeOS need?",
+      "When does LyfeOS stop being an isolated MVP and become UMH-connected?"
+    ]
+  },
+  "shared_trinity": {
+    "shared_product_principles": "All three apps are projections of UMH. Business Template doc suggests modular/interface thinking — each app is a module, not a standalone company.",
+    "shared_ux_patterns": {
+      "status": "not_yet_defined",
+      "known": "All use React/TypeScript/Tailwind/shadcn — likely shared component library possible",
+      "needed": "Shared design system definition"
+    },
+    "shared_auth_direction": {
+      "target": "Clerk for all three apps",
+      "current": {"eos": "Clerk", "creatoros": "Passport.js", "lyfeos": "Passport.js + Firebase"},
+      "migrations_required": ["CreatorOS → Clerk", "LyfeOS → Clerk"]
+    },
+    "shared_analytics_future": {
+      "target": "PostHog",
+      "status": "deferred_pending_product_docs_convergence"
+    },
+    "shared_deployment_future": {
+      "target": "Fly.io",
+      "status": "deferred_pending_product_docs_convergence"
+    },
+    "shared_database_future": {
+      "target": "Neon PostgreSQL",
+      "status": "deferred_pending_product_docs_convergence"
+    },
+    "shared_ai_agent_concepts": "UMH provides agent infrastructure (organism, execution spine, model routing). All apps can leverage UMH agent capabilities through projection ports.",
+    "shared_umh_integration_patterns": {
+      "status": "not_yet_defined",
+      "needed": "Projection registration contract, shared API contract, shared type imports"
+    },
+    "open_questions": [
+      "Should all three apps share a single Neon database or separate databases?",
+      "Should all three apps deploy as separate Fly.io apps or one monolith?",
+      "Is there a shared component library for the Trinity?",
+      "How do Trinity apps share user accounts (Clerk org)?",
+      "What shared analytics events span all three apps?"
+    ]
+  }
+}

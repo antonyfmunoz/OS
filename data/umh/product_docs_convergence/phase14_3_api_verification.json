@@ -1,0 +1,76 @@
+{
+  "phase": "14.3",
+  "task": "api_verification",
+  "timestamp": "2026-06-01T23:48:00Z",
+  "description": "API / cockpit data layer state for product docs convergence",
+  "data_layer_artifacts": {
+    "docs_access_state": {
+      "path": "data/umh/product_docs_convergence/phase14_3_google_docs_access_state.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.access_state"
+    },
+    "docs_access_blocker": {
+      "path": "data/umh/product_docs_convergence/phase14_3_google_docs_access_blocker.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.access_blocker"
+    },
+    "docs_inventory": {
+      "path": "data/umh/product_docs_convergence/phase14_3_google_docs_inventory.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.inventory"
+    },
+    "extracted_claims": {
+      "path": "data/umh/product_docs_convergence/phase14_3_extracted_product_claims.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.claims"
+    },
+    "doc_classification": {
+      "path": "data/umh/product_docs_convergence/phase14_3_doc_classification.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.classification"
+    },
+    "end_state_design_map": {
+      "path": "data/umh/product_docs_convergence/phase14_3_end_state_design_map.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.end_state_design"
+    },
+    "docs_vs_source_reality": {
+      "path": "data/umh/product_docs_convergence/phase14_3_docs_vs_source_reality.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.reality_comparison"
+    },
+    "product_requirements_gaps": {
+      "path": "data/umh/product_docs_convergence/phase14_3_product_requirements_gap_report.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.requirements_gaps"
+    },
+    "mvp_maturity_update": {
+      "path": "data/umh/product_docs_convergence/phase14_3_mvp_maturity_update.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.mvp_maturity"
+    },
+    "canonical_candidates": {
+      "path": "data/umh/product_docs_convergence/phase14_3_product_docs_canonical_candidate_map.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.canonical_candidates"
+    },
+    "readiness_gate": {
+      "path": "data/umh/product_docs_convergence/phase14_3_readiness_gate_report.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.readiness_gate"
+    },
+    "work_packets": {
+      "path": "data/umh/product_docs_convergence/phase14_3_work_packets.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.work_packets"
+    },
+    "policy_safety_proof": {
+      "path": "data/umh/product_docs_convergence/phase14_3_policy_safety_proof.json",
+      "exists": true,
+      "api_key": "product_docs_convergence.policy_safety"
+    }
+  },
+  "total_artifacts": 13,
+  "all_exist": true,
+  "api_exposure_method": "Data files in data/umh/product_docs_convergence/ are accessible via UMH file-based API layer"
+}

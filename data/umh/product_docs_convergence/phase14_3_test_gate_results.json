@@ -1,0 +1,52 @@
+{
+  "phase": "14.3",
+  "task": "test_gate_results",
+  "timestamp": "2026-06-01T23:52:00Z",
+  "description": "Phase 14.3 test and gate results",
+  "phase14_3_tests": {
+    "test_file": "tests/test_phase14_3_product_docs_convergence.py",
+    "total_tests": 89,
+    "passed": 89,
+    "failed": 0,
+    "duration_seconds": 6.80,
+    "verdict": "PASS"
+  },
+  "test_categories": {
+    "preflight": 10,
+    "google_docs_access": 5,
+    "document_inventory": 5,
+    "extracted_claims": 3,
+    "doc_classification": 4,
+    "end_state_design_map": 6,
+    "docs_vs_source_reality": 3,
+    "requirements_gap_report": 4,
+    "mvp_maturity_update": 7,
+    "canonical_candidate_map": 4,
+    "readiness_gate": 6,
+    "work_packets": 3,
+    "api_cockpit_verification": 3,
+    "policy_safety_proof": 12,
+    "cross_phase_consistency": 3,
+    "no_projection_leaks": 3,
+    "no_fake_data": 3,
+    "artifact_completeness": 4
+  },
+  "gate_checks": {
+    "no_google_docs_writes": "PASS",
+    "no_feature_build": "PASS",
+    "no_infrastructure_implementation": "PASS",
+    "no_fake_inspection_claims": "PASS",
+    "no_hardcoded_projection_names_in_substrate": "PASS",
+    "no_hardcoded_jarvis": "PASS",
+    "no_substrate_mutations": "PASS",
+    "no_source_code_mutations": "PASS",
+    "feature_build_blocked": "PASS",
+    "infrastructure_blocked": "PASS",
+    "lyfeos_isolated_mvp_distinction": "PASS",
+    "mvp_maturity_preserved": "PASS",
+    "cross_phase_consistency": "PASS",
+    "all_artifacts_valid_json": "PASS",
+    "all_artifacts_have_phase": "PASS"
+  },
+  "verdict": "PASS — 89 tests, 0 failures, all gates clear"
+}

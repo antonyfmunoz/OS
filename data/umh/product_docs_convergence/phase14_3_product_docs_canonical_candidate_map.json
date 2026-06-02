@@ -1,0 +1,102 @@
+{
+  "phase": "14.3",
+  "task": "product_docs_canonical_candidate_map",
+  "timestamp": "2026-06-01T23:44:00Z",
+  "description": "Product docs canonical candidate map — strongest current docs per product/app based on available inventory",
+  "assessment_depth": "title_and_summary_level_only",
+  "apps": {
+    "entrepreneuros": {
+      "strongest_current_docs": [
+        {"title": "EntrepreneurOS", "classification": "unknown", "confidence": "low", "note": "May be contaminated with Claude Code session artifacts. Full content read required."}
+      ],
+      "supporting_docs": [
+        {"title": "Empyrean Studios (Agency Brand)", "classification": "canonical_candidate", "confidence": "high", "note": "Business plan defines EOS's primary use case and user"},
+        {"title": "Business Template", "classification": "strategy_note", "confidence": "medium", "note": "Modular business philosophy informing EOS architecture"}
+      ],
+      "historical_docs": [],
+      "stale_docs": [],
+      "duplicates": [],
+      "unresolved_docs": [
+        {"title": "EntrepreneurOS", "reason": "Cannot determine if clean PRD or dev scratch pad without reading full content"}
+      ],
+      "confidence": "low",
+      "recommended_canonical_set": ["EntrepreneurOS (if clean PRD)", "Empyrean Studios (Agency Brand)"],
+      "operator_decisions_required": [
+        "Is the EntrepreneurOS Google Doc the official PRD or a working document?",
+        "Does a separate, clean EOS PRD exist outside Google Docs?"
+      ]
+    },
+    "creatoros": {
+      "strongest_current_docs": [
+        {"title": "CreatorOS", "classification": "canonical_candidate", "confidence": "high", "note": "PRD Version 2.90 — strongest candidate for CreatorOS product specification"}
+      ],
+      "supporting_docs": [],
+      "historical_docs": [],
+      "stale_docs": [],
+      "duplicates": [],
+      "unresolved_docs": [],
+      "confidence": "high",
+      "recommended_canonical_set": ["CreatorOS PRD v2.90"],
+      "operator_decisions_required": [
+        "Is PRD v2.90 the latest version?",
+        "Are there newer drafts not yet in Google Docs?"
+      ]
+    },
+    "lyfeos": {
+      "strongest_current_docs": [
+        {"title": "LyfeOS", "classification": "canonical_candidate", "confidence": "medium", "note": "Contains beta URLs, likely product spec or launch doc"}
+      ],
+      "supporting_docs": [
+        {"title": "Life Coaching (E-Learning/Info-Product Brand)", "classification": "current_supporting", "confidence": "high", "note": "Defines Initiate Arena delivery model"},
+        {"title": "Coaching Philosophy/Methodology", "classification": "current_supporting", "confidence": "high", "note": "Core methodology"},
+        {"title": "Coaching Frameworks & Workbooks", "classification": "current_supporting", "confidence": "high", "note": "Practical coaching tools/content"}
+      ],
+      "historical_docs": [],
+      "stale_docs": [],
+      "duplicates": [],
+      "unresolved_docs": [],
+      "confidence": "medium",
+      "recommended_canonical_set": ["LyfeOS", "Life Coaching (E-Learning/Info-Product Brand)"],
+      "operator_decisions_required": [
+        "Is the LyfeOS Google Doc a full product spec or just launch notes?",
+        "Does Game of Lyfe have its own specification document?",
+        "Are coaching docs part of LyfeOS product requirements or separate content?"
+      ]
+    },
+    "umh": {
+      "strongest_current_docs": [
+        {"title": "Business Template", "classification": "strategy_note", "confidence": "medium", "note": "Modular business philosophy that aligns with UMH projection architecture"}
+      ],
+      "supporting_docs": [
+        {"title": "THE MUNOZ EMPIRE — Elite Structural Architecture", "classification": "strategy_note", "confidence": "high", "note": "Corporate architecture — context for how UMH serves the empire"}
+      ],
+      "historical_docs": [],
+      "stale_docs": [],
+      "duplicates": [],
+      "unresolved_docs": [],
+      "confidence": "medium",
+      "recommended_canonical_set": ["Business Template", "THE MUNOZ EMPIRE — Elite Structural Architecture"],
+      "operator_decisions_required": [
+        "Does a dedicated UMH product specification document exist?",
+        "Should one be created from existing ARCHITECTURE.md + convergence audit knowledge?"
+      ]
+    },
+    "personal_brand_and_marketing": {
+      "strongest_current_docs": [
+        {"title": "Antony F. Munoz (Personal Brand)", "classification": "strategy_note", "confidence": "high"},
+        {"title": "Antony Munoz Email Sequence", "classification": "implementation_note", "confidence": "high"}
+      ],
+      "supporting_docs": [],
+      "historical_docs": [],
+      "stale_docs": [],
+      "duplicates": [],
+      "unresolved_docs": [],
+      "confidence": "high",
+      "recommended_canonical_set": ["Antony F. Munoz (Personal Brand)"],
+      "operator_decisions_required": []
+    }
+  },
+  "no_docs_written": true,
+  "no_docs_renamed": true,
+  "no_docs_deleted": true
+}
