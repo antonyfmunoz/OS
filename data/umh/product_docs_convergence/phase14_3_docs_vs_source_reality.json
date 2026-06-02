@@ -1,0 +1,102 @@
+{
+  "phase": "14.3",
+  "task": "docs_vs_source_reality",
+  "timestamp": "2026-06-01T23:41:00Z",
+  "description": "Google Docs claims compared against Phase 14.1/14.2 source reality — summary-level comparison only",
+  "comparison_depth": "summary_level",
+  "full_content_comparison_blocked": true,
+  "comparisons": [
+    {
+      "area": "creatoros_prd",
+      "doc_claim": "CreatorOS PRD exists at Version 2.90 — 'The Operating System for Creators'",
+      "source_reality": "CreatorOS code exists on GitHub/Beast with 272 files, uses Passport.js auth, partially built MVP",
+      "alignment": "docs_ahead_of_code",
+      "detail": "PRD at v2.90 suggests significant product planning. Source reality shows partially built MVP. Full PRD content needed to measure the gap.",
+      "stale_indicators": [],
+      "action_required": "Read full PRD to compare feature list against implemented code"
+    },
+    {
+      "area": "entrepreneuros_doc",
+      "doc_claim": "EntrepreneurOS doc exists — but cached content shows Claude Code session artifacts mixed in",
+      "source_reality": "EOS code exists on GitHub/Beast with 603 files, uses Clerk auth, most mature of the three apps",
+      "alignment": "unknown",
+      "detail": "Doc may be a working document rather than a formal PRD. 603 files suggests significant implementation, but without clean PRD it's unclear if code matches intended design.",
+      "stale_indicators": ["Claude session artifacts in doc suggest it was used as a dev scratch pad"],
+      "action_required": "Determine if a clean EOS PRD exists or if this doc needs cleanup"
+    },
+    {
+      "area": "lyfeos_doc",
+      "doc_claim": "LyfeOS doc references lyfeos.net beta URLs",
+      "source_reality": "LyfeOS is completed isolated MVP deployed at lyfeos.net, uses Passport.js + Firebase",
+      "alignment": "docs_match_code",
+      "detail": "Beta URLs in doc match known deployed state. Doc and code agree that a live beta exists.",
+      "stale_indicators": [],
+      "action_required": "Read full doc to check for features described but not yet implemented"
+    },
+    {
+      "area": "auth_claims",
+      "doc_claim": "No auth claims visible in cached summaries",
+      "source_reality": "EOS=Clerk, CreatorOS=Passport.js(legacy), LyfeOS=Passport.js+Firebase(legacy), target=Clerk for all",
+      "alignment": "cannot_verify",
+      "detail": "Auth specifics not visible in truncated summaries. Full docs may contain stale auth assumptions.",
+      "stale_indicators": [],
+      "action_required": "Check full docs for any auth provider mentions — may reference old/stale providers"
+    },
+    {
+      "area": "infrastructure_claims",
+      "doc_claim": "No infrastructure claims visible in cached summaries",
+      "source_reality": "Fly.io=target deployment, Neon=target DB, PostHog=target analytics — all deferred",
+      "alignment": "cannot_verify",
+      "detail": "Infrastructure details not visible in truncated summaries. Docs may contain infrastructure assumptions.",
+      "stale_indicators": [],
+      "action_required": "Check full docs for deployment/infrastructure assumptions"
+    },
+    {
+      "area": "empyrean_studios_business_model",
+      "doc_claim": "Empyrean Creative is a tactical automation agency installing AI agent infrastructure",
+      "source_reality": "Empyrean Studios exists in corporate structure (CLAUDE.md). EOS is the operating system for the agency.",
+      "alignment": "docs_match_strategy",
+      "detail": "Business plan aligns with known corporate structure. EOS as agency tooling is consistent.",
+      "stale_indicators": [],
+      "action_required": "Verify full business plan for any features/services not yet built"
+    },
+    {
+      "area": "initiate_arena_delivery",
+      "doc_claim": "Curriculum via WHOP, community via Discord, live coaching",
+      "source_reality": "Discord bot (os-discord) runs on VPS. WHOP integration status unknown. Initiate Arena is current primary revenue target.",
+      "alignment": "docs_partially_match_reality",
+      "detail": "Discord integration exists in UMH. WHOP integration status needs verification.",
+      "stale_indicators": [],
+      "action_required": "Verify WHOP integration status in codebase"
+    },
+    {
+      "area": "saas_decommission",
+      "doc_claim": "No saas-specific claims in cached summaries",
+      "source_reality": "/opt/OS/saas/ is decommissioned. transports/api/http/ is UMH platform API.",
+      "alignment": "n/a",
+      "detail": "Docs predate saas decommission and likely don't reference it.",
+      "stale_indicators": ["Any doc referencing /opt/OS/saas/ as live code is stale"],
+      "action_required": "Check full docs for any references to saas/ directory or EOS routes in saas/"
+    },
+    {
+      "area": "umh_integration",
+      "doc_claim": "Business Template suggests modular/interface thinking",
+      "source_reality": "UMH substrate has projection ports, organism coordination, execution spine — but no formal projection registration contract exists",
+      "alignment": "docs_ahead_of_implementation",
+      "detail": "Modular thinking philosophy aligns with UMH architecture, but the formal mechanism for apps to register as projections is not yet defined.",
+      "stale_indicators": [],
+      "action_required": "Define projection registration contract"
+    }
+  ],
+  "summary": {
+    "docs_ahead_of_code": ["CreatorOS PRD v2.90 likely specifies unbuilt features", "UMH integration boundaries not yet implemented"],
+    "code_ahead_of_docs": ["saas/ decommission not reflected in docs", "Phase 14 convergence work not in docs"],
+    "stale_auth_claims": "cannot verify without full doc content — likely Passport.js/Firebase references in CreatorOS/LyfeOS docs",
+    "stale_infrastructure_claims": "cannot verify without full doc content",
+    "missing_umh_integration_requirements": true,
+    "missing_mvp_definitions_in_docs": true,
+    "feature_claims_not_in_code": "cannot verify without full doc content",
+    "code_modules_not_in_docs": ["organism/", "Phase 14 convergence artifacts", "saas decommission", "projection boundary enforcement"],
+    "unresolved_contradictions": ["EntrepreneurOS doc may be working doc not PRD"]
+  }
+}

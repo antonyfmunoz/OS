@@ -1,0 +1,148 @@
+{
+  "phase": "14.3",
+  "task": "google_docs_inventory",
+  "timestamp": "2026-06-01T23:37:00Z",
+  "description": "Google Docs / Drive document inventory from cached GWS scan (2026-05-30)",
+  "data_source": "data/gws_context.md — cached scan from 2026-05-30T06:40:00Z",
+  "content_read": false,
+  "metadata_source": "cached_scan_summaries",
+  "total_documents": 11,
+  "documents": [
+    {
+      "doc_index": 1,
+      "title": "THE MUNOZ EMPIRE — Elite Structural Architecture",
+      "venture_routing": "lyfe_institute",
+      "relevance": "high",
+      "app_projection_relevance": ["umh", "corporate_structure", "all_projections"],
+      "likely_status": "current",
+      "reason": "Corporate architecture doc — restructured as estate planner / family office advisor / BlackRock-level corp structure. Likely foundational strategy doc.",
+      "content_read": false,
+      "summary_excerpt": "Restructured as a professional estate planner, family office advisor, and BlackRock-level corp"
+    },
+    {
+      "doc_index": 2,
+      "title": "CreatorOS",
+      "venture_routing": "lyfe_institute",
+      "relevance": "high",
+      "app_projection_relevance": ["creatoros"],
+      "likely_status": "current",
+      "reason": "Product Requirements Document for CreatorOS, Version 2.90, dated February 2nd. Primary PRD for CreatorOS app.",
+      "content_read": false,
+      "summary_excerpt": "Product Requirements Document — Creator OS — The Operating System for Creators — Version 2.90"
+    },
+    {
+      "doc_index": 3,
+      "title": "EntrepreneurOS",
+      "venture_routing": "lyfe_institute",
+      "relevance": "high",
+      "app_projection_relevance": ["entrepreneuros", "eos"],
+      "likely_status": "unknown",
+      "reason": "Contains Claude plan references mixed with product content. May be a working doc or PRD. Content excerpt shows Claude Code session artifacts, not pure product spec.",
+      "content_read": false,
+      "summary_excerpt": "Contains Claude plan references — may be mixed product/dev working doc"
+    },
+    {
+      "doc_index": 4,
+      "title": "LyfeOS",
+      "venture_routing": "lyfe_institute",
+      "relevance": "high",
+      "app_projection_relevance": ["lyfeos"],
+      "likely_status": "current",
+      "reason": "Contains lyfeos.net beta URLs. Likely product requirements or launch doc for LyfeOS.",
+      "content_read": false,
+      "summary_excerpt": "lyfeos.net/login?access=beta, lyfeos.net/register?access=beta"
+    },
+    {
+      "doc_index": 5,
+      "title": "Life Coaching (E-Learning/Info-Product Brand)",
+      "venture_routing": "lyfe_institute",
+      "relevance": "high",
+      "app_projection_relevance": ["lyfeos", "initiate_arena", "lyfe_institute"],
+      "likely_status": "current",
+      "reason": "Curriculum distribution doc — WHOP hosting, Discord community, live coaching. Directly relevant to Initiate Arena offer.",
+      "content_read": false,
+      "summary_excerpt": "Curriculum Distribution — Hosted on WHOP, Community on Discord, Accountability & Live Coaching"
+    },
+    {
+      "doc_index": 6,
+      "title": "Coaching Philosophy/Methodology",
+      "venture_routing": "lyfe_institute",
+      "relevance": "high",
+      "app_projection_relevance": ["lyfeos", "initiate_arena", "lyfe_institute"],
+      "likely_status": "current",
+      "reason": "Layered Framework Philosophy — spinal/nested/sub-nested. Core methodology for coaching brand.",
+      "content_read": false,
+      "summary_excerpt": "Layered Framework Philosophy — Spinal, Nested, Sub-Nested"
+    },
+    {
+      "doc_index": 7,
+      "title": "Coaching Frameworks & Workbooks",
+      "venture_routing": "lyfe_institute",
+      "relevance": "high",
+      "app_projection_relevance": ["lyfeos", "initiate_arena", "lyfe_institute"],
+      "likely_status": "current",
+      "reason": "Workbook improvement prompting workflow. Practical coaching tools content.",
+      "content_read": false,
+      "summary_excerpt": "Workbook Improvement Prompting Workflow"
+    },
+    {
+      "doc_index": 8,
+      "title": "Antony F. Munoz (Personal Brand)",
+      "venture_routing": "lyfe_institute",
+      "relevance": "high",
+      "app_projection_relevance": ["personal_brand", "all_projections"],
+      "likely_status": "current",
+      "reason": "Concept multiplication for comprehensive personal development canon. Brand/marketing strategy.",
+      "content_read": false,
+      "summary_excerpt": "CONCEPT MULTIPLICATION FOR A COMPREHENSIVE PERSONAL DEVELOPMENT CANON"
+    },
+    {
+      "doc_index": 9,
+      "title": "Empyrean Studios (Agency Brand)",
+      "venture_routing": "lyfe_institute",
+      "relevance": "high",
+      "app_projection_relevance": ["empyrean_studios", "eos"],
+      "likely_status": "current",
+      "reason": "Business plan for Empyrean Creative — tactical automation agency installing AI agent infrastructure. Directly relevant to EOS as the agency tool.",
+      "content_read": false,
+      "summary_excerpt": "EMPYREAN CREATIVE BUSINESS PLAN — tactical automation agency that installs AI agent infrastructure"
+    },
+    {
+      "doc_index": 10,
+      "title": "Business Template",
+      "venture_routing": "lyfe_institute",
+      "relevance": "high",
+      "app_projection_relevance": ["eos", "umh", "all_projections"],
+      "likely_status": "current",
+      "reason": "Module/interface/architecture thinking for plug-and-play business. Strategy-level thinking about business-as-modules.",
+      "content_read": false,
+      "summary_excerpt": "Stop thinking in terms of companies, start thinking in terms of modules, interfaces, architecture"
+    },
+    {
+      "doc_index": 11,
+      "title": "Antony Munoz Email Sequence",
+      "venture_routing": "lyfe_institute",
+      "relevance": "high",
+      "app_projection_relevance": ["initiate_arena", "personal_brand", "marketing"],
+      "likely_status": "current",
+      "reason": "Email marketing sequence — 'Retire By Treating Life Like A Video Game'. Outreach/marketing content for Initiate Arena.",
+      "content_read": false,
+      "summary_excerpt": "Email #1 — Retire By Treating Life Like A Video Game"
+    }
+  ],
+  "inventory_gaps": {
+    "missing_doc_ids": true,
+    "missing_urls": true,
+    "missing_modified_dates": true,
+    "missing_created_dates": true,
+    "missing_full_content": true,
+    "reason": "Cached scan only stored summaries, not full metadata. Live API access required for complete inventory."
+  },
+  "classification_summary": {
+    "product_prds": ["CreatorOS", "EntrepreneurOS", "LyfeOS"],
+    "business_strategy": ["THE MUNOZ EMPIRE — Elite Structural Architecture", "Business Template", "Empyrean Studios (Agency Brand)"],
+    "coaching_content": ["Life Coaching (E-Learning/Info-Product Brand)", "Coaching Philosophy/Methodology", "Coaching Frameworks & Workbooks"],
+    "brand_marketing": ["Antony F. Munoz (Personal Brand)", "Antony Munoz Email Sequence"],
+    "key_product_docs_for_convergence": ["CreatorOS", "EntrepreneurOS", "LyfeOS", "THE MUNOZ EMPIRE — Elite Structural Architecture", "Empyrean Studios (Agency Brand)"]
+  }
+}

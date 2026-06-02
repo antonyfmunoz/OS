@@ -1,0 +1,88 @@
+{
+  "phase": "14.3",
+  "task": "product_requirements_gap_report",
+  "timestamp": "2026-06-01T23:42:00Z",
+  "description": "Product requirements gap report — what's missing before convergence planning and feature build can proceed",
+  "feature_build_should_remain_blocked": true,
+  "apps": {
+    "entrepreneuros": {
+      "complete_enough_for_convergence_planning": false,
+      "complete_enough_for_feature_build": false,
+      "missing": {
+        "user_journeys": "Full user journey definitions — founder workflow, agency client workflow, team member workflow",
+        "screens": "Complete screen inventory with wireframes or specifications",
+        "data_model": "Database schema specification — tables, relationships, constraints",
+        "auth_session": "Already uses Clerk — needs formal session management specification",
+        "umh_integration": "Formal UMH integration boundary — which substrate services EOS consumes",
+        "analytics": "Event taxonomy — what gets tracked, PostHog configuration",
+        "deployment": "Production deployment architecture — Fly.io configuration, domains, scaling",
+        "business_model_assumptions": "Pricing model, free tier, agency vs individual plans",
+        "onboarding": "New user onboarding flow specification",
+        "acceptance_criteria": "MVP completion criteria — when is EOS 'done enough' to ship"
+      },
+      "blocker_reason": "EntrepreneurOS Google Doc may not be a clean PRD. Full content read required to assess.",
+      "critical_gaps": ["clean PRD content", "UMH integration boundary", "acceptance criteria"]
+    },
+    "creatoros": {
+      "complete_enough_for_convergence_planning": false,
+      "complete_enough_for_feature_build": false,
+      "missing": {
+        "user_journeys": "Creator onboarding, course creation, community management, content publishing journeys",
+        "screens": "Complete screen inventory from PRD v2.90 (not readable)",
+        "data_model": "Database schema specification",
+        "auth_session": "Clerk migration plan from Passport.js",
+        "umh_integration": "Formal UMH integration boundary",
+        "analytics": "Event taxonomy",
+        "deployment": "Production deployment architecture",
+        "business_model_assumptions": "Pricing model, creator monetization, platform fees",
+        "onboarding": "Creator onboarding flow",
+        "acceptance_criteria": "MVP completion criteria"
+      },
+      "blocker_reason": "PRD v2.90 exists but cannot be read. It likely contains many of these answers. Live API access is the critical blocker.",
+      "critical_gaps": ["full PRD v2.90 content", "Clerk migration plan", "UMH integration boundary"]
+    },
+    "lyfeos": {
+      "complete_enough_for_convergence_planning": false,
+      "complete_enough_for_feature_build": false,
+      "missing": {
+        "user_journeys": "Player/participant journey through gamified system",
+        "screens": "Complete screen inventory beyond login/register/dashboard",
+        "data_model": "Game mechanics data model — levels, quests, achievements, progress tracking",
+        "auth_session": "Clerk migration plan from Passport.js + Firebase",
+        "umh_integration": "Formal UMH integration boundary — what distinguishes isolated MVP from UMH-connected MVP",
+        "analytics": "Event taxonomy — gamification events, progress tracking events",
+        "deployment": "Production deployment architecture — currently at lyfeos.net, target Fly.io?",
+        "business_model_assumptions": "Initiate Arena pricing, WHOP integration, Discord community economics",
+        "onboarding": "Player onboarding flow — beta access gating",
+        "acceptance_criteria": "Full UMH-connected MVP criteria vs current isolated MVP",
+        "game_mechanics": "Game of Lyfe system design — levels, rewards, challenges, progression",
+        "coaching_integration": "How coaching content maps to platform features"
+      },
+      "blocker_reason": "LyfeOS Google Doc content not readable. Game mechanics and UMH integration requirements are the biggest unknowns.",
+      "critical_gaps": ["full LyfeOS product spec", "Game of Lyfe mechanics", "isolated vs connected MVP distinction", "Clerk migration plan"]
+    },
+    "umh": {
+      "complete_enough_for_convergence_planning": true,
+      "complete_enough_for_feature_build": false,
+      "missing": {
+        "projection_registration_contract": "How apps formally register as UMH projections",
+        "cross_projection_analytics": "Shared analytics strategy across Trinity apps",
+        "multi_tenant_deployment": "How UMH serves multiple projections in production",
+        "shared_type_contract": "TypeScript type sharing between apps and UMH",
+        "api_contract_per_app": "Which UMH API endpoints each app consumes"
+      },
+      "blocker_reason": "UMH substrate is well-documented in code. Missing pieces are integration boundaries that depend on app-level product docs.",
+      "critical_gaps": ["projection registration contract", "per-app API contracts"]
+    }
+  },
+  "overall_assessment": {
+    "ready_for_convergence_planning": false,
+    "ready_for_feature_build": false,
+    "primary_blockers": [
+      "Google Docs full content access — PRDs exist but cannot be read",
+      "UMH integration boundaries not defined for any app",
+      "Acceptance criteria not defined for any app's MVP"
+    ],
+    "recommendation": "Resolve Google Docs access first (Phase 14.3A). Then read full PRDs to close requirements gaps. Only then can convergence planning and feature build proceed."
+  }
+}
