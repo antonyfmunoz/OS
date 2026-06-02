@@ -1,0 +1,110 @@
+{
+  "phase": "14.3AR",
+  "task": "test_gate_results",
+  "timestamp": "2026-06-02T05:30:00Z",
+  "test_suites": {
+    "phase_14_3a_tests": {
+      "file": "tests/test_phase14_3a_full_content_convergence.py",
+      "total": 115,
+      "passed": 115,
+      "failed": 0,
+      "status": "pass"
+    },
+    "phase_14_3_tests": {
+      "file": "tests/test_phase14_3_product_docs_convergence.py",
+      "total": 89,
+      "passed": 89,
+      "failed": 0,
+      "status": "pass",
+      "note": "2 tests updated to handle resolved blocker state (test_blocker_has_resolution_or_resolved, test_access_state_not_fake_granted)"
+    },
+    "convergence_acceptance_tests": {
+      "file": "tests/test_convergence_acceptance.py",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "status": "pass"
+    }
+  },
+  "gates": {
+    "type_divergence": {
+      "status": "pass",
+      "note": "Pre-existing warnings only. No new types introduced by Phase 14.3A."
+    },
+    "instance_leak": {
+      "status": "pass",
+      "note": "627 files scanned — clean"
+    },
+    "projection_leak": {
+      "status": "pre_existing_legacy",
+      "note": "3 legacy brand violations (creatoros_brand, eos_brand, lyfeos_brand). Not introduced by Phase 14.3A."
+    },
+    "dependency_direction": {
+      "status": "pre_existing_legacy",
+      "note": "25 pre-existing violations (17 substrate_imports_transport in test files, 8 transport_imports_projections). Not introduced by Phase 14.3A."
+    },
+    "no_google_docs_write": {
+      "status": "pass",
+      "evidence": "gws_auth_restoration_proof.json no_google_docs_writes_attempted = true"
+    },
+    "no_source_mutation": {
+      "status": "pass",
+      "evidence": "Phase 14.3A created data artifacts only. Test test_no_python_files_modified passes."
+    },
+    "no_feature_build": {
+      "status": "pass",
+      "evidence": "readiness_gate_report.json ready_for_feature_build = false"
+    },
+    "infrastructure_blocked": {
+      "status": "pass",
+      "evidence": "readiness_gate_report.json ready_for_infrastructure_implementation = false"
+    },
+    "no_fake_data": {
+      "status": "pass",
+      "evidence": "93KB content extraction artifact with verifiable per-feature claims"
+    },
+    "no_secret_leakage": {
+      "status": "pass",
+      "evidence": "gws_auth_restoration_proof.json no_credential_values_printed = true"
+    },
+    "no_external_write": {
+      "status": "pass",
+      "evidence": "policy_safety_proof.json all_unsafe_actions_blocked = true"
+    },
+    "no_destructive_sync": {
+      "status": "pass"
+    },
+    "no_hardcoded_projection_names": {
+      "status": "pass",
+      "evidence": "Test test_no_hardcoded_jarvis passes. No substrate source modified."
+    },
+    "mvp_maturity_correct": {
+      "status": "pass",
+      "evidence": "EOS=partially_built, CreatorOS=partially_built, LyfeOS=completed_isolated"
+    },
+    "device_role_doctrine": {
+      "status": "pass",
+      "evidence": "VPS=orchestrator, Beast=workhorse, Mobile=approval surface"
+    },
+    "future_infra_deferred": {
+      "status": "pass",
+      "evidence": "No infrastructure created or deployed"
+    },
+    "contradiction_preservation": {
+      "status": "pass",
+      "evidence": "CreatorOS auth + MVP contradictions preserved, LyfeOS PRD v1/v2 conflict preserved"
+    },
+    "os_platform_standard_not_overimplemented": {
+      "status": "pass",
+      "evidence": "shared_trinity_architecture.json marks stale components, does not treat Standard as implemented reality"
+    }
+  },
+  "total_tests": 213,
+  "total_passed": 213,
+  "total_failed": 0,
+  "total_gates": 18,
+  "gates_pass": 16,
+  "gates_pre_existing_legacy": 2,
+  "gates_fail": 0,
+  "overall_verdict": "PASS"
+}

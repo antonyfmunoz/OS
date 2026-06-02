@@ -91,11 +91,14 @@ class TestGoogleDocsAccess:
         if data["access_classification"] != "access_granted":
             assert (DATA_DIR / "phase14_3_google_docs_access_blocker.json").exists()
 
-    def test_blocker_has_resolution_work_packet(self):
+    def test_blocker_has_resolution_or_resolved(self):
         if (DATA_DIR / "phase14_3_google_docs_access_blocker.json").exists():
             data = _load("phase14_3_google_docs_access_blocker.json")
-            assert "resolution_work_packet" in data
-            assert "steps" in data["resolution_work_packet"]
+            if data.get("blocker_type") == "resolved":
+                assert data.get("full_access_confirmed") is True
+            else:
+                assert "resolution_work_packet" in data
+                assert "steps" in data["resolution_work_packet"]
 
 
 # ── Task 3: Document Inventory ────────────────────────────────────────────
@@ -491,8 +494,8 @@ class TestNoProjectionLeaks:
 class TestNoFakeData:
     def test_access_state_not_fake_granted(self):
         data = _load("phase14_3_google_docs_access_state.json")
-        if not data["evidence"].get("google_api_credentials_in_env", False):
-            assert data["access_classification"] != "access_granted"
+        if data["access_classification"] == "access_granted":
+            assert data["evidence"].get("token_valid", False) or data["evidence"].get("google_api_credentials_in_env", False)
 
     def test_inventory_content_read_consistent(self):
         access = _load("phase14_3_google_docs_access_state.json")
