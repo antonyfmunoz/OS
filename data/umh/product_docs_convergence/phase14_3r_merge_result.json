@@ -1,0 +1,33 @@
+{
+  "phase": "14.3R",
+  "task": "merge_result",
+  "timestamp": "2026-06-02T00:15:00Z",
+  "description": "Phase 14.3 + 14.3R merge to main result",
+  "merge": {
+    "type": "fast-forward",
+    "from_branch": "worktree-cpu-limits",
+    "to_branch": "main",
+    "commit_hash": "bf0d8bd5",
+    "files_added": 32,
+    "lines_added": 3294,
+    "lines_deleted": 0,
+    "source_files_modified": 0
+  },
+  "push": {
+    "remote": "origin",
+    "branch": "main",
+    "status": "success",
+    "from": "68971c53",
+    "to": "bf0d8bd5"
+  },
+  "post_merge_verification": {
+    "all_phase14_3_files_on_main": true,
+    "all_proof_artifacts_on_main": true,
+    "all_audit_docs_on_main": true,
+    "no_existing_source_files_modified": true,
+    "transports_api_http_intact": true,
+    "product_docs_convergence_artifacts": 28,
+    "working_tree_clean": true
+  },
+  "verdict": "PASS — merged and pushed to origin/main"
+}
