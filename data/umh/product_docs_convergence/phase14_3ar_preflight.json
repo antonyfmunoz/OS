@@ -1,0 +1,119 @@
+{
+  "phase": "14.3AR",
+  "task": "preflight",
+  "timestamp": "2026-06-02T05:30:00Z",
+  "checks": {
+    "phase_14_3a_audit_exists": {
+      "path": "docs/audits/convergence/phase14_3a_full_google_docs_product_documentation_convergence.md",
+      "exists": true,
+      "status": "pass"
+    },
+    "phase_14_3a_artifacts_exist": {
+      "directory": "data/umh/product_docs_convergence/",
+      "phase_14_3a_files": 18,
+      "status": "pass"
+    },
+    "phase_14_3a_preflight_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_preflight.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "gws_auth_restoration_proof_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_gws_auth_restoration_proof.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "full_google_docs_inventory_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_full_google_docs_inventory.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "full_content_extracted_claims_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_full_content_extracted_claims.json",
+      "exists": true,
+      "size_bytes": 93401,
+      "status": "pass"
+    },
+    "doc_classification_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_doc_classification.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "product_docs_canonical_candidate_map_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_product_docs_canonical_candidate_map.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "end_state_design_map_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_end_state_design_map.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "docs_vs_source_reality_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_docs_vs_source_reality.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "product_requirements_gap_report_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_product_requirements_gap_report.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "mvp_maturity_update_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_mvp_maturity_update.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "updated_convergence_sequence_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_updated_convergence_sequence.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "readiness_gate_report_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_readiness_gate_report.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "work_packets_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_work_packets.json",
+      "exists": true,
+      "packets_count": 8,
+      "status": "pass"
+    },
+    "api_verification_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_api_verification.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "cockpit_verification_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_cockpit_verification.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "policy_safety_proof_exists": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_policy_safety_proof.json",
+      "exists": true,
+      "status": "pass"
+    },
+    "test_gate_results_exist": {
+      "path": "data/umh/product_docs_convergence/phase14_3a_test_gate_results.json",
+      "exists": true,
+      "tests_passed": 115,
+      "tests_failed": 0,
+      "status": "pass"
+    },
+    "phase_14_3r_production_truth_exists": {
+      "path": "docs/audits/convergence/phase14_3r_product_documentation_metadata_convergence_production_truth.md",
+      "exists": true,
+      "status": "pass"
+    },
+    "feature_build_remains_blocked": true,
+    "infrastructure_implementation_remains_blocked": true,
+    "cadence_status": "dry_run_only",
+    "medium_risk_execution_blocked": true
+  },
+  "all_checks_pass": true,
+  "total_checks": 24,
+  "passed_checks": 24,
+  "failed_checks": 0
+}
