@@ -1,0 +1,62 @@
+{
+  "phase": "14.4",
+  "task": "github_windows_alignment",
+  "timestamp": "2026-06-02T12:00:00Z",
+  "apps": {
+    "EOS": {
+      "branch": {"github": "main", "beast": "feature/company-system", "status": "divergent", "detail": "Beast is on a feature branch that was never merged to main. GitHub main is 3+ months behind."},
+      "latest_commit": {"github": {"sha": "86041f58", "date": "2026-02-20"}, "beast": {"sha": "d4ecc8d", "date": "2026-04-16"}, "status": "windows_ahead", "detail": "Beast commit is 2 months ahead of GitHub. GitHub was last updated by Replit Agent on 2026-02-20."},
+      "commit_divergence": {"status": "divergent", "detail": "feature/company-system branch on Beast contains significant work not on GitHub main. 401 additional files on Beast (603 vs 202)."},
+      "uncommitted_changes": {"beast_count": 0, "status": "aligned", "detail": "Beast working tree is clean."},
+      "file_count_divergence": {"github": 202, "beast": 603, "diff": 401, "status": "windows_ahead", "detail": "Beast has 3x the files. Major feature development happened on Beast only."},
+      "package_json_divergence": {"status": "divergent", "detail": "Beast has Clerk deps, additional AI SDK deps, PostHog. GitHub has Firebase, Passport.js, fewer deps."},
+      "schema_divergence": {"status": "windows_ahead", "detail": "Beast schema has company/portfolio/workflow tables. GitHub has basic 15-table schema."},
+      "route_api_divergence": {"status": "windows_ahead", "detail": "Beast has 14 route modules (companies, portfolios, workflows). GitHub has 12 routes with no company system."},
+      "component_screen_divergence": {"status": "windows_ahead", "detail": "Beast has 32 pages vs 16 on GitHub. Doubled screen count."},
+      "auth_divergence": {"status": "windows_ahead", "detail": "Beast migrated to Clerk. GitHub still uses Passport.js + Firebase. This is the most significant divergence — Beast has the target auth already."},
+      "migration_divergence": {"status": "requires_operator_decision", "detail": "Beast has Clerk migration, company system, generated code layer. Merging to main requires careful review."},
+      "deployment_config_divergence": {"status": "aligned", "detail": "Both use Replit only."},
+      "test_divergence": {"status": "aligned", "detail": "Both have minimal tests (0-2 files)."},
+      "overall_assessment": "CRITICAL DIVERGENCE. Beast feature/company-system branch represents the true development state. GitHub main is stale. Operator decision required: merge Beast branch to main or establish Beast as new baseline.",
+      "recommended_action": "requires_operator_decision"
+    },
+    "CreatorOS": {
+      "branch": {"github": "main", "beast": "main", "status": "aligned"},
+      "latest_commit": {"github": "latest on main", "beast": {"sha": "9081c01", "date": "2026-05-20", "message": "merge Development branch into main"}, "status": "aligned", "detail": "Beast has Development branch merged to main. GitHub main likely same or close."},
+      "commit_divergence": {"status": "aligned", "detail": "Both on main. Beast commit is recent (2026-05-20)."},
+      "file_count_divergence": {"github": 296, "beast": 271, "diff": -25, "status": "github_ahead", "detail": "GitHub has 25 more files. Difference likely due to attached_assets/media counted differently or .gitignored files."},
+      "package_json_divergence": {"status": "aligned", "detail": "Same branch, likely same deps."},
+      "schema_divergence": {"status": "aligned", "detail": "Both have 20 tables in shared/schema.ts."},
+      "route_api_divergence": {"status": "aligned", "detail": "Both have monolithic routes.ts."},
+      "component_screen_divergence": {"status": "aligned", "detail": "Same branch, same pages."},
+      "auth_divergence": {"status": "aligned", "detail": "Both use Passport.js local with same critical dev bypass."},
+      "migration_divergence": {"status": "aligned"},
+      "deployment_config_divergence": {"status": "aligned", "detail": "Both Replit only."},
+      "test_divergence": {"status": "aligned", "detail": "Both have 0 test files."},
+      "overall_assessment": "MOSTLY ALIGNED. Both on main branch. 25-file count difference likely from git counting vs recursive listing. Same critical auth bypass on both. God files (storage.ts 104KB, routes.ts 53KB) exist on both. 90 design reference files (80MB+) committed to git on both.",
+      "recommended_action": "no_urgent_action — aligned but needs quality cleanup (god files, auth bypass, git bloat)"
+    },
+    "LyfeOS": {
+      "branch": {"github": "main", "beast": "main", "status": "aligned", "detail": "Both on main branch."},
+      "latest_commit": {"github": {"sha": "ee1bb0f3", "date": "2026-05-20"}, "beast": {"sha": "ee1bb0f3", "date": "2026-05-20"}, "status": "aligned", "detail": "Same commit on both."},
+      "commit_divergence": {"status": "aligned", "detail": "No commit divergence."},
+      "uncommitted_changes": {"beast_count": 2, "beast_files": [".env", "dump.sql"], "status": "aligned", "detail": "Only .env and dump.sql uncommitted — expected (secrets/local data)."},
+      "file_count_divergence": {"github": 883, "beast": 853, "diff": -30, "status": "github_ahead", "detail": "GitHub has 30 more files. Beast may have .gitignored files or Beast may not have pulled latest."},
+      "package_json_divergence": {"status": "aligned", "detail": "Same commit means same package.json."},
+      "schema_divergence": {"status": "aligned", "detail": "Same commit means same schema."},
+      "route_api_divergence": {"status": "aligned", "detail": "Same commit."},
+      "component_screen_divergence": {"status": "aligned", "detail": "Same commit."},
+      "auth_divergence": {"status": "aligned", "detail": "Both use Firebase + Passport.js."},
+      "migration_divergence": {"status": "aligned", "detail": "Same commit."},
+      "deployment_config_divergence": {"status": "aligned", "detail": "Both Replit only."},
+      "test_divergence": {"status": "aligned", "detail": "Both have 2 test files."},
+      "overall_assessment": "ALIGNED. LyfeOS GitHub and Beast are on the same commit. 30-file count difference likely due to git ls-files vs recursive tree counting difference. No functional divergence.",
+      "recommended_action": "no_action_required"
+    }
+  },
+  "summary": {
+    "EOS": "CRITICAL DIVERGENCE — Beast is 3x larger, has Clerk auth, company system. Feature branch not merged.",
+    "CreatorOS": "MOSTLY ALIGNED — same branch, 25-file count diff, same auth bypass, same god files. Needs quality cleanup.",
+    "LyfeOS": "ALIGNED — same branch, same commit, no functional divergence."
+  }
+}

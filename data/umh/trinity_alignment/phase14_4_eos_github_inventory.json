@@ -1,0 +1,502 @@
+{
+  "app": "EOS",
+  "source": "github",
+  "repo": "antonyfmunoz/EntrepreneurOS",
+  "branch": "main",
+  "updated_at": "2026-05-26T19:34:32Z",
+  "disk_usage_kb": 12349,
+  "latest_commits": [
+    {
+      "sha": "86041f58",
+      "message": "Published your App",
+      "date": "2026-02-20T03:18:51Z"
+    },
+    {
+      "sha": "6d435b7c",
+      "message": "Saved progress at the end of the loop",
+      "date": "2026-02-20T03:12:20Z"
+    },
+    {
+      "sha": "eb7d5ab8",
+      "message": "Update app icon and theme colors for a cleaner look",
+      "date": "2026-02-20T03:12:02Z"
+    },
+    {
+      "sha": "775ad861",
+      "message": "Published your App",
+      "date": "2026-02-20T03:06:19Z"
+    },
+    {
+      "sha": "5a45831d",
+      "message": "Published your App",
+      "date": "2026-02-20T03:02:59Z"
+    }
+  ],
+  "latest_commit": {
+    "sha": "86041f58",
+    "message": "Published your App",
+    "date": "2026-02-20T03:18:51Z"
+  },
+  "file_count": 202,
+  "top_level_structure": [
+    ".gitignore",
+    ".replit",
+    "attached_assets",
+    "client",
+    "drizzle.config.ts",
+    "generated-icon.png",
+    "llmApi.ts",
+    "package-lock.json",
+    "package.json",
+    "postcss.config.js",
+    "replit.md",
+    "replit.nix",
+    "scripts",
+    "server",
+    "shared",
+    "tailwind.config.ts",
+    "theme.json",
+    "tsconfig.json",
+    "vite.config.ts"
+  ],
+  "package_manager": "npm",
+  "app_framework": {
+    "frontend": "React 18 + Vite 5 + wouter (routing) + TanStack Query",
+    "backend": "Express 4 + Node.js (tsx dev runner, esbuild prod build)",
+    "ui_library": "shadcn/ui (Radix primitives + Tailwind CSS 3)",
+    "orm": "Drizzle ORM 0.39",
+    "database": "PostgreSQL (Neon serverless + postgres.js driver)",
+    "auth": "Passport.js (local strategy) + Firebase (Google OAuth + MFA)",
+    "ai_providers": [
+      "Anthropic (@anthropic-ai/sdk)",
+      "OpenAI (openai)",
+      "Google Generative AI (@google/generative-ai)",
+      "Firebase (auth + admin)"
+    ],
+    "language": "TypeScript 5.6",
+    "runtime": "Node.js 20 (Replit modules)"
+  },
+  "frontend_structure": {
+    "entry": "client/src/main.tsx",
+    "app": "client/src/App.tsx",
+    "router": "wouter (Switch/Route)",
+    "state": "TanStack React Query (@tanstack/react-query)",
+    "pages": [
+      "client/src/pages/dashboard.tsx",
+      "client/src/pages/task-board-page.tsx",
+      "client/src/pages/agent-chat.tsx",
+      "client/src/pages/agent-os-dashboard.tsx",
+      "client/src/pages/agent-programming.tsx",
+      "client/src/pages/analytics-page.tsx",
+      "client/src/pages/auth-page.tsx",
+      "client/src/pages/crm-page.tsx",
+      "client/src/pages/documents-page.tsx",
+      "client/src/pages/gpt4o-chat-page.tsx",
+      "client/src/pages/integrations-page.tsx",
+      "client/src/pages/not-found.tsx",
+      "client/src/pages/notifications-page.tsx",
+      "client/src/pages/settings-page.tsx",
+      "client/src/pages/support-page.tsx",
+      "client/src/pages/tutorials-page.tsx"
+    ],
+    "custom_components": [
+      "client/src/components/action-approval-panel.tsx",
+      "client/src/components/agent-card.tsx",
+      "client/src/components/agent-metrics.tsx",
+      "client/src/components/ai-fab.tsx",
+      "client/src/components/ai-model-selector.tsx",
+      "client/src/components/api-key-dialog.tsx",
+      "client/src/components/create-agent-form.tsx",
+      "client/src/components/create-agent-modal.tsx",
+      "client/src/components/direct-gpt4o-chat.tsx",
+      "client/src/components/gmail-connect-button.tsx",
+      "client/src/components/header.tsx",
+      "client/src/components/integrations.tsx",
+      "client/src/components/layout.tsx",
+      "client/src/components/notification-dropdown.tsx",
+      "client/src/components/performance-analytics.tsx",
+      "client/src/components/sidebar.tsx",
+      "client/src/components/sop-template-button.tsx",
+      "client/src/components/stats-overview.tsx",
+      "client/src/components/task-board.tsx",
+      "client/src/components/task-card.tsx"
+    ],
+    "ui_components_count": 38,
+    "hooks": [
+      "client/src/hooks/use-ai-api-keys.ts",
+      "client/src/hooks/use-ai-models.ts",
+      "client/src/hooks/use-auth.tsx",
+      "client/src/hooks/use-mobile.tsx",
+      "client/src/hooks/use-notifications.tsx",
+      "client/src/hooks/use-toast.ts"
+    ],
+    "lib": [
+      "client/src/lib/firebase.ts",
+      "client/src/lib/llmApi.ts",
+      "client/src/lib/openai.ts",
+      "client/src/lib/protected-route.tsx",
+      "client/src/lib/queryClient.ts",
+      "client/src/lib/utils.ts"
+    ],
+    "public_assets": [
+      "client/public/apple-touch-icon.png",
+      "client/public/favicon.png",
+      "client/public/icon-192.png",
+      "client/public/icon-512.png",
+      "client/public/manifest.json"
+    ]
+  },
+  "backend_structure": {
+    "entry": "server/index.ts",
+    "routes": "server/routes.ts",
+    "auth": "server/auth.ts",
+    "db": "server/db.ts",
+    "storage": "server/storage.ts",
+    "firebase": "server/firebase.ts",
+    "openai_legacy": "server/openai.ts",
+    "vite_middleware": "server/vite.ts",
+    "ai_services": {
+      "index": "server/ai/index.ts",
+      "providers": [
+        "server/ai/anthropic-service.ts",
+        "server/ai/openai-service.ts",
+        "server/ai/gemini-service.ts",
+        "server/ai/perplexity-service.ts",
+        "server/ai/xai-service.ts"
+      ],
+      "supported_providers": ["anthropic", "openai", "perplexity", "xai", "gemini"],
+      "supported_models": [
+        "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo",
+        "claude-haiku-4-5", "claude-sonnet-4-5",
+        "llama-3.1-sonar-small-128k-online", "llama-3.1-sonar-large-128k-online",
+        "grok-2-1212", "grok-2-vision-1212",
+        "gemini-2.5-pro", "gemini-2.5-pro-vision"
+      ]
+    },
+    "integrations": [
+      "server/integrations/gmail.ts"
+    ],
+    "services": [
+      "server/services/action-executor.ts"
+    ],
+    "replit_integrations": [
+      "server/replit_integrations/batch/index.ts",
+      "server/replit_integrations/batch/utils.ts",
+      "server/replit_integrations/chat/index.ts",
+      "server/replit_integrations/chat/routes.ts",
+      "server/replit_integrations/chat/storage.ts"
+    ],
+    "port": 5000,
+    "server_framework": "Express 4"
+  },
+  "shared_structure": {
+    "schema": "shared/schema.ts",
+    "models": [
+      "shared/models/chat.ts"
+    ]
+  },
+  "auth_implementation": {
+    "strategy": "Passport.js local + Firebase (Google OAuth + MFA)",
+    "server_files": [
+      "server/auth.ts",
+      "server/firebase.ts"
+    ],
+    "client_files": [
+      "client/src/hooks/use-auth.tsx",
+      "client/src/lib/firebase.ts",
+      "client/src/lib/protected-route.tsx",
+      "client/src/pages/auth-page.tsx"
+    ],
+    "session": {
+      "store": "connect-pg-simple (PostgreSQL)",
+      "secret": "SESSION_SECRET env var",
+      "maxAge": "7 days",
+      "cookie_secure": "production only"
+    },
+    "firebase_config": {
+      "client_env_vars": [
+        "VITE_FIREBASE_API_KEY",
+        "VITE_FIREBASE_PROJECT_ID",
+        "VITE_FIREBASE_APP_ID",
+        "VITE_FIREBASE_AUTH_DOMAIN"
+      ],
+      "features": ["Google OAuth popup", "Email/password", "MFA (phone)", "Password reset"]
+    },
+    "routes": [
+      "POST /api/register",
+      "POST /api/login",
+      "POST /api/logout",
+      "GET /api/user",
+      "POST /api/auth/firebase",
+      "POST /api/auth/google"
+    ],
+    "password_hashing": "scrypt (crypto.scrypt, 64-byte key, 16-byte random salt)"
+  },
+  "database_implementation": {
+    "orm": "Drizzle ORM 0.39",
+    "driver": "postgres.js (postgres package)",
+    "serverless": "@neondatabase/serverless (available but postgres.js used for main)",
+    "schema_file": "shared/schema.ts",
+    "config_file": "drizzle.config.ts",
+    "connection": "DATABASE_URL env var",
+    "tables": [
+      {
+        "name": "users",
+        "columns": ["id (PK text)", "username (unique)", "password", "email", "fullName", "avatar", "company", "role", "firebaseUid (unique)", "preferences", "metadata (jsonb)", "createdAt", "updatedAt"]
+      },
+      {
+        "name": "agents",
+        "columns": ["id (PK text)", "name", "role", "roleLevel", "department", "icon", "instructions", "brainContent", "knowledgeBase", "kpis", "behavioralStyle", "latestActivity", "isActive", "simulationMode", "parentAgentId", "createdAt", "updatedAt"]
+      },
+      {
+        "name": "tasks",
+        "columns": ["id (PK text)", "title", "description", "status", "priority", "startDate", "dueDate", "instructions", "agentId (FK agents)", "assignedById (FK agents)", "collaboratorIds", "taskType", "parentTaskId", "metadata", "createdAt", "updatedAt"]
+      },
+      {
+        "name": "messages",
+        "columns": ["id (PK text)", "agentId (FK agents)", "taskId (FK tasks)", "conversationId", "role", "content", "metadata", "referencedAgentIds", "timestamp"]
+      },
+      {
+        "name": "integrations",
+        "columns": ["id (PK text)", "name", "type", "status", "details", "icon"]
+      },
+      {
+        "name": "notifications",
+        "columns": ["id (PK text)", "userId (FK users)", "title", "content", "type", "read", "href", "relatedId", "metadata (jsonb)", "createdAt"]
+      },
+      {
+        "name": "ai_messages",
+        "columns": ["id (PK text)", "role", "content", "userId (FK users)", "timestamp"]
+      },
+      {
+        "name": "crm_contacts",
+        "columns": ["id (PK text)", "name", "email", "phone", "company", "title", "status", "lastContact", "notes", "avatar", "userId (FK users)", "createdAt", "updatedAt"]
+      },
+      {
+        "name": "crm_deals",
+        "columns": ["id (PK text)", "title", "company", "value (decimal)", "stage", "probability", "expectedCloseDate", "contactId (FK crm_contacts)", "assignedAgentId (FK agents)", "notes", "userId (FK users)", "createdAt", "updatedAt"]
+      },
+      {
+        "name": "crm_activities",
+        "columns": ["id (PK text)", "type", "subject", "date", "relatedToType", "relatedToId", "completed", "notes", "createdByAgentId (FK agents)", "userId (FK users)", "createdAt", "updatedAt"]
+      },
+      {
+        "name": "folders",
+        "columns": ["id (PK text)", "name", "parentId (FK self)", "userId (FK users)", "createdAt", "updatedAt"]
+      },
+      {
+        "name": "documents",
+        "columns": ["id (PK text)", "title", "content", "folderId (FK folders)", "tags (text[])", "userId (FK users)", "createdAt", "updatedAt"]
+      },
+      {
+        "name": "agent_actions",
+        "columns": ["id (PK text)", "agentId (FK agents)", "userId (FK users)", "actionType", "actionName", "description", "parameters (jsonb)", "status", "requiresApproval", "approvedBy (FK users)", "approvedAt", "executedAt", "completedAt", "failedAt", "executionResult (jsonb)", "errorMessage", "retryCount", "maxRetries", "taskId (FK tasks)", "conversationId", "estimatedTimeSaved", "priority", "tags (text[])", "metadata (jsonb)", "createdAt", "updatedAt"]
+      },
+      {
+        "name": "oauth_tokens",
+        "columns": ["id (PK text)", "userId (FK users)", "provider", "accessToken", "refreshToken", "tokenType", "expiresAt", "scope", "createdAt", "updatedAt"]
+      },
+      {
+        "name": "agent_metrics",
+        "columns": ["id (PK text)", "agentId (FK agents)", "userId (FK users)", "date", "messagesSent", "messagesReceived", "tasksCompleted", "actionsExecuted", "tokensUsed", "apiCost", "estimatedTimeSavedMinutes", "createdAt", "updatedAt"]
+      }
+    ],
+    "table_count": 15,
+    "migration_scripts": [
+      "scripts/add-metadata-column.ts",
+      "scripts/create-demo-user.ts",
+      "scripts/create-notifications-table.ts",
+      "scripts/fix-messages-table.ts",
+      "scripts/setup-crm-tables.ts",
+      "scripts/setup-documents-table.ts",
+      "scripts/setup-folders-table.ts",
+      "scripts/setup-tables.ts",
+      "scripts/update-agents-table.ts",
+      "scripts/update-messages-table.ts",
+      "scripts/update-notifications-table.ts",
+      "scripts/update-tasks-table.ts"
+    ]
+  },
+  "routes_api": {
+    "route_files": [
+      "server/routes.ts",
+      "server/replit_integrations/chat/routes.ts"
+    ],
+    "auth_routes": [
+      "POST /api/register",
+      "POST /api/login",
+      "POST /api/logout",
+      "GET /api/user",
+      "POST /api/auth/firebase",
+      "POST /api/auth/google"
+    ],
+    "ai_routes": [
+      "GET /api/ai/models",
+      "GET /api/ai/provider-status",
+      "POST /api/ai/keys",
+      "DELETE /api/ai/keys/:provider"
+    ],
+    "agent_routes": [
+      "GET /api/agents",
+      "GET /api/agents/:id",
+      "POST /api/agents",
+      "PATCH /api/agents/:id",
+      "POST /api/agents/:id/chat",
+      "POST /api/agents/:id/chat-multi",
+      "GET /api/agents/:id/metrics"
+    ],
+    "task_routes": [
+      "GET /api/tasks",
+      "GET /api/tasks/:id",
+      "POST /api/tasks",
+      "PUT /api/tasks/:id",
+      "PATCH /api/tasks/:id",
+      "DELETE /api/tasks/:id"
+    ],
+    "crm_routes": [
+      "GET /api/crm/contacts",
+      "POST /api/crm/contacts",
+      "PATCH /api/crm/contacts/:id",
+      "DELETE /api/crm/contacts/:id",
+      "GET /api/crm/deals",
+      "POST /api/crm/deals",
+      "PATCH /api/crm/deals/:id",
+      "DELETE /api/crm/deals/:id",
+      "GET /api/crm/activities",
+      "POST /api/crm/activities",
+      "PATCH /api/crm/activities/:id",
+      "DELETE /api/crm/activities/:id"
+    ],
+    "document_routes": [
+      "GET /api/documents",
+      "POST /api/documents",
+      "PATCH /api/documents/:id",
+      "DELETE /api/documents/:id",
+      "GET /api/folders",
+      "POST /api/folders",
+      "PATCH /api/folders/:id",
+      "DELETE /api/folders/:id"
+    ],
+    "notification_routes": [
+      "GET /api/notifications",
+      "PATCH /api/notifications/:id/read",
+      "POST /api/notifications/read-all",
+      "DELETE /api/notifications/:id"
+    ],
+    "action_routes": [
+      "GET /api/agent-actions",
+      "POST /api/agent-actions",
+      "PATCH /api/agent-actions/:id/approve",
+      "PATCH /api/agent-actions/:id/reject",
+      "POST /api/agent-actions/:id/execute"
+    ],
+    "integration_routes": [
+      "GET /api/integrations",
+      "POST /api/integrations",
+      "PATCH /api/integrations/:id",
+      "GET /api/integrations/gmail/auth-url",
+      "POST /api/integrations/gmail/callback",
+      "GET /api/integrations/gmail/messages"
+    ],
+    "settings_routes": [
+      "GET /api/settings",
+      "PATCH /api/settings",
+      "PATCH /api/user/preferences"
+    ],
+    "misc_routes": [
+      "POST /api/ai/chat",
+      "GET /api/ai/messages",
+      "POST /api/ai/generate-task-suggestion",
+      "GET /api/stats"
+    ]
+  },
+  "components_screens": {
+    "pages_count": 16,
+    "custom_components_count": 20,
+    "ui_components_count": 38,
+    "total_component_files": 74
+  },
+  "tests": {
+    "files": [],
+    "note": "No test files found in repository (only tsconfig excludes *.test.ts pattern)"
+  },
+  "deployment_config": {
+    "files": [],
+    "platform": "Replit",
+    "replit_config": {
+      "modules": ["nodejs-20", "web", "postgresql-16"],
+      "deployment_target": "autoscale",
+      "build_command": "npm run build",
+      "start_command": "npm run start",
+      "public_dir": "dist/public",
+      "external_port": 80,
+      "local_port": 5000
+    }
+  },
+  "env_var_names": {
+    "note": "No .env.example file — env vars inferred from code",
+    "required": [
+      "DATABASE_URL"
+    ],
+    "server_ai_keys": [
+      "AI_INTEGRATIONS_ANTHROPIC_API_KEY",
+      "AI_INTEGRATIONS_ANTHROPIC_BASE_URL",
+      "OPENAI_API_KEY"
+    ],
+    "firebase_server": [
+      "FIREBASE_PROJECT_ID",
+      "FIREBASE_CLIENT_EMAIL",
+      "FIREBASE_PRIVATE_KEY"
+    ],
+    "firebase_client": [
+      "VITE_FIREBASE_API_KEY",
+      "VITE_FIREBASE_PROJECT_ID",
+      "VITE_FIREBASE_APP_ID",
+      "VITE_FIREBASE_AUTH_DOMAIN"
+    ],
+    "session": [
+      "SESSION_SECRET"
+    ],
+    "gmail": [
+      "GMAIL_CLIENT_ID",
+      "GMAIL_CLIENT_SECRET",
+      "GMAIL_REDIRECT_URI"
+    ],
+    "optional": [
+      "NODE_ENV",
+      "REPL_ID"
+    ]
+  },
+  "build_scripts": {
+    "dev": "tsx server/index.ts",
+    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "start": "NODE_ENV=production node dist/index.js",
+    "check": "tsc",
+    "db:push": "drizzle-kit push"
+  },
+  "attached_assets": {
+    "count": 20,
+    "types": ["PNG images", "ZIP archives", "TXT prompts/specs", "Screenshots"],
+    "note": "Design assets and initial spec prompts from Replit Agent sessions"
+  },
+  "legacy_files": {
+    "llmApi.ts": "Root-level OpenAI wrapper (gpt-4o), likely superseded by server/ai/",
+    "server/openai.ts": "Legacy OpenAI service, superseded by server/ai/ multi-provider system",
+    "client/src/pages/backup/documents-page.tsx.bak": "Backup of documents page"
+  },
+  "observations": {
+    "origin": "Built entirely via Replit Agent (commit messages show Replit-Commit-Author: Agent/Deployment)",
+    "last_activity": "2026-02-20 — no commits in 3+ months",
+    "no_tests": true,
+    "no_deployment_infra": "Replit-only deployment (no Docker, Fly, Vercel, etc.)",
+    "no_env_example": true,
+    "multi_ai_provider": "5 AI providers wired up (Anthropic, OpenAI, Perplexity, xAI, Gemini)",
+    "crm_builtin": "Full CRM module (contacts, deals, activities) in schema and routes",
+    "document_management": "Folders + documents with tags",
+    "agent_actions_approval": "Agent action approval workflow with execution tracking",
+    "agent_hierarchy": "Chief/Manager/Laborer role levels with parent-child relationships",
+    "agent_metrics_tracking": "Per-agent daily metrics (messages, tasks, tokens, cost, time saved)",
+    "pwa_ready": "manifest.json + icons suggest PWA intent",
+    "monorepo_flat": "Single package.json (no workspaces) — client/server/shared in one"
+  }
+}

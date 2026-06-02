@@ -1,0 +1,187 @@
+{
+  "phase": "14.4",
+  "task": "current_state_summaries",
+  "timestamp": "2026-06-02T12:00:00Z",
+  "apps": {
+    "EOS": {
+      "what_exists": [
+        "Full React + Express + Drizzle monorepo (Replit-origin)",
+        "GitHub main: 202 files, Passport.js+Firebase auth, 15 tables, 16 pages, agent hierarchy, CRM, 5 AI providers",
+        "Beast feature/company-system: 603 files, Clerk auth, company/portfolio/workflow system, 32 pages, 14 route modules, generated code layer",
+        "Dashboard, tasks, AI chat, agent programming, analytics, CRM, documents, integrations, settings, notifications"
+      ],
+      "what_works": [
+        "Basic CRUD for agents, tasks, messages, CRM contacts/deals",
+        "Multi-provider AI integration (5-6 providers)",
+        "Agent hierarchy (chief/manager/laborer) with approval workflow",
+        "Clerk auth on Beast branch (target auth achieved)",
+        "Company setup + portfolio management on Beast"
+      ],
+      "what_is_partial": [
+        "Dashboard (exists but lacks KPI strip, next-best-action, AI copilot panel)",
+        "Workflow system (routes exist on Beast, no workflow runner/step-through)",
+        "Agent system (basic hierarchy, no skill router or full orchestration)",
+        "Analytics (page exists, no real metrics pipeline)"
+      ],
+      "what_is_missing": [
+        "Department/role management",
+        "Workflow run view (step-through execution)",
+        "Memory/knowledge architecture",
+        "UBOS Template Engine",
+        "Universal Business Primitives",
+        "Governance & permissions (RBAC/ABAC)",
+        "Cross-platform integration (CreatorOS/LyfeOS)",
+        "Reality Intelligence Engine",
+        "Self-improvement loop",
+        "Production deployment (Replit only)",
+        "Tests (0-2 files)"
+      ],
+      "what_is_stale": [
+        "GitHub main branch (3+ months behind Beast)",
+        "Passport.js + Firebase auth on GitHub (Beast migrated to Clerk)",
+        "All Replit Agent-authored commits on GitHub"
+      ],
+      "what_is_duplicated": [
+        "Dual auth implementations between GitHub main (Firebase) and Beast feature branch (Clerk)"
+      ],
+      "what_is_uncertain": [
+        "Full extent of Beast feature/company-system branch capabilities",
+        "Whether generated code layer (server/generated/) is production-quality",
+        "Whether Beast branch has been tested"
+      ],
+      "what_cannot_be_verified": [
+        "Runtime behavior (no tests, no CI)",
+        "Database state (connection info not inspected)"
+      ],
+      "what_should_not_be_touched_yet": [
+        "Do not merge Beast branch without operator review",
+        "Do not delete GitHub main until Beast is validated",
+        "Do not start Clerk migration on GitHub (already done on Beast)"
+      ]
+    },
+    "CreatorOS": {
+      "what_exists": [
+        "Full React + Express + Drizzle monorepo (Replit-origin), aligned on GitHub and Beast",
+        "296 files (GitHub), 271 files (Beast), 20 tables, 89 API routes, 16 pages, 56 custom components",
+        "Posts, communities/channels, stories, products, DMs, AI agents/chats, followers, revenue, contacts, documents, notifications",
+        "Zustand state management in addition to TanStack Query"
+      ],
+      "what_works": [
+        "Basic social/creator CRUD (posts, stories, communities, products)",
+        "Channel-based community structure",
+        "DM messaging",
+        "Product listing",
+        "Revenue tracking table"
+      ],
+      "what_is_partial": [
+        "Community system (tables + basic UI, lacks Discord-like features, moderation, tiers)",
+        "Content creation (posts work, no multi-platform distribution)",
+        "Marketplace (products table, no discovery/search/checkout)",
+        "AI (OpenAI only, agent tables exist but usage unclear)"
+      ],
+      "what_is_missing": [
+        "Course platform (builder, player, progress, certificates)",
+        "Content distribution to external platforms",
+        "In-app editing studio",
+        "UGC campaign system",
+        "Ads platform",
+        "Automation builder",
+        "Email/newsletter system",
+        "Cross-posting + multistreaming",
+        "Moderation suite",
+        "Roles & permissions (beyond basic auth)",
+        "Consumer discovery/recommendation",
+        "Stripe payment integration",
+        "Production deployment",
+        "Tests (0 files)"
+      ],
+      "what_is_stale": [
+        "Auth bypass (comparePasswords returns true — critical security issue)",
+        "Dead code (.bak, .new backup files)",
+        "Hardcoded API key fallback in code",
+        "WebSocket dependency installed but unused"
+      ],
+      "what_is_duplicated": [
+        "Dual auth implementations (proper passport hook + mock Zustand store)",
+        "Large media/design files committed to git (90 design refs, 28 uploads)"
+      ],
+      "what_is_uncertain": [
+        "Whether community channels support real-time chat",
+        "Extent of AI agent functionality",
+        "Whether any routes actually work end-to-end beyond basic CRUD"
+      ],
+      "what_cannot_be_verified": [
+        "Runtime behavior (no tests, no CI)",
+        "Database state"
+      ],
+      "what_should_not_be_touched_yet": [
+        "Do not fix auth bypass without full auth migration plan (Clerk)",
+        "Do not delete media/design files without backup verification",
+        "Do not refactor god files (routes.ts, storage.ts) without test coverage first"
+      ]
+    },
+    "LyfeOS": {
+      "what_exists": [
+        "Most mature Trinity app — 883 files (GitHub), 853 (Beast), aligned on same commit",
+        "35 tables, 42 pages, 80+ components, 10 route modules, 9 hooks, 16 lib utilities",
+        "Full gamification system (XP, levels, streaks, archetypes, stats HUD)",
+        "Dual AI (OpenAI GPT-4o for NOVA, Anthropic for content generation)",
+        "Google Calendar/Tasks/Drive integration",
+        "Firebase + Passport.js auth with 2FA, email verification, password reset",
+        "PWA with Firebase Cloud Messaging, push notifications",
+        "Voice control, theta beats audio, blue light filter, haptic feedback",
+        "Extensive widget system (canvas, graph, kanban, media, spreadsheet, rolodex)",
+        "Stripe-ready schema fields",
+        "Isolated MVP deployed at lyfeos.net"
+      ],
+      "what_works": [
+        "Dashboard with Stats HUD",
+        "Missions/quests system with XP tracking",
+        "Onboarding flow (Awakening Protocol)",
+        "Player profile / character sheet",
+        "AI chat (NOVA) with tool functions",
+        "Content/reflection logging",
+        "Google integration (Calendar, Tasks, Drive)",
+        "Archetype system",
+        "Gamification (XP calculations tested via Vitest)"
+      ],
+      "what_is_partial": [
+        "NOVA AI (functional but full 6-role system not verified)",
+        "Chronilog (content routes exist, 7 subsystems not fully verified)",
+        "Transformation Thread (logic described but UX unclear)",
+        "Stripe payments (schema ready, no active integration)"
+      ],
+      "what_is_missing": [
+        "UMH substrate integration",
+        "Multi-agent orchestration (Phase 3)",
+        "Cross-platform integration (EOS/CreatorOS)",
+        "Clerk auth (currently Firebase+Passport.js)",
+        "Production deployment beyond Replit",
+        "Health app integrations (Oura, Whoop, Apple Health)",
+        "Finance integrations (Plaid, Stripe active)",
+        "Knowledge graph visualization"
+      ],
+      "what_is_stale": [
+        "Firebase auth (target is Clerk)",
+        "Replit deployment config"
+      ],
+      "what_is_duplicated": [
+        "Nothing significant — cleanest codebase of the three"
+      ],
+      "what_is_uncertain": [
+        "Whether lyfeos.net isolated MVP matches GitHub codebase",
+        "Full extent of NOVA tool function coverage",
+        "Whether XP calculations match PRD formulas exactly"
+      ],
+      "what_cannot_be_verified": [
+        "lyfeos.net deployment state (different host, separate concern)",
+        "Full runtime behavior of all 42 pages"
+      ],
+      "what_should_not_be_touched_yet": [
+        "Do not break Firebase auth before Clerk migration plan",
+        "Do not attempt UMH integration without boundary definition",
+        "Do not remove Replit config until alternative deployment is ready"
+      ]
+    }
+  }
+}

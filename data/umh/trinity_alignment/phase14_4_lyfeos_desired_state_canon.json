@@ -1,0 +1,232 @@
+{
+  "phase": "14.4",
+  "task": "lyfeos_desired_state_canon",
+  "timestamp": "2026-06-02T12:00:00Z",
+  "app": "LyfeOS",
+  "source_docs": [
+    "Google Doc: LyfeOS (doc_id: 1-6vPlqwlG5ud5hRNnL2sFiKmNmofDI2ZITmFxoecWog)",
+    "Google Doc: LYFEOS_Product_Development_Roadmap.docx (doc_id: 1svTpbCtrmSoxFlCKau7doOU2PGr4hP-m)",
+    "Phase 14.3A: full_content_extracted_claims.json LyfeOS section",
+    "Phase 14.3A: end_state_design_map.json LyfeOS section",
+    "Phase 14.3A: doc_classification.json LyfeOS classification"
+  ],
+  "purpose": "Personal Life Operating System (PLOS) that treats human life as a stateful, evolving system. Unifies identity development, execution, reflection, AI assistance, and long-term progression into one coherent platform.",
+  "target_users": [
+    "Phase 1: Founders, executives, operators managing complex multi-domain lives",
+    "Phase 1: High-agency individuals already doing the work but lacking system coherence",
+    "Phase 1: Users juggling 5+ productivity/wellness tools",
+    "Phase 1: Self-directed learners",
+    "Phase 2+: Coaches, consultants, business owners, leadership teams, creative professionals"
+  ],
+  "product_promise": "The world's first comprehensive Personal Life Operating System that turns life into a unified, coherent operating system where every input flows into a synchronized backend and powers every module.",
+  "vision_statement": "To create a personal operating system that unifies identity development, execution, reflection, AI assistance, and long-term progression into a single coherent system with visible progression, measurable momentum, and real consequence.",
+  "modules": [
+    "Dashboard (Daily command center with Stats HUD)",
+    "Missions System (7 categories with scope calibration)",
+    "NOVA AI System (6 roles: Advisor, Coach, EA, Operator, Workflow Engine, Admin Agent)",
+    "Chronilog (7 subsystems: Logs, Reflections, Feedback, Rituals, Timeline, Mission Logs, Rolodex)",
+    "Systems Page (9 modules: Calendar, Boards, Canvas, Knowledge Graph, Spreadsheets, Docs, Forms, Templates, Media Library)",
+    "Player Profile / Character Sheet (10 sections)",
+    "Unified Transformation Thread (developmental engine)",
+    "Onboarding: The Awakening Protocol (9 missions, 100+ questions)",
+    "Gamification (XP, Levels, Streaks, Efficiency, Stats HUD)",
+    "Integration Architecture (Harmonization flow)"
+  ],
+  "screens": [
+    {"name": "Dashboard", "description": "Default landing tab — Stats HUD (8 stats), 7 log types, active missions panel"},
+    {"name": "Missions", "description": "Execution stack — 7 mission categories, scope calibration, failure handling"},
+    {"name": "NOVA / AI", "description": "Center tab — advisor, companion, assistant with 10+ tool functions"},
+    {"name": "Chronilog", "description": "Historical archive — logs, reflections, feedback, rituals, timeline, mission logs, rolodex"},
+    {"name": "Systems", "description": "Tools and integrations (Phase 2+) — 9 cross-view modules"},
+    {"name": "Profile / Character Sheet", "description": "Rightmost tab in MVP — 10 identity sections"},
+    {"name": "Onboarding Flow", "description": "Awakening Protocol — 9 missions, broad+deep pattern, system seeding"}
+  ],
+  "workflows": [
+    "Complete daily onboarding (Awakening Protocol) seeding all modules",
+    "Daily dashboard check — review Stats HUD, active missions, logs",
+    "Create and execute missions across 7 categories",
+    "Log data entries, energy levels, reflections, intentions",
+    "Interact with NOVA AI for coaching, planning, execution",
+    "Review Chronilog for historical patterns and timeline",
+    "Complete Transformation Thread milestones",
+    "Track XP, level progression, and streak maintenance"
+  ],
+  "feature_list": [
+    "Stats HUD with 8 meters (Level/XP, Streak, Efficiency, Attention, Time, Energy, Health, Wealth)",
+    "7 log types (Data Entry, Energy, Reflection, Intention Setter, Mission Log, Stats Log, System Log)",
+    "7 mission categories (Daily/Ritual, Skill, Project, Belief/Trait/Behavior, Shadow/Instinct, Reflection, System Calibration)",
+    "Mission scope calibration (Micro/Meso/Macro)",
+    "Mission failure handling (auto-rollover, resize, AI dialogue)",
+    "NOVA AI multi-role system (6 roles)",
+    "NOVA 10+ tool functions (createMission, updateEnergyLog, etc.)",
+    "NOVA Calls with transcription",
+    "Salience Engine for contextual awareness",
+    "AI Activity Log (git-style)",
+    "Chronilog with epoch/stage detection",
+    "Player Profile / Character Sheet (10 sections)",
+    "6 Archetypes from 54-question calibration quiz",
+    "Character Affirmation system",
+    "Unified Transformation Thread (developmental engine)",
+    "XP system with tiered level thresholds",
+    "Streak tracking with bonus multipliers (7d/30d/90d/365d)",
+    "Efficiency percentage (rolling 30-day)",
+    "Cross-view architecture (Calendar, Boards, Canvas, Knowledge Graph, etc.)",
+    "Integration Harmonization flow (Capture→Translate→Align→Seed→Forecast→Surface)"
+  ],
+  "data_concepts": [
+    "Users", "Profiles/CharacterSheets", "Missions", "MissionSteps",
+    "Logs (7 types)", "Reflections", "Rituals", "Intentions",
+    "XP/Levels/Streaks", "Stats (8 core)", "Archetypes",
+    "TransformationThreads", "Skills", "Beliefs", "Behaviors", "Traits",
+    "Epochs/Stages", "Timeline entries", "Rolodex contacts",
+    "NOVAConversations", "NOVAToolCalls", "NOVACalls/Transcripts",
+    "SalienceSignals", "IntegrationSyncRecords"
+  ],
+  "ai_agent_concepts": [
+    "NOVA (Neural Operating Virtual Assistant) — multi-role AI system operator",
+    "6 NOVA roles: Advisor, Coach, Executive Assistant, Operator, Workflow Engine, Admin Agent",
+    "Tone: neutral, calm, systemic — NO emojis, NO praise, NO hype",
+    "MVP: 10+ tool functions",
+    "Phase 3: multi-agent orchestration with 5 agent types (Research, Scheduling, Content, Analysis, Integration)",
+    "Governance: capability-based permissions, approval tiers, audit logs, emergency stop, rollback"
+  ],
+  "umh_integration_assumptions": [
+    "LyfeOS is part of broader Lyfe Institute ecosystem alongside EOS and CreatorOS",
+    "Tabs 52-53 describe 3-layer Human Operating System Ecosystem with shared Platform Kernel",
+    "Shared kernel: Identity, AI Runtime, Workflow Engine, Event Bus, Memory Graph, Integration Layer, Notification System, UI Design System",
+    "Cross-platform events: life.energy_low, business.launch_scheduled",
+    "CURRENT isolated MVP at lyfeos.net is standalone with NO UMH/substrate connection",
+    "Future UMH integration would map NOVA to substrate model_router/agent architecture",
+    "UMH integration is aspirational — no implementation contracts exist"
+  ],
+  "auth_assumptions": {
+    "current_in_code": "Passport.js + Firebase legacy",
+    "prd_recommendation": "Auth0 or Clerk",
+    "target": "Clerk (aligned with EOS target)",
+    "end_state": "Global identity shared across LyfeOS/EOS/CreatorOS, enterprise SSO (SAML, OAuth) Phase 4",
+    "os_platform_standard_v1_firebase": "STALE"
+  },
+  "analytics_assumptions": {
+    "target": "PostHog",
+    "status": "planned, not implemented",
+    "deferred": true
+  },
+  "deployment_assumptions": {
+    "current": "lyfeos.net (isolated MVP deployed)",
+    "target": "Separate deployment per app",
+    "hosting_options": ["Vercel", "AWS"],
+    "status": "not decided",
+    "deferred": true
+  },
+  "database_assumptions": {
+    "target": "Neon Postgres with Drizzle ORM",
+    "current_isolated_mvp": "unknown — needs code inspection",
+    "vector_db_phase_3": "Pinecone or Qdrant — not decided"
+  },
+  "gamification_mechanics": {
+    "xp": {
+      "mission_completion": "10-100 typical, weighted by type/scope",
+      "reflection_log": "+5 XP",
+      "streak_bonuses": {"7d": "1.1x", "30d": "1.25x", "90d": "1.5x", "365d": "2.0x"}
+    },
+    "levels": {
+      "tiers": [
+        {"range": "1-10", "xp_per_level": 100},
+        {"range": "11-25", "xp_per_level": 250},
+        {"range": "26-50", "xp_per_level": 500},
+        {"range": "51+", "xp_per_level": 1000}
+      ],
+      "unlocks": ["new mission types", "increased AI autonomy", "advanced cross-views", "multi-agent orchestration", "expanded workflows"]
+    },
+    "streaks": "Consecutive days with >=1 mission completed. Resets to 0 if missed. Focus on momentum, not perfection.",
+    "archetypes": {
+      "count": 6,
+      "names": ["Warrior", "Architect", "Creator", "Monarch", "Oracle", "Alchemist"],
+      "calibration": "54-question quiz",
+      "scoring": "direct (+), weighted (x1.5), reverse (R), scenario chips (+5)",
+      "outputs": "Dominant, Secondary, Shadow archetypes. Combo Profile if top 2 within 3 points"
+    },
+    "stats_hud": {
+      "count": 8,
+      "stats": [
+        {"name": "Level/XP", "color": "#4CC9F0 (cyan)"},
+        {"name": "Streak", "color": "#3DDC97 (green)"},
+        {"name": "Efficiency", "color": "gradient red-yellow-green, rolling 30-day"},
+        {"name": "Attention", "color": "blue gradient"},
+        {"name": "Time", "color": "cyan"},
+        {"name": "Energy", "color": "#FF9500 (orange), avg of mental/physical/emotional"},
+        {"name": "Health", "color": "green, weighted: sleep 40% + activity 30% + nutrition 30%"},
+        {"name": "Wealth", "color": "#FFD700 (gold)"}
+      ],
+      "efficiency_tiers": ["Developing", "Capable", "Proficient", "Masterful", "Legendary"]
+    },
+    "anti_patterns": "Explicitly NO badges, confetti, praise language"
+  },
+  "open_questions": [
+    "State management: Zustand or Jotai?",
+    "Backend framework: Express or Fastify?",
+    "Authentication provider: Clerk or Auth0?",
+    "File storage: Cloudflare R2 or Backblaze?",
+    "Vector DB (Phase 3): Pinecone or Qdrant?",
+    "Agent framework (Phase 3): LangChain or custom?",
+    "Hosting: Vercel or AWS?",
+    "Onboarding mission count: 9 (v1.0) or 8 (v2.0)?",
+    "Navigation tab count: 4 (v1.0) or 5 (v2.0)?",
+    "MVP timeline: 6-8 weeks or 10-12 weeks?",
+    "Cross-platform kernel: conceptual only — no implementation plan",
+    "Event bus contracts: no schema or protocol defined",
+    "Billing model: individual vs ecosystem subscription?"
+  ],
+  "contradictions": [
+    "PRD v1.0 (4 tabs, 3 models) vs v2.0 (5 tabs, 5 models) coexist in same document",
+    "Timeline: 6-8 weeks vs Months 0-2 vs Months 0-4 vs 10-12 weeks",
+    "Document claims 'complete and ready for implementation' multiple times for different versions",
+    "Mission states: schema shows active/completed/deleted but PRD mentions in-progress",
+    "Tab 8 repeats large sections of Tab 1 in slightly different formats",
+    "Competitive analysis headers exist but content is empty"
+  ],
+  "isolated_mvp_vs_umh_connected_mvp": {
+    "isolated_mvp": {
+      "status": "completed",
+      "url": "lyfeos.net",
+      "description": "Standalone app with NO UMH/substrate connection",
+      "what_it_proves": "Core MVP PRD is executable"
+    },
+    "umh_connected_mvp": {
+      "status": "not_started",
+      "description": "LyfeOS integrated with UMH substrate (NOVA→model_router, shared kernel)",
+      "blocked_by": "UMH integration boundary undefined, no implementation contracts"
+    },
+    "distinction_preserved": true
+  },
+  "acceptance_criteria_candidates": [
+    "User can complete Awakening Protocol onboarding (9 missions, 100+ questions)",
+    "User can view Stats HUD with 8 live meters on dashboard",
+    "User can create and complete missions across 7 categories",
+    "User can log data entries, energy, reflections, and intentions",
+    "User can interact with NOVA AI for coaching and task execution",
+    "User can view Chronilog historical timeline",
+    "User can view and edit Player Profile / Character Sheet",
+    "User can see XP, level, and streak progression",
+    "User can discover archetype through calibration quiz",
+    "User can generate Character Affirmation",
+    "End-state: multi-agent NOVA orchestration with 5 agent types",
+    "End-state: integration with EOS and CreatorOS through shared platform kernel",
+    "End-state: Systems page with 9 cross-view modules"
+  ],
+  "roadmap_phases": [
+    {"phase": 1, "name": "MVP", "timeline": "6-12 weeks (conflicting specs)", "target": "100 daily users"},
+    {"phase": 2, "name": "Growth", "timeline": "TBD", "target": "500 users"},
+    {"phase": 3, "name": "Scale", "timeline": "TBD", "target": "2000 users, multi-agent"},
+    {"phase": 4, "name": "Enterprise", "timeline": "TBD", "target": "10K+ users, $1M+ ARR"}
+  ],
+  "prd_quality": {
+    "completeness": 8,
+    "specificity": 9,
+    "actionability": 7,
+    "strengths": "Every hex color code, every XP formula, every SQL schema specified. Most detailed PRD. Isolated MVP proves executability.",
+    "weaknesses": "v1/v2 version conflicts, timeline inconsistencies, massive repetition across tabs, missing error handling/offline/operational specs"
+  },
+  "not_collapsed_into_shared_doc": true,
+  "canon_status": "separate_product_canon"
+}

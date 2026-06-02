@@ -1,0 +1,103 @@
+{
+  "phase": "14.4",
+  "task": "product_design_diffs",
+  "timestamp": "2026-06-02T12:00:00Z",
+  "apps": {
+    "EOS": {
+      "dimensions": {
+        "product_purpose": {"desired": "AI-native business operating system for founders", "current": "AI agent-focused CRM/task app with company setup (Beast)", "gap": "medium_gap", "detail": "Core shell exists. Business OS framing not yet manifest in UI. CRM is code_ahead_of_docs."},
+        "user_personas": {"desired": "Solo founders, operators, small teams", "current": "Single user app (no team/role features)", "gap": "high_priority_gap"},
+        "core_workflows": {"desired": "8 key workflows (setup, dashboard, org, workflows, AI, tasks, memory, metrics)", "current": "Basic: auth, dashboard, tasks, AI chat, CRM, documents", "gap": "medium_gap"},
+        "screen_module_inventory": {"desired": "11 screens", "current_github": "16 pages (some not in desired state)", "current_beast": "32 pages", "gap": "partially_covered", "detail": "Beast has more pages than desired state specifies. Some code screens (tutorials, support) not in PRD."},
+        "dashboard_requirements": {"desired": "KPI strip, today panel, AI copilot, operating memory", "current": "Basic dashboard page", "gap": "high_priority_gap"},
+        "operating_model": {"desired": "Multi-company portfolio with cross-company metrics", "current_beast": "Portfolio routes exist", "current_github": "missing", "gap": "medium_gap"},
+        "crm_sales_model": {"desired": "Not in core PRD modules", "current": "CRM with contacts/deals/activities", "gap": "code_ahead_of_docs"},
+        "agent_ai_workflows": {"desired": "Role-specific agents, skill router, hierarchical orchestration", "current": "Agent chat, agent hierarchy (chief/manager/laborer), 5-6 AI providers", "gap": "medium_gap"},
+        "reporting_analytics": {"desired": "KPIs, next-best-action recommendations, portfolio health", "current": "Analytics page exists", "gap": "medium_gap"},
+        "onboarding": {"desired": "Company setup wizard with AI-generated org structure", "current_beast": "Company setup exists", "current_github": "missing", "gap": "medium_gap"},
+        "permissions_roles": {"desired": "RBAC+ABAC+policy-based with autonomy levels", "current": "Basic auth only", "gap": "high_priority_gap"},
+        "data_model": {"desired": "15+ entity types (Users, Companies, Departments, Roles, Workflows, etc.)", "current_github": "15 tables (users, agents, tasks, messages, CRM)", "current_beast": "Expanded schema with companies, portfolios, workflows", "gap": "medium_gap"},
+        "api_contracts": {"desired": "Not specified in PRD (weakness)", "current": "12-14 route files", "gap": "docs_requirement_not_in_code"},
+        "auth_session_model": {"desired": "Clerk, end-state RBAC+ABAC", "current_github": "Passport.js + Firebase", "current_beast": "Clerk (aligned)", "gap": "partially_resolved_on_beast"},
+        "umh_integration_boundary": {"desired": "EOS as UMH projection via abstract ports", "current": "No UMH integration in SaaS layer", "gap": "high_priority_gap"},
+        "deployment_assumptions": {"desired": "Separate deployment per app", "current": "Replit only", "gap": "medium_gap"},
+        "analytics_assumptions": {"desired": "PostHog", "current": "Not implemented", "gap": "low_gap"},
+        "shared_standard_assumptions": {"desired": "OS Platform Standard v1 patterns", "current": "Partial (folder conventions, Drizzle)", "gap": "medium_gap"}
+      },
+      "gap_summary": {
+        "critical_blocker": 0,
+        "high_priority_gap": 4,
+        "medium_gap": 10,
+        "low_gap": 1,
+        "code_ahead_of_docs": 1,
+        "docs_requirement_not_in_code": 1,
+        "stale_requirement": 0
+      }
+    },
+    "CreatorOS": {
+      "dimensions": {
+        "product_purpose": {"desired": "Creator command center — content, community, courses, marketplace", "current": "Social/creator platform with posts, communities, stories, products", "gap": "medium_gap"},
+        "user_personas": {"desired": "Creators (3 tiers), Consumers, UGC Creators, Advertisers", "current": "Single creator/consumer role model", "gap": "high_priority_gap"},
+        "core_workflows": {"desired": "10 key workflows (content distribution, community, courses, marketplace, UGC, ads, automation, email, analytics, settings)", "current": "Basic: auth, posts, communities, products, DMs, settings", "gap": "high_priority_gap"},
+        "screen_module_inventory": {"desired": "28 screens", "current": "16 pages", "gap": "high_priority_gap", "detail": "12 desired screens not built (course builder/player, UGC dashboard, ad manager, automation builder, analytics views)"},
+        "dashboard_requirements": {"desired": "Creator dashboard with cross-platform analytics, revenue", "current": "Business dashboard page exists", "gap": "medium_gap"},
+        "content_distribution_model": {"desired": "Multi-platform distribution to 8+ social platforms", "current": "Posts table, no external platform integration", "gap": "critical_blocker"},
+        "community_model": {"desired": "Discord-like with channels, tiers, live events, moderation", "current": "Communities + channels tables, basic chat", "gap": "high_priority_gap"},
+        "course_platform": {"desired": "Full course builder with video hosting, progress, certificates", "current": "missing", "gap": "critical_blocker"},
+        "marketplace": {"desired": "Unified marketplace for all product types", "current": "Products table exists, no marketplace discovery", "gap": "high_priority_gap"},
+        "agent_ai_workflows": {"desired": "Utility-level AI (not agent system in Tab 1)", "current": "Agents + AI chats tables (code_ahead_of_docs)", "gap": "implementation_exists_not_in_docs"},
+        "reporting_analytics": {"desired": "Content, creator, business, UGC, ads analytics", "current": "Basic analytics likely", "gap": "high_priority_gap"},
+        "onboarding": {"desired": "Creator + consumer onboarding flows", "current": "Basic auth page", "gap": "high_priority_gap"},
+        "permissions_roles": {"desired": "Business roles (Owner, Admin, Manager, Member, Custom)", "current": "missing", "gap": "high_priority_gap"},
+        "data_model": {"desired": "30+ entity types", "current": "20 tables (good foundation)", "gap": "medium_gap"},
+        "api_contracts": {"desired": "Defined in PRD with endpoints", "current": "89 routes in monolithic file", "gap": "medium_gap", "detail": "Routes exist but in god file, not structured per API spec"},
+        "auth_session_model": {"desired": "Clerk (target)", "current": "Passport.js local (BROKEN dev bypass)", "gap": "critical_blocker"},
+        "umh_integration_boundary": {"desired": "Layer 3 in ecosystem (Tab 8 only)", "current": "No UMH integration", "gap": "low_gap", "detail": "Tab 1 PRD has zero UMH references. Integration is aspirational only."},
+        "deployment_assumptions": {"desired": "Separate deployment (Fly.io/Render/Railway)", "current": "Replit only", "gap": "medium_gap"},
+        "analytics_assumptions": {"desired": "PostHog", "current": "Not implemented", "gap": "low_gap"},
+        "shared_standard_assumptions": {"desired": "OS Platform Standard v1 patterns", "current": "Partial (folder conventions, Drizzle, shadcn)", "gap": "medium_gap"}
+      },
+      "gap_summary": {
+        "critical_blocker": 3,
+        "high_priority_gap": 8,
+        "medium_gap": 6,
+        "low_gap": 2,
+        "implementation_exists_not_in_docs": 1,
+        "stale_requirement": 0
+      }
+    },
+    "LyfeOS": {
+      "dimensions": {
+        "product_purpose": {"desired": "Personal Life Operating System — stateful, evolving life management", "current": "Full PLOS with dashboard, missions, AI, chronilog, profile, gamification", "gap": "low_gap", "detail": "Most aligned of the three apps. Isolated MVP proves the core concept."},
+        "user_personas": {"desired": "Founders/executives/operators, high-agency individuals", "current": "Single-user focus", "gap": "low_gap"},
+        "core_workflows": {"desired": "8 key workflows (onboarding, dashboard, missions, logs, NOVA AI, chronilog, transformation, XP tracking)", "current": "All core workflows have implementation", "gap": "low_gap"},
+        "screen_module_inventory": {"desired": "7 screens", "current": "42 pages", "gap": "code_ahead_of_docs", "detail": "Implementation has far more pages than PRD specifies. Code is ahead of docs."},
+        "dashboard_requirements": {"desired": "Stats HUD with 8 meters, 7 log types, active missions", "current": "Dashboard with extensive components", "gap": "low_gap"},
+        "gamification_model": {"desired": "XP, levels, streaks, archetypes, efficiency tiers", "current": "Gamification implemented, XP test file exists", "gap": "low_gap"},
+        "nova_ai_system": {"desired": "6 roles, 10+ tool functions, voice (Phase 2+)", "current": "OpenAI + Anthropic, tool functions, voice already exists", "gap": "medium_gap", "detail": "AI exists but full 6-role NOVA system may not be complete."},
+        "chronilog": {"desired": "7 subsystems", "current": "Content/reflection routes, timeline components", "gap": "medium_gap"},
+        "systems_page": {"desired": "9 cross-view modules", "current": "Widget system (canvas, graph, kanban, media, spreadsheet, rolodex)", "gap": "low_gap", "detail": "6/9 modules appear implemented as widgets."},
+        "player_profile": {"desired": "10 identity sections", "current": "Profile routes + pages", "gap": "low_gap"},
+        "onboarding": {"desired": "Awakening Protocol (9 missions, 100+ questions)", "current": "Onboarding pages exist", "gap": "low_gap"},
+        "integration_architecture": {"desired": "Google Calendar/Tasks/Drive, health apps, finance", "current": "Google OAuth2 + Calendar/Tasks/Drive implemented", "gap": "partially_implemented"},
+        "permissions_roles": {"desired": "Owner/Admin/Manager/Operator/Viewer/Agent", "current": "Single user only", "gap": "medium_gap"},
+        "data_model": {"desired": "20+ entity types with XP/levels/stats/archetypes", "current": "35 tables (exceeds desired)", "gap": "code_ahead_of_docs"},
+        "api_contracts": {"desired": "Not fully specified in PRD", "current": "10 route modules (well-structured)", "gap": "implementation_exists_not_in_docs"},
+        "auth_session_model": {"desired": "Clerk or Auth0", "current": "Firebase + Passport.js", "gap": "high_priority_gap"},
+        "umh_integration_boundary": {"desired": "Shared platform kernel (Tabs 52-53)", "current": "Standalone, no UMH connection", "gap": "medium_gap"},
+        "deployment_assumptions": {"desired": "Vercel or AWS", "current": "Replit + lyfeos.net (isolated)", "gap": "medium_gap"},
+        "analytics_assumptions": {"desired": "PostHog", "current": "Not implemented", "gap": "low_gap"},
+        "shared_standard_assumptions": {"desired": "OS Platform Standard v1", "current": "Partial (folder conventions, Drizzle, shadcn)", "gap": "medium_gap"}
+      },
+      "gap_summary": {
+        "critical_blocker": 0,
+        "high_priority_gap": 1,
+        "medium_gap": 6,
+        "low_gap": 8,
+        "code_ahead_of_docs": 2,
+        "implementation_exists_not_in_docs": 1,
+        "stale_requirement": 0
+      }
+    }
+  }
+}

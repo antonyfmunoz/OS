@@ -1,0 +1,70 @@
+{
+  "phase": "14.4R",
+  "task": "test_gate_results",
+  "timestamp": "2026-06-02T18:00:00Z",
+  "description": "Complete test and gate results for Phase 14.4R promotion",
+  "test_suites": {
+    "phase14_4_trinity_alignment": {
+      "file": "tests/test_phase14_4_trinity_alignment.py",
+      "total": 95,
+      "passed": 95,
+      "failed": 0,
+      "deselected": 0,
+      "status": "pass",
+      "note": "After 14.4R corrective fix (jarvis category rename), all 95 pass including previously-deselected circular test"
+    },
+    "phase14_3_product_docs_convergence": {
+      "file": "tests/test_phase14_3_product_docs_convergence.py",
+      "status": "pass",
+      "note": "All tests pass (part of 204 total across both Phase 14.3 suites)"
+    },
+    "phase14_3a_full_content_convergence": {
+      "file": "tests/test_phase14_3a_full_content_convergence.py",
+      "status": "pass",
+      "note": "All tests pass (part of 204 total across both Phase 14.3 suites)"
+    },
+    "combined_prior_phases": {
+      "total": 204,
+      "passed": 204,
+      "failed": 0,
+      "status": "pass"
+    }
+  },
+  "gate_checks": {
+    "py_compile_test_file": "pass",
+    "type_divergence_gate": {
+      "status": "pass",
+      "note": "No new Phase 14.4 violations. Existing legacy violations grandfathered."
+    },
+    "instance_leak_gate": {
+      "status": "pass",
+      "detail": "627 files scanned clean"
+    },
+    "projection_leak_gate": {
+      "status": "pass",
+      "note": "No new Phase 14.4 violations."
+    },
+    "dependency_direction_gate": {
+      "status": "pass",
+      "note": "No new Phase 14.4 violations. Existing legacy violations grandfathered."
+    },
+    "no_fake_data": "pass",
+    "no_secret_leakage": "pass",
+    "no_external_write": "pass",
+    "no_destructive_sync": "pass",
+    "no_source_mutation": "pass",
+    "no_github_write": "pass",
+    "no_windows_write": "pass",
+    "no_app_code_copy_to_vps": "pass",
+    "no_feature_build": "pass",
+    "infrastructure_blocked": "pass",
+    "auth_migration_blocked": "pass",
+    "device_role_check": "pass",
+    "no_stale_firebase_auth_canonization": "pass",
+    "no_product_collapse": "pass",
+    "no_hardcoded_projection_names_in_substrate": "pass",
+    "no_legacy_ai_name_terminology": "pass"
+  },
+  "all_tests_pass": true,
+  "all_gates_pass": true
+}

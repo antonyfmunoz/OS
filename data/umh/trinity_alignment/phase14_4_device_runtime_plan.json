@@ -1,0 +1,77 @@
+{
+  "phase": "14.4",
+  "task": "device_runtime_plan",
+  "timestamp": "2026-06-02T12:00:00Z",
+  "nodes": {
+    "vps": {
+      "host": "VPS (100.77.233.50)",
+      "path": "/opt/OS",
+      "role": "orchestrator",
+      "tasks": [
+        "load Phase 14.3A/14.3AR docs artifacts",
+        "create Work Packets",
+        "govern access to Beast and GitHub",
+        "store proofs and audit artifacts",
+        "produce Phase 14.4 audit report",
+        "run lightweight verification",
+        "coordinate Windows Beast execution via SSH",
+        "persist trinity_alignment artifacts"
+      ],
+      "restrictions": [
+        "no Trinity app source code stored here",
+        "no node_modules for Trinity apps",
+        "no large model files",
+        "no .git histories for Trinity repos"
+      ]
+    },
+    "windows_beast": {
+      "host": "Windows Beast (100.74.199.102)",
+      "path": "C:\\dev\\dev\\",
+      "role": "trinity_app_source_inspection_node",
+      "apps": {
+        "eos": "C:\\dev\\dev\\EntrepreneurOS",
+        "creatoros": "C:\\dev\\dev\\CreatorOS",
+        "lyfeos": "C:\\dev\\dev\\LyfeOS"
+      },
+      "tasks": [
+        "inspect current EOS codebase (read-only)",
+        "inspect current CreatorOS codebase (read-only)",
+        "inspect current LyfeOS codebase (read-only)",
+        "inspect app structure, package, schema, auth, routes, components",
+        "run read-only git commands (status, log, diff, ls-files)",
+        "report file counts, branch state, uncommitted changes"
+      ],
+      "restrictions": [
+        "no source mutation",
+        "no git push",
+        "no npm install",
+        "no build execution unless approved as read-only validation",
+        "no file creation or deletion"
+      ]
+    },
+    "github": {
+      "host": "github.com/antonyfmunoz",
+      "repos": {
+        "eos": "antonyfmunoz/EntrepreneurOS",
+        "creatoros": "antonyfmunoz/CreatorOS",
+        "lyfeos": "antonyfmunoz/LYFEOS"
+      },
+      "role": "durable_versioned_source_truth",
+      "tasks": [
+        "inspect repo branch and commit metadata",
+        "read file trees and contents via gh API",
+        "compare each repo to Windows /dev counterpart",
+        "detect divergence between GitHub and Beast"
+      ],
+      "restrictions": [
+        "no pushes",
+        "no PR creation",
+        "no branch creation",
+        "no file modification",
+        "read-only API access only"
+      ]
+    }
+  },
+  "coordination_model": "VPS orchestrates all inspection via SSH (Beast) and gh CLI (GitHub). Results flow back to VPS for artifact generation. No source code is copied to VPS.",
+  "no_mutation_rule": true
+}

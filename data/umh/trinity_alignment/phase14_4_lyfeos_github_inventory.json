@@ -1,0 +1,380 @@
+{
+  "app": "LYFEOS",
+  "source": "github",
+  "repo": "antonyfmunoz/LYFEOS",
+  "branch": "main",
+  "latest_commit": {
+    "sha": "ee1bb0f3",
+    "message": "merge Development branch into main",
+    "date": "2026-05-20T09:21:59Z"
+  },
+  "recent_commits": [
+    {
+      "sha": "ee1bb0f3",
+      "message": "merge Development branch into main",
+      "date": "2026-05-20T09:21:59Z"
+    },
+    {
+      "sha": "17dad598",
+      "message": "chore: add dotenv, localhost config, and gitignore .env for local development",
+      "date": "2026-05-20T09:16:50Z"
+    },
+    {
+      "sha": "07f05952",
+      "message": "Add a search bar to filter connected applications on the profile page",
+      "date": "2026-03-01T04:08:01Z"
+    },
+    {
+      "sha": "b0c8963b",
+      "message": "Transitioned from Plan to Build mode",
+      "date": "2026-03-01T04:06:27Z"
+    },
+    {
+      "sha": "5bcf13ae",
+      "message": "Add hierarchical organization for mission ritual groups",
+      "date": "2026-02-27T00:04:02Z"
+    }
+  ],
+  "file_count": 883,
+  "disk_usage_kb": 147961,
+  "updated_at": "2026-05-26T19:34:00Z",
+  "top_level_structure": [
+    ".gitignore",
+    ".replit",
+    "attached_assets",
+    "build.sh",
+    "client",
+    "cookies.txt",
+    "cookies2.txt",
+    "drizzle.config.ts",
+    "generated-icon.png",
+    "migrations",
+    "package-lock.json",
+    "package.json",
+    "postcss.config.js",
+    "replit.md",
+    "scripts",
+    "server",
+    "shared",
+    "tailwind.config.ts",
+    "tests",
+    "theme.json",
+    "tsconfig.json",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
+  "package_manager": "npm",
+  "app_framework": {
+    "frontend": "React 18 + Vite 5 + TypeScript 5.6",
+    "backend": "Express 4 + TypeScript (tsx)",
+    "ui_library": "shadcn/ui (Radix primitives) + Tailwind CSS 3",
+    "state_management": "TanStack React Query 5",
+    "routing": "wouter 3",
+    "build_tool": "Vite 5 (client) + esbuild (server)",
+    "orm": "Drizzle ORM 0.39 + drizzle-zod",
+    "database": "PostgreSQL (Neon serverless)",
+    "testing": "Vitest 4 + Supertest",
+    "ai_providers": ["OpenAI (gpt-4o)", "Anthropic (@anthropic-ai/sdk)"],
+    "hosting_platform": "Replit (autoscale deployment)"
+  },
+  "frontend_structure": {
+    "root": "client/",
+    "entry": "client/src/App.tsx",
+    "pages": [
+      "AIPage.tsx",
+      "AnalyticsPage.tsx",
+      "AttentionDetailPage.tsx",
+      "CeremonyPage.tsx",
+      "ChronilogPage.tsx",
+      "CodexPage.tsx",
+      "DashboardPage.tsx",
+      "DocumentVaultPage.tsx",
+      "EfficiencyDetailPage.tsx",
+      "EnergyDetailPage.tsx",
+      "EnhancedMissionPage.tsx",
+      "ExperienceDetailPage.tsx",
+      "ForgotPasswordPage.tsx",
+      "GoalsArchivePage.tsx",
+      "HealthDetailPage.tsx",
+      "JournalArchivePage.tsx",
+      "KanbanBoardPage.tsx",
+      "KanbanPage.tsx",
+      "KnowledgeArchivePage.tsx",
+      "LandingPage.tsx",
+      "LoginPage.tsx",
+      "LoginSuccessPage.tsx",
+      "MissionArchivePage.tsx",
+      "MissionDetailPage.tsx",
+      "OnboardingPage.tsx",
+      "ProfilePage.tsx",
+      "QuestsPage.tsx",
+      "RegisterPage.tsx",
+      "ResetPasswordPage.tsx",
+      "RitualsArchivePage.tsx",
+      "RolodexPage.tsx",
+      "StatDetailPage.tsx",
+      "StreakDetailPage.tsx",
+      "SubscriptionPage.tsx",
+      "TimeDetailPage.tsx",
+      "TimelineDetailPage.tsx",
+      "TimelinePage.tsx",
+      "VerifyEmailPage.tsx",
+      "WaitlistPage.tsx",
+      "WaitlistThankYouPage.tsx",
+      "WealthDetailPage.tsx",
+      "not-found.tsx"
+    ],
+    "component_groups": {
+      "ai": ["AICompanionPanel.tsx"],
+      "chronilog": ["RolodexWidget.tsx", "TimelineWidget.tsx"],
+      "dailyInit": ["DailyInitModal.tsx"],
+      "dashboard": [
+        "AICompanionPreview.tsx",
+        "CalendarPreview.tsx",
+        "CompactStatsWidget.tsx",
+        "DailyQuests.tsx",
+        "EnhancedMissionWidget.tsx",
+        "ExperienceBar.tsx",
+        "InfoButton.tsx",
+        "InfoIconButton.tsx",
+        "LevelUpModal.tsx",
+        "MissionInfoButton.tsx",
+        "MissionLogSystem.tsx",
+        "MissionLogWidget.tsx",
+        "MissionTimer.tsx",
+        "QuestItem.tsx",
+        "StatWidget.tsx",
+        "StatsWidget.tsx"
+      ],
+      "layout": ["MobileNav.tsx", "RootLayout.tsx", "Sidebar.tsx"],
+      "markdown": ["MarkdownEditor.tsx", "MissionPage.tsx"],
+      "stats": ["AIStatTip.tsx"],
+      "timeline": ["EditTimelineItemDialog.tsx"],
+      "top_level": [
+        "BlueLightFilter.tsx",
+        "CelebrationOverlay.tsx",
+        "PWAInstallPrompt.tsx",
+        "VoiceOverlay.tsx"
+      ],
+      "ui_primitives": "~60 shadcn/ui components + custom widgets (canvas, graph, kanban, media, spreadsheet, rolodex, documents, progress-trackers, templates, etc.)"
+    },
+    "hooks": [
+      "use-draggable.ts",
+      "use-mobile.tsx",
+      "use-nova-actions.ts",
+      "use-page-title.ts",
+      "use-toast.ts",
+      "use-tutorial.ts",
+      "use-voice-control.ts",
+      "use-widget-state.ts",
+      "usePushNotifications.ts"
+    ],
+    "lib": [
+      "applyPrimaryColor.ts",
+      "authContext.tsx",
+      "celebrationContext.tsx",
+      "context.tsx",
+      "experienceUtils.ts",
+      "firebase.ts",
+      "firebaseAuth.ts",
+      "gamified-toast.ts",
+      "haptics.ts",
+      "queryClient.ts",
+      "ranks.ts",
+      "sounds.ts",
+      "themeContext.tsx",
+      "theta-beats.ts",
+      "types.ts",
+      "utils.ts"
+    ]
+  },
+  "backend_structure": {
+    "root": "server/",
+    "entry": "server/index.ts",
+    "files": {
+      "index.ts": "Express app setup, session, helmet, compression, Firebase proxy, Vite dev/static",
+      "db.ts": "Drizzle + pg Pool connection (DATABASE_URL)",
+      "firebaseAdmin.ts": "Firebase Admin SDK init, token verification, user management",
+      "openai.ts": "OpenAI GPT-4o integration with keyword-based fallback",
+      "notificationScheduler.ts": "Push notification scheduler",
+      "storage.ts": "Data access layer (storage interface)",
+      "utils.ts": "Logger and utility functions",
+      "vite.ts": "Vite dev server setup / static serving"
+    },
+    "routes": [
+      "routes.ts (main route registration)",
+      "routes/auth.ts (email/password + Firebase auth, Google OAuth, 2FA)",
+      "routes/content.ts (AI content generation via Anthropic + OpenAI)",
+      "routes/documents.ts (document vault CRUD)",
+      "routes/goals.ts (vision goals)",
+      "routes/google.ts (Google Calendar/Tasks/Drive OAuth integration)",
+      "routes/middleware.ts (isAuthenticated guard)",
+      "routes/profile.ts (user profile + onboarding)",
+      "routes/quests.ts (daily quests/missions)",
+      "routes/waitlist.ts (email waitlist signup)"
+    ],
+    "replit_integrations": {
+      "chat": ["index.ts", "knowledge-base.ts", "routes.ts", "storage.ts"],
+      "batch": ["index.ts", "utils.ts"]
+    }
+  },
+  "shared_structure": {
+    "root": "shared/",
+    "files": [
+      "schema.ts (Drizzle ORM schema - all DB tables + Zod insert schemas)",
+      "models/chat.ts (chat message types)"
+    ]
+  },
+  "auth_implementation": {
+    "strategy": "Dual auth: Firebase Authentication (primary) + Express session (server-side)",
+    "providers": ["email/password", "Google OAuth", "Firebase phone auth"],
+    "features": [
+      "Email verification with tokens",
+      "Password reset flow",
+      "Two-factor authentication (email + phone)",
+      "Firebase ID token verification (server-side)",
+      "Express session with MemoryStore (dev) / connect-pg-simple option",
+      "Passport.js local strategy"
+    ],
+    "files": [
+      "client/src/lib/authContext.tsx",
+      "client/src/lib/firebase.ts",
+      "client/src/lib/firebaseAuth.ts",
+      "client/public/firebase-messaging-sw.js",
+      "server/firebaseAdmin.ts",
+      "server/routes/auth.ts",
+      "server/routes/middleware.ts"
+    ]
+  },
+  "database_implementation": {
+    "provider": "PostgreSQL via Neon serverless (@neondatabase/serverless)",
+    "orm": "Drizzle ORM",
+    "schema_file": "shared/schema.ts",
+    "migrations_dir": "migrations/",
+    "migration_count": 7,
+    "tables": [
+      "users",
+      "userStats",
+      "userProfile",
+      "userDailyLogs",
+      "userIntegrations",
+      "quests",
+      "aiMessages",
+      "calendarEvents",
+      "missionPages",
+      "contacts",
+      "spreadsheets",
+      "pushSubscriptions",
+      "canvases",
+      "graphs",
+      "folders",
+      "documents",
+      "templates",
+      "integrations",
+      "progressTrackers",
+      "kanbanBoards",
+      "kanbanColumns",
+      "kanbanTasks",
+      "mediaAlbums",
+      "mediaItems",
+      "conversations",
+      "messages",
+      "dismissedKnowledge",
+      "visionGoals",
+      "userCategories",
+      "ritualGroups",
+      "widgetStates",
+      "userActivityEvents",
+      "smartReminders",
+      "missionViews",
+      "waitlistEmails"
+    ],
+    "table_count": 35,
+    "config_file": "drizzle.config.ts"
+  },
+  "routes_api": [
+    "server/routes.ts",
+    "server/routes/auth.ts",
+    "server/routes/content.ts",
+    "server/routes/documents.ts",
+    "server/routes/goals.ts",
+    "server/routes/google.ts",
+    "server/routes/middleware.ts",
+    "server/routes/profile.ts",
+    "server/routes/quests.ts",
+    "server/routes/waitlist.ts",
+    "server/replit_integrations/chat/routes.ts"
+  ],
+  "components_screens": {
+    "pages_count": 42,
+    "component_files_count": "~80+ (16 dashboard, 60+ ui primitives, ai, chronilog, layout, markdown, stats, timeline, dailyInit)",
+    "hooks_count": 9,
+    "lib_utilities_count": 16
+  },
+  "tests": {
+    "framework": "Vitest 4",
+    "config": "vitest.config.ts",
+    "files": [
+      "tests/api-auth.test.ts",
+      "tests/xp-calculations.test.ts"
+    ],
+    "test_count": 2,
+    "coverage": "minimal (auth + XP calculations only)"
+  },
+  "deployment_config": {
+    "platform": "Replit (autoscale deployment)",
+    "config_file": ".replit",
+    "build_command": "bash build.sh (npm install && npm run build)",
+    "run_command": "NODE_ENV=production node dist/index.js",
+    "public_dir": "dist/public",
+    "ports": [
+      {"local": 5000, "external": 80, "purpose": "main app"},
+      {"local": 5555, "external": 3001, "purpose": "secondary (likely drizzle studio)"}
+    ],
+    "no_dockerfile": true,
+    "no_fly_toml": true,
+    "no_vercel_config": true,
+    "nix_modules": ["nodejs-20", "web", "postgresql-16", "jq", "chromium"]
+  },
+  "env_var_names": {
+    "server_side": [
+      "DATABASE_URL",
+      "FIREBASE_SERVICE_ACCOUNT_KEY",
+      "OPENAI_API_KEY",
+      "AI_INTEGRATIONS_ANTHROPIC_API_KEY",
+      "AI_INTEGRATIONS_ANTHROPIC_BASE_URL",
+      "GOOGLE_OAUTH_CLIENT_ID",
+      "GOOGLE_OAUTH_CLIENT_SECRET",
+      "NODE_ENV",
+      "REPLIT_DOMAINS",
+      "REPL_ID"
+    ],
+    "client_side_vite": [
+      "VITE_FIREBASE_API_KEY",
+      "VITE_FIREBASE_AUTH_DOMAIN",
+      "VITE_FIREBASE_PROJECT_ID",
+      "VITE_FIREBASE_ACTUAL_PROJECT_ID",
+      "VITE_FIREBASE_MESSAGING_SENDER_ID",
+      "VITE_FIREBASE_APP_ID"
+    ],
+    "env_example_exists": false,
+    "note": "No .env.example file. Env vars identified by scanning source code. Replit secrets manage actual values."
+  },
+  "build_scripts": {
+    "dev": "tsx server/index.ts",
+    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "start": "NODE_ENV=production node dist/index.js",
+    "check": "tsc",
+    "db:push": "drizzle-kit push",
+    "build.sh": "#!/bin/bash\nset -e\nnpm install\nnpm run build"
+  },
+  "additional_integrations": {
+    "google_workspace": ["Calendar", "Tasks", "Drive"],
+    "push_notifications": "Firebase Cloud Messaging (service worker at client/public/firebase-messaging-sw.js)",
+    "ai_companion": "NOVA (GPT-4o primary, Anthropic for content generation)",
+    "scraping": "Puppeteer Core + Cheerio",
+    "stripe": "stripe_customer_id and stripe_subscription_id fields in users table (integration planned but not fully wired)",
+    "websockets": "ws 8 (real-time features)"
+  },
+  "inventory_timestamp": "2026-06-02T00:00:00Z"
+}

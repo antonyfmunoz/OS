@@ -1,0 +1,49 @@
+{
+  "phase": "14.4",
+  "task": "gap_maps_build_sequences",
+  "timestamp": "2026-06-02T12:00:00Z",
+  "gaps": [
+    {"gap_id": "EOS-SRC-001", "app": "EOS", "category": "source_alignment", "description": "Beast feature/company-system branch not merged to GitHub main. 401 files divergence, Clerk auth vs Firebase.", "severity": "critical", "dependency": "none", "recommended_sequence": 1, "risk_class": "HIGH", "device_runtime": "Windows Beast", "validation": "git diff main..feature/company-system", "operator_decision_required": true, "feature_build_blocked_until": "Branch merge decision made"},
+    {"gap_id": "EOS-SRC-002", "app": "EOS", "category": "source_alignment", "description": "GitHub main is 3+ months stale (last commit 2026-02-20, all Replit Agent authored).", "severity": "high", "dependency": "EOS-SRC-001", "recommended_sequence": 2, "risk_class": "MEDIUM", "device_runtime": "Windows Beast + GitHub", "validation": "Push Beast branch to remote after operator review"},
+    {"gap_id": "EOS-AUTH-001", "app": "EOS", "category": "auth_session", "description": "GitHub main still uses Passport.js + Firebase. Beast has Clerk. Need to establish Clerk as canonical.", "severity": "high", "dependency": "EOS-SRC-001", "recommended_sequence": 2, "risk_class": "MEDIUM", "device_runtime": "Windows Beast", "validation": "Clerk auth working end-to-end on Beast"},
+    {"gap_id": "EOS-PROD-001", "app": "EOS", "category": "product_requirement", "description": "Department/role management missing from both GitHub and Beast.", "severity": "medium", "dependency": "EOS-SRC-001", "recommended_sequence": 3, "risk_class": "LOW", "device_runtime": "Windows Beast"},
+    {"gap_id": "EOS-PROD-002", "app": "EOS", "category": "product_requirement", "description": "Workflow run view (step-through execution) missing.", "severity": "medium", "dependency": "EOS-SRC-001", "recommended_sequence": 3, "risk_class": "LOW", "device_runtime": "Windows Beast"},
+    {"gap_id": "EOS-PROD-003", "app": "EOS", "category": "product_requirement", "description": "Memory/knowledge architecture missing.", "severity": "medium", "dependency": "EOS-SRC-001", "recommended_sequence": 4, "risk_class": "LOW", "device_runtime": "Windows Beast"},
+    {"gap_id": "EOS-ARCH-001", "app": "EOS", "category": "architecture", "description": "No production deployment (Replit only).", "severity": "medium", "dependency": "none", "recommended_sequence": 5, "risk_class": "MEDIUM", "device_runtime": "Windows Beast + deployment target"},
+    {"gap_id": "EOS-UMH-001", "app": "EOS", "category": "umh_integration", "description": "No UMH integration boundary defined. EOS SaaS layer is completely separate.", "severity": "medium", "dependency": "none", "recommended_sequence": 6, "risk_class": "LOW", "device_runtime": "VPS + Windows Beast"},
+    {"gap_id": "EOS-TEST-001", "app": "EOS", "category": "quality", "description": "0-2 test files across both environments.", "severity": "high", "dependency": "none", "recommended_sequence": 2, "risk_class": "LOW", "device_runtime": "Windows Beast"},
+
+    {"gap_id": "COS-AUTH-001", "app": "CreatorOS", "category": "auth_session", "description": "CRITICAL: comparePasswords() returns true for all passwords in dev. Auth is broken.", "severity": "critical", "dependency": "none", "recommended_sequence": 1, "risk_class": "HIGH", "device_runtime": "Windows Beast", "operator_decision_required": true, "feature_build_blocked_until": "Auth fixed and migrated to Clerk"},
+    {"gap_id": "COS-ARCH-001", "app": "CreatorOS", "category": "architecture", "description": "God files: routes.ts (53KB), storage.ts (104KB). Need splitting.", "severity": "high", "dependency": "none", "recommended_sequence": 2, "risk_class": "MEDIUM", "device_runtime": "Windows Beast"},
+    {"gap_id": "COS-ARCH-002", "app": "CreatorOS", "category": "architecture", "description": "Repo bloat: 90 design files (80MB+) + 28 media files committed to git.", "severity": "medium", "dependency": "none", "recommended_sequence": 2, "risk_class": "MEDIUM", "device_runtime": "Windows Beast"},
+    {"gap_id": "COS-PROD-001", "app": "CreatorOS", "category": "product_requirement", "description": "Course platform completely missing (builder, player, progress, certificates).", "severity": "critical", "dependency": "COS-AUTH-001", "recommended_sequence": 3, "risk_class": "LOW", "device_runtime": "Windows Beast"},
+    {"gap_id": "COS-PROD-002", "app": "CreatorOS", "category": "product_requirement", "description": "Content distribution to external platforms missing (core value prop).", "severity": "critical", "dependency": "COS-AUTH-001", "recommended_sequence": 3, "risk_class": "LOW", "device_runtime": "Windows Beast"},
+    {"gap_id": "COS-PROD-003", "app": "CreatorOS", "category": "product_requirement", "description": "12 desired screens not built (course builder/player, UGC, ads, automation, analytics).", "severity": "high", "dependency": "COS-AUTH-001", "recommended_sequence": 4, "risk_class": "LOW", "device_runtime": "Windows Beast"},
+    {"gap_id": "COS-PROD-004", "app": "CreatorOS", "category": "product_requirement", "description": "MVP scope contradictions unresolved (3 different MVP definitions).", "severity": "high", "dependency": "none", "recommended_sequence": 1, "risk_class": "LOW", "operator_decision_required": true},
+    {"gap_id": "COS-TEST-001", "app": "CreatorOS", "category": "quality", "description": "0 test files.", "severity": "high", "dependency": "none", "recommended_sequence": 2, "risk_class": "LOW", "device_runtime": "Windows Beast"},
+
+    {"gap_id": "LOS-AUTH-001", "app": "LyfeOS", "category": "auth_session", "description": "Firebase + Passport.js auth needs migration to Clerk.", "severity": "high", "dependency": "none", "recommended_sequence": 2, "risk_class": "MEDIUM", "device_runtime": "Windows Beast"},
+    {"gap_id": "LOS-PROD-001", "app": "LyfeOS", "category": "product_requirement", "description": "NOVA AI not fully implementing 6-role system.", "severity": "medium", "dependency": "none", "recommended_sequence": 3, "risk_class": "LOW", "device_runtime": "Windows Beast"},
+    {"gap_id": "LOS-PROD-002", "app": "LyfeOS", "category": "product_requirement", "description": "PRD v1/v2 conflict unresolved (4-tab vs 5-tab, 3 vs 5 data models).", "severity": "medium", "dependency": "none", "recommended_sequence": 1, "risk_class": "LOW", "operator_decision_required": true},
+    {"gap_id": "LOS-ARCH-001", "app": "LyfeOS", "category": "architecture", "description": "No production deployment beyond Replit.", "severity": "medium", "dependency": "none", "recommended_sequence": 4, "risk_class": "MEDIUM", "device_runtime": "Windows Beast + deployment target"},
+    {"gap_id": "LOS-UMH-001", "app": "LyfeOS", "category": "umh_integration", "description": "Standalone with no UMH/substrate connection. Isolated MVP vs UMH-connected MVP gap.", "severity": "medium", "dependency": "none", "recommended_sequence": 5, "risk_class": "LOW", "device_runtime": "VPS + Windows Beast"},
+    {"gap_id": "LOS-TEST-001", "app": "LyfeOS", "category": "quality", "description": "Only 2 test files for 883-file app.", "severity": "medium", "dependency": "none", "recommended_sequence": 2, "risk_class": "LOW", "device_runtime": "Windows Beast"},
+
+    {"gap_id": "TRI-AUTH-001", "app": "Trinity", "category": "auth_session", "description": "All three apps need Clerk migration. EOS Beast has Clerk. Others have Firebase/Passport.js.", "severity": "high", "dependency": "none", "recommended_sequence": 2, "risk_class": "MEDIUM"},
+    {"gap_id": "TRI-STD-001", "app": "Trinity", "category": "shared_standard", "description": "OS Platform Standard v1 Firebase auth recommendation is STALE. Need v2.", "severity": "medium", "dependency": "none", "recommended_sequence": 3, "risk_class": "LOW"},
+    {"gap_id": "TRI-DEPLOY-001", "app": "Trinity", "category": "deployment_infrastructure", "description": "All three apps are Replit-only. No production deployment strategy.", "severity": "medium", "dependency": "none", "recommended_sequence": 5, "risk_class": "MEDIUM"},
+    {"gap_id": "TRI-UMH-001", "app": "Trinity", "category": "umh_integration", "description": "No UMH integration boundary defined for any app. All are standalone.", "severity": "low", "dependency": "none", "recommended_sequence": 6, "risk_class": "LOW"}
+  ],
+  "gap_categories": {
+    "source_alignment": 2,
+    "product_requirement": 8,
+    "architecture": 4,
+    "auth_session": 4,
+    "quality": 3,
+    "umh_integration": 3,
+    "shared_standard": 1,
+    "deployment_infrastructure": 1
+  },
+  "total_gaps": 26,
+  "operator_decisions_required": 4
+}
