@@ -1,0 +1,288 @@
+{
+  "phase": "14.3A",
+  "task": "full_google_docs_inventory",
+  "timestamp": "2026-06-02T04:09:26Z",
+  "scope": "Trinity apps (EOS, CreatorOS, LyfeOS) + UMH + shared architecture",
+  "total_drive_files": 47,
+  "relevant_product_docs": [
+    {
+      "doc_id": "1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo",
+      "title": "EntrepreneurOS",
+      "modified": "2026-04-06T23:06:19.780Z",
+      "url": "https://docs.google.com/document/d/1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo/edit",
+      "projection_relevance": "EOS",
+      "content_read": true,
+      "content_chars": 2088859,
+      "tabs": [
+        "1",
+        "5",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15"
+      ],
+      "status_guess": "current",
+      "evidence": "Multi-tab PRD with EOS substrate audit, integration specs, gap analysis"
+    },
+    {
+      "doc_id": "1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI",
+      "title": "CreatorOS",
+      "modified": "2026-05-15T20:31:14.198Z",
+      "url": "https://docs.google.com/document/d/1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI/edit",
+      "projection_relevance": "CreatorOS",
+      "content_read": true,
+      "content_chars": 1602036,
+      "tabs": [
+        "1",
+        "8"
+      ],
+      "status_guess": "current",
+      "evidence": "PRD v2.90, comprehensive product requirements document"
+    },
+    {
+      "doc_id": "1-6vPlqwlG5ud5hRNnL2sFiKmNmofDI2ZITmFxoecWog",
+      "title": "LyfeOS",
+      "modified": "2026-03-09T09:07:35.419Z",
+      "url": "https://docs.google.com/document/d/1-6vPlqwlG5ud5hRNnL2sFiKmNmofDI2ZITmFxoecWog/edit",
+      "projection_relevance": "LyfeOS",
+      "content_read": true,
+      "content_chars": 1374576,
+      "tabs": [
+        "1",
+        "6",
+        "8",
+        "52",
+        "53"
+      ],
+      "status_guess": "current",
+      "evidence": "Full PRD v2.0, ~120 pages, MVP build spec, comprehensive product report"
+    },
+    {
+      "doc_id": "11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8",
+      "title": "UMH",
+      "modified": "2026-05-10T00:06:44.500Z",
+      "url": "https://docs.google.com/document/d/11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8/edit",
+      "projection_relevance": "UMH",
+      "content_read": true,
+      "content_chars": 219966,
+      "tabs": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "11",
+        "12",
+        "13"
+      ],
+      "status_guess": "current",
+      "evidence": "Multi-tab UMH architecture, roadmap, PRD, strategy docs"
+    },
+    {
+      "doc_id": "11p9ts6TTVDlCgOX1oV5u_0BGuHyHmgwclqEUgI4b6yM",
+      "title": "THE MUNOZ EMPIRE \u2014 Elite Structural Architecture",
+      "modified": "2026-05-25T02:55:38.232Z",
+      "url": "https://docs.google.com/document/d/11p9ts6TTVDlCgOX1oV5u_0BGuHyHmgwclqEUgI4b6yM/edit",
+      "projection_relevance": "Trinity/shared",
+      "content_read": true,
+      "content_chars": 89462,
+      "tabs": [
+        "1"
+      ],
+      "status_guess": "current",
+      "evidence": "Empire structural architecture \u2014 Trinity apps relationship"
+    },
+    {
+      "doc_id": "1svTpbCtrmSoxFlCKau7doOU2PGr4hP-m",
+      "title": "LYFEOS_Product_Development_Roadmap.docx",
+      "modified": "2026-02-02T01:15:03.139Z",
+      "url": "https://docs.google.com/document/d/1svTpbCtrmSoxFlCKau7doOU2PGr4hP-m/edit",
+      "projection_relevance": "LyfeOS",
+      "content_read": true,
+      "content_chars": 10950,
+      "tabs": [
+        "n/a_docx"
+      ],
+      "status_guess": "current",
+      "evidence": "4-phase development roadmap from MVP to full product, 12-18 months"
+    }
+  ],
+  "borderline_relevant_docs": [
+    {
+      "doc_id": "1TYQrD3X9gTiWiUIkbsXIAgMa5vbgZgRmWo_xDcHoiqc",
+      "title": "Untitled document (2026-05-15)",
+      "modified": "2026-05-15T02:27:22.189Z",
+      "projection_relevance": "UMH/architecture",
+      "content_read": true,
+      "content_chars": 259585,
+      "status_guess": "historical",
+      "evidence": "Core/ directory architecture audit (CORE-SPOT-AUDIT)"
+    },
+    {
+      "doc_id": "11NeGXFxuUus_NP2GDr-uQkjsAwcBeMqQ97j2ZCaZqxQ",
+      "title": "Untitled document (2026-04-22)",
+      "modified": "2026-04-22T14:36:13.278Z",
+      "projection_relevance": "EOS",
+      "content_read": true,
+      "content_chars": 15801,
+      "status_guess": "historical",
+      "evidence": "EOS integration work (InfluenceOrchestrator, UnifiedInfluence)"
+    },
+    {
+      "doc_id": "1a9HYn0M81rJ0C9qD9FN7pNojGR96LMgdqW2z5Wbegs0",
+      "title": "Untitled document (2026-03-13)",
+      "modified": "2026-03-13T02:50:31.327Z",
+      "projection_relevance": "LyfeOS/Initiate Arena",
+      "content_read": true,
+      "content_chars": 46810,
+      "status_guess": "current",
+      "evidence": "Initiate Arena product design \u2014 REBOOT cohort, pricing, delivery"
+    },
+    {
+      "doc_id": "1N8XHmKXnJHHmbK8F-I6NQLayukiX1HJU5vQv2ge_p-g",
+      "title": "AI Tools",
+      "modified": "2026-03-19T00:31:32.895Z",
+      "projection_relevance": "Trinity/shared",
+      "content_read": true,
+      "content_chars": 80232,
+      "status_guess": "historical",
+      "evidence": "Tool inventory with EOS/CreatorOS/LyfeOS references"
+    },
+    {
+      "doc_id": "1-FhleB0dp3-PBM12nEWtDRiCFTNeZWGbtfrSy9ukZX4",
+      "title": "Untitled document (2026-03-26)",
+      "modified": "2026-03-26T15:36:52.250Z",
+      "projection_relevance": "LyfeOS/Initiate Arena",
+      "content_read": true,
+      "content_chars": 6599,
+      "status_guess": "current",
+      "evidence": "Outreach discussion with LyfeOS/Game of Lyfe references"
+    }
+  ],
+  "non_relevant_docs": [
+    {
+      "title": "Untitled document (2026-06-01)",
+      "reason": "OAuth URL, not product doc"
+    },
+    {
+      "title": "SKILL.md (x2)",
+      "reason": "CC skill templates, not product doc"
+    },
+    {
+      "title": "Untitled document (2026-05-04)",
+      "reason": "WSL setup notes"
+    },
+    {
+      "title": "Untitled document (2026-04-03)",
+      "reason": "SDK API note"
+    },
+    {
+      "title": "Copy of Claude Cowork Plugins",
+      "reason": "Resource guide, not product doc"
+    },
+    {
+      "title": "Content",
+      "reason": "Content strategy, not product requirements"
+    },
+    {
+      "title": "Life Coaching (E-Learning/Info-Product Brand)",
+      "reason": "Coaching product, not Trinity app"
+    },
+    {
+      "title": "Coaching Philosophy/Methodology",
+      "reason": "Coaching methodology, not product requirements"
+    },
+    {
+      "title": "Coaching Frameworks & Workbooks",
+      "reason": "Coaching content, not product requirements"
+    },
+    {
+      "title": "Conglomerate Brands",
+      "reason": "Brand strategy, not product requirements"
+    },
+    {
+      "title": "Antony F. Munoz (Personal Brand)",
+      "reason": "Personal brand, not product requirements"
+    },
+    {
+      "title": "Empyrean Studios (Agency Brand)",
+      "reason": "Agency brand, not product requirements"
+    },
+    {
+      "title": "Personal Curriculum",
+      "reason": "Personal development, not product requirements"
+    },
+    {
+      "title": "Business Template",
+      "reason": "Business template, not product requirements"
+    },
+    {
+      "title": "Systems Inventory",
+      "reason": "Short-form virality bible, not product requirements"
+    },
+    {
+      "title": "Copy of Script Storytelling Structures",
+      "reason": "Content templates"
+    },
+    {
+      "title": "SEMAX article",
+      "reason": "Health content"
+    },
+    {
+      "title": "Script Storytelling Structures",
+      "reason": "Content templates"
+    },
+    {
+      "title": "Antony Munoz Email Sequence",
+      "reason": "Marketing content"
+    },
+    {
+      "title": "Automations",
+      "reason": "Empty doc"
+    },
+    {
+      "title": "AI Agents",
+      "reason": "Empty doc"
+    },
+    {
+      "title": "Hunter Hoffman - Service Contract Agreement",
+      "reason": "Legal contract"
+    }
+  ],
+  "drive_folder_files": {
+    "folder": "files (2)",
+    "relevance": "low \u2014 music production agent soul docs (Empyrean Studios)",
+    "files": [
+      "README.md",
+      "00_CREATIVE_DIRECTOR.md",
+      "01_LYRICIST.md",
+      "02_VOCAL_COACH.md",
+      "03_PRODUCER.md",
+      "04_MIX_ENGINEER.md",
+      "05_BRAND_DIRECTOR.md",
+      "06_MARKETING.md",
+      "CURRENT_BUILD_STATE.md",
+      "ARTIST_SERVICES_AGREEMENT.md",
+      "PHASE_1_FOUNDATIONS.md",
+      "PHASE_0_ASSESSMENT.md"
+    ],
+    "note": "Music production AI agent specs for Empyrean Studios \u2014 tangentially relevant as future CreatorOS/Empyrean integration but not Trinity product requirements"
+  },
+  "summary": {
+    "core_product_docs": 6,
+    "borderline_relevant": 5,
+    "non_relevant": 22,
+    "total_product_doc_chars": 5445848,
+    "all_docs_read": true,
+    "all_tabs_read": true,
+    "no_docs_skipped": true
+  }
+}

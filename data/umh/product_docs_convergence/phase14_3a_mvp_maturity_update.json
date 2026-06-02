@@ -1,0 +1,48 @@
+{
+  "phase": "14.3A",
+  "task": "mvp_maturity_update",
+  "timestamp": "2026-06-02T04:20:02Z",
+  "apps": {
+    "EOS": {
+      "isolated_mvp_status": "partially_built_mvp",
+      "umh_connected_mvp_status": "not_started",
+      "documentation_readiness": "high \u2014 2.1M chars PRD with multi-tab architecture, substrate audit, gap analysis",
+      "source_readiness": "partially_built \u2014 code exists in Windows Beast + VPS (saas/ decommissioned)",
+      "integration_readiness": "not_started \u2014 UMH integration boundaries undefined",
+      "deployment_readiness": "not_ready \u2014 Clerk migration planned but auth not unified",
+      "analytics_readiness": "not_ready \u2014 no PostHog installed",
+      "overall_readiness": "partially_built_mvp"
+    },
+    "CreatorOS": {
+      "isolated_mvp_status": "partially_built_mvp",
+      "umh_connected_mvp_status": "not_started",
+      "documentation_readiness": "highest \u2014 PRD v2.90 is the most complete product doc in the corpus (1.6M chars)",
+      "source_readiness": "partially_built \u2014 code exists in Windows Beast, uses Passport.js legacy auth",
+      "integration_readiness": "not_started \u2014 UMH integration boundaries undefined",
+      "deployment_readiness": "not_ready \u2014 separate repo, needs Clerk migration",
+      "analytics_readiness": "not_ready \u2014 no PostHog installed",
+      "overall_readiness": "partially_built_mvp"
+    },
+    "LyfeOS": {
+      "isolated_mvp_status": "completed_isolated_mvp",
+      "umh_connected_mvp_status": "not_started",
+      "note": "LyfeOS has a COMPLETED isolated MVP at lyfeos.net. It is NOT a full UMH-connected MVP.",
+      "documentation_readiness": "highest \u2014 PRD v2.0 exhaustive ~120 pages + DOCX roadmap + MVP build spec",
+      "source_readiness": "completed_mvp \u2014 running at lyfeos.net with Firebase+Passport.js auth",
+      "integration_readiness": "not_started \u2014 UMH integration boundaries undefined, no substrate connection",
+      "deployment_readiness": "deployed_isolated \u2014 running independently, not connected to UMH",
+      "analytics_readiness": "not_ready \u2014 no PostHog installed",
+      "overall_readiness": "completed_isolated_mvp"
+    }
+  },
+  "evidence_sources": [
+    "Google Docs full content read (all tabs)",
+    "Phase 14.3R metadata convergence production truth",
+    "Known source reality from CLAUDE.md"
+  ],
+  "preserved_from_prior_phases": {
+    "eos": "partially_built_mvp \u2014 unchanged",
+    "creatoros": "partially_built_mvp \u2014 unchanged",
+    "lyfeos": "completed_isolated_mvp \u2014 preserved, explicitly NOT full UMH-connected MVP"
+  }
+}

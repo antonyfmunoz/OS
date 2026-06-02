@@ -1,0 +1,135 @@
+{
+  "phase": "14.3A",
+  "task": "doc_classification",
+  "timestamp": "2026-06-02T04:20:02Z",
+  "classified_docs": [
+    {
+      "doc_id": "1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo",
+      "title": "EntrepreneurOS",
+      "classification": "canonical_candidate",
+      "reason": "Primary EOS product doc \u2014 multi-tab PRD with architecture, integration specs, gap analysis, substrate audit",
+      "tabs_classification": {
+        "tab_1": "canonical_candidate \u2014 EOS product research and planning conversations",
+        "tab_5": "supporting \u2014 sales call / diagnostic question design",
+        "tab_8": "canonical_candidate \u2014 organizational architecture mapping",
+        "tab_9": "canonical_candidate \u2014 EA capability gap analysis",
+        "tab_10": "canonical_candidate \u2014 cross-platform operating architecture",
+        "tab_11": "canonical_candidate \u2014 horizontal design exercise",
+        "tab_12": "canonical_candidate \u2014 Reality Mimicry design application to EOS",
+        "tab_13": "current_supporting \u2014 consolidated open/broken/deferred list",
+        "tab_14": "historical \u2014 Tool Mastery Engine gap-closure audit",
+        "tab_15": "canonical_candidate \u2014 EOS Substrate Audit 2026-04-06"
+      }
+    },
+    {
+      "doc_id": "1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI",
+      "title": "CreatorOS",
+      "classification": "canonical_candidate",
+      "reason": "PRD v2.90 \u2014 most complete product requirements document in the entire corpus",
+      "tabs_classification": {
+        "tab_1": "canonical_candidate \u2014 full PRD v2.90 with executive summary, features, screens, business model",
+        "tab_8": "canonical_candidate \u2014 cross-platform operating architecture (shared with EOS/LyfeOS)"
+      }
+    },
+    {
+      "doc_id": "1-6vPlqwlG5ud5hRNnL2sFiKmNmofDI2ZITmFxoecWog",
+      "title": "LyfeOS",
+      "classification": "canonical_candidate",
+      "reason": "PRD v2.0 \u2014 exhaustive ~120 page product specification with full system architecture",
+      "tabs_classification": {
+        "tab_1": "canonical_candidate \u2014 full PRD v2.0 with all systems specified",
+        "tab_6": "canonical_candidate \u2014 MVP build specification (5 tabs navigation)",
+        "tab_8": "canonical_candidate \u2014 comprehensive product and system report",
+        "tab_52": "canonical_candidate \u2014 cross-platform operating architecture",
+        "tab_53": "canonical_candidate \u2014 architecture freeze specification"
+      }
+    },
+    {
+      "doc_id": "11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8",
+      "title": "UMH",
+      "classification": "canonical_candidate",
+      "reason": "Multi-tab UMH architecture, roadmap, PRD, and strategy document",
+      "tabs_classification": {
+        "tab_1": "canonical_candidate \u2014 initial UMH conception",
+        "tab_2-4": "canonical_candidate \u2014 architecture development",
+        "tab_5": "canonical_candidate \u2014 UMH Roadmap v1.0",
+        "tab_6": "canonical_candidate \u2014 self-recursive governed leverage system",
+        "tab_7": "strategy_note \u2014 release strategy before full UMH completion",
+        "tab_8": "canonical_candidate \u2014 EOS as first UMH projection strategy",
+        "tab_9": "canonical_candidate \u2014 rewritten PRD as professional source-of-truth",
+        "tab_11-12": "canonical_candidate \u2014 civilization-scale architecture vision",
+        "tab_13": "canonical_candidate \u2014 merged synthesis with technical extrapolation"
+      }
+    },
+    {
+      "doc_id": "11p9ts6TTVDlCgOX1oV5u_0BGuHyHmgwclqEUgI4b6yM",
+      "title": "THE MUNOZ EMPIRE \u2014 Elite Structural Architecture",
+      "classification": "canonical_candidate",
+      "reason": "Empire-level structural architecture \u2014 Trinity apps relationship to conglomerate"
+    },
+    {
+      "doc_id": "1svTpbCtrmSoxFlCKau7doOU2PGr4hP-m",
+      "title": "LYFEOS_Product_Development_Roadmap.docx",
+      "classification": "canonical_candidate",
+      "reason": "4-phase development roadmap from MVP to full product (12-18 months)"
+    },
+    {
+      "doc_id": "1N8XHmKXnJHHmbK8F-I6NQLayukiX1HJU5vQv2ge_p-g",
+      "title": "AI Tools (Tab 2: OS Platform Standard v1)",
+      "classification": "canonical_candidate",
+      "reason": "Shared Trinity platform blueprint \u2014 separate repos, shared standards, 5 portable kits"
+    },
+    {
+      "doc_id": "1N8XHmKXnJHHmbK8F-I6NQLayukiX1HJU5vQv2ge_p-g",
+      "title": "AI Tools (Tab 3: OS-Core-Kit Transfer Plan)",
+      "classification": "current_supporting",
+      "reason": "Implementation checklist for cross-app kit reuse \u2014 operational but secondary to Standard v1"
+    },
+    {
+      "doc_id": "1a9HYn0M81rJ0C9qD9FN7pNojGR96LMgdqW2z5Wbegs0",
+      "title": "Untitled (2026-03-13) \u2014 Initiate Arena",
+      "classification": "current_supporting",
+      "reason": "Initiate Arena founding cohort product design \u2014 $750 offer, 90-day structure, content strategy"
+    },
+    {
+      "doc_id": "1TYQrD3X9gTiWiUIkbsXIAgMa5vbgZgRmWo_xDcHoiqc",
+      "title": "Untitled (2026-05-15) \u2014 Core Architecture Audit",
+      "classification": "historical",
+      "reason": "CORE-SPOT-AUDIT of core/ directory \u2014 pre-convergence architecture analysis"
+    },
+    {
+      "doc_id": "11NeGXFxuUus_NP2GDr-uQkjsAwcBeMqQ97j2ZCaZqxQ",
+      "title": "Untitled (2026-04-22) \u2014 EOS Integration",
+      "classification": "historical",
+      "reason": "EOS integration notes for InfluenceOrchestrator \u2014 implementation context"
+    },
+    {
+      "doc_id": "1-FhleB0dp3-PBM12nEWtDRiCFTNeZWGbtfrSy9ukZX4",
+      "title": "Untitled (2026-03-26) \u2014 Outreach",
+      "classification": "current_supporting",
+      "reason": "Outreach strategy and Game of Lyfe / LyfeOS business context"
+    }
+  ],
+  "duplicates_detected": [
+    {
+      "type": "shared_tab_content",
+      "description": "Tab content 'cross-platform operating architecture' appears in EntrepreneurOS (Tab 10), CreatorOS (Tab 8), and LyfeOS (Tab 52)",
+      "likely_master": "One source tab copied across all three docs as shared reference",
+      "action": "No deletion \u2014 note as shared content, extract once for canonical use"
+    },
+    {
+      "type": "duplicate_skill_docs",
+      "description": "Two 'SKILL.md' Google Docs with identical content (14,462 chars each)",
+      "doc_ids": [
+        "1R2SFSESihPqR-NMeb8IbV10RFhFitmlxNuGkb7QbVJI",
+        "1uVH2wu1j-KsSk0RoDS1mlg1ac150DH6z2y3oC0Rkxx0"
+      ],
+      "relevance": "Not Trinity product docs \u2014 CC skill templates"
+    },
+    {
+      "type": "duplicate_content_doc",
+      "description": "Script Storytelling Structures and Copy of Script Storytelling Structures \u2014 identical content",
+      "relevance": "Not Trinity product docs \u2014 content templates"
+    }
+  ]
+}

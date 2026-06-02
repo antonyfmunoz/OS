@@ -1,0 +1,817 @@
+{
+  "phase": "14.3A",
+  "task": "full_content_extracted_claims",
+  "timestamp": "2026-06-02T04:29:53Z",
+  "apps": {
+    "EOS": {
+      "product_definition": {
+        "purpose": "AI-native business operating system that enables founders and operators to run one or more companies through unified organizational structure, role-based dashboards, workflows/SOPs, agentic execution, strategic intelligence, memory/knowledge systems, governance/approvals, and cross-platform integration with CreatorOS and LYFEOS.",
+        "target_user": "Solo founders and owner-operators running one or more companies who need structure, execution leverage, and AI assistance without bloated teams. Secondary: small teams (2-10 people). Future: enterprise teams, AI-first solo operators.",
+        "one_liner": "EntrepreneurOS is the AI-assisted company command center \u2014 a cognitive operating system for business execution that lets founders run multiple businesses from anywhere in a few focused hours per day.",
+        "vision_statement": "To build the world's first truly AI-native operating system for entrepreneurs: a platform that structures companies, guides founders, deploys agentic labor, manages workflows, learns continuously, and helps humans operate at a world-class level regardless of prior experience."
+      },
+      "core_features": [
+        {
+          "name": "Portfolio & Multi-Company Management",
+          "description": "Manage multiple businesses under one portfolio with cross-company metrics, capital allocation views, and shared intelligence.",
+          "status": "defined"
+        },
+        {
+          "name": "Org Chart Engine",
+          "description": "Auto-generate and evolve organizational charts based on business model, stage, founder constraints, strategy, workload, and goals. Outputs departments, roles, responsibilities, workflows, metrics, and AI delegation opportunities.",
+          "status": "defined"
+        },
+        {
+          "name": "Role System",
+          "description": "First-class role objects with title, department, authority level, dashboard type, responsibilities, assigned humans/agents, workflows, metrics, tools, documents, permissions. Supports human-only, AI-only, or shared ownership.",
+          "status": "defined"
+        },
+        {
+          "name": "Universal Dashboard Architecture",
+          "description": "Every role uses same base structure: Header, Floating AI Control Panel (collapsed KPIs/alerts, expanded insights), Left Rail (role-specific nav), Workspace (CRM/boards/analytics), Right Rail (AI chat/agent activity/execution logs).",
+          "status": "defined"
+        },
+        {
+          "name": "Workflow & SOP Engine",
+          "description": "Create, version, execute workflows with approval gates, retries, checkpoints, branching logic, human intervention points, AI task ownership, audit trails. Steps can be human, AI agent, software, or mixed. Lifecycle: draft, tested, active, deprecated, archived.",
+          "status": "defined"
+        },
+        {
+          "name": "Skill System",
+          "description": "Reusable structured assets (markdown, scripts, templates, schemas) with routing, versioning, composition, trust scoring, performance evaluation, self-generation, and human-approved publication.",
+          "status": "partially_defined"
+        },
+        {
+          "name": "Agent Runtime",
+          "description": "Role-specific execution entities with planner, skill router, tool executor, memory interface, workflow controller, context manager, guardrail layer, communication interface. Strategy/Planning/Execution agent classes. Hierarchical orchestration.",
+          "status": "defined"
+        },
+        {
+          "name": "AI Compute & Model Routing",
+          "description": "Centralized AI Gateway with model router selecting based on complexity, privacy, latency, cost, context size, quality, risk class. Three tiers: local/private, mid-tier cloud, frontier. Cost-aware routing, confidence escalation, failover, budget controls.",
+          "status": "defined"
+        },
+        {
+          "name": "Memory & Knowledge Architecture",
+          "description": "Working memory, session memory, long-term memory, knowledge graph, semantic retrieval. Invisible context refresh/synthesis when approaching threshold. Full lineage on memory objects (source thread, segment, timestamp, confidence, version).",
+          "status": "defined"
+        },
+        {
+          "name": "Knowledge Graph",
+          "description": "Relationship layer across users, orgs, departments, roles, agents, workflows, skills, documents, people, market signals, memory objects, conversations. Powers relational reasoning, entity linkage, strategic context.",
+          "status": "defined"
+        },
+        {
+          "name": "Human Intelligence Layer",
+          "description": "Learn user communication style, preferences, standards, reasoning patterns. Build profiles for contacts with communication/decision style, motivations, concerns, relationship history, confidence level.",
+          "status": "defined"
+        },
+        {
+          "name": "Reality Intelligence Engine",
+          "description": "External awareness of markets, competitors, trends, regulation, technology, economic signals. Pipeline: collect, normalize, classify, detect signals, score confidence, synthesize implications, emit recommendations.",
+          "status": "defined"
+        },
+        {
+          "name": "Governance & Permissions",
+          "description": "Hybrid RBAC + ABAC + policy-based controls. Org/resource/execution authority layers. Autonomy levels from observe-only to strategic autonomy. Approval gates for high-risk. Human supremacy non-negotiable.",
+          "status": "defined"
+        },
+        {
+          "name": "Resilience & Failure Architecture",
+          "description": "Retries with backoff, timeouts, idempotency, circuit breakers, workflow checkpoints, resumability, saga/compensation, graceful degradation, failover. Agent-specific: attempt/loop/token/tool limits, confidence thresholds, sandboxing.",
+          "status": "defined"
+        },
+        {
+          "name": "Cross-Platform Integration",
+          "description": "Integration with CreatorOS (content, communities, distribution, lead generation) and LYFEOS (schedule, energy, habits, focus, capacity) through shared intelligence substrate.",
+          "status": "defined"
+        },
+        {
+          "name": "Founder Command Center",
+          "description": "Strategic command center surfacing top KPIs, alerts, next-best actions, active workflows, AI recommendations, org/portfolio context. AI copilot feels like mentor + operator + strategic chief of staff.",
+          "status": "defined"
+        },
+        {
+          "name": "UBOS Template Engine",
+          "description": "Universal Business Operating System \u2014 franchise-like template library that generates custom org charts, workflow libraries, dashboard configs, agent soul docs, and metric sets based on business type, stage, ICP, offer, channel, team size, and goals.",
+          "status": "defined"
+        },
+        {
+          "name": "Universal Business Primitives",
+          "description": "16 primitive categories (Identity, Market, Revenue, Cost, Relationship, Pipeline, Organizational, Work, Process, Knowledge, Performance, Coordination, Execution, Compliance, Asset, SaaS UI) that apply across all business types with configurable activation weights.",
+          "status": "defined"
+        },
+        {
+          "name": "Self-Improvement Loop",
+          "description": "System improves through skill creation from repeated patterns, workflow refinement from failure analysis, memory consolidation, folder/structure refactoring, and evidence-based template evolution.",
+          "status": "defined"
+        }
+      ],
+      "screens_modules": [
+        {
+          "name": "Auth / Entry",
+          "description": "Sign in, create or access workspace"
+        },
+        {
+          "name": "Company Setup",
+          "description": "Define company name, type, stage, offer, target customer, core goals"
+        },
+        {
+          "name": "Home Dashboard",
+          "description": "Primary experience \u2014 company summary, KPI strip, today panel (priorities, next-best action, upcoming workflow steps), AI copilot panel, operating memory/notes"
+        },
+        {
+          "name": "Company Settings/Profile",
+          "description": "Company configuration and profile management"
+        },
+        {
+          "name": "Department/Role Management",
+          "description": "Create departments, roles, responsibilities with linked workflows/tasks/docs"
+        },
+        {
+          "name": "Workflow Library",
+          "description": "Browse, create, and manage workflows/SOPs"
+        },
+        {
+          "name": "Workflow Run View",
+          "description": "Execute workflow \u2014 step through, mark complete, generate AI assistance at steps, store notes/results"
+        },
+        {
+          "name": "Task Board/List",
+          "description": "Create tasks, assign to roles, link to workflows, update status, priority, due dates"
+        },
+        {
+          "name": "AI Copilot Workspace",
+          "description": "Ask business questions, get summaries, draft workflows/SOPs/plans/documents, receive next-best action suggestions"
+        },
+        {
+          "name": "Docs/Notes Workspace",
+          "description": "SOP notes, role notes, operating notes, strategy notes"
+        },
+        {
+          "name": "Settings",
+          "description": "User and workspace configuration"
+        }
+      ],
+      "business_model": "SaaS subscription model. Part of the Lyfe Institute product ladder (Initiate Arena is the current entry product). North star: $10K/month net profit, scalable. Long-term: 11-figure empire by 50. Multi-tenant platform serving multiple founders/companies. Revenue from subscription access to the AI-native business OS. Future: skill marketplace, enterprise licensing.",
+      "user_journeys": [
+        "Set up my business operating system \u2014 create workspace, define company, get AI-generated org structure",
+        "See what matters today \u2014 open home dashboard, review KPIs, alerts, next-best actions, active workflows",
+        "Define my org structure \u2014 create departments, roles, responsibilities at lightweight level",
+        "Store and run workflows/SOPs \u2014 create or AI-generate workflows, step through execution with AI assistance",
+        "Use AI to plan and draft work \u2014 ask AI for plans, documents, role definitions, workflow drafts, summaries",
+        "Track tasks and operating priorities \u2014 create/assign tasks, link to workflows, track status from one dashboard",
+        "Keep business context persistent \u2014 memory stores company context, workflow context, recent interactions, preferences",
+        "Review key metrics and next-best actions \u2014 KPI cards, AI-generated recommendations, portfolio-wide health views"
+      ],
+      "auth_assumptions": "Single sign-in with workspace creation. One identity system shared across all three OS products (EntrepreneurOS, CreatorOS, LYFEOS). MVP: basic owner/user access. End-state: hybrid RBAC + ABAC + policy-based controls with org/resource/execution authority layers and configurable autonomy levels. No specific auth provider (OAuth, magic link, etc.) mentioned in the PRD.",
+      "database_assumptions": "Neon Postgres with RLS (Row-Level Security) scoped by org_id. Drizzle ORM for TypeScript SaaS layer. MVP data model includes: Users, Companies, Departments, Roles, Workflows, WorkflowSteps, WorkflowRuns, Tasks, Documents, MemoryObjects, AIThreads, AIMessages. End-state includes knowledge graph, vector embeddings, full memory lineage. Current production uses Neon-backed tables for interactions, outcomes, events, messages, embeddings (vector(1536) \u2014 currently mismatched with 384-dim fastembed). SQLite legacy fallback exists.",
+      "umh_integration": "EntrepreneurOS is one of three projections built on the Universal Mastery Hierarchy (UMH) substrate. The substrate provides: identity, memory, knowledge graph, skills, workflows, AI gateway/model router, governance, research/reality intelligence, observability, infrastructure. EOS is a projection that registers with UMH at runtime via abstract ports. The substrate is universal (works for any projection), while EOS contains domain-specific logic. Current architecture enforces strict layer separation: substrate/ never imports from transports/ or services/. UMH operates the current production system with Gateway, CognitiveLoop, ModelRouter dispatch pipeline, Neon-backed memory, 104 skills, 19 agent soul docs. The harness architecture means any LLM can dock in and gain full context \u2014 the intelligence lives above the model.",
+      "mvp_definition": "EntrepreneurOS MVP is the AI-assisted company command center for one founder and one business. Six core outcomes: (1) founder can define/view business structure, (2) operate from role-based dashboard, (3) store/execute basic workflows, (4) AI assists with planning/summarizing/drafting, (5) preserve business context in memory, (6) see next-best actions/metrics/active work in one place. Five releases: R1 Core Shell (auth, company, settings), R2 Org+Tasks (departments, roles, task board), R3 Workflows (library, runner, AI drafting), R4 AI Copilot (chat, memory, recommendations), R5 Docs+Memory (notes, operating docs, persistent context). MVP explicitly excludes: portfolio multi-company orchestration, full autonomous agents, multi-agent collaboration, advanced market intelligence, human intelligence graph, local/offline AI, multi-region production, full creator/business/life shared runtime, enterprise permissions, skill marketplace.",
+      "acceptance_criteria": [
+        "Founder can create one company workspace",
+        "Founder can define a basic org structure (departments, roles, responsibilities)",
+        "Founder can create or AI-generate workflows",
+        "Founder can run workflows with AI assistance at each step",
+        "Founder can manage tasks from one dashboard",
+        "Founder can ask AI for useful, context-aware help",
+        "Founder can return later and see that the system retained meaningful context",
+        "End-state: manage multiple businesses from one portfolio view",
+        "End-state: generate and evolve org structures automatically",
+        "End-state: provide role-based dashboards for humans and AI",
+        "End-state: execute workflows manually, hybrid, or autonomously",
+        "End-state: route work through agents and skills reliably",
+        "End-state: preserve continuity across long-running conversations and sessions",
+        "End-state: build and use memory with full lineage and retrieval",
+        "End-state: maintain human and stakeholder intelligence profiles",
+        "End-state: ingest and act on external market intelligence",
+        "End-state: enforce granular governance, permissions, and approvals",
+        "End-state: route AI compute intelligently across local/cloud models",
+        "End-state: recover gracefully from failures and generate AI-assisted postmortems",
+        "End-state: integrate with CreatorOS and LYFEOS through shared intelligence substrate",
+        "End-state: teach users what to do and why while also executing"
+      ],
+      "open_decisions": [
+        "No specific auth provider chosen (OAuth, magic link, SSO, etc.) for the SaaS product",
+        "Pricing tiers not defined \u2014 no mention of free vs paid plans, per-seat vs per-company pricing",
+        "CreatorOS and LYFEOS are defined architecturally but have no standalone PRDs or build timelines",
+        "Embedding dimension mismatch (384 vs 1536) unresolved \u2014 which dimension to standardize on",
+        "Whether UBOS template library will be community-contributed or curated only",
+        "Local/private AI runtime scope and implementation approach not specified beyond aspiration",
+        "Multi-region deployment strategy (which provider, what topology) not decided for production",
+        "Whether to use claude-code-sdk or claude-agent-sdk (Tab 1 notes version difference but no decision recorded)",
+        "How to handle the gap between current UMH substrate (Python) and SaaS frontend (TypeScript) \u2014 what bridges exist vs need to be built",
+        "No competitive analysis included \u2014 positioning against existing business OS tools (Monday, Notion, ClickUp, etc.)",
+        "Skill marketplace economics (if/when skills become purchasable/shareable)",
+        "Mobile app strategy not specified \u2014 web-responsive vs native apps"
+      ],
+      "stale_claims": [
+        "Tab 13 references 'os-bot container intentionally removed' and 'Telegram down' \u2014 Tab 15 audit shows os-bot as UP 2 hours (contradicts MEMORY.md claim). Status unclear which is current.",
+        "Tab 13 item 4 references 'morning_intel.py \u2014 referenced but does not exist' \u2014 may have been created since audit",
+        "Tab 15 references 'eos_ai/' module paths \u2014 codebase has since been reorganized to substrate/ + adapters/ + transports/ architecture (convergence completed 2026-05-23 per CLAUDE.md). All eos_ai/* paths are now stale.",
+        "Tab 15 references '113 Python modules in eos_ai/' \u2014 this namespace no longer exists after convergence",
+        "Tab 13 item 5 references 'strategy_engine.py North Star hardcoded $100K' \u2014 north star is now $10K/month per CLAUDE.md global context",
+        "Tab 8 references 'EOSGateway' class name \u2014 renamed to 'Gateway' after projection boundary cleanup (2026-05-28)",
+        "Tab 15 references 'EOSContext' \u2014 renamed to 'SubstrateContext' after projection boundary cleanup",
+        "Tab 13 references 'claude-code-sdk (deprecated)' \u2014 already removed per project memory",
+        "Tab 8/10 discuss LYFEOS and CreatorOS as parallel build items \u2014 current priority is exclusively Initiate Arena revenue ($10K/month), these are deferred",
+        "Tab 15 audit dated 2026-04-06 \u2014 nearly 2 months old, many findings have been addressed during convergence sprint"
+      ],
+      "missing_requirements": [
+        "No pricing model or monetization details \u2014 what the user pays, how, how much",
+        "No onboarding flow wireframes or detailed UX specifications",
+        "No API documentation or developer-facing spec for the SaaS backend",
+        "No data migration or import strategy (how founders bring existing business data in)",
+        "No accessibility requirements (WCAG compliance, screen reader support, etc.)",
+        "No internationalization/localization requirements (i18n, multi-language support)",
+        "No offline/degraded-network behavior specified for the SaaS frontend",
+        "No notification strategy beyond 'notification system exists' \u2014 push, email, in-app, SMS undefined",
+        "No error state UX patterns defined (what user sees when AI fails, workflow breaks, etc.)",
+        "No data retention, deletion, or GDPR/privacy compliance requirements",
+        "No rate limiting or abuse prevention strategy for the AI copilot",
+        "No specific performance targets (page load time, API response time, AI response time)",
+        "No testing strategy or quality assurance requirements defined",
+        "No analytics/telemetry spec for understanding user behavior in the SaaS product",
+        "No content strategy for the AI copilot (what knowledge/templates it ships with out of the box)",
+        "No competitive differentiation section (how EOS differs from Monday.com, Notion AI, ClickUp Brain, etc.)",
+        "No user research validation mentioned \u2014 PRD is founder-vision-driven, no external user testing referenced"
+      ],
+      "prd_quality": {
+        "completeness": "8",
+        "specificity": "6",
+        "actionability": "5",
+        "notes": "The end-state PRD is exceptionally comprehensive in WHAT the system should do (28 sections covering every conceivable subsystem) and the universal business primitive taxonomy (Tab 11) is genuinely novel and well-structured. The MVP PRD is well-scoped with clear non-goals. However, specificity drops significantly when moving from 'what' to 'how' \u2014 there are no wireframes, no API contracts, no specific UI component specs, no data flow diagrams. Actionability suffers because much of the document is aspirational end-state vision mixed with current-system audits, making it hard to extract buildable user stories. The biological/Reality Mimicry metaphors (Tab 12) are intellectually rich but add no engineering specificity. The strongest actionable content is the MVP data model (Tab 1 section 11), the universal primitive taxonomy (Tab 11), and the EA gap analysis (Tab 9). The weakest areas are pricing/monetization (completely absent), UX specifics (no wireframes or interaction patterns), and competitive positioning. The document would benefit from separating the vision document from the buildable spec \u2014 right now they're interleaved across multiple tabs with significant redundancy (End-State PRD appears twice in Tab 1, substrate audit appears 3 times in Tab 15, Reality Mimicry content duplicated in Tab 12)."
+      }
+    },
+    "CreatorOS": {
+      "product_definition": {
+        "purpose": "The command center for modern creators \u2014 a single platform combining cross-platform content distribution, community hosting (Discord-like), course creation (Teachable-like), digital product sales (Gumroad-like), and a built-in marketplace for discovery. For consumers, a unified feed experience aggregating all content from followed creators across platforms.",
+        "target_user": "Primary: Creators (Emerging 1K-50K followers, Established 50K-500K, Creator Businesses 500K+). Secondary: Consumers (Superfans, Learners, Community Members). Tertiary: UGC Creators (subtype), Advertisers.",
+        "one_liner": "Post once, publish everywhere. Host everything, sell to everyone.",
+        "vision_statement": "To be the single operating system that powers every creator's business \u2014 where content, community, courses, and commerce converge."
+      },
+      "core_features": [
+        {
+          "name": "Content Distribution Hub / Universal Composer",
+          "description": "Single editor for creating posts/videos/stories/reels with automatic format adaptation per platform. One-click distribution to Instagram, TikTok, YouTube, X, Facebook, LinkedIn, Pinterest, Threads. Content calendar, smart scheduling (AI-powered), content library, cross-post analytics.",
+          "status": "defined"
+        },
+        {
+          "name": "Community Hub (Discord-like)",
+          "description": "Branded community spaces with customizable text/voice/video channels. Free and paid tiers. Roles and permissions, live events (audio rooms, video calls, AMAs), member directory, engagement tools (polls, reactions, threads, mentions), moderation suite. Communities are products owned by businesses \u2014 access gated via entitlements.",
+          "status": "defined"
+        },
+        {
+          "name": "Course Platform",
+          "description": "Drag-and-drop curriculum builder with modules/lessons/sections. Native video hosting with adaptive streaming. Progress tracking, drip content, quizzes/assignments, discussion boards, certificates, cohort mode.",
+          "status": "defined"
+        },
+        {
+          "name": "Marketplace",
+          "description": "Unified marketplace for all product types (courses, communities, digital products, UGC campaigns, AI agents, services, events, physical products, software access). Search/discovery with categories, filters, trending. Ratings/reviews, featured listings, instant checkout, affiliate links.",
+          "status": "defined"
+        },
+        {
+          "name": "Consumer Feed Experience",
+          "description": "Unified feed (chronological or algorithmic) showing posts from followed creators aggregated from all platforms, community updates, course announcements. Following list, My Communities, My Courses, notifications, bookmarks, feed filters.",
+          "status": "defined"
+        },
+        {
+          "name": "Creator Dashboard & Analytics",
+          "description": "Overview dashboard with followers/revenue/engagement/growth. Content analytics per-post across platforms. Community analytics, course analytics, revenue dashboard, audience insights, funnel tracking with attribution.",
+          "status": "defined"
+        },
+        {
+          "name": "In-App Editing Studio (CapCut/TikTok-like)",
+          "description": "Video editing (trim, split, transitions, text overlays, filters, music, voiceover, speed control, aspect ratio adaptation). Templates system. Drafts management. Editing for short video, stories, long video, audio/podcast, and thumbnail generation.",
+          "status": "defined"
+        },
+        {
+          "name": "UGC Campaigns",
+          "description": "Businesses create UGC campaign listings as products. Full workflow: apply -> accept -> submit deliverable -> approve/reject -> pay -> analytics. Campaign dashboard with budget tracking, content tracking, attribution. Payments to UGC creators via platform or external.",
+          "status": "defined"
+        },
+        {
+          "name": "Ads Platform (YouTube/Meta-like)",
+          "description": "Advertiser capabilities: campaign creation, targeting, bidding, creative management. Ad inventory in feed, stories, marketplace, community. Boosted posts (creator shortcut). Creator earnings from ads with revenue share.",
+          "status": "defined"
+        },
+        {
+          "name": "Cross-Posting + Multistreaming",
+          "description": "Cross-posting feed content to external platforms (Instagram, TikTok, YouTube, X, Facebook, LinkedIn, Pinterest, Threads) with per-platform format adaptation. Live multistreaming to multiple platforms simultaneously.",
+          "status": "defined"
+        },
+        {
+          "name": "Automation Builder (Manychat-style)",
+          "description": "Trigger-based automation flows across commerce, community, UGC, and email. Visual builder with triggers, conditions, actions. Supports DM automations, email sequences, community actions, commerce triggers.",
+          "status": "defined"
+        },
+        {
+          "name": "Email/Newsletter",
+          "description": "Email provider connection, list management, subscriber capture (lead magnets), broadcast/newsletter sends, templates.",
+          "status": "defined"
+        },
+        {
+          "name": "Stories System",
+          "description": "24-hour ephemeral content with image/video support. Stories row in feed. Creator stories with engagement metrics.",
+          "status": "defined"
+        },
+        {
+          "name": "Notifications & Messaging",
+          "description": "Centralized Messages tab with DM threads, notification feed, mark-read. Notification categories spanning content, commerce, community, UGC, and system events.",
+          "status": "defined"
+        },
+        {
+          "name": "Moderation, Trust & Safety, Compliance",
+          "description": "Content moderation (auto-mod, manual review, appeals). Marketplace trust (verified sellers, dispute resolution). UGC compliance (FTC disclosure, licensing). Ads compliance (review process, policy enforcement).",
+          "status": "defined"
+        },
+        {
+          "name": "Roles & Permissions",
+          "description": "Business roles with granular permissions: Owner, Admin, Manager, Member, Custom. Platform-level roles: Consumer, Creator, Admin.",
+          "status": "defined"
+        }
+      ],
+      "screens_modules": [
+        {
+          "name": "Landing Page (/)",
+          "description": "Public marketing page with hero, platform explanation, waitlist capture"
+        },
+        {
+          "name": "Consumer Landing Page",
+          "description": "Consumer-focused marketing page"
+        },
+        {
+          "name": "Creator SaaS Landing Page",
+          "description": "Creator-focused SaaS pricing/feature marketing page"
+        },
+        {
+          "name": "Sign Up / Login",
+          "description": "Auth pages with email + social OAuth (Google, Apple)"
+        },
+        {
+          "name": "Home Feed (/home)",
+          "description": "Unified feed with For You / Following toggle, stories row, search"
+        },
+        {
+          "name": "Explore (/explore)",
+          "description": "Discovery surface with search bar, stories row, feed toggle, content feed"
+        },
+        {
+          "name": "Creator Profile (/[username])",
+          "description": "Public creator profile with tabs for content, series/collections, products, community"
+        },
+        {
+          "name": "Create Post (/create)",
+          "description": "Universal Composer with rich text, media upload, platform selector, preview mode, scheduling"
+        },
+        {
+          "name": "My Posts (/posts)",
+          "description": "Creator's post management view with status filters"
+        },
+        {
+          "name": "Post Detail (/posts/[id])",
+          "description": "Individual post view with engagement metrics per platform"
+        },
+        {
+          "name": "Content Calendar (/calendar)",
+          "description": "Monthly/weekly/list calendar views with scheduled posts"
+        },
+        {
+          "name": "Community View (/c/[slug])",
+          "description": "Discord-like community space with channels, members, chat"
+        },
+        {
+          "name": "Channel View (/c/[slug]/[channel])",
+          "description": "Individual channel with real-time chat"
+        },
+        {
+          "name": "My Communities (/communities)",
+          "description": "Consumer's joined communities list"
+        },
+        {
+          "name": "Marketplace",
+          "description": "Product discovery with filters by type, price, category, creator"
+        },
+        {
+          "name": "Product Detail Page",
+          "description": "Product landing page with description, pricing, reviews, creator info, checkout CTA"
+        },
+        {
+          "name": "My Courses",
+          "description": "Student's purchased courses with progress indicators"
+        },
+        {
+          "name": "Course Player",
+          "description": "Lesson viewer with video player, progress tracking, navigation"
+        },
+        {
+          "name": "Course Builder",
+          "description": "Creator's drag-and-drop curriculum editor"
+        },
+        {
+          "name": "Business Dashboard",
+          "description": "Creator's business management: products, orders, revenue, analytics"
+        },
+        {
+          "name": "Messages Tab",
+          "description": "DM threads, notification feed, mark-read"
+        },
+        {
+          "name": "Bookmarks (/bookmarks)",
+          "description": "Saved posts, courses, communities"
+        },
+        {
+          "name": "Settings (/settings)",
+          "description": "Account settings, connected accounts, preferences"
+        },
+        {
+          "name": "Connected Accounts (/settings/connections)",
+          "description": "OAuth platform connection management"
+        },
+        {
+          "name": "UGC Campaign Dashboard",
+          "description": "Business view of UGC campaigns with applicants, submissions, payments"
+        },
+        {
+          "name": "Ad Campaign Manager",
+          "description": "Advertiser campaign creation, targeting, budgets, metrics"
+        },
+        {
+          "name": "Automation Builder",
+          "description": "Visual flow builder for trigger/action automations"
+        },
+        {
+          "name": "Analytics Views",
+          "description": "Content, creator, business, UGC, and ads analytics dashboards"
+        }
+      ],
+      "business_model": "SaaS subscription tiers: Starter (Free, 3 platforms, 1 community, 1 course, 8% transaction fee), Pro ($29/mo, unlimited, 5% fee), Business ($99/mo, team seats, API, white-label, 3% fee), Enterprise (custom). Revenue streams: SaaS subscriptions (primary), transaction fees (3-8% on sales), marketplace promotion (paid placement), Consumer Pro (future: ad-free, offline). Creator payouts via Stripe Connect, weekly, $25 minimum, 135+ countries, instant payouts for verified creators (1% fee).",
+      "auth_assumptions": "Firebase Auth (primary, mentioned consistently across sections). Support email/password + OAuth (Google, Apple). JWT tokens with 7-day expiry and refresh tokens. Some sections mention Clerk/NextAuth or Supabase Auth as alternatives \u2014 inconsistent across sub-documents. User roles: Consumer (default), Creator (upgraded when activating creator mode), Admin. Creator Mode is a toggle on profile that auto-creates creator account + default business.",
+      "umh_integration": "Tab 8 positions CreatorOS as Layer 3 (Distribution/Audience OS) in the Lyfe ecosystem stack, sitting on top of EntrepreneurOS (Layer 2, Business OS) and LyfeOS (Layer 1, Human OS). Shared platform kernel includes: global identity system, permission system, AI runtime, workflow engine, event bus, integration layer, memory graph, notification system, UI component system, cross-platform navigation. The AI runtime is shared across all three apps. Event system is the 'real glue' connecting the ecosystem. Context objects should be summarized, not raw. Founder command layer is universal. Tab 8 extensively discusses self-improving AI architecture, security (anti-poisoning), research loops, and governance \u2014 all of which map to UMH substrate concepts. However, Tab 1 (the PRD itself) contains zero explicit UMH references \u2014 it is written as a standalone SaaS product PRD without mention of UMH substrate integration. The ecosystem integration exists only in Tab 8's strategic architecture layer.",
+      "mvp_definition": "The MVP is defined at least 3 times in Tab 1 (each iteration refining scope). Consistent core MVP: (1) User auth and profiles, (2) Connect 4 social platforms (Instagram, TikTok, YouTube, X) via OAuth, (3) Universal Composer for multi-platform posting, (4) Basic scheduling + content calendar, (5) Consumer feed (chronological, no algorithm), (6) Communities (free only, text channels, real-time chat), (7) Basic engagement (likes, comments, bookmarks). Explicitly OUT of MVP: courses, paid communities, marketplace, payments/Stripe, analytics dashboard, native mobile apps, AI features, stories/reels as content types, voice/video channels, content aggregation from other platforms, LinkedIn/Pinterest/Facebook/Threads integrations. The later 'Copy of MVP' version adds courses, marketplace, and Stripe into the MVP scope \u2014 contradicting the original. MVP timeline: 8-10 weeks. Target: 200 creators, 1000 consumers at 30 days post-launch.",
+      "open_decisions": [
+        "Content Aggregation: Should consumer feed pull actual content from other platforms via API, or only show content posted through CreatorOS?",
+        "Free Tier Limits: What's the right balance for free tier to drive adoption without cannibalizing paid?",
+        "Marketplace Curation: Should marketplace be fully open or require quality review for listings?",
+        "Mobile Priority: iOS-first, Android-first, or true simultaneous launch?",
+        "White-Label: Should Business tier allow custom branding/domains for creator storefronts?",
+        "Live Features: Priority of live streaming vs. recorded content for Phase 5?",
+        "Auth provider: Firebase Auth vs Clerk/NextAuth vs Supabase Auth \u2014 document references all three in different sections",
+        "Backend framework: NestJS vs Express \u2014 both mentioned in different sections",
+        "Backend hosting: Fly.io vs Render vs Railway \u2014 multiple mentioned",
+        "MVP scope contradiction: Original MVP excludes courses/marketplace/payments, but 'Copy of MVP' includes them",
+        "Feed algorithm: Reverse chronological (MVP) vs algorithmic ranking \u2014 when to introduce"
+      ],
+      "stale_claims": [
+        "Multiple MVP definitions contradict each other \u2014 original MVP explicitly excludes courses, payments, marketplace, but the later 'Copy of MVP' section includes all three as MVP scope",
+        "Auth provider inconsistency: Section 6.1 says Firebase Auth, Build Guide section 1.2 says Clerk/NextAuth, Tech Architecture says 'Supabase Auth or Firebase Auth'",
+        "Backend framework inconsistency: Tech Architecture recommends NestJS, Build Guide mentions Express",
+        "The document contains at least 3 separate MVP PRDs layered on top of each other (v1.0 at pos 871613, Copy of MVP at pos 924803, and another at pos 918678+), each with slightly different scope boundaries",
+        "Database spec appears twice with different levels of detail \u2014 full version (pos 156384+) and MVP version (pos 1025747+) with some schema differences",
+        "API spec appears twice \u2014 full-version (pos 493017+) and MVP version (pos 1032604+) with different endpoint structures",
+        "Tech stack described 4+ times with minor variations (e.g., ORM: sometimes 'Drizzle ORM or Prisma', sometimes just 'Drizzle ORM')",
+        "Timeline inconsistency: Section 10 says 5-phase roadmap over 2 years, Development Philosophy says 13 phases, Build Guide says 7.4 weeks for MVP",
+        "Tab 8 discusses 'AI agent marketplace' as a product type but Tab 1 full PRD only partially incorporates this (ProductType enum includes ai_agent but no dedicated system section)"
+      ],
+      "missing_requirements": [
+        "No accessibility (a11y) requirements specified anywhere in the document",
+        "No internationalization/localization requirements for MVP (mentioned briefly as Phase 5 'Growth' in initial roadmap)",
+        "No data privacy/GDPR/CCPA compliance requirements defined",
+        "No content size/storage limits per user tier clearly defined",
+        "No offline support requirements defined",
+        "No API versioning strategy beyond '/api/v1/'",
+        "No error recovery UX patterns defined (what happens when cross-posting partially fails?)",
+        "No onboarding experience detail for consumers (how do they discover creators to follow if starting from zero?)",
+        "No webhook/API integration spec for creators (only Stripe webhooks defined)",
+        "No mobile-specific interaction patterns (gestures, haptics, etc.) despite targeting mobile",
+        "No content recommendation algorithm specification beyond 'recency + likes + comments'",
+        "No terms of service / creator agreement requirements defined",
+        "No data migration path from competing platforms (importing from Teachable, Discord, etc.)",
+        "No backup/data export functionality for creators",
+        "No load testing or stress testing requirements defined",
+        "Tab 8 ecosystem architecture has no concrete API contracts between the three OS apps \u2014 the shared kernel is conceptual only",
+        "No UMH substrate integration requirements in the actual PRD (Tab 1) \u2014 Tab 8 discusses it strategically but never maps to implementation requirements"
+      ],
+      "prd_quality": {
+        "completeness": "7",
+        "specificity": "6",
+        "actionability": "5",
+        "notes": "The document is extremely comprehensive in breadth \u2014 12 full systems defined with detailed feature tables, data models, API endpoints, and infrastructure specs. However, it suffers from significant redundancy and internal contradictions due to being built iteratively through conversation. The same concepts (MVP scope, tech stack, database schema, API spec) are defined 2-4 times with minor variations, making it unclear which version is canonical. The full-version PRD (Systems 1-22) is well-structured and thorough. The MVP definition is inconsistent across its multiple appearances. Tab 8's ecosystem architecture is visionary but entirely conceptual \u2014 no implementation contracts. The Build Guide (pos 674944+) is the most actionable section but references yet another auth provider (Clerk) that contradicts the main PRD. Overall: strong vision, strong feature definition, but needs a single canonical pass to resolve contradictions, pick definitive tech choices, and consolidate the 3+ MVP definitions into one."
+      }
+    },
+    "LyfeOS": {
+      "product_definition": {
+        "purpose": "Personal Life Operating System (PLOS) that treats human life as a stateful, evolving system. Unifies identity development, execution, reflection, AI assistance, and long-term progression into one coherent platform.",
+        "target_user": "Phase 1: Founders, executives, operators managing complex multi-domain lives; high-agency individuals already doing the work but lacking system coherence; users juggling 5+ productivity/wellness tools; self-directed learners. Phase 2+: Coaches, consultants, business owners, leadership teams, creative professionals.",
+        "one_liner": "The world's first comprehensive Personal Life Operating System that turns life into a unified, coherent operating system where every input flows into a synchronized backend and powers every module.",
+        "vision_statement": "To create a personal operating system that unifies identity development, execution, reflection, AI assistance, and long-term progression into a single coherent system with visible progression, measurable momentum, and real consequence."
+      },
+      "core_features": [
+        "Dashboard - Daily command center with Stats HUD (8 stats: Level/XP, Streak, Efficiency, Attention, Time, Energy, Health, Wealth), 7 log types (Data Entry, Energy, Reflection, Intention Setter, Mission Log, Stats Log, System Log), active missions panel",
+        "Missions System - 7 categories (Daily/Ritual, Skill, Project, Belief/Trait/Behavior, Shadow/Instinct, Reflection, System Calibration) with scope calibration (Micro/Meso/Macro), failure handling (auto-rollover, resize, AI dialogue), thread integration, XP rewards",
+        "NOVA AI System - Multi-role AI (Advisor/Coach/Executive Assistant/Operator/Workflow Engine/Admin Agent), text chat with tool calls, voice interaction (Phase 2+), NOVA Calls with transcription, Salience Engine, AI Activity Log (git-style), multi-agent orchestration (Phase 3+)",
+        "Chronilog - 7 subsystems (Logs, Reflections, Feedback, Rituals, Timeline with History+Roadmaps, Mission Logs, Rolodex), epoch/stage detection, relationship mapping",
+        "Systems Page - 9 modules (Calendar, Boards/Kanban, Canvas, Knowledge Graph, Spreadsheets, Documents, Forms, Templates, Media Library) with cross-view architecture",
+        "Player Profile / Character Sheet - 10 sections (Identity, Personality, Vision/Goals, Learning/Skills, Projects, Body/Health, Wealth/Work, Performance, Style/Expression, Character Affirmation)",
+        "Unified Transformation Thread - Core developmental engine anchored to Evolutionary Skill, weaves Skills + Beliefs + Behaviors + Traits + Shadow + Instincts, embodiment-based completion validation",
+        "Onboarding: The Awakening Protocol - 9 missions, 100+ questions, broad+deep pattern, system seeding across all modules, multiple input modalities (sliders, chips, drag-to-rank, text, toggles, date spans)",
+        "Gamification - XP, Levels (tiered thresholds), Streaks with bonuses (7d/30d/90d), Efficiency %, Momentum. Progression unlocks reduced friction, increased AI autonomy, new workflows, heavier missions. Explicitly NO badges, confetti, praise language.",
+        "Integration Architecture - Harmonization flow (Capture -> Translate -> Align -> Seed -> Forecast -> Surface), categories: Productivity (Google/Notion/Trello), Health (Oura/Whoop/Apple Health), Finance (Plaid/Stripe), Knowledge (Obsidian/Evernote)"
+      ],
+      "screens_modules": [
+        "Dashboard (default landing tab)",
+        "Missions (execution stack)",
+        "NOVA / AI (center tab - advisor, companion, assistant)",
+        "Chronilog (historical archive)",
+        "Systems (tools and integrations - Phase 2+)",
+        "Profile / Character Sheet (rightmost tab in MVP)",
+        "Onboarding Flow (Awakening Protocol - 9 missions)"
+      ],
+      "business_model": "Subscription SaaS. Phase 1 targets 100 daily users (free/beta). Phase 2: 500 users. Phase 3: 2,000 users. Phase 4: 10K+ users with enterprise/team tiers. Revenue targets: $1M+ ARR in Phase 4. Coach/client relationship mode and white-label options planned. LTV:CAC ratio target 3:1. Part of broader Lyfe Institute ecosystem (LYFEOS + EntrepreneurOS + CreatorOS).",
+      "gamification_system": {
+        "xp": "Awarded on mission completion (10-100 typical, weighted by type/scope). +5 XP for reflection log. Streak bonuses: 7d=1.1x, 30d=1.25x, 90d=1.5x, 365d=2.0x multiplier.",
+        "levels": "Tiered thresholds: Levels 1-10 = 100 XP each, 11-25 = 250 XP each, 26-50 = 500 XP each, 51+ = 1000 XP each. Multiple level-ups possible from single mission. Unlocks: new mission types, increased AI autonomy, advanced cross-views, multi-agent orchestration, expanded workflows.",
+        "streaks": "Consecutive days with >=1 mission completed. Resets to 0 if day missed. Displayed as continuity (e.g. '12D'). Focus on momentum, not perfection. No punishing loss mechanics.",
+        "archetypes": "6 archetypes from 54-question calibration quiz: Warrior (discipline/endurance), Architect (systems/structure), Creator (innovation/expression), Monarch (leadership/power), Oracle (wisdom/intuition), Alchemist (transformation/healing). Scoring: direct (+), weighted (x1.5), reverse (R), scenario chips (+5). Outputs: Dominant, Secondary, Shadow archetypes. Combo Profile if top 2 within 3 points.",
+        "stats": "8 core stats displayed as HUD meters: Level/XP (cyan #4CC9F0), Streak (green #3DDC97), Efficiency (gradient red-yellow-green, rolling 30-day), Attention (blue gradient), Time (cyan), Energy (orange #FF9500, calculated as avg of mental/physical/emotional), Health (green, weighted: sleep 40% + activity 30% + nutrition 30%), Wealth (gold #FFD700). Efficiency tiers: Developing/Capable/Proficient/Masterful/Legendary."
+      },
+      "nova_ai_system": "NOVA (Neural Operating Virtual Assistant) - multi-role AI system operator. 6 roles: Advisor (strategic insights, progress audits, recalibration), Coach (reflective dialogue, pattern surfacing), Executive Assistant (scheduling, drafting, follow-ups), Operator (task execution via agents), Workflow Engine (deterministic automations), Admin Agent (system integrity, rollback, governance). Tone: neutral, calm, systemic - NO emojis, NO praise, NO hype. Canonical message types: System Insight, Plan Proposal, Approval Request, Execution Log, Result Summary, Workflow Status. MVP: 10+ tool functions (createMission, updateMission, completeMission, updateEnergyLog, updateDataEntry, updateReflection, updateIntention, updateProfile, generateCharacterAffirmation, viewPlayerStats). Phase 3: multi-agent orchestration with 5 agent types (Research, Scheduling, Content, Analysis, Integration) with governance (capability-based permissions, approval tiers, audit logs, emergency stop, rollback).",
+      "auth_assumptions": "Account creation via email/SSO with MFA. Auth0 or Clerk for authentication. Global identity system shared across LyfeOS/EntrepreneurOS/CreatorOS ecosystem. Single login for all platforms. Permission model: Owner/Admin/Manager/Operator/Viewer/Agent. Enterprise SSO (SAML, OAuth) planned for Phase 4.",
+      "umh_integration": "LyfeOS is part of the broader Lyfe Institute product ecosystem alongside EntrepreneurOS and CreatorOS. In the architectural vision (Tabs 52-53), these three form a 3-layer Human Operating System Ecosystem sharing a Platform Kernel (Identity, AI Runtime, Workflow Engine, Event Bus, Memory Graph, Integration Layer, Notification System, UI Design System). Cross-platform communication via structured events (e.g. life.energy_low, business.launch_scheduled). Context packets distilled between systems. However, the CURRENT isolated MVP at lyfeos.net is standalone with NO UMH/substrate connection. Future UMH integration would map NOVA to the substrate's model_router/agent architecture, and the shared platform kernel aligns conceptually with UMH's substrate layer.",
+      "isolated_mvp_status": "completed",
+      "umh_connected_mvp_status": "not_started",
+      "roadmap_phases": [
+        {
+          "phase": "Phase 1: MVP",
+          "timeline": "Months 0-2 (6-8 weeks / 10-12 weeks depending on doc version)",
+          "objective": "Prove core value proposition - Life OS with AI orchestration creates daily pull, not novelty. Validate core loop: reflection -> action -> feedback.",
+          "key_features": "Dashboard (basic stats + logs), Missions (CRUD + XP), NOVA (text chat, 10+ tools), Chronilog (basic archive), Profile (10 sections), Gamification (XP/levels/streaks), 8-mission onboarding (100+ questions)",
+          "success_criteria": "100 daily active users, 70%+ D7 retention, >=1 mission/day, 3+ NOVA interactions/week, users report replacing 2-3 tools"
+        },
+        {
+          "phase": "Phase 2: Core System",
+          "timeline": "Months 2-6 (3-4 months)",
+          "objective": "Build complete personal OS with transformation threads, full onboarding, integrations. Prove sustained engagement and measurable life progression.",
+          "key_features": "Complete 9-mission onboarding, Transformation Thread Engine, NOVA voice + calls, Calendar/Health/Finance integrations, Rituals system, Trackers, Enhanced Dashboard (all 8 stats), Mission categories expansion (7 types), Chronilog full (7 subsystems + Rolodex)",
+          "success_criteria": "500 active users, 60%+ D30 retention, first thread completions, >=3 integrations/user"
+        },
+        {
+          "phase": "Phase 3: Advanced AI",
+          "timeline": "Months 6-12 (3-4 months)",
+          "objective": "Scale AI with multi-agent orchestration, custom workflows, executive assistant capabilities.",
+          "key_features": "5 AI agent types (Research/Scheduling/Content/Analysis/Integration), Custom workflow builder, Executive assistant (email/calendar/meetings), Complete Systems Page (9 modules), 10+ integrations, Mobile apps (iOS/Android), Developer API, Longitudinal reports",
+          "success_criteria": "2,000 active users, 50%+ D90 retention, >=2 workflows/week, 30%+ using multi-agent, mobile 40%+ of sessions"
+        },
+        {
+          "phase": "Phase 4: Scale & Teams",
+          "timeline": "Months 12-18 (ongoing)",
+          "objective": "Expand to team and enterprise use cases.",
+          "key_features": "Team workspaces, Coach/client mode, Enterprise SSO/security, Marketplace (templates/plugins), White-label options, Advanced analytics",
+          "success_criteria": "10K+ users, 100+ enterprise customers, 50+ coaches, marketplace with 100+ templates, $2M+ ARR"
+        }
+      ],
+      "open_decisions": [
+        "State management: Zustand or Jotai - not decided",
+        "Backend framework: Express or Fastify - not decided",
+        "Authentication provider: Clerk or Auth0 - not decided",
+        "File storage: Cloudflare R2 or Backblaze - not decided",
+        "Vector DB (Phase 3): Pinecone or Qdrant - not decided",
+        "Agent framework (Phase 3): LangChain or custom - not decided",
+        "Hosting: Vercel or AWS - not decided",
+        "Time display format: 24hr or 12hr (user choice mentioned but implementation unclear)",
+        "Health stat data source: manual input in MVP, Phase 2 connects to health apps - transition plan undefined",
+        "Wealth stat display: tier vs net worth amount toggle - privacy implementation undefined",
+        "Onboarding mission count inconsistency: PRD v1.0 says 9 missions, MVP spec v2.0 says 8 missions (Mission 8: Integration dropped from MVP but Mission 9 renumbered?)",
+        "Navigation tab count inconsistency: original MVP PRD says 4 tabs, Implementation Spec v2.0 says 5 tabs (Profile added)",
+        "MVP timeline inconsistency: roadmap says 6-8 weeks, implementation spec says 10-12 weeks",
+        "Cross-platform kernel architecture (Tabs 52-53) is conceptual only - no implementation plan or technical specs exist for the shared platform layer",
+        "Event bus contracts between LyfeOS/EntrepreneurOS/CreatorOS are described conceptually but no schema or protocol defined",
+        "Billing model for individual vs ecosystem subscription not defined"
+      ],
+      "stale_claims": [
+        "AI model reference to 'Claude 4.5' - document from Feb 2026, current models are Claude 4.6/4.7",
+        "Tab 1 has two PRD versions (v1.0 and v2.0) with conflicting scope - v1.0 has 4-tab navigation and 3 data models, v2.0 has 5-tab navigation and 5 data models. The v2.0 appears to be the authoritative version.",
+        "The PRD says 'approximately 120 pages' but the content is significantly larger across all tabs",
+        "Phase 1 timeline varies: '6-8 weeks' in roadmap section vs 'Months 0-2' vs 'Months 0-4' vs '10-12 weeks' across different document sections",
+        "Document claims 'This specification is complete and ready for implementation' multiple times for different versions with conflicting scope",
+        "Competitive analysis section headers exist but content is empty (Risk Assessment table referenced but not filled)",
+        "Tab 8 repeats large sections of Tab 1 content in slightly different formats - appears to be accumulated iterations rather than a single coherent doc",
+        "Data model shows Mission States as only 'active', 'completed', 'deleted' but PRD mentions 'in-progress' status that does not appear in schema"
+      ],
+      "missing_requirements": [
+        "Error handling UX: what happens when NOVA tool calls fail beyond 'explain to user'? No error state designs specified",
+        "Offline behavior: no specification for what happens when connection is lost",
+        "Data migration: no plan for migrating user data between phases as schema expands",
+        "Rate limiting: no specification for API rate limits or NOVA interaction throttling",
+        "Content moderation: no specification for handling inappropriate content in free-text fields",
+        "Account deletion / data export: GDPR/privacy compliance requirements mentioned (export in JSON/CSV/PDF) but no implementation spec",
+        "Multi-device sync: no specification for concurrent access from multiple devices",
+        "Backup and recovery: no specification for data backup strategy",
+        "Monitoring and alerting: no specification for production monitoring",
+        "A/B testing framework: no specification despite retention metrics being primary success criteria",
+        "Onboarding question skip/optional handling: some questions marked optional but no UI spec for skip flow",
+        "Character Affirmation regeneration: triggers and limits undefined (how many times can user regenerate?)",
+        "Session management: NOVA conversation is described as stateless between sessions but no spec for session duration/timeout",
+        "Push notification strategy: mentioned for mobile but no notification taxonomy or frequency rules defined",
+        "Search functionality: explicitly excluded from MVP Chronilog but no spec for when/how it gets added",
+        "Transformation Thread UX: detailed logic for thread engine but no wireframes or screen specs for thread visualization",
+        "Knowledge Graph implementation: mentioned multiple times but no spec for graph visualization, node types, or edge semantics"
+      ],
+      "prd_quality": {
+        "completeness": "8/10",
+        "specificity": "9/10",
+        "actionability": "7/10",
+        "notes": "Extremely thorough product specification - one of the most detailed PRDs seen. Every onboarding question, every data model field, every hex color code, every XP calculation formula is specified. Specificity is exceptional with exact SQL schemas, component styles, and animation timings. However, actionability is lowered by: (1) significant version conflicts between PRD v1.0 (4 tabs, 3 models) and v2.0 (5 tabs, 5 models) coexisting in the same document, (2) timeline inconsistencies across sections, (3) massive content repetition across tabs (the same onboarding spec appears 3+ times in different formats), (4) missing error handling, offline behavior, and operational specs, (5) Tabs 52-53 describe an aspirational ecosystem architecture that is conceptual only with no implementation path. The document would benefit from a single canonical MVP spec with all conflicts resolved. The isolated MVP at lyfeos.net demonstrates that the core spec IS executable - the implementation proved the MVP PRD works. The ecosystem architecture (LYFEOS + EntrepreneurOS + CreatorOS on shared kernel) is compelling but currently at whiteboard stage only."
+      }
+    },
+    "UMH": {
+      "doc_name": "UMH",
+      "tabs_found": [
+        10,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        11,
+        12,
+        13
+      ],
+      "tab_summaries": {
+        "tab_10": "System Definition and Core Architecture. Defines UMH as 'Universal Meta Harness' \u2014 a stateful, event-driven, control-plane-oriented intelligence runtime. Covers: system definition, hard invariants (control plane exclusivity, adapter isolation, typed contracts, single execution spine, memory discipline, governance first, environment explicitness), distribution/installation, user instantiation, onboarding/first boot, canonical module tree, ontology (10 primitives + 8 laws), signal interpretation system, decomposition engine (tokens->grammar->semantics->concepts->primitives->relationships->constraints->context), breadth->depth reasoning, completeness engine, world model (graph-based), memory system (6 types), profile/dossier system, capability system, adapter system, execution system, environments, perception, actuation, presence, workstation/Jarvis, governance (5 authority levels), quality/excellence engine, learning system, and final system definition.",
+        "tab_2": "Protocol Pack v1. The formal contract layer bridging architecture to implementation. Defines typed protocol categories (signal, interpretation, decomposition, world, memory, planning, composition, capability, adapter, execution, environment, perception, actuation, presence, workstation, governance, outcome, feedback). Provides Pydantic-style schemas for Signal, InterpretationResult, DecompositionResult, WorldUpdate, MemoryWrite, Plan, ExecutionRequest, ExecutionResult, GovernanceDecision, Outcome, FeedbackEvent. Defines the canonical control plane flow. Adds user signal modeling (UserSignalProfile), breadth/depth formalization, completeness check, and quality gate contracts. Proposes 4-phase implementation strategy.",
+        "tab_3": "Final End State Spec v1 (Locked). Consolidates the end-state as an immutable architectural target. 8 hard invariants (adds trace completeness and deterministic core). 19 system layers defined with contracts: perception, decomposition engine, completeness engine, world model, memory system, policy/decision, composition engine, governance engine, execution spine, adapter system, environment system, trace/observability, learning system, organism layer (NEW: self-regulation, internal signaling, resource allocation, multi-layer feedback), world model extension, perception extension, presence, workstation, distribution. Defines 6 system state tiers from MVP to AI OS.",
+        "tab_4": "Final Canonical End-State Specification v2.0. The corrected and most comprehensive spec. Defines prime directive (minimize human friction, maximize human capability). Consolidates core identity (15 simultaneous system roles). Establishes 10 non-negotiable system laws (adds intelligence subordinate to control, reality mimicry is native). Defines canonical lifecycle, canonical module tree (35 top-level domains), ontology layer with extended laws, full perception/interpretation/decomposition/domain/breadth-depth/completeness/world-model/memory/profile/registry/library/template/capability/adapter/environment/composition/planning/quality/governance/execution/actuation/observability/learning/organism/presence/workstation/distribution/onboarding systems. Establishes frontier compatibility doctrine. Defines MVP boundary and end-state completion criteria.",
+        "tab_5": "UMH Roadmap v1.0. 8 stages from MVP completion to distribution/productization. Stage 1: Finish MVP (Phases 76-78: adapter pack, workstation state, trace->outcome->memory loop). Stage 2: Make MVP Operational (Phases 79-82: observability, registry unification, storage/memory discipline, legacy deprecation). Stage 3: Composition/Templates/Libraries (Phases 83-87). Stage 4: Explicit World Model (Phases 88-91). Stage 5: Learning/Causality/Simulation (Phases 92-95). Stage 6: Workstation/Presence/Organism (Phases 96-100). Stage 7: Frontier AI OS (Phases 101-105). Stage 8: Distribution/Productization (Phases 106-108).",
+        "tab_6": "Vision and Philosophy Expansion. Articulates the true intention: a self-recursive, governed, leverage-maximizing intelligence OS. Covers: the primitive insight (reality decomposed into 10 primitives + laws), resource/tool doctrine (everything as tool/resource in context), leverage as core law (12 leverage categories), the human model (UMH mirrors human cognition structure), computer use as digital actuation, the harness concept (UMH harnesses all external systems), advisor cell and deliberation council, templates/libraries/registries/composition detailed, world modeling and domain laws, compounding results (execution -> trace -> outcome -> learning -> reusable structure -> better execution), self-recursion (bounded self-improvement loop), UI/interface vision (command center, overlay, minimized voice-wave, mobile companion), product-level arc (10 magnitudes from personal harness to human capability infrastructure), updated roadmap (Phases 76-110).",
+        "tab_7": "Release Strategy. Gate-based progressive release path: Stage 1 Internal dogfooding (2-4 weeks), Stage 2 Trusted alpha (4-8 weeks, 3-10 people), Stage 3 Private beta (8-12 weeks, 10-30 users), Stage 4 Public beta (3-6 months), Stage 5 Full launch (6-12 months). Testing duration scales with authority level (read-only = 2-6 weeks, reversible actions = 2-3 months, external actions = 3-6 months, high-risk = 6-12+ months). First public release positioned as 'UMH Operator Console / AI Command Center Beta'. Defines the real launch gate: non-technical user can install, connect tools, run workflow, see what happened, approve risks, recover from errors.",
+        "tab_8": "Strategic Priority and EntrepreneurOS Wedge. Frames EntrepreneurOS powered by UMH as the internal company-building engine and public SaaS wedge. Defines the acquisition flywheel: acquire/build business -> install EOS/UMH -> capture data -> improve workflows -> increase margin -> convert to templates -> improve UMH -> repeat. Maps the 8 strategic layers (data, workflow, regulatory, distribution, ecosystem, network, physical infrastructure, scale). Defines the 8-layer moat (software, data, workflow, distribution, network, infrastructure, capital, trust). Outlines EOS module priorities (CRM, pipeline, KPIs, SOPs, agent tasks, approvals). Defines acquisition criteria and sequencing (software first, then real estate/manufacturing). Strategic sentence: 'Build EntrepreneurOS powered by UMH as the internal operating system for acquiring, building, optimizing, and compounding companies.'",
+        "tab_9": "PRD v3.0 \u2014 the most rigorous and final specification. Adds corrected terminology: adapter boundary (not direct adapter execution), action/execution separation law, mastery law (scoped competence before execution), external boundary law, work packet governance. Defines 10 macro-layers: Interface, Control Plane, Understanding, State, Composition, Governance, Execution Plane, Adapter Boundary, Observability+Proof, Learning+Self-Regulation. Contains the complete canonical runtime spine (28 stages), full module tree organized by macro-layer, protocol pack, MVP boundary, system state tiers, W0-001 validation test mapping, frontier compatibility, end-state completion criteria, professional phase approval guardrail (15 questions), corrected terminology lock (32 defined terms), and final locked definition.",
+        "tab_11": "Civilization-Scale Extrapolation. Frames UMH at civilizational scale: persistent governed operational coordination at planetary scale. Argues civilization's bottleneck is coordination under complexity. UMH represents an operational coordination substrate: persistent memory, execution routing, capability coordination, world modeling, governance layering, environment orchestration. Primitive ontology matters because shared primitives enable universal coordination and composition. Discusses the civilizational compounding loop and why governance becomes central at scale.",
+        "tab_12": "Canonicalization Protocol. Diagnoses specification drift as the core problem \u2014 not lack of vision but knowledgebase entropy + state ambiguity + layer collapse + specification drift. Proposes a canonical living specification with explicit sections: Document Governance (status labels: CANONICAL/ACTIVE/EXPERIMENTAL/SPECULATIVE/DEPRECATED), Prime Directive, Non-Negotiable Laws, Ontological Model, System Layers (substrate/execution infrastructure/platform surfaces/domain systems), Memory Architecture, Current Reality (brutally honest what-actually-exists assessment), Roadmap (NOW/NEXT/LATER/END-STATE), End-State Vision, Historical/Deprecated Ideas.",
+        "tab_13": "Coherent System Synthesis. A merged synthesis grounding all tabs into technical reality. Provides the clean technical definition, confirms non-negotiable laws with implementation interpretation, maps the correct layered architecture with MVP implementation guidance for each subsystem (core/control plane, protocols, ontology, perception, interpretation, decomposition, domain system, breadth-depth, completeness, world model, memory, profiles, registries/libraries/templates, capabilities, adapters, environments, planning/composition, quality, execution, governance, observability, learning, organism, presence, workstation, distribution/onboarding). Defines the product stack relationship (UMH substrate -> EOS/CreatorOS/LyfeOS projections). Proposes 6-phase build sequence. Identifies 9 areas missing from the UMH doc (persistence architecture, event model, authorization model, capability registry schema, adapter contract details, runtime boundary, testing strategy, security, human feedback UX)."
+      },
+      "umh_definition": {
+        "purpose": "Minimize human friction while maximizing human capability under real-world constraints. Every subsystem, feature, phase, and architectural choice must serve this directive.",
+        "architecture_model": "10-macro-layer architecture: 1) Interface Layer (cockpit/surfaces), 2) Control Plane (authority/routing/invariant enforcement), 3) Understanding Layer (perception/interpretation/decomposition/ontology/domains), 4) State Layer (world model/memory/profiles/storage), 5) Composition Layer (registries/libraries/templates/capabilities/planning/completeness/quality/mastery), 6) Governance Layer (policy/risk/approval/permissions/security), 7) Execution Plane (actions/work packets/queues/DAGs/workers/environments/actuation), 8) Adapter Boundary Layer (external system connection/translation), 9) Observability+Proof Layer (trace/proof/audit/metrics), 10) Learning+Self-Regulation Layer (feedback/patterns/updates/organism). Dependency flows downward only.",
+        "operator_experience": "Persistent workstation/Jarvis layer across devices with modes (Developer, Research, Command Center, Overnight, etc.), boot sequences, session continuity (user leaves -> system continues permitted work -> user returns -> summary + resume), approval queues, trace visibility, and progressive authority release.",
+        "organism_runtime": "Self-regulation through homeostasis, internal signaling (InternalSignal with source_module/signal_type/severity/payload), resource allocation (compute/attention/model calls/worker cells), attention allocation, worker cell spawning, sandboxed self-update testing, cycle management (day/night/advisor/worker/review/maintenance), health monitoring, anomaly detection, and recovery. Bounded self-recursion loop: detect issue -> propose improvement -> simulate/evaluate -> sandbox -> test -> compare before/after -> request approval -> deploy -> trace -> monitor.",
+        "device_role_intelligence": "Cross-device persistent cognition layer. VPS as persistent advisor/control node, local machine as high-compute/GUI worker, mobile as command interface, cloud as scalable fallback, sandbox/container as isolated execution cell, offline mode where possible. WorkstationProfile tracks devices, environments, modes, permissions, boot sequences, active state, active tasks, active traces, preferred execution nodes, continuity state.",
+        "source_truth_model": "Graph-based world model with entities, relationships, state values, temporal state, and uncertainty. Every fact includes confidence, source, and timestamp. Memory is typed (working/episodic/semantic/canonical/instance/behavioral/procedural/trace-derived/profile/environment/goal/world-state/pattern/policy), governed, temporal, and source-attributed. Trace is the complete execution record (not memory). Memory candidates are derived from traces/outcomes/feedback. Canonical memory = promoted general knowledge. Instance memory = user-specific state.",
+        "app_relationship": "UMH is the substrate. EntrepreneurOS, CreatorOS, LyfeOS, and future projections are domain-specific interfaces sitting on top. Platforms translate user intent into UMH signals, provide domain-specific views, expose workflows/dashboards, display results, collect feedback, enforce domain-specific permissions. They do NOT contain intelligence. UMH owns memory, governance, capability registry, execution spine, adapter contracts, and learning loop. The product stack: OST/HoldCo -> UMH substrate -> EOS (business) / CreatorOS (audience/content) / LyfeOS (personal life) / InvestorOS (capital) / Workstation (operator interface)."
+      },
+      "open_questions": [
+        "Persistence architecture not locked \u2014 Postgres vs SQLite vs hybrid for MVP; vector store selection; event log schema; trace retention policy; backup strategy",
+        "Event model not defined \u2014 the spine needs a formal event model (SignalReceived, InterpretationCompleted, etc.) to avoid procedural spaghetti",
+        "Authorization model incomplete \u2014 governance modes defined but not the policy schema (risk classes, approval channels, user confirmation format, default deny rules)",
+        "Capability registry schema needs full formalization beyond the conceptual contract",
+        "Adapter contract details missing \u2014 manifest, input/output validation, dry-run support, rollback, observability hooks, idempotency, credential handling",
+        "Runtime boundary not decided \u2014 what UMH does directly vs delegates; rule exists but specific boundaries undefined",
+        "Testing doctrine absent \u2014 folder exists but no test strategy (protocol validation, governance denial, trace completeness, replay, end-to-end spine)",
+        "Security requires more explicit treatment \u2014 secrets manager, least privilege, sandboxing, command allow/deny, file path restrictions, credential scope",
+        "Human feedback UX not designed \u2014 structured format for was-useful/outcome-achieved/accepted-rejected-edited/what-changed/why-wrong",
+        "Tab 10 references tabs 1 and 11 which are numbered differently than what appears \u2014 possible tab reordering or missing tabs between iterations",
+        "Roadmap phase numbers changed between tabs (76-108 in tab 5, then 76-110 in tab 6) \u2014 indicates roadmap was revised but not reconciled",
+        "No mention of LLM cost management strategy despite extensive adapter/capability system",
+        "Simulation/counterfactual system described in tabs 4-5 but no implementation approach defined"
+      ],
+      "stale_claims": [
+        "Tab 5 references 'Phase 75B' as the current state with MVP spine completed \u2014 the actual codebase is far beyond this (Phase 10.0 per CLAUDE.md), making the roadmap phases 76-108 historical rather than current",
+        "Tab 10 uses 'Universal Mets Harness / Universal Meta Harness' naming \u2014 the actual system name in code is UMH (Universal Mastery Hierarchy), indicating this tab predates the name change",
+        "The canonical module tree in tabs 4/9 shows 'universal_meta_harness/' as the root \u2014 the actual codebase uses 'substrate/' as the innermost layer, not a flat universal_meta_harness/ structure",
+        "Tab 5 roadmap places Template System at Phase 83 and Library System at Phase 84 \u2014 these are now being implemented as Phase 10.0 Production Template Library",
+        "Tab 9 references W0-001 as Google Workspace ingestion validation \u2014 status described as 'not ready' but the codebase has moved well past this",
+        "Multiple tabs describe composition engine, registry system, etc. as future \u2014 many of these exist in the codebase (substrate/composition/, adapters/, registries)",
+        "Tab 7 release strategy assumes UMH is pre-dogfooding \u2014 the actual system has been running in production for months via Discord bot and operator services",
+        "Tab 8 describes EOS module priorities as future \u2014 the saas/ directory already contains EOS routes, schema, and seed data"
+      ],
+      "prd_sections_found": [
+        "Document Status and Version (PRD v3.0)",
+        "Executive Summary",
+        "Prime Directive",
+        "System Definition",
+        "What UMH Is and Is Not",
+        "Core Architectural Thesis (10 first principles)",
+        "Non-Negotiable System Laws (12 laws)",
+        "Canonical Runtime Spine (28 stages)",
+        "Macro Architecture (10 layers)",
+        "Layer 1 \u2014 Interface Layer (with Workstation/Jarvis)",
+        "Layer 2 \u2014 Control Plane",
+        "Layer 3 \u2014 Understanding Layer (Perception, Interpretation, Decomposition, Ontology, Domains)",
+        "Layer 4 \u2014 State Layer (World Model, Memory, Profiles, Storage)",
+        "Layer 5 \u2014 Composition Layer (Registries, Libraries, Templates, Capabilities, Planning, Completeness, Quality, Mastery)",
+        "Layer 6 \u2014 Governance Layer",
+        "Layer 7 \u2014 Execution Plane (Actions, Work Packets, Workers, Environments, Actuation)",
+        "Layer 8 \u2014 Adapter Boundary Layer",
+        "Layer 9 \u2014 Observability + Proof Layer",
+        "Layer 10 \u2014 Learning + Self-Regulation Layer",
+        "Distribution, Installation, and Onboarding",
+        "Canonical Module Tree",
+        "Protocol Pack",
+        "MVP Boundary",
+        "System State Tiers (6 tiers)",
+        "W0-001 Validation Test Mapping",
+        "Frontier Compatibility",
+        "End-State Completion Criteria",
+        "Professional Phase Approval Guardrail (15 questions)",
+        "Corrected Terminology Lock (32 terms)",
+        "Final Locked Definition",
+        "Immediate Implementation Sequence"
+      ]
+    },
+    "Trinity_Shared": {
+      "shared_product_principles": [
+        "Structure over discipline \u2014 the system provides the constraint architecture, not motivational advice (UMH: governance/laws/contracts; Empire: corporate governance/constitution; Initiate Arena: daily structure/accountability)",
+        "Proof over theory \u2014 UMH requires trace/proof artifacts; Empire requires audits/KPIs; Initiate Arena demands measurable momentum and visible evidence of execution",
+        "Governance before execution \u2014 UMH has governance-before-execution law; Empire has multi-tier governance (Family Council, Investment Committee, boards); Initiate Arena qualifies leads before taking payment",
+        "Leverage-first thinking \u2014 UMH selects highest-leverage capability/tool/environment; Empire uses IP licensing, intercompany lending, vertical integration; Initiate Arena uses content as distribution leverage",
+        "Compounding as core law \u2014 UMH compounds through templates/memory/learning; Empire compounds through reinvested cash flow and asset accumulation; Initiate Arena compounds through case studies/testimonials feeding future sales",
+        "Identity separation from operations \u2014 UMH separates substrate from projections; Empire separates Brand IP Co from operating entities; Initiate Arena separates the Arena identity (earned) from the person",
+        "Reality modeling, not wishful thinking \u2014 UMH models reality through primitives/world-model; Empire uses realistic phasing and honest current-state assessment; Initiate Arena starts with a Time Audit and honest self-diagnosis"
+      ],
+      "shared_ux_patterns": [
+        "Command Center / Dashboard pattern \u2014 UMH has Workstation Command Center mode; EntrepreneurOS has company/department/workflow/KPI dashboards; Initiate Arena has Scoreboard and KPI Dashboard",
+        "Progressive authority release \u2014 UMH uses autonomous/notify/approve/escalate/deny; Empire phases governance expansion over decades; Initiate Arena phases from Stabilization to Pressure to Identity Lock-In",
+        "Trace/accountability visibility \u2014 UMH shows execution traces; EntrepreneurOS shows agent/human task history; Initiate Arena has daily check-ins (wake time, training, execution block, habit compliance)",
+        "Continuity/resume pattern \u2014 UMH workstation summarizes 'what happened while you were gone'; Family Office provides continuity across founder's lifecycle; Initiate Arena has roadmap call at end + 12-month plan",
+        "Boot sequence / onboarding \u2014 UMH has first-boot sequence; Empire has Phase 1 entity setup; Initiate Arena has onboarding 1:1 and diagnostic report"
+      ],
+      "shared_auth_direction": "Hierarchical authority flowing from a single source of truth. UMH: Control Plane Exclusivity law \u2014 all decisions pass through control plane. Empire: Dynasty Trust -> FLP -> Munoz Conglomerate -> Lyfe Corp -> clusters -> entities. Both use ring-fencing (UMH: adapter isolation/typed contracts; Empire: LLC-per-property/cluster hold cos). Authentication direction: user instance -> governance policy -> environment permissions. Corporate auth: Family Council -> Investment Committee -> Operating Boards. Both converge on the principle that no execution (business or technical) occurs without governance authorization.",
+      "shared_analytics_future": "UMH traces and outcomes become the proprietary data foundation. Every interaction produces labeled training data: approved drafts, rejected outputs, executed actions, reflections, governance overrides, outcomes. This data feeds: template performance stats, capability reliability scores, adapter reliability data, workflow pattern discovery, user preference modeling, domain insights. At the Empire level, this translates to cross-portfolio operational intelligence: which workflows improve margins, which acquisition targets have fixable bottlenecks, which operational patterns transfer between businesses. EntrepreneurOS KPI dashboards surface this. LyfeOS tracks personal performance analytics. CreatorOS measures content/distribution effectiveness.",
+      "shared_deployment_future": "Multi-environment, multi-jurisdiction deployment. UMH: VPS as persistent control node, local machine as high-compute worker, mobile as command interface, cloud as scalable fallback. Empire: Delaware C-Corps, Nevada IP, SD trusts, property-state real estate LLCs, international expansion (Singapore/Switzerland/UAE/Ireland/Cayman). Product deployment: OST Inc. holds all software, C-Corp for VC/IPO readiness, QSBS tax optimization on exits. UMH installable as a harness across devices. EntrepreneurOS as public SaaS. Internal tools private to Munoz Conglomerate operating companies. Long-term: OST Compute Inc. for proprietary compute infrastructure, OST Models Inc. for proprietary AI models.",
+      "shared_database_future": "UMH world model as the unified state layer across all projections. Entities, relationships, facts, temporal state, and uncertainty tracked with source attribution and confidence scoring. Each projection (EOS/CreatorOS/LyfeOS) provides domain-specific views into the shared world model. Memory system handles typed persistence (working/episodic/semantic/canonical/instance). Storage discipline law ensures all durable state goes through governed memory subsystem. At Empire level, this becomes the operational data foundation for Family Office consolidated reporting, cross-entity analytics, and acquisition diagnostic intelligence. Real estate data flows through property-level LLCs. Financial data flows through the internal bank (Lyfe Corp intercompany lending). Trace data accumulates as proprietary training datasets (future OST Models Inc.).",
+      "shared_ai_agent_concepts": [
+        "Advisor Cell / Deliberation Council \u2014 UMH's strategic orchestrator that coordinates worker cells; for high-importance reasoning uses a model-agnostic council (primary strategist, skeptic, completeness auditor, risk auditor, domain specialist, implementation engineer, synthesis judge). Maps to Empire's Investment Committee and Family Council governance bodies.",
+        "Worker Cell Model \u2014 disposable execution units that spin up, execute bounded tasks, report results, and terminate. Cannot bypass governance or write memory directly. Maps to Empire's operating subsidiaries that execute within cluster constraints.",
+        "Agent/Human Assignment \u2014 EntrepreneurOS assigns agents and humans to tasks. UMH's capability router selects the best agent/model/human based on cost, latency, precision, risk, reliability, and governance requirements.",
+        "Deterministic-First Principle \u2014 rules/regex/lookup tables run first, AI refines when available. All LLM providers down = system still produces output. Template fallback for content generation.",
+        "Mastery Law \u2014 UMH must not execute merely because it has access. Must possess scoped, versioned, testable mastery of the action, domain, system, and environment before execution."
+      ],
+      "shared_umh_integration_patterns": [
+        "UMH substrate -> EOS projection: EntrepreneurOS is the first commercial application. Runs companies, coordinates workflows, manages departments, tracks KPIs. Does NOT contain intelligence \u2014 it routes signals into UMH.",
+        "UMH substrate -> CreatorOS projection: Distribution engine for the empire. Content IS advertising. CreatorOS drives attention that all portfolio companies monetize.",
+        "UMH substrate -> LyfeOS projection: Personal performance system. Improves the human operator. Health, fitness, relationships, personal life domains.",
+        "UMH substrate -> Acquisition Engine: Acquire business -> install EOS/UMH -> map as primitives/workflows/resources/constraints/outcomes -> improve operations -> automate workflows -> increase margin -> convert to templates -> improve UMH -> next business easier.",
+        "UMH substrate -> Empyrean Automation: B2B AI automation services \u2014 first external commercial offer built on UMH capabilities.",
+        "UMH substrate -> Family Office: Could eventually provide multi-entity governance, compliance, reporting, treasury management, and investment tracking across the empire.",
+        "UMH data -> Proprietary Intelligence: Traces, outcomes, decisions become labeled training data -> future proprietary models (OST Models Inc.) -> proprietary AI OS -> physical actuator integration.",
+        "UMH governance -> Corporate Governance: UMH's authority levels (autonomous/notify/approve/escalate/deny) mirror corporate governance patterns (operating boards/investment committee/family council)."
+      ],
+      "open_questions": [
+        "How does UMH's current 4-layer architecture (substrate/adapters/transports/projections) map to the 10-macro-layer architecture described in the PRD v3.0? The codebase has converged to a simpler model than the doc describes.",
+        "The UMH doc describes phases 76-110 but the codebase is on Phase 10.0 \u2014 are these the same numbering system? The phase numbers appear to have been reset during the convergence sprint.",
+        "Tab 9 (PRD v3.0) describes a Work Packet governance system with detailed contracts \u2014 how much of this is implemented vs. speculative? The codebase has nodes/environments/work_packet.py but not the full governance chain.",
+        "The Empire doc places Initiate Arena under Lyfe Institute (education cluster) but the Initiate Arena doc lists it under Empyrean Studios (creative cluster). Which is canonical?",
+        "How does the current saas/ directory (EOS projection) relate to the EntrepreneurOS described in tab 8? Is saas/ the same as EOS or a separate concern?",
+        "The UMH doc extensively describes a Template System, Library System, and Composition Engine \u2014 Phase 10.0 is building the Production Template Library. How does the current Phase 10.0 scope compare to the full Template/Library/Composition vision?",
+        "The core/ directory audit (borderline doc) found 70% scaffold \u2014 has this been addressed since May 2026? The CLAUDE.md mentions the convergence was completed 2026-05-23.",
+        "The EOS integration doc (borderline) describes UnifiedInfluence, GoalState, and WorldState layers \u2014 are these the precursors to the current substrate/execution/ and substrate/state/ modules?",
+        "Multiple tabs describe 'computer use' as a primary adapter type (digital hands/eyes) \u2014 what is the current state of computer-use capabilities in the codebase?",
+        "The tab 12 canonicalization protocol recommends status labels (CANONICAL/ACTIVE/EXPERIMENTAL/SPECULATIVE/DEPRECATED) for every section \u2014 has this been implemented anywhere?"
+      ]
+    },
+    "Empire": {
+      "doc_name": "THE MUNOZ EMPIRE \u2014 Elite Structural Architecture",
+      "summary": "Comprehensive multi-generational corporate, estate, and wealth architecture designed at BlackRock/family-office level. Two tabs: Tab 1 is the initial elite structural architecture (15 layers); Tab 2 is the definitive expanded version (17 parts). Covers: personal/estate foundation (Dynasty Trust, Family Bank Trust, SLAT, IDGT, BDIT, CLAT, CRT, QPRT, FLP, ILIT), family office operations (10 functions), top holding (Munoz Conglomerate), parallel pillars (Brand IP Co + Lyfe Corp), 6 industry clusters (Tech & Software via OST Holdings, Media/Brand/Creative via Empyrean Group, Education via Lyfe Education Holdings, Industrial via Munoz Industrial Holdings, Real Estate via Munoz Real Estate Holdings, Acquisitions & Services via Munoz Acquisitions Holdings), philanthropy (Foundation + DAF), tax engineering, insurance architecture (Rockefeller Waterfall), banking/treasury, investment policy, multi-tier governance, succession/continuity planning, international expansion, professional team recommendations, and realistic 7-phase build sequence over 30+ years.",
+      "trinity_architecture": "OST Holdings, LLC (intermediate hold co) owns OST, Inc. (Delaware C-Corp) which is the proprietary technology empire. OST Inc. owns the UMH substrate (private moat) and product lines: EOS (EntrepreneurOS), LyfeOS, CreatorOS. Future: InvestorOS, proprietary models, AI-native OS, proprietary compute infrastructure. C-Corp structure enables VC fundraising, employee equity (ISO grants), eventual IPO, QSBS eligibility. Positioned as the Apple/Microsoft/OpenAI equivalent of the empire. Future cluster expansion: OST Compute Inc. (proprietary compute), OST Models Inc. (proprietary AI models), OST Labs (R&D).",
+      "shared_principles": [
+        "Liability ring-fencing at every layer \u2014 no single failure threatens the whole empire (maps to UMH governance/isolation principles)",
+        "Tax efficiency through entity design and jurisdiction (maps to UMH environment explicitness)",
+        "Multi-generational continuity by default \u2014 designed to outlive the founder (maps to UMH state continuity and persistence)",
+        "Vertical integration across the stack \u2014 own from raw materials to consumer brands (maps to UMH adapter/capability ecosystem)",
+        "Governance architecture with multiple tiers \u2014 Family Council, Investment Committee, Audit Committee, Risk Committee, Operating Boards (maps to UMH governance engine)",
+        "IP separation from operations \u2014 Brand IP Co insulated from operating liability (maps to UMH substrate/projection boundary)",
+        "Cluster ring-fencing \u2014 sector-level isolation enables spin-offs (maps to UMH modular architecture)",
+        "Structure over discipline \u2014 the empire architecture is the constraint system (directly echoes UMH philosophy)"
+      ],
+      "shared_auth_direction": "Munoz Conglomerate as top steward entity with Class A/B share structure for potential IPO. Lyfe Corp eventually bifurcates into Operations + Capital Management. All entities governed by Family Office LLC. Auth flows from Dynasty Trust -> FLP -> Munoz Conglomerate -> Lyfe Corp -> cluster hold cos -> operating entities. OST Inc. holds UMH substrate as private moat. Personal auth via trust protector/investment advisor role rather than direct ownership.",
+      "shared_database_direction": "Not explicitly defined at database level. Implicitly: each operating entity maintains its own operational data. Family Office provides consolidated reporting. Investment Policy Statement governs capital allocation data. Captive insurance and intercompany lending create cross-entity financial data flows. UMH would be the intelligence substrate unifying operational data across all portfolio companies.",
+      "shared_analytics_direction": "Investment Policy Statement defines performance benchmarks, concentration limits, spending policy. Family Office houses CIO function with portfolio review. Operating boards track entity-level KPIs. EntrepreneurOS described as providing KPI dashboards and operating analytics. UMH traces and outcomes become the data foundation for cross-portfolio operational intelligence.",
+      "shared_deployment_direction": "Multi-jurisdictional deployment: Delaware for C-Corps and holding entities, Nevada for IP and trusts, South Dakota for perpetual trusts, property-state for real estate LLCs. International expansion via Singapore (Asia), Switzerland (Europe), UAE (MENA), Ireland (EU IP), Cayman (fund domicile). Phase 1 foundation in months 0-6, full structure over 15+ years. Software deploys through OST Inc. Physical infrastructure through Industrial Holdings.",
+      "shared_umh_integration_patterns": [
+        "UMH substrate owned by OST Inc. as the proprietary technology moat \u2014 the deepest competitive advantage in the tech cluster",
+        "EntrepreneurOS is the first commercial projection: runs companies, coordinates workflows, manages departments, tracks KPIs, assigns agents/humans, creates SOPs, monitors execution",
+        "CreatorOS provides distribution leverage across the empire \u2014 content IS advertising for all portfolio companies",
+        "LyfeOS improves the human/operator \u2014 personal performance system for founders and team members",
+        "Acquisition flywheel powered by UMH: acquire business -> install EOS/UMH -> capture data -> improve workflows -> increase margin -> convert to templates -> improve UMH -> repeat",
+        "UMH's traces, outcomes, decisions, and patterns become proprietary training data for future models (OST Models Inc.)",
+        "Family Office operations could eventually run on UMH/EOS for multi-entity governance, compliance, and reporting",
+        "Empyrean Automation (B2B AI automation services) is the first external commercial offer built on UMH capabilities"
+      ],
+      "open_questions": [
+        "How does UMH substrate governance map to corporate governance tiers (Family Council, Investment Committee, Operating Boards)?",
+        "When Lyfe Corp bifurcates into Operations + Capital Management, how does UMH serve both arms?",
+        "How does UMH's memory/world-model persistence align with corporate data governance and audit requirements?",
+        "What is the relationship between UMH adapter boundaries and inter-entity data isolation (liability ring-fencing)?",
+        "How does the 'internal bank' function (Lyfe Corp intercompany lending) get represented in UMH's world model?",
+        "When OST Inc. raises VC, how does UMH substrate remain private while EOS/CreatorOS/LyfeOS become the investable product surface?",
+        "How do QSBS clock requirements affect UMH development sequencing at OST Inc.?",
+        "How does captive insurance company (Munoz Insurance Co) data flow into UMH risk modeling?"
+      ]
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "phase": "14.3A",
+  "task": "gws_auth_restoration_proof",
+  "timestamp": "2026-06-02T04:09:26Z",
+  "checks": {
+    "gws_cli_works": true,
+    "google_drive_metadata_listed": true,
+    "google_docs_content_readable": true,
+    "access_is_read_only": true,
+    "no_credential_values_printed": true,
+    "no_google_docs_writes_attempted": true,
+    "known_cached_docs_reidentified": true,
+    "creatoros_prd_located": true
+  },
+  "evidence": {
+    "total_drive_files": 47,
+    "google_docs": 33,
+    "markdown_files": 12,
+    "docx_files": 1,
+    "folders": 1,
+    "sheets": 0,
+    "slides": 0,
+    "all_33_docs_read_successfully": true,
+    "timeout_required_180s_for_large_docs": true,
+    "large_docs_retried_and_succeeded": [
+      "EntrepreneurOS (2,088,859 chars)",
+      "CreatorOS (1,602,036 chars)",
+      "LyfeOS (1,374,576 chars)",
+      "Coaching Philosophy/Methodology (1,469,431 chars)",
+      "Life Coaching (487,326 chars)",
+      "THE MUNOZ EMPIRE (89,462 chars)",
+      "Untitled (2026-06-01) (546 chars)"
+    ],
+    "creatoros_prd_v290_confirmed": {
+      "doc_id": "1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI",
+      "title": "CreatorOS",
+      "version": "2.90",
+      "date": "February 2nd, 2026",
+      "status": "Draft",
+      "chars": 1602036
+    }
+  },
+  "auth_status": "restored",
+  "blocker": null
+}

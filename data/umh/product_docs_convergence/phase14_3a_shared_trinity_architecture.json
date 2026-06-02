@@ -1,0 +1,55 @@
+{
+  "phase": "14.3A",
+  "task": "shared_trinity_architecture_from_ai_tools_doc",
+  "timestamp": "2026-06-02T04:17:27Z",
+  "source_doc": {
+    "doc_id": "1N8XHmKXnJHHmbK8F-I6NQLayukiX1HJU5vQv2ge_p-g",
+    "title": "AI Tools",
+    "relevant_tabs": {
+      "tab_2": {
+        "title": "OS Platform Standard v1",
+        "chars": 32687,
+        "type": "architecture_standard",
+        "key_decisions": [
+          "Separate repos per app",
+          "Separate auth per app (Firebase recommended)",
+          "Separate DB per app",
+          "Separate deployments per app",
+          "Shared standards and reusable patterns",
+          "Shared UI design system (glassmorphic + light/dark)",
+          "Shared folder conventions (/client, /server, /shared)",
+          "Shared API conventions (response envelope, cursor pagination, Zod validation)",
+          "Shared component set (GlassCard, DataTable, MessageThread, etc.)",
+          "Shared agent/action/notification system patterns"
+        ]
+      },
+      "tab_3": {
+        "title": "OS-Core-Kit Transfer Plan",
+        "chars": 44993,
+        "type": "implementation_plan",
+        "key_decisions": [
+          "5 portable kits for cross-app reuse",
+          "Practical checklist: what to copy, what to refactor, what NOT to copy",
+          "Order of operations to avoid tangled mess"
+        ]
+      }
+    }
+  },
+  "architecture_principles": {
+    "separation": "Each app is its own SaaS product with own auth, DB, deployment",
+    "consistency": "Shared platform skeleton, UI language, API conventions",
+    "reuse": "5 portable kits, shared component set, shared patterns",
+    "non_goals": [
+      "Shared user identity across apps",
+      "Shared database",
+      "Shared deployment"
+    ]
+  },
+  "stale_vs_current_assessment": {
+    "separate_repos": "CURRENT \u2014 matches Windows Beast reality (separate repos)",
+    "firebase_auth": "STALE \u2014 LyfeOS uses Firebase+Passport.js, but EOS moved to Clerk",
+    "glassmorphic_ui": "PARTIALLY_CURRENT \u2014 LyfeOS has dark futuristic UI, EOS has different style",
+    "separate_db": "CURRENT \u2014 each app has own database",
+    "separate_deployments": "CURRENT \u2014 each app deploys independently"
+  }
+}

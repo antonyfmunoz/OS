@@ -1,0 +1,150 @@
+{
+  "phase": "14.3A",
+  "task": "work_packets",
+  "timestamp": "2026-06-02T04:23:20Z",
+  "packets": [
+    {
+      "id": "WP-14.3AR-001",
+      "title": "Phase 14.3AR \u2014 Production Truth Promotion",
+      "objective": "Promote full-content product docs convergence to production truth",
+      "source_scope": "All Phase 14.3A artifacts",
+      "permissions_required": "read-only verification + artifact promotion",
+      "selected_device": "VPS",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "production_truth.md",
+        "production_verification.json"
+      ],
+      "validation_plan": "Verify all 14.3A artifacts exist, are complete, and internally consistent",
+      "no_mutation_rule": true,
+      "human_decisions_required": [
+        "Confirm canonical candidate promotions"
+      ]
+    },
+    {
+      "id": "WP-14.4-001",
+      "title": "EOS GitHub/Windows Alignment + Product Design Diff",
+      "objective": "Compare EOS product doc (2.1M chars) against actual EOS source code on Windows Beast",
+      "source_scope": "EOS Google Doc + Windows Beast EOS repo",
+      "permissions_required": "read-only on both VPS and Windows Beast",
+      "selected_device": "Windows Beast (code) + VPS (orchestration)",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "eos_design_diff.json",
+        "eos_feature_gap_map.json"
+      ],
+      "validation_plan": "Every PRD feature mapped to code presence/absence",
+      "no_mutation_rule": true,
+      "human_decisions_required": [
+        "Confirm EOS MVP scope",
+        "Confirm priority features"
+      ]
+    },
+    {
+      "id": "WP-14.4-002",
+      "title": "EOS Product Docs Cleanup",
+      "objective": "Consolidate EOS product docs \u2014 remove stale tabs, update architecture references",
+      "source_scope": "EntrepreneurOS Google Doc",
+      "permissions_required": "Google Docs write access (operator approved)",
+      "selected_device": "VPS",
+      "risk_class": "MEDIUM",
+      "expected_artifacts": [
+        "eos_docs_cleanup_diff.json"
+      ],
+      "validation_plan": "Stale content identified, cleanup plan reviewed",
+      "no_mutation_rule": false,
+      "human_decisions_required": [
+        "Approve which tabs to archive/consolidate"
+      ]
+    },
+    {
+      "id": "WP-14.5-001",
+      "title": "CreatorOS GitHub/Windows Alignment + Product Design Diff",
+      "objective": "Compare CreatorOS PRD v2.90 against actual CreatorOS source code",
+      "source_scope": "CreatorOS Google Doc + Windows Beast CreatorOS repo",
+      "permissions_required": "read-only on both",
+      "selected_device": "Windows Beast + VPS",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "creatoros_design_diff.json"
+      ],
+      "validation_plan": "Every PRD feature mapped to code presence/absence",
+      "no_mutation_rule": true,
+      "human_decisions_required": [
+        "Confirm CreatorOS MVP scope"
+      ]
+    },
+    {
+      "id": "WP-14.6-001",
+      "title": "LyfeOS GitHub/Windows Alignment + Product Design Diff",
+      "objective": "Compare LyfeOS PRD v2.0 against running MVP at lyfeos.net",
+      "source_scope": "LyfeOS Google Doc + Windows Beast LyfeOS repo + lyfeos.net",
+      "permissions_required": "read-only code access + browser access to lyfeos.net",
+      "selected_device": "Windows Beast + VPS",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "lyfeos_design_diff.json"
+      ],
+      "validation_plan": "Every PRD feature mapped to MVP implementation status",
+      "no_mutation_rule": true,
+      "human_decisions_required": [
+        "Confirm LyfeOS UMH-connected MVP scope"
+      ]
+    },
+    {
+      "id": "WP-REQ-001",
+      "title": "Product Requirements Gap Closure",
+      "objective": "Close missing MVP definitions, acceptance criteria, UMH integration boundaries",
+      "source_scope": "All product docs + design diffs",
+      "permissions_required": "Google Docs write (operator approved)",
+      "selected_device": "VPS",
+      "risk_class": "MEDIUM",
+      "expected_artifacts": [
+        "requirements_closure.json"
+      ],
+      "validation_plan": "Every gap from gap report has resolution or explicit deferral",
+      "no_mutation_rule": false,
+      "human_decisions_required": [
+        "MVP feature scope per app",
+        "UMH integration boundary per app",
+        "Auth migration timeline",
+        "Shared vs separate infrastructure decisions"
+      ]
+    },
+    {
+      "id": "WP-UMH-001",
+      "title": "UMH Integration Boundary Per App",
+      "objective": "Define exact UMH integration points for each Trinity app",
+      "source_scope": "UMH substrate code + product docs",
+      "permissions_required": "read-only code + doc write (operator approved)",
+      "selected_device": "VPS",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "umh_integration_boundaries.json"
+      ],
+      "validation_plan": "Each app has defined ports, registration, and data flow",
+      "no_mutation_rule": true,
+      "human_decisions_required": [
+        "Integration depth per app"
+      ]
+    },
+    {
+      "id": "WP-TRINITY-001",
+      "title": "OS Platform Standard v2",
+      "objective": "Update shared Trinity platform standard to reflect Clerk, post-convergence architecture",
+      "source_scope": "OS Platform Standard v1 + current code reality",
+      "permissions_required": "doc write (operator approved)",
+      "selected_device": "VPS",
+      "risk_class": "LOW",
+      "expected_artifacts": [
+        "os_platform_standard_v2.json"
+      ],
+      "validation_plan": "Standard reflects current auth (Clerk), current architecture, current deployment",
+      "no_mutation_rule": true,
+      "human_decisions_required": [
+        "Confirm shared vs separate decisions for v2"
+      ]
+    }
+  ],
+  "total_packets": 8
+}
