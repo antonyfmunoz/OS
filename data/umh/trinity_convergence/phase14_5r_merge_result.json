@@ -3,7 +3,7 @@
   "task": "merge_result",
   "timestamp": "2026-06-02T23:30:00Z",
   "description": "Merge result for Phase 14.5 + 14.5A + 14.5R production truth promotion to main",
-  "merge_commit": "pending",
+  "merge_commit": "761a27cc",
   "branch_merged": "worktree-cpu-limits",
   "target_branch": "main",
   "files_merged": {
@@ -20,5 +20,7 @@
     "no_unexpected_source_changes": true,
     "no_source_divergence": true
   },
-  "status": "pending"
+  "status": "PASS",
+  "push_confirmed": true,
+  "push_ref": "ed74bd29..761a27cc  main -> main"
 }
