@@ -1,0 +1,235 @@
+{
+  "phase": "14.5A",
+  "task": "os_platform_standard_v2_13_layer_defaults",
+  "timestamp": "2026-06-02T22:00:00Z",
+  "description": "OS Platform Standard v2 — shared 13-layer production stack defaults for all Trinity apps. Each app must still specify how each layer applies to that specific product.",
+  "implementation_allowed": false,
+  "note": "These are standard defaults, not mandates. Each product design must reference these defaults and override where product-specific needs differ.",
+  "layers": [
+    {
+      "layer_number": 1,
+      "layer_name": "Frontend Foundations",
+      "default_standard": {
+        "framework": "React 18",
+        "build_tool": "Vite 5",
+        "language": "TypeScript (strict mode)",
+        "ui_library": "shadcn/ui",
+        "styling": "Tailwind CSS",
+        "routing": "wouter",
+        "responsive": true,
+        "dark_mode": true,
+        "component_testing": "Vitest + Testing Library (recommended, not required for MVP)"
+      },
+      "app_specific_overrides_expected": true,
+      "override_areas": ["Design system specifics", "Component library scope", "Page architecture", "UX patterns"],
+      "stale_v1_items_removed": []
+    },
+    {
+      "layer_number": 2,
+      "layer_name": "APIs + Backend Logic",
+      "default_standard": {
+        "framework": "Express 4",
+        "language": "TypeScript",
+        "orm": "Drizzle ORM",
+        "api_style": "RESTful",
+        "request_validation": "zod (recommended)",
+        "api_versioning": "URL prefix /api/v1 (recommended for production, optional for MVP)",
+        "error_handling": "Centralized error middleware",
+        "typed_contracts": "Shared TypeScript types between client and server"
+      },
+      "app_specific_overrides_expected": true,
+      "override_areas": ["Route architecture", "Business logic", "API scope", "Integration endpoints"],
+      "stale_v1_items_removed": []
+    },
+    {
+      "layer_number": 3,
+      "layer_name": "Database + Storage",
+      "default_standard": {
+        "database": "Neon Postgres (managed)",
+        "orm": "Drizzle ORM",
+        "migrations": "Drizzle Kit",
+        "separate_databases": true,
+        "separate_databases_note": "Each Trinity app gets its own Neon database project. No shared database unless future decision changes this.",
+        "schema_ownership": "Each app owns its own schema",
+        "connection_pooling": "Neon built-in connection pooling",
+        "media_storage": "TBD — R2, S3, or Supabase Storage (operator decision needed)"
+      },
+      "app_specific_overrides_expected": true,
+      "override_areas": ["Schema design", "Table structure", "Seed data", "Migration strategy"],
+      "stale_v1_items_removed": []
+    },
+    {
+      "layer_number": 4,
+      "layer_name": "Auth + Permissions",
+      "default_standard": {
+        "provider": "Clerk",
+        "session_management": "Clerk sessions",
+        "oauth_providers": ["Google", "GitHub"],
+        "rbac": "Clerk organizations + custom roles",
+        "webhook_integration": "Clerk webhooks for user lifecycle events"
+      },
+      "stale_v1_items_removed": ["Firebase auth recommendation — STALE, removed from v2"],
+      "stale_v1_note": "OS Platform Standard v1 recommended Firebase auth. This is STALE. Clerk is the v2 direction. Firebase auth references must not be canonized.",
+      "app_specific_overrides_expected": true,
+      "override_areas": ["Role definitions", "Permission scopes", "Migration path from legacy auth"],
+      "migration_order_requires_operator_decision": true,
+      "migration_order_ref": "DEC-145-004"
+    },
+    {
+      "layer_number": 5,
+      "layer_name": "Hosting + Deployment",
+      "default_standard": {
+        "platform": "Fly.io",
+        "containerization": "Docker",
+        "config": "fly.toml per app",
+        "health_check": "/health endpoint required",
+        "zero_downtime": "Fly.io rolling deploy",
+        "regions": "Single region initially (operator decision for region)",
+        "custom_domains": "Per-app custom domain on Fly.io"
+      },
+      "app_specific_overrides_expected": true,
+      "override_areas": ["Machine size", "Region selection", "Custom domain", "Scaling config"],
+      "stale_v1_items_removed": []
+    },
+    {
+      "layer_number": 6,
+      "layer_name": "Cloud + Compute",
+      "default_standard": {
+        "app_hosting": "Fly.io",
+        "database": "Neon (managed)",
+        "auth": "Clerk (managed)",
+        "orchestration": "VPS (UMH only — not for Trinity apps)",
+        "heavy_compute": "Windows Beast (UMH only — not for Trinity apps)",
+        "cdn": "Fly.io built-in or Cloudflare"
+      },
+      "app_specific_overrides_expected": false,
+      "override_areas": ["Machine sizing"],
+      "note": "Trinity apps use managed services only. VPS and Beast are UMH infrastructure, not app infrastructure."
+    },
+    {
+      "layer_number": 7,
+      "layer_name": "CI/CD + Version Control",
+      "default_standard": {
+        "vcs": "GitHub",
+        "ci_cd": "GitHub Actions",
+        "pipeline": {
+          "on_pr": ["build", "lint", "typecheck", "test"],
+          "on_main_merge": ["build", "test", "deploy to Fly.io"]
+        },
+        "branch_protection": "Required for main branch in production",
+        "commit_style": "Lowercase imperative, specific"
+      },
+      "app_specific_overrides_expected": false,
+      "override_areas": ["Additional CI steps", "Deployment targets"],
+      "stale_v1_items_removed": []
+    },
+    {
+      "layer_number": 8,
+      "layer_name": "Security + Row-Level Security",
+      "default_standard": {
+        "rls": "Required on all user-scoped tables",
+        "csrf": "CSRF token middleware for state-changing requests",
+        "xss": "React default + Content-Security-Policy headers",
+        "sql_injection": "Drizzle parameterized queries (default protection)",
+        "secrets": "Environment variables only — never committed",
+        "https": "Enforced via Fly.io",
+        "security_headers": "Helmet.js middleware (recommended)",
+        "vulnerability_scanning": "GitHub Dependabot (recommended)"
+      },
+      "app_specific_overrides_expected": true,
+      "override_areas": ["RLS policy specifics", "Role-based data access patterns", "Multi-tenant isolation"],
+      "stale_v1_items_removed": []
+    },
+    {
+      "layer_number": 9,
+      "layer_name": "Rate Limiting",
+      "default_standard": {
+        "middleware": "express-rate-limit or equivalent",
+        "tiers": {
+          "auth_endpoints": "5 requests per minute per IP",
+          "write_endpoints": "30 requests per minute per user",
+          "read_endpoints": "100 requests per minute per user",
+          "ai_endpoints": "10 requests per minute per user"
+        },
+        "headers": "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset",
+        "per_tenant_config": "Future enhancement — not required for MVP"
+      },
+      "app_specific_overrides_expected": true,
+      "override_areas": ["Endpoint-specific limits", "AI endpoint cost thresholds"],
+      "stale_v1_items_removed": []
+    },
+    {
+      "layer_number": 10,
+      "layer_name": "Caching + CDN",
+      "default_standard": {
+        "cdn": "Fly.io built-in for static assets",
+        "browser_caching": "Cache-Control headers for static assets (1 day default, hash-based bust)",
+        "api_caching": "Optional — per-app decision based on read patterns",
+        "redis": "Not required for MVP. Consider if hot data access patterns emerge."
+      },
+      "app_specific_overrides_expected": true,
+      "override_areas": ["API caching strategy", "Media CDN configuration"],
+      "stale_v1_items_removed": []
+    },
+    {
+      "layer_number": 11,
+      "layer_name": "Load Balancing + Scaling",
+      "default_standard": {
+        "load_balancing": "Fly.io built-in routing",
+        "auto_scaling": {
+          "min_machines": 1,
+          "max_machines": 3,
+          "scale_trigger": "CPU > 80% or memory > 85%"
+        },
+        "connection_pooling": "Neon built-in pooler",
+        "health_checks": "HTTP health check at /health, 10s interval"
+      },
+      "app_specific_overrides_expected": true,
+      "override_areas": ["Max machine count", "Scale triggers", "Machine size"],
+      "stale_v1_items_removed": []
+    },
+    {
+      "layer_number": 12,
+      "layer_name": "Error Tracking + Logs",
+      "default_standard": {
+        "product_analytics": "PostHog",
+        "error_tracking": "TBD — PostHog error tracking, Sentry, or Highlight.io (operator decision needed)",
+        "logging": "Structured JSON logging (pino or winston)",
+        "log_levels": "error, warn, info, debug",
+        "alerting": "Critical errors → Discord notification (via UMH) + email (optional)"
+      },
+      "app_specific_overrides_expected": true,
+      "override_areas": ["Analytics events", "Error severity classification", "Alert channels"],
+      "operator_decision_required": true,
+      "operator_decision_ref": "Q-14.5A-OBS-SHARED",
+      "stale_v1_items_removed": [],
+      "note": "PostHog is the product analytics direction. Whether PostHog also covers error tracking or a separate service is needed is an open question requiring operator decision."
+    },
+    {
+      "layer_number": 13,
+      "layer_name": "Availability + Recovery",
+      "default_standard": {
+        "database_backups": "Neon automatic backups (built-in)",
+        "deployment_rollback": "Fly.io release rollback",
+        "recovery_runbook": "Required per app before production",
+        "rto": "< 1 hour (initial target)",
+        "rpo": "< 24 hours (initial target)",
+        "uptime_monitoring": "TBD — UptimeRobot, Fly.io built-in, or equivalent",
+        "incident_response": "Discord notification via UMH for critical incidents"
+      },
+      "app_specific_overrides_expected": true,
+      "override_areas": ["RTO/RPO targets", "Recovery procedures", "Incident escalation"],
+      "stale_v1_items_removed": []
+    }
+  ],
+  "summary": {
+    "total_layers": 13,
+    "stale_v1_items_removed": ["Firebase auth recommendation"],
+    "operator_decisions_required": [
+      "DEC-145-004 (Clerk migration order across apps)",
+      "Q-14.5A-OBS-SHARED (error tracking service choice)",
+      "Media storage provider choice"
+    ],
+    "doctrine": "These defaults provide a shared foundation. Each product must still define its own end state across all 13 layers. Shared standards reduce duplication but do not eliminate per-product design work."
+  }
+}

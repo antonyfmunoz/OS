@@ -1,0 +1,129 @@
+{
+  "phase": "14.5A",
+  "task": "clarification_ledger",
+  "timestamp": "2026-06-02T22:00:00Z",
+  "description": "Items requiring operator clarification — ambiguous items with multiple plausible interpretations",
+  "implementation_allowed": false,
+  "clarifications": [
+    {
+      "clarification_id": "CLR-001",
+      "app_or_scope": "Shared",
+      "unclear_item": "What 'production ready' means per product",
+      "possible_interpretations": [
+        "I1: All 13 layers fully implemented and validated",
+        "I2: Minimum viable layers (auth, database, deployment, error tracking) plus all critical security fixes",
+        "I3: App builds, auth works, basic tests pass, can deploy to Fly.io",
+        "I4: Different per app — LyfeOS may already be 'production ready enough', while EOS/CreatorOS are not"
+      ],
+      "recommended_interpretation": "I4 — define per app. LyfeOS needs hardening of existing deployment. EOS/CreatorOS need foundational work before any deployment.",
+      "why_clarification_is_needed": "Readiness gates cannot be evaluated without a concrete definition. 'Production ready' is currently a qualitative judgment, not a measurable threshold.",
+      "operator_response_required": true,
+      "downstream_artifacts_affected": ["Readiness gate report", "Work packet completion criteria", "Deployment work packets"]
+    },
+    {
+      "clarification_id": "CLR-002",
+      "app_or_scope": "Shared",
+      "unclear_item": "What 'UMH-connected MVP' means per product",
+      "possible_interpretations": [
+        "I1: App calls UMH API for intelligence/agent execution",
+        "I2: UMH monitors app health and enforces governance gates",
+        "I3: App reports telemetry to UMH for cross-app analytics",
+        "I4: Full bidirectional integration — app uses UMH agents, UMH governs app deployments"
+      ],
+      "recommended_interpretation": "I2 for near term, I4 as long-term vision. Start with governance (readiness gates, deployment approval) before building active intelligence integration.",
+      "why_clarification_is_needed": "UMH integration work packets need a scope. Building full bidirectional integration first is premature. Governance-first is lower risk.",
+      "operator_response_required": true,
+      "downstream_artifacts_affected": ["UMH integration boundary", "Integration work packets", "API contract definitions"]
+    },
+    {
+      "clarification_id": "CLR-003",
+      "app_or_scope": "Shared",
+      "unclear_item": "What UMH should own vs what each app should own in the 13-layer stack",
+      "possible_interpretations": [
+        "I1: UMH owns nothing app-specific — pure policy and observation",
+        "I2: UMH owns deployment orchestration and security gates for all apps",
+        "I3: UMH owns the full DevOps layer (CI/CD, deployment, monitoring) for all apps"
+      ],
+      "recommended_interpretation": "I2 — UMH orchestrates deployment and enforces security gates. Apps own their code, data, and infrastructure configuration. UMH does not own app CI/CD or monitoring implementation.",
+      "why_clarification_is_needed": "Integration boundary must be clear before building UMH-app contracts. Overreach makes apps dependent on UMH for basic operations. Underreach misses the governance value.",
+      "operator_response_required": true,
+      "downstream_artifacts_affected": ["UMH 13-layer integration boundary", "Integration contracts"]
+    },
+    {
+      "clarification_id": "CLR-004",
+      "app_or_scope": "Shared",
+      "unclear_item": "Whether shared standards should remain documentation-only until implementation readiness",
+      "possible_interpretations": [
+        "I1: Documentation-only — advisory, not enforced",
+        "I2: Enforced via CI when CI exists",
+        "I3: Enforced selectively — security and auth standards mandatory, others advisory"
+      ],
+      "recommended_interpretation": "I1 for now, I3 when CI exists. Standards can't be enforced without CI infrastructure. When CI is built, enforce security-critical standards first.",
+      "why_clarification_is_needed": "Determines how strictly OS Platform Standard v2 gates app development.",
+      "operator_response_required": false,
+      "downstream_artifacts_affected": ["OS Platform Standard v2 implementation plan"]
+    },
+    {
+      "clarification_id": "CLR-005",
+      "app_or_scope": "Shared",
+      "unclear_item": "Whether current Replit-origin project structure should be modernized before deployment",
+      "possible_interpretations": [
+        "I1: Full restructure to modern conventions before any deployment",
+        "I2: Deploy as-is, refactor incrementally",
+        "I3: Fix only what breaks deployment, leave the rest"
+      ],
+      "recommended_interpretation": "I3 — pragmatic approach. Fix deployment blockers, not aesthetics.",
+      "why_clarification_is_needed": "Affects effort estimation for deployment work packets. Full restructure is significant work.",
+      "operator_response_required": false,
+      "downstream_artifacts_affected": ["Deployment work packets"]
+    },
+    {
+      "clarification_id": "CLR-006",
+      "app_or_scope": "Shared",
+      "unclear_item": "Whether PostHog is product analytics only or part of broader observability",
+      "possible_interpretations": [
+        "I1: PostHog = product analytics only. Separate service for error tracking and logging.",
+        "I2: PostHog covers analytics + error tracking (PostHog has error tracking features).",
+        "I3: PostHog for analytics, Sentry for errors, Grafana for infra monitoring."
+      ],
+      "recommended_interpretation": "I1 for planning purposes. Evaluate PostHog error tracking capabilities when closer to deployment.",
+      "why_clarification_is_needed": "Affects 13-layer production stack Layer 12 design for all apps.",
+      "operator_response_required": false,
+      "downstream_artifacts_affected": ["Layer 12 design per app", "Observability work packets"]
+    },
+    {
+      "clarification_id": "CLR-007",
+      "app_or_scope": "Shared",
+      "unclear_item": "What must be true before Fly.io deployment infrastructure can be created",
+      "possible_interpretations": [
+        "I1: Just build and deploy — fix issues in production",
+        "I2: Source converged + auth working + basic tests",
+        "I3: Full 13-layer design ratified + CI/CD pipeline + test suite + security review"
+      ],
+      "recommended_interpretation": "I2 with security minimum — source converged, auth working (not bypassed), basic test suite, build succeeds. Full 13-layer completion is the end state, not the deployment gate.",
+      "why_clarification_is_needed": "Determines when infrastructure work packets unlock.",
+      "operator_response_required": true,
+      "downstream_artifacts_affected": ["Infrastructure readiness gate", "Deployment work packets"]
+    },
+    {
+      "clarification_id": "CLR-008",
+      "app_or_scope": "Shared",
+      "unclear_item": "What must be true before Neon database provisioning for EOS and CreatorOS",
+      "possible_interpretations": [
+        "I1: Provision immediately with current schema, migrate later",
+        "I2: Wait for source convergence (EOS) and MVP scope (CreatorOS) to finalize schema",
+        "I3: Provision a development database now, production database later"
+      ],
+      "recommended_interpretation": "I2 — wait for schema-affecting decisions before provisioning. Provisioning on an unfinalized schema creates migration debt.",
+      "why_clarification_is_needed": "Database provisioning is a dependency for multiple layers.",
+      "operator_response_required": false,
+      "downstream_artifacts_affected": ["Database layer design", "Infrastructure work packets"]
+    }
+  ],
+  "summary": {
+    "total_clarifications": 8,
+    "operator_response_required": 4,
+    "safe_default_available": 4,
+    "highest_priority": ["CLR-001 (production ready definition)", "CLR-002 (UMH-connected MVP definition)", "CLR-007 (Fly.io deployment gate)"]
+  }
+}

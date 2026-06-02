@@ -1,0 +1,165 @@
+{
+  "phase": "14.5A",
+  "task": "contradiction_ledger",
+  "timestamp": "2026-06-02T22:00:00Z",
+  "description": "All identified contradictions across Trinity convergence — conflicting claims, sources, and their possible resolutions",
+  "implementation_allowed": false,
+  "contradictions": [
+    {
+      "contradiction_id": "CONTRA-001",
+      "app_or_scope": "CreatorOS",
+      "conflicting_claims": [
+        "CLAIM A: CreatorOS has authentication (login/registration pages, session management, Passport.js integration)",
+        "CLAIM B: comparePasswords() returns true for ALL passwords — authentication provides zero security"
+      ],
+      "source_refs": ["Phase 14.4R CreatorOS findings", "data/umh/trinity_alignment/phase14_4_creatoros_beast_inventory.json"],
+      "possible_resolutions": [
+        "R1: Auth UI exists but is non-functional as a security boundary. Both claims are true simultaneously — the code has auth 'structure' but no auth 'function'.",
+        "R2: comparePasswords may be a development stub that was never replaced with a real implementation."
+      ],
+      "recommended_resolution": "R1 — treat auth as completely broken. The presence of login pages does not mean security exists. Plan full Clerk replacement.",
+      "rationale": "A function that returns true for all passwords is equivalent to no authentication. The UI exists but provides false sense of security.",
+      "confidence": "HIGH",
+      "operator_decision_required": false,
+      "blocked_actions_until_resolved": ["Cannot deploy CreatorOS to any public URL", "Cannot claim auth works"]
+    },
+    {
+      "contradiction_id": "CONTRA-002",
+      "app_or_scope": "CreatorOS",
+      "conflicting_claims": [
+        "CLAIM A: OS Platform Standard v1 recommends Firebase auth",
+        "CLAIM B: Clerk is the target auth direction for all Trinity apps"
+      ],
+      "source_refs": ["OS Platform Standard v1", "Phase 14.5 decision ledger DEC-145-004"],
+      "possible_resolutions": [
+        "R1: OS Platform Standard v1 Firebase recommendation is stale and replaced by Clerk in v2",
+        "R2: Firebase was a temporary recommendation that was never implemented"
+      ],
+      "recommended_resolution": "R1 — Firebase auth recommendation is STALE. v2 replaces it with Clerk. Do not canonize Firebase.",
+      "rationale": "No Trinity app actually uses Firebase auth. The recommendation was never followed. Clerk is the active direction.",
+      "confidence": "HIGH",
+      "operator_decision_required": false,
+      "blocked_actions_until_resolved": ["Do not implement Firebase auth", "Do not reference v1 Firebase recommendation as current"]
+    },
+    {
+      "contradiction_id": "CONTRA-003",
+      "app_or_scope": "EOS",
+      "conflicting_claims": [
+        "CLAIM A: GitHub main is the authoritative source (202 files, Replit Agent authored)",
+        "CLAIM B: Beast feature/company-system is the active development branch (603 files, Clerk, company system)"
+      ],
+      "source_refs": ["data/umh/trinity_alignment/phase14_4_eos_github_inventory.json", "data/umh/trinity_alignment/phase14_4_eos_beast_inventory.json"],
+      "possible_resolutions": [
+        "R1: Promote Beast to main — it is 3x larger and represents months of active development",
+        "R2: Cherry-pick Beast features into GitHub main — keep GitHub as the base",
+        "R3: Keep both — defer decision",
+        "R4: Discard Beast — restart from GitHub main"
+      ],
+      "recommended_resolution": "R1 — Promote Beast to main after validation (build, secret scan, test).",
+      "rationale": "Beast is the active codebase. GitHub main is stale. Promoting Beast aligns source truth with development reality.",
+      "confidence": "HIGH for recommendation, LOW for execution (needs validation)",
+      "operator_decision_required": true,
+      "blocked_actions_until_resolved": ["ALL EOS development work", "EOS CI/CD setup", "EOS deployment planning"]
+    },
+    {
+      "contradiction_id": "CONTRA-004",
+      "app_or_scope": "LyfeOS",
+      "conflicting_claims": [
+        "CLAIM A: PRD v1 defines the product scope",
+        "CLAIM B: PRD v2 exists with potentially different/expanded scope"
+      ],
+      "source_refs": ["data/umh/trinity_alignment/phase14_4_lyfeos_desired_state_canon.json"],
+      "possible_resolutions": [
+        "R1: PRD v2 supersedes v1 — use v2 as canonical",
+        "R2: PRD v1 is the MVP scope, v2 is the roadmap",
+        "R3: Both are valid — v1 for current MVP, v2 for future direction"
+      ],
+      "recommended_resolution": "R1 — PRD v2 as canonical, since the deployed MVP likely reflects v2 thinking.",
+      "rationale": "Version 2 of a PRD typically reflects refined product thinking. The deployed MVP at lyfeos.net likely incorporates v2 features.",
+      "confidence": "MEDIUM — need to verify PRD v2 content against deployed MVP",
+      "operator_decision_required": true,
+      "blocked_actions_until_resolved": ["Feature scope decisions for LyfeOS expansion"]
+    },
+    {
+      "contradiction_id": "CONTRA-005",
+      "app_or_scope": "Shared",
+      "conflicting_claims": [
+        "CLAIM A: Google Docs contain the desired product/end-state truth",
+        "CLAIM B: Code on Beast/GitHub contains the current implementation reality"
+      ],
+      "source_refs": ["Phase 14.5A mission context"],
+      "possible_resolutions": [
+        "R1: Docs = desired, Code = current. These are different dimensions, not contradictions.",
+        "R2: Where code is AHEAD of docs (Beast has features docs don't mention), both are partial truths."
+      ],
+      "recommended_resolution": "R1 — maintain the distinction. Docs = intent, Code = reality. When code is ahead of docs, the code reveals implemented intent that docs haven't caught up to. When docs are ahead of code, docs reveal desired features not yet built.",
+      "rationale": "This is the core source truth model. Neither supersedes the other. Both are inputs to the production design.",
+      "confidence": "HIGH",
+      "operator_decision_required": false,
+      "blocked_actions_until_resolved": []
+    },
+    {
+      "contradiction_id": "CONTRA-006",
+      "app_or_scope": "EOS",
+      "conflicting_claims": [
+        "CLAIM A: Beast branch has Clerk auth already integrated and working",
+        "CLAIM B: Beast branch has never been CI-validated or build-tested"
+      ],
+      "source_refs": ["Phase 14.4 inventories"],
+      "possible_resolutions": [
+        "R1: Clerk exists in code but is unvalidated. Both claims are true. 'Integrated' ≠ 'validated'.",
+        "R2: Clerk may work locally on Beast but fail in other environments."
+      ],
+      "recommended_resolution": "R1 — Clerk is present in Beast code but not validated. Do not treat as 'working' until build validation passes.",
+      "rationale": "Code presence is not proof of functionality. Validation is required before claiming auth works.",
+      "confidence": "HIGH",
+      "operator_decision_required": false,
+      "blocked_actions_until_resolved": ["Cannot claim EOS auth works", "Must validate after branch promotion"]
+    },
+    {
+      "contradiction_id": "CONTRA-007",
+      "app_or_scope": "LyfeOS",
+      "conflicting_claims": [
+        "CLAIM A: LyfeOS is deployed as an isolated MVP at lyfeos.net",
+        "CLAIM B: UMH-connected MVP is the desired end state"
+      ],
+      "source_refs": ["Phase 14.4R findings", "LyfeOS PRD"],
+      "possible_resolutions": [
+        "R1: Both are valid stages. Isolated MVP = current. UMH-connected MVP = future.",
+        "R2: 'Isolated' means not connected to UMH substrate. The app works independently."
+      ],
+      "recommended_resolution": "R1 — isolated MVP is the current state. UMH-connected MVP is a future phase. Both are valid. The isolated MVP proves the product works. UMH connection adds orchestration, intelligence, and cross-app capabilities.",
+      "rationale": "Sequential maturity stages, not contradictions. Current → future.",
+      "confidence": "HIGH",
+      "operator_decision_required": false,
+      "blocked_actions_until_resolved": []
+    },
+    {
+      "contradiction_id": "CONTRA-008",
+      "app_or_scope": "CreatorOS",
+      "conflicting_claims": [
+        "CLAIM A: CreatorOS PRD describes a comprehensive creator platform (content, courses, community, distribution, analytics)",
+        "CLAIM B: Current codebase is a Replit-origin scaffold with god files and broken auth"
+      ],
+      "source_refs": ["Phase 14.4 inventories and desired state canons"],
+      "possible_resolutions": [
+        "R1: PRD is the vision, code is the starting point. Large gap between them.",
+        "R2: PRD scope may be too ambitious for the current codebase quality.",
+        "R3: MVP scope (DEC-145-002) bridges the gap by defining a realistic subset."
+      ],
+      "recommended_resolution": "R3 — use MVP scope decision to define what is buildable given the current codebase quality. Full PRD scope is the long-term vision, not the immediate target.",
+      "rationale": "Attempting full PRD scope on a codebase with broken auth and god files is unrealistic. Staged approach via MVP scope decision.",
+      "confidence": "HIGH",
+      "operator_decision_required": true,
+      "blocked_actions_until_resolved": ["CreatorOS feature build scope"]
+    }
+  ],
+  "summary": {
+    "total_contradictions": 8,
+    "resolved_with_safe_interpretation": 5,
+    "operator_decision_required": 3,
+    "blocking_contradictions": 1,
+    "blocking_contradiction_ids": ["CONTRA-003 (EOS source strategy)"],
+    "note": "Most contradictions are resolved by maintaining the docs-vs-code distinction or by recognizing sequential maturity stages. The truly blocking contradiction is EOS source divergence (CONTRA-003), which requires operator decision DEC-145-001."
+  }
+}
