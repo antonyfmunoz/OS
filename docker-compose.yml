@@ -30,7 +30,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.5"
+          cpus: "0.25"
           memory: 256M
 
   os-webhook:
@@ -122,7 +122,7 @@ services:
       resources:
         limits:
           memory: 1G
-          cpus: "0.5"
+          cpus: "0.35"
 
   os-operator:
     build: .
@@ -151,5 +151,5 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.5"
+          cpus: "0.25"
           memory: 512M
