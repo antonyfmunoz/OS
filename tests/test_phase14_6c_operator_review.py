@@ -23,9 +23,8 @@ import pytest
 # Constants
 # ---------------------------------------------------------------------------
 
-CANON_DIR = Path(
-    "/opt/OS/data/umh/trinity_convergence/phase14_6c_operator_review"
-)
+_REPO_ROOT = Path(os.environ.get("UMH_ROOT", "/opt/OS"))
+CANON_DIR = _REPO_ROOT / "data" / "umh" / "trinity_convergence" / "phase14_6c_operator_review"
 
 PREFIX = "phase14_6c_"
 
@@ -38,6 +37,7 @@ REQUIRED_MD_ARTIFACTS: list[str] = [
     "implementation_blockers",
     "next_phase_recommendation",
     "audit_report",
+    "ratification_delta_report",
 ]
 
 REQUIRED_METADATA_FIELDS: list[str] = [
@@ -73,6 +73,7 @@ MIN_LINE_COUNTS: dict[str, int] = {
     "implementation_blockers": 20,
     "next_phase_recommendation": 20,
     "audit_report": 40,
+    "ratification_delta_report": 30,
 }
 
 
@@ -177,10 +178,10 @@ class TestArtifactExistence:
         path = _md_path(slug)
         assert path.is_file(), f"Artifact is not a regular file: {path.name}"
 
-    def test_exactly_eight_artifacts(self) -> None:
+    def test_exactly_nine_artifacts(self) -> None:
         md_files = list(CANON_DIR.glob(f"{PREFIX}*.md"))
-        assert len(md_files) == 8, (
-            f"Expected 8 artifacts, found {len(md_files)}: "
+        assert len(md_files) == 9, (
+            f"Expected 9 artifacts, found {len(md_files)}: "
             f"{[f.name for f in md_files]}"
         )
 
@@ -1056,24 +1057,84 @@ class TestCrossConsistency:
             index, r"reality\s+model"
         ), "Index does not reference reality model"
 
-    def test_no_artifact_references_approved_status(self) -> None:
-        """No artifact body should claim 'approved' status."""
+    def test_no_artifact_claims_document_level_approval(self) -> None:
+        """No artifact body should claim document-level approved status.
+
+        Individual decisions (DEC-146C-001/002/003) may be OPERATOR-APPROVED,
+        but the document-level frontmatter operator_approved must remain false
+        until ALL P0 decisions are resolved. Body text may reference individual
+        decision approvals using 'OPERATOR-APPROVED' as a decision status label.
+        """
         for slug, content in self.contents.items():
             fm = _get_frontmatter(slug)
-            body = content.split("---", 2)[-1] if content.startswith("---") else content
-            # Allow "not approved" but not bare "approved" as status claim
-            approved_claims = re.findall(
-                r"(?:^|\n).*(?:is|has been|was)\s+(?:fully\s+)?approved(?:\s+by|\s+for|\.|$)",
-                body,
-                re.IGNORECASE,
-            )
-            assert not approved_claims, (
-                f"{slug}: body incorrectly claims approved status"
+            assert fm.get("operator_approved") is False, (
+                f"{slug}: frontmatter operator_approved must be false (15 P0 unresolved)"
             )
 
 
 # ---------------------------------------------------------------------------
-# 14. TestNoMutation — no source code files modified, review dir clean
+# 14. TestRatificationDeltaReport — ratified decisions, delta, gates
+# ---------------------------------------------------------------------------
+
+
+class TestRatificationDeltaReport:
+    """Delta report: ratified decisions, affected artifacts, implementation gates."""
+
+    @pytest.fixture(autouse=True)
+    def _load(self) -> None:
+        self.content = _load_md("ratification_delta_report")
+
+    def test_references_dec_146c_001(self) -> None:
+        assert _md_has_text(self.content, r"DEC-146C-001"), "Missing DEC-146C-001"
+
+    def test_references_dec_146c_002(self) -> None:
+        assert _md_has_text(self.content, r"DEC-146C-002"), "Missing DEC-146C-002"
+
+    def test_references_dec_146c_003(self) -> None:
+        assert _md_has_text(self.content, r"DEC-146C-003"), "Missing DEC-146C-003"
+
+    def test_mentions_operator_approved(self) -> None:
+        assert _md_has_text(
+            self.content, r"OPERATOR.APPROVED"
+        ), "Missing OPERATOR-APPROVED status"
+
+    def test_mentions_universal_meta_harness(self) -> None:
+        assert _md_has_text(
+            self.content, r"Universal Meta Harness"
+        ), "Missing product name confirmation"
+
+    def test_mentions_materialization(self) -> None:
+        assert _md_has_text(
+            self.content, r"materialization|materializ"
+        ), "Missing materialization principle"
+
+    def test_mentions_implementation_gates(self) -> None:
+        assert _md_has_text(
+            self.content, r"implementation.*block|implementation.*gate|gate.*closed|blocked"
+        ), "Missing implementation gate status"
+
+    def test_mentions_next_phase(self) -> None:
+        assert _md_has_text(
+            self.content, r"14\.6D|next\s+phase"
+        ), "Missing next phase recommendation"
+
+    def test_has_affected_artifacts(self) -> None:
+        assert _md_has_text(
+            self.content, r"affected.*artifact|artifact.*affected|17.*artifact"
+        ), "Missing affected artifacts listing"
+
+    def test_implementation_remains_blocked(self) -> None:
+        assert _md_has_text(
+            self.content, r"allows_implementation.*false|implementation.*remains.*blocked"
+        ), "Missing implementation-blocked confirmation"
+
+    def test_has_substantive_content(self) -> None:
+        lines = self.content.splitlines()
+        assert len(lines) >= 30, f"Delta report too short: {len(lines)} lines"
+
+
+# ---------------------------------------------------------------------------
+# 15. TestNoMutation — no source code files modified, review dir clean
 # ---------------------------------------------------------------------------
 
 

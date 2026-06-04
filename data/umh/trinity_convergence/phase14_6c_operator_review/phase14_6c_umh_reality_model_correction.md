@@ -651,125 +651,122 @@ the ratification decisions below are resolved.
 
 ## Ratification Decisions Required
 
-### DEC-146C-001: UMH Reality Model Identity
+### DEC-146C-001: UMH Reality Model Identity — OPERATOR-APPROVED WITH MODIFICATION
 
 **Priority:** P0
-**Question:** Does the operator ratify that UMH's core identity is
-"isomorphic reality-approximation engine" rather than "operational intelligence
-substrate / orchestration kernel"?
+**Status:** OPERATOR-APPROVED WITH MODIFICATION (2026-06-04)
+**Operator Selection:** Option A modified
 
-**Impact if ratified:**
-- All 17 directly affected artifacts require content revision
+**Ratified Canon Statement:**
+
+> Universal Meta Harness is the integrated AI-native system/product whose core functional purpose is to build, maintain, and act through a reality-isomorphic approximation of reality. UMH attempts to model reality across physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, and OS-level layers. Orchestration, governance, execution, memory, adapters, agents, Cockpit, and projections are capabilities/organs serving this reality model; they are not separate identities from UMH. The reality model is not merely operational tooling. It is the central organizing model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback.
+
+**Operator Constraints:**
+- Product name remains "Universal Meta Harness." Do not rename to "engine."
+- Functional identity: reality-isomorphic intelligence harness / reality-modeling system.
+- Naming canonicalization must preserve "Universal Meta Harness" as the only product name.
+
+**Impact (now confirmed):**
+- All 17 directly affected artifacts require content revision in Phase 14.6D
 - UMH identity across CLAUDE.md, ARCHITECTURE.md, PHILOSOPHY.md must be updated
 - All projection integration architectures must be revised
 - Cockpit UX architecture changes from "operational dashboard" to "reality-model interface"
 - World model subsystem becomes the architectural center, not a subsystem
-
-**Impact if rejected:**
-- Current framing preserved
-- Reality model remains a subsystem under execution/understanding
-- No blocking effect on existing roadmap
-
-**Options:**
-- **A) Ratify as stated** -- revise all 17 affected artifacts in Phase 14.6D.
-  UMH identity becomes "reality-approximation engine." All downstream
-  artifacts updated.
-- **B) Modify** -- the reality model is the long-term aspiration, but the
-  current operational-substrate framing is accurate for Stage 1 scope.
-  Reality-model identity is captured as the end-state vision. Current
-  artifacts get a "Future: reality-model evolution" section rather than
-  a full identity rewrite.
-- **C) Reject** -- keep current framing entirely. Reality model is a future
-  phase, not a core identity. Current canon is accurate for current scope.
-
-**Default recommendation:** Option A. The operator was explicit, repeated,
-and unambiguous. The correction was stated as what UMH "is intended to" be,
-not what it "might someday become."
+- Product name "Universal Meta Harness" is retained throughout
 
 ---
 
-### DEC-146C-002: Materialization Principle Adoption
+### DEC-146C-002: Materialization Principle Adoption — OPERATOR-APPROVED WITH MODIFICATION
 
 **Priority:** P0
-**Question:** Does the operator ratify the Materialization Principle as a
-core UMH design constraint?
+**Status:** OPERATOR-APPROVED WITH MODIFICATION (2026-06-04)
+**Operator Selection:** Option A modified
 
-**Verbatim principle:** "If a human can imagine an outcome, UMH should attempt
-to simulate the path from imagination to materialization. Lack of current
-knowledge, resources, tools, capital, or information does not invalidate the
-intent; it creates acquisition loops, research loops, experiment loops, work
-packets, and time-bound execution paths."
+**Ratified Canon Statement:**
 
-**Impact if ratified:**
+> If a human can imagine an outcome, UMH should attempt to simulate the path from imagination to materialization. Lack of current knowledge, resources, tools, capital, information, skill, access, or time does not invalidate the intent; it creates typed gaps and acquisition paths: research loops, resource acquisition loops, experiment loops, work packets, delegation paths, agent paths, financing paths, and time-bound execution paths. UMH should not treat current missing capability as terminal failure. It should classify the gap, identify what must be acquired or learned, generate the highest-leverage path, and govern execution. If an outcome violates physical reality, law, safety, ethics, or non-negotiable constraints, UMH must state the boundary clearly and propose the nearest lawful/safe/materializable alternative.
+
+**Operator Constraints:**
+- This is a core design constraint, not aspirational.
+- "Impossible" should not be used as lazy failure language.
+- UMH must distinguish impossible, illegal, unsafe, unavailable, under-resourced, unproven, and not-yet-acquired.
+- Gap states must generate typed paths, not dead ends.
+
+**Impact (now confirmed):**
 - Execution boundary model gains gap-detection and path-generation requirements
 - Governance must cover reality-model gap responses, not just action risk
 - Every "blocker" in the system becomes a "typed execution path"
 - Work packet engine must support materialization-path work packets
 - Reality model must track gaps and their resolution paths
-
-**Impact if rejected:**
-- Execution model remains task-focused (execute or fail/defer)
-- Gaps remain blockers, not typed paths
-- No changes to governance or work packet engine
-
-**Options:**
-- **A) Ratify** -- Materialization Principle becomes a core design constraint.
-  Execution, governance, and work packet systems updated.
-- **B) Defer** -- capture as future vision but do not impose on current
-  Stage 1 scope.
-- **C) Reject** -- UMH remains task-execution focused.
-
-**Default recommendation:** Option A. The operator was explicit.
+- Safety/ethics boundary added: physically impossible, illegal, unsafe, or unethical outcomes are not materialized
 
 ---
 
-### DEC-146C-003: Indivisible Stage 1 Definition
+### DEC-146C-003: Indivisible Stage 1 Definition — OPERATOR-APPROVED
 
 **Priority:** P0
-**Question:** Does the operator confirm that Stage 1 = Reality Model + Cockpit +
-Memory + Governed Execution Loop as one indivisible organism, not as sequential
-components?
+**Status:** OPERATOR-APPROVED (2026-06-04)
+**Operator Selection:** Option B (Indivisible target, incremental build)
 
-**Impact if ratified:**
+**Ratified Canon Statement:**
+
+> Stage 1 is one minimum viable UMH organism: Reality Model + Cockpit + Memory + Governed Execution Loop. These components are not separate products or sequential phases. They must reach minimum viability as one integrated system. The harness cannot function as intended without the reality model. Cockpit without a reality model is only a dashboard. A reality model without Cockpit is inaccessible to the operator. Memory without execution is passive storage. Execution without memory, governance, and reality model state is unsafe and incoherent. Incremental builds are allowed only inside the indivisible Stage 1 target: each increment must advance the integrated organism across Reality Model, Cockpit, Memory, and Governed Execution rather than completing one component in isolation and deferring the others.
+
+**Operator Constraints:**
+- Reject sequential build framing.
+- Accept incremental delivery only if increments advance the integrated organism.
+- Stage 1 is not complete until all four components are minimally viable together.
+- Do not define Stage 1 as a backend-only substrate.
+- Do not define Cockpit as a passive dashboard.
+- Do not defer reality model, memory, or governed execution to later phases.
+- Do not require commercial-grade completeness before use.
+
+**Operator Clarification — Stage 1 Minimum Viability (2026-06-04):**
+
+"Indivisible Stage 1" does not mean all components are fully built before use. It means the minimum vertical slice must include partially functional Reality Model + Cockpit + Memory + Governed Execution together. The minimum version must provide a usable Jarvis-style operating experience — functional enough for the operator to actually operate through it.
+
+Stage 1 minimum viability acceptance criteria:
+
+1. Operator can use Cockpit/Jarvis as primary interface
+2. UMH can capture intent and preserve it in memory/source truth
+3. UMH can maintain a usable reality model (work, products, companies, files, artifacts, agents, blockers)
+4. UMH can generate work packets from operator intent
+5. UMH can route work packets to agents/tools (Claude Code, shell, GitHub, docs, adapters)
+6. UMH can govern risky actions through approval gates
+7. UMH can verify outputs (tests, audit reports, diffs, review packets)
+8. UMH can update memory/reality model after outcomes
+9. UMH can work on itself through governed self-improvement work packets
+10. UMH can build and improve projection apps from inside the UMH operating loop
+
+The target is a usable, self-improving UMH organism — not a complete system or backend-only substrate.
+
+Projection app minimum viability:
+- EOS: usable enough to run company operations
+- CreatorOS: usable enough to run content/community/product workflows
+- LyfeOS: usable enough to run personal execution/transformation workflows
+
+**Impact (now confirmed):**
 - Cannot ship any component independently
-- All roadmap sequencing changes -- no "build substrate first, then Cockpit,
-  then reality model"
-- Stage 1 acceptance criteria require simultaneous minimum viability across
-  all four components
-- Cockpit readiness criteria (artifacts 5, 6, 7) must be rewritten around
-  organism viability, not component readiness
-
-**Impact if rejected:**
-- Sequential build preserved
-- Each component can reach its own readiness independently
-- Current roadmap sequencing remains valid
-
-**Options:**
-- **A) Ratify** -- Stage 1 is one indivisible organism. All four components
-  must reach minimum viability simultaneously. Roadmap restructured.
-- **B) Modify** -- components are developed in parallel awareness of each
-  other but can be shipped incrementally. "Indivisible" means "designed
-  together" not "shipped together."
-- **C) Reject** -- sequential build is fine. Ship substrate, then Cockpit,
-  then reality model.
-
-**Default recommendation:** Option A. The operator explicitly stated "must not
-be split into separate sequential stages" and explained why each component alone
-is insufficient ("Cockpit without a reality model is only a dashboard").
+- All roadmap sequencing changes -- no "build substrate first, then Cockpit, then reality model"
+- Stage 1 acceptance criteria are the 10 items above, verified against operator usability
+- Cockpit readiness criteria (artifacts 5, 6, 7) must be rewritten around organism viability
+- Incremental builds are allowed but must advance all four components in each increment
+- UMH must be self-improving: work on itself through governed work packets
+- Projection apps built from inside UMH, not as separate projects
 
 ---
 
-## Recommended Correction Sequence
+## Confirmed Correction Sequence
 
-If all three decisions are ratified (Option A across the board):
+All three decisions have been ratified by the operator (2026-06-04). The correction sequence is now confirmed:
 
-| Phase | Scope | Deliverable |
-|-------|-------|-------------|
-| **14.6C** (this document) | Capture and present correction | This P0 operator clarification document |
-| **14.6D** | Revise 17 directly affected UMH artifacts | Updated artifacts with reality-model framing, new Stage 1 definition, Materialization Principle integration |
-| **14.6E** | Update EOS/CreatorOS/LyfeOS integration artifacts | Projection artifacts reframed as instance reality models |
-| **14.6F** | Revised Stage 1 organism definition | Single document defining the minimum viable indivisible organism with acceptance criteria |
-| **14.6G** | Cockpit implementation (as reality-model interface) | First implementation phase, building against the revised canon |
+| Phase | Scope | Deliverable | Status |
+|-------|-------|-------------|--------|
+| **14.6C** (this document) | Capture, present, and ratify correction | P0 operator clarification + ratification record | **COMPLETE** |
+| **14.6D** | Revise 17 directly affected UMH artifacts | Updated artifacts with reality-model framing, new Stage 1 definition, Materialization Principle integration | NEXT |
+| **14.6E** | Update EOS/CreatorOS/LyfeOS integration artifacts | Projection artifacts reframed as instance reality models | BLOCKED (awaits 14.6D) |
+| **14.6F** | Revised Stage 1 organism definition | Single document defining the minimum viable indivisible organism with acceptance criteria | BLOCKED (awaits 14.6D) |
+| **14.6G** | Cockpit implementation (as reality-model interface) | First implementation phase, building against the revised canon | BLOCKED (awaits 14.6D + remaining P0 decisions) |
 
 ---
 
@@ -780,8 +777,12 @@ If all three decisions are ratified (Option A across the board):
 | 2026-06-04 | Operator states reality-model correction | Operator (AFM) |
 | 2026-06-04 | Correction captured in this document | Developer Agent |
 | 2026-06-04 | Document added to Phase 14.6C operator review packet | Developer Agent |
-| Pending | Operator ratifies or modifies DEC-146C-001, 002, 003 | Operator (AFM) |
-| Pending | Affected artifacts revised per ratification decisions | Developer Agent |
+| 2026-06-04 | Operator ratifies DEC-146C-001 with modification: reality-isomorphic intelligence harness, product name retained as "Universal Meta Harness" | Operator (AFM) |
+| 2026-06-04 | Operator ratifies DEC-146C-002 with modification: Materialization Principle as core design constraint, expanded gap taxonomy, safety/ethics boundary | Operator (AFM) |
+| 2026-06-04 | Operator ratifies DEC-146C-003 as Option B: indivisible Stage 1 target, incremental builds advancing all four components | Operator (AFM) |
+| 2026-06-04 | Operator adds Stage 1 minimum viability clarification: 10 acceptance criteria, projection app viability, self-improvement mandate | Operator (AFM) |
+| 2026-06-04 | Ratification decisions and clarifications recorded in this document and decision queue | Developer Agent |
+| Pending | 17 affected artifacts revised per ratification decisions (Phase 14.6D) | Developer Agent |
 
 ---
 
@@ -793,8 +794,10 @@ Every artifact assessment is grounded in actual file content read from
 `data/umh/trinity_convergence/phase14_6b_umh/` with specific line references.
 No claim is made from memory; all were verified against source files.
 
-This document is an OPERATOR CLARIFICATION, not approved canon. It must not
-be treated as ratified direction until the operator explicitly approves
-DEC-146C-001, DEC-146C-002, and DEC-146C-003.
+The three ratification decisions (DEC-146C-001, DEC-146C-002, DEC-146C-003)
+have been OPERATOR-APPROVED as of 2026-06-04. The ratified canon statements
+and operator constraints are recorded above and in the decision queue.
 
-Nothing in this document authorizes implementation.
+Implementation remains blocked. The ratified decisions unblock Phase 14.6D
+(UMH canon artifact revision) but do not authorize Cockpit, reality-engine,
+or projection-app implementation. `allows_implementation` remains false.

@@ -107,11 +107,11 @@ Three specific corrections:
 
 This correction generates 3 P0 ratification decisions captured in `phase14_6c_ratification_decision_queue.md`:
 
-| Decision ID | Description | Priority |
-|-------------|-------------|----------|
-| DEC-146C-001 | Ratify UMH as isomorphic reality engine (12+ reality layers), not merely orchestration kernel | P0 |
-| DEC-146C-002 | Ratify indivisible Stage 1 organism (Reality Model + Cockpit + Memory + Governed Execution Loop as one unit) | P0 |
-| DEC-146C-003 | Ratify Materialization Principle as core UMH behavior (intent generates execution paths, not rejections) | P0 |
+| Decision ID | Description | Priority | Status |
+|-------------|-------------|----------|--------|
+| DEC-146C-001 | UMH identity as reality-isomorphic intelligence harness (12 reality layers). Product name "Universal Meta Harness" retained. | P0 | **OPERATOR-APPROVED WITH MODIFICATION** |
+| DEC-146C-002 | Materialization Principle as core design constraint. Expanded gap taxonomy. Safety/ethics boundary. | P0 | **OPERATOR-APPROVED WITH MODIFICATION** |
+| DEC-146C-003 | Indivisible Stage 1 organism (Option B: indivisible target, incremental builds advancing all four components) | P0 | **OPERATOR-APPROVED** |
 
 ### UMH Artifacts Affected (17 of 57)
 
@@ -398,12 +398,12 @@ Phase 14.6C produces 9 artifacts in this operator review packet:
 - No auth was migrated
 - No projections were connected
 - No autonomous execution was enabled
-- No canon was marked operator-approved
-- No production truth was promoted
-- The UMH reality model correction is captured as an OPERATOR CLARIFICATION, not silently applied
+- No production truth was promoted beyond the explicit operator approvals below
 - All Phase 14.6B artifacts remain in DRAFT status with `operator_approved: false`
-- All Phase 14.6C artifacts are produced with `operator_approved: false`
-- The 3 new P0 ratification decisions (DEC-146C-001, DEC-146C-002, DEC-146C-003) block all Cockpit implementation and all future UMH reality-engine phases until the operator reviews and ratifies or rejects them
+- All Phase 14.6C artifacts retain `operator_approved: false` and `allows_implementation: false` in frontmatter (document-level flags reflect that not all P0 decisions are resolved)
+- DEC-146C-001, DEC-146C-002, and DEC-146C-003 are individually OPERATOR-APPROVED with modifications as recorded in the decision queue and correction document. This is explicit operator ratification, not silent promotion.
+- The remaining 15 P0 decisions remain unresolved. Implementation remains blocked.
+- Cockpit, reality-engine, and projection-app implementation gates remain closed.
 
 ---
 
@@ -463,11 +463,11 @@ Phase 14.6C produces 9 artifacts in this operator review packet:
 
 ## Appendix B: P0 Decision Cross-Reference
 
-| Decision ID | Product | Blocks | Recommended Resolution |
-|-------------|---------|--------|----------------------|
-| DEC-146C-001 | UMH | All Cockpit implementation, all reality-engine phases | Ratify isomorphic reality engine scope |
-| DEC-146C-002 | UMH | All Cockpit implementation, Stage 1 planning | Ratify indivisible Stage 1 organism |
-| DEC-146C-003 | UMH | Execution architecture, governance model | Ratify Materialization Principle |
+| Decision ID | Product | Blocks | Resolution |
+|-------------|---------|--------|------------|
+| DEC-146C-001 | UMH | All Cockpit implementation, all reality-engine phases | **RESOLVED: OPERATOR-APPROVED WITH MODIFICATION (2026-06-04)** |
+| DEC-146C-002 | UMH | Execution architecture, governance model | **RESOLVED: OPERATOR-APPROVED WITH MODIFICATION (2026-06-04)** |
+| DEC-146C-003 | UMH | All Cockpit implementation, Stage 1 planning | **RESOLVED: OPERATOR-APPROVED as Option B (2026-06-04)** |
 | DEC-146B-EOS-001 | EOS | ALL EOS implementation | Promote Beast as canonical |
 | DEC-146B-EOS-002 | EOS | Sprint planning, milestone definitions | Confirm R1-R5 plan |
 | DEC-146B-EOS-003 | EOS | User-facing features, RLS, middleware | Confirm Clerk |

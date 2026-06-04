@@ -352,14 +352,15 @@ builds on the context established by its predecessors.
 | 6 | Implementation Blockers (`phase14_6c_implementation_blockers.md`) | What specifically blocks progress, in what order, with dependency chains. |
 | 7 | Next Phase Recommendation (`phase14_6c_next_phase_recommendation.md`) | What to do after this review -- concrete next steps, sequenced, with rationale. |
 | 8 | Audit Report (`phase14_6c_audit_report.md`) | Compliance proof that this review packet meets phase standards. |
+| 9 | Ratification Delta Report (`phase14_6c_ratification_delta_report.md`) | Records exact text changes from operator's P0 ratification decisions (DEC-146C-001/002/003), remaining blockers, implementation gates. |
 
 ---
 
 ## Artifact Inventory
 
-Phase 14.6C produces exactly 9 artifacts, including this one. Each serves
-a distinct purpose that cannot be collapsed into another artifact without
-losing critical structure.
+Phase 14.6C produces exactly 10 artifacts (9 MD + 1 test), including this one.
+Each serves a distinct purpose that cannot be collapsed into another artifact
+without losing critical structure.
 
 ### 1. Master Index (this file)
 
@@ -444,7 +445,17 @@ that the review packet itself is compliant.
 **Provenance:** SYNTHESIZED_CANON
 **Dependency:** All other artifacts must exist before audit.
 
-### 9. Test File
+### 9. Ratification Delta Report
+
+**File:** `phase14_6c_ratification_delta_report.md`
+**Purpose:** Records the operator's P0 ratification decisions for DEC-146C-001,
+DEC-146C-002, and DEC-146C-003. Shows exact text changed from original proposals,
+operator modifications, affected artifacts, remaining blockers, implementation
+gates still closed, and next recommended phase.
+**Provenance:** OPERATOR_CORRECTION
+**Dependency:** Ratification decision queue + reality model correction (records approvals).
+
+### 10. Test File
 
 **File:** `tests/test_phase14_6c_operator_review.py`
 **Purpose:** Automated verification of the review packet. Tests artifact
