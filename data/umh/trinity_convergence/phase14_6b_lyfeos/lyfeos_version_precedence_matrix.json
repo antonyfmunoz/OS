@@ -1,0 +1,129 @@
+{
+  "phase": "14.6B-LyfeOS",
+  "artifact": "lyfeos_version_precedence_matrix",
+  "timestamp": "2026-06-03T12:00:00Z",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "description": "Precedence hierarchy for all source documents. When sources conflict, higher-precedence sources win.",
+  "precedence_order": [
+    {
+      "rank": 1,
+      "source": "Operator Corrections (Session 2026-06-03)",
+      "type": "operator_correction",
+      "precedence": "HIGHEST",
+      "description": "Direct operator statements during this analysis session. Override all other sources when in conflict.",
+      "key_corrections": [
+        "Primary nav is Dashboard/Missions/AI/Chronilog/Profile (not Systems as 5th tab)",
+        "NOVA is user-renamable AI companion name, not a system constant",
+        "Deployed on Replit at lyfeos.net",
+        "No Clerk in current codebase"
+      ],
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "rank": 2,
+      "source": "Current Code (schema.ts, package.json, tests, configs)",
+      "type": "code",
+      "precedence": "PRIMARY",
+      "description": "What the code actually does right now. Resolves all 'what exists today' questions. Latest commit: ee1bb0f3 (2026-05-20).",
+      "scope": "Current implementation truth only. Cannot answer questions about UI behavior not visible in schema/deps.",
+      "files": [
+        "shared/schema.ts (1449 lines, 35 tables)",
+        "package.json (145 deps)",
+        "tests/api-auth.test.ts (128 lines)",
+        "tests/xp-calculations.test.ts (143 lines)",
+        "shared/models/chat.ts (35 lines)",
+        "All config files (vite, tsconfig, drizzle, tailwind, theme, vitest, postcss)"
+      ],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "rank": 3,
+      "source": "replit.md (Comprehensive Product Documentation)",
+      "type": "documentation",
+      "precedence": "HIGH",
+      "description": "Replit-facing documentation that describes the full system architecture, features, and technical decisions. Well-aligned with code evidence. Covers areas not visible in schema alone (AI tools, knowledge base, UI behavior, sync mechanisms).",
+      "trust_level": "High — cross-validated against code in 13/15 testable claims. Only divergence is on rate limiting.",
+      "scope": "Describes what is deployed. May include aspirational features that are partially implemented.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "rank": 4,
+      "source": "UMH Integration Layer (projections/lyfeos/integration/)",
+      "type": "code",
+      "precedence": "HIGH (for UMH integration questions)",
+      "description": "Python integration layer in UMH codebase. 1184 lines across 7 files. Defines the canonical UMH-to-LyfeOS integration contract.",
+      "scope": "UMH integration architecture only. Does not describe LyfeOS product features.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "rank": 5,
+      "source": "Phase 14.5A — 13-Layer Production Stack",
+      "type": "phase_artifact",
+      "precedence": "MEDIUM",
+      "description": "13-layer production stack assessment. Provides gap analysis and risk classification for each layer. Some claims superseded by this deeper analysis (e.g., Helmet confirmation).",
+      "file": "phase14_5a_lyfeos_13_layer_production_stack.json",
+      "trust_level": "Medium — good structural analysis but some claims were based on incomplete information.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "rank": 6,
+      "source": "Phase 14.5 — Convergence Plan",
+      "type": "phase_artifact",
+      "precedence": "MEDIUM",
+      "description": "Initial convergence plan for LyfeOS. Documents gaps, contradictions, and recommended sequence. Some claims now corrected (e.g., 'Systems' in primary nav).",
+      "file": "phase14_5_lyfeos_convergence_plan.json",
+      "trust_level": "Medium — good strategic framing but details corrected by deeper code analysis.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "rank": 7,
+      "source": "Phase 14.4 — Desired State Canon",
+      "type": "phase_artifact",
+      "precedence": "LOW (for current truth) / MEDIUM (for future state)",
+      "description": "Desired product state documentation. Referenced by phase 14.5 artifacts but not directly available in this snapshot. Includes PRD v1.0 and v2.0 references.",
+      "trust_level": "Low for current truth (aspirational). Medium for future direction.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "rank": 8,
+      "source": "PRD v2.0",
+      "type": "design_document",
+      "precedence": "LOW (for current truth) / MEDIUM (for future state)",
+      "description": "Product Requirements Document version 2.0. Not directly available in snapshot. Referenced as 'current direction' by phase 14.5. Defines 5-tab navigation (Dashboard, Missions, AI, Chronilog, Profile) which aligns with current code truth.",
+      "trust_level": "Where it aligns with code, it reinforces. Where it goes beyond code, it is future intent.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "rank": 9,
+      "source": "PRD v1.0",
+      "type": "design_document",
+      "precedence": "LOWEST",
+      "description": "Original Product Requirements Document. Defined 4-tab navigation. Superseded by PRD v2.0 and current code. Historical context only.",
+      "trust_level": "Historical. Not current truth for any claim.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    }
+  ],
+  "conflict_resolution_rules": [
+    {
+      "rule": "OPERATOR_WINS",
+      "description": "When operator corrections conflict with any other source, operator corrections are canonical."
+    },
+    {
+      "rule": "CODE_OVER_DOCS",
+      "description": "When code conflicts with documentation, code is current truth. Documentation becomes 'future intent' or 'historical'."
+    },
+    {
+      "rule": "REPLIT_MD_OVER_PHASE_ARTIFACTS",
+      "description": "When replit.md conflicts with prior phase artifacts, replit.md wins because it was written closer to the code and cross-validates better."
+    },
+    {
+      "rule": "V2_OVER_V1",
+      "description": "PRD v2.0 supersedes PRD v1.0 for all product direction questions."
+    },
+    {
+      "rule": "NEWER_PHASE_OVER_OLDER",
+      "description": "Phase 14.6B findings supersede 14.5A, which supersedes 14.5, which supersedes 14.4."
+    }
+  ]
+}

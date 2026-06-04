@@ -1,0 +1,860 @@
+{
+  "artifact_id": "EOS-ORG-CHART-ENGINE-001",
+  "title": "EOS Org Chart Engine Specification",
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+  "description": "Complete org chart engine specification — department model, role model, hierarchy, default departments, template system, agent mapping, permissions, MVP scope, and end state",
+
+  "department_model": {
+    "description": "A department is a structural grouping within a company/entity that owns roles, metrics, workflows, and an AI agent. Departments are data entities persisted in the database, not prompt context. The canonical Pydantic model is substrate.types.Department.",
+    "fields": {
+      "id": {"type": "UUID", "default": "uuid4()", "description": "Unique department identifier"},
+      "name": {"type": "str", "max_length": 80, "description": "Human-readable department name (e.g., 'Sales', 'Customer Success')"},
+      "slug": {"type": "str", "max_length": 40, "description": "URL-safe identifier (e.g., 'sales', 'customer_success')"},
+      "organization_id": {"type": "str", "required": true, "description": "Organization/tenant this department belongs to"},
+      "venture_id": {"type": "str", "nullable": true, "description": "Specific venture/company within the org, if scoped"},
+      "agent_name": {"type": "str", "nullable": true, "description": "Slug of the AI agent assigned to this department (e.g., 'eos-sales')"},
+      "permission_tier": {"type": "str", "max_length": 20, "default": "execute", "description": "Department-level authority ceiling. One of: read, draft, execute, commit"},
+      "roles": {"type": "list[str]", "description": "Role slugs that belong to this department (e.g., ['sales_lead', 'bdr', 'account_executive'])"},
+      "metrics": {"type": "list[str]", "description": "KPI slugs tracked by this department (e.g., ['pipeline_value', 'conversion_rate'])"},
+      "workflows": {"type": "list[str]", "description": "Workflow slugs owned by this department (e.g., ['outreach', 'follow_up', 'pipeline_review'])"},
+      "active": {"type": "bool", "default": true, "description": "Whether the department is currently active"},
+      "created_at": {"type": "datetime", "default": "utcnow()", "description": "Creation timestamp"},
+      "metadata": {"type": "dict[str, Any]", "default": {}, "description": "Extensible metadata bag for department-specific config"}
+    },
+    "relationships": {
+      "belongs_to": "Company (via organization_id + venture_id)",
+      "owns": ["Role (via roles list)", "Workflow (via workflows list)", "Dashboard (via department slug)"],
+      "has_agent": "DepartmentAgent subclass (via agent_name lookup)",
+      "tracks": "KPI (via metrics list)"
+    },
+    "defaults": {
+      "permission_tier": "execute",
+      "active": true,
+      "metadata": {}
+    },
+    "canonical_location": "substrate/types.py line 1136",
+    "instance_factory": "projections/eos/entities.py::default_departments()"
+  },
+
+  "role_model": {
+    "description": "A role is the atomic operating unit in the EOS hierarchy. Everything attaches to a role — a role can be operated by human, AI, or both. The role is the unit of authority, delegation, and performance measurement. The canonical Pydantic model is substrate.types.Role.",
+    "fields": {
+      "id": {"type": "UUID", "default": "uuid4()", "description": "Unique role identifier"},
+      "name": {"type": "str", "max_length": 120, "description": "Human-readable role name (e.g., 'CEO', 'Sales Lead', 'Bookkeeper')"},
+      "department": {"type": "str", "max_length": 80, "description": "Department slug this role belongs to"},
+      "organization_id": {"type": "str", "required": true, "description": "Organization/tenant this role belongs to"},
+      "venture_id": {"type": "str", "nullable": true, "description": "Specific venture/company within the org, if scoped"},
+      "operator": {"type": "OperatorType", "default": "hybrid", "enum_values": ["human", "ai", "hybrid"], "description": "Who operates this role — human, AI, or a combination"},
+      "agent_name": {"type": "str", "nullable": true, "description": "AI agent assigned to this role (e.g., 'eos-ceo', 'eos-sales')"},
+      "permission_tier": {"type": "str", "max_length": 20, "default": "execute", "description": "Role-level authority ceiling. One of: read, draft, execute, commit"},
+      "responsibilities": {"type": "list[str]", "description": "What this role is accountable for (e.g., ['Pipeline management', 'Outreach strategy'])"},
+      "workflows": {"type": "list[str]", "description": "Workflow slugs this role participates in"},
+      "metrics": {"type": "list[str]", "description": "KPI slugs this role is measured on"},
+      "tools": {"type": "list[str]", "description": "Tool identifiers this role has access to"},
+      "documents": {"type": "list[str]", "description": "Document types/categories this role produces or consumes"},
+      "dashboard_id": {"type": "str", "nullable": true, "description": "Dashboard configuration assigned to this role"},
+      "autonomy_level": {"type": "int", "min": 0, "max": 5, "default": 2, "description": "How much independent authority this role has (0=none, 5=full autonomy)"},
+      "active": {"type": "bool", "default": true, "description": "Whether the role is currently active"},
+      "created_at": {"type": "datetime", "default": "utcnow()", "description": "Creation timestamp"},
+      "metadata": {"type": "dict[str, Any]", "default": {}, "description": "Extensible metadata bag for role-specific config"}
+    },
+    "human_or_ai": {
+      "description": "OperatorType enum governs who fills the role. This is a first-class field, not a tag.",
+      "values": {
+        "HUMAN": "Role operated exclusively by a human team member",
+        "AI": "Role operated exclusively by an AI agent. The agent_name field identifies which agent.",
+        "HYBRID": "Role can be operated by either human or AI depending on context. The system supports hot-swapping between human and AI for hybrid roles."
+      },
+      "canonical_location": "substrate/types.py line 1100 (OperatorType enum)"
+    },
+    "permissions": {
+      "description": "Role permission_tier determines what actions the role holder can perform. Tiers are cumulative — each higher tier includes all lower capabilities.",
+      "tier_hierarchy": "READ < DRAFT < EXECUTE < COMMIT",
+      "enforcement": "DepartmentAgent.execute_skill() checks PERMISSION_TIER.permits(skill.min_tier) before execution. Skills that require a tier above the agent's ceiling are rejected.",
+      "canonical_location": "substrate/types.py line 140 (PermissionTier enum)"
+    },
+    "capabilities": {
+      "description": "Role capabilities are expressed through the skills registered on the corresponding DepartmentAgent. Each skill has a name, action_type, description, handler function, and minimum tier.",
+      "skill_registration": "DepartmentAgent._add_skill(name, action_type, description, handler, min_tier)",
+      "tier_auto_mapping": "If min_tier is not explicitly set, required_tier_for_action(action_type) determines it from TIER_ACTION_MAP",
+      "browser_capabilities": "Every DepartmentAgent gets browser_research (READ tier) and browser_act (EXECUTE tier) auto-registered"
+    },
+    "canonical_location": "substrate/types.py line 1108",
+    "instance_factory": "projections/eos/entities.py::default_roles()"
+  },
+
+  "hierarchy": {
+    "levels": [
+      {
+        "level": 0,
+        "name": "Operator/User",
+        "description": "The human principal who owns and governs the entire system. Ultimate authority. All governance chains terminate here.",
+        "canonical_type": "substrate.types.User",
+        "cardinality": "One operator per instance (MVP). Multi-operator at scale."
+      },
+      {
+        "level": 1,
+        "name": "Portfolio",
+        "description": "Strategic container grouping related entities. Provides consolidated dashboards, cross-entity analytics, capital allocation views.",
+        "canonical_type": "substrate.types.Portfolio",
+        "cardinality": "One operator owns one or more portfolios. MVP: one primary portfolio."
+      },
+      {
+        "level": 2,
+        "name": "Company/Entity",
+        "description": "An operating business instance within a portfolio. Parent entity owning departments, BIS, knowledge graph, interactions. Maps to a venture in the database.",
+        "canonical_type": "substrate.types.Company",
+        "cardinality": "One portfolio contains one or more companies/entities."
+      },
+      {
+        "level": 3,
+        "name": "Department",
+        "description": "Structural grouping within a company owning roles, metrics, workflows, and an AI agent.",
+        "canonical_type": "substrate.types.Department",
+        "cardinality": "One company has 10 default departments. Custom departments can be added."
+      },
+      {
+        "level": 4,
+        "name": "Role",
+        "description": "The atomic operating unit. Everything attaches to a role. Operated by human, AI, or both.",
+        "canonical_type": "substrate.types.Role",
+        "cardinality": "One department has one or more roles."
+      },
+      {
+        "level": 5,
+        "name": "Workflow",
+        "description": "A repeatable process with triggers, steps, governance gates, and output artifacts.",
+        "canonical_type": "substrate.types.Workflow",
+        "cardinality": "One department owns one or more workflows."
+      },
+      {
+        "level": 6,
+        "name": "Dashboard",
+        "description": "The complete UI surface for a role/department with task board, tools, CRM, documents, workflows, metrics, communications, AI panel, and approval queue.",
+        "canonical_type": "substrate.types.Dashboard",
+        "cardinality": "One per department (default). Role-specific overrides possible."
+      }
+    ],
+    "reporting_lines": {
+      "description": "Reporting follows the communication delegation architecture. Department agents report to CEO agent, CEO reports to EA (which surfaces to operator).",
+      "chain": "DepartmentAgent -> CEO Agent -> EA Agent -> Operator",
+      "constraint": "EA never routes directly to department agents. All department-level delegation flows through CEO.",
+      "cross_reference": "phase14_6b_eos_communication_delegation_architecture.json"
+    },
+    "delegation_rules": {
+      "downward_delegation": "CEO agent delegates to department agents with context, constraints, and deadline. Department agents execute within their permission tier.",
+      "upward_escalation": "Department agents escalate to CEO when action requires higher tier, business judgment needed, cross-department dependency, or risk exceeds authority.",
+      "cross_department": "CEO coordinates cross-department tasks by creating sub-tasks for each department with explicit dependency tracking.",
+      "parallel_execution": "Independent sub-tasks across departments are delegated in parallel. Dependent sub-tasks are sequenced."
+    }
+  },
+
+  "default_departments": [
+    {
+      "slug": "executive",
+      "display_name": "Executive",
+      "agent_name": "eos-ceo",
+      "agent_class": "CEOAgent",
+      "permission_tier": "commit",
+      "roles": ["ceo", "founder"],
+      "metrics": ["revenue", "runway", "customer_count", "north_star_progress"],
+      "workflows": ["morning_brief", "decision_review", "delegation"],
+      "skill_count": 6,
+      "skills": [
+        {"name": "strategic_analysis", "action_type": "analyze", "description": "Analyze strategic position and opportunities"},
+        {"name": "decision_brief", "action_type": "report", "description": "Generate decision brief for a key decision"},
+        {"name": "delegation", "action_type": "create_task", "description": "Delegate a task to a department agent"},
+        {"name": "pipeline_review", "action_type": "report", "description": "Review full pipeline across all departments"},
+        {"name": "morning_brief", "action_type": "report", "description": "Generate CEO morning briefing"},
+        {"name": "approve_action", "action_type": "execute_payment", "description": "Approve a queued action (COMMIT tier)"}
+      ],
+      "skill_allocation": ["meta/ceo_framework", "meta/portfolio_framework", "Ops/weekly_ceo_report", "Ops/prepare_war_room_agenda"],
+      "dashboard_widgets": ["METRIC_CARD", "TASK_BOARD", "AI_CHAT", "APPROVAL_QUEUE", "TIMELINE"],
+      "default_role_detail": {
+        "name": "CEO",
+        "operator": "HYBRID",
+        "responsibilities": ["Strategic direction", "Capital allocation", "Team building", "Vision setting"],
+        "role_workflows": ["morning_brief", "decision_review"],
+        "role_metrics": ["revenue", "runway", "north_star"]
+      },
+      "code_status": "IMPLEMENTED",
+      "code_location": "projections/eos/agents/ceo.py",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "slug": "sales",
+      "display_name": "Sales",
+      "agent_name": "eos-sales",
+      "agent_class": "SalesAgent",
+      "permission_tier": "execute",
+      "roles": ["sales_lead", "bdr", "account_executive"],
+      "metrics": ["pipeline_value", "conversion_rate", "outreach_volume", "calls_booked"],
+      "workflows": ["outreach", "follow_up", "pipeline_review"],
+      "skill_count": 6,
+      "skills": [
+        {"name": "lead_score", "action_type": "score", "description": "Score a lead based on qualification criteria"},
+        {"name": "outreach_draft", "action_type": "draft_message", "description": "Draft an outreach message for a prospect"},
+        {"name": "pipeline_report", "action_type": "report", "description": "Report on current sales pipeline"},
+        {"name": "follow_up", "action_type": "draft_message", "description": "Draft follow-up message for stale leads"},
+        {"name": "send_outreach", "action_type": "send_dm", "description": "Send outreach message to prospect"},
+        {"name": "book_call", "action_type": "book_call", "description": "Book a discovery/sales call"}
+      ],
+      "skill_allocation": [
+        "Sales/analyze_conversation", "Sales/analyze_dm_conversation", "Sales/analyze_dm_conversation_titled",
+        "Sales/binding_constraint_diagnosis", "Sales/call_booking_confirmation", "Sales/call_to_close",
+        "Sales/crm_stage_update", "Sales/extract_icp_insight", "Sales/follow_up_sequence",
+        "Sales/generate_follow_up_message", "Sales/generate_outreach_from_intel", "Sales/lead_nurture",
+        "Sales/lead_personalization_from_profile", "Sales/objection_handling", "Sales/opener_batch_audit",
+        "Sales/pre_call_research_brief", "Sales/proof_promise_plan_close", "Sales/qualify_lead",
+        "Sales/stage_transition_assessment", "Sales/summarize_sales_call",
+        "Outreach/dm_opener", "Outreach/reply_handler",
+        "Research/analyze_icp_signal", "Research/detect_icp_patterns", "Research/generate_market_report",
+        "Research/icp_signal_detection", "Research/person_recognition_lookup", "Research/process_signal_queue"
+      ],
+      "dashboard_widgets": ["CRM_TABLE", "TASK_BOARD", "METRIC_CARD", "AI_CHAT", "COMMUNICATION"],
+      "default_role_detail": {
+        "name": "Sales Lead",
+        "operator": "HYBRID",
+        "responsibilities": ["Pipeline management", "Outreach strategy", "Close deals", "CRM hygiene"],
+        "role_workflows": ["outreach", "follow_up", "pipeline_review"],
+        "role_metrics": ["pipeline_value", "conversion_rate"]
+      },
+      "code_status": "IMPLEMENTED",
+      "code_location": "projections/eos/agents/sales.py",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "slug": "marketing",
+      "display_name": "Marketing",
+      "agent_name": "eos-marketing",
+      "agent_class": "MarketingAgent",
+      "permission_tier": "execute",
+      "roles": ["content_creator", "brand_manager", "growth_marketer"],
+      "metrics": ["followers", "engagement_rate", "content_output", "cac"],
+      "workflows": ["content_calendar", "campaign_execution", "brand_audit"],
+      "skill_count": 6,
+      "skills": [
+        {"name": "content_calendar", "action_type": "draft_content", "description": "Generate a content calendar for upcoming period"},
+        {"name": "content_ideation", "action_type": "draft_content", "description": "Generate content ideas for a topic/channel"},
+        {"name": "audience_analysis", "action_type": "analyze", "description": "Analyze audience demographics and engagement"},
+        {"name": "brand_audit", "action_type": "analyze", "description": "Audit brand consistency across channels"},
+        {"name": "post_content", "action_type": "post_content", "description": "Post content to a channel"},
+        {"name": "campaign_report", "action_type": "report", "description": "Report on campaign performance"}
+      ],
+      "skill_allocation": [
+        "Marketing/Content/draft_arena_content_post", "Marketing/Content/generate_content_from_intel",
+        "Marketing/campaign_diagnosis", "Marketing/content_calendar",
+        "Content/content_video_brief", "Content/hook_performance_analysis",
+        "content/analyze_content_performance", "content/discover_content_angles", "content/generate_content_script"
+      ],
+      "dashboard_widgets": ["TASK_BOARD", "METRIC_CARD", "DOCUMENT_LIST", "AI_CHAT", "TIMELINE"],
+      "default_role_detail": {
+        "name": "Content Creator",
+        "operator": "AI",
+        "responsibilities": ["Content production", "Brand voice", "Channel management"],
+        "role_workflows": ["content_calendar", "content_creation"],
+        "role_metrics": ["content_output", "engagement_rate"]
+      },
+      "code_status": "IMPLEMENTED",
+      "code_location": "projections/eos/agents/marketing.py",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "slug": "finance",
+      "display_name": "Finance",
+      "agent_name": "eos-finance",
+      "agent_class": "FinanceAgent",
+      "permission_tier": "commit",
+      "roles": ["cfo", "bookkeeper", "financial_analyst"],
+      "metrics": ["revenue", "expenses", "burn_rate", "runway_months", "ltv_cac_ratio"],
+      "workflows": ["revenue_tracking", "expense_review", "budget_forecast"],
+      "skill_count": 7,
+      "skills": [
+        {"name": "revenue_report", "action_type": "report", "description": "Generate revenue summary for a time period"},
+        {"name": "expense_tracking", "action_type": "report", "description": "Track and categorize expenses"},
+        {"name": "budget_forecast", "action_type": "analyze", "description": "Forecast budget based on current burn rate and revenue"},
+        {"name": "unit_economics", "action_type": "analyze", "description": "Calculate unit economics (CAC, LTV, margins)"},
+        {"name": "cashflow_analysis", "action_type": "analyze", "description": "Analyze cash flow position and runway"},
+        {"name": "payment_processing", "action_type": "execute_payment", "description": "Process a payment (requires approval)"},
+        {"name": "invoice_draft", "action_type": "draft_content", "description": "Draft an invoice"}
+      ],
+      "skill_allocation": [],
+      "dashboard_widgets": ["METRIC_CARD", "APPROVAL_QUEUE", "DOCUMENT_LIST", "AI_CHAT"],
+      "default_role_detail": {
+        "name": "Bookkeeper",
+        "operator": "AI",
+        "responsibilities": ["Expense tracking", "Revenue recording", "Invoice processing"],
+        "role_workflows": ["revenue_tracking", "expense_review"],
+        "role_metrics": ["expenses", "revenue"]
+      },
+      "code_status": "IMPLEMENTED",
+      "code_location": "projections/eos/agents/finance.py",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "slug": "customer_success",
+      "display_name": "Customer Success",
+      "agent_name": "eos-customer-success",
+      "agent_class": "CustomerSuccessAgent",
+      "permission_tier": "execute",
+      "roles": ["cs_lead", "support_agent", "onboarding_specialist"],
+      "metrics": ["nps", "churn_rate", "ticket_resolution_time", "satisfaction_score"],
+      "workflows": ["ticket_routing", "onboarding", "churn_prevention"],
+      "skill_count": 7,
+      "skills": [
+        {"name": "ticket_routing", "action_type": "classify", "description": "Classify and route a support ticket to the right handler"},
+        {"name": "satisfaction_report", "action_type": "report", "description": "Generate customer satisfaction report"},
+        {"name": "churn_detection", "action_type": "analyze", "description": "Identify customers at risk of churning"},
+        {"name": "onboarding_guide", "action_type": "draft_content", "description": "Create onboarding guide for new customers"},
+        {"name": "feedback_analysis", "action_type": "analyze", "description": "Analyze customer feedback themes"},
+        {"name": "response_draft", "action_type": "draft_message", "description": "Draft customer response"},
+        {"name": "send_response", "action_type": "send_message", "description": "Send response to customer"}
+      ],
+      "skill_allocation": ["CustomerSuccess/churn_prevention", "CustomerSuccess/onboarding_sequence"],
+      "dashboard_widgets": ["TASK_BOARD", "CRM_TABLE", "METRIC_CARD", "AI_CHAT", "COMMUNICATION"],
+      "default_role_detail": {
+        "name": "Support Agent",
+        "operator": "AI",
+        "responsibilities": ["Ticket response", "Customer onboarding", "Feedback collection"],
+        "role_workflows": ["ticket_routing", "onboarding"],
+        "role_metrics": ["resolution_time", "satisfaction"]
+      },
+      "code_status": "IMPLEMENTED",
+      "code_location": "projections/eos/agents/customer_success.py",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "slug": "hr",
+      "display_name": "HR",
+      "agent_name": "eos-hr",
+      "agent_class": "HRAgent",
+      "permission_tier": "execute",
+      "roles": ["hr_lead", "recruiter", "people_ops"],
+      "metrics": ["headcount", "hiring_pipeline", "time_to_hire", "retention_rate"],
+      "workflows": ["hiring", "onboarding", "performance_review"],
+      "skill_count": 6,
+      "skills": [
+        {"name": "candidate_screen", "action_type": "analyze", "description": "Screen a candidate against role requirements"},
+        {"name": "hiring_pipeline", "action_type": "report", "description": "Report on current hiring pipeline status"},
+        {"name": "onboarding_plan", "action_type": "draft_content", "description": "Create onboarding plan for a new team member"},
+        {"name": "performance_review", "action_type": "analyze", "description": "Analyze employee/contractor performance"},
+        {"name": "contractor_search", "action_type": "research", "description": "Search for contractors matching role requirements"},
+        {"name": "outreach_candidate", "action_type": "send_dm", "description": "Send outreach to a candidate"}
+      ],
+      "skill_allocation": [],
+      "dashboard_widgets": ["TASK_BOARD", "DOCUMENT_LIST", "METRIC_CARD", "AI_CHAT"],
+      "default_role_detail": {
+        "name": "Recruiter",
+        "operator": "AI",
+        "responsibilities": ["Candidate sourcing", "Screening", "Interview coordination"],
+        "role_workflows": ["hiring", "candidate_screening"],
+        "role_metrics": ["pipeline_count", "time_to_hire"]
+      },
+      "code_status": "IMPLEMENTED",
+      "code_location": "projections/eos/agents/hr.py",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "slug": "legal",
+      "display_name": "Legal",
+      "agent_name": "eos-legal",
+      "agent_class": "LegalAgent",
+      "permission_tier": "commit",
+      "roles": ["general_counsel", "compliance_officer"],
+      "metrics": ["open_contracts", "compliance_status", "pending_reviews"],
+      "workflows": ["contract_review", "compliance_check", "entity_management"],
+      "skill_count": 6,
+      "skills": [
+        {"name": "contract_review", "action_type": "analyze", "description": "Review a contract for risks and obligations"},
+        {"name": "compliance_check", "action_type": "analyze", "description": "Check compliance status against requirements"},
+        {"name": "entity_status", "action_type": "report", "description": "Report on entity registration status"},
+        {"name": "terms_draft", "action_type": "draft_content", "description": "Draft terms of service or legal document"},
+        {"name": "ip_audit", "action_type": "analyze", "description": "Audit intellectual property status"},
+        {"name": "contract_execute", "action_type": "execute_payment", "description": "Execute a contract (requires approval)"}
+      ],
+      "skill_allocation": [],
+      "dashboard_widgets": ["DOCUMENT_LIST", "APPROVAL_QUEUE", "METRIC_CARD", "AI_CHAT"],
+      "default_role_detail": {
+        "name": "Compliance Officer",
+        "operator": "AI",
+        "responsibilities": ["Compliance monitoring", "Contract review", "Risk assessment"],
+        "role_workflows": ["compliance_check", "contract_review"],
+        "role_metrics": ["compliance_status", "open_contracts"]
+      },
+      "code_status": "IMPLEMENTED",
+      "code_location": "projections/eos/agents/legal.py",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "slug": "operations",
+      "display_name": "Operations",
+      "agent_name": "eos-operations",
+      "agent_class": "OperationsAgent",
+      "permission_tier": "execute",
+      "roles": ["ops_lead", "systems_admin", "process_engineer"],
+      "metrics": ["uptime", "automation_coverage", "bottleneck_count", "cycle_time"],
+      "workflows": ["system_monitoring", "process_automation", "incident_response"],
+      "skill_count": 6,
+      "skills": [
+        {"name": "system_health", "action_type": "status_check", "description": "Check overall system health"},
+        {"name": "workflow_audit", "action_type": "analyze", "description": "Audit workflows for bottlenecks and optimization"},
+        {"name": "process_automation", "action_type": "create_task", "description": "Identify and draft automation opportunities"},
+        {"name": "resource_allocation", "action_type": "analyze", "description": "Analyze resource allocation efficiency"},
+        {"name": "bottleneck_detection", "action_type": "analyze", "description": "Detect operational bottlenecks"},
+        {"name": "ops_report", "action_type": "report", "description": "Generate operations status report"}
+      ],
+      "skill_allocation": [
+        "Ops/communication_templates", "Ops/playbook_client_issue", "Ops/playbook_deal_closed",
+        "Ops/playbook_investor_inquiry", "Ops/playbook_job_inquiry", "Ops/playbook_new_inbound_lead",
+        "Ops/playbook_no_show_recovery", "Ops/playbook_partnership_proposal",
+        "Ops/playbook_speaking_podcast_request", "Ops/playbook_vendor_contract", "Ops/schedule_event"
+      ],
+      "dashboard_widgets": ["METRIC_CARD", "TASK_BOARD", "TIMELINE", "AI_CHAT", "TOOL_PANEL"],
+      "default_role_detail": {
+        "name": "DevOps Engineer",
+        "operator": "AI",
+        "responsibilities": ["System monitoring", "Deployment automation", "Incident response"],
+        "role_workflows": ["system_monitoring", "deployment"],
+        "role_metrics": ["uptime", "incident_count"]
+      },
+      "code_status": "IMPLEMENTED",
+      "code_location": "projections/eos/agents/operations.py",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "slug": "product",
+      "display_name": "Product",
+      "agent_name": "eos-product",
+      "agent_class": "ProductAgent",
+      "permission_tier": "draft",
+      "roles": ["product_manager", "ux_researcher", "product_analyst"],
+      "metrics": ["feature_velocity", "user_satisfaction", "roadmap_completion"],
+      "workflows": ["feature_prioritization", "user_research", "release_planning"],
+      "skill_count": 6,
+      "skills": [
+        {"name": "roadmap_status", "action_type": "report", "description": "Report on product roadmap status"},
+        {"name": "feature_prioritize", "action_type": "analyze", "description": "Prioritize features using ICE scoring"},
+        {"name": "user_feedback_summary", "action_type": "analyze", "description": "Summarize user feedback into themes"},
+        {"name": "competitor_analysis", "action_type": "research", "description": "Analyze competitor products and positioning"},
+        {"name": "release_plan", "action_type": "draft_content", "description": "Draft a release plan"},
+        {"name": "spec_draft", "action_type": "create_document", "description": "Draft a product specification"}
+      ],
+      "skill_allocation": [],
+      "dashboard_widgets": ["TASK_BOARD", "METRIC_CARD", "WORKFLOW_LIST", "AI_CHAT", "DOCUMENT_LIST"],
+      "default_role_detail": {
+        "name": "Product Manager",
+        "operator": "HYBRID",
+        "responsibilities": ["Feature prioritization", "User research", "Roadmap management"],
+        "role_workflows": ["feature_prioritization", "release_planning"],
+        "role_metrics": ["feature_velocity", "user_satisfaction"]
+      },
+      "code_status": "IMPLEMENTED",
+      "code_location": "projections/eos/agents/product.py",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "slug": "engineering",
+      "display_name": "Engineering",
+      "agent_name": "eos-engineering",
+      "agent_class": "EngineeringAgent",
+      "permission_tier": "execute",
+      "roles": ["tech_lead", "developer", "devops_engineer"],
+      "metrics": ["deploy_frequency", "incident_count", "tech_debt_ratio", "test_coverage"],
+      "workflows": ["code_review", "deployment", "incident_response"],
+      "skill_count": 6,
+      "skills": [
+        {"name": "code_review", "action_type": "analyze", "description": "Review code for quality, security, and style"},
+        {"name": "architecture_analysis", "action_type": "analyze", "description": "Analyze system architecture for issues"},
+        {"name": "deployment_status", "action_type": "report", "description": "Report on deployment and service health"},
+        {"name": "tech_debt_report", "action_type": "report", "description": "Report on technical debt"},
+        {"name": "incident_response", "action_type": "analyze", "description": "Analyze and respond to incidents"},
+        {"name": "deploy", "action_type": "container_execution", "description": "Deploy a service or container"}
+      ],
+      "skill_allocation": ["developer/adversarial_review"],
+      "dashboard_widgets": ["TASK_BOARD", "METRIC_CARD", "TOOL_PANEL", "AI_CHAT", "TIMELINE"],
+      "default_role_detail": {
+        "name": "Developer",
+        "operator": "AI",
+        "responsibilities": ["Code implementation", "Code review", "Architecture"],
+        "role_workflows": ["code_review", "deployment"],
+        "role_metrics": ["deploy_frequency", "test_coverage"]
+      },
+      "code_status": "IMPLEMENTED",
+      "code_location": "projections/eos/agents/engineering.py",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    }
+  ],
+
+  "template_system": {
+    "description": "Business type templates pre-configure the org chart with departments, roles, metrics, and workflows appropriate for that business type. Templates are the bridge between the abstract org chart engine and the specific reality of a founder's business.",
+    "business_type_templates": {
+      "concept": "Each business type in the ontology (19 types defined in phase14_6b_eos_portfolio_entity_business_ontology.json) gets a template that specifies which departments are active, which roles are emphasized, which metrics are primary, and which workflows are auto-provisioned.",
+      "template_structure": {
+        "business_type": "slug from ontology business_types",
+        "active_departments": "Subset of 10 default departments to activate on creation",
+        "primary_departments": "Which departments are most critical for this business type (shown first, more prominent in UI)",
+        "deferred_departments": "Departments that exist but are dormant until the business reaches a certain stage",
+        "custom_metrics": "Business-type-specific KPIs layered on top of department defaults",
+        "custom_workflows": "Business-type-specific workflows layered on top of department defaults",
+        "stage_gates": "What triggers department activation or role expansion at each business stage"
+      },
+      "examples": [
+        {
+          "business_type": "saas",
+          "active_departments": ["executive", "sales", "marketing", "finance", "engineering", "product", "customer_success"],
+          "primary_departments": ["sales", "engineering", "product"],
+          "deferred_departments": ["hr", "legal", "operations"],
+          "custom_metrics": {"north_star": "mrr", "secondary": ["arr", "churn_rate", "ltv_cac_ratio", "nrr"]},
+          "stage_gates": {
+            "1_validation": "executive + sales + engineering active",
+            "2_traction": "add marketing + customer_success",
+            "3_growth": "add hr + operations",
+            "4_scale": "add legal, expand all departments"
+          }
+        },
+        {
+          "business_type": "coaching_info_product",
+          "active_departments": ["executive", "sales", "marketing", "finance", "customer_success"],
+          "primary_departments": ["sales", "marketing", "customer_success"],
+          "deferred_departments": ["hr", "legal", "operations", "engineering", "product"],
+          "custom_metrics": {"north_star": "mrr", "secondary": ["ltv", "course_completion_rate", "student_outcomes", "refund_rate"]},
+          "stage_gates": {
+            "1_validation": "executive + sales + marketing active",
+            "2_traction": "add customer_success + finance",
+            "3_growth": "add operations + product",
+            "4_scale": "add engineering + hr + legal"
+          }
+        },
+        {
+          "business_type": "ai_automation_agency",
+          "active_departments": ["executive", "sales", "marketing", "finance", "engineering", "operations"],
+          "primary_departments": ["sales", "engineering", "operations"],
+          "deferred_departments": ["hr", "legal", "product", "customer_success"],
+          "custom_metrics": {"north_star": "monthly_revenue", "secondary": ["client_retention", "project_margin", "pipeline_value"]},
+          "stage_gates": {
+            "1_validation": "executive + sales + engineering active",
+            "2_traction": "add marketing + operations",
+            "3_growth": "add customer_success + finance",
+            "4_scale": "add hr + legal + product"
+          }
+        }
+      ],
+      "provenance": "SYNTHESIZED_CANON",
+      "note": "Full 19-type template library is an implementation task. The 3 examples above demonstrate the pattern. Templates are not yet implemented in code."
+    },
+    "customization_rules": {
+      "description": "Rules governing how operators can customize the org chart beyond templates.",
+      "allowed_customizations": [
+        "Rename departments (display_name only, slug remains stable for code references)",
+        "Add custom roles within existing departments",
+        "Add custom metrics to any department",
+        "Add custom workflows to any department",
+        "Activate or deactivate departments",
+        "Change department permission tiers (with governance warning if lowering)",
+        "Reorder departments in navigation",
+        "Add custom departments beyond the default 10",
+        "Change role operator type (human/ai/hybrid)",
+        "Adjust role autonomy_level"
+      ],
+      "prohibited_customizations": [
+        "Cannot change department slug after creation (breaks code references and agent mapping)",
+        "Cannot remove the executive department (CEO is always required)",
+        "Cannot set a department tier higher than COMMIT",
+        "Cannot remove governance gates from workflows (can add, never remove)",
+        "Cannot create a role without a department parent"
+      ],
+      "governance": "Any customization that changes permission tiers, removes departments, or modifies workflow governance gates triggers a risk notice in the UI and requires explicit operator confirmation."
+    }
+  },
+
+  "agent_mapping": {
+    "department_to_agent": {
+      "description": "Each department maps to exactly one DepartmentAgent subclass. The agent_name field on the Department model is the lookup key. Agent classes are registered in projections/eos/agents/.",
+      "mapping": {
+        "executive": {"agent_name": "eos-ceo", "class": "CEOAgent", "file": "ceo.py"},
+        "sales": {"agent_name": "eos-sales", "class": "SalesAgent", "file": "sales.py"},
+        "marketing": {"agent_name": "eos-marketing", "class": "MarketingAgent", "file": "marketing.py"},
+        "finance": {"agent_name": "eos-finance", "class": "FinanceAgent", "file": "finance.py"},
+        "customer_success": {"agent_name": "eos-customer-success", "class": "CustomerSuccessAgent", "file": "customer_success.py"},
+        "hr": {"agent_name": "eos-hr", "class": "HRAgent", "file": "hr.py"},
+        "legal": {"agent_name": "eos-legal", "class": "LegalAgent", "file": "legal.py"},
+        "operations": {"agent_name": "eos-operations", "class": "OperationsAgent", "file": "operations.py"},
+        "product": {"agent_name": "eos-product", "class": "ProductAgent", "file": "product.py"},
+        "engineering": {"agent_name": "eos-engineering", "class": "EngineeringAgent", "file": "engineering.py"}
+      },
+      "base_class": {
+        "location": "projections/eos/agents/base.py",
+        "class": "DepartmentAgent",
+        "features": [
+          "Skill registration via _add_skill(name, action_type, description, handler, min_tier)",
+          "Permission tier enforcement via PermissionTier.permits() check before execution",
+          "Tier-gated action execution — skills that require a higher tier than the agent's ceiling are rejected",
+          "Browser research and browser act skills auto-registered on every agent instance",
+          "Org/venture context awareness via _org_id and _venture_id constructor params",
+          "Metadata export via metadata() method returning projection, department, tier, skill_count, skill list"
+        ]
+      }
+    },
+    "capability_routing": {
+      "description": "How the system determines which department agent handles a given task. This is the CEO agent's delegation logic.",
+      "routing_method": "CEO agent classifies incoming tasks by domain using skill/capability matching against department agent skill registries.",
+      "routing_signals": [
+        "Action type requested (e.g., 'draft_message' -> check which departments have skills with that action_type)",
+        "Domain keywords in task description (e.g., 'revenue', 'expense' -> finance)",
+        "Explicit department reference in task (e.g., 'ask sales to...')",
+        "Workflow trigger (e.g., 'outreach' workflow -> sales department)",
+        "KPI domain (e.g., 'churn_rate' -> customer_success)"
+      ],
+      "ambiguity_resolution": "When a task could belong to multiple departments, CEO agent checks: (1) which department's metrics are most affected, (2) which department's workflows most closely match, (3) which department's permission tier is appropriate for the action. If still ambiguous, CEO coordinates a multi-department response.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "permissions": {
+    "tiers": {
+      "description": "Four-tier cumulative permission model. Each higher tier includes all lower capabilities.",
+      "canonical_location": "substrate/types.py line 140 (PermissionTier enum)",
+      "tier_definitions": [
+        {
+          "tier": "read",
+          "rank": 0,
+          "description": "Read-only access. Can analyze, research, score, classify, summarize, query, report, and browse.",
+          "allowed_action_types": ["analyze", "research", "score", "classify", "summarize", "read", "query", "report", "draft_brief", "generate_brief", "research_prospect", "extract_profile", "read_only_query", "metadata_read", "status_check", "health_check", "inventory_read", "configuration_read", "browser_research"],
+          "departments_at_this_tier": [],
+          "roles_at_this_tier": []
+        },
+        {
+          "tier": "draft",
+          "rank": 1,
+          "description": "Can create drafts and artifacts but cannot send or execute. Includes all READ capabilities.",
+          "allowed_action_types": ["draft_message", "draft_content", "create_task", "create_document", "safe_doc_extraction", "safe_doc_normalization", "ingestion_candidate_creation"],
+          "departments_at_this_tier": ["product"],
+          "roles_at_this_tier": ["product_manager", "ux_researcher", "product_analyst"]
+        },
+        {
+          "tier": "execute",
+          "rank": 2,
+          "description": "Can send messages, publish content, execute workflows, and interact with external systems. Includes all DRAFT and READ capabilities.",
+          "allowed_action_types": ["send_dm", "send_message", "post_content", "book_call", "execute_workflow", "container_execution", "browser_act"],
+          "departments_at_this_tier": ["sales", "marketing", "customer_success", "hr", "operations", "engineering"],
+          "roles_at_this_tier": ["sales_lead", "bdr", "account_executive", "content_creator", "brand_manager", "growth_marketer", "cs_lead", "support_agent", "onboarding_specialist", "hr_lead", "recruiter", "people_ops", "ops_lead", "systems_admin", "process_engineer", "tech_lead", "developer", "devops_engineer"]
+        },
+        {
+          "tier": "commit",
+          "rank": 3,
+          "description": "Can execute payments, sign contracts, approve actions, and make irreversible changes. Includes all EXECUTE, DRAFT, and READ capabilities. Reserved for departments where errors have financial or legal consequences.",
+          "allowed_action_types": ["execute_payment", "production_deployment"],
+          "departments_at_this_tier": ["executive", "finance", "legal"],
+          "roles_at_this_tier": ["ceo", "founder", "cfo", "bookkeeper", "financial_analyst", "general_counsel", "compliance_officer"]
+        }
+      ]
+    },
+    "rbac_abac_hybrid": {
+      "description": "EOS uses a hybrid RBAC (Role-Based Access Control) + ABAC (Attribute-Based Access Control) permission model.",
+      "rbac_layer": {
+        "description": "Roles define the base permission set. A user/agent's role determines their default tier and the actions they can perform.",
+        "implementation": "Role.permission_tier field sets the ceiling. DepartmentAgent.PERMISSION_TIER enforces at execution time.",
+        "assignment": "Roles are assigned during org setup (default_roles factory) or manually by the operator."
+      },
+      "abac_layer": {
+        "description": "Attribute-based rules can override or refine role-based permissions based on context: business stage, risk level, time of day, financial thresholds, etc.",
+        "planned_attributes": [
+          "business_stage: early-stage businesses may restrict COMMIT actions to operator-only",
+          "risk_level: HIGH/CRITICAL risk actions require explicit approval regardless of role tier",
+          "financial_threshold: actions above a configurable dollar amount require COMMIT tier + operator approval",
+          "time_context: after-hours actions may be restricted or queued for review",
+          "entity_context: different entities within a portfolio may have different permission policies"
+        ],
+        "current_status": "ABAC layer is architecturally planned but not yet implemented. Current enforcement is pure RBAC via PermissionTier."
+      },
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "mvp_scope": {
+    "what_ships_first": {
+      "description": "MVP org chart capabilities for R1-R2 (Core Shell + AI Foundation).",
+      "departments": "All 10 default departments ship in MVP. Template system activates the relevant subset based on business type.",
+      "roles": "One default role per department ships in MVP (from default_roles factory). Custom roles deferred.",
+      "agents": "All 10 implemented DepartmentAgent subclasses ship. EA Agent and Portfolio Advisor are critical gaps for R2+.",
+      "permissions": "4-tier PermissionTier enforcement ships in MVP. ABAC layer deferred.",
+      "dashboards": "Default department dashboards with standard widget layouts ship in MVP.",
+      "workflows": "10 default workflows (one per department) ship in MVP.",
+      "templates": "Business type templates for initial validation types (AI automation agency, coaching/info-product, SaaS) ship in MVP. Remaining 16 types are R3+.",
+      "customization": "Department activation/deactivation and role operator_type changes ship in MVP. Full customization deferred.",
+      "multi_entity": "Single entity per portfolio in MVP. Data model supports multiple but UI/agent coordination is single-entity."
+    },
+    "what_deferred": [
+      "EA Agent implementation (critical for corrected routing chain)",
+      "Portfolio Advisor Agent implementation (critical for multi-entity)",
+      "6 additional department agents (admin, research, content, automation, investment_analyst, asset_manager, property_manager)",
+      "ABAC permission layer",
+      "Custom department creation",
+      "Custom role creation with fine-grained permissions",
+      "Department template library for all 19 business types",
+      "Stage-gated department auto-activation",
+      "Cross-entity org chart comparisons",
+      "Org chart evolution tracking (what changed, when, why)",
+      "Inter-agent message passing infrastructure",
+      "Multi-department task coordination engine",
+      "Role autonomy_level enforcement (currently defined but not mechanically enforced)"
+    ]
+  },
+
+  "end_state_scope": {
+    "auto_generation": {
+      "description": "End-state org chart generation is fully automated based on business type, stage, and operator preferences.",
+      "flow": [
+        "Operator creates a new entity and selects business type",
+        "Template engine provisions the complete org chart: departments, roles, agents, workflows, metrics, dashboards",
+        "System activates departments appropriate for the current business stage",
+        "As the business grows (detected via KPI thresholds), system recommends activating deferred departments",
+        "AI agents auto-configure their skill emphasis based on the business's current binding constraint"
+      ]
+    },
+    "evolution": {
+      "description": "End-state org charts evolve as the business grows. The system tracks org chart mutations as a versioned history.",
+      "capabilities": [
+        "Stage-gated department activation: system detects business stage transitions and recommends new departments",
+        "Role creation recommendations: as workload increases, system suggests splitting roles or adding specialists",
+        "Metric evolution: as the business matures, KPIs shift from leading indicators (pipeline, outreach) to lagging indicators (NRR, LTV)",
+        "Workflow optimization: system analyzes workflow execution data and recommends improvements, parallelization, or automation upgrades",
+        "Agent skill tuning: based on execution feedback, agents emphasize skills that produce better outcomes for this specific business",
+        "Org chart versioning: every mutation is tracked with timestamp, reason, and before/after state"
+      ]
+    },
+    "cross_entity": {
+      "description": "End-state supports cross-entity org chart intelligence within a portfolio.",
+      "capabilities": [
+        "Shared roles: a single human (e.g., founder as CEO) can hold roles across multiple entities with entity-scoped context switching",
+        "Shared agents: certain agents (e.g., finance) can serve multiple entities within a portfolio with entity-specific configuration",
+        "Cross-entity benchmarking: compare org chart configurations, staffing levels, and efficiency across entities",
+        "Portfolio-level org view: aggregated view of all departments, roles, and agents across all entities in a portfolio",
+        "Resource sharing recommendations: system identifies where entities could share resources (e.g., one legal agent serving 3 entities)"
+      ]
+    }
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-ORG-001",
+      "question": "Should department agents be instantiated per-entity or shared across entities with entity context passed per-call?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "Per-entity instances enable entity-specific memory and configuration but increase resource usage. Shared instances are lighter but risk context bleeding between entities.",
+      "recommendation": "Per-entity instances for MVP (simpler, safer). Consider shared-with-isolation for scale.",
+      "cross_reference": "OQ-COMMS-004 in phase14_6b_eos_communication_delegation_architecture.json"
+    },
+    {
+      "id": "OQ-ORG-002",
+      "question": "Should custom departments be fully user-defined or constrained to a curated extension library?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "Fully user-defined departments require dynamic agent creation which is significantly more complex. A curated library (the 6 planned additional departments plus a small set of industry-specific ones) covers most use cases with much less complexity."
+    },
+    {
+      "id": "OQ-ORG-003",
+      "question": "How should the org chart handle business type changes (e.g., agency pivots to SaaS)?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "A pivot changes which departments are primary, which metrics matter, and which workflows are active. The system needs a migration path that preserves existing data and agent memory while re-configuring the org chart for the new business type."
+    },
+    {
+      "id": "OQ-ORG-004",
+      "question": "Should the autonomy_level field on Role (0-5 scale) be enforced mechanically or remain advisory?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "Currently defined on the Role model (default=2) but not mechanically enforced anywhere. Enforcement would mean: level 0 = every action requires approval, level 5 = agent acts autonomously. This is a significant governance decision."
+    },
+    {
+      "id": "OQ-ORG-005",
+      "question": "Should the SKILL_ALLOCATION map in entities.py be the canonical skill-to-department assignment, or should skills self-register their department affinity?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "Current SKILL_ALLOCATION is a static dict mapping department slugs to skill paths. Some departments have 0 skills allocated (finance, hr, legal, product). Self-registration would let skills declare their department affinity, but centralized allocation gives the operator explicit control."
+    },
+    {
+      "id": "OQ-ORG-006",
+      "question": "How should the permission model handle temporary permission elevation (e.g., operator grants a DRAFT-tier agent temporary EXECUTE access for a specific task)?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "Current PermissionTier is static per agent. Temporary elevation is a common real-world need (e.g., product manager needs to deploy a hotfix). Requires scoped, time-limited, audited permission grants."
+    }
+  ],
+
+  "implementation_debt": [
+    {
+      "id": "DEBT-ORG-001",
+      "description": "CEO agent strategic_analysis skill contains hardcoded instance-specific references (Initiate Arena business context). Must be generalized to use BIS runtime lookup for multi-entity support.",
+      "severity": "MODERATE",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution": "Replace hardcoded references with BIS venture registry lookup. Agent should load business context dynamically from org_id + venture_id."
+    },
+    {
+      "id": "DEBT-ORG-002",
+      "description": "SKILL_ALLOCATION map has empty lists for 4 departments (finance, hr, legal, product). These departments have agent skills but no allocated external skill paths.",
+      "severity": "LOW",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution": "Either populate with relevant skill paths as they are created, or migrate to self-registration where skills declare their department affinity."
+    },
+    {
+      "id": "DEBT-ORG-003",
+      "description": "Role autonomy_level field (0-5) is defined on the model but not mechanically enforced by DepartmentAgent execution. It is purely advisory.",
+      "severity": "LOW",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution": "Decide whether to enforce mechanically (OQ-ORG-004) or remove to avoid misleading the data model."
+    },
+    {
+      "id": "DEBT-ORG-004",
+      "description": "No inter-agent communication infrastructure exists. DepartmentAgent instances are standalone classes with no message passing, delegation protocol, or routing logic between them. The routing chain (EA -> CEO -> Department) is architecturally defined but not mechanically implemented.",
+      "severity": "CRITICAL",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution": "Implement inter-agent message passing using the substrate signal infrastructure (SignalEnvelope routing). CEO agent needs a delegation method that creates tasks for department agents and monitors completion."
+    },
+    {
+      "id": "DEBT-ORG-005",
+      "description": "EA Agent and Portfolio Advisor Agent do not exist in code. These are critical nodes in the corrected communication routing chain.",
+      "severity": "CRITICAL",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution": "Implement EA Agent (may need a distinct base class from DepartmentAgent since it routes rather than executes) and Portfolio Advisor Agent. See phase14_6b_eos_communication_delegation_architecture.json for full spec."
+    },
+    {
+      "id": "DEBT-ORG-006",
+      "description": "Business type template system is architecturally defined but not implemented. No code exists to provision org charts from business type selection.",
+      "severity": "MODERATE",
+      "provenance": "SYNTHESIZED_CANON",
+      "resolution": "Implement template registry (JSON or Python dict) mapping business types to department configurations. Wire into onboarding flow so entity creation auto-provisions the org chart."
+    },
+    {
+      "id": "DEBT-ORG-007",
+      "description": "Dashboard widget configurations are defined in entities.py::default_dashboards() but not wired to the SaaS frontend. The dashboards exist as Pydantic models but do not render in the UI.",
+      "severity": "MODERATE",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution": "Wire Dashboard model serialization to the SaaS API layer. Frontend needs to consume DashboardWidget configs and render the appropriate widget components."
+    },
+    {
+      "id": "DEBT-ORG-008",
+      "description": "Default workflows in entities.py define full step sequences with trigger types, execution modes, and approval gates, but no workflow execution engine exists to run them.",
+      "severity": "CRITICAL",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution": "Implement workflow execution engine that interprets Workflow/WorkflowStep models, manages state transitions, enforces approval gates, and triggers actions through DepartmentAgent skill execution."
+    }
+  ],
+
+  "cross_references": {
+    "department_types": "substrate/types.py line 1136 (Department model)",
+    "role_types": "substrate/types.py line 1108 (Role model)",
+    "company_types": "substrate/types.py line 1185 (Company model)",
+    "portfolio_types": "substrate/types.py line 1158 (Portfolio model)",
+    "user_types": "substrate/types.py line 1168 (User model)",
+    "permission_types": "substrate/types.py line 140 (PermissionTier enum)",
+    "operator_types": "substrate/types.py line 1100 (OperatorType enum)",
+    "workflow_types": "substrate/types.py lines 1207-1274 (WorkflowStepType, WorkflowExecutionMode, WorkflowStep, WorkflowTriggerType, Workflow)",
+    "dashboard_types": "substrate/types.py lines 1277-1318 (DashboardWidgetType, DashboardWidget, Dashboard)",
+    "entity_factory": "projections/eos/entities.py (default_departments, default_roles, default_company, default_portfolio, default_user, default_workflows, default_dashboards, SKILL_ALLOCATION)",
+    "agent_base": "projections/eos/agents/base.py (DepartmentAgent, AgentSkill, SkillResult)",
+    "agent_implementations": "projections/eos/agents/*.py (10 DepartmentAgent subclasses)",
+    "communication_architecture": "data/umh/eos_lossless_canon/phase14_6b_eos_communication_delegation_architecture.json",
+    "portfolio_ontology": "data/umh/eos_lossless_canon/phase14_6b_eos_portfolio_entity_business_ontology.json",
+    "onboarding_spec": "data/umh/eos_lossless_canon/phase14_6b_eos_onboarding_first_boot_spec.json"
+  }
+}

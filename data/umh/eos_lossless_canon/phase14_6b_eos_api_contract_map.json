@@ -1,0 +1,1335 @@
+{
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+  "description": "All API endpoints EOS needs -- current (GitHub main, Beast branch, UMH platform) and planned (full desired-state surface across auth, portfolios, entities, departments, roles, workflows, tasks, documents, agents, metrics, settings, AI, and CRM).",
+
+  "current_routes": {
+    "github_main": {
+      "source_file": "server/routes.ts",
+      "framework": "Express 4",
+      "auth": "Passport.js session + Firebase",
+      "route_count": 72,
+      "status": "stale",
+      "last_modified": "2026-02-20",
+      "routes": [
+        {"method": "GET",    "path": "/api/ai/models",                     "domain": "ai",            "description": "List AI model providers and availability"},
+        {"method": "GET",    "path": "/api/ai/provider-status",            "domain": "ai",            "description": "Check which AI providers have keys configured"},
+        {"method": "POST",   "path": "/api/keys/save",                     "domain": "settings",      "description": "Save an API key to process.env (dev only)"},
+        {"method": "POST",   "path": "/api/ai/generate",                   "domain": "ai",            "description": "Generate AI response from messages + config"},
+        {"method": "GET",    "path": "/api/agents",                        "domain": "agents",        "description": "List all agents"},
+        {"method": "GET",    "path": "/api/agents/:id",                    "domain": "agents",        "description": "Get single agent by ID"},
+        {"method": "PATCH",  "path": "/api/agents/:id",                    "domain": "agents",        "description": "Update agent fields"},
+        {"method": "POST",   "path": "/api/agents",                        "domain": "agents",        "description": "Create a new agent"},
+        {"method": "GET",    "path": "/api/agents/:id/messages",           "domain": "agents",        "description": "Get chat messages for an agent"},
+        {"method": "POST",   "path": "/api/agents/:id/clear-messages",     "domain": "agents",        "description": "Clear all messages for an agent"},
+        {"method": "POST",   "path": "/api/agents/:id/chat",              "domain": "agents",        "description": "Send a chat message to an agent and get response"},
+        {"method": "GET",    "path": "/api/agents/:id/tasks",             "domain": "agents",        "description": "Get tasks assigned to an agent"},
+        {"method": "POST",   "path": "/api/agents/:id/generate-response", "domain": "agents",        "description": "Generate a response from agent (multi-model)"},
+        {"method": "GET",    "path": "/api/agents/:id/collaborative-tasks","domain": "agents",        "description": "Get collaborative tasks for an agent"},
+        {"method": "GET",    "path": "/api/agents/:id/metrics",           "domain": "agents",        "description": "Get performance metrics for an agent"},
+        {"method": "GET",    "path": "/api/tasks",                         "domain": "tasks",         "description": "List all tasks"},
+        {"method": "GET",    "path": "/api/tasks/:id",                     "domain": "tasks",         "description": "Get single task by ID"},
+        {"method": "POST",   "path": "/api/tasks",                         "domain": "tasks",         "description": "Create a new task"},
+        {"method": "PATCH",  "path": "/api/tasks/:id",                     "domain": "tasks",         "description": "Update task fields (including status)"},
+        {"method": "DELETE", "path": "/api/tasks/:id",                     "domain": "tasks",         "description": "Delete a task"},
+        {"method": "POST",   "path": "/api/tasks/:id/collaborators",      "domain": "tasks",         "description": "Add collaborator(s) to a task"},
+        {"method": "POST",   "path": "/api/tasks/:id/assign",             "domain": "tasks",         "description": "Assign a task to agent or user"},
+        {"method": "POST",   "path": "/api/tasks/:id/subtask",            "domain": "tasks",         "description": "Create a subtask under a parent task"},
+        {"method": "GET",    "path": "/api/tasks/:id/subtasks",           "domain": "tasks",         "description": "Get subtasks for a task"},
+        {"method": "GET",    "path": "/api/tasks/:id/messages",           "domain": "tasks",         "description": "Get discussion messages on a task"},
+        {"method": "POST",   "path": "/api/tasks/:id/messages",           "domain": "tasks",         "description": "Post a message to a task discussion"},
+        {"method": "GET",    "path": "/api/conversations/:id",            "domain": "conversations", "description": "Get conversation by ID"},
+        {"method": "POST",   "path": "/api/ai/multi-agent",               "domain": "ai",            "description": "Multi-agent collaboration endpoint"},
+        {"method": "GET",    "path": "/api/stats",                         "domain": "analytics",     "description": "Get aggregate statistics (agents, tasks, messages)"},
+        {"method": "GET",    "path": "/api/analytics",                     "domain": "analytics",     "description": "Get analytics data with date range filtering"},
+        {"method": "GET",    "path": "/api/integrations",                  "domain": "integrations",  "description": "List all integrations and their status"},
+        {"method": "POST",   "path": "/api/integrations/connect",          "domain": "integrations",  "description": "Connect an integration"},
+        {"method": "GET",    "path": "/api/notifications",                 "domain": "notifications", "description": "Get notifications for current user"},
+        {"method": "GET",    "path": "/api/notifications/count",           "domain": "notifications", "description": "Get unread notification count"},
+        {"method": "POST",   "path": "/api/notifications/:id/read",       "domain": "notifications", "description": "Mark a notification as read"},
+        {"method": "POST",   "path": "/api/notifications/read-all",       "domain": "notifications", "description": "Mark all notifications as read"},
+        {"method": "DELETE", "path": "/api/notifications/:id",            "domain": "notifications", "description": "Delete a notification"},
+        {"method": "GET",    "path": "/api/ai-assistant/messages",        "domain": "ai",            "description": "Get AI assistant message history"},
+        {"method": "POST",   "path": "/api/ai-assistant/messages",        "domain": "ai",            "description": "Send message to the floating AI assistant"},
+        {"method": "DELETE", "path": "/api/ai-assistant/messages",        "domain": "ai",            "description": "Clear AI assistant message history"},
+        {"method": "GET",    "path": "/api/crm/contacts",                 "domain": "crm",           "description": "List CRM contacts (with user_id filter)"},
+        {"method": "GET",    "path": "/api/crm/contacts/:id",            "domain": "crm",           "description": "Get single CRM contact"},
+        {"method": "POST",   "path": "/api/crm/contacts",                "domain": "crm",           "description": "Create a CRM contact"},
+        {"method": "PATCH",  "path": "/api/crm/contacts/:id",            "domain": "crm",           "description": "Update a CRM contact"},
+        {"method": "GET",    "path": "/api/crm/deals",                   "domain": "crm",           "description": "List CRM deals (with user_id filter)"},
+        {"method": "GET",    "path": "/api/crm/deals/:id",              "domain": "crm",           "description": "Get single CRM deal"},
+        {"method": "POST",   "path": "/api/crm/deals",                  "domain": "crm",           "description": "Create a CRM deal"},
+        {"method": "PATCH",  "path": "/api/crm/deals/:id",              "domain": "crm",           "description": "Update a CRM deal"},
+        {"method": "GET",    "path": "/api/crm/activities",              "domain": "crm",           "description": "List CRM activities"},
+        {"method": "GET",    "path": "/api/crm/activities/:id",         "domain": "crm",           "description": "Get single CRM activity"},
+        {"method": "POST",   "path": "/api/crm/activities",             "domain": "crm",           "description": "Create a CRM activity"},
+        {"method": "PATCH",  "path": "/api/crm/activities/:id",         "domain": "crm",           "description": "Update a CRM activity"},
+        {"method": "GET",    "path": "/api/folders",                     "domain": "documents",     "description": "List document folders"},
+        {"method": "GET",    "path": "/api/folders/:id",                "domain": "documents",     "description": "Get single folder"},
+        {"method": "POST",   "path": "/api/folders",                    "domain": "documents",     "description": "Create a folder"},
+        {"method": "PATCH",  "path": "/api/folders/:id",               "domain": "documents",     "description": "Update a folder"},
+        {"method": "DELETE", "path": "/api/folders/:id",               "domain": "documents",     "description": "Delete a folder"},
+        {"method": "GET",    "path": "/api/documents",                  "domain": "documents",     "description": "List documents (with folder_id filter)"},
+        {"method": "GET",    "path": "/api/documents/:id",             "domain": "documents",     "description": "Get single document"},
+        {"method": "POST",   "path": "/api/documents",                 "domain": "documents",     "description": "Create a document"},
+        {"method": "PATCH",  "path": "/api/documents/:id",            "domain": "documents",     "description": "Update a document"},
+        {"method": "DELETE", "path": "/api/documents/:id",            "domain": "documents",     "description": "Delete a document"},
+        {"method": "POST",   "path": "/api/llm/chat",                  "domain": "ai",            "description": "Direct LLM chat (GPT-4o page)"},
+        {"method": "GET",    "path": "/api/actions",                    "domain": "actions",       "description": "List agent actions"},
+        {"method": "GET",    "path": "/api/actions/pending",           "domain": "actions",       "description": "List pending approval actions"},
+        {"method": "GET",    "path": "/api/actions/:id",               "domain": "actions",       "description": "Get single action"},
+        {"method": "POST",   "path": "/api/actions/:id/approve",      "domain": "actions",       "description": "Approve a pending action"},
+        {"method": "POST",   "path": "/api/actions/:id/reject",       "domain": "actions",       "description": "Reject a pending action"},
+        {"method": "GET",    "path": "/api/integrations/gmail/auth",   "domain": "integrations",  "description": "Start Gmail OAuth flow"},
+        {"method": "GET",    "path": "/api/auth/google/callback",      "domain": "auth",          "description": "Google OAuth callback"},
+        {"method": "GET",    "path": "/api/integrations/gmail/status", "domain": "integrations",  "description": "Check Gmail connection status"},
+        {"method": "POST",   "path": "/api/integrations/gmail/disconnect", "domain": "integrations", "description": "Disconnect Gmail integration"}
+      ],
+      "auth_routes_note": "setupAuth(app) registers /api/register, /api/login, /api/logout, /api/user via Passport.js local strategy. Not enumerated individually as they will be replaced by Clerk."
+    },
+
+    "beast_branch": {
+      "source_files": "server/routes/ (14 modules)",
+      "framework": "Express + tsx",
+      "auth": "Clerk (React + Express)",
+      "route_module_count": 14,
+      "status": "canonical_candidate",
+      "vps_accessible": false,
+      "route_modules": [
+        {
+          "module": "actions.ts",
+          "domain": "actions",
+          "description": "Agent action approval/rejection system with governance",
+          "inferred_routes": [
+            {"method": "GET",  "path": "/api/actions", "description": "List agent actions"},
+            {"method": "GET",  "path": "/api/actions/pending", "description": "List pending approval actions"},
+            {"method": "GET",  "path": "/api/actions/:id", "description": "Get single action"},
+            {"method": "POST", "path": "/api/actions/:id/approve", "description": "Approve a pending action"},
+            {"method": "POST", "path": "/api/actions/:id/reject", "description": "Reject a pending action"}
+          ]
+        },
+        {
+          "module": "agents.ts",
+          "domain": "agents",
+          "description": "Agent CRUD, chat, task assignment, metrics",
+          "inferred_routes": [
+            {"method": "GET",    "path": "/api/agents", "description": "List all agents"},
+            {"method": "GET",    "path": "/api/agents/:id", "description": "Get single agent"},
+            {"method": "POST",   "path": "/api/agents", "description": "Create agent"},
+            {"method": "PATCH",  "path": "/api/agents/:id", "description": "Update agent"},
+            {"method": "POST",   "path": "/api/agents/:id/chat", "description": "Chat with agent"},
+            {"method": "GET",    "path": "/api/agents/:id/metrics", "description": "Agent performance metrics"}
+          ]
+        },
+        {
+          "module": "ai.ts",
+          "domain": "ai",
+          "description": "AI gateway: model selection, generation, multi-agent orchestration",
+          "inferred_routes": [
+            {"method": "GET",  "path": "/api/ai/models", "description": "List AI models and providers"},
+            {"method": "POST", "path": "/api/ai/generate", "description": "Generate AI response"},
+            {"method": "POST", "path": "/api/ai/multi-agent", "description": "Multi-agent collaboration"}
+          ]
+        },
+        {
+          "module": "analytics.ts",
+          "domain": "analytics",
+          "description": "Analytics and statistics endpoints",
+          "inferred_routes": [
+            {"method": "GET", "path": "/api/analytics", "description": "Get analytics with date range"},
+            {"method": "GET", "path": "/api/stats", "description": "Aggregate statistics"}
+          ]
+        },
+        {
+          "module": "companies.ts",
+          "domain": "companies",
+          "description": "Company CRUD, setup, and switching (Beast addition)",
+          "inferred_routes": [
+            {"method": "GET",    "path": "/api/companies", "description": "List companies for current user"},
+            {"method": "GET",    "path": "/api/companies/:id", "description": "Get single company"},
+            {"method": "POST",   "path": "/api/companies", "description": "Create a company"},
+            {"method": "PATCH",  "path": "/api/companies/:id", "description": "Update company details"},
+            {"method": "DELETE", "path": "/api/companies/:id", "description": "Delete a company"},
+            {"method": "POST",   "path": "/api/companies/:id/switch", "description": "Switch active company context"}
+          ]
+        },
+        {
+          "module": "conversations.ts",
+          "domain": "conversations",
+          "description": "Conversation threads and messaging",
+          "inferred_routes": [
+            {"method": "GET",  "path": "/api/conversations", "description": "List conversations"},
+            {"method": "GET",  "path": "/api/conversations/:id", "description": "Get conversation by ID"},
+            {"method": "POST", "path": "/api/conversations", "description": "Create a conversation"},
+            {"method": "POST", "path": "/api/conversations/:id/messages", "description": "Post message to conversation"}
+          ]
+        },
+        {
+          "module": "crm.ts",
+          "domain": "crm",
+          "description": "CRM contacts, deals, activities CRUD",
+          "inferred_routes": [
+            {"method": "GET",   "path": "/api/crm/contacts", "description": "List contacts"},
+            {"method": "POST",  "path": "/api/crm/contacts", "description": "Create contact"},
+            {"method": "PATCH", "path": "/api/crm/contacts/:id", "description": "Update contact"},
+            {"method": "GET",   "path": "/api/crm/deals", "description": "List deals"},
+            {"method": "POST",  "path": "/api/crm/deals", "description": "Create deal"},
+            {"method": "PATCH", "path": "/api/crm/deals/:id", "description": "Update deal"},
+            {"method": "GET",   "path": "/api/crm/activities", "description": "List activities"},
+            {"method": "POST",  "path": "/api/crm/activities", "description": "Create activity"}
+          ]
+        },
+        {
+          "module": "documents.ts",
+          "domain": "documents",
+          "description": "Document and folder management",
+          "inferred_routes": [
+            {"method": "GET",    "path": "/api/documents", "description": "List documents"},
+            {"method": "GET",    "path": "/api/documents/:id", "description": "Get document"},
+            {"method": "POST",   "path": "/api/documents", "description": "Create document"},
+            {"method": "PATCH",  "path": "/api/documents/:id", "description": "Update document"},
+            {"method": "DELETE", "path": "/api/documents/:id", "description": "Delete document"},
+            {"method": "GET",    "path": "/api/folders", "description": "List folders"},
+            {"method": "POST",   "path": "/api/folders", "description": "Create folder"},
+            {"method": "DELETE", "path": "/api/folders/:id", "description": "Delete folder"}
+          ]
+        },
+        {
+          "module": "integrations.ts",
+          "domain": "integrations",
+          "description": "Third-party integrations (Gmail, etc.)",
+          "inferred_routes": [
+            {"method": "GET",  "path": "/api/integrations", "description": "List integrations"},
+            {"method": "POST", "path": "/api/integrations/connect", "description": "Connect integration"},
+            {"method": "POST", "path": "/api/integrations/:id/disconnect", "description": "Disconnect integration"},
+            {"method": "GET",  "path": "/api/integrations/:id/status", "description": "Check integration status"}
+          ]
+        },
+        {
+          "module": "notifications.ts",
+          "domain": "notifications",
+          "description": "User notifications CRUD and read-marking",
+          "inferred_routes": [
+            {"method": "GET",    "path": "/api/notifications", "description": "List notifications"},
+            {"method": "GET",    "path": "/api/notifications/count", "description": "Unread count"},
+            {"method": "POST",   "path": "/api/notifications/:id/read", "description": "Mark read"},
+            {"method": "POST",   "path": "/api/notifications/read-all", "description": "Mark all read"},
+            {"method": "DELETE", "path": "/api/notifications/:id", "description": "Delete notification"}
+          ]
+        },
+        {
+          "module": "portfolios.ts",
+          "domain": "portfolios",
+          "description": "Portfolio CRUD and entity listing (Beast addition)",
+          "inferred_routes": [
+            {"method": "GET",    "path": "/api/portfolios", "description": "List portfolios for current user"},
+            {"method": "GET",    "path": "/api/portfolios/:id", "description": "Get portfolio detail"},
+            {"method": "POST",   "path": "/api/portfolios", "description": "Create a portfolio"},
+            {"method": "PATCH",  "path": "/api/portfolios/:id", "description": "Update portfolio"},
+            {"method": "DELETE", "path": "/api/portfolios/:id", "description": "Delete portfolio"},
+            {"method": "GET",    "path": "/api/portfolios/:id/entities", "description": "List entities in portfolio"}
+          ]
+        },
+        {
+          "module": "tasks.ts",
+          "domain": "tasks",
+          "description": "Task CRUD, subtasks, assignment, collaboration",
+          "inferred_routes": [
+            {"method": "GET",    "path": "/api/tasks", "description": "List tasks"},
+            {"method": "GET",    "path": "/api/tasks/:id", "description": "Get task"},
+            {"method": "POST",   "path": "/api/tasks", "description": "Create task"},
+            {"method": "PATCH",  "path": "/api/tasks/:id", "description": "Update task"},
+            {"method": "DELETE", "path": "/api/tasks/:id", "description": "Delete task"},
+            {"method": "POST",   "path": "/api/tasks/:id/assign", "description": "Assign task"},
+            {"method": "POST",   "path": "/api/tasks/:id/subtask", "description": "Create subtask"},
+            {"method": "GET",    "path": "/api/tasks/:id/subtasks", "description": "List subtasks"}
+          ]
+        },
+        {
+          "module": "users.ts",
+          "domain": "users",
+          "description": "User profile and preferences (Clerk-backed)",
+          "inferred_routes": [
+            {"method": "GET",   "path": "/api/users/me", "description": "Get current user profile"},
+            {"method": "PATCH", "path": "/api/users/me", "description": "Update current user profile"},
+            {"method": "GET",   "path": "/api/users/me/preferences", "description": "Get user preferences"}
+          ]
+        },
+        {
+          "module": "workflows.ts",
+          "domain": "workflows",
+          "description": "Workflow CRUD and run management (Beast addition)",
+          "inferred_routes": [
+            {"method": "GET",    "path": "/api/workflows", "description": "List workflows for entity"},
+            {"method": "GET",    "path": "/api/workflows/:id", "description": "Get workflow detail"},
+            {"method": "POST",   "path": "/api/workflows", "description": "Create workflow"},
+            {"method": "PATCH",  "path": "/api/workflows/:id", "description": "Update workflow"},
+            {"method": "DELETE", "path": "/api/workflows/:id", "description": "Delete workflow"},
+            {"method": "POST",   "path": "/api/workflows/:id/run", "description": "Trigger a workflow run"},
+            {"method": "GET",    "path": "/api/workflows/:id/runs", "description": "List runs for a workflow"}
+          ]
+        }
+      ],
+      "middleware_modules": [
+        {"module": "server/middleware/auth.ts", "description": "Clerk JWT validation and session extraction"},
+        {"module": "server/middleware/clerk-org.ts", "description": "Clerk organization context injection"},
+        {"module": "server/middleware/error-handler.ts", "description": "Centralized error handling middleware"},
+        {"module": "server/middleware/validation.ts", "description": "Zod schema validation middleware"}
+      ],
+      "note": "Beast branch is not on VPS. Route details are inferred from Phase 14.4 inventory (14 module names, 21 generated storage modules, 31 pages). Exact paths may differ slightly from inference."
+    }
+  },
+
+  "saas_routes": {
+    "description": "EOS-specific routes that live in the saas/ layer (EOS projection, not UMH infra). In the current codebase, saas/ was extracted from the original monolith -- EOS-specific routes belong here, while platform routes belong in transports/api/http/.",
+    "current_state": "saas/ directory exists on VPS but EOS-specific route modules have not been separated from the Beast branch monolithic server. The Beast branch is the promotion candidate that will be reconciled.",
+    "planned_eos_saas_routes": [
+      {
+        "module": "ventures.ts",
+        "description": "Venture (business operation) CRUD within an entity. EOS-specific because the venture concept and its fields are EOS domain.",
+        "routes": [
+          {"method": "GET",    "path": "/api/eos/ventures",                    "description": "List ventures for the current entity"},
+          {"method": "GET",    "path": "/api/eos/ventures/:id",               "description": "Get single venture detail"},
+          {"method": "POST",   "path": "/api/eos/ventures",                   "description": "Create a new venture under current entity"},
+          {"method": "PATCH",  "path": "/api/eos/ventures/:id",              "description": "Update venture fields"},
+          {"method": "DELETE", "path": "/api/eos/ventures/:id",              "description": "Archive a venture (soft delete)"},
+          {"method": "GET",    "path": "/api/eos/ventures/:id/dashboard",    "description": "Get venture dashboard data (KPIs, activity, pipeline)"},
+          {"method": "GET",    "path": "/api/eos/ventures/:id/org-chart",    "description": "Get org chart for a venture"}
+        ]
+      },
+      {
+        "module": "departments.ts",
+        "description": "Department and team management within a venture. EOS-specific because department structure, agent assignment, and skill allocation are EOS domain.",
+        "routes": [
+          {"method": "GET",    "path": "/api/eos/ventures/:ventureId/departments",              "description": "List departments for a venture"},
+          {"method": "GET",    "path": "/api/eos/ventures/:ventureId/departments/:id",         "description": "Get single department with agents and metrics"},
+          {"method": "POST",   "path": "/api/eos/ventures/:ventureId/departments",             "description": "Create a custom department"},
+          {"method": "PATCH",  "path": "/api/eos/ventures/:ventureId/departments/:id",        "description": "Update department config"},
+          {"method": "GET",    "path": "/api/eos/ventures/:ventureId/departments/:id/agents", "description": "List agents assigned to a department"}
+        ]
+      },
+      {
+        "module": "agents.ts",
+        "description": "EOS agent management -- skill assignment, authority configuration, and agent-to-department binding. Distinct from UMH organism agents.",
+        "routes": [
+          {"method": "GET",    "path": "/api/eos/agents",                              "description": "List all EOS agents for current venture"},
+          {"method": "GET",    "path": "/api/eos/agents/:id",                         "description": "Get agent detail (skills, authority, department)"},
+          {"method": "POST",   "path": "/api/eos/agents",                             "description": "Create a custom agent"},
+          {"method": "PATCH",  "path": "/api/eos/agents/:id",                        "description": "Update agent configuration"},
+          {"method": "POST",   "path": "/api/eos/agents/:id/chat",                   "description": "Send message to agent and get response"},
+          {"method": "GET",    "path": "/api/eos/agents/:id/messages",               "description": "Get conversation history with an agent"},
+          {"method": "POST",   "path": "/api/eos/agents/:id/clear-messages",         "description": "Clear conversation history"},
+          {"method": "GET",    "path": "/api/eos/agents/:id/tasks",                  "description": "Get tasks assigned to agent"},
+          {"method": "GET",    "path": "/api/eos/agents/:id/metrics",                "description": "Get agent performance metrics"},
+          {"method": "POST",   "path": "/api/eos/agents/:id/delegate",               "description": "Delegate a task to this agent with governance check"},
+          {"method": "GET",    "path": "/api/eos/agents/:id/skills",                 "description": "List skills registered to this agent"},
+          {"method": "POST",   "path": "/api/eos/agents/:id/skills",                 "description": "Register a skill to this agent"}
+        ]
+      },
+      {
+        "module": "workflows.ts",
+        "description": "Workflow definition, execution, and run management. EOS-specific because workflow templates, step types, and SOP binding are EOS domain.",
+        "routes": [
+          {"method": "GET",    "path": "/api/eos/workflows",                           "description": "List workflows for current venture"},
+          {"method": "GET",    "path": "/api/eos/workflows/:id",                      "description": "Get workflow definition (steps, triggers, agents)"},
+          {"method": "POST",   "path": "/api/eos/workflows",                          "description": "Create a new workflow"},
+          {"method": "PATCH",  "path": "/api/eos/workflows/:id",                     "description": "Update workflow definition"},
+          {"method": "DELETE", "path": "/api/eos/workflows/:id",                     "description": "Delete (archive) a workflow"},
+          {"method": "POST",   "path": "/api/eos/workflows/:id/run",                 "description": "Trigger a workflow run"},
+          {"method": "GET",    "path": "/api/eos/workflows/:id/runs",                "description": "List runs for a workflow"},
+          {"method": "GET",    "path": "/api/eos/workflows/:id/runs/:runId",         "description": "Get single run detail with step status"},
+          {"method": "POST",   "path": "/api/eos/workflows/:id/runs/:runId/approve", "description": "Approve a workflow step pending approval"},
+          {"method": "POST",   "path": "/api/eos/workflows/:id/runs/:runId/reject",  "description": "Reject a workflow step pending approval"},
+          {"method": "GET",    "path": "/api/eos/workflows/templates",                "description": "List available UBOS workflow templates"},
+          {"method": "POST",   "path": "/api/eos/workflows/from-template",            "description": "Instantiate a workflow from a UBOS template"}
+        ]
+      },
+      {
+        "module": "tasks.ts",
+        "description": "Task management with agent integration and workflow step bridging.",
+        "routes": [
+          {"method": "GET",    "path": "/api/eos/tasks",                      "description": "List tasks (filterable by venture, department, assignee, status)"},
+          {"method": "GET",    "path": "/api/eos/tasks/:id",                 "description": "Get single task detail"},
+          {"method": "POST",   "path": "/api/eos/tasks",                     "description": "Create a task"},
+          {"method": "PATCH",  "path": "/api/eos/tasks/:id",                "description": "Update task fields"},
+          {"method": "DELETE", "path": "/api/eos/tasks/:id",                "description": "Delete task"},
+          {"method": "POST",   "path": "/api/eos/tasks/:id/assign",         "description": "Assign to human role or AI agent"},
+          {"method": "POST",   "path": "/api/eos/tasks/:id/subtask",        "description": "Create subtask"},
+          {"method": "GET",    "path": "/api/eos/tasks/:id/subtasks",       "description": "List subtasks"},
+          {"method": "GET",    "path": "/api/eos/tasks/:id/messages",       "description": "Task discussion messages"},
+          {"method": "POST",   "path": "/api/eos/tasks/:id/messages",       "description": "Post task discussion message"},
+          {"method": "PATCH",  "path": "/api/eos/tasks/:id/status",         "description": "Update task status (triggers workflow step completion if linked)"}
+        ]
+      },
+      {
+        "module": "crm.ts",
+        "description": "CRM contacts, deals, activities, and pipeline management.",
+        "routes": [
+          {"method": "GET",    "path": "/api/eos/crm/contacts",              "description": "List CRM contacts (filterable)"},
+          {"method": "GET",    "path": "/api/eos/crm/contacts/:id",         "description": "Get single contact"},
+          {"method": "POST",   "path": "/api/eos/crm/contacts",            "description": "Create contact"},
+          {"method": "PATCH",  "path": "/api/eos/crm/contacts/:id",        "description": "Update contact"},
+          {"method": "DELETE", "path": "/api/eos/crm/contacts/:id",        "description": "Delete contact"},
+          {"method": "GET",    "path": "/api/eos/crm/deals",               "description": "List deals (filterable by stage, value, assignee)"},
+          {"method": "GET",    "path": "/api/eos/crm/deals/:id",          "description": "Get single deal"},
+          {"method": "POST",   "path": "/api/eos/crm/deals",              "description": "Create deal"},
+          {"method": "PATCH",  "path": "/api/eos/crm/deals/:id",         "description": "Update deal (including stage transitions)"},
+          {"method": "DELETE", "path": "/api/eos/crm/deals/:id",         "description": "Delete deal"},
+          {"method": "GET",    "path": "/api/eos/crm/activities",          "description": "List CRM activities"},
+          {"method": "POST",   "path": "/api/eos/crm/activities",         "description": "Log an activity"},
+          {"method": "GET",    "path": "/api/eos/crm/pipeline",            "description": "Get pipeline snapshot (stages, total value, conversion rate)"},
+          {"method": "GET",    "path": "/api/eos/crm/pipeline/analytics",  "description": "Pipeline analytics over time"}
+        ]
+      },
+      {
+        "module": "documents.ts",
+        "description": "Document and folder management, SOP storage, and AI-generated document drafts.",
+        "routes": [
+          {"method": "GET",    "path": "/api/eos/documents",                   "description": "List documents (with folder, type, department filters)"},
+          {"method": "GET",    "path": "/api/eos/documents/:id",              "description": "Get single document"},
+          {"method": "POST",   "path": "/api/eos/documents",                  "description": "Create document"},
+          {"method": "PATCH",  "path": "/api/eos/documents/:id",             "description": "Update document content/metadata"},
+          {"method": "DELETE", "path": "/api/eos/documents/:id",             "description": "Delete document"},
+          {"method": "GET",    "path": "/api/eos/folders",                     "description": "List folders"},
+          {"method": "POST",   "path": "/api/eos/folders",                    "description": "Create folder"},
+          {"method": "PATCH",  "path": "/api/eos/folders/:id",               "description": "Update folder"},
+          {"method": "DELETE", "path": "/api/eos/folders/:id",               "description": "Delete folder"},
+          {"method": "POST",   "path": "/api/eos/documents/:id/ai-draft",    "description": "Generate AI-enhanced draft for a document"}
+        ]
+      },
+      {
+        "module": "analytics.ts",
+        "description": "EOS business analytics and KPI dashboard data.",
+        "routes": [
+          {"method": "GET",  "path": "/api/eos/analytics/dashboard",          "description": "Get main KPI dashboard data for current venture"},
+          {"method": "GET",  "path": "/api/eos/analytics/revenue",            "description": "Revenue analytics over time"},
+          {"method": "GET",  "path": "/api/eos/analytics/kpis",               "description": "KPI card data (MRR, leads, conversion, outreach, response rate)"},
+          {"method": "GET",  "path": "/api/eos/analytics/activity-feed",      "description": "Activity feed for the venture"},
+          {"method": "GET",  "path": "/api/eos/analytics/agent-performance",  "description": "Aggregate agent performance metrics"},
+          {"method": "GET",  "path": "/api/eos/analytics/department/:slug",   "description": "Department-specific analytics and metrics"}
+        ]
+      },
+      {
+        "module": "roles.ts",
+        "description": "Role management, permission assignment, and team structure.",
+        "routes": [
+          {"method": "GET",    "path": "/api/eos/roles",                       "description": "List roles for current venture"},
+          {"method": "GET",    "path": "/api/eos/roles/:id",                  "description": "Get role detail with permissions"},
+          {"method": "POST",   "path": "/api/eos/roles",                      "description": "Create custom role"},
+          {"method": "PATCH",  "path": "/api/eos/roles/:id",                 "description": "Update role permissions/description"},
+          {"method": "DELETE", "path": "/api/eos/roles/:id",                 "description": "Delete custom role"},
+          {"method": "POST",   "path": "/api/eos/roles/:id/assign",          "description": "Assign role to user or agent"},
+          {"method": "DELETE", "path": "/api/eos/roles/:id/assign/:assigneeId", "description": "Remove role assignment"}
+        ]
+      },
+      {
+        "module": "notifications.ts",
+        "description": "EOS notification management (approval requests, task updates, agent actions, system events).",
+        "routes": [
+          {"method": "GET",    "path": "/api/eos/notifications",              "description": "List notifications for current user"},
+          {"method": "GET",    "path": "/api/eos/notifications/count",       "description": "Unread notification count"},
+          {"method": "POST",   "path": "/api/eos/notifications/:id/read",   "description": "Mark notification as read"},
+          {"method": "POST",   "path": "/api/eos/notifications/read-all",   "description": "Mark all as read"},
+          {"method": "DELETE", "path": "/api/eos/notifications/:id",        "description": "Delete notification"}
+        ]
+      },
+      {
+        "module": "integrations.ts",
+        "description": "Third-party integration management (Gmail, Stripe, Calendly, PostHog, etc.).",
+        "routes": [
+          {"method": "GET",    "path": "/api/eos/integrations",              "description": "List available and connected integrations"},
+          {"method": "POST",   "path": "/api/eos/integrations/:id/connect", "description": "Connect an integration (starts OAuth or API key flow)"},
+          {"method": "POST",   "path": "/api/eos/integrations/:id/disconnect", "description": "Disconnect an integration"},
+          {"method": "GET",    "path": "/api/eos/integrations/:id/status",  "description": "Get integration health status"},
+          {"method": "GET",    "path": "/api/eos/integrations/:id/config",  "description": "Get integration configuration"},
+          {"method": "PATCH",  "path": "/api/eos/integrations/:id/config",  "description": "Update integration configuration"}
+        ]
+      },
+      {
+        "module": "settings.ts",
+        "description": "EOS user and venture settings -- preferences, API keys, display, and operational configuration.",
+        "routes": [
+          {"method": "GET",    "path": "/api/eos/settings",                  "description": "Get all settings for current user + venture"},
+          {"method": "PATCH",  "path": "/api/eos/settings",                 "description": "Update settings"},
+          {"method": "GET",    "path": "/api/eos/settings/ai",              "description": "Get AI provider configuration"},
+          {"method": "PATCH",  "path": "/api/eos/settings/ai",             "description": "Update AI provider settings (keys, preferences)"},
+          {"method": "GET",    "path": "/api/eos/settings/governance",      "description": "Get governance policy settings"},
+          {"method": "PATCH",  "path": "/api/eos/settings/governance",     "description": "Update governance policies (autonomy thresholds, approval rules)"}
+        ]
+      }
+    ]
+  },
+
+  "umh_routes": {
+    "description": "UMH substrate routes that EOS consumes via the platform API (transports/api/http/). These are universal -- not EOS-specific. EOS calls them for organism state, governance, chat, execution, and knowledge.",
+    "framework": "Hono (TypeScript)",
+    "auth": "x-org-id header -> org lookup in Neon (transports/api/http/middleware/auth.ts)",
+    "base_url": "http://localhost:3000",
+    "route_groups": [
+      {
+        "prefix": "/health",
+        "auth_required": false,
+        "routes": [
+          {"method": "GET", "path": "/health", "description": "API health check (returns {status: 'ok', ts})"}
+        ]
+      },
+      {
+        "prefix": "/pulse",
+        "auth_required": false,
+        "routes": [
+          {"method": "GET", "path": "/pulse", "description": "Full system pulse: model status, Docker containers, mesh nodes, resource usage"}
+        ]
+      },
+      {
+        "prefix": "system",
+        "auth_required_for_most": true,
+        "routes": [
+          {"method": "GET", "path": "/mesh/nodes",   "description": "List Tailscale mesh nodes and connectivity"},
+          {"method": "GET", "path": "/models",        "description": "List AI model providers and their availability"},
+          {"method": "GET", "path": "/infra",          "description": "Infrastructure status (Docker, mesh, resources)"},
+          {"method": "GET", "path": "/sessions",       "description": "List active tmux sessions"},
+          {"method": "GET", "path": "/docker",         "description": "List Docker containers and their status"},
+          {"method": "GET", "path": "/workspaces",     "description": "List code workspaces (worktrees)"},
+          {"method": "GET", "path": "/files",           "description": "Browse files in a directory"},
+          {"method": "GET", "path": "/file",            "description": "Read a single file by path"}
+        ]
+      },
+      {
+        "prefix": "/organism",
+        "auth_required": true,
+        "route_count": 85,
+        "description": "Organism runtime state and control. The largest route group. EOS reads organism state for dashboard integration and issues commands for agent orchestration.",
+        "categories": {
+          "state_queries": [
+            {"method": "GET", "path": "/organism/snapshot",           "description": "Full organism snapshot (ObservabilitySnapshot)"},
+            {"method": "GET", "path": "/organism/status",             "description": "Organism daemon status"},
+            {"method": "GET", "path": "/organism/health",             "description": "Homeostasis health check"},
+            {"method": "GET", "path": "/organism/agents",             "description": "List organism agents with status"},
+            {"method": "GET", "path": "/organism/deliverables",       "description": "List deliverables (optional agent_id filter)"},
+            {"method": "GET", "path": "/organism/learning",           "description": "Learning signals"},
+            {"method": "GET", "path": "/organism/objectives",         "description": "List all objectives"},
+            {"method": "GET", "path": "/organism/objectives/:id",     "description": "Get single objective"},
+            {"method": "GET", "path": "/organism/economy",            "description": "Execution economy summary"},
+            {"method": "GET", "path": "/organism/economy/records",    "description": "Recent execution records"},
+            {"method": "GET", "path": "/organism/runtimes",           "description": "Runtime graph topology"},
+            {"method": "GET", "path": "/organism/supervisor",         "description": "Supervisor health state"},
+            {"method": "GET", "path": "/organism/governor",           "description": "Recursion governor state + limits"},
+            {"method": "GET", "path": "/organism/governor/escalations","description": "Escalation log"},
+            {"method": "GET", "path": "/organism/advisors",           "description": "Advisor hierarchy"},
+            {"method": "GET", "path": "/organism/advisors/tree",      "description": "Advisor hierarchy tree view"},
+            {"method": "GET", "path": "/organism/approvals",          "description": "List approvals (optional status filter)"},
+            {"method": "GET", "path": "/organism/approvals/count",    "description": "Pending approval count"},
+            {"method": "GET", "path": "/organism/handoffs",           "description": "Handoff stats"},
+            {"method": "GET", "path": "/organism/leverage",           "description": "Leverage assimilation artifacts"},
+            {"method": "GET", "path": "/organism/workcells",          "description": "Workcell daemon state"},
+            {"method": "GET", "path": "/organism/delegations",        "description": "Active delegations"},
+            {"method": "GET", "path": "/organism/cadence",            "description": "Cadence schedule and status"},
+            {"method": "GET", "path": "/organism/candidate-supply",   "description": "Candidate supply engine state"},
+            {"method": "GET", "path": "/organism/agent-capabilities", "description": "Agent capability declarations"}
+          ],
+          "world_model": [
+            {"method": "GET", "path": "/organism/world-model",        "description": "World model snapshot (operator only)"},
+            {"method": "GET", "path": "/organism/dependency-graph",   "description": "Dependency graph (operator only)"},
+            {"method": "GET", "path": "/organism/contradictions",     "description": "Detected contradictions (operator only)"},
+            {"method": "GET", "path": "/organism/learning-loop",      "description": "Learning loop state (operator only)"}
+          ],
+          "memory_promotion": [
+            {"method": "GET",  "path": "/organism/memory-promotion",              "description": "Memory promotion candidates"},
+            {"method": "POST", "path": "/organism/memory-promotion/:id/approve", "description": "Approve memory promotion"},
+            {"method": "POST", "path": "/organism/memory-promotion/:id/reject",  "description": "Reject memory promotion"}
+          ],
+          "execution_plans": [
+            {"method": "POST", "path": "/organism/compose",                               "description": "Compose an execution plan"},
+            {"method": "POST", "path": "/organism/execute-plan",                          "description": "Execute a composed plan"},
+            {"method": "GET",  "path": "/organism/execution-graph",                       "description": "List execution graphs"},
+            {"method": "GET",  "path": "/organism/execution-graph/:id",                  "description": "Get single execution graph"},
+            {"method": "POST", "path": "/organism/execute-plan/:planId/approve/:stepId", "description": "Approve plan step"},
+            {"method": "GET",  "path": "/organism/execute-plan/:planId/pending",         "description": "Get pending plan steps"}
+          ],
+          "templates_and_production": [
+            {"method": "GET",  "path": "/organism/templates",                          "description": "List production templates"},
+            {"method": "GET",  "path": "/organism/template-candidates",               "description": "Template promotion candidates"},
+            {"method": "POST", "path": "/organism/template-candidates/:id/approve",   "description": "Approve template promotion"},
+            {"method": "POST", "path": "/organism/template-candidates/:id/reject",    "description": "Reject template promotion"},
+            {"method": "GET",  "path": "/organism/template-reuse-proof",              "description": "Template reuse proof"},
+            {"method": "GET",  "path": "/organism/production-truth",                   "description": "Production truth state"},
+            {"method": "GET",  "path": "/organism/propagation",                        "description": "Propagation status"},
+            {"method": "GET",  "path": "/organism/propagation/:id",                   "description": "Single propagation detail"},
+            {"method": "GET",  "path": "/organism/spine-propagation-status",           "description": "Spine propagation status"}
+          ],
+          "control_actions": [
+            {"method": "POST", "path": "/organism/outcome",         "description": "Record an outcome (operator only)"},
+            {"method": "POST", "path": "/organism/approve/:id",     "description": "Approve a pending approval"},
+            {"method": "POST", "path": "/organism/deny/:id",        "description": "Deny a pending approval"},
+            {"method": "POST", "path": "/organism/kill",            "description": "Activate recursion kill switch"},
+            {"method": "POST", "path": "/organism/resume",          "description": "Deactivate recursion kill switch"},
+            {"method": "POST", "path": "/organism/governor/reset",  "description": "Reset governor counters"},
+            {"method": "POST", "path": "/organism/refresh",         "description": "Refresh runtime availability"},
+            {"method": "POST", "path": "/organism/control",         "description": "Send organism control command"},
+            {"method": "POST", "path": "/organism/handoff",         "description": "Initiate agent handoff"},
+            {"method": "POST", "path": "/organism/parallel",        "description": "Dispatch parallel tasks"}
+          ],
+          "sandboxes_and_approvals": [
+            {"method": "GET",  "path": "/organism/sandboxes",                     "description": "List execution sandboxes"},
+            {"method": "GET",  "path": "/organism/sandboxes/:id",                "description": "Get sandbox detail"},
+            {"method": "GET",  "path": "/organism/approval-packets",              "description": "List approval packets"},
+            {"method": "GET",  "path": "/organism/approval-packets/:id",         "description": "Get approval packet detail"},
+            {"method": "POST", "path": "/organism/approval-packets/:id/approve", "description": "Approve packet"},
+            {"method": "POST", "path": "/organism/approval-packets/:id/reject",  "description": "Reject packet"}
+          ],
+          "operational_truth": [
+            {"method": "GET", "path": "/organism/operational-truth",                     "description": "Operational truth summary"},
+            {"method": "GET", "path": "/organism/operational-truth/issues",              "description": "Active issues"},
+            {"method": "GET", "path": "/organism/operational-truth/readiness",           "description": "System readiness assessment"},
+            {"method": "GET", "path": "/organism/operational-truth/provider-health",     "description": "LLM provider health"},
+            {"method": "GET", "path": "/organism/operational-truth/data-hygiene",        "description": "Data hygiene status"},
+            {"method": "GET", "path": "/organism/operational-truth/knowledge-graph",     "description": "Knowledge graph status"},
+            {"method": "GET", "path": "/organism/operational-truth/eventbus",            "description": "Event bus status"},
+            {"method": "GET", "path": "/organism/operational-truth/precommit-gates",     "description": "Pre-commit gate status"},
+            {"method": "GET", "path": "/organism/operational-truth/runtime-fleet",       "description": "Runtime fleet status"},
+            {"method": "GET", "path": "/organism/operational-truth/device-roles",        "description": "Device role assignments"},
+            {"method": "GET", "path": "/organism/operational-truth/workload-placement",  "description": "Workload placement map"},
+            {"method": "GET", "path": "/organism/operational-truth/runtime-readiness",   "description": "Runtime readiness check"}
+          ],
+          "projection_reconciliation": [
+            {"method": "GET", "path": "/organism/projection-reconciliation",                   "description": "Projection reconciliation overview"},
+            {"method": "GET", "path": "/organism/projection-reconciliation/sources",          "description": "Source surfaces for reconciliation"},
+            {"method": "GET", "path": "/organism/projection-reconciliation/source-map",       "description": "Source-to-target mapping"},
+            {"method": "GET", "path": "/organism/projection-reconciliation/divergences",      "description": "Detected divergences"},
+            {"method": "GET", "path": "/organism/projection-reconciliation/convergence-plan", "description": "Convergence plan"},
+            {"method": "GET", "path": "/organism/projection-reconciliation/permissions",      "description": "Reconciliation permissions"},
+            {"method": "GET", "path": "/organism/projection-reconciliation/work-packets",     "description": "Reconciliation work packets"},
+            {"method": "GET", "path": "/organism/projection-reconciliation/readiness",        "description": "Reconciliation readiness"}
+          ],
+          "operator_experience": [
+            {"method": "GET",  "path": "/organism/operator-experience",                         "description": "Operator experience overview"},
+            {"method": "GET",  "path": "/organism/operator-experience/sessions",                "description": "List OX sessions"},
+            {"method": "GET",  "path": "/organism/operator-experience/sessions/:id",           "description": "Get single OX session"},
+            {"method": "GET",  "path": "/organism/operator-experience/status",                  "description": "OX status"},
+            {"method": "GET",  "path": "/organism/operator-experience/approvals",               "description": "OX pending approvals"},
+            {"method": "POST", "path": "/organism/operator-experience/send",                    "description": "Send OX message"},
+            {"method": "POST", "path": "/organism/operator-experience/packet-preview",          "description": "Preview approval packet"},
+            {"method": "POST", "path": "/organism/operator-experience/propagation-preview",     "description": "Preview propagation"},
+            {"method": "POST", "path": "/organism/operator-experience/topology-preview",        "description": "Preview topology change"}
+          ],
+          "reports_and_chat": [
+            {"method": "POST", "path": "/organism/dispatch-report",   "description": "Dispatch a report to channels"},
+            {"method": "GET",  "path": "/organism/reports",           "description": "List dispatched reports"},
+            {"method": "GET",  "path": "/organism/chat-history",      "description": "Get cockpit chat history"},
+            {"method": "GET",  "path": "/organism/outcomes",          "description": "List outcomes"},
+            {"method": "GET",  "path": "/organism/outcomes/:id",      "description": "Get single outcome"},
+            {"method": "GET",  "path": "/organism/pr-factory",        "description": "PR factory state"}
+          ]
+        }
+      },
+      {
+        "prefix": "/governance",
+        "auth_required": true,
+        "routes": [
+          {"method": "GET",   "path": "/governance",   "description": "Get current governance state (thresholds, verdicts, history)"},
+          {"method": "PATCH", "path": "/governance",   "description": "Update governance settings (autonomy thresholds, risk classification)"}
+        ]
+      },
+      {
+        "prefix": "/chat",
+        "auth_required": true,
+        "routes": [
+          {"method": "POST", "path": "/chat/converse", "description": "Route conversation through SignalEnvelope -> SubstrateGateway pipeline"},
+          {"method": "POST", "path": "/chat/send",     "description": "Send message to external channel (Discord, etc.) via channel_port"},
+          {"method": "GET",  "path": "/chat/history",  "description": "Get conversation history"}
+        ]
+      },
+      {
+        "prefix": "/knowledge",
+        "auth_required": true,
+        "routes": [
+          {"method": "GET", "path": "/observations",   "description": "Get observations (knowledge system queries)"},
+          {"method": "GET", "path": "/memory",          "description": "Get memory state"},
+          {"method": "GET", "path": "/tracking",        "description": "Get tracking data"}
+        ]
+      },
+      {
+        "prefix": "/execution",
+        "auth_required": true,
+        "routes": [
+          {"method": "GET",  "path": "/execution/status",    "description": "Execution pipeline status (spine state, active tasks)"},
+          {"method": "GET",  "path": "/execution/log",       "description": "Execution log"},
+          {"method": "GET",  "path": "/execution/authority",  "description": "Authority engine state"},
+          {"method": "POST", "path": "/execution/start",      "description": "Start execution"},
+          {"method": "POST", "path": "/execution/stop",       "description": "Stop execution"},
+          {"method": "POST", "path": "/execution/pause",      "description": "Pause execution"},
+          {"method": "POST", "path": "/execution/resume",     "description": "Resume execution"}
+        ]
+      },
+      {
+        "prefix": "/settings",
+        "auth_required": true,
+        "routes": [
+          {"method": "GET",   "path": "/settings",   "description": "Get platform settings"},
+          {"method": "PATCH", "path": "/settings",   "description": "Update platform settings"}
+        ]
+      },
+      {
+        "prefix": "/config",
+        "auth_required": true,
+        "routes": [
+          {"method": "GET",   "path": "/config",           "description": "Get configuration value(s)"},
+          {"method": "GET",   "path": "/config/:key",      "description": "Get single config key"},
+          {"method": "PATCH", "path": "/config",           "description": "Update config (operator only)"},
+          {"method": "GET",   "path": "/config/layers/all", "description": "Get all config layers (operator only)"}
+        ]
+      }
+    ],
+    "python_api_routes": {
+      "description": "Python FastAPI routes served by transports/api/app.py. Separate from the Hono TS API. Used for direct signal submission and event streaming.",
+      "routes": [
+        {"method": "GET",  "path": "/api/umh/health",     "description": "UMH health check"},
+        {"method": "POST", "path": "/api/umh/signal",     "description": "Submit a signal envelope to the substrate"},
+        {"method": "GET",  "path": "/api/umh/events",     "description": "SSE event stream for real-time notifications"},
+        {"method": "GET",  "path": "/api/umh/violations", "description": "Get governance violations"},
+        {"method": "POST", "path": "/api/umh/submit",     "description": "Submit work to the execution pipeline"}
+      ]
+    }
+  },
+
+  "python_bridge": {
+    "purpose": "Bridges the TypeScript HTTP API layer to the Python substrate runtime. EOS routes that need AI processing, agent execution, or organism state call into Python via stdin/stdout JSON protocol.",
+    "stdin_stdout_protocol": {
+      "description": "TypeScript spawns a Python subprocess, writes a JSON payload to stdin, reads a JSON response from stdout. Stderr is used for diagnostic logging to avoid corrupting the response stream.",
+      "input_format": "{\"action\": \"<action_name>\", \"payload\": {...}}",
+      "output_format_success": "{\"success\": true, \"data\": {...}}",
+      "output_format_error": "{\"success\": false, \"error\": \"...\"}",
+      "isolation": "sys.stdout is redirected to sys.stderr at import time. A private _stdout reference is kept for JSON emission only.",
+      "cwd": "UMH_ROOT (/opt/OS)"
+    },
+    "bridges": [
+      {
+        "name": "agent_bridge",
+        "file": "transports/api/agent_bridge.py",
+        "description": "Routes EOS agent tasks through the SubstrateGateway. Handles agent.run (single agent task), agent.team (multi-agent collaboration), and orchestrator.brief (morning brief).",
+        "actions": [
+          {
+            "action": "agent.run",
+            "description": "Run a single agent task through the Gateway",
+            "payload_fields": ["prompt", "venture_id", "task_type", "sub_agent", "session_id", "channel", "username"],
+            "response_fields": ["success", "output", "model_used", "skill_used", "interaction_id", "tokens", "iterations", "was_enhanced", "session_id", "status", "approval_required"]
+          },
+          {
+            "action": "agent.team",
+            "description": "Multi-agent team collaboration",
+            "payload_fields": ["prompt", "venture_id", "agents", "session_id", "channel"],
+            "response_fields": ["success", "output", "model_used"]
+          },
+          {
+            "action": "orchestrator.brief",
+            "description": "Generate orchestrator morning brief",
+            "payload_fields": ["venture_id"],
+            "response_fields": ["success", "output"]
+          }
+        ]
+      },
+      {
+        "name": "organism_bridge",
+        "file": "transports/api/organism_bridge.py",
+        "description": "Exposes the full organism subsystem state and control actions to the TypeScript API. Handles 40+ actions covering organism snapshot, agents, economy, governance, approvals, workcells, dev sessions, and control commands.",
+        "action_categories": {
+          "state_queries": [
+            "organism.snapshot", "organism.status", "organism.health",
+            "organism.objectives", "organism.objective",
+            "organism.agents", "organism.deliverables", "organism.learning",
+            "organism.economy", "organism.economy.records",
+            "organism.runtimes", "organism.supervisor",
+            "organism.governor", "organism.governor.escalations",
+            "organism.advisors", "organism.approvals", "organism.approvals.count",
+            "organism.handoffs", "organism.leverage", "organism.workcells"
+          ],
+          "control_actions": [
+            "organism.approve", "organism.deny",
+            "organism.kill", "organism.resume",
+            "organism.governor.reset", "organism.refresh"
+          ],
+          "infrastructure_queries": [
+            "organism.sessions", "organism.docker", "organism.mesh"
+          ],
+          "communication": [
+            "organism.converse", "organism.send_channel_message"
+          ],
+          "dev_sessions": [
+            "organism.dev_sessions", "organism.dev_session_detail"
+          ]
+        }
+      }
+    ]
+  },
+
+  "websocket": {
+    "description": "Real-time event delivery for EOS. Required for live updates on agent actions, task status changes, approval requests, workflow step completions, and chat streaming.",
+    "current_state": "NOT_IMPLEMENTED",
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "planned_model": {
+      "transport": "WebSocket (ws:// or wss://)",
+      "fallback": "Server-Sent Events (SSE) via /api/umh/events exists in Python API for event streaming",
+      "subscription_model": {
+        "description": "Client subscribes to event channels. Server pushes events matching subscriptions. All events include org_id scoping for multi-tenant safety.",
+        "channels": [
+          {
+            "channel": "agent.action",
+            "events": ["agent.task_started", "agent.task_completed", "agent.task_failed", "agent.approval_requested", "agent.delegation"],
+            "description": "Agent execution lifecycle events"
+          },
+          {
+            "channel": "task.update",
+            "events": ["task.created", "task.status_changed", "task.assigned", "task.completed", "task.comment_added"],
+            "description": "Task state change events"
+          },
+          {
+            "channel": "workflow.run",
+            "events": ["workflow.started", "workflow.step_completed", "workflow.step_failed", "workflow.approval_needed", "workflow.completed"],
+            "description": "Workflow execution events"
+          },
+          {
+            "channel": "approval",
+            "events": ["approval.requested", "approval.approved", "approval.rejected", "approval.expired"],
+            "description": "Governance approval lifecycle events"
+          },
+          {
+            "channel": "crm.update",
+            "events": ["crm.contact_created", "crm.deal_stage_changed", "crm.activity_logged"],
+            "description": "CRM data change events"
+          },
+          {
+            "channel": "notification",
+            "events": ["notification.new", "notification.batch"],
+            "description": "User notification delivery"
+          },
+          {
+            "channel": "chat.stream",
+            "events": ["chat.token", "chat.complete", "chat.error"],
+            "description": "Streaming AI chat response tokens"
+          },
+          {
+            "channel": "kpi.update",
+            "events": ["kpi.value_changed", "kpi.threshold_breached"],
+            "description": "Real-time KPI metric updates"
+          }
+        ]
+      },
+      "auth": "WebSocket upgrade requires valid session token (same as REST auth). Org-scoped event filtering server-side.",
+      "reconnect": "Client implements exponential backoff reconnect. Server maintains subscription state for 5-minute grace period."
+    }
+  },
+
+  "planned_routes": {
+    "description": "Full desired-state API surface for EOS. Grouped by domain. Every route has auth requirement, permission tier, and body/response schema sketch. These INCLUDE the saas_routes above and ADD platform-level routes EOS needs that do not yet exist.",
+
+    "auth": {
+      "description": "Authentication and session management. Clerk-based (Beast branch). Replaces Passport.js + Firebase from GitHub main.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "routes": [
+        {
+          "method": "POST", "path": "/api/auth/signup",
+          "description": "Create operator account (Clerk handles identity, EOS creates platform records: user, default portfolio, org)",
+          "auth_required": false,
+          "permission_tier": "none",
+          "request_body": {"email": "string", "password": "string", "full_name": "string"},
+          "response_schema": {"user_id": "uuid", "org_id": "uuid", "portfolio_id": "uuid", "session_token": "string"}
+        },
+        {
+          "method": "POST", "path": "/api/auth/login",
+          "description": "Authenticate and create session",
+          "auth_required": false,
+          "permission_tier": "none",
+          "request_body": {"email": "string", "password": "string"},
+          "response_schema": {"session_token": "string", "user": "User", "org": "Organization"}
+        },
+        {
+          "method": "POST", "path": "/api/auth/logout",
+          "description": "End session and invalidate token",
+          "auth_required": true,
+          "permission_tier": "any",
+          "request_body": {},
+          "response_schema": {"success": "boolean"}
+        },
+        {
+          "method": "GET", "path": "/api/auth/me",
+          "description": "Get current authenticated user with org context",
+          "auth_required": true,
+          "permission_tier": "any",
+          "request_body": null,
+          "response_schema": {"user": "User", "org": "Organization", "portfolio": "Portfolio", "role": "string", "permissions": "string[]"}
+        },
+        {
+          "method": "POST", "path": "/api/auth/refresh",
+          "description": "Refresh session token",
+          "auth_required": true,
+          "permission_tier": "any",
+          "request_body": {"refresh_token": "string"},
+          "response_schema": {"session_token": "string", "expires_at": "string"}
+        }
+      ]
+    },
+
+    "portfolios": {
+      "description": "Portfolio management. Portfolios are strategic containers grouping related entities under unified governance and reporting.",
+      "provenance": "SYNTHESIZED_CANON",
+      "routes": [
+        {
+          "method": "GET", "path": "/api/eos/portfolios",
+          "description": "List portfolios for the current operator",
+          "auth_required": true,
+          "permission_tier": "viewer",
+          "request_body": null,
+          "response_schema": {"portfolios": "Portfolio[]"}
+        },
+        {
+          "method": "GET", "path": "/api/eos/portfolios/:id",
+          "description": "Get portfolio detail with consolidated KPIs and entity list",
+          "auth_required": true,
+          "permission_tier": "viewer",
+          "request_body": null,
+          "response_schema": {"portfolio": "Portfolio", "entities": "Entity[]", "consolidated_kpis": "KPI[]"}
+        },
+        {
+          "method": "POST", "path": "/api/eos/portfolios",
+          "description": "Create a new portfolio",
+          "auth_required": true,
+          "permission_tier": "owner",
+          "request_body": {"name": "string", "strategy": "string?", "governance_rules": "object?"},
+          "response_schema": {"portfolio": "Portfolio"}
+        },
+        {
+          "method": "PATCH", "path": "/api/eos/portfolios/:id",
+          "description": "Update portfolio fields",
+          "auth_required": true,
+          "permission_tier": "admin",
+          "request_body": {"name?": "string", "strategy?": "string", "governance_rules?": "object"},
+          "response_schema": {"portfolio": "Portfolio"}
+        },
+        {
+          "method": "DELETE", "path": "/api/eos/portfolios/:id",
+          "description": "Delete a portfolio (must have zero entities)",
+          "auth_required": true,
+          "permission_tier": "owner",
+          "request_body": null,
+          "response_schema": {"success": "boolean"}
+        },
+        {
+          "method": "GET", "path": "/api/eos/portfolios/:id/entities",
+          "description": "List entities within a portfolio",
+          "auth_required": true,
+          "permission_tier": "viewer",
+          "request_body": null,
+          "response_schema": {"entities": "Entity[]"}
+        },
+        {
+          "method": "GET", "path": "/api/eos/portfolios/:id/analytics",
+          "description": "Consolidated portfolio analytics (cross-entity)",
+          "auth_required": true,
+          "permission_tier": "admin",
+          "request_body": null,
+          "response_schema": {"revenue_total": "number", "entity_count": "number", "kpis": "KPI[]", "trend_data": "object"}
+        }
+      ]
+    },
+
+    "entities": {
+      "description": "Entity management. Entities are legal/operational vehicles (LLC, C-Corp, SPV, etc.) through which economic activity is conducted.",
+      "provenance": "SYNTHESIZED_CANON",
+      "routes": [
+        {
+          "method": "GET", "path": "/api/eos/entities",
+          "description": "List entities for current portfolio/operator",
+          "auth_required": true,
+          "permission_tier": "viewer",
+          "request_body": null,
+          "response_schema": {"entities": "Entity[]"}
+        },
+        {
+          "method": "GET", "path": "/api/eos/entities/:id",
+          "description": "Get entity detail (legal info, ventures, compliance status)",
+          "auth_required": true,
+          "permission_tier": "viewer",
+          "request_body": null,
+          "response_schema": {"entity": "Entity", "ventures": "Venture[]", "compliance": "ComplianceStatus"}
+        },
+        {
+          "method": "POST", "path": "/api/eos/entities",
+          "description": "Create an entity under a portfolio",
+          "auth_required": true,
+          "permission_tier": "owner",
+          "request_body": {"portfolio_id": "uuid", "legal_name": "string", "entity_type": "EntityType", "jurisdiction": "string?"},
+          "response_schema": {"entity": "Entity"}
+        },
+        {
+          "method": "PATCH", "path": "/api/eos/entities/:id",
+          "description": "Update entity fields",
+          "auth_required": true,
+          "permission_tier": "admin",
+          "request_body": {"legal_name?": "string", "status?": "string", "jurisdiction?": "string"},
+          "response_schema": {"entity": "Entity"}
+        },
+        {
+          "method": "DELETE", "path": "/api/eos/entities/:id",
+          "description": "Archive an entity (soft delete, must have zero active ventures)",
+          "auth_required": true,
+          "permission_tier": "owner",
+          "request_body": null,
+          "response_schema": {"success": "boolean"}
+        },
+        {
+          "method": "GET", "path": "/api/eos/entities/:id/ventures",
+          "description": "List business operations under an entity",
+          "auth_required": true,
+          "permission_tier": "viewer",
+          "request_body": null,
+          "response_schema": {"ventures": "Venture[]"}
+        },
+        {
+          "method": "GET", "path": "/api/eos/entities/:id/compliance",
+          "description": "Get compliance status and upcoming deadlines for an entity",
+          "auth_required": true,
+          "permission_tier": "admin",
+          "request_body": null,
+          "response_schema": {"filings": "Filing[]", "next_deadlines": "Deadline[]", "compliance_score": "number"}
+        }
+      ]
+    },
+
+    "onboarding": {
+      "description": "First-boot onboarding flow -- the 25-step sequence that configures a new operator's business environment.",
+      "provenance": "SYNTHESIZED_CANON",
+      "routes": [
+        {
+          "method": "POST", "path": "/api/eos/onboarding/start",
+          "description": "Initialize onboarding session for new operator",
+          "auth_required": true,
+          "permission_tier": "owner",
+          "request_body": {},
+          "response_schema": {"session_id": "uuid", "current_step": 1, "total_steps": 25}
+        },
+        {
+          "method": "GET", "path": "/api/eos/onboarding/status",
+          "description": "Get current onboarding progress and state",
+          "auth_required": true,
+          "permission_tier": "owner",
+          "request_body": null,
+          "response_schema": {"session_id": "uuid", "current_step": "number", "completed_steps": "number[]", "data": "object"}
+        },
+        {
+          "method": "POST", "path": "/api/eos/onboarding/step/:step",
+          "description": "Submit data for a specific onboarding step (triggers generation of downstream structures)",
+          "auth_required": true,
+          "permission_tier": "owner",
+          "request_body": {"step_data": "object"},
+          "response_schema": {"step": "number", "generated": "object", "next_step": "number"}
+        },
+        {
+          "method": "POST", "path": "/api/eos/onboarding/back",
+          "description": "Go back to a previous step (regenerates downstream from that point)",
+          "auth_required": true,
+          "permission_tier": "owner",
+          "request_body": {"target_step": "number"},
+          "response_schema": {"current_step": "number", "preserved_data": "object"}
+        },
+        {
+          "method": "POST", "path": "/api/eos/onboarding/complete",
+          "description": "Finalize onboarding and enter active mode",
+          "auth_required": true,
+          "permission_tier": "owner",
+          "request_body": {},
+          "response_schema": {"success": "boolean", "venture_id": "uuid", "redirect_to": "string"}
+        }
+      ]
+    },
+
+    "ai": {
+      "description": "AI interaction surface -- EA agent, chat, model selection. The primary interface between the operator and the AI layer.",
+      "provenance": "SYNTHESIZED_CANON",
+      "routes": [
+        {
+          "method": "POST", "path": "/api/eos/ai/chat",
+          "description": "Send a message to the EA agent (primary chat interface). EA triages, routes to portfolio advisor or CEO agent.",
+          "auth_required": true,
+          "permission_tier": "viewer",
+          "request_body": {"message": "string", "session_id": "uuid?", "venture_id": "uuid?", "attachments": "Attachment[]?"},
+          "response_schema": {"response": "string", "agent": "string", "session_id": "uuid", "routed_to": "string?", "approval_required": "boolean", "tokens": "TokenUsage"}
+        },
+        {
+          "method": "GET", "path": "/api/eos/ai/chat/history",
+          "description": "Get EA conversation history",
+          "auth_required": true,
+          "permission_tier": "viewer",
+          "request_body": null,
+          "response_schema": {"messages": "ChatMessage[]", "session_id": "uuid"}
+        },
+        {
+          "method": "DELETE", "path": "/api/eos/ai/chat/history",
+          "description": "Clear EA conversation history",
+          "auth_required": true,
+          "permission_tier": "member",
+          "request_body": null,
+          "response_schema": {"success": "boolean"}
+        },
+        {
+          "method": "GET", "path": "/api/eos/ai/models",
+          "description": "List available AI models and their status",
+          "auth_required": true,
+          "permission_tier": "viewer",
+          "request_body": null,
+          "response_schema": {"providers": "ModelProvider[]"}
+        },
+        {
+          "method": "POST", "path": "/api/eos/ai/generate",
+          "description": "Direct AI generation (bypasses EA routing, for specific agent tasks)",
+          "auth_required": true,
+          "permission_tier": "member",
+          "request_body": {"prompt": "string", "agent": "string?", "task_type": "string?", "venture_id": "uuid"},
+          "response_schema": {"output": "string", "model_used": "string", "tokens": "TokenUsage"}
+        },
+        {
+          "method": "POST", "path": "/api/eos/ai/multi-agent",
+          "description": "Multi-agent collaboration request",
+          "auth_required": true,
+          "permission_tier": "admin",
+          "request_body": {"prompt": "string", "agents": "string[]", "venture_id": "uuid"},
+          "response_schema": {"outputs": "AgentOutput[]", "synthesis": "string"}
+        }
+      ]
+    },
+
+    "metrics": {
+      "description": "Business metrics and KPI management.",
+      "provenance": "SYNTHESIZED_CANON",
+      "routes": [
+        {
+          "method": "GET", "path": "/api/eos/metrics/kpis",
+          "description": "Get all KPI cards for current venture",
+          "auth_required": true,
+          "permission_tier": "viewer",
+          "request_body": null,
+          "response_schema": {"kpis": "KPICard[]"}
+        },
+        {
+          "method": "GET", "path": "/api/eos/metrics/kpis/:id",
+          "description": "Get single KPI detail with historical data",
+          "auth_required": true,
+          "permission_tier": "viewer",
+          "request_body": null,
+          "response_schema": {"kpi": "KPICard", "history": "DataPoint[]", "trend": "string"}
+        },
+        {
+          "method": "POST", "path": "/api/eos/metrics/kpis",
+          "description": "Create a custom KPI",
+          "auth_required": true,
+          "permission_tier": "admin",
+          "request_body": {"name": "string", "formula": "string", "department": "string?", "target": "number?"},
+          "response_schema": {"kpi": "KPICard"}
+        },
+        {
+          "method": "PATCH", "path": "/api/eos/metrics/kpis/:id",
+          "description": "Update KPI definition or target",
+          "auth_required": true,
+          "permission_tier": "admin",
+          "request_body": {"name?": "string", "target?": "number", "formula?": "string"},
+          "response_schema": {"kpi": "KPICard"}
+        },
+        {
+          "method": "POST", "path": "/api/eos/metrics/record",
+          "description": "Record a metric data point (manual entry or agent submission)",
+          "auth_required": true,
+          "permission_tier": "member",
+          "request_body": {"kpi_id": "uuid", "value": "number", "timestamp": "string?", "source": "string"},
+          "response_schema": {"data_point": "DataPoint"}
+        }
+      ]
+    }
+  },
+
+  "mvp_api_surface": {
+    "description": "Minimum API surface per MVP release. Each release adds routes incrementally. Routes reference the planned_routes and saas_routes sections above.",
+    "releases": {
+      "R1_core_shell": {
+        "name": "Core Shell + Auth + Navigation",
+        "description": "Authentication, basic navigation, portfolio/entity creation, and the EA chat interface. The operator can sign up, create their first business, and talk to the EA.",
+        "route_domains": ["auth", "portfolios", "entities", "onboarding", "ai.chat"],
+        "route_count_estimate": 25,
+        "key_routes": [
+          "POST /api/auth/signup",
+          "POST /api/auth/login",
+          "GET  /api/auth/me",
+          "POST /api/eos/onboarding/start",
+          "POST /api/eos/onboarding/step/:step",
+          "POST /api/eos/onboarding/complete",
+          "GET  /api/eos/portfolios",
+          "POST /api/eos/portfolios",
+          "GET  /api/eos/entities",
+          "POST /api/eos/entities",
+          "GET  /api/eos/ventures/:id/dashboard",
+          "POST /api/eos/ai/chat",
+          "GET  /api/eos/ai/chat/history",
+          "GET  /settings"
+        ]
+      },
+      "R2_agent_layer": {
+        "name": "Agent Delegation + Task System",
+        "description": "CEO and department agents are operational. Tasks can be created, assigned, and tracked. Agent delegation chain (EA -> CEO -> department) is functional.",
+        "route_domains": ["agents", "tasks", "departments", "roles", "notifications"],
+        "route_count_estimate": 40,
+        "key_routes": [
+          "GET  /api/eos/agents",
+          "POST /api/eos/agents/:id/chat",
+          "POST /api/eos/agents/:id/delegate",
+          "GET  /api/eos/tasks",
+          "POST /api/eos/tasks",
+          "PATCH /api/eos/tasks/:id/status",
+          "GET  /api/eos/ventures/:ventureId/departments",
+          "GET  /api/eos/roles",
+          "GET  /api/eos/notifications",
+          "GET  /api/eos/ventures/:id/org-chart"
+        ]
+      },
+      "R3_operations": {
+        "name": "CRM + Workflows + Analytics",
+        "description": "CRM is operational (contacts, deals, pipeline). Workflows can be created and triggered. Analytics dashboards show real data.",
+        "route_domains": ["crm", "workflows", "analytics", "metrics"],
+        "route_count_estimate": 45,
+        "key_routes": [
+          "GET  /api/eos/crm/contacts",
+          "POST /api/eos/crm/contacts",
+          "GET  /api/eos/crm/pipeline",
+          "GET  /api/eos/workflows",
+          "POST /api/eos/workflows/:id/run",
+          "GET  /api/eos/analytics/dashboard",
+          "GET  /api/eos/analytics/kpis",
+          "GET  /api/eos/metrics/kpis"
+        ]
+      },
+      "R4_governance": {
+        "name": "Approval System + Permissions + Governance",
+        "description": "Full governance layer: action approvals, permission tiers, autonomy thresholds, and risk classification are enforced.",
+        "route_domains": ["governance", "approvals", "settings.governance"],
+        "route_count_estimate": 20,
+        "key_routes": [
+          "GET  /governance",
+          "PATCH /governance",
+          "POST /organism/approve/:id",
+          "POST /organism/deny/:id",
+          "GET  /organism/approvals",
+          "GET  /api/eos/settings/governance",
+          "PATCH /api/eos/settings/governance"
+        ]
+      },
+      "R5_docs_memory_integrations": {
+        "name": "Documents + Memory + Integrations",
+        "description": "Document management, SOP storage, integration connectivity (Gmail, Stripe, Calendly), and memory/knowledge system access.",
+        "route_domains": ["documents", "integrations", "knowledge", "memory"],
+        "route_count_estimate": 25,
+        "key_routes": [
+          "GET  /api/eos/documents",
+          "POST /api/eos/documents",
+          "POST /api/eos/documents/:id/ai-draft",
+          "GET  /api/eos/integrations",
+          "POST /api/eos/integrations/:id/connect",
+          "GET  /observations",
+          "GET  /memory"
+        ]
+      }
+    },
+    "total_planned_route_count_estimate": 155
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-API-001",
+      "question": "REST vs GraphQL: Should EOS use pure REST, GraphQL, or a hybrid (REST for CRUD, GraphQL for complex dashboard queries)?",
+      "context": "Current codebase is pure REST. GraphQL would reduce over-fetching for the dashboard (which needs data from multiple domains simultaneously). Hybrid is the most pragmatic for MVP.",
+      "recommendation": "REST for MVP. Evaluate GraphQL for R3+ when dashboard query complexity increases. The Python bridge protocol is inherently RPC, not REST or GraphQL.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-002",
+      "question": "API versioning strategy: /api/v1/eos/* prefix or header-based versioning?",
+      "context": "No versioning exists in current codebase. Adding /api/v1/ prefix now is cheap. Header-based is more flexible but adds middleware complexity.",
+      "recommendation": "URL prefix /api/v1/eos/* from R1. Cheap to add, clear in logs, easy to deprecate. The UMH platform routes (/organism, /governance, etc.) are internal and do not need external versioning.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-003",
+      "question": "Rate limiting: Per-user, per-org, or per-endpoint? What thresholds?",
+      "context": "No rate limiting exists. AI endpoints (chat, generate) are expensive. CRM endpoints are cheap. Different limits per category makes sense.",
+      "recommendation": "Per-org rate limiting with per-endpoint category overrides. Categories: 'ai' (30 req/min), 'crud' (300 req/min), 'read' (600 req/min). Implemented at middleware level.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-004",
+      "question": "WebSocket implementation: Native ws library, Socket.io, or SSE-only for MVP?",
+      "context": "SSE exists in the Python API (/api/umh/events). WebSocket would give bidirectional comms but adds complexity. Socket.io adds reconnect/rooms but is heavier.",
+      "recommendation": "SSE for MVP (already exists). WebSocket for R2+ when agent streaming and real-time task updates are critical. Socket.io if rooms/namespaces needed for multi-venture isolation.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-005",
+      "question": "Auth token format: Clerk JWT (Beast branch) vs custom JWT vs session cookies?",
+      "context": "Beast branch uses Clerk. UMH platform uses x-org-id header. These need to converge. Clerk JWTs contain org membership claims.",
+      "recommendation": "Clerk JWT for EOS SaaS layer. UMH platform layer continues using x-org-id header (set by EOS middleware after Clerk JWT validation). The middleware translates Clerk claims into UMH org context.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-006",
+      "question": "Python bridge scaling: One bridge process per request (current) or persistent worker pool?",
+      "context": "Current bridge spawns a new Python process per request (stdin/stdout). This works for low traffic but has 200-500ms overhead per cold start. A persistent worker pool would eliminate startup cost.",
+      "recommendation": "Current model for MVP. At scale (>50 concurrent users), switch to persistent Python workers with ZeroMQ or a simple HTTP microservice layer. The bridge protocol is already JSON-over-stdio -- easy to adapt to JSON-over-HTTP.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-007",
+      "question": "Multi-tenant data isolation: Shared schema with org_id FK (current) or schema-per-tenant?",
+      "context": "UMH platform uses shared schema with org_id foreign key. This is fine for MVP (single operator). At enterprise scale, schema-per-tenant or RLS enforcement becomes critical.",
+      "recommendation": "Shared schema with org_id FK for MVP through R5. Add Postgres RLS policies in R4 (governance release). Evaluate schema-per-tenant only if enterprise tier requires it.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  ],
+
+  "route_count_summary": {
+    "github_main_current": 72,
+    "beast_branch_inferred": 85,
+    "umh_platform_current": 110,
+    "python_api_current": 5,
+    "eos_saas_planned": 130,
+    "total_planned_mvp_surface": 155,
+    "note": "EOS SaaS routes (/api/eos/*) are new. UMH platform routes (/organism/*, /governance/*, etc.) already exist and EOS consumes them. The total surface an EOS client needs to know about is eos_saas_planned + umh_platform_current."
+  },
+
+  "architecture_layer_mapping": {
+    "description": "Which API routes live in which architectural layer, per the Architecture Layer Law.",
+    "layers": {
+      "saas_eos_projection": {
+        "prefix": "/api/eos/*",
+        "code_location": "saas/routes/",
+        "description": "EOS-specific business domain routes. Ventures, departments, agents, workflows, CRM, documents, analytics, roles, settings.",
+        "auth": "Clerk JWT middleware -> org_id extraction -> venture_id scoping"
+      },
+      "transports_api_http": {
+        "prefix": "/organism/*, /governance/*, /chat/*, /execution/*, /settings/*, /config/*, /pulse, /health, /mesh/*, /models, /infra, /sessions, /docker, /workspaces, /files, /file",
+        "code_location": "transports/api/http/routes/",
+        "description": "UMH platform routes. Universal infrastructure. Not EOS-specific. EOS calls these for organism state, governance, chat, and execution.",
+        "auth": "x-org-id header middleware -> org lookup in Neon"
+      },
+      "transports_api_python": {
+        "prefix": "/api/umh/*",
+        "code_location": "transports/api/app.py",
+        "description": "Python FastAPI routes for direct signal submission and event streaming. Not EOS-specific.",
+        "auth": "Currently unauthenticated (internal API)"
+      },
+      "python_bridges": {
+        "prefix": "N/A (stdin/stdout protocol)",
+        "code_location": "transports/api/agent_bridge.py, transports/api/organism_bridge.py",
+        "description": "Not HTTP routes. Internal bridges called by TypeScript route handlers to access Python substrate."
+      }
+    }
+  }
+}

@@ -1,0 +1,1410 @@
+{
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+  "description": "Complete EOS data model: every entity, relationship, constraint, enum, index, and migration path across all three schema surfaces (GitHub main, Beast feature/company-system, UMH platform).",
+
+  "schema_surfaces": {
+    "summary": "EOS data lives across three separate schema surfaces that must be unified. Each surface was authored independently and serves a different layer of the architecture.",
+    "surfaces": [
+      {
+        "id": "GITHUB_MAIN",
+        "file": "shared/schema.ts (GitHub main branch)",
+        "orm": "Drizzle ORM 0.39",
+        "language": "TypeScript",
+        "database": "Neon PostgreSQL",
+        "table_count": 15,
+        "status": "stale",
+        "last_modified": "2026-02-20",
+        "auth_model": "Passport.js + Firebase",
+        "pk_strategy": "text (client-generated UUIDs)",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "id": "BEAST_BRANCH",
+        "file": "shared/schema.ts + shared/design-schema.ts + shared/spec-schema.ts + server/generated/schema.ts (Beast feature/company-system)",
+        "orm": "Drizzle ORM",
+        "language": "TypeScript",
+        "database": "Neon PostgreSQL",
+        "table_count": "6 core + generated layer (21 storage modules with additional schemas)",
+        "status": "canonical_candidate",
+        "last_modified": "2026-04-16",
+        "auth_model": "Clerk",
+        "pk_strategy": "text (client-generated UUIDs)",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+        "note": "Beast branch not on VPS. Table details inferred from Phase 14.4 inventory: 21 generated storage modules (activity, auth, capabilities, companies, conversations, departments, kpis, login, logout, me, notifications, onboarding, portfolios, preferences, read, readAll, register, roles, steps, tasks, workflows) imply corresponding tables."
+      },
+      {
+        "id": "UMH_PLATFORM",
+        "file": "transports/api/http/db/schema.ts (UMH platform layer)",
+        "orm": "Drizzle ORM",
+        "language": "TypeScript",
+        "database": "Neon PostgreSQL",
+        "table_count": 8,
+        "status": "active",
+        "auth_model": "N/A (platform layer, auth handled by middleware)",
+        "pk_strategy": "uuid (server-generated via defaultRandom())",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "id": "UMH_PROJECTION",
+        "file": "projections/eos/integration/tables.py (Python typed query layer)",
+        "language": "Python",
+        "database": "Neon PostgreSQL (via psycopg2)",
+        "tables_accessed": ["crm_contacts", "crm_deals", "crm_activities", "tasks", "agent_actions"],
+        "status": "active",
+        "note": "Read/write typed Python wrappers over the same Neon tables defined in GitHub main schema.ts. This is NOT a separate schema -- it accesses the same tables. Single coupling point between UMH substrate and EOS data.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      }
+    ]
+  },
+
+  "entities": [
+    {
+      "name": "Users",
+      "description": "The human operator/principal who owns and governs portfolios, entities, and business operations. The ultimate authority in the EOS hierarchy.",
+      "present_in": ["GITHUB_MAIN", "UMH_PLATFORM"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "users",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY"]},
+          {"name": "username", "type": "text", "nullable": false, "default": null, "constraints": ["UNIQUE", "NOT NULL"]},
+          {"name": "password", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "email", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "full_name", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "avatar", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "company", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "role", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "firebase_uid", "type": "text", "nullable": true, "default": null, "constraints": ["UNIQUE"]},
+          {"name": "preferences", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "metadata", "type": "jsonb", "nullable": true, "default": null, "constraints": []},
+          {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []},
+          {"name": "updated_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "umh_platform_definition": {
+        "table_name": "users",
+        "fields": [
+          {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+          {"name": "email", "type": "text", "nullable": false, "default": null, "constraints": ["UNIQUE", "NOT NULL"]},
+          {"name": "name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "created_at", "type": "timestamptz", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+        ]
+      },
+      "divergence": {
+        "pk_type": "text (GitHub) vs uuid (UMH) -- BREAKING",
+        "auth_fields": "GitHub has password+firebase_uid (Passport.js+Firebase); UMH has neither (Clerk external)",
+        "missing_in_umh": ["username", "password", "full_name", "avatar", "company", "role", "firebase_uid", "preferences", "metadata", "updated_at"],
+        "missing_in_github": [],
+        "resolution": "UMH platform schema is the target. Clerk handles auth externally. Profile fields (avatar, full_name, preferences) move to a user_profiles table or Clerk metadata. password and firebase_uid are dropped."
+      },
+      "relationships": [
+        {"target": "Portfolios", "type": "ownership", "cardinality": "1:N", "description": "One user owns multiple portfolios"},
+        {"target": "Organizations", "type": "ownership", "cardinality": "1:N", "description": "One user can own multiple organizations"},
+        {"target": "OrgMembers", "type": "membership", "cardinality": "1:N", "description": "One user can be a member of multiple organizations"},
+        {"target": "Tasks", "type": "assignment", "cardinality": "1:N", "description": "User is implicit owner via agent assignments"},
+        {"target": "CrmContacts", "type": "ownership", "cardinality": "1:N", "description": "User owns their CRM contacts"},
+        {"target": "CrmDeals", "type": "ownership", "cardinality": "1:N", "description": "User owns their CRM deals"},
+        {"target": "CrmActivities", "type": "ownership", "cardinality": "1:N", "description": "User owns their CRM activities"},
+        {"target": "Notifications", "type": "recipient", "cardinality": "1:N", "description": "User receives notifications"},
+        {"target": "AgentActions", "type": "ownership", "cardinality": "1:N", "description": "User owns agent actions"},
+        {"target": "AgentMetrics", "type": "ownership", "cardinality": "1:N", "description": "User owns agent metric records"},
+        {"target": "AiMessages", "type": "ownership", "cardinality": "1:N", "description": "User owns AI assistant messages"},
+        {"target": "Documents", "type": "ownership", "cardinality": "1:N", "description": "User owns documents"},
+        {"target": "Folders", "type": "ownership", "cardinality": "1:N", "description": "User owns folders"},
+        {"target": "OauthTokens", "type": "ownership", "cardinality": "1:N", "description": "User owns OAuth tokens for integrations"}
+      ]
+    },
+    {
+      "name": "Portfolios",
+      "description": "Strategic container grouping related entities under unified governance and reporting. Represents a coherent economic strategy (e.g., 'tech ventures', 'real estate holdings').",
+      "present_in": ["UMH_PLATFORM"],
+      "not_present_in": ["GITHUB_MAIN"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "umh_platform_definition": {
+        "table_name": "portfolios",
+        "fields": [
+          {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+          {"name": "user_id", "type": "uuid", "nullable": true, "default": null, "constraints": ["REFERENCES users(id) ON DELETE SET NULL"]},
+          {"name": "name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "north_star", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "created_at", "type": "timestamptz", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+        ],
+        "indexes": [
+          {"name": "idx_portfolios_user_id", "columns": ["user_id"], "unique": false}
+        ]
+      },
+      "desired_state_additions": {
+        "provenance": "SYNTHESIZED_CANON",
+        "fields_needed": [
+          {"name": "strategy", "type": "text", "description": "Portfolio-level strategy description"},
+          {"name": "governance_rules", "type": "jsonb", "description": "Portfolio governance configuration"},
+          {"name": "capital_allocation", "type": "jsonb", "description": "Capital allocation rules across entities"},
+          {"name": "status", "type": "text", "description": "active/inactive/archived"},
+          {"name": "updated_at", "type": "timestamptz", "description": "Last modification timestamp"}
+        ]
+      },
+      "relationships": [
+        {"target": "Users", "type": "ownership", "cardinality": "N:1", "description": "Each portfolio belongs to one user"},
+        {"target": "Organizations", "type": "contains", "cardinality": "1:N", "description": "One portfolio contains multiple organizations/entities"},
+        {"target": "Entities", "type": "contains", "cardinality": "1:N", "description": "One portfolio contains multiple entities (desired state -- Entities table does not yet exist)"}
+      ]
+    },
+    {
+      "name": "Organizations",
+      "description": "Multi-tenant organization container. Maps to an Entity in the EOS hierarchy (an LLC, C-Corp, or other legal vehicle). Organizations own agents, approvals, outcomes, and sessions.",
+      "present_in": ["UMH_PLATFORM"],
+      "not_present_in": ["GITHUB_MAIN"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "umh_platform_definition": {
+        "table_name": "organizations",
+        "fields": [
+          {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+          {"name": "name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "owner_id", "type": "uuid", "nullable": false, "default": null, "constraints": ["NOT NULL", "REFERENCES users(id) ON DELETE RESTRICT"]},
+          {"name": "plan", "type": "org_plan", "nullable": false, "default": "free", "constraints": ["NOT NULL"]},
+          {"name": "portfolio_id", "type": "uuid", "nullable": true, "default": null, "constraints": ["REFERENCES portfolios(id) ON DELETE SET NULL"]},
+          {"name": "autonomy_stage", "type": "text", "nullable": false, "default": "manual", "constraints": ["NOT NULL"]},
+          {"name": "created_at", "type": "timestamptz", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+        ],
+        "indexes": [
+          {"name": "idx_organizations_owner_id", "columns": ["owner_id"], "unique": false},
+          {"name": "idx_organizations_portfolio_id", "columns": ["portfolio_id"], "unique": false}
+        ]
+      },
+      "desired_state_additions": {
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "fields_needed": [
+          {"name": "entity_type", "type": "text", "description": "LLC, C-Corp, SPV, Holding Company, etc. from entity_types taxonomy"},
+          {"name": "jurisdiction", "type": "text", "description": "Legal jurisdiction of the entity"},
+          {"name": "ein_or_tax_id", "type": "text", "description": "Tax identification (encrypted at rest)"},
+          {"name": "formation_date", "type": "date", "description": "Legal formation date"},
+          {"name": "status", "type": "text", "description": "active/inactive/dissolved"},
+          {"name": "registered_agent", "type": "text", "description": "Registered agent for the entity"},
+          {"name": "compliance_requirements", "type": "jsonb", "description": "Entity-specific compliance requirements"},
+          {"name": "updated_at", "type": "timestamptz", "description": "Last modification timestamp"}
+        ]
+      },
+      "relationships": [
+        {"target": "Users", "type": "ownership", "cardinality": "N:1", "description": "Each organization has one owner"},
+        {"target": "Portfolios", "type": "belongs_to", "cardinality": "N:1", "description": "Each organization can belong to one portfolio"},
+        {"target": "OrgMembers", "type": "membership", "cardinality": "1:N", "description": "Organization has multiple members"},
+        {"target": "Approvals", "type": "contains", "cardinality": "1:N", "description": "Organization scopes approval requests"},
+        {"target": "UmhOutcomes", "type": "contains", "cardinality": "1:N", "description": "Organization scopes UMH outcome records"},
+        {"target": "UserAgentSessions", "type": "contains", "cardinality": "1:N", "description": "Organization scopes agent sessions"},
+        {"target": "Embeddings", "type": "contains", "cardinality": "1:N", "description": "Organization scopes embeddings"}
+      ]
+    },
+    {
+      "name": "OrgMembers",
+      "description": "Junction table mapping users to organizations with role-based access.",
+      "present_in": ["UMH_PLATFORM"],
+      "not_present_in": ["GITHUB_MAIN"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "umh_platform_definition": {
+        "table_name": "org_members",
+        "fields": [
+          {"name": "org_id", "type": "uuid", "nullable": false, "default": null, "constraints": ["NOT NULL", "REFERENCES organizations(id) ON DELETE CASCADE"]},
+          {"name": "user_id", "type": "uuid", "nullable": false, "default": null, "constraints": ["NOT NULL", "REFERENCES users(id) ON DELETE CASCADE"]},
+          {"name": "role", "type": "member_role", "nullable": false, "default": "member", "constraints": ["NOT NULL"]},
+          {"name": "access_level", "type": "text", "nullable": false, "default": "member", "constraints": ["NOT NULL"]}
+        ],
+        "indexes": [
+          {"name": "pk_org_members", "columns": ["org_id", "user_id"], "unique": true},
+          {"name": "idx_org_members_user_id", "columns": ["user_id"], "unique": false}
+        ]
+      },
+      "relationships": [
+        {"target": "Organizations", "type": "belongs_to", "cardinality": "N:1"},
+        {"target": "Users", "type": "belongs_to", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "Agents",
+      "description": "AI agents with defined roles, departments, hierarchy, and behavioral configuration. Agents operate within the EOS communication delegation chain.",
+      "present_in": ["GITHUB_MAIN"],
+      "not_present_in": ["UMH_PLATFORM"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "agents",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY"]},
+          {"name": "name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "role", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "role_level", "type": "text", "nullable": true, "default": "laborer", "constraints": []},
+          {"name": "department", "type": "text", "nullable": true, "default": "general", "constraints": []},
+          {"name": "icon", "type": "text", "nullable": true, "default": "ri-robot-line", "constraints": []},
+          {"name": "instructions", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "brain_content", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "knowledge_base", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "kpis", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "behavioral_style", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "latest_activity", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "is_active", "type": "boolean", "nullable": true, "default": true, "constraints": []},
+          {"name": "simulation_mode", "type": "boolean", "nullable": true, "default": false, "constraints": []},
+          {"name": "parent_agent_id", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []},
+          {"name": "updated_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "desired_state_additions": {
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "fields_needed": [
+          {"name": "org_id", "type": "uuid", "description": "Organization scope (multi-tenant)"},
+          {"name": "venture_id", "type": "uuid", "description": "Venture/entity scope within org"},
+          {"name": "permission_tier", "type": "text", "description": "READ/DRAFT/EXECUTE/COMMIT -- from UMH projection code"},
+          {"name": "capabilities", "type": "jsonb", "description": "Registered capabilities array"},
+          {"name": "governance_constraints", "type": "jsonb", "description": "Authority boundaries and escalation rules"},
+          {"name": "soul_document_ref", "type": "text", "description": "Reference to agent soul document"},
+          {"name": "performance_metrics", "type": "jsonb", "description": "Current performance snapshot"}
+        ]
+      },
+      "relationships": [
+        {"target": "Tasks", "type": "assignment", "cardinality": "1:N", "description": "Agent can be assigned to multiple tasks"},
+        {"target": "Messages", "type": "conversation", "cardinality": "1:N", "description": "Agent participates in message threads"},
+        {"target": "CrmDeals", "type": "assignment", "cardinality": "1:N", "description": "Agent can be assigned to deals"},
+        {"target": "CrmActivities", "type": "creation", "cardinality": "1:N", "description": "Agent can create CRM activities"},
+        {"target": "AgentActions", "type": "execution", "cardinality": "1:N", "description": "Agent executes governed actions"},
+        {"target": "AgentMetrics", "type": "measurement", "cardinality": "1:N", "description": "Agent has daily metric snapshots"},
+        {"target": "Agents", "type": "hierarchy", "cardinality": "N:1", "description": "Agent can have a parent agent (parent_agent_id)"}
+      ]
+    },
+    {
+      "name": "Tasks",
+      "description": "Work items that can be assigned to agents or humans. Support subtasks, collaboration, and delegation patterns.",
+      "present_in": ["GITHUB_MAIN", "UMH_PROJECTION"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "tasks",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY"]},
+          {"name": "title", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "description", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "status", "type": "text", "nullable": true, "default": "todo", "constraints": []},
+          {"name": "priority", "type": "text", "nullable": true, "default": "medium", "constraints": []},
+          {"name": "start_date", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "due_date", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "instructions", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "agent_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES agents(id)"]},
+          {"name": "assigned_by_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES agents(id)"]},
+          {"name": "collaborator_ids", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "task_type", "type": "text", "nullable": true, "default": "standard", "constraints": []},
+          {"name": "parent_task_id", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "metadata", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []},
+          {"name": "updated_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "projection_python_type": {
+        "class": "TaskRow",
+        "file": "projections/eos/integration/tables.py",
+        "fields_accessed": ["id", "title", "description", "status", "priority", "agent_id", "task_type", "created_at"]
+      },
+      "desired_state_additions": {
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "fields_needed": [
+          {"name": "org_id", "type": "uuid", "description": "Organization scope (multi-tenant)"},
+          {"name": "venture_id", "type": "uuid", "description": "Venture scope within org"},
+          {"name": "workflow_id", "type": "text", "description": "Link to parent workflow if task is a workflow step"},
+          {"name": "workflow_step_index", "type": "integer", "description": "Position in workflow sequence"},
+          {"name": "department", "type": "text", "description": "Owning department slug"},
+          {"name": "user_id", "type": "uuid", "description": "Owning user (multi-tenant)"},
+          {"name": "recurrence_rule", "type": "text", "description": "RRULE for recurring tasks (e.g., morning brief daily at 7am)"}
+        ]
+      },
+      "relationships": [
+        {"target": "Agents", "type": "assignment", "cardinality": "N:1", "description": "Task assigned to one agent"},
+        {"target": "Agents", "type": "delegator", "cardinality": "N:1", "description": "Task assigned by one agent"},
+        {"target": "Tasks", "type": "subtask", "cardinality": "N:1", "description": "Task can be subtask of parent (parent_task_id)"},
+        {"target": "Messages", "type": "context", "cardinality": "1:N", "description": "Task can have associated messages"},
+        {"target": "AgentActions", "type": "context", "cardinality": "1:N", "description": "Task can trigger agent actions"}
+      ]
+    },
+    {
+      "name": "Messages",
+      "description": "Agent conversation messages. Supports multi-agent conversations with task context and cross-references.",
+      "present_in": ["GITHUB_MAIN"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "messages",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY"]},
+          {"name": "agent_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES agents(id)"]},
+          {"name": "task_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES tasks(id)"]},
+          {"name": "conversation_id", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "role", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "content", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "metadata", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "referenced_agent_ids", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "timestamp", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "relationships": [
+        {"target": "Agents", "type": "authorship", "cardinality": "N:1"},
+        {"target": "Tasks", "type": "context", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "AiMessages",
+      "description": "Separate table for AI assistant (copilot) conversation messages, distinct from agent-to-agent messages.",
+      "present_in": ["GITHUB_MAIN"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "ai_messages",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY", "NOT NULL"]},
+          {"name": "role", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "content", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "user_id", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL", "REFERENCES users(id)"]},
+          {"name": "timestamp", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+        ]
+      },
+      "note": "In desired state, AI messages should merge into a unified Messages table with a thread_type discriminator (agent_conversation, ea_chat, copilot) rather than maintaining two separate message tables.",
+      "relationships": [
+        {"target": "Users", "type": "ownership", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "CrmContacts",
+      "description": "Leads, prospects, customers, and churned contacts. Core CRM entity for pipeline management.",
+      "present_in": ["GITHUB_MAIN", "UMH_PROJECTION"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "crm_contacts",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY"]},
+          {"name": "name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "email", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "phone", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "company", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "title", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "status", "type": "text", "nullable": true, "default": "lead", "constraints": []},
+          {"name": "last_contact", "type": "timestamp", "nullable": true, "default": null, "constraints": []},
+          {"name": "notes", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "avatar", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "user_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES users(id)"]},
+          {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []},
+          {"name": "updated_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "projection_python_type": {
+        "class": "CrmContactRow",
+        "file": "projections/eos/integration/tables.py",
+        "fields_accessed": ["id", "user_id", "name", "email", "status", "company", "title", "created_at"]
+      },
+      "desired_state_additions": {
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "fields_needed": [
+          {"name": "org_id", "type": "uuid", "description": "Organization scope (multi-tenant)"},
+          {"name": "venture_id", "type": "uuid", "description": "Venture scope within org"},
+          {"name": "source", "type": "text", "description": "Lead source (instagram/referral/event/organic/paid) -- used in OutreachWorkflow qualification"},
+          {"name": "age_range", "type": "text", "description": "Target demographic range -- used in OutreachWorkflow qualification"},
+          {"name": "engagement_score", "type": "integer", "description": "Engagement level 0-100 -- used in OutreachWorkflow qualification"},
+          {"name": "umh_status", "type": "text", "description": "UMH integration writeback status (success/timeout/governance_denied)"},
+          {"name": "tags", "type": "text[]", "description": "Flexible tagging for segmentation"}
+        ]
+      },
+      "relationships": [
+        {"target": "Users", "type": "ownership", "cardinality": "N:1"},
+        {"target": "CrmDeals", "type": "has_many", "cardinality": "1:N", "description": "One contact can have multiple deals"},
+        {"target": "CrmActivities", "type": "has_many", "cardinality": "1:N", "description": "One contact can have multiple activities (via related_to_type=contact)"}
+      ]
+    },
+    {
+      "name": "CrmDeals",
+      "description": "Pipeline deals with stage progression, value tracking, and probability scoring.",
+      "present_in": ["GITHUB_MAIN", "UMH_PROJECTION"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "crm_deals",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY"]},
+          {"name": "title", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "company", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "value", "type": "decimal(10,2)", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "stage", "type": "text", "nullable": true, "default": "discovery", "constraints": []},
+          {"name": "probability", "type": "integer", "nullable": true, "default": 50, "constraints": []},
+          {"name": "expected_close_date", "type": "timestamp", "nullable": true, "default": null, "constraints": []},
+          {"name": "contact_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES crm_contacts(id)"]},
+          {"name": "assigned_agent_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES agents(id)"]},
+          {"name": "notes", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "user_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES users(id)"]},
+          {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []},
+          {"name": "updated_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "projection_python_type": {
+        "class": "CrmDealRow",
+        "file": "projections/eos/integration/tables.py",
+        "fields_accessed": ["id", "user_id", "title", "company", "value", "stage", "probability", "contact_id", "created_at"]
+      },
+      "desired_state_additions": {
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "fields_needed": [
+          {"name": "org_id", "type": "uuid", "description": "Organization scope (multi-tenant)"},
+          {"name": "venture_id", "type": "uuid", "description": "Venture scope within org"},
+          {"name": "umh_status", "type": "text", "description": "UMH integration writeback status"},
+          {"name": "product_line", "type": "text", "description": "Which product/offer this deal is for"},
+          {"name": "currency", "type": "text", "description": "Deal currency (default USD)"}
+        ]
+      },
+      "relationships": [
+        {"target": "Users", "type": "ownership", "cardinality": "N:1"},
+        {"target": "CrmContacts", "type": "belongs_to", "cardinality": "N:1"},
+        {"target": "Agents", "type": "assignment", "cardinality": "N:1"},
+        {"target": "CrmActivities", "type": "has_many", "cardinality": "1:N", "description": "One deal can have multiple activities (via related_to_type=deal)"}
+      ]
+    },
+    {
+      "name": "CrmActivities",
+      "description": "CRM interaction log: emails, calls, meetings, tasks, and notes related to contacts or deals.",
+      "present_in": ["GITHUB_MAIN", "UMH_PROJECTION"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "crm_activities",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY"]},
+          {"name": "type", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "subject", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "date", "type": "timestamp", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "related_to_type", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "related_to_id", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "completed", "type": "boolean", "nullable": true, "default": false, "constraints": []},
+          {"name": "notes", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "created_by_agent_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES agents(id)"]},
+          {"name": "user_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES users(id)"]},
+          {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []},
+          {"name": "updated_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "projection_python_type": {
+        "class": "CrmActivityRow",
+        "file": "projections/eos/integration/tables.py",
+        "fields_accessed": ["id", "user_id", "type", "subject", "date", "related_to_type", "related_to_id", "completed", "created_at"]
+      },
+      "relationships": [
+        {"target": "Users", "type": "ownership", "cardinality": "N:1"},
+        {"target": "CrmContacts", "type": "polymorphic_belongs_to", "cardinality": "N:1", "description": "When related_to_type=contact"},
+        {"target": "CrmDeals", "type": "polymorphic_belongs_to", "cardinality": "N:1", "description": "When related_to_type=deal"},
+        {"target": "Agents", "type": "created_by", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "AgentActions",
+      "description": "Governed agent actions with approval workflow, retry logic, and execution tracking. Central to the EOS governance model.",
+      "present_in": ["GITHUB_MAIN", "UMH_PROJECTION"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "agent_actions",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY"]},
+          {"name": "agent_id", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL", "REFERENCES agents(id) ON DELETE CASCADE"]},
+          {"name": "user_id", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL", "REFERENCES users(id) ON DELETE CASCADE"]},
+          {"name": "action_type", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "action_name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "description", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "parameters", "type": "jsonb", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "status", "type": "text", "nullable": false, "default": "pending", "constraints": ["NOT NULL"]},
+          {"name": "requires_approval", "type": "boolean", "nullable": false, "default": true, "constraints": ["NOT NULL"]},
+          {"name": "approved_by", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES users(id)"]},
+          {"name": "approved_at", "type": "timestamp", "nullable": true, "default": null, "constraints": []},
+          {"name": "executed_at", "type": "timestamp", "nullable": true, "default": null, "constraints": []},
+          {"name": "completed_at", "type": "timestamp", "nullable": true, "default": null, "constraints": []},
+          {"name": "failed_at", "type": "timestamp", "nullable": true, "default": null, "constraints": []},
+          {"name": "execution_result", "type": "jsonb", "nullable": true, "default": null, "constraints": []},
+          {"name": "error_message", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "retry_count", "type": "integer", "nullable": true, "default": 0, "constraints": []},
+          {"name": "max_retries", "type": "integer", "nullable": true, "default": 3, "constraints": []},
+          {"name": "task_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES tasks(id)"]},
+          {"name": "conversation_id", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "estimated_time_saved", "type": "integer", "nullable": true, "default": null, "constraints": []},
+          {"name": "priority", "type": "text", "nullable": true, "default": "medium", "constraints": []},
+          {"name": "tags", "type": "text[]", "nullable": true, "default": null, "constraints": []},
+          {"name": "metadata", "type": "jsonb", "nullable": true, "default": null, "constraints": []},
+          {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []},
+          {"name": "updated_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "projection_python_type": {
+        "class": "AgentActionRow",
+        "file": "projections/eos/integration/tables.py",
+        "fields_accessed": ["id", "agent_id", "user_id", "action_type", "action_name", "status", "requires_approval", "priority", "created_at"]
+      },
+      "relationships": [
+        {"target": "Agents", "type": "execution", "cardinality": "N:1"},
+        {"target": "Users", "type": "ownership", "cardinality": "N:1"},
+        {"target": "Users", "type": "approval", "cardinality": "N:1", "description": "approved_by user"},
+        {"target": "Tasks", "type": "context", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "AgentMetrics",
+      "description": "Daily agent performance snapshots: messages, tasks completed, actions executed, token usage, cost, and time saved.",
+      "present_in": ["GITHUB_MAIN"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "agent_metrics",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY"]},
+          {"name": "agent_id", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL", "REFERENCES agents(id) ON DELETE CASCADE"]},
+          {"name": "user_id", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL", "REFERENCES users(id) ON DELETE CASCADE"]},
+          {"name": "date", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "messages_sent", "type": "integer", "nullable": true, "default": 0, "constraints": []},
+          {"name": "messages_received", "type": "integer", "nullable": true, "default": 0, "constraints": []},
+          {"name": "tasks_completed", "type": "integer", "nullable": true, "default": 0, "constraints": []},
+          {"name": "actions_executed", "type": "integer", "nullable": true, "default": 0, "constraints": []},
+          {"name": "tokens_used", "type": "integer", "nullable": true, "default": 0, "constraints": []},
+          {"name": "api_cost", "type": "text", "nullable": true, "default": "0", "constraints": []},
+          {"name": "estimated_time_saved_minutes", "type": "integer", "nullable": true, "default": 0, "constraints": []},
+          {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []},
+          {"name": "updated_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "relationships": [
+        {"target": "Agents", "type": "measurement", "cardinality": "N:1"},
+        {"target": "Users", "type": "ownership", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "Integrations",
+      "description": "External service integration registry (Gmail, calendar, etc.).",
+      "present_in": ["GITHUB_MAIN"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "integrations",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY"]},
+          {"name": "name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "type", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "status", "type": "text", "nullable": true, "default": "disconnected", "constraints": []},
+          {"name": "details", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "icon", "type": "text", "nullable": true, "default": null, "constraints": []}
+        ]
+      },
+      "note": "Missing user_id and org_id -- not multi-tenant. Global integration registry without ownership scoping.",
+      "relationships": []
+    },
+    {
+      "name": "Notifications",
+      "description": "User notification system for task assignments, agent events, and integration status changes.",
+      "present_in": ["GITHUB_MAIN"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "notifications",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY"]},
+          {"name": "user_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES users(id)"]},
+          {"name": "title", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "content", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "type", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "read", "type": "boolean", "nullable": true, "default": false, "constraints": []},
+          {"name": "href", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "related_id", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "metadata", "type": "jsonb", "nullable": true, "default": null, "constraints": []},
+          {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "relationships": [
+        {"target": "Users", "type": "recipient", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "Documents",
+      "description": "Document storage for SOPs, notes, strategy docs, and generated content.",
+      "present_in": ["GITHUB_MAIN"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "documents",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY", "NOT NULL"]},
+          {"name": "title", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "content", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "folder_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES folders(id)"]},
+          {"name": "tags", "type": "text[]", "nullable": true, "default": null, "constraints": []},
+          {"name": "user_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES users(id)"]},
+          {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []},
+          {"name": "updated_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "desired_state_additions": {
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "fields_needed": [
+          {"name": "org_id", "type": "uuid", "description": "Organization scope"},
+          {"name": "document_type", "type": "text", "description": "sop/note/strategy/generated/template"},
+          {"name": "department", "type": "text", "description": "Owning department slug"},
+          {"name": "version", "type": "integer", "description": "Document version for SOP versioning"}
+        ]
+      },
+      "relationships": [
+        {"target": "Folders", "type": "belongs_to", "cardinality": "N:1"},
+        {"target": "Users", "type": "ownership", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "Folders",
+      "description": "Hierarchical folder structure for document organization. Self-referential for nested folders.",
+      "present_in": ["GITHUB_MAIN"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "folders",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY", "NOT NULL"]},
+          {"name": "name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "parent_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES folders(id)"]},
+          {"name": "user_id", "type": "text", "nullable": true, "default": null, "constraints": ["REFERENCES users(id)"]},
+          {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []},
+          {"name": "updated_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "relationships": [
+        {"target": "Folders", "type": "hierarchy", "cardinality": "N:1", "description": "Nested folders via parent_id"},
+        {"target": "Documents", "type": "contains", "cardinality": "1:N"},
+        {"target": "Users", "type": "ownership", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "OauthTokens",
+      "description": "OAuth token storage for external service integrations (Gmail, etc.).",
+      "present_in": ["GITHUB_MAIN"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "github_main_definition": {
+        "table_name": "oauth_tokens",
+        "fields": [
+          {"name": "id", "type": "text", "nullable": false, "default": null, "constraints": ["PRIMARY KEY"]},
+          {"name": "user_id", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL", "REFERENCES users(id) ON DELETE CASCADE"]},
+          {"name": "provider", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "access_token", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "refresh_token", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "token_type", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "expires_at", "type": "timestamp", "nullable": true, "default": null, "constraints": []},
+          {"name": "scope", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []},
+          {"name": "updated_at", "type": "timestamp", "nullable": true, "default": "now()", "constraints": []}
+        ]
+      },
+      "security_note": "access_token and refresh_token stored as plaintext. Must encrypt at rest before production deployment.",
+      "relationships": [
+        {"target": "Users", "type": "ownership", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "UserAgentSessions",
+      "description": "Tracks which agent is currently active for a user within an organization. Enables agent context switching.",
+      "present_in": ["UMH_PLATFORM"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "umh_platform_definition": {
+        "table_name": "user_agent_sessions",
+        "fields": [
+          {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+          {"name": "user_id", "type": "uuid", "nullable": true, "default": null, "constraints": ["REFERENCES users(id) ON DELETE CASCADE"]},
+          {"name": "org_id", "type": "uuid", "nullable": true, "default": null, "constraints": ["REFERENCES organizations(id) ON DELETE CASCADE"]},
+          {"name": "active_agent_id", "type": "uuid", "nullable": true, "default": null, "constraints": []},
+          {"name": "updated_at", "type": "timestamptz", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+        ],
+        "indexes": [
+          {"name": "idx_user_agent_sessions_user_org", "columns": ["user_id", "org_id"], "unique": false},
+          {"name": "idx_user_agent_sessions_org_id", "columns": ["org_id"], "unique": false}
+        ]
+      },
+      "relationships": [
+        {"target": "Users", "type": "belongs_to", "cardinality": "N:1"},
+        {"target": "Organizations", "type": "belongs_to", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "Approvals",
+      "description": "Governance approval queue. Agent actions that exceed permission tiers queue here for operator review.",
+      "present_in": ["UMH_PLATFORM"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "umh_platform_definition": {
+        "table_name": "approvals",
+        "fields": [
+          {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+          {"name": "org_id", "type": "uuid", "nullable": false, "default": null, "constraints": ["NOT NULL", "REFERENCES organizations(id) ON DELETE CASCADE"]},
+          {"name": "request_json", "type": "jsonb", "nullable": false, "default": "{}", "constraints": ["NOT NULL"]},
+          {"name": "status", "type": "approval_status", "nullable": false, "default": "pending", "constraints": ["NOT NULL"]},
+          {"name": "created_at", "type": "timestamptz", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]},
+          {"name": "resolved_at", "type": "timestamptz", "nullable": true, "default": null, "constraints": []},
+          {"name": "resolved_by", "type": "uuid", "nullable": true, "default": null, "constraints": ["REFERENCES users(id) ON DELETE SET NULL"]}
+        ],
+        "indexes": [
+          {"name": "idx_approvals_org_id", "columns": ["org_id"], "unique": false},
+          {"name": "idx_approvals_org_status", "columns": ["org_id", "status"], "unique": false},
+          {"name": "idx_approvals_resolved", "columns": ["resolved_by"], "unique": false}
+        ]
+      },
+      "note": "Parallel to agent_actions.requires_approval in GitHub main schema. These two approval systems must be unified -- agent_actions tracks the action lifecycle while approvals provides the governance gate.",
+      "relationships": [
+        {"target": "Organizations", "type": "belongs_to", "cardinality": "N:1"},
+        {"target": "Users", "type": "resolved_by", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "UmhOutcomes",
+      "description": "Audit trail for UMH integration outcomes. Records every signal processing result with severity and payload.",
+      "present_in": ["UMH_PLATFORM"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "umh_platform_definition": {
+        "table_name": "umh_outcomes",
+        "fields": [
+          {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+          {"name": "org_id", "type": "uuid", "nullable": false, "default": null, "constraints": ["NOT NULL", "REFERENCES organizations(id) ON DELETE CASCADE"]},
+          {"name": "trace_id", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "source_table", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "source_row_id", "type": "uuid", "nullable": true, "default": null, "constraints": []},
+          {"name": "outcome_type", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "severity", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+          {"name": "payload", "type": "jsonb", "nullable": false, "default": "{}", "constraints": ["NOT NULL"]},
+          {"name": "created_at", "type": "timestamptz", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+        ],
+        "indexes": [
+          {"name": "idx_umh_outcomes_org_id", "columns": ["org_id"], "unique": false},
+          {"name": "idx_umh_outcomes_trace_id", "columns": ["trace_id"], "unique": false},
+          {"name": "idx_umh_outcomes_source", "columns": ["source_table", "source_row_id"], "unique": false},
+          {"name": "idx_umh_outcomes_org_created", "columns": ["org_id", "created_at"], "unique": false},
+          {"name": "idx_umh_outcomes_type", "columns": ["outcome_type"], "unique": false}
+        ]
+      },
+      "relationships": [
+        {"target": "Organizations", "type": "belongs_to", "cardinality": "N:1"}
+      ]
+    },
+    {
+      "name": "Embeddings",
+      "description": "Vector embeddings for semantic search and knowledge graph queries. Uses pgvector extension.",
+      "present_in": ["UMH_PLATFORM"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "umh_platform_definition": {
+        "table_name": "embeddings",
+        "fields": [
+          {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+          {"name": "interaction_id", "type": "uuid", "nullable": true, "default": null, "constraints": []},
+          {"name": "org_id", "type": "uuid", "nullable": false, "default": null, "constraints": ["NOT NULL", "REFERENCES organizations(id) ON DELETE CASCADE"]},
+          {"name": "embedding", "type": "vector(384)", "nullable": true, "default": null, "constraints": []},
+          {"name": "content_preview", "type": "text", "nullable": true, "default": null, "constraints": []},
+          {"name": "embedding_model", "type": "text", "nullable": true, "default": "BAAI/bge-small-en-v1.5", "constraints": []},
+          {"name": "created_at", "type": "timestamptz", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+        ],
+        "indexes": [
+          {"name": "idx_embeddings_interaction_id", "columns": ["interaction_id"], "unique": false},
+          {"name": "idx_embeddings_org_id", "columns": ["org_id"], "unique": false}
+        ]
+      },
+      "relationships": [
+        {"target": "Organizations", "type": "belongs_to", "cardinality": "N:1"}
+      ]
+    }
+  ],
+
+  "entities_not_yet_in_schema": [
+    {
+      "name": "Entities",
+      "description": "Legal/operational vehicles (LLC, C-Corp, SPV, etc.) through which economic activity is conducted. The structural wrapper that owns bank accounts, signs contracts, and files taxes. This is the level between Portfolio and Business in the EOS hierarchy.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "NOT_IMPLEMENTED",
+      "note": "Currently, 'organizations' in UMH_PLATFORM partially fills this role but lacks entity_type, jurisdiction, compliance fields. The ontology defines 8 entity types (LLC, C-Corp, Holding Company, SPV, Real Estate Entity, Investment Entity, Operating Company, Asset Holding Entity) that have no schema representation.",
+      "proposed_fields": [
+        {"name": "id", "type": "uuid", "constraints": ["PRIMARY KEY"]},
+        {"name": "portfolio_id", "type": "uuid", "constraints": ["REFERENCES portfolios(id)"]},
+        {"name": "org_id", "type": "uuid", "constraints": ["REFERENCES organizations(id)"]},
+        {"name": "legal_name", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "entity_type", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "jurisdiction", "type": "text"},
+        {"name": "ein_or_tax_id", "type": "text"},
+        {"name": "formation_date", "type": "date"},
+        {"name": "status", "type": "text", "default": "active"},
+        {"name": "registered_agent", "type": "text"},
+        {"name": "compliance_requirements", "type": "jsonb"},
+        {"name": "created_at", "type": "timestamptz", "default": "now()"},
+        {"name": "updated_at", "type": "timestamptz", "default": "now()"}
+      ]
+    },
+    {
+      "name": "Departments",
+      "description": "Organizational departments with agent assignments, permission tiers, roles, metrics, and workflow references. Currently defined only in Python code (projections/eos/entities.py) with no DB table.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "NOT_IMPLEMENTED",
+      "note": "10 departments defined in code (Executive, Sales, Marketing, Finance, Customer Success, HR, Legal, Operations, Product, Engineering). Beast branch has departments storage module implying a table exists there.",
+      "proposed_fields": [
+        {"name": "id", "type": "uuid", "constraints": ["PRIMARY KEY"]},
+        {"name": "org_id", "type": "uuid", "constraints": ["NOT NULL", "REFERENCES organizations(id)"]},
+        {"name": "venture_id", "type": "uuid"},
+        {"name": "name", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "slug", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "agent_name", "type": "text"},
+        {"name": "permission_tier", "type": "text", "default": "execute"},
+        {"name": "roles", "type": "jsonb"},
+        {"name": "metrics", "type": "jsonb"},
+        {"name": "workflows", "type": "jsonb"},
+        {"name": "created_at", "type": "timestamptz", "default": "now()"}
+      ]
+    },
+    {
+      "name": "Roles",
+      "description": "Named permission/responsibility sets for humans and agents. Currently defined only in Python code (projections/eos/entities.py). Beast branch has roles storage module.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "NOT_IMPLEMENTED",
+      "proposed_fields": [
+        {"name": "id", "type": "uuid", "constraints": ["PRIMARY KEY"]},
+        {"name": "org_id", "type": "uuid", "constraints": ["NOT NULL", "REFERENCES organizations(id)"]},
+        {"name": "department_id", "type": "uuid", "constraints": ["REFERENCES departments(id)"]},
+        {"name": "name", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "slug", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "operator_type", "type": "text", "default": "HYBRID"},
+        {"name": "permissions", "type": "jsonb"},
+        {"name": "responsibilities", "type": "jsonb"},
+        {"name": "authority_boundaries", "type": "jsonb"},
+        {"name": "escalation_rules", "type": "jsonb"},
+        {"name": "created_at", "type": "timestamptz", "default": "now()"}
+      ]
+    },
+    {
+      "name": "Workflows",
+      "description": "Executable process definitions with steps, triggers, governance gates, and automation levels. Currently defined in Python code (projections/eos/entities.py) and 3 Python workflow implementations. Beast branch has workflows storage module and workflows page.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "NOT_IMPLEMENTED",
+      "note": "10 workflows defined in entities.py code (Morning Brief, Outreach Sequence, Content Calendar, Expense Review, Ticket Routing, Hiring Pipeline, Contract Review, Incident Response, Feature Prioritization, Code Review & Deploy). 3 implemented as Python classes (Outreach, Content, FollowUp).",
+      "proposed_fields": [
+        {"name": "id", "type": "uuid", "constraints": ["PRIMARY KEY"]},
+        {"name": "org_id", "type": "uuid", "constraints": ["NOT NULL", "REFERENCES organizations(id)"]},
+        {"name": "venture_id", "type": "uuid"},
+        {"name": "name", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "slug", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "department", "type": "text"},
+        {"name": "description", "type": "text"},
+        {"name": "trigger_type", "type": "text"},
+        {"name": "trigger_config", "type": "jsonb"},
+        {"name": "execution_mode", "type": "text", "default": "manual"},
+        {"name": "steps", "type": "jsonb"},
+        {"name": "governance_gates", "type": "jsonb"},
+        {"name": "status", "type": "text", "default": "active"},
+        {"name": "created_at", "type": "timestamptz", "default": "now()"},
+        {"name": "updated_at", "type": "timestamptz", "default": "now()"}
+      ]
+    },
+    {
+      "name": "WorkflowRuns",
+      "description": "Execution instances of workflows. Tracks each run through step completion, timing, and outcome.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "NOT_IMPLEMENTED",
+      "proposed_fields": [
+        {"name": "id", "type": "uuid", "constraints": ["PRIMARY KEY"]},
+        {"name": "workflow_id", "type": "uuid", "constraints": ["NOT NULL", "REFERENCES workflows(id)"]},
+        {"name": "org_id", "type": "uuid", "constraints": ["NOT NULL"]},
+        {"name": "triggered_by", "type": "text"},
+        {"name": "status", "type": "text", "default": "running"},
+        {"name": "current_step", "type": "integer", "default": 0},
+        {"name": "step_results", "type": "jsonb"},
+        {"name": "started_at", "type": "timestamptz", "default": "now()"},
+        {"name": "completed_at", "type": "timestamptz"},
+        {"name": "error", "type": "text"}
+      ]
+    },
+    {
+      "name": "Skills",
+      "description": "Reusable agent capabilities. 62 skills defined across 10 agents in projection code. Not persisted in any DB table.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "NOT_IMPLEMENTED",
+      "proposed_fields": [
+        {"name": "id", "type": "uuid", "constraints": ["PRIMARY KEY"]},
+        {"name": "name", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "slug", "type": "text", "constraints": ["NOT NULL", "UNIQUE"]},
+        {"name": "department", "type": "text"},
+        {"name": "permission_tier", "type": "text"},
+        {"name": "description", "type": "text"},
+        {"name": "parameters_schema", "type": "jsonb"},
+        {"name": "version", "type": "integer", "default": 1},
+        {"name": "trust_score", "type": "numeric(3,2)"},
+        {"name": "created_at", "type": "timestamptz", "default": "now()"}
+      ]
+    },
+    {
+      "name": "AgentConfigs",
+      "description": "Persistent agent configuration including soul document references, capability declarations, and governance constraints. Currently agents are defined in Python code only.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "NOT_IMPLEMENTED",
+      "proposed_fields": [
+        {"name": "id", "type": "uuid", "constraints": ["PRIMARY KEY"]},
+        {"name": "agent_id", "type": "uuid", "constraints": ["REFERENCES agents(id)"]},
+        {"name": "org_id", "type": "uuid", "constraints": ["NOT NULL"]},
+        {"name": "soul_document", "type": "jsonb"},
+        {"name": "capabilities", "type": "jsonb"},
+        {"name": "governance_constraints", "type": "jsonb"},
+        {"name": "model_preferences", "type": "jsonb"},
+        {"name": "version", "type": "integer", "default": 1},
+        {"name": "created_at", "type": "timestamptz", "default": "now()"},
+        {"name": "updated_at", "type": "timestamptz", "default": "now()"}
+      ]
+    },
+    {
+      "name": "Metrics",
+      "description": "Business-level KPI tracking. Currently KPIs are defined in entities.py (per department) but not persisted in any DB table. KPIView queries the events table for ad-hoc calculation.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "NOT_IMPLEMENTED",
+      "proposed_fields": [
+        {"name": "id", "type": "uuid", "constraints": ["PRIMARY KEY"]},
+        {"name": "org_id", "type": "uuid", "constraints": ["NOT NULL"]},
+        {"name": "venture_id", "type": "uuid"},
+        {"name": "name", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "metric_type", "type": "text"},
+        {"name": "current_value", "type": "numeric"},
+        {"name": "target_value", "type": "numeric"},
+        {"name": "threshold_low", "type": "numeric"},
+        {"name": "threshold_high", "type": "numeric"},
+        {"name": "measurement_frequency", "type": "text"},
+        {"name": "data_source", "type": "text"},
+        {"name": "department", "type": "text"},
+        {"name": "recorded_at", "type": "timestamptz", "default": "now()"}
+      ]
+    },
+    {
+      "name": "MemoryObjects",
+      "description": "Persistent business context memory for agents. Onboarding seeds initial memory. Agents maintain context over time. Currently memory is in UMH substrate (not EOS-specific table).",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "NOT_IMPLEMENTED",
+      "proposed_fields": [
+        {"name": "id", "type": "uuid", "constraints": ["PRIMARY KEY"]},
+        {"name": "org_id", "type": "uuid", "constraints": ["NOT NULL"]},
+        {"name": "venture_id", "type": "uuid"},
+        {"name": "memory_type", "type": "text"},
+        {"name": "content", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "source_agent", "type": "text"},
+        {"name": "context_tags", "type": "jsonb"},
+        {"name": "embedding_id", "type": "uuid"},
+        {"name": "expires_at", "type": "timestamptz"},
+        {"name": "created_at", "type": "timestamptz", "default": "now()"}
+      ]
+    },
+    {
+      "name": "KnowledgeGraph",
+      "description": "Semantic relationship graph for business knowledge. End-state feature. Embeddings table provides vector storage but no graph structure exists.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "NOT_IMPLEMENTED",
+      "proposed_fields": [
+        {"name": "id", "type": "uuid", "constraints": ["PRIMARY KEY"]},
+        {"name": "org_id", "type": "uuid", "constraints": ["NOT NULL"]},
+        {"name": "subject_type", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "subject_id", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "predicate", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "object_type", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "object_id", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "confidence", "type": "numeric(3,2)"},
+        {"name": "source", "type": "text"},
+        {"name": "created_at", "type": "timestamptz", "default": "now()"}
+      ]
+    },
+    {
+      "name": "UniversalBusinessPrimitives",
+      "description": "Type instances for the 16 universal business primitive categories from the EOS ontology. Would store domain-specific typed records (e.g., offers, products, customer segments, channels).",
+      "provenance": "SYNTHESIZED_CANON",
+      "status": "NOT_IMPLEMENTED",
+      "note": "May not need a dedicated table -- could be a polymorphic design using the KnowledgeGraph or a JSONB column on the entity. Requires operator decision on storage strategy.",
+      "proposed_fields": [
+        {"name": "id", "type": "uuid", "constraints": ["PRIMARY KEY"]},
+        {"name": "org_id", "type": "uuid", "constraints": ["NOT NULL"]},
+        {"name": "entity_id", "type": "uuid"},
+        {"name": "primitive_category", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "primitive_type", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "name", "type": "text", "constraints": ["NOT NULL"]},
+        {"name": "data", "type": "jsonb", "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamptz", "default": "now()"},
+        {"name": "updated_at", "type": "timestamptz", "default": "now()"}
+      ]
+    }
+  ],
+
+  "enums": [
+    {
+      "name": "org_plan",
+      "values": ["free", "starter", "growth", "enterprise"],
+      "description": "Organization subscription tier. Defined in UMH platform schema.",
+      "present_in": "UMH_PLATFORM",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "member_role",
+      "values": ["owner", "admin", "member"],
+      "description": "Organization membership role. Defined in UMH platform schema.",
+      "present_in": "UMH_PLATFORM",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "approval_status",
+      "values": ["pending", "approved", "rejected", "expired"],
+      "description": "Governance approval lifecycle state. Defined in UMH platform schema.",
+      "present_in": "UMH_PLATFORM",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "contact_status",
+      "values": ["lead", "prospect", "customer", "churned"],
+      "description": "CRM contact lifecycle stage. Text column with Zod validation in schema, frozenset validation in Python.",
+      "present_in": "GITHUB_MAIN",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "deal_stage",
+      "values": ["discovery", "proposal", "negotiation", "closed-won", "closed-lost"],
+      "description": "CRM deal pipeline stage. Text column with Zod validation in schema, frozenset validation in Python.",
+      "present_in": "GITHUB_MAIN",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "activity_type",
+      "values": ["email", "call", "meeting", "task", "note"],
+      "description": "CRM activity type discriminator.",
+      "present_in": "GITHUB_MAIN",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "task_status",
+      "values": ["todo", "in-progress", "done"],
+      "description": "Task lifecycle state.",
+      "present_in": "GITHUB_MAIN",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "task_priority",
+      "values": ["low", "medium", "high", "urgent"],
+      "description": "Task priority level.",
+      "present_in": "GITHUB_MAIN",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "task_type",
+      "values": ["standard", "collaboration", "delegated"],
+      "description": "Task execution pattern.",
+      "present_in": "GITHUB_MAIN",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "action_status",
+      "values": ["pending", "approved", "executing", "completed", "failed", "rejected"],
+      "description": "Agent action lifecycle state with governance gates.",
+      "present_in": "GITHUB_MAIN",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "message_role",
+      "values": ["user", "assistant", "system"],
+      "description": "Message authorship role.",
+      "present_in": "GITHUB_MAIN",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "agent_role_level",
+      "values": ["chief", "manager", "laborer"],
+      "description": "Agent organizational hierarchy level.",
+      "present_in": "GITHUB_MAIN",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "integration_status",
+      "values": ["connected", "disconnected"],
+      "description": "External integration connection state.",
+      "present_in": "GITHUB_MAIN",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "permission_tier",
+      "values": ["READ", "DRAFT", "EXECUTE", "COMMIT"],
+      "description": "EOS agent permission tiers. Defined in UMH projection Python code (entities.py), NOT in any SQL schema. Governs what actions agents can take without escalation.",
+      "present_in": "UMH_PROJECTION",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "operator_type",
+      "values": ["HUMAN", "AI", "HYBRID"],
+      "description": "Whether a role is filled by a human, AI agent, or hybrid. Defined in UMH projection Python code.",
+      "present_in": "UMH_PROJECTION",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "name": "entity_type",
+      "values": ["LLC", "C-Corp", "Holding Company", "SPV", "Real Estate Entity", "Investment Entity", "Operating Company", "Asset Holding Entity"],
+      "description": "Legal entity form taxonomy from portfolio/entity ontology. NOT in any schema -- exists only in canon artifacts.",
+      "present_in": "CANON_ONLY",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "name": "business_stage",
+      "values": ["Idea", "Validation", "Launch", "Early Revenue", "Growth", "Scale", "Enterprise", "Portfolio/Institutional"],
+      "description": "Business maturity stage taxonomy from onboarding spec. NOT in any schema.",
+      "present_in": "CANON_ONLY",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "name": "complexity_level",
+      "values": ["Solo Operator", "Lean Team", "Growing Team", "Multi-Department", "Multi-Entity"],
+      "description": "Organizational complexity level from onboarding spec. NOT in any schema.",
+      "present_in": "CANON_ONLY",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  ],
+
+  "indexes": {
+    "umh_platform": [
+      {"table": "portfolios", "columns": ["user_id"], "unique": false, "name": "idx_portfolios_user_id"},
+      {"table": "organizations", "columns": ["owner_id"], "unique": false, "name": "idx_organizations_owner_id"},
+      {"table": "organizations", "columns": ["portfolio_id"], "unique": false, "name": "idx_organizations_portfolio_id"},
+      {"table": "org_members", "columns": ["org_id", "user_id"], "unique": true, "name": "pk_org_members"},
+      {"table": "org_members", "columns": ["user_id"], "unique": false, "name": "idx_org_members_user_id"},
+      {"table": "user_agent_sessions", "columns": ["user_id", "org_id"], "unique": false, "name": "idx_user_agent_sessions_user_org"},
+      {"table": "user_agent_sessions", "columns": ["org_id"], "unique": false, "name": "idx_user_agent_sessions_org_id"},
+      {"table": "approvals", "columns": ["org_id"], "unique": false, "name": "idx_approvals_org_id"},
+      {"table": "approvals", "columns": ["org_id", "status"], "unique": false, "name": "idx_approvals_org_status"},
+      {"table": "approvals", "columns": ["resolved_by"], "unique": false, "name": "idx_approvals_resolved"},
+      {"table": "umh_outcomes", "columns": ["org_id"], "unique": false, "name": "idx_umh_outcomes_org_id"},
+      {"table": "umh_outcomes", "columns": ["trace_id"], "unique": false, "name": "idx_umh_outcomes_trace_id"},
+      {"table": "umh_outcomes", "columns": ["source_table", "source_row_id"], "unique": false, "name": "idx_umh_outcomes_source"},
+      {"table": "umh_outcomes", "columns": ["org_id", "created_at"], "unique": false, "name": "idx_umh_outcomes_org_created"},
+      {"table": "umh_outcomes", "columns": ["outcome_type"], "unique": false, "name": "idx_umh_outcomes_type"},
+      {"table": "embeddings", "columns": ["interaction_id"], "unique": false, "name": "idx_embeddings_interaction_id"},
+      {"table": "embeddings", "columns": ["org_id"], "unique": false, "name": "idx_embeddings_org_id"}
+    ],
+    "github_main": [
+      {"table": "users", "columns": ["username"], "unique": true, "name": "users_username_unique"},
+      {"table": "users", "columns": ["firebase_uid"], "unique": true, "name": "users_firebase_uid_unique"}
+    ],
+    "missing_indexes_needed": [
+      {"table": "crm_contacts", "columns": ["user_id"], "unique": false, "reason": "user_id lookup for multi-tenant queries"},
+      {"table": "crm_contacts", "columns": ["user_id", "created_at"], "unique": false, "reason": "UMH poller watermark queries"},
+      {"table": "crm_deals", "columns": ["user_id"], "unique": false, "reason": "user_id lookup for multi-tenant queries"},
+      {"table": "crm_deals", "columns": ["user_id", "created_at"], "unique": false, "reason": "UMH poller watermark queries"},
+      {"table": "crm_deals", "columns": ["contact_id"], "unique": false, "reason": "contact-to-deals relationship lookup"},
+      {"table": "crm_activities", "columns": ["user_id"], "unique": false, "reason": "user_id lookup for multi-tenant queries"},
+      {"table": "crm_activities", "columns": ["user_id", "created_at"], "unique": false, "reason": "UMH poller watermark queries"},
+      {"table": "crm_activities", "columns": ["related_to_type", "related_to_id"], "unique": false, "reason": "polymorphic relationship lookup"},
+      {"table": "tasks", "columns": ["agent_id"], "unique": false, "reason": "agent task assignment lookup"},
+      {"table": "tasks", "columns": ["status"], "unique": false, "reason": "task board filtering"},
+      {"table": "messages", "columns": ["conversation_id"], "unique": false, "reason": "conversation thread loading"},
+      {"table": "messages", "columns": ["agent_id"], "unique": false, "reason": "agent message history"},
+      {"table": "agent_actions", "columns": ["agent_id", "status"], "unique": false, "reason": "action queue per agent"},
+      {"table": "agent_actions", "columns": ["user_id", "status"], "unique": false, "reason": "approval queue for user"},
+      {"table": "notifications", "columns": ["user_id", "read"], "unique": false, "reason": "unread notification count"}
+    ]
+  },
+
+  "rls_policy": {
+    "status": "not_implemented",
+    "target": "org_id scoped row-level security on all tables",
+    "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+    "current_state": "No RLS policies exist in any schema surface. Multi-tenancy is enforced only by application-level WHERE clauses (user_id in GitHub main, org_id in UMH platform).",
+    "desired_state": "All tables scoped by org_id with RLS policies. Neon supports pg RLS natively. Clerk JWT includes org_id claim that maps to RLS policy variable.",
+    "implementation_options": [
+      {
+        "option": "Neon RLS with Clerk JWT",
+        "description": "Use Neon's built-in RLS support. Set current_setting from Clerk JWT org_id claim. All queries automatically filtered.",
+        "pros": ["Database-level enforcement", "Cannot leak data between orgs", "No application code changes needed"],
+        "cons": ["Adds latency to every query", "Complex migration for existing data", "Need to add org_id to all GitHub main tables first"]
+      },
+      {
+        "option": "Application-level enforcement only",
+        "description": "All queries include WHERE org_id = ? at the application layer. No database-level RLS.",
+        "pros": ["Simpler to implement", "No migration needed for existing tables", "Familiar pattern"],
+        "cons": ["Single bug can leak data", "Every query must remember to filter", "No defense in depth"]
+      }
+    ],
+    "recommendation": "Neon RLS with Clerk JWT for production. Application-level for MVP with RLS migration before multi-tenant launch."
+  },
+
+  "embedding_config": {
+    "current_dimension": 384,
+    "current_model": "BAAI/bge-small-en-v1.5",
+    "target_dimension": 1536,
+    "target_model": "text-embedding-3-small or text-embedding-ada-002",
+    "status": "mismatch_unresolved",
+    "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+    "details": "UMH platform schema defines embeddings as vector(384) using BAAI/bge-small-en-v1.5 (local model, no API cost). Desired state targets 1536 dimensions (OpenAI embedding models). Changing dimensions requires re-embedding all existing vectors. 384d local model is sufficient for MVP. 1536d provides better semantic resolution for knowledge graph end-state.",
+    "decision_needed": "Keep 384d local model for MVP cost efficiency, or migrate to 1536d for better semantic quality? Can start with 384d and re-embed later, but migration is non-trivial."
+  },
+
+  "beast_additions": {
+    "description": "Tables and systems added in Beast feature/company-system branch that do not exist in GitHub main. Inferred from the 21 generated storage modules and Beast-specific pages/routes.",
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "note": "Exact schema not available (Beast branch not on VPS). These are inferred from storage module names and page/route analysis in Phase 14.4 inventory.",
+    "inferred_tables": [
+      {"name": "companies", "evidence": "server/generated/storage/companies.ts, company-setup-page.tsx, server/routes/companies.ts", "description": "Company/entity management. Maps to the Entity concept in EOS hierarchy."},
+      {"name": "portfolios", "evidence": "server/generated/storage/portfolios.ts, portfolio-list-page.tsx, portfolio-detail-page.tsx, server/routes/portfolios.ts", "description": "Portfolio management with list and detail views."},
+      {"name": "departments", "evidence": "server/generated/storage/departments.ts", "description": "Department definitions for org chart."},
+      {"name": "roles", "evidence": "server/generated/storage/roles.ts", "description": "Role definitions for org chart."},
+      {"name": "workflows", "evidence": "server/generated/storage/workflows.ts, workflows-page.tsx, server/routes/workflows.ts", "description": "Workflow definitions with step management."},
+      {"name": "steps", "evidence": "server/generated/storage/steps.ts", "description": "Workflow step definitions."},
+      {"name": "kpis", "evidence": "server/generated/storage/kpis.ts", "description": "KPI metric definitions and tracking."},
+      {"name": "conversations", "evidence": "server/generated/storage/conversations.ts, server/routes/conversations.ts", "description": "Conversation thread management."},
+      {"name": "activity", "evidence": "server/generated/storage/activity.ts", "description": "Activity feed/event log."},
+      {"name": "capabilities", "evidence": "server/generated/storage/capabilities.ts", "description": "Agent capability registry."},
+      {"name": "onboarding", "evidence": "server/generated/storage/onboarding.ts", "description": "Onboarding state management."},
+      {"name": "preferences", "evidence": "server/generated/storage/preferences.ts", "description": "User preference storage."}
+    ],
+    "beast_specific_features": [
+      "Company guard component (requires active company selection)",
+      "Layout system (universal-layout, left-rail, right-rail, floating-ai-panel)",
+      "Clerk org middleware (server/middleware/clerk-org.ts)",
+      "AI gateway (server/ai/gateway.ts)",
+      "PostHog analytics integration",
+      "Design tokens system",
+      "Vitest + Playwright test infrastructure"
+    ]
+  },
+
+  "github_tables": {
+    "description": "All 15 tables defined in GitHub main shared/schema.ts.",
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "tables": [
+      "users",
+      "agents",
+      "tasks",
+      "messages",
+      "integrations",
+      "notifications",
+      "ai_messages",
+      "crm_contacts",
+      "crm_deals",
+      "crm_activities",
+      "folders",
+      "documents",
+      "agent_actions",
+      "oauth_tokens",
+      "agent_metrics"
+    ],
+    "count": 15
+  },
+
+  "migration_path": {
+    "from_github_to_beast": {
+      "provenance": "SYNTHESIZED_CANON",
+      "strategy": "Beast branch (feature/company-system) is the canonical promotion candidate per DEC-145-001. Migration is from GitHub main schema to Beast schema, not the reverse.",
+      "prerequisites": [
+        "Build validation on Beast branch (npm build, typecheck, lint)",
+        "Secret scan (no API keys, tokens, or credentials in code)",
+        "Schema comparison (diff Beast shared/schema.ts vs GitHub shared/schema.ts)",
+        "Data migration plan for any existing production data in ep_winter_sea",
+        "Operator review and explicit approval",
+        "Rollback plan (GitHub main preserved as fallback branch)"
+      ],
+      "schema_changes_needed": [
+        {
+          "change": "PK type migration",
+          "from": "text (client-generated)",
+          "to": "uuid (server-generated with gen_random_uuid())",
+          "tables_affected": "all 15 GitHub main tables",
+          "risk": "HIGH",
+          "note": "UMH platform uses uuid PKs. GitHub main uses text PKs. Beast likely uses text (same base). This must be resolved in unified schema."
+        },
+        {
+          "change": "Add org_id to all EOS tables",
+          "tables_affected": ["agents", "tasks", "messages", "crm_contacts", "crm_deals", "crm_activities", "integrations", "notifications", "documents", "folders", "agent_actions", "agent_metrics", "oauth_tokens"],
+          "risk": "MEDIUM",
+          "note": "Required for multi-tenant isolation. Currently all tables use user_id for ownership. org_id adds organizational scoping."
+        },
+        {
+          "change": "Add venture_id to business-scoped tables",
+          "tables_affected": ["agents", "tasks", "crm_contacts", "crm_deals", "crm_activities", "departments", "roles", "workflows", "documents"],
+          "risk": "MEDIUM",
+          "note": "Required for multi-entity support within an organization."
+        },
+        {
+          "change": "Auth migration: remove Passport.js/Firebase, add Clerk",
+          "tables_affected": ["users"],
+          "fields_to_remove": ["password", "firebase_uid"],
+          "fields_to_add": ["clerk_user_id"],
+          "risk": "HIGH",
+          "note": "Beast already has Clerk. This applies to GitHub main data migration."
+        },
+        {
+          "change": "Merge Messages and AiMessages into unified Messages table",
+          "risk": "MEDIUM",
+          "note": "Add thread_type discriminator (agent_conversation, ea_chat, copilot). Preserve all existing data."
+        },
+        {
+          "change": "Create missing tables from Beast additions",
+          "tables": ["departments", "roles", "workflows", "workflow_steps", "workflow_runs", "kpis", "companies", "conversations", "capabilities", "onboarding_state", "preferences"],
+          "risk": "LOW",
+          "note": "New tables, no migration of existing data needed."
+        },
+        {
+          "change": "Unify Approvals systems",
+          "note": "agent_actions.requires_approval (GitHub main) and approvals table (UMH platform) serve overlapping purposes. Agent actions should reference the approvals table for governance gates.",
+          "risk": "MEDIUM"
+        }
+      ]
+    },
+    "neon_database_migration": {
+      "source_db": "ep_winter_sea (production, us-west-2, v1 schema)",
+      "target_db": "ep_dark_poetry (staging, us-east-1, v2 schema)",
+      "strategy": "Validate on ep_dark_poetry first. Cutover ep_winter_sea after validation.",
+      "v1_to_v2_changes": "v1 has companies, crm_contacts, crm_deals, agent_actions, pipeline_runs. v2 uses events-driven architecture with umh_status columns and umh_outcomes table."
+    }
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-DATA-001",
+      "question": "Embedding dimension: keep 384d (BAAI/bge-small-en-v1.5, free, local) or migrate to 1536d (OpenAI, paid, better quality)?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Affects knowledge graph quality, semantic search accuracy, and operational cost",
+      "recommendation": "384d for MVP. Migrate to 1536d when knowledge graph is prioritized."
+    },
+    {
+      "id": "OQ-DATA-002",
+      "question": "RLS strategy: database-level (Neon RLS + Clerk JWT) or application-level (WHERE org_id = ?) for MVP?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Data isolation guarantees, security posture, implementation complexity",
+      "recommendation": "Application-level for MVP speed. Database-level before multi-tenant launch."
+    },
+    {
+      "id": "OQ-DATA-003",
+      "question": "Primary key type: text (GitHub main / Beast pattern) or uuid (UMH platform pattern)?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Cross-surface foreign keys, join performance, client-side ID generation",
+      "recommendation": "uuid for all new tables. Migrate existing text PKs to uuid during Beast promotion."
+    },
+    {
+      "id": "OQ-DATA-004",
+      "question": "How does the Entities table relate to the Organizations table? Are they the same thing, or does an Organization contain multiple Entities?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Fundamental data model for multi-entity portfolio management",
+      "recommendation": "Organization IS the Entity container. One Organization = one legal entity. Portfolio contains multiple Organizations. Add entity_type, jurisdiction, formation_date to organizations table."
+    },
+    {
+      "id": "OQ-DATA-005",
+      "question": "Should Business Primitives be a dedicated table or JSONB columns on existing entities?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Query flexibility vs schema simplicity",
+      "recommendation": "Start with JSONB on entities for MVP. Promote to dedicated table if query patterns demand it."
+    },
+    {
+      "id": "OQ-DATA-006",
+      "question": "Beast branch schema is not directly inspectable from VPS. Should Beast be pulled to VPS for exact schema diff before any migration planning?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Accuracy of migration plan",
+      "recommendation": "Yes. Pull Beast shared/schema.ts to VPS for exact comparison before implementation."
+    },
+    {
+      "id": "OQ-DATA-007",
+      "question": "Unified events table (v2 architecture in ep_dark_poetry) vs normalized tables (v1 in ep_winter_sea). Which is canonical?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Data architecture direction, query patterns, UMH integration surface",
+      "recommendation": "Events table for UMH integration (signals, outcomes). Normalized tables for direct CRUD. Both coexist."
+    }
+  ],
+
+  "relationship_summary": {
+    "description": "Complete relationship map across all EOS entities.",
+    "hierarchy_chain": "User -> Portfolio -> Organization/Entity -> Department -> Role -> Agent",
+    "crm_chain": "User -> CrmContact -> CrmDeal -> CrmActivity",
+    "execution_chain": "Workflow -> WorkflowRun -> Task -> AgentAction -> Approval -> UmhOutcome",
+    "knowledge_chain": "Document -> Embedding -> KnowledgeGraph -> MemoryObject",
+    "governance_chain": "AgentAction(requires_approval) -> Approval(pending) -> User(resolves) -> Approval(approved/rejected) -> AgentAction(executing/rejected)",
+    "cross_cutting": [
+      "Agent connects to: Tasks (assignment), Messages (conversation), CrmDeals (assignment), CrmActivities (creation), AgentActions (execution), AgentMetrics (measurement)",
+      "User connects to: everything via ownership (user_id FK), Organizations via OrgMembers, Approvals via resolved_by",
+      "Organization scopes: Approvals, UmhOutcomes, UserAgentSessions, Embeddings, and (desired state) all EOS business tables"
+    ]
+  }
+}

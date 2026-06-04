@@ -1,0 +1,241 @@
+{
+  "phase": "14.6B-LyfeOS",
+  "artifact": "lyfeos_source_inventory",
+  "timestamp": "2026-06-03T12:00:00Z",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "description": "Complete inventory of ALL source documents used to construct the LyfeOS product canon. Each entry includes provenance classification.",
+  "sources": [
+    {
+      "id": "SRC-001",
+      "path": "data/repos/LYFEOS/shared/schema.ts",
+      "type": "code",
+      "line_count": 1449,
+      "description": "Drizzle ORM schema defining all 35 database tables, relations, insert schemas, and TypeScript types. Single source of truth for data model.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "PRIMARY — all data model claims resolve against this file"
+    },
+    {
+      "id": "SRC-002",
+      "path": "data/repos/LYFEOS/package.json",
+      "type": "config",
+      "line_count": 145,
+      "description": "NPM dependencies manifest. 100+ production dependencies, 15 dev dependencies. Confirms tech stack: React 18, Express, Firebase, Anthropic SDK, OpenAI SDK, Drizzle ORM, Passport.js, bcrypt, googleapis, puppeteer-core, Wouter, TanStack Query, shadcn/ui (Radix), recharts, framer-motion, vitest.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "PRIMARY — dependency claims resolve against this file"
+    },
+    {
+      "id": "SRC-003",
+      "path": "data/repos/LYFEOS/replit.md",
+      "type": "documentation",
+      "line_count": 42,
+      "description": "Comprehensive Replit-facing documentation covering architecture, AI integration (NOVA), gamification system, auth, data models, integrations, and technical decisions. Well-aligned with code evidence.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "weight": "HIGH — authoritative product documentation, cross-validated against code"
+    },
+    {
+      "id": "SRC-004",
+      "path": "data/repos/LYFEOS/tests/api-auth.test.ts",
+      "type": "test",
+      "line_count": 128,
+      "description": "Integration tests for auth API: registration validation, login/logout, session management, password reset validation, health check. Uses vitest + fetch against localhost:5000.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "MEDIUM — confirms auth API shape and behavior"
+    },
+    {
+      "id": "SRC-005",
+      "path": "data/repos/LYFEOS/tests/xp-calculations.test.ts",
+      "type": "test",
+      "line_count": 143,
+      "description": "Unit tests for XP/leveling calculations. Confirms 3-tier exponential growth curve: Tier 1 (levels 1-10, 1.0372x), Tier 2 (levels 11-50, 1.0572x), Tier 3 (levels 51-100, 1.0872x). Base 1000 XP for level 1.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "MEDIUM — confirms gamification math"
+    },
+    {
+      "id": "SRC-006",
+      "path": "data/repos/LYFEOS/shared/models/chat.ts",
+      "type": "code",
+      "line_count": 35,
+      "description": "Alternate/legacy chat model definitions for conversations and messages tables. Subset of what exists in schema.ts (schema.ts has richer definitions with userId and deletedAt). Likely an early model file superseded by schema.ts.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "LOW — superseded by schema.ts definitions"
+    },
+    {
+      "id": "SRC-007",
+      "path": "data/repos/LYFEOS/vite.config.ts",
+      "type": "config",
+      "line_count": 34,
+      "description": "Vite build configuration. React plugin, Replit theme plugin, runtime error overlay, cartographer (dev only). Path aliases: @ -> client/src, @shared -> shared, @assets -> attached_assets. Build output: dist/public.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "LOW — confirms build toolchain"
+    },
+    {
+      "id": "SRC-008",
+      "path": "data/repos/LYFEOS/tsconfig.json",
+      "type": "config",
+      "line_count": 24,
+      "description": "TypeScript configuration. Includes client/src, shared, server directories. ESNext module, strict mode, bundler moduleResolution. Path aliases: @/* -> client/src/*, @shared/* -> shared/*.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "LOW — confirms project structure"
+    },
+    {
+      "id": "SRC-009",
+      "path": "data/repos/LYFEOS/drizzle.config.ts",
+      "type": "config",
+      "line_count": 15,
+      "description": "Drizzle Kit configuration. Schema source: shared/schema.ts. Dialect: postgresql. Migrations output: ./migrations. Requires DATABASE_URL env var.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "LOW — confirms ORM configuration"
+    },
+    {
+      "id": "SRC-010",
+      "path": "data/repos/LYFEOS/tailwind.config.ts",
+      "type": "config",
+      "line_count": 94,
+      "description": "Tailwind CSS configuration. Dark mode class-based. Content from client/ directory. Extended theme with CSS variable-based colors, sidebar tokens, chart tokens, glow-cyan shadow. Plugins: tailwindcss-animate, @tailwindcss/typography.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "LOW — confirms design system"
+    },
+    {
+      "id": "SRC-011",
+      "path": "data/repos/LYFEOS/theme.json",
+      "type": "config",
+      "line_count": 7,
+      "description": "Replit shadcn theme configuration. Variant: professional. Primary: hsl(188 100% 50%) (cyan). Appearance: dark. Radius: 0.5.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "LOW — confirms visual theme"
+    },
+    {
+      "id": "SRC-012",
+      "path": "data/repos/LYFEOS/vitest.config.ts",
+      "type": "config",
+      "line_count": 17,
+      "description": "Vitest test configuration. Node environment, globals enabled, tests in tests/**/*.test.ts, 15s timeout.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "LOW — confirms test framework"
+    },
+    {
+      "id": "SRC-013",
+      "path": "data/repos/LYFEOS/postcss.config.js",
+      "type": "config",
+      "line_count": 7,
+      "description": "PostCSS configuration with tailwindcss and autoprefixer plugins.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "LOW"
+    },
+    {
+      "id": "SRC-014",
+      "path": "data/repos/LYFEOS/build.sh",
+      "type": "script",
+      "line_count": 4,
+      "description": "Build script: npm install && npm run build. Used for deployment.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "LOW"
+    },
+    {
+      "id": "SRC-015",
+      "path": "data/repos/LYFEOS/scripts/seed-demo-user.ts",
+      "type": "script",
+      "line_count": 50,
+      "description": "Demo user seeding script. Creates Alex Chen demo user with archetype ARCHITECT. Confirms table relationships and field usage in practice.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "LOW — confirms data model usage patterns"
+    },
+    {
+      "id": "SRC-016",
+      "path": "data/umh/trinity_convergence/phase14_5_lyfeos_convergence_plan.json",
+      "type": "phase_artifact",
+      "line_count": 219,
+      "description": "Phase 14.5 convergence plan for LyfeOS. Documents current implementation truth, desired product truth, top gaps, contradictions, and recommended sequence.",
+      "provenance": "SYNTHESIZED_CANON",
+      "weight": "MEDIUM — prior phase analysis, inputs to this analysis"
+    },
+    {
+      "id": "SRC-017",
+      "path": "data/umh/trinity_convergence/phase14_5a_lyfeos_13_layer_production_stack.json",
+      "type": "phase_artifact",
+      "line_count": 220,
+      "description": "Phase 14.5A 13-layer production stack design for LyfeOS. All 13 layers documented with desired end state, current state, gaps, and risks. All layers BLOCKED.",
+      "provenance": "SYNTHESIZED_CANON",
+      "weight": "MEDIUM — prior phase analysis"
+    },
+    {
+      "id": "SRC-018",
+      "path": "projections/lyfeos/integration/__init__.py",
+      "type": "code",
+      "line_count": 1,
+      "description": "UMH integration package init. Docstring: 'LyfeOS integration -- life optimization platform, direct Postgres polling.'",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "MEDIUM — confirms UMH integration exists"
+    },
+    {
+      "id": "SRC-019",
+      "path": "projections/lyfeos/integration/manifest.py",
+      "type": "code",
+      "line_count": 142,
+      "description": "UMH integration manifest. Declares 3 signal types (quest_completed, daily_log_created, stats_updated), 4 capabilities (noop, create_quest, complete_quest, log_daily_reflection), 3 polled tables (quests, user_daily_logs, vision_goals), 30s default poll interval.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "HIGH — canonical UMH integration contract"
+    },
+    {
+      "id": "SRC-020",
+      "path": "projections/lyfeos/integration/tables.py",
+      "type": "code",
+      "line_count": 503,
+      "description": "Typed query helpers for LyfeOS database tables. 4 dataclass row types (QuestRow, UserStatsRow, DailyLogRow, VisionGoalRow). Read helpers for fetching data since timestamps. Write helpers for inserting quests, updating quests, inserting daily logs. Outcome writeback helpers for umh_status and umh_outcomes audit table.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "HIGH — canonical UMH-to-LyfeOS data bridge"
+    },
+    {
+      "id": "SRC-021",
+      "path": "projections/lyfeos/integration/signals.py",
+      "type": "code",
+      "line_count": 166,
+      "description": "LyfeOS signal emitter. Builds SignalEnvelopes from polled database rows. Implements SignalEmitter Protocol. 3 builders: build_quest_signal, build_daily_log_signal, build_stats_signal.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "HIGH — UMH signal interface"
+    },
+    {
+      "id": "SRC-022",
+      "path": "projections/lyfeos/integration/handlers.py",
+      "type": "code",
+      "line_count": 151,
+      "description": "LyfeOS capability handler. Implements CapabilityHandler Protocol. 4 capabilities: noop, create_quest, complete_quest, log_daily_reflection. Includes health check via SELECT 1.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "HIGH — UMH capability interface"
+    },
+    {
+      "id": "SRC-023",
+      "path": "projections/lyfeos/integration/correlation.py",
+      "type": "code",
+      "line_count": 41,
+      "description": "Thread-safe in-memory correlation map for LyfeOS outcome writeback targeting. Maps correlation_id (UUID) -> LyfeOSWritebackTarget (user_id, table_name, row_id).",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "MEDIUM — UMH correlation mechanism"
+    },
+    {
+      "id": "SRC-024",
+      "path": "projections/lyfeos/integration/outcomes.py",
+      "type": "code",
+      "line_count": 180,
+      "description": "LyfeOS outcome receiver. Implements OutcomeReceiver Protocol. Dual writeback: source row umh_status update + umh_outcomes audit table insert. Severity ladder for status progression.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "weight": "HIGH — UMH outcome writeback"
+    },
+    {
+      "id": "SRC-025",
+      "path": "operator_corrections_session_2026_06_03",
+      "type": "operator_correction",
+      "line_count": null,
+      "description": "Operator corrections from current session. Key corrections: (1) Primary nav is Dashboard/Missions/AI/Chronilog/Profile NOT Systems as 5th tab. (2) NOVA is the default AI assistant name stored in aiAssistantName field, user-renamable. (3) LyfeOS deployed on Replit at lyfeos.net. (4) No Clerk dependency exists in code. (5) replit.md documents Helmet security headers, rate limiting mentioned but not confirmed in snapshot.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "weight": "HIGHEST — operator corrections override all other sources"
+    }
+  ],
+  "source_count": 25,
+  "total_code_lines_analyzed": 3443,
+  "total_config_lines_analyzed": 204,
+  "total_test_lines_analyzed": 271,
+  "total_phase_artifact_lines_analyzed": 439,
+  "total_umh_integration_lines_analyzed": 1184
+}

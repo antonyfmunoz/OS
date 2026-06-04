@@ -1,0 +1,1227 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Discord-like community system + messaging: community model, channels, membership tiers, moderation, DMs, group chats, real-time infrastructure, roles/permissions, and gap analysis against current schema",
+
+  "sources": [
+    "phase14_6b_creatoros_current_implementation_truth.json (schema truth: 6 community/messaging tables)",
+    "phase14_6b_creatoros_data_ontology.json (column-level schema for communities, channels, channel_messages, conversations, conversation_participants, direct_messages)",
+    "phase14_6b_creatoros_product_types_commerce_canon.json (community product type definition, pricing, entitlement)",
+    "phase14_6b_creatoros_lossless_product_canon.md (Module 2: Community Hub, Module 14: Notifications & Messaging)",
+    "phase14_6b_creatoros_design_identity_canon.json (X/Twitter minimalism, ChannelSidebar pattern)",
+    "phase14_6b_creatoros_user_journeys_onboarding.json (community member journey)",
+    "CreatorOS_1NIZXMZR.json (Google Doc Tab 3: PRD community specs, Tab 8: platform kernel vision)",
+    "shared/schema.ts (GitHub main branch — Drizzle ORM source of truth)"
+  ],
+
+  "community_model": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Discord-like branded community spaces owned by creators. Each community belongs to a creator (or business entity), contains channels organized by category, and supports free and paid membership tiers with channel-level access gating.",
+
+    "current_schema": {
+      "table": "communities",
+      "pg_name": "communities",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "name", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "description", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "icon_color", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "channels", "type": "has_many", "cardinality": "1:N"}
+      ],
+      "critical_gaps": [
+        "No owner_user_id FK — communities are ownerless in schema",
+        "No business_id FK — no connection to business entity",
+        "No membership table — anyone can access any community",
+        "No slug for URL routing",
+        "No icon_url (only icon_color)",
+        "No visibility/privacy field",
+        "No category or type field",
+        "No member_count (denormalized or computed)",
+        "No banner_url or cover_image_url"
+      ]
+    },
+
+    "desired_fields": {
+      "provenance": "SYNTHESIZED_CANON",
+      "core": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "note": "Align with other new tables using UUID PKs"},
+        {"name": "owner_user_id", "type": "integer", "nullable": false, "constraints": ["FK -> users.id"], "note": "Creator who owns this community"},
+        {"name": "business_id", "type": "uuid", "nullable": true, "constraints": ["FK -> businesses.id"], "note": "Optional business entity ownership. Null for personal communities."},
+        {"name": "name", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "slug", "type": "text", "nullable": false, "constraints": ["UNIQUE", "NOT NULL"], "note": "URL-safe identifier for /community/:slug routing"},
+        {"name": "description", "type": "text", "nullable": true},
+        {"name": "icon_url", "type": "text", "nullable": true, "note": "Community avatar/icon image"},
+        {"name": "icon_color", "type": "text", "nullable": true, "note": "Fallback color when no icon_url"},
+        {"name": "banner_url", "type": "text", "nullable": true, "note": "Community header/banner image"},
+        {"name": "visibility", "type": "text", "nullable": false, "default": "'public'", "note": "public | private | invite_only"},
+        {"name": "category", "type": "text", "nullable": true, "note": "Community topic category for discovery"},
+        {"name": "welcome_message", "type": "text", "nullable": true, "note": "Message shown to new members on join"},
+        {"name": "rules", "type": "text", "nullable": true, "note": "Community rules displayed during onboarding and in sidebar"},
+        {"name": "invite_code", "type": "text", "nullable": true, "constraints": ["UNIQUE"], "note": "Shareable invite code for invite_only communities"},
+        {"name": "member_count", "type": "integer", "nullable": false, "default": "0", "note": "Denormalized count, updated on join/leave"},
+        {"name": "is_archived", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ],
+      "indexes": [
+        {"name": "community_slug_unique", "type": "UNIQUE", "columns": ["slug"]},
+        {"name": "community_owner_idx", "type": "INDEX", "columns": ["owner_user_id"]},
+        {"name": "community_invite_code_unique", "type": "UNIQUE", "columns": ["invite_code"]}
+      ]
+    },
+
+    "membership_tiers": [
+      {
+        "tier": "free",
+        "label": "Free",
+        "description": "Open access to the community. May be gated to invite_only communities but no payment required.",
+        "price_cents": 0,
+        "channel_access": "free_channels_only",
+        "features": ["text_channels", "dm_to_members", "reactions", "pinned_messages"],
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "tier": "paid",
+        "label": "Paid Membership",
+        "description": "Recurring subscription unlocking premium channels and content. Price set by creator per community.",
+        "price_model": "monthly_or_annual",
+        "price_range_note": "Creator sets price. Typical range $5-$99/month based on niche.",
+        "channel_access": "all_channels_including_premium",
+        "features": ["text_channels", "voice_channels", "video_channels", "dm_to_creator", "exclusive_content", "badges", "priority_support"],
+        "entitlement_type": "community_access",
+        "entitlement_duration": "recurring_while_subscribed",
+        "revocation_trigger": "subscription_cancelled_or_manual_ban",
+        "provenance": "SYNTHESIZED_CANON",
+        "note": "Aligns with product type 'community' in product_types_commerce_canon.json. Community is one of the 10 product types in CreatorOS."
+      }
+    ],
+
+    "channel_types": [
+      {
+        "type": "text",
+        "label": "Text Channel",
+        "description": "Standard Discord-like text chat channel with messages, reactions, pins, and threading.",
+        "implementation_status": "PARTIAL",
+        "implementation_note": "channels and channel_messages tables exist. Basic messaging works. No reactions, no threading, no media attachments.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "type": "voice",
+        "label": "Voice Channel",
+        "description": "Real-time voice communication channel. Drop-in model (join/leave, not scheduled calls).",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "infrastructure_needed": "WebRTC or third-party (LiveKit, Agora, Twilio)",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "type": "video",
+        "label": "Video Channel",
+        "description": "Real-time video communication channel. Screen sharing, camera toggle, gallery view.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "infrastructure_needed": "WebRTC or third-party (LiveKit, Agora, 100ms)",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "type": "announcement",
+        "label": "Announcement Channel",
+        "description": "Read-only for regular members. Only creator/admins can post. Members can react. Used for updates, releases, events.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "type": "forum",
+        "label": "Forum Channel",
+        "description": "Thread-based discussion channel. Each post creates a thread. Upvotes, tags, solved markers. For Q&A, feedback, feature requests.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "type": "stage",
+        "label": "Stage Channel",
+        "description": "Broadcast-style channel for AMAs, panels, webinars. One or few speakers, many listeners. Raise-hand model for audience participation.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "infrastructure_needed": "WebRTC with selective forwarding unit (SFU) for scale",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    ],
+
+    "permissions": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Layered permission model: community-level defaults, channel-level overrides, role-based grants.",
+      "layers": [
+        {
+          "layer": "community_default",
+          "description": "Default permissions for all members in this community. Set by community owner.",
+          "permissions": ["send_messages", "add_reactions", "read_message_history", "create_threads", "view_channels"]
+        },
+        {
+          "layer": "channel_override",
+          "description": "Per-channel permission overrides. Specific roles or membership tiers can be granted or denied per channel.",
+          "permissions": ["send_messages", "add_reactions", "read_message_history", "manage_messages", "pin_messages", "create_threads", "attach_files", "embed_links", "mention_everyone"]
+        },
+        {
+          "layer": "role_grant",
+          "description": "Named roles with bundled permissions. Assigned to members by community owner or admins.",
+          "builtin_roles": ["owner", "admin", "moderator", "member", "guest"],
+          "custom_roles_allowed": true,
+          "custom_role_note": "Creator can define named roles with arbitrary permission bundles. Roles are ordered by hierarchy level (higher overrides lower)."
+        }
+      ]
+    }
+  },
+
+  "channel_model": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Channels live inside communities. Each channel has a type, belongs to an optional category, and contains messages. Channel-level permissions override community defaults.",
+
+    "current_schema": {
+      "table": "channels",
+      "pg_name": "channels",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "community_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> communities.id ON DELETE CASCADE"]},
+        {"name": "name", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "communities", "type": "belongs_to", "cardinality": "N:1", "fk": "community_id"},
+        {"target": "channel_messages", "type": "has_many", "cardinality": "1:N"}
+      ],
+      "critical_gaps": [
+        "No channel type (text/voice/video/announcement/forum/stage)",
+        "No topic or description field",
+        "No position/sort_order field for ordering in sidebar",
+        "No category_id FK for channel grouping",
+        "No is_private flag",
+        "No slowmode_seconds for rate limiting",
+        "No nsfw flag",
+        "No minimum_tier for membership gating"
+      ]
+    },
+
+    "desired_fields": {
+      "provenance": "SYNTHESIZED_CANON",
+      "core": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()"},
+        {"name": "community_id", "type": "uuid", "nullable": false, "constraints": ["FK -> communities.id ON DELETE CASCADE"]},
+        {"name": "category_id", "type": "uuid", "nullable": true, "constraints": ["FK -> channel_categories.id ON DELETE SET NULL"], "note": "Optional grouping category"},
+        {"name": "name", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "type", "type": "text", "nullable": false, "default": "'text'", "note": "text | voice | video | announcement | forum | stage"},
+        {"name": "topic", "type": "text", "nullable": true, "note": "Channel description/topic shown in header"},
+        {"name": "position", "type": "integer", "nullable": false, "default": "0", "note": "Sort order within category"},
+        {"name": "is_private", "type": "boolean", "nullable": false, "default": "false", "note": "Private channels only visible to users with explicit access"},
+        {"name": "minimum_tier", "type": "text", "nullable": true, "note": "Minimum membership tier required. Null = accessible to all members."},
+        {"name": "slowmode_seconds", "type": "integer", "nullable": false, "default": "0", "note": "0 = no slowmode. Positive integer = seconds between messages per user."},
+        {"name": "is_nsfw", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "is_archived", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "last_message_at", "type": "timestamp", "nullable": true, "note": "Denormalized for sorting channels by activity"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ],
+      "indexes": [
+        {"name": "channel_community_idx", "type": "INDEX", "columns": ["community_id"]},
+        {"name": "channel_category_idx", "type": "INDEX", "columns": ["category_id"]},
+        {"name": "channel_community_position_idx", "type": "INDEX", "columns": ["community_id", "position"]}
+      ]
+    },
+
+    "channel_categories_table": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Grouping headers for channels within a community (e.g., 'General', 'Premium Content', 'Support'). Discord calls these 'categories'.",
+      "table_name": "channel_categories",
+      "columns": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "community_id", "type": "uuid", "nullable": false, "constraints": ["FK -> communities.id ON DELETE CASCADE"]},
+        {"name": "name", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "position", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "is_collapsed_default", "type": "boolean", "nullable": false, "default": "false", "note": "Whether this category starts collapsed in the sidebar"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ],
+      "implementation_status": "NOT_IMPLEMENTED"
+    },
+
+    "message_types": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Types of content that can appear in channel messages.",
+      "types": [
+        {"type": "text", "description": "Plain text or rich text (markdown). The default.", "status": "PARTIAL"},
+        {"type": "image", "description": "Single or multiple image attachments.", "status": "NOT_IMPLEMENTED"},
+        {"type": "video", "description": "Video attachment or embed.", "status": "NOT_IMPLEMENTED"},
+        {"type": "audio", "description": "Audio clip or voice message.", "status": "NOT_IMPLEMENTED"},
+        {"type": "file", "description": "Generic file attachment (PDF, ZIP, etc.).", "status": "NOT_IMPLEMENTED"},
+        {"type": "embed", "description": "Rich link preview or embedded content (YouTube, tweet, etc.).", "status": "NOT_IMPLEMENTED"},
+        {"type": "system", "description": "System-generated messages (user joined, channel created, settings changed).", "status": "NOT_IMPLEMENTED"},
+        {"type": "poll", "description": "Inline poll within a channel message.", "status": "NOT_IMPLEMENTED"}
+      ]
+    },
+
+    "channel_message_current_schema": {
+      "table": "channel_messages",
+      "pg_name": "channel_messages",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "channel_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> channels.id ON DELETE CASCADE"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "content", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "is_pinned", "type": "boolean", "nullable": false, "default": "false", "constraints": ["NOT NULL"]},
+        {"name": "likes", "type": "integer", "nullable": false, "default": "0", "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "critical_gaps": [
+        "No media/attachment support (unlike direct_messages which have reactions JSON)",
+        "No reactions (channel_messages has likes integer, DMs have reactions JSON — inconsistent)",
+        "No threading/reply_to support (DMs have reply_to_message_id, channel messages do not)",
+        "No edit tracking (DMs have is_edited, channel messages do not)",
+        "No message_type discriminator",
+        "No attachments array or media_url fields",
+        "No embed metadata",
+        "No deleted_at for soft delete"
+      ]
+    },
+
+    "channel_message_desired_fields": {
+      "provenance": "SYNTHESIZED_CANON",
+      "columns": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()"},
+        {"name": "channel_id", "type": "uuid", "nullable": false, "constraints": ["FK -> channels.id ON DELETE CASCADE"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "constraints": ["FK -> users.id ON DELETE CASCADE"]},
+        {"name": "content", "type": "text", "nullable": true, "note": "Nullable because a message can be media-only"},
+        {"name": "message_type", "type": "text", "nullable": false, "default": "'text'", "note": "text | image | video | audio | file | embed | system | poll"},
+        {"name": "reply_to_id", "type": "uuid", "nullable": true, "constraints": ["self-referential FK"], "note": "Threading — aligns channel messages with DM reply_to pattern"},
+        {"name": "thread_id", "type": "uuid", "nullable": true, "note": "If this message is part of a thread, points to the thread root message"},
+        {"name": "attachments", "type": "jsonb", "nullable": true, "note": "Array of {url, filename, size_bytes, mime_type, width, height}"},
+        {"name": "embeds", "type": "jsonb", "nullable": true, "note": "Rich link previews, auto-generated from URLs in content"},
+        {"name": "reactions", "type": "jsonb", "nullable": false, "default": "{}", "note": "Map of emoji -> [user_ids]. Aligns with DM reactions pattern."},
+        {"name": "is_pinned", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "is_edited", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "edited_at", "type": "timestamp", "nullable": true},
+        {"name": "deleted_at", "type": "timestamp", "nullable": true, "note": "Soft delete — message shows '[deleted]' placeholder"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ],
+      "indexes": [
+        {"name": "channel_msg_channel_created_idx", "type": "INDEX", "columns": ["channel_id", "created_at"]},
+        {"name": "channel_msg_thread_idx", "type": "INDEX", "columns": ["thread_id"]},
+        {"name": "channel_msg_user_idx", "type": "INDEX", "columns": ["user_id"]}
+      ]
+    },
+
+    "real_time": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Real-time message delivery for both channel messages and DMs.",
+      "current_implementation": {
+        "library": "ws 8.18.0",
+        "status": "EXISTS_IN_DEPS",
+        "note": "ws (WebSocket) is in package.json dependencies. Usage level in server code is unknown from schema analysis alone — requires route/handler audit."
+      },
+      "desired_events": [
+        {"event": "message.created", "payload": "full message object", "scope": "channel or conversation", "note": "Sent to all connected clients subscribed to the channel/conversation"},
+        {"event": "message.updated", "payload": "updated message object", "scope": "channel or conversation"},
+        {"event": "message.deleted", "payload": "{message_id, channel_id}", "scope": "channel or conversation"},
+        {"event": "reaction.added", "payload": "{message_id, user_id, emoji}", "scope": "channel or conversation"},
+        {"event": "reaction.removed", "payload": "{message_id, user_id, emoji}", "scope": "channel or conversation"},
+        {"event": "typing.start", "payload": "{user_id, channel_id}", "scope": "channel or conversation"},
+        {"event": "typing.stop", "payload": "{user_id, channel_id}", "scope": "channel or conversation"},
+        {"event": "presence.update", "payload": "{user_id, status}", "scope": "community", "note": "online | idle | dnd | offline"},
+        {"event": "member.joined", "payload": "{user_id, community_id}", "scope": "community"},
+        {"event": "member.left", "payload": "{user_id, community_id}", "scope": "community"},
+        {"event": "channel.created", "payload": "channel object", "scope": "community"},
+        {"event": "channel.updated", "payload": "channel object", "scope": "community"},
+        {"event": "channel.deleted", "payload": "{channel_id, community_id}", "scope": "community"}
+      ],
+      "presence_model": {
+        "statuses": ["online", "idle", "dnd", "offline"],
+        "idle_timeout_seconds": 300,
+        "presence_scope": "per_community",
+        "note": "User can appear online in one community and offline in another. Presence is scoped, not global."
+      },
+      "typing_indicators": {
+        "debounce_ms": 3000,
+        "max_shown": 3,
+        "display_format": "{user1} is typing... | {user1} and {user2} are typing... | Several people are typing...",
+        "note": "Client sends typing.start, server broadcasts to channel. Auto-expires after debounce_ms if no new keystrokes."
+      }
+    },
+
+    "history": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Message history access, pagination, and search.",
+      "pagination": {
+        "strategy": "cursor-based",
+        "cursor_field": "created_at",
+        "default_page_size": 50,
+        "max_page_size": 100,
+        "direction": "backwards_from_newest",
+        "note": "Load newest messages first, scroll up to load older. Cursor-based for consistency under concurrent writes."
+      },
+      "search": {
+        "scope": "per_channel_or_community_wide",
+        "fields_searched": ["content", "user.display_name"],
+        "filters": ["from_user", "has_attachment", "has_link", "before_date", "after_date", "is_pinned"],
+        "implementation_status": "NOT_IMPLEMENTED",
+        "note": "Full-text search on message content. Postgres tsvector or external search (Meilisearch/Typesense) for scale."
+      },
+      "pinned_messages": {
+        "current_status": "PARTIAL",
+        "current_note": "channel_messages.is_pinned boolean exists. No API for listing pinned messages, no pin limit, no pin attribution (who pinned it).",
+        "desired": {
+          "max_pins_per_channel": 50,
+          "pin_attribution": true,
+          "pinned_at_timestamp": true,
+          "pinned_by_user_id": true
+        }
+      }
+    }
+  },
+
+  "membership": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Community membership model: who belongs, at what tier, with what permissions. Bridges the community product type to the entitlement system.",
+
+    "community_members_table": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Junction table tracking which users belong to which communities. Does not exist in current schema.",
+      "table_name": "community_members",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "columns": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "community_id", "type": "uuid", "nullable": false, "constraints": ["FK -> communities.id ON DELETE CASCADE"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "constraints": ["FK -> users.id ON DELETE CASCADE"]},
+        {"name": "role_id", "type": "uuid", "nullable": true, "constraints": ["FK -> community_roles.id ON DELETE SET NULL"], "note": "Custom role assignment. Null = default member role."},
+        {"name": "tier", "type": "text", "nullable": false, "default": "'free'", "note": "free | paid. Determines channel access level."},
+        {"name": "nickname", "type": "text", "nullable": true, "note": "Per-community display name override"},
+        {"name": "is_banned", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "ban_reason", "type": "text", "nullable": true},
+        {"name": "banned_at", "type": "timestamp", "nullable": true},
+        {"name": "banned_by", "type": "integer", "nullable": true, "constraints": ["FK -> users.id"]},
+        {"name": "is_muted", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "muted_until", "type": "timestamp", "nullable": true, "note": "Null = indefinite mute. Timestamp = temporary mute."},
+        {"name": "notification_preference", "type": "text", "nullable": false, "default": "'all'", "note": "all | mentions_only | none"},
+        {"name": "joined_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "last_seen_at", "type": "timestamp", "nullable": true, "note": "Last activity in this community"}
+      ],
+      "indexes": [
+        {"name": "member_community_user_unique", "type": "UNIQUE", "columns": ["community_id", "user_id"]},
+        {"name": "member_community_idx", "type": "INDEX", "columns": ["community_id"]},
+        {"name": "member_user_idx", "type": "INDEX", "columns": ["user_id"]}
+      ]
+    },
+
+    "community_tiers_table": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Paid membership tiers for a community. Links to Stripe pricing and entitlement model.",
+      "table_name": "community_tiers",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "columns": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "community_id", "type": "uuid", "nullable": false, "constraints": ["FK -> communities.id ON DELETE CASCADE"]},
+        {"name": "name", "type": "text", "nullable": false, "note": "e.g., 'Silver', 'Gold', 'VIP'"},
+        {"name": "description", "type": "text", "nullable": true},
+        {"name": "monthly_price_cents", "type": "integer", "nullable": false, "note": "Integer cents to avoid float precision issues"},
+        {"name": "annual_price_cents", "type": "integer", "nullable": true, "note": "Null = no annual option"},
+        {"name": "trial_days", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "stripe_product_id", "type": "text", "nullable": true},
+        {"name": "stripe_monthly_price_id", "type": "text", "nullable": true},
+        {"name": "stripe_annual_price_id", "type": "text", "nullable": true},
+        {"name": "position", "type": "integer", "nullable": false, "default": "0", "note": "Display order (lowest first)"},
+        {"name": "max_members", "type": "integer", "nullable": true, "note": "Null = unlimited"},
+        {"name": "is_active", "type": "boolean", "nullable": false, "default": "true"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ],
+      "indexes": [
+        {"name": "tier_community_idx", "type": "INDEX", "columns": ["community_id"]},
+        {"name": "tier_community_position_idx", "type": "INDEX", "columns": ["community_id", "position"]}
+      ]
+    },
+
+    "gating_model": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "How membership tier controls access to channels and content.",
+      "rules": [
+        "Free members see and access all channels marked minimum_tier = null or minimum_tier = 'free'",
+        "Paid members see and access all channels their tier level unlocks",
+        "Channel minimum_tier references a community_tiers.name or the special value 'free'",
+        "Private channels (is_private = true) require explicit role-based access regardless of tier",
+        "Announcement channels are read-only for non-admin roles regardless of tier",
+        "A user's effective permissions = community_defaults UNION role_grants MINUS channel_denials"
+      ],
+      "access_check_pseudocode": "can_access(user, channel) => is_member(user, channel.community) AND (channel.minimum_tier is null OR user_tier >= channel.minimum_tier) AND (NOT channel.is_private OR has_explicit_access(user, channel)) AND NOT is_banned(user, channel.community)"
+    },
+
+    "pricing_integration": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "How community membership pricing connects to the commerce system.",
+      "payment_provider": "Stripe (target — not implemented)",
+      "flow": [
+        "Creator creates community tier with monthly/annual price",
+        "System creates Stripe Product + Price objects",
+        "Consumer clicks 'Join' on paid tier",
+        "Stripe Checkout session created, consumer completes payment",
+        "Webhook confirms payment, system creates community_members record with tier = paid",
+        "Entitlement record created (entitlement_type = community_access)",
+        "On subscription renewal: entitlement extended",
+        "On cancellation: entitlement marked for expiry at period end",
+        "On period end without renewal: tier downgraded to free, premium channel access revoked"
+      ],
+      "current_status": "NOT_IMPLEMENTED",
+      "note": "No Stripe integration exists in CreatorOS. No payment processing at all. This entire flow is aspirational."
+    }
+  },
+
+  "moderation": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "description": "Content moderation for community channels and DMs. Not implemented. Module 15 in product architecture.",
+
+    "auto_mod": {
+      "description": "Automated moderation rules applied to channel messages before they become visible.",
+      "rules": [
+        {
+          "rule": "spam_filter",
+          "description": "Detect and auto-remove spam messages (repeated content, excessive mentions, link spam).",
+          "action": "auto_delete + flag_for_review",
+          "configurable": true,
+          "sensitivity_levels": ["off", "low", "medium", "high"]
+        },
+        {
+          "rule": "word_filter",
+          "description": "Block or flag messages containing words from a custom blocklist.",
+          "action": "block_send | flag_for_review | replace_with_asterisks",
+          "configurable": true,
+          "note": "Creator defines per-community blocklist. Default empty."
+        },
+        {
+          "rule": "link_filter",
+          "description": "Control which links can be posted. Allowlist or blocklist mode.",
+          "action": "block_send | flag_for_review",
+          "configurable": true,
+          "modes": ["allow_all", "allowlist_only", "blocklist"]
+        },
+        {
+          "rule": "rate_limit",
+          "description": "Prevent message flooding. Configurable via channel slowmode_seconds.",
+          "action": "block_send_with_cooldown_message",
+          "configurable": true
+        },
+        {
+          "rule": "caps_filter",
+          "description": "Flag or block messages that are predominantly uppercase (shouting).",
+          "action": "flag_for_review",
+          "configurable": true,
+          "threshold_pct": 70
+        }
+      ],
+      "implementation_status": "NOT_IMPLEMENTED"
+    },
+
+    "manual_mod": {
+      "description": "Moderator and admin actions on messages and members.",
+      "actions": [
+        {"action": "delete_message", "who": "moderator | admin | owner", "scope": "channel"},
+        {"action": "pin_message", "who": "moderator | admin | owner", "scope": "channel"},
+        {"action": "timeout_member", "who": "moderator | admin | owner", "scope": "community", "note": "Temporary mute for N minutes/hours/days"},
+        {"action": "kick_member", "who": "admin | owner", "scope": "community", "note": "Remove from community, can rejoin"},
+        {"action": "ban_member", "who": "admin | owner", "scope": "community", "note": "Remove and prevent rejoin"},
+        {"action": "unban_member", "who": "admin | owner", "scope": "community"},
+        {"action": "edit_member_role", "who": "admin | owner", "scope": "community"},
+        {"action": "move_message", "who": "moderator | admin | owner", "scope": "channel", "note": "Move message to different channel"},
+        {"action": "lock_channel", "who": "admin | owner", "scope": "channel", "note": "Prevent all new messages temporarily"}
+      ],
+      "implementation_status": "NOT_IMPLEMENTED"
+    },
+
+    "appeals": {
+      "description": "Process for banned/timed-out members to appeal moderation actions.",
+      "flow": [
+        "Banned member submits appeal via platform (not community-specific — platform-level form)",
+        "Appeal routed to community owner/admin queue",
+        "Owner/admin reviews with context (message history, mod action log)",
+        "Decision: uphold, overturn, or reduce penalty",
+        "Member notified of outcome"
+      ],
+      "implementation_status": "NOT_IMPLEMENTED",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+
+    "trust_safety": {
+      "description": "Platform-level trust and safety beyond per-community moderation.",
+      "mechanisms": [
+        "Platform-wide ban (not just per-community)",
+        "Content policy enforcement across all communities",
+        "CSAM detection and reporting (legal requirement)",
+        "Copyright/DMCA takedown process",
+        "User reporting system (report message, report user, report community)",
+        "Mod action audit log (who did what, when, to whom)"
+      ],
+      "implementation_status": "NOT_IMPLEMENTED",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+
+    "mod_action_log_table": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "table_name": "mod_action_log",
+      "description": "Audit trail for all moderation actions within a community.",
+      "columns": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "community_id", "type": "uuid", "nullable": false, "constraints": ["FK -> communities.id ON DELETE CASCADE"]},
+        {"name": "moderator_user_id", "type": "integer", "nullable": false, "constraints": ["FK -> users.id"]},
+        {"name": "target_user_id", "type": "integer", "nullable": true, "constraints": ["FK -> users.id"]},
+        {"name": "target_message_id", "type": "uuid", "nullable": true},
+        {"name": "action", "type": "text", "nullable": false, "note": "delete_message | pin | timeout | kick | ban | unban | role_change | lock_channel"},
+        {"name": "reason", "type": "text", "nullable": true},
+        {"name": "details", "type": "jsonb", "nullable": true, "note": "Action-specific metadata (e.g., timeout_duration, old_role, new_role)"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ],
+      "implementation_status": "NOT_IMPLEMENTED"
+    }
+  },
+
+  "messaging": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Direct messaging system: 1:1 DMs, group DMs, notifications, and read receipts. Separate from community channel messages.",
+
+    "dm_model": {
+      "description": "1:1 direct messages between any two platform users. Already implemented via conversations + direct_messages tables.",
+
+      "current_conversations_schema": {
+        "table": "conversations",
+        "pg_name": "conversations",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+        "columns": [
+          {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+          {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]},
+          {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]},
+          {"name": "is_group", "type": "boolean", "nullable": false, "default": "false", "constraints": ["NOT NULL"]},
+          {"name": "name", "type": "text", "nullable": true},
+          {"name": "icon", "type": "text", "nullable": true}
+        ],
+        "relationships": [
+          {"target": "conversation_participants", "type": "has_many", "cardinality": "1:N"},
+          {"target": "direct_messages", "type": "has_many", "cardinality": "1:N"}
+        ],
+        "gaps": [
+          "No creator_user_id or owner FK",
+          "No last_message_at for conversation list sorting",
+          "No last_message_preview for conversation list display"
+        ]
+      },
+
+      "current_direct_messages_schema": {
+        "table": "direct_messages",
+        "pg_name": "direct_messages",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+        "columns": [
+          {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+          {"name": "conversation_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> conversations.id ON DELETE CASCADE"]},
+          {"name": "sender_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+          {"name": "content", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+          {"name": "read", "type": "boolean", "nullable": false, "default": "false", "constraints": ["NOT NULL"]},
+          {"name": "sent_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]},
+          {"name": "is_edited", "type": "boolean", "nullable": true, "default": "false"},
+          {"name": "reply_to_message_id", "type": "integer", "nullable": true, "constraints": ["self-referential FK (defined in relations, not column)"]},
+          {"name": "reactions", "type": "json", "nullable": false, "default": "{}", "constraints": ["NOT NULL"]}
+        ],
+        "gaps": [
+          "read is per-message boolean, not per-participant — problematic for group DMs (is it read by whom?)",
+          "is_edited is nullable boolean (should be NOT NULL with default false)",
+          "No media/attachment support",
+          "No message_type discriminator",
+          "No deleted_at for soft delete",
+          "reactions is json not jsonb (no indexing or partial update)",
+          "No content nullable for media-only messages"
+        ]
+      },
+
+      "current_participants_schema": {
+        "table": "conversation_participants",
+        "pg_name": "conversation_participants",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+        "columns": [
+          {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+          {"name": "conversation_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> conversations.id ON DELETE CASCADE"]},
+          {"name": "user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+          {"name": "is_admin", "type": "boolean", "nullable": false, "default": "false", "constraints": ["NOT NULL"]},
+          {"name": "joined_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+        ],
+        "indexes": [
+          {"name": "user_conversation", "type": "UNIQUE", "columns": ["user_id", "conversation_id"]}
+        ],
+        "gaps": [
+          "No last_read_message_id — cannot track unread count per participant",
+          "No is_muted flag",
+          "No notification_preference",
+          "No left_at (no way to leave a group conversation without deleting the participant row)"
+        ]
+      }
+    },
+
+    "group_dm": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Group DMs for up to N users outside of community context. Already partially supported by conversations.is_group flag.",
+      "current_status": "PARTIAL",
+      "current_note": "conversations.is_group boolean and name/icon fields exist. conversation_participants supports multiple users. But read tracking is per-message not per-participant, and there is no max participant limit enforced.",
+      "desired_additions": [
+        "Per-participant read tracking via conversation_participants.last_read_message_id",
+        "Max participants limit (recommended: 10 for group DMs, unlimited for community channels)",
+        "Per-participant notification preference (all | mentions_only | none)",
+        "Per-participant mute status",
+        "Leave conversation (soft delete via left_at timestamp, not hard delete)"
+      ]
+    },
+
+    "notifications": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Notification system for community and messaging events.",
+
+      "current_status": "PARTIAL",
+      "current_note": "notifications table exists with UUID PK. Supports generic type/message/read/linkTo fields. NotificationBell and NotificationPanel components exist. But no notification preferences, no push notifications, no notification batching.",
+
+      "notification_types_community": [
+        {"type": "community.mention", "description": "Someone @mentioned you in a channel message", "default_enabled": true},
+        {"type": "community.reply", "description": "Someone replied to your message in a channel", "default_enabled": true},
+        {"type": "community.pin", "description": "Your message was pinned", "default_enabled": true},
+        {"type": "community.new_member", "description": "A new member joined your community (owner/admin only)", "default_enabled": true},
+        {"type": "community.role_change", "description": "Your role was changed in a community", "default_enabled": true},
+        {"type": "community.announcement", "description": "New announcement in a community you belong to", "default_enabled": true}
+      ],
+      "notification_types_messaging": [
+        {"type": "dm.new_message", "description": "New direct message received", "default_enabled": true},
+        {"type": "dm.reaction", "description": "Someone reacted to your DM", "default_enabled": false},
+        {"type": "dm.group_invite", "description": "You were added to a group conversation", "default_enabled": true}
+      ],
+      "delivery_channels": [
+        {"channel": "in_app", "status": "PARTIAL", "note": "NotificationBell, NotificationPanel, Toast exist"},
+        {"channel": "email", "status": "NOT_IMPLEMENTED", "note": "SendGrid dependency exists but no notification email templates"},
+        {"channel": "push", "status": "NOT_IMPLEMENTED", "note": "No service worker, no push subscription management"},
+        {"channel": "webhook", "status": "NOT_IMPLEMENTED", "note": "For creator automation integrations"}
+      ]
+    },
+
+    "read_receipts": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Read receipt model for DMs and community channels.",
+
+      "dm_read_model": {
+        "current": "direct_messages.read boolean per message — indicates sender knows recipient read it. Problematic for group DMs.",
+        "desired": "Per-participant read cursor via conversation_participants.last_read_message_id. Unread count = messages with id > last_read_message_id. For 1:1 DMs, read receipt shows when recipient's cursor passes the message."
+      },
+      "channel_read_model": {
+        "current": "NOT_IMPLEMENTED — no read tracking for channel messages at all.",
+        "desired": "Per-user-per-channel read cursor stored in a channel_read_state table. Enables unread badge per channel and per community (sum of unread channels).",
+        "channel_read_state_table": {
+          "table_name": "channel_read_state",
+          "columns": [
+            {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+            {"name": "channel_id", "type": "uuid", "nullable": false, "constraints": ["FK -> channels.id ON DELETE CASCADE"]},
+            {"name": "user_id", "type": "integer", "nullable": false, "constraints": ["FK -> users.id ON DELETE CASCADE"]},
+            {"name": "last_read_message_id", "type": "uuid", "nullable": true, "note": "Null = never read. Points to the last message the user has seen."},
+            {"name": "mention_count", "type": "integer", "nullable": false, "default": "0", "note": "Unread @mentions since last_read_message_id"},
+            {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()"}
+          ],
+          "indexes": [
+            {"name": "read_state_channel_user_unique", "type": "UNIQUE", "columns": ["channel_id", "user_id"]}
+          ],
+          "implementation_status": "NOT_IMPLEMENTED"
+        }
+      }
+    }
+  },
+
+  "real_time": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "WebSocket infrastructure for community and messaging real-time features.",
+
+    "websocket_architecture": {
+      "current": {
+        "library": "ws 8.18.0",
+        "protocol": "Raw WebSocket (not Socket.IO)",
+        "status": "IN_DEPENDENCIES",
+        "note": "ws is installed. Unknown how much WebSocket logic exists in server code beyond dependency."
+      },
+      "desired": {
+        "protocol": "WebSocket with JSON message framing",
+        "auth": "JWT or session token sent on connection upgrade. Connection rejected if invalid.",
+        "heartbeat_interval_ms": 30000,
+        "reconnect_strategy": "Exponential backoff starting at 1s, max 30s, with jitter",
+        "subscription_model": "Client subscribes to channels/conversations after auth. Server tracks active subscriptions per connection.",
+        "scaling_note": "Single-server WebSocket works for MVP. For scale: Redis pub/sub for multi-server fan-out, or hosted service (Ably, Pusher, Soketi)."
+      }
+    },
+
+    "events": {
+      "description": "Full event catalog for real-time system. Used by both community channels and DM conversations.",
+      "channel_events": [
+        "channel_message.created",
+        "channel_message.updated",
+        "channel_message.deleted",
+        "channel_message.reaction_added",
+        "channel_message.reaction_removed",
+        "channel_message.pinned",
+        "channel_message.unpinned"
+      ],
+      "dm_events": [
+        "dm.created",
+        "dm.updated",
+        "dm.deleted",
+        "dm.reaction_added",
+        "dm.reaction_removed",
+        "dm.read"
+      ],
+      "presence_events": [
+        "presence.update",
+        "presence.bulk_update"
+      ],
+      "typing_events": [
+        "typing.start",
+        "typing.stop"
+      ],
+      "community_events": [
+        "community.member_joined",
+        "community.member_left",
+        "community.member_banned",
+        "community.channel_created",
+        "community.channel_updated",
+        "community.channel_deleted",
+        "community.role_updated"
+      ]
+    },
+
+    "presence": {
+      "description": "User online/offline presence tracking within communities.",
+      "statuses": ["online", "idle", "dnd", "offline", "invisible"],
+      "scope": "per_community",
+      "idle_detection": {
+        "client_side_timeout_ms": 300000,
+        "server_side_timeout_ms": 600000,
+        "note": "Client reports idle after 5 min inactivity. Server marks offline after 10 min without heartbeat."
+      },
+      "implementation_status": "NOT_IMPLEMENTED"
+    },
+
+    "typing_indicators": {
+      "description": "Visual indicator that another user is composing a message.",
+      "scope": "per_channel_or_conversation",
+      "throttle_ms": 3000,
+      "auto_expire_ms": 5000,
+      "max_displayed": 3,
+      "display_patterns": [
+        "{user} is typing...",
+        "{user1} and {user2} are typing...",
+        "{user1}, {user2}, and {user3} are typing...",
+        "Several people are typing..."
+      ],
+      "implementation_status": "NOT_IMPLEMENTED"
+    }
+  },
+
+  "roles_permissions": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "description": "Role-based access control for communities. Two layers: community-level roles and channel-level permission overrides.",
+
+    "current_status": {
+      "description": "Users have a global role field (text, default 'creator'). No community-level roles. No channel-level permissions.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "note": "The user.role field serves a different purpose (creator vs consumer platform role). It has nothing to do with community roles."
+    },
+
+    "community_roles_table": {
+      "table_name": "community_roles",
+      "description": "Named roles within a community with ordered hierarchy and permission bundles.",
+      "columns": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "community_id", "type": "uuid", "nullable": false, "constraints": ["FK -> communities.id ON DELETE CASCADE"]},
+        {"name": "name", "type": "text", "nullable": false, "note": "e.g., 'Moderator', 'VIP', 'Team Lead'"},
+        {"name": "color", "type": "text", "nullable": true, "note": "Hex color for role name display in chat"},
+        {"name": "position", "type": "integer", "nullable": false, "default": "0", "note": "Hierarchy order. Higher position = more authority. Owner is always highest."},
+        {"name": "is_default", "type": "boolean", "nullable": false, "default": "false", "note": "Auto-assigned to new members. Only one default role per community."},
+        {"name": "permissions", "type": "jsonb", "nullable": false, "default": "{}", "note": "Permission bundle: {send_messages: true, manage_messages: false, ...}"},
+        {"name": "is_mentionable", "type": "boolean", "nullable": false, "default": "true", "note": "Whether members can @mention this role"},
+        {"name": "is_hoisted", "type": "boolean", "nullable": false, "default": "false", "note": "Whether role members are displayed separately in the member list"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ],
+      "indexes": [
+        {"name": "role_community_idx", "type": "INDEX", "columns": ["community_id"]},
+        {"name": "role_community_position_idx", "type": "INDEX", "columns": ["community_id", "position"]}
+      ],
+      "builtin_roles": [
+        {
+          "name": "Owner",
+          "position": 999,
+          "permissions_all": true,
+          "note": "Auto-created on community creation. Cannot be deleted or demoted. Full permissions."
+        },
+        {
+          "name": "Admin",
+          "position": 100,
+          "permissions": {
+            "manage_community": true,
+            "manage_channels": true,
+            "manage_roles": true,
+            "manage_members": true,
+            "ban_members": true,
+            "kick_members": true,
+            "manage_messages": true,
+            "pin_messages": true,
+            "mention_everyone": true,
+            "send_messages": true,
+            "add_reactions": true,
+            "read_message_history": true,
+            "attach_files": true,
+            "embed_links": true,
+            "create_threads": true,
+            "view_audit_log": true
+          }
+        },
+        {
+          "name": "Moderator",
+          "position": 50,
+          "permissions": {
+            "manage_messages": true,
+            "pin_messages": true,
+            "kick_members": true,
+            "timeout_members": true,
+            "send_messages": true,
+            "add_reactions": true,
+            "read_message_history": true,
+            "attach_files": true,
+            "embed_links": true,
+            "create_threads": true,
+            "mention_everyone": false
+          }
+        },
+        {
+          "name": "Member",
+          "position": 1,
+          "is_default": true,
+          "permissions": {
+            "send_messages": true,
+            "add_reactions": true,
+            "read_message_history": true,
+            "attach_files": true,
+            "embed_links": true,
+            "create_threads": true,
+            "mention_everyone": false
+          }
+        }
+      ],
+      "implementation_status": "NOT_IMPLEMENTED"
+    },
+
+    "channel_permission_overrides_table": {
+      "table_name": "channel_permission_overrides",
+      "description": "Per-channel permission overrides for specific roles. Overrides the community-level role permissions for a specific channel.",
+      "columns": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "channel_id", "type": "uuid", "nullable": false, "constraints": ["FK -> channels.id ON DELETE CASCADE"]},
+        {"name": "role_id", "type": "uuid", "nullable": false, "constraints": ["FK -> community_roles.id ON DELETE CASCADE"]},
+        {"name": "allow", "type": "jsonb", "nullable": false, "default": "{}", "note": "Permissions explicitly granted for this role in this channel"},
+        {"name": "deny", "type": "jsonb", "nullable": false, "default": "{}", "note": "Permissions explicitly denied for this role in this channel"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ],
+      "indexes": [
+        {"name": "override_channel_role_unique", "type": "UNIQUE", "columns": ["channel_id", "role_id"]}
+      ],
+      "permission_resolution": "effective_permission(user, channel, perm) = (role.permissions[perm] OR channel_override.allow[perm]) AND NOT channel_override.deny[perm]. Deny always wins over allow. Higher-position roles checked first.",
+      "implementation_status": "NOT_IMPLEMENTED"
+    },
+
+    "permission_keys": {
+      "description": "Complete list of permission keys used in role and channel override JSONB objects.",
+      "keys": [
+        {"key": "send_messages", "description": "Can send text messages in channels", "scope": "channel"},
+        {"key": "add_reactions", "description": "Can add emoji reactions to messages", "scope": "channel"},
+        {"key": "read_message_history", "description": "Can see messages sent before joining", "scope": "channel"},
+        {"key": "manage_messages", "description": "Can delete or edit other users' messages", "scope": "channel"},
+        {"key": "pin_messages", "description": "Can pin/unpin messages", "scope": "channel"},
+        {"key": "attach_files", "description": "Can upload files/images", "scope": "channel"},
+        {"key": "embed_links", "description": "Can post links that auto-preview", "scope": "channel"},
+        {"key": "create_threads", "description": "Can create thread replies", "scope": "channel"},
+        {"key": "mention_everyone", "description": "Can use @everyone and @here", "scope": "channel"},
+        {"key": "manage_channels", "description": "Can create, edit, delete channels", "scope": "community"},
+        {"key": "manage_roles", "description": "Can create, edit, delete roles (below own level)", "scope": "community"},
+        {"key": "manage_members", "description": "Can edit member roles and nicknames", "scope": "community"},
+        {"key": "manage_community", "description": "Can edit community settings, name, description, icon", "scope": "community"},
+        {"key": "kick_members", "description": "Can remove members (they can rejoin)", "scope": "community"},
+        {"key": "ban_members", "description": "Can ban members (prevents rejoin)", "scope": "community"},
+        {"key": "timeout_members", "description": "Can temporarily mute members", "scope": "community"},
+        {"key": "view_audit_log", "description": "Can see moderation action log", "scope": "community"}
+      ]
+    }
+  },
+
+  "current_code_truth": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "description": "Summary of what exists in code today for community and messaging.",
+
+    "tables_exist": [
+      {
+        "table": "communities",
+        "columns": 5,
+        "note": "Name, description, icon_color, created_at. No owner, no membership."
+      },
+      {
+        "table": "channels",
+        "columns": 4,
+        "note": "Community FK, name, created_at. No type, no topic, no ordering."
+      },
+      {
+        "table": "channel_messages",
+        "columns": 7,
+        "note": "Channel FK, user FK, content, is_pinned, likes, created_at. No reactions, no threading, no media."
+      },
+      {
+        "table": "conversations",
+        "columns": 6,
+        "note": "DM containers with is_group flag, name, icon. Supports both 1:1 and group."
+      },
+      {
+        "table": "conversation_participants",
+        "columns": 5,
+        "note": "Junction with is_admin flag. Unique per user-conversation pair."
+      },
+      {
+        "table": "direct_messages",
+        "columns": 9,
+        "note": "Most complete message table: content, read, is_edited, reply_to, reactions JSON. But no media, no types."
+      }
+    ],
+
+    "implementation_level": "schema + basic routes",
+    "implementation_detail": "Tables defined in shared/schema.ts. Basic CRUD routes exist in server/routes.ts (the 53KB god file). Components: ChannelSidebar.tsx, ChatMessage.tsx, communities.tsx page. WebSocket dependency (ws 8.18.0) installed. Real-time implementation level unknown without route audit.",
+
+    "ui_components": [
+      "pages/communities.tsx — community listing and channel view page",
+      "components/communities/ChannelSidebar.tsx — channel navigation sidebar",
+      "components/communities/ChatMessage.tsx — individual chat message display",
+      "components/messages/ — DM-related components (MessagePanel, etc.)",
+      "components/notifications/ — NotificationBell, NotificationPanel"
+    ],
+
+    "inconsistencies_between_tables": [
+      {
+        "issue": "Reactions model diverges",
+        "detail": "channel_messages uses integer 'likes' count. direct_messages uses JSON 'reactions' object {userId: emoji}. Two different paradigms for the same concept in the same app.",
+        "recommendation": "Standardize on reactions JSONB for both. Deprecate integer likes."
+      },
+      {
+        "issue": "Threading model diverges",
+        "detail": "direct_messages has reply_to_message_id for message threading. channel_messages has no threading at all.",
+        "recommendation": "Add reply_to_id and thread_id to channel_messages to match DM pattern."
+      },
+      {
+        "issue": "Edit tracking diverges",
+        "detail": "direct_messages has is_edited (nullable boolean). channel_messages has no edit tracking.",
+        "recommendation": "Add is_edited (NOT NULL default false) and edited_at to channel_messages."
+      },
+      {
+        "issue": "PK strategy diverges",
+        "detail": "All community/messaging tables use serial integer PKs except notifications which uses UUID. New tables should standardize on UUID.",
+        "recommendation": "New tables use UUID. Migration path: leave existing serial PKs but add UUID column for new references."
+      }
+    ]
+  },
+
+  "desired_vs_current_gap": [
+    {
+      "gap_id": "COMM-GAP-001",
+      "category": "community_ownership",
+      "severity": "CRITICAL",
+      "description": "Communities have no owner. No user can manage, configure, or monetize a community because there is no ownership relationship.",
+      "current": "communities table has no owner_user_id FK",
+      "desired": "owner_user_id FK to users table, plus optional business_id FK to businesses table",
+      "tables_affected": ["communities"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "gap_id": "COMM-GAP-002",
+      "category": "membership",
+      "severity": "CRITICAL",
+      "description": "No membership model. There is no way to track which users belong to which communities, at what tier, or with what permissions.",
+      "current": "No community_members table exists",
+      "desired": "community_members table with user, community, tier, role, ban/mute state, and notification preferences",
+      "tables_needed": ["community_members"],
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "gap_id": "COMM-GAP-003",
+      "category": "membership",
+      "severity": "HIGH",
+      "description": "No paid tier model. Communities cannot be monetized because there is no way to define pricing tiers or connect to payment processing.",
+      "current": "No community_tiers table. No Stripe integration.",
+      "desired": "community_tiers table with pricing fields and Stripe product/price IDs",
+      "tables_needed": ["community_tiers"],
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "gap_id": "COMM-GAP-004",
+      "category": "channels",
+      "severity": "HIGH",
+      "description": "Channels have no type discriminator. All channels are implicitly text-only with no path to voice, video, announcement, forum, or stage channels.",
+      "current": "channels table has: id, community_id, name, created_at",
+      "desired": "type field (text|voice|video|announcement|forum|stage), topic, position, is_private, minimum_tier, slowmode_seconds",
+      "tables_affected": ["channels"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "gap_id": "COMM-GAP-005",
+      "category": "channels",
+      "severity": "MEDIUM",
+      "description": "No channel categories for organizing channels in the sidebar.",
+      "current": "No channel_categories table. Channels are a flat list per community.",
+      "desired": "channel_categories table with name, position, community_id. Channels reference category_id.",
+      "tables_needed": ["channel_categories"],
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "gap_id": "COMM-GAP-006",
+      "category": "messages",
+      "severity": "HIGH",
+      "description": "Channel messages lack reactions, threading, media attachments, edit tracking, and message types. Direct messages have some of these (reactions, reply_to, is_edited) but channel messages do not.",
+      "current": "channel_messages has: content, is_pinned, likes (integer). No reactions JSON, no reply_to, no is_edited, no attachments.",
+      "desired": "Parity with DM model plus channel-specific features. reactions JSONB, reply_to_id, thread_id, attachments JSONB, message_type, is_edited, edited_at, deleted_at.",
+      "tables_affected": ["channel_messages"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "gap_id": "COMM-GAP-007",
+      "category": "roles_permissions",
+      "severity": "HIGH",
+      "description": "No community role system. No RBAC for communities. The global user.role field (creator/consumer) is unrelated to community roles.",
+      "current": "No community_roles table. No channel_permission_overrides table.",
+      "desired": "community_roles with hierarchy, permissions JSONB, color, mentionability. channel_permission_overrides for per-channel role overrides.",
+      "tables_needed": ["community_roles", "channel_permission_overrides"],
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "gap_id": "COMM-GAP-008",
+      "category": "moderation",
+      "severity": "MEDIUM",
+      "description": "No moderation system whatsoever. No auto-mod, no manual mod tools, no audit log, no ban management, no appeals.",
+      "current": "No moderation code or tables exist.",
+      "desired": "Auto-mod rules (spam, word filter, link filter, rate limit), manual mod actions (delete, timeout, kick, ban), mod_action_log table, appeals flow.",
+      "tables_needed": ["mod_action_log"],
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "gap_id": "COMM-GAP-009",
+      "category": "read_tracking",
+      "severity": "MEDIUM",
+      "description": "No read tracking for channel messages. DM read tracking uses a per-message boolean which does not scale to group contexts.",
+      "current": "No channel_read_state table. DMs use direct_messages.read boolean.",
+      "desired": "channel_read_state table (per-user-per-channel cursor). DM read tracking via conversation_participants.last_read_message_id.",
+      "tables_needed": ["channel_read_state"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "gap_id": "COMM-GAP-010",
+      "category": "real_time",
+      "severity": "MEDIUM",
+      "description": "No presence system. No typing indicators. Real-time message delivery may partially work via ws but is unverified.",
+      "current": "ws 8.18.0 is installed. No presence or typing indicator code identified from schema analysis.",
+      "desired": "Full presence model (online/idle/dnd/offline/invisible), typing indicators with debounce, WebSocket subscription management.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "gap_id": "COMM-GAP-011",
+      "category": "voice_video",
+      "severity": "LOW",
+      "description": "No voice or video channels. Requires WebRTC or third-party infrastructure.",
+      "current": "No voice/video code exists.",
+      "desired": "Voice channels (drop-in), video channels (camera + screen share), stage channels (broadcast with raise-hand).",
+      "infrastructure_note": "Requires WebRTC stack or third-party (LiveKit, Agora, 100ms, Twilio). Significant infrastructure investment. Recommended for post-MVP.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "gap_id": "COMM-GAP-012",
+      "category": "dm_enhancements",
+      "severity": "MEDIUM",
+      "description": "DMs lack media attachments, message types, soft delete, and proper group DM read tracking.",
+      "current": "direct_messages has text content, reactions JSON, reply_to, is_edited. No media, no types, no soft delete.",
+      "desired": "message_type, attachments JSONB, deleted_at, content made nullable. conversation_participants gets last_read_message_id, is_muted, notification_preference, left_at.",
+      "tables_affected": ["direct_messages", "conversation_participants"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    }
+  ],
+
+  "open_questions": [
+    {
+      "id": "OQ-COMM-001",
+      "question": "Voice and video infrastructure: build on WebRTC or buy third-party service (LiveKit, Agora, 100ms)?",
+      "context": "Voice/video channels require real-time media infrastructure that is complex to self-host. Third-party services charge per-minute. WebRTC is free but requires TURN/STUN servers and SFU for multi-user calls.",
+      "options": [
+        {"option": "A", "description": "WebRTC with open-source SFU (mediasoup, Janus)", "pros": "No per-minute cost, full control", "cons": "High complexity, requires media server ops"},
+        {"option": "B", "description": "LiveKit (open-source SFU, cloud or self-hosted)", "pros": "Open-source core, good SDK, can self-host or use cloud", "cons": "Cloud pricing at scale, self-hosting still requires ops"},
+        {"option": "C", "description": "Agora or 100ms (fully managed)", "pros": "Fastest to integrate, zero infrastructure ops", "cons": "Per-minute pricing, vendor lock-in, cost at scale"},
+        {"option": "D", "description": "Defer voice/video to post-MVP", "pros": "Focus on text community first, validate demand", "cons": "Missing feature vs Discord, some creators need it"}
+      ],
+      "recommendation": "Option D for MVP, option B for post-MVP. Text communities are the core value. Voice/video is a nice-to-have that requires significant infra investment.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-COMM-002",
+      "question": "Should community moderation use AI content analysis or rule-based only for MVP?",
+      "context": "Auto-mod can be rule-based (word lists, regex, rate limits) or AI-powered (sentiment analysis, toxicity scoring, context-aware). Rule-based is simpler and deterministic. AI is more nuanced but adds LLM cost and latency.",
+      "options": [
+        {"option": "A", "description": "Rule-based only for MVP", "pros": "Deterministic, fast, zero LLM cost", "cons": "Easily bypassed by creative spelling, no context awareness"},
+        {"option": "B", "description": "Rule-based + AI classification via UMH", "pros": "Better accuracy, handles edge cases, uses existing UMH intelligence routing", "cons": "Latency per message, LLM cost per message, potential false positives"},
+        {"option": "C", "description": "Third-party moderation API (Perspective API, OpenAI moderation endpoint)", "pros": "Purpose-built, good accuracy, free or cheap tier", "cons": "External dependency, latency, data privacy concerns"}
+      ],
+      "recommendation": "Option A for MVP with clear path to B. UMH deterministic-first principle aligns: rule-based spine with AI enhancement when available.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-COMM-003",
+      "question": "Should CreatorOS offer pre-built community templates (e.g., 'Coaching Community', 'Course Community', 'Fan Club')?",
+      "context": "Templates would pre-configure channel categories, channels, roles, and welcome messages for common creator use cases. Reduces setup friction for new creators. Discord has server templates as a feature.",
+      "options": [
+        {"option": "A", "description": "No templates — blank slate with guided setup wizard", "pros": "Simpler to build, creators customize from scratch", "cons": "Higher friction, especially for creators who do not know Discord well"},
+        {"option": "B", "description": "3-5 curated templates at launch", "pros": "Faster onboarding, best-practice defaults, differentiation from Discord", "cons": "Need to maintain templates, might not match all use cases"},
+        {"option": "C", "description": "Community template marketplace (creators share templates)", "pros": "Scales infinitely, community-driven", "cons": "Complex to build, needs critical mass, post-MVP feature"}
+      ],
+      "recommendation": "Option B for MVP. 3-5 templates covering the most common creator community types: Coaching/Mastermind, Course Community, Fan Club, Product Support, General Creator.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-COMM-004",
+      "question": "Should the serial-to-UUID PK migration happen during the community/messaging rebuild, or be deferred?",
+      "context": "Current tables use serial integer PKs. New tables are designed with UUID PKs. A mixed PK environment creates FK complexity. But migrating existing tables is a schema migration risk.",
+      "options": [
+        {"option": "A", "description": "Add UUID columns to existing tables, FK new tables to UUID columns, leave serial as PK", "pros": "No destructive migration, incremental", "cons": "Dual-ID complexity, confusing for developers"},
+        {"option": "B", "description": "Full migration to UUID PKs for all community/messaging tables", "pros": "Clean slate, consistent PK strategy", "cons": "Breaking migration, data must be re-keyed, all FKs updated"},
+        {"option": "C", "description": "Keep serial PKs for existing tables, UUID for new tables only", "pros": "No migration risk, simple", "cons": "Permanent inconsistency, FKs between old and new tables awkward"}
+      ],
+      "recommendation": "Option C for now. New tables use UUID. Existing tables keep serial. Cross-references use the existing integer FK types. Revisit full migration when a breaking schema change is already planned.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  ],
+
+  "new_tables_summary": {
+    "description": "All new tables required to bring community + messaging to desired state.",
+    "provenance": "SYNTHESIZED_CANON",
+    "tables": [
+      {"name": "community_members", "purpose": "Membership tracking: who belongs, at what tier, with what role, ban/mute state", "priority": "P0"},
+      {"name": "community_tiers", "purpose": "Paid membership tier definitions with Stripe integration", "priority": "P1"},
+      {"name": "community_roles", "purpose": "Named roles with hierarchical permissions for community RBAC", "priority": "P1"},
+      {"name": "channel_categories", "purpose": "Channel grouping headers in sidebar (e.g., 'General', 'Premium')", "priority": "P2"},
+      {"name": "channel_permission_overrides", "purpose": "Per-channel role permission overrides", "priority": "P2"},
+      {"name": "channel_read_state", "purpose": "Per-user-per-channel read cursor for unread tracking", "priority": "P1"},
+      {"name": "mod_action_log", "purpose": "Audit trail for moderation actions", "priority": "P2"}
+    ],
+    "existing_tables_needing_migration": [
+      {"name": "communities", "changes": "Add owner_user_id, business_id, slug, visibility, icon_url, banner_url, welcome_message, rules, invite_code, member_count, is_archived, updated_at", "priority": "P0"},
+      {"name": "channels", "changes": "Add type, category_id, topic, position, is_private, minimum_tier, slowmode_seconds, is_nsfw, is_archived, last_message_at, updated_at", "priority": "P0"},
+      {"name": "channel_messages", "changes": "Add message_type, reply_to_id, thread_id, attachments, embeds, reactions (JSONB replacing likes), is_edited, edited_at, deleted_at. Remove likes column.", "priority": "P0"},
+      {"name": "direct_messages", "changes": "Add message_type, attachments, deleted_at. Make content nullable. Change reactions from json to jsonb. Fix is_edited to NOT NULL.", "priority": "P1"},
+      {"name": "conversation_participants", "changes": "Add last_read_message_id, is_muted, notification_preference, left_at", "priority": "P1"},
+      {"name": "conversations", "changes": "Add last_message_at, last_message_preview", "priority": "P2"}
+    ]
+  }
+}

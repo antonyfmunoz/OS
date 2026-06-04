@@ -1,0 +1,581 @@
+{
+  "phase": "14.6B-LyfeOS",
+  "artifact": 37,
+  "operator_approved": false,
+  "allows_implementation": false,
+  "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+  "description": "Complete data model for LyfeOS — 35 tables from shared/schema.ts. Column counts and key columns are resolved from code inspection. Relationships derived from foreign key references in schema definitions.",
+  "tables": [
+    {
+      "table_name": "users",
+      "description": "Core user account table. Auth credentials, profile basics, subscription state, email/phone verification, 2FA codes, Stripe stubs, terms acceptance.",
+      "column_count": 41,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "email", "type": "text", "nullable": false, "default": null},
+        {"name": "password", "type": "text", "nullable": true, "default": null},
+        {"name": "firebase_uid", "type": "text", "nullable": true, "default": null},
+        {"name": "auth_provider", "type": "text", "nullable": true, "default": "'local'"},
+        {"name": "display_name", "type": "text", "nullable": true, "default": null},
+        {"name": "email_verified", "type": "boolean", "nullable": true, "default": "false"},
+        {"name": "phone_verified", "type": "boolean", "nullable": true, "default": "false"},
+        {"name": "two_factor_enabled", "type": "boolean", "nullable": true, "default": "false"},
+        {"name": "stripe_customer_id", "type": "text", "nullable": true, "default": null},
+        {"name": "stripe_subscription_id", "type": "text", "nullable": true, "default": null},
+        {"name": "subscription_status", "type": "text", "nullable": true, "default": null},
+        {"name": "onboarding_completed", "type": "boolean", "nullable": true, "default": "false"},
+        {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()"}
+      ],
+      "relationships": []
+    },
+    {
+      "table_name": "userStats",
+      "description": "Gamification state per user. XP, level, tokens (health/wealth/social/knowledge/creative/spiritual), streak tracking, last activity timestamps.",
+      "column_count": 22,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "xp", "type": "integer", "nullable": true, "default": "0"},
+        {"name": "level", "type": "integer", "nullable": true, "default": "1"},
+        {"name": "health_tokens", "type": "integer", "nullable": true, "default": "0"},
+        {"name": "wealth_tokens", "type": "integer", "nullable": true, "default": "0"},
+        {"name": "current_streak", "type": "integer", "nullable": true, "default": "0"},
+        {"name": "longest_streak", "type": "integer", "nullable": true, "default": "0"}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "userProfile",
+      "description": "Massive personal profile table. 100+ columns covering archetypes, beliefs, shadow patterns, financial position, health metrics, relationships, coping practices, life roles, personality traits, career, spirituality, habits, and historical context. Populated during the Awakening onboarding protocol.",
+      "column_count": 100,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "primary_archetype", "type": "text", "nullable": true, "default": null},
+        {"name": "secondary_archetype", "type": "text", "nullable": true, "default": null},
+        {"name": "shadow_archetype", "type": "text", "nullable": true, "default": null},
+        {"name": "core_beliefs", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "limiting_beliefs", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "shadow_patterns", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "financial_position", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "health_baseline", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "life_roles", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "character_affirmation", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "userDailyLogs",
+      "description": "Daily reflections and state tracking. Mental/physical/emotional scores (1-10), gratitude entries, daily goals, research notes, sleep/wake times, reflections, and completed quest references.",
+      "column_count": 25,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "date", "type": "date", "nullable": false, "default": null},
+        {"name": "mental_state", "type": "integer", "nullable": true, "default": null},
+        {"name": "physical_state", "type": "integer", "nullable": true, "default": null},
+        {"name": "emotional_state", "type": "integer", "nullable": true, "default": null},
+        {"name": "gratitude", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "daily_goals", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "reflection", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "userIntegrations",
+      "description": "Boolean flags tracking which integrations a user has enabled (Google Calendar, Google Docs, etc.). Lightweight companion to the integrations table which stores actual tokens.",
+      "column_count": 7,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "google_calendar", "type": "boolean", "nullable": true, "default": "false"},
+        {"name": "google_docs", "type": "boolean", "nullable": true, "default": "false"}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "quests",
+      "description": "Core task/mission system. Supports recurring quests, priorities, categories, XP rewards, date scheduling, ritual grouping, location, and archive state. The primary productivity primitive.",
+      "column_count": 35,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "description", "type": "text", "nullable": true, "default": null},
+        {"name": "status", "type": "text", "nullable": true, "default": "'active'"},
+        {"name": "priority", "type": "text", "nullable": true, "default": "'medium'"},
+        {"name": "category", "type": "text", "nullable": true, "default": null},
+        {"name": "xp_reward", "type": "integer", "nullable": true, "default": "10"},
+        {"name": "is_recurring", "type": "boolean", "nullable": true, "default": "false"},
+        {"name": "recurrence_pattern", "type": "text", "nullable": true, "default": null},
+        {"name": "due_date", "type": "timestamp", "nullable": true, "default": null},
+        {"name": "completed_at", "type": "timestamp", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "visionGoals",
+      "description": "Long-term vision and goal tracking. Each goal has a category, target date, progress tracking, and milestone structure. Supports the life vision board feature.",
+      "column_count": 12,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "category", "type": "text", "nullable": true, "default": null},
+        {"name": "target_date", "type": "timestamp", "nullable": true, "default": null},
+        {"name": "progress", "type": "integer", "nullable": true, "default": "0"},
+        {"name": "status", "type": "text", "nullable": true, "default": "'active'"}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "aiMessages",
+      "description": "Legacy AI message storage. Role-based messages (user/assistant/system) with user scoping. Likely predates the conversations/messages split.",
+      "column_count": 5,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "role", "type": "text", "nullable": false, "default": null},
+        {"name": "content", "type": "text", "nullable": false, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "calendarEvents",
+      "description": "Calendar events supporting both local and Google Calendar synced events. Includes recurrence rules, location, color coding, and sync state tracking via google_event_id.",
+      "column_count": 13,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "start_time", "type": "timestamp", "nullable": false, "default": null},
+        {"name": "end_time", "type": "timestamp", "nullable": true, "default": null},
+        {"name": "google_event_id", "type": "text", "nullable": true, "default": null},
+        {"name": "recurrence_rule", "type": "text", "nullable": true, "default": null},
+        {"name": "location", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "missionPages",
+      "description": "Content pages within the Missions system. Supports rich content blocks, ordering, and attachment to quests/missions. Page-based content management for mission context.",
+      "column_count": 10,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": true, "default": null},
+        {"name": "content", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "quest_id", "type": "integer", "nullable": true, "default": null},
+        {"name": "order_index", "type": "integer", "nullable": true, "default": "0"}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"},
+        {"target_table": "quests", "type": "many_to_one", "fk_column": "quest_id"}
+      ]
+    },
+    {
+      "table_name": "contacts",
+      "description": "Personal CRM / rolodex. Full contact details with relationship metadata: trust level, contact frequency, strengths, how met, social links, birthdays, notes. 28 columns of third-party personal data.",
+      "column_count": 28,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "name", "type": "text", "nullable": false, "default": null},
+        {"name": "email", "type": "text", "nullable": true, "default": null},
+        {"name": "phone", "type": "text", "nullable": true, "default": null},
+        {"name": "relationship_type", "type": "text", "nullable": true, "default": null},
+        {"name": "trust_level", "type": "integer", "nullable": true, "default": null},
+        {"name": "how_met", "type": "text", "nullable": true, "default": null},
+        {"name": "contact_frequency", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "spreadsheets",
+      "description": "User-created spreadsheet documents. JSON-stored cell data with title, description, folder assignment, and timestamps.",
+      "column_count": 8,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "data", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "folder_id", "type": "integer", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"},
+        {"target_table": "folders", "type": "many_to_one", "fk_column": "folder_id"}
+      ]
+    },
+    {
+      "table_name": "canvases",
+      "description": "Visual canvas documents. JSON-stored canvas data (freeform drawing or visual boards) with folder organization.",
+      "column_count": 8,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "data", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "folder_id", "type": "integer", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"},
+        {"target_table": "folders", "type": "many_to_one", "fk_column": "folder_id"}
+      ]
+    },
+    {
+      "table_name": "graphs",
+      "description": "Knowledge/mind map graph documents. JSON-stored node/edge data with folder organization. Visual thinking tool.",
+      "column_count": 8,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "data", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "folder_id", "type": "integer", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"},
+        {"target_table": "folders", "type": "many_to_one", "fk_column": "folder_id"}
+      ]
+    },
+    {
+      "table_name": "folders",
+      "description": "Hierarchical folder structure for organizing documents, spreadsheets, canvases, and graphs. Supports nested folders via parent_id self-reference.",
+      "column_count": 10,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "name", "type": "text", "nullable": false, "default": null},
+        {"name": "parent_id", "type": "integer", "nullable": true, "default": null},
+        {"name": "type", "type": "text", "nullable": true, "default": null},
+        {"name": "color", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"},
+        {"target_table": "folders", "type": "many_to_one", "fk_column": "parent_id"}
+      ]
+    },
+    {
+      "table_name": "documents",
+      "description": "Rich text documents with Tiptap/ProseMirror JSON content. Supports tagging, folder organization, pinning, archiving, and template creation. Core note-taking primitive.",
+      "column_count": 16,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "content", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "folder_id", "type": "integer", "nullable": true, "default": null},
+        {"name": "is_pinned", "type": "boolean", "nullable": true, "default": "false"},
+        {"name": "is_archived", "type": "boolean", "nullable": true, "default": "false"},
+        {"name": "tags", "type": "jsonb", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"},
+        {"target_table": "folders", "type": "many_to_one", "fk_column": "folder_id"}
+      ]
+    },
+    {
+      "table_name": "templates",
+      "description": "Document templates. Reusable content structures with category classification and JSON content blocks. Can be user-created or system-provided.",
+      "column_count": 10,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "name", "type": "text", "nullable": false, "default": null},
+        {"name": "content", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "category", "type": "text", "nullable": true, "default": null},
+        {"name": "is_system", "type": "boolean", "nullable": true, "default": "false"}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "integrations",
+      "description": "OAuth integration credentials. Stores access/refresh tokens, provider identity, token expiry, and sync state. Primary integration: Google (Calendar + Docs). Token encryption status unverified.",
+      "column_count": 11,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "provider", "type": "text", "nullable": false, "default": null},
+        {"name": "access_token", "type": "text", "nullable": true, "default": null},
+        {"name": "refresh_token", "type": "text", "nullable": true, "default": null},
+        {"name": "token_expiry", "type": "timestamp", "nullable": true, "default": null},
+        {"name": "provider_user_id", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "progressTrackers",
+      "description": "Custom progress tracking widgets. Supports numeric targets with current values, categories, and visual representation. User-defined metrics.",
+      "column_count": 12,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "current_value", "type": "integer", "nullable": true, "default": "0"},
+        {"name": "target_value", "type": "integer", "nullable": true, "default": "100"},
+        {"name": "category", "type": "text", "nullable": true, "default": null},
+        {"name": "unit", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "kanbanBoards",
+      "description": "Kanban board containers. Each board belongs to a user and contains columns which contain tasks. Visual project management primitive.",
+      "column_count": 6,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "description", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "kanbanColumns",
+      "description": "Columns within a kanban board. Ordered via order_index. Each column belongs to a board (indirectly user-scoped).",
+      "column_count": 6,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "board_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "order_index", "type": "integer", "nullable": true, "default": "0"}
+      ],
+      "relationships": [
+        {"target_table": "kanbanBoards", "type": "many_to_one", "fk_column": "board_id"}
+      ]
+    },
+    {
+      "table_name": "kanbanTasks",
+      "description": "Tasks within kanban columns. Supports ordering, descriptions, and due dates. Indirectly user-scoped via board -> column -> task chain.",
+      "column_count": 9,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "column_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "description", "type": "text", "nullable": true, "default": null},
+        {"name": "order_index", "type": "integer", "nullable": true, "default": "0"},
+        {"name": "due_date", "type": "timestamp", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "kanbanColumns", "type": "many_to_one", "fk_column": "column_id"}
+      ]
+    },
+    {
+      "table_name": "mediaAlbums",
+      "description": "Photo/media album containers. Each album belongs to a user and contains media items. Supports cover images and descriptions.",
+      "column_count": 7,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "description", "type": "text", "nullable": true, "default": null},
+        {"name": "cover_image", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "mediaItems",
+      "description": "Individual media files (photos, videos). Stored with metadata including dimensions, file size, MIME type, GPS location, EXIF data, album assignment, and base64 or URL references.",
+      "column_count": 16,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "album_id", "type": "integer", "nullable": true, "default": null},
+        {"name": "filename", "type": "text", "nullable": false, "default": null},
+        {"name": "mime_type", "type": "text", "nullable": true, "default": null},
+        {"name": "file_size", "type": "integer", "nullable": true, "default": null},
+        {"name": "width", "type": "integer", "nullable": true, "default": null},
+        {"name": "height", "type": "integer", "nullable": true, "default": null},
+        {"name": "latitude", "type": "real", "nullable": true, "default": null},
+        {"name": "longitude", "type": "real", "nullable": true, "default": null},
+        {"name": "data", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"},
+        {"target_table": "mediaAlbums", "type": "many_to_one", "fk_column": "album_id"}
+      ]
+    },
+    {
+      "table_name": "conversations",
+      "description": "AI conversation containers. Each conversation belongs to a user and contains messages. Supports conversation titles for history browsing.",
+      "column_count": 4,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "messages",
+      "description": "Individual messages within conversations. Role-based (user/assistant/system) with content and conversation scoping. Indirectly user-scoped via conversation.",
+      "column_count": 5,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "conversation_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "role", "type": "text", "nullable": false, "default": null},
+        {"name": "content", "type": "text", "nullable": false, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "conversations", "type": "many_to_one", "fk_column": "conversation_id"}
+      ]
+    },
+    {
+      "table_name": "dismissedKnowledge",
+      "description": "Tracks knowledge items the user has dismissed (tips, onboarding prompts). Prevents re-showing dismissed content.",
+      "column_count": 5,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "knowledge_id", "type": "text", "nullable": false, "default": null},
+        {"name": "dismissed_at", "type": "timestamp", "nullable": true, "default": "now()"}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "userCategories",
+      "description": "User-defined categories for organizing quests, documents, and other content. Custom taxonomy system.",
+      "column_count": 5,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "name", "type": "text", "nullable": false, "default": null},
+        {"name": "color", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "ritualGroups",
+      "description": "Groups of recurring quests/rituals. Organizes daily/weekly ritual collections (morning routine, evening routine, etc.) for habit stacking.",
+      "column_count": 6,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "name", "type": "text", "nullable": false, "default": null},
+        {"name": "description", "type": "text", "nullable": true, "default": null},
+        {"name": "schedule", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "widgetStates",
+      "description": "Dashboard widget configuration state. Tracks which widgets are visible, their positions, and user preferences per widget.",
+      "column_count": 3,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "state", "type": "jsonb", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "userActivityEvents",
+      "description": "Behavioral analytics events. Tracks user actions (page views, feature usage, quest completions) for gamification and engagement metrics.",
+      "column_count": 5,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "event_type", "type": "text", "nullable": false, "default": null},
+        {"name": "event_data", "type": "jsonb", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "smartReminders",
+      "description": "Notification/reminder configuration. Supports scheduled reminders with conditions, recurrence, and delivery preferences. Push notification triggers.",
+      "column_count": 9,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "title", "type": "text", "nullable": false, "default": null},
+        {"name": "trigger_time", "type": "timestamp", "nullable": true, "default": null},
+        {"name": "recurrence", "type": "text", "nullable": true, "default": null},
+        {"name": "is_active", "type": "boolean", "nullable": true, "default": "true"}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "missionViews",
+      "description": "Saved view configurations for the Missions module. Supports different layouts, filters, and sorting preferences per user.",
+      "column_count": 8,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "name", "type": "text", "nullable": false, "default": null},
+        {"name": "view_type", "type": "text", "nullable": true, "default": null},
+        {"name": "filters", "type": "jsonb", "nullable": true, "default": null},
+        {"name": "sort_config", "type": "jsonb", "nullable": true, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "pushSubscriptions",
+      "description": "Web Push API subscription storage. Stores FCM push tokens and subscription endpoints for PWA push notifications.",
+      "column_count": 4,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null},
+        {"name": "subscription", "type": "jsonb", "nullable": false, "default": null}
+      ],
+      "relationships": [
+        {"target_table": "users", "type": "many_to_one", "fk_column": "user_id"}
+      ]
+    },
+    {
+      "table_name": "waitlistEmails",
+      "description": "Pre-launch waitlist signups. Public table (no user_id). Stores email and signup timestamp for launch notification.",
+      "column_count": 4,
+      "key_columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment"},
+        {"name": "email", "type": "text", "nullable": false, "default": null},
+        {"name": "created_at", "type": "timestamp", "nullable": true, "default": "now()"},
+        {"name": "source", "type": "text", "nullable": true, "default": null}
+      ],
+      "relationships": []
+    }
+  ]
+}

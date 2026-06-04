@@ -1,0 +1,1240 @@
+{
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Precise MVP scope for EntrepreneurOS -- what ships first and what does not, across 5 incremental releases from Core Shell to Docs+Memory, for a single founder operating a single business.",
+  "provenance_detail": "Synthesized from: phase14_6b_eos_preflight.json (product hierarchy, communication chain, UI shell), phase14_6b_eos_onboarding_first_boot_spec.json (25-step onboarding, 4 paths), phase14_6b_eos_ui_ux_aesthetic_canon.json (executive command center aesthetic, design tokens), phase14_6b_eos_communication_delegation_architecture.json (EA->CEO->department routing chain, permission tiers), phase14_6b_eos_portfolio_entity_business_ontology.json (portfolio/entity/business model), phase14_6b_eos_workflow_sop_engine_spec.json (workflow R3 scope), phase14_6b_eos_analytics_kpi_spec.json (per-release analytics build-out), phase14_6b_eos_agent_architecture_spec.json (per-release agent activation), phase14_6b_eos_org_chart_engine_spec.json (department/role/template system), phase14_6b_eos_governance_permissions_model.json (RBAC-first MVP, ABAC deferred), phase14_6b_eos_api_contract_map.json (per-release API surface), phase14_6b_eos_auth_security_truth.json (Clerk target, Beast branch state), phase14_6b_eos_current_implementation_truth.json (GitHub main 202 files, Beast 603 files), phase14_6b_eos_data_ontology.json (22 entity schema), phase14_6b_eos_infrastructure_deployment_map.md (zero production deployment, target architecture), phase14_6b_eos_implementation_debt_register.md (debt inventory across all surfaces), phase14_6b_eos_business_template_library.json (19 business type templates), phase14_6b_eos_business_democratization_doctrine.json (democratization thesis), operator corrections from Phase 14.6B mission brief.",
+  "cross_references": [
+    "phase14_6b_eos_preflight.json",
+    "phase14_6b_eos_onboarding_first_boot_spec.json",
+    "phase14_6b_eos_ui_ux_aesthetic_canon.json",
+    "phase14_6b_eos_communication_delegation_architecture.json",
+    "phase14_6b_eos_portfolio_entity_business_ontology.json",
+    "phase14_6b_eos_workflow_sop_engine_spec.json",
+    "phase14_6b_eos_analytics_kpi_spec.json",
+    "phase14_6b_eos_agent_architecture_spec.json",
+    "phase14_6b_eos_org_chart_engine_spec.json",
+    "phase14_6b_eos_governance_permissions_model.json",
+    "phase14_6b_eos_api_contract_map.json",
+    "phase14_6b_eos_auth_security_truth.json",
+    "phase14_6b_eos_current_implementation_truth.json",
+    "phase14_6b_eos_data_ontology.json",
+    "phase14_6b_eos_infrastructure_deployment_map.md",
+    "phase14_6b_eos_implementation_debt_register.md",
+    "phase14_6b_eos_business_template_library.json",
+    "phase14_6b_eos_business_democratization_doctrine.json",
+    "phase14_6b_eos_source_detail_preservation_ledger.json"
+  ],
+  "mvp_definition": {
+    "scope": "AI-assisted company command center for one founder, one business -- the minimum product that lets a solo operator sign up, configure a business entity, receive AI-generated operational structure, manage tasks, run workflows, talk to AI agents, and track KPIs from a single executive dashboard.",
+    "constraint": "Single-tenant, single-user. One operator, one portfolio, one primary entity. No multi-user roles, no team invites, no enterprise features, no marketplace.",
+    "persona": "Solo founder or early-stage operator who wants to run a real business with AI-native infrastructure from day one. Not a side-project hobbyist -- someone building an economic entity that needs structure, accountability, and intelligence.",
+    "value_proposition": "EOS replaces the founder's spreadsheet-plus-Notion-plus-Slack patchwork with a single command center where AI agents handle operational work, workflows enforce discipline, and KPIs surface what matters -- all governed by a hierarchy the founder controls.",
+    "what_mvp_proves": [
+      "A single founder can configure and operate a business entirely through EOS",
+      "AI agents reduce operational burden measurably (task completion, report generation, workflow drafting)",
+      "The executive command center aesthetic creates trust and retention in the target persona",
+      "The onboarding flow produces a ready-to-use operating system in under 10 minutes",
+      "The platform architecture supports future multi-entity, multi-user, and marketplace expansion without rewrite"
+    ],
+    "what_mvp_does_not_prove": [
+      "Multi-operator or team usage patterns",
+      "Cross-entity portfolio intelligence",
+      "Marketplace economics (template/skill marketplace)",
+      "Enterprise-grade compliance and audit",
+      "Autonomous agent execution without human oversight"
+    ]
+  },
+  "releases": [
+    {
+      "id": "R1",
+      "name": "Core Shell",
+      "scope": "Authentication, onboarding, business entity creation, app shell with executive command center layout, settings, home dashboard with KPI strip, CEO agent for morning brief and strategic analysis.",
+      "description": "R1 is the foundation. The operator can sign up via Clerk, complete the 25-step onboarding flow (simplified to essential steps for R1), create their first business entity, see the executive dashboard with 5 KPIs, and interact with the CEO agent. The app shell (left rail, main workspace, right rail AI, floating AI control) is established. Settings are accessible. This is the minimum viable experience -- the operator sees EOS working and has a reason to come back.",
+      "features": [
+        {
+          "id": "R1-F01",
+          "name": "Clerk authentication",
+          "description": "Sign up, sign in, password reset, Google OAuth via Clerk. Session management delegated to Clerk. ClerkProvider wraps React app, clerkMiddleware() on Express backend.",
+          "source": "Beast feature/company-system branch (already implemented)",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+        },
+        {
+          "id": "R1-F02",
+          "name": "Onboarding flow (R1 subset)",
+          "description": "Streamlined onboarding: account creation (step 1-2), onboarding path selection (step 3), business name and type (step 4), business stage (step 5), industry and model (step 6-7), AI-generated org chart preview (steps 9-11 simplified), initial KPI selection (step 13 simplified), completion and entry to active mode (step 25). Steps 8, 12, 14-24 deferred to later releases.",
+          "source": "phase14_6b_eos_onboarding_first_boot_spec.json (25-step spec, R1 activates essential subset)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R1-F03",
+          "name": "Business entity creation and management",
+          "description": "Create a single business entity within a default portfolio. Entity stores name, type, stage, industry, business model. Entity dashboard shows KPI strip. Entity can be edited in settings. Portfolio is auto-created (single portfolio for MVP) -- portfolio management UI deferred.",
+          "source": "phase14_6b_eos_portfolio_entity_business_ontology.json",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R1-F04",
+          "name": "App shell with executive command center layout",
+          "description": "Left Rail (role-dependent navigation, entity indicator), Main Workspace (content area), Right Rail AI Assistant (persistent chat with CEO agent), Floating AI Control Panel (quick actions). Dark mode default. Finance-grade aesthetic per UI/UX canon. Header with entity name and navigation. Activity feed in sidebar.",
+          "source": "phase14_6b_eos_ui_ux_aesthetic_canon.json (shell layout, design tokens, aesthetic direction)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R1-F05",
+          "name": "Home dashboard with KPI strip",
+          "description": "Dashboard displays 5 core KPIs: net_revenue, cash_on_hand, pipeline_value, task_completion_rate, decision_backlog. Basic sparklines. Period comparison (this week vs last week). CEO morning brief summary card. Quick action buttons. No drill-down, no benchmarking in R1.",
+          "source": "phase14_6b_eos_analytics_kpi_spec.json (R1 scope: 5 metrics, sparklines, period comparison)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R1-F06",
+          "name": "CEO agent",
+          "description": "CEO agent is the sole active agent in R1. Provides morning brief, strategic analysis, delegation framework (delegate targets display as 'coming soon' for departments not yet active). Chat interface in Right Rail. CEO agent uses call_with_fallback() via UMH model_router. Risk classification via substrate governance engine.",
+          "source": "phase14_6b_eos_agent_architecture_spec.json (R1: ceo_agent only), projections/eos/agents/ceo.py (existing implementation)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R1-F07",
+          "name": "Settings page",
+          "description": "Account settings (profile, password change via Clerk). Business entity settings (name, type, stage, industry editable). App settings (theme toggle dark/light, notification preferences). No governance settings, no agent configuration, no integration management in R1.",
+          "source": "Beast branch settings-page.tsx (partial implementation exists)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R1-F08",
+          "name": "Design token system",
+          "description": "CSS custom properties implementing finance-grade palette. Dark mode primary, light mode secondary. Status colors (green/red/amber/blue/gray). Professional sans-serif typography. Monospace for financial figures. 4px grid spacing. Design tokens loaded from shared config, not hardcoded per component.",
+          "source": "phase14_6b_eos_ui_ux_aesthetic_canon.json (design tokens section), Beast design-tokens.ts (partial implementation)",
+          "provenance": "SYNTHESIZED_CANON"
+        }
+      ],
+      "screens": [
+        "auth/sign-in",
+        "auth/sign-up",
+        "auth/forgot-password",
+        "onboarding/flow (multi-step wizard)",
+        "dashboard/home",
+        "settings/account",
+        "settings/business",
+        "settings/app"
+      ],
+      "routes": [
+        "POST /api/auth/signup",
+        "POST /api/auth/login",
+        "GET /api/auth/me",
+        "POST /api/eos/onboarding/start",
+        "POST /api/eos/onboarding/step/:step",
+        "POST /api/eos/onboarding/complete",
+        "GET /api/eos/portfolios",
+        "POST /api/eos/portfolios",
+        "GET /api/eos/entities",
+        "POST /api/eos/entities",
+        "PATCH /api/eos/entities/:id",
+        "GET /api/eos/ventures/:id/dashboard",
+        "POST /api/eos/ai/chat",
+        "GET /api/eos/ai/chat/history",
+        "GET /api/eos/settings",
+        "PATCH /api/eos/settings"
+      ],
+      "agents": ["ceo_agent"],
+      "schema_tables": [
+        "users",
+        "portfolios",
+        "organizations",
+        "org_members",
+        "agents",
+        "messages",
+        "ai_messages",
+        "notifications"
+      ],
+      "timeline_estimate": "4-6 weeks",
+      "dependencies": [
+        {
+          "id": "R1-DEP-01",
+          "description": "Beast branch promotion decision resolved -- Beast is the promotion candidate per phase14_6b_eos_current_implementation_truth.json",
+          "status": "resolved_in_canon",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+        },
+        {
+          "id": "R1-DEP-02",
+          "description": "Clerk account created and configured with correct OAuth providers, redirect URLs, and organization support",
+          "status": "prerequisite",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R1-DEP-03",
+          "description": "Neon Postgres database provisioned with EOS schema (users, portfolios, organizations, org_members, agents, messages, ai_messages, notifications)",
+          "status": "prerequisite",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R1-DEP-04",
+          "description": "Fly.io deployment pipeline configured for EOS frontend and backend (currently zero deployment exists)",
+          "status": "prerequisite",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+        },
+        {
+          "id": "R1-DEP-05",
+          "description": "UMH model_router accessible from EOS backend for CEO agent intelligence (call_with_fallback via Python bridge or direct API)",
+          "status": "prerequisite",
+          "provenance": "SYNTHESIZED_CANON"
+        }
+      ],
+      "acceptance_criteria": [
+        "Operator can sign up with email or Google OAuth via Clerk",
+        "Operator can complete onboarding and create a business entity in under 10 minutes",
+        "Dashboard displays 5 KPIs with sparklines and period comparison",
+        "CEO agent responds to chat messages in Right Rail within 10 seconds",
+        "CEO agent generates a morning brief on dashboard load",
+        "App shell renders correctly in dark mode with finance-grade aesthetic",
+        "Left Rail navigation works for all R1 screens",
+        "Settings page allows editing business entity and account details",
+        "Design tokens produce consistent styling across all components",
+        "Page load time under 2 seconds on initial load",
+        "All R1 routes return correct data and error responses",
+        "Clerk session persists across page refreshes"
+      ]
+    },
+    {
+      "id": "R2",
+      "name": "Org + Tasks",
+      "scope": "Department structure visualization, role display, task board with create/assign/track, agent delegation chain (CEO -> department agents), org chart page, notifications, Sales agent activation.",
+      "description": "R2 makes EOS operational. The operator sees their AI-generated org chart, creates and manages tasks, and watches the CEO agent delegate to the Sales department agent. Task board with columns (backlog, todo, in_progress, review, done). Notifications surface when agents complete work or need approval. The delegation chain becomes visible -- operator sees work flowing through the hierarchy.",
+      "features": [
+        {
+          "id": "R2-F01",
+          "name": "Org chart page",
+          "description": "Visual org chart showing all 10 default departments generated during onboarding. Each department card shows: name, assigned agent, default role, active/inactive status. Departments can be activated/deactivated. Role operator_type (human/ai/hybrid) changeable. No custom department creation, no custom roles in R2.",
+          "source": "phase14_6b_eos_org_chart_engine_spec.json (MVP scope: 10 departments, 1 role each, activation toggle)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R2-F02",
+          "name": "Task board",
+          "description": "Kanban-style task board with 5 columns: backlog, todo, in_progress, review, done. Tasks have: title, description, assignee (agent or operator), priority (low/medium/high/critical), due date, department, status. Drag-and-drop between columns. Filter by department, assignee, priority. Sort by due date, priority, created date. Tasks can be created by operator or generated by agents.",
+          "source": "Beast task-board-page.tsx (existing implementation), phase14_6b_eos_api_contract_map.json (R2 task routes)",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R2-F03",
+          "name": "Agent delegation chain (CEO -> Sales)",
+          "description": "CEO agent can delegate tasks to Sales agent. Delegation is visible in the task detail (delegated_by, delegated_to fields). Sales agent picks up delegated tasks and executes within its permission tier. Delegation chain is EA -> CEO -> department (but EA not implemented until R5 -- in R2, operator speaks directly to CEO agent who delegates to Sales).",
+          "source": "phase14_6b_eos_communication_delegation_architecture.json (routing chain), phase14_6b_eos_agent_architecture_spec.json (R2: ceo + sales)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R2-F04",
+          "name": "Sales agent activation",
+          "description": "Sales department agent goes live. Handles: lead scoring, outreach drafting, pipeline reporting, follow-up scheduling. Operates at SUPERVISED autonomy level -- drafts actions for operator review. Uses PermissionTier.DRAFT. Inherits DepartmentAgent base class from projections/eos/agents/base.py.",
+          "source": "phase14_6b_eos_agent_architecture_spec.json (R2: sales agent), projections/eos/agents/sales.py (existing implementation)",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R2-F05",
+          "name": "Notification system",
+          "description": "In-app notifications for: task assigned, task completed, agent needs approval, agent generated report, deadline approaching. Notification bell in header with unread count. Notification dropdown with mark-as-read. Notification preferences in settings. No email/SMS/push notifications in R2.",
+          "source": "Beast notifications-page.tsx (existing page), phase14_6b_eos_data_ontology.json (Notifications entity)",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R2-F06",
+          "name": "Department dashboard views",
+          "description": "Each active department gets a dashboard view showing: department KPIs, assigned tasks, agent activity log, recent outputs. For R2, only Sales department dashboard is fully populated. Other departments show placeholder state until their agents are activated in later releases.",
+          "source": "phase14_6b_eos_org_chart_engine_spec.json (default department dashboards)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R2-F07",
+          "name": "Basic approval gate",
+          "description": "HIGH and CRITICAL risk actions from agents surface to operator as approval requests. Operator can approve or deny. Approval/denial recorded in audit trail. Risk classification via substrate governance engine (deterministic). Approval queue visible in dashboard and notifications.",
+          "source": "phase14_6b_eos_governance_permissions_model.json (MVP: basic approval gate for HIGH/CRITICAL actions)",
+          "provenance": "SYNTHESIZED_CANON"
+        }
+      ],
+      "screens": [
+        "org-chart",
+        "task-board",
+        "task-detail/:id",
+        "department/:id/dashboard",
+        "notifications",
+        "agent-chat/:agentId (extended for Sales)"
+      ],
+      "routes": [
+        "GET /api/eos/ventures/:ventureId/departments",
+        "PATCH /api/eos/departments/:id/activate",
+        "PATCH /api/eos/departments/:id/deactivate",
+        "GET /api/eos/ventures/:id/org-chart",
+        "GET /api/eos/roles",
+        "GET /api/eos/tasks",
+        "POST /api/eos/tasks",
+        "PATCH /api/eos/tasks/:id",
+        "PATCH /api/eos/tasks/:id/status",
+        "DELETE /api/eos/tasks/:id",
+        "GET /api/eos/agents",
+        "POST /api/eos/agents/:id/chat",
+        "POST /api/eos/agents/:id/delegate",
+        "GET /api/eos/notifications",
+        "PATCH /api/eos/notifications/:id/read",
+        "GET /api/eos/approvals",
+        "POST /api/eos/approvals/:id/approve",
+        "POST /api/eos/approvals/:id/deny"
+      ],
+      "agents": ["ceo_agent", "sales"],
+      "schema_tables_added": [
+        "tasks",
+        "agent_actions",
+        "approvals"
+      ],
+      "timeline_estimate": "4-6 weeks",
+      "dependencies": [
+        {
+          "id": "R2-DEP-01",
+          "description": "R1 Core Shell deployed and stable",
+          "status": "prerequisite"
+        },
+        {
+          "id": "R2-DEP-02",
+          "description": "Agent delegation protocol defined and implemented (CEO -> department message passing)",
+          "status": "prerequisite"
+        },
+        {
+          "id": "R2-DEP-03",
+          "description": "Substrate governance engine accessible from EOS backend for risk classification",
+          "status": "prerequisite"
+        }
+      ],
+      "acceptance_criteria": [
+        "Org chart displays all 10 departments with correct hierarchy",
+        "Departments can be activated/deactivated from org chart page",
+        "Task board supports create, edit, delete, drag-and-drop status change",
+        "Tasks filter by department, assignee, and priority",
+        "CEO agent successfully delegates a task to Sales agent",
+        "Sales agent drafts outreach content when delegated a sales task",
+        "Approval requests appear in notifications for HIGH/CRITICAL risk actions",
+        "Operator can approve or deny agent actions",
+        "Notifications badge shows unread count accurately",
+        "Department dashboard for Sales shows real agent activity",
+        "Audit trail logs all agent actions and approval decisions"
+      ]
+    },
+    {
+      "id": "R3",
+      "name": "Workflows",
+      "scope": "Workflow library, workflow creation (manual + AI-drafted), workflow runner with step-through execution, SOP creation and linking, Finance agent activation, CRM (contacts + deals + pipeline), basic financial tracking.",
+      "description": "R3 makes EOS process-driven. The operator browses a workflow library, creates custom workflows (or lets AI draft them from a description), runs workflows step-by-step with manual and AI-assisted modes, and links SOPs to workflow steps. CRM goes live with contacts, deals, and a pipeline view. Finance agent tracks revenue and expenses. This release transforms EOS from a task manager into an operational system.",
+      "features": [
+        {
+          "id": "R3-F01",
+          "name": "Workflow library",
+          "description": "Browse, search, and filter workflows. 3 pre-built workflows from existing code (outreach, follow-up, content). 8 template workflows generated during onboarding based on business type. Workflow cards show: name, description, step count, last run date, run count, status (active/draft/archived).",
+          "source": "phase14_6b_eos_workflow_sop_engine_spec.json (R3 scope: library, 3 pre-built, 8 templates)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R3-F02",
+          "name": "Workflow creation and AI drafting",
+          "description": "Manual workflow creation: name, description, add steps (manual/ai_assisted/approval_gate/checkpoint types), set step order, configure step details. AI-assisted creation: operator describes a process in natural language, AI generates a complete workflow definition with steps, approvals, and checkpoints. Operator can edit AI-generated workflows before activating.",
+          "source": "phase14_6b_eos_workflow_sop_engine_spec.json (R3: manual definition + AI-generated from description)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R3-F03",
+          "name": "Workflow runner",
+          "description": "Execute a workflow step-by-step. Two modes: manual (operator completes each step) and hybrid (AI handles ai_assisted steps, operator handles manual and approval_gate steps). Step status tracking (pending/active/completed/skipped/failed). Checkpoint steps allow operator to verify before continuing. Run audit trail with timestamps and outcomes per step. Task generation from workflow steps.",
+          "source": "phase14_6b_eos_workflow_sop_engine_spec.json (R3: run view, step-through, manual + hybrid modes, audit trail)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R3-F04",
+          "name": "SOP creation and linking",
+          "description": "Standard Operating Procedures as structured documents linked to workflow steps. SOP includes: title, description, step-by-step instructions, responsible role, tools needed, expected outcome, success criteria. SOPs attach to workflow steps as reference material. SOP library browsable independently.",
+          "source": "phase14_6b_eos_workflow_sop_engine_spec.json (R3: SOP creation and linking)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R3-F05",
+          "name": "CRM: contacts, deals, pipeline",
+          "description": "Contact management: create, edit, search, filter contacts with name, email, phone, company, tags, notes, last contact date. Deal management: create deals linked to contacts with value, stage, expected close date, probability. Pipeline view: visual funnel showing deals by stage with total value per stage. Sales agent integration: agent can create contacts and update deal stages.",
+          "source": "Beast crm-page.tsx (existing CRM page), phase14_6b_eos_data_ontology.json (CrmContacts, CrmDeals, CrmActivities entities)",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R3-F06",
+          "name": "Finance agent activation",
+          "description": "Finance department agent goes live. Handles: revenue report generation, expense categorization, budget vs actual analysis, cash flow tracking, P&L view. Operates at SUPERVISED autonomy level. Financial KPIs added to dashboard: revenue_mtd, expenses_mtd, net_margin, burn_rate.",
+          "source": "phase14_6b_eos_agent_architecture_spec.json (R3: finance agent), projections/eos/agents/finance.py (existing implementation)",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R3-F07",
+          "name": "Basic financial tracking",
+          "description": "Revenue and expense entries with: amount, date, category, description, recurring flag. P&L view (revenue minus expenses by period). Cash flow tracking (inflows vs outflows). Budget vs actual comparison. Monthly and weekly period views. No bank integration, no invoice generation, no automated categorization in R3.",
+          "source": "phase14_6b_eos_analytics_kpi_spec.json (R3: finance department KPIs, P&L, cash flow, budget vs actual)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R3-F08",
+          "name": "Department-level analytics expansion",
+          "description": "Sales department KPIs: pipeline_value, conversion_rate, deals_closed_mtd, average_deal_size. Finance department KPIs: revenue_mtd, expenses_mtd, net_margin, burn_rate. Per-department analytics cards on respective department dashboards. Cross-entity comparison (preview only, single entity in MVP).",
+          "source": "phase14_6b_eos_analytics_kpi_spec.json (R2: sales KPIs, R3: finance KPIs)",
+          "provenance": "SYNTHESIZED_CANON"
+        }
+      ],
+      "screens": [
+        "workflows/library",
+        "workflows/create",
+        "workflows/:id/edit",
+        "workflows/:id/run",
+        "workflows/:id/run/:runId",
+        "sops/library",
+        "sops/create",
+        "sops/:id",
+        "crm/contacts",
+        "crm/contacts/:id",
+        "crm/deals",
+        "crm/pipeline",
+        "finance/overview",
+        "finance/transactions"
+      ],
+      "routes": [
+        "GET /api/eos/workflows",
+        "POST /api/eos/workflows",
+        "GET /api/eos/workflows/:id",
+        "PATCH /api/eos/workflows/:id",
+        "DELETE /api/eos/workflows/:id",
+        "POST /api/eos/workflows/:id/run",
+        "GET /api/eos/workflows/:id/runs",
+        "GET /api/eos/workflows/:id/runs/:runId",
+        "PATCH /api/eos/workflows/:id/runs/:runId/steps/:stepId",
+        "POST /api/eos/workflows/ai-draft",
+        "GET /api/eos/sops",
+        "POST /api/eos/sops",
+        "GET /api/eos/sops/:id",
+        "PATCH /api/eos/sops/:id",
+        "GET /api/eos/crm/contacts",
+        "POST /api/eos/crm/contacts",
+        "GET /api/eos/crm/contacts/:id",
+        "PATCH /api/eos/crm/contacts/:id",
+        "GET /api/eos/crm/deals",
+        "POST /api/eos/crm/deals",
+        "PATCH /api/eos/crm/deals/:id",
+        "GET /api/eos/crm/pipeline",
+        "GET /api/eos/crm/activities",
+        "POST /api/eos/crm/activities",
+        "GET /api/eos/finance/transactions",
+        "POST /api/eos/finance/transactions",
+        "GET /api/eos/finance/pnl",
+        "GET /api/eos/finance/cashflow",
+        "GET /api/eos/analytics/dashboard",
+        "GET /api/eos/analytics/kpis"
+      ],
+      "agents": ["ceo_agent", "sales", "finance"],
+      "schema_tables_added": [
+        "crm_contacts",
+        "crm_deals",
+        "crm_activities",
+        "workflows",
+        "workflow_steps",
+        "workflow_runs",
+        "workflow_run_steps",
+        "sops",
+        "transactions"
+      ],
+      "timeline_estimate": "6-8 weeks",
+      "dependencies": [
+        {
+          "id": "R3-DEP-01",
+          "description": "R2 Org + Tasks deployed and stable",
+          "status": "prerequisite"
+        },
+        {
+          "id": "R3-DEP-02",
+          "description": "Workflow data model finalized (steps, runs, step types, status transitions)",
+          "status": "prerequisite"
+        },
+        {
+          "id": "R3-DEP-03",
+          "description": "CRM schema migration applied (crm_contacts, crm_deals, crm_activities tables)",
+          "status": "prerequisite"
+        }
+      ],
+      "acceptance_criteria": [
+        "Workflow library displays pre-built and template workflows",
+        "Operator can create a workflow manually with at least 3 step types",
+        "AI drafts a workflow from a natural language description with at least 5 steps",
+        "Workflow runner executes steps in order with correct status transitions",
+        "Approval gate steps pause execution and surface to operator",
+        "SOP can be created and linked to a workflow step",
+        "CRM contacts can be created, searched, and filtered",
+        "Deals can be created with value and stage, and appear in pipeline view",
+        "Sales agent can create contacts and update deal stages",
+        "Finance agent generates a monthly revenue report",
+        "P&L view shows revenue minus expenses by period",
+        "Department-level KPIs appear on Sales and Finance dashboards",
+        "Workflow run audit trail records timestamps and outcomes per step"
+      ]
+    },
+    {
+      "id": "R4",
+      "name": "AI Copilot",
+      "scope": "Full AI copilot experience, agent chat with memory, agent recommendations, Marketing + Operations + Customer Success agent activation, agent autonomy configuration, natural language workflow creation via EA-like interface, agent performance tracking.",
+      "description": "R4 makes EOS intelligent. The AI copilot becomes proactive -- agents recommend actions, surface insights, and execute with increasing autonomy. The operator can configure agent autonomy levels per department. Marketing, Operations, and Customer Success agents go live, creating a functional AI workforce. Natural language becomes a first-class interface for everything -- the operator can say 'create a follow-up workflow for cold leads' and the system builds it. Agent performance is tracked and visible.",
+      "features": [
+        {
+          "id": "R4-F01",
+          "name": "AI copilot with memory",
+          "description": "Right Rail AI Assistant becomes a full copilot with persistent memory. Remembers operator preferences, past decisions, business context, conversation history across sessions. Can reference prior conversations. Memory stored in Neon (messages + ai_messages tables). Context window management with automatic summarization of older conversations.",
+          "source": "phase14_6b_eos_agent_architecture_spec.json (R4: full AI copilot), phase14_6b_eos_data_ontology.json (Messages, AiMessages entities)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R4-F02",
+          "name": "Agent recommendations engine",
+          "description": "Agents proactively surface recommendations based on business data: Sales agent recommends follow-up actions on stale deals, Finance agent flags budget overruns, Marketing agent suggests campaign adjustments, Operations agent identifies process bottlenecks. Recommendations appear in dashboard, notification feed, and Right Rail. Operator can act on, dismiss, or defer recommendations.",
+          "source": "phase14_6b_eos_analytics_kpi_spec.json (R4: marketing KPIs, channel ROI, CAC/LTV)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R4-F03",
+          "name": "Marketing agent activation",
+          "description": "Marketing department agent goes live. Handles: content calendar management, channel ROI tracking, campaign performance analysis, CAC and LTV calculations, audience segmentation suggestions. Operates at SUPERVISED autonomy level.",
+          "source": "phase14_6b_eos_agent_architecture_spec.json (R4: marketing), projections/eos/agents/marketing.py (existing implementation)",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R4-F04",
+          "name": "Operations agent activation",
+          "description": "Operations department agent goes live. Handles: process efficiency tracking, bottleneck identification, resource utilization analysis, SOP compliance monitoring, operational cadence management. Operates at SUPERVISED autonomy level.",
+          "source": "phase14_6b_eos_agent_architecture_spec.json (R4: operations), projections/eos/agents/operations.py (existing implementation)",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R4-F05",
+          "name": "Customer Success agent activation",
+          "description": "Customer Success department agent goes live. Handles: customer health scoring, churn risk detection, onboarding tracking, support ticket triage, NPS/CSAT analysis. Operates at SUPERVISED autonomy level.",
+          "source": "phase14_6b_eos_agent_architecture_spec.json (R4: customer_success), projections/eos/agents/customer_success.py (existing implementation)",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R4-F06",
+          "name": "Agent autonomy configuration",
+          "description": "Settings page section where operator can configure each agent's autonomy level: SUPERVISED (agent drafts, operator approves), SEMI_AUTONOMOUS (agent executes LOW risk, drafts MEDIUM+), AUTONOMOUS (agent executes LOW+MEDIUM, escalates HIGH+). Default: SUPERVISED for all agents. Per-department toggle. Changes take effect immediately. Audit trail for autonomy level changes.",
+          "source": "phase14_6b_eos_governance_permissions_model.json (agent autonomy levels, deferred from MVP R1-R2 to R4)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R4-F07",
+          "name": "Natural language workflow creation",
+          "description": "Operator can describe a process in natural language via chat interface and get a complete workflow generated. Extends R3 AI drafting with conversational refinement: operator can say 'add an approval step after the email send' and the workflow updates. Multi-turn conversation for workflow design. Generated workflows appear in library ready for activation.",
+          "source": "phase14_6b_eos_workflow_sop_engine_spec.json (R4: AI copilot integration for NL workflow creation)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R4-F08",
+          "name": "Agent performance tracking",
+          "description": "Dashboard showing per-agent metrics: tasks completed, tasks failed, average response time, quality score (operator feedback), cost per task (model usage), delegation success rate. All department agents tracked. Comparison view across agents. Performance trends over time.",
+          "source": "phase14_6b_eos_analytics_kpi_spec.json (R4: all department agents tracked), phase14_6b_eos_data_ontology.json (AgentMetrics entity)",
+          "provenance": "SYNTHESIZED_CANON"
+        }
+      ],
+      "screens": [
+        "copilot/chat (enhanced Right Rail)",
+        "agents/:id/performance",
+        "agents/overview",
+        "settings/agents (autonomy configuration)",
+        "marketing/dashboard",
+        "marketing/campaigns",
+        "operations/dashboard",
+        "operations/processes",
+        "customer-success/dashboard",
+        "customer-success/health"
+      ],
+      "routes": [
+        "GET /api/eos/agents/:id/performance",
+        "GET /api/eos/agents/:id/recommendations",
+        "POST /api/eos/agents/:id/recommendation/:recId/act",
+        "POST /api/eos/agents/:id/recommendation/:recId/dismiss",
+        "GET /api/eos/settings/agents",
+        "PATCH /api/eos/settings/agents/:id/autonomy",
+        "GET /api/eos/analytics/agents",
+        "GET /api/eos/marketing/campaigns",
+        "GET /api/eos/marketing/channels",
+        "GET /api/eos/operations/processes",
+        "GET /api/eos/customer-success/health",
+        "POST /api/eos/ai/workflow-draft"
+      ],
+      "agents": ["ceo_agent", "sales", "finance", "marketing", "operations", "customer_success"],
+      "schema_tables_added": [
+        "agent_metrics",
+        "agent_recommendations",
+        "autonomy_configs"
+      ],
+      "timeline_estimate": "6-8 weeks",
+      "dependencies": [
+        {
+          "id": "R4-DEP-01",
+          "description": "R3 Workflows deployed and stable with workflow run data",
+          "status": "prerequisite"
+        },
+        {
+          "id": "R4-DEP-02",
+          "description": "Agent performance data pipeline collecting metrics from all active agents",
+          "status": "prerequisite"
+        },
+        {
+          "id": "R4-DEP-03",
+          "description": "Memory persistence layer (conversation history across sessions) verified with context window limits",
+          "status": "prerequisite"
+        }
+      ],
+      "acceptance_criteria": [
+        "AI copilot remembers operator preferences and past decisions across sessions",
+        "At least 3 different agent types generate proactive recommendations",
+        "Marketing agent generates a channel ROI report with CAC/LTV",
+        "Operations agent identifies a process bottleneck from workflow run data",
+        "Customer Success agent generates a customer health score",
+        "Operator can change agent autonomy level in settings and see behavior change",
+        "SEMI_AUTONOMOUS agent auto-executes LOW risk action without approval prompt",
+        "Natural language workflow creation produces a runnable workflow from a description",
+        "Multi-turn conversation refines a workflow definition",
+        "Agent performance dashboard shows metrics for all 6 active agents",
+        "Recommendation cards in dashboard have act/dismiss/defer actions",
+        "Autonomy level changes are recorded in audit trail"
+      ]
+    },
+    {
+      "id": "R5",
+      "name": "Docs + Memory",
+      "scope": "Document management, SOP library, operating docs, persistent knowledge base, EA Agent activation (completing the corrected routing chain), remaining department agents (HR, Legal, Product, Engineering), integrations (Gmail, Stripe, Calendly), full analytics with AI insights, export formats.",
+      "description": "R5 completes the MVP. Document management gives the operator a knowledge base inside EOS. The EA Agent goes live, completing the canonical routing chain (Operator -> EA -> CEO -> Departments). All 11 core agents are active. Basic integrations connect EOS to external tools. Full analytics with anomaly detection, trend analysis, and next-best-action recommendations. Export formats for reports. The operator now has a complete AI-native operating system for their business.",
+      "features": [
+        {
+          "id": "R5-F01",
+          "name": "Document management",
+          "description": "Document creation, editing, and organization. Rich text editor for operating documents, meeting notes, strategic plans, templates. Folder structure for organization. Search across all documents. Documents linkable to entities, departments, workflows, and SOPs. AI-assisted document drafting from description or outline.",
+          "source": "Beast documents-page.tsx (existing page), phase14_6b_eos_data_ontology.json (Documents, Folders entities)",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R5-F02",
+          "name": "Persistent knowledge base",
+          "description": "EOS maintains a persistent knowledge base per entity: business context, decisions made, lessons learned, operator preferences, operational patterns. Agents query the knowledge base for context before generating responses. Knowledge entries created automatically from agent interactions, workflow completions, and operator notes. Operator can view, edit, and curate knowledge entries.",
+          "source": "phase14_6b_eos_agent_architecture_spec.json (R5: full agent set with memory), phase14_6b_eos_data_ontology.json (Embeddings entity for semantic search)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R5-F03",
+          "name": "EA Agent activation",
+          "description": "The EA Agent goes live, completing the corrected routing chain: Operator -> EA -> Portfolio Advisor OR CEO -> Department agents. EA handles: chat intake, clarification, intent classification, routing to CEO or appropriate department context, status aggregation, scheduling, decision surfacing, follow-up tracking. EA replaces direct CEO chat as the primary operator interface. CEO agent moves to entity-level coordination.",
+          "source": "phase14_6b_eos_communication_delegation_architecture.json (EA agent spec, critical gap), phase14_6b_eos_agent_architecture_spec.json (R5: ea_agent)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R5-F04",
+          "name": "Remaining department agents (HR, Legal, Product, Engineering)",
+          "description": "All remaining department agents go live. HR: hiring pipeline, team capacity, onboarding checklists. Legal: contract review, compliance tracking, regulatory alerts. Product: feature backlog, roadmap management, user feedback synthesis. Engineering: sprint management, technical debt tracking, deployment readiness. All operate at SUPERVISED default autonomy.",
+          "source": "phase14_6b_eos_agent_architecture_spec.json (R5: hr, legal, product, engineering), projections/eos/agents/ (existing implementations for all 4)",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R5-F05",
+          "name": "Integrations (Gmail, Stripe, Calendly)",
+          "description": "OAuth-based integrations with external tools. Gmail: email sync, compose from EOS, email-to-task conversion. Stripe: payment tracking, revenue sync, subscription management. Calendly: meeting scheduling, calendar sync, meeting prep by EA agent. Integration management page with connect/disconnect, sync status, and data mapping.",
+          "source": "Beast integrations-page.tsx (existing page), phase14_6b_eos_data_ontology.json (Integrations, OauthTokens entities)",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R5-F06",
+          "name": "Full analytics with AI insights",
+          "description": "Complete analytics platform: full entity detail views, entity-type-specific KPIs, basic forecasting. AI insights: anomaly detection (revenue spike/dip, task velocity change), trend analysis (growth trajectories, seasonal patterns), next-best-action recommendations. Export in PDF, CSV, and JSON formats. Quarterly strategic review generation.",
+          "source": "phase14_6b_eos_analytics_kpi_spec.json (R5: full analytics, AI insights, benchmarking, all export formats)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R5-F07",
+          "name": "Full agent dashboard",
+          "description": "Comprehensive agent management: all 11 agents visible with performance metrics, quality scoring, cost tracking per agent, delegation graph visualization, recommendation history, skill inventory per agent. Agent comparison across departments.",
+          "source": "phase14_6b_eos_analytics_kpi_spec.json (R5: full agent dashboard, quality scoring, cost tracking)",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "id": "R5-F08",
+          "name": "SOP library (expanded)",
+          "description": "Full SOP library with versioning, compliance status tracking, last-reviewed dates, ownership assignment (agent or human), link to relevant workflows and documents. SOPs can be generated by agents from workflow run patterns. SOP search with filtering by department, compliance status, and freshness.",
+          "source": "phase14_6b_eos_workflow_sop_engine_spec.json (R5: expanded SOP library)",
+          "provenance": "SYNTHESIZED_CANON"
+        }
+      ],
+      "screens": [
+        "documents/library",
+        "documents/create",
+        "documents/:id",
+        "documents/:id/edit",
+        "knowledge/base",
+        "knowledge/entry/:id",
+        "integrations/manage",
+        "integrations/:provider/connect",
+        "integrations/:provider/settings",
+        "analytics/full-dashboard",
+        "analytics/entity-detail",
+        "analytics/forecasting",
+        "analytics/export",
+        "agents/full-dashboard",
+        "sops/library (expanded)",
+        "ea-chat (replaces direct CEO chat as primary)"
+      ],
+      "routes": [
+        "GET /api/eos/documents",
+        "POST /api/eos/documents",
+        "GET /api/eos/documents/:id",
+        "PATCH /api/eos/documents/:id",
+        "DELETE /api/eos/documents/:id",
+        "POST /api/eos/documents/:id/ai-draft",
+        "GET /api/eos/knowledge",
+        "POST /api/eos/knowledge",
+        "GET /api/eos/knowledge/:id",
+        "GET /api/eos/knowledge/search",
+        "GET /api/eos/integrations",
+        "POST /api/eos/integrations/:provider/connect",
+        "DELETE /api/eos/integrations/:provider/disconnect",
+        "GET /api/eos/integrations/:provider/status",
+        "GET /api/eos/analytics/full",
+        "GET /api/eos/analytics/entity/:id",
+        "GET /api/eos/analytics/forecast",
+        "GET /api/eos/analytics/insights",
+        "GET /api/eos/analytics/export/:format",
+        "POST /api/eos/ea/chat",
+        "GET /api/eos/ea/chat/history",
+        "GET /observations",
+        "GET /memory"
+      ],
+      "agents": ["ea_agent", "ceo_agent", "sales", "finance", "marketing", "operations", "customer_success", "hr", "legal", "product", "engineering"],
+      "schema_tables_added": [
+        "documents",
+        "folders",
+        "knowledge_entries",
+        "embeddings",
+        "oauth_tokens",
+        "user_agent_sessions"
+      ],
+      "timeline_estimate": "8-10 weeks",
+      "dependencies": [
+        {
+          "id": "R5-DEP-01",
+          "description": "R4 AI Copilot deployed and stable with agent recommendation infrastructure",
+          "status": "prerequisite"
+        },
+        {
+          "id": "R5-DEP-02",
+          "description": "EA Agent implementation complete with routing chain verified (EA -> CEO -> departments)",
+          "status": "prerequisite"
+        },
+        {
+          "id": "R5-DEP-03",
+          "description": "OAuth infrastructure for Gmail, Stripe, and Calendly configured with correct scopes and redirect URLs",
+          "status": "prerequisite"
+        },
+        {
+          "id": "R5-DEP-04",
+          "description": "Embedding pipeline operational for knowledge base semantic search",
+          "status": "prerequisite"
+        }
+      ],
+      "acceptance_criteria": [
+        "Documents can be created, edited, organized in folders, and searched",
+        "AI drafts a document from a description or outline",
+        "Knowledge base entries are auto-created from agent interactions",
+        "Agents reference knowledge base context in their responses",
+        "EA Agent correctly routes operator messages to CEO or department context",
+        "EA Agent surfaces aggregated status from all downstream agents",
+        "All 11 core agents are active and responding",
+        "Gmail integration syncs emails and supports compose-from-EOS",
+        "Stripe integration tracks payments and syncs revenue data",
+        "Calendly integration creates meetings and triggers EA prep workflow",
+        "Analytics dashboard shows entity-detail views with entity-type-specific KPIs",
+        "AI insight correctly detects at least one anomaly in test data",
+        "Export produces valid PDF, CSV, and JSON files",
+        "Quarterly strategic review generates a multi-page report",
+        "Full agent dashboard shows all 11 agents with performance and cost metrics"
+      ]
+    }
+  ],
+  "explicit_exclusions": [
+    {
+      "id": "EXCL-01",
+      "feature": "Multi-portfolio management UI",
+      "description": "MVP creates a single default portfolio for the operator. Multi-portfolio switching, portfolio comparison, and portfolio-level dashboards are excluded. The data model supports multiple portfolios but the UI is single-portfolio.",
+      "source_module": "Portfolio and Multi-Company Management",
+      "target_release": "Post-MVP Phase 2",
+      "rationale": "Single founder, single business constraint. Portfolio intelligence requires multi-entity which requires multi-portfolio. Sequential dependency.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-02",
+      "feature": "Portfolio Advisor Agent",
+      "description": "The Portfolio Advisor Agent that provides cross-entity strategic recommendations, capital allocation analysis, and entity health scoring. Excluded because MVP is single-entity.",
+      "source_module": "Communication and Delegation Architecture",
+      "target_release": "Post-MVP (multi-entity support)",
+      "rationale": "Portfolio Advisor adds value only with multiple entities. Single-founder single-business does not benefit from portfolio-level intelligence.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-03",
+      "feature": "UBOS template marketplace",
+      "description": "The Universal Business Operating System template marketplace where operators share and sell workflow templates, SOPs, and business configurations. Excluded entirely from MVP.",
+      "source_module": "Workflow and SOP Engine (end state)",
+      "target_release": "Post-MVP Phase 3+",
+      "rationale": "Marketplace requires multi-operator support, payment infrastructure, template versioning, trust scoring, and community governance. None of these exist in single-user MVP.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-04",
+      "feature": "Skill marketplace",
+      "description": "Agent skill marketplace where skills can be browsed, purchased, installed, rated, and versioned. Skill trust scoring and community contributions.",
+      "source_module": "Skill System",
+      "target_release": "Post-MVP Phase 3+",
+      "rationale": "Same marketplace infrastructure dependency as UBOS templates. Single-user MVP uses built-in skills only.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-05",
+      "feature": "Multi-user team management",
+      "description": "Inviting team members, assigning roles (admin/manager/member/viewer), role-based access control across team members, team-level permissions, activity feeds per team member.",
+      "source_module": "Role System, Governance and Permissions Model",
+      "target_release": "Post-MVP Phase 2",
+      "rationale": "MVP is single operator. RBAC for multiple users requires role assignment UI, invitation flow, permission matrix, and team-level governance. All deferred.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-06",
+      "feature": "ABAC policy engine",
+      "description": "Attribute-Based Access Control policy engine that evaluates access based on operator attributes, resource attributes, environmental conditions, and composite policies beyond simple role assignment.",
+      "source_module": "Governance and Permissions Model",
+      "target_release": "Post-MVP (after multi-user in Phase 2)",
+      "rationale": "ABAC adds value only with multiple users having different contexts. Single operator does not benefit from attribute-based policy evaluation. The RBAC foundation is designed to be non-breaking when ABAC layers on top.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-07",
+      "feature": "Fully autonomous agent execution",
+      "description": "Agents executing at FULLY_AUTONOMOUS level where they independently take actions including HIGH risk without human oversight. All MVP agents operate at SUPERVISED or SEMI_AUTONOMOUS (R4 upgrade).",
+      "source_module": "Agent Architecture, Governance Model",
+      "target_release": "Post-MVP (requires proven safety track record)",
+      "rationale": "Fully autonomous execution requires proven governance, extensive testing, and operator trust built through SUPERVISED and SEMI_AUTONOMOUS experience. Safety-critical -- cannot ship without track record.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-08",
+      "feature": "Event-driven and condition-based workflow triggers",
+      "description": "Workflows triggered automatically by events (new lead, revenue threshold, deadline approaching) or conditions (if deal value > X, if task overdue > 3 days). MVP workflows are manually triggered or agent-initiated.",
+      "source_module": "Workflow and SOP Engine",
+      "target_release": "Post-MVP Phase 2",
+      "rationale": "Requires event bus infrastructure, condition evaluation engine, and reliable scheduling. Each is a significant infrastructure investment beyond MVP scope.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-09",
+      "feature": "Advanced workflow branching (parallel, split, loop, subprocess)",
+      "description": "Parallel execution of workflow branches, conditional splits with multiple paths, loop constructs for repeating steps, and subprocess invocation (workflow calling another workflow).",
+      "source_module": "Workflow and SOP Engine",
+      "target_release": "Post-MVP Phase 2-3",
+      "rationale": "MVP supports linear step sequences with simple conditional (if/else on step output). Advanced branching requires a workflow execution engine with state machine semantics.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-10",
+      "feature": "Enterprise permissions and compliance",
+      "description": "SOX compliance workflows, regulatory report generation, data retention policies, configurable audit retention, external auditor access roles, compliance dashboards, multi-region data residency.",
+      "source_module": "Governance and Permissions Model, Analytics",
+      "target_release": "Post-MVP Phase 4+ (enterprise tier)",
+      "rationale": "Enterprise features require regulatory expertise, formal audit processes, and compliance certification. Fundamentally different from solo-founder MVP.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-11",
+      "feature": "Investment and asset entity types",
+      "description": "Investment vehicle entities, holding company entities, real estate entities, stock portfolio entities, asset tracking with appreciation/depreciation, portfolio allocation optimization, return metrics.",
+      "source_module": "Portfolio Entity Business Ontology",
+      "target_release": "Post-MVP Phase 2-3",
+      "rationale": "MVP supports business entities only (the operator's company). Investment and asset entity types require dedicated agents (investment_analyst, asset_manager, property_manager), different KPI frameworks, and regulatory compliance surfaces.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-12",
+      "feature": "Additional department agents (Admin, Research, Content, Automation, Investment Analyst, Asset Manager, Property Manager)",
+      "description": "Seven department agents beyond the 11 core agents. Each serves specialized entity types or organizational maturity stages not relevant to solo-founder MVP.",
+      "source_module": "Agent Architecture, Communication and Delegation Architecture",
+      "target_release": "Post-MVP (triggered by entity type support or organizational growth)",
+      "rationale": "Admin requires team. Research handled by existing agents' browser skills. Content handled by Marketing for solo founder. Automation handled by Operations at early stage. Investment/Asset/Property require their entity types.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-13",
+      "feature": "Self-improving workflows and AI optimization",
+      "description": "System autonomously refines workflows based on run pattern analysis, detects inefficiencies, suggests step reordering, and auto-optimizes execution paths.",
+      "source_module": "Workflow and SOP Engine (end state)",
+      "target_release": "Post-MVP Phase 3+",
+      "rationale": "Requires significant historical workflow run data, pattern detection infrastructure, and proven optimization algorithms. Cannot ship meaningfully without months of run data.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "EXCL-14",
+      "feature": "Static and dynamic industry benchmarking",
+      "description": "Comparing operator's KPIs against industry benchmarks (static data sets) and anonymized peer comparisons (dynamic benchmarking requiring multi-operator data).",
+      "source_module": "Analytics and KPI",
+      "target_release": "R5 includes basic static benchmarks; dynamic deferred to post-MVP multi-operator",
+      "rationale": "Static benchmarks are a data acquisition problem (sourcing reliable benchmark data). Dynamic benchmarking requires aggregated anonymized data from multiple operators, which is impossible with single-user MVP.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  ],
+  "prerequisite_decisions": [
+    {
+      "id": "PRE-DEC-01",
+      "decision": "Beast branch promotion as canonical codebase",
+      "description": "Beast feature/company-system branch (603 files, Clerk auth, company system, portfolio management) is promoted over GitHub main (202 files, stale Passport.js, Replit Agent code). This means: merge Beast into main, deprecate stale main code, resolve the 401-file divergence.",
+      "status": "resolved_in_canon",
+      "resolution": "Beast is the promotion candidate. Phase 14.5 convergence plan and Phase 14.6B current implementation truth both confirm Beast as canonical.",
+      "impact": "R1 development starts from Beast branch codebase, not GitHub main.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "PRE-DEC-02",
+      "decision": "Deployment target for EOS SaaS",
+      "description": "Where does the EOS React+Express application deploy? Options: Fly.io (aligned with cockpit), Vercel (frontend) + Fly.io (backend), Railway, Render, self-hosted on VPS.",
+      "status": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "Fly.io for both frontend and backend (aligned with UMH cockpit deployment, Dockerfile already exists as a pattern). Vercel for frontend + Fly.io for backend is a reasonable alternative if CDN performance matters.",
+      "impact": "Determines CI/CD pipeline design, Docker vs serverless build, and deployment automation in R1.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "PRE-DEC-03",
+      "decision": "Neon database instance for EOS",
+      "description": "Does EOS use the same Neon project as UMH substrate, or a separate Neon project? Shared project means shared connection limits and billing. Separate project means independent scaling but additional management.",
+      "status": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "Separate Neon project for EOS SaaS data (users, entities, CRM, workflows). UMH substrate data stays in the existing Neon project. EOS backend queries both via connection strings. This isolates SaaS data lifecycle from substrate data lifecycle.",
+      "impact": "Schema migration strategy, connection pooling, RLS policy scope, and billing.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "PRE-DEC-04",
+      "decision": "EOS-to-UMH communication protocol",
+      "description": "How does the EOS TypeScript backend call UMH Python substrate for agent intelligence, governance, and execution? Options: (A) Direct Python bridge (stdin/stdout JSON protocol, already exists at transports/api/), (B) HTTP API calls to UMH cockpit endpoints, (C) Hybrid -- Python bridge for latency-sensitive, HTTP for async.",
+      "status": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "HTTP API calls to UMH substrate endpoints (transports/api/http/). The cockpit already exposes organism, governance, execution, chat, and memory endpoints. EOS backend is a client of UMH HTTP API. No Python bridge needed -- keep the boundary clean.",
+      "impact": "R1 architecture: determines whether EOS backend spawns Python processes or makes HTTP calls. Affects latency, error handling, and deployment coupling.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "PRE-DEC-05",
+      "decision": "Clerk plan and configuration",
+      "description": "Which Clerk plan supports the features needed? Free tier has limits on MAU, organizations, and social connections. Pro tier removes most limits. What OAuth providers beyond Google?",
+      "status": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "Start with Clerk Free tier (10,000 MAU, sufficient for solo founder + early users). Upgrade to Pro when multi-user features ship. Google OAuth only for R1. GitHub OAuth optional for developer-persona operators.",
+      "impact": "Cost, OAuth provider availability, organization feature access.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "PRE-DEC-06",
+      "decision": "Domain for EOS application",
+      "description": "What domain serves the EOS application? Options: app.entrepreneuros.com, eos.lyfe.institute, app.ostholdings.com, or subdomain of existing property.",
+      "status": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "app.entrepreneuros.com -- branded, memorable, product-specific. Keep separate from UMH cockpit domain (universalmetaharness.tech).",
+      "impact": "DNS configuration, Clerk redirect URLs, SSL certificates, and brand consistency.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "PRE-DEC-07",
+      "decision": "Onboarding simplification for R1",
+      "description": "The full onboarding spec has 25 steps. R1 needs a subset that gets the operator to a usable state quickly. Which steps are essential for R1 and which defer to later releases?",
+      "status": "resolved_in_specification",
+      "resolution": "R1 essential steps: 1-2 (account), 3 (path), 4 (name/type), 5 (stage), 6-7 (industry/model), 9-11 simplified (org chart preview), 13 simplified (KPI selection), 25 (completion). Steps 8, 12, 14-24 defer. Detailed in R1-F02 above.",
+      "impact": "Onboarding completion time, first-time user experience quality.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "PRE-DEC-08",
+      "decision": "Beast branch schema reconciliation",
+      "description": "Beast branch has 6 schema tables (users, agents, tasks, messages, integrations, notifications). UMH platform layer has 14 RLS-enabled tables (users, orgs, members, approvals + more). Target schema has 22 entities. How to reconcile?",
+      "status": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "Fresh Drizzle migration from Beast schema as base, adding UMH platform tables (orgs, members, approvals). Do not attempt to merge conflicting schemas -- generate a new migration that produces the R1 target schema. UMH substrate keeps its own schema separately.",
+      "impact": "R1 schema migration strategy, data model foundation for all subsequent releases.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  ],
+  "tech_stack_for_mvp": {
+    "frontend": {
+      "framework": "React 18",
+      "build_tool": "Vite 5",
+      "styling": "Tailwind CSS 3 + shadcn/ui (Radix primitives)",
+      "routing": "wouter (lightweight, already in Beast branch)",
+      "state_management": "TanStack Query (server state) + React Context (local state)",
+      "type_system": "TypeScript 5.6 + Zod (runtime validation)",
+      "design_tokens": "CSS custom properties loaded from shared design-tokens.ts",
+      "analytics": "PostHog (already integrated in Beast branch)",
+      "testing": "Vitest (unit) + Playwright (e2e)",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH (Beast branch framework)"
+    },
+    "backend": {
+      "runtime": "Node.js 20",
+      "framework": "Express 4 (Beast branch) or Hono (UMH platform layer) -- to be reconciled",
+      "orm": "Drizzle ORM 0.39",
+      "validation": "Zod schemas",
+      "middleware": "Clerk auth middleware, org context middleware, error handler, validation middleware",
+      "api_style": "REST with JSON request/response",
+      "dev_server": "tsx (TypeScript execution)",
+      "build": "esbuild (production bundle)",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH (Beast branch backend)"
+    },
+    "database": {
+      "provider": "Neon Postgres (serverless)",
+      "orm": "Drizzle ORM",
+      "migrations": "Drizzle Kit (drizzle-kit push / drizzle-kit generate)",
+      "rls": "Row-Level Security policies per org (org_id scoping)",
+      "connection": "Neon serverless driver (@neondatabase/serverless) + postgres.js for migrations",
+      "schema_tables_at_mvp_complete": 22,
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+    },
+    "auth": {
+      "provider": "Clerk",
+      "frontend": "ClerkProvider + SignIn/SignUp components + useAuth/useUser hooks",
+      "backend": "clerkMiddleware() + requireAuth() + getAuth()",
+      "organizations": "Clerk Organizations for org context (maps to EOS portfolio/entity)",
+      "oauth": "Google OAuth (via Clerk). GitHub OAuth optional.",
+      "session": "Clerk-managed JWTs with automatic refresh",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH (Beast branch Clerk integration)"
+    },
+    "ai": {
+      "primary_routing": "UMH model_router (call_with_fallback) via HTTP API",
+      "fallback_chain": "cc_sdk (Opus 4.6) -> Gemini 2.5 Flash -> Groq -> Ollama",
+      "agent_framework": "projections/eos/agents/ (DepartmentAgent base class + 10 specialized agents)",
+      "governance": "substrate/control_plane/governance.py (deterministic risk classification)",
+      "chat_memory": "Neon Postgres (messages + ai_messages tables)",
+      "embeddings": "OpenAI ada-002 or Gemini embedding (for knowledge base semantic search in R5)",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+    },
+    "deployment": {
+      "target": "Fly.io (pending operator decision PRE-DEC-02)",
+      "containerization": "Docker (multi-stage build: build frontend, serve via Node.js Express)",
+      "ci_cd": "GitHub Actions (lint -> test -> build -> deploy)",
+      "environments": "staging + production (staging shares Neon branch, production uses main branch)",
+      "monitoring": "PostHog (analytics + error tracking) + Fly.io metrics (basic)",
+      "provenance": "SYNTHESIZED_CANON + OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    "infrastructure_notes": [
+      "Beast branch Express backend and UMH Hono backend are separate servers. EOS SaaS backend (Express) calls UMH HTTP API (Hono) for substrate functionality.",
+      "No monorepo needed -- EOS SaaS lives in its own repo (antonyfmunoz/EntrepreneurOS). UMH substrate stays in /opt/OS.",
+      "Python bridges (transports/api/) are available as fallback if HTTP API latency is unacceptable for agent chat, but HTTP is the recommended path.",
+      "Clerk handles all session/auth complexity -- no custom JWT implementation needed.",
+      "PostHog is already integrated in Beast branch -- no new analytics setup required."
+    ]
+  },
+  "success_criteria": [
+    {
+      "id": "SC-01",
+      "metric": "Onboarding completion rate",
+      "target": ">80% of sign-ups complete onboarding and reach active mode",
+      "measurement": "PostHog funnel: sign-up -> onboarding start -> onboarding complete -> first dashboard view",
+      "release": "R1"
+    },
+    {
+      "id": "SC-02",
+      "metric": "Time to first value",
+      "target": "<10 minutes from sign-up to seeing a populated dashboard with KPIs and CEO morning brief",
+      "measurement": "PostHog timing: sign-up event to first dashboard render with data",
+      "release": "R1"
+    },
+    {
+      "id": "SC-03",
+      "metric": "Daily active usage",
+      "target": "Operator opens EOS at least once per business day within first 2 weeks",
+      "measurement": "PostHog daily active user tracking (session start events)",
+      "release": "R1+"
+    },
+    {
+      "id": "SC-04",
+      "metric": "Task throughput",
+      "target": ">5 tasks created and >3 tasks completed per week by operator + agents combined",
+      "measurement": "DB query: tasks created/completed per week per entity",
+      "release": "R2"
+    },
+    {
+      "id": "SC-05",
+      "metric": "Agent delegation success rate",
+      "target": ">70% of CEO-delegated tasks completed by department agents without operator re-intervention",
+      "measurement": "DB query: delegated tasks where final status = done without operator reassignment",
+      "release": "R2"
+    },
+    {
+      "id": "SC-06",
+      "metric": "Workflow adoption",
+      "target": ">3 workflows actively run per week by end of first month on R3",
+      "measurement": "DB query: workflow_runs created per week",
+      "release": "R3"
+    },
+    {
+      "id": "SC-07",
+      "metric": "AI copilot engagement",
+      "target": ">10 copilot interactions per day (chat messages, recommendations acted on, workflows created via NL)",
+      "measurement": "DB query: ai_messages + recommendation actions per day",
+      "release": "R4"
+    },
+    {
+      "id": "SC-08",
+      "metric": "Knowledge base growth",
+      "target": ">50 knowledge entries auto-created within first month on R5",
+      "measurement": "DB query: knowledge_entries created per month",
+      "release": "R5"
+    },
+    {
+      "id": "SC-09",
+      "metric": "Full routing chain operational",
+      "target": "EA Agent correctly routes >90% of operator messages to the appropriate downstream agent without mis-routing",
+      "measurement": "Manual QA + automated routing accuracy test suite",
+      "release": "R5"
+    },
+    {
+      "id": "SC-10",
+      "metric": "Page load performance",
+      "target": "All pages load in <2 seconds on initial load, <500ms on subsequent navigation",
+      "measurement": "Lighthouse performance score + PostHog page timing",
+      "release": "All releases"
+    },
+    {
+      "id": "SC-11",
+      "metric": "Operator retention",
+      "target": "Operator continues using EOS after 30 days (measured by session activity in week 4-5)",
+      "measurement": "PostHog cohort: users who signed up week 1, still active week 4-5",
+      "release": "R3+ (meaningful after workflows available)"
+    },
+    {
+      "id": "SC-12",
+      "metric": "Zero data loss",
+      "target": "No data loss events across all releases. All CRUD operations are durable, all agent actions are logged, all workflow runs have complete audit trails.",
+      "measurement": "Automated integrity checks: orphaned records, missing audit entries, inconsistent state counts",
+      "release": "All releases"
+    }
+  ],
+  "release_timeline_summary": {
+    "total_estimated_duration": "28-38 weeks (7-10 months)",
+    "r1_core_shell": "Weeks 1-6",
+    "r2_org_tasks": "Weeks 7-12",
+    "r3_workflows": "Weeks 13-20",
+    "r4_ai_copilot": "Weeks 21-28",
+    "r5_docs_memory": "Weeks 29-38",
+    "note": "Estimates assume single developer + AI agent pair. Parallelization with additional developers could compress timeline significantly. Estimates include testing, deployment, and stabilization time per release."
+  },
+  "schema_progression": {
+    "description": "How the database schema grows across releases. Each release adds tables incrementally. No destructive migrations.",
+    "r1": {
+      "tables": ["users", "portfolios", "organizations", "org_members", "agents", "messages", "ai_messages", "notifications"],
+      "count": 8
+    },
+    "r2": {
+      "tables_added": ["tasks", "agent_actions", "approvals"],
+      "cumulative_count": 11
+    },
+    "r3": {
+      "tables_added": ["crm_contacts", "crm_deals", "crm_activities", "workflows", "workflow_steps", "workflow_runs", "workflow_run_steps", "sops", "transactions"],
+      "cumulative_count": 20
+    },
+    "r4": {
+      "tables_added": ["agent_metrics", "agent_recommendations", "autonomy_configs"],
+      "cumulative_count": 23
+    },
+    "r5": {
+      "tables_added": ["documents", "folders", "knowledge_entries", "embeddings", "oauth_tokens", "user_agent_sessions"],
+      "cumulative_count": 29
+    }
+  },
+  "agent_activation_progression": {
+    "description": "Which agents are active in each release. Progressive activation builds operator trust and avoids overwhelming with too many agents at once.",
+    "r1": {
+      "active": ["ceo_agent"],
+      "count": 1,
+      "note": "CEO agent is the sole AI presence. Establishes the agent interaction pattern."
+    },
+    "r2": {
+      "active": ["ceo_agent", "sales"],
+      "count": 2,
+      "note": "First delegation chain: CEO -> Sales. Operator sees work flowing through hierarchy."
+    },
+    "r3": {
+      "active": ["ceo_agent", "sales", "finance"],
+      "count": 3,
+      "note": "Financial intelligence added. Three agents covering strategy, revenue, and expenses."
+    },
+    "r4": {
+      "active": ["ceo_agent", "sales", "finance", "marketing", "operations", "customer_success"],
+      "count": 6,
+      "note": "Full operational coverage for solo founder. Six agents handling core business functions."
+    },
+    "r5": {
+      "active": ["ea_agent", "ceo_agent", "sales", "finance", "marketing", "operations", "customer_success", "hr", "legal", "product", "engineering"],
+      "count": 11,
+      "note": "Complete agent set. EA Agent completes the canonical routing chain. All departments staffed."
+    }
+  },
+  "risk_register": [
+    {
+      "id": "RISK-01",
+      "risk": "Beast branch promotion creates merge conflicts with UMH substrate changes",
+      "severity": "HIGH",
+      "mitigation": "Promote Beast as new main immediately. Do not attempt incremental merge. Fresh start with Beast codebase, then integrate UMH platform layer additions.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "RISK-02",
+      "risk": "Clerk free tier hits MAU limit before revenue",
+      "severity": "MEDIUM",
+      "mitigation": "10,000 MAU is generous for pre-revenue. Monitor usage. Budget for Pro tier ($25/month) as needed.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "RISK-03",
+      "risk": "UMH HTTP API latency makes agent chat feel slow",
+      "severity": "MEDIUM",
+      "mitigation": "Target <3s for agent response in chat. If UMH API adds >1s overhead, consider co-locating EOS backend with UMH on same Fly.io region, or fall back to Python bridge for chat-specific calls.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "RISK-04",
+      "risk": "Schema migrations break existing UMH data",
+      "severity": "HIGH",
+      "mitigation": "Use separate Neon project for EOS SaaS data (PRE-DEC-03). EOS schema never touches substrate schema. Connection strings are independent.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "RISK-05",
+      "risk": "Single developer bottleneck makes 28-38 week timeline unachievable",
+      "severity": "MEDIUM",
+      "mitigation": "R1 and R2 are the critical path. If R1 takes >6 weeks, re-evaluate scope. AI agent pair (Claude Code) handles significant implementation volume. Consider contracting for frontend work if backend is blocked.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "id": "RISK-06",
+      "risk": "Agent quality (hallucination, incorrect delegation, wrong risk classification) erodes operator trust",
+      "severity": "HIGH",
+      "mitigation": "All agents ship at SUPERVISED autonomy by default. Every agent action logged. Governance engine uses deterministic risk classification (not LLM-based). Operator can always override. Quality scoring tracks agent accuracy over time.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  ],
+  "statistics": {
+    "total_releases": 5,
+    "total_features": 39,
+    "total_screens": 54,
+    "total_api_routes_estimated": 155,
+    "total_schema_tables_at_completion": 29,
+    "total_agents_at_completion": 11,
+    "total_explicit_exclusions": 14,
+    "total_prerequisite_decisions": 8,
+    "decisions_resolved": 2,
+    "decisions_open": 6,
+    "total_success_criteria": 12,
+    "total_risks": 6,
+    "estimated_timeline_weeks": "28-38"
+  }
+}

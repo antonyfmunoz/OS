@@ -1,0 +1,774 @@
+{
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+  "description": "What actually exists in code right now for EOS across all code locations: projections/eos/ (UMH substrate projection), transports/api/http/ (platform DB schema), GitHub main (stale Replit branch), Beast feature/company-system (promotion candidate), deployment state, and test coverage.",
+
+  "github_main": {
+    "repo": "antonyfmunoz/EntrepreneurOS",
+    "branch": "main",
+    "file_count": 202,
+    "vps_copy_file_count": 154,
+    "vps_copy_path": "data/repos/entrepreneuros/",
+    "auth": "Passport.js (local strategy) + Firebase (Google OAuth + MFA)",
+    "status": "stale",
+    "last_commit": "2026-02-20T03:18:51Z",
+    "last_commit_sha": "86041f58",
+    "last_commit_message": "Published your App",
+    "author": "Replit Agent",
+    "framework": {
+      "frontend": "React 18 + Vite 5 + wouter + TanStack Query",
+      "backend": "Express 4 + Node.js (tsx dev, esbuild prod)",
+      "ui_library": "shadcn/ui (Radix + Tailwind CSS 3)",
+      "orm": "Drizzle ORM 0.39",
+      "database": "PostgreSQL (Neon serverless + postgres.js)",
+      "language": "TypeScript 5.6",
+      "runtime": "Node.js 20 (Replit modules)"
+    },
+    "schema_tables": ["users", "agents", "tasks", "messages", "integrations", "notifications"],
+    "schema_table_count": 6,
+    "pages": [
+      "agent-chat.tsx", "agent-os-dashboard.tsx", "agent-programming.tsx",
+      "analytics-page.tsx", "auth-page.tsx", "crm-page.tsx", "dashboard.tsx",
+      "documents-page.tsx", "gpt4o-chat-page.tsx", "integrations-page.tsx",
+      "not-found.tsx", "notifications-page.tsx", "settings-page.tsx",
+      "support-page.tsx", "task-board-page.tsx", "tutorials-page.tsx"
+    ],
+    "page_count": 16,
+    "component_count": 20,
+    "ui_component_count": 45,
+    "hook_count": 6,
+    "server_ai_services": [
+      "anthropic-service.ts", "gemini-service.ts", "openai-service.ts",
+      "perplexity-service.ts", "xai-service.ts"
+    ],
+    "server_integrations": ["gmail.ts"],
+    "key_features": [
+      "CRM page with contact/deal management",
+      "Agent chat interface (multi-model)",
+      "Task board with drag-and-drop",
+      "Document management",
+      "Agent programming interface",
+      "Analytics dashboard",
+      "Notification system",
+      "Settings page with API key management",
+      "5 AI provider integrations (Anthropic, OpenAI, Gemini, Perplexity, xAI)",
+      "Gmail integration",
+      "Firebase auth with Google OAuth + MFA"
+    ],
+    "missing_features": [
+      "No portfolio management",
+      "No company/entity system",
+      "No multi-org support",
+      "No workflow engine",
+      "No agent delegation chain (EA -> CEO -> department)",
+      "No approval/governance system",
+      "No layout system (left-rail, right-rail, floating AI panel)",
+      "No org chart",
+      "No command center",
+      "No Clerk auth",
+      "No middleware layer",
+      "No design token system",
+      "No testing infrastructure"
+    ]
+  },
+
+  "beast_branch": {
+    "path": "C:\\dev\\dev\\EntrepreneurOS",
+    "branch": "feature/company-system",
+    "file_count": 603,
+    "auth": "Clerk (React + Express)",
+    "status": "active_development",
+    "canonical_candidate": true,
+    "decision_ref": "DEC-145-001",
+    "last_commit_sha": "d4ecc8d",
+    "last_commit_message": "chore(eos): remove skill infrastructure -- product only",
+    "last_commit_date": "2026-04-16",
+    "vps_accessible": false,
+    "framework": {
+      "frontend": "React 18 + Vite + Tailwind + shadcn/ui + wouter",
+      "backend": "Express + tsx",
+      "orm": "Drizzle ORM",
+      "database": "Neon Postgres (serverless)",
+      "auth": "Clerk (React + Express)",
+      "ai_sdks": ["@anthropic-ai/sdk", "openai", "@google/generative-ai", "@google/stitch-sdk"],
+      "analytics": "PostHog",
+      "testing": "Vitest + Playwright",
+      "type_system": "TypeScript 5.6.3 + Zod"
+    },
+    "schema_tables": ["users", "agents", "tasks", "messages", "integrations", "notifications"],
+    "schema_table_count": 6,
+    "additional_schemas": ["shared/design-schema.ts", "shared/spec-schema.ts", "server/generated/schema.ts"],
+    "pages": [
+      "admin-dashboard-page.tsx", "agent-chat-page.tsx", "agent-chat.tsx",
+      "agent-os-dashboard.tsx", "agent-programming.tsx", "analytics-page.tsx",
+      "auth-page.tsx", "command-center-page.tsx", "company-setup-page.tsx",
+      "crm-page.tsx", "dashboard-page.tsx", "dashboard.tsx", "documents-page.tsx",
+      "forgot-password-page.tsx", "gpt4o-chat-page.tsx", "integrations-page.tsx",
+      "login-page.tsx", "not-found-page.tsx", "not-found.tsx",
+      "notifications-page.tsx", "org-chart-page.tsx", "portfolio-detail-page.tsx",
+      "portfolio-list-page.tsx", "reset-password-page.tsx", "settings-page.tsx",
+      "signup-page.tsx", "support-page.tsx", "task-board-page-new.tsx",
+      "task-board-page.tsx", "tutorials-page.tsx", "workflows-page.tsx"
+    ],
+    "page_count": 31,
+    "key_features": [
+      "Company system (setup, management, switching)",
+      "Portfolio management (list, detail, multi-entity)",
+      "Clerk auth (replacing Passport.js + Firebase)",
+      "14 route modules (actions, agents, ai, analytics, companies, conversations, crm, documents, integrations, notifications, portfolios, tasks, users, workflows)",
+      "Layout system (universal-layout, left-rail, right-rail, floating-ai-panel)",
+      "Org chart page",
+      "Workflow page",
+      "Command center page",
+      "Admin dashboard",
+      "Middleware layer (auth, clerk-org, error-handler, validation)",
+      "PostHog analytics integration",
+      "Vitest + Playwright test infrastructure",
+      "Design tokens system",
+      "Company guard component",
+      "AI gateway (server/ai/gateway.ts)"
+    ],
+    "additions_over_main": [
+      "Company system (setup, management, switching)",
+      "Portfolio management (list, detail, multi-entity)",
+      "Clerk auth (replacing Passport.js + Firebase)",
+      "14 route modules (vs 1 monolithic routes.ts)",
+      "32 pages (vs 16)",
+      "Layout system (universal-layout, left-rail, right-rail, floating-ai-panel)",
+      "Org chart page",
+      "Workflow page",
+      "Command center page",
+      "Admin dashboard",
+      "Generated code layer (server/generated/)",
+      "Middleware layer (auth, clerk-org, error-handler, validation)",
+      "PostHog analytics integration",
+      "Vitest + Playwright test infrastructure",
+      "Design tokens system",
+      "Company guard component",
+      "AI gateway (server/ai/gateway.ts)",
+      "Migrations directory"
+    ],
+    "generated_code": {
+      "directory": "server/generated/",
+      "contents": ["index.ts", "routes/", "schema.ts", "storage/"],
+      "storage_module_count": 21,
+      "storage_modules": [
+        "activity.ts", "auth.ts", "capabilities.ts", "companies.ts",
+        "conversations.ts", "departments.ts", "kpis.ts", "login.ts",
+        "logout.ts", "me.ts", "notifications.ts", "onboarding.ts",
+        "portfolios.ts", "preferences.ts", "read.ts", "readAll.ts",
+        "register.ts", "roles.ts", "steps.ts", "tasks.ts", "workflows.ts"
+      ]
+    },
+    "layout_components": [
+      "agent-chat-stub.tsx", "floating-ai-panel.tsx", "header.tsx",
+      "left-rail.tsx", "right-rail.tsx", "universal-layout.tsx"
+    ],
+    "server_middleware": [
+      "server/middleware/auth.ts", "server/middleware/clerk-org.ts",
+      "server/middleware/error-handler.ts", "server/middleware/validation.ts"
+    ],
+    "api_route_modules": [
+      "actions.ts", "agents.ts", "ai.ts", "analytics.ts", "companies.ts",
+      "conversations.ts", "crm.ts", "documents.ts", "integrations.ts",
+      "notifications.ts", "portfolios.ts", "tasks.ts", "users.ts", "workflows.ts"
+    ],
+    "api_route_module_count": 14
+  },
+
+  "projection_eos": {
+    "path": "projections/eos/",
+    "file_count": 31,
+    "total_lines": 5699,
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "description": "UMH substrate projection layer. Pure Python. Registers EOS as an application on the UMH platform via abstract ports. Uses only public Substrate API (substrate.execute, substrate.register) and substrate.types.",
+    "agents": {
+      "count": 10,
+      "base_class": "DepartmentAgent (projections/eos/agents/base.py, 198 lines)",
+      "base_features": [
+        "Skill registration with permission tier enforcement",
+        "Browser research and browser act skills on every agent",
+        "Async-to-sync bridge for browser tasks",
+        "Metadata generation",
+        "Error handling with logging"
+      ],
+      "registry": {
+        "ceo": {
+          "class": "CEOAgent",
+          "department": "executive",
+          "permission_tier": "COMMIT",
+          "skills": ["strategic_analysis", "decision_brief", "delegation", "pipeline_review", "morning_brief", "approve_action"],
+          "skill_count": 6,
+          "lines": 212,
+          "uses_model_router": true,
+          "notes": "Highest authority. Can approve any action. Uses call_with_fallback for AI-enhanced analysis."
+        },
+        "sales": {
+          "class": "SalesAgent",
+          "department": "sales",
+          "permission_tier": "EXECUTE",
+          "skills": ["lead_score", "outreach_draft", "pipeline_report", "follow_up", "send_outreach", "book_call"],
+          "skill_count": 6,
+          "lines": 169,
+          "uses_model_router": false,
+          "notes": "Uses OutreachWorkflow and FollowUpWorkflow for deterministic-first execution."
+        },
+        "marketing": {
+          "class": "MarketingAgent",
+          "department": "marketing",
+          "permission_tier": "EXECUTE",
+          "skills": ["content_calendar", "content_ideation", "audience_analysis", "brand_audit", "post_content", "campaign_report"],
+          "skill_count": 6,
+          "lines": 213,
+          "uses_model_router": true,
+          "notes": "Uses ContentCalendarWorkflow. Audience analysis and campaign report query Neon Postgres via substrate."
+        },
+        "finance": {
+          "class": "FinanceAgent",
+          "department": "finance",
+          "permission_tier": "COMMIT",
+          "skills": ["revenue_report", "expense_tracking", "budget_forecast", "unit_economics", "cashflow_analysis", "payment_processing", "invoice_draft"],
+          "skill_count": 7,
+          "lines": 236,
+          "uses_model_router": false,
+          "notes": "Financial operations requiring human approval. Budget forecast is deterministic. Revenue and expense tracking query Neon."
+        },
+        "customer_success": {
+          "class": "CustomerSuccessAgent",
+          "department": "customer_success",
+          "permission_tier": "EXECUTE",
+          "skills": 7,
+          "lines": 283,
+          "uses_model_router": true
+        },
+        "hr": {
+          "class": "HRAgent",
+          "department": "hr",
+          "permission_tier": "EXECUTE",
+          "skills": 6,
+          "lines": 207,
+          "uses_model_router": true
+        },
+        "legal": {
+          "class": "LegalAgent",
+          "department": "legal",
+          "permission_tier": "COMMIT",
+          "skills": 6,
+          "lines": 269,
+          "uses_model_router": true
+        },
+        "operations": {
+          "class": "OperationsAgent",
+          "department": "operations",
+          "permission_tier": "EXECUTE",
+          "skills": 6,
+          "lines": 243,
+          "uses_model_router": true
+        },
+        "product": {
+          "class": "ProductAgent",
+          "department": "product",
+          "permission_tier": "DRAFT",
+          "skills": 6,
+          "lines": 246,
+          "uses_model_router": true
+        },
+        "engineering": {
+          "class": "EngineeringAgent",
+          "department": "engineering",
+          "permission_tier": "EXECUTE",
+          "skills": 6,
+          "lines": 219,
+          "uses_model_router": true
+        }
+      },
+      "total_skills_across_agents": 66,
+      "browser_skills_per_agent": 2,
+      "total_skills_including_browser": 86,
+      "permission_tier_distribution": {
+        "COMMIT": ["ceo", "finance", "legal"],
+        "EXECUTE": ["sales", "marketing", "customer_success", "hr", "operations", "engineering"],
+        "DRAFT": ["product"]
+      }
+    },
+    "departments": {
+      "count": 10,
+      "defined_in": "projections/eos/entities.py:default_departments()",
+      "list": [
+        {
+          "name": "Executive",
+          "slug": "executive",
+          "agent_name": "eos-ceo",
+          "permission_tier": "commit",
+          "roles": ["ceo", "founder"],
+          "metrics": ["revenue", "runway", "customer_count", "north_star_progress"],
+          "workflows": ["morning_brief", "decision_review", "delegation"]
+        },
+        {
+          "name": "Sales",
+          "slug": "sales",
+          "agent_name": "eos-sales",
+          "permission_tier": "execute",
+          "roles": ["sales_lead", "bdr", "account_executive"],
+          "metrics": ["pipeline_value", "conversion_rate", "outreach_volume", "calls_booked"],
+          "workflows": ["outreach", "follow_up", "pipeline_review"]
+        },
+        {
+          "name": "Marketing",
+          "slug": "marketing",
+          "agent_name": "eos-marketing",
+          "permission_tier": "execute",
+          "roles": ["content_creator", "brand_manager", "growth_marketer"],
+          "metrics": ["followers", "engagement_rate", "content_output", "cac"],
+          "workflows": ["content_calendar", "campaign_execution", "brand_audit"]
+        },
+        {
+          "name": "Finance",
+          "slug": "finance",
+          "agent_name": "eos-finance",
+          "permission_tier": "commit",
+          "roles": ["cfo", "bookkeeper", "financial_analyst"],
+          "metrics": ["revenue", "expenses", "burn_rate", "runway_months", "ltv_cac_ratio"],
+          "workflows": ["revenue_tracking", "expense_review", "budget_forecast"]
+        },
+        {
+          "name": "Customer Success",
+          "slug": "customer_success",
+          "agent_name": "eos-customer-success",
+          "permission_tier": "execute",
+          "roles": ["cs_lead", "support_agent", "onboarding_specialist"],
+          "metrics": ["nps", "churn_rate", "ticket_resolution_time", "satisfaction_score"],
+          "workflows": ["ticket_routing", "onboarding", "churn_prevention"]
+        },
+        {
+          "name": "HR",
+          "slug": "hr",
+          "agent_name": "eos-hr",
+          "permission_tier": "execute",
+          "roles": ["hr_lead", "recruiter", "people_ops"],
+          "metrics": ["headcount", "hiring_pipeline", "time_to_hire", "retention_rate"],
+          "workflows": ["hiring", "onboarding", "performance_review"]
+        },
+        {
+          "name": "Legal",
+          "slug": "legal",
+          "agent_name": "eos-legal",
+          "permission_tier": "commit",
+          "roles": ["general_counsel", "compliance_officer"],
+          "metrics": ["open_contracts", "compliance_status", "pending_reviews"],
+          "workflows": ["contract_review", "compliance_check", "entity_management"]
+        },
+        {
+          "name": "Operations",
+          "slug": "operations",
+          "agent_name": "eos-operations",
+          "permission_tier": "execute",
+          "roles": ["ops_lead", "systems_admin", "process_engineer"],
+          "metrics": ["uptime", "automation_coverage", "bottleneck_count", "cycle_time"],
+          "workflows": ["system_monitoring", "process_automation", "incident_response"]
+        },
+        {
+          "name": "Product",
+          "slug": "product",
+          "agent_name": "eos-product",
+          "permission_tier": "draft",
+          "roles": ["product_manager", "ux_researcher", "product_analyst"],
+          "metrics": ["feature_velocity", "user_satisfaction", "roadmap_completion"],
+          "workflows": ["feature_prioritization", "user_research", "release_planning"]
+        },
+        {
+          "name": "Engineering",
+          "slug": "engineering",
+          "agent_name": "eos-engineering",
+          "permission_tier": "execute",
+          "roles": ["tech_lead", "developer", "devops_engineer"],
+          "metrics": ["deploy_frequency", "incident_count", "tech_debt_ratio", "test_coverage"],
+          "workflows": ["code_review", "deployment", "incident_response"]
+        }
+      ]
+    },
+    "views": {
+      "count": 3,
+      "list": [
+        {
+          "name": "PipelineView",
+          "file": "projections/eos/views/pipeline.py",
+          "lines": 101,
+          "stages": ["prospect", "contacted", "qualified", "proposal", "negotiation", "closed"],
+          "data_source": "Neon Postgres (events table, event_type=crm_lead)",
+          "output": "PipelineSnapshot with stages, total_leads, total_value, conversion_rate",
+          "public_api": "get_pipeline_data(org_id) -> dict"
+        },
+        {
+          "name": "KPIView",
+          "file": "projections/eos/views/kpis.py",
+          "lines": 145,
+          "kpi_cards": ["Monthly Revenue", "Leads This Month", "Conversion Rate", "Outreach This Week", "Response Rate"],
+          "data_source": "Neon Postgres (events table, various event_types)",
+          "output": "KPIDashboard with KPICard list"
+        },
+        {
+          "name": "ActivityView",
+          "file": "projections/eos/views/activity.py",
+          "lines": 91,
+          "event_types_summarized": ["crm_lead", "outreach", "revenue", "commitment", "cognitive_reflection", "agent_task"],
+          "data_source": "Neon Postgres (events table)",
+          "output": "ActivityFeed with ActivityEntry list"
+        }
+      ]
+    },
+    "workflows": {
+      "count": 3,
+      "list": [
+        {
+          "name": "OutreachWorkflow",
+          "file": "projections/eos/workflows/outreach.py",
+          "lines": 114,
+          "steps": ["qualify", "research", "draft", "review", "send"],
+          "trigger": "new lead enters pipeline",
+          "deterministic_first": true,
+          "ai_enhanced": true,
+          "ai_usage": "Personalizes outreach DM draft via model_router.call_with_fallback(). Falls back to template if AI unavailable.",
+          "qualification_criteria": ["source (instagram/referral/event)", "age_range (18-25/25-35)", "engagement", "expressed_interest"],
+          "qualification_threshold": 50
+        },
+        {
+          "name": "ContentCalendarWorkflow",
+          "file": "projections/eos/workflows/content.py",
+          "lines": 100,
+          "channels": ["instagram", "twitter", "youtube", "podcast", "newsletter"],
+          "content_types": ["post", "story", "reel", "long_form", "thread", "episode"],
+          "deterministic_first": true,
+          "ai_enhanced": true,
+          "ai_usage": "Generates content ideas via model_router. Falls back to generic title.",
+          "calendar_logic": "Instagram daily (alternating post/story), Twitter every 3rd day (thread)"
+        },
+        {
+          "name": "FollowUpWorkflow",
+          "file": "projections/eos/workflows/followup.py",
+          "lines": 93,
+          "approaches": {
+            "1-3_days": "gentle_nudge",
+            "4-7_days": "value_add",
+            "8-14_days": "direct_ask",
+            "14+_days": "final_attempt"
+          },
+          "data_source": "Neon Postgres (events table, crm_lead with stage in contacted/qualified)",
+          "deterministic_first": true,
+          "ai_enhanced": false,
+          "notes": "Fully deterministic. Template-based follow-up messages. No AI enhancement."
+        }
+      ]
+    },
+    "entity_model": {
+      "file": "projections/eos/entities.py",
+      "lines": 879,
+      "functions": [
+        "default_departments(org_id, venture_id) -> list[Department]",
+        "default_roles(org_id, venture_id) -> list[Role]",
+        "default_company(org_id, venture_id, name) -> Company",
+        "default_portfolio(user_id, org_id) -> Portfolio",
+        "default_user(email, display_name) -> User",
+        "default_workflows(org_id, venture_id) -> list[Workflow]",
+        "get_skills_for_department(slug) -> list[str]",
+        "get_department_for_skill(skill_path) -> str | None",
+        "default_dashboards(org_id) -> list[Dashboard]"
+      ],
+      "defined_workflows_count": 10,
+      "defined_workflows": [
+        "Morning Brief (executive, scheduled 7am daily)",
+        "Outreach Sequence (sales, manual trigger)",
+        "Content Calendar (marketing, scheduled 9am Monday)",
+        "Expense Review (finance, scheduled 6pm Friday)",
+        "Ticket Routing (customer_success, event: new_support_ticket)",
+        "Hiring Pipeline (hr, manual trigger)",
+        "Contract Review (legal, manual trigger)",
+        "Incident Response (operations, event: system_alert)",
+        "Feature Prioritization (product, scheduled 10am Monday)",
+        "Code Review & Deploy (engineering, event: pull_request_opened)"
+      ],
+      "skill_allocation": {
+        "total_skills_allocated": 53,
+        "departments_with_skills": ["executive", "sales", "marketing", "customer_success", "operations", "engineering"],
+        "departments_without_skills": ["finance", "hr", "legal", "product"],
+        "sales_skill_count": 26,
+        "marketing_skill_count": 9,
+        "operations_skill_count": 11,
+        "executive_skill_count": 4,
+        "customer_success_skill_count": 2,
+        "engineering_skill_count": 1
+      },
+      "dashboard_widget_types_used": [
+        "METRIC_CARD", "TASK_BOARD", "AI_CHAT", "APPROVAL_QUEUE",
+        "TIMELINE", "CRM_TABLE", "COMMUNICATION", "DOCUMENT_LIST",
+        "TOOL_PANEL", "WORKFLOW_LIST"
+      ],
+      "role_count": 10,
+      "role_operator_types": {
+        "HYBRID": ["CEO", "Sales Lead", "Product Manager"],
+        "AI": ["Content Creator", "Bookkeeper", "Support Agent", "Recruiter", "Compliance Officer", "DevOps Engineer", "Developer"]
+      }
+    },
+    "integration": {
+      "path": "projections/eos/integration/",
+      "file_count": 9,
+      "total_lines": 1556,
+      "design_doc_lines": 1463,
+      "description": "Full UMH integration layer for EOS. Implements Signal/Capability/Outcome socket pattern. Connects to EOS Neon Postgres via psycopg2 for bidirectional data flow.",
+      "components": {
+        "manifest": {
+          "file": "manifest.py",
+          "lines": 156,
+          "integration_id": "eos",
+          "signal_descriptors": [
+            {"content_type": "eos_contact_created", "urgency": "NORMAL", "risk": "READ_ONLY"},
+            {"content_type": "eos_deal_created", "urgency": "HIGH", "risk": "READ_ONLY"},
+            {"content_type": "eos_activity_logged", "urgency": "LOW", "risk": "READ_ONLY"}
+          ],
+          "capability_descriptors": [
+            {"name": "noop", "category": "RETRIEVE", "risk": "READ_ONLY"},
+            {"name": "create_contact", "category": "COMMUNICATE", "risk": "EXTERNAL_COMMUNICATION"},
+            {"name": "create_deal", "category": "COMMUNICATE", "risk": "EXTERNAL_COMMUNICATION"},
+            {"name": "update_deal_stage", "category": "COMMUNICATE", "risk": "EXTERNAL_COMMUNICATION"},
+            {"name": "log_activity", "category": "COMMUNICATE", "risk": "EXTERNAL_COMMUNICATION"}
+          ],
+          "polled_tables": ["crm_contacts", "crm_deals", "crm_activities"],
+          "default_poll_interval": 15.0,
+          "config_env_vars": ["EOS_DATABASE_URL", "EOS_USER_IDS", "EOS_POLL_INTERVAL"]
+        },
+        "signals": {
+          "file": "signals.py",
+          "lines": 157,
+          "class": "EOSSignalEmitter",
+          "methods": ["build_contact_signal", "build_deal_signal", "build_activity_signal"],
+          "output_type": "tuple[IntegrationSignalEnvelope, EOSWritebackTarget]"
+        },
+        "handlers": {
+          "file": "handlers.py",
+          "lines": 157,
+          "class": "EOSCapabilityHandler",
+          "capabilities": ["noop", "create_contact", "create_deal", "update_deal_stage", "log_activity"],
+          "health_check": true,
+          "connection_management": "psycopg2 with single reconnect on failure"
+        },
+        "outcomes": {
+          "file": "outcomes.py",
+          "lines": 182,
+          "class": "EOSOutcomeReceiver",
+          "dual_writeback": true,
+          "writeback_targets": {
+            "source_row": "UPDATE umh_status column on source table (success/timeout/governance_denied only)",
+            "audit_table": "INSERT into umh_outcomes for all outcomes"
+          },
+          "severity_ladder": {"success": 0, "timeout": 1, "governance_denied": 2, "error": 3},
+          "source_row_update_types": ["success", "timeout", "governance_denied"],
+          "notes": "error and failure outcomes skip source row UPDATE, only go to audit table"
+        },
+        "poller": {
+          "file": "poller.py",
+          "lines": 256,
+          "class": "EOSPoller",
+          "threading": "daemon thread (eos-poller)",
+          "poll_pattern": "watermark-based (created_at high-water mark per table+user)",
+          "tables_polled": ["crm_contacts", "crm_deals", "crm_activities"],
+          "watermark_store": "WatermarkStore (imported from adapters/notion/integration/watermarks)",
+          "pipeline_integration": "Calls pipeline_submit_fn with signal content",
+          "outcome_dispatch": "Builds OutcomeEnvelope and calls outcome_receiver.on_outcome()"
+        },
+        "correlation": {
+          "file": "correlation.py",
+          "lines": 41,
+          "class": "EOSCorrelationMap",
+          "storage": "in-memory dict (thread-safe with threading.Lock)",
+          "survives_restart": false,
+          "target_type": "EOSWritebackTarget(user_id, table_name, row_id, integration='eos')"
+        },
+        "tables": {
+          "file": "tables.py",
+          "lines": 582,
+          "description": "Single coupling point between UMH and EOS schema. All SQL lives here.",
+          "typed_rows": ["CrmContactRow", "CrmDealRow", "CrmActivityRow", "TaskRow", "AgentActionRow"],
+          "query_functions": ["fetch_user_ids", "fetch_contacts_since", "fetch_deals_since", "fetch_activities_since", "fetch_tasks_since"],
+          "insert_functions": ["insert_contact", "insert_deal", "insert_activity"],
+          "update_functions": ["update_deal_stage", "update_umh_status"],
+          "outcome_functions": ["insert_umh_outcome", "outcome_severity"],
+          "valid_statuses": {
+            "contacts": ["lead", "prospect", "customer", "churned"],
+            "deals": ["discovery", "proposal", "negotiation", "closed-won", "closed-lost"],
+            "activities": ["email", "call", "meeting", "task", "note"],
+            "tasks": ["todo", "in-progress", "done"],
+            "actions": ["pending", "approved", "executing", "completed", "failed", "rejected"]
+          },
+          "valid_source_tables": ["crm_contacts", "crm_deals", "crm_activities", "tasks", "agent_actions"]
+        }
+      },
+      "implementation_phases": {
+        "phase_1_polling": "IMPLEMENTED - poll crm_contacts/deals/activities, noop dispatch",
+        "phase_2_capabilities": "IMPLEMENTED - create_contact, create_deal, update_deal_stage, log_activity",
+        "phase_3_outcome_writeback": "IMPLEMENTED - dual writeback (source row + audit table)",
+        "phase_4_intelligent_routing": "NOT IMPLEMENTED - which signals trigger which capabilities"
+      }
+    },
+    "registration": {
+      "file": "projections/eos/__init__.py",
+      "lines": 92,
+      "function": "register_eos_agents(substrate: Substrate) -> list[Component]",
+      "registers_via": "substrate.register(component) for each EOS_AGENTS entry",
+      "component_type": "ComponentType.AGENT",
+      "agents_registered": 10,
+      "import_pattern": "Uses only public Substrate API (substrate.execute, substrate.register) and substrate.types"
+    }
+  },
+
+  "saas_layer": {
+    "status": "NOT_PRESENT_IN_VPS_WORKTREE",
+    "vps_path": "saas/",
+    "vps_contents": ["bridge/", "node_modules/"],
+    "bridge_contents": "Empty (only __pycache__/)",
+    "schema_tables_in_transports_api_http": [
+      "users", "portfolios", "organizations", "orgMembers",
+      "userAgentSessions", "approvals", "umhOutcomes", "embeddings"
+    ],
+    "schema_table_count": 8,
+    "schema_file": "transports/api/http/db/schema.ts",
+    "schema_description": "UMH platform schema (NOT EOS-specific). Defines users, portfolios, organizations, org members, agent sessions, approvals, UMH outcomes, and embeddings. EOS-specific tables (crm_contacts, crm_deals, crm_activities, ventures, clients, transactions, offers) are NOT defined here -- they exist only in the Beast branch's schema.",
+    "routes_in_transports_api_http": [
+      "execution.ts", "system.ts", "config.ts", "governance.ts",
+      "knowledge.ts", "organism.ts", "settings.ts", "chat.ts"
+    ],
+    "eos_specific_routes": "NONE - no EOS-specific routes in transports/api/http/routes/. All routes are UMH platform-level.",
+    "notes": "The EOS SaaS application (React frontend + Express backend + Drizzle schema with EOS-specific tables) lives in the Beast branch at C:\\dev\\dev\\EntrepreneurOS, NOT in the OS repo. The OS repo saas/ directory is essentially empty. The transports/api/http/ layer has UMH platform schema only."
+  },
+
+  "deployment": {
+    "current": "none",
+    "eos_saas_deployed": false,
+    "eos_projection_deployed": false,
+    "eos_integration_deployed": false,
+    "target": "Fly.io (saas frontend/backend), VPS (UMH substrate with EOS projection)",
+    "docker_status": {
+      "docker_compose_references_eos": true,
+      "docker_compose_eos_details": "eos_network shared between services (os-discord, os-operator, os-webhook, os-scraper)",
+      "eos_container": "NONE - no EOS-specific container defined",
+      "notes": "Docker compose uses eos_network as the shared network name for UMH services. No EOS application container exists."
+    },
+    "fly_toml": "NOT_PRESENT",
+    "neon_databases": {
+      "ep_dark_poetry": {
+        "region": "us-east-1",
+        "purpose": "Development/staging target for UMH+EOS integration",
+        "schema_version": "v2 (events-driven architecture)",
+        "has_umh_status_columns": true,
+        "has_umh_outcomes_table": true
+      },
+      "ep_winter_sea": {
+        "region": "us-west-2",
+        "purpose": "Production EntrepreneurOS Neon",
+        "schema_version": "v1 (companies, crm_contacts, crm_deals, agent_actions, pipeline_runs)",
+        "notes": "Older schema predating v2 events-driven architecture. Production cutover deferred until Phase 2+4 validated."
+      }
+    }
+  },
+
+  "test_coverage": {
+    "dedicated_eos_test_file": "tests/test_eos_projection.py",
+    "dedicated_eos_test_count": 4,
+    "dedicated_eos_tests": [
+      "test_eos_module_importable",
+      "test_eos_agents_can_register",
+      "test_registered_eos_agent_discoverable",
+      "test_all_eos_agents_register"
+    ],
+    "files_mentioning_eos": 35,
+    "files_mentioning_eos_note": "35 test files reference EOS but most are tangential (convergence tests, phase tests, smoke tests that verify EOS imports). Only test_eos_projection.py is dedicated EOS functionality testing.",
+    "integration_tests_referenced_in_design_doc": {
+      "test_eos_tables": "11 tests (referenced in DESIGN.md Phase 1)",
+      "test_eos_signal_emitter": "12 tests (referenced in DESIGN.md Phase 1)",
+      "test_eos_poller": "13 tests (referenced in DESIGN.md Phase 1)",
+      "test_eos_integration": "16 tests total (6 Phase 1 + 3 Phase 2 + 7 Phase 3, referenced in DESIGN.md)",
+      "test_eos_handlers": "18 tests (referenced in DESIGN.md Phase 2)",
+      "test_eos_outcomes": "27 tests (referenced in DESIGN.md Phase 3)"
+    },
+    "integration_tests_location_note": "DESIGN.md Phase 1-3 reference test files at services/umh/tests/test_eos_*.py. These tests were written alongside the integration code. They may or may not exist in the current worktree -- the integration code was migrated from services/umh/integrations/eos/ to projections/eos/integration/ during convergence.",
+    "status": "THIN -- 4 dedicated unit tests for agent registration. Integration tests from DESIGN.md Phases 1-3 (97 tests total) may need relocation verification."
+  },
+
+  "source_divergence": {
+    "github_main_files": 202,
+    "beast_branch_files": 603,
+    "delta": 401,
+    "projection_eos_files": 31,
+    "projection_eos_lines": 5699,
+    "saas_on_vps": "effectively empty",
+    "recommendation": "Promote Beast branch (feature/company-system) as canonical EOS SaaS codebase per DEC-145-001. Requires: build validation, secret scan, operator review, rollback plan.",
+    "auth_divergence": {
+      "github_main": "Passport.js + Firebase",
+      "beast_branch": "Clerk",
+      "projection_eos": "N/A (Python substrate layer, no auth)",
+      "desired_state": "Clerk",
+      "resolution": "Beast Clerk auth is canonical"
+    },
+    "schema_divergence": {
+      "github_main_tables": 6,
+      "beast_branch_tables": "6 core + design-schema + spec-schema + generated schema",
+      "transports_api_http_tables": 8,
+      "projection_eos_integration_tables": "crm_contacts, crm_deals, crm_activities (read/write via psycopg2)",
+      "notes": "Three separate schema surfaces exist: (1) Beast shared/schema.ts with EOS app tables, (2) transports/api/http/db/schema.ts with UMH platform tables, (3) projections/eos/integration/tables.py with typed Python access to EOS CRM tables. These must be unified."
+    },
+    "key_gaps": [
+      "Beast branch NOT on VPS -- cannot be deployed from current infrastructure",
+      "No fly.toml for EOS deployment",
+      "No EOS-specific Docker container",
+      "EOS SaaS frontend not built or deployed anywhere",
+      "Integration tests from DESIGN.md Phases 1-3 may need relocation",
+      "No EA (Executive Assistant) agent implemented -- only department agents exist",
+      "No Portfolio Advisor agent implemented",
+      "No multi-portfolio support in projection code (single org_id + venture_id pattern)",
+      "No approval/governance UI -- governance exists in substrate but no EOS-facing approval flow",
+      "No onboarding flow implemented in code",
+      "Entity model in entities.py defines Company/Portfolio/User but NOT the full hierarchy (Investment, Asset, Agency, etc.)"
+    ]
+  },
+
+  "architectural_reality": {
+    "what_works_now": [
+      "10 department agents register with UMH substrate and can execute skills",
+      "3 views (Pipeline, KPI, Activity) query Neon Postgres and return structured data",
+      "3 workflows (Outreach, Content, FollowUp) execute deterministic-first with AI enhancement",
+      "EOS integration layer polls crm_contacts/deals/activities and emits signals",
+      "Capability handler can create contacts, deals, update deal stages, log activities",
+      "Outcome receiver writes back to source rows (umh_status) and audit table (umh_outcomes)",
+      "Entity model defines 10 departments, 10 roles, 10 workflows, 10 dashboards, 53 skill allocations",
+      "Permission tier enforcement on every skill execution (READ/DRAFT/EXECUTE/COMMIT)",
+      "Browser research and browser act available on every agent"
+    ],
+    "what_does_not_exist": [
+      "No EOS SaaS application deployed or deployable from VPS",
+      "No React frontend running anywhere",
+      "No Express backend running anywhere",
+      "No Clerk auth wired up in any running service",
+      "No EA (Executive Assistant) agent",
+      "No Portfolio Advisor agent",
+      "No user-facing approval/governance flow",
+      "No onboarding flow",
+      "No multi-portfolio entity model (Investment, Asset, Agency types)",
+      "No communication delegation chain (User -> EA -> CEO -> Department)",
+      "No UI shell (Left Rail, Right Rail, Floating AI Panel) running",
+      "No real-time event streaming to frontend",
+      "No Fly.io deployment configuration",
+      "No EOS-specific Docker container",
+      "No skill marketplace",
+      "No enterprise permissions beyond permission tiers"
+    ],
+    "what_exists_but_is_stale_or_disconnected": [
+      "GitHub main (Replit Agent code, Passport.js auth, 4+ months stale)",
+      "Beast branch (Clerk auth, company system, 2+ months since last commit, lives on Windows only)",
+      "saas/ directory on VPS (empty except bridge/__pycache__)",
+      "97 integration tests referenced in DESIGN.md but location uncertain after convergence migration"
+    ]
+  }
+}

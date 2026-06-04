@@ -1,0 +1,592 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+  "description": "Full auth and security truth for CreatorOS — broken Passport.js auth, target Clerk migration, API security gaps, privacy/trust/safety posture",
+
+  "critical_vulnerability": {
+    "id": "COS-AUTH-001",
+    "severity": "CRITICAL",
+    "description": "comparePasswords() returns true for ALL passwords — authentication is effectively disabled",
+    "impact": "Any password works for any user account. Zero authentication barrier. Full account takeover with only a username.",
+    "location": "auth implementation (server-side password comparison function)",
+    "root_cause": "comparePasswords function unconditionally returns true regardless of input, bypassing bcrypt/scrypt comparison entirely",
+    "blast_radius": "All 20 database tables accessible via any authenticated session. Creator content, consumer data, products, orders, revenues, AI agent configs, community messages, documents — all exposed.",
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "discovered_in": "Phase 14.6B code audit",
+    "mitigating_factors": [
+      "No production deployment exists — app is not publicly accessible",
+      "No real user data in database — only seed/test data",
+      "Beast and GitHub are the only live copies"
+    ],
+    "resolution_status": "UNRESOLVED",
+    "resolution_recommendation": "Do NOT fix Passport.js. Migrate directly to Clerk. Fixing broken auth in a system scheduled for replacement is wasted work.",
+    "priority": "P0 — must be resolved before any production deployment"
+  },
+
+  "current_auth": {
+    "provider": "Passport.js",
+    "version": "0.7.0",
+    "strategy": "passport-local 1.0.0",
+    "status": "BROKEN",
+    "session": {
+      "library": "express-session 1.18.1",
+      "store": "connect-pg-simple (Postgres-backed) with memorystore fallback",
+      "cookie_config": {
+        "secure": "unknown — needs verification",
+        "httpOnly": "unknown — needs verification",
+        "sameSite": "unknown — needs verification",
+        "maxAge": "unknown — needs verification"
+      }
+    },
+    "password_hashing": {
+      "intended": "bcrypt or scrypt comparison",
+      "actual": "comparePasswords returns true unconditionally — no hashing comparison occurs"
+    },
+    "registration": {
+      "validation": "username uniqueness enforced at DB level (unique constraint)",
+      "password_policy": "none — no minimum length, complexity, or strength requirements",
+      "email_verification": "none"
+    },
+    "oauth": "none configured",
+    "mfa": "none",
+    "rate_limiting_on_login": "none",
+    "account_lockout": "none",
+    "session_invalidation": "unknown — needs audit of logout/session-destroy flow",
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+  },
+
+  "target_auth": {
+    "provider": "Clerk",
+    "rationale": "Clerk provides managed auth with OAuth, MFA, session management, webhook-based sync, and prebuilt React components. Eliminates need to maintain auth infrastructure.",
+    "oauth_providers": ["Google", "Apple"],
+    "sso": {
+      "status": "planned",
+      "target": "Enterprise tier — SAML/OIDC for creator teams and brand accounts"
+    },
+    "magic_link": {
+      "status": "planned",
+      "rationale": "Passwordless login for consumer accounts reduces friction"
+    },
+    "mfa": {
+      "status": "planned",
+      "methods": ["TOTP (authenticator app)", "SMS (fallback)"],
+      "enforcement": "required for creator accounts, optional for consumers"
+    },
+    "session_management": {
+      "provider": "Clerk-managed sessions",
+      "multi_device": true,
+      "revocation": "instant via Clerk dashboard or API"
+    },
+    "webhook_sync": {
+      "events": ["user.created", "user.updated", "user.deleted", "session.created", "session.revoked"],
+      "target": "CreatorOS backend — sync Clerk user to local users table"
+    },
+    "react_components": {
+      "sign_in": "ClerkProvider + SignIn component",
+      "sign_up": "ClerkProvider + SignUp component",
+      "user_button": "UserButton for session/profile management",
+      "protect": "SignedIn/SignedOut guards for route protection"
+    },
+    "provenance": "INFERRED_PROFESSIONAL_GAP"
+  },
+
+  "migration_path": {
+    "recommendation": "Migrate directly to Clerk. Do NOT fix Passport.js.",
+    "rationale": "Fixing broken auth is wasted work when the target is a managed auth provider. Every hour spent patching Passport.js is an hour not spent on the migration that replaces it entirely.",
+    "phases": [
+      {
+        "step": 1,
+        "name": "Clerk project setup",
+        "description": "Create Clerk application, configure OAuth providers (Google, Apple), set redirect URLs, obtain API keys",
+        "risk": "LOW",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "step": 2,
+        "name": "Schema migration — users table",
+        "description": "Add clerk_id column to users table. Clerk becomes source of truth for identity; local users table stores app-specific fields (role, xpPoints, level, bio, profileImageUrl). Remove password column after migration.",
+        "risk": "MEDIUM",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "step": 3,
+        "name": "Backend middleware swap",
+        "description": "Replace Passport.js middleware with Clerk Express SDK (@clerk/express). Replace req.user population from session lookup to Clerk JWT verification. Remove express-session, connect-pg-simple, memorystore, passport, passport-local dependencies.",
+        "risk": "HIGH",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "step": 4,
+        "name": "Frontend auth component swap",
+        "description": "Replace custom login/register forms with Clerk React components (ClerkProvider, SignIn, SignUp, UserButton). Replace auth state management with useUser()/useAuth() hooks from @clerk/clerk-react.",
+        "risk": "MEDIUM",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "step": 5,
+        "name": "Webhook handler",
+        "description": "Implement Clerk webhook endpoint to sync user.created/updated/deleted events to local users table. Ensures local DB stays in sync with Clerk as source of truth.",
+        "risk": "MEDIUM",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "step": 6,
+        "name": "Route protection audit",
+        "description": "Audit all API routes in routes.ts (53KB god file) to verify every protected endpoint checks Clerk session. No route should fall through without auth.",
+        "risk": "HIGH",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "step": 7,
+        "name": "Session table cleanup",
+        "description": "Drop session table from Postgres after Clerk migration confirmed working. Remove connect-pg-simple session store configuration.",
+        "risk": "LOW",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "step": 8,
+        "name": "Password column removal",
+        "description": "Drop password column from users table after all auth flows confirmed working through Clerk. This is a one-way door — verify thoroughly before executing.",
+        "risk": "HIGH",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    ],
+    "dependencies_to_remove": ["passport", "passport-local", "express-session", "connect-pg-simple", "memorystore"],
+    "dependencies_to_add": ["@clerk/express", "@clerk/clerk-react"],
+    "env_vars_to_add": ["CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY", "CLERK_WEBHOOK_SECRET"],
+    "env_vars_to_remove": ["SESSION_SECRET"],
+    "provenance": "INFERRED_PROFESSIONAL_GAP"
+  },
+
+  "rls": {
+    "status": "none",
+    "current_state": "No row-level security policies exist on any of the 20 tables. All queries run with full table access once authenticated (which, given COS-AUTH-001, means always).",
+    "target": {
+      "scoping_strategy": "user_id or business_id scoped depending on table",
+      "tables_requiring_user_scope": [
+        "users (own row only for writes)",
+        "posts (own posts for writes, all for reads)",
+        "saved_posts (own saves only)",
+        "comments (own comments for writes)",
+        "products (own products for creator, all for consumer reads)",
+        "ai_agents (own agents only)",
+        "ai_chats (own chats only)",
+        "revenues (own revenues only)",
+        "contacts (own contacts only)",
+        "documents (own documents only)",
+        "stories (own stories for writes)",
+        "notifications (own notifications only)",
+        "conversations (own conversations only)",
+        "messages (own conversation messages only)"
+      ],
+      "tables_requiring_business_scope": [
+        "orders (business owner sees their orders, consumer sees their purchases)",
+        "communities (creator who owns the community)",
+        "channels (community owner)",
+        "channel_messages (community members for reads, own messages for writes)"
+      ],
+      "implementation_note": "Drizzle ORM does not natively support RLS. Options: (1) Neon RLS with Drizzle passthrough, (2) application-level row filtering in storage.ts, (3) Postgres policies applied via raw SQL migration. Recommend option 2 first (fastest) with option 1 as hardening layer.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "api_security": {
+    "rate_limiting": {
+      "status": "none",
+      "current": "No rate limiting on any endpoint. Login, registration, API calls, file uploads — all unlimited.",
+      "target": {
+        "global": "100 requests/minute per IP",
+        "auth_endpoints": "5 requests/minute per IP (login, register, password reset)",
+        "file_upload": "10 requests/minute per user",
+        "ai_endpoints": "20 requests/minute per user (AI agent interactions use OpenAI credits)",
+        "implementation": "express-rate-limit or Clerk-provided rate limiting"
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "cors": {
+      "status": "needs_review",
+      "current": "CORS configuration not verified from code audit. Express default is no CORS headers (blocked by browsers for cross-origin requests).",
+      "target": "Explicit CORS whitelist for production domain only. No wildcard origins.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "csrf": {
+      "status": "unverified",
+      "current": "No CSRF token generation or validation observed in code audit. Express-session without CSRF protection is vulnerable to cross-site request forgery.",
+      "target": "Clerk handles CSRF via its own token mechanism. If any non-Clerk auth endpoints remain, add csurf or equivalent.",
+      "note": "Clerk migration may resolve this entirely — Clerk sessions use JWT tokens in Authorization header, not cookies, making traditional CSRF less relevant.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "input_validation": {
+      "status": "partial",
+      "current": "Zod schemas exist for DB insert types (generated by drizzle-zod). Route-level input validation coverage is unknown — routes.ts is 53KB and needs line-by-line audit.",
+      "target": "Every API endpoint validates input with Zod before processing. No raw req.body access without schema validation.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "file_upload_security": {
+      "status": "unknown",
+      "current": "File upload endpoints exist (posts with imageUrl, audioUrl, videoUrl; documents; stories). Upload validation, size limits, type restrictions, and storage security need audit.",
+      "target": "File type whitelist, size limits (10MB images, 100MB video, 50MB audio), virus scanning for production, signed URLs for private content.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "sql_injection": {
+      "status": "low_risk",
+      "current": "Drizzle ORM parameterizes queries by default. Risk is low unless raw SQL is used anywhere in routes.ts or storage.ts.",
+      "note": "God file storage.ts (104KB) needs grep for raw SQL queries to confirm no injection vectors.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "error_handling": {
+      "status": "unknown",
+      "current": "Error handling patterns in Express routes not audited. Risk: stack traces or internal details leaking in production error responses.",
+      "target": "Global error handler that returns sanitized error messages. Never expose stack traces, DB errors, or internal paths to clients.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "privacy": {
+    "data_classification": {
+      "status": "none",
+      "current": "No data classification scheme exists. User PII (username, displayName, bio, profileImageUrl), financial data (revenues, orders), and content data (posts, messages, documents) are all treated identically.",
+      "target": {
+        "public": ["displayName", "bio", "profileImageUrl", "public posts", "public products"],
+        "private": ["username (if email)", "password hash", "session tokens", "AI chat history", "documents", "contacts", "revenues", "orders"],
+        "sensitive": ["payment information (future)", "government ID (future creator verification)", "analytics/tracking data"],
+        "classification_note": "Classification determines encryption requirements, retention policies, access controls, and breach notification obligations."
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "gdpr": {
+      "status": "not_addressed",
+      "requirements": [
+        {
+          "right": "Right to Access (Art. 15)",
+          "status": "not_implemented",
+          "description": "Users must be able to request and receive all data held about them"
+        },
+        {
+          "right": "Right to Erasure (Art. 17)",
+          "status": "not_implemented",
+          "description": "Users must be able to request deletion of all their data. Cascade deletes needed across all 20 tables where user_id appears."
+        },
+        {
+          "right": "Right to Portability (Art. 20)",
+          "status": "not_implemented",
+          "description": "Users must be able to export their data in machine-readable format"
+        },
+        {
+          "right": "Right to Rectification (Art. 16)",
+          "status": "partial",
+          "description": "Profile editing exists. Content editing may exist. Full coverage unknown."
+        },
+        {
+          "right": "Consent Management",
+          "status": "not_implemented",
+          "description": "No cookie consent, no data processing consent, no marketing consent mechanisms"
+        },
+        {
+          "right": "Privacy Policy",
+          "status": "not_implemented",
+          "description": "No privacy policy page or document exists"
+        },
+        {
+          "right": "Data Processing Agreement",
+          "status": "not_implemented",
+          "description": "No DPA for third-party processors (Neon, OpenAI, SendGrid, Clerk)"
+        }
+      ],
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "ccpa": {
+      "status": "not_addressed",
+      "note": "California Consumer Privacy Act applies if serving California residents. Requirements overlap significantly with GDPR.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "data_retention": {
+      "status": "none",
+      "current": "No retention policies. All data retained indefinitely.",
+      "target": "Define retention periods per data class. Deleted accounts should cascade-delete or anonymize within 30 days.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "content_moderation": {
+    "current": {
+      "status": "none",
+      "description": "No content moderation system exists. Posts, comments, community messages, stories, and product listings have no filtering, review, or reporting mechanisms."
+    },
+    "target": {
+      "auto_moderation": {
+        "description": "Automated content screening on post/comment/message creation",
+        "layers": [
+          "Keyword/regex blocklist for obvious violations",
+          "AI classification for nuanced content (hate speech, harassment, NSFW)",
+          "Spam detection (duplicate content, link spam, engagement farming)"
+        ],
+        "action_on_flag": "Hold for manual review, notify creator, do not publish until cleared"
+      },
+      "manual_review": {
+        "description": "Human review queue for flagged content and appeals",
+        "roles": ["platform_moderator (Empyrean Studio staff)", "community_moderator (creator-appointed per community)"],
+        "sla": "24 hours for flagged content review, 72 hours for appeals"
+      },
+      "appeals": {
+        "description": "Users can appeal moderation decisions",
+        "flow": "Content removed -> User notified with reason -> User submits appeal -> Different reviewer evaluates -> Decision is final",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      "reporting": {
+        "description": "User-facing report button on all content types",
+        "categories": ["spam", "harassment", "hate_speech", "nsfw", "misinformation", "copyright", "other"],
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    },
+    "provenance": "INFERRED_PROFESSIONAL_GAP"
+  },
+
+  "trust_safety": {
+    "creator_verification": {
+      "status": "not_implemented",
+      "target": {
+        "tiers": [
+          {
+            "level": "basic",
+            "requirements": ["email verified", "profile complete"],
+            "badge": "none",
+            "can_sell": false
+          },
+          {
+            "level": "verified",
+            "requirements": ["identity verification (government ID or social proof)", "terms of service accepted"],
+            "badge": "verified checkmark",
+            "can_sell": true
+          },
+          {
+            "level": "partner",
+            "requirements": ["verified + revenue threshold + content quality standards"],
+            "badge": "partner badge",
+            "can_sell": true,
+            "perks": ["priority support", "featured placement", "advanced analytics"]
+          }
+        ],
+        "rationale": "Verification prevents impersonation, builds consumer trust, and gates commercial activity behind identity confirmation."
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "content_policies": {
+      "status": "not_created",
+      "required_policies": [
+        {
+          "name": "Terms of Service",
+          "status": "missing",
+          "description": "Platform usage terms, content ownership, liability limitations"
+        },
+        {
+          "name": "Community Guidelines",
+          "status": "missing",
+          "description": "Acceptable behavior, content standards, enforcement consequences"
+        },
+        {
+          "name": "Creator Terms",
+          "status": "missing",
+          "description": "Product listing requirements, refund obligations, payout terms"
+        },
+        {
+          "name": "Acceptable Use Policy",
+          "status": "missing",
+          "description": "Prohibited content types, API usage limits, automation restrictions"
+        }
+      ],
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "dmca": {
+      "status": "not_implemented",
+      "requirements": [
+        {
+          "component": "DMCA Agent Registration",
+          "status": "not_done",
+          "description": "Register designated DMCA agent with US Copyright Office"
+        },
+        {
+          "component": "Takedown Request Handler",
+          "status": "not_implemented",
+          "description": "Endpoint/form for copyright holders to submit takedown notices"
+        },
+        {
+          "component": "Counter-Notification",
+          "status": "not_implemented",
+          "description": "Process for accused users to dispute takedown"
+        },
+        {
+          "component": "Repeat Infringer Policy",
+          "status": "not_implemented",
+          "description": "Policy to terminate accounts of repeat infringers"
+        }
+      ],
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "payment_fraud": {
+      "status": "not_applicable_yet",
+      "note": "No payment processing currently implemented. When Stripe/payment integration is added: chargeback handling, refund policies, payout fraud detection, and payment dispute resolution will all be required.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-AUTH-001",
+      "question": "What Clerk plan is needed at scale? Free tier supports 10K MAU. Pro ($25/mo) supports 100K MAU. What is the projected user count at launch and 6-month mark?",
+      "impact": "Cost planning and feature availability (SSO requires Pro, SAML requires Enterprise)",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-AUTH-002",
+      "question": "Which OAuth providers beyond Google and Apple? GitHub for developer creators? Discord for gaming creators? Twitter/X for social creators?",
+      "impact": "Clerk configuration and onboarding flow design",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-AUTH-003",
+      "question": "Should 2FA be required for all creator accounts or only those selling products?",
+      "impact": "Onboarding friction vs security posture. Requiring MFA for all creators is more secure but adds signup friction.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-AUTH-004",
+      "question": "Should consumer accounts use passwordless (magic link / OAuth only) while creator accounts use full Clerk auth?",
+      "impact": "Consumer UX — passwordless removes a major friction point for buyers/community members",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-AUTH-005",
+      "question": "Is the current users table role model (creator/consumer) sufficient, or do we need multi-role accounts (a user who is both creator and consumer)?",
+      "impact": "Schema design — single role column vs many-to-many roles table. Current schema uses single text column with default 'creator'.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-SEC-001",
+      "question": "What is the content moderation staffing plan? AI-first with human escalation, or human-first with AI assist?",
+      "impact": "Architecture of moderation pipeline, cost structure, response time SLAs",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-SEC-002",
+      "question": "What legal entity handles DMCA agent registration and content policy enforcement? Empyrean Studio LLC?",
+      "impact": "Legal structure needed before accepting user-generated content at scale",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-SEC-003",
+      "question": "Should RLS be implemented at the Postgres level (Neon RLS) or application level (Drizzle query filters) or both?",
+      "impact": "Defense in depth vs implementation complexity. Postgres-level RLS is harder to bypass but harder to debug. Application-level is faster to implement but relies on storage.ts always filtering correctly.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-SEC-004",
+      "question": "What is the data residency requirement? US-only? EU option needed for GDPR?",
+      "impact": "Neon region selection, Clerk data residency, CDN configuration",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  ],
+
+  "implementation_debt": [
+    {
+      "id": "DEBT-AUTH-001",
+      "description": "comparePasswords() returns true for all passwords — entire auth system is non-functional",
+      "severity": "CRITICAL",
+      "resolution": "Replace with Clerk (do not fix Passport.js)",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-AUTH-002",
+      "description": "No password hashing verification — stored passwords may not even be properly hashed",
+      "severity": "HIGH",
+      "resolution": "Moot after Clerk migration — passwords will no longer be stored locally",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-AUTH-003",
+      "description": "No email verification on registration — anyone can register with any username",
+      "severity": "MEDIUM",
+      "resolution": "Clerk provides email verification out of the box",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-SEC-001",
+      "description": "No rate limiting on any endpoint — vulnerable to brute force and abuse",
+      "severity": "HIGH",
+      "resolution": "Add express-rate-limit or rely on Clerk rate limiting for auth endpoints + custom middleware for API",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-SEC-002",
+      "description": "No RLS on any table — all data accessible to any authenticated user",
+      "severity": "HIGH",
+      "resolution": "Implement application-level row filtering in storage.ts, then harden with Neon RLS",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-SEC-003",
+      "description": "No CSRF protection",
+      "severity": "MEDIUM",
+      "resolution": "Clerk JWT-based auth mitigates traditional CSRF. Verify no cookie-auth endpoints remain.",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-SEC-004",
+      "description": "No content moderation — platform is open to abuse once public",
+      "severity": "HIGH",
+      "resolution": "Implement auto-mod + reporting + manual review queue before public launch",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-SEC-005",
+      "description": "No privacy compliance (GDPR, CCPA) — no data export, deletion, or consent mechanisms",
+      "severity": "HIGH",
+      "resolution": "Build data export/delete endpoints, add consent management, create privacy policy",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-SEC-006",
+      "description": "No content policies or terms of service — no legal framework for content disputes",
+      "severity": "MEDIUM",
+      "resolution": "Draft and publish ToS, Community Guidelines, Creator Terms, AUP before public launch",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-SEC-007",
+      "description": "No DMCA compliance — platform liable for user-uploaded infringing content",
+      "severity": "MEDIUM",
+      "resolution": "Register DMCA agent, implement takedown/counter-notice flow",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-SEC-008",
+      "description": "God file routes.ts (53KB) makes security audit extremely difficult — cannot verify all endpoints are protected",
+      "severity": "MEDIUM",
+      "resolution": "Split routes.ts into domain-specific route modules (auth, posts, products, communities, etc.) — security auditing becomes tractable",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-SEC-009",
+      "description": "God file storage.ts (104KB) concentrates all data access — single point of failure for access control",
+      "severity": "MEDIUM",
+      "resolution": "Split storage.ts into domain-specific storage modules with consistent authorization patterns per module",
+      "provenance": "IMPLEMENTATION_DEBT"
+    }
+  ],
+
+  "security_posture_summary": {
+    "overall_rating": "CRITICAL — not deployable",
+    "auth": "BROKEN — comparePasswords bypassed, zero authentication barrier",
+    "authorization": "NONE — no RLS, no row-level access control",
+    "api_security": "NONE — no rate limiting, unverified CORS/CSRF",
+    "privacy": "NONE — no GDPR/CCPA compliance, no data classification",
+    "content_safety": "NONE — no moderation, no reporting, no policies",
+    "legal": "NONE — no ToS, no DMCA, no creator verification",
+    "deployment_gate": "MUST resolve COS-AUTH-001, implement basic RLS, add rate limiting, and publish ToS/privacy policy BEFORE any production deployment",
+    "provenance": "SYNTHESIZED_CANON"
+  }
+}

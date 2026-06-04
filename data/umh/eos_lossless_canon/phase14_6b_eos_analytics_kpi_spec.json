@@ -1,0 +1,1021 @@
+{
+  "artifact_id": "EOS-ANALYTICS-KPI-001",
+  "title": "EOS Analytics and KPI Specification",
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "INFERRED_PROFESSIONAL_GAP",
+  "description": "What EOS measures and displays — business intelligence for founders: KPI framework, dashboard metrics, AI insights, reporting, benchmarking, and agent performance analytics",
+  "provenance_detail": "Analytics not specified in PRD beyond 'KPI strip' on the home dashboard. This artifact infers the full analytics and KPI system required for a production business-in-a-box operating system, drawing from the ontology (portfolio/entity/business hierarchy), agent architecture (10 agents, 9 departments), UI/UX canon (executive command center aesthetic), and communication/delegation architecture. Every metric traces to the EOS hierarchy: Operator -> Portfolio -> Entity -> Business Operations -> Teams/Agents -> Workflows/Tasks -> Capital/KPIs -> Outcomes.",
+
+  "analytics_platform": {
+    "target": "PostHog",
+    "status": "planned_not_implemented",
+    "rationale": "PostHog provides product analytics, session replay, feature flags, and experimentation in a single self-hostable platform. Aligns with UMH self-sovereignty principle — no vendor lock-in on business intelligence.",
+    "integration_model": {
+      "client_side": "PostHog JS SDK in React shell for UI event tracking, session replay, feature flags",
+      "server_side": "PostHog Python SDK for agent execution events, workflow completions, API-level metrics",
+      "data_warehouse": "Neon Postgres as primary store, PostHog as analytics overlay — not a replacement for the transactional database"
+    },
+    "alternative_considered": "Custom analytics on Neon Postgres with materialized views. PostHog preferred for session replay, funnel analysis, and experimentation features that would be expensive to build custom.",
+    "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+  },
+
+  "kpi_framework": {
+    "design_principle": "Every KPI must be actionable, attributable to a hierarchy level, and measurable without manual data entry. If the system cannot compute it from transactional data, it is not a KPI — it is a vanity metric.",
+
+    "universal_kpis": [
+      {
+        "id": "KPI-UNI-001",
+        "name": "net_revenue",
+        "label": "Net Revenue",
+        "description": "Total revenue minus refunds, chargebacks, and discounts across all entities in scope",
+        "unit": "currency",
+        "direction": "higher_is_better",
+        "hierarchy_level": ["portfolio", "entity", "business"],
+        "computation": "SUM(transactions WHERE type=revenue) - SUM(transactions WHERE type IN (refund, chargeback, discount))",
+        "frequency": "real_time"
+      },
+      {
+        "id": "KPI-UNI-002",
+        "name": "gross_profit_margin",
+        "label": "Gross Profit Margin",
+        "description": "Revenue minus cost of goods sold, as a percentage of revenue",
+        "unit": "percentage",
+        "direction": "higher_is_better",
+        "hierarchy_level": ["portfolio", "entity", "business"],
+        "computation": "(net_revenue - cogs) / net_revenue * 100",
+        "frequency": "daily_batch"
+      },
+      {
+        "id": "KPI-UNI-003",
+        "name": "net_profit",
+        "label": "Net Profit",
+        "description": "Total revenue minus all expenses (COGS, operating, taxes, interest)",
+        "unit": "currency",
+        "direction": "higher_is_better",
+        "hierarchy_level": ["portfolio", "entity", "business"],
+        "computation": "net_revenue - total_expenses",
+        "frequency": "daily_batch"
+      },
+      {
+        "id": "KPI-UNI-004",
+        "name": "burn_rate",
+        "label": "Monthly Burn Rate",
+        "description": "Average monthly cash outflow over trailing 3 months",
+        "unit": "currency_per_month",
+        "direction": "lower_is_better",
+        "hierarchy_level": ["portfolio", "entity", "business"],
+        "computation": "AVG(monthly_cash_outflow, trailing_3_months)",
+        "frequency": "daily_batch"
+      },
+      {
+        "id": "KPI-UNI-005",
+        "name": "runway_months",
+        "label": "Runway (Months)",
+        "description": "Cash on hand divided by monthly burn rate — how many months until cash-out",
+        "unit": "months",
+        "direction": "higher_is_better",
+        "hierarchy_level": ["portfolio", "entity", "business"],
+        "computation": "cash_on_hand / burn_rate",
+        "frequency": "daily_batch"
+      },
+      {
+        "id": "KPI-UNI-006",
+        "name": "monthly_recurring_revenue",
+        "label": "MRR",
+        "description": "Normalized monthly recurring revenue from subscription/retainer contracts",
+        "unit": "currency_per_month",
+        "direction": "higher_is_better",
+        "hierarchy_level": ["entity", "business"],
+        "computation": "SUM(active_subscriptions * monthly_normalized_amount)",
+        "frequency": "real_time",
+        "applicability": "subscription_businesses_only"
+      },
+      {
+        "id": "KPI-UNI-007",
+        "name": "cash_on_hand",
+        "label": "Cash on Hand",
+        "description": "Current liquid cash across all connected accounts for the entity/portfolio",
+        "unit": "currency",
+        "direction": "higher_is_better",
+        "hierarchy_level": ["portfolio", "entity"],
+        "computation": "SUM(bank_account_balances WHERE type=liquid)",
+        "frequency": "real_time"
+      },
+      {
+        "id": "KPI-UNI-008",
+        "name": "task_completion_rate",
+        "label": "Task Completion Rate",
+        "description": "Percentage of tasks completed on or before deadline in the current period",
+        "unit": "percentage",
+        "direction": "higher_is_better",
+        "hierarchy_level": ["portfolio", "entity", "business", "department", "agent"],
+        "computation": "(tasks_completed_on_time / total_tasks_due) * 100",
+        "frequency": "real_time"
+      },
+      {
+        "id": "KPI-UNI-009",
+        "name": "ai_automation_ratio",
+        "label": "AI Automation Ratio",
+        "description": "Percentage of total tasks completed autonomously by agents without human intervention",
+        "unit": "percentage",
+        "direction": "higher_is_better",
+        "hierarchy_level": ["portfolio", "entity", "business"],
+        "computation": "(agent_autonomous_completions / total_task_completions) * 100",
+        "frequency": "daily_batch"
+      },
+      {
+        "id": "KPI-UNI-010",
+        "name": "operator_decision_backlog",
+        "label": "Decision Backlog",
+        "description": "Number of items awaiting operator approval or decision. High backlog = bottleneck at the human layer.",
+        "unit": "count",
+        "direction": "lower_is_better",
+        "hierarchy_level": ["portfolio", "entity"],
+        "computation": "COUNT(pending_decisions WHERE status=awaiting_operator)",
+        "frequency": "real_time"
+      }
+    ],
+
+    "per_department_kpis": {
+      "sales": {
+        "department_id": "DEPT-SALES-001",
+        "kpis": [
+          {"id": "KPI-SALES-001", "name": "pipeline_value", "label": "Pipeline Value", "description": "Total value of all open deals in pipeline", "unit": "currency", "direction": "higher_is_better"},
+          {"id": "KPI-SALES-002", "name": "win_rate", "label": "Win Rate", "description": "Deals won / deals closed (won + lost)", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-SALES-003", "name": "average_deal_size", "label": "Average Deal Size", "description": "Mean revenue per closed-won deal", "unit": "currency", "direction": "higher_is_better"},
+          {"id": "KPI-SALES-004", "name": "sales_cycle_length", "label": "Sales Cycle Length", "description": "Average days from lead creation to closed-won", "unit": "days", "direction": "lower_is_better"},
+          {"id": "KPI-SALES-005", "name": "lead_conversion_rate", "label": "Lead Conversion Rate", "description": "Leads that become qualified opportunities / total leads", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-SALES-006", "name": "pipeline_velocity", "label": "Pipeline Velocity", "description": "(qualified_opportunities * win_rate * avg_deal_size) / sales_cycle_days", "unit": "currency_per_day", "direction": "higher_is_better"},
+          {"id": "KPI-SALES-007", "name": "new_revenue_this_period", "label": "New Revenue (Period)", "description": "Revenue from new customers closed in current period", "unit": "currency", "direction": "higher_is_better"}
+        ]
+      },
+      "marketing": {
+        "department_id": "DEPT-MARKETING-001",
+        "kpis": [
+          {"id": "KPI-MKT-001", "name": "customer_acquisition_cost", "label": "CAC", "description": "Total marketing spend / new customers acquired", "unit": "currency", "direction": "lower_is_better"},
+          {"id": "KPI-MKT-002", "name": "marketing_qualified_leads", "label": "MQLs", "description": "Leads meeting qualification criteria from marketing efforts", "unit": "count", "direction": "higher_is_better"},
+          {"id": "KPI-MKT-003", "name": "cost_per_lead", "label": "Cost Per Lead", "description": "Total marketing spend / total leads generated", "unit": "currency", "direction": "lower_is_better"},
+          {"id": "KPI-MKT-004", "name": "content_engagement_rate", "label": "Content Engagement Rate", "description": "Interactions (clicks, shares, comments) / impressions across content", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-MKT-005", "name": "channel_roi", "label": "Channel ROI", "description": "Revenue attributed to channel / spend on channel, per marketing channel", "unit": "ratio", "direction": "higher_is_better"},
+          {"id": "KPI-MKT-006", "name": "brand_mention_volume", "label": "Brand Mentions", "description": "Total brand mentions across tracked channels in period", "unit": "count", "direction": "higher_is_better"}
+        ]
+      },
+      "finance": {
+        "department_id": "DEPT-FINANCE-001",
+        "kpis": [
+          {"id": "KPI-FIN-001", "name": "accounts_receivable_days", "label": "AR Days (DSO)", "description": "Average days to collect payment after invoicing", "unit": "days", "direction": "lower_is_better"},
+          {"id": "KPI-FIN-002", "name": "accounts_payable_days", "label": "AP Days (DPO)", "description": "Average days to pay suppliers after invoice receipt", "unit": "days", "direction": "context_dependent"},
+          {"id": "KPI-FIN-003", "name": "operating_expense_ratio", "label": "OpEx Ratio", "description": "Operating expenses / revenue", "unit": "percentage", "direction": "lower_is_better"},
+          {"id": "KPI-FIN-004", "name": "tax_liability_forecast", "label": "Tax Liability Forecast", "description": "Estimated tax owed for current fiscal year based on YTD income", "unit": "currency", "direction": "informational"},
+          {"id": "KPI-FIN-005", "name": "budget_variance", "label": "Budget Variance", "description": "Actual spend vs budgeted spend as percentage deviation", "unit": "percentage", "direction": "lower_is_better"},
+          {"id": "KPI-FIN-006", "name": "free_cash_flow", "label": "Free Cash Flow", "description": "Operating cash flow minus capital expenditures", "unit": "currency", "direction": "higher_is_better"}
+        ]
+      },
+      "customer_success": {
+        "department_id": "DEPT-CS-001",
+        "kpis": [
+          {"id": "KPI-CS-001", "name": "customer_churn_rate", "label": "Churn Rate", "description": "Customers lost / total customers at period start", "unit": "percentage", "direction": "lower_is_better"},
+          {"id": "KPI-CS-002", "name": "net_revenue_retention", "label": "Net Revenue Retention (NRR)", "description": "(Starting MRR + expansion - contraction - churn) / starting MRR", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-CS-003", "name": "customer_lifetime_value", "label": "CLV", "description": "Predicted total revenue from a customer over their lifetime", "unit": "currency", "direction": "higher_is_better"},
+          {"id": "KPI-CS-004", "name": "ltv_to_cac_ratio", "label": "LTV:CAC Ratio", "description": "Customer lifetime value / customer acquisition cost", "unit": "ratio", "direction": "higher_is_better", "healthy_range": "3:1 to 5:1"},
+          {"id": "KPI-CS-005", "name": "nps_score", "label": "Net Promoter Score", "description": "Promoters minus detractors as percentage of respondents", "unit": "score_negative100_to_100", "direction": "higher_is_better"},
+          {"id": "KPI-CS-006", "name": "support_ticket_resolution_time", "label": "Avg Resolution Time", "description": "Average time from ticket creation to resolution", "unit": "hours", "direction": "lower_is_better"},
+          {"id": "KPI-CS-007", "name": "first_response_time", "label": "First Response Time", "description": "Average time from ticket creation to first human/agent response", "unit": "minutes", "direction": "lower_is_better"}
+        ]
+      },
+      "hr": {
+        "department_id": "DEPT-HR-001",
+        "kpis": [
+          {"id": "KPI-HR-001", "name": "headcount", "label": "Total Headcount", "description": "Total active team members (human + contracted)", "unit": "count", "direction": "informational"},
+          {"id": "KPI-HR-002", "name": "revenue_per_employee", "label": "Revenue Per Employee", "description": "Total revenue / headcount", "unit": "currency", "direction": "higher_is_better"},
+          {"id": "KPI-HR-003", "name": "open_positions", "label": "Open Positions", "description": "Number of unfilled roles actively being recruited for", "unit": "count", "direction": "informational"},
+          {"id": "KPI-HR-004", "name": "time_to_hire", "label": "Time to Hire", "description": "Average days from job posting to accepted offer", "unit": "days", "direction": "lower_is_better"},
+          {"id": "KPI-HR-005", "name": "team_utilization_rate", "label": "Team Utilization Rate", "description": "Billable/productive hours / total available hours", "unit": "percentage", "direction": "higher_is_better"}
+        ]
+      },
+      "legal": {
+        "department_id": "DEPT-LEGAL-001",
+        "kpis": [
+          {"id": "KPI-LEGAL-001", "name": "open_compliance_items", "label": "Open Compliance Items", "description": "Number of compliance requirements not yet satisfied", "unit": "count", "direction": "lower_is_better"},
+          {"id": "KPI-LEGAL-002", "name": "contract_renewal_rate", "label": "Contract Renewal Rate", "description": "Contracts renewed / contracts up for renewal", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-LEGAL-003", "name": "pending_legal_actions", "label": "Pending Legal Actions", "description": "Active lawsuits, disputes, or regulatory proceedings", "unit": "count", "direction": "lower_is_better"},
+          {"id": "KPI-LEGAL-004", "name": "ip_portfolio_value", "label": "IP Portfolio Value", "description": "Estimated value of trademarks, patents, and registered IP", "unit": "currency", "direction": "higher_is_better"},
+          {"id": "KPI-LEGAL-005", "name": "days_to_contract_execution", "label": "Days to Contract Execution", "description": "Average days from draft to fully executed contract", "unit": "days", "direction": "lower_is_better"}
+        ]
+      },
+      "operations": {
+        "department_id": "DEPT-OPS-001",
+        "kpis": [
+          {"id": "KPI-OPS-001", "name": "workflow_completion_rate", "label": "Workflow Completion Rate", "description": "Workflows completed successfully / workflows initiated", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-OPS-002", "name": "sop_adherence_rate", "label": "SOP Adherence Rate", "description": "Tasks executed following SOP / total tasks with SOPs", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-OPS-003", "name": "process_cycle_time", "label": "Process Cycle Time", "description": "Average time to complete end-to-end business processes", "unit": "hours", "direction": "lower_is_better"},
+          {"id": "KPI-OPS-004", "name": "system_uptime", "label": "System Uptime", "description": "Percentage of time all EOS services are operational", "unit": "percentage", "direction": "higher_is_better", "target": "99.5"},
+          {"id": "KPI-OPS-005", "name": "automation_coverage", "label": "Automation Coverage", "description": "Processes with full automation / total processes", "unit": "percentage", "direction": "higher_is_better"}
+        ]
+      },
+      "product": {
+        "department_id": "DEPT-PRODUCT-001",
+        "kpis": [
+          {"id": "KPI-PROD-001", "name": "feature_adoption_rate", "label": "Feature Adoption Rate", "description": "Users actively using a feature / total users, per feature", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-PROD-002", "name": "time_to_value", "label": "Time to Value", "description": "Average time from customer onboarding to first meaningful outcome", "unit": "days", "direction": "lower_is_better"},
+          {"id": "KPI-PROD-003", "name": "product_nps", "label": "Product NPS", "description": "Net Promoter Score specific to product experience", "unit": "score_negative100_to_100", "direction": "higher_is_better"},
+          {"id": "KPI-PROD-004", "name": "active_users", "label": "Active Users (DAU/WAU/MAU)", "description": "Distinct users performing meaningful actions in period", "unit": "count", "direction": "higher_is_better"},
+          {"id": "KPI-PROD-005", "name": "bug_escape_rate", "label": "Bug Escape Rate", "description": "Bugs found in production / total bugs found", "unit": "percentage", "direction": "lower_is_better"}
+        ]
+      },
+      "engineering": {
+        "department_id": "DEPT-ENG-001",
+        "kpis": [
+          {"id": "KPI-ENG-001", "name": "deployment_frequency", "label": "Deployment Frequency", "description": "Number of production deployments per period (DORA metric)", "unit": "count_per_week", "direction": "higher_is_better"},
+          {"id": "KPI-ENG-002", "name": "lead_time_for_changes", "label": "Lead Time for Changes", "description": "Time from code commit to production deploy (DORA metric)", "unit": "hours", "direction": "lower_is_better"},
+          {"id": "KPI-ENG-003", "name": "change_failure_rate", "label": "Change Failure Rate", "description": "Deployments causing failures / total deployments (DORA metric)", "unit": "percentage", "direction": "lower_is_better"},
+          {"id": "KPI-ENG-004", "name": "mttr", "label": "Mean Time to Recovery", "description": "Average time to restore service after incident (DORA metric)", "unit": "hours", "direction": "lower_is_better"},
+          {"id": "KPI-ENG-005", "name": "test_coverage", "label": "Test Coverage", "description": "Lines of code covered by automated tests / total lines", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-ENG-006", "name": "tech_debt_ratio", "label": "Tech Debt Ratio", "description": "Engineering time spent on debt reduction / total engineering time", "unit": "percentage", "direction": "context_dependent", "healthy_range": "10-20%"}
+        ]
+      }
+    },
+
+    "per_entity_type_kpis": {
+      "description": "Entity types in the EOS ontology may have specialized KPIs beyond the universal set. These overlay the universal KPIs — they do not replace them.",
+      "saas_business": {
+        "additional_kpis": [
+          {"id": "KPI-SAAS-001", "name": "arr", "label": "Annual Recurring Revenue", "unit": "currency", "direction": "higher_is_better"},
+          {"id": "KPI-SAAS-002", "name": "expansion_mrr", "label": "Expansion MRR", "description": "MRR increase from existing customers (upsells, cross-sells)", "unit": "currency_per_month", "direction": "higher_is_better"},
+          {"id": "KPI-SAAS-003", "name": "contraction_mrr", "label": "Contraction MRR", "description": "MRR decrease from existing customers (downgrades)", "unit": "currency_per_month", "direction": "lower_is_better"},
+          {"id": "KPI-SAAS-004", "name": "quick_ratio", "label": "SaaS Quick Ratio", "description": "(New MRR + Expansion MRR) / (Contraction MRR + Churned MRR)", "unit": "ratio", "direction": "higher_is_better", "healthy_range": ">4"}
+        ]
+      },
+      "agency_service_business": {
+        "additional_kpis": [
+          {"id": "KPI-AGENCY-001", "name": "billable_utilization", "label": "Billable Utilization", "description": "Billable hours / total available hours", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-AGENCY-002", "name": "average_project_margin", "label": "Average Project Margin", "description": "Mean profit margin per completed project", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-AGENCY-003", "name": "client_retention_rate", "label": "Client Retention Rate", "description": "Clients retained period-over-period / total clients", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-AGENCY-004", "name": "revenue_per_client", "label": "Revenue Per Client", "description": "Total revenue / active client count", "unit": "currency", "direction": "higher_is_better"}
+        ]
+      },
+      "ecommerce_business": {
+        "additional_kpis": [
+          {"id": "KPI-ECOM-001", "name": "average_order_value", "label": "Average Order Value", "unit": "currency", "direction": "higher_is_better"},
+          {"id": "KPI-ECOM-002", "name": "cart_abandonment_rate", "label": "Cart Abandonment Rate", "unit": "percentage", "direction": "lower_is_better"},
+          {"id": "KPI-ECOM-003", "name": "inventory_turnover", "label": "Inventory Turnover", "description": "COGS / average inventory value", "unit": "ratio", "direction": "higher_is_better"},
+          {"id": "KPI-ECOM-004", "name": "return_rate", "label": "Return Rate", "description": "Items returned / items sold", "unit": "percentage", "direction": "lower_is_better"}
+        ]
+      },
+      "real_estate": {
+        "additional_kpis": [
+          {"id": "KPI-RE-001", "name": "occupancy_rate", "label": "Occupancy Rate", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-RE-002", "name": "cap_rate", "label": "Capitalization Rate", "description": "Net operating income / current market value", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-RE-003", "name": "cash_on_cash_return", "label": "Cash-on-Cash Return", "description": "Annual pre-tax cash flow / total cash invested", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-RE-004", "name": "net_operating_income", "label": "NOI", "description": "Gross rental income minus operating expenses", "unit": "currency", "direction": "higher_is_better"}
+        ]
+      },
+      "investment_portfolio": {
+        "additional_kpis": [
+          {"id": "KPI-INV-001", "name": "total_return", "label": "Total Return", "description": "Capital gains + dividends + interest as percentage of invested capital", "unit": "percentage", "direction": "higher_is_better"},
+          {"id": "KPI-INV-002", "name": "portfolio_beta", "label": "Portfolio Beta", "description": "Volatility relative to market benchmark", "unit": "ratio", "direction": "context_dependent"},
+          {"id": "KPI-INV-003", "name": "sharpe_ratio", "label": "Sharpe Ratio", "description": "Risk-adjusted return: (portfolio return - risk-free rate) / portfolio std dev", "unit": "ratio", "direction": "higher_is_better"},
+          {"id": "KPI-INV-004", "name": "unrealized_pnl", "label": "Unrealized P&L", "description": "Current market value minus cost basis for open positions", "unit": "currency", "direction": "higher_is_better"}
+        ]
+      },
+      "content_media_business": {
+        "additional_kpis": [
+          {"id": "KPI-MEDIA-001", "name": "subscriber_count", "label": "Subscriber/Follower Count", "unit": "count", "direction": "higher_is_better"},
+          {"id": "KPI-MEDIA-002", "name": "revenue_per_subscriber", "label": "Revenue Per Subscriber", "unit": "currency", "direction": "higher_is_better"},
+          {"id": "KPI-MEDIA-003", "name": "content_output_rate", "label": "Content Output Rate", "description": "Published content pieces per period", "unit": "count_per_week", "direction": "higher_is_better"},
+          {"id": "KPI-MEDIA-004", "name": "engagement_rate", "label": "Engagement Rate", "description": "Total engagements / total reach across platforms", "unit": "percentage", "direction": "higher_is_better"}
+        ]
+      }
+    }
+  },
+
+  "dashboard_metrics": {
+    "design_principle": "Progressive disclosure. Home dashboard shows the 5-8 numbers that matter most. Drill-down reveals department, entity, and historical detail. Never overwhelm. Finance-grade clarity, not dashboard-porn.",
+
+    "home_dashboard": {
+      "description": "The KPI strip visible immediately on login. Executive summary — the numbers a founder checks first thing in the morning.",
+      "layout": "horizontal_strip_with_sparklines",
+      "max_visible_metrics": 8,
+      "default_metrics": [
+        {"metric": "net_revenue", "period": "mtd", "comparison": "vs_last_month", "sparkline": "trailing_30d"},
+        {"metric": "net_profit", "period": "mtd", "comparison": "vs_last_month", "sparkline": "trailing_30d"},
+        {"metric": "cash_on_hand", "period": "current", "comparison": "vs_30d_ago", "sparkline": "trailing_30d"},
+        {"metric": "runway_months", "period": "current", "comparison": "vs_last_month", "sparkline": "trailing_6m"},
+        {"metric": "pipeline_value", "period": "current", "comparison": "vs_last_month", "sparkline": "trailing_30d"},
+        {"metric": "task_completion_rate", "period": "trailing_7d", "comparison": "vs_prior_7d", "sparkline": "trailing_30d"},
+        {"metric": "operator_decision_backlog", "period": "current", "comparison": "vs_yesterday", "sparkline": "trailing_7d"},
+        {"metric": "ai_automation_ratio", "period": "trailing_30d", "comparison": "vs_prior_30d", "sparkline": "trailing_90d"}
+      ],
+      "customization": "Operator can pin/unpin metrics, reorder strip, change comparison period. Persisted per-operator in preferences.",
+      "color_coding": {
+        "positive_trend": "green_accent",
+        "negative_trend": "red_accent",
+        "neutral": "muted_gray",
+        "alert_threshold_breach": "amber_with_pulse"
+      }
+    },
+
+    "portfolio_view": {
+      "description": "Consolidated analytics across all entities in a portfolio. Comparative view — see which entities outperform, which need attention.",
+      "sections": [
+        {
+          "name": "portfolio_summary_strip",
+          "metrics": ["total_portfolio_revenue", "total_portfolio_profit", "total_cash_across_entities", "weighted_average_margin", "entity_count", "total_headcount"]
+        },
+        {
+          "name": "entity_comparison_table",
+          "columns": ["entity_name", "entity_type", "revenue_mtd", "profit_mtd", "margin", "runway", "health_score"],
+          "sortable": true,
+          "filterable_by": ["entity_type", "status", "date_range"]
+        },
+        {
+          "name": "capital_allocation_chart",
+          "type": "treemap_or_sunburst",
+          "data": "cash_allocated_per_entity",
+          "drill_down": "entity_detail"
+        },
+        {
+          "name": "portfolio_trend",
+          "type": "multi_line_chart",
+          "series": ["total_revenue", "total_expenses", "total_profit"],
+          "period": "trailing_12_months",
+          "granularity": "monthly"
+        }
+      ]
+    },
+
+    "entity_detail": {
+      "description": "Deep-dive into a single entity. All universal KPIs plus entity-type-specific KPIs. Department breakdown.",
+      "sections": [
+        {
+          "name": "entity_header",
+          "fields": ["entity_name", "entity_type", "legal_form", "status", "formation_date", "health_score"]
+        },
+        {
+          "name": "financial_summary",
+          "metrics": ["net_revenue", "gross_profit_margin", "net_profit", "burn_rate", "runway_months", "cash_on_hand", "mrr"],
+          "period_selector": true,
+          "comparison_toggle": true
+        },
+        {
+          "name": "department_performance_grid",
+          "type": "grid_of_cards",
+          "per_department": {
+            "card_contains": ["department_name", "top_3_kpis", "task_completion_rate", "active_agent_status", "alert_count"],
+            "click_through": "department_view"
+          }
+        },
+        {
+          "name": "revenue_breakdown",
+          "type": "stacked_bar_chart",
+          "dimensions": ["product_line", "customer_segment", "channel"],
+          "period": "trailing_12_months"
+        },
+        {
+          "name": "entity_type_specific_kpis",
+          "description": "Renders additional KPIs from per_entity_type_kpis based on this entity's type",
+          "dynamic": true
+        }
+      ]
+    },
+
+    "department_view": {
+      "description": "Per-department analytics page. Shows department-specific KPIs, agent performance, workflow status, and task pipeline.",
+      "sections": [
+        {
+          "name": "department_kpi_strip",
+          "metrics": "department-specific KPIs from per_department_kpis[department_id]",
+          "sparklines": true
+        },
+        {
+          "name": "agent_activity_feed",
+          "type": "timeline",
+          "entries": ["task_completions", "decisions_made", "escalations", "errors"],
+          "filter_by": ["agent", "severity", "date_range"]
+        },
+        {
+          "name": "workflow_pipeline",
+          "type": "kanban_or_table",
+          "stages": ["queued", "in_progress", "pending_approval", "completed", "failed"],
+          "per_workflow": ["name", "status", "assigned_agent", "started_at", "eta"]
+        },
+        {
+          "name": "department_trend",
+          "type": "line_chart",
+          "metrics": "top 3 department KPIs over time",
+          "period": "trailing_90_days",
+          "granularity": "weekly"
+        }
+      ]
+    }
+  },
+
+  "real_time_vs_batch": {
+    "design_principle": "Real-time where the operator needs to act now. Batch where historical aggregation produces better signal. Never pay the cost of real-time for metrics that only matter weekly.",
+
+    "real_time_metrics": {
+      "description": "Updated on every relevant transaction or event. Pushed via WebSocket to connected clients.",
+      "refresh_mechanism": "websocket_push_on_event",
+      "latency_target": "under_5_seconds",
+      "metrics": [
+        "cash_on_hand",
+        "pipeline_value",
+        "operator_decision_backlog",
+        "task_completion_rate",
+        "mrr",
+        "net_revenue",
+        "open_positions",
+        "system_uptime",
+        "active_users",
+        "first_response_time"
+      ],
+      "implementation_note": "Real-time metrics require event-driven computation. Each transaction/event triggers a recalculation of affected metrics. Use Postgres LISTEN/NOTIFY for change propagation, or application-level event bus."
+    },
+
+    "daily_batch_metrics": {
+      "description": "Computed once per day during overnight batch job. Historical aggregation that benefits from full-day data.",
+      "refresh_mechanism": "scheduled_batch_job",
+      "schedule": "daily_0200_utc",
+      "latency_target": "available_by_0600_utc",
+      "metrics": [
+        "gross_profit_margin",
+        "net_profit",
+        "burn_rate",
+        "runway_months",
+        "ai_automation_ratio",
+        "customer_acquisition_cost",
+        "customer_churn_rate",
+        "net_revenue_retention",
+        "customer_lifetime_value",
+        "ltv_to_cac_ratio",
+        "accounts_receivable_days",
+        "accounts_payable_days",
+        "operating_expense_ratio",
+        "budget_variance",
+        "free_cash_flow",
+        "revenue_per_employee",
+        "billable_utilization",
+        "average_project_margin",
+        "sop_adherence_rate",
+        "deployment_frequency",
+        "lead_time_for_changes",
+        "change_failure_rate",
+        "tech_debt_ratio"
+      ]
+    },
+
+    "weekly_batch_metrics": {
+      "description": "Metrics that require weekly aggregation for meaningful signal. Computed on Monday 0300 UTC.",
+      "refresh_mechanism": "scheduled_batch_job",
+      "schedule": "weekly_monday_0300_utc",
+      "metrics": [
+        "win_rate",
+        "sales_cycle_length",
+        "pipeline_velocity",
+        "channel_roi",
+        "brand_mention_volume",
+        "tax_liability_forecast",
+        "workflow_completion_rate",
+        "process_cycle_time",
+        "automation_coverage",
+        "feature_adoption_rate",
+        "time_to_value",
+        "product_nps",
+        "nps_score",
+        "bug_escape_rate",
+        "content_output_rate"
+      ]
+    },
+
+    "refresh_intervals_summary": {
+      "real_time": {"count": 10, "mechanism": "event_driven_push"},
+      "daily": {"count": 23, "mechanism": "batch_0200_utc"},
+      "weekly": {"count": 15, "mechanism": "batch_monday_0300_utc"}
+    }
+  },
+
+  "ai_insights": {
+    "design_principle": "AI augments the numbers with meaning. Every insight must be actionable — 'revenue dropped 12%' is not an insight; 'revenue dropped 12% because enterprise deal X slipped — Sales Agent recommends rescheduling the demo' is an insight. Deterministic detection first, AI narration second.",
+
+    "next_best_action": {
+      "description": "AI-generated recommended actions surfaced on the home dashboard and in the EA Agent's morning brief. Always backed by data, always attributable to a specific metric or trend.",
+      "sources": [
+        "anomaly_detections",
+        "trend_inflections",
+        "deadline_approaching_items",
+        "stalled_workflows",
+        "agent_escalations",
+        "budget_threshold_breaches",
+        "competitive_signals"
+      ],
+      "format": {
+        "headline": "One-sentence action recommendation",
+        "rationale": "Why this action matters, grounded in data",
+        "metric_context": "Which KPI(s) this relates to, with current values",
+        "suggested_agent": "Which department agent should handle this",
+        "urgency": "critical | high | medium | low",
+        "estimated_impact": "Quantified expected outcome if action is taken"
+      },
+      "max_per_day": 5,
+      "ranking": "urgency * estimated_impact * confidence_score",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+
+    "anomaly_detection": {
+      "description": "Automatic detection of unusual patterns in KPI data. Deterministic rules for known patterns, statistical methods for unknown patterns.",
+      "detection_methods": [
+        {
+          "name": "threshold_breach",
+          "type": "deterministic",
+          "description": "Metric crosses operator-defined threshold (e.g., runway < 3 months)",
+          "implementation": "simple_comparison_on_each_metric_update"
+        },
+        {
+          "name": "percentage_deviation",
+          "type": "deterministic",
+          "description": "Metric deviates more than N% from trailing average (e.g., daily revenue drops 30% vs trailing 7-day average)",
+          "default_threshold": "25_percent_deviation"
+        },
+        {
+          "name": "trend_break",
+          "type": "statistical",
+          "description": "Metric trend reverses direction after sustained movement (e.g., MRR was growing 5% MoM for 6 months, now flat)",
+          "method": "linear_regression_on_trailing_window_with_residual_analysis"
+        },
+        {
+          "name": "seasonal_anomaly",
+          "type": "statistical",
+          "description": "Metric deviates from expected seasonal pattern",
+          "method": "seasonal_decomposition_with_anomaly_scoring",
+          "minimum_data": "12_months_for_seasonal_detection"
+        }
+      ],
+      "alert_routing": {
+        "critical": "Push notification to operator + EA Agent morning brief + dashboard alert banner",
+        "high": "EA Agent morning brief + dashboard alert badge",
+        "medium": "Dashboard alert badge + department view notification",
+        "low": "Department view notification only"
+      }
+    },
+
+    "trend_analysis": {
+      "description": "AI-narrated trend reports that contextualize KPI movements over time. Provides the 'so what' behind the numbers.",
+      "components": [
+        {
+          "name": "momentum_indicator",
+          "description": "For each KPI: accelerating, decelerating, stable, or reversing. Deterministic calculation.",
+          "computation": "second_derivative_of_trailing_values"
+        },
+        {
+          "name": "correlation_detection",
+          "description": "Identify when two KPIs move together unexpectedly (e.g., marketing spend up but CAC also up — diminishing returns)",
+          "computation": "rolling_pearson_correlation_between_kpi_pairs"
+        },
+        {
+          "name": "narrative_summary",
+          "description": "LLM-generated plain-English summary of trends for the morning brief",
+          "fallback": "Template-based summary using metric values and direction labels",
+          "frequency": "daily_in_morning_brief"
+        }
+      ]
+    },
+
+    "forecasting": {
+      "description": "Forward-looking projections for key financial and operational metrics. Always displayed with confidence intervals. Deterministic baseline, AI-enhanced where data supports it.",
+      "models": [
+        {
+          "name": "linear_projection",
+          "type": "deterministic",
+          "description": "Simple linear extrapolation from trailing data. Always available as baseline.",
+          "applicable_to": "all_metrics_with_30plus_days_of_data"
+        },
+        {
+          "name": "cohort_based_revenue_forecast",
+          "type": "deterministic",
+          "description": "Revenue forecast based on existing customer cohort behavior + pipeline conversion rates",
+          "applicable_to": ["mrr", "arr", "net_revenue"]
+        },
+        {
+          "name": "ai_enhanced_forecast",
+          "type": "ai_augmented",
+          "description": "LLM adjusts statistical forecast based on contextual factors (market conditions, planned campaigns, known deal movements)",
+          "fallback": "linear_projection",
+          "confidence_display": "always_show_80_percent_confidence_interval"
+        }
+      ],
+      "display": {
+        "time_horizons": ["30_days", "90_days", "12_months"],
+        "visualization": "line_chart_with_confidence_band",
+        "always_show_actual_vs_forecast_for_past_predictions": true
+      }
+    }
+  },
+
+  "reporting": {
+    "design_principle": "Reports are for communication and record-keeping. Dashboards are for real-time awareness. Never make the operator build a report manually — the system produces them on schedule or on demand.",
+
+    "scheduled_reports": [
+      {
+        "id": "RPT-001",
+        "name": "morning_brief",
+        "description": "Daily executive summary delivered via EA Agent. KPI snapshot, anomalies, next best actions, today's agenda.",
+        "frequency": "daily",
+        "delivery": ["ea_agent_chat", "email_optional"],
+        "content": ["kpi_strip_snapshot", "anomalies_since_yesterday", "next_best_actions", "calendar_today", "decision_backlog_count"],
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "id": "RPT-002",
+        "name": "weekly_business_review",
+        "description": "Weekly rollup of all KPIs with week-over-week comparison, trend narratives, and department highlights.",
+        "frequency": "weekly_monday",
+        "delivery": ["ea_agent_chat", "downloadable_pdf"],
+        "content": ["all_universal_kpis_with_wow_comparison", "department_highlights", "trend_narratives", "forecasts_updated", "action_items_from_prior_week"]
+      },
+      {
+        "id": "RPT-003",
+        "name": "monthly_financial_report",
+        "description": "Monthly P&L, cash flow statement, balance sheet summary, and financial KPI analysis.",
+        "frequency": "monthly_first_business_day",
+        "delivery": ["ea_agent_chat", "downloadable_pdf", "email_optional"],
+        "content": ["income_statement", "cash_flow_statement", "balance_sheet_summary", "financial_kpis_with_mom_comparison", "budget_vs_actual", "tax_liability_update"]
+      },
+      {
+        "id": "RPT-004",
+        "name": "quarterly_strategic_review",
+        "description": "Quarterly deep-dive with OKR progress, competitive analysis, and strategic recommendations from CEO Agent.",
+        "frequency": "quarterly",
+        "delivery": ["ea_agent_chat", "downloadable_pdf"],
+        "content": ["okr_progress", "quarterly_financials", "competitive_position_update", "strategic_recommendations", "portfolio_rebalancing_suggestions"]
+      }
+    ],
+
+    "ad_hoc": {
+      "description": "Operator can request any report via EA Agent natural language. 'Give me a sales report for Q1' or 'How did marketing perform last month?'",
+      "mechanism": "EA Agent parses intent, routes to appropriate department agent, agent compiles report from available data, returns formatted output.",
+      "supported_queries": [
+        "department performance for a period",
+        "entity comparison",
+        "customer analysis (top customers, churn risk, LTV distribution)",
+        "financial snapshot at any date",
+        "pipeline analysis",
+        "agent performance summary",
+        "workflow efficiency report",
+        "custom KPI cross-tabulation"
+      ]
+    },
+
+    "export_formats": [
+      {"format": "pdf", "description": "Branded PDF with charts and tables. Primary output format for formal reports."},
+      {"format": "csv", "description": "Raw data export for any metric or report table. For spreadsheet analysis."},
+      {"format": "json", "description": "Structured data export for API consumers or integrations."},
+      {"format": "xlsx", "description": "Excel workbook with multiple sheets for complex reports. Includes formulas where applicable."}
+    ]
+  },
+
+  "benchmarking": {
+    "design_principle": "A number without context is noise. Benchmarking provides the context: 'Your churn rate is 5%' means nothing; 'Your churn rate is 5% vs 3% industry median for SaaS at your stage' drives action.",
+
+    "cross_entity": {
+      "description": "Compare entities within the same portfolio on shared KPIs. Which of your businesses is most capital-efficient? Which has the longest runway?",
+      "implementation": "Rank entities on each universal KPI. Display as comparison table with color-coded quartiles.",
+      "available_from": "mvp_if_multiple_entities_exist"
+    },
+
+    "cross_portfolio": {
+      "description": "Compare portfolios against each other on aggregate KPIs. For operators with multiple portfolios.",
+      "implementation": "Aggregate universal KPIs per portfolio. Display as side-by-side comparison.",
+      "available_from": "post_mvp_multiple_portfolios"
+    },
+
+    "industry_benchmarks": {
+      "description": "Compare entity KPIs against industry/stage benchmarks. Requires external benchmark data source.",
+      "data_sources": [
+        {
+          "name": "static_benchmark_tables",
+          "description": "Curated benchmark data compiled from public sources (SaaS benchmarks from OpenView, Bessemer; agency benchmarks from Promethean Research; etc.)",
+          "provenance": "INFERRED_PROFESSIONAL_GAP",
+          "update_frequency": "quarterly_manual"
+        },
+        {
+          "name": "anonymous_aggregate",
+          "description": "If EOS achieves sufficient user base, anonymous cross-platform benchmarks from opt-in users",
+          "provenance": "INFERRED_PROFESSIONAL_GAP",
+          "available_from": "post_scale_with_sufficient_user_base",
+          "privacy": "strict_opt_in_only_fully_anonymized"
+        }
+      ],
+      "display": {
+        "format": "metric_value_with_percentile_rank",
+        "example": "Your CAC is $47 (25th percentile for early-stage SaaS — better than 75% of peers)",
+        "visualization": "gauge_or_distribution_plot_with_your_position_marked"
+      },
+      "provenance_note": "Industry benchmarks are INFERRED_PROFESSIONAL_GAP — the PRD does not specify benchmarking. This is standard in any serious business analytics platform."
+    }
+  },
+
+  "agent_performance": {
+    "design_principle": "Agents are employees. They get performance reviews. Every agent's effectiveness is measured, tracked, and visible to the operator. This is how the operator trusts (or revokes trust from) AI autonomy.",
+
+    "per_agent_metrics": {
+      "description": "Standardized performance metrics tracked for every agent in the system.",
+      "metrics": [
+        {
+          "id": "AGENT-PERF-001",
+          "name": "tasks_completed",
+          "label": "Tasks Completed",
+          "description": "Total tasks completed in period",
+          "unit": "count",
+          "direction": "higher_is_better"
+        },
+        {
+          "id": "AGENT-PERF-002",
+          "name": "task_success_rate",
+          "label": "Task Success Rate",
+          "description": "Tasks completed successfully / tasks attempted",
+          "unit": "percentage",
+          "direction": "higher_is_better"
+        },
+        {
+          "id": "AGENT-PERF-003",
+          "name": "average_task_duration",
+          "label": "Avg Task Duration",
+          "description": "Mean time from task assignment to completion",
+          "unit": "minutes",
+          "direction": "lower_is_better"
+        },
+        {
+          "id": "AGENT-PERF-004",
+          "name": "escalation_rate",
+          "label": "Escalation Rate",
+          "description": "Tasks escalated to human / total tasks. High escalation means the agent cannot handle its domain.",
+          "unit": "percentage",
+          "direction": "lower_is_better"
+        },
+        {
+          "id": "AGENT-PERF-005",
+          "name": "autonomous_completion_rate",
+          "label": "Autonomous Completion Rate",
+          "description": "Tasks completed without any human intervention / total tasks",
+          "unit": "percentage",
+          "direction": "higher_is_better"
+        },
+        {
+          "id": "AGENT-PERF-006",
+          "name": "error_rate",
+          "label": "Error Rate",
+          "description": "Tasks resulting in error or requiring correction / total tasks",
+          "unit": "percentage",
+          "direction": "lower_is_better"
+        },
+        {
+          "id": "AGENT-PERF-007",
+          "name": "cost_per_task",
+          "label": "Cost Per Task",
+          "description": "LLM API cost + compute cost per task. The economic efficiency of the agent.",
+          "unit": "currency",
+          "direction": "lower_is_better"
+        },
+        {
+          "id": "AGENT-PERF-008",
+          "name": "quality_score",
+          "label": "Quality Score",
+          "description": "Composite quality score based on output accuracy, completeness, and operator feedback. 0-100 scale.",
+          "unit": "score_0_to_100",
+          "direction": "higher_is_better",
+          "computation": "weighted_average(accuracy_check, completeness_check, operator_feedback_score)"
+        },
+        {
+          "id": "AGENT-PERF-009",
+          "name": "improvement_trend",
+          "label": "Improvement Trend",
+          "description": "Is this agent getting better or worse over time? Based on quality score trailing average.",
+          "unit": "enum",
+          "values": ["improving", "stable", "declining"],
+          "direction": "improving_is_best"
+        },
+        {
+          "id": "AGENT-PERF-010",
+          "name": "permission_tier_utilization",
+          "label": "Permission Tier Utilization",
+          "description": "How often the agent operates at its maximum permission tier. High utilization on COMMIT-tier agents may indicate risk.",
+          "unit": "percentage",
+          "direction": "context_dependent"
+        }
+      ]
+    },
+
+    "task_completion_tracking": {
+      "description": "Every task assigned to an agent is tracked from assignment to resolution with full audit trail.",
+      "tracked_fields": [
+        "task_id",
+        "assigned_agent",
+        "assigned_at",
+        "started_at",
+        "completed_at",
+        "status (queued, in_progress, completed, failed, escalated, cancelled)",
+        "outcome (success, partial_success, failure, escalated_to_human)",
+        "quality_score",
+        "cost_incurred",
+        "human_intervention_required (boolean)",
+        "intervention_reason (if true)",
+        "retry_count",
+        "parent_task_id (for subtasks)",
+        "department",
+        "workflow_id (if part of a workflow)"
+      ],
+      "retention": "indefinite — task history is the foundation of agent improvement"
+    },
+
+    "quality_scoring": {
+      "description": "Multi-dimensional quality assessment for agent outputs. Deterministic checks first, operator feedback as calibration.",
+      "dimensions": [
+        {
+          "name": "accuracy",
+          "weight": 0.4,
+          "description": "Did the agent produce correct output? For deterministic tasks: exact match. For generative tasks: factual accuracy against source data.",
+          "measurement": "automated_check_where_possible + operator_override"
+        },
+        {
+          "name": "completeness",
+          "weight": 0.3,
+          "description": "Did the agent address all aspects of the task? Measured by checklist completion for structured tasks.",
+          "measurement": "subtask_completion_ratio + output_field_coverage"
+        },
+        {
+          "name": "timeliness",
+          "weight": 0.15,
+          "description": "Did the agent complete within expected timeframe?",
+          "measurement": "actual_duration / expected_duration (capped at 1.0 for early completion)"
+        },
+        {
+          "name": "operator_satisfaction",
+          "weight": 0.15,
+          "description": "Explicit operator feedback (thumbs up/down, rating, correction). Most valuable signal but sparsest.",
+          "measurement": "rolling_average_of_operator_ratings",
+          "cold_start": "default_to_0.7_until_5_ratings_collected"
+        }
+      ],
+      "composite_formula": "SUM(dimension_score * dimension_weight) * 100",
+      "recalibration": "Weights adjustable per-operator. Some founders care more about speed, others about accuracy."
+    },
+
+    "agent_dashboard": {
+      "description": "Dedicated view for monitoring all agent performance. Accessible from the operations department view or directly from the nav rail.",
+      "sections": [
+        {
+          "name": "agent_roster",
+          "type": "table",
+          "columns": ["agent_name", "department", "status", "tasks_today", "success_rate_7d", "quality_score", "trend"],
+          "sortable": true,
+          "clickthrough": "agent_detail"
+        },
+        {
+          "name": "agent_detail",
+          "sections": [
+            "performance_over_time_chart (line: quality_score, task_count, success_rate)",
+            "task_history_table (recent 50 tasks with status and outcome)",
+            "error_log (failures with root cause classification)",
+            "cost_breakdown (LLM costs, compute costs, per task and total)",
+            "permission_audit (actions taken at each permission tier)"
+          ]
+        },
+        {
+          "name": "fleet_health",
+          "type": "summary_cards",
+          "cards": [
+            "total_tasks_today",
+            "fleet_success_rate",
+            "total_ai_cost_mtd",
+            "agents_with_declining_quality",
+            "highest_escalation_rate_agent"
+          ]
+        }
+      ]
+    }
+  },
+
+  "mvp_scope": {
+    "description": "Which analytics capabilities ship in which EOS release. Progressive build-out — not everything at once.",
+    "r1_core_shell": {
+      "analytics": ["home_dashboard_kpi_strip (net_revenue, cash_on_hand, pipeline_value, task_completion_rate, decision_backlog)", "basic_sparklines", "period_comparison"],
+      "reporting": ["morning_brief_via_ceo_agent"],
+      "agent_performance": ["task_count_and_success_rate_only"],
+      "notes": "R1 establishes the KPI strip pattern. 5 metrics, no drill-down, no benchmarking."
+    },
+    "r2_crm_pipeline": {
+      "analytics": ["sales_department_kpis", "pipeline_view_with_value", "lead_conversion_funnel"],
+      "reporting": ["ad_hoc_sales_reports_via_ea"],
+      "agent_performance": ["sales_agent_metrics_added"],
+      "notes": "R2 adds first department-level analytics."
+    },
+    "r3_finance_ops": {
+      "analytics": ["finance_department_kpis", "p_and_l_view", "cash_flow_tracking", "budget_vs_actual"],
+      "reporting": ["weekly_business_review", "monthly_financial_report"],
+      "agent_performance": ["finance_agent_metrics_added"],
+      "benchmarking": ["cross_entity_comparison_if_multiple_entities"],
+      "notes": "R3 is where analytics becomes serious. Financial reporting is the backbone."
+    },
+    "r4_marketing_team": {
+      "analytics": ["marketing_department_kpis", "channel_roi_tracking", "cac_and_ltv_calculations"],
+      "reporting": ["marketing_performance_reports"],
+      "agent_performance": ["marketing_agent_metrics_added", "all_department_agents_tracked"],
+      "notes": "R4 completes department-level analytics coverage."
+    },
+    "r5_docs_memory": {
+      "analytics": ["full_entity_detail_views", "entity_type_specific_kpis", "forecasting_basic"],
+      "reporting": ["quarterly_strategic_review", "all_export_formats"],
+      "agent_performance": ["full_agent_dashboard", "quality_scoring", "cost_tracking"],
+      "benchmarking": ["static_industry_benchmarks"],
+      "ai_insights": ["anomaly_detection", "trend_analysis", "next_best_action"],
+      "notes": "R5 is the full analytics platform. AI insights and benchmarking go live."
+    }
+  },
+
+  "data_architecture": {
+    "description": "How KPI data flows from source to dashboard.",
+    "source_of_truth": "Neon Postgres transactional database",
+    "computation_layer": {
+      "real_time": "Application-level event handlers compute and cache real-time metrics on each transaction. Redis or in-memory cache for sub-second reads.",
+      "batch": "Scheduled jobs query Neon, compute aggregate metrics, write results to a kpi_snapshots table. Dashboards read from snapshots, not raw transactions.",
+      "schema_outline": {
+        "kpi_snapshots": {
+          "columns": ["id", "entity_id", "portfolio_id", "kpi_name", "kpi_value", "period_type (daily/weekly/monthly)", "period_start", "period_end", "computed_at"],
+          "indexes": ["entity_id + kpi_name + period_start", "portfolio_id + kpi_name + period_start"],
+          "note": "Immutable append-only. Historical snapshots never updated — new row per computation."
+        },
+        "kpi_alerts": {
+          "columns": ["id", "entity_id", "kpi_name", "alert_type (threshold_breach/deviation/trend_break)", "severity", "detected_at", "acknowledged_at", "resolved_at", "details_json"],
+          "indexes": ["entity_id + severity + resolved_at"]
+        },
+        "agent_task_log": {
+          "columns": ["id", "agent_id", "task_id", "entity_id", "department", "status", "outcome", "quality_score", "cost", "started_at", "completed_at", "metadata_json"],
+          "indexes": ["agent_id + started_at", "entity_id + department + started_at"]
+        }
+      }
+    },
+    "caching_strategy": {
+      "hot_metrics": "Redis/in-memory for real-time KPIs. TTL = 0 (invalidated on event).",
+      "dashboard_cache": "Pre-computed dashboard payloads cached per operator+entity. TTL = 5 minutes for non-real-time views.",
+      "report_cache": "Generated reports cached as files. Invalidated on next batch computation."
+    }
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-ANALYTICS-001",
+      "question": "PostHog vs custom analytics stack? PostHog adds session replay and experimentation but is another dependency. Custom on Neon is simpler but requires building charting, funnels, and cohort analysis.",
+      "recommendation": "Use PostHog for product analytics (user behavior, session replay, feature flags) and custom Neon for business KPIs (financial metrics, agent performance). Two complementary systems, not one replacing the other.",
+      "status": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-ANALYTICS-002",
+      "question": "Should EOS support custom metric definitions by the operator, or are the pre-defined KPIs sufficient?",
+      "recommendation": "Pre-defined KPIs for MVP. Custom metric builder is a post-scale feature — the complexity of a formula builder is not worth it until operators are asking for it.",
+      "status": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-ANALYTICS-003",
+      "question": "What are the authoritative benchmark data sources for each entity type? SaaS has well-known benchmarks (OpenView, Bessemer). Agency, real estate, and content businesses have fewer standardized sources.",
+      "recommendation": "Start with SaaS benchmarks only (most mature, most relevant to initial user base). Add other entity types as user demand materializes.",
+      "status": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-ANALYTICS-004",
+      "question": "How does the analytics system handle multi-currency entities within a single portfolio?",
+      "recommendation": "All financial KPIs stored in native currency with a normalized USD equivalent. Portfolio-level aggregation uses USD normalization. Exchange rates updated daily from a free API (exchangerate-api or similar).",
+      "status": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "id": "OQ-ANALYTICS-005",
+      "question": "What is the data retention policy for KPI snapshots? Indefinite storage grows linearly with entity count and metric count.",
+      "recommendation": "Full daily resolution for 2 years, weekly rollups for years 3-5, monthly rollups beyond 5 years. Retention policy configurable per operator.",
+      "status": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "id": "OQ-ANALYTICS-006",
+      "question": "Should agent cost tracking include only LLM API costs or also imputed compute/infrastructure costs?",
+      "recommendation": "LLM API costs are directly attributable and should be tracked from day one. Infrastructure costs are shared and should be allocated proportionally only when the system is at scale.",
+      "status": "INFERRED_PROFESSIONAL_GAP"
+    }
+  ],
+
+  "statistics": {
+    "total_universal_kpis": 10,
+    "total_department_kpi_groups": 9,
+    "total_department_kpis": 52,
+    "total_entity_type_kpi_groups": 6,
+    "total_entity_type_kpis": 24,
+    "total_agent_performance_metrics": 10,
+    "total_scheduled_reports": 4,
+    "total_export_formats": 4,
+    "total_open_questions": 6,
+    "real_time_metrics_count": 10,
+    "daily_batch_metrics_count": 23,
+    "weekly_batch_metrics_count": 15
+  }
+}

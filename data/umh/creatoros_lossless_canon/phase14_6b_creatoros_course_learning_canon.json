@@ -1,0 +1,376 @@
+{
+  "artifact": "creatoros_course_learning_canon",
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Online course creation and learning management system specification for CreatorOS — covers course builder, player, enrollment, progress tracking, quizzes, certificates, and analytics",
+
+  "course_model": {
+    "structure": "Course → Modules → Lessons",
+    "hierarchy_description": "Each course contains ordered modules. Each module contains ordered lessons. Lessons are the atomic unit of learning content.",
+    "fields": {
+      "course": ["id", "creator_id", "title", "slug", "description", "thumbnail_url", "trailer_url", "category", "tags", "difficulty_level", "estimated_duration_hours", "pricing_model", "price", "currency", "status", "visibility", "published_at", "enrollment_count", "average_rating", "created_at", "updated_at"],
+      "module": ["id", "course_id", "title", "description", "position", "is_free_preview", "drip_delay_days", "created_at"],
+      "lesson": ["id", "module_id", "title", "description", "type", "content_url", "content_text", "duration_seconds", "position", "is_free_preview", "created_at"]
+    },
+    "content_types": ["video", "text", "quiz", "assignment", "download", "live_session", "interactive_embed"],
+    "pricing_models": ["one_time_purchase", "subscription_access", "free", "tiered_pricing", "pay_what_you_want", "bundle"],
+    "visibility_options": ["public", "private", "unlisted", "members_only"],
+    "difficulty_levels": ["beginner", "intermediate", "advanced", "all_levels"],
+    "status_states": ["draft", "under_review", "published", "archived", "suspended"]
+  },
+
+  "course_builder": {
+    "type": "drag_and_drop_curriculum_editor",
+    "description": "Visual course builder with drag-and-drop module/lesson ordering, inline content editing, and real-time preview",
+    "features": [
+      "Drag-and-drop module reordering",
+      "Drag-and-drop lesson reordering within and across modules",
+      "Inline rich text editor for text lessons",
+      "Video upload with progress indicator and thumbnail extraction",
+      "Quiz builder with multiple question types",
+      "Assignment builder with rubric definition",
+      "File upload for downloadable resources",
+      "Free preview toggle per module/lesson",
+      "Drip schedule configuration per module",
+      "Bulk actions (publish all, reorder, duplicate)",
+      "Course settings panel (pricing, visibility, SEO)",
+      "Real-time preview of student view",
+      "Auto-save with version history"
+    ],
+    "lesson_types": [
+      {
+        "type": "video",
+        "description": "Video lesson with player, transcript, and chapters",
+        "fields": ["video_url", "duration", "thumbnail", "transcript", "chapters"],
+        "upload_limits": "2GB per video, MP4/MOV/WebM",
+        "hosting": "OPEN_QUESTION — self-hosted vs Mux vs Cloudflare Stream"
+      },
+      {
+        "type": "text",
+        "description": "Rich text lesson with embedded media",
+        "fields": ["content_html", "estimated_read_time"],
+        "editor": "TipTap or similar rich text editor"
+      },
+      {
+        "type": "quiz",
+        "description": "Assessment with multiple question types and auto-grading",
+        "fields": ["questions", "passing_score", "max_attempts", "time_limit"],
+        "question_types": ["multiple_choice", "true_false", "short_answer", "matching", "ordering"]
+      },
+      {
+        "type": "assignment",
+        "description": "Student submission with creator review",
+        "fields": ["instructions", "rubric", "submission_types", "due_date"],
+        "submission_types": ["text", "file_upload", "url", "video"]
+      },
+      {
+        "type": "download",
+        "description": "Downloadable resource (PDF, template, worksheet)",
+        "fields": ["file_url", "file_name", "file_size", "description"]
+      },
+      {
+        "type": "live_session",
+        "description": "Scheduled live class or workshop",
+        "fields": ["scheduled_at", "duration", "meeting_url", "recording_url"],
+        "status": "INFERRED_PROFESSIONAL_GAP — not in PRD, standard for course platforms"
+      },
+      {
+        "type": "interactive_embed",
+        "description": "Embedded interactive content (CodePen, Figma, etc.)",
+        "fields": ["embed_url", "embed_type", "height"],
+        "status": "INFERRED_PROFESSIONAL_GAP"
+      }
+    ]
+  },
+
+  "player": {
+    "description": "Student-facing course consumption experience",
+    "video_player": {
+      "features": ["Playback speed control (0.5x-2x)", "Quality selection", "Closed captions", "Picture-in-picture", "Keyboard shortcuts", "Chapter navigation", "Bookmarks", "Notes at timestamp"],
+      "technology": "OPEN_QUESTION — HTML5 video with custom controls vs Video.js vs Plyr",
+      "resume_playback": true,
+      "auto_advance": true
+    },
+    "progress_tracking": {
+      "lesson_level": "Percentage completion per lesson (video: watch time, text: scroll, quiz: submission)",
+      "module_level": "Calculated from lesson completions",
+      "course_level": "Calculated from module completions",
+      "persistence": "Server-side per-enrollment record",
+      "visual_indicators": ["Progress bar per course", "Checkmarks per lesson", "Module completion badges"]
+    },
+    "navigation": {
+      "sidebar": "Course outline with expandable modules, completion indicators, current position highlight",
+      "top_bar": "Course title, progress percentage, back to dashboard",
+      "bottom_bar": "Previous/Next lesson navigation",
+      "keyboard": "Left/Right arrow for nav, Space for play/pause"
+    },
+    "notes": {
+      "type": "Per-lesson student notes",
+      "features": ["Timestamped notes for video lessons", "Rich text editor", "Export all notes", "Search across notes"],
+      "storage": "Server-side per-enrollment"
+    }
+  },
+
+  "enrollment": {
+    "model": {
+      "fields": ["id", "user_id", "course_id", "status", "enrolled_at", "started_at", "completed_at", "last_accessed_at", "progress_percentage", "payment_id"],
+      "status_states": ["enrolled", "in_progress", "completed", "expired", "refunded", "suspended"]
+    },
+    "enrollment_flow": [
+      "User views course landing page",
+      "User clicks Enroll/Purchase",
+      "Payment processed (if paid course)",
+      "Enrollment record created",
+      "Welcome email sent",
+      "User redirected to first lesson"
+    ],
+    "drip_content": {
+      "description": "Time-gated module release after enrollment",
+      "implementation": "drip_delay_days field on module — lesson access calculated from enrollment date",
+      "display": "Locked modules show unlock date, available modules are open",
+      "provenance": "SOURCE_PRESERVED_TRUTH — mentioned in desired state canon"
+    },
+    "prerequisites": {
+      "description": "Module prerequisites within a course",
+      "implementation": "previous_module_complete flag — enforce sequential completion",
+      "override": "Creator can disable sequential requirement per course"
+    },
+    "capacity": {
+      "description": "Optional enrollment limits per course or cohort",
+      "fields": ["max_enrollments", "current_enrollments", "waitlist_enabled"],
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "progress": {
+    "tracking_model": {
+      "tables": ["lesson_progress", "module_progress (computed)", "course_progress (computed)"],
+      "lesson_progress_fields": ["enrollment_id", "lesson_id", "status", "progress_percentage", "started_at", "completed_at", "time_spent_seconds", "last_position"],
+      "completion_triggers": {
+        "video": "Watched 90%+ of video",
+        "text": "Scrolled to bottom OR spent minimum time",
+        "quiz": "Submitted with passing score",
+        "assignment": "Submitted (completion) or graded (if required)",
+        "download": "Downloaded the file"
+      }
+    },
+    "completion_criteria": {
+      "lesson": "Completion trigger met",
+      "module": "All required lessons completed",
+      "course": "All required modules completed",
+      "configurable": "Creator can set completion to all-lessons or percentage-based"
+    },
+    "milestones": {
+      "types": ["25%_complete", "50%_complete", "75%_complete", "course_complete"],
+      "actions": ["Celebration UI", "Email notification", "Certificate generation (on course_complete)"],
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "quizzes": {
+    "question_types": [
+      {"type": "multiple_choice", "description": "Single correct answer from options", "auto_grade": true},
+      {"type": "multiple_select", "description": "Multiple correct answers", "auto_grade": true},
+      {"type": "true_false", "description": "Binary true/false", "auto_grade": true},
+      {"type": "short_answer", "description": "Text input with keyword matching", "auto_grade": "partial — keyword match"},
+      {"type": "matching", "description": "Match items from two columns", "auto_grade": true},
+      {"type": "ordering", "description": "Arrange items in correct sequence", "auto_grade": true},
+      {"type": "fill_in_blank", "description": "Complete the sentence", "auto_grade": true}
+    ],
+    "grading": {
+      "auto_grading": "For objective question types",
+      "manual_grading": "For short_answer and assignment types",
+      "passing_score": "Configurable per quiz (default 70%)",
+      "score_display": "Show score, correct answers (configurable), explanations"
+    },
+    "settings": {
+      "max_attempts": "Configurable (default unlimited)",
+      "time_limit": "Optional time limit per quiz",
+      "randomize_questions": true,
+      "randomize_options": true,
+      "show_correct_after": "Configurable: immediately, after all attempts, never"
+    },
+    "analytics": {
+      "per_question": ["correct_rate", "average_time", "common_wrong_answers"],
+      "per_quiz": ["average_score", "pass_rate", "completion_rate", "average_attempts"]
+    }
+  },
+
+  "certificates": {
+    "generation": {
+      "trigger": "Course completion (all required modules/lessons done)",
+      "template": "Creator-customizable certificate template",
+      "fields": ["student_name", "course_name", "completion_date", "instructor_name", "certificate_id"],
+      "format": "PDF generation (server-side)",
+      "storage": "Generated PDF stored in object storage, download link in enrollment record"
+    },
+    "verification": {
+      "method": "Unique certificate ID with public verification URL",
+      "url_pattern": "/verify/certificate/{certificate_id}",
+      "displays": "Student name, course name, completion date, issuing creator",
+      "anti_fraud": "Certificate ID is UUID, not guessable"
+    },
+    "customization": {
+      "creator_options": ["Logo upload", "Color scheme", "Custom message", "Signature image"],
+      "provenance": "INFERRED_PROFESSIONAL_GAP — standard feature, not specified in PRD"
+    }
+  },
+
+  "analytics": {
+    "student_metrics": [
+      "Total enrolled courses",
+      "Courses in progress",
+      "Courses completed",
+      "Total learning hours",
+      "Current streak (consecutive days)",
+      "Quiz average scores",
+      "Certificates earned"
+    ],
+    "creator_metrics": [
+      "Total enrollments (by course, all courses)",
+      "Active students (last 7/30 days)",
+      "Completion rate (by course, by module, by lesson)",
+      "Average progress percentage",
+      "Revenue per course",
+      "Top-performing courses",
+      "Student satisfaction (ratings)",
+      "Drop-off points (which lessons lose students)",
+      "Quiz performance analytics",
+      "Lesson engagement time"
+    ],
+    "dashboards": {
+      "student_dashboard": "My Courses view with progress cards, continue learning, recently accessed",
+      "creator_dashboard": "Course analytics tab showing enrollment trends, revenue, completion funnels"
+    }
+  },
+
+  "current_code_truth": {
+    "tables": "No dedicated course tables in current schema.ts",
+    "status": "SCHEMA_GAP",
+    "evidence": "schema.ts has 22 tables — none named courses, modules, lessons, enrollments, or quiz-related",
+    "needed_tables": [
+      {"name": "courses", "description": "Core course entity", "estimated_columns": 20},
+      {"name": "course_modules", "description": "Ordered sections within a course", "estimated_columns": 10},
+      {"name": "lessons", "description": "Content units within modules", "estimated_columns": 15},
+      {"name": "enrollments", "description": "User-course enrollment records", "estimated_columns": 12},
+      {"name": "lesson_progress", "description": "Per-lesson tracking per enrollment", "estimated_columns": 10},
+      {"name": "quizzes", "description": "Quiz definitions linked to lessons", "estimated_columns": 8},
+      {"name": "quiz_questions", "description": "Individual questions per quiz", "estimated_columns": 12},
+      {"name": "quiz_attempts", "description": "Student quiz submission records", "estimated_columns": 10},
+      {"name": "quiz_answers", "description": "Per-question answers per attempt", "estimated_columns": 8},
+      {"name": "certificates", "description": "Generated completion certificates", "estimated_columns": 10},
+      {"name": "course_reviews", "description": "Student ratings and reviews", "estimated_columns": 8}
+    ],
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+  },
+
+  "competitive_analysis": {
+    "vs_teachable": {
+      "strengths_teachable": ["Mature course builder", "Robust analytics", "Affiliate program", "Custom domains"],
+      "creatoros_advantage": ["Integrated content distribution", "Built-in community", "Marketplace discovery", "Part of creator all-in-one"],
+      "gap": "Teachable has years of course-specific iteration; CreatorOS courses are one module among many"
+    },
+    "vs_kajabi": {
+      "strengths_kajabi": ["All-in-one (courses + email + website)", "Coaching tools", "Revenue optimization"],
+      "creatoros_advantage": ["Social feed and discovery", "UGC integration", "Content distribution", "Lower price target"],
+      "gap": "Kajabi targets premium course creators ($149+/mo); CreatorOS targets broader creator economy"
+    },
+    "vs_thinkific": {
+      "strengths_thinkific": ["Free tier for creators", "Community features", "App store"],
+      "creatoros_advantage": ["Native content distribution", "Integrated marketplace", "AI assistance via UMH"],
+      "gap": "Thinkific has dedicated course community; CreatorOS community is Discord-like general-purpose"
+    },
+    "provenance": "INFERRED_PROFESSIONAL_GAP"
+  },
+
+  "integration_points": {
+    "with_marketplace": "Courses listed as product type 'course' in marketplace, discoverable alongside other products",
+    "with_community": "Course-specific community channels, student discussion boards per course/module",
+    "with_content": "Course trailers and previews distributable via content system",
+    "with_email": "Enrollment confirmations, drip notifications, completion emails via automation",
+    "with_analytics": "Course metrics feed into creator dashboard analytics",
+    "with_umh": "Course engagement data as UMH signals for cross-projection intelligence"
+  },
+
+  "open_questions": [
+    {
+      "id": "COS-COURSE-001",
+      "question": "Video hosting solution — self-hosted, Mux, Cloudflare Stream, or Bunny?",
+      "impact": "Cost, quality, DRM capability, CDN performance",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "COS-COURSE-002",
+      "question": "Drip content granularity — module-level only or lesson-level too?",
+      "impact": "Schema complexity, creator flexibility",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "COS-COURSE-003",
+      "question": "Certificate design — templated only or full custom HTML/CSS?",
+      "impact": "Development effort, creator freedom",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "COS-COURSE-004",
+      "question": "Live session integration — native or embed (Zoom/Google Meet)?",
+      "impact": "Infrastructure cost, user experience",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "COS-COURSE-005",
+      "question": "Course reviews — public ratings or private feedback?",
+      "impact": "Trust, creator reputation, marketplace ranking",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "COS-COURSE-006",
+      "question": "Cohort-based courses — support scheduled cohorts or self-paced only at MVP?",
+      "impact": "Schema design, scheduling complexity, creator workflows",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "COS-COURSE-007",
+      "question": "Course bundle pricing — how to package multiple courses?",
+      "impact": "Commerce model, entitlement logic",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  ],
+
+  "implementation_debt": [
+    {
+      "id": "DEBT-COURSE-001",
+      "description": "11 new database tables needed — significant schema migration",
+      "severity": "high",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-COURSE-002",
+      "description": "Video hosting infrastructure not chosen — blocks video lesson implementation",
+      "severity": "high",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-COURSE-003",
+      "description": "PDF certificate generation requires server-side rendering setup",
+      "severity": "medium",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-COURSE-004",
+      "description": "Real-time progress sync requires WebSocket or polling infrastructure",
+      "severity": "medium",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-COURSE-005",
+      "description": "Quiz auto-grading engine not trivial — needs question type handlers",
+      "severity": "medium",
+      "provenance": "IMPLEMENTATION_DEBT"
+    }
+  ]
+}

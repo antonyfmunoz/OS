@@ -1,0 +1,173 @@
+{
+  "artifact": "phase14_6b_eos_business_democratization_doctrine",
+  "phase": "14.6B",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-03",
+  "description": "EOS Business Democratization Doctrine — the canonical definition of what EOS is, who it serves, and how it relates to UMH",
+  "thesis": "EOS democratizes the ability to structure, operate, optimize, and scale economic activity. Any operator — from a solo founder to an institutional holding company — can use EOS to run their entire economic portfolio with the same rigor, intelligence, and operational leverage that was previously only available to well-capitalized enterprises with dedicated operations teams.",
+  "product_identity": {
+    "short": "Business-in-a-box operating system and portfolio/entity/business/investment operating substrate",
+    "expanded": "EOS is a full-stack business operating system that gives any operator the infrastructure to create portfolios, spin up entities, run companies, manage investments, coordinate teams and AI agents, execute workflows, track capital flows, measure KPIs, and optimize outcomes — all from a single unified command surface."
+  },
+  "correct_ownership": {
+    "owner": "OST",
+    "clarification": "EOS is a product of OST (the technology/platform company). It is NOT a product of Lyfe Institute.",
+    "lyfe_institute_relationship": "Lyfe Institute is a company/venture incubated through Empyrean Studios, managed inside EOS as one of many entities an operator can run on the platform.",
+    "provenance_note": "This corrects prior documentation that incorrectly attributed EOS ownership to Lyfe Institute."
+  },
+  "what_eos_is": [
+    "Business architecture as software — turns organizational design into executable configuration",
+    "Company operating system — the runtime environment for any business entity",
+    "Portfolio substrate — manages multiple entities, ventures, and investments under unified governance",
+    "Entity lifecycle manager — spin up, operate, optimize, wind down any legal/operational vehicle",
+    "Economic activity orchestrator — coordinates capital, teams, agents, workflows, and outcomes",
+    "AI-native enterprise platform — agents and humans operate as peers within governed structures",
+    "Business intelligence command center — real-time KPIs, financial tracking, strategic dashboards",
+    "Operational leverage multiplier — one operator runs what previously required departments",
+    "Governance and compliance substrate — role-based access, approval chains, audit trails, risk gates",
+    "Team and agent coordination layer — humans and AI agents assigned roles, permissions, and workflows",
+    "Capital and transaction management system — tracks money flow across entities and portfolios",
+    "Workflow and SOP execution engine — standardized processes that run deterministically",
+    "Multi-entity, multi-portfolio management platform — scales from one company to institutional holdings",
+    "Business-in-a-box — everything needed to structure, launch, and operate an economic entity",
+    "The operating system for economic activity — what an OS is to a computer, EOS is to a business"
+  ],
+  "what_eos_is_not": [
+    "Not a CRM — EOS is not a customer relationship management tool (though it can integrate with one)",
+    "Not a simple dashboard — EOS is not a read-only reporting layer; it is an active operating substrate",
+    "Not a workflow tool — EOS is not just task automation; workflows are one layer of a complete operating system",
+    "Not a generic AI copilot — EOS agents have defined roles, authority, and governance; they are not chat assistants",
+    "Not a portfolio tracker — EOS does not just display portfolio data; it actively operates the entities within portfolios",
+    "Not a business admin panel — EOS is not a settings page for a business; it is the business runtime itself",
+    "Not a project management tool — EOS is not Asana/Monday/Notion; projects exist within a larger operational structure",
+    "Not an accounting system — EOS tracks capital flow and KPIs but is not a replacement for QuickBooks/Xero",
+    "Not a creator platform — EOS aesthetic is executive command center, not social/creator/RPG",
+    "Not a marketplace — EOS operates businesses, it does not connect buyers and sellers as its primary function"
+  ],
+  "target_users": [
+    {
+      "segment": "Solo operators",
+      "description": "Individual founders running one or more businesses without dedicated operations staff"
+    },
+    {
+      "segment": "Founders",
+      "description": "Startup and SMB founders who need to structure and scale their companies"
+    },
+    {
+      "segment": "Entrepreneurs",
+      "description": "Serial entrepreneurs managing multiple ventures across different industries"
+    },
+    {
+      "segment": "Small teams",
+      "description": "Teams of 2-20 people who need enterprise-grade operational structure without enterprise overhead"
+    },
+    {
+      "segment": "Holding companies",
+      "description": "Operators managing multiple subsidiary entities under a parent structure"
+    },
+    {
+      "segment": "Family offices",
+      "description": "Family wealth management offices operating diverse portfolios of businesses and investments"
+    },
+    {
+      "segment": "Investment operators",
+      "description": "Active investors who operate their investments rather than passively hold them"
+    },
+    {
+      "segment": "Private equity operators",
+      "description": "PE firms and operators who acquire, optimize, and scale portfolio companies"
+    },
+    {
+      "segment": "Institutional operators",
+      "description": "Large-scale operators managing institutional portfolios with governance and compliance requirements"
+    }
+  ],
+  "scale_range": "solo operator to institutional",
+  "eos_mirrors_umh": {
+    "principle": "EOS capability mirrors UMH capability, scoped to business operation. Every generalized UMH substrate capability has a corresponding business-specific EOS projection. UMH provides the universal mechanism; EOS applies it to economic activity.",
+    "implication": "As UMH gains new capabilities (new execution primitives, new governance mechanisms, new intelligence routing patterns), EOS automatically gains the business-specific projection of those capabilities."
+  },
+  "umh_business_projection": {
+    "description": "Mapping of 15 UMH generalized capabilities to 15 EOS business-specific capabilities",
+    "mappings": [
+      {
+        "umh_capability": "Signal Processing (substrate/control_plane/router.py)",
+        "eos_projection": "Business Event Processing — customer inquiries, market signals, operational alerts, financial triggers routed through governed pipelines",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Execution Pipeline (substrate/execution/spine.py)",
+        "eos_projection": "Business Task Execution — SOPs, workflows, approval chains, and operational tasks executed through the 8-stage pipeline with governance gates",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Governance Engine (substrate/control_plane/governance.py)",
+        "eos_projection": "Business Governance — role-based authority, spending limits, hiring approvals, strategic decision gates, compliance checks",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Intelligence Routing (adapters/models/model_router.py)",
+        "eos_projection": "Business Intelligence Routing — strategic decisions get senior model quality; routine operations get fast/cheap models; cost optimization per task type",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Agent Coordination (substrate/organism/)",
+        "eos_projection": "Team and Agent Coordination — CEO agent, department heads, specialist agents, human team members all coordinated through organism protocol with defined authority",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "State Management (substrate/state/)",
+        "eos_projection": "Business State Management — entity status, financial position, team capacity, pipeline health, KPI snapshots persisted and queryable",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Type System (substrate/types.py)",
+        "eos_projection": "Business Domain Types — Portfolio, Entity, Venture, Transaction, KPI, Workflow, Role, Permission all as typed Pydantic models with validation",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Context Management (substrate/state/context/)",
+        "eos_projection": "Business Context — which portfolio, which entity, which user, which role, which permissions are active for the current session/operation",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Observability (substrate/observability/)",
+        "eos_projection": "Business Observability — operational dashboards, financial health monitors, agent performance tracking, error and anomaly detection across entities",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Feedback Loop (substrate/execution/feedback.py)",
+        "eos_projection": "Business Feedback Loop — outcome tracking, KPI correlation, strategy effectiveness scoring, continuous operational improvement",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Trace Recording (substrate/execution/trace.py)",
+        "eos_projection": "Business Audit Trail — every decision, transaction, approval, and agent action traced with full provenance for compliance and optimization",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Capability Router (substrate/execution/runtime/capability_router.py)",
+        "eos_projection": "Business Capability Matching — tasks routed to the right agent/team/tool based on required capabilities, availability, and cost",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Notification Port (substrate/sockets/notification.py)",
+        "eos_projection": "Business Notifications — alerts to operators, team members, and stakeholders through configured channels (email, Slack, Discord, SMS, in-app)",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Session Management (substrate/execution/bridge/)",
+        "eos_projection": "Business Session Management — operator sessions with entity context, role switching, portfolio navigation, and persistent workspace state",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "umh_capability": "Ontology System (substrate/ontology/)",
+        "eos_projection": "Business Ontology — relationships between entities, ventures, markets, competitors, customers, products, and financial instruments modeled as typed knowledge graph",
+        "provenance": "SYNTHESIZED_CANON"
+      }
+    ]
+  },
+  "provenance": "OPERATOR_CORRECTION + SOURCE_PRESERVED_TRUTH"
+}

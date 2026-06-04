@@ -1,0 +1,1167 @@
+{
+  "artifact": "creatoros_source_detail_preservation_ledger",
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "description": "Every product truth signal from all CreatorOS source documents, preserved with provenance. Lossless accounting of every meaningful signal from every source surface — Google Doc PRD, Phase 14.4 desired state, Phase 14.5 convergence, Phase 14.5A 13-layer stack, current codebase (schema.ts, 296 files), UMH projection code (1099 lines), 90 design references, and 14 operator corrections.",
+  "provenance": "SOURCE_PRESERVED_TRUTH",
+
+  "detail_type_enum": [
+    "product_requirement",
+    "design_constraint",
+    "technical_decision",
+    "user_need",
+    "business_rule",
+    "security_requirement",
+    "integration_point",
+    "open_question"
+  ],
+
+  "preserved_as_enum": [
+    "verbatim_quote",
+    "structured_extraction",
+    "synthesized_summary"
+  ],
+
+  "source_documents": [
+    {"id": "SRC-GDOC", "name": "Google Doc: CreatorOS (1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI)", "type": "product_requirements_document", "signal_count": 28},
+    {"id": "SRC-14.4-DS", "name": "phase14_4_creatoros_desired_state_canon.json", "type": "desired_state_canon", "signal_count": 18},
+    {"id": "SRC-14.5-CP", "name": "phase14_5_creatoros_convergence_plan.json", "type": "convergence_plan", "signal_count": 8},
+    {"id": "SRC-14.5A-13L", "name": "phase14_5a_creatoros_13_layer_production_stack.json", "type": "production_stack", "signal_count": 6},
+    {"id": "SRC-SCHEMA", "name": "shared/schema.ts (GitHub main, 20 tables via Drizzle ORM)", "type": "codebase_schema", "signal_count": 12},
+    {"id": "SRC-PROJ", "name": "projections/creatoros/integration/ (8 files, 1099 lines)", "type": "projection_code", "signal_count": 5},
+    {"id": "SRC-DESIGN", "name": "90 design reference files (Google Drive, Stitch UI)", "type": "design_references", "signal_count": 4},
+    {"id": "SRC-OP", "name": "Operator corrections (Phase 14.6B mission brief, 14 corrections)", "type": "operator_directive", "signal_count": 14},
+    {"id": "SRC-14.6B-AUTH", "name": "phase14_6b_creatoros_auth_security_truth.json", "type": "security_audit", "signal_count": 4},
+    {"id": "SRC-14.6B-IMPL", "name": "phase14_6b_creatoros_current_implementation_truth.json", "type": "implementation_truth", "signal_count": 6},
+    {"id": "SRC-14.6B-MVP", "name": "phase14_6b_creatoros_mvp_specification.json", "type": "mvp_spec", "signal_count": 3},
+    {"id": "SRC-14.6B-BOUNDARY", "name": "phase14_6b_creatoros_eos_boundary_canon.md", "type": "boundary_definition", "signal_count": 4}
+  ],
+
+  "signal_count": 112,
+
+  "signals": [
+    {
+      "signal_id": "SIG-COS-001",
+      "source_doc": "SRC-OP",
+      "detail_type": "product_requirement",
+      "preserved_as": "verbatim_quote",
+      "content": "CreatorOS is a creator-economy operating system -- 'Whop on steroids.' NOT a 'content management tool' or 'creator platform.' It is the command center for modern creators.",
+      "context": "Operator correction OC-COS-002. Elevates product positioning from tool/platform to operating system. Center of gravity is creator economic activity.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — defines product identity. Every feature, screen, and marketing copy must reflect 'operating system' positioning, not 'tool' or 'platform.'"
+    },
+    {
+      "signal_id": "SIG-COS-002",
+      "source_doc": "SRC-OP",
+      "detail_type": "product_requirement",
+      "preserved_as": "verbatim_quote",
+      "content": "Product promise: 'Post once, publish everywhere. Host everything, sell to everyone.'",
+      "context": "Operator correction OC-COS-003. Canonical one-line product promise capturing both distribution (post/publish) and commerce (host/sell) value propositions.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — two-sided value prop. Distribution engine + commerce engine are the two pillars. Neither can be built alone."
+    },
+    {
+      "signal_id": "SIG-COS-003",
+      "source_doc": "SRC-OP",
+      "detail_type": "design_constraint",
+      "preserved_as": "verbatim_quote",
+      "content": "Design identity: X/Twitter-inspired minimalism, NOT glassmorphism. Clean, fast, functional. Mobile-first social platform aesthetic.",
+      "context": "Operator correction OC-COS-004. Kills any glassmorphism or RPG aesthetic from prior docs or references. Constrains all UI/UX decisions.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — every UI component, color choice, spacing decision, and animation must pass the X/Twitter minimalism test. Current theme.json says variant=professional, appearance=light, radius=0.5."
+    },
+    {
+      "signal_id": "SIG-COS-004",
+      "source_doc": "SRC-OP",
+      "detail_type": "business_rule",
+      "preserved_as": "verbatim_quote",
+      "content": "CreatorOS is owned by Empyrean Studio, not Lyfe Institute. Empyrean Studio is the entity that owns all creative/media products.",
+      "context": "Operator correction OC-COS-001. Corrects ownership attribution from prior docs that assumed Lyfe Institute.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — legal entity, branding, terms of service, and corporate structure references must use Empyrean Studio."
+    },
+    {
+      "signal_id": "SIG-COS-005",
+      "source_doc": "SRC-OP",
+      "detail_type": "product_requirement",
+      "preserved_as": "structured_extraction",
+      "content": "16 modules: Content Distribution, Community Hub, Course Platform, Marketplace, Consumer Feed, Dashboard, Editing Studio, UGC Campaigns, Ads Platform, Cross-Posting, Automation Builder, Email/Newsletter, Stories, Notifications, Moderation, Roles & Permissions.",
+      "context": "Operator correction OC-COS-005. Canonical module list confirmed. Aligns with PRD Tab 3 module enumeration.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — defines product scope. Only Stories is fully implemented. 10 modules partially implemented. 5 modules completely missing (Courses, Editing Studio, UGC, Ads, Automation Builder, Email/Newsletter)."
+    },
+    {
+      "signal_id": "SIG-COS-006",
+      "source_doc": "SRC-OP",
+      "detail_type": "product_requirement",
+      "preserved_as": "structured_extraction",
+      "content": "28 screens catalogued from desired state. 16 pages implemented in current code. 12-screen gap.",
+      "context": "Operator correction OC-COS-006. The 12 missing screens include: Content Calendar, Course Builder, Course Player, Cross-Posting Dashboard, Editing Studio, UGC Campaign Dashboard, Ad Campaign Manager, Automation Builder, Email Composer, Analytics Dashboard, Settings, Search Results.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — 43% of screens missing. Each missing screen represents a feature area with backend, schema, and API dependencies."
+    },
+    {
+      "signal_id": "SIG-COS-007",
+      "source_doc": "SRC-OP",
+      "detail_type": "product_requirement",
+      "preserved_as": "structured_extraction",
+      "content": "10 product types: community, ai_agent, digital_download, course, subscription_membership, service, event, physical_product, ugc_campaign, software_access.",
+      "context": "Operator correction OC-COS-007. Commerce architecture must support all 10 types. Current schema has a generic products table with no type discriminator.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — products table needs product_type enum. Each type has distinct pricing model, delivery mechanism, entitlement type, and schema requirements."
+    },
+    {
+      "signal_id": "SIG-COS-008",
+      "source_doc": "SRC-OP",
+      "detail_type": "product_requirement",
+      "preserved_as": "verbatim_quote",
+      "content": "Primitive hierarchy: User -> CreatorAccount -> Business -> Product -> Order -> Entitlement.",
+      "context": "Operator correction OC-COS-008. Canonical data ontology primitive chain. Different from EOS hierarchy (Operator -> Portfolio -> Entity -> Operations -> Teams -> Workflows -> Capital).",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — defines the core data model. Current schema has users and products but no creator_accounts, businesses, orders, or entitlements tables."
+    },
+    {
+      "signal_id": "SIG-COS-009",
+      "source_doc": "SRC-OP",
+      "detail_type": "security_requirement",
+      "preserved_as": "verbatim_quote",
+      "content": "Passport.js auth is BROKEN (comparePasswords returns true for ALL). P0 security vulnerability. Target auth: Clerk.",
+      "context": "Operator correction OC-COS-009. Confirms auth bypass is P0 blocker. Cannot ship anything user-facing. Migration target is Clerk (same as EOS Beast branch).",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "P0 BLOCKER — no production deployment possible until auth is replaced. Do NOT fix Passport.js; migrate directly to Clerk."
+    },
+    {
+      "signal_id": "SIG-COS-010",
+      "source_doc": "SRC-OP",
+      "detail_type": "technical_decision",
+      "preserved_as": "verbatim_quote",
+      "content": "God files: routes.ts (53KB) and storage.ts (104KB) must be split before parallel development.",
+      "context": "Operator correction OC-COS-010. P1 blocker for development velocity.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "P1 — 89 routes in one file, all CRUD in another. Must decompose into domain-scoped modules (posts, products, communities, messaging, etc.) before any team can work in parallel."
+    },
+    {
+      "signal_id": "SIG-COS-011",
+      "source_doc": "SRC-OP",
+      "detail_type": "business_rule",
+      "preserved_as": "structured_extraction",
+      "content": "4-tier pricing: Free/Starter (Free, 3 platforms, 1 community, 1 course, 8% fee), Pro ($29/mo, unlimited, 5% fee), Business ($79/mo, team seats, API, white-label, 3% fee), Enterprise ($199+/mo, custom).",
+      "context": "Operator correction OC-COS-011. Revenue model combines subscription + transaction fees. Transaction fee decreases as tier increases (8% -> 5% -> 3% -> custom).",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — pricing tiers gate feature access. Platform fee logic must be built into checkout/payment flow. Stripe Connect integration required."
+    },
+    {
+      "signal_id": "SIG-COS-012",
+      "source_doc": "SRC-OP",
+      "detail_type": "integration_point",
+      "preserved_as": "structured_extraction",
+      "content": "EOS boundary: EOS handles business operations, CreatorOS handles creator product/distribution/community. Shared via UMH: identity, permissions, AI runtime, workflow engine, event bus, memory graph.",
+      "context": "Operator correction OC-COS-012. CreatorOS and EOS are separate products with separate databases, separate deployments, but shared UMH platform kernel.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — defines what CreatorOS must NOT build (org chart, agent hierarchy, portfolio management) and what it shares with EOS via UMH substrate."
+    },
+    {
+      "signal_id": "SIG-COS-013",
+      "source_doc": "SRC-OP",
+      "detail_type": "product_requirement",
+      "preserved_as": "verbatim_quote",
+      "content": "No tests exist. No production deployment. No UMH integration active. 90 design reference files exist (Stitch UI inventory needed).",
+      "context": "Operator correction OC-COS-013. Triple zero: zero test coverage, zero deployment infrastructure, zero runtime UMH integration.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — test framework, CI/CD pipeline, and deployment config must all be built from scratch."
+    },
+    {
+      "signal_id": "SIG-COS-014",
+      "source_doc": "SRC-OP",
+      "detail_type": "user_need",
+      "preserved_as": "structured_extraction",
+      "content": "Target users: Creators (3 tiers: Emerging 1K-50K, Established 50K-500K, Creator Businesses 500K+), Consumers (Superfans, Learners, Community Members), UGC Creators, Advertisers.",
+      "context": "Operator correction OC-COS-014. Creator tiers define feature gating and pricing strategy. 8 distinct user types with different journeys.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — onboarding flows, feature gates, pricing tier recommendations, and dashboard layouts differ by user type."
+    },
+    {
+      "signal_id": "SIG-COS-015",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Vision statement: 'To be the single operating system that powers every creator's business — where content, community, courses, and commerce converge.'",
+      "context": "Google Doc PRD Tab 3. Establishes CreatorOS as convergence play — not a point solution but a unified platform replacing 5-10 SaaS tools.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — architecture must support all four C's (content, community, courses, commerce) as first-class module categories."
+    },
+    {
+      "signal_id": "SIG-COS-016",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "structured_extraction",
+      "content": "10 workflows: (1) create and distribute content, (2) build branded community, (3) create and sell courses, (4) list and sell digital products, (5) manage UGC campaigns, (6) run ad campaigns, (7) set up automations, (8) send email broadcasts, (9) monitor analytics, (10) manage business settings.",
+      "context": "Google Doc PRD Tab 3 workflows section. Each workflow crosses multiple modules and screens.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — each workflow is an end-to-end user journey that must work completely. Partial workflows (e.g., create product but no checkout) provide zero user value."
+    },
+    {
+      "signal_id": "SIG-COS-017",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "structured_extraction",
+      "content": "33 data concepts catalogued: Users, Businesses, Posts, Media, Platforms, ConnectedAccounts, Communities, Channels, CommunityMembers, Courses, Modules, Lessons, Enrollments, Products, Orders, Transactions, Reviews, UGCCampaigns, UGCApplications, UGCDeliverables, Ads, AdCampaigns, AdTargeting, Automations, AutomationTriggers, AutomationActions, EmailLists, Subscribers, Broadcasts, Stories, DMs, Notifications, Bookmarks.",
+      "context": "Google Doc PRD Tab 3 data concepts. Only 20 of 33 exist as tables. 13 data concepts have no table representation.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — each missing data concept represents a schema migration needed before its module can function."
+    },
+    {
+      "signal_id": "SIG-COS-018",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "open_question",
+      "preserved_as": "structured_extraction",
+      "content": "3 conflicting MVP scope definitions in the same doc: Tab 6 (content + community only, excludes courses/marketplace/payments), Tab 7 (content + community + courses + marketplace + payments), Build Guide (7.4 weeks, references Clerk, includes courses).",
+      "context": "Google Doc PRD Tabs 6, 7, and Build Guide. Three separate people or sessions wrote different MVP scopes. No resolution in the document itself.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "P0 DECISION REQUIRED — cannot start building MVP until scope is confirmed by operator. Phase 14.6B MVP specification recommends a 5-release progressive plan."
+    },
+    {
+      "signal_id": "SIG-COS-019",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "open_question",
+      "preserved_as": "structured_extraction",
+      "content": "3 conflicting auth provider recommendations: Firebase (Section 6.1), Clerk/NextAuth (Build Guide), Supabase Auth (Tech Architecture section).",
+      "context": "Google Doc PRD. Three different auth providers in different sections of the same document. Operator resolved: Clerk is canonical target.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "RESOLVED by operator correction OC-COS-009 — Clerk is the target. Firebase and Supabase references are stale."
+    },
+    {
+      "signal_id": "SIG-COS-020",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "open_question",
+      "preserved_as": "structured_extraction",
+      "content": "Backend framework contradiction: NestJS (Tech Architecture section) vs Express (Build Guide section). Current code uses Express.",
+      "context": "Google Doc PRD. Two different backend frameworks mentioned. Code resolves to Express but NestJS appears in architecture section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "OPEN — operator decision required. Express is current truth. Migration to NestJS would be major refactor of all 89 routes."
+    },
+    {
+      "signal_id": "SIG-COS-021",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "open_question",
+      "preserved_as": "structured_extraction",
+      "content": "3 conflicting timeline definitions: 5-phase over 2 years, 13 phases, 7.4 weeks MVP.",
+      "context": "Google Doc PRD. Written at different times with different scope assumptions.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "LOW — timelines from doc are stale. Phase 14.6B recommends 5-release progressive plan with its own timeline."
+    },
+    {
+      "signal_id": "SIG-COS-022",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "AI utility is NOT agent-level in CreatorOS. AI powers smart scheduling, content suggestions, content optimization. No standalone AI agent system in PRD Tab 1. Ecosystem AI runtime shared via Tab 8 architecture.",
+      "context": "Google Doc PRD Tab 1 vs Tab 8. Tab 1 treats AI as utility features within modules. Tab 8 positions shared AI runtime across ecosystem. This differs fundamentally from EOS where AI agents ARE the product.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — CreatorOS AI features are assistive (suggest hashtags, optimize posting times, draft captions) not autonomous (no agent hierarchy, no delegation, no approval chains)."
+    },
+    {
+      "signal_id": "SIG-COS-023",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Tab 8 positions CreatorOS as Layer 3 (Distribution/Audience OS) in the Lyfe ecosystem. Shared platform kernel includes: identity, permissions, AI runtime, workflow engine, event bus, memory graph.",
+      "context": "Google Doc PRD Tab 8 — strategic architecture layer. Tab 1 PRD contains ZERO explicit UMH references and was written as standalone SaaS. Ecosystem integration is aspirational, not specified.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — UMH integration architecture exists in projections/creatoros/integration/ (1099 lines) but has no active runtime connection. Integration is for post-MVP phases."
+    },
+    {
+      "signal_id": "SIG-COS-024",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "structured_extraction",
+      "content": "Feature list includes 20 canonical features: single-editor content creation, one-click distribution to 8+ platforms, AI-powered smart scheduling, Discord-like communities, free/paid community tiers, drag-and-drop course builder, progress tracking/drip/quizzes/certificates, unified marketplace, consumer feed, creator dashboard, in-app video editing, UGC campaign management, self-serve ads platform, live multistreaming, visual automation builder, email/newsletter, 24h stories, DM messaging, moderation suite, granular roles/permissions.",
+      "context": "Google Doc PRD Tab 3 feature list. Comprehensive scope — each feature is a multi-week build.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — defines the complete feature surface. Only 5 of 20 features have any implementation (basic composer, basic feed, basic communities, basic DMs, stories)."
+    },
+    {
+      "signal_id": "SIG-COS-025",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "structured_extraction",
+      "content": "11 acceptance criteria candidates: creator sign up, compose+publish to multiple platforms, view cross-platform analytics, create community with channels, build+publish course, list digital products, consumer browse+follow, consumer join+enroll, revenue dashboard, team roles/permissions, Stripe Connect payments.",
+      "context": "Google Doc PRD Tab 3 acceptance criteria section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — acceptance criteria define what 'done' means for each release. Currently only partial sign-up and basic community creation work."
+    },
+    {
+      "signal_id": "SIG-COS-026",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Content Distribution Hub is the primary differentiator. It is the reason a creator chooses CreatorOS over Buffer + Gumroad + Teachable + Discord. Universal Composer with per-platform format adaptation, one-click distribution, AI scheduling, content calendar.",
+      "context": "Google Doc PRD Tab 3 Module 1. Content distribution is not a feature — it is the spine of the entire product.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — cross-platform distribution requires OAuth integrations with Instagram, TikTok, YouTube, X, LinkedIn, Facebook, Pinterest, Threads. Each platform requires app review (weeks per platform)."
+    },
+    {
+      "signal_id": "SIG-COS-027",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "In-App Editing Studio (Module 7): CapCut/TikTok-like video editing within CreatorOS. Trim, cut, transitions, text overlays, filters, audio mixing, templates, export in multiple aspect ratios.",
+      "context": "Google Doc PRD Tab 3 Module 7. Entirely greenfield — no implementation, no schema, no components.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — tier 3 feature. Requires significant media processing infrastructure. Could leverage FFmpeg server-side or WebCodecs API client-side."
+    },
+    {
+      "signal_id": "SIG-COS-028",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "business_rule",
+      "preserved_as": "synthesized_summary",
+      "content": "Marketplace is two-sided: creators list products, consumers discover and buy. Product types are filterable by category, price range, creator, and type. Marketplace includes reviews, ratings, featured/trending sections, and seller verification badges.",
+      "context": "Google Doc PRD Tab 3 Module 4 Marketplace. Currently: marketplace page exists, product creation form renders, but no checkout, no Stripe, no reviews, no filtering beyond basic.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — marketplace with checkout is the revenue engine. Without Stripe Connect, no transactions, no revenue, no business model validation."
+    },
+    {
+      "signal_id": "SIG-COS-029",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "product_requirement",
+      "preserved_as": "structured_extraction",
+      "content": "Desired state defines 28 screens with specific descriptions: Landing, Consumer Landing, Creator SaaS Landing, Auth, Home Feed, Explore, Creator Profile, Create Post, My Posts, Post Detail, Content Calendar, Community View, Channel View, My Communities, Marketplace, Product Detail, My Courses, Course Player, Course Builder, Business Dashboard, Messages, Bookmarks, Settings, Connected Accounts, UGC Campaign Dashboard, Ad Campaign Manager, Automation Builder, Analytics Views.",
+      "context": "Phase 14.4 desired state canon screen list. Each screen has a one-line description defining its purpose and contents.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — screen inventory is the frontend roadmap. 16 of 28 have page files. 12 are fully missing."
+    },
+    {
+      "signal_id": "SIG-COS-030",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "open_question",
+      "preserved_as": "structured_extraction",
+      "content": "11 open questions from desired state: (1) content aggregation scope, (2) free tier limits, (3) marketplace curation model, (4) mobile priority iOS/Android, (5) white-label for Business tier, (6) auth provider, (7) backend framework, (8) backend hosting, (9) MVP scope, (10) feed algorithm timing, (11) live features priority.",
+      "context": "Phase 14.4 desired state canon open_questions array. Auth provider resolved by operator (Clerk). MVP scope partially resolved by 14.6B specification. Remaining 9 questions unresolved.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — each unresolved question blocks a feature area. Content aggregation scope affects the entire distribution engine architecture."
+    },
+    {
+      "signal_id": "SIG-COS-031",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "open_question",
+      "preserved_as": "structured_extraction",
+      "content": "8 contradictions in desired state: (1) 3 MVP scopes, (2) auth provider x3, (3) backend framework x2, (4) DB schema x2, (5) API endpoints x2, (6) tech stack x4, (7) timeline x3, (8) ORM x2.",
+      "context": "Phase 14.4 desired state canon contradictions array. Each contradiction was created by layered writing in the Google Doc over time, where later sections contradicted earlier ones without updating them.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — contradictions must be resolved before implementation. Code resolves ORM (Drizzle), DB (Neon Postgres), API (89 routes). Operator resolves auth (Clerk). MVP scope, backend framework, and timeline remain open."
+    },
+    {
+      "signal_id": "SIG-COS-032",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "user_need",
+      "preserved_as": "structured_extraction",
+      "content": "Creator Emerging (1K-50K): solo creator building audience. Needs simplicity over power. Time-poor, tool-overwhelmed. Came from Linktree + Canva + multiple social apps. Pain: managing 4-6 platforms manually, no cross-platform analytics, fragmented revenue tools, cannot afford $200/mo stacked SaaS.",
+      "context": "Phase 14.4 desired state canon target users. Emerging creators are the primary acquisition target for free tier.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — free tier must solve the multi-platform pain point immediately. First-run experience must connect at least one social account and publish one post."
+    },
+    {
+      "signal_id": "SIG-COS-033",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "user_need",
+      "preserved_as": "structured_extraction",
+      "content": "Creator Established (50K-500K): growing team, monetizing, scaling. Evaluates CreatorOS as consolidation — replace 5 tools with 1. Cares about reliability, analytics depth, time saved. Needs: consolidate distribution, scale courses/products, unified analytics, automate repetitive tasks, manage team permissions.",
+      "context": "Phase 14.4 desired state canon target users. Established creators are the Pro ($29/mo) tier target.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — Pro tier must deliver on automation and analytics promises. Team management and permissions are table stakes for this tier."
+    },
+    {
+      "signal_id": "SIG-COS-034",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "user_need",
+      "preserved_as": "structured_extraction",
+      "content": "Creator Business (500K+): full team, multiple revenue streams, brand deals. Needs: API access, white-label, custom integrations, dedicated support, advanced analytics, team seats, compliance features.",
+      "context": "Phase 14.4 desired state canon target users. Creator Businesses are the Business ($79/mo) and Enterprise ($199+/mo) tier targets.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — Enterprise features (API access, white-label, SSO) are post-MVP. But the architecture must not preclude them."
+    },
+    {
+      "signal_id": "SIG-COS-035",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "user_need",
+      "preserved_as": "synthesized_summary",
+      "content": "Consumer users (Superfans, Learners, Community Members) are the demand side. They browse feeds, join communities, purchase courses/products, follow creators. Consumer feed is chronological with eventual algorithmic ranking.",
+      "context": "Phase 14.4 desired state canon. Consumer experience drives creator value — without consumers, creators have no audience, no sales, no community activity.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — consumer feed, discovery, and purchase flow must exist for creators to generate revenue. Two-sided marketplace dynamics."
+    },
+    {
+      "signal_id": "SIG-COS-036",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "ConnectedAccounts is the bridge between CreatorOS and external platforms. Each connected account stores OAuth tokens, platform user ID, and sync status. Supports Instagram, TikTok, YouTube, X/Twitter, LinkedIn, Facebook, Pinterest, Threads.",
+      "context": "Phase 14.4 desired state data concept ConnectedAccounts. No connected_accounts table exists in current schema.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — without connected accounts, the 'post once publish everywhere' promise is impossible. Each platform OAuth integration requires app review (Instagram: weeks, TikTok: weeks, YouTube: faster with Google Cloud)."
+    },
+    {
+      "signal_id": "SIG-COS-037",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "business_rule",
+      "preserved_as": "synthesized_summary",
+      "content": "Revenue model is dual: subscription fees (4 tiers) + transaction fees (8% free, 5% Pro, 3% Business, custom Enterprise). Platform takes a percentage of every transaction processed through Stripe Connect.",
+      "context": "Phase 14.4 desired state pricing model. Transaction fees are the primary revenue driver at scale because they grow with creator GMV.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — Stripe Connect integration must implement per-tier fee rates. Platform fee is deducted before creator payout."
+    },
+    {
+      "signal_id": "SIG-COS-038",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Community Hub (Module 2) is Discord-like: branded spaces with text/voice/video channels, membership tiers (free + paid), channel-level gating, roles, XP/level system, invite codes, welcome messages, community rules.",
+      "context": "Phase 14.4 desired state Module 2. Current implementation: communities and channels tables exist, basic text chat works. Missing: membership tiers, payment gating, voice/video, roles, XP earning logic, owner FK.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — community is a product type (sellable as paid membership). Voice/video channels are tier 2/3 but text communities with paid tiers are tier 1."
+    },
+    {
+      "signal_id": "SIG-COS-039",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Course Platform (Module 3): Teachable-like drag-and-drop builder, video lesson player, progress tracking, drip content, quizzes, certificates. 4 required tables: courses, lessons, enrollments, lesson_completions.",
+      "context": "Phase 14.4 desired state Module 3. Zero implementation — no pages, no components, no tables.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — courses are a high-value product type ($100-$500+ each). Course builder is the creation tool; course player is the consumption tool. Both needed."
+    },
+    {
+      "signal_id": "SIG-COS-040",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "UGC Campaigns (Module 8): brands post campaign briefs, UGC creators apply, submit deliverables, get paid on approval. 5-stage lifecycle: create -> recruit -> review -> approve -> pay. Required tables: ugc_campaigns, ugc_applications, ugc_deliverables.",
+      "context": "Phase 14.4 desired state Module 8. Entirely greenfield. No competitor integrates UGC into the creator's own platform.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — tier 2/3 feature. But UGC campaigns are a unique differentiator from Whop and other competitors."
+    },
+    {
+      "signal_id": "SIG-COS-041",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Ads Platform (Module 9): self-serve advertising within CreatorOS ecosystem. Feed ads, banner ads, sponsored content, promoted products. Targeting by demographics, interests, creator audience overlap. CPM, CPC, and CPA bidding. Required tables: ad_campaigns, ads, ad_impressions, ad_clicks.",
+      "context": "Phase 14.4 desired state Module 9. Entirely greenfield.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "LOW — tier 3/4 feature. Requires significant user base before ad inventory has value. Architecture should not preclude it."
+    },
+    {
+      "signal_id": "SIG-COS-042",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Automation Builder (Module 11): Manychat-style visual flow builder for trigger/action automations. DAG node-graph canvas with trigger, condition, action, delay, split node types. Triggers span commerce (purchase, refund), community (join, message), content (publish, engagement threshold), and schedule (cron-like).",
+      "context": "Phase 14.4 desired state Module 11. Zero implementation. Required tables: automation_flows, automation_executions.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — tier 2 feature. Visual flow builder is high-effort UI. But automations are what make Pro tier ($29/mo) compelling vs free."
+    },
+    {
+      "signal_id": "SIG-COS-043",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Email/Newsletter (Module 12): list management, subscriber segmentation, template-based email composer, broadcast sending, open/click tracking. SendGrid dependency already in package.json but no implementation.",
+      "context": "Phase 14.4 desired state Module 12. SendGrid SDK (@sendgrid/mail 8.1.4) is installed but unused. Required tables: email_lists, subscribers, broadcasts, email_analytics.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — tier 2 feature. Email is a retention and monetization channel. SendGrid integration is already scaffolded in dependencies."
+    },
+    {
+      "signal_id": "SIG-COS-044",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "design_constraint",
+      "preserved_as": "synthesized_summary",
+      "content": "Mobile-first layout with bottom navigation. No desktop optimization in current code. Design must be responsive: mobile (bottom nav, single column), tablet (sidebar + content), desktop (sidebar + content + right panel).",
+      "context": "Phase 14.4 desired state + current implementation. BottomNav.tsx is the only layout component — no header, no sidebar, no responsive breakpoints.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — desktop experience is critical for creator workflows (content creation, analytics review, automation building). Mobile-only limits adoption."
+    },
+    {
+      "signal_id": "SIG-COS-045",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "technical_decision",
+      "preserved_as": "synthesized_summary",
+      "content": "Database target: Neon Postgres with Drizzle ORM (code resolves contradiction). Current: 20 tables, serial PKs (except notifications using UUID), no RLS, no connection pooling config.",
+      "context": "Phase 14.4 desired state. Doc mentions Prisma as alternative but Drizzle 0.39 is installed and all 20 tables use it.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — Drizzle ORM is confirmed. New tables should follow existing patterns (serial PKs for consistency, or migrate to UUIDs in a single pass)."
+    },
+    {
+      "signal_id": "SIG-COS-046",
+      "source_doc": "SRC-14.4-DS",
+      "detail_type": "technical_decision",
+      "preserved_as": "synthesized_summary",
+      "content": "Analytics target: PostHog. Status: planned, not implemented, deferred. No analytics SDK in current dependencies.",
+      "context": "Phase 14.4 desired state analytics_assumptions. PostHog is the same analytics platform used by EOS.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — PostHog integration is post-MVP. Product analytics (event tracking, funnel analysis, session replay) needed before scaling."
+    },
+    {
+      "signal_id": "SIG-COS-047",
+      "source_doc": "SRC-14.5-CP",
+      "detail_type": "technical_decision",
+      "preserved_as": "synthesized_summary",
+      "content": "Source divergence analysis: GitHub main and Beast are aligned. No branch promotion needed (unlike EOS which requires promoting feature/company-system). CreatorOS has ONE codebase as single source of truth.",
+      "context": "Phase 14.5 convergence plan. Simplifies CreatorOS convergence — no merge conflicts, no branch promotion decision (DEC-145-001 equivalent) needed.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — development can proceed on GitHub main directly. No branch reconciliation overhead."
+    },
+    {
+      "signal_id": "SIG-COS-048",
+      "source_doc": "SRC-14.5-CP",
+      "detail_type": "security_requirement",
+      "preserved_as": "structured_extraction",
+      "content": "Auth vulnerability classified as CRITICAL in convergence plan. All work packets blocked pending auth resolution. No feature work should start on any module that touches user data until Clerk migration complete.",
+      "context": "Phase 14.5 convergence plan auth_state section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "P0 — auth migration is the critical path. Every other module depends on working authentication."
+    },
+    {
+      "signal_id": "SIG-COS-049",
+      "source_doc": "SRC-14.5-CP",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "God file splitting is the second priority after auth. routes.ts (53KB, 89 routes) and storage.ts (104KB) must be decomposed into domain modules before parallel development.",
+      "context": "Phase 14.5 convergence plan top_gaps section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "P1 — code architecture cannot support parallel feature development until god files are split."
+    },
+    {
+      "signal_id": "SIG-COS-050",
+      "source_doc": "SRC-14.5-CP",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Convergence plan identifies work packets: WP-AUTH (Clerk migration), WP-SPLIT (god file decomposition), WP-SCHEMA (missing table creation), WP-COMMERCE (Stripe Connect), WP-DISTRIBUTION (platform OAuth integrations).",
+      "context": "Phase 14.5 convergence plan work packets. Each WP has dependencies, risk level, and estimated effort.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — work packet ordering defines the build sequence. AUTH -> SPLIT -> SCHEMA -> COMMERCE -> DISTRIBUTION."
+    },
+    {
+      "signal_id": "SIG-COS-051",
+      "source_doc": "SRC-14.5-CP",
+      "detail_type": "open_question",
+      "preserved_as": "structured_extraction",
+      "content": "Convergence plan flags 8 contradictions requiring resolution before work can start. All 8 match the desired state contradictions.",
+      "context": "Phase 14.5 convergence plan contradictions section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — contradictions in auth (resolved: Clerk), ORM (resolved: Drizzle), DB tables (resolved: code truth). MVP scope, backend framework, and timeline still open."
+    },
+    {
+      "signal_id": "SIG-COS-052",
+      "source_doc": "SRC-14.5-CP",
+      "detail_type": "integration_point",
+      "preserved_as": "synthesized_summary",
+      "content": "UMH integration boundary: CreatorOS registers as a projection via abstract ports. Signal flow: CreatorOS events -> SignalEnvelope factory -> UMH substrate -> feedback loop. Capability routing: CreatorOS declares capabilities in manifest.py.",
+      "context": "Phase 14.5 convergence plan UMH integration section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — UMH integration is post-MVP. Projection code exists (1099 lines) but has no runtime connection."
+    },
+    {
+      "signal_id": "SIG-COS-053",
+      "source_doc": "SRC-14.5-CP",
+      "detail_type": "technical_decision",
+      "preserved_as": "synthesized_summary",
+      "content": "Deployment hosting: not decided. Options in play: Fly.io, Render, Railway. No Docker, no CI/CD, no deployment config exists anywhere in the repo.",
+      "context": "Phase 14.5 convergence plan deployment section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — deployment infrastructure must be built from scratch. Decision needed before first production deployment."
+    },
+    {
+      "signal_id": "SIG-COS-054",
+      "source_doc": "SRC-14.5-CP",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Convergence plan confirms Stories as the ONLY fully implemented module. All other 15 modules are partial or not implemented.",
+      "context": "Phase 14.5 convergence plan module status summary.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — Stories is the implementation reference. Its patterns (schema, routes, components, real-time) should inform how other modules are built."
+    },
+    {
+      "signal_id": "SIG-COS-055",
+      "source_doc": "SRC-14.5A-13L",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "13-layer production stack assessment: Layer 1 (Frontend) PARTIAL, Layer 2 (APIs) PARTIAL with god files, Layer 3 (Database) PARTIAL 20/45 tables, Layer 4 (Auth) CRITICAL broken, Layer 5 (AI) PARTIAL basic agents, Layer 6 (Workflow) NOT IMPLEMENTED, Layer 7 (Memory) NOT IMPLEMENTED, Layer 8 (Analytics) PARTIAL placeholder, Layer 9 (Infrastructure) NOT IMPLEMENTED, Layer 10 (Testing) NOT IMPLEMENTED, Layer 11 (Docs) PARTIAL, Layer 12 (Security) CRITICAL, Layer 13 (Integration) PARTIAL projection code exists.",
+      "context": "Phase 14.5A 13-layer stack for CreatorOS. All layers BLOCKED pending source convergence and MVP scope decision.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — the 13-layer mapping is the production readiness framework. Layers 4 (Auth) and 12 (Security) are CRITICAL. Layers 6, 7, 9, 10 are completely missing."
+    },
+    {
+      "signal_id": "SIG-COS-056",
+      "source_doc": "SRC-14.5A-13L",
+      "detail_type": "technical_decision",
+      "preserved_as": "synthesized_summary",
+      "content": "Layer 1 (Frontend): 16 of 28 screens implemented, mobile-only layout, no desktop optimization, 46 custom components, 48 shadcn/ui primitives, Replit Agent authored quality unaudited, 90 design reference files uncatalogued.",
+      "context": "Phase 14.5A Layer 1 assessment. Replit Agent code quality is unknown — may require significant refactoring.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — code quality audit of Replit Agent output is needed before building on top of it. Refactoring bad foundations is more expensive than building new."
+    },
+    {
+      "signal_id": "SIG-COS-057",
+      "source_doc": "SRC-14.5A-13L",
+      "detail_type": "technical_decision",
+      "preserved_as": "synthesized_summary",
+      "content": "Layer 2 (APIs): Express 4 with 89 routes in single file. No middleware beyond Passport.js sessions. WebSocket dependency installed but no server setup found. 8 backend files total.",
+      "context": "Phase 14.5A Layer 2 assessment.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — backend architecture needs: route splitting by domain, proper middleware stack (auth, validation, rate limiting, error handling), WebSocket server for real-time features."
+    },
+    {
+      "signal_id": "SIG-COS-058",
+      "source_doc": "SRC-14.5A-13L",
+      "detail_type": "technical_decision",
+      "preserved_as": "synthesized_summary",
+      "content": "Layer 3 (Database): 20 tables implemented out of 45 target (44% coverage). Missing 25 tables for: courses, enrollments, lessons, orders, transactions, entitlements, businesses, creator_accounts, connected_accounts, community_members, community_tiers, automation_flows, automation_executions, email_lists, subscribers, broadcasts, ugc_campaigns, ugc_applications, ugc_deliverables, ad_campaigns, ads, reviews, content_analytics, bookmarks, plus migration tracking.",
+      "context": "Phase 14.5A Layer 3 assessment. Serial PK strategy (auto-increment integer) for all existing tables except notifications (UUID).",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — 25 table gap. Each missing table represents a blocked feature. Schema migration strategy needed (one big migration vs incremental per release)."
+    },
+    {
+      "signal_id": "SIG-COS-059",
+      "source_doc": "SRC-14.5A-13L",
+      "detail_type": "technical_decision",
+      "preserved_as": "synthesized_summary",
+      "content": "Layer 10 (Testing): zero test files in the repo. No vitest, jest, or playwright in dependencies. No test framework of any kind.",
+      "context": "Phase 14.5A Layer 10 assessment. Complete greenfield for testing.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — test framework must be added. Recommended: vitest for unit/integration, playwright for e2e. Testing is non-negotiable before production."
+    },
+    {
+      "signal_id": "SIG-COS-060",
+      "source_doc": "SRC-14.5A-13L",
+      "detail_type": "integration_point",
+      "preserved_as": "synthesized_summary",
+      "content": "Layer 13 (Integration): projections/creatoros/integration/ has 7 files totaling 1099 lines. Signal factory (146 lines), outcome tracking (180 lines), manifest (139 lines), handlers (150 lines), correlation (44 lines), tables (439 lines). No active runtime integration with UMH substrate.",
+      "context": "Phase 14.5A Layer 13 assessment. Integration code exists but is dormant — not connected to any running service.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — integration layer is scaffolded but inactive. Will be activated in post-MVP phases when CreatorOS connects to UMH event bus."
+    },
+    {
+      "signal_id": "SIG-COS-061",
+      "source_doc": "SRC-SCHEMA",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "20 tables in shared/schema.ts: users, posts, saved_posts, comments, products, ai_agents, ai_chats, communities, channels, channel_messages, followers, revenue, contacts, documents, stories, notifications, conversations, conversation_participants, direct_messages, tagged_users.",
+      "context": "schema.ts is the Drizzle ORM source of truth for all CreatorOS data. VPS has a read-only copy at data/repos/creatoros/shared/schema.ts.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "CRITICAL — this is the ground truth for what data structures exist today."
+    },
+    {
+      "signal_id": "SIG-COS-062",
+      "source_doc": "SRC-SCHEMA",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "users table: id (serial PK), username (text UNIQUE), password (text), display_name (text), bio (text?), profile_image_url (text?), role (text default 'creator'), xp_points (integer default 0), level (integer default 1), created_at (timestamp). No email field. No clerk_id field. No OAuth fields.",
+      "context": "schema.ts users table definition. Role is free text with no enum constraint. XP/level system exists but no corresponding earning logic.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "HIGH — users table needs: email column, clerk_id column (for Clerk migration), password column removal (after migration), role enum constraint, and potentially creator_account_id FK."
+    },
+    {
+      "signal_id": "SIG-COS-063",
+      "source_doc": "SRC-SCHEMA",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "posts table: id (serial PK), user_id (FK users), content (text), image_url (text?), audio_url (text?), video_url (text?), media_type (text? default 'text'), likes (integer default 0), comments (integer default 0), created_at (timestamp). No scheduled_at, no published_at, no status field, no platform targeting fields.",
+      "context": "schema.ts posts table definition. Denormalized like/comment counts. Missing fields block scheduling and cross-posting features.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "HIGH — posts table needs: scheduled_at (timestamptz), published_at (timestamptz), status (draft/scheduled/published/failed), platform_targets (jsonb), cross_post_ids (jsonb)."
+    },
+    {
+      "signal_id": "SIG-COS-064",
+      "source_doc": "SRC-SCHEMA",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "products table: id (serial PK), user_id (FK users), name (text), description (text), price (integer default 0), image_url (text?), category (text?), is_featured (boolean default false), rating (real default 0), reviews_count (integer default 0), created_at (timestamp). No product_type discriminator, no file_url, no stripe_product_id, no status field.",
+      "context": "schema.ts products table definition. Generic products table with no way to distinguish between the 10 product types.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "CRITICAL — products table needs product_type enum to support all 10 types. Each type has different delivery mechanism, entitlement, and pricing model. This is a structural schema change."
+    },
+    {
+      "signal_id": "SIG-COS-065",
+      "source_doc": "SRC-SCHEMA",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "communities table: id (serial PK), name (text), description (text), icon_color (text), created_at (timestamp). No owner_user_id FK. No slug. No visibility. No membership table. No category.",
+      "context": "schema.ts communities table definition. Communities are ownerless in schema — anyone can access any community with no ownership or permission model.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "HIGH — communities need owner_user_id FK, slug for URL routing, visibility (public/private/invite_only), and a community_members junction table for membership management."
+    },
+    {
+      "signal_id": "SIG-COS-066",
+      "source_doc": "SRC-SCHEMA",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "ai_agents table: id (serial PK), name (text), description (text), icon (text), icon_color (text), background_color (text), system_prompt (text), is_custom (boolean default false), chat_count (integer default 0), status (text default 'active'), user_id (FK users), created_at (timestamp). No model_id, no temperature, no max_tokens, no pricing fields.",
+      "context": "schema.ts ai_agents table definition. AI agents exist as chat interfaces but have no commerce integration.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "MEDIUM — AI agents need model_id, temperature, max_tokens for configuration, and price_cents for commerce. Token tracking needed for usage-based billing."
+    },
+    {
+      "signal_id": "SIG-COS-067",
+      "source_doc": "SRC-SCHEMA",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "conversations/direct_messages: conversations (id, created_at), conversation_participants (id, conversation_id FK, user_id FK, joined_at), direct_messages (id, conversation_id FK, sender_id FK, content, is_read boolean, reply_to_id self-FK, created_at). Basic DM infrastructure exists.",
+      "context": "schema.ts messaging tables. 1:1 DMs work. No group chats, no media in DMs, no typing indicators, no read receipts, no reactions.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "MEDIUM — DM infrastructure exists and works. Enhancements (group chats, media, reactions) are incremental additions."
+    },
+    {
+      "signal_id": "SIG-COS-068",
+      "source_doc": "SRC-SCHEMA",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "stories table: id (serial PK), user_id (FK users), image_url (text), caption (text?), is_active (boolean default true), created_at (timestamp). Stories module is fully implemented with creation, viewing, 24h expiry.",
+      "context": "schema.ts stories table. Stories is the only fully implemented module — the reference implementation for how other modules should be built.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "HIGH — stories implementation is the golden path example. Its patterns (schema, routes, components, real-time update via 5-minute cleanup) should be studied before building other modules."
+    },
+    {
+      "signal_id": "SIG-COS-069",
+      "source_doc": "SRC-SCHEMA",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "notifications table: id (UUID PK — unique among all tables), user_id (FK users), type (text), message (text), related_id (integer?), is_read (boolean default false), created_at (timestamp). Only table using UUID primary key.",
+      "context": "schema.ts notifications table. UUID PK here but serial everywhere else — inconsistent PK strategy across tables.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "LOW — PK strategy inconsistency should be resolved in a single migration pass. Either standardize on serial or migrate all to UUID."
+    },
+    {
+      "signal_id": "SIG-COS-070",
+      "source_doc": "SRC-SCHEMA",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "revenue table: id (serial PK), user_id (FK users), amount (real), source (text), description (text?), date (timestamp). No FK to orders, no FK to products, no currency field, no Stripe transaction ID.",
+      "context": "schema.ts revenue table. Revenue tracking exists but is disconnected from any actual payment flow.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "HIGH — revenue table needs to be redesigned when Stripe Connect is integrated. Should FK to orders table and store Stripe IDs."
+    },
+    {
+      "signal_id": "SIG-COS-071",
+      "source_doc": "SRC-SCHEMA",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "contacts table: id (serial PK), user_id (FK users), name (text), email (text), phone (text?), company (text?), notes (text?), tags (text? — comma-separated, not array), created_at (timestamp). CRM-style contact list.",
+      "context": "schema.ts contacts table. Contacts page exists. Tags stored as comma-separated text instead of jsonb array or junction table.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "LOW — contacts feature is functional. Tags implementation is suboptimal but not blocking."
+    },
+    {
+      "signal_id": "SIG-COS-072",
+      "source_doc": "SRC-SCHEMA",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "documents table: id (serial PK), user_id (FK users), title (text default 'Untitled'), content (text?), is_shared (boolean default false), created_at (timestamp), updated_at (timestamp). Notion-style editor for creator notes.",
+      "context": "schema.ts documents table. Basic document editing exists.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "LOW — documents feature is functional but orthogonal to core product. Not in any MVP scope definition."
+    },
+    {
+      "signal_id": "SIG-COS-073",
+      "source_doc": "SRC-PROJ",
+      "detail_type": "integration_point",
+      "preserved_as": "structured_extraction",
+      "content": "projections/creatoros/integration/signals.py (146 lines): Signal factory mapping CreatorOS events (content_published, product_sold, community_member_joined, course_enrolled) to UMH SignalEnvelope format.",
+      "context": "UMH projection code. Defines the event vocabulary for CreatorOS-to-UMH communication.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "MEDIUM — signal definitions are the integration contract. New modules should emit signals through this factory when UMH integration is activated."
+    },
+    {
+      "signal_id": "SIG-COS-074",
+      "source_doc": "SRC-PROJ",
+      "detail_type": "integration_point",
+      "preserved_as": "structured_extraction",
+      "content": "projections/creatoros/integration/manifest.py (139 lines): Declares CreatorOS capabilities, signal types, and outcome definitions for UMH registration. This is the projection's contract with the substrate.",
+      "context": "UMH projection manifest. Tells UMH what CreatorOS can do and what signals it produces.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "MEDIUM — manifest must be updated as new modules are implemented and new capabilities are added."
+    },
+    {
+      "signal_id": "SIG-COS-075",
+      "source_doc": "SRC-PROJ",
+      "detail_type": "integration_point",
+      "preserved_as": "structured_extraction",
+      "content": "projections/creatoros/integration/tables.py (439 lines): Integration table definitions for UMH substrate persistence. Largest file in CreatorOS projection. Defines how CreatorOS data maps to UMH's ontology layer.",
+      "context": "UMH projection tables. This is the data bridge between CreatorOS's Drizzle schema and UMH's Python-based substrate.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "MEDIUM — tables.py must stay synchronized with schema.ts changes. Any new CreatorOS table that should be visible to UMH needs a corresponding entry here."
+    },
+    {
+      "signal_id": "SIG-COS-076",
+      "source_doc": "SRC-PROJ",
+      "detail_type": "integration_point",
+      "preserved_as": "structured_extraction",
+      "content": "projections/creatoros/integration/outcomes.py (180 lines): Outcome tracking for CreatorOS operations. Defines success/failure outcomes for UMH feedback loop. Enables UMH to learn from CreatorOS operations.",
+      "context": "UMH projection outcomes. Part of the UMH feedback loop that enables deterministic improvement.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "MEDIUM — outcome definitions should be extended as new modules produce measurable results (e.g., course completion rates, order success rates)."
+    },
+    {
+      "signal_id": "SIG-COS-077",
+      "source_doc": "SRC-PROJ",
+      "detail_type": "integration_point",
+      "preserved_as": "structured_extraction",
+      "content": "CreatorOS UMH projection is 81% smaller than EOS projection (8 files / 1099 lines vs 31 files / 5699 lines). Missing: agents (EOS has 10 department agents), views (EOS has 3), workflows (EOS has 3), entity model (EOS has 879-line entities.py), integration DESIGN.md (EOS has 1463-line design doc).",
+      "context": "Comparison between CreatorOS and EOS projection codebases.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "LOW — CreatorOS projection is intentionally smaller because AI is utility-level, not agent-level. No department agents needed."
+    },
+    {
+      "signal_id": "SIG-COS-078",
+      "source_doc": "SRC-DESIGN",
+      "detail_type": "design_constraint",
+      "preserved_as": "synthesized_summary",
+      "content": "90 design reference files in Google Drive (attached_assets/). Stitch UI references and screenshots defining X/Twitter-inspired minimalism. Not downloaded to VPS. Stitch UI component inventory needed to map which files cover which components.",
+      "context": "Design references from Phase 14.4. These are visual targets for the UI implementation.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — design references are the visual specification. Cannot build UI to spec without cataloguing which reference covers which component."
+    },
+    {
+      "signal_id": "SIG-COS-079",
+      "source_doc": "SRC-DESIGN",
+      "detail_type": "design_constraint",
+      "preserved_as": "structured_extraction",
+      "content": "Color system: Primary 'Ink' (#0F1419 light / #E7E9EA dark), Secondary 'Steel' (#536471 light / #8B98A5 dark), Accent 'Signal Blue' (#1D9BF0), Semantic (success #00BA7C, warning #FFD400, error #F4212E). True black dark mode (#000000, OLED-optimized). Default to dark mode.",
+      "context": "Phase 14.6B design identity canon color_system section. Open question: should CreatorOS have a distinct accent color separate from X/Twitter blue?",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — color system must be applied to Tailwind config and shadcn/ui theme. Current theme.json has appearance=light — needs to flip to dark default."
+    },
+    {
+      "signal_id": "SIG-COS-080",
+      "source_doc": "SRC-DESIGN",
+      "detail_type": "design_constraint",
+      "preserved_as": "structured_extraction",
+      "content": "Typography: Inter for headings (600, 700 weight) and body (400, 500 weight), JetBrains Mono for code/analytics numbers. Base size 15px. Sizes from 11px (xs) to 36px (display). Line heights: tight 1.2, normal 1.4, relaxed 1.6.",
+      "context": "Phase 14.6B design identity canon typography section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — typography must be configured in Tailwind config. Inter and JetBrains Mono need to be loaded (Google Fonts or self-hosted)."
+    },
+    {
+      "signal_id": "SIG-COS-081",
+      "source_doc": "SRC-DESIGN",
+      "detail_type": "design_constraint",
+      "preserved_as": "structured_extraction",
+      "content": "Design principles: minimalism, speed, function-first, content-density, progressive-disclosure. What it IS NOT: glassmorphism, heavy gradients, playful illustrations, gamification chrome (XP bars, achievement badges), RPG aesthetic, rounded blob shapes, animated backgrounds, skeuomorphic textures, neon/cyberpunk, excessive drop shadows.",
+      "context": "Phase 14.6B design identity canon design_philosophy section. Note: users table has xp_points and level columns — this is a gamification pattern that contradicts the design philosophy.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — explicit list of what NOT to build. Any UI that looks gamified, glassmorphic, or playful violates the design constraint. The xp_points/level columns need a decision: remove or reframe as non-gamification metric."
+    },
+    {
+      "signal_id": "SIG-COS-082",
+      "source_doc": "SRC-14.6B-AUTH",
+      "detail_type": "security_requirement",
+      "preserved_as": "structured_extraction",
+      "content": "COS-AUTH-001: comparePasswords() returns true for ALL passwords. Authentication is effectively disabled. Blast radius: all 20 database tables accessible via any authenticated session. Mitigating factors: no production deployment, no real user data.",
+      "context": "Phase 14.6B auth security truth. Critical vulnerability with full documentation of blast radius and mitigation.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "P0 — the single most critical issue. Resolution: Clerk migration, not Passport.js fix."
+    },
+    {
+      "signal_id": "SIG-COS-083",
+      "source_doc": "SRC-14.6B-AUTH",
+      "detail_type": "security_requirement",
+      "preserved_as": "structured_extraction",
+      "content": "Current auth has: no rate limiting on login, no CSRF protection, no account lockout, no email verification, no password policy (no minimum length/complexity), session secret has hardcoded fallback 'creatorOS-secret-key', MemoryStore not production-suitable.",
+      "context": "Phase 14.6B auth security truth current_auth section. Multiple security gaps beyond the comparePasswords vulnerability.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "HIGH — all of these gaps are resolved by migrating to Clerk (managed auth with built-in rate limiting, CSRF, MFA, session management)."
+    },
+    {
+      "signal_id": "SIG-COS-084",
+      "source_doc": "SRC-14.6B-AUTH",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "Clerk migration path: 7 steps. (1) Clerk project setup, (2) schema migration — add clerk_id to users, (3) backend middleware swap from Passport to Clerk Express SDK, (4) frontend auth component swap, (5) webhook handler for user sync, (6) route protection audit of all 89 routes, (7) session table cleanup.",
+      "context": "Phase 14.6B auth security truth migration_path section. Step 3 (backend swap) and step 6 (route audit) are HIGH risk.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — this is the step-by-step implementation plan for P0 auth fix."
+    },
+    {
+      "signal_id": "SIG-COS-085",
+      "source_doc": "SRC-14.6B-AUTH",
+      "detail_type": "security_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Target auth: Clerk with Google + Apple OAuth, magic links for consumers, TOTP MFA (required for creators, optional for consumers), multi-device sessions with instant revocation, webhook sync for user.created/updated/deleted events, ClerkProvider + SignIn/SignUp/UserButton React components.",
+      "context": "Phase 14.6B auth security truth target_auth section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — Clerk feature set defines what the auth experience will look like. Google + Apple OAuth reduces sign-up friction."
+    },
+    {
+      "signal_id": "SIG-COS-086",
+      "source_doc": "SRC-14.6B-IMPL",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "Current framework: React 18 + Vite 5 + TypeScript 5.6.3 + Tailwind CSS + shadcn/ui + wouter (routing) + zustand (state) + TanStack Query (server state) + framer-motion (animation) + recharts (charts) + zod (validation). OpenAI SDK 4.91.1 installed. SendGrid SDK 8.1.4 installed.",
+      "context": "Phase 14.6B current implementation truth framework section. Both OpenAI and SendGrid SDKs are installed but minimally used.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "HIGH — framework decisions are locked in by existing code. No framework migration needed — build on top of what exists."
+    },
+    {
+      "signal_id": "SIG-COS-087",
+      "source_doc": "SRC-14.6B-IMPL",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "Build scripts: dev (tsx server/index.ts), build (vite build + esbuild server bundle), start (NODE_ENV=production node dist/index.js), check (tsc), db:push (drizzle-kit push). No test script, no lint script, no CI/CD.",
+      "context": "Phase 14.6B current implementation truth build_scripts section.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "MEDIUM — build pipeline works for dev. Need: test script (vitest), lint script (eslint/biome), format script (prettier/biome), CI/CD pipeline (GitHub Actions)."
+    },
+    {
+      "signal_id": "SIG-COS-088",
+      "source_doc": "SRC-14.6B-IMPL",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "Replit origin: .replit and replit.nix config files committed. Replit vite plugins in vite.config.ts. attached_assets directory with user-uploaded files committed to git. Replit Agent authored — code quality unaudited.",
+      "context": "Phase 14.6B current implementation truth notable_patterns section. Replit artifacts should be cleaned up when deploying outside Replit.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "MEDIUM — Replit-specific config and attached_assets should be removed before production deployment. May need vite.config.ts cleanup."
+    },
+    {
+      "signal_id": "SIG-COS-089",
+      "source_doc": "SRC-14.6B-IMPL",
+      "detail_type": "security_requirement",
+      "preserved_as": "structured_extraction",
+      "content": "OpenAI client initialized with fallback string 'your-api-key' when OPENAI_API_KEY env var is missing. Hardcoded route: DELETE /api/force-delete-story/11 (hardcoded story ID). uploads/ directory with 26 user-uploaded files committed to git.",
+      "context": "Phase 14.6B current implementation truth notable_patterns section. Three separate code quality/security issues.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "HIGH — API key fallback to string literal is a security anti-pattern. Hardcoded story ID is a debugging artifact. Uploads in git is a repo hygiene issue."
+    },
+    {
+      "signal_id": "SIG-COS-090",
+      "source_doc": "SRC-14.6B-IMPL",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "Parallel auth pattern: use-auth.tsx (passport-based, TanStack Query) AND stores.ts (zustand-based mock fetch-all-users login) coexist. Two auth systems in the same codebase.",
+      "context": "Phase 14.6B current implementation truth notable_patterns section. Zustand store has mock auth that fetches all users and lets any be selected.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "HIGH — both parallel auth systems must be removed during Clerk migration. Clean slate with Clerk hooks only."
+    },
+    {
+      "signal_id": "SIG-COS-091",
+      "source_doc": "SRC-14.6B-IMPL",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "WebSocket: ws 8.18.0 dependency installed but no WebSocket server setup found in the codebase. Real-time features (chat, notifications, live updates) will need WebSocket server implementation.",
+      "context": "Phase 14.6B current implementation truth notable_patterns section.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "MEDIUM — ws is installed but unused. WebSocket server needed for: real-time community chat, DM delivery, notification pushes, live content updates."
+    },
+    {
+      "signal_id": "SIG-COS-092",
+      "source_doc": "SRC-14.6B-MVP",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "3 conflicting MVP definitions resolved into recommended 5-release plan: R1 Foundation (auth + god file split + schema), R2 Core Distribution (universal composer + platform OAuth + scheduling), R3 Commerce (Stripe Connect + digital products + checkout), R4 Community + Courses (paid communities + course builder), R5 Growth (automations + email + analytics).",
+      "context": "Phase 14.6B MVP specification recommended_release_plan section. R1 has no user-facing features — it is infrastructure only.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — this is the recommended build order. R1 must complete before any user-facing feature work. Each release is independently deployable."
+    },
+    {
+      "signal_id": "SIG-COS-093",
+      "source_doc": "SRC-14.6B-MVP",
+      "detail_type": "open_question",
+      "preserved_as": "structured_extraction",
+      "content": "DEC-145-002: Operator decision required on which MVP scope is canonical. Recommended: 5-release progressive plan (R1-R5) that subsumes all 3 conflicting definitions.",
+      "context": "Phase 14.6B MVP specification. The 5-release plan was synthesized by the analyst but needs operator approval.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "implementation_relevance": "P0 DECISION — cannot start building until MVP scope is confirmed."
+    },
+    {
+      "signal_id": "SIG-COS-094",
+      "source_doc": "SRC-14.6B-MVP",
+      "detail_type": "open_question",
+      "preserved_as": "structured_extraction",
+      "content": "DEC-145-004: Auth migration order question — should Clerk migration happen before or concurrently with god file splitting?",
+      "context": "Phase 14.6B MVP specification. Both are P0/P1 tasks. Concurrent execution is possible but risky (touching the same files).",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "implementation_relevance": "HIGH — sequencing these two tasks determines the critical path for R1."
+    },
+    {
+      "signal_id": "SIG-COS-095",
+      "source_doc": "SRC-14.6B-BOUNDARY",
+      "detail_type": "integration_point",
+      "preserved_as": "structured_extraction",
+      "content": "Separation rule: if a capability exists to help someone run a business (any type), it belongs to EOS. If a capability exists to help a creator produce, distribute, monetize, or build community, it belongs to CreatorOS.",
+      "context": "Phase 14.6B EOS boundary canon Section 1. The foundational principle separating the two products.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — every new feature must pass this boundary test. CreatorOS must NOT build: org chart, agent hierarchy, portfolio management, departmental workflows."
+    },
+    {
+      "signal_id": "SIG-COS-096",
+      "source_doc": "SRC-14.6B-BOUNDARY",
+      "detail_type": "integration_point",
+      "preserved_as": "structured_extraction",
+      "content": "Content and Distribution: CreatorOS OWNS content creation/editing, cross-platform distribution, content calendar, social feed, stories, video editing. EOS DOES NOT touch these. EOS owns business content (reports, analytics) which is different from creator content.",
+      "context": "Phase 14.6B EOS boundary canon ownership matrix - Content section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — content pipeline is purely CreatorOS territory. No EOS dependency needed for content features."
+    },
+    {
+      "signal_id": "SIG-COS-097",
+      "source_doc": "SRC-14.6B-BOUNDARY",
+      "detail_type": "integration_point",
+      "preserved_as": "structured_extraction",
+      "content": "Shared UMH capabilities: identity/SSO (substrate/state), permissions engine (substrate/governance), AI runtime (adapters/models), workflow engine (substrate/execution), event bus (substrate/sockets), memory graph (substrate/understanding), analytics pipeline (substrate/observability).",
+      "context": "Phase 14.6B EOS boundary canon shared substrate section. These are capabilities both CreatorOS and EOS inherit from UMH.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — shared capabilities are post-MVP. But architecture must not create parallel implementations of things UMH already provides."
+    },
+    {
+      "signal_id": "SIG-COS-098",
+      "source_doc": "SRC-14.6B-BOUNDARY",
+      "detail_type": "business_rule",
+      "preserved_as": "synthesized_summary",
+      "content": "Crossover point: a creator who outgrows CreatorOS's built-in analytics and needs departmental workflows, agent delegation, and portfolio management graduates into EOS — or runs both simultaneously. CreatorOS serves product/audience concerns, EOS serves operational/financial concerns.",
+      "context": "Phase 14.6B EOS boundary canon crossover section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — product marketing and upgrade paths must account for the EOS upsell. Data portability between CreatorOS and EOS via UMH substrate."
+    },
+    {
+      "signal_id": "SIG-COS-099",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Cross-posting requires per-platform format adaptation: X/Twitter (280 chars, thread splitting), Instagram (2200 caption, carousel), TikTok (4000 caption), YouTube (5000 description), LinkedIn (3000 chars), Facebook (63206 chars), Pinterest (500 description), Threads (500 chars). Each platform has different media constraints (aspect ratios, file sizes, video length limits).",
+      "context": "Google Doc PRD Tab 3 Content Distribution Hub + Phase 14.6B content distribution canon.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — per-platform preview in the universal composer must enforce these limits. Thread splitting for X/Twitter and carousel generation for Instagram are complex features."
+    },
+    {
+      "signal_id": "SIG-COS-100",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Subscription/Membership product type: recurring billing for community access, content access, or service access. Monthly and annual billing cycles. Trial periods. Auto-renewal with grace period. Cancellation with end-of-period access.",
+      "context": "Google Doc PRD + Phase 14.6B product types commerce canon subscription_membership type.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — subscriptions are the recurring revenue engine. Requires Stripe Billing + Stripe Connect. Complex billing logic (proration, trial management, dunning)."
+    },
+    {
+      "signal_id": "SIG-COS-101",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Physical product support: shipping address collection, shipping rate calculation, order tracking, inventory management. Fulfillment can be self-fulfilled or print-on-demand integrated.",
+      "context": "Google Doc PRD product types + Phase 14.6B product types commerce canon physical_product type.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "LOW — physical products are tier 3/4. Requires shipping integration (ShipStation, EasyPost, or Printful). Architecture should accommodate but implementation is far out."
+    },
+    {
+      "signal_id": "SIG-COS-102",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Service product type: creators sell services (coaching sessions, consulting, freelance work). Booking calendar with availability, deposit/full payment, delivery confirmation. Requires scheduling integration.",
+      "context": "Google Doc PRD + Phase 14.6B product types commerce canon service type.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — services are tier 2/3. Calendar/booking integration needed. Could leverage existing Cal.com or build custom."
+    },
+    {
+      "signal_id": "SIG-COS-103",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Event product type: live or virtual events with ticket sales, RSVP tracking, calendar integration, waitlist management, check-in system. Virtual events need video conferencing integration or streaming.",
+      "context": "Google Doc PRD + Phase 14.6B product types commerce canon event type.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — events are tier 2/3. Ticket sales require Stripe. Virtual event streaming requires third-party integration (Zoom, custom RTMP)."
+    },
+    {
+      "signal_id": "SIG-COS-104",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Software access product type: creators sell access to SaaS tools, APIs, or web apps. License key generation, access gating, usage tracking, API key management.",
+      "context": "Google Doc PRD + Phase 14.6B product types commerce canon software_access type.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "LOW — software access is tier 3/4. Niche product type for technical creators."
+    },
+    {
+      "signal_id": "SIG-COS-105",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "business_rule",
+      "preserved_as": "structured_extraction",
+      "content": "Order lifecycle: cart -> checkout -> payment_processing -> completed/failed. On completion: create entitlement, send confirmation email, update revenue, trigger post-purchase automation. On failure: retry payment, notify buyer, hold entitlement.",
+      "context": "Phase 14.6B product types commerce canon order_lifecycle section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — order lifecycle is the commerce backbone. No orders table exists in current schema. Required tables: orders, order_items, entitlements."
+    },
+    {
+      "signal_id": "SIG-COS-106",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "business_rule",
+      "preserved_as": "structured_extraction",
+      "content": "Entitlement model: each purchase creates an entitlement granting access to the purchased product. Entitlement types: download_access (perpetual), course_access (perpetual), community_access (recurring), software_access (recurring or perpetual), event_ticket (time-bound). Revocation triggers: refund, subscription cancellation, manual ban.",
+      "context": "Phase 14.6B product types commerce canon entitlement_model section.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "CRITICAL — entitlements are the access control layer for purchased products. Without entitlements, there is no way to gate content by purchase status."
+    },
+    {
+      "signal_id": "SIG-COS-107",
+      "source_doc": "SRC-14.6B-IMPL",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "16 client pages: ai, auth-page, communities, contacts, create-post, create-product, documents, explore, followers, following, marketplace, new-text-post, not-found, profile, revenue, saved-posts. Component directories: ai, communities, explore, feed, layout, marketplace, messages, notifications, profile.",
+      "context": "Phase 14.6B current implementation truth pages and component inventory.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "HIGH — this is the frontend ground truth. New screens should follow the same directory structure (pages/ for routes, components/ for reusable UI)."
+    },
+    {
+      "signal_id": "SIG-COS-108",
+      "source_doc": "SRC-14.6B-IMPL",
+      "detail_type": "technical_decision",
+      "preserved_as": "structured_extraction",
+      "content": "shadcn/ui provides 48 Radix-based UI primitive components. 46 custom components built by Replit Agent. Total: 94 components. 3 custom hooks: use-auth.tsx, use-mobile.tsx, use-toast.ts.",
+      "context": "Phase 14.6B current implementation truth component inventory.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "implementation_relevance": "MEDIUM — shadcn/ui primitives are the component library. New components should compose from these primitives rather than building from scratch."
+    },
+    {
+      "signal_id": "SIG-COS-109",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Moderation (Module 15): AI-assisted content moderation + human review pipeline. Auto-mod for spam, hate speech, nudity detection. Moderation queue for flagged content. Appeals process. User reporting. Ban/mute/warn actions. Moderation log.",
+      "context": "Google Doc PRD Module 15 Moderation, Trust & Safety, Compliance. Zero implementation.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — moderation is required before public launch with user-generated content. Tier 2 feature. AI moderation can leverage existing OpenAI SDK."
+    },
+    {
+      "signal_id": "SIG-COS-110",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Roles & Permissions (Module 16): creator team management with role-based access. Roles: owner, admin, editor, moderator, viewer. Permissions scoped per module (content, community, commerce, analytics). Community-level roles separate from team roles.",
+      "context": "Google Doc PRD Module 16 Roles & Permissions. Current schema has only user.role (creator/consumer) with no granularity.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "MEDIUM — roles and permissions are required for Business tier ($79/mo) team seats. Must be designed early even if implemented later."
+    },
+    {
+      "signal_id": "SIG-COS-111",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Consumer Feed with For You / Following toggle. For You uses algorithmic ranking (engagement-weighted, time-decayed, personalized). Following is pure chronological. Feed supports: text posts, photo posts, video posts, audio posts, shared products, shared courses, stories row at top.",
+      "context": "Google Doc PRD Screen 5 Home Feed. Current implementation: basic feed with chronological ordering only. No For You algorithm, no discovery, no trending.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — feed algorithm is the consumer engagement driver. Chronological is MVP. Algorithmic ranking is tier 2/3 and requires sufficient content volume."
+    },
+    {
+      "signal_id": "SIG-COS-112",
+      "source_doc": "SRC-GDOC",
+      "detail_type": "product_requirement",
+      "preserved_as": "synthesized_summary",
+      "content": "Creator Dashboard (Module 6) aggregates: total revenue, total orders, follower growth, content views, community activity, average order value. Time-range filtering (7d, 30d, 90d, year, custom). Revenue breakdown by product type. Content performance ranking. Top-performing posts. Community health metrics.",
+      "context": "Google Doc PRD Module 6 + Phase 14.6B analytics dashboard canon. Current: basic overview page with placeholder metrics and no real data aggregation.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "implementation_relevance": "HIGH — dashboard is the creator command center. Without real analytics, creators cannot make data-driven decisions. Requires orders table, content_analytics table, and aggregation queries."
+    }
+  ]
+}

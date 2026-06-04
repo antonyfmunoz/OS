@@ -1,0 +1,198 @@
+{
+  "phase": "14.6B-LyfeOS",
+  "artifact": "lyfeos_docs_vs_code_convergence_matrix",
+  "timestamp": "2026-06-03T12:00:00Z",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "description": "Compares documentation claims (replit.md, prior phase artifacts) against code evidence (schema.ts, package.json, tests, configs). Identifies alignment, divergence, and resolution for each feature area.",
+  "convergence_items": [
+    {
+      "id": "CONV-001",
+      "feature_area": "Primary Navigation",
+      "docs_claim": "Phase 14.5 convergence plan: 'Dashboard, Missions, NOVA AI, Chronilog, Systems, Profile'",
+      "code_truth": "Operator correction: 5 primary tabs are Dashboard, Missions, AI, Chronilog, Profile. Systems is NOT primary.",
+      "convergence_status": "CONTRADICTED",
+      "resolution": "Operator correction supersedes. Profile is 5th primary tab, not Systems.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-002",
+      "feature_area": "Auth Provider",
+      "docs_claim": "Phase 14.5/14.5A: Target auth is Clerk. Current auth described as 'Firebase or Passport.js legacy'.",
+      "code_truth": "package.json: passport 0.7.0, passport-local 1.0.0, bcrypt 6.0.0, firebase 11.6.1, firebase-admin 13.6.1, express-session 1.18.1, connect-pg-simple 10.0.0. Zero Clerk dependencies.",
+      "convergence_status": "DOCS_AHEAD",
+      "resolution": "Current truth is Passport.js + Firebase dual auth. Clerk is a future migration target only. No code exists for Clerk.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-003",
+      "feature_area": "Deployment Platform",
+      "docs_claim": "Phase 14.5A: 'Fly.io deployment' as desired end state. Current: 'Deployed isolated MVP at lyfeos.net. Deployment mechanism unclear.'",
+      "code_truth": "Replit-specific dependencies (@replit/vite-plugin-*), build.sh, operator confirms Replit hosting.",
+      "convergence_status": "DOCS_AHEAD",
+      "resolution": "Current deployment is Replit. Fly.io is a future migration target. Prior artifacts were uncertain about current hosting; now confirmed as Replit.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-004",
+      "feature_area": "AI Assistant Identity",
+      "docs_claim": "replit.md: 'NOVA AI System'. Prior artifacts sometimes reference 'NOVA' as a system name.",
+      "code_truth": "schema.ts: aiAssistantName default 'NOVA' in user_stats. Field is mutable and user-renamable.",
+      "convergence_status": "ALIGNED",
+      "resolution": "NOVA is the default AI companion name, stored per-user and renamable. Not a system/brand name.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-005",
+      "feature_area": "Database Table Count",
+      "docs_claim": "Phase 14.5: '35 tables'. replit.md lists key data models.",
+      "code_truth": "schema.ts: exactly 35 pgTable() declarations, independently verified.",
+      "convergence_status": "ALIGNED",
+      "resolution": "35 tables confirmed. Docs and code agree.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-006",
+      "feature_area": "XP System",
+      "docs_claim": "replit.md: 'Exponential growth curve across three tiers of levels (1-10, 11-50, 51-100) with increasing XP multipliers.'",
+      "code_truth": "xp-calculations.test.ts: Tier 1 (1.0372x), Tier 2 (1.0572x), Tier 3 (1.0872x). Base 1000. Level cap 100.",
+      "convergence_status": "ALIGNED",
+      "resolution": "Docs and test code agree precisely.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-007",
+      "feature_area": "Stat Tokens",
+      "docs_claim": "replit.md: 'Energy Points, Health Points, Wealth Tokens, Time Tokens, Attention Tokens (all starting at 100/100)'",
+      "code_truth": "schema.ts: All 5 tokens with current/max pairs, defaults 100/100.",
+      "convergence_status": "ALIGNED",
+      "resolution": "Perfect alignment between docs and code.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-008",
+      "feature_area": "Onboarding Missions",
+      "docs_claim": "replit.md mentions onboarding missions. No specific count in replit.md.",
+      "code_truth": "schema.ts: onboardingMission default 0, comment 'Current mission (0-7)' = 8 missions.",
+      "convergence_status": "CODE_AHEAD",
+      "resolution": "Code is more precise than docs. 8 missions confirmed.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-009",
+      "feature_area": "Archetype System",
+      "docs_claim": "replit.md: 54-question archetype calibration. 6 archetypes listed as part of data models.",
+      "code_truth": "schema.ts: archetypePrimary/Secondary/Shadow, archetypeScores JSONB with warrior/architect/creator/monarch/oracle/alchemist keys.",
+      "convergence_status": "ALIGNED",
+      "resolution": "6 archetypes confirmed in both. 54-question count from docs only (not verifiable in snapshot).",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-010",
+      "feature_area": "Google Integration",
+      "docs_claim": "replit.md: 'Real Google OAuth flow for Calendar (read/write) and Tasks (readonly)'. Detailed sync, dedup, token refresh docs.",
+      "code_truth": "package.json: googleapis 171.4.0. schema.ts: integrations table with OAuth fields, calendar_events with externalId, quests with externalId/externalSource.",
+      "convergence_status": "ALIGNED",
+      "resolution": "Schema and deps fully support documented features.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-011",
+      "feature_area": "Stripe/Payments",
+      "docs_claim": "replit.md: 'Stripe integration removed (stubbed endpoints preserved for future reconnection).'",
+      "code_truth": "No stripe dependency in package.json. schema.ts retains stripeCustomerId and stripeSubscriptionId fields.",
+      "convergence_status": "ALIGNED",
+      "resolution": "Removal confirmed. Stub fields retained as documented.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-012",
+      "feature_area": "Document Vault",
+      "docs_claim": "replit.md: Google Drive-style with List/Grid views, folder nesting, markdown editing, media upload, bidirectional sync (Google Drive, Obsidian, Evernote).",
+      "code_truth": "schema.ts: folders (with parentId), documents (with source/externalId/externalUrl/lastSyncedAt), templates. adm-zip dep supports .zip import.",
+      "convergence_status": "ALIGNED",
+      "resolution": "Schema supports all documented features. Sync implementation details in server code not in snapshot.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-013",
+      "feature_area": "Mission Views",
+      "docs_claim": "replit.md: 3 default views (Board, List, Calendar) + Notion-style custom views.",
+      "code_truth": "schema.ts: mission_views table with viewType, filters, columns, sortBy, sortDirection.",
+      "convergence_status": "ALIGNED",
+      "resolution": "Schema supports custom view persistence. Default views are likely code-defined, not DB-stored.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-014",
+      "feature_area": "Haptic Feedback",
+      "docs_claim": "replit.md: Web Vibration API with configurable patterns. Toggle in Profile Settings.",
+      "code_truth": "schema.ts: hapticFeedback boolean in user_profile, default true.",
+      "convergence_status": "ALIGNED",
+      "resolution": "Preference storage confirmed. Implementation in client/src/lib/haptics.ts documented but not in snapshot.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-015",
+      "feature_area": "Sound Effects",
+      "docs_claim": "replit.md: Web Audio API synthesized sounds. No external audio files. Toggle in Profile Settings.",
+      "code_truth": "schema.ts: soundEffects boolean in user_profile, default true.",
+      "convergence_status": "ALIGNED",
+      "resolution": "Preference storage confirmed. No audio file dependencies in package.json supports 'no external files' claim.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-016",
+      "feature_area": "Rate Limiting",
+      "docs_claim": "replit.md mentions rate limiting. Phase 14.5A layer 9: 'No rate limiting.'",
+      "code_truth": "No express-rate-limit or similar dependency in package.json. Custom middleware possible but not confirmed.",
+      "convergence_status": "CONTRADICTED",
+      "resolution": "Docs disagree with each other. replit.md mentions rate limiting exists; phase 14.5A says it doesn't. Code evidence (no rate-limit dep) suggests it may be custom middleware or absent.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "CONV-017",
+      "feature_area": "Apple Health Integration",
+      "docs_claim": "No specific Apple Health documentation in replit.md beyond mentioning it in integrations table.",
+      "code_truth": "schema.ts: userIntegrations.appleHealthConnected boolean field only. No Apple HealthKit SDK or API dependency.",
+      "convergence_status": "CODE_AHEAD",
+      "resolution": "Schema has placeholder boolean. No implementation evidence. Likely a planned feature with schema pre-created.",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "CONV-018",
+      "feature_area": "Notion Integration",
+      "docs_claim": "No specific Notion integration documentation in replit.md beyond mentioning it in integrations table.",
+      "code_truth": "schema.ts: userIntegrations.notionConnected boolean field only. No Notion SDK dependency.",
+      "convergence_status": "CODE_AHEAD",
+      "resolution": "Schema has placeholder boolean. No implementation evidence. Planned feature.",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "CONV-019",
+      "feature_area": "Security Headers",
+      "docs_claim": "replit.md: 'Security headers (Helmet)'. Phase 14.5A: 'No security headers confirmed.'",
+      "code_truth": "package.json: helmet 8.1.0 in dependencies.",
+      "convergence_status": "ALIGNED",
+      "resolution": "Helmet dependency confirms security headers are present. Phase 14.5A claim was incorrect; helmet dep proves it.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "CONV-020",
+      "feature_area": "UMH Integration",
+      "docs_claim": "Phase 14.5: 'No integration -- isolated MVP'. Phase 14.5A: 'Not UMH-connected'.",
+      "code_truth": "projections/lyfeos/integration/ exists in UMH codebase (1184 lines). But LyfeOS app code has zero UMH references.",
+      "convergence_status": "ALIGNED",
+      "resolution": "LyfeOS is isolated. UMH has prepared a one-way integration layer (direct Postgres polling) that LyfeOS is unaware of.",
+      "provenance": "UMH_INTEGRATION_DEPENDENT_GAP"
+    }
+  ],
+  "summary": {
+    "total_items": 20,
+    "ALIGNED": 13,
+    "DOCS_AHEAD": 2,
+    "CODE_AHEAD": 2,
+    "CONTRADICTED": 2,
+    "notes": "LyfeOS has the best docs-to-code alignment of the Trinity apps. replit.md is comprehensive and largely accurate. Main contradictions are in prior phase artifacts that were working from incomplete information."
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "phase": "14.6B-LyfeOS",
+  "artifact": "15 of 30",
+  "artifact_name": "lyfeos_secondary_module_route_map",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-03",
+  "description": "Complete map of all secondary/non-primary routes in LyfeOS with schema table associations and implementation status.",
+  "routes": [
+    {
+      "route": "/document-vault",
+      "page_component": "DocumentVaultPage.tsx",
+      "description": "Google Drive-style data organizer with nested folder system, markdown documents, templates, media upload (images, videos, PDFs), bidirectional sync with Google Drive/Docs, Obsidian import/export, and Evernote import/export. List and Grid/Gallery view modes. Quick-filter chips for type filtering.",
+      "schema_tables": ["folders", "documents", "templates"],
+      "api_routes": "server/routes/documents.ts",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "notes": "Accessible from Chronilog page widget and via direct route. Source tracking fields (source, externalId, externalUrl, lastSyncedAt) with visual source badges."
+    },
+    {
+      "route": "/tracker",
+      "page_component": "TrackerPage.tsx",
+      "description": "Milestone analytics widget for vision goal progress and recent completions. Renamed from 'Analytics'. Includes progress tracker support with value/target/unit tracking.",
+      "schema_tables": ["visionGoals", "progressTrackers"],
+      "api_routes": "server/routes/trackers.ts",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "notes": "Originally named 'Analytics', renamed to 'Tracker' to better reflect purpose."
+    },
+    {
+      "route": "/settings",
+      "page_component": "SettingsPage.tsx",
+      "description": "Profile settings, integration management (Google Calendar connect/disconnect), display preferences (dark theme, blue light filter, haptic feedback, sound effects), notification preferences, AI assistant name configuration.",
+      "schema_tables": ["userStats", "userProfile", "userIntegrations", "integrations"],
+      "api_routes": "server/routes/settings.ts",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "notes": "Google OAuth connect/disconnect UI lives here. AI assistant name (aiAssistantName) editable from this page."
+    },
+    {
+      "route": "/contacts",
+      "page_component": "ContactsPage.tsx",
+      "description": "CRM/rolodex for personal and professional contacts. Tracks name, email, phone, company, job title, social links (LinkedIn, Twitter, Instagram), trust level, relationship type, how met, contact frequency, and notes.",
+      "schema_tables": ["contacts"],
+      "api_routes": "server/routes/contacts.ts",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "notes": "30+ fields per contact. Favorite marking, last contacted tracking, birthday, address/city/country."
+    },
+    {
+      "route": "/kanban",
+      "page_component": "KanbanPage.tsx",
+      "description": "Project boards with customizable columns and task cards. Supports multiple boards per user, ordered columns, task priority levels (low/medium/high), tags, and date ranges.",
+      "schema_tables": ["kanbanBoards", "kanbanColumns", "kanbanTasks"],
+      "api_routes": "server/routes/kanban.ts",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "notes": "Separate from the Missions Board view. This is a standalone project management kanban."
+    },
+    {
+      "route": "/spreadsheets",
+      "page_component": "SpreadsheetsPage.tsx",
+      "description": "User spreadsheets stored as JSON content. Supports title, description, category, and favorite marking.",
+      "schema_tables": ["spreadsheets"],
+      "api_routes": "server/routes/spreadsheets.ts",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "notes": "Content stored as JSONB — flexible schema for spreadsheet data representation."
+    },
+    {
+      "route": "/canvases",
+      "page_component": "CanvasesPage.tsx",
+      "description": "Whiteboard/canvas drawing tool. Content stored as JSONB (shapes, connections, text elements). Supports title, description, category, and favorite marking.",
+      "schema_tables": ["canvases"],
+      "api_routes": "server/routes/canvases.ts",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "notes": "JSON content stores canvas elements like shapes, connections, and text blocks."
+    },
+    {
+      "route": "/graphs",
+      "page_component": "GraphsPage.tsx",
+      "description": "Node-link diagrams and visualizations. Content stored as JSONB (nodes, edges, styling). Supports title, description, category, and favorite marking.",
+      "schema_tables": ["graphs"],
+      "api_routes": "server/routes/graphs.ts",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "notes": "JSON content stores nodes, edges, and styling metadata for graph visualizations."
+    },
+    {
+      "route": "/media",
+      "page_component": "MediaPage.tsx",
+      "description": "Photos and videos organized in albums. Supports smart albums with auto-population rules. Media items include file metadata (type, MIME, size), geolocation, date taken, tags, favorites, and camera metadata.",
+      "schema_tables": ["mediaAlbums", "mediaItems"],
+      "api_routes": "server/routes/media.ts",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "notes": "Smart albums use JSONB rules for automatic population. Media items support both URL-based (S3/similar) and base64 storage."
+    }
+  ],
+  "total_secondary_routes": 9,
+  "total_schema_tables_referenced": 16,
+  "unique_tables": [
+    "folders",
+    "documents",
+    "templates",
+    "visionGoals",
+    "progressTrackers",
+    "userStats",
+    "userProfile",
+    "userIntegrations",
+    "integrations",
+    "contacts",
+    "kanbanBoards",
+    "kanbanColumns",
+    "kanbanTasks",
+    "spreadsheets",
+    "canvases",
+    "graphs",
+    "mediaAlbums",
+    "mediaItems"
+  ]
+}

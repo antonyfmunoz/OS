@@ -1,0 +1,225 @@
+{
+  "phase": "14.6B-UMH",
+  "status": "DRAFT",
+  "generated": "2026-06-03",
+  "subsystems": {
+    "substrate_public_api": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "substrate/__init__.py",
+      "lines": 188,
+      "methods": ["execute", "query", "register", "check_tier", "status"],
+      "evidence": "Imports and wires all subsystems, registered boot adapters, called by router",
+      "naming_debt": "Module docstring says 'Universal Mastery Hierarchy' in substrate self_model"
+    },
+    "type_system": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "substrate/types.py",
+      "lines": 1400,
+      "counts": {"enums": 37, "basemodels": 50, "helpers": 1},
+      "evidence": "152 types registered in canonical_types.py, imported across entire codebase"
+    },
+    "gateway": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "substrate/control_plane/runtime/gateway.py",
+      "lines": 1927,
+      "evidence": "Production path via discord_bot.py. Handles all AI requests. Approval logic, intent classification, routing.",
+      "naming_debt": "EntrepreneurOSGateway backward compat alias at line 1927"
+    },
+    "cognitive_loop": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "substrate/control_plane/runtime/cognitive_loop.py",
+      "lines": 1539,
+      "stages": ["PERCEIVE", "UNDERSTAND", "PLAN", "EXECUTE", "VERIFY", "REFLECT", "LEARN", "STORE"],
+      "evidence": "Called by Gateway.handle() for agent_task requests. 8-stage pipeline with deterministic fallbacks.",
+      "naming_debt": "EOS agent names eos-ceo, eos-sales etc. in _dept_map (lines 470-474)"
+    },
+    "execution_spine": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "substrate/execution/spine.py",
+      "lines": 522,
+      "stages": ["governance_gate", "simulation_dryrun", "deliberation_council", "interpret", "recall", "lookup", "compose", "route_execute", "trace", "knowledge_gap", "memory_write", "feedback"],
+      "evidence": "Called by ConcreteSignalRouter. Full 8-stage pipeline with deterministic-first principle."
+    },
+    "model_router": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "adapters/models/model_router.py",
+      "lines": 1442,
+      "providers": ["CLAUDE_CLI", "CC_SDK", "GEMINI", "GROQ", "ANTHROPIC", "PERPLEXITY", "OLLAMA", "CODEX", "HERMES", "OPENCODE"],
+      "evidence": "Production routing for all LLM calls. Circuit breaker, quality escalation, deterministic fallback.",
+      "naming_debt": "Docstring says 'for EOS', EOS_ROUTER_* env vars, [EOS] prefix in circuit breaker"
+    },
+    "cc_sdk": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "adapters/models/cc_sdk.py",
+      "lines": 464,
+      "evidence": "Priority 0 provider. OAuth token injection from ancestor process. Error-leak detection.",
+      "naming_debt": "Docstring says 'for EOS'"
+    },
+    "agent_runtime": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "adapters/models/agent_runtime.py",
+      "lines": 580,
+      "evidence": "Haiku/Sonnet routing by task type. Rate limiter. Authority engine. Called by CognitiveLoop.",
+      "naming_debt": "Imports EntrepreneurOSContext (should be SubstrateContext)"
+    },
+    "cockpit_api": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "transports/api/cockpit.py + 11 route files",
+      "lines": 6221,
+      "endpoint_count": 210,
+      "route_files": [
+        "cockpit.py",
+        "cockpit_autonomous_routes.py",
+        "cockpit_context_assimilation_routes.py",
+        "cockpit_economy_routes.py",
+        "cockpit_entity_routes.py",
+        "cockpit_operator_experience_routes.py",
+        "cockpit_organism_routes.py",
+        "cockpit_propagation_graph_routes.py",
+        "cockpit_runtime_surface_routes.py",
+        "cockpit_self_build_routes.py",
+        "cockpit_spine_router.py",
+        "cockpit_universal_work_routes.py"
+      ],
+      "auth": {"api_key": true, "operator_token": true, "dev_bypass": true, "rate_limiting": true},
+      "evidence": "Production API serving cockpit frontend. Three-tier auth. WebSocket live pulse.",
+      "stubs": ["execution/status", "execution/log", "execution/authority", "execution/start", "execution/stop", "execution/pause", "execution/resume"],
+      "instance_leaks": ["/api/umh/profile hardcodes founder name and company names"]
+    },
+    "cockpit_frontend": {
+      "status": "GENUINE_OPERATIONAL",
+      "directory": "cockpit/src/",
+      "files": 98,
+      "panels": 27,
+      "components": 26,
+      "stores": 20,
+      "evidence": "Electron/React app with Vite. Deployed on universalmetaharness.tech. Voice support."
+    },
+    "discord_bot": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "services/discord_bot.py",
+      "lines": 1974,
+      "evidence": "Production entrypoint. os-discord container. Uses Gateway for all AI requests.",
+      "naming_debt": "Imports EntrepreneurOSGateway, docstring says 'EntrepreneurOS Discord Bot'"
+    },
+    "product_connection_manager": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "substrate/integrations/product_connections.py",
+      "lines": 205,
+      "evidence": "Manages EOS/CreatorOS/LyfeOS connections. Used by cockpit entity routes.",
+      "architecture_violation": "substrate/ imports from projections/ (upward dependency, lazy imports)"
+    },
+    "eos_projection": {
+      "status": "GENUINE_OPERATIONAL",
+      "directory": "projections/eos/",
+      "files": 31,
+      "agents": 36,
+      "views": 8,
+      "workflows": 8,
+      "integration_files": 19,
+      "evidence": "Most mature projection. Full agent hierarchy, entity model, skill allocation."
+    },
+    "creatoros_projection": {
+      "status": "PARTIAL_IMPLEMENTATION",
+      "directory": "projections/creatoros/",
+      "files": 8,
+      "integration_files": 7,
+      "evidence": "Integration-only. Signal/capability/outcome/correlation/tables handlers implemented. No agents/views/workflows."
+    },
+    "lyfeos_projection": {
+      "status": "PARTIAL_IMPLEMENTATION",
+      "directory": "projections/lyfeos/",
+      "files": 8,
+      "integration_files": 7,
+      "evidence": "Full integration skeleton. Manifest + signals + handlers + outcomes + correlation + tables. Separate SaaS at lyfeos.net."
+    },
+    "organism": {
+      "status": "GENUINE_OPERATIONAL",
+      "directory": "substrate/organism/",
+      "files": 201,
+      "lines": 70126,
+      "evidence": "Runtime graph, coordinator, workcell protocol, autonomous tick, template registry, diagnostic engine. Largest substrate package.",
+      "subsystems": ["daemon", "coordinator", "runtime_graph", "workcell_protocol", "execution_economy", "propagation_graph", "template_registry", "candidate_supply", "autonomous_cadence", "development_session_bridge"]
+    },
+    "governance_system": {
+      "status": "GENUINE_OPERATIONAL",
+      "directory": "substrate/governance/",
+      "files": 20,
+      "lines": 3599,
+      "evidence": "Risk classification (8 categories to 5 levels), policy engine, authority engine, quality gate, accountability."
+    },
+    "memory_system": {
+      "status": "GENUINE_OPERATIONAL",
+      "files": ["substrate/state/memory/memory.py", "substrate/state/memory/contracts/canonical_memory_store_v1.py"],
+      "lines": {"memory.py": 1039, "canonical_memory_store_v1.py": 289},
+      "evidence": "ConversationMemory + AgentMemory with Neon persistence. Canonical memory store."
+    },
+    "trace_system": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "substrate/execution/trace.py",
+      "lines": 126,
+      "evidence": "In-memory trace store with Neon persistence."
+    },
+    "node_mesh": {
+      "status": "PARTIAL_IMPLEMENTATION",
+      "directory": "transports/node_mesh/",
+      "files": 12,
+      "evidence": "WebSocket server, registry, metrics buffer. Integration handlers exist. Production status uncertain."
+    },
+    "docker_services": {
+      "status": "GENUINE_OPERATIONAL",
+      "file": "docker-compose.yml",
+      "services": ["os-scraper", "os-webhook", "os-discord", "os-operator"],
+      "evidence": "4 services with resource limits, bridge networking, bind-mounted repo.",
+      "naming_debt": "Network named eos_network"
+    },
+    "pre_commit_gates": {
+      "status": "GENUINE_OPERATIONAL",
+      "scripts": ["check_type_divergence.py", "check_instance_leak.py", "check_projection_leak.py", "check_dependency_direction.py"],
+      "evidence": "4 mechanical gates enforcing type coherence, instance context, projection boundary, architecture layers."
+    },
+    "knowledge_system": {
+      "status": "PARTIAL_IMPLEMENTATION",
+      "files": ["knowledge/palace/", "knowledge/index.md", "scripts/query_graph.py"],
+      "palace_rooms": 7,
+      "evidence": "Memory palace with 7 rooms, graph exists, but wiki index stale (2026-04-05). 37 broken wikilinks.",
+      "naming_debt": "Palace titled 'EOS Memory Palace'"
+    },
+    "browser_adapter": {
+      "status": "SCAFFOLD_EMPTY",
+      "directory": "adapters/browser/",
+      "evidence": "Only contains empty __init__.py. Browser exports (parsing) exist separately."
+    },
+    "workstation_subsystem": {
+      "status": "SCAFFOLD_FUTURE",
+      "directory": "substrate/execution/workers/workstation/",
+      "files": 42,
+      "lines": 26671,
+      "evidence": "Constitutional engine collection. Identified as 22,400 lines of dead code in exhaustive audit."
+    },
+    "voice_system": {
+      "status": "PARTIAL_IMPLEMENTATION",
+      "files": ["substrate/execution/voice/", "substrate/execution/bridge/audio_loop.py", "substrate/execution/bridge/voice_session.py", "substrate/execution/bridge/voice_first.py", "substrate/execution/bridge/discord_voice_transport.py", "substrate/execution/bridge/discord_voice_playback.py", "substrate/execution/bridge/voice_eos_responder.py"],
+      "voice_py_files": 3,
+      "bridge_voice_files": 6,
+      "evidence": "Voice dependencies installed (Whisper, Silero VAD). Voice components exist. End-to-end runtime verification required."
+    }
+  },
+  "execution_paths": {
+    "path_1_production": {
+      "flow": "Discord -> Gateway -> CognitiveLoop -> AgentRuntime -> model_router",
+      "status": "PRODUCTION",
+      "evidence": "Only path used by running os-discord service"
+    },
+    "path_2_substrate": {
+      "flow": "Substrate.execute() -> ConcreteSignalRouter -> ConcreteExecutionSpine -> model_router",
+      "status": "IMPLEMENTED_NOT_PRODUCTION",
+      "evidence": "Full pipeline exists, not called by production services"
+    },
+    "path_3_governed": {
+      "flow": "ExecutionPipeline -> WorkPacketExecutor -> governed work packets",
+      "status": "PARTIAL_IMPLEMENTATION",
+      "evidence": "Work packet engine exists in organism. Not the primary execution path."
+    }
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "phase": "14.6B-LyfeOS",
+  "artifact": "16 of 30",
+  "artifact_name": "lyfeos_screen_inventory",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-03",
+  "description": "Complete inventory of all screens/pages in LyfeOS with component files, routes, implementation status, and provenance.",
+  "screens": {
+    "primary_pages": [
+      {
+        "name": "Dashboard",
+        "route": "/",
+        "component_file": "client/src/pages/DashboardPage.tsx",
+        "description": "Home screen with XP progress, stat tokens, today's primary mission, streak counter, recent completions, vision goal progress, NOVA quick-access, daily boosts, and widget states.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Missions / Quests",
+        "route": "/missions",
+        "component_file": "client/src/pages/QuestsPage.tsx",
+        "description": "Mission management with Board, List, and Calendar views. Search, sort, filter. Custom Notion-style views. Ritual groups, vision goal linking, difficulty ranks, repeat patterns, soft delete.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "AI Companion",
+        "route": "/ai",
+        "component_file": "client/src/pages/AIPage.tsx",
+        "description": "Chat interface with AI companion (default name NOVA). Dual model routing (Haiku/Sonnet), tool use, vision analysis, 16-domain knowledge base, conversation persistence, streaming SSE.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Chronilog",
+        "route": "/chronilog",
+        "component_file": "client/src/pages/ChronilogPage.tsx",
+        "description": "Daily logging and timeline. Energy log (wake/sleep/mental/physical/emotional), intention log (gratitude/goals/thoughts), data log (content/research/todos), research log (multi-entry), reflection log. Links to Document Vault.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Profile",
+        "route": "/profile",
+        "component_file": "client/src/pages/ProfilePage.tsx",
+        "description": "Character sheet display. Archetype results, identity sections, personality, vision/goals, skills, projects, health, wealth, performance, style, history, systems/rituals, emotions/coping. Character affirmation.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      }
+    ],
+    "secondary_pages": [
+      {
+        "name": "Document Vault",
+        "route": "/document-vault",
+        "component_file": "client/src/pages/DocumentVaultPage.tsx",
+        "description": "Google Drive-style data organizer with nested folders, markdown documents, templates, media upload, and bidirectional sync (Google Drive, Obsidian, Evernote).",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Tracker",
+        "route": "/tracker",
+        "component_file": "client/src/pages/TrackerPage.tsx",
+        "description": "Milestone analytics and vision goal progress tracking. Progress trackers with value/target/unit.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Settings",
+        "route": "/settings",
+        "component_file": "client/src/pages/SettingsPage.tsx",
+        "description": "Profile settings, integration management, display preferences, notification config, AI companion name setting.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Contacts",
+        "route": "/contacts",
+        "component_file": "client/src/pages/ContactsPage.tsx",
+        "description": "CRM/rolodex for personal and professional contacts with 30+ fields per contact.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Kanban",
+        "route": "/kanban",
+        "component_file": "client/src/pages/KanbanPage.tsx",
+        "description": "Standalone project boards with customizable columns and task cards. Separate from Missions Board view.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Media",
+        "route": "/media",
+        "component_file": "client/src/pages/MediaPage.tsx",
+        "description": "Photos and videos organized in albums with smart album rules, metadata, geolocation, and favorites.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Spreadsheets",
+        "route": "/spreadsheets",
+        "component_file": "client/src/pages/SpreadsheetsPage.tsx",
+        "description": "User spreadsheets with JSON content storage, categories, and favorites.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Canvases",
+        "route": "/canvases",
+        "component_file": "client/src/pages/CanvasesPage.tsx",
+        "description": "Whiteboard/canvas drawing tool with JSONB shape/connection/text storage.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Graphs",
+        "route": "/graphs",
+        "component_file": "client/src/pages/GraphsPage.tsx",
+        "description": "Node-link diagrams and visualizations with JSONB node/edge/styling storage.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      }
+    ],
+    "special_pages": [
+      {
+        "name": "Onboarding",
+        "route": "/onboarding",
+        "component_file": "client/src/pages/OnboardingPage.tsx",
+        "description": "8-mission character creation wizard (missions 0-7). Archetype Calibration (54-question quiz), Identity, Personality, Vision/Goals, Learning/Skills, Projects/Creations, Body/Health, Wealth/Work.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Login",
+        "route": "/login",
+        "component_file": "client/src/pages/LoginPage.tsx",
+        "description": "Authentication entry. Email/password login with optional Firebase OAuth (Google/Apple/Facebook). 2FA support.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Register",
+        "route": "/register",
+        "component_file": "client/src/pages/RegisterPage.tsx",
+        "description": "Account creation with terms acceptance, email verification flow.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Stat Detail — Experience",
+        "route": "/stat/experience",
+        "component_file": "client/src/pages/StatDetailPage.tsx",
+        "description": "XP and level detail page with recharts visualizations, time range selectors, and AI-powered insights.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Stat Detail — Health",
+        "route": "/stat/health",
+        "component_file": "client/src/pages/StatDetailPage.tsx",
+        "description": "Health Points detail with historical data, charts, and AI insights.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Stat Detail — Wealth",
+        "route": "/stat/wealth",
+        "component_file": "client/src/pages/StatDetailPage.tsx",
+        "description": "Wealth Tokens detail with historical data, charts, and AI insights.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Stat Detail — Efficiency",
+        "route": "/stat/efficiency",
+        "component_file": "client/src/pages/StatDetailPage.tsx",
+        "description": "Efficiency Score detail with daily performance tracking, charts, and AI insights.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Stat Detail — Energy",
+        "route": "/stat/energy",
+        "component_file": "client/src/pages/StatDetailPage.tsx",
+        "description": "Energy Points detail with usage tracking, charts, and AI insights.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Stat Detail — Time",
+        "route": "/stat/time",
+        "component_file": "client/src/pages/StatDetailPage.tsx",
+        "description": "Time Tokens detail with allocation tracking, charts, and AI insights.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "name": "Stat Detail — Attention",
+        "route": "/stat/attention",
+        "component_file": "client/src/pages/StatDetailPage.tsx",
+        "description": "Attention Tokens detail with focus tracking, charts, and AI insights.",
+        "implemented": true,
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      }
+    ]
+  },
+  "totals": {
+    "primary_pages": 5,
+    "secondary_pages": 9,
+    "special_pages": 10,
+    "total_unique_screens": 24,
+    "stat_detail_pages_share_component": true,
+    "stat_detail_component": "client/src/pages/StatDetailPage.tsx"
+  }
+}

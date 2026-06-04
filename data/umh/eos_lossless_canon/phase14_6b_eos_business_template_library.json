@@ -1,0 +1,1395 @@
+{
+  "artifact": "phase14_6b_eos_business_template_library",
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "INFERRED_PROFESSIONAL_GAP",
+  "provenance_detail": "Synthesized from: 14.6B onboarding spec (step 4: entity type selection, step 5: business type selection, step 6-14: template-driven generation), 14.6B portfolio/entity/business ontology (entity taxonomy, business type catalog), 14.6B workflow/SOP engine spec (UBOS template library, 8 core workflows, template instantiation), 14.4 desired state canon (UBOS template library as franchise-like templates), 14.6B source detail preservation ledger (SIG-FEAT-019: template library, SIG-MOD-017: workflow templates). Operator has not specified individual template contents -- these are inferred from professional domain knowledge of each business type's standard operating needs.",
+  "description": "UBOS (Universal Business Operating System) Template Library -- franchise-like starter templates for 18+ business types, defining default departments, workflows, roles, KPIs, agents, and industry-specific configurations that onboarding instantiates into a ready-to-operate business environment.",
+
+  "design_principles": [
+    "Templates are franchise blueprints, not blank forms -- an operator selecting 'agency' gets a complete operating system for an agency, not a generic shell with labels changed",
+    "Every template encodes the accumulated operational wisdom of that business type -- the departments that actually exist, the workflows that actually run, the KPIs that actually matter",
+    "Templates are starting points, never cages -- operator customizes after generation, and EOS learns from those customizations to improve the template for future operators",
+    "Template quality is the single biggest determinant of first-boot experience quality -- a mediocre template means a mediocre first impression",
+    "Templates must be stage-aware -- a pre-revenue SaaS looks nothing like a scaling SaaS; the same template type adapts to the operator's declared stage",
+    "Templates carry provenance -- operators can see whether a template came from EOS defaults, community contribution, industry expert curation, or AI synthesis",
+    "Every template is testable -- you can spin up a template, inspect every generated artifact, and validate that the result is a coherent operating system before releasing it to production",
+    "Templates compose -- a holding company template instantiates sub-templates for each subsidiary type, creating nested operating systems that share governance",
+    "Deterministic spine: template selection, field population, and structure generation are deterministic. AI enhances descriptions, customizes tone, and suggests refinements within the generated structure"
+  ],
+
+  "template_model": {
+    "description": "A BusinessTemplate is a versioned, composable blueprint that defines the default operational structure for a specific business type. When an operator selects a business type during onboarding (step 5), the corresponding template is instantiated, generating all departments, workflows, roles, KPIs, agents, and operational artifacts.",
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "description": "Unique identifier for the template definition"
+      },
+      "type_slug": {
+        "type": "string",
+        "description": "Machine-readable business type identifier. Matches the business_type enum in the ontology.",
+        "examples": ["agency", "saas", "ecommerce", "consulting"]
+      },
+      "name": {
+        "type": "string",
+        "description": "Human-readable template name displayed in the onboarding type selector.",
+        "examples": ["Agency / Studio", "SaaS Product Company", "E-Commerce Store"]
+      },
+      "description": {
+        "type": "string",
+        "description": "One-paragraph description of what this template creates. Shown in the onboarding type detail panel. Max 300 characters."
+      },
+      "icon": {
+        "type": "string",
+        "description": "Icon identifier from the EOS icon set for visual identification in the template picker."
+      },
+      "industry_verticals": {
+        "type": "string[]",
+        "description": "Industry verticals this template is designed for. Used for search/filter in the template library.",
+        "examples": [["technology", "creative_services"], ["technology", "software"], ["retail", "direct_to_consumer"]]
+      },
+      "stage_adaptations": {
+        "type": "object",
+        "description": "Stage-specific overrides. Keys are stage identifiers from the ontology (idea, validation, launch, early_revenue, growth, scale, maturity, exit). Each key contains partial overrides applied on top of the base template."
+      },
+      "complexity_levels": {
+        "type": "object",
+        "description": "Complexity-level overrides. Keys are solo_operator, small_team (2-5), growing_team (6-20), department_scale (20+). Each adjusts the number of departments, workflows, and agent configurations."
+      },
+      "default_departments": {
+        "type": "DepartmentTemplate[]",
+        "description": "Array of department definitions generated when this template is instantiated."
+      },
+      "default_workflows": {
+        "type": "WorkflowTemplateRef[]",
+        "description": "Array of workflow template references. Each points to a workflow definition in the UBOS workflow library with template-specific parameter overrides."
+      },
+      "default_roles": {
+        "type": "RoleTemplate[]",
+        "description": "Array of role definitions. Includes both human roles and AI agent roles."
+      },
+      "default_kpis": {
+        "type": "KPITemplate[]",
+        "description": "Array of KPI definitions. Each includes the metric name, calculation method, target range, and reporting cadence."
+      },
+      "default_agents": {
+        "type": "AgentTemplate[]",
+        "description": "Array of AI agent configurations. Each maps to one of the 10 canonical EOS agents (CEO, Sales, Marketing, Finance, CS, HR, Legal, Ops, Product, Engineering) with template-specific instructions."
+      },
+      "default_tasks": {
+        "type": "TaskTemplate[]",
+        "description": "Array of seed tasks generated on first boot. Gives the operator immediate action items relevant to their business type and stage."
+      },
+      "customization_points": {
+        "type": "CustomizationPoint[]",
+        "description": "Declared customization surfaces. Each identifies a field or section the operator is most likely to want to change, with guidance on how."
+      },
+      "version": {
+        "type": "string",
+        "description": "Semantic version of the template. Follows semver. Major = breaking structural change, minor = new fields/workflows added, patch = copy/config fixes.",
+        "examples": ["1.0.0", "1.1.0", "2.0.0"]
+      },
+      "provenance": {
+        "type": "enum",
+        "values": ["eos_default", "community_contributed", "industry_expert", "ai_synthesized", "operator_forked"],
+        "description": "Origin of this template. Determines trust level and curation status."
+      },
+      "created_at": {
+        "type": "datetime",
+        "description": "When this template version was created."
+      },
+      "updated_at": {
+        "type": "datetime",
+        "description": "When this template version was last modified."
+      },
+      "usage_count": {
+        "type": "integer",
+        "description": "Number of times this template has been instantiated across all operators. Used for popularity ranking."
+      },
+      "satisfaction_score": {
+        "type": "float | null",
+        "description": "Aggregate satisfaction score from operators who used this template. 0.0-1.0 scale. Null if insufficient data."
+      }
+    },
+    "versioning": {
+      "strategy": "immutable_versions",
+      "description": "Each template version is immutable once published. Updates create a new version. Existing instantiations are not affected by template updates -- operators can opt in to template upgrades via a 'sync with template' action that shows a diff of what would change.",
+      "migration_support": "Template version upgrades generate a migration plan showing added/removed/changed departments, workflows, roles, and KPIs. Operator reviews and approves the migration before it executes."
+    },
+    "customization": {
+      "inheritance_model": "Template provides defaults. Operator customizations override defaults. The link back to the template is preserved so the operator can see 'what changed from template' and 'what the template updated since you forked'.",
+      "fork_behavior": "When an operator customizes beyond a threshold (>40% of fields changed), the system suggests 'forking' the template -- creating a new template from their customized version that can be shared back to the community.",
+      "constraint_propagation": "Customizing a department name propagates to all workflows, roles, and KPIs that reference that department. Deleting a department triggers a review of orphaned workflows."
+    }
+  },
+
+  "business_type_templates": [
+    {
+      "type_slug": "agency",
+      "name": "Agency / Studio",
+      "description": "Service business delivering project-based or retainer work for clients. Covers creative agencies, development shops, marketing agencies, design studios, and consulting-hybrid firms.",
+      "icon": "briefcase-creative",
+      "industry_verticals": ["creative_services", "technology", "marketing", "design"],
+      "default_departments": [
+        {"name": "Client Services", "slug": "client-services", "purpose": "Client relationship management, account health, upsell identification, renewal management", "headcount_range": "1-5"},
+        {"name": "Production", "slug": "production", "purpose": "Project execution, deliverable creation, quality assurance, timeline management", "headcount_range": "2-20"},
+        {"name": "Sales & Business Development", "slug": "sales-bd", "purpose": "Pipeline management, proposal creation, contract negotiation, new client acquisition", "headcount_range": "1-3"},
+        {"name": "Marketing", "slug": "marketing", "purpose": "Agency brand, content marketing, case study production, award submissions, thought leadership", "headcount_range": "0-2"},
+        {"name": "Operations", "slug": "operations", "purpose": "Resource allocation, capacity planning, vendor management, tool administration, process optimization", "headcount_range": "1-3"},
+        {"name": "Finance", "slug": "finance", "purpose": "Invoicing, accounts receivable, profitability tracking per project and per client, cash flow management", "headcount_range": "1-2"}
+      ],
+      "default_workflows": [
+        {"name": "Lead-to-Close Pipeline", "category": "revenue", "trigger": "event:new_lead", "steps_summary": "Qualify lead -> Discovery call -> Scope project -> Create proposal -> Negotiate -> Sign contract -> Onboard client", "estimated_steps": 8},
+        {"name": "Client Onboarding", "category": "customer", "trigger": "event:contract_signed", "steps_summary": "Send welcome packet -> Collect brand assets -> Set up project workspace -> Kickoff call -> Assign team -> Create project plan", "estimated_steps": 7},
+        {"name": "Project Delivery", "category": "operations", "trigger": "event:project_created", "steps_summary": "Brief review -> Task breakdown -> Assign resources -> Execute -> Internal review -> Client review -> Revisions -> Final delivery -> Post-mortem", "estimated_steps": 10},
+        {"name": "Monthly Client Reporting", "category": "customer", "trigger": "scheduled:0 9 1 * *", "steps_summary": "Pull metrics -> Generate report -> Internal review -> Send to client -> Schedule review call", "estimated_steps": 5},
+        {"name": "Invoicing & Collections", "category": "finance", "trigger": "scheduled:milestone_or_monthly", "steps_summary": "Generate invoice -> Send to client -> Track payment -> Follow up on overdue -> Reconcile received", "estimated_steps": 5},
+        {"name": "Capacity Planning", "category": "operations", "trigger": "scheduled:0 9 * * 1", "steps_summary": "Review current utilization -> Forecast upcoming demand -> Identify gaps -> Adjust assignments -> Flag hiring needs", "estimated_steps": 5},
+        {"name": "Content & Case Study Production", "category": "content", "trigger": "event:project_completed", "steps_summary": "Identify case study candidate -> Draft case study -> Client approval -> Publish -> Promote", "estimated_steps": 5},
+        {"name": "Quarterly Business Review", "category": "strategy", "trigger": "scheduled:0 9 1 1,4,7,10 *", "steps_summary": "Compile metrics -> Revenue analysis -> Client health review -> Pipeline review -> Set quarterly goals -> Communicate to team", "estimated_steps": 6}
+      ],
+      "default_roles": [
+        {"name": "Account Manager", "department": "client-services", "type": "human_or_agent", "authority_scope": "client_communication, project_status, upsell_proposals", "escalation_to": "CEO"},
+        {"name": "Project Manager", "department": "production", "type": "human_or_agent", "authority_scope": "task_assignment, timeline_management, resource_requests", "escalation_to": "operations_lead"},
+        {"name": "Creative Director", "department": "production", "type": "human", "authority_scope": "creative_quality, brand_consistency, team_mentoring", "escalation_to": "CEO"},
+        {"name": "Sales Lead", "department": "sales-bd", "type": "human_or_agent", "authority_scope": "pipeline_management, proposal_creation, pricing_within_bounds", "escalation_to": "CEO"},
+        {"name": "Operations Manager", "department": "operations", "type": "human_or_agent", "authority_scope": "resource_allocation, vendor_selection, process_changes", "escalation_to": "CEO"},
+        {"name": "Bookkeeper", "department": "finance", "type": "human_or_agent", "authority_scope": "invoice_creation, expense_tracking, financial_reporting", "escalation_to": "CEO"}
+      ],
+      "default_kpis": [
+        {"name": "Monthly Recurring Revenue (MRR)", "calculation": "sum(active_retainer_values)", "target_unit": "currency", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Client Retention Rate", "calculation": "retained_clients / total_clients_period_start", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "client-services"},
+        {"name": "Average Project Margin", "calculation": "(project_revenue - project_costs) / project_revenue", "target_unit": "percentage", "reporting_cadence": "per_project", "department": "finance"},
+        {"name": "Team Utilization Rate", "calculation": "billable_hours / available_hours", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "operations"},
+        {"name": "Pipeline Value", "calculation": "sum(weighted_deal_values)", "target_unit": "currency", "reporting_cadence": "weekly", "department": "sales-bd"},
+        {"name": "Average Days to Close", "calculation": "avg(close_date - lead_date)", "target_unit": "days", "reporting_cadence": "monthly", "department": "sales-bd"},
+        {"name": "Client Satisfaction Score", "calculation": "avg(client_survey_scores)", "target_unit": "score_1_to_10", "reporting_cadence": "quarterly", "department": "client-services"},
+        {"name": "On-Time Delivery Rate", "calculation": "projects_delivered_on_time / total_projects_delivered", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "production"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Strategic oversight for a service business. Focus on client portfolio health, team utilization balance, and revenue diversification. Flag client concentration risk when any single client exceeds 30% of revenue."},
+        {"canonical_agent": "Sales", "template_instructions": "Agency sales cycle: qualify on budget + timeline + fit. Generate proposals from project scope templates. Track pipeline velocity and flag stalled deals at 14 days."},
+        {"canonical_agent": "Marketing", "template_instructions": "Agency marketing = thought leadership + case studies + referral cultivation. Prioritize case study production from completed projects. Track inbound lead source attribution."},
+        {"canonical_agent": "Finance", "template_instructions": "Project-based financial tracking. Calculate margin per project and per client. Flag projects trending below 30% margin. Chase overdue invoices at 7, 14, and 30 days."},
+        {"canonical_agent": "CS", "template_instructions": "Client success in agency context = proactive health monitoring. Track deliverable satisfaction, response times, and scope creep indicators. Trigger upsell workflow when client signals expansion needs."},
+        {"canonical_agent": "Ops", "template_instructions": "Resource allocation across concurrent projects. Maintain utilization between 70-85% (below = underutilized, above = burnout risk). Flag capacity conflicts 2 weeks ahead."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["marketing"], "reduce_workflows": ["content_and_case_study_production", "quarterly_business_review"], "focus": "Get first client, deliver first project, prove the model"},
+        "validation": {"focus": "Deliver 3-5 projects, validate pricing, establish process repeatability"},
+        "launch": {"focus": "Establish consistent pipeline, standardize delivery process, build team beyond founder"},
+        "early_revenue": {"focus": "Optimize margins, systematize client onboarding, build referral engine"},
+        "growth": {"add_departments": [{"name": "People & Culture", "slug": "hr", "purpose": "Hiring, onboarding, culture, performance reviews"}], "focus": "Scale team, maintain quality, systematize everything"},
+        "scale": {"add_departments": [{"name": "Strategy", "slug": "strategy", "purpose": "Market positioning, service line expansion, M&A evaluation"}], "focus": "Multiple teams, office/remote management, service line P&L"},
+        "maturity": {"focus": "Acquisition positioning, leadership transition, IP monetization"},
+        "exit": {"focus": "Valuation optimization, buyer identification, transition planning"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "saas",
+      "name": "SaaS Product Company",
+      "description": "Software-as-a-Service business with subscription revenue model. Covers B2B SaaS, B2C SaaS, developer tools, vertical SaaS, and platform businesses.",
+      "icon": "cloud-code",
+      "industry_verticals": ["technology", "software", "developer_tools"],
+      "default_departments": [
+        {"name": "Product", "slug": "product", "purpose": "Product strategy, roadmap, feature prioritization, user research, product analytics", "headcount_range": "1-5"},
+        {"name": "Engineering", "slug": "engineering", "purpose": "Software development, infrastructure, QA, releases, technical architecture", "headcount_range": "2-30"},
+        {"name": "Sales", "slug": "sales", "purpose": "Inbound/outbound sales, demos, trial conversion, enterprise deals, partner channels", "headcount_range": "1-10"},
+        {"name": "Marketing", "slug": "marketing", "purpose": "Demand generation, content marketing, SEO, paid acquisition, brand, product marketing", "headcount_range": "1-5"},
+        {"name": "Customer Success", "slug": "customer-success", "purpose": "Onboarding, adoption, retention, expansion, health scoring, churn prevention", "headcount_range": "1-10"},
+        {"name": "Support", "slug": "support", "purpose": "Ticket resolution, knowledge base, bug triage, SLA management", "headcount_range": "1-5"},
+        {"name": "Finance", "slug": "finance", "purpose": "Subscription billing, revenue recognition, cash flow, fundraising support, financial modeling", "headcount_range": "1-3"},
+        {"name": "Operations", "slug": "operations", "purpose": "Internal tooling, process optimization, vendor management, compliance", "headcount_range": "1-2"}
+      ],
+      "default_workflows": [
+        {"name": "Feature Development Lifecycle", "category": "product", "trigger": "event:feature_approved", "steps_summary": "Spec -> Design -> Develop -> QA -> Beta -> Release -> Measure", "estimated_steps": 8},
+        {"name": "Trial-to-Paid Conversion", "category": "revenue", "trigger": "event:trial_started", "steps_summary": "Welcome email -> Onboarding checklist -> Day 3 check-in -> Usage monitoring -> Day 10 nudge -> Conversion offer -> Close or extend", "estimated_steps": 8},
+        {"name": "Customer Onboarding", "category": "customer", "trigger": "event:subscription_started", "steps_summary": "Welcome -> Setup wizard -> Data import -> First value moment -> Training session -> Success check-in", "estimated_steps": 7},
+        {"name": "Churn Prevention", "category": "customer", "trigger": "condition:health_score_below_threshold", "steps_summary": "Alert CS team -> Analyze usage patterns -> Reach out -> Discover issues -> Implement fix/workaround -> Monitor recovery -> Escalate if unresolved", "estimated_steps": 7},
+        {"name": "Bug Triage & Resolution", "category": "product", "trigger": "event:bug_reported", "steps_summary": "Classify severity -> Assign to engineer -> Reproduce -> Fix -> QA verify -> Deploy -> Notify reporter", "estimated_steps": 7},
+        {"name": "Monthly MRR Reporting", "category": "finance", "trigger": "scheduled:0 9 1 * *", "steps_summary": "Calculate MRR components -> Segment by plan/cohort -> Compare to forecast -> Generate report -> Review with leadership", "estimated_steps": 5},
+        {"name": "Release Management", "category": "operations", "trigger": "event:release_ready", "steps_summary": "Pre-release checklist -> Staging deploy -> Smoke test -> Production deploy -> Monitor -> Changelog -> Customer communication", "estimated_steps": 7},
+        {"name": "Content Pipeline", "category": "content", "trigger": "scheduled:weekly", "steps_summary": "Ideate topics -> Assign writers -> Draft -> Edit -> SEO optimize -> Publish -> Promote -> Measure", "estimated_steps": 8}
+      ],
+      "default_roles": [
+        {"name": "Product Manager", "department": "product", "type": "human_or_agent", "authority_scope": "feature_prioritization, roadmap_decisions, spec_approval", "escalation_to": "CEO"},
+        {"name": "Engineering Lead", "department": "engineering", "type": "human", "authority_scope": "technical_architecture, code_review_final, release_approval", "escalation_to": "CEO"},
+        {"name": "Growth Lead", "department": "sales", "type": "human_or_agent", "authority_scope": "pipeline_management, pricing_within_bounds, demo_scheduling", "escalation_to": "CEO"},
+        {"name": "CS Manager", "department": "customer-success", "type": "human_or_agent", "authority_scope": "account_health, renewal_management, escalation_handling", "escalation_to": "CEO"},
+        {"name": "Marketing Lead", "department": "marketing", "type": "human_or_agent", "authority_scope": "campaign_management, content_approval, budget_allocation_within_bounds", "escalation_to": "CEO"},
+        {"name": "Support Lead", "department": "support", "type": "human_or_agent", "authority_scope": "ticket_routing, sla_management, knowledge_base_updates", "escalation_to": "CS Manager"}
+      ],
+      "default_kpis": [
+        {"name": "Monthly Recurring Revenue (MRR)", "calculation": "sum(active_subscription_values)", "target_unit": "currency", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "MRR Growth Rate", "calculation": "(mrr_current - mrr_previous) / mrr_previous", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Churn Rate", "calculation": "churned_subscriptions / total_subscriptions_period_start", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "customer-success"},
+        {"name": "Net Revenue Retention (NRR)", "calculation": "(starting_mrr + expansion - contraction - churn) / starting_mrr", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "customer-success"},
+        {"name": "Customer Acquisition Cost (CAC)", "calculation": "total_sales_and_marketing_spend / new_customers_acquired", "target_unit": "currency", "reporting_cadence": "monthly", "department": "marketing"},
+        {"name": "LTV:CAC Ratio", "calculation": "average_customer_lifetime_value / customer_acquisition_cost", "target_unit": "ratio", "reporting_cadence": "quarterly", "department": "finance"},
+        {"name": "Trial-to-Paid Conversion Rate", "calculation": "trial_conversions / trial_starts", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "sales"},
+        {"name": "Time to First Value", "calculation": "avg(first_value_event_timestamp - signup_timestamp)", "target_unit": "minutes", "reporting_cadence": "weekly", "department": "product"},
+        {"name": "Active User Rate (DAU/MAU)", "calculation": "daily_active_users / monthly_active_users", "target_unit": "ratio", "reporting_cadence": "daily", "department": "product"},
+        {"name": "Support Ticket Resolution Time", "calculation": "avg(resolved_at - created_at)", "target_unit": "hours", "reporting_cadence": "weekly", "department": "support"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "SaaS strategic oversight. Monitor MRR trajectory, burn rate, and runway. Flag when growth rate declines two consecutive months. Track competitive moves. Prepare board-ready metrics."},
+        {"canonical_agent": "Product", "template_instructions": "Feature prioritization using RICE scoring. Track feature requests by customer segment. Monitor activation metrics. Flag features with low adoption post-launch."},
+        {"canonical_agent": "Engineering", "template_instructions": "Technical health monitoring. Track deployment frequency, failure rate, and recovery time. Flag tech debt accumulation. Enforce code review and testing standards."},
+        {"canonical_agent": "Sales", "template_instructions": "SaaS sales cycle: demo-driven with trial conversion. Track pipeline by stage and conversion rates between stages. Flag deals stalled >7 days. Calculate and report win/loss reasons."},
+        {"canonical_agent": "Marketing", "template_instructions": "Demand generation focus. Track CAC by channel. Monitor content performance by traffic and conversion. Manage SEO keyword rankings. Report on marketing-sourced pipeline weekly."},
+        {"canonical_agent": "CS", "template_instructions": "Health-score-driven customer management. Calculate health from product usage, support tickets, and engagement signals. Proactive outreach when health drops. Track expansion revenue opportunities."},
+        {"canonical_agent": "Finance", "template_instructions": "SaaS financial modeling. Track MRR waterfall (new, expansion, contraction, churn). Calculate unit economics monthly. Monitor cash burn and update runway projections. Revenue recognition per ASC 606."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["support", "customer-success"], "reduce_workflows": ["churn_prevention", "monthly_mrr_reporting"], "focus": "Validate problem, build MVP, find first 10 users"},
+        "validation": {"focus": "Product-market fit signals, first paying customers, iterate on core loop"},
+        "launch": {"focus": "Repeatable acquisition, onboarding optimization, first 100 customers"},
+        "early_revenue": {"focus": "Unit economics, retention proof, scalable acquisition channel"},
+        "growth": {"add_departments": [{"name": "People & Culture", "slug": "hr", "purpose": "Hiring, onboarding, performance management, culture"}], "focus": "Scale team, enterprise sales, platform expansion"},
+        "scale": {"add_departments": [{"name": "Data & Analytics", "slug": "data", "purpose": "Product analytics, business intelligence, ML/AI features"}], "focus": "Market leadership, international expansion, adjacent products"},
+        "maturity": {"focus": "Profitability optimization, market defense, acquisition strategy"},
+        "exit": {"focus": "IPO preparation or acquisition positioning, governance formalization"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "ecommerce",
+      "name": "E-Commerce Store",
+      "description": "Online retail business selling physical or digital products directly to consumers or businesses. Covers DTC brands, dropshipping, marketplace sellers, and subscription box businesses.",
+      "icon": "shopping-cart",
+      "industry_verticals": ["retail", "direct_to_consumer", "marketplace"],
+      "default_departments": [
+        {"name": "Product & Merchandising", "slug": "merchandising", "purpose": "Product sourcing, catalog management, pricing strategy, inventory planning, product photography", "headcount_range": "1-5"},
+        {"name": "Marketing & Growth", "slug": "marketing", "purpose": "Paid acquisition, email marketing, social media, influencer partnerships, SEO, conversion rate optimization", "headcount_range": "1-5"},
+        {"name": "Operations & Fulfillment", "slug": "operations", "purpose": "Order processing, warehouse management, shipping logistics, returns handling, vendor relationships", "headcount_range": "1-10"},
+        {"name": "Customer Experience", "slug": "customer-experience", "purpose": "Customer support, reviews management, loyalty program, post-purchase experience", "headcount_range": "1-5"},
+        {"name": "Finance", "slug": "finance", "purpose": "Revenue tracking, COGS management, payment processing, tax compliance, cash flow", "headcount_range": "1-2"}
+      ],
+      "default_workflows": [
+        {"name": "Product Launch", "category": "product", "trigger": "manual", "steps_summary": "Source product -> Sample review -> Photography -> Listing creation -> Price setting -> Inventory allocation -> Marketing plan -> Launch -> Monitor performance", "estimated_steps": 9},
+        {"name": "Order Fulfillment", "category": "operations", "trigger": "event:order_placed", "steps_summary": "Validate payment -> Pick items -> Pack -> Generate shipping label -> Ship -> Send tracking -> Delivery confirmation", "estimated_steps": 7},
+        {"name": "Return & Refund Processing", "category": "operations", "trigger": "event:return_requested", "steps_summary": "Review request -> Approve/deny -> Send return label -> Receive item -> Inspect -> Process refund/exchange -> Restock or dispose", "estimated_steps": 7},
+        {"name": "Inventory Replenishment", "category": "operations", "trigger": "condition:stock_below_threshold", "steps_summary": "Generate reorder alert -> Calculate order quantity -> Submit PO to supplier -> Track shipment -> Receive inventory -> Update stock levels", "estimated_steps": 6},
+        {"name": "Email Marketing Campaign", "category": "content", "trigger": "scheduled:weekly_or_event", "steps_summary": "Segment audience -> Create content -> Design email -> A/B test subject -> Send -> Measure open/click/conversion", "estimated_steps": 6},
+        {"name": "Monthly P&L Review", "category": "finance", "trigger": "scheduled:0 9 1 * *", "steps_summary": "Calculate revenue -> Subtract COGS -> Subtract marketing spend -> Subtract operational costs -> Calculate margins by product/category -> Report", "estimated_steps": 6},
+        {"name": "Paid Ads Optimization", "category": "revenue", "trigger": "scheduled:daily", "steps_summary": "Pull ad performance -> Analyze ROAS by campaign -> Pause underperformers -> Scale winners -> Adjust bids -> Update creative schedule", "estimated_steps": 6},
+        {"name": "Customer Review Follow-up", "category": "customer", "trigger": "event:order_delivered", "steps_summary": "Wait period -> Send review request -> Monitor response -> Respond to negative reviews -> Flag product issues -> Update product listing", "estimated_steps": 6}
+      ],
+      "default_roles": [
+        {"name": "Merchandising Manager", "department": "merchandising", "type": "human_or_agent", "authority_scope": "product_selection, pricing_within_bounds, catalog_management", "escalation_to": "CEO"},
+        {"name": "Growth Marketer", "department": "marketing", "type": "human_or_agent", "authority_scope": "campaign_management, ad_spend_within_budget, content_creation", "escalation_to": "CEO"},
+        {"name": "Fulfillment Manager", "department": "operations", "type": "human_or_agent", "authority_scope": "shipping_decisions, warehouse_operations, vendor_communication", "escalation_to": "CEO"},
+        {"name": "Customer Experience Lead", "department": "customer-experience", "type": "human_or_agent", "authority_scope": "support_responses, refund_approval_within_policy, review_responses", "escalation_to": "CEO"}
+      ],
+      "default_kpis": [
+        {"name": "Gross Merchandise Value (GMV)", "calculation": "sum(order_totals)", "target_unit": "currency", "reporting_cadence": "daily", "department": "finance"},
+        {"name": "Average Order Value (AOV)", "calculation": "total_revenue / number_of_orders", "target_unit": "currency", "reporting_cadence": "weekly", "department": "merchandising"},
+        {"name": "Customer Acquisition Cost (CAC)", "calculation": "total_marketing_spend / new_customers", "target_unit": "currency", "reporting_cadence": "weekly", "department": "marketing"},
+        {"name": "Return on Ad Spend (ROAS)", "calculation": "revenue_from_ads / ad_spend", "target_unit": "ratio", "reporting_cadence": "daily", "department": "marketing"},
+        {"name": "Conversion Rate", "calculation": "orders / sessions", "target_unit": "percentage", "reporting_cadence": "daily", "department": "marketing"},
+        {"name": "Cart Abandonment Rate", "calculation": "abandoned_carts / initiated_carts", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "marketing"},
+        {"name": "Gross Margin", "calculation": "(revenue - cogs) / revenue", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Inventory Turnover", "calculation": "cogs / average_inventory_value", "target_unit": "ratio", "reporting_cadence": "monthly", "department": "operations"},
+        {"name": "Customer Lifetime Value (CLV)", "calculation": "avg_order_value * avg_purchase_frequency * avg_customer_lifespan", "target_unit": "currency", "reporting_cadence": "quarterly", "department": "finance"},
+        {"name": "Order Fulfillment Time", "calculation": "avg(shipped_at - ordered_at)", "target_unit": "hours", "reporting_cadence": "weekly", "department": "operations"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "E-commerce strategic oversight. Monitor unit economics (CAC, CLV, margins). Flag when CAC exceeds CLV. Track seasonal trends and inventory risk. Manage cash conversion cycle."},
+        {"canonical_agent": "Sales", "template_instructions": "E-commerce sales = conversion optimization. Monitor funnel (visit -> add to cart -> checkout -> purchase). Run A/B tests on pricing and promotions. Track promotional ROI."},
+        {"canonical_agent": "Marketing", "template_instructions": "Multi-channel acquisition. Track ROAS by channel (Meta, Google, TikTok, email, organic). Manage creative rotation. Monitor email deliverability and list health. Coordinate influencer campaigns."},
+        {"canonical_agent": "Ops", "template_instructions": "Fulfillment efficiency. Monitor shipping times, error rates, and return rates. Optimize inventory levels to minimize stockouts and overstock. Manage 3PL relationships."},
+        {"canonical_agent": "CS", "template_instructions": "E-commerce customer experience. Monitor review sentiment, response times, and satisfaction scores. Proactive outreach after delivery issues. Manage loyalty program engagement."},
+        {"canonical_agent": "Finance", "template_instructions": "E-commerce financial management. Track gross margin by product and category. Monitor payment processing costs. Manage sales tax compliance. Cash flow forecasting with seasonal adjustment."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["customer-experience"], "focus": "Find product-market fit, validate demand, first 50 orders"},
+        "validation": {"focus": "Prove unit economics, establish reliable supply chain, repeat purchase proof"},
+        "launch": {"focus": "Scale acquisition, optimize conversion funnel, build brand identity"},
+        "early_revenue": {"focus": "Profitable acquisition channels, inventory management, team building"},
+        "growth": {"add_departments": [{"name": "Brand & Creative", "slug": "brand", "purpose": "Brand strategy, creative production, photography, video"}], "focus": "Category expansion, wholesale/B2B, international markets"},
+        "scale": {"focus": "Multi-channel retail, own logistics, brand equity building"},
+        "maturity": {"focus": "Market defense, private label, vertical integration"},
+        "exit": {"focus": "Brand valuation, acquirer identification, clean financials"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "consulting",
+      "name": "Consulting Firm",
+      "description": "Expert advisory business selling knowledge, frameworks, and implementation support. Covers management consulting, strategy consulting, IT consulting, and niche advisory practices.",
+      "icon": "lightbulb-brain",
+      "industry_verticals": ["professional_services", "management_consulting", "strategy"],
+      "default_departments": [
+        {"name": "Client Delivery", "slug": "delivery", "purpose": "Engagement execution, research, analysis, deliverable production, client workshops", "headcount_range": "2-20"},
+        {"name": "Business Development", "slug": "business-development", "purpose": "Pipeline management, proposal writing, conference speaking, referral cultivation, thought leadership", "headcount_range": "1-5"},
+        {"name": "Knowledge & IP", "slug": "knowledge", "purpose": "Framework development, methodology documentation, training materials, proprietary tools, research library", "headcount_range": "1-3"},
+        {"name": "Operations", "slug": "operations", "purpose": "Staffing/resource allocation, contract administration, travel management, billing", "headcount_range": "1-3"},
+        {"name": "Finance", "slug": "finance", "purpose": "Engagement billing, utilization tracking, profitability analysis, cash flow management", "headcount_range": "1-2"}
+      ],
+      "default_workflows": [
+        {"name": "Engagement Sale", "category": "revenue", "trigger": "event:opportunity_identified", "steps_summary": "Qualify opportunity -> Scoping conversations -> Write proposal -> Pricing review -> Present to client -> Negotiate -> Sign SOW", "estimated_steps": 7},
+        {"name": "Engagement Delivery", "category": "operations", "trigger": "event:sow_signed", "steps_summary": "Kickoff planning -> Stakeholder mapping -> Discovery phase -> Analysis -> Synthesis -> Draft deliverables -> Client review -> Final presentation -> Implementation support", "estimated_steps": 9},
+        {"name": "Knowledge Capture", "category": "strategy", "trigger": "event:engagement_completed", "steps_summary": "Debrief session -> Extract reusable frameworks -> Document lessons learned -> Update methodology library -> Identify IP opportunities", "estimated_steps": 5},
+        {"name": "Thought Leadership Production", "category": "content", "trigger": "scheduled:biweekly", "steps_summary": "Identify topic from engagement trends -> Research -> Draft article/whitepaper -> Internal review -> Publish -> Promote -> Track engagement", "estimated_steps": 7},
+        {"name": "Utilization & Staffing Review", "category": "operations", "trigger": "scheduled:0 9 * * 1", "steps_summary": "Pull utilization data -> Identify bench time -> Match to upcoming engagements -> Flag hiring or subcontracting needs -> Adjust assignments", "estimated_steps": 5},
+        {"name": "Monthly Financial Review", "category": "finance", "trigger": "scheduled:0 9 1 * *", "steps_summary": "Calculate revenue by engagement -> Track utilization rates -> Calculate effective rate per consultant -> Review outstanding invoices -> Update forecast", "estimated_steps": 5}
+      ],
+      "default_roles": [
+        {"name": "Engagement Manager", "department": "delivery", "type": "human_or_agent", "authority_scope": "engagement_execution, client_communication, deliverable_quality", "escalation_to": "CEO"},
+        {"name": "Analyst", "department": "delivery", "type": "human_or_agent", "authority_scope": "research, data_analysis, draft_deliverables", "escalation_to": "Engagement Manager"},
+        {"name": "BD Partner", "department": "business-development", "type": "human", "authority_scope": "relationship_management, proposal_approval, pricing_decisions", "escalation_to": "CEO"},
+        {"name": "Knowledge Manager", "department": "knowledge", "type": "human_or_agent", "authority_scope": "methodology_updates, training_content, IP_classification", "escalation_to": "CEO"}
+      ],
+      "default_kpis": [
+        {"name": "Revenue per Consultant", "calculation": "total_revenue / number_of_consultants", "target_unit": "currency", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Utilization Rate", "calculation": "billable_hours / available_hours", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "operations"},
+        {"name": "Effective Billing Rate", "calculation": "total_revenue / total_billable_hours", "target_unit": "currency_per_hour", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Pipeline Coverage Ratio", "calculation": "weighted_pipeline_value / revenue_target", "target_unit": "ratio", "reporting_cadence": "monthly", "department": "business-development"},
+        {"name": "Client Repeat Rate", "calculation": "repeat_clients / total_clients", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "business-development"},
+        {"name": "Engagement Margin", "calculation": "(engagement_revenue - engagement_costs) / engagement_revenue", "target_unit": "percentage", "reporting_cadence": "per_engagement", "department": "finance"},
+        {"name": "Proposal Win Rate", "calculation": "proposals_won / proposals_submitted", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "business-development"},
+        {"name": "Knowledge Assets Created", "calculation": "count(new_frameworks + new_methodologies + new_tools)", "target_unit": "count", "reporting_cadence": "quarterly", "department": "knowledge"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Consulting firm leadership. Monitor utilization vs bench, pipeline coverage, and engagement profitability. Flag when utilization drops below 65% or pipeline coverage below 3x. Track IP development as long-term asset."},
+        {"canonical_agent": "Sales", "template_instructions": "Consulting BD: relationship-driven, long-cycle. Track referral sources, conference leads, and inbound from thought leadership. Generate proposals from engagement templates. Monitor proposal aging."},
+        {"canonical_agent": "Marketing", "template_instructions": "Consulting marketing = thought leadership. Prioritize article/whitepaper/speaking production. Track content-to-lead attribution. Manage conference calendar and speaking applications."},
+        {"canonical_agent": "Finance", "template_instructions": "Consulting financial management. Track revenue by engagement, utilization by consultant, and effective rates. Flag engagements trending over scope. Monitor DSO (days sales outstanding) and cash position."},
+        {"canonical_agent": "Ops", "template_instructions": "Consulting operations. Staffing optimization across engagements. Travel and expense management. Contract administration. Capacity forecasting 8 weeks ahead."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["knowledge"], "focus": "Land first engagement, prove methodology, build case study"},
+        "validation": {"focus": "Repeat clients, referral generation, methodology documentation"},
+        "launch": {"focus": "Hire first consultant, standardize delivery, establish pricing model"},
+        "early_revenue": {"focus": "Build bench strength, develop IP, diversify client base"},
+        "growth": {"add_departments": [{"name": "People & Development", "slug": "people", "purpose": "Recruiting, training, career paths, mentoring"}], "focus": "Scale team, maintain quality, build practice areas"},
+        "scale": {"focus": "Multiple practice areas, partner track, geographic expansion"},
+        "maturity": {"focus": "IP licensing, training programs, advisory boards"},
+        "exit": {"focus": "Transition to partner-led model or acquisition positioning"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "media_company",
+      "name": "Media / Content Company",
+      "description": "Business built on content creation, distribution, and audience monetization. Covers digital media, podcasting, YouTube channels, newsletters, publishing, and creator businesses at company scale.",
+      "icon": "play-circle",
+      "industry_verticals": ["media", "entertainment", "publishing", "creator_economy"],
+      "default_departments": [
+        {"name": "Content Production", "slug": "content-production", "purpose": "Content creation, editing, production scheduling, quality standards, creative direction", "headcount_range": "2-15"},
+        {"name": "Audience & Distribution", "slug": "audience", "purpose": "Platform management, distribution strategy, community management, audience growth, analytics", "headcount_range": "1-5"},
+        {"name": "Revenue & Monetization", "slug": "revenue", "purpose": "Advertising sales, sponsorship deals, subscription management, merchandise, licensing, events", "headcount_range": "1-5"},
+        {"name": "Marketing & Brand", "slug": "marketing", "purpose": "Brand partnerships, cross-promotion, PR, audience acquisition campaigns", "headcount_range": "1-3"},
+        {"name": "Operations", "slug": "operations", "purpose": "Production operations, tool management, scheduling, legal/rights management, talent management", "headcount_range": "1-3"},
+        {"name": "Finance", "slug": "finance", "purpose": "Revenue tracking by stream, advertiser billing, creator payments, cash flow management", "headcount_range": "1-2"}
+      ],
+      "default_workflows": [
+        {"name": "Content Production Pipeline", "category": "content", "trigger": "scheduled:per_content_calendar", "steps_summary": "Ideate -> Research -> Script/outline -> Produce -> Edit -> Review -> Publish -> Promote -> Measure", "estimated_steps": 9},
+        {"name": "Sponsorship Deal Flow", "category": "revenue", "trigger": "event:sponsor_inquiry_or_outreach", "steps_summary": "Qualify sponsor -> Pitch/negotiate -> Contract -> Brief creation -> Integration planning -> Production -> Review/approval -> Publish -> Report results", "estimated_steps": 9},
+        {"name": "Audience Growth Campaign", "category": "revenue", "trigger": "manual_or_scheduled", "steps_summary": "Identify growth lever -> Design campaign -> Create assets -> Launch -> Monitor daily -> Optimize -> Report results -> Extract learnings", "estimated_steps": 8},
+        {"name": "Content Calendar Planning", "category": "strategy", "trigger": "scheduled:0 9 25 * *", "steps_summary": "Review analytics -> Identify trends -> Plan topics -> Assign creators -> Set deadlines -> Build calendar -> Review with team", "estimated_steps": 7},
+        {"name": "Revenue Reconciliation", "category": "finance", "trigger": "scheduled:0 9 1 * *", "steps_summary": "Pull platform revenue -> Pull sponsorship invoices -> Pull subscription revenue -> Pull merch sales -> Reconcile -> Generate P&L by stream", "estimated_steps": 6},
+        {"name": "Community Engagement Cycle", "category": "customer", "trigger": "scheduled:daily", "steps_summary": "Monitor comments/mentions -> Respond to high-priority -> Flag content ideas from community -> Moderate -> Report sentiment trends", "estimated_steps": 5}
+      ],
+      "default_roles": [
+        {"name": "Creative Director", "department": "content-production", "type": "human", "authority_scope": "creative_quality, content_direction, brand_voice, editorial_decisions", "escalation_to": "CEO"},
+        {"name": "Producer", "department": "content-production", "type": "human_or_agent", "authority_scope": "production_scheduling, resource_coordination, deliverable_tracking", "escalation_to": "Creative Director"},
+        {"name": "Audience Manager", "department": "audience", "type": "human_or_agent", "authority_scope": "platform_strategy, community_management, growth_initiatives", "escalation_to": "CEO"},
+        {"name": "Revenue Manager", "department": "revenue", "type": "human_or_agent", "authority_scope": "sponsorship_negotiation, pricing_within_rate_card, advertiser_relationships", "escalation_to": "CEO"}
+      ],
+      "default_kpis": [
+        {"name": "Total Audience Size", "calculation": "sum(subscribers_followers_across_platforms)", "target_unit": "count", "reporting_cadence": "weekly", "department": "audience"},
+        {"name": "Audience Growth Rate", "calculation": "(current_audience - previous_audience) / previous_audience", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "audience"},
+        {"name": "Content Output Rate", "calculation": "pieces_published / period", "target_unit": "count_per_period", "reporting_cadence": "weekly", "department": "content-production"},
+        {"name": "Revenue per Thousand (RPM)", "calculation": "total_revenue / (total_impressions / 1000)", "target_unit": "currency", "reporting_cadence": "monthly", "department": "revenue"},
+        {"name": "Engagement Rate", "calculation": "engagements / impressions", "target_unit": "percentage", "reporting_cadence": "per_content_piece", "department": "audience"},
+        {"name": "Revenue by Stream", "calculation": "revenue_breakdown_by_source", "target_unit": "currency", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Sponsorship Fill Rate", "calculation": "sponsored_slots / available_slots", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "revenue"},
+        {"name": "Content Production Cost", "calculation": "total_production_spend / pieces_published", "target_unit": "currency_per_piece", "reporting_cadence": "monthly", "department": "finance"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Media company strategic oversight. Monitor audience growth trajectory, revenue diversification, and content ROI. Flag audience decline trends early. Track revenue concentration risk across streams and sponsors."},
+        {"canonical_agent": "Marketing", "template_instructions": "Media marketing = audience growth + brand partnerships. Track cross-promotion performance. Manage PR outreach. Monitor brand mention sentiment. Coordinate launch campaigns for new content formats."},
+        {"canonical_agent": "Sales", "template_instructions": "Sponsorship and advertising sales. Manage rate card. Track sponsor satisfaction and renewal rates. Identify upsell opportunities. Generate media kits and case studies from performance data."},
+        {"canonical_agent": "CS", "template_instructions": "Audience/community management. Monitor engagement quality across platforms. Manage subscriber support. Track community health metrics. Identify superfans and brand advocates."},
+        {"canonical_agent": "Finance", "template_instructions": "Media financial management. Track revenue by stream (ads, sponsorships, subscriptions, merch, licensing, events). Monitor content production costs. Calculate ROI per content piece. Manage advertiser billing."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["revenue", "marketing"], "focus": "Find voice, build first 1000 true fans, establish content cadence"},
+        "validation": {"focus": "Audience retention proof, first monetization experiments, content-market fit"},
+        "launch": {"focus": "Consistent publishing cadence, first sponsorship deals, community building"},
+        "early_revenue": {"focus": "Diversify revenue streams, hire first team members, systematize production"},
+        "growth": {"focus": "Scale production, multiple content formats, grow sponsorship revenue"},
+        "scale": {"add_departments": [{"name": "Talent", "slug": "talent", "purpose": "Creator recruitment, talent management, contributor network"}], "focus": "Multi-creator, syndication, licensing, events"},
+        "maturity": {"focus": "IP licensing, brand extensions, acquisition of smaller media properties"},
+        "exit": {"focus": "Brand valuation, acquirer identification, audience portability demonstration"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "real_estate",
+      "name": "Real Estate Business",
+      "description": "Business involved in property acquisition, development, management, or brokerage. Covers rental portfolios, property management, development, flipping, brokerage, and real estate investment.",
+      "icon": "building-house",
+      "industry_verticals": ["real_estate", "property_management", "construction"],
+      "default_departments": [
+        {"name": "Acquisitions", "slug": "acquisitions", "purpose": "Deal sourcing, property analysis, due diligence, offer negotiation, closing", "headcount_range": "1-5"},
+        {"name": "Property Management", "slug": "property-management", "purpose": "Tenant relations, maintenance coordination, lease administration, rent collection, inspections", "headcount_range": "1-10"},
+        {"name": "Finance & Accounting", "slug": "finance", "purpose": "Property P&L, mortgage management, tax strategy, investor reporting, cap rate analysis", "headcount_range": "1-3"},
+        {"name": "Marketing & Leasing", "slug": "marketing", "purpose": "Property listings, tenant acquisition, market analysis, vacancy marketing, open house coordination", "headcount_range": "1-3"},
+        {"name": "Maintenance & Construction", "slug": "maintenance", "purpose": "Repair requests, contractor management, renovation projects, preventive maintenance scheduling", "headcount_range": "1-5"},
+        {"name": "Legal & Compliance", "slug": "legal", "purpose": "Lease agreements, eviction proceedings, zoning compliance, landlord-tenant law, entity structuring", "headcount_range": "1-2"}
+      ],
+      "default_workflows": [
+        {"name": "Property Acquisition Pipeline", "category": "investment", "trigger": "event:deal_sourced", "steps_summary": "Initial screening -> Financial analysis -> Property inspection -> Due diligence -> Offer submission -> Negotiation -> Contract -> Financing -> Closing -> Onboarding to portfolio", "estimated_steps": 10},
+        {"name": "Tenant Screening & Lease-Up", "category": "revenue", "trigger": "event:vacancy_created", "steps_summary": "List property -> Market -> Receive applications -> Screen (credit, background, income) -> Select tenant -> Prepare lease -> Sign -> Move-in inspection -> Onboard tenant", "estimated_steps": 9},
+        {"name": "Maintenance Request Handling", "category": "operations", "trigger": "event:maintenance_request", "steps_summary": "Receive request -> Classify urgency -> Assign contractor/handyman -> Schedule repair -> Execute -> Inspect completion -> Close ticket -> Update property record", "estimated_steps": 8},
+        {"name": "Rent Collection Cycle", "category": "finance", "trigger": "scheduled:0 0 1 * *", "steps_summary": "Generate invoices -> Send payment reminders -> Process payments -> Flag late payments -> Issue late notices -> Initiate collections if needed -> Reconcile", "estimated_steps": 7},
+        {"name": "Lease Renewal Process", "category": "revenue", "trigger": "condition:lease_expiring_within_90_days", "steps_summary": "Identify expiring leases -> Market comp analysis -> Determine renewal terms -> Send renewal offer -> Negotiate -> Execute new lease -> Update records", "estimated_steps": 7},
+        {"name": "Monthly Property Performance Review", "category": "finance", "trigger": "scheduled:0 9 5 * *", "steps_summary": "Calculate NOI per property -> Review occupancy rates -> Analyze maintenance costs -> Compare to proforma -> Flag underperformers -> Generate investor report", "estimated_steps": 6},
+        {"name": "Property Disposition", "category": "strategy", "trigger": "manual", "steps_summary": "Valuation analysis -> Decision to sell -> Broker selection -> Listing preparation -> Market -> Negotiate offers -> Due diligence period -> Close -> 1031 exchange evaluation", "estimated_steps": 9}
+      ],
+      "default_roles": [
+        {"name": "Acquisitions Manager", "department": "acquisitions", "type": "human_or_agent", "authority_scope": "deal_screening, financial_analysis, offer_preparation", "escalation_to": "CEO"},
+        {"name": "Property Manager", "department": "property-management", "type": "human_or_agent", "authority_scope": "tenant_communication, maintenance_dispatch, lease_administration", "escalation_to": "CEO"},
+        {"name": "Leasing Agent", "department": "marketing", "type": "human_or_agent", "authority_scope": "listing_management, tenant_screening, showing_scheduling", "escalation_to": "Property Manager"},
+        {"name": "Maintenance Coordinator", "department": "maintenance", "type": "human_or_agent", "authority_scope": "work_order_management, contractor_dispatch, spend_within_approval_limits", "escalation_to": "Property Manager"},
+        {"name": "Real Estate Accountant", "department": "finance", "type": "human_or_agent", "authority_scope": "rent_tracking, expense_categorization, property_financial_reporting", "escalation_to": "CEO"}
+      ],
+      "default_kpis": [
+        {"name": "Net Operating Income (NOI)", "calculation": "gross_rental_income - operating_expenses", "target_unit": "currency", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Cap Rate", "calculation": "noi / property_value", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "finance"},
+        {"name": "Occupancy Rate", "calculation": "occupied_units / total_units", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "property-management"},
+        {"name": "Rent Collection Rate", "calculation": "rent_collected / rent_billed", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Average Days to Lease", "calculation": "avg(lease_signed_date - vacancy_start_date)", "target_unit": "days", "reporting_cadence": "quarterly", "department": "marketing"},
+        {"name": "Maintenance Cost per Unit", "calculation": "total_maintenance_spend / total_units", "target_unit": "currency", "reporting_cadence": "monthly", "department": "maintenance"},
+        {"name": "Cash-on-Cash Return", "calculation": "annual_cash_flow / total_cash_invested", "target_unit": "percentage", "reporting_cadence": "annually", "department": "finance"},
+        {"name": "Tenant Retention Rate", "calculation": "renewed_leases / expiring_leases", "target_unit": "percentage", "reporting_cadence": "annually", "department": "property-management"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Real estate portfolio oversight. Monitor portfolio-level NOI, occupancy, and cash-on-cash returns. Flag properties underperforming proforma by >10%. Track market conditions for acquisition/disposition timing."},
+        {"canonical_agent": "Sales", "template_instructions": "Real estate deal sourcing and leasing. Track acquisition pipeline by deal stage. Monitor lease-up velocity. Generate comp analyses for pricing decisions. Flag off-market opportunities from broker network."},
+        {"canonical_agent": "Finance", "template_instructions": "Real estate financial management. Property-level P&L tracking. Monitor debt service coverage ratios. Track cap rate trends by market. Manage 1031 exchange timelines. Generate investor distribution calculations."},
+        {"canonical_agent": "Ops", "template_instructions": "Property operations management. Track maintenance request response times. Monitor contractor performance and costs. Coordinate capital improvement projects. Manage property inspection schedules."},
+        {"canonical_agent": "Legal", "template_instructions": "Real estate legal compliance. Monitor lease expirations and renewal deadlines. Track eviction proceedings. Ensure fair housing compliance. Review contractor agreements. Manage entity structuring for asset protection."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["maintenance", "legal"], "focus": "Acquire first property, validate market thesis, establish financing relationships"},
+        "validation": {"focus": "Prove NOI assumptions, establish management systems, build contractor network"},
+        "launch": {"focus": "Scale to 5-10 units, systematize property management, establish reporting"},
+        "early_revenue": {"focus": "Optimize operations, build track record for financing, expand portfolio"},
+        "growth": {"focus": "Professional property management, portfolio diversification, investor relations"},
+        "scale": {"add_departments": [{"name": "Investor Relations", "slug": "investor-relations", "purpose": "LP communications, fund reporting, capital raise"}], "focus": "Fund structure, institutional capital, geographic expansion"},
+        "maturity": {"focus": "Portfolio optimization, strategic dispositions, development projects"},
+        "exit": {"focus": "Portfolio packaging, buyer identification, clean books for due diligence"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "investment_fund",
+      "name": "Investment Fund / Holding Company",
+      "description": "Entity that deploys capital into investments (equity, debt, real assets, or other funds) for financial returns. Covers venture capital, private equity, hedge funds, family offices, and angel syndicates.",
+      "icon": "chart-line-up",
+      "industry_verticals": ["finance", "investment_management", "venture_capital"],
+      "default_departments": [
+        {"name": "Investment Team", "slug": "investments", "purpose": "Deal sourcing, due diligence, portfolio management, exit planning, thesis development", "headcount_range": "2-10"},
+        {"name": "Operations", "slug": "operations", "purpose": "Fund administration, compliance, reporting, LP communications, legal coordination", "headcount_range": "1-5"},
+        {"name": "Finance & Accounting", "slug": "finance", "purpose": "Fund accounting, NAV calculations, capital calls, distributions, tax reporting", "headcount_range": "1-3"},
+        {"name": "Investor Relations", "slug": "investor-relations", "purpose": "LP fundraising, quarterly reporting, LP advisory committee, capital pipeline", "headcount_range": "1-3"},
+        {"name": "Research", "slug": "research", "purpose": "Market research, sector analysis, competitive landscape, thesis validation", "headcount_range": "1-3"}
+      ],
+      "default_workflows": [
+        {"name": "Deal Pipeline", "category": "investment", "trigger": "event:deal_sourced", "steps_summary": "Initial screen -> Thesis fit check -> First meeting -> Deep dive -> Due diligence -> IC memo -> Investment committee vote -> Term sheet -> Legal -> Close -> Announce", "estimated_steps": 11},
+        {"name": "Portfolio Monitoring", "category": "investment", "trigger": "scheduled:monthly_or_quarterly", "steps_summary": "Collect portfolio company updates -> Financial review -> KPI tracking -> Valuation update -> Risk assessment -> Board prep -> Follow-on evaluation", "estimated_steps": 7},
+        {"name": "Quarterly LP Reporting", "category": "finance", "trigger": "scheduled:0 9 15 1,4,7,10 *", "steps_summary": "Compile fund metrics -> Portfolio valuations -> Write narrative -> Financial statements -> Performance attribution -> Review -> Distribute to LPs", "estimated_steps": 7},
+        {"name": "Capital Call Process", "category": "finance", "trigger": "event:investment_approved", "steps_summary": "Calculate pro-rata amounts -> Generate notices -> Send to LPs -> Track commitments -> Process receipts -> Wire to portfolio company -> Update cap table", "estimated_steps": 7},
+        {"name": "Exit Process", "category": "investment", "trigger": "event:exit_opportunity_identified", "steps_summary": "Valuation analysis -> Exit options evaluation -> Advisor/banker selection -> Process management -> Negotiation -> Legal closing -> Distribution calculation -> LP notification", "estimated_steps": 8},
+        {"name": "Fundraising Campaign", "category": "revenue", "trigger": "manual", "steps_summary": "Update pitch deck -> Target LP list -> Outreach campaign -> First meetings -> Data room preparation -> Due diligence support -> Legal negotiation -> Close commitments", "estimated_steps": 8}
+      ],
+      "default_roles": [
+        {"name": "Managing Partner", "department": "investments", "type": "human", "authority_scope": "investment_decisions, fund_strategy, LP_relationships, team_leadership", "escalation_to": "none_top_of_chain"},
+        {"name": "Investment Analyst", "department": "investments", "type": "human_or_agent", "authority_scope": "deal_screening, financial_modeling, due_diligence_execution, memo_drafting", "escalation_to": "Managing Partner"},
+        {"name": "Fund Controller", "department": "finance", "type": "human_or_agent", "authority_scope": "fund_accounting, NAV_calculations, capital_call_processing, tax_coordination", "escalation_to": "Managing Partner"},
+        {"name": "IR Manager", "department": "investor-relations", "type": "human_or_agent", "authority_scope": "LP_communications, reporting_distribution, data_room_management", "escalation_to": "Managing Partner"},
+        {"name": "Research Analyst", "department": "research", "type": "human_or_agent", "authority_scope": "market_analysis, sector_reports, competitive_intelligence", "escalation_to": "Investment Analyst"}
+      ],
+      "default_kpis": [
+        {"name": "Internal Rate of Return (IRR)", "calculation": "time_weighted_return_calculation", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "finance"},
+        {"name": "Total Value to Paid-In (TVPI)", "calculation": "(distributions + nav) / paid_in_capital", "target_unit": "ratio", "reporting_cadence": "quarterly", "department": "finance"},
+        {"name": "Distributions to Paid-In (DPI)", "calculation": "total_distributions / paid_in_capital", "target_unit": "ratio", "reporting_cadence": "quarterly", "department": "finance"},
+        {"name": "Deal Flow Volume", "calculation": "count(deals_reviewed)", "target_unit": "count", "reporting_cadence": "monthly", "department": "investments"},
+        {"name": "Conversion Rate (Screen to Close)", "calculation": "deals_closed / deals_screened", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "investments"},
+        {"name": "Portfolio Company Survival Rate", "calculation": "active_companies / total_companies_invested", "target_unit": "percentage", "reporting_cadence": "annually", "department": "investments"},
+        {"name": "Dry Powder Remaining", "calculation": "fund_size - capital_deployed", "target_unit": "currency", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Management Fee Coverage", "calculation": "management_fees / fund_operating_expenses", "target_unit": "ratio", "reporting_cadence": "quarterly", "department": "finance"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Fund-level strategic oversight. Monitor fund performance (IRR, TVPI, DPI), deployment pace, and reserve strategy. Flag portfolio concentration risk. Track vintage year performance vs benchmarks. Prepare IC materials."},
+        {"canonical_agent": "Finance", "template_instructions": "Fund accounting and administration. NAV calculations, waterfall modeling, capital call/distribution processing. Tax reporting (K-1s, PFIC). Management fee and carry calculations. Audit support."},
+        {"canonical_agent": "Sales", "template_instructions": "LP fundraising and relationship management. Track LP pipeline by stage. Generate quarterly reports. Maintain data room. Monitor re-up likelihood for existing LPs. Track capital call compliance."},
+        {"canonical_agent": "Product", "template_instructions": "Investment analysis and portfolio monitoring. Financial model review, comp analysis, market sizing. Track portfolio company KPIs. Flag companies needing follow-on or intervention. Prepare IC memos."},
+        {"canonical_agent": "Legal", "template_instructions": "Fund legal and compliance. Track regulatory filings (Form D, ADV, PF). Monitor side letter obligations. Review subscription documents. Coordinate with fund counsel on LP agreements."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["investor-relations", "research"], "focus": "Define thesis, make first angel investments, build track record"},
+        "validation": {"focus": "Prove thesis with early returns, formalize investment process, attract co-investors"},
+        "launch": {"focus": "Raise Fund I, establish operations, build deal flow machine"},
+        "early_revenue": {"focus": "Deploy capital, support portfolio, build LP relationships"},
+        "growth": {"focus": "Fund II fundraising, team expansion, operational maturity"},
+        "scale": {"focus": "Multi-fund strategy, platform services for portfolio, institutional LP base"},
+        "maturity": {"focus": "Permanent capital vehicles, multi-strategy, succession planning"},
+        "exit": {"focus": "Not typically applicable -- fund wind-down or conversion to evergreen"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "restaurant",
+      "name": "Restaurant / Food & Beverage",
+      "description": "Food service business operating one or more physical locations. Covers full-service restaurants, fast casual, cafes, bars, food trucks, catering, ghost kitchens, and multi-location restaurant groups.",
+      "icon": "utensils",
+      "industry_verticals": ["food_beverage", "hospitality", "restaurant"],
+      "default_departments": [
+        {"name": "Front of House", "slug": "front-of-house", "purpose": "Guest experience, reservations, table management, servers, bartenders, host staff", "headcount_range": "5-30"},
+        {"name": "Back of House", "slug": "back-of-house", "purpose": "Kitchen operations, food preparation, menu execution, food safety, line management", "headcount_range": "3-20"},
+        {"name": "Management", "slug": "management", "purpose": "Daily operations, staff scheduling, vendor relationships, compliance, P&L ownership", "headcount_range": "1-5"},
+        {"name": "Marketing", "slug": "marketing", "purpose": "Social media, local marketing, events, loyalty programs, online presence, reviews management", "headcount_range": "0-2"},
+        {"name": "Finance", "slug": "finance", "purpose": "Daily sales tracking, food cost management, labor cost management, vendor payments, tax compliance", "headcount_range": "1-2"}
+      ],
+      "default_workflows": [
+        {"name": "Daily Opening Checklist", "category": "operations", "trigger": "scheduled:pre_service", "steps_summary": "Facility check -> Prep verification -> Staff arrival confirmation -> POS open -> Inventory spot check -> Briefing -> Doors open", "estimated_steps": 7},
+        {"name": "Daily Closing Checklist", "category": "operations", "trigger": "scheduled:post_service", "steps_summary": "Last call -> Guest checkout -> POS close -> Cash reconciliation -> Kitchen breakdown -> Cleaning -> Security check -> Report to manager", "estimated_steps": 8},
+        {"name": "Inventory & Food Cost Management", "category": "finance", "trigger": "scheduled:weekly", "steps_summary": "Count inventory -> Calculate food cost percentage -> Compare to targets -> Identify waste areas -> Adjust pars -> Place orders -> Update menu pricing if needed", "estimated_steps": 7},
+        {"name": "Staff Scheduling", "category": "people", "trigger": "scheduled:weekly", "steps_summary": "Review upcoming reservations/events -> Forecast covers -> Draft schedule -> Publish -> Handle swap requests -> Finalize -> Monitor overtime", "estimated_steps": 7},
+        {"name": "Menu Update Process", "category": "product", "trigger": "manual_or_seasonal", "steps_summary": "Cost analysis -> Recipe development -> Staff tasting -> Photography -> Menu design -> Staff training -> POS update -> Launch -> Monitor performance", "estimated_steps": 9},
+        {"name": "Health Inspection Readiness", "category": "compliance", "trigger": "scheduled:monthly", "steps_summary": "Self-inspection walkthrough -> Document temperatures -> Check expiration dates -> Verify cleaning logs -> Fix violations -> Update records -> Staff refresher", "estimated_steps": 7},
+        {"name": "Online Review Management", "category": "customer", "trigger": "scheduled:daily", "steps_summary": "Monitor review platforms -> Respond to negative reviews within 24h -> Thank positive reviews -> Flag recurring complaints -> Update operations accordingly", "estimated_steps": 5}
+      ],
+      "default_roles": [
+        {"name": "General Manager", "department": "management", "type": "human", "authority_scope": "daily_operations, hiring, vendor_selection, budget_management", "escalation_to": "CEO"},
+        {"name": "Head Chef / Kitchen Manager", "department": "back-of-house", "type": "human", "authority_scope": "menu_execution, food_quality, kitchen_staff, food_ordering", "escalation_to": "General Manager"},
+        {"name": "FOH Manager", "department": "front-of-house", "type": "human", "authority_scope": "guest_experience, server_management, reservation_management, complaint_resolution", "escalation_to": "General Manager"},
+        {"name": "Bookkeeper", "department": "finance", "type": "human_or_agent", "authority_scope": "daily_sales_tracking, expense_entry, payroll_prep, vendor_payments", "escalation_to": "General Manager"}
+      ],
+      "default_kpis": [
+        {"name": "Daily Revenue", "calculation": "sum(daily_sales)", "target_unit": "currency", "reporting_cadence": "daily", "department": "finance"},
+        {"name": "Food Cost Percentage", "calculation": "food_costs / food_revenue", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "back-of-house"},
+        {"name": "Labor Cost Percentage", "calculation": "total_labor_costs / total_revenue", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "management"},
+        {"name": "Average Check Size", "calculation": "total_revenue / number_of_covers", "target_unit": "currency", "reporting_cadence": "daily", "department": "front-of-house"},
+        {"name": "Table Turnover Rate", "calculation": "covers_served / number_of_seats", "target_unit": "ratio", "reporting_cadence": "daily", "department": "front-of-house"},
+        {"name": "Online Review Score", "calculation": "avg(google_rating, yelp_rating)", "target_unit": "score_1_to_5", "reporting_cadence": "weekly", "department": "marketing"},
+        {"name": "Food Waste Percentage", "calculation": "food_waste_cost / food_purchased", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "back-of-house"},
+        {"name": "Prime Cost", "calculation": "(food_costs + labor_costs) / total_revenue", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "finance"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Restaurant group oversight. Monitor prime cost (target: <65%), revenue trends, and guest satisfaction. Flag locations underperforming by >10% vs budget. Track expansion readiness indicators."},
+        {"canonical_agent": "Ops", "template_instructions": "Restaurant operations management. Monitor food cost %, labor cost %, and waste metrics. Track vendor pricing changes. Manage maintenance schedules. Enforce health and safety compliance."},
+        {"canonical_agent": "Marketing", "template_instructions": "Restaurant marketing. Manage social media content calendar. Track online review scores and response rates. Coordinate events and promotions. Monitor local competitor activity."},
+        {"canonical_agent": "Finance", "template_instructions": "Restaurant financial management. Daily sales reconciliation. Weekly food and labor cost analysis. Monthly P&L by location. Track vendor payment schedules. Manage tip reporting and payroll tax compliance."},
+        {"canonical_agent": "HR", "template_instructions": "Restaurant people management. High-turnover environment. Track hiring pipeline, training completion, scheduling compliance. Monitor overtime. Manage tip pool calculations. Coordinate seasonal staffing."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["marketing"], "focus": "Concept development, menu testing, location scouting, business plan"},
+        "validation": {"focus": "Pop-up or soft opening, menu refinement, initial customer feedback"},
+        "launch": {"focus": "Grand opening, establish operations, build team, survive first 90 days"},
+        "early_revenue": {"focus": "Optimize food and labor costs, build repeat customer base, establish cadence"},
+        "growth": {"focus": "Catering, events, delivery channels, loyalty program, second location evaluation"},
+        "scale": {"add_departments": [{"name": "Multi-Unit Operations", "slug": "multi-unit", "purpose": "Location management, standardization, district management"}], "focus": "Multi-location management, commissary kitchen, brand standardization"},
+        "maturity": {"focus": "Franchise evaluation, brand licensing, concept refinement"},
+        "exit": {"focus": "Franchise packaging, acquirer identification, brand valuation"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "retail",
+      "name": "Retail Store",
+      "description": "Physical or hybrid retail business selling products to consumers from one or more locations. Covers boutiques, specialty retail, big-box concepts, pop-up shops, and omnichannel retailers.",
+      "icon": "storefront",
+      "industry_verticals": ["retail", "consumer_goods", "fashion"],
+      "default_departments": [
+        {"name": "Store Operations", "slug": "store-ops", "purpose": "Store management, staffing, visual merchandising, customer experience, loss prevention", "headcount_range": "3-30"},
+        {"name": "Merchandising & Buying", "slug": "merchandising", "purpose": "Product assortment, vendor relationships, buying decisions, pricing strategy, inventory planning", "headcount_range": "1-5"},
+        {"name": "Marketing", "slug": "marketing", "purpose": "Local marketing, social media, promotions, events, loyalty program, brand presence", "headcount_range": "1-3"},
+        {"name": "E-Commerce", "slug": "ecommerce", "purpose": "Online store management, digital marketing, order fulfillment for online, omnichannel coordination", "headcount_range": "0-3"},
+        {"name": "Finance", "slug": "finance", "purpose": "POS reconciliation, inventory accounting, vendor payments, cash management, sales tax", "headcount_range": "1-2"}
+      ],
+      "default_workflows": [
+        {"name": "Seasonal Buy Planning", "category": "product", "trigger": "scheduled:quarterly", "steps_summary": "Review sell-through data -> Identify trends -> Set category budgets -> Vendor meetings -> Place orders -> Track delivery -> Receive and price -> Floor plan", "estimated_steps": 8},
+        {"name": "Daily Store Operations", "category": "operations", "trigger": "scheduled:daily", "steps_summary": "Open store -> Cash drawer count -> Floor readiness check -> Staff briefing -> Service period -> Closing procedures -> Sales reconciliation -> Deposit", "estimated_steps": 8},
+        {"name": "Inventory Management Cycle", "category": "operations", "trigger": "scheduled:weekly", "steps_summary": "Cycle counts -> Variance investigation -> Reorder point review -> Generate POs -> Receive shipments -> Process and price -> Floor allocation -> Update system", "estimated_steps": 8},
+        {"name": "Promotional Campaign", "category": "revenue", "trigger": "manual_or_seasonal", "steps_summary": "Plan promotion -> Set markdowns -> Create signage -> Update POS -> Email/social blast -> Staff training on promo -> Execute -> Measure results", "estimated_steps": 8},
+        {"name": "Customer Loyalty Management", "category": "customer", "trigger": "scheduled:monthly", "steps_summary": "Review loyalty metrics -> Segment customers -> Plan targeted offers -> Execute campaigns -> Track redemption -> Measure incremental revenue -> Adjust program", "estimated_steps": 7},
+        {"name": "Loss Prevention Review", "category": "operations", "trigger": "scheduled:monthly", "steps_summary": "Review shrinkage data -> Analyze exception reports -> Review camera footage for flagged incidents -> Update procedures -> Staff training -> Vendor audit", "estimated_steps": 6}
+      ],
+      "default_roles": [
+        {"name": "Store Manager", "department": "store-ops", "type": "human", "authority_scope": "daily_operations, staff_management, customer_escalations, local_marketing", "escalation_to": "CEO"},
+        {"name": "Buyer / Merchandiser", "department": "merchandising", "type": "human_or_agent", "authority_scope": "product_selection, vendor_negotiation, pricing_within_strategy, assortment_planning", "escalation_to": "CEO"},
+        {"name": "Sales Associate Lead", "department": "store-ops", "type": "human", "authority_scope": "floor_management, customer_service, visual_merchandising_execution", "escalation_to": "Store Manager"},
+        {"name": "E-Commerce Manager", "department": "ecommerce", "type": "human_or_agent", "authority_scope": "online_store_management, digital_marketing, fulfillment_coordination", "escalation_to": "CEO"}
+      ],
+      "default_kpis": [
+        {"name": "Sales per Square Foot", "calculation": "total_sales / selling_square_footage", "target_unit": "currency", "reporting_cadence": "monthly", "department": "store-ops"},
+        {"name": "Average Transaction Value", "calculation": "total_sales / number_of_transactions", "target_unit": "currency", "reporting_cadence": "daily", "department": "store-ops"},
+        {"name": "Conversion Rate", "calculation": "transactions / foot_traffic", "target_unit": "percentage", "reporting_cadence": "daily", "department": "store-ops"},
+        {"name": "Inventory Turnover", "calculation": "cogs / average_inventory", "target_unit": "ratio", "reporting_cadence": "monthly", "department": "merchandising"},
+        {"name": "Sell-Through Rate", "calculation": "units_sold / units_received", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "merchandising"},
+        {"name": "Shrinkage Rate", "calculation": "inventory_loss / total_inventory_value", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "store-ops"},
+        {"name": "Gross Margin Return on Investment (GMROI)", "calculation": "gross_margin / average_inventory_cost", "target_unit": "ratio", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Customer Retention Rate", "calculation": "repeat_customers / total_customers", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "marketing"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Retail strategic oversight. Monitor sales per sqft, inventory turnover, and gross margins by category. Flag slow-moving inventory. Track seasonal performance vs prior year. Evaluate new location opportunities."},
+        {"canonical_agent": "Sales", "template_instructions": "Retail sales optimization. Monitor conversion rate and average transaction value. Track staff sales performance. Identify upsell/cross-sell opportunities. Manage promotional calendar effectiveness."},
+        {"canonical_agent": "Marketing", "template_instructions": "Retail marketing. Manage local marketing campaigns, social media, and loyalty program. Track foot traffic sources. Coordinate seasonal promotions. Monitor competitor pricing and promotions."},
+        {"canonical_agent": "Ops", "template_instructions": "Store operations management. Monitor inventory accuracy, shrinkage, and receiving efficiency. Manage vendor relationships and delivery schedules. Track store maintenance needs."},
+        {"canonical_agent": "Finance", "template_instructions": "Retail financial management. Daily sales reconciliation, weekly margin analysis by category. Track cash position, vendor payment schedules. Monitor GMROI. Manage sales tax across jurisdictions."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["ecommerce"], "focus": "Product sourcing validation, pop-up testing, customer discovery"},
+        "validation": {"focus": "First store performance, inventory management basics, customer repeat rate"},
+        "launch": {"focus": "Establish operations, build customer base, refine assortment"},
+        "early_revenue": {"focus": "Optimize inventory turns, grow loyalty base, test online channel"},
+        "growth": {"focus": "Add online channel, second location evaluation, category expansion"},
+        "scale": {"add_departments": [{"name": "Multi-Store Operations", "slug": "multi-store", "purpose": "District management, standardization, logistics"}], "focus": "Multi-location operations, wholesale partnerships, brand building"},
+        "maturity": {"focus": "Omnichannel integration, private label, market defense"},
+        "exit": {"focus": "Brand valuation, franchise model, acquisition packaging"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "professional_services",
+      "name": "Professional Services Firm",
+      "description": "Licensed or specialized practice delivering regulated or expert services. Covers law firms, accounting firms, architecture firms, engineering consultancies, medical practices, and financial advisory firms.",
+      "icon": "shield-certified",
+      "industry_verticals": ["professional_services", "legal", "accounting", "architecture", "engineering"],
+      "default_departments": [
+        {"name": "Practice / Service Delivery", "slug": "practice", "purpose": "Client service delivery, case/engagement management, technical quality, continuing education", "headcount_range": "2-50"},
+        {"name": "Client Development", "slug": "client-development", "purpose": "New client acquisition, referral management, networking, speaking engagements, reputation building", "headcount_range": "1-5"},
+        {"name": "Operations & Administration", "slug": "operations", "purpose": "Scheduling, client intake, records management, office management, technology", "headcount_range": "1-5"},
+        {"name": "Finance & Billing", "slug": "finance", "purpose": "Time tracking, billing, collections, trust accounting (if applicable), financial reporting", "headcount_range": "1-3"},
+        {"name": "Compliance & Risk", "slug": "compliance", "purpose": "Professional licensing, malpractice insurance, regulatory compliance, conflicts checking, ethics", "headcount_range": "1-2"}
+      ],
+      "default_workflows": [
+        {"name": "Client Intake", "category": "revenue", "trigger": "event:prospect_inquiry", "steps_summary": "Initial consultation -> Conflicts check -> Engagement letter -> Fee agreement -> Onboard to system -> Assign team -> Kickoff", "estimated_steps": 7},
+        {"name": "Matter / Engagement Management", "category": "operations", "trigger": "event:engagement_opened", "steps_summary": "Scope definition -> Task planning -> Team assignment -> Work execution -> Quality review -> Client delivery -> Close matter -> Archive", "estimated_steps": 8},
+        {"name": "Time & Billing Cycle", "category": "finance", "trigger": "scheduled:monthly", "steps_summary": "Review unbilled time -> Draft invoices -> Partner review -> Send invoices -> Track payments -> Follow up on aging -> Write off if necessary", "estimated_steps": 7},
+        {"name": "Compliance Review", "category": "compliance", "trigger": "scheduled:quarterly", "steps_summary": "License renewal check -> CE credit tracking -> Insurance review -> Regulatory filing check -> Conflicts database update -> Risk assessment", "estimated_steps": 6},
+        {"name": "Continuing Education Tracking", "category": "people", "trigger": "scheduled:quarterly", "steps_summary": "Track credits per professional -> Identify gaps -> Find relevant programs -> Register -> Complete -> Record credits -> Verify compliance", "estimated_steps": 7},
+        {"name": "Client Satisfaction Review", "category": "customer", "trigger": "event:matter_closed", "steps_summary": "Send satisfaction survey -> Collect feedback -> Analyze responses -> Identify improvement areas -> Request testimonial -> Update service processes", "estimated_steps": 6}
+      ],
+      "default_roles": [
+        {"name": "Managing Partner / Principal", "department": "practice", "type": "human", "authority_scope": "firm_strategy, major_client_decisions, fee_approval, hiring", "escalation_to": "none_top_of_chain"},
+        {"name": "Associate / Practitioner", "department": "practice", "type": "human", "authority_scope": "client_work_execution, research, drafting, client_communication_within_scope", "escalation_to": "Managing Partner"},
+        {"name": "Office Manager", "department": "operations", "type": "human_or_agent", "authority_scope": "scheduling, records, vendor_management, technology_administration", "escalation_to": "Managing Partner"},
+        {"name": "Billing Coordinator", "department": "finance", "type": "human_or_agent", "authority_scope": "invoice_preparation, payment_tracking, collections_within_policy", "escalation_to": "Managing Partner"}
+      ],
+      "default_kpis": [
+        {"name": "Revenue per Professional", "calculation": "total_revenue / number_of_professionals", "target_unit": "currency", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Utilization Rate", "calculation": "billable_hours / available_hours", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "practice"},
+        {"name": "Realization Rate", "calculation": "collected_revenue / billed_value", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Average Collection Period", "calculation": "avg(payment_date - invoice_date)", "target_unit": "days", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Client Retention Rate", "calculation": "returning_clients / total_clients", "target_unit": "percentage", "reporting_cadence": "annually", "department": "client-development"},
+        {"name": "Matters per Professional", "calculation": "active_matters / number_of_professionals", "target_unit": "count", "reporting_cadence": "monthly", "department": "practice"},
+        {"name": "Referral Rate", "calculation": "new_clients_from_referral / total_new_clients", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "client-development"},
+        {"name": "Compliance Score", "calculation": "compliant_items / total_compliance_items", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "compliance"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Professional services firm leadership. Monitor utilization, realization, and revenue per professional. Flag professionals below target utilization. Track client concentration risk. Manage partner compensation model."},
+        {"canonical_agent": "Sales", "template_instructions": "Client development. Track referral sources and conversion rates. Manage networking and speaking calendar. Monitor client satisfaction scores. Identify cross-sell opportunities across practice areas."},
+        {"canonical_agent": "Finance", "template_instructions": "Professional services billing and collections. Monitor WIP aging, realization rates, and collection periods. Track trust account balances (if applicable). Flag overdue invoices. Generate partner compensation reports."},
+        {"canonical_agent": "Legal", "template_instructions": "Compliance and risk management. Monitor professional license renewals, CE requirements, malpractice insurance, and regulatory filings. Run conflicts checks on new matters. Track ethics compliance."},
+        {"canonical_agent": "Ops", "template_instructions": "Firm operations. Scheduling optimization, records management, technology administration. Track office costs and overhead allocation. Manage vendor contracts and lease terms."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["compliance"], "focus": "Get first clients, establish practice area, build initial reputation"},
+        "validation": {"focus": "Prove service model, refine pricing, build referral network"},
+        "launch": {"focus": "Hire first associate, establish billing cadence, professional licenses"},
+        "early_revenue": {"focus": "Build steady client pipeline, systematize intake, establish compliance"},
+        "growth": {"add_departments": [{"name": "Human Resources", "slug": "hr", "purpose": "Recruiting, professional development, associate/partner track"}], "focus": "Multiple practice areas, partner track, geographic expansion"},
+        "scale": {"focus": "Multi-office, lateral hiring, practice group P&L, institutional clients"},
+        "maturity": {"focus": "Succession planning, of-counsel arrangements, practice area optimization"},
+        "exit": {"focus": "Merger with larger firm, book of business valuation, transition planning"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "manufacturing",
+      "name": "Manufacturing Company",
+      "description": "Business that produces physical goods through fabrication, assembly, or processing. Covers contract manufacturing, own-brand manufacturing, food processing, and light industrial production.",
+      "icon": "factory-gear",
+      "industry_verticals": ["manufacturing", "industrial", "food_processing"],
+      "default_departments": [
+        {"name": "Production", "slug": "production", "purpose": "Manufacturing operations, production scheduling, quality control, equipment maintenance, safety", "headcount_range": "5-100"},
+        {"name": "Supply Chain", "slug": "supply-chain", "purpose": "Raw material procurement, vendor management, inventory control, logistics, warehousing", "headcount_range": "2-10"},
+        {"name": "Quality Assurance", "slug": "quality", "purpose": "Inspection, testing, standards compliance, process audits, defect tracking, certifications", "headcount_range": "1-10"},
+        {"name": "Sales & Distribution", "slug": "sales", "purpose": "Customer acquisition, order management, distributor relationships, pricing, demand forecasting", "headcount_range": "1-10"},
+        {"name": "Engineering", "slug": "engineering", "purpose": "Product design, process engineering, tooling, continuous improvement, R&D", "headcount_range": "1-10"},
+        {"name": "Finance", "slug": "finance", "purpose": "Cost accounting, inventory valuation, COGS tracking, capital expenditure management, margin analysis", "headcount_range": "1-3"},
+        {"name": "Safety & Compliance", "slug": "safety", "purpose": "OSHA compliance, environmental regulations, workplace safety, incident reporting, training", "headcount_range": "1-3"}
+      ],
+      "default_workflows": [
+        {"name": "Production Order Execution", "category": "operations", "trigger": "event:production_order_created", "steps_summary": "Material availability check -> Schedule production run -> Setup -> Execute -> In-process inspection -> Complete -> Final QC -> Pack -> Ship or warehouse", "estimated_steps": 9},
+        {"name": "Raw Material Procurement", "category": "operations", "trigger": "condition:inventory_below_reorder_point", "steps_summary": "Generate requirement -> Source vendor -> Request quote -> PO approval -> Issue PO -> Track delivery -> Receive -> Inspect -> Store -> Update inventory", "estimated_steps": 10},
+        {"name": "Quality Non-Conformance", "category": "compliance", "trigger": "event:defect_detected", "steps_summary": "Quarantine product -> Document defect -> Root cause analysis -> Corrective action plan -> Implement fix -> Verify effectiveness -> Close NCR -> Update procedures", "estimated_steps": 8},
+        {"name": "New Product Introduction (NPI)", "category": "product", "trigger": "manual", "steps_summary": "Design review -> Prototype -> Testing -> Process design -> Pilot run -> Quality validation -> Scale-up -> Launch -> Monitor initial production", "estimated_steps": 9},
+        {"name": "Equipment Maintenance", "category": "operations", "trigger": "scheduled:per_maintenance_schedule_or_breakdown", "steps_summary": "Preventive schedule check -> Work order generation -> Parts availability -> Maintenance execution -> Testing -> Sign-off -> Update records -> Adjust schedule", "estimated_steps": 8},
+        {"name": "Monthly Production Review", "category": "strategy", "trigger": "scheduled:0 9 1 * *", "steps_summary": "OEE calculation -> Yield analysis -> Scrap/waste review -> Throughput vs target -> Labor efficiency -> Cost variance analysis -> Improvement plan", "estimated_steps": 7},
+        {"name": "Safety Incident Response", "category": "compliance", "trigger": "event:safety_incident", "steps_summary": "Immediate response -> Secure area -> Medical attention -> Document incident -> Investigate -> Root cause -> Corrective action -> OSHA reporting (if required) -> Close", "estimated_steps": 9}
+      ],
+      "default_roles": [
+        {"name": "Plant Manager", "department": "production", "type": "human", "authority_scope": "production_scheduling, staffing, safety, equipment_decisions", "escalation_to": "CEO"},
+        {"name": "Production Supervisor", "department": "production", "type": "human", "authority_scope": "shift_management, work_order_execution, frontline_quality", "escalation_to": "Plant Manager"},
+        {"name": "Quality Manager", "department": "quality", "type": "human_or_agent", "authority_scope": "quality_standards, inspection_protocols, NCR_management, certification_maintenance", "escalation_to": "Plant Manager"},
+        {"name": "Supply Chain Manager", "department": "supply-chain", "type": "human_or_agent", "authority_scope": "vendor_selection, PO_approval_within_limits, inventory_management, logistics", "escalation_to": "CEO"},
+        {"name": "Process Engineer", "department": "engineering", "type": "human_or_agent", "authority_scope": "process_optimization, tooling_design, CI_projects", "escalation_to": "Plant Manager"}
+      ],
+      "default_kpis": [
+        {"name": "Overall Equipment Effectiveness (OEE)", "calculation": "availability * performance * quality", "target_unit": "percentage", "reporting_cadence": "daily", "department": "production"},
+        {"name": "First Pass Yield", "calculation": "good_units / total_units_produced", "target_unit": "percentage", "reporting_cadence": "daily", "department": "quality"},
+        {"name": "Scrap Rate", "calculation": "scrap_value / total_production_value", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "production"},
+        {"name": "On-Time Delivery Rate", "calculation": "orders_delivered_on_time / total_orders", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "sales"},
+        {"name": "Inventory Days of Supply", "calculation": "inventory_value / daily_usage_value", "target_unit": "days", "reporting_cadence": "weekly", "department": "supply-chain"},
+        {"name": "Unit Manufacturing Cost", "calculation": "total_manufacturing_costs / units_produced", "target_unit": "currency", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Safety Incident Rate", "calculation": "(incidents * 200000) / total_hours_worked", "target_unit": "rate", "reporting_cadence": "monthly", "department": "safety"},
+        {"name": "Capacity Utilization", "calculation": "actual_output / maximum_possible_output", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "production"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Manufacturing company leadership. Monitor OEE, unit costs, and delivery performance. Flag capacity constraints and bottlenecks. Track capex ROI. Manage customer concentration risk."},
+        {"canonical_agent": "Ops", "template_instructions": "Production operations management. Monitor OEE components (availability, performance, quality) by line. Track maintenance schedules and downtime causes. Manage shift scheduling for demand fluctuations."},
+        {"canonical_agent": "Engineering", "template_instructions": "Manufacturing engineering. Track process capability (Cpk), tooling wear, and improvement project ROI. Support NPI with process design. Monitor technology upgrade opportunities."},
+        {"canonical_agent": "Sales", "template_instructions": "Manufacturing sales. Track order backlog and lead times. Monitor customer satisfaction with delivery and quality. Generate demand forecasts. Manage distributor/rep relationships."},
+        {"canonical_agent": "Finance", "template_instructions": "Manufacturing financial management. Cost accounting by product/line. Track material cost variances. Monitor inventory valuation (FIFO/LIFO). Capex tracking and depreciation. Margin analysis by product."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["quality", "safety"], "focus": "Prototype development, contract manufacturing evaluation, first customer LOI"},
+        "validation": {"focus": "Pilot production run, quality validation, unit economics proof"},
+        "launch": {"focus": "Production ramp, quality system establishment, first full production run"},
+        "early_revenue": {"focus": "Optimize yields, reduce scrap, build reliable supply chain"},
+        "growth": {"focus": "Second shift, equipment expansion, geographic market expansion"},
+        "scale": {"add_departments": [{"name": "Continuous Improvement", "slug": "ci", "purpose": "Lean manufacturing, Six Sigma, kaizen events, waste reduction"}], "focus": "Multi-line, automation, lean transformation"},
+        "maturity": {"focus": "Vertical integration, acquisitions, adjacent product lines"},
+        "exit": {"focus": "Facility modernization, customer contract transferability, clean environmental compliance"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "construction",
+      "name": "Construction Company",
+      "description": "Business performing construction, renovation, or specialty trade work. Covers general contractors, subcontractors, home builders, commercial construction, and specialty trades (electrical, plumbing, HVAC).",
+      "icon": "hard-hat",
+      "industry_verticals": ["construction", "real_estate_development", "trades"],
+      "default_departments": [
+        {"name": "Project Management", "slug": "project-management", "purpose": "Job scheduling, resource coordination, client communication, change orders, RFIs", "headcount_range": "1-10"},
+        {"name": "Field Operations", "slug": "field-ops", "purpose": "On-site construction execution, crew management, daily logs, safety compliance", "headcount_range": "5-100"},
+        {"name": "Estimating & Preconstruction", "slug": "estimating", "purpose": "Bid preparation, takeoffs, cost estimating, value engineering, subcontractor scoping", "headcount_range": "1-5"},
+        {"name": "Finance & Accounting", "slug": "finance", "purpose": "Job costing, progress billing, lien waivers, cash flow management, bonding", "headcount_range": "1-3"},
+        {"name": "Safety", "slug": "safety", "purpose": "OSHA compliance, safety training, incident investigation, site inspections, toolbox talks", "headcount_range": "1-3"},
+        {"name": "Business Development", "slug": "business-development", "purpose": "Client relationships, bid opportunities, networking, prequalification submissions", "headcount_range": "1-3"}
+      ],
+      "default_workflows": [
+        {"name": "Bid & Estimating Process", "category": "revenue", "trigger": "event:rfp_received_or_opportunity_identified", "steps_summary": "Review opportunity -> Go/no-go decision -> Takeoff -> Sub scoping -> Price assembly -> Internal review -> Submit bid -> Follow up -> Award negotiation", "estimated_steps": 9},
+        {"name": "Project Execution", "category": "operations", "trigger": "event:contract_signed", "steps_summary": "Preconstruction meeting -> Schedule development -> Submittals -> Material procurement -> Mobilize -> Phase execution -> Inspections -> Punch list -> Closeout -> Warranty", "estimated_steps": 10},
+        {"name": "Change Order Management", "category": "operations", "trigger": "event:change_request", "steps_summary": "Evaluate scope change -> Estimate cost impact -> Prepare change order -> Client review -> Negotiate -> Approve/reject -> Update schedule and budget -> Execute", "estimated_steps": 8},
+        {"name": "Progress Billing", "category": "finance", "trigger": "scheduled:monthly", "steps_summary": "Measure work completed -> Calculate percent complete -> Prepare pay application -> Support documentation -> Submit to client -> Track approval -> Collect payment -> Update job cost", "estimated_steps": 8},
+        {"name": "Safety Inspection Cycle", "category": "compliance", "trigger": "scheduled:weekly", "steps_summary": "Site walkthrough -> Document hazards -> Issue corrections -> Verify corrections -> Update safety log -> Toolbox talk on findings -> Report to management", "estimated_steps": 7},
+        {"name": "Subcontractor Management", "category": "operations", "trigger": "event:subcontract_awarded", "steps_summary": "Subcontract execution -> Insurance verification -> Schedule coordination -> Quality oversight -> Progress tracking -> Payment processing -> Evaluate performance", "estimated_steps": 7}
+      ],
+      "default_roles": [
+        {"name": "Project Manager", "department": "project-management", "type": "human", "authority_scope": "job_execution, client_communication, change_orders, schedule_management", "escalation_to": "CEO"},
+        {"name": "Superintendent", "department": "field-ops", "type": "human", "authority_scope": "field_operations, crew_management, daily_scheduling, quality_on_site", "escalation_to": "Project Manager"},
+        {"name": "Estimator", "department": "estimating", "type": "human_or_agent", "authority_scope": "cost_estimation, bid_preparation, subcontractor_scoping", "escalation_to": "CEO"},
+        {"name": "Safety Manager", "department": "safety", "type": "human", "authority_scope": "safety_compliance, training, incident_investigation, stop_work_authority", "escalation_to": "CEO"},
+        {"name": "Project Accountant", "department": "finance", "type": "human_or_agent", "authority_scope": "job_costing, billing, lien_waiver_tracking, cash_flow_reporting", "escalation_to": "CEO"}
+      ],
+      "default_kpis": [
+        {"name": "Job Gross Margin", "calculation": "(contract_value - job_costs) / contract_value", "target_unit": "percentage", "reporting_cadence": "per_job", "department": "finance"},
+        {"name": "Backlog Value", "calculation": "sum(remaining_contract_values)", "target_unit": "currency", "reporting_cadence": "monthly", "department": "business-development"},
+        {"name": "Schedule Performance Index", "calculation": "earned_value / planned_value", "target_unit": "ratio", "reporting_cadence": "monthly", "department": "project-management"},
+        {"name": "Cost Performance Index", "calculation": "earned_value / actual_cost", "target_unit": "ratio", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Bid Win Rate", "calculation": "bids_won / bids_submitted", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "estimating"},
+        {"name": "Safety Incident Rate (EMR)", "calculation": "experience_modification_rate", "target_unit": "rate", "reporting_cadence": "annually", "department": "safety"},
+        {"name": "Days Sales Outstanding (DSO)", "calculation": "avg(payment_date - invoice_date)", "target_unit": "days", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Change Order Percentage", "calculation": "change_order_value / original_contract_value", "target_unit": "percentage", "reporting_cadence": "per_job", "department": "project-management"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Construction company leadership. Monitor backlog health, job margins, and cash flow. Flag jobs trending over budget early. Track bonding capacity. Manage client relationship portfolio."},
+        {"canonical_agent": "Ops", "template_instructions": "Construction operations. Monitor schedule performance across active jobs. Track labor productivity. Manage equipment utilization and maintenance. Coordinate subcontractor scheduling."},
+        {"canonical_agent": "Sales", "template_instructions": "Construction business development. Track bid pipeline and win rates. Monitor market conditions and competitor activity. Maintain prequalification packages. Identify repeat client opportunities."},
+        {"canonical_agent": "Finance", "template_instructions": "Construction financial management. Job cost tracking (WIP schedule, over/underbilling). Progress billing management. Cash flow forecasting across multiple jobs. Bonding and insurance management."},
+        {"canonical_agent": "Legal", "template_instructions": "Construction legal and risk. Contract review and negotiation. Lien rights tracking. Insurance certificate management. Change order documentation. Dispute resolution support."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["safety", "business-development"], "focus": "Get first contract, prove execution capability, build subcontractor network"},
+        "validation": {"focus": "Complete 3-5 projects profitably, establish safety record, build references"},
+        "launch": {"focus": "Hire first PM/super, formalize estimating process, establish credit lines"},
+        "early_revenue": {"focus": "Build backlog, systematize job costing, establish bonding capacity"},
+        "growth": {"focus": "Multiple concurrent jobs, hire field management, scale operations"},
+        "scale": {"add_departments": [{"name": "Preconstruction", "slug": "precon", "purpose": "Dedicated preconstruction services, design-build coordination, BIM"}], "focus": "Multiple markets, specialty divisions, design-build capability"},
+        "maturity": {"focus": "Self-perform expansion, equipment fleet, geographic expansion"},
+        "exit": {"focus": "Backlog transferability, key personnel retention, clean project history"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "healthcare",
+      "name": "Healthcare Practice / Clinic",
+      "description": "Medical or wellness practice delivering healthcare services. Covers medical clinics, dental practices, physical therapy, mental health practices, urgent care, and specialty practices.",
+      "icon": "heart-pulse",
+      "industry_verticals": ["healthcare", "medical", "wellness"],
+      "default_departments": [
+        {"name": "Clinical Operations", "slug": "clinical", "purpose": "Patient care, clinical protocols, treatment planning, clinical quality, provider scheduling", "headcount_range": "2-30"},
+        {"name": "Front Office", "slug": "front-office", "purpose": "Scheduling, patient intake, check-in/check-out, phone management, patient communication", "headcount_range": "2-10"},
+        {"name": "Billing & Revenue Cycle", "slug": "billing", "purpose": "Insurance verification, coding, claims submission, payment posting, denial management, patient collections", "headcount_range": "1-5"},
+        {"name": "Compliance & Quality", "slug": "compliance", "purpose": "HIPAA compliance, clinical quality measures, credentialing, accreditation, risk management", "headcount_range": "1-3"},
+        {"name": "Practice Management", "slug": "management", "purpose": "Operations, staffing, vendor management, facility management, growth strategy", "headcount_range": "1-3"}
+      ],
+      "default_workflows": [
+        {"name": "Patient Intake & Onboarding", "category": "customer", "trigger": "event:new_patient_scheduled", "steps_summary": "Pre-visit paperwork -> Insurance verification -> Benefits check -> Create chart -> Appointment reminder -> Check-in -> Clinical intake -> Provider visit", "estimated_steps": 8},
+        {"name": "Revenue Cycle Management", "category": "finance", "trigger": "event:visit_completed", "steps_summary": "Charge capture -> Code review -> Claim creation -> Scrub -> Submit to payer -> Track adjudication -> Post payment -> Denial follow-up -> Patient balance billing", "estimated_steps": 9},
+        {"name": "Appointment Scheduling Optimization", "category": "operations", "trigger": "scheduled:daily", "steps_summary": "Review schedule gaps -> Fill from waitlist -> Confirm upcoming appointments -> Send reminders -> Track no-show patterns -> Adjust booking rules", "estimated_steps": 6},
+        {"name": "Credentialing & Payer Enrollment", "category": "compliance", "trigger": "event:new_provider_or_recredentialing", "steps_summary": "Gather provider documents -> Complete applications -> Submit to payers -> Track status -> Follow up -> Complete enrollment -> Update fee schedules", "estimated_steps": 7},
+        {"name": "HIPAA Compliance Review", "category": "compliance", "trigger": "scheduled:quarterly", "steps_summary": "Risk assessment -> Policy review -> Staff training verification -> Security controls check -> Breach log review -> Update procedures -> Document compliance", "estimated_steps": 7},
+        {"name": "Patient Recall & Follow-up", "category": "customer", "trigger": "scheduled:weekly", "steps_summary": "Identify patients due for follow-up -> Generate recall list -> Send reminders -> Track responses -> Schedule appointments -> Flag non-responders for outreach", "estimated_steps": 6}
+      ],
+      "default_roles": [
+        {"name": "Practice Owner / Medical Director", "department": "clinical", "type": "human", "authority_scope": "clinical_decisions, treatment_protocols, hiring_providers, practice_strategy", "escalation_to": "none_top_of_chain"},
+        {"name": "Office Manager", "department": "management", "type": "human", "authority_scope": "daily_operations, staff_management, vendor_management, patient_complaints", "escalation_to": "Practice Owner"},
+        {"name": "Billing Manager", "department": "billing", "type": "human_or_agent", "authority_scope": "claims_management, denial_resolution, coding_accuracy, collections", "escalation_to": "Office Manager"},
+        {"name": "Front Desk Lead", "department": "front-office", "type": "human_or_agent", "authority_scope": "scheduling, patient_communication, intake_process", "escalation_to": "Office Manager"},
+        {"name": "Compliance Officer", "department": "compliance", "type": "human_or_agent", "authority_scope": "hipaa_enforcement, quality_measures, credentialing", "escalation_to": "Practice Owner"}
+      ],
+      "default_kpis": [
+        {"name": "Revenue per Provider", "calculation": "total_collections / number_of_providers", "target_unit": "currency", "reporting_cadence": "monthly", "department": "management"},
+        {"name": "Collection Rate", "calculation": "payments_collected / charges_billed", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "billing"},
+        {"name": "Days in A/R", "calculation": "total_AR / average_daily_charges", "target_unit": "days", "reporting_cadence": "monthly", "department": "billing"},
+        {"name": "Denial Rate", "calculation": "denied_claims / total_claims_submitted", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "billing"},
+        {"name": "Patient No-Show Rate", "calculation": "no_shows / scheduled_appointments", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "front-office"},
+        {"name": "Patient Satisfaction Score", "calculation": "avg(patient_survey_scores)", "target_unit": "score_1_to_5", "reporting_cadence": "monthly", "department": "clinical"},
+        {"name": "Provider Utilization", "calculation": "scheduled_slots / available_slots", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "clinical"},
+        {"name": "New Patient Volume", "calculation": "count(new_patients)", "target_unit": "count", "reporting_cadence": "monthly", "department": "front-office"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Healthcare practice strategic oversight. Monitor revenue per provider, collection rates, and patient volume trends. Flag payer mix shifts. Track compliance deadlines. Evaluate expansion opportunities (new providers, locations, specialties)."},
+        {"canonical_agent": "Finance", "template_instructions": "Healthcare revenue cycle management. Monitor clean claim rate, days in A/R, and denial patterns. Track payer-specific performance. Manage patient balance collections. Generate provider productivity reports."},
+        {"canonical_agent": "Ops", "template_instructions": "Practice operations. Optimize scheduling templates for maximum utilization. Monitor no-show patterns and adjust overbooking rules. Manage vendor contracts (supplies, labs, technology). Track facility maintenance."},
+        {"canonical_agent": "Legal", "template_instructions": "Healthcare compliance and risk. HIPAA compliance monitoring. Credentialing timeline tracking. Malpractice risk assessment. Regulatory change monitoring. Quality measure reporting."},
+        {"canonical_agent": "CS", "template_instructions": "Patient experience management. Monitor satisfaction scores and online reviews. Track complaint resolution times. Manage patient recall programs. Coordinate referral acknowledgments."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["compliance"], "focus": "Credentialing, location selection, initial payer contracts"},
+        "validation": {"focus": "First patients, establish clinical workflow, prove collection model"},
+        "launch": {"focus": "Build patient volume, establish referral relationships, hire support staff"},
+        "early_revenue": {"focus": "Optimize billing, reduce no-shows, build panel size"},
+        "growth": {"focus": "Add providers, extend hours, add specialties or services"},
+        "scale": {"add_departments": [{"name": "Multi-Site Operations", "slug": "multi-site", "purpose": "Location management, standardization, central billing"}], "focus": "Multiple locations, centralized operations, group purchasing"},
+        "maturity": {"focus": "PE partnership evaluation, ancillary revenue, clinical research"},
+        "exit": {"focus": "Practice valuation, buyer identification, patient panel transferability"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "education",
+      "name": "Education Business",
+      "description": "Business delivering education, training, or skill development. Covers online courses, coaching programs, bootcamps, tutoring services, training companies, and educational content businesses.",
+      "icon": "graduation-cap",
+      "industry_verticals": ["education", "edtech", "professional_development"],
+      "default_departments": [
+        {"name": "Curriculum & Content", "slug": "curriculum", "purpose": "Course design, content creation, curriculum updates, learning outcomes measurement, instructor development", "headcount_range": "1-10"},
+        {"name": "Student Success", "slug": "student-success", "purpose": "Enrollment, onboarding, student support, retention, outcomes tracking, community management", "headcount_range": "1-5"},
+        {"name": "Marketing & Enrollment", "slug": "marketing", "purpose": "Lead generation, enrollment campaigns, webinars, content marketing, referral programs", "headcount_range": "1-5"},
+        {"name": "Operations", "slug": "operations", "purpose": "Platform management, scheduling, technology, payment processing, vendor management", "headcount_range": "1-3"},
+        {"name": "Finance", "slug": "finance", "purpose": "Tuition management, payment plans, refund processing, revenue forecasting, financial aid (if applicable)", "headcount_range": "1-2"}
+      ],
+      "default_workflows": [
+        {"name": "Course Development Pipeline", "category": "product", "trigger": "manual_or_scheduled", "steps_summary": "Topic validation -> Outline -> Content creation -> Review -> Production (video/materials) -> Platform upload -> Beta test -> Launch -> Iterate", "estimated_steps": 9},
+        {"name": "Student Enrollment Funnel", "category": "revenue", "trigger": "event:lead_captured", "steps_summary": "Lead nurture sequence -> Webinar/event invitation -> Application/enrollment form -> Review -> Acceptance -> Payment setup -> Onboarding -> Cohort assignment", "estimated_steps": 8},
+        {"name": "Student Onboarding", "category": "customer", "trigger": "event:enrollment_confirmed", "steps_summary": "Welcome communication -> Platform access -> Orientation session -> Cohort introduction -> First assignment -> Week 1 check-in -> Support channel setup", "estimated_steps": 7},
+        {"name": "Student Retention Intervention", "category": "customer", "trigger": "condition:engagement_below_threshold", "steps_summary": "Identify at-risk student -> Analyze engagement data -> Reach out -> Discover barriers -> Create action plan -> Monitor progress -> Escalate if needed", "estimated_steps": 7},
+        {"name": "Outcome Tracking & Reporting", "category": "strategy", "trigger": "scheduled:per_cohort_completion", "steps_summary": "Collect completion data -> Survey graduates -> Track job placements/outcomes -> Calculate ROI metrics -> Generate outcome report -> Update marketing materials", "estimated_steps": 6},
+        {"name": "Instructor/Coach Review", "category": "people", "trigger": "scheduled:quarterly", "steps_summary": "Collect student feedback -> Review session recordings -> Evaluate outcome metrics -> Provide feedback -> Update training materials -> Adjust assignments", "estimated_steps": 6}
+      ],
+      "default_roles": [
+        {"name": "Head of Curriculum", "department": "curriculum", "type": "human", "authority_scope": "course_design, content_quality, learning_outcomes, instructor_management", "escalation_to": "CEO"},
+        {"name": "Student Success Manager", "department": "student-success", "type": "human_or_agent", "authority_scope": "student_communication, retention_interventions, community_management", "escalation_to": "CEO"},
+        {"name": "Enrollment Advisor", "department": "marketing", "type": "human_or_agent", "authority_scope": "lead_qualification, enrollment_communication, application_review", "escalation_to": "CEO"},
+        {"name": "Content Producer", "department": "curriculum", "type": "human_or_agent", "authority_scope": "content_creation, video_production, material_design", "escalation_to": "Head of Curriculum"}
+      ],
+      "default_kpis": [
+        {"name": "Enrollment Rate", "calculation": "enrollments / leads", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "marketing"},
+        {"name": "Course Completion Rate", "calculation": "completed_students / enrolled_students", "target_unit": "percentage", "reporting_cadence": "per_cohort", "department": "student-success"},
+        {"name": "Student Satisfaction Score (NPS)", "calculation": "promoters_minus_detractors_percentage", "target_unit": "score", "reporting_cadence": "per_cohort", "department": "student-success"},
+        {"name": "Revenue per Student", "calculation": "total_revenue / active_students", "target_unit": "currency", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Student Acquisition Cost", "calculation": "marketing_spend / new_enrollments", "target_unit": "currency", "reporting_cadence": "monthly", "department": "marketing"},
+        {"name": "Outcome Achievement Rate", "calculation": "students_achieving_stated_outcome / total_graduates", "target_unit": "percentage", "reporting_cadence": "per_cohort", "department": "curriculum"},
+        {"name": "Refund Rate", "calculation": "refunds_issued / total_enrollments", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Referral Rate", "calculation": "referral_enrollments / total_enrollments", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "marketing"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Education business strategic oversight. Monitor enrollment pipeline, completion rates, and outcome metrics. Flag declining completion or satisfaction trends. Track revenue per student and customer LTV across programs."},
+        {"canonical_agent": "Product", "template_instructions": "Curriculum management. Track course engagement analytics (completion, time-on-task, assessment scores). Identify content gaps from student feedback. Manage course update schedule. Monitor competitor offerings."},
+        {"canonical_agent": "Sales", "template_instructions": "Enrollment management. Track funnel from lead to enrolled student. Manage webinar attendance and conversion. Monitor application quality. Follow up with incomplete applications."},
+        {"canonical_agent": "Marketing", "template_instructions": "Education marketing. Content marketing focused on student outcomes and testimonials. Track acquisition cost by channel. Manage referral program. Coordinate launch campaigns for new programs."},
+        {"canonical_agent": "CS", "template_instructions": "Student success management. Monitor engagement signals (login frequency, assignment submission, community participation). Proactive outreach to at-risk students. Manage peer learning communities. Track post-graduation outcomes."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["operations"], "focus": "Validate curriculum with beta cohort, prove learning outcomes, get first testimonials"},
+        "validation": {"focus": "Run 2-3 paid cohorts, refine content from feedback, prove enrollment model"},
+        "launch": {"focus": "Scale enrollment, establish content production cadence, build community"},
+        "early_revenue": {"focus": "Optimize student acquisition cost, build outcome proof, launch referral program"},
+        "growth": {"focus": "Multiple programs, hire instructors/coaches, platform investment"},
+        "scale": {"add_departments": [{"name": "Partnerships", "slug": "partnerships", "purpose": "Corporate training, institutional partnerships, licensing"}], "focus": "B2B channel, accreditation, certification programs"},
+        "maturity": {"focus": "Platform play, instructor marketplace, institutional licensing"},
+        "exit": {"focus": "Student outcome data, recurring revenue proof, brand valuation"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "nonprofit",
+      "name": "Nonprofit Organization",
+      "description": "Mission-driven organization operating for social impact rather than profit. Covers charities, foundations, advocacy organizations, community organizations, and social enterprises.",
+      "icon": "hands-helping",
+      "industry_verticals": ["nonprofit", "social_impact", "philanthropy"],
+      "default_departments": [
+        {"name": "Programs", "slug": "programs", "purpose": "Mission delivery, program design, implementation, impact measurement, beneficiary relationships", "headcount_range": "2-20"},
+        {"name": "Development / Fundraising", "slug": "development", "purpose": "Donor cultivation, grant writing, events, campaigns, major gifts, planned giving", "headcount_range": "1-5"},
+        {"name": "Communications", "slug": "communications", "purpose": "Storytelling, annual reports, social media, PR, advocacy campaigns, brand management", "headcount_range": "1-3"},
+        {"name": "Operations", "slug": "operations", "purpose": "Administration, volunteer management, facilities, technology, compliance", "headcount_range": "1-5"},
+        {"name": "Finance", "slug": "finance", "purpose": "Fund accounting, grant tracking, donor reporting, audit preparation, budgeting, 990 filing", "headcount_range": "1-3"}
+      ],
+      "default_workflows": [
+        {"name": "Grant Application Pipeline", "category": "revenue", "trigger": "event:grant_opportunity_identified", "steps_summary": "Eligibility check -> LOI preparation -> Full application -> Budget development -> Board approval -> Submit -> Track -> Report on award", "estimated_steps": 8},
+        {"name": "Donor Cultivation Cycle", "category": "revenue", "trigger": "event:donor_identified", "steps_summary": "Research donor -> Introductory outreach -> Cultivation meeting -> Proposal -> Ask -> Gift processing -> Acknowledgment -> Stewardship -> Renewal", "estimated_steps": 9},
+        {"name": "Program Delivery & Impact Tracking", "category": "operations", "trigger": "event:program_cycle_start", "steps_summary": "Participant intake -> Service delivery -> Milestone tracking -> Data collection -> Mid-cycle review -> Program completion -> Impact assessment -> Report", "estimated_steps": 8},
+        {"name": "Annual Fundraising Campaign", "category": "revenue", "trigger": "scheduled:annual", "steps_summary": "Set goal -> Segment donors -> Create materials -> Launch campaign -> Track progress -> Mid-campaign push -> Close campaign -> Thank donors -> Report results", "estimated_steps": 9},
+        {"name": "Grant Reporting", "category": "compliance", "trigger": "scheduled:per_grant_schedule", "steps_summary": "Gather program data -> Compile financials -> Write narrative -> Review -> Submit to funder -> Track receipt confirmation", "estimated_steps": 6},
+        {"name": "Volunteer Management Cycle", "category": "people", "trigger": "event:volunteer_application", "steps_summary": "Application review -> Background check -> Onboarding -> Training -> Assignment -> Hour tracking -> Recognition -> Retention outreach", "estimated_steps": 8}
+      ],
+      "default_roles": [
+        {"name": "Executive Director", "department": "programs", "type": "human", "authority_scope": "organizational_strategy, board_relations, major_donor_relationships, program_oversight", "escalation_to": "board_of_directors"},
+        {"name": "Development Director", "department": "development", "type": "human", "authority_scope": "fundraising_strategy, donor_relationships, grant_management, event_planning", "escalation_to": "Executive Director"},
+        {"name": "Program Manager", "department": "programs", "type": "human_or_agent", "authority_scope": "program_execution, participant_management, impact_data, partner_coordination", "escalation_to": "Executive Director"},
+        {"name": "Communications Manager", "department": "communications", "type": "human_or_agent", "authority_scope": "messaging, content_creation, media_relations, social_media", "escalation_to": "Executive Director"},
+        {"name": "Finance Manager", "department": "finance", "type": "human_or_agent", "authority_scope": "fund_accounting, grant_financials, audit_preparation, payroll", "escalation_to": "Executive Director"}
+      ],
+      "default_kpis": [
+        {"name": "Total Revenue Raised", "calculation": "sum(donations + grants + earned_revenue + events)", "target_unit": "currency", "reporting_cadence": "monthly", "department": "development"},
+        {"name": "Donor Retention Rate", "calculation": "donors_who_gave_again / prior_year_donors", "target_unit": "percentage", "reporting_cadence": "annually", "department": "development"},
+        {"name": "Program Impact (Beneficiaries Served)", "calculation": "count(unique_beneficiaries)", "target_unit": "count", "reporting_cadence": "quarterly", "department": "programs"},
+        {"name": "Cost per Beneficiary", "calculation": "total_program_costs / beneficiaries_served", "target_unit": "currency", "reporting_cadence": "annually", "department": "finance"},
+        {"name": "Fundraising Efficiency Ratio", "calculation": "fundraising_costs / total_raised", "target_unit": "percentage", "reporting_cadence": "annually", "department": "finance"},
+        {"name": "Grant Success Rate", "calculation": "grants_awarded / grants_applied", "target_unit": "percentage", "reporting_cadence": "annually", "department": "development"},
+        {"name": "Volunteer Hours Contributed", "calculation": "sum(volunteer_hours)", "target_unit": "hours", "reporting_cadence": "quarterly", "department": "operations"},
+        {"name": "Operating Reserve Months", "calculation": "unrestricted_reserves / monthly_operating_expenses", "target_unit": "months", "reporting_cadence": "quarterly", "department": "finance"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Nonprofit executive oversight. Monitor fundraising trajectory, program impact metrics, and financial sustainability. Flag when operating reserves drop below 3 months. Track board engagement and governance compliance."},
+        {"canonical_agent": "Sales", "template_instructions": "Nonprofit fundraising as 'sales'. Track donor pipeline by cultivation stage. Monitor grant calendar and deadlines. Calculate donor lifetime value. Identify lapsed donor re-engagement opportunities."},
+        {"canonical_agent": "Marketing", "template_instructions": "Nonprofit communications. Impact storytelling across channels. Track engagement metrics on advocacy campaigns. Manage annual report production. Monitor media mentions and PR opportunities."},
+        {"canonical_agent": "Finance", "template_instructions": "Nonprofit fund accounting. Track restricted vs unrestricted funds. Monitor grant expenditure vs budget. Prepare for annual audit. Generate board financial reports. Manage 990 preparation timeline."},
+        {"canonical_agent": "Ops", "template_instructions": "Nonprofit operations. Volunteer management and coordination. Facility management. Technology administration. Compliance tracking (state registrations, insurance). Event logistics support."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["communications"], "focus": "Mission validation, initial board formation, first funding source"},
+        "validation": {"focus": "Pilot program, impact proof, first grant or major donor"},
+        "launch": {"focus": "501(c)(3) filing, board development, first annual campaign"},
+        "early_revenue": {"focus": "Diversify funding sources, establish reporting, build volunteer base"},
+        "growth": {"focus": "Scale programs, hire program staff, strengthen development team"},
+        "scale": {"add_departments": [{"name": "Advocacy", "slug": "advocacy", "purpose": "Policy advocacy, coalition building, grassroots mobilization"}], "focus": "Multi-program, policy advocacy, strategic partnerships"},
+        "maturity": {"focus": "Endowment building, planned giving, national/international expansion"},
+        "exit": {"focus": "Not typical -- succession planning, merger with aligned org, or wind-down"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "freelance",
+      "name": "Freelance / Solo Practice",
+      "description": "Individual professional selling services independently. Covers freelance developers, designers, writers, consultants, coaches, and any solo service provider operating as a business.",
+      "icon": "user-laptop",
+      "industry_verticals": ["freelance", "independent_professional", "gig_economy"],
+      "default_departments": [
+        {"name": "Client Work", "slug": "client-work", "purpose": "Service delivery, project management, client communication, quality control", "headcount_range": "1"},
+        {"name": "Business Development", "slug": "business-development", "purpose": "Pipeline management, proposal writing, networking, portfolio maintenance", "headcount_range": "1"},
+        {"name": "Finance & Admin", "slug": "finance", "purpose": "Invoicing, expense tracking, tax preparation, contract management, insurance", "headcount_range": "1"}
+      ],
+      "default_workflows": [
+        {"name": "Client Acquisition", "category": "revenue", "trigger": "event:lead_received", "steps_summary": "Qualify -> Discovery call -> Scope -> Proposal -> Negotiate -> Contract -> Onboard", "estimated_steps": 7},
+        {"name": "Project Delivery", "category": "operations", "trigger": "event:project_started", "steps_summary": "Kickoff -> Milestones -> Check-ins -> Deliver -> Revisions -> Final delivery -> Testimonial request", "estimated_steps": 7},
+        {"name": "Invoicing & Cash Flow", "category": "finance", "trigger": "scheduled:milestone_or_monthly", "steps_summary": "Track time -> Generate invoice -> Send -> Follow up on overdue -> Reconcile -> Quarterly tax estimate", "estimated_steps": 6},
+        {"name": "Weekly Business Review", "category": "strategy", "trigger": "scheduled:0 9 * * 1", "steps_summary": "Review pipeline -> Check deliverables -> Plan week -> Update availability -> Marketing action -> Admin catch-up", "estimated_steps": 6},
+        {"name": "Portfolio & Presence Update", "category": "content", "trigger": "scheduled:monthly", "steps_summary": "Add recent work -> Update testimonials -> Refresh profiles -> Write case study -> Social content -> Network outreach", "estimated_steps": 6}
+      ],
+      "default_roles": [
+        {"name": "Owner / Principal", "department": "client-work", "type": "human", "authority_scope": "everything -- single operator", "escalation_to": "none_sole_operator"}
+      ],
+      "default_kpis": [
+        {"name": "Monthly Revenue", "calculation": "sum(invoiced_amounts)", "target_unit": "currency", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Effective Hourly Rate", "calculation": "total_revenue / total_hours_worked", "target_unit": "currency_per_hour", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Pipeline Value", "calculation": "sum(weighted_opportunity_values)", "target_unit": "currency", "reporting_cadence": "weekly", "department": "business-development"},
+        {"name": "Utilization Rate", "calculation": "billable_hours / available_hours", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "client-work"},
+        {"name": "Client Repeat Rate", "calculation": "repeat_clients / total_clients", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "business-development"},
+        {"name": "Days Sales Outstanding", "calculation": "avg(payment_date - invoice_date)", "target_unit": "days", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Proposal Win Rate", "calculation": "proposals_accepted / proposals_sent", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "business-development"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Solo operator strategic advisor. Monitor income stability, pipeline health, and effective rate trends. Flag feast/famine cycles early. Recommend pricing adjustments based on utilization. Track annual income target progress."},
+        {"canonical_agent": "Sales", "template_instructions": "Freelance business development. Track leads and proposals. Monitor proposal aging. Calculate proposal-to-close rate. Suggest outreach activities when pipeline is thin. Draft proposals from templates."},
+        {"canonical_agent": "Finance", "template_instructions": "Freelance financial management. Invoice tracking and follow-up. Quarterly estimated tax calculations. Expense categorization for deductions. Cash flow forecasting. Year-end tax preparation support."}
+      ],
+      "stage_adaptations": {
+        "idea": {"focus": "First paying client, validate service offering, establish online presence"},
+        "validation": {"focus": "Repeat clients, referral generation, pricing validation"},
+        "launch": {"focus": "Consistent pipeline, raise rates, establish processes"},
+        "early_revenue": {"focus": "Productize services, build referral engine, financial stability"},
+        "growth": {"focus": "Subcontract overflow, productized offerings, passive income streams"},
+        "scale": {"add_departments": [{"name": "Team", "slug": "team", "purpose": "Subcontractors, virtual assistants, specialists"}], "focus": "Transition from freelancer to agency/firm model"},
+        "maturity": {"focus": "Premium positioning, thought leadership, selective client base"},
+        "exit": {"focus": "Productize into SaaS/course, or transition to agency sale"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "marketplace",
+      "name": "Marketplace Platform",
+      "description": "Two-sided or multi-sided platform connecting buyers and sellers, service providers and clients, or supply and demand. Covers B2B marketplaces, service marketplaces, rental marketplaces, and niche vertical marketplaces.",
+      "icon": "exchange-arrows",
+      "industry_verticals": ["technology", "platform", "marketplace"],
+      "default_departments": [
+        {"name": "Product", "slug": "product", "purpose": "Platform features, matching algorithms, search/discovery, user experience, mobile", "headcount_range": "2-10"},
+        {"name": "Supply Operations", "slug": "supply-ops", "purpose": "Seller/provider acquisition, onboarding, quality standards, supply-side support", "headcount_range": "1-10"},
+        {"name": "Demand / Marketing", "slug": "demand", "purpose": "Buyer acquisition, demand generation, SEO, paid marketing, brand", "headcount_range": "1-5"},
+        {"name": "Trust & Safety", "slug": "trust-safety", "purpose": "Fraud prevention, dispute resolution, content moderation, verification, compliance", "headcount_range": "1-5"},
+        {"name": "Engineering", "slug": "engineering", "purpose": "Platform development, infrastructure, payments integration, API, performance", "headcount_range": "2-20"},
+        {"name": "Finance", "slug": "finance", "purpose": "GMV tracking, take rate optimization, payment processing, seller payouts, financial modeling", "headcount_range": "1-3"}
+      ],
+      "default_workflows": [
+        {"name": "Seller/Provider Onboarding", "category": "operations", "trigger": "event:seller_application", "steps_summary": "Application review -> Verification -> Profile creation -> Quality check -> Training materials -> Listing activation -> First transaction support", "estimated_steps": 7},
+        {"name": "Transaction Lifecycle", "category": "operations", "trigger": "event:order_placed", "steps_summary": "Match/accept -> Payment hold -> Service/product delivery -> Confirmation -> Release payment -> Commission deduction -> Review prompt -> Dispute window", "estimated_steps": 8},
+        {"name": "Dispute Resolution", "category": "customer", "trigger": "event:dispute_filed", "steps_summary": "Intake -> Gather evidence from both sides -> Review policies -> Mediate -> Decision -> Execute resolution -> Update trust scores -> Process refund if applicable", "estimated_steps": 8},
+        {"name": "Supply Quality Monitoring", "category": "operations", "trigger": "scheduled:weekly", "steps_summary": "Review rating distributions -> Identify low-performers -> Issue warnings -> Provide improvement guidance -> Monitor improvement -> Deactivate if necessary", "estimated_steps": 6},
+        {"name": "Marketplace Health Reporting", "category": "strategy", "trigger": "scheduled:0 9 1 * *", "steps_summary": "Calculate liquidity metrics -> Measure search-to-transaction rate -> Analyze take rate -> Supply/demand balance -> Growth by category -> Fraud rate review", "estimated_steps": 6},
+        {"name": "Fraud Detection & Prevention", "category": "compliance", "trigger": "event:suspicious_activity_flagged", "steps_summary": "Alert review -> Transaction analysis -> Account investigation -> Action (warn/suspend/ban) -> Update fraud rules -> Notify affected parties", "estimated_steps": 6}
+      ],
+      "default_roles": [
+        {"name": "Head of Marketplace", "department": "product", "type": "human", "authority_scope": "platform_strategy, marketplace_mechanics, category_expansion", "escalation_to": "CEO"},
+        {"name": "Supply Manager", "department": "supply-ops", "type": "human_or_agent", "authority_scope": "seller_acquisition, quality_enforcement, seller_support", "escalation_to": "Head of Marketplace"},
+        {"name": "Growth Lead", "department": "demand", "type": "human_or_agent", "authority_scope": "buyer_acquisition, marketing_campaigns, SEO_strategy", "escalation_to": "CEO"},
+        {"name": "Trust & Safety Lead", "department": "trust-safety", "type": "human_or_agent", "authority_scope": "dispute_resolution, fraud_policy, content_moderation, account_actions", "escalation_to": "CEO"}
+      ],
+      "default_kpis": [
+        {"name": "Gross Merchandise Value (GMV)", "calculation": "sum(transaction_values)", "target_unit": "currency", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Take Rate", "calculation": "platform_revenue / gmv", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "finance"},
+        {"name": "Liquidity (Match Rate)", "calculation": "successful_transactions / search_or_listing_impressions", "target_unit": "percentage", "reporting_cadence": "weekly", "department": "product"},
+        {"name": "Supply Growth", "calculation": "new_sellers_or_providers / period", "target_unit": "count", "reporting_cadence": "weekly", "department": "supply-ops"},
+        {"name": "Demand Growth", "calculation": "new_buyers / period", "target_unit": "count", "reporting_cadence": "weekly", "department": "demand"},
+        {"name": "Repeat Transaction Rate", "calculation": "repeat_buyers / total_buyers", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "product"},
+        {"name": "Dispute Rate", "calculation": "disputes / total_transactions", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "trust-safety"},
+        {"name": "Average Time to First Transaction", "calculation": "avg(first_transaction_date - signup_date)", "target_unit": "days", "reporting_cadence": "weekly", "department": "product"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Marketplace strategic oversight. Monitor supply/demand balance, GMV growth, and unit economics. Flag liquidity issues by category. Track competitive marketplace dynamics. Manage chicken-and-egg problem in new categories."},
+        {"canonical_agent": "Product", "template_instructions": "Marketplace product management. Optimize matching/search algorithms. Track conversion funnel (search -> view -> contact/buy -> transact). Monitor feature adoption. A/B test marketplace mechanics."},
+        {"canonical_agent": "Sales", "template_instructions": "Supply acquisition. Track seller onboarding funnel. Monitor seller satisfaction and churn. Identify high-value supply gaps. Manage seller success programs and tier incentives."},
+        {"canonical_agent": "Marketing", "template_instructions": "Demand generation for marketplace. Track buyer CAC by channel. Monitor SEO for listing pages. Manage category-specific campaigns. Track viral/referral loop metrics."},
+        {"canonical_agent": "CS", "template_instructions": "Trust and safety operations. Manage dispute queue. Monitor fraud signals. Track resolution satisfaction for both parties. Update community guidelines. Report on trust score distributions."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["trust-safety", "finance"], "focus": "Validate liquidity in one narrow category, manual matching acceptable"},
+        "validation": {"focus": "Prove repeat transactions, validate take rate, supply/demand balance in one vertical"},
+        "launch": {"focus": "Automate matching, payment infrastructure, first 100 active sellers and buyers"},
+        "early_revenue": {"focus": "Optimize liquidity, reduce fraud, establish community standards"},
+        "growth": {"focus": "Category expansion, geographic expansion, payment optimization"},
+        "scale": {"add_departments": [{"name": "Data Science", "slug": "data-science", "purpose": "Matching algorithms, pricing optimization, fraud ML, recommendation systems"}], "focus": "Network effects, API/integrations, enterprise features"},
+        "maturity": {"focus": "Adjacent services (payments, logistics, insurance), managed marketplace tier"},
+        "exit": {"focus": "GMV trajectory, network effects proof, strategic acquirer identification"}
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "type_slug": "holding_company",
+      "name": "Holding Company / Conglomerate",
+      "description": "Entity that owns and manages a portfolio of operating businesses, investments, and assets. Covers family offices, holding companies, conglomerates, and multi-business operators. The holding company template composes sub-templates for each subsidiary.",
+      "icon": "network-tree",
+      "industry_verticals": ["diversified", "holding_company", "family_office"],
+      "default_departments": [
+        {"name": "Portfolio Management", "slug": "portfolio", "purpose": "Subsidiary oversight, capital allocation, performance monitoring, strategic planning, synergy identification", "headcount_range": "2-10"},
+        {"name": "Corporate Finance", "slug": "corporate-finance", "purpose": "Consolidated financial reporting, treasury management, tax strategy, M&A analysis, investor relations", "headcount_range": "2-5"},
+        {"name": "Legal & Governance", "slug": "legal", "purpose": "Entity structuring, intercompany agreements, regulatory compliance, board governance, risk management", "headcount_range": "1-5"},
+        {"name": "Corporate Development", "slug": "corp-dev", "purpose": "Acquisition sourcing, due diligence, deal execution, post-merger integration, divestitures", "headcount_range": "1-5"},
+        {"name": "Shared Services", "slug": "shared-services", "purpose": "HR, IT, accounting, insurance that serve all subsidiaries from the holding level", "headcount_range": "2-10"}
+      ],
+      "default_workflows": [
+        {"name": "Subsidiary Performance Review", "category": "strategy", "trigger": "scheduled:monthly", "steps_summary": "Collect subsidiary reports -> Consolidate metrics -> Variance analysis -> Flag underperformers -> Board presentation prep -> Strategic recommendations -> Capital reallocation decisions", "estimated_steps": 7},
+        {"name": "Acquisition Process", "category": "investment", "trigger": "event:target_identified", "steps_summary": "Initial screen -> Strategic fit assessment -> Preliminary valuation -> LOI -> Due diligence -> Negotiate terms -> Board approval -> Legal closing -> Integration planning -> Integration execution", "estimated_steps": 10},
+        {"name": "Capital Allocation Cycle", "category": "finance", "trigger": "scheduled:quarterly", "steps_summary": "Review subsidiary capital requests -> Evaluate ROI projections -> Prioritize by strategic fit and return -> Board approval -> Allocate -> Track deployment -> Measure outcomes", "estimated_steps": 7},
+        {"name": "Consolidated Financial Reporting", "category": "finance", "trigger": "scheduled:monthly", "steps_summary": "Collect subsidiary financials -> Intercompany eliminations -> Consolidation -> Management reporting -> Board package -> Tax provision -> External audit prep (annually)", "estimated_steps": 7},
+        {"name": "Entity Structuring Review", "category": "compliance", "trigger": "scheduled:annually_or_event", "steps_summary": "Review entity map -> Tax efficiency analysis -> Liability exposure review -> Recommend restructuring -> Legal implementation -> Update documentation -> Communicate changes", "estimated_steps": 7},
+        {"name": "Subsidiary Spinup", "category": "operations", "trigger": "manual", "steps_summary": "Define business type -> Select template -> Entity formation -> Bank accounts -> Insurance -> Shared services setup -> EOS environment creation -> Leadership assignment -> Go-live", "estimated_steps": 9}
+      ],
+      "default_roles": [
+        {"name": "Chairman / CEO", "department": "portfolio", "type": "human", "authority_scope": "overall_strategy, capital_allocation, subsidiary_ceo_oversight, board_relations", "escalation_to": "board_of_directors"},
+        {"name": "CFO", "department": "corporate-finance", "type": "human", "authority_scope": "consolidated_financials, treasury, tax_strategy, investor_relations", "escalation_to": "Chairman / CEO"},
+        {"name": "General Counsel", "department": "legal", "type": "human", "authority_scope": "legal_strategy, entity_structuring, compliance, M&A_legal", "escalation_to": "Chairman / CEO"},
+        {"name": "VP Corporate Development", "department": "corp-dev", "type": "human_or_agent", "authority_scope": "deal_sourcing, due_diligence, integration_management", "escalation_to": "Chairman / CEO"},
+        {"name": "Shared Services Director", "department": "shared-services", "type": "human_or_agent", "authority_scope": "cross_subsidiary_operations, vendor_management, policy_standardization", "escalation_to": "CFO"}
+      ],
+      "default_kpis": [
+        {"name": "Consolidated Revenue", "calculation": "sum(subsidiary_revenues) - intercompany_eliminations", "target_unit": "currency", "reporting_cadence": "monthly", "department": "corporate-finance"},
+        {"name": "Consolidated EBITDA", "calculation": "sum(subsidiary_ebitda) - holdco_overhead", "target_unit": "currency", "reporting_cadence": "monthly", "department": "corporate-finance"},
+        {"name": "Return on Invested Capital (ROIC)", "calculation": "nopat / invested_capital", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "corporate-finance"},
+        {"name": "Subsidiary Performance vs Budget", "calculation": "actual_ebitda / budgeted_ebitda per subsidiary", "target_unit": "percentage", "reporting_cadence": "monthly", "department": "portfolio"},
+        {"name": "Holdco Overhead Ratio", "calculation": "holdco_costs / consolidated_revenue", "target_unit": "percentage", "reporting_cadence": "quarterly", "department": "corporate-finance"},
+        {"name": "Acquisition Pipeline Value", "calculation": "sum(weighted_target_values)", "target_unit": "currency", "reporting_cadence": "monthly", "department": "corp-dev"},
+        {"name": "Cash Position", "calculation": "holdco_cash + available_credit_facilities", "target_unit": "currency", "reporting_cadence": "weekly", "department": "corporate-finance"},
+        {"name": "Subsidiary Count (Active)", "calculation": "count(active_subsidiaries)", "target_unit": "count", "reporting_cadence": "monthly", "department": "portfolio"}
+      ],
+      "default_agents": [
+        {"canonical_agent": "CEO", "template_instructions": "Holding company strategic oversight. Monitor subsidiary performance, capital allocation ROI, and portfolio composition. Flag subsidiaries underperforming budget by >15%. Track acquisition pipeline and integration progress. Manage holdco overhead ratio."},
+        {"canonical_agent": "Finance", "template_instructions": "Holding company finance. Consolidated reporting with intercompany eliminations. Treasury management across entities. Tax optimization across jurisdictions. Capital allocation modeling. Investor/board reporting."},
+        {"canonical_agent": "Legal", "template_instructions": "Holding company legal and governance. Entity structuring and maintenance. Intercompany agreements. Board governance compliance. M&A legal coordination. Insurance coverage review across portfolio."},
+        {"canonical_agent": "Product", "template_instructions": "Corporate development role. Deal sourcing and screening. Financial modeling for acquisitions. Due diligence coordination. Post-merger integration tracking. Synergy identification across subsidiaries."},
+        {"canonical_agent": "Ops", "template_instructions": "Shared services management. Cross-subsidiary operational efficiency. Vendor consolidation opportunities. Policy standardization. Technology platform decisions. HR and benefits administration across entities."}
+      ],
+      "stage_adaptations": {
+        "idea": {"remove_departments": ["corp-dev", "shared-services"], "focus": "First entity formation, initial business operation, holding structure setup"},
+        "validation": {"focus": "Prove first subsidiary, establish reporting cadence, build management systems"},
+        "launch": {"focus": "Second subsidiary, establish shared services value, intercompany agreements"},
+        "early_revenue": {"focus": "Portfolio of 3-5 entities, capital allocation discipline, consolidated reporting"},
+        "growth": {"focus": "Active acquisition program, shared services scale, synergy capture"},
+        "scale": {"focus": "Professional management across subsidiaries, institutional capital, board governance"},
+        "maturity": {"focus": "Portfolio optimization, strategic divestitures, successor development"},
+        "exit": {"focus": "Portfolio packaging, individual subsidiary sales, or full entity sale"}
+      },
+      "composition_behavior": {
+        "description": "The holding company template is unique in that it composes sub-templates. When a holding company is created, each subsidiary entity within it triggers its own business type template instantiation. The holding company layer provides governance, reporting, and shared services on top of the individual business operating systems.",
+        "sub_template_instantiation": "Each subsidiary gets its own full EOS environment with the template matching its business type. The holding company provides a consolidated view across all subsidiaries.",
+        "cross_entity_features": ["consolidated_reporting", "intercompany_transactions", "shared_agent_pool", "centralized_governance", "portfolio_dashboard"]
+      },
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  ],
+
+  "template_lifecycle": {
+    "creation": {
+      "sources": [
+        {
+          "source": "eos_default",
+          "description": "Templates shipped with EOS. Professionally designed based on industry best practices. Reviewed by domain experts before inclusion. The 18 templates in this artifact are eos_default templates.",
+          "quality_bar": "Must have all required fields populated, at least 5 workflows, 5 KPIs, 4 roles, and 3 agent configurations. Must be tested through the spinup engine with zero errors."
+        },
+        {
+          "source": "ai_synthesized",
+          "description": "Templates generated by AI from operator descriptions of their business. When an operator selects 'other' during onboarding, the system synthesizes a custom template from their description, industry, and stage. The synthesized template uses the closest default template as a base and adapts.",
+          "quality_bar": "Must pass structural validation (all required fields). Flagged as ai_synthesized so operators know it has not been human-reviewed."
+        },
+        {
+          "source": "community_contributed",
+          "description": "Templates shared by operators who forked and improved default templates. Must pass quality review before appearing in the public library.",
+          "quality_bar": "Structural validation + community rating > 4.0 + at least 3 successful instantiations by other operators."
+        },
+        {
+          "source": "industry_expert",
+          "description": "Templates created or reviewed by verified industry professionals. Highest trust tier. Potential revenue stream via premium template marketplace.",
+          "quality_bar": "Structural validation + expert identity verification + editorial review by EOS team."
+        },
+        {
+          "source": "operator_forked",
+          "description": "Private templates created when an operator customizes beyond 40% divergence from the base template. Not shared publicly unless the operator opts in.",
+          "quality_bar": "Structural validation only. Private to the operator's account."
+        }
+      ]
+    },
+    "customization": {
+      "customization_workflow": [
+        "Operator instantiates template during onboarding",
+        "Generated operating system is immediately functional with all defaults",
+        "Operator can customize any element: rename departments, add/remove workflows, adjust KPIs, modify agent instructions",
+        "System tracks divergence from base template as a percentage",
+        "At 40% divergence, system suggests forking into a new template",
+        "Forked templates retain link to parent for future template update comparison"
+      ],
+      "customization_constraints": [
+        "Operator cannot remove the last department or the last workflow",
+        "Operator cannot remove the CEO agent (core governance requirement)",
+        "KPI calculations must be syntactically valid (system validates formulas)",
+        "Role authority scopes must not create orphaned escalation chains",
+        "All customizations are reversible -- operator can reset any element to template default"
+      ]
+    },
+    "evolution": {
+      "template_update_cycle": "EOS team reviews and updates default templates quarterly based on: operator customization patterns (what do operators change most?), community feedback, industry changes, and internal quality audits.",
+      "backward_compatibility": "Template updates never break existing instantiations. Updates create a new version. Operators on previous versions are notified and can preview changes before opting in.",
+      "learning_from_operators": "The system aggregates anonymized customization patterns to identify: frequently added departments, frequently removed workflows, commonly adjusted KPIs. These patterns inform the next template version.",
+      "deprecation": "Templates can be deprecated but never deleted. Deprecated templates remain functional for existing users but are removed from the template picker for new instantiations."
+    },
+    "community_contribution": {
+      "submission_process": "Operator opts to share their forked template -> structural validation -> community review period (30 days) -> quality threshold check -> publish to community library",
+      "incentive_model": "Contributors earn platform credit for templates that achieve high adoption. Top contributors earn 'Template Author' badge and potential revenue share on premium templates.",
+      "moderation": "Community templates are flagged for review if they receive negative ratings or contain inappropriate content. EOS team has final authority on community library contents."
+    }
+  },
+
+  "spinup_engine": {
+    "description": "The Spinup Engine is the runtime process that transforms a template selection into a fully configured business operating environment. It runs during onboarding (steps 5-14) and can be re-run when adding new entities to an existing portfolio.",
+    "trigger_points": [
+      "Onboarding step 5: operator selects business type",
+      "Portfolio management: operator adds new entity",
+      "Holding company: subsidiary spinup workflow",
+      "Template upgrade: operator opts into new template version"
+    ],
+    "spinup_steps": [
+      {
+        "step": 1,
+        "name": "template_selection",
+        "description": "Operator selects a business type from the template picker. System loads the corresponding template definition.",
+        "inputs": ["business_type_slug"],
+        "outputs": ["loaded_template"]
+      },
+      {
+        "step": 2,
+        "name": "stage_adaptation",
+        "description": "System applies stage-specific overrides based on the operator's declared business stage (from onboarding step 7 or entity configuration). This adjusts departments, workflows, and focus areas.",
+        "inputs": ["loaded_template", "business_stage"],
+        "outputs": ["stage_adapted_template"]
+      },
+      {
+        "step": 3,
+        "name": "complexity_adaptation",
+        "description": "System applies complexity-level overrides based on team size / operator configuration (from onboarding step 8). This adjusts the number and depth of departments, workflows, and agents.",
+        "inputs": ["stage_adapted_template", "complexity_level"],
+        "outputs": ["complexity_adapted_template"]
+      },
+      {
+        "step": 4,
+        "name": "department_generation",
+        "description": "System creates department records from the adapted template. Each department gets a name, slug, purpose description, and initial configuration. Departments are entity-scoped.",
+        "inputs": ["complexity_adapted_template", "entity_id"],
+        "outputs": ["department_records"]
+      },
+      {
+        "step": 5,
+        "name": "role_generation",
+        "description": "System creates role records for each department. Roles include permission sets, responsibilities, and escalation chains. For solo operators, all roles are initially assigned to the operator.",
+        "inputs": ["department_records", "team_size"],
+        "outputs": ["role_records"]
+      },
+      {
+        "step": 6,
+        "name": "workflow_instantiation",
+        "description": "System creates workflow instances from the template's workflow definitions. Each workflow gets concrete steps, triggers, and ownership assignments based on the generated roles. Workflow definitions are pulled from the UBOS workflow library and parameterized for this entity.",
+        "inputs": ["complexity_adapted_template", "department_records", "role_records"],
+        "outputs": ["workflow_instances"]
+      },
+      {
+        "step": 7,
+        "name": "kpi_instantiation",
+        "description": "System creates KPI tracking records from the template's KPI definitions. Each KPI gets a target range (based on stage), a reporting cadence, and a responsible department/role. Initial targets are AI-suggested based on industry benchmarks and operator's declared stage.",
+        "inputs": ["complexity_adapted_template", "department_records", "business_stage"],
+        "outputs": ["kpi_records"]
+      },
+      {
+        "step": 8,
+        "name": "agent_configuration",
+        "description": "System configures AI agents from the template's agent definitions. Each agent gets the canonical agent's base soul document plus template-specific instructions. Agent capabilities are scoped to the entity's departments and workflows. Agent authority levels are set based on operator's trust preference (from onboarding).",
+        "inputs": ["complexity_adapted_template", "department_records", "workflow_instances", "role_records"],
+        "outputs": ["agent_configurations"]
+      },
+      {
+        "step": 9,
+        "name": "task_seeding",
+        "description": "System generates initial tasks from the template's task definitions plus stage-appropriate startup tasks. These give the operator immediate action items upon entering active mode. Tasks are assigned to the operator (solo) or appropriate roles (team).",
+        "inputs": ["complexity_adapted_template", "business_stage", "role_records"],
+        "outputs": ["seed_tasks"]
+      },
+      {
+        "step": 10,
+        "name": "validation_and_activation",
+        "description": "System runs a structural validation pass: all departments have at least one role, all workflows have valid owner assignments, all KPIs have valid calculation formulas, all agents have valid scope. If validation passes, the entity is marked as active and the operator enters the workspace.",
+        "inputs": ["department_records", "role_records", "workflow_instances", "kpi_records", "agent_configurations", "seed_tasks"],
+        "outputs": ["validation_result", "activation_status"]
+      }
+    ],
+    "defaults_applied": {
+      "naming": "Template names are applied as-is. Operator can rename anything post-spinup.",
+      "ordering": "Departments are ordered as defined in the template. Operator can reorder in the UI.",
+      "visibility": "All generated elements are visible by default. Operator can hide/archive elements they do not need yet.",
+      "ai_trust_level": "Default is 'supervised' -- agents can draft but not execute without operator approval. Operator can upgrade to 'autonomous' per-agent post-spinup."
+    },
+    "customization_points": [
+      {
+        "point": "pre_spinup",
+        "description": "Operator can preview the template before spinup and toggle departments/workflows on or off. This is shown in onboarding step 6 (entity configuration).",
+        "user_action": "Toggle checkboxes next to departments and workflows"
+      },
+      {
+        "point": "during_spinup",
+        "description": "The spinup process is visible in real-time (not a loading screen). Operator sees each element being created and can pause to rename or adjust before continuing.",
+        "user_action": "Click any generated element to rename or edit inline"
+      },
+      {
+        "point": "post_spinup",
+        "description": "Full customization available in the workspace. Operator can add/remove/modify any generated element. Changes are tracked as divergence from the template.",
+        "user_action": "Standard workspace editing tools"
+      }
+    ],
+    "error_handling": {
+      "template_not_found": "Fall back to a generic 'custom business' template that has minimal structure (3 departments, 3 workflows, 5 KPIs) and prompts the operator for more information.",
+      "validation_failure": "Spinup rolls back all generated records and presents the operator with specific errors and remediation suggestions.",
+      "partial_generation": "If spinup fails partway through (e.g., agent configuration fails), the successfully generated elements are preserved and the failed step is retried with degraded defaults."
+    }
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-TL-001",
+      "question": "Should the template library be curated-only (EOS team controls all templates) or community-driven (operators can share templates publicly)?",
+      "options": ["curated_only", "community_driven", "hybrid_curated_plus_community"],
+      "recommendation": "hybrid_curated_plus_community -- EOS defaults are curated; community section has separate quality bar and trust signals",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Determines whether to build community contribution infrastructure and moderation tools"
+    },
+    {
+      "id": "OQ-TL-002",
+      "question": "Should premium templates (industry expert created) be a monetization vector? If so, what revenue share model?",
+      "options": ["all_templates_free", "premium_templates_paid", "subscription_tier_gated"],
+      "recommendation": "subscription_tier_gated -- premium templates included in higher subscription tiers, not individually priced, to avoid marketplace friction",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Affects subscription tier design, template author incentive model, and marketplace infrastructure"
+    },
+    {
+      "id": "OQ-TL-003",
+      "question": "Should the template marketplace be internal to EOS or a public-facing storefront that drives awareness and user acquisition?",
+      "options": ["internal_only", "public_storefront", "public_browse_private_use"],
+      "recommendation": "public_browse_private_use -- anyone can browse and preview templates (marketing/SEO value), but instantiation requires an EOS account",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Affects SEO strategy, public API design, and marketing funnel"
+    },
+    {
+      "id": "OQ-TL-004",
+      "question": "How many business types should ship in V1 vs be added incrementally?",
+      "options": ["all_18_at_launch", "top_8_at_launch", "top_5_plus_custom"],
+      "recommendation": "top_8_at_launch (agency, saas, ecommerce, consulting, freelance, education, media_company, marketplace) plus 'custom/other' with AI synthesis. Remaining 10 added in V1.1-V1.3 based on demand signals.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Affects launch timeline, QA burden, and template quality assurance"
+    },
+    {
+      "id": "OQ-TL-005",
+      "question": "Should template instantiation be fully deterministic or should AI personalize the generated output based on operator's business description?",
+      "options": ["fully_deterministic", "ai_personalized", "deterministic_with_ai_enhancement"],
+      "recommendation": "deterministic_with_ai_enhancement -- structural generation is deterministic (departments, workflows, KPIs always the same for a given template+stage+complexity), AI enhances descriptions, task priorities, and KPI targets based on operator context",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Affects consistency, testability, and the degree to which two operators with the same selections get identical environments"
+    }
+  ],
+
+  "implementation_notes": {
+    "data_model": "Templates are stored as JSON documents in the database with a relational index for type_slug, version, provenance, and industry_verticals. Template instantiation creates normalized relational records (departments, workflows, roles, KPIs, agents) linked back to the source template and version.",
+    "template_schema_versioning": "The template schema itself (the shape of a BusinessTemplate object) follows semver independently of individual template versions. Schema v2 might add new fields that all templates must support.",
+    "integration_with_onboarding": "The template library is the engine behind onboarding steps 5-14. The onboarding spec (phase14_6b_eos_onboarding_first_boot_spec.json) defines the user-facing flow; this artifact defines the template data and spinup logic behind it.",
+    "integration_with_workflow_engine": "Template workflow definitions reference the UBOS workflow library defined in phase14_6b_eos_workflow_sop_engine_spec.json. The spinup engine resolves workflow template references into concrete workflow instances using the workflow engine's instantiation API.",
+    "integration_with_agent_architecture": "Template agent configurations reference the 10 canonical EOS agents defined in phase14_6b_eos_agent_architecture_spec.json. The spinup engine creates entity-scoped agent instances with template-specific instruction overlays.",
+    "integration_with_ontology": "Business types, stages, and complexity levels align with the taxonomy defined in phase14_6b_eos_portfolio_entity_business_ontology.json. The template type_slug matches the business type enum in the ontology."
+  }
+}

@@ -1,0 +1,603 @@
+{
+  "artifact": "phase14_6b_eos_onboarding_first_boot_spec",
+  "phase": "14.6B",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-03",
+  "description": "EOS First Boot Onboarding Specification — the complete 25-step onboarding flow that transforms a new operator sign-up into a fully configured, ready-to-operate business environment. Covers account creation through active mode entry, producing all foundational records, structures, agents, and operational artifacts.",
+  "provenance": "OPERATOR_CORRECTION + SYNTHESIZED_CANON",
+  "provenance_note": "The 25-step sequence, onboarding paths, stage taxonomy, complexity levels, and output manifest were directly corrected/specified by the operator. Structural organization and step detail are synthesized from operator corrections combined with prior phase artifacts (14.4 desired state, 14.5A production stack, business democratization doctrine).",
+  "design_principles": [
+    "Onboarding IS the product demo — operator should feel the power of EOS within the first 5 minutes",
+    "Generate, don't interrogate — minimize questions, maximize intelligent defaults that the operator can edit",
+    "Progressive disclosure — show complexity only when the operator's selections demand it",
+    "Every step produces visible output — no black-box loading screens; show the operating system being built in real-time",
+    "Reversible at every point — operator can go back, change selections, and regenerate without starting over",
+    "Path-dependent intelligence — each selection narrows and refines subsequent steps so nothing feels generic",
+    "Solo operator is the default — team configuration is additive, not required",
+    "AI agents are introduced as capabilities, not complexity — operator understands what agents DO before configuring HOW",
+    "The onboarding output is a complete operating system, not a skeleton — operator enters active mode with real workflows, real KPIs, real tasks",
+    "Finance-grade aesthetic throughout — executive command center feel from step 1, not a playful wizard"
+  ],
+  "onboarding_paths": {
+    "description": "Step 3 presents four distinct onboarding paths. Each path adjusts the subsequent steps to generate contextually appropriate structures, workflows, and agent configurations.",
+    "paths": [
+      {
+        "id": "PATH_NEW_BUSINESS",
+        "name": "Start New Business",
+        "description": "Operator is creating a new business entity from scratch. Onboarding generates foundational structure, initial workflows, launch-oriented KPIs, and early-stage operational cadence.",
+        "typical_stages": ["idea", "validation", "launch"],
+        "emphasis": ["business model definition", "lean operations", "validation workflows", "launch checklists"]
+      },
+      {
+        "id": "PATH_MODEL_EXISTING",
+        "name": "Model Existing Business",
+        "description": "Operator has a running business and wants to bring it onto EOS. Onboarding captures current state, maps existing teams/processes, and generates an operating system that reflects reality before optimizing.",
+        "typical_stages": ["early_revenue", "growth", "scale"],
+        "emphasis": ["current state capture", "team mapping", "process documentation", "gap identification"]
+      },
+      {
+        "id": "PATH_INVESTMENT_ENTITY",
+        "name": "Create Investment / Entity",
+        "description": "Operator is creating a non-operating entity: investment vehicle, holding company, asset portfolio, real estate entity, stock portfolio, or similar. Onboarding generates appropriate tracking, reporting, and governance structures.",
+        "typical_stages": ["any"],
+        "emphasis": ["asset tracking", "return metrics", "portfolio allocation", "compliance/governance"]
+      },
+      {
+        "id": "PATH_IMPORT_EXISTING",
+        "name": "Import Existing Operation",
+        "description": "Operator has structured operational data (spreadsheets, project management exports, financial records) and wants to import it into EOS. Onboarding provides import mapping, validation, and structure generation from imported data.",
+        "typical_stages": ["any"],
+        "emphasis": ["data import mapping", "validation", "structure inference from data", "reconciliation"]
+      }
+    ]
+  },
+  "stages": {
+    "description": "Step 5 business/entity stage selection. Determines the operational maturity assumptions used to generate workflows, KPIs, team structures, and agent behaviors.",
+    "values": [
+      {
+        "id": "STAGE_IDEA",
+        "name": "Idea",
+        "description": "Pre-validation. Concept exists but no market proof. Focus: research, validation planning, lean experimentation.",
+        "operational_assumptions": "Solo operator, no revenue, no team, no established processes"
+      },
+      {
+        "id": "STAGE_VALIDATION",
+        "name": "Validation",
+        "description": "Testing product-market fit. May have early customers/users but no consistent revenue. Focus: experiments, feedback loops, iteration.",
+        "operational_assumptions": "Solo or 1-2 people, minimal revenue, rapid iteration cycles"
+      },
+      {
+        "id": "STAGE_LAUNCH",
+        "name": "Launch",
+        "description": "Going to market. Product/service is defined and being offered. Focus: acquisition, onboarding, initial operations.",
+        "operational_assumptions": "Small team possible, first revenue, establishing initial processes"
+      },
+      {
+        "id": "STAGE_EARLY_REVENUE",
+        "name": "Early Revenue",
+        "description": "Generating revenue but not yet profitable or scalable. Focus: unit economics, retention, process standardization.",
+        "operational_assumptions": "Small team, growing operations, need for SOPs and repeatable workflows"
+      },
+      {
+        "id": "STAGE_GROWTH",
+        "name": "Growth",
+        "description": "Revenue growing, team expanding, operations scaling. Focus: hiring, delegation, department formation, KPI tracking.",
+        "operational_assumptions": "Multi-person team, departmental structure emerging, need for governance"
+      },
+      {
+        "id": "STAGE_SCALE",
+        "name": "Scale",
+        "description": "Proven model being scaled. Focus: systems, automation, leadership layers, operational excellence.",
+        "operational_assumptions": "Multi-department, management layers, sophisticated reporting needs"
+      },
+      {
+        "id": "STAGE_ENTERPRISE",
+        "name": "Enterprise",
+        "description": "Large-scale operation with mature processes. Focus: optimization, compliance, multi-entity coordination.",
+        "operational_assumptions": "Full organizational hierarchy, compliance requirements, complex governance"
+      },
+      {
+        "id": "STAGE_PORTFOLIO_INSTITUTIONAL",
+        "name": "Portfolio / Institutional",
+        "description": "Managing multiple entities, investments, or assets as a portfolio. Focus: cross-entity reporting, capital allocation, portfolio optimization.",
+        "operational_assumptions": "Multiple entities under management, sophisticated financial tracking, institutional governance"
+      }
+    ]
+  },
+  "complexity_levels": {
+    "description": "Step 7 defines operational complexity. Determines team structure generation, delegation depth, agent count, and governance sophistication.",
+    "values": [
+      {
+        "id": "COMPLEXITY_SOLO",
+        "name": "Solo Operator",
+        "description": "One person runs everything. AI agents handle delegation. Minimal governance overhead. Maximum automation.",
+        "generated_structure": "Flat — operator + AI agents only, no human roles generated"
+      },
+      {
+        "id": "COMPLEXITY_LEAN",
+        "name": "Lean Team",
+        "description": "2-5 people. Generalist roles. Light governance. Agents augment small team.",
+        "generated_structure": "Minimal hierarchy — operator + key roles, shared responsibilities"
+      },
+      {
+        "id": "COMPLEXITY_GROWING",
+        "name": "Growing Team",
+        "description": "6-20 people. Specialized roles emerging. Departments forming. Need for SOPs and delegation chains.",
+        "generated_structure": "Departmental seeds — 2-4 departments with leads, defined handoffs"
+      },
+      {
+        "id": "COMPLEXITY_MULTI_DEPT",
+        "name": "Multi-Department",
+        "description": "20+ people. Full departmental structure. Management layers. Complex workflows crossing departments.",
+        "generated_structure": "Full departmental hierarchy — departments, teams, leads, cross-functional workflows"
+      },
+      {
+        "id": "COMPLEXITY_MULTI_ENTITY",
+        "name": "Multi-Entity",
+        "description": "Multiple business entities under portfolio management. Each entity may have its own complexity level. Shared governance and reporting.",
+        "generated_structure": "Portfolio-level governance — per-entity structures with roll-up reporting and shared policies"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "step_number": 1,
+      "id": "ONBOARD_01_ACCOUNT_CREATION",
+      "name": "Create Account / Sign In with Clerk",
+      "category": "authentication",
+      "description": "Operator creates a new account or signs into an existing account using Clerk authentication. This is the entry gate — no EOS functionality is accessible without authentication.",
+      "inputs": ["email", "password_or_sso", "name"],
+      "outputs": ["authenticated_session", "user_record"],
+      "ux_notes": "Clean, executive sign-in page. EOS branding. No playful copy. Clerk handles auth flow including SSO, MFA, and email verification.",
+      "provenance_label": "CODE_RESOLVED_CURRENT_TRUTH",
+      "provenance_detail": "Beast feature/company-system already implements Clerk auth. This step maps directly to existing code."
+    },
+    {
+      "step_number": 2,
+      "id": "ONBOARD_02_CREATE_PORTFOLIO",
+      "name": "Create Primary Portfolio",
+      "category": "portfolio_setup",
+      "description": "Operator creates their first portfolio — the top-level container for all entities, businesses, investments, and assets. A portfolio is the highest organizational unit in EOS. Most operators start with one; they can add more later.",
+      "inputs": ["portfolio_name", "portfolio_description_optional"],
+      "outputs": ["portfolio_record"],
+      "ux_notes": "Brief explanation of what a portfolio is in EOS. Pre-filled suggestion based on operator name (e.g., 'Munoz Holdings'). Can be renamed anytime.",
+      "provenance_label": "OPERATOR_CORRECTION + SYNTHESIZED_CANON",
+      "provenance_detail": "Operator corrected hierarchy: Operator -> Portfolio(s) -> Entities. Portfolio is top-level, not company."
+    },
+    {
+      "step_number": 3,
+      "id": "ONBOARD_03_CHOOSE_PATH",
+      "name": "Choose Onboarding Path",
+      "category": "path_selection",
+      "description": "Operator selects one of four onboarding paths that determines how subsequent steps are contextualized: (1) Start New Business, (2) Model Existing Business, (3) Create Investment/Entity, (4) Import Existing Operation. This is the primary branching decision in onboarding.",
+      "inputs": ["selected_path"],
+      "outputs": ["onboarding_path_context"],
+      "ux_notes": "Four clear cards with icons, brief descriptions, and examples. Operator can switch path later by restarting onboarding for a new entity.",
+      "provenance_label": "OPERATOR_CORRECTION",
+      "provenance_detail": "Four paths directly specified by operator. Prior phases assumed only business creation."
+    },
+    {
+      "step_number": 4,
+      "id": "ONBOARD_04_ENTITY_TYPE",
+      "name": "Select or Describe Business/Investment/Entity Type",
+      "category": "entity_definition",
+      "description": "Operator selects from common entity types or provides a freeform description. Entity types include: SaaS company, agency, e-commerce, consulting, real estate, stock portfolio, media company, service business, holding company, nonprofit, franchise, and others. AI assists with classification if freeform description is provided.",
+      "inputs": ["entity_type_selection_or_description"],
+      "outputs": ["entity_type_classification", "entity_type_metadata"],
+      "ux_notes": "Curated grid of common types with icons. 'Other / Describe' option for freeform. AI classification shown and editable. Type selection influences all subsequent generation.",
+      "provenance_label": "OPERATOR_CORRECTION + SYNTHESIZED_CANON",
+      "provenance_detail": "Operator specified broad entity support. Entity types synthesized from operator's hierarchy correction and business democratization doctrine."
+    },
+    {
+      "step_number": 5,
+      "id": "ONBOARD_05_CHOOSE_STAGE",
+      "name": "Choose Stage",
+      "category": "stage_selection",
+      "description": "Operator selects the current stage of their business/entity from eight options: Idea, Validation, Launch, Early Revenue, Growth, Scale, Enterprise, Portfolio/Institutional. Stage determines the operational maturity assumptions used to generate everything downstream.",
+      "inputs": ["selected_stage"],
+      "outputs": ["stage_context"],
+      "ux_notes": "Horizontal timeline visualization showing all 8 stages. Operator clicks their current position. Brief description shown on selection. Stage can be updated later as the business evolves.",
+      "provenance_label": "OPERATOR_CORRECTION",
+      "provenance_detail": "Eight stages directly specified by operator. Corrects prior phases that had fewer stages."
+    },
+    {
+      "step_number": 6,
+      "id": "ONBOARD_06_GOALS_CONSTRAINTS",
+      "name": "Define Goals and Constraints",
+      "category": "strategic_context",
+      "description": "Operator defines their primary goals (revenue targets, growth milestones, product launches, funding rounds, etc.) and constraints (budget, team size, time, regulatory, technical). These are used to prioritize generated workflows, KPIs, and agent focus areas.",
+      "inputs": ["goals_list", "constraints_list", "time_horizon_optional"],
+      "outputs": ["strategic_context_record"],
+      "ux_notes": "AI-assisted goal and constraint capture. Suggests common goals/constraints based on entity type and stage. Operator can type freely or select from suggestions. Structured into a strategic context that persists and evolves.",
+      "provenance_label": "OPERATOR_CORRECTION + SYNTHESIZED_CANON",
+      "provenance_detail": "Operator specified goals and constraints as a first-boot step. Structure synthesized from EOS strategic layer design."
+    },
+    {
+      "step_number": 7,
+      "id": "ONBOARD_07_COMPLEXITY",
+      "name": "Define Complexity",
+      "category": "complexity_selection",
+      "description": "Operator selects operational complexity: Solo Operator, Lean Team, Growing Team, Multi-Department, Multi-Entity. This determines the depth of org chart generation, number of roles, governance sophistication, and agent delegation patterns.",
+      "inputs": ["selected_complexity"],
+      "outputs": ["complexity_context"],
+      "ux_notes": "Five options with clear visual differentiation. Show what each complexity level generates (e.g., 'Solo Operator: You + AI agents, no org chart needed'). Default intelligently from stage selection.",
+      "provenance_label": "OPERATOR_CORRECTION",
+      "provenance_detail": "Five complexity levels directly specified by operator."
+    },
+    {
+      "step_number": 8,
+      "id": "ONBOARD_08_GENERATE_WORKSPACE",
+      "name": "Generate Company/Entity Workspace",
+      "category": "generation",
+      "description": "System generates the entity workspace — the operational container within the portfolio. Includes entity record, default settings, navigation structure, and workspace configuration based on all prior selections (path, type, stage, goals, complexity).",
+      "inputs": ["entity_name", "all_prior_context"],
+      "outputs": ["entity_record", "workspace_configuration", "navigation_structure"],
+      "ux_notes": "Real-time generation animation. Operator sees workspace being built. Entity name pre-suggested from entity type. Workspace immediately navigable after generation.",
+      "provenance_label": "SYNTHESIZED_CANON",
+      "provenance_detail": "Synthesized from operator's hierarchy (Portfolio -> Entity) and Beast code's company workspace pattern."
+    },
+    {
+      "step_number": 9,
+      "id": "ONBOARD_09_GENERATE_ORG_CHART",
+      "name": "Generate Org Chart",
+      "category": "generation",
+      "description": "System generates an initial organizational chart appropriate to the entity type, stage, and complexity. For solo operators, this may be a single node with AI agent assignments. For multi-department entities, this generates a full hierarchy with departments, teams, and role slots.",
+      "inputs": ["entity_type", "stage", "complexity"],
+      "outputs": ["org_chart_record", "department_list", "hierarchy_structure"],
+      "ux_notes": "Visual org chart rendered in real-time. Operator can drag, edit, add, remove nodes immediately. AI explains why each role/department was generated based on their entity type and stage.",
+      "provenance_label": "SYNTHESIZED_CANON",
+      "provenance_detail": "Synthesized from operator's complexity levels and EOS org chart module design in prior phases."
+    },
+    {
+      "step_number": 10,
+      "id": "ONBOARD_10_GENERATE_DEPARTMENTS",
+      "name": "Generate Departments",
+      "category": "generation",
+      "description": "System generates departments appropriate to the entity. For a SaaS company: Engineering, Product, Marketing, Sales, Customer Success, Finance, Operations. For real estate: Acquisitions, Property Management, Finance, Legal. Departments are generated only when complexity warrants them (Lean Team and above).",
+      "inputs": ["entity_type", "complexity", "org_chart"],
+      "outputs": ["department_records"],
+      "ux_notes": "Each department shown as a card with its purpose, key functions, and suggested head role. Operator can rename, merge, split, or remove departments. Generation explains its reasoning.",
+      "provenance_label": "SYNTHESIZED_CANON",
+      "provenance_detail": "Synthesized from EOS department model in 14.4 desired state and operator's entity type breadth."
+    },
+    {
+      "step_number": 11,
+      "id": "ONBOARD_11_GENERATE_ROLES",
+      "name": "Generate Roles",
+      "category": "generation",
+      "description": "System generates roles within each department (or flat if solo operator). Each role has a title, responsibilities, permissions scope, and whether it is filled by a human, AI agent, or unfilled (future hire). Solo operators get all roles mapped to themselves with AI agent augmentation.",
+      "inputs": ["departments", "complexity", "entity_type"],
+      "outputs": ["role_records", "role_permission_map"],
+      "ux_notes": "Roles displayed within their department context. Each role shows: title, human/AI/unfilled status, key responsibilities. Operator can edit any role. 'Assign to me' button for solo operators.",
+      "provenance_label": "SYNTHESIZED_CANON",
+      "provenance_detail": "Synthesized from EOS role/permission system design and operator's complexity taxonomy."
+    },
+    {
+      "step_number": 12,
+      "id": "ONBOARD_12_GENERATE_WORKFLOWS",
+      "name": "Generate Workflows",
+      "category": "generation",
+      "description": "System generates initial workflows appropriate to the entity type, stage, and departments. Workflows are repeatable multi-step processes: lead-to-close, employee onboarding, content publishing, invoice-to-payment, deal evaluation, etc. Each workflow is a template that can be customized.",
+      "inputs": ["entity_type", "stage", "departments", "goals"],
+      "outputs": ["workflow_records"],
+      "ux_notes": "Workflows shown as flow diagrams with steps, owners, and triggers. Grouped by department. Operator can edit, disable, or add custom workflows. AI explains why each workflow was generated.",
+      "provenance_label": "SYNTHESIZED_CANON",
+      "provenance_detail": "Synthesized from EOS workflow engine design in 14.4 desired state and operator's entity type breadth."
+    },
+    {
+      "step_number": 13,
+      "id": "ONBOARD_13_GENERATE_SOPS",
+      "name": "Generate SOPs",
+      "category": "generation",
+      "description": "System generates Standard Operating Procedures for key operational processes. SOPs are documented step-by-step instructions for recurring tasks. Generated SOPs are tied to workflows and roles. Depth depends on stage and complexity — early-stage gets lean SOPs, enterprise gets detailed ones.",
+      "inputs": ["workflows", "entity_type", "stage", "complexity"],
+      "outputs": ["sop_records"],
+      "ux_notes": "SOPs displayed as expandable documents within their parent workflow. Each SOP has: title, purpose, steps, owner, frequency. Operator can edit, rewrite, or regenerate any SOP.",
+      "provenance_label": "SYNTHESIZED_CANON",
+      "provenance_detail": "Synthesized from EOS SOP management design and operator's operational maturity stages."
+    },
+    {
+      "step_number": 14,
+      "id": "ONBOARD_14_GENERATE_TASKS",
+      "name": "Generate Recurring Tasks",
+      "category": "generation",
+      "description": "System generates initial recurring tasks derived from workflows and SOPs: weekly reviews, monthly financials, daily standups, quarterly planning, content calendar tasks, client check-ins, etc. Tasks are assigned to roles (human or AI agent) and scheduled.",
+      "inputs": ["workflows", "sops", "roles", "stage"],
+      "outputs": ["recurring_task_records", "initial_task_schedule"],
+      "ux_notes": "Tasks displayed in calendar/list view. Each task shows: title, assignee, frequency, source workflow/SOP. Operator can adjust frequency, reassign, or disable any task.",
+      "provenance_label": "SYNTHESIZED_CANON",
+      "provenance_detail": "Synthesized from EOS task management design and operator's operational cadence requirements."
+    },
+    {
+      "step_number": 15,
+      "id": "ONBOARD_15_GENERATE_TOOL_STACK",
+      "name": "Generate Tool Stack",
+      "category": "generation",
+      "description": "System generates a recommended tool stack based on entity type, stage, and workflows. Maps tools to workflow steps and roles. Identifies which tools EOS can replace vs. which are external integrations. Provides a clear picture of the operator's operational technology landscape.",
+      "inputs": ["entity_type", "stage", "workflows", "constraints"],
+      "outputs": ["tool_stack_record", "integration_recommendations"],
+      "ux_notes": "Tool stack displayed as a categorized grid: Communication, Project Management, Finance, Marketing, Development, etc. Each tool shows: name, purpose, EOS-native vs. external, integration status. Operator selects which tools they use or want.",
+      "provenance_label": "SYNTHESIZED_CANON",
+      "provenance_detail": "Synthesized from EOS integration layer design and operator's tool/integration configuration step."
+    },
+    {
+      "step_number": 16,
+      "id": "ONBOARD_16_GENERATE_KPIS_DASHBOARD",
+      "name": "Generate KPIs / Dashboard",
+      "category": "generation",
+      "description": "System generates initial KPIs and a default dashboard based on entity type, stage, goals, and departments. KPIs are tied to goals and tracked over time. Dashboard is the operator's primary command view — the business cockpit.",
+      "inputs": ["entity_type", "stage", "goals", "departments"],
+      "outputs": ["kpi_records", "dashboard_configuration"],
+      "ux_notes": "Dashboard preview rendered during onboarding. Operator sees their command center taking shape. Each KPI shows: metric name, current value (blank), target, source, frequency. Operator can add, remove, or modify KPIs.",
+      "provenance_label": "SYNTHESIZED_CANON",
+      "provenance_detail": "Synthesized from EOS analytics/dashboard module design and operator's strategic context."
+    },
+    {
+      "step_number": 17,
+      "id": "ONBOARD_17_GENERATE_CLIENT_LIFECYCLE",
+      "name": "Generate Client/Customer Lifecycle",
+      "category": "generation",
+      "description": "System generates a client/customer lifecycle model appropriate to the entity type. For service businesses: prospect -> lead -> proposal -> client -> retention -> referral. For SaaS: visitor -> trial -> paid -> expansion -> advocacy. For investments: sourcing -> evaluation -> commitment -> monitoring -> exit.",
+      "inputs": ["entity_type", "stage", "workflows"],
+      "outputs": ["client_lifecycle_record", "lifecycle_stage_definitions"],
+      "ux_notes": "Visual pipeline/funnel showing lifecycle stages. Each stage has: name, description, transition criteria, associated workflows. Operator can customize stages and transitions. Skipped for entity types where client lifecycle does not apply.",
+      "provenance_label": "SYNTHESIZED_CANON",
+      "provenance_detail": "Synthesized from EOS client management module and operator's entity type breadth."
+    },
+    {
+      "step_number": 18,
+      "id": "ONBOARD_18_GENERATE_OFFER_MODEL",
+      "name": "Generate Offer/Product/Service Model",
+      "category": "generation",
+      "description": "System generates an initial offer, product, or service model. For businesses: offer structure, pricing tiers, delivery model. For investments: thesis, allocation strategy, return targets. For real estate: property types, acquisition criteria, management model. This gives the entity its commercial or investment identity.",
+      "inputs": ["entity_type", "stage", "goals"],
+      "outputs": ["offer_model_record"],
+      "ux_notes": "Structured form with AI pre-fill based on entity type. Operator describes their offer/product/investment thesis. AI structures it into a model. Editable at every level.",
+      "provenance_label": "SYNTHESIZED_CANON",
+      "provenance_detail": "Synthesized from EOS product/service module design and operator's entity type breadth."
+    },
+    {
+      "step_number": 19,
+      "id": "ONBOARD_19_GENERATE_TRACKING_MODEL",
+      "name": "Generate Investment/Asset Tracking Model",
+      "category": "generation",
+      "description": "System generates tracking structures for investments, assets, and financial instruments when applicable. For investment entities: position tracking, valuation, P&L, allocation. For businesses with assets: inventory, equipment, IP. Skipped or minimal for pure service businesses.",
+      "inputs": ["entity_type", "stage", "offer_model"],
+      "outputs": ["tracking_model_record"],
+      "ux_notes": "Conditional step — shown prominently for investment/asset entity types, shown as optional for businesses. Clear explanation of what tracking provides. Operator can enable/disable tracking categories.",
+      "provenance_label": "OPERATOR_CORRECTION + SYNTHESIZED_CANON",
+      "provenance_detail": "Operator specified investment/asset tracking as a distinct onboarding step. Structure synthesized from EOS portfolio management design."
+    },
+    {
+      "step_number": 20,
+      "id": "ONBOARD_20_CONFIGURE_TEAM",
+      "name": "Configure Team Members or Solo-Founder Mode",
+      "category": "configuration",
+      "description": "Operator either invites team members and assigns them to generated roles, or confirms solo-founder mode where AI agents fill all operational roles. For teams: invite by email, assign to roles, set permissions. For solo: confirm AI agent assignments and review what each agent handles.",
+      "inputs": ["complexity", "roles", "team_member_emails_optional"],
+      "outputs": ["team_configuration", "role_assignments"],
+      "ux_notes": "Clear binary choice at the top: 'I have a team' vs. 'Solo founder mode'. Team path shows role slots with invite buttons. Solo path shows AI agent assignments with capability descriptions. Hybrid supported: some roles human, some AI.",
+      "provenance_label": "OPERATOR_CORRECTION + SYNTHESIZED_CANON",
+      "provenance_detail": "Operator specified solo-founder mode as first-class path. Team configuration synthesized from EOS team management design."
+    },
+    {
+      "step_number": 21,
+      "id": "ONBOARD_21_CONFIGURE_AGENTS",
+      "name": "Configure EA / Portfolio Advisor / CEO Agent Behavior",
+      "category": "configuration",
+      "description": "Operator configures the behavior of their primary AI agents: EA (Executive Assistant), Portfolio Advisor (for multi-entity), and CEO Agent (for entity-level strategic decisions). Configuration includes: communication style, autonomy level, reporting frequency, focus areas, and escalation thresholds.",
+      "inputs": ["complexity", "entity_type", "goals", "constraints"],
+      "outputs": ["agent_configuration_records"],
+      "ux_notes": "Each agent presented as a profile card with configurable sliders and toggles. Communication style: formal/casual. Autonomy: suggest-only / act-with-approval / autonomous-within-bounds. Show what the agent will DO, not technical details. Operator can always adjust later.",
+      "provenance_label": "OPERATOR_CORRECTION + SYNTHESIZED_CANON",
+      "provenance_detail": "Operator specified EA -> Portfolio Advisor OR CEO Agent delegation architecture. Agent configuration synthesized from EOS agent hierarchy design."
+    },
+    {
+      "step_number": 22,
+      "id": "ONBOARD_22_APPROVAL_SETTINGS",
+      "name": "Configure Approval Settings",
+      "category": "governance",
+      "description": "Operator configures what requires approval and what agents/team members can do autonomously. Categories: financial transactions, hiring decisions, client communications, strategic changes, workflow modifications, KPI target changes. Default: conservative (most things require approval). Operator loosens as trust builds.",
+      "inputs": ["complexity", "roles", "agent_configuration"],
+      "outputs": ["approval_policy_records"],
+      "ux_notes": "Category-based approval matrix. Each category shows: who can approve, threshold amounts (for financial), auto-approve rules. Conservative defaults pre-set. Clear explanation that these can be adjusted anytime. Risk-aware framing.",
+      "provenance_label": "OPERATOR_CORRECTION + SYNTHESIZED_CANON",
+      "provenance_detail": "Operator specified approval settings as a distinct onboarding step. Policy structure synthesized from EOS governance design."
+    },
+    {
+      "step_number": 23,
+      "id": "ONBOARD_23_INTEGRATIONS",
+      "name": "Configure Integrations / Tools",
+      "category": "configuration",
+      "description": "Operator connects external tools and services: email, calendar, accounting (QuickBooks, Xero), banking, CRM, project management, communication (Slack, Discord), payment processing, social media, analytics. Each integration enriches EOS data and enables deeper automation.",
+      "inputs": ["tool_stack", "entity_type"],
+      "outputs": ["integration_records", "connected_service_list"],
+      "ux_notes": "Integration marketplace grid. Each tool shows: name, icon, what data it provides, what automation it enables, connection status. OAuth flows for supported integrations. 'Skip for now' clearly available — no integration is required to enter active mode.",
+      "provenance_label": "OPERATOR_CORRECTION + SYNTHESIZED_CANON",
+      "provenance_detail": "Operator specified integrations as a distinct onboarding step. Integration list synthesized from EOS integration layer design."
+    },
+    {
+      "step_number": 24,
+      "id": "ONBOARD_24_REVIEW",
+      "name": "Review Generated Operating System",
+      "category": "review",
+      "description": "Operator reviews everything that was generated: portfolio, entity, org chart, departments, roles, workflows, SOPs, tasks, tools, KPIs, dashboard, client lifecycle, offer model, tracking model, team configuration, agent configuration, approval policies, integrations. Each section is expandable, editable, and regenerable.",
+      "inputs": ["all_generated_artifacts"],
+      "outputs": ["reviewed_artifacts", "operator_edits"],
+      "ux_notes": "Full-page review with collapsible sections for each generated artifact category. Each section shows summary count and key items. 'Edit' button on every item. 'Regenerate' button on every section. Visual diff if operator made changes. This is the operator's chance to refine before going live.",
+      "provenance_label": "OPERATOR_CORRECTION",
+      "provenance_detail": "Operator specified review as a distinct pre-activation step."
+    },
+    {
+      "step_number": 25,
+      "id": "ONBOARD_25_ACTIVATE",
+      "name": "Approve / Edit / Enter Active Mode",
+      "category": "activation",
+      "description": "Operator approves the generated operating system and enters active mode. All generated artifacts become live. Dashboard is the landing page. EA agent sends first message summarizing what was set up and suggesting first actions. The business is now operational on EOS.",
+      "inputs": ["reviewed_artifacts", "operator_approval"],
+      "outputs": ["active_entity", "initial_ea_briefing", "first_action_plan"],
+      "ux_notes": "Big 'Activate' button. Confirmation modal summarizing what will go live. After activation: smooth transition to the main workspace with dashboard as landing. EA agent welcome message in the chat panel. First suggested actions highlighted. Onboarding is complete but always re-accessible.",
+      "provenance_label": "OPERATOR_CORRECTION",
+      "provenance_detail": "Operator specified approve/edit/enter active mode as the final onboarding step."
+    }
+  ],
+  "onboarding_output": {
+    "description": "The complete set of artifacts produced when an operator completes the 25-step onboarding flow and enters active mode. This is the operator's initial operating system — the foundation they build on.",
+    "artifacts": [
+      {
+        "id": "OUTPUT_PORTFOLIO",
+        "name": "Portfolio Record",
+        "description": "Top-level organizational container. Holds all entities, provides portfolio-level reporting and governance.",
+        "source_steps": [2]
+      },
+      {
+        "id": "OUTPUT_ENTITY",
+        "name": "Entity/Business Records",
+        "description": "One or more entity records within the portfolio. Each entity is a distinct business, investment, or asset with its own workspace.",
+        "source_steps": [3, 4, 8]
+      },
+      {
+        "id": "OUTPUT_ORG_CHART",
+        "name": "Initial Org Chart",
+        "description": "Organizational hierarchy visualization and structure data. Reflects complexity level and entity type.",
+        "source_steps": [9]
+      },
+      {
+        "id": "OUTPUT_ROLES",
+        "name": "Initial Roles",
+        "description": "Role definitions with titles, responsibilities, permissions, and human/AI/unfilled status.",
+        "source_steps": [10, 11]
+      },
+      {
+        "id": "OUTPUT_WORKFLOWS",
+        "name": "Initial Workflows / SOPs / Tasks",
+        "description": "Workflow templates, standard operating procedures, and recurring tasks. The operational playbook.",
+        "source_steps": [12, 13, 14]
+      },
+      {
+        "id": "OUTPUT_TOOLS",
+        "name": "Initial Tools",
+        "description": "Tool stack recommendations and connected integrations. Maps tools to workflows and roles.",
+        "source_steps": [15, 23]
+      },
+      {
+        "id": "OUTPUT_DASHBOARD",
+        "name": "Initial Dashboard / KPIs",
+        "description": "Default dashboard configuration with KPIs tied to goals. The operator's command center view.",
+        "source_steps": [16]
+      },
+      {
+        "id": "OUTPUT_AGENTS",
+        "name": "Initial Agents",
+        "description": "Configured AI agents (EA, Portfolio Advisor, CEO Agent, department specialists) with behavior settings and role assignments.",
+        "source_steps": [20, 21]
+      },
+      {
+        "id": "OUTPUT_APPROVAL_POLICIES",
+        "name": "Approval Policies",
+        "description": "Governance policies defining what requires approval, who can approve, and automation boundaries.",
+        "source_steps": [22]
+      },
+      {
+        "id": "OUTPUT_CADENCE",
+        "name": "Operating Cadence",
+        "description": "Recurring schedule of reviews, check-ins, reporting cycles, and strategic planning sessions derived from tasks and workflows.",
+        "source_steps": [14]
+      },
+      {
+        "id": "OUTPUT_KNOWLEDGE",
+        "name": "Memory / Knowledge Seed",
+        "description": "Initial knowledge base seeded with entity context: goals, constraints, decisions made during onboarding, strategic context. Agents use this as their starting memory.",
+        "source_steps": [5, 6, 18]
+      },
+      {
+        "id": "OUTPUT_ACTION_PLAN",
+        "name": "Next-Action Plan",
+        "description": "Prioritized list of first actions the operator should take after activation. Generated from goals, stage, and gaps identified during onboarding. Delivered by EA agent in first briefing.",
+        "source_steps": [25]
+      },
+      {
+        "id": "OUTPUT_CLIENT_LIFECYCLE",
+        "name": "Client/Customer Lifecycle Model",
+        "description": "Pipeline/funnel stages for client or customer relationship management. Tied to workflows and KPIs.",
+        "source_steps": [17]
+      },
+      {
+        "id": "OUTPUT_OFFER_MODEL",
+        "name": "Offer/Product/Service Model",
+        "description": "Structured definition of what the entity offers, sells, or invests in. Commercial or investment identity.",
+        "source_steps": [18]
+      },
+      {
+        "id": "OUTPUT_TRACKING",
+        "name": "Investment/Asset Tracking Model",
+        "description": "Structures for tracking positions, valuations, assets, and financial instruments when applicable.",
+        "source_steps": [19]
+      }
+    ]
+  },
+  "open_questions": [
+    {
+      "id": "OQ_ONBOARD_001",
+      "question": "Should onboarding support creating multiple entities in a single flow, or should the operator complete one entity and then add more from the active workspace?",
+      "provenance_label": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "Single entity per onboarding flow. Operator adds additional entities from active workspace after first activation."
+    },
+    {
+      "id": "OQ_ONBOARD_002",
+      "question": "What is the minimum viable onboarding? Can an operator skip all generation steps and enter active mode with a bare portfolio + entity?",
+      "provenance_label": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "Yes — operator can skip generation and enter active mode with bare records. AI agents will prompt for missing context over time."
+    },
+    {
+      "id": "OQ_ONBOARD_003",
+      "question": "Should the onboarding flow persist state so the operator can resume later, or must it be completed in one session?",
+      "provenance_label": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "Persisted state. Operator can close and resume onboarding at any point. Progress saved automatically."
+    },
+    {
+      "id": "OQ_ONBOARD_004",
+      "question": "For the Import Existing Operation path (PATH_IMPORT_EXISTING), what import formats are supported in v1? CSV, JSON, Notion export, QuickBooks export?",
+      "provenance_label": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "v1: CSV and JSON. Future: Notion, QuickBooks, Xero, project management tool exports."
+    },
+    {
+      "id": "OQ_ONBOARD_005",
+      "question": "Should the AI generation in steps 8-19 happen sequentially (showing each artifact as it is built) or in a single batch (loading screen then full review)?",
+      "provenance_label": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "Sequential with real-time display. Operator sees each component being generated, building anticipation and allowing early feedback."
+    }
+  ],
+  "implementation_debt": [
+    {
+      "id": "DEBT_ONBOARD_001",
+      "description": "Beast feature/company-system has a company creation flow but not a portfolio-first flow. Portfolio layer must be added above company.",
+      "provenance_label": "IMPLEMENTATION_DEBT",
+      "severity": "high",
+      "blocking": true
+    },
+    {
+      "id": "DEBT_ONBOARD_002",
+      "description": "AI generation for steps 8-19 requires a generation engine that does not currently exist. Each step needs entity-type-aware, stage-aware, complexity-aware generation logic.",
+      "provenance_label": "IMPLEMENTATION_DEBT",
+      "severity": "high",
+      "blocking": true
+    },
+    {
+      "id": "DEBT_ONBOARD_003",
+      "description": "Agent configuration UI (step 21) requires agent behavior contract definitions that are currently only defined in UMH projection agents, not in the EOS SaaS product.",
+      "provenance_label": "IMPLEMENTATION_DEBT",
+      "severity": "medium",
+      "blocking": false
+    },
+    {
+      "id": "DEBT_ONBOARD_004",
+      "description": "Integration marketplace (step 23) requires OAuth connector infrastructure. No integration connectors currently exist in the EOS codebase.",
+      "provenance_label": "IMPLEMENTATION_DEBT",
+      "severity": "medium",
+      "blocking": false
+    }
+  ]
+}

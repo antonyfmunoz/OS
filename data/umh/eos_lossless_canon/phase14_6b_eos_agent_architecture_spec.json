@@ -1,0 +1,1406 @@
+{
+  "artifact_id": "EOS-AGENT-ARCH-001",
+  "title": "EOS Agent Architecture Specification",
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+  "description": "Complete multi-agent architecture for EOS: 10 implemented department agents + EA + Portfolio Advisor, with routing protocol, capability model, skill system, model routing, UMH integration, and MVP scope.",
+  "provenance_detail": "Agent hierarchy, skills, permission tiers, and registration resolved from projections/eos/agents/ (10 .py files + base.py + __init__.py), projections/eos/__init__.py (EOS_AGENTS component list), projections/eos/entities.py (departments, roles, workflows, dashboards, skill allocation), and projections/eos/integration/manifest.py (signal/capability descriptors). EA Agent and Portfolio Advisor are INFERRED_PROFESSIONAL_GAP -- architecturally required but not implemented in code. Communication/delegation chain sourced from phase14_6b_eos_communication_delegation_architecture.json with operator correction applied.",
+
+  "agent_hierarchy": {
+    "description": "Three-tier agent hierarchy governing all EOS execution. Upper tiers route and coordinate. Lower tier executes domain work.",
+    "levels": [
+      {
+        "level": "strategic",
+        "name": "Strategic Layer",
+        "agents": ["ea_agent", "portfolio_advisor"],
+        "purpose": "Operator interface, triage, portfolio-level intelligence, and routing. No direct domain execution.",
+        "provenance": "INFERRED_PROFESSIONAL_GAP -- neither agent exists in code today"
+      },
+      {
+        "level": "planning",
+        "name": "Planning/Coordination Layer",
+        "agents": ["ceo_agent"],
+        "purpose": "Entity-level strategy, department coordination, delegation, approval, and KPI accountability. Bridges strategic directives to department execution.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH -- CEOAgent in projections/eos/agents/ceo.py"
+      },
+      {
+        "level": "execution",
+        "name": "Execution Layer",
+        "agents": ["sales", "marketing", "finance", "customer_success", "hr", "legal", "operations", "product", "engineering"],
+        "purpose": "Domain-specific skill execution within permission tier bounds. Reports results to CEO agent. Escalates when authority is insufficient.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH -- 9 DepartmentAgent subclasses in projections/eos/agents/"
+      }
+    ],
+    "routing": {
+      "direction": "top-down only for delegation, bottom-up only for reporting and escalation",
+      "hard_constraint": "EA Agent does NOT route directly to department agents. All department-level work flows through the CEO Agent.",
+      "chain": "Operator -> EA Agent -> (Portfolio Advisor | CEO Agent) -> Department Agents -> CEO Agent -> EA Agent -> Operator"
+    }
+  },
+
+  "ea_agent": {
+    "id": "EA-001",
+    "name": "EA Agent",
+    "slug": "eos-ea",
+    "role": "Primary operator-facing communication interface, triage engine, and routing coordinator",
+    "current_code_status": "NOT_IMPLEMENTED",
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "permission_tier": "READ",
+    "permission_rationale": "EA reads, parses, and routes. It does not execute domain actions. All execution flows through CEO or Portfolio Advisor.",
+    "capabilities": [
+      "chat_and_command_intake",
+      "inbox_management",
+      "clarification_and_disambiguation",
+      "scheduling_and_reminders",
+      "task_intake_and_triage",
+      "routing_decisions",
+      "status_summaries",
+      "decision_surfacing",
+      "operator_facing_coordination",
+      "context_gathering_before_routing",
+      "multi_entity_awareness",
+      "conversation_memory"
+    ],
+    "routing_rules": {
+      "route_to_portfolio_advisor": [
+        "Request concerns multiple entities simultaneously",
+        "Request is about capital allocation across entities",
+        "Request asks for cross-entity comparison or benchmarking",
+        "Request involves portfolio-level risk assessment",
+        "Request asks about which entity to prioritize, create, or wind down",
+        "Request involves resource rebalancing between entities"
+      ],
+      "route_to_ceo_agent": [
+        "Request targets a specific entity or company",
+        "Request involves department-level execution within an entity",
+        "Request asks about a specific company's KPIs, pipeline, or operations",
+        "Request involves hiring, marketing, sales, or product decisions for one entity",
+        "Operator has already selected an entity context in the UI"
+      ],
+      "ambiguous_handling": "When scope is unclear, EA asks a clarifying question. EA never guesses scope."
+    },
+    "what_it_can_delegate": [
+      "Entity-scoped tasks to the appropriate CEO Agent",
+      "Portfolio-scoped analysis to the Portfolio Advisor",
+      "Status aggregation requests across entities"
+    ],
+    "what_it_cannot": [
+      "Direct delegation to any department agent",
+      "Execution of any domain action (sending messages, processing payments, deploying)",
+      "Bypassing the CEO Agent for entity-level work",
+      "Making business decisions on behalf of the operator"
+    ],
+    "implementation_notes": {
+      "base_class_question": "OPEN_QUESTION -- Should EA be a DepartmentAgent subclass or a distinct agent type? DepartmentAgent assumes department-level execution with skill registration. EA may need a different abstraction (RoutingAgent base class).",
+      "critical_dependency": "The entire corrected routing chain depends on EA as the primary intake node. Without it, operator communicates directly with CEO agent, bypassing triage and portfolio-level routing."
+    }
+  },
+
+  "portfolio_advisor": {
+    "id": "PA-001",
+    "name": "Portfolio Advisor Agent",
+    "slug": "eos-portfolio-advisor",
+    "role": "Portfolio-level strategy, allocation, cross-entity intelligence, and macro prioritization",
+    "current_code_status": "NOT_IMPLEMENTED",
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "permission_tier": "DRAFT",
+    "permission_rationale": "Portfolio Advisor analyzes and recommends but does not execute. Execution happens at entity level through CEO agents.",
+    "when_activated": [
+      "EA routes a portfolio-scope request",
+      "Cross-entity comparison or benchmarking is requested",
+      "Capital allocation decision is needed",
+      "Operator asks about portfolio health, diversification, or entity prioritization"
+    ],
+    "scope": "All entities within a portfolio. Does not operate within a single entity -- that is the CEO Agent's domain.",
+    "capabilities": [
+      "portfolio_level_strategy",
+      "capital_allocation_analysis",
+      "resource_allocation_across_entities",
+      "cross_entity_comparison",
+      "risk_detection_portfolio_level",
+      "opportunity_detection_portfolio_level",
+      "portfolio_dashboard_intelligence",
+      "high_level_prioritization",
+      "portfolio_level_reporting",
+      "entity_health_scoring",
+      "diversification_analysis",
+      "correlation_analysis_across_holdings"
+    ],
+    "implementation_notes": {
+      "multi_portfolio_question": "OPEN_QUESTION -- How should the routing chain handle multi-portfolio operators? Current model assumes one portfolio context. Multi-portfolio adds another routing layer: EA -> Portfolio Selector -> Portfolio Advisor -> CEO."
+    }
+  },
+
+  "ceo_agent": {
+    "id": "CEO-001",
+    "name": "Company/Entity CEO Agent",
+    "slug": "eos-ceo",
+    "role": "Entity-level strategy, department coordination, delegation, approval, and KPI accountability",
+    "current_code_status": "IMPLEMENTED",
+    "current_code_location": "projections/eos/agents/ceo.py",
+    "current_code_class": "CEOAgent",
+    "department": "executive",
+    "permission_tier": "COMMIT",
+    "permission_rationale": "Full authority within the entity. Can approve any action across departments.",
+    "capabilities": [
+      "strategic_analysis",
+      "decision_making",
+      "delegation",
+      "pipeline_review",
+      "morning_briefing",
+      "action_approval"
+    ],
+    "authority": {
+      "can_approve": "Any COMMIT-tier action queued by department agents (payments, contracts, legal execution)",
+      "can_delegate": "Any task to any department agent within the entity",
+      "can_escalate_to": "EA Agent (when operator decision is needed or cross-entity impact detected)",
+      "cannot": "Act outside entity scope, allocate resources across entities (that is Portfolio Advisor), bypass operator for CRITICAL-risk actions"
+    },
+    "escalation": {
+      "escalates_to": "ea_agent",
+      "escalation_triggers": [
+        "Operator decision required",
+        "Cross-entity impact detected",
+        "CRITICAL risk action needs approval",
+        "Budget threshold exceeded",
+        "Strategic pivot needed"
+      ]
+    },
+    "skills": [
+      {
+        "name": "strategic_analysis",
+        "action_type": "analyze",
+        "description": "Analyze strategic position and opportunities",
+        "uses_llm": true,
+        "has_deterministic_fallback": true,
+        "fallback_behavior": "Returns 'AI analysis unavailable -- manual strategic review needed'"
+      },
+      {
+        "name": "decision_brief",
+        "action_type": "report",
+        "description": "Generate decision brief for a key decision with framework evaluation",
+        "uses_llm": true,
+        "has_deterministic_fallback": true,
+        "fallback_behavior": "Returns framework structure without AI recommendation"
+      },
+      {
+        "name": "delegation",
+        "action_type": "create_task",
+        "description": "Delegate a task to a department agent with context, constraints, and deadline",
+        "uses_llm": false,
+        "has_deterministic_fallback": true
+      },
+      {
+        "name": "pipeline_review",
+        "action_type": "report",
+        "description": "Review full pipeline across all departments via get_pipeline_data()",
+        "uses_llm": false,
+        "has_deterministic_fallback": true,
+        "data_source": "projections/eos/views/pipeline.py get_pipeline_data()"
+      },
+      {
+        "name": "morning_brief",
+        "action_type": "report",
+        "description": "Generate CEO morning briefing covering revenue, pipeline, tasks, alerts",
+        "uses_llm": true,
+        "has_deterministic_fallback": true,
+        "fallback_behavior": "Returns structured section stubs directing to relevant department agents"
+      },
+      {
+        "name": "approve_action",
+        "action_type": "execute_payment",
+        "description": "Approve a queued action from a department agent (COMMIT tier required)",
+        "uses_llm": false,
+        "has_deterministic_fallback": true
+      }
+    ],
+    "substrate_registration": {
+      "component_type": "AGENT",
+      "registration_name": "eos-ceo",
+      "registered_capabilities": ["strategic_analysis", "decision_making", "delegation", "pipeline_review", "morning_briefing", "action_approval"],
+      "registration_function": "register_ceo_agent(substrate) -> RegistrationResult"
+    },
+    "known_issues": [
+      {
+        "issue": "Instance-specific hardcoded values",
+        "detail": "strategic_analysis skill contains hardcoded references to 'Initiate Arena', 'pre-revenue personal development company', 'men 18-25', '$10K/month net profit'. Must be generalized via BIS runtime lookup for multi-entity support.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      }
+    ]
+  },
+
+  "department_agents": [
+    {
+      "id": "DEPT-SALES-001",
+      "name": "Sales Agent",
+      "slug": "eos-sales",
+      "department": "sales",
+      "current_code_status": "IMPLEMENTED",
+      "current_code_location": "projections/eos/agents/sales.py",
+      "current_code_class": "SalesAgent",
+      "permission_tier": "EXECUTE",
+      "autonomy_level": "high",
+      "autonomy_rationale": "Can score leads, draft outreach, send messages, and book calls autonomously within EXECUTE tier. Only payment-related actions require escalation.",
+      "capabilities": ["lead_scoring", "outreach_drafting", "pipeline_management", "follow_up", "outreach_sending", "call_booking"],
+      "tools": ["outreach_workflow", "followup_workflow", "pipeline_view", "browser_research", "browser_act"],
+      "delegation_rules": {
+        "receives_from": "ceo_agent only",
+        "can_sub_delegate": false,
+        "escalates_to": "ceo_agent",
+        "escalation_triggers": ["Payment or discount approval needed", "Deal value exceeds threshold", "Contract negotiation required", "Cross-department dependency (e.g., marketing collateral needed)"]
+      },
+      "skills": [
+        {
+          "name": "lead_score",
+          "action_type": "score",
+          "description": "Score a lead based on qualification criteria via OutreachWorkflow._qualify()",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "data_source": "projections/eos/workflows/outreach.py"
+        },
+        {
+          "name": "outreach_draft",
+          "action_type": "draft_message",
+          "description": "Draft an outreach message for a prospect via OutreachWorkflow.execute()",
+          "uses_llm": true,
+          "has_deterministic_fallback": true,
+          "data_source": "projections/eos/workflows/outreach.py"
+        },
+        {
+          "name": "pipeline_report",
+          "action_type": "report",
+          "description": "Report on current sales pipeline via get_pipeline_data()",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "data_source": "projections/eos/views/pipeline.py"
+        },
+        {
+          "name": "follow_up",
+          "action_type": "draft_message",
+          "description": "Draft follow-up messages for stale leads via FollowUpWorkflow.check_stale_leads()",
+          "uses_llm": true,
+          "has_deterministic_fallback": true,
+          "data_source": "projections/eos/workflows/followup.py"
+        },
+        {
+          "name": "send_outreach",
+          "action_type": "send_dm",
+          "description": "Send outreach message to a prospect (EXECUTE tier required)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "book_call",
+          "action_type": "book_call",
+          "description": "Book a discovery call with a prospect (EXECUTE tier required)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        }
+      ],
+      "associated_department_config": {
+        "roles": ["sales_lead", "bdr", "account_executive"],
+        "metrics": ["pipeline_value", "conversion_rate", "outreach_volume", "calls_booked"],
+        "workflows": ["outreach", "follow_up", "pipeline_review"],
+        "dashboard_widgets": ["CRM_TABLE", "TASK_BOARD", "METRIC_CARD", "AI_CHAT", "COMMUNICATION"]
+      },
+      "skill_allocation_from_entities": [
+        "Sales/analyze_conversation",
+        "Sales/analyze_dm_conversation",
+        "Sales/analyze_dm_conversation_titled",
+        "Sales/binding_constraint_diagnosis",
+        "Sales/call_booking_confirmation",
+        "Sales/call_to_close",
+        "Sales/crm_stage_update",
+        "Sales/extract_icp_insight",
+        "Sales/follow_up_sequence",
+        "Sales/generate_follow_up_message",
+        "Sales/generate_outreach_from_intel",
+        "Sales/lead_nurture",
+        "Sales/lead_personalization_from_profile",
+        "Sales/objection_handling",
+        "Sales/opener_batch_audit",
+        "Sales/pre_call_research_brief",
+        "Sales/proof_promise_plan_close",
+        "Sales/qualify_lead",
+        "Sales/stage_transition_assessment",
+        "Sales/summarize_sales_call",
+        "Outreach/dm_opener",
+        "Outreach/reply_handler",
+        "Research/analyze_icp_signal",
+        "Research/detect_icp_patterns",
+        "Research/generate_market_report",
+        "Research/icp_signal_detection",
+        "Research/person_recognition_lookup",
+        "Research/process_signal_queue"
+      ]
+    },
+    {
+      "id": "DEPT-MARKETING-001",
+      "name": "Marketing Agent",
+      "slug": "eos-marketing",
+      "department": "marketing",
+      "current_code_status": "IMPLEMENTED",
+      "current_code_location": "projections/eos/agents/marketing.py",
+      "current_code_class": "MarketingAgent",
+      "permission_tier": "EXECUTE",
+      "autonomy_level": "high",
+      "autonomy_rationale": "Can create content calendars, ideate, analyze audiences, audit brand, publish content, and report on campaigns. Content publishing is EXECUTE tier.",
+      "capabilities": ["content_strategy", "content_creation", "brand_management", "audience_analysis", "content_publishing", "campaign_reporting"],
+      "tools": ["content_calendar_workflow", "neon_db_queries", "model_router_llm", "browser_research", "browser_act"],
+      "delegation_rules": {
+        "receives_from": "ceo_agent only",
+        "can_sub_delegate": false,
+        "escalates_to": "ceo_agent",
+        "escalation_triggers": ["Paid ad spend approval", "Brand direction change", "Crisis communications", "Cross-department campaign coordination"]
+      },
+      "skills": [
+        {
+          "name": "content_calendar",
+          "action_type": "draft_content",
+          "description": "Generate a content calendar for upcoming period via ContentCalendarWorkflow.generate_calendar()",
+          "uses_llm": true,
+          "has_deterministic_fallback": true,
+          "data_source": "projections/eos/workflows/content.py"
+        },
+        {
+          "name": "content_ideation",
+          "action_type": "draft_content",
+          "description": "Generate content ideas for a topic/channel via ContentCalendarWorkflow.ideate()",
+          "uses_llm": true,
+          "has_deterministic_fallback": true,
+          "data_source": "projections/eos/workflows/content.py"
+        },
+        {
+          "name": "audience_analysis",
+          "action_type": "analyze",
+          "description": "Analyze audience demographics and engagement from Neon events table",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "data_source": "Neon DB events table (event_type='audience_metric')"
+        },
+        {
+          "name": "brand_audit",
+          "action_type": "analyze",
+          "description": "Audit brand consistency across channels -- returns checklist for manual review",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "post_content",
+          "action_type": "post_content",
+          "description": "Publish content to a channel (EXECUTE tier required)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "campaign_report",
+          "action_type": "report",
+          "description": "Report on marketing campaign performance from Neon events table",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "data_source": "Neon DB events table (event_type='campaign_metric')"
+        }
+      ],
+      "associated_department_config": {
+        "roles": ["content_creator", "brand_manager", "growth_marketer"],
+        "metrics": ["followers", "engagement_rate", "content_output", "cac"],
+        "workflows": ["content_calendar", "campaign_execution", "brand_audit"],
+        "dashboard_widgets": ["TASK_BOARD", "METRIC_CARD", "DOCUMENT_LIST", "AI_CHAT", "TIMELINE"]
+      },
+      "skill_allocation_from_entities": [
+        "Marketing/Content/draft_arena_content_post",
+        "Marketing/Content/generate_content_from_intel",
+        "Marketing/campaign_diagnosis",
+        "Marketing/content_calendar",
+        "Content/content_video_brief",
+        "Content/hook_performance_analysis",
+        "content/analyze_content_performance",
+        "content/discover_content_angles",
+        "content/generate_content_script"
+      ]
+    },
+    {
+      "id": "DEPT-FINANCE-001",
+      "name": "Finance Agent",
+      "slug": "eos-finance",
+      "department": "finance",
+      "current_code_status": "IMPLEMENTED",
+      "current_code_location": "projections/eos/agents/finance.py",
+      "current_code_class": "FinanceAgent",
+      "permission_tier": "COMMIT",
+      "autonomy_level": "medium",
+      "autonomy_rationale": "Can generate reports and analyses autonomously. Payment processing and invoice sending require COMMIT tier -- queued for CEO or operator approval.",
+      "capabilities": ["expense_tracking", "revenue_monitoring", "budget_forecasting", "unit_economics", "cashflow_analysis", "payment_processing", "invoice_drafting"],
+      "tools": ["neon_db_queries", "browser_research", "browser_act"],
+      "delegation_rules": {
+        "receives_from": "ceo_agent only",
+        "can_sub_delegate": false,
+        "escalates_to": "ceo_agent",
+        "escalation_triggers": ["Payment execution (always requires human approval)", "Budget reallocation request", "Financial anomaly detected", "Cash runway below threshold"]
+      },
+      "skills": [
+        {
+          "name": "revenue_report",
+          "action_type": "report",
+          "description": "Generate revenue summary for a time period from Neon events table",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "data_source": "Neon DB events table (event_type='revenue')"
+        },
+        {
+          "name": "expense_tracking",
+          "action_type": "report",
+          "description": "Track and categorize expenses from Neon events table",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "data_source": "Neon DB events table (event_type='expense')"
+        },
+        {
+          "name": "budget_forecast",
+          "action_type": "analyze",
+          "description": "Forecast budget based on current burn rate, revenue, and cash on hand. Pure arithmetic -- no LLM.",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "unit_economics",
+          "action_type": "analyze",
+          "description": "Calculate unit economics (CAC, LTV, margins, LTV:CAC ratio). Flags unhealthy when ratio < 3.0.",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "cashflow_analysis",
+          "action_type": "analyze",
+          "description": "Analyze cash flow from provided inflows/outflows. Pure arithmetic.",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "payment_processing",
+          "action_type": "execute_payment",
+          "description": "Process a payment -- always queued as pending_approval (COMMIT tier, requires human approval)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "invoice_draft",
+          "action_type": "draft_content",
+          "description": "Draft an invoice for review before sending",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        }
+      ],
+      "associated_department_config": {
+        "roles": ["cfo", "bookkeeper", "financial_analyst"],
+        "metrics": ["revenue", "expenses", "burn_rate", "runway_months", "ltv_cac_ratio"],
+        "workflows": ["revenue_tracking", "expense_review", "budget_forecast"],
+        "dashboard_widgets": ["METRIC_CARD", "APPROVAL_QUEUE", "DOCUMENT_LIST", "AI_CHAT"]
+      },
+      "skill_allocation_from_entities": []
+    },
+    {
+      "id": "DEPT-CS-001",
+      "name": "Customer Success Agent",
+      "slug": "eos-customer-success",
+      "department": "customer_success",
+      "current_code_status": "IMPLEMENTED",
+      "current_code_location": "projections/eos/agents/customer_success.py",
+      "current_code_class": "CustomerSuccessAgent",
+      "permission_tier": "EXECUTE",
+      "autonomy_level": "high",
+      "autonomy_rationale": "Can route tickets, detect churn, analyze feedback, draft and send responses. Deterministic keyword-based ticket routing provides reliable triage without LLM dependency.",
+      "capabilities": ["ticket_routing", "satisfaction_tracking", "churn_detection", "onboarding_guidance", "feedback_analysis", "response_drafting", "message_sending"],
+      "tools": ["neon_db_queries", "model_router_llm", "browser_research", "browser_act"],
+      "delegation_rules": {
+        "receives_from": "ceo_agent only",
+        "can_sub_delegate": false,
+        "escalates_to": "ceo_agent",
+        "escalation_triggers": ["Refund request (financial action)", "Customer threatening legal action", "Systemic issue affecting multiple customers", "Retention-critical customer at risk"]
+      },
+      "skills": [
+        {
+          "name": "ticket_routing",
+          "action_type": "classify",
+          "description": "Classify and route a support ticket using keyword-based deterministic rules. Routes to: finance, engineering, product, retention, or support.",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "routing_rules_count": 5
+        },
+        {
+          "name": "satisfaction_report",
+          "action_type": "report",
+          "description": "Generate customer satisfaction report from Neon survey data",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "data_source": "Neon DB events table (event_type='satisfaction_survey')"
+        },
+        {
+          "name": "churn_detection",
+          "action_type": "analyze",
+          "description": "Identify customers at risk of churning (engagement_score < 30)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "data_source": "Neon DB events table (event_type='customer_activity')"
+        },
+        {
+          "name": "onboarding_guide",
+          "action_type": "draft_content",
+          "description": "Create personalized onboarding guidance with step sequences for new_member or returning user types",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "feedback_analysis",
+          "action_type": "analyze",
+          "description": "Analyze customer feedback for themes using keyword matching (pricing, performance, support_quality, feature_requests)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "response_draft",
+          "action_type": "draft_message",
+          "description": "Draft a response to a customer inquiry using LLM with template fallback",
+          "uses_llm": true,
+          "has_deterministic_fallback": true,
+          "fallback_behavior": "Returns generic acknowledgment template"
+        },
+        {
+          "name": "send_response",
+          "action_type": "send_message",
+          "description": "Send a response to a customer (EXECUTE tier required)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        }
+      ],
+      "associated_department_config": {
+        "roles": ["cs_lead", "support_agent", "onboarding_specialist"],
+        "metrics": ["nps", "churn_rate", "ticket_resolution_time", "satisfaction_score"],
+        "workflows": ["ticket_routing", "onboarding", "churn_prevention"],
+        "dashboard_widgets": ["TASK_BOARD", "CRM_TABLE", "METRIC_CARD", "AI_CHAT", "COMMUNICATION"]
+      },
+      "skill_allocation_from_entities": [
+        "CustomerSuccess/churn_prevention",
+        "CustomerSuccess/onboarding_sequence"
+      ]
+    },
+    {
+      "id": "DEPT-HR-001",
+      "name": "HR/Recruiting Agent",
+      "slug": "eos-hr",
+      "department": "hr",
+      "current_code_status": "IMPLEMENTED",
+      "current_code_location": "projections/eos/agents/hr.py",
+      "current_code_class": "HRAgent",
+      "permission_tier": "EXECUTE",
+      "autonomy_level": "medium",
+      "autonomy_rationale": "Can screen candidates, report on hiring pipeline, create onboarding plans, and research contractors. Candidate outreach is EXECUTE tier. Hiring decisions escalate to CEO.",
+      "capabilities": ["hiring_pipeline", "candidate_screening", "onboarding_workflow", "team_performance", "contractor_management", "candidate_outreach"],
+      "tools": ["neon_db_queries", "browser_research", "browser_act"],
+      "delegation_rules": {
+        "receives_from": "ceo_agent only",
+        "can_sub_delegate": false,
+        "escalates_to": "ceo_agent",
+        "escalation_triggers": ["Hiring decision (offer/reject)", "Compensation negotiation", "Termination decision", "Contractor budget approval"]
+      },
+      "skills": [
+        {
+          "name": "candidate_screen",
+          "action_type": "analyze",
+          "description": "Screen a candidate against role requirements using skill-matching score (20pts per skill match, 10-20pts for experience). Returns strong_fit/potential_fit/not_fit.",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "hiring_pipeline",
+          "action_type": "report",
+          "description": "Report on current hiring pipeline status from Neon events table",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "data_source": "Neon DB events table (event_type='hiring_candidate')"
+        },
+        {
+          "name": "onboarding_plan",
+          "action_type": "draft_content",
+          "description": "Create 4-week onboarding plan for a new team member (week_1 through week_3_4 phases)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "performance_review",
+          "action_type": "analyze",
+          "description": "Analyze team member performance data -- returns metrics with needs_review status for human evaluation",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "contractor_search",
+          "action_type": "research",
+          "description": "Research contractors for a specific role. Returns platform suggestions (Upwork, Toptal, LinkedIn, Angel.co) with research_needed status.",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "outreach_candidate",
+          "action_type": "send_dm",
+          "description": "Send outreach to a candidate (EXECUTE tier required)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        }
+      ],
+      "associated_department_config": {
+        "roles": ["hr_lead", "recruiter", "people_ops"],
+        "metrics": ["headcount", "hiring_pipeline", "time_to_hire", "retention_rate"],
+        "workflows": ["hiring", "onboarding", "performance_review"],
+        "dashboard_widgets": ["TASK_BOARD", "DOCUMENT_LIST", "METRIC_CARD", "AI_CHAT"]
+      },
+      "skill_allocation_from_entities": []
+    },
+    {
+      "id": "DEPT-LEGAL-001",
+      "name": "Legal/Compliance Agent",
+      "slug": "eos-legal",
+      "department": "legal",
+      "current_code_status": "IMPLEMENTED",
+      "current_code_location": "projections/eos/agents/legal.py",
+      "current_code_class": "LegalAgent",
+      "permission_tier": "COMMIT",
+      "autonomy_level": "low",
+      "autonomy_rationale": "Can analyze contracts and check compliance autonomously. All execution actions (contract execution, legal document finalization) require COMMIT tier and human approval. Legal domain demands human oversight.",
+      "capabilities": ["contract_review", "compliance_tracking", "entity_management", "terms_drafting", "ip_protection", "contract_execution"],
+      "tools": ["model_router_llm", "browser_research", "browser_act"],
+      "delegation_rules": {
+        "receives_from": "ceo_agent only",
+        "can_sub_delegate": false,
+        "escalates_to": "ceo_agent",
+        "escalation_triggers": ["Contract execution (always)", "Legal risk detected in any domain", "Compliance violation found", "IP infringement detected", "Regulatory change affecting operations"]
+      },
+      "skills": [
+        {
+          "name": "contract_review",
+          "action_type": "analyze",
+          "description": "Review a contract for risks and obligations using keyword-based signal detection (indemnification, unlimited liability, non-compete, auto-renew, exclusivity, penalty, termination) plus LLM analysis",
+          "uses_llm": true,
+          "has_deterministic_fallback": true,
+          "fallback_behavior": "Returns keyword-detected risks and obligations without AI analysis",
+          "risk_signals_count": 7,
+          "obligation_signals_count": 5
+        },
+        {
+          "name": "compliance_check",
+          "action_type": "analyze",
+          "description": "Check compliance status against requirements by domain (general, payments, data). Returns checklist with needs_review status.",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "domains": ["general", "payments", "data"]
+        },
+        {
+          "name": "entity_status",
+          "action_type": "report",
+          "description": "Report on entity registration status. Currently returns hardcoded entity list -- needs BIS runtime lookup.",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "known_issue": "Hardcoded entity list (Munoz Conglomerate LLC, Lyfe Institute LLC, Empyrean Studio LLC). Must be generalized to pull from BIS venture registry."
+        },
+        {
+          "name": "terms_draft",
+          "action_type": "draft_content",
+          "description": "Draft terms of service or privacy policy using LLM with section-outline fallback",
+          "uses_llm": true,
+          "has_deterministic_fallback": true,
+          "fallback_behavior": "Returns section headers for ToS or privacy policy"
+        },
+        {
+          "name": "ip_audit",
+          "action_type": "analyze",
+          "description": "Audit IP assets and protections. Currently returns hardcoded recommendations -- needs BIS runtime lookup.",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "known_issue": "Hardcoded IP recommendations. Must be generalized."
+        },
+        {
+          "name": "contract_execute",
+          "action_type": "execute_payment",
+          "description": "Execute a contract -- always queued as pending_approval (COMMIT tier, requires human approval)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        }
+      ],
+      "associated_department_config": {
+        "roles": ["general_counsel", "compliance_officer"],
+        "metrics": ["open_contracts", "compliance_status", "pending_reviews"],
+        "workflows": ["contract_review", "compliance_check", "entity_management"],
+        "dashboard_widgets": ["DOCUMENT_LIST", "APPROVAL_QUEUE", "METRIC_CARD", "AI_CHAT"]
+      },
+      "skill_allocation_from_entities": []
+    },
+    {
+      "id": "DEPT-OPS-001",
+      "name": "Operations Agent",
+      "slug": "eos-operations",
+      "department": "operations",
+      "current_code_status": "IMPLEMENTED",
+      "current_code_location": "projections/eos/agents/operations.py",
+      "current_code_class": "OperationsAgent",
+      "permission_tier": "EXECUTE",
+      "autonomy_level": "high",
+      "autonomy_rationale": "Can check system health, audit workflows, detect bottlenecks, analyze resource allocation, and generate operational reports. Has subprocess access for Docker commands.",
+      "capabilities": ["workflow_optimization", "process_automation", "system_monitoring", "bottleneck_detection", "resource_allocation", "operational_reporting"],
+      "tools": ["subprocess_docker_ps", "subprocess_docker_stats", "subprocess_df", "neon_db_queries", "browser_research", "browser_act"],
+      "delegation_rules": {
+        "receives_from": "ceo_agent only",
+        "can_sub_delegate": false,
+        "escalates_to": "ceo_agent",
+        "escalation_triggers": ["Infrastructure spend approval", "Service architecture changes", "Third-party tool procurement", "Process changes affecting other departments"]
+      },
+      "skills": [
+        {
+          "name": "system_health",
+          "action_type": "status_check",
+          "description": "Check overall system health via docker ps and df commands. Returns service status and disk usage.",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "uses_subprocess": true
+        },
+        {
+          "name": "workflow_audit",
+          "action_type": "analyze",
+          "description": "Audit workflows for bottlenecks and optimization opportunities. Returns audit checklist.",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "process_automation",
+          "action_type": "create_task",
+          "description": "Identify automation opportunities in a process by keyword-matching step names (copy, transfer, notify, update, sync = automatable)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "resource_allocation",
+          "action_type": "analyze",
+          "description": "Analyze resource allocation via docker stats (CPU, memory per container)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "uses_subprocess": true
+        },
+        {
+          "name": "bottleneck_detection",
+          "action_type": "analyze",
+          "description": "Detect operational bottlenecks from Neon events where avg completion time exceeds 1 hour",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "data_source": "Neon DB events table (avg_duration > 3600s)"
+        },
+        {
+          "name": "ops_report",
+          "action_type": "report",
+          "description": "Generate operational summary report combining system_health and resource_allocation outputs",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "composes": ["system_health", "resource_allocation"]
+        }
+      ],
+      "associated_department_config": {
+        "roles": ["ops_lead", "systems_admin", "process_engineer"],
+        "metrics": ["uptime", "automation_coverage", "bottleneck_count", "cycle_time"],
+        "workflows": ["system_monitoring", "process_automation", "incident_response"],
+        "dashboard_widgets": ["METRIC_CARD", "TASK_BOARD", "TIMELINE", "AI_CHAT", "TOOL_PANEL"]
+      },
+      "skill_allocation_from_entities": [
+        "Ops/communication_templates",
+        "Ops/playbook_client_issue",
+        "Ops/playbook_deal_closed",
+        "Ops/playbook_investor_inquiry",
+        "Ops/playbook_job_inquiry",
+        "Ops/playbook_new_inbound_lead",
+        "Ops/playbook_no_show_recovery",
+        "Ops/playbook_partnership_proposal",
+        "Ops/playbook_speaking_podcast_request",
+        "Ops/playbook_vendor_contract",
+        "Ops/schedule_event"
+      ]
+    },
+    {
+      "id": "DEPT-PRODUCT-001",
+      "name": "Product/Service Delivery Agent",
+      "slug": "eos-product",
+      "department": "product",
+      "current_code_status": "IMPLEMENTED",
+      "current_code_location": "projections/eos/agents/product.py",
+      "current_code_class": "ProductAgent",
+      "permission_tier": "DRAFT",
+      "autonomy_level": "medium",
+      "autonomy_rationale": "Can analyze roadmap, prioritize features, summarize feedback, and draft specs. DRAFT tier means it creates documents and analyses but cannot publish or execute externally. All execution routes through CEO.",
+      "capabilities": ["roadmap_management", "feature_prioritization", "user_feedback_analysis", "competitor_tracking", "release_planning", "spec_drafting"],
+      "tools": ["neon_db_queries", "model_router_llm", "browser_research", "browser_act"],
+      "delegation_rules": {
+        "receives_from": "ceo_agent only",
+        "can_sub_delegate": false,
+        "escalates_to": "ceo_agent",
+        "escalation_triggers": ["Feature scope change", "Roadmap pivot decision", "Resource allocation for development", "Go/no-go decision on release"]
+      },
+      "skills": [
+        {
+          "name": "roadmap_status",
+          "action_type": "report",
+          "description": "Report on product roadmap status from Neon events table",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "data_source": "Neon DB events table (event_type='roadmap_item')"
+        },
+        {
+          "name": "feature_prioritize",
+          "action_type": "analyze",
+          "description": "Prioritize features using ICE scoring (Impact x Confidence x Ease / 10). Sorts descending by score.",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "user_feedback_summary",
+          "action_type": "analyze",
+          "description": "Summarize user feedback into sentiment distribution (positive/negative/neutral) from Neon",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "data_source": "Neon DB events table (event_type='user_feedback')"
+        },
+        {
+          "name": "competitor_analysis",
+          "action_type": "research",
+          "description": "Research competitor features and positioning using LLM with manual-research fallback",
+          "uses_llm": true,
+          "has_deterministic_fallback": true,
+          "fallback_behavior": "Returns 'Manual research needed'"
+        },
+        {
+          "name": "release_plan",
+          "action_type": "draft_content",
+          "description": "Draft a release plan with 4-phase structure (development, internal_testing, beta, launch)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "spec_draft",
+          "action_type": "create_document",
+          "description": "Draft a product specification document using LLM with section-outline fallback",
+          "uses_llm": true,
+          "has_deterministic_fallback": true,
+          "fallback_behavior": "Returns section headers: Problem, Solution, User Stories, Success Metrics, Timeline"
+        }
+      ],
+      "associated_department_config": {
+        "roles": ["product_manager", "ux_researcher", "product_analyst"],
+        "metrics": ["feature_velocity", "user_satisfaction", "roadmap_completion"],
+        "workflows": ["feature_prioritization", "user_research", "release_planning"],
+        "dashboard_widgets": ["TASK_BOARD", "METRIC_CARD", "WORKFLOW_LIST", "AI_CHAT", "DOCUMENT_LIST"]
+      },
+      "skill_allocation_from_entities": []
+    },
+    {
+      "id": "DEPT-ENG-001",
+      "name": "Engineering Agent",
+      "slug": "eos-engineering",
+      "department": "engineering",
+      "current_code_status": "IMPLEMENTED",
+      "current_code_location": "projections/eos/agents/engineering.py",
+      "current_code_class": "EngineeringAgent",
+      "permission_tier": "EXECUTE",
+      "autonomy_level": "high",
+      "autonomy_rationale": "Can review code, analyze architecture, check deployment status, report tech debt, respond to incidents, and deploy services. Has subprocess access for Docker and grep commands.",
+      "capabilities": ["code_review", "architecture_analysis", "deployment_management", "technical_debt_tracking", "incident_response", "service_deployment"],
+      "tools": ["subprocess_docker_ps", "subprocess_docker_stats", "subprocess_grep", "model_router_llm", "browser_research", "browser_act"],
+      "delegation_rules": {
+        "receives_from": "ceo_agent only",
+        "can_sub_delegate": false,
+        "escalates_to": "ceo_agent",
+        "escalation_triggers": ["Architecture decision with business impact", "Security vulnerability discovered", "Production outage", "Infrastructure cost increase", "Breaking change affecting other departments"]
+      },
+      "skills": [
+        {
+          "name": "code_review",
+          "action_type": "analyze",
+          "description": "Review code for quality, security, and style. Deterministic pattern detection (broad exceptions, wildcard imports, TODOs, hardcoded credentials) plus LLM review.",
+          "uses_llm": true,
+          "has_deterministic_fallback": true,
+          "fallback_behavior": "Returns pattern-matched issues without AI review",
+          "detection_patterns": ["broad exception catching", "wildcard import", "unresolved TODO", "hardcoded credential"]
+        },
+        {
+          "name": "architecture_analysis",
+          "action_type": "analyze",
+          "description": "Analyze system architecture against standard checks (dependency direction, circular imports, single responsibility, abstraction boundaries, error handling)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "deployment_status",
+          "action_type": "report",
+          "description": "Report on deployment and service health via docker ps command",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "uses_subprocess": true
+        },
+        {
+          "name": "tech_debt_report",
+          "action_type": "report",
+          "description": "Report on technical debt by grep-counting TODO/FIXME/HACK/XXX markers across all .py files",
+          "uses_llm": false,
+          "has_deterministic_fallback": true,
+          "uses_subprocess": true
+        },
+        {
+          "name": "incident_response",
+          "action_type": "analyze",
+          "description": "Analyze an incident and generate investigation steps (check logs, check status, check resources, check recent deploys, restart)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        },
+        {
+          "name": "deploy",
+          "action_type": "container_execution",
+          "description": "Deploy a service via docker restart (EXECUTE tier required)",
+          "uses_llm": false,
+          "has_deterministic_fallback": true
+        }
+      ],
+      "associated_department_config": {
+        "roles": ["tech_lead", "developer", "devops_engineer"],
+        "metrics": ["deploy_frequency", "incident_count", "tech_debt_ratio", "test_coverage"],
+        "workflows": ["code_review", "deployment", "incident_response"],
+        "dashboard_widgets": ["TASK_BOARD", "METRIC_CARD", "TOOL_PANEL", "AI_CHAT", "TIMELINE"]
+      },
+      "skill_allocation_from_entities": [
+        "developer/adversarial_review"
+      ]
+    }
+  ],
+
+  "routing_protocol": {
+    "user_to_ea": {
+      "description": "Operator communicates exclusively through the EA Agent via chat box, voice, or command surface",
+      "input_surfaces": ["chat_box", "voice_command", "navigation_action", "approval_action"],
+      "ea_processing": "EA parses intent, gathers missing context, confirms understanding, then routes",
+      "constraint": "EA is the ONLY agent the operator communicates with directly"
+    },
+    "ea_to_portfolio_or_ceo": {
+      "description": "EA routes to Portfolio Advisor for portfolio-scope or CEO Agent for entity-scope requests",
+      "decision_logic": "Scope classification based on request language, entity context, and routing rules defined in ea_agent.routing_rules",
+      "ambiguity_handling": "EA asks clarifying question -- never guesses scope",
+      "multi_entity_handling": "Cross-entity actions route to Portfolio Advisor who coordinates with relevant CEO Agents"
+    },
+    "ceo_to_department": {
+      "description": "CEO Agent delegates tasks to department agents with context, constraints, and deadlines",
+      "delegation_payload": {
+        "fields": ["task_id", "source", "department", "skill", "context", "deadline", "priority", "approval_required", "operator_visibility"]
+      },
+      "multi_department_tasks": "CEO creates coordination plan, delegates sub-tasks to each department, manages dependencies",
+      "parallel_delegation": "Independent sub-tasks delegated in parallel. Dependent sub-tasks sequenced with explicit dependency tracking."
+    },
+    "escalation_chain": {
+      "department_to_ceo": "When department agent cannot proceed within its authority. Includes: original context, what was attempted, why escalation needed, recommended action.",
+      "ceo_to_ea": "When CEO needs operator decision, cross-entity impact detected, or CRITICAL action approval required. Includes: decision summary, options with pros/cons, recommendation.",
+      "ea_to_operator": "EA surfaces decision to operator with: title, context summary, options, recommendation, deadline, impact of inaction.",
+      "format_rule": "Every escalation includes what happened, what was tried, what is needed, and a recommended path forward. Never escalate without a recommendation."
+    }
+  },
+
+  "capability_model": {
+    "per_agent_capabilities": {
+      "description": "Each agent has a defined set of capabilities registered with the UMH substrate. Capabilities are NOT shared -- each belongs to exactly one agent.",
+      "total_implemented_capabilities": 62,
+      "total_implemented_capabilities_note": "62 skills across 10 agents (6-7 skills each) plus 2 browser skills (browser_research, browser_act) auto-registered on every agent = 62 + 20 = 82 total callable skills",
+      "browser_skills_universal": true,
+      "browser_skills_note": "Every DepartmentAgent subclass automatically gets browser_research (READ tier) and browser_act (EXECUTE tier) via _register_browser_skills() in base.py"
+    },
+    "shared_capabilities": {
+      "browser_research": {
+        "description": "Navigate to a URL and extract text/findings. Available on ALL agents via base class.",
+        "action_type": "browser_research",
+        "min_tier": "READ",
+        "implementation": "DepartmentAgent._browser_research() -> substrate.run_browser_task()"
+      },
+      "browser_act": {
+        "description": "Act on a URL -- fill forms, click buttons, submit data. Available on ALL agents via base class.",
+        "action_type": "browser_act",
+        "min_tier": "EXECUTE",
+        "implementation": "DepartmentAgent._browser_act() -> substrate.run_browser_task()"
+      }
+    },
+    "trust_scoring": {
+      "current_status": "NOT_IMPLEMENTED",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "planned_model": "Each agent builds a trust score over time based on: task completion rate, error rate, escalation frequency, quality of outputs. Trust score influences autonomy level (more trusted agents get wider delegation without approval gates).",
+      "score_range": "0.0 - 1.0",
+      "autonomy_thresholds": {
+        "low_trust": "All outputs require CEO approval before surfacing",
+        "medium_trust": "READ/DRAFT actions autonomous, EXECUTE requires approval",
+        "high_trust": "EXECUTE actions autonomous, only COMMIT requires approval"
+      }
+    },
+    "permission_tier_system": {
+      "description": "Four-tier permission system enforced at skill execution time via DepartmentAgent.execute_skill()",
+      "tiers": [
+        {
+          "tier": "READ",
+          "description": "Can read data, analyze, and classify. Cannot create or modify.",
+          "agents_at_this_tier": [],
+          "example_actions": ["analyze", "report", "classify", "research", "score", "status_check"]
+        },
+        {
+          "tier": "DRAFT",
+          "description": "Can create drafts and documents. Cannot publish or execute externally.",
+          "agents_at_this_tier": ["product"],
+          "example_actions": ["draft_content", "create_document", "draft_message"]
+        },
+        {
+          "tier": "EXECUTE",
+          "description": "Can perform external actions: send messages, publish content, deploy services.",
+          "agents_at_this_tier": ["sales", "marketing", "customer_success", "hr", "operations", "engineering"],
+          "example_actions": ["send_dm", "send_message", "post_content", "book_call", "container_execution"]
+        },
+        {
+          "tier": "COMMIT",
+          "description": "Full authority including financial actions. Reserved for domains where mistakes have high real-world cost.",
+          "agents_at_this_tier": ["executive (CEO)", "finance", "legal"],
+          "example_actions": ["execute_payment", "approve_action"]
+        }
+      ],
+      "enforcement_mechanism": "PermissionTier.permits() check in DepartmentAgent.execute_skill() before invoking handler. Insufficient tier returns SkillResult(success=False) with descriptive error.",
+      "tier_required_lookup": "substrate.types.required_tier_for_action(action_type) maps action types to minimum required tiers"
+    }
+  },
+
+  "skill_system": {
+    "skill_definition": {
+      "description": "Skills are callable units of agent work. Each skill has a name, action_type, description, handler function, and minimum permission tier.",
+      "data_class": "AgentSkill (projections/eos/agents/base.py)",
+      "fields": {
+        "name": "Unique skill identifier within the agent",
+        "action_type": "Category of action (analyze, report, draft_message, send_dm, execute_payment, etc.)",
+        "description": "Human-readable description of what the skill does",
+        "handler": "Callable(**kwargs) -> SkillResult",
+        "min_tier": "PermissionTier required to execute (resolved via required_tier_for_action if not explicitly set)"
+      }
+    },
+    "skill_result": {
+      "data_class": "SkillResult (projections/eos/agents/base.py)",
+      "fields": {
+        "success": "bool",
+        "output": "Any (typically dict with structured data)",
+        "error": "str (empty on success)",
+        "action_type": "str (set after execution from skill metadata)",
+        "tier_used": "str (the agent's permission tier value)"
+      }
+    },
+    "registration": {
+      "mechanism": "Agents register skills in _register_skills() method called by DepartmentAgent.__init__(). Skills stored in self._skills dict keyed by name.",
+      "browser_auto_registration": "_register_browser_skills() adds browser_research and browser_act to every agent automatically."
+    },
+    "versioning": {
+      "current_status": "NOT_IMPLEMENTED",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "planned_model": "Skills would carry version numbers. Version bumps on behavior change. Rollback to previous version if new version degrades quality."
+    },
+    "trust_scores": {
+      "current_status": "NOT_IMPLEMENTED",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "planned_model": "Per-skill trust score based on execution history. Skills with higher trust scores get wider autonomy."
+    },
+    "reuse": {
+      "description": "Skills are currently agent-specific. The SKILL_ALLOCATION dict in entities.py maps higher-level skill paths to departments, enabling cross-reference between Claude Code skills and agent capabilities.",
+      "skill_allocation_location": "projections/eos/entities.py SKILL_ALLOCATION dict",
+      "total_allocated_skills": 51,
+      "departments_with_skills": ["executive (4)", "sales (28)", "marketing (9)", "operations (11)", "customer_success (2)", "engineering (1)"],
+      "departments_without_skills": ["finance", "hr", "legal", "product"]
+    }
+  },
+
+  "model_routing": {
+    "description": "How EOS agents route LLM calls. All agent LLM usage goes through adapters/models/model_router.py call_with_fallback().",
+    "agent_type_to_model": {
+      "ceo_agent": {
+        "parameter": "agent_type='ceo'",
+        "effect": "Forces best available model (cc_sdk -> Opus 4.6 via subscription). Bypasses economy mode.",
+        "rationale": "Strategic decisions require highest quality reasoning."
+      },
+      "department_agents": {
+        "parameter": "task_type='fast_response' (default for most skills)",
+        "effect": "Uses fast-response routing: cc_sdk -> Gemini 2.5 Flash -> Groq -> Ollama",
+        "rationale": "Department-level skills prioritize speed over maximum reasoning depth."
+      }
+    },
+    "cost_awareness": {
+      "cc_sdk_priority_0": "CLI via Max subscription, Opus 4.6, no per-call API cost",
+      "fallback_chain": "cc_sdk -> Gemini 2.5 Flash -> Groq -> Ollama",
+      "economy_mode": "business stage pre_revenue forces Haiku unless agent_type='ceo' override",
+      "deterministic_first": "Most agent skills are deterministic (pure logic, DB queries, subprocess). LLM is only called when content generation is needed, with deterministic fallback on failure."
+    },
+    "fallback_chain": ["cc_sdk (Opus 4.6 via subscription)", "Gemini 2.5 Flash", "Groq", "Ollama"],
+    "agents_using_llm": {
+      "ceo": ["strategic_analysis", "decision_brief", "morning_brief"],
+      "sales": ["outreach_draft (via OutreachWorkflow)", "follow_up (via FollowUpWorkflow)"],
+      "marketing": ["content_calendar (via ContentCalendarWorkflow)", "content_ideation (via ContentCalendarWorkflow)"],
+      "customer_success": ["response_draft"],
+      "legal": ["contract_review", "terms_draft"],
+      "product": ["competitor_analysis", "spec_draft"],
+      "engineering": ["code_review"]
+    },
+    "agents_fully_deterministic": ["finance", "hr", "operations"]
+  },
+
+  "umh_substrate_integration": {
+    "how_agents_use_substrate": {
+      "description": "EOS agents are registered as Components in the UMH substrate registry via the Substrate public API. They use substrate.types for all type definitions and substrate.register() for registration.",
+      "imports_allowed": ["substrate.Substrate", "substrate.types.*"],
+      "imports_forbidden": ["Any internal substrate module (control_plane, execution, governance, etc.)"],
+      "architecture_law": "EOS is a projection. It uses ONLY the public Substrate API. No internal substrate imports allowed."
+    },
+    "registration": {
+      "mechanism": "Each agent file exports a register_<name>_agent(substrate: Substrate) -> RegistrationResult async function",
+      "component_definition": {
+        "component_type": "ComponentType.AGENT",
+        "name": "eos-<department-slug>",
+        "capabilities": "List of capability strings",
+        "metadata": "Dict with department, projection='eos', permission_tier, skill_count, browser_capable=True"
+      },
+      "bulk_registration": "projections/eos/__init__.py defines EOS_AGENTS list and register_eos_agents(substrate) for bulk registration",
+      "dual_registration": "Agents are defined twice: (1) as Component objects in __init__.py EOS_AGENTS list with summary capabilities, (2) as full DepartmentAgent subclasses with register_* functions in individual agent files. Both paths register to the substrate.",
+      "all_agents_list": "projections/eos/agents/__init__.py ALL_AGENTS list contains all 10 register_* functions"
+    },
+    "governance": {
+      "permission_enforcement": "Substrate PermissionTier enum + required_tier_for_action() governs what each agent can do",
+      "risk_classification": "Action types map to risk classes via substrate governance",
+      "observation_logging": "All agent actions can be logged as substrate events for governance audit trail"
+    },
+    "integration_layer": {
+      "location": "projections/eos/integration/",
+      "manifest": "manifest.py defines signal descriptors (eos_contact_created, eos_deal_created, eos_activity_logged) and capability descriptors (noop, create_contact, create_deal, update_deal_stage, log_activity)",
+      "poller": "poller.py polls EOS database tables (crm_contacts, crm_deals, crm_activities) for changes",
+      "handlers": "handlers.py processes polled signals",
+      "correlation": "correlation.py correlates EOS events with substrate signals"
+    }
+  },
+
+  "mvp_scope": {
+    "description": "MVP agent scope for EOS R1-R5 releases. Single founder, single business use case.",
+    "which_agents_mvp": {
+      "r1_core_shell": {
+        "agents": ["ceo_agent"],
+        "rationale": "R1 establishes the command center. CEO agent provides morning brief, strategic analysis, and delegation framework."
+      },
+      "r2_crm_pipeline": {
+        "agents": ["ceo_agent", "sales"],
+        "rationale": "R2 adds sales pipeline. Sales agent handles lead scoring, outreach drafting, and pipeline reporting."
+      },
+      "r3_finance": {
+        "agents": ["ceo_agent", "sales", "finance"],
+        "rationale": "R3 adds financial tracking. Finance agent handles revenue reports, expense tracking, and budget forecasting."
+      },
+      "r4_full_departments": {
+        "agents": ["ceo_agent", "sales", "finance", "marketing", "operations", "customer_success"],
+        "rationale": "R4 activates remaining high-value departments for a solo founder."
+      },
+      "r5_all_agents": {
+        "agents": ["ea_agent", "ceo_agent", "sales", "finance", "marketing", "operations", "customer_success", "hr", "legal", "product", "engineering"],
+        "rationale": "R5 completes the full agent set including EA for proper routing chain. HR, legal, product, engineering round out the team."
+      }
+    },
+    "which_deferred": [
+      {
+        "agent": "portfolio_advisor",
+        "deferred_until": "Multi-entity support (post-MVP)",
+        "rationale": "Single-founder single-business MVP does not need portfolio-level intelligence"
+      },
+      {
+        "agent": "admin_department",
+        "deferred_until": "Post-MVP team growth",
+        "rationale": "Solo founder does not need internal admin department agent"
+      },
+      {
+        "agent": "research",
+        "deferred_until": "Post-MVP",
+        "rationale": "Research capabilities currently handled by browser skills on existing agents"
+      },
+      {
+        "agent": "content",
+        "deferred_until": "Post-MVP media company entity type",
+        "rationale": "Marketing agent handles content for solo founder. Separate content agent needed for media-heavy entities."
+      },
+      {
+        "agent": "automation",
+        "deferred_until": "Post-MVP scaling phase",
+        "rationale": "Operations agent handles automation for early stage. Dedicated automation agent needed at scale."
+      },
+      {
+        "agent": "investment_analyst",
+        "deferred_until": "Investment entity type support",
+        "rationale": "Not needed until EOS supports investment portfolios"
+      },
+      {
+        "agent": "asset_manager",
+        "deferred_until": "Asset entity type support",
+        "rationale": "Not needed until EOS supports asset-heavy entities"
+      },
+      {
+        "agent": "property_manager",
+        "deferred_until": "Real estate entity type support",
+        "rationale": "Not needed until EOS supports real estate entities"
+      }
+    ]
+  },
+
+  "end_state": {
+    "autonomous_execution": {
+      "description": "Agents execute work autonomously within their permission tier and trust score. Approval gates only on COMMIT-tier and CRITICAL-risk actions.",
+      "trust_evolution": "New agents start at low trust. Trust increases with successful execution history. High-trust agents get wider autonomy.",
+      "human_in_the_loop": "Operator always has override authority. Approval queue surfaces pending decisions. Emergency stop kills all agent execution."
+    },
+    "multi_agent_collaboration": {
+      "description": "Agents collaborate on multi-department tasks coordinated by the CEO Agent",
+      "coordination_model": "CEO creates task graph with dependencies. Independent tasks delegated in parallel. Dependent tasks sequenced.",
+      "inter_agent_communication": "Agents communicate via the delegation/escalation protocol. No direct peer-to-peer messaging -- all coordination flows through CEO.",
+      "conflict_resolution": "CEO resolves cross-department conflicts. Escalates to EA/operator if unresolvable."
+    },
+    "learning": {
+      "skill_improvement": "Skills improve over time via feedback loop: execution -> outcome measurement -> quality scoring -> skill parameter adjustment",
+      "pattern_detection": "Agents detect patterns in their domain (e.g., Sales detects which outreach templates convert best, CS detects which ticket types recur)",
+      "knowledge_sharing": "Patterns detected by one agent are surfaced to CEO for cross-department application"
+    },
+    "marketplace": {
+      "description": "End-state skill marketplace where operators can discover, install, and share agent skills across EOS instances",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "current_status": "NOT_IMPLEMENTED"
+    }
+  },
+
+  "base_class_architecture": {
+    "description": "Technical architecture of the DepartmentAgent base class that all 10 implemented agents inherit from",
+    "location": "projections/eos/agents/base.py",
+    "class": "DepartmentAgent",
+    "class_attributes": {
+      "DEPARTMENT": "str -- department slug (e.g., 'sales', 'executive')",
+      "PERMISSION_TIER": "PermissionTier enum -- agent's authority level"
+    },
+    "init_parameters": {
+      "org_id": "str -- organization context",
+      "venture_id": "str -- venture context within org"
+    },
+    "methods": {
+      "_register_skills()": "Override in subclass to register skills via _add_skill(). Called by __init__.",
+      "_register_browser_skills()": "Auto-registers browser_research and browser_act on every agent. Called by __init__.",
+      "_add_skill(name, action_type, description, handler, min_tier=None)": "Register a skill. min_tier defaults to required_tier_for_action(action_type).",
+      "execute_skill(skill_name, **kwargs) -> SkillResult": "Execute a registered skill. Checks tier permission before invoking handler.",
+      "skills -> dict[str, dict]": "Property returning skill metadata (action_type, description, min_tier) for all registered skills.",
+      "metadata() -> dict": "Returns agent metadata including projection, department, permission_tier, skill_count, browser_capable.",
+      "_browser_research(url, task) -> SkillResult": "Research via browser -- navigate and extract information.",
+      "_browser_act(url, task) -> SkillResult": "Act via browser -- fill forms, click, submit.",
+      "_run_browser(url, task, mode) -> SkillResult": "Internal browser execution. Handles async-to-sync bridge via concurrent.futures."
+    },
+    "data_classes": {
+      "SkillResult": {
+        "fields": ["success: bool", "output: Any", "error: str", "action_type: str", "tier_used: str"]
+      },
+      "AgentSkill": {
+        "fields": ["name: str", "action_type: str", "description: str", "handler: Callable", "min_tier: PermissionTier"]
+      }
+    }
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-ARCH-001",
+      "question": "Should the EA Agent be implemented as a DepartmentAgent subclass or as a distinct agent type with its own base class?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "EA has fundamentally different responsibilities (routing, not execution). DepartmentAgent base class assumes department-level execution with skill registration. EA may need a RoutingAgent or CoordinatorAgent base class.",
+      "options": [
+        "DepartmentAgent subclass with routing-only skills (simpler, consistent)",
+        "New RoutingAgent base class (cleaner separation, more work)",
+        "Abstract AgentBase with DepartmentAgent and RoutingAgent both inheriting (most flexible, most complex)"
+      ]
+    },
+    {
+      "id": "OQ-ARCH-002",
+      "question": "Should operators be able to bypass the EA and communicate directly with CEO or department agents in advanced/power-user mode?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "Some operators may want direct access for speed. This would violate the routing chain but could be a configurable permission.",
+      "options": [
+        "No bypass -- EA is always the entry point (cleanest routing, potentially slower)",
+        "Configurable bypass per operator role (flexible, complex permissions)",
+        "Power-user keyboard shortcut to address a specific agent directly (pragmatic compromise)"
+      ]
+    },
+    {
+      "id": "OQ-ARCH-003",
+      "question": "Should department agents be instantiated per-entity or shared across entities with entity context passed per-call?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "Per-entity instances enable entity-specific memory and configuration. Shared instances are lighter but risk context bleeding.",
+      "options": [
+        "Per-entity instantiation (clean isolation, higher memory, entity-specific memory)",
+        "Shared with per-call context (lighter, risk of context bleed, no entity-specific memory)",
+        "Pool with entity-specific configuration overlay (balanced, moderate complexity)"
+      ]
+    },
+    {
+      "id": "OQ-ARCH-004",
+      "question": "How should the routing chain handle multi-portfolio operators?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "Current model assumes one portfolio context. Multi-portfolio adds another routing layer: EA -> Portfolio Selector -> Portfolio Advisor -> CEO.",
+      "options": [
+        "Portfolio context selected in UI before any chat interaction (simple, explicit)",
+        "EA infers portfolio from request context (smart, error-prone)",
+        "Multi-portfolio Portfolio Advisor that spans all portfolios (powerful, complex)"
+      ]
+    },
+    {
+      "id": "OQ-ARCH-005",
+      "question": "Should the dual registration pattern (EOS_AGENTS in __init__.py + individual register_* functions) be consolidated?",
+      "provenance": "IMPLEMENTATION_DEBT",
+      "rationale": "Agents are currently defined in two places: as Component objects in __init__.py EOS_AGENTS list with summary capabilities, and as full DepartmentAgent subclasses with detailed register_* functions. The two can diverge. Should be single source of truth.",
+      "options": [
+        "Remove EOS_AGENTS list, use only register_* functions (single source)",
+        "Generate EOS_AGENTS list from agent classes at import time (computed, no duplication)",
+        "Keep both but add a validation check that they match (pragmatic, catches drift)"
+      ]
+    },
+    {
+      "id": "OQ-ARCH-006",
+      "question": "How should inter-agent message passing be implemented?",
+      "provenance": "IMPLEMENTATION_DEBT",
+      "rationale": "Current agents are standalone classes with no message passing infrastructure. The delegation/escalation protocol is architecturally defined but not mechanically implemented. Need a concrete mechanism.",
+      "options": [
+        "Substrate signal system (SignalEnvelope routing through control_plane)",
+        "Simple event queue with agent addressing",
+        "Direct method calls through a coordinator/mediator pattern"
+      ]
+    }
+  ],
+
+  "statistics": {
+    "total_agents_implemented": 10,
+    "total_agents_planned": 19,
+    "total_agents_not_implemented": 9,
+    "total_skills_implemented": 62,
+    "total_skills_with_browser": 82,
+    "agents_using_llm": 7,
+    "agents_fully_deterministic": 3,
+    "permission_tier_distribution": {
+      "COMMIT": ["executive (CEO)", "finance", "legal"],
+      "EXECUTE": ["sales", "marketing", "customer_success", "hr", "operations", "engineering"],
+      "DRAFT": ["product"],
+      "READ": []
+    },
+    "code_locations": {
+      "agent_base": "projections/eos/agents/base.py",
+      "agent_init": "projections/eos/agents/__init__.py",
+      "projection_init": "projections/eos/__init__.py",
+      "entities": "projections/eos/entities.py",
+      "integration_manifest": "projections/eos/integration/manifest.py",
+      "workflows": "projections/eos/workflows/",
+      "views": "projections/eos/views/"
+    }
+  }
+}

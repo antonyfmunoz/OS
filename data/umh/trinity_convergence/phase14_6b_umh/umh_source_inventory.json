@@ -1,0 +1,83 @@
+{
+  "phase": "14.6B-UMH",
+  "status": "DRAFT",
+  "generated": "2026-06-03",
+  "source_categories": [
+    {
+      "category": "codebase",
+      "sources": [
+        {"path": "substrate/__init__.py", "type": "python", "role": "Substrate public API facade", "lines": 188},
+        {"path": "substrate/types.py", "type": "python", "role": "Canonical type system", "lines": 1400},
+        {"path": "substrate/control_plane/runtime/gateway.py", "type": "python", "role": "Gateway control plane", "lines": 1927},
+        {"path": "substrate/control_plane/runtime/cognitive_loop.py", "type": "python", "role": "Multi-stage cognitive pipeline", "lines": 1539},
+        {"path": "substrate/execution/spine.py", "type": "python", "role": "8-stage execution pipeline", "lines": 522},
+        {"path": "adapters/models/model_router.py", "type": "python", "role": "Intelligence routing", "lines": 1442},
+        {"path": "adapters/models/cc_sdk.py", "type": "python", "role": "Claude Code CLI adapter", "lines": 464},
+        {"path": "adapters/models/agent_runtime.py", "type": "python", "role": "Agent runtime routing", "lines": 580},
+        {"path": "transports/api/cockpit.py", "type": "python", "role": "Cockpit API surface", "lines": 2304},
+        {"path": "substrate/integrations/product_connections.py", "type": "python", "role": "Product connection manager", "lines": 205},
+        {"path": "projections/eos/", "type": "directory", "role": "EOS projection (agents, views, workflows, integration)", "files": 31},
+        {"path": "projections/creatoros/", "type": "directory", "role": "CreatorOS projection (integration only)", "files": 8},
+        {"path": "projections/lyfeos/", "type": "directory", "role": "LyfeOS projection (integration only)", "files": 8},
+        {"path": "docker-compose.yml", "type": "yaml", "role": "Docker service topology", "lines": 155},
+        {"path": "pyproject.toml", "type": "toml", "role": "Package configuration", "lines": 60},
+        {"path": "cockpit/src/", "type": "directory", "role": "Cockpit frontend (Electron/React)", "files": 95}
+      ]
+    },
+    {
+      "category": "documentation",
+      "sources": [
+        {"path": "README.md", "type": "markdown", "role": "Project README (stale naming)", "lines": 115, "status": "stale_naming"},
+        {"path": "ARCHITECTURE.md", "type": "markdown", "role": "Architecture specification", "lines": 465, "status": "current"},
+        {"path": "PHILOSOPHY.md", "type": "markdown", "role": "Philosophy document (EOS naming debt)", "lines": 485, "status": "stale_naming"},
+        {"path": "PROTOCOLS.md", "type": "markdown", "role": "Protocol layers L0-L3", "lines": 256, "status": "current"},
+        {"path": "CLAUDE.md", "type": "markdown", "role": "Developer agent soul document", "lines": 603, "status": "current"},
+        {"path": "cloud.md", "type": "markdown", "role": "System context", "lines": 78, "status": "current"}
+      ]
+    },
+    {
+      "category": "audits",
+      "sources": [
+        {"path": "data/audits/2026-05-25_exhaustive_codebase_audit.md", "type": "markdown", "role": "Definitive exhaustive audit", "size_kb": 60},
+        {"path": "data/audits/2026-05-31_definitive_ground_truth_audit.md", "type": "markdown", "role": "Ground truth audit", "size_kb": 56}
+      ]
+    },
+    {
+      "category": "phase14_artifacts",
+      "sources": [
+        {"path": "data/umh/trinity_convergence/", "type": "directory", "role": "Phase 14.5/14.5A/14.5R artifacts (excluding 14.6B subdirs)", "files": 47},
+        {"path": "data/umh/trinity_convergence/phase14_6b_lyfeos/", "type": "directory", "role": "Phase 14.6B LyfeOS artifacts", "files": 51}
+      ]
+    },
+    {
+      "category": "operator_corrections",
+      "sources": [
+        {
+          "type": "conversation",
+          "role": "Phase 14.6B-UMH mission prompt with corrected doctrine",
+          "key_corrections": [
+            "Universal Meta Harness is canonical product name",
+            "Universal Mastery Hierarchy is stale naming debt",
+            "UMH is private substrate, not public mega-app",
+            "Cockpit is private operator/Jarvis interface",
+            "Projections are public domain SaaS products",
+            "UMH has universal orchestration reach but not universal product-interface ownership"
+          ]
+        }
+      ]
+    }
+  ],
+  "codebase_metrics": {
+    "total_files": 4901,
+    "substrate_python_files": 696,
+    "substrate_python_lines": 206602,
+    "test_files": 85,
+    "test_functions": 2568,
+    "cockpit_source_files": 95,
+    "cockpit_panels": 28,
+    "cockpit_api_endpoints": 423,
+    "projection_files": 48,
+    "service_files": 38,
+    "script_files": 160
+  }
+}

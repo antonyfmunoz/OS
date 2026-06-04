@@ -1,0 +1,974 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Complete CreatorOS end-state vision — everything CreatorOS will become when fully built, from MVP through ecosystem platform, including all 16 modules fully realized, 10 product types at scale, 28 screens, 4-tier pricing, UMH integration, EOS/LyfeOS bridges, competitive moat, scale targets, and architecture end-state.",
+  "provenance_detail": "Synthesized from all 14.6B CreatorOS canonical artifacts: lossless product canon (master product truth, 16 modules, 28 screens, 10 product types), design identity canon (X/Twitter minimalism, color system, navigation architecture), content distribution canon (universal composer, cross-posting, scheduling, editing studio, stories, newsletters), community messaging canon (Discord-like communities, channels, membership tiers, DMs, moderation), product types commerce canon (10 types, order lifecycle, entitlement model, Stripe Connect), UGC ads canon (campaign lifecycle, self-serve ads, targeting, bidding), automation AI canon (Manychat-style visual flows, AI agents, email), analytics dashboard canon (KPI framework, revenue/content/community analytics), user journeys onboarding canon (8 user types, 3 tiers, conversion funnels), EOS boundary canon (ownership matrix, crossover points, UMH mediation), API infrastructure canon (89 routes, god file decomposition, target architecture), auth security truth (Passport.js broken, Clerk target), current implementation truth (296 files, 20 tables, no tests), MVP specification (3 conflicting definitions, recommended 5-release plan), data ontology (20 current + 25 missing = 45 target tables), 13-layer mapping, and source inventory. Each capability is traced to its source artifact and tagged with timeline tier.",
+
+  "end_state_vision": {
+    "description": "CreatorOS is the operating system for the creator economy. It is the single command center where modern creators build, distribute, monetize, and scale everything — content, community, courses, digital products, physical products, services, events, UGC campaigns, ads, and AI agents. For creators, it replaces the entire fragmented SaaS stack (Buffer + Gumroad + Teachable + Discord + Patreon + Mailchimp + Manychat + a dozen more) with one unified platform. For consumers, it provides a unified feed experience aggregating all content from followed creators. CreatorOS gives every creator — from an emerging 1K-follower solo operator to a 500K+ creator business with a team — the infrastructure that was previously only available to well-funded media companies: universal content distribution, community with monetization tiers, course delivery, marketplace with built-in discovery, UGC campaign management, self-serve advertising, visual automation, AI utility, and analytics that tie everything together.",
+    "differentiation": [
+      "All-in-one creator OS — not a tool, not a dashboard. CreatorOS IS the creator's entire business infrastructure. Post once, publish everywhere. Host everything, sell to everyone.",
+      "10 product types natively supported — community, AI agent, digital download, course, subscription/membership, service, event, physical product, UGC campaign, software access. No competitor supports all 10 in a single platform.",
+      "Cross-platform distribution as core — universal composer with per-platform preview, scheduling, cross-posting, thread splitting, hashtag management. Distribution is not a bolt-on; it is the spine.",
+      "Discord-like communities with monetization — branded community spaces with text/voice/video channels, membership tiers, channel-level gating, roles, XP/level system. Community is a product type with built-in commerce.",
+      "Built-in marketplace with consumer feed — creator products are discoverable through a consumer-facing feed and marketplace. Creators get distribution, consumers get discovery. Two-sided network effect.",
+      "UGC campaign engine — brands post campaign briefs, UGC creators apply, submit deliverables, get paid on approval. No competitor integrates UGC into the creator's own platform; they all use separate UGC marketplaces.",
+      "Self-serve ads platform — creators and brands buy targeted advertising within the CreatorOS ecosystem. Feed ads, banner ads, sponsored content, promoted products. Revenue stream for platform and creators.",
+      "Manychat-style visual automation — trigger/action flow builder for commerce, community, content, email, and scheduling automations. Creators build automations without code.",
+      "X/Twitter-inspired minimalism — clean, fast, functional. Not glassmorphism, not playful, not gamified. Content-first layouts optimized for power users. Dense information architecture.",
+      "UMH substrate integration — CreatorOS inherits every UMH capability (execution pipeline, governance, intelligence routing, feedback loops, knowledge graph, organism coordination) as a creator-specific projection. As UMH evolves, CreatorOS evolves.",
+      "Deterministic spine with AI enhancement — scheduling, distribution, commerce, entitlements, and automations are deterministic. AI enhances content optimization, audience insights, agent conversations, and recommendations within the deterministic frame."
+    ],
+    "market_position": "Whop-on-steroids. CreatorOS occupies the intersection of creator platforms, social commerce, community hosting, content distribution, and automation tools. It is not competing with Buffer (scheduling only), not competing with Gumroad (products only), not competing with Teachable (courses only), not competing with Discord (community only). CreatorOS is the operating system that combines all of these into one surface. The closest analogue is Whop (community + products + courses + feed) — but CreatorOS adds universal cross-platform distribution, UGC campaigns, self-serve ads, visual automation, in-app editing studio, and UMH intelligence. Stan.store, Skool, and Kajabi each capture one vertical; CreatorOS captures all of them."
+  },
+
+  "capability_map": [
+    {
+      "capability": "Clerk Authentication + SSO",
+      "module": "auth",
+      "status": "broken_needs_migration",
+      "status_detail": "Passport.js with BROKEN comparePasswords (returns true for ALL). P0 security vulnerability. Target: Clerk with social OAuth, MFA, SSO.",
+      "dependency": "None",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_auth_security_truth.json"
+    },
+    {
+      "capability": "God File Decomposition (routes.ts 53KB, storage.ts 104KB)",
+      "module": "infrastructure",
+      "status": "critical_debt",
+      "status_detail": "Two god files contain all API routes (89 routes, 53KB) and all data access (104KB). Must decompose into domain-scoped modules before any feature work.",
+      "dependency": "None",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_api_infrastructure_canon.json"
+    },
+    {
+      "capability": "Universal Composer (rich text, media upload, drafts)",
+      "module": "content_distribution",
+      "status": "partial",
+      "status_detail": "create-post.tsx exists with basic text input and media type support (text/photo/audio/video). No block-based editor, no rich formatting, no drafts, no auto-save.",
+      "dependency": "auth",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_content_distribution_canon.json"
+    },
+    {
+      "capability": "Platform OAuth Integration (Instagram, TikTok, YouTube, X)",
+      "module": "connected_accounts",
+      "status": "not_implemented",
+      "status_detail": "No connected accounts management. No platform OAuth. Posts are CreatorOS-internal only. Each platform requires app review (weeks per platform).",
+      "dependency": "auth",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_content_distribution_canon.json"
+    },
+    {
+      "capability": "Cross-Platform Distribution (per-platform preview, scheduling, posting)",
+      "module": "cross_posting",
+      "status": "not_implemented",
+      "status_detail": "No platform selection UI, no per-platform preview, no scheduling (schema lacks scheduled_at, published_at, status fields on posts), no cross-posting engine.",
+      "dependency": "connected_accounts, content_distribution",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_content_distribution_canon.json"
+    },
+    {
+      "capability": "Content Calendar (visual schedule, drag-drop, optimal timing)",
+      "module": "content_calendar",
+      "status": "not_implemented",
+      "status_detail": "No calendar view, no scheduling infrastructure. Requires scheduled_at and status columns on posts table.",
+      "dependency": "cross_posting",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_content_distribution_canon.json"
+    },
+    {
+      "capability": "Consumer Social Feed (chronological + algorithmic, followed creators, discovery)",
+      "module": "consumer_feed",
+      "status": "partial",
+      "status_detail": "Feed page exists with basic post rendering. No algorithmic ranking, no discovery, no for-you page, no trending.",
+      "dependency": "content_distribution",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_lossless_product_canon.md"
+    },
+    {
+      "capability": "Community Hub (branded spaces, channels, text chat)",
+      "module": "community",
+      "status": "partial",
+      "status_detail": "communities and channels tables exist. Basic community CRUD and channel messaging works. No membership tiers, no payment gating, no voice/video, no role-based access, no owner_user_id FK.",
+      "dependency": "auth",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_community_messaging_canon.json"
+    },
+    {
+      "capability": "Direct Messaging (1:1, group chats, real-time)",
+      "module": "messaging",
+      "status": "partial",
+      "status_detail": "conversations, conversation_participants, and direct_messages tables exist. Basic DM works. No group chats, no read receipts, no typing indicators, no media in DMs.",
+      "dependency": "auth, community",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_community_messaging_canon.json"
+    },
+    {
+      "capability": "Digital Product Sales (create, list, checkout, download delivery)",
+      "module": "commerce",
+      "status": "partial",
+      "status_detail": "Products table exists (generic, no type discriminator). Product creation form renders. No file upload, no download delivery, no checkout, no Stripe integration.",
+      "dependency": "auth",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_product_types_commerce_canon.json"
+    },
+    {
+      "capability": "Stripe Connect Payment Infrastructure (checkout, payouts, subscriptions)",
+      "module": "payments",
+      "status": "not_implemented",
+      "status_detail": "No Stripe integration anywhere. No checkout flow, no payment processing, no creator payout via Stripe Connect. Zero revenue capability.",
+      "dependency": "auth, commerce",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_product_types_commerce_canon.json"
+    },
+    {
+      "capability": "Creator Dashboard (overview metrics, revenue, content, community analytics)",
+      "module": "dashboard",
+      "status": "partial",
+      "status_detail": "Basic overview page exists with placeholder metrics. No real data aggregation, no time-range filtering, no drill-down. All computed metrics are greenfield.",
+      "dependency": "commerce, content_distribution, community",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_analytics_dashboard_canon.json"
+    },
+    {
+      "capability": "Stories System (24h ephemeral content, creator/consumer stories)",
+      "module": "stories",
+      "status": "implemented",
+      "status_detail": "Stories module is fully implemented — creation, viewing, 24h expiry, creator and consumer stories. Only fully-implemented module.",
+      "dependency": "auth, content_distribution",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_content_distribution_canon.json"
+    },
+    {
+      "capability": "Notifications System (content, social, commerce, system alerts)",
+      "module": "notifications",
+      "status": "not_implemented",
+      "status_detail": "No notification infrastructure. Required for purchase confirmations, community activity, content engagement, and system alerts.",
+      "dependency": "auth",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_lossless_product_canon.md"
+    },
+    {
+      "capability": "AI Agents (custom chatbots, configurable system prompts, knowledge base)",
+      "module": "ai_agents",
+      "status": "partial",
+      "status_detail": "ai_agents and ai_chats tables exist. AI page with AgentCard and ChatInterface components work. No pricing, no purchasing, no token tracking, no model selection.",
+      "dependency": "auth",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_product_types_commerce_canon.json"
+    },
+    {
+      "capability": "User Profiles (creator profiles, consumer profiles, follow/unfollow)",
+      "module": "profiles",
+      "status": "partial",
+      "status_detail": "Users table exists with role enum (creator/consumer). Profile page renders. No creator store page, no portfolio display, no social proof metrics.",
+      "dependency": "auth",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_current_implementation_truth.json"
+    },
+    {
+      "capability": "Moderation and Trust/Safety",
+      "module": "moderation",
+      "status": "not_implemented",
+      "status_detail": "No moderation tools. Required for community content, comments, DMs, marketplace listings. AI-assisted + human review pipeline.",
+      "dependency": "community, commerce",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_lossless_product_canon.md"
+    },
+    {
+      "capability": "Roles and Permissions (creator team management, community roles)",
+      "module": "roles_permissions",
+      "status": "not_implemented",
+      "status_detail": "No role management beyond user.role enum (creator/consumer). Needed for creator teams, community moderators, and admin delegation.",
+      "dependency": "auth, community",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_creatoros_lossless_product_canon.md"
+    },
+    {
+      "capability": "Course Platform (builder, player, progress tracking, certificates)",
+      "module": "courses",
+      "status": "not_implemented",
+      "status_detail": "No course-related pages or components. No courses, lessons, or enrollments tables. Module 3 of 16 in PRD. Requires courses, lessons, enrollments, lesson_completions tables.",
+      "dependency": "auth, commerce, payments",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_product_types_commerce_canon.json"
+    },
+    {
+      "capability": "Marketplace (product discovery, search, categories, creator stores)",
+      "module": "marketplace",
+      "status": "partial",
+      "status_detail": "Marketplace page exists with product grid. No category browsing, no search, no filtering, no creator store pages, no reviews/ratings.",
+      "dependency": "commerce, payments",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_lossless_product_canon.md"
+    },
+    {
+      "capability": "Subscription/Membership Product Type",
+      "module": "subscriptions",
+      "status": "not_implemented",
+      "status_detail": "No subscription billing, no recurring payments, no membership tier gating. Requires Stripe subscription integration and entitlement management.",
+      "dependency": "payments, community",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_product_types_commerce_canon.json"
+    },
+    {
+      "capability": "Community Voice and Video Channels",
+      "module": "community_realtime",
+      "status": "not_implemented",
+      "status_detail": "No voice or video channel support. Text-only channels exist. Requires WebRTC or third-party integration (LiveKit, Agora, Daily).",
+      "dependency": "community",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_community_messaging_canon.json"
+    },
+    {
+      "capability": "Community Membership Tiers and Payment Gating",
+      "module": "community_commerce",
+      "status": "not_implemented",
+      "status_detail": "No membership tier system. No channel-level gating by payment status. Requires community_members and community_tiers tables plus Stripe subscription logic.",
+      "dependency": "community, payments, subscriptions",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_community_messaging_canon.json"
+    },
+    {
+      "capability": "Email/Newsletter System (broadcasts, drip campaigns, subscriber management)",
+      "module": "email",
+      "status": "not_implemented",
+      "status_detail": "SendGrid dependency exists in package.json but no email functionality built. No subscriber list, no broadcast composer, no drip sequences, no analytics.",
+      "dependency": "auth, profiles",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_automation_ai_canon.json"
+    },
+    {
+      "capability": "Automation Builder (Manychat-style visual trigger/action flows)",
+      "module": "automation",
+      "status": "not_implemented",
+      "status_detail": "No automation infrastructure. PRD Module 11. Requires visual flow editor (DAG canvas), trigger system, action system, execution engine.",
+      "dependency": "commerce, community, content_distribution, email",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_automation_ai_canon.json"
+    },
+    {
+      "capability": "Content Analytics (per-platform metrics, engagement, reach, best-performing)",
+      "module": "content_analytics",
+      "status": "not_implemented",
+      "status_detail": "No analytics pipeline. Requires platform API integration to pull metrics back, plus internal engagement tracking.",
+      "dependency": "cross_posting, dashboard",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_analytics_dashboard_canon.json"
+    },
+    {
+      "capability": "Service Bookings (appointment scheduling, service delivery, client management)",
+      "module": "services",
+      "status": "not_implemented",
+      "status_detail": "Service product type defined in ontology. No booking calendar, no availability management, no client communication tools.",
+      "dependency": "commerce, payments",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_product_types_commerce_canon.json"
+    },
+    {
+      "capability": "Event Management (ticketed events, virtual + in-person, registration, check-in)",
+      "module": "events",
+      "status": "not_implemented",
+      "status_detail": "Event product type defined in ontology. No event creation, no ticket management, no registration flow, no virtual event hosting.",
+      "dependency": "commerce, payments",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_product_types_commerce_canon.json"
+    },
+    {
+      "capability": "Physical Product Sales (inventory, shipping, fulfillment)",
+      "module": "physical_products",
+      "status": "not_implemented",
+      "status_detail": "Physical product type defined. No inventory management, no shipping integration, no fulfillment tracking. Lower priority than digital-first product types.",
+      "dependency": "commerce, payments",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_product_types_commerce_canon.json"
+    },
+    {
+      "capability": "Software Access Product Type (license keys, SaaS access, API keys)",
+      "module": "software_access",
+      "status": "not_implemented",
+      "status_detail": "Software access product type defined. No license key generation, no access management, no usage tracking.",
+      "dependency": "commerce, payments",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_product_types_commerce_canon.json"
+    },
+    {
+      "capability": "In-App Editing Studio (CapCut/TikTok-like video and image editing)",
+      "module": "editing_studio",
+      "status": "not_implemented",
+      "status_detail": "Module 7 of 16. No editing capabilities. Would require WebGL canvas (Fabric.js, Pixi.js) for image and FFmpeg/WebCodecs for video. Major engineering investment.",
+      "dependency": "content_distribution",
+      "timeline_tier": "tier_3_platform",
+      "source_artifact": "phase14_6b_creatoros_content_distribution_canon.json"
+    },
+    {
+      "capability": "UGC Campaign Engine (briefs, applications, deliverables, payment on approval)",
+      "module": "ugc",
+      "status": "not_implemented",
+      "status_detail": "Module 8 of 16. Zero implementation. 5-stage lifecycle: create, recruit, review, approve, complete. Requires ugc_campaigns, ugc_applications, ugc_deliverables tables. Stripe Connect for brand-to-creator payment.",
+      "dependency": "payments, profiles",
+      "timeline_tier": "tier_3_platform",
+      "source_artifact": "phase14_6b_creatoros_ugc_ads_canon.json"
+    },
+    {
+      "capability": "Self-Serve Ads Platform (campaign creation, targeting, bidding, delivery, analytics)",
+      "module": "ads",
+      "status": "not_implemented",
+      "status_detail": "Module 9 of 16. Zero implementation. Feed ads, banner ads, sponsored content, promoted products. Requires ad_campaigns, ads, ad_impressions tables. Real-time bidding for feed placement.",
+      "dependency": "consumer_feed, payments, content_analytics",
+      "timeline_tier": "tier_3_platform",
+      "source_artifact": "phase14_6b_creatoros_ugc_ads_canon.json"
+    },
+    {
+      "capability": "Live Multistreaming (stream to CreatorOS + YouTube + Twitch + X simultaneously)",
+      "module": "multistreaming",
+      "status": "not_implemented",
+      "status_detail": "Stream to multiple platforms from one source. Requires RTMP ingest server, transcoding, multi-platform relay. Major infrastructure investment.",
+      "dependency": "connected_accounts, community_realtime",
+      "timeline_tier": "tier_3_platform",
+      "source_artifact": "phase14_6b_creatoros_content_distribution_canon.json"
+    },
+    {
+      "capability": "Thread Composer (Twitter threads, LinkedIn carousels, Instagram carousels)",
+      "module": "thread_composer",
+      "status": "not_implemented",
+      "status_detail": "Multi-part content creation as single unit. Reorder, split, merge segments. Per-platform adaptation of thread format.",
+      "dependency": "content_distribution, cross_posting",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_creatoros_content_distribution_canon.json"
+    },
+    {
+      "capability": "Algorithmic Feed + Recommendation Engine",
+      "module": "recommendations",
+      "status": "not_implemented",
+      "status_detail": "ML-powered content ranking for consumer feed. Personalized recommendations. Creator discovery algorithm. Requires engagement signal pipeline and ranking model.",
+      "dependency": "consumer_feed, content_analytics",
+      "timeline_tier": "tier_3_platform",
+      "source_artifact": "phase14_6b_creatoros_analytics_dashboard_canon.json"
+    },
+    {
+      "capability": "Creator XP/Level/Reputation System",
+      "module": "reputation",
+      "status": "not_implemented",
+      "status_detail": "Gamified creator progression system. XP earned through consistent posting, community engagement, sales milestones. Levels unlock features or badges.",
+      "dependency": "profiles, content_distribution, commerce, community",
+      "timeline_tier": "tier_3_platform",
+      "source_artifact": "phase14_6b_creatoros_lossless_product_canon.md"
+    },
+    {
+      "capability": "Multi-Tenant Architecture (team workspaces, brand accounts)",
+      "module": "multi_tenant",
+      "status": "not_implemented",
+      "status_detail": "MVP is single-creator-per-account. Team accounts with multiple users managing one creator brand require role delegation, shared dashboards, and permission scoping.",
+      "dependency": "auth, roles_permissions",
+      "timeline_tier": "tier_3_platform",
+      "source_artifact": "phase14_6b_creatoros_api_infrastructure_canon.json"
+    },
+    {
+      "capability": "Public REST/GraphQL API for Third-Party Integrations",
+      "module": "public_api",
+      "status": "not_implemented",
+      "status_detail": "No public API. Internal endpoints exist in monolithic routes.ts. Public API with versioning, rate limiting, API keys, and documentation is ecosystem-phase.",
+      "dependency": "auth, infrastructure",
+      "timeline_tier": "tier_4_ecosystem",
+      "source_artifact": "phase14_6b_creatoros_api_infrastructure_canon.json"
+    },
+    {
+      "capability": "Webhook System (inbound + outbound event delivery)",
+      "module": "webhooks",
+      "status": "not_implemented",
+      "status_detail": "No webhook infrastructure. Inbound for integration triggers (Stripe events, platform notifications), outbound for creator event notifications.",
+      "dependency": "public_api",
+      "timeline_tier": "tier_4_ecosystem",
+      "source_artifact": "phase14_6b_creatoros_api_infrastructure_canon.json"
+    },
+    {
+      "capability": "Plugin/Extension System (third-party modules in CreatorOS)",
+      "module": "plugins",
+      "status": "not_implemented",
+      "status_detail": "Plugin architecture allowing third-party developers to extend CreatorOS with custom product types, integrations, community features, and analytics widgets.",
+      "dependency": "public_api",
+      "timeline_tier": "tier_4_ecosystem",
+      "source_artifact": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "capability": "White-Label / Reseller Program",
+      "module": "white_label",
+      "status": "not_implemented",
+      "status_detail": "White-label CreatorOS for agencies and creator management companies. Custom branding, client management, reseller dashboard.",
+      "dependency": "multi_tenant, public_api",
+      "timeline_tier": "tier_4_ecosystem",
+      "source_artifact": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "capability": "Cross-Platform Intelligence (EOS + LyfeOS bridges via UMH substrate)",
+      "module": "cross_platform",
+      "status": "not_implemented",
+      "status_detail": "Shared intelligence with EOS (business ops) and LyfeOS (life ops) through UMH substrate abstract ports. Requires all Trinity products operational.",
+      "dependency": "All tier 1-3 capabilities",
+      "timeline_tier": "tier_4_ecosystem",
+      "source_artifact": "phase14_6b_creatoros_eos_boundary_canon.md"
+    },
+    {
+      "capability": "Native Mobile App (iOS/Android)",
+      "module": "mobile",
+      "status": "not_implemented",
+      "status_detail": "Web-responsive is the default. Native mobile with push notifications, offline drafts, mobile-optimized composer, and camera integration is ecosystem-phase.",
+      "dependency": "public_api",
+      "timeline_tier": "tier_4_ecosystem",
+      "source_artifact": "phase14_6b_creatoros_lossless_product_canon.md"
+    }
+  ],
+
+  "platform_end_state": {
+    "description": "All 16 modules fully realized at end-state. Each module below describes its fully built form — not what exists today, but what it becomes.",
+
+    "module_1_content_distribution": {
+      "name": "Content Distribution Hub / Universal Composer",
+      "end_state": "Single editor interface for creating content destined for any platform. Block-based rich text editor with headings, lists, links, embeds, code blocks. Photo, video, audio, and document attachments with drag-and-drop. Platform selector with real-time character limits and format constraints. Per-platform live preview showing exact rendering (thread splitting, hashtag formatting, aspect ratio). AI-powered content suggestions (caption optimization, hashtag recommendations, optimal posting times). Draft management with auto-save and cross-device resume. Thread composer for multi-part content. Bulk scheduling with content calendar integration. Publishing queue with retry on failure. Full revision history per post.",
+      "modules_replaced": ["Buffer", "Hootsuite", "Later", "Sprout Social"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_2_community_hub": {
+      "name": "Community Hub",
+      "end_state": "Discord-like branded community spaces with unlimited text, voice, and video channels organized by category. Free and paid membership tiers with channel-level access gating. Full role hierarchy (owner, admin, moderator, member, guest) with per-channel permission overrides. Threaded conversations, reactions, pinned messages, and message search. Voice channels with spatial audio, screen share, and recording. Video rooms for live community events. Community-level analytics (member growth, engagement rate, retention, churn). Custom onboarding flows per community. Community discovery in marketplace. Bot/integration support for automation within channels.",
+      "modules_replaced": ["Discord", "Circle", "Mighty Networks", "Geneva"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_3_course_platform": {
+      "name": "Course Platform",
+      "end_state": "Full course builder with drag-and-drop module/lesson ordering. Video lessons with HLS streaming, chaptering, and playback speed control. Rich text lessons with embedded media. Quizzes and assignments with auto-grading. Progress tracking with completion percentages per student. Certificate generation on course completion. Drip scheduling (unlock lessons on a schedule after enrollment). Cohort-based courses with start/end dates. Discussion forums per lesson. Student management dashboard with enrollment analytics. Installment payment plans. Free courses for lead generation. Course bundles and upsells.",
+      "modules_replaced": ["Teachable", "Thinkific", "Kajabi courses", "Podia courses"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_4_marketplace": {
+      "name": "Marketplace",
+      "end_state": "Consumer-facing discovery marketplace for all 10 product types. Category browsing with nested taxonomy. Full-text search with filters (price range, category, rating, product type). Creator store pages with branding, bio, and product grid. Product detail pages with rich media, reviews, ratings, Q&A. Recommended products based on purchase history and browsing behavior. Trending and featured sections curated by algorithm and editorial. Review and rating system with verified purchase badges. Wishlist and save-for-later. Purchase history with re-download and re-access. Affiliate/referral tracking with commission attribution.",
+      "modules_replaced": ["Gumroad", "Etsy Digital", "Creative Market", "AppSumo"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_5_consumer_feed": {
+      "name": "Consumer Feed",
+      "end_state": "Unified feed aggregating all content from followed creators across all CreatorOS. Dual-tab: Following (chronological from subscribed creators) and For You (algorithmically ranked discovery). Media-rich cards with inline photo/video playback, engagement actions (like, comment, share, save, repost). Infinite scroll with skeleton loading. Real-time updates via WebSocket. Embedded product cards for shoppable posts. Community post cross-posting into feed. Story bar at top (Instagram-style). Pull-to-refresh with new post indicators. Muted/blocked creator filtering.",
+      "modules_replaced": ["Twitter/X feed", "Instagram feed", "TikTok feed"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_6_dashboard": {
+      "name": "Creator Dashboard",
+      "end_state": "Command center overview with real-time KPIs: total revenue, orders, followers, content views, community members, course enrollments. Time-range filtering (today, 7d, 30d, 90d, YTD, custom). Trend indicators with period-over-period comparison. Revenue breakdown by product type with charts. Content performance leaderboard (best-performing posts across platforms). Community health metrics (DAU, engagement rate, growth rate). Course enrollment and completion funnels. Recent activity feed (new orders, new followers, new comments). Quick-action buttons (create post, list product, send broadcast). Customizable widget layout with drag-and-drop.",
+      "modules_replaced": ["Analytics from each separate tool"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_7_editing_studio": {
+      "name": "In-App Editing Studio",
+      "end_state": "CapCut/Canva-like editing experience within CreatorOS. Image editor: crop, resize, filters, text overlay, stickers, background removal. Video editor: trim, split, merge, transitions, text overlay, music/audio track, speed control, captions (auto-generated via Whisper). Template library with branded templates. Direct publish from editor to universal composer. Canvas-based design tool for social media graphics, thumbnails, and marketing assets. Brand kit (colors, fonts, logos) applied automatically to templates.",
+      "modules_replaced": ["CapCut", "Canva", "InShot", "Descript"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_8_ugc_campaigns": {
+      "name": "UGC Campaign Engine",
+      "end_state": "Full UGC campaign management: brands create campaign briefs with requirements, budget, per-creator pay, deadline, target platforms, and style guide. Campaign published to UGC marketplace. UGC creators browse, filter by niche/pay/deadline, and apply with pitch and portfolio. Brands review applicants with profile, portfolio, and past ratings. Accepted creators submit deliverables. Brand reviews with approve/reject/revision-request flow (max 3 revisions). Approval triggers automatic payment via Stripe Connect. Content rights management (usage license, exclusivity period, platform restrictions). Campaign analytics: applications received, acceptance rate, deliverable quality, cost per deliverable. Creator rating system post-campaign. Campaign templates for repeat briefs.",
+      "modules_replaced": ["Billo", "Insense", "Trend.io", "Collabstr"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_9_ads_platform": {
+      "name": "Self-Serve Ads Platform",
+      "end_state": "Self-serve advertising system within CreatorOS ecosystem. Ad formats: feed ads (native post format), banner ads, sponsored content, promoted products, promoted creator profiles. Targeting: demographics, interests, followed creators, purchase history, content engagement patterns. Bidding: CPC (cost-per-click), CPM (cost-per-thousand-impressions), CPA (cost-per-acquisition). Budget controls: daily cap, lifetime budget, schedule-based delivery. Creative builder for ad units with preview. Campaign analytics: impressions, clicks, CTR, conversions, ROAS, audience insights. A/B testing for ad creatives and targeting. Advertiser dashboard with spend tracking and performance. Revenue share with creators whose content/feed is monetized via ads.",
+      "modules_replaced": ["Meta Ads (within ecosystem)", "Promoted tweets (within ecosystem)"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_10_cross_posting": {
+      "name": "Cross-Posting + Multistreaming",
+      "end_state": "Universal distribution engine for pushing content to external platforms. Supported platforms at end-state: Instagram (feed, stories, reels), TikTok, YouTube (videos, shorts, community), X/Twitter, LinkedIn, Facebook (pages, groups), Pinterest, Threads, Bluesky, Mastodon, Substack, Medium, Reddit. Per-platform format adaptation (aspect ratio, character limits, hashtag rules, thread splitting). OAuth token management with refresh and re-auth prompts. Platform API rate limit management. Cross-posting analytics showing per-platform performance side-by-side. Live multistreaming: ingest RTMP from OBS/StreamYard, transcode, relay to CreatorOS + YouTube + Twitch + X simultaneously. Stream overlays, chat aggregation, and viewer count.",
+      "modules_replaced": ["Buffer", "Hootsuite", "Restream", "StreamYard"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_11_automation_builder": {
+      "name": "Automation Builder",
+      "end_state": "Manychat-style visual flow builder for trigger/action automations. Drag-and-drop DAG canvas with node types: trigger, condition, action, delay, split. 20+ trigger types: new purchase, new follower, new community member, form submission, scheduled time, content published, course completed, UGC deliverable approved, etc. 30+ action types: send email, send DM, add tag, grant community access, create post, enroll in course, add to segment, webhook call, etc. Condition nodes with AND/OR logic and rich filters. Delay nodes (wait X hours/days, wait until specific time). A/B split nodes for testing automation variants. Flow analytics: trigger count, completion rate, error rate, per-node metrics. Template library of pre-built automations for common creator workflows (welcome series, abandoned cart, course drip, community onboarding).",
+      "modules_replaced": ["Manychat", "Zapier (for creator workflows)", "ActiveCampaign automations"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_12_email_newsletter": {
+      "name": "Email/Newsletter",
+      "end_state": "Full email platform for creator-to-audience communication. Rich text email composer with templates, media embeds, and merge tags. Subscriber list management with segments, tags, and custom fields. Broadcast emails (one-time sends to segments). Drip sequences (automated multi-email series triggered by events). Newsletter scheduling with preview across email clients. A/B testing for subject lines and content. Email analytics: open rate, click rate, unsubscribe rate, deliverability. Subscriber growth charts. Double opt-in with customizable confirmation. Custom sending domain (DKIM/SPF). Integration with automations as action nodes.",
+      "modules_replaced": ["Mailchimp", "ConvertKit", "Beehiiv", "Substack (email layer)"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_13_stories": {
+      "name": "Stories System",
+      "end_state": "Instagram-like ephemeral stories with 24-hour expiry. Photo and video stories with text overlay, stickers, polls, Q&A, and link stickers. Story highlights (permanent collections of past stories). Story analytics: views, reach, taps forward/back, exits, link clicks. Interactive elements: polls with real-time results, question box with creator responses, emoji reactions, countdown timers. Story ads for advertisers. Creator and consumer story rails on feed. Stories cross-posted to Instagram/Snapchat/YouTube Shorts stories via connected accounts.",
+      "modules_replaced": ["Instagram Stories (within ecosystem)", "Snapchat Stories (within ecosystem)"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+    },
+    "module_14_notifications": {
+      "name": "Notifications and Messaging",
+      "end_state": "Unified notification center for all platform activity. Notification types: social (likes, comments, follows, mentions), commerce (purchases, refunds, payouts, subscription renewals), community (new members, messages, moderator actions), content (publishing confirmations, cross-post results, milestone alerts), system (security alerts, account updates, billing). In-app notification feed with read/unread state, bulk actions, and filtering. Push notifications (web push for desktop, native push for mobile app). Email notification digests (configurable frequency: real-time, daily, weekly). Notification preferences per category. DMs with 1:1 and group conversations, media support, read receipts, typing indicators, message reactions, and message search.",
+      "modules_replaced": ["None — table stakes for any platform"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_15_moderation": {
+      "name": "Moderation and Trust/Safety",
+      "end_state": "AI-assisted moderation pipeline for all user-generated content. Auto-moderation rules: keyword filters, spam detection, NSFW image detection, link scanning. Moderation queue with human review for flagged content. Per-community moderation settings (strictness levels). Moderator role with channel-level permissions. User reporting flow (report content, user, or community). Ban system: temporary/permanent, per-community or platform-wide. Appeal process for banned users. Transparency log of moderation actions. Trust scoring for users (reduces moderation friction for trusted members). Creator-controlled word filters and auto-reply rules. DMCA takedown compliance workflow.",
+      "modules_replaced": ["Discord AutoMod (within ecosystem)", "Manual moderation across tools"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "module_16_roles_permissions": {
+      "name": "Roles and Permissions",
+      "end_state": "Flexible role system for creator teams and community management. Creator team roles: owner, admin, editor, moderator, analyst (read-only analytics). Per-feature permission matrix (who can publish, who can manage products, who can access financials, who can moderate). Community roles: owner, admin, moderator, member, guest with per-channel overrides. Custom roles with granular permission toggles. Role inheritance (admin inherits all moderator permissions). Activity log per team member. Invitation flow with role assignment. SSO for team accounts (enterprise tier). API key generation with role-scoped access.",
+      "modules_replaced": ["Team management across multiple tools"],
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "architecture_end_state": {
+    "frontend": {
+      "framework": "React 18 + TypeScript (strict)",
+      "bundler": "Vite 5",
+      "styling": "Tailwind CSS with design tokens in tailwind.config.ts",
+      "components": "shadcn/ui (48 components via Radix UI primitives) + custom CreatorOS components",
+      "state_management": "zustand for client state, @tanstack/react-query for server state",
+      "routing": "wouter (current) — may migrate to React Router for nested layouts at scale",
+      "validation": "Zod for runtime validation, drizzle-zod for schema-derived types",
+      "charts": "Recharts for analytics visualizations",
+      "animation": "framer-motion for transitions and micro-interactions",
+      "auth": "Clerk (replacing broken Passport.js)",
+      "design_system": "X/Twitter-inspired minimalism. Dark mode default. Clean lines, precise alignment grids, monochrome base with Signal Blue accent. Content-first layouts. Dense information architecture for power users. No glassmorphism, no gradients, no playful illustrations.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+    },
+    "backend": {
+      "runtime": "Node.js (Express 4, potential Hono migration for performance)",
+      "orm": "Drizzle ORM 0.39+ with Zod validation",
+      "database": "Neon Postgres (serverless) with connection pooling",
+      "session": "Clerk session management (post-migration)",
+      "api_style": "REST (MVP through Tier 3), GraphQL (Tier 4 public API)",
+      "realtime": "WebSocket (ws library) for chat, notifications, live updates; upgrade to Socket.io or tRPC subscriptions at scale",
+      "file_storage": "S3-compatible object storage for media (uploads, downloads, course videos, UGC deliverables)",
+      "search": "PostgreSQL full-text search (MVP), Meilisearch or Typesense (scale)",
+      "email": "SendGrid or Resend for transactional and broadcast email",
+      "payments": "Stripe Connect (platform model: CreatorOS as platform, creators as connected accounts)",
+      "video": "HLS streaming for course content; RTMP ingest + transcoding for live streaming (FFmpeg or Mux)",
+      "ai_provider": "OpenAI SDK (current) for AI agent conversations; UMH model_router for intelligence-enhanced features",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+    },
+    "ai": {
+      "intelligence_routing": "UMH model_router.py — call_with_fallback() for AI-enhanced features. cc_sdk (Opus via subscription) primary, Gemini Flash secondary, Groq tertiary, Ollama local fallback.",
+      "ai_agents_consumer": "OpenAI SDK for creator-built custom chatbots (consumer-facing). Model selection per agent (creator configures).",
+      "ai_content": "AI-powered content optimization: caption suggestions, hashtag recommendations, optimal posting times, content repurposing (blog to thread, video to clips).",
+      "ai_moderation": "AI-assisted content moderation: NSFW detection, spam classification, toxicity scoring. Deterministic rules first, AI refinement second.",
+      "ai_recommendations": "ML-powered recommendation engine for consumer feed, marketplace discovery, and creator suggestions. Engagement signal pipeline feeding ranking model.",
+      "ai_analytics": "AI-generated insights: audience growth predictions, revenue forecasts, content performance patterns, churn risk indicators.",
+      "deterministic_spine": "All scheduling, distribution, commerce, entitlements, automation execution, and notification delivery are deterministic. AI enhances content quality, recommendations, and insights within deterministic frames.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+    },
+    "data": {
+      "primary_store": "Neon Postgres — all transactional data (users, products, orders, communities, content, courses, campaigns)",
+      "target_tables": 45,
+      "current_tables": 20,
+      "missing_tables": 25,
+      "analytics": "PostHog for product analytics, session replay, feature flags (planned, not implemented)",
+      "search": "pgvector extension for semantic search on content and products",
+      "caching": "Redis for hot data (feed ranking, session state, real-time counts)",
+      "media_storage": "S3-compatible for all uploaded media (posts, products, courses, UGC deliverables)",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+    },
+    "infrastructure": {
+      "hosting": "Fly.io for SaaS frontend and backend (containerized, global edge)",
+      "database": "Neon Postgres (serverless, auto-scaling, branching for preview environments)",
+      "auth": "Clerk (hosted auth, social OAuth, MFA, SSO at enterprise tier)",
+      "ci_cd": "GitHub Actions for lint, test, build, deploy pipeline",
+      "monitoring": "PostHog (product analytics) + Sentry (error tracking) + structured logging",
+      "cdn": "Fly.io edge or Cloudflare for static assets and media",
+      "containers": "Docker for local development and VPS services, Fly.io machines for production",
+      "secrets": "Environment variables via Fly.io secrets, local .env files",
+      "media_pipeline": "S3 + CDN for image/video delivery; transcoding pipeline for video normalization",
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "business_model_end_state": {
+    "pricing_tiers": [
+      {
+        "tier": "Free",
+        "target": "Emerging creators getting started, consumers discovering content",
+        "includes": "Universal composer (basic), 1 connected platform, free communities (1), consumer feed, marketplace browsing, DMs, stories, basic analytics, 1 AI agent",
+        "pricing_model": "Free forever (freemium entry)",
+        "provenance": "SOURCE_PRESERVED_TRUTH",
+        "source": "CreatorOS_1NIZXMZR.json Tab 7 (pricing tiers)"
+      },
+      {
+        "tier": "Pro",
+        "target": "Active creators monetizing their audience",
+        "price": "$29/month",
+        "includes": "Everything in Free + unlimited connected platforms, cross-posting + scheduling, content calendar, paid communities (unlimited), course platform, marketplace listings, Stripe payments + payouts, email broadcasts (up to 5,000 subscribers), automation builder (5 active flows), full analytics dashboard, custom AI agents (5), thread composer, content suggestions AI",
+        "pricing_model": "Monthly or annual subscription ($290/year — 2 months free)",
+        "provenance": "SOURCE_PRESERVED_TRUTH",
+        "source": "CreatorOS_1NIZXMZR.json Tab 7 (pricing tiers)"
+      },
+      {
+        "tier": "Business",
+        "target": "Established creators and small creator teams scaling operations",
+        "price": "$79/month",
+        "includes": "Everything in Pro + team management (up to 5 seats), unlimited automation flows, unlimited email subscribers, UGC campaign management, advanced analytics + export, priority support, custom domain, branded community, service bookings, event management, API access (limited)",
+        "pricing_model": "Monthly or annual subscription ($790/year)",
+        "provenance": "SOURCE_PRESERVED_TRUTH",
+        "source": "CreatorOS_1NIZXMZR.json Tab 7 (pricing tiers)"
+      },
+      {
+        "tier": "Enterprise",
+        "target": "Creator businesses (500K+ following), agencies, management companies",
+        "price": "$199+/month",
+        "includes": "Everything in Business + unlimited team seats, SSO/SAML, white-label branding, ads platform access, full API access, dedicated support, SLA, custom integrations, multi-brand management, advanced security controls, compliance features",
+        "pricing_model": "Monthly or annual, custom pricing for large accounts",
+        "provenance": "SOURCE_PRESERVED_TRUTH + INFERRED_PROFESSIONAL_GAP",
+        "source": "CreatorOS_1NIZXMZR.json Tab 7 (pricing tiers) + professional gap for enterprise features"
+      }
+    ],
+    "revenue_streams": [
+      {
+        "stream": "Creator subscriptions",
+        "description": "Monthly/annual SaaS subscriptions from creators across Free/Pro/Business/Enterprise tiers",
+        "percentage_of_revenue": "40-50% at maturity",
+        "provenance": "SOURCE_PRESERVED_TRUTH + INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "stream": "Marketplace transaction fees",
+        "description": "Percentage of every transaction on the marketplace. Platform takes 5-10% of each sale (product purchases, course enrollments, community subscriptions, service bookings, event tickets).",
+        "percentage_of_revenue": "25-35% at maturity",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "stream": "Ads platform revenue",
+        "description": "Advertising spend from brands and creators buying placements in the consumer feed, marketplace, and community surfaces. Revenue share with creators whose content/audience is monetized.",
+        "percentage_of_revenue": "10-15% at maturity",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "stream": "UGC campaign platform fees",
+        "description": "Service fee on UGC campaign transactions. Platform takes 10-15% of each campaign budget as facilitation fee.",
+        "percentage_of_revenue": "5-10% at maturity",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "stream": "Premium features / AI compute",
+        "description": "Metered AI usage beyond tier limits (additional AI agents, advanced content generation, premium analytics insights). Pay-as-you-go pricing for heavy AI consumers.",
+        "percentage_of_revenue": "5-10% at maturity",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    ],
+    "marketplace_economics": {
+      "product_marketplace": {
+        "description": "All 10 product types sold through the CreatorOS marketplace. Creators list, consumers browse and buy. Platform handles discovery, checkout, payment processing, and delivery.",
+        "platform_fee": "5-10% per transaction (configurable per product type, lower for high-volume creators)",
+        "payment_processing": "Stripe Connect. Platform collects payment, takes fee, disburses to creator's connected Stripe account. Automatic 1099/tax reporting.",
+        "quality_gate": "Creator store review for marketplace listing. Product moderation for compliance. Fake review detection.",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      "ugc_marketplace": {
+        "description": "Brands post UGC campaign briefs, UGC creators apply and deliver content. Platform facilitates matching, review, and payment.",
+        "platform_fee": "10-15% of campaign budget (deducted before creator payout)",
+        "payment_processing": "Stripe Connect. Brand funds campaign upfront, platform holds in escrow, releases to creator on deliverable approval.",
+        "quality_gate": "Campaign brief review for brand quality. Creator portfolio verification. Deliverable quality scoring.",
+        "provenance": "SYNTHESIZED_CANON"
+      }
+    },
+    "provenance": "SOURCE_PRESERVED_TRUTH + INFERRED_PROFESSIONAL_GAP",
+    "open_question": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED — exact platform fee percentages, enterprise custom pricing, and ads revenue share model are operator decisions. The structure above synthesizes the Google Doc pricing with professional inference for marketplace economics."
+  },
+
+  "scale_targets": {
+    "tier_1_mvp": {
+      "creators": "200 active creators",
+      "consumers": "1,000-5,000 active consumers",
+      "products_listed": "500-2,000 products across all types",
+      "monthly_transactions": "100-500",
+      "content_volume": "5,000-20,000 posts/month",
+      "communities": "50-200 active communities",
+      "data_volume": "< 10 GB in Neon Postgres",
+      "infrastructure": "Single Fly.io region, single Neon database, S3 media bucket",
+      "timeline": "6-12 months from first implementation commit",
+      "provenance": "SOURCE_PRESERVED_TRUTH + INFERRED_PROFESSIONAL_GAP",
+      "source": "CreatorOS_1NIZXMZR.json Tab 6 (200 creators, 1000 consumers, 30 days)"
+    },
+    "tier_2_growth": {
+      "creators": "2,000-20,000 active creators",
+      "consumers": "50,000-500,000 active consumers",
+      "products_listed": "20,000-200,000",
+      "monthly_transactions": "10,000-100,000",
+      "content_volume": "500,000-5,000,000 posts/month",
+      "communities": "2,000-20,000 active communities",
+      "courses": "1,000-10,000 active courses",
+      "data_volume": "10-500 GB",
+      "infrastructure": "Multi-region Fly.io, Neon with read replicas, Redis caching, CDN for media, dedicated search service",
+      "timeline": "12-24 months post-MVP",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "tier_3_platform": {
+      "creators": "20,000-200,000 active creators",
+      "consumers": "500,000-10,000,000 active consumers",
+      "products_listed": "200,000-2,000,000",
+      "monthly_transactions": "100,000-5,000,000",
+      "content_volume": "5,000,000-100,000,000 posts/month",
+      "communities": "20,000-200,000",
+      "courses": "10,000-100,000",
+      "ugc_campaigns": "1,000-10,000 active campaigns",
+      "ad_campaigns": "5,000-50,000 active campaigns",
+      "data_volume": "500 GB - 10 TB",
+      "infrastructure": "Global Fly.io deployment, Neon horizontal scaling, dedicated media pipeline (transcoding, CDN), search cluster, recommendation engine infra, RTMP ingest servers",
+      "timeline": "24-48 months post-MVP",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "tier_4_ecosystem": {
+      "creators": "200,000+ active creators",
+      "consumers": "10,000,000+ active consumers",
+      "products_listed": "2,000,000+",
+      "monthly_transactions": "5,000,000+",
+      "content_volume": "100,000,000+ posts/month",
+      "communities": "200,000+",
+      "data_volume": "10+ TB",
+      "infrastructure": "Multi-cloud, dedicated infrastructure for enterprise tenants, edge computing for real-time feed ranking, ML training infrastructure for recommendation engine",
+      "timeline": "48+ months post-MVP",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "competitive_moat": [
+    {
+      "moat": "All-in-one creator operating system",
+      "description": "CreatorOS is not a feature — it is an operating system. Competitors offer tools (Buffer for scheduling, Gumroad for products, Teachable for courses, Discord for community). CreatorOS is the single platform that replaces the entire SaaS stack. Switching from CreatorOS means re-building your content pipeline, re-migrating your community, re-listing your products, re-building your automation, and re-exporting your audience — across 5-10 separate tools.",
+      "defensibility": "HIGH — deep integration across content, community, commerce, and automation creates massive switching costs once a creator's business is built on CreatorOS",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "Two-sided marketplace network effects",
+      "description": "Creator marketplace + consumer feed creates a two-sided network. More creators listing products means more consumers browsing. More consumers means more sales for creators which attracts more creators. The consumer feed and discovery algorithm amplify this: good content gets distribution, which rewards creators for staying on-platform, which gives consumers more to consume.",
+      "defensibility": "VERY HIGH at scale — network effects are the hardest moat to replicate. Every new creator and consumer makes the platform more valuable for everyone else.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "AI utility embedded across every surface",
+      "description": "AI is not a separate feature in CreatorOS — it is embedded: content suggestions in the composer, optimal timing in the scheduler, auto-moderation in communities, chatbot agents as products, audience insights in analytics, content repurposing in distribution. Competitors bolt AI onto existing tools. CreatorOS builds AI into the fabric.",
+      "defensibility": "MEDIUM-HIGH — AI integration quality compounds with usage data. Competitors can add AI features but cannot match the cross-surface intelligence without the unified data layer.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "UMH substrate inheritance",
+      "description": "CreatorOS inherits every UMH capability as a creator-specific projection. As UMH gains new substrate capabilities (execution primitives, governance mechanisms, intelligence routing, organism coordination), CreatorOS automatically gains the creator-business projection. Competitors would need to build their own universal substrate.",
+      "defensibility": "VERY HIGH — universal substrate is the hardest asset to replicate. UMH evolution is CreatorOS evolution.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "10 native product types in one commerce engine",
+      "description": "No competitor supports community, AI agent, digital download, course, subscription/membership, service, event, physical product, UGC campaign, and software access as native product types in a single platform with unified checkout, entitlement management, and analytics. Each competitor owns 1-3 of these; CreatorOS owns all 10.",
+      "defensibility": "HIGH — breadth of product type support requires deep commerce infrastructure that takes years to build and test across all 10 types",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "UGC + Ads as integrated creator revenue streams",
+      "description": "UGC campaigns and self-serve ads are not separate platforms — they are built into CreatorOS where the creator's audience already lives. Brands can run UGC campaigns with creators who sell products, host communities, and publish content all on CreatorOS. The data loop (content engagement -> ad targeting -> UGC matching) is uniquely powerful because all the data lives in one platform.",
+      "defensibility": "MEDIUM-HIGH — integrated data loop is powerful but requires critical mass of creators and brands",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "Cross-platform distribution as competitive lock-in",
+      "description": "CreatorOS as the single publishing point for all platforms means creators depend on it for their entire distribution workflow. The more platforms connected and the more content scheduled through CreatorOS, the higher the switching cost. Historical analytics, scheduling queues, and platform-specific performance data compound over time.",
+      "defensibility": "MEDIUM — distribution is replicable, but the accumulated scheduling data and cross-platform analytics history creates meaningful switching friction",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "Deterministic spine with AI enhancement",
+      "description": "CreatorOS works without AI. Scheduling fires, commerce processes, communities host, automations trigger, and notifications deliver — all deterministically. AI makes it better but is not a dependency. Competitors built on AI-first architectures break when AI fails. CreatorOS degrades gracefully.",
+      "defensibility": "MEDIUM — design principle more than technical moat, but produces measurably higher reliability and trust",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  ],
+
+  "integration_end_state": {
+    "eos_bridge": {
+      "description": "CreatorOS and EOS share intelligence through UMH substrate. A creator business on CreatorOS can be linked to an EOS entity, enabling the creator to use EOS's governed AI agents, workflows, and financial management for the operational side of their business while keeping content/community/product management in CreatorOS.",
+      "bridge_points": [
+        "Revenue data from CreatorOS commerce flows into EOS financial dashboards and P&L tracking",
+        "Content strategy from EOS marketing agent feeds CreatorOS content calendar and automation triggers",
+        "Audience analytics from CreatorOS consumer engagement feed EOS customer intelligence and market research",
+        "Team management in EOS (org chart, roles, departments) maps to CreatorOS team permissions",
+        "EOS workflows can trigger CreatorOS actions (e.g., 'when invoice is paid, send thank-you email broadcast')",
+        "CreatorOS community health metrics feed EOS strategic dashboards for community-driven businesses"
+      ],
+      "mechanism": "UMH abstract ports in substrate/sockets/ — both projections register capabilities and consume signals through the same substrate. CreatorOS integration code already exists: projections/creatoros/integration/ (1,099 lines with signals, capabilities, outcomes, correlation).",
+      "timeline": "Tier 4 — requires both products operational and stable",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "lyfeos_bridge": {
+      "description": "CreatorOS and LyfeOS share intelligence through UMH substrate. A creator's personal development tracked in LyfeOS (skills, energy, focus, health) informs CreatorOS scheduling and content strategy.",
+      "bridge_points": [
+        "Creator energy and focus state from LyfeOS influences content scheduling recommendations (don't schedule creation tasks during low-energy periods)",
+        "Skill development tracked in LyfeOS maps to CreatorOS content capabilities (e.g., completing a video editing course unlocks editing studio recommendations)",
+        "LyfeOS goal tracking feeds CreatorOS milestones (e.g., 'reach 10K followers this quarter')",
+        "CreatorOS audience growth and revenue milestones feed LyfeOS achievement tracking and life-goal progress"
+      ],
+      "mechanism": "UMH abstract ports — shared substrate, separate projections",
+      "timeline": "Tier 4 — requires both products operational",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "umh_substrate_full": {
+      "description": "End-state CreatorOS is fully integrated with UMH substrate capabilities. CreatorOS is not just built ON UMH — CreatorOS IS UMH for creator operations. Each substrate capability has a creator-specific projection.",
+      "substrate_capabilities_projected": [
+        "Signal Processing -> Content and Commerce Event Processing (new post, new purchase, new follower, community activity)",
+        "Execution Pipeline -> Content Distribution Pipeline (compose -> schedule -> publish -> analyze per platform)",
+        "Governance Engine -> Content Moderation and Trust/Safety (deterministic rules + AI enhancement)",
+        "Intelligence Routing -> AI Feature Routing (content suggestions, moderation, recommendations, agent conversations)",
+        "Agent Coordination -> AI Agent Management (creator-built agents with conversation routing and token tracking)",
+        "State Management -> Creator Business State (products, orders, communities, content, subscribers)",
+        "Type System -> Creator Domain Types (content types, product types, community types, engagement types)",
+        "Context Management -> Creator Context (active creator profile, current business, connected platforms)",
+        "Observability -> Creator Analytics (content performance, revenue, community health, funnel metrics)",
+        "Feedback Loop -> Content Optimization Loop (what content performs best -> schedule more of it)",
+        "Trace Recording -> Creator Activity Audit Trail (every action logged for analytics and compliance)",
+        "Capability Router -> Feature Tier Gating (free vs pro vs business vs enterprise capabilities)",
+        "Notification Port -> Creator Notifications (purchase alerts, community activity, content milestones)",
+        "Session Management -> Creator Session (active workspace, recent activity, drafts in progress)",
+        "Ontology System -> Creator Domain Ontology (relationships between content, products, communities, audiences)"
+      ],
+      "existing_integration": {
+        "location": "projections/creatoros/integration/",
+        "files": 6,
+        "lines": 1099,
+        "components": ["signals", "capabilities", "outcomes", "correlation"],
+        "domain_bridge": "substrate/understanding/domains/creator.py (516 lines)",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "implication": "As UMH gains new substrate capabilities, CreatorOS automatically gains the creator-specific projection. UMH evolution is CreatorOS evolution.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "open_questions_for_end_state": [
+    {
+      "id": "OQ-COS-END-001",
+      "question": "What are the exact marketplace transaction fee percentages per product type?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Revenue projections, creator acquisition, competitive positioning vs Gumroad (5%) and Whop (3%)"
+    },
+    {
+      "id": "OQ-COS-END-002",
+      "question": "Should Signal Blue remain the accent color or should CreatorOS have a distinct brand color to differentiate from X/Twitter?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Brand identity, visual differentiation, design system foundation",
+      "source": "phase14_6b_creatoros_design_identity_canon.json (accent color open question)"
+    },
+    {
+      "id": "OQ-COS-END-003",
+      "question": "Which 4 platforms for initial OAuth integration and in what order?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "MVP scope, engineering timeline (each platform app review takes weeks), market positioning",
+      "candidates": ["Instagram", "TikTok", "YouTube", "X/Twitter", "LinkedIn", "Facebook"]
+    },
+    {
+      "id": "OQ-COS-END-004",
+      "question": "Should the in-app editing studio be built in-house or integrate a white-label solution (Bannerbear, Creatomate)?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Engineering investment (6+ months in-house vs weeks for integration), quality control, feature parity"
+    },
+    {
+      "id": "OQ-COS-END-005",
+      "question": "What is the ads revenue share model with creators whose content/audience is monetized?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Creator incentive alignment, platform revenue, competitive positioning vs YouTube AdSense model"
+    },
+    {
+      "id": "OQ-COS-END-006",
+      "question": "Should CreatorOS pursue native mobile (React Native or Swift/Kotlin) or progressive web app (PWA)?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Development cost, user experience, push notifications, camera/media access, App Store presence"
+    },
+    {
+      "id": "OQ-COS-END-007",
+      "question": "How should the Python UMH substrate bridge to the TypeScript SaaS frontend for AI-enhanced features?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Architecture, latency, development velocity. Options: stdin/stdout JSON bridges (EOS pattern), HTTP microservice, WebSocket bridge, edge functions.",
+      "source": "phase14_6b_creatoros_eos_boundary_canon.md (bridge mechanism discussion)"
+    },
+    {
+      "id": "OQ-COS-END-008",
+      "question": "Should live multistreaming use self-hosted RTMP infrastructure or third-party (Mux, Cloudflare Stream)?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Infrastructure cost, latency, reliability, scaling complexity, vendor lock-in"
+    },
+    {
+      "id": "OQ-COS-END-009",
+      "question": "What is the scope overlap policy between CreatorOS automation builder and EOS workflow engine?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Product boundary clarity, feature duplication, user confusion for creators using both products",
+      "source": "phase14_6b_creatoros_eos_boundary_canon.md (automation vs workflow boundary)"
+    }
+  ],
+
+  "timeline_summary": {
+    "tier_1_mvp": {
+      "name": "MVP — Core Creator Platform",
+      "description": "Authentication (Clerk migration), god file decomposition, universal composer with basic rich text, cross-platform distribution (4 platforms), content calendar, consumer feed, community hub (text channels), DMs, digital product sales with Stripe Connect checkout, creator dashboard with real metrics, stories (already implemented), notifications, AI agents (pricing + purchasing), user profiles, moderation basics, and roles/permissions foundation.",
+      "capability_count": 18,
+      "releases": [
+        "R1: Auth Migration (Clerk) + God File Decomposition + Schema Gaps",
+        "R2: Universal Composer + Scheduling + Content Calendar",
+        "R3: Platform OAuth + Cross-Posting Engine (first 2 platforms)",
+        "R4: Stripe Connect + Checkout + Digital Product Sales",
+        "R5: Community Hub (membership tiers) + Notifications + Dashboard Analytics"
+      ],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "tier_2_growth": {
+      "name": "Growth — Full Commerce + Automation",
+      "description": "Course platform, full marketplace with discovery, subscription/membership product type, community voice/video channels, paid community tiers, email/newsletter system, automation builder, content analytics (per-platform), service bookings, event management, physical products, software access, thread composer.",
+      "capability_count": 14,
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "tier_3_platform": {
+      "name": "Platform — Media + Ads + Scale",
+      "description": "In-app editing studio, UGC campaign engine, self-serve ads platform, live multistreaming, algorithmic feed + recommendation engine, creator XP/reputation system, multi-tenant team accounts.",
+      "capability_count": 7,
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    "tier_4_ecosystem": {
+      "name": "Ecosystem — API + Cross-Platform + Mobile",
+      "description": "Public API, webhook system, plugin/extension system, white-label program, cross-platform intelligence (EOS + LyfeOS bridges), native mobile app.",
+      "capability_count": 6,
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    "total_capabilities_mapped": 45
+  },
+
+  "cross_references": {
+    "existing_artifacts_not_recreated": [
+      "phase14_6b_creatoros_preflight.json — source inventory, rules, success criteria",
+      "phase14_6b_creatoros_lossless_product_canon.md — master product truth, 16 modules, 28 screens, 10 product types",
+      "phase14_6b_creatoros_design_identity_canon.json — X/Twitter minimalism, color system, navigation architecture",
+      "phase14_6b_creatoros_content_distribution_canon.json — universal composer, cross-posting, scheduling, editing studio, stories, newsletters",
+      "phase14_6b_creatoros_community_messaging_canon.json — Discord-like communities, channels, membership tiers, DMs, moderation",
+      "phase14_6b_creatoros_product_types_commerce_canon.json — 10 product types, order lifecycle, entitlement model, Stripe Connect",
+      "phase14_6b_creatoros_ugc_ads_canon.json — UGC campaign lifecycle, self-serve ads, targeting, bidding",
+      "phase14_6b_creatoros_automation_ai_canon.json — Manychat-style visual flows, AI agents, email, search",
+      "phase14_6b_creatoros_analytics_dashboard_canon.json — KPI framework, revenue/content/community analytics",
+      "phase14_6b_creatoros_user_journeys_onboarding.json — 8 user types, 3 tiers, conversion funnels, retention hooks",
+      "phase14_6b_creatoros_eos_boundary_canon.md — ownership matrix, crossover points, UMH mediation"
+    ],
+    "additional_artifacts_referenced": [
+      "phase14_6b_creatoros_auth_security_truth.json — Passport.js broken, Clerk migration path",
+      "phase14_6b_creatoros_current_implementation_truth.json — 296 files, 20 tables, no tests, god files",
+      "phase14_6b_creatoros_mvp_specification.json — 3 conflicting MVP definitions, recommended 5-release plan",
+      "phase14_6b_creatoros_data_ontology.json — 20 current + 25 missing = 45 target tables",
+      "phase14_6b_creatoros_api_infrastructure_canon.json — 89 routes, god file decomposition, target architecture",
+      "phase14_6b_creatoros_13_layer_mapping.json — 13-layer production stack mapping",
+      "phase14_6b_creatoros_source_inventory.json — source document inventory and word counts",
+      "phase14_6b_creatoros_versions_contradictions_matrix.json — contradictions and resolution status",
+      "phase14_6b_creatoros_implementation_debt_register.md — full implementation debt inventory",
+      "phase14_6b_creatoros_professional_gap_register.md — professional gaps inferred from industry standards",
+      "phase14_6b_creatoros_open_questions_operator_decision_queue.md — operator decisions pending"
+    ]
+  }
+}

@@ -1,0 +1,1044 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Precise MVP scope for CreatorOS -- resolves 3 conflicting MVP definitions into a single recommended release plan across 5 incremental releases, with explicit exclusions, prerequisite decisions, tech stack, and success criteria.",
+  "provenance_detail": "SYNTHESIZED_CANON for the recommended MVP and release structure. OPEN_QUESTION_OPERATOR_DECISION_REQUIRED for scope confirmation (DEC-145-002) and auth migration order (DEC-145-004). SOURCE_PRESERVED_TRUTH for the 3 conflicting definitions extracted verbatim from Google Doc Tabs 3, 6, and 7.",
+  "cross_references": [
+    "phase14_6b_creatoros_versions_contradictions_matrix.json (CONTRA-COS-002: 3 conflicting MVP scopes)",
+    "phase14_6b_creatoros_current_implementation_truth.json (16 pages, 20 tables, broken auth, god files)",
+    "phase14_6b_creatoros_auth_security_truth.json (COS-AUTH-001, Clerk migration path)",
+    "phase14_6b_creatoros_product_types_commerce_canon.json (10 product types, commerce model, pricing tiers)",
+    "phase14_6b_creatoros_content_distribution_canon.json (universal composer, cross-posting, scheduling)",
+    "phase14_6b_creatoros_community_messaging_canon.json (community hub, DMs, channels)",
+    "phase14_6b_creatoros_data_ontology.json (20 current tables, missing tables)",
+    "phase14_6b_creatoros_design_identity_canon.json (X/Twitter minimalism, dark mode default)",
+    "phase14_6b_creatoros_user_journeys_onboarding.json (8 user types, onboarding flows)",
+    "phase14_6b_creatoros_api_infrastructure_canon.json (89 routes, god file split plan)",
+    "phase14_6b_creatoros_implementation_debt_register.md (full debt inventory)"
+  ],
+
+  "mvp_conflict": [
+    {
+      "id": "MVP-DEF-1",
+      "source": "Google Doc Tab 6 (Minimum Viable Product) -- original definition",
+      "word_count": 1860,
+      "scope": "Content distribution + community only. Smallest scope.",
+      "features": [
+        "User authentication and profiles",
+        "Connect 4 platforms (Instagram, TikTok, YouTube, X)",
+        "Universal Composer (text + photo + video)",
+        "Basic scheduling and content calendar",
+        "Consumer feed (chronological)",
+        "Free communities (text chat only)",
+        "Basic engagement (likes, comments, follows)"
+      ],
+      "explicit_exclusions": [
+        "Courses",
+        "Paid communities",
+        "Marketplace / product sales",
+        "Payments / Stripe",
+        "Analytics dashboard",
+        "Native mobile apps",
+        "AI features",
+        "Stories"
+      ],
+      "success_targets": {
+        "creators": 200,
+        "consumers": 1000,
+        "timeline": "30 days post-launch"
+      },
+      "estimated_timeline": "8-10 weeks",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "assessment": "Too narrow. The core 'post once publish everywhere' promise requires platform OAuth integrations that are the hardest engineering work. Excludes features the current codebase already has (stories, AI, marketplace page, DMs). Would require REMOVING existing features or hiding them. Also excludes revenue-generating capabilities entirely -- no path to $1 without a follow-up release."
+    },
+    {
+      "id": "MVP-DEF-2",
+      "source": "Google Doc Tab 7 (Copy of Minimum Viable Product) -- expanded definition",
+      "word_count": 4693,
+      "scope": "Content + community + courses + marketplace + payments. Largest MVP scope.",
+      "features": [
+        "Everything in Tab 6",
+        "Course platform (builder, player, progress tracking)",
+        "Marketplace with product listings and product detail pages",
+        "Stripe payment processing",
+        "Subscription / membership tiers",
+        "Extended analytics dashboard",
+        "More platform connections"
+      ],
+      "explicit_exclusions": [],
+      "success_targets": {
+        "creators": "not specified in tab",
+        "consumers": "not specified in tab",
+        "timeline": "not specified in tab"
+      },
+      "estimated_timeline": "not specified",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "assessment": "Too broad. Adds courses, marketplace, payments, and subscriptions to the MVP -- each a multi-week build. Combined with the platform integration engineering from Tab 6, this is a 6+ month effort for a solo developer team. The cross-platform OAuth integrations alone (Instagram API, TikTok API, YouTube API, X API) each require app review processes that take weeks. No realistic timeline attached."
+    },
+    {
+      "id": "MVP-DEF-3",
+      "source": "Google Doc Tab 3 (Copy of PRD) -- Build Guide section",
+      "word_count": 9391,
+      "scope": "7.4-week sprint plan. Partial overlap with both Tab 6 and Tab 7.",
+      "features": [
+        "Clerk auth (not Passport.js)",
+        "User profiles and creator/consumer roles",
+        "Content posting with media",
+        "Consumer feed",
+        "Community with channels",
+        "Course platform (basic)",
+        "Product marketplace (basic)",
+        "AI chat assistants"
+      ],
+      "explicit_exclusions": [
+        "Not explicitly stated -- scope implied by sprint breakdown"
+      ],
+      "success_targets": {
+        "creators": "not specified",
+        "consumers": "not specified",
+        "timeline": "7.4 weeks"
+      },
+      "estimated_timeline": "7.4 weeks (52 days)",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "assessment": "Most realistic of the three but still aggressive. The 7.4-week timeline assumes greenfield development with Clerk auth from day 1 -- does not account for the existing codebase's broken auth, god files requiring extraction, and Replit-origin code requiring audit. However, the scope (content + community + basic courses + basic marketplace + AI) is close to the recommended Option B from CONTRA-COS-002."
+    }
+  ],
+
+  "recommended_mvp": {
+    "scope": "Option B: Creator + Course/Product -- content creation, community, basic courses, basic product marketplace, and existing features (AI chat, stories, DMs) stabilized. Cross-platform distribution deferred to post-MVP.",
+    "rationale": [
+      "The current codebase already has partial implementations of content feed, communities, marketplace, AI agents, stories, DMs, and notifications. Building on existing code is faster than greenfield.",
+      "Cross-platform distribution (the 'post once publish everywhere' promise) requires platform OAuth integrations (Instagram Graph API, TikTok API, YouTube Data API, X API) that each require app review processes taking 2-6 weeks. This is the hardest engineering with the most external dependency. Deferring it de-risks the MVP.",
+      "Courses and products are the revenue-generating features. An MVP without revenue capability has no path to validating the business model.",
+      "Option A (Tab 6: content + community only) is too small -- it excludes revenue, courses, and features the code already has.",
+      "Option C/D (Tab 7/full PRD) is too large -- includes UGC campaigns, ads platform, editing studio, automation, and cross-posting which are each multi-month builds.",
+      "Option B ships a usable creator platform where a creator can: build a profile, post content, host a community, sell digital products, sell courses, and interact with AI -- all within CreatorOS's own ecosystem. Cross-platform distribution makes it MORE powerful later but is not required for the MVP value proposition."
+    ],
+    "value_proposition": "CreatorOS MVP lets creators build their brand home base: create content, host a community, sell products and courses, and interact with AI tools -- all from one platform with X/Twitter-inspired clean design.",
+    "what_mvp_proves": [
+      "Creators will adopt a consolidated platform that replaces Gumroad + Discord + Teachable",
+      "The commerce model (4-tier pricing + transaction fees) generates revenue",
+      "The X/Twitter-inspired design creates retention in the target persona",
+      "The content + community + commerce loop creates a self-reinforcing ecosystem",
+      "The tech stack (React + Express + Drizzle + Clerk + Neon + Stripe) supports the full product vision"
+    ],
+    "what_mvp_does_not_prove": [
+      "Cross-platform distribution demand ('post once publish everywhere')",
+      "Platform API integration reliability at scale",
+      "UGC campaign market fit",
+      "Advertising platform economics",
+      "Automation builder adoption",
+      "Enterprise or team tier demand"
+    ],
+    "features": [
+      {
+        "id": "MVP-F01",
+        "name": "Clerk authentication",
+        "description": "Sign up, sign in, Google OAuth, session management via Clerk. Replaces broken Passport.js entirely. Clerk webhooks sync user records to local users table.",
+        "existing_code": "auth-page.tsx exists (broken Passport.js). Must be replaced, not fixed.",
+        "priority": "P0",
+        "release": "R1"
+      },
+      {
+        "id": "MVP-F02",
+        "name": "Creator profile",
+        "description": "Creator profile page with bio, avatar, display name, follower count, content grid. Edit profile flow.",
+        "existing_code": "profile.tsx, EditProfilePage.tsx, ProfileFeed.tsx, ProfileImagePicker.tsx exist.",
+        "priority": "P0",
+        "release": "R1"
+      },
+      {
+        "id": "MVP-F03",
+        "name": "Content feed (explore)",
+        "description": "Chronological content feed showing posts from all creators. Like, comment, save functionality. Post detail view.",
+        "existing_code": "explore.tsx, Post.tsx, CommentSection.tsx exist.",
+        "priority": "P0",
+        "release": "R2"
+      },
+      {
+        "id": "MVP-F04",
+        "name": "Content creation (composer)",
+        "description": "Create text, photo, video, and audio posts. Tag users. CreatorOS-internal publishing only (no cross-platform in MVP).",
+        "existing_code": "create-post.tsx, new-text-post.tsx, TextComposer.tsx, PhotoUploader.tsx, VideoRecorder.tsx, VoiceRecorder.tsx exist.",
+        "priority": "P0",
+        "release": "R2"
+      },
+      {
+        "id": "MVP-F05",
+        "name": "Stories",
+        "description": "24-hour ephemeral stories with view counts and expiry. Story creation and viewing.",
+        "existing_code": "Stories.tsx, StoryProgress.tsx, StoryCreator.tsx, StoriesBar.tsx exist. stories table in schema.",
+        "priority": "P1",
+        "release": "R2"
+      },
+      {
+        "id": "MVP-F06",
+        "name": "Follow system",
+        "description": "Follow/unfollow creators. Followers and following lists.",
+        "existing_code": "followers.tsx, following.tsx exist. followers table with unique constraint.",
+        "priority": "P0",
+        "release": "R2"
+      },
+      {
+        "id": "MVP-F07",
+        "name": "Community hub",
+        "description": "Creator-owned community spaces with text channels. Community listing, channel sidebar, real-time-ish messaging. Community ownership via creatorId FK (must add to schema).",
+        "existing_code": "communities.tsx, ChannelSidebar.tsx, ChatMessage.tsx exist. communities, channels, channel_messages tables in schema. Missing: creatorId FK on communities.",
+        "priority": "P0",
+        "release": "R3"
+      },
+      {
+        "id": "MVP-F08",
+        "name": "Direct messages",
+        "description": "1:1 and group DMs with reactions, replies, read status.",
+        "existing_code": "MessageButton.tsx, MessageCard.tsx, MessagePanel.tsx exist. conversations, conversation_participants, direct_messages tables in schema.",
+        "priority": "P1",
+        "release": "R3"
+      },
+      {
+        "id": "MVP-F09",
+        "name": "Notifications",
+        "description": "Notification feed with read/unread state. Toast notifications for real-time events.",
+        "existing_code": "NotificationBell.tsx, NotificationPanel.tsx, Toast.tsx exist. notifications table in schema.",
+        "priority": "P1",
+        "release": "R3"
+      },
+      {
+        "id": "MVP-F10",
+        "name": "Product marketplace",
+        "description": "Browse, list, and purchase digital products. Product creation form. Product detail page. Product type discriminator (digital_download, ai_agent, service at minimum). Category browsing. Basic search.",
+        "existing_code": "marketplace.tsx, create-product.tsx, ProductCard.tsx, ProductList.tsx, ProductForm.tsx exist. products table in schema. Missing: product_type enum, checkout, Stripe.",
+        "priority": "P0",
+        "release": "R4"
+      },
+      {
+        "id": "MVP-F11",
+        "name": "Stripe Connect integration",
+        "description": "Creator Stripe Express account onboarding. Checkout flow for product purchases. Platform fee collection (8%/5%/3% by tier). Payout management. Order lifecycle (pending -> completed -> refunded).",
+        "existing_code": "None. Zero Stripe code or dependencies exist.",
+        "priority": "P0",
+        "release": "R4"
+      },
+      {
+        "id": "MVP-F12",
+        "name": "Order and entitlement system",
+        "description": "Order records with state machine (pending, completed, refunded, failed). Entitlement records granting access to purchased products. Access check middleware for gated content.",
+        "existing_code": "None. No orders, entitlements, or access control tables.",
+        "priority": "P0",
+        "release": "R4"
+      },
+      {
+        "id": "MVP-F13",
+        "name": "Course platform (basic)",
+        "description": "Course creation with modules and video lessons. Course listing and enrollment. Lesson player with progress tracking. No certificates, no drip scheduling, no quizzes in MVP.",
+        "existing_code": "None. No course-related code exists.",
+        "priority": "P1",
+        "release": "R5"
+      },
+      {
+        "id": "MVP-F14",
+        "name": "Revenue dashboard",
+        "description": "Creator revenue overview with charts. Sales by product, sales over time, payout history. Connected to real Stripe data.",
+        "existing_code": "revenue.tsx, RevenueChart.tsx exist but display mock data. Must wire to Stripe.",
+        "priority": "P1",
+        "release": "R5"
+      },
+      {
+        "id": "MVP-F15",
+        "name": "AI chat agents",
+        "description": "Custom AI agents with configurable system prompts. Chat interface for creator-consumer interactions. OpenAI-powered responses.",
+        "existing_code": "ai.tsx, AgentCard.tsx, ChatInterface.tsx exist. ai_agents, ai_chats tables in schema. Uses OpenAI SDK.",
+        "priority": "P2",
+        "release": "R5"
+      },
+      {
+        "id": "MVP-F16",
+        "name": "Dark mode default",
+        "description": "Switch default theme to dark mode per design identity canon. OLED true black background. Light mode as preference override.",
+        "existing_code": "theme.json exists with appearance='light'. Must flip to dark and update color tokens.",
+        "priority": "P2",
+        "release": "R1"
+      },
+      {
+        "id": "MVP-F17",
+        "name": "Saved posts / bookmarks",
+        "description": "Save posts for later viewing. Saved posts page.",
+        "existing_code": "saved-posts.tsx exists. saved_posts table in schema with unique constraint.",
+        "priority": "P2",
+        "release": "R2"
+      }
+    ],
+    "screens": [
+      {"screen": "auth_page", "release": "R1", "existing": true, "note": "Replace Passport.js with Clerk components"},
+      {"screen": "onboarding_flow", "release": "R1", "existing": false, "note": "New: creator account setup, role selection, profile completion"},
+      {"screen": "profile", "release": "R1", "existing": true, "note": "Stabilize existing profile page"},
+      {"screen": "settings", "release": "R1", "existing": false, "note": "New: account settings, connected accounts stub, theme toggle"},
+      {"screen": "explore_feed", "release": "R2", "existing": true, "note": "Stabilize existing explore page"},
+      {"screen": "create_post", "release": "R2", "existing": true, "note": "Stabilize existing composer"},
+      {"screen": "post_detail", "release": "R2", "existing": false, "note": "New: single post view with full comments"},
+      {"screen": "followers_following", "release": "R2", "existing": true, "note": "Stabilize existing pages"},
+      {"screen": "saved_posts", "release": "R2", "existing": true, "note": "Stabilize existing page"},
+      {"screen": "communities_list", "release": "R3", "existing": true, "note": "Stabilize + add create community flow"},
+      {"screen": "community_detail", "release": "R3", "existing": false, "note": "New: community page with channel sidebar and chat"},
+      {"screen": "direct_messages", "release": "R3", "existing": false, "note": "New: DM inbox and conversation view (components exist, page may not)"},
+      {"screen": "marketplace_browse", "release": "R4", "existing": true, "note": "Enhance with search, filters, categories"},
+      {"screen": "create_product", "release": "R4", "existing": true, "note": "Add product type selector, file upload for downloads"},
+      {"screen": "product_detail", "release": "R4", "existing": false, "note": "New: full product page with reviews, purchase button"},
+      {"screen": "checkout", "release": "R4", "existing": false, "note": "New: Stripe-powered checkout flow"},
+      {"screen": "creator_storefront", "release": "R4", "existing": false, "note": "New: public-facing creator page with products/community/courses"},
+      {"screen": "course_builder", "release": "R5", "existing": false, "note": "New: create course with modules and lessons"},
+      {"screen": "course_player", "release": "R5", "existing": false, "note": "New: lesson video player with progress tracking"},
+      {"screen": "course_catalog", "release": "R5", "existing": false, "note": "New: browse available courses"},
+      {"screen": "revenue_dashboard", "release": "R5", "existing": true, "note": "Wire to real Stripe data, add per-product breakdown"},
+      {"screen": "ai_agents", "release": "R5", "existing": true, "note": "Stabilize existing AI page"}
+    ],
+    "routes": {
+      "note": "API routes organized by domain after god file split. Current state: all 89 routes in server/routes.ts (53KB).",
+      "r1_routes": [
+        "POST /api/auth/webhook (Clerk webhook handler)",
+        "GET /api/user (current user from Clerk session)",
+        "PATCH /api/user/profile (update profile)",
+        "GET /api/users/:id (public profile)",
+        "GET /api/users/:id/stats (follower count, post count)"
+      ],
+      "r2_routes": [
+        "GET /api/posts (feed -- paginated)",
+        "POST /api/posts (create post)",
+        "GET /api/posts/:id (single post)",
+        "DELETE /api/posts/:id (delete own post)",
+        "POST /api/posts/:id/like (like post)",
+        "POST /api/posts/:id/comments (add comment)",
+        "GET /api/posts/:id/comments (list comments)",
+        "POST /api/posts/:id/save (save post)",
+        "DELETE /api/posts/:id/save (unsave post)",
+        "GET /api/saved-posts (list saved posts)",
+        "POST /api/stories (create story)",
+        "GET /api/stories (list active stories)",
+        "POST /api/users/:id/follow (follow user)",
+        "DELETE /api/users/:id/follow (unfollow user)",
+        "GET /api/users/:id/followers (list followers)",
+        "GET /api/users/:id/following (list following)"
+      ],
+      "r3_routes": [
+        "GET /api/communities (list communities)",
+        "POST /api/communities (create community -- requires creatorId)",
+        "GET /api/communities/:id (community detail with channels)",
+        "POST /api/communities/:id/channels (create channel)",
+        "GET /api/channels/:id/messages (channel messages -- paginated)",
+        "POST /api/channels/:id/messages (send channel message)",
+        "GET /api/conversations (list DM conversations)",
+        "POST /api/conversations (start new conversation)",
+        "GET /api/conversations/:id/messages (conversation messages)",
+        "POST /api/conversations/:id/messages (send DM)",
+        "GET /api/notifications (list notifications)",
+        "PATCH /api/notifications/:id/read (mark read)"
+      ],
+      "r4_routes": [
+        "GET /api/products (marketplace browse -- paginated, filterable)",
+        "POST /api/products (create product with type discriminator)",
+        "GET /api/products/:id (product detail)",
+        "PATCH /api/products/:id (update product)",
+        "DELETE /api/products/:id (delete product)",
+        "POST /api/checkout/session (create Stripe checkout session)",
+        "POST /api/stripe/webhook (Stripe webhook handler)",
+        "GET /api/orders (list user orders)",
+        "GET /api/orders/:id (order detail)",
+        "POST /api/orders/:id/refund (request refund)",
+        "GET /api/entitlements (list user entitlements)",
+        "POST /api/stripe/connect/onboard (creator Stripe onboarding)",
+        "GET /api/stripe/connect/status (creator Stripe account status)"
+      ],
+      "r5_routes": [
+        "GET /api/courses (course catalog)",
+        "POST /api/courses (create course)",
+        "GET /api/courses/:id (course detail with modules/lessons)",
+        "POST /api/courses/:id/modules (add module)",
+        "POST /api/modules/:id/lessons (add lesson)",
+        "POST /api/courses/:id/enroll (enroll in course)",
+        "PATCH /api/lessons/:id/complete (mark lesson complete)",
+        "GET /api/enrollments (list user enrollments with progress)",
+        "GET /api/revenue/overview (revenue dashboard data)",
+        "GET /api/revenue/products (per-product revenue breakdown)",
+        "GET /api/revenue/payouts (payout history)",
+        "GET /api/ai-agents (list AI agents)",
+        "POST /api/ai-agents (create AI agent)",
+        "POST /api/ai-agents/:id/chat (send message to AI agent)",
+        "GET /api/ai-chats/:agentId (chat history)"
+      ]
+    }
+  },
+
+  "releases": [
+    {
+      "id": "R1",
+      "name": "Auth + Profile + Shell",
+      "scope": "Replace broken Passport.js with Clerk. Creator and consumer profiles. App shell with navigation. Dark mode default. Settings page. Onboarding flow for new creators.",
+      "description": "R1 is the foundation. Fix the P0 security vulnerability by migrating to Clerk. Establish the app shell with X/Twitter-inspired navigation. Creator can sign up, create a profile, and navigate the app. Consumer can sign up and browse. This release produces a secure, navigable, visually correct shell -- nothing is sellable yet, but the platform is deployable.",
+      "features": ["MVP-F01", "MVP-F02", "MVP-F16"],
+      "prerequisite_work": [
+        "Split routes.ts god file into domain modules (auth, users, posts, products, communities, etc.)",
+        "Split storage.ts god file into domain storage modules",
+        "Remove Replit config files (.replit, replit.nix, Replit Vite plugin references)",
+        "Remove dead dependencies (ws unused, connect-pg-simple unused)",
+        "Remove debug routes (DELETE /api/force-delete-story/11)",
+        "Remove backup files (MessagePanel.tsx.bak, MessagePanel.tsx.new)",
+        "Add creatorId FK to communities table",
+        "Create Dockerfile and fly.toml for Fly.io deployment",
+        "Provision production Neon database",
+        "Set up CI/CD (GitHub Actions)"
+      ],
+      "schema_changes": [
+        "ADD clerk_id (text, unique) to users table",
+        "DROP password column from users table (after Clerk migration verified)",
+        "ADD creatorId (integer FK -> users.id) to communities table",
+        "Remove session-related infrastructure (Passport.js, express-session, memorystore)"
+      ],
+      "new_pages": ["onboarding", "settings"],
+      "stabilized_pages": ["auth-page (replace with Clerk)", "profile"],
+      "acceptance_criteria": [
+        "Clerk sign-up and sign-in work with Google OAuth",
+        "Clerk webhook syncs user records to local users table",
+        "Profile page renders with correct data from DB",
+        "Profile editing (name, bio, avatar) persists correctly",
+        "Dark mode is the default theme with light mode toggle in settings",
+        "App shell navigation matches X/Twitter-inspired layout from design identity canon",
+        "All Passport.js, express-session, and memorystore code removed",
+        "No comparePasswords function exists anywhere in codebase",
+        "routes.ts split into domain-specific route files (each < 500 lines)",
+        "storage.ts split into domain-specific storage files (each < 500 lines)",
+        "Deployed to Fly.io with HTTPS and custom domain (or subdomain)",
+        "Rate limiting active on auth endpoints (5 req/min per IP)",
+        "TypeScript type-check passes (tsc --noEmit)"
+      ],
+      "estimated_effort": "3-4 weeks",
+      "risk": "HIGH -- auth migration touches every authenticated route. God file split touches every module."
+    },
+    {
+      "id": "R2",
+      "name": "Content + Feed",
+      "scope": "Content creation, explore feed, stories, follow system, saved posts. The core content loop that makes the platform feel alive.",
+      "description": "R2 activates the content engine. Creators can post (text, photo, video, audio), consumers can browse the feed, stories cycle through at the top, users follow each other, and saved posts provide a bookmark function. This is the minimum social platform. The code for most of these features exists -- R2 is about stabilizing, testing, and polishing Replit-authored code.",
+      "features": ["MVP-F03", "MVP-F04", "MVP-F05", "MVP-F06", "MVP-F17"],
+      "prerequisite_work": [
+        "R1 must be complete (Clerk auth, god file split, deployment)",
+        "Audit all existing post/story/follow routes for security (ensure userId check on writes)",
+        "File upload storage migration from local disk to S3/R2 (Replit uploaded to local uploads/ dir)",
+        "Add pagination to all list endpoints"
+      ],
+      "schema_changes": [
+        "ADD status (text, default 'published') to posts table (for draft/scheduled support later)",
+        "ADD search index on posts.content (full-text search prep)"
+      ],
+      "new_pages": ["post_detail"],
+      "stabilized_pages": ["explore", "create-post", "new-text-post", "followers", "following", "saved-posts"],
+      "acceptance_criteria": [
+        "Creator can create text, photo, video, and audio posts",
+        "Explore feed loads paginated posts with infinite scroll",
+        "Post detail page shows full comments thread",
+        "Story creation and viewing work with 24-hour auto-expiry",
+        "Follow/unfollow with follower/following counts updating",
+        "Save/unsave posts with saved posts list page",
+        "User tagging works on posts",
+        "File uploads persist in cloud storage (not local disk)",
+        "All list endpoints paginated (20 items default, cursor-based)",
+        "No N+1 query patterns in feed loading"
+      ],
+      "estimated_effort": "2-3 weeks",
+      "risk": "MEDIUM -- most code exists. Main risk is Replit-authored code quality and hidden bugs."
+    },
+    {
+      "id": "R3",
+      "name": "Community + Messaging",
+      "scope": "Creator-owned communities with text channels, direct messaging, and notifications. The engagement layer that creates daily return visits.",
+      "description": "R3 adds the community dimension. Creators can create and own communities (with the new creatorId FK from R1). Communities have text channels for topic-based discussion. DMs enable 1:1 and group messaging between any users. Notifications tie everything together -- new followers, new comments, new messages, community mentions. The code for communities and DMs largely exists -- R3 is stabilization plus ownership model.",
+      "features": ["MVP-F07", "MVP-F08", "MVP-F09"],
+      "prerequisite_work": [
+        "R2 must be complete",
+        "Decide on WebSocket vs polling for real-time messaging (ws dependency exists but is unused)",
+        "Add application-level row filtering (community owner can manage, members can read)"
+      ],
+      "schema_changes": [
+        "ADD community_members table (communityId, userId, role, joinedAt) for membership tracking",
+        "ADD is_archived (boolean, default false) to channels table"
+      ],
+      "new_pages": ["community_detail", "direct_messages_inbox"],
+      "stabilized_pages": ["communities"],
+      "acceptance_criteria": [
+        "Creator can create a community with name, description, and channels",
+        "Community ownership is enforced (only creator can manage channels, set rules)",
+        "Users can join/leave communities",
+        "Channel messages load with near-real-time updates (polling or WebSocket)",
+        "DM conversations work for 1:1 and group chats",
+        "Message reactions and replies work",
+        "Read/unread status tracked on DMs",
+        "Notification bell shows unread count",
+        "Notifications generated for: new follower, new comment, new DM, community mention",
+        "Toast notifications render for real-time events"
+      ],
+      "estimated_effort": "2-3 weeks",
+      "risk": "MEDIUM -- community ownership model is new. Real-time messaging decision impacts architecture."
+    },
+    {
+      "id": "R4",
+      "name": "Products + Marketplace + Payments",
+      "scope": "Product type system, Stripe Connect integration, checkout flow, order lifecycle, entitlements. The revenue engine.",
+      "description": "R4 is the revenue unlock. Products get a proper type discriminator (digital_download, ai_agent, service as initial types). Stripe Connect enables creator payouts with platform fee collection. Buyers can discover products in the marketplace, complete checkout, and receive entitlements. Orders track the full lifecycle from pending through completion or refund. This is the first release where money flows through the platform.",
+      "features": ["MVP-F10", "MVP-F11", "MVP-F12"],
+      "prerequisite_work": [
+        "R3 must be complete",
+        "Stripe Connect platform account created and configured",
+        "Stripe webhook endpoint deployed and verified",
+        "Product type enum added to schema (replaces freeform category text)",
+        "Terms of Service and Privacy Policy drafted and published",
+        "Creator Terms (payout terms, refund obligations) drafted"
+      ],
+      "schema_changes": [
+        "ADD product_type (text enum: digital_download, ai_agent, service) to products table",
+        "ADD status (text, default 'draft') to products table",
+        "ADD stripe_product_id (text, nullable) to products table",
+        "ADD stripe_price_id (text, nullable) to products table",
+        "ADD file_url (text, nullable) to products table (for digital downloads)",
+        "CREATE orders table (id, buyerId, productId, creatorId, amountCents, platformFeeCents, stripePaymentIntentId, status, createdAt, updatedAt)",
+        "CREATE entitlements table (id, userId, productId, orderId, type, status, expiresAt, createdAt)",
+        "ADD stripe_connect_account_id (text, nullable) to users table",
+        "ADD stripe_onboarding_complete (boolean, default false) to users table"
+      ],
+      "new_pages": ["product_detail", "checkout", "creator_storefront"],
+      "stabilized_pages": ["marketplace", "create-product"],
+      "acceptance_criteria": [
+        "Products have a type discriminator (digital_download, ai_agent, service)",
+        "Creator can onboard to Stripe Connect Express",
+        "Buyer can complete checkout via Stripe Checkout Session",
+        "Platform fee (8% for free tier) deducted from each transaction via application_fee_amount",
+        "Order created with correct status transitions (pending -> completed on payment success)",
+        "Entitlement created on order completion for digital products",
+        "Digital download link generated and accessible post-purchase",
+        "Refund flow works (creator or buyer initiated, Stripe refund processed, entitlement revoked)",
+        "Revenue dashboard shows real transaction data from Stripe",
+        "Creator storefront page shows all published products",
+        "Marketplace browse has category filter and search",
+        "No commerce operation possible without Clerk authentication",
+        "Rate limiting on checkout endpoint (10 req/min per user)"
+      ],
+      "estimated_effort": "4-5 weeks",
+      "risk": "HIGH -- Stripe integration is complex. Payment flows must be thoroughly tested. Legal/compliance (ToS, privacy policy) must be in place before money flows."
+    },
+    {
+      "id": "R5",
+      "name": "Courses + AI + Revenue",
+      "scope": "Basic course platform, stabilized AI chat agents, and revenue dashboard wired to real Stripe data. The content monetization expansion.",
+      "description": "R5 expands the product catalog with courses and polishes the existing AI agent feature. Creators can build structured courses with modules and video lessons. Consumers can enroll, watch lessons, and track progress. The AI chat interface (already partially built) gets stabilized and connected to the commerce system so creators can sell AI agent access. The revenue dashboard pulls real Stripe data instead of mock numbers.",
+      "features": ["MVP-F13", "MVP-F14", "MVP-F15"],
+      "prerequisite_work": [
+        "R4 must be complete (Stripe, orders, entitlements)",
+        "Video hosting solution decided (Mux, Cloudflare Stream, or S3 direct)",
+        "OpenAI API key provisioned for production"
+      ],
+      "schema_changes": [
+        "CREATE courses table (id, creatorId, productId, title, description, coverImageUrl, difficultyLevel, status, createdAt)",
+        "CREATE course_modules table (id, courseId, title, sortOrder, createdAt)",
+        "CREATE lessons table (id, moduleId, title, videoUrl, durationSeconds, sortOrder, createdAt)",
+        "CREATE enrollments table (id, userId, courseId, orderId, status, enrolledAt, completedAt)",
+        "CREATE lesson_completions table (id, enrollmentId, lessonId, completedAt)",
+        "ADD product_type value 'course' to products type enum",
+        "ADD model_id (text, nullable) to ai_agents table",
+        "ADD price_cents (integer, nullable) to ai_agents table"
+      ],
+      "new_pages": ["course_builder", "course_player", "course_catalog"],
+      "stabilized_pages": ["ai", "revenue"],
+      "acceptance_criteria": [
+        "Creator can create a course with modules and video lessons",
+        "Course appears in marketplace with price",
+        "Consumer can purchase and enroll in a course",
+        "Lesson player plays video with progress tracking",
+        "Lesson completion tracked per enrollment",
+        "Course progress percentage calculated correctly",
+        "AI agents page renders with agent cards and chat interface",
+        "AI chat sends messages to OpenAI and streams responses",
+        "AI agent can be listed as a product in marketplace (for future paid agent access)",
+        "Revenue dashboard shows: total revenue, revenue by product, revenue over time chart, payout history",
+        "Revenue data sourced from Stripe via webhooks (not mock data)",
+        "All course content gated behind entitlement check"
+      ],
+      "estimated_effort": "3-4 weeks",
+      "risk": "MEDIUM -- course builder is greenfield. Video hosting adds infrastructure dependency. AI chat mostly exists."
+    }
+  ],
+
+  "explicit_exclusions": [
+    {
+      "feature": "Cross-platform distribution / universal publish",
+      "reason": "Requires OAuth integrations with Instagram Graph API, TikTok API, YouTube Data API, and X API. Each platform has app review processes (2-6 weeks), rate limits, and content format requirements. This is the hardest engineering in the product and the most external-dependency-heavy. Deferred to post-MVP R6.",
+      "severity": "HIGH -- this is the core product promise ('post once publish everywhere'). Must ship before growth phase."
+    },
+    {
+      "feature": "Content scheduling and calendar",
+      "reason": "Depends on cross-platform distribution. Scheduling a post to CreatorOS-only has minimal value. Scheduling across platforms is the real feature.",
+      "severity": "MEDIUM"
+    },
+    {
+      "feature": "UGC campaign management",
+      "reason": "Two-sided marketplace feature (brands post campaigns, UGC creators apply). Requires brand accounts, application flow, deliverable tracking, and split payments. Multi-month build with its own user acquisition challenge.",
+      "severity": "LOW for MVP -- no demand validated yet"
+    },
+    {
+      "feature": "Ads platform",
+      "reason": "Self-serve advertising requires ad serving infrastructure, targeting, budgets, reporting, and ad review/moderation. This is essentially a separate product. Requires significant user base to have advertiser demand.",
+      "severity": "LOW for MVP -- premature before user base exists"
+    },
+    {
+      "feature": "Automation builder (Manychat-style)",
+      "reason": "Visual workflow builder for DM automations, email sequences, and trigger-based actions. Complex UX engineering. Low utility at MVP scale.",
+      "severity": "LOW"
+    },
+    {
+      "feature": "In-app editing studio (CapCut-like)",
+      "reason": "Video/photo editor within the app. Massive engineering effort (canvas rendering, video processing, effects, transitions). Creators already have editing tools. Zero code exists.",
+      "severity": "LOW -- creators use external editors"
+    },
+    {
+      "feature": "Multistreaming",
+      "reason": "Live streaming to multiple platforms simultaneously. Requires RTMP relay infrastructure. Depends on platform integrations (excluded).",
+      "severity": "LOW"
+    },
+    {
+      "feature": "Email / newsletter at scale",
+      "reason": "SendGrid dependency exists (sdk installed) but no email infrastructure is built. Email at scale (50K+ subscribers) requires deliverability management, bounce handling, unsubscribe compliance (CAN-SPAM), and template builder. Post-MVP.",
+      "severity": "MEDIUM -- transactional emails (order confirmations, password resets) ARE in MVP via Clerk and Stripe built-in emails"
+    },
+    {
+      "feature": "Subscription / membership tiers (creator-to-consumer)",
+      "reason": "Stripe Subscription billing, tier management, bundled access, grace periods. Built on R4 commerce foundation but adds significant Stripe subscription lifecycle complexity. Post-MVP R6 or R7.",
+      "severity": "MEDIUM -- high revenue potential but complex"
+    },
+    {
+      "feature": "Physical product fulfillment",
+      "reason": "Inventory tracking, shipping integration, fulfillment workflows, return processing. Different business model from digital products. Post-MVP.",
+      "severity": "LOW"
+    },
+    {
+      "feature": "Events and ticketing",
+      "reason": "Event creation, ticketing, attendee management, calendar integration, recording access. Post-MVP.",
+      "severity": "LOW"
+    },
+    {
+      "feature": "Software access / license keys",
+      "reason": "License key generation, activation tracking, rate limiting, OAuth integration for third-party software. Niche product type. Post-MVP.",
+      "severity": "LOW"
+    },
+    {
+      "feature": "Native mobile apps",
+      "reason": "iOS and Android apps. Requires React Native or similar. Responsive web is the MVP mobile strategy.",
+      "severity": "MEDIUM -- users expect mobile. Responsive web is the bridge."
+    },
+    {
+      "feature": "Team seats and roles/permissions",
+      "reason": "Multi-user access to a single creator account. Requires RBAC, invite flow, permission matrix. Business/Enterprise tier feature. Post-MVP.",
+      "severity": "LOW for MVP -- single creator accounts only"
+    },
+    {
+      "feature": "Content moderation system",
+      "reason": "Auto-mod, reporting, review queue, appeals. Required before significant scale but not for initial invite-only launch. Manual moderation via admin access is sufficient at MVP scale.",
+      "severity": "MEDIUM -- must ship before public launch beyond invite-only"
+    },
+    {
+      "feature": "UMH substrate integration (active)",
+      "reason": "Projection code exists (1099 lines in projections/creatoros/integration/) but is dormant. Activation requires schema changes (umh_status columns, umh_outcomes table). UMH integration adds intelligence but is not required for the product to function standalone. Post-MVP.",
+      "severity": "LOW for MVP -- CreatorOS works without UMH"
+    }
+  ],
+
+  "prerequisite_decisions": {
+    "description": "Operator decisions that MUST be made before R1 development begins. Each decision blocks concrete implementation work.",
+    "decisions": [
+      {
+        "id": "DEC-145-002",
+        "question": "Which MVP scope is canonical? Three conflicting definitions exist in the Google Doc.",
+        "options": {
+          "A": "Creator/Community Only (Tab 6 -- smallest, excludes revenue features)",
+          "B": "Creator + Course/Product (recommended -- content + community + courses + marketplace + payments)",
+          "C": "Creator + Full Distribution (Tab 7-ish -- adds cross-platform publishing to B)",
+          "D": "Full PRD Scope (everything including UGC, ads, automation, editing studio)"
+        },
+        "recommendation": "B",
+        "recommendation_rationale": "Builds on existing code. Includes revenue. Defers hardest engineering (platform integrations) to post-MVP. Provable business model in 5 releases over ~15 weeks.",
+        "impact": "Blocks all feature prioritization, sprint planning, and resource allocation.",
+        "status": "OPEN",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      },
+      {
+        "id": "DEC-145-004",
+        "question": "Clerk migration order -- CreatorOS first or EOS first?",
+        "context": "Both apps target Clerk. EOS Beast branch already has partial Clerk implementation. CreatorOS has CRITICAL auth bypass (any password works). EOS is closer to revenue (primary focus).",
+        "options": {
+          "A": "EOS first (closer to revenue, partial Clerk already implemented on Beast)",
+          "B": "CreatorOS first (more critical security vulnerability)",
+          "C": "Parallel (Clerk auth is similar pattern in both apps, could be templated)"
+        },
+        "recommendation": "A -- EOS first. CreatorOS is not deployed anywhere, so the auth vulnerability has zero real-world impact. EOS is the revenue priority. Clerk pattern established in EOS can be templated for CreatorOS.",
+        "impact": "Determines which codebase gets auth attention first. CreatorOS R1 is blocked until Clerk migration starts.",
+        "status": "OPEN",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      },
+      {
+        "id": "DEC-COS-MVP-001",
+        "question": "Stick with Express or migrate to NestJS? (CONTRA-COS-008)",
+        "context": "PRD Tab 3 Tech Architecture says NestJS. Build Guide says Express. Code uses Express. NestJS migration is significant effort with unclear ROI.",
+        "options": {
+          "A": "Stay on Express (code already works, split god files into modular routes is sufficient)",
+          "B": "Migrate to NestJS (more structured, better for team scaling, aligns with PRD tech architecture)",
+          "C": "Evaluate Hono or Fastify as lighter alternatives"
+        },
+        "recommendation": "A -- Stay on Express. The god file problem is solved by splitting routes.ts and storage.ts into domain modules, not by framework migration. NestJS migration delays MVP by weeks with no user-facing benefit.",
+        "impact": "Determines backend architecture for all MVP development.",
+        "status": "OPEN",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      },
+      {
+        "id": "DEC-COS-MVP-002",
+        "question": "File storage provider for user uploads (images, videos, documents)?",
+        "context": "Current code uploads to local disk (uploads/ directory committed to git). Production needs cloud storage.",
+        "options": {
+          "A": "Cloudflare R2 (S3-compatible, no egress fees, cheapest at scale)",
+          "B": "AWS S3 (industry standard, most tooling)",
+          "C": "Supabase Storage (managed, integrates with Postgres)",
+          "D": "Fly.io Tigris (Fly-native S3-compatible storage)"
+        },
+        "recommendation": "A -- Cloudflare R2. Zero egress fees is critical for a media-heavy creator platform where consumers download content. S3-compatible API means minimal code changes.",
+        "impact": "Affects upload middleware, CDN strategy, and cost model. Blocks R2 (content) development.",
+        "status": "OPEN",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      },
+      {
+        "id": "DEC-COS-MVP-003",
+        "question": "Video hosting for course lessons?",
+        "context": "Course platform (R5) needs video hosting with streaming, adaptive bitrate, and progress tracking.",
+        "options": {
+          "A": "Mux (purpose-built for video, excellent API, $0.025/min storage + $0.007/min streaming)",
+          "B": "Cloudflare Stream ($1/1000 min storage, $0.01/1000 min viewed)",
+          "C": "Direct S3/R2 with HLS encoding (DIY, cheapest, most work)"
+        },
+        "recommendation": "B -- Cloudflare Stream. Pairs with R2 recommendation. Simpler than Mux, cheaper than Mux, good enough for MVP course content. Upgrade path to Mux exists if needed.",
+        "impact": "Blocks R5 (courses) development. Can be deferred since R5 is last release.",
+        "status": "OPEN",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      },
+      {
+        "id": "DEC-COS-MVP-004",
+        "question": "Confirm Business tier pricing: $79/mo (operator correction OC-COS-011) or $99/mo (PRD Tab 2)?",
+        "context": "CONTRA-COS-014 documents this conflict. Operator correction OC-COS-011 states $79. PRD original source states $99.",
+        "options": {
+          "A": "$79/mo (operator correction)",
+          "B": "$99/mo (PRD original)"
+        },
+        "recommendation": "Defer to operator. Both values are preserved in commerce canon.",
+        "impact": "Affects Stripe product configuration and pricing page. Not blocking until R4.",
+        "status": "OPEN",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      },
+      {
+        "id": "DEC-COS-MVP-005",
+        "question": "Real-time messaging strategy: WebSocket or polling?",
+        "context": "ws 8.18.0 is installed but unused. Community chat and DMs currently use HTTP endpoints. WebSocket enables true real-time. Polling is simpler but creates latency.",
+        "options": {
+          "A": "WebSocket via ws (already in dependencies, true real-time)",
+          "B": "Short polling (simple, works everywhere, 2-5 second latency)",
+          "C": "Server-Sent Events (SSE, one-way real-time, simpler than WebSocket)",
+          "D": "Defer real-time, ship with manual refresh / pull-to-refresh"
+        },
+        "recommendation": "B for R3 MVP, upgrade to A post-MVP. Polling is simpler to implement and debug. Real-time can be layered on without changing the data model.",
+        "impact": "Affects R3 (community + messaging) architecture.",
+        "status": "OPEN",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      }
+    ]
+  },
+
+  "tech_stack": {
+    "description": "Canonical tech stack for CreatorOS MVP, derived from current implementation (CODE_RESOLVED_CURRENT_TRUTH) plus target migrations (SYNTHESIZED_CANON).",
+    "frontend": {
+      "framework": "React 18",
+      "bundler": "Vite 5",
+      "language": "TypeScript 5.6",
+      "styling": "Tailwind CSS",
+      "ui_components": "shadcn/ui (48 Radix-based components already installed)",
+      "routing": "wouter 3.3.5",
+      "state_management": "zustand 5.0.3 + @tanstack/react-query 5.60.5",
+      "charts": "recharts 2.13.0",
+      "animation": "framer-motion 11.13.1",
+      "validation": "zod 3.23.8"
+    },
+    "backend": {
+      "runtime": "Node.js 20",
+      "framework": "Express 4",
+      "language": "TypeScript",
+      "build_dev": "tsx (dev server with HMR)",
+      "build_prod": "esbuild (bundled ESM output)"
+    },
+    "database": {
+      "provider": "Neon PostgreSQL",
+      "orm": "Drizzle ORM 0.39.3",
+      "schema_validation": "drizzle-zod 0.7.0",
+      "migrations": "drizzle-kit push"
+    },
+    "auth": {
+      "provider": "Clerk",
+      "frontend_sdk": "@clerk/clerk-react",
+      "backend_sdk": "@clerk/express",
+      "current_state": "Passport.js 0.7.0 (BROKEN -- to be replaced in R1)",
+      "oauth_providers": ["Google"],
+      "note": "Apple OAuth deferred to post-MVP"
+    },
+    "payments": {
+      "provider": "Stripe Connect (Express accounts)",
+      "billing": "Stripe Billing (for platform SaaS subscriptions)",
+      "checkout": "Stripe Checkout Sessions",
+      "webhooks": "Stripe webhook endpoint",
+      "current_state": "NOT_IMPLEMENTED -- zero Stripe code or dependencies"
+    },
+    "storage": {
+      "provider": "PENDING DECISION (DEC-COS-MVP-002)",
+      "recommendation": "Cloudflare R2",
+      "current_state": "Local disk (uploads/ directory) -- must migrate"
+    },
+    "video": {
+      "provider": "PENDING DECISION (DEC-COS-MVP-003)",
+      "recommendation": "Cloudflare Stream",
+      "needed_for": "R5 (courses)"
+    },
+    "email": {
+      "provider": "Clerk (transactional auth emails) + Stripe (transactional payment emails)",
+      "future": "SendGrid (@sendgrid/mail 8.1.4 already installed) for marketing/newsletter",
+      "note": "MVP relies on Clerk and Stripe built-in emails. No custom email infrastructure."
+    },
+    "ai": {
+      "provider": "OpenAI",
+      "sdk": "openai 4.91.1 (already installed)",
+      "usage": "AI chat agents feature (R5)"
+    },
+    "deployment": {
+      "platform": "Fly.io",
+      "ci_cd": "GitHub Actions",
+      "current_state": "NOT_DEPLOYED -- Replit config files present but not used",
+      "domain": "PENDING -- custom domain or subdomain of universalmetaharness.tech"
+    },
+    "monitoring": {
+      "error_tracking": "PENDING DECISION (PostHog only or Sentry addition)",
+      "product_analytics": "PostHog",
+      "current_state": "NONE"
+    }
+  },
+
+  "success_criteria": [
+    {
+      "id": "SC-01",
+      "metric": "Auth security",
+      "target": "Zero password bypass vulnerabilities. Clerk handles all authentication.",
+      "measurement": "Security audit: no comparePasswords, no Passport.js, no express-session in codebase. Clerk session validation on every protected route.",
+      "release": "R1"
+    },
+    {
+      "id": "SC-02",
+      "metric": "Code architecture",
+      "target": "No file over 3,000 lines. No god files. Domain-modular route and storage structure.",
+      "measurement": "find . -name '*.ts' | xargs wc -l | sort -rn | head -10. Largest file < 500 lines.",
+      "release": "R1"
+    },
+    {
+      "id": "SC-03",
+      "metric": "Deployment",
+      "target": "Production deployment on Fly.io with HTTPS, accessible via public URL.",
+      "measurement": "curl -s -o /dev/null -w '%{http_code}' https://<domain> returns 200.",
+      "release": "R1"
+    },
+    {
+      "id": "SC-04",
+      "metric": "Content creation",
+      "target": "Creator can create and publish a post with media attachment in under 60 seconds.",
+      "measurement": "Manual test: time from 'new post' click to post visible in feed.",
+      "release": "R2"
+    },
+    {
+      "id": "SC-05",
+      "metric": "Feed engagement",
+      "target": "Feed loads in under 2 seconds with 100+ posts in database.",
+      "measurement": "Lighthouse performance score > 80. API response time < 500ms for /api/posts.",
+      "release": "R2"
+    },
+    {
+      "id": "SC-06",
+      "metric": "Community activity",
+      "target": "Creator can create a community, add channels, and have members posting messages within 5 minutes of community creation.",
+      "measurement": "Manual test: end-to-end community creation through first message.",
+      "release": "R3"
+    },
+    {
+      "id": "SC-07",
+      "metric": "First transaction",
+      "target": "A digital product can be listed by a creator, purchased by a consumer, and the creator receives a payout -- end-to-end money flow.",
+      "measurement": "Stripe dashboard shows: payment collected, platform fee deducted, creator payout scheduled.",
+      "release": "R4"
+    },
+    {
+      "id": "SC-08",
+      "metric": "Order lifecycle",
+      "target": "Order state machine handles all transitions: pending -> completed -> refunded. No stuck orders.",
+      "measurement": "Automated test: create order, confirm payment webhook, verify entitlement, process refund, verify entitlement revoked.",
+      "release": "R4"
+    },
+    {
+      "id": "SC-09",
+      "metric": "Course enrollment",
+      "target": "Consumer can purchase a course, watch lessons, and see progress percentage update.",
+      "measurement": "Manual test: purchase -> enroll -> complete 3 of 5 lessons -> verify 60% progress shown.",
+      "release": "R5"
+    },
+    {
+      "id": "SC-10",
+      "metric": "Revenue accuracy",
+      "target": "Revenue dashboard numbers match Stripe dashboard within $0.01 tolerance.",
+      "measurement": "Compare CreatorOS revenue total vs Stripe dashboard for same time period.",
+      "release": "R5"
+    },
+    {
+      "id": "SC-11",
+      "metric": "Test coverage",
+      "target": "Minimum 50% line coverage on backend code. 100% coverage on payment and auth flows.",
+      "measurement": "vitest --coverage report.",
+      "release": "R5"
+    },
+    {
+      "id": "SC-12",
+      "metric": "Creator activation",
+      "target": "A new creator can go from sign-up to first product listed in under 10 minutes.",
+      "measurement": "Manual test: time from Clerk sign-up to published product in marketplace.",
+      "release": "R4"
+    },
+    {
+      "id": "SC-13",
+      "metric": "TypeScript health",
+      "target": "tsc --noEmit passes with zero errors on every release.",
+      "measurement": "CI pipeline includes tsc check. No ts-ignore comments in new code.",
+      "release": "R1-R5"
+    },
+    {
+      "id": "SC-14",
+      "metric": "Design fidelity",
+      "target": "Dark mode default. X/Twitter-inspired minimalism. No glassmorphism. No gamification chrome.",
+      "measurement": "Visual review against design identity canon. theme.json appearance='dark'.",
+      "release": "R1"
+    }
+  ],
+
+  "total_estimated_timeline": {
+    "r1_weeks": "3-4",
+    "r2_weeks": "2-3",
+    "r3_weeks": "2-3",
+    "r4_weeks": "4-5",
+    "r5_weeks": "3-4",
+    "total_weeks": "14-19",
+    "total_months": "3.5-4.75",
+    "caveat": "Timeline assumes CreatorOS gets dedicated development attention. If CreatorOS is nights/weekends only (current reality per CLAUDE.md: 'Future side projects are not being actively worked on'), elapsed calendar time will be 3-5x longer than effort weeks. EOS and Initiate Arena are the current priorities.",
+    "dependency_on_eos": "Clerk migration pattern established in EOS (DEC-145-004) will template CreatorOS R1, reducing auth migration effort."
+  },
+
+  "post_mvp_roadmap_sketch": {
+    "note": "Not part of the MVP specification. Included for context on what follows the 5 releases.",
+    "r6": {
+      "name": "Cross-Platform Distribution",
+      "scope": "Platform OAuth connections (Instagram, TikTok, YouTube, X). Universal publisher. Content calendar. Scheduling. Per-platform preview. This is the 'post once publish everywhere' promise.",
+      "prerequisite": "Platform API app approvals (2-6 weeks each)"
+    },
+    "r7": {
+      "name": "Subscriptions + Memberships",
+      "scope": "Stripe subscription billing. Creator membership tiers. Bundled access. Grace periods. Billing portal.",
+      "prerequisite": "R4 commerce foundation"
+    },
+    "r8": {
+      "name": "Automation + Email",
+      "scope": "Visual automation builder. Email/newsletter system. Trigger-based workflows (new follower -> welcome DM, purchase -> course enrollment).",
+      "prerequisite": "R3 messaging + R4 commerce"
+    },
+    "r9": {
+      "name": "Analytics Dashboard",
+      "scope": "Cross-platform analytics (post-R6). Unified audience insights. Content performance. Revenue attribution.",
+      "prerequisite": "R6 platform connections"
+    },
+    "r10": {
+      "name": "UGC + Ads Platform",
+      "scope": "UGC campaign management for brands. Self-serve ads platform for in-feed promotion.",
+      "prerequisite": "Significant user base. Brand advertiser demand."
+    },
+    "umh_integration": {
+      "name": "UMH Substrate Activation",
+      "scope": "Activate dormant projection code. Add umh_status columns and umh_outcomes table. Enable UMH signal emission from CreatorOS events. Enable UMH capability execution from CreatorOS context.",
+      "prerequisite": "CreatorOS production deployment + UMH substrate production deployment"
+    }
+  },
+
+  "risk_register": [
+    {
+      "id": "RISK-MVP-001",
+      "risk": "Replit-authored code quality",
+      "probability": "HIGH",
+      "impact": "MEDIUM",
+      "description": "Entire codebase was authored by Replit Agent. Code quality is unaudited. Hidden bugs, inconsistent patterns, and security issues are likely. Every existing feature needs audit before stabilization.",
+      "mitigation": "Thorough code review during R1 god file split. Automated tests for every stabilized feature. TypeScript strict mode."
+    },
+    {
+      "id": "RISK-MVP-002",
+      "risk": "God file split breaks existing features",
+      "probability": "MEDIUM",
+      "impact": "HIGH",
+      "description": "Splitting routes.ts (53KB, 89 routes) and storage.ts (104KB) into domain modules risks introducing bugs in the extraction. No existing tests to catch regressions.",
+      "mitigation": "Write integration tests for all existing routes BEFORE splitting. Use git bisect if regression found. Split one domain at a time, test after each."
+    },
+    {
+      "id": "RISK-MVP-003",
+      "risk": "Stripe Connect complexity",
+      "probability": "MEDIUM",
+      "impact": "HIGH",
+      "description": "Stripe Connect Express accounts have onboarding requirements, compliance checks, and payout schedules that add complexity beyond simple Stripe Checkout.",
+      "mitigation": "Start Stripe setup in R1 (create platform account). Prototype checkout flow in staging before R4 development begins. Use Stripe test mode extensively."
+    },
+    {
+      "id": "RISK-MVP-004",
+      "risk": "MVP ships without cross-platform distribution",
+      "probability": "CERTAIN",
+      "impact": "HIGH",
+      "description": "The core product promise is 'post once publish everywhere.' The MVP defers this to R6. This means the MVP does not deliver the primary differentiator.",
+      "mitigation": "Position MVP as 'creator home base' not 'distribution hub.' Cross-platform is a known post-MVP priority. The MVP value is consolidation (community + products + courses in one place), not distribution."
+    },
+    {
+      "id": "RISK-MVP-005",
+      "risk": "CreatorOS deprioritized behind EOS and Initiate Arena",
+      "probability": "HIGH",
+      "impact": "MEDIUM",
+      "description": "Per CLAUDE.md, current priorities are Initiate Arena -> personal brand -> OS repo. CreatorOS is 'nights/weekends only until primary focus is generating.' Calendar timeline will be 3-5x effort timeline.",
+      "mitigation": "Accept the extended calendar timeline. Use MVP specification to enable efficient work during available windows. Clerk pattern from EOS will accelerate R1."
+    }
+  ],
+
+  "summary": {
+    "mvp_scope": "Option B: Creator + Course/Product",
+    "total_releases": 5,
+    "total_features": 17,
+    "total_screens": 22,
+    "existing_code_reused": "16 of 22 screens have partial existing code",
+    "new_schema_tables": 8,
+    "modified_schema_tables": 3,
+    "total_estimated_effort_weeks": "14-19",
+    "operator_decisions_required": 6,
+    "explicit_exclusions": 16,
+    "critical_blockers": [
+      "DEC-145-002: MVP scope confirmation (blocks ALL development)",
+      "DEC-145-004: Clerk migration order (blocks R1)",
+      "COS-AUTH-001: Auth bypass (blocks deployment -- resolved by R1 Clerk migration)"
+    ],
+    "release_sequence": "R1 Auth+Profile+Shell -> R2 Content+Feed -> R3 Community+Messaging -> R4 Products+Marketplace+Payments -> R5 Courses+AI+Revenue"
+  }
+}

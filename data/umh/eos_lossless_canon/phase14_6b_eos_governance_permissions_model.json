@@ -1,0 +1,955 @@
+{
+  "artifact_id": "EOS-GOV-PERM-001",
+  "title": "EOS Governance and Permissions Model — Hybrid RBAC+ABAC",
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Complete hybrid RBAC+ABAC governance and permissions model for EOS: permission tiers, role hierarchy, attribute-based policies, agent authority, approval gates, audit trail, and UMH substrate governance integration.",
+  "provenance_detail": "Synthesized from UMH substrate governance primitives (substrate/types.py PermissionTier, RiskClass, GovernanceDecision, GovernanceVerdict), current EOS agent permission assignments (projections/eos/agents/ — 10 department agents with PERMISSION_TIER), substrate control_plane/governance.py (deterministic risk classification + autonomy thresholds), EOS communication/delegation architecture (phase14_6b_eos_communication_delegation_architecture.json), EOS agent architecture spec (phase14_6b_eos_agent_architecture_spec.json), and EOS portfolio/entity ontology (phase14_6b_eos_portfolio_entity_business_ontology.json). ABAC layer is INFERRED_PROFESSIONAL_GAP — architecturally required for multi-tenant, multi-entity, context-sensitive access but not implemented in code today.",
+
+  "permission_tiers": {
+    "description": "Five human-facing permission tiers for EOS users. These map onto but are distinct from the UMH substrate PermissionTier (READ/DRAFT/EXECUTE/COMMIT) which governs agent execution. Human tiers control UI access, data visibility, and action availability. Agent tiers control what the agent can do on behalf of the human.",
+    "tiers": [
+      {
+        "tier": "owner",
+        "level": 5,
+        "description": "Full control over the entire EOS instance. Creates and destroys portfolios, entities, and operator accounts. Sets global governance policies. Can override any lower-tier decision. Unrestricted data access across all entities.",
+        "capabilities": [
+          "all_admin_capabilities",
+          "create_destroy_portfolios",
+          "create_destroy_entities",
+          "create_destroy_operator_accounts",
+          "set_global_governance_policies",
+          "override_any_decision",
+          "access_all_financial_data",
+          "configure_agent_authority_ceilings",
+          "manage_subscription_and_billing",
+          "export_all_data",
+          "delete_audit_trail_never"
+        ],
+        "maps_to_substrate_tier": "COMMIT",
+        "cardinality": "Exactly one per EOS instance (the founding operator). Cannot be delegated.",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "tier": "admin",
+        "level": 4,
+        "description": "Full operational control within assigned scope (portfolio or entity). Can create teams, assign roles, configure workflows, manage agents, and approve high-risk actions. Cannot create or destroy portfolios or other admin accounts.",
+        "capabilities": [
+          "all_manager_capabilities",
+          "create_teams_and_roles",
+          "assign_user_roles",
+          "configure_workflows_and_sops",
+          "manage_agent_configurations",
+          "approve_high_risk_actions",
+          "view_all_entity_financials",
+          "manage_integrations",
+          "configure_department_permissions",
+          "create_destroy_departments"
+        ],
+        "maps_to_substrate_tier": "COMMIT",
+        "cardinality": "One or more per portfolio/entity. Scoped to their assigned resources.",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "tier": "manager",
+        "level": 3,
+        "description": "Department-level authority. Can create and assign tasks, manage team members within their department, approve medium-risk actions within domain, view department KPIs and financials. Cannot modify organizational structure or governance policies.",
+        "capabilities": [
+          "all_member_capabilities",
+          "create_assign_tasks",
+          "manage_department_members",
+          "approve_medium_risk_department_actions",
+          "view_department_financials",
+          "view_department_kpis",
+          "configure_department_workflows",
+          "manage_department_agents",
+          "create_sops_within_department",
+          "escalate_to_admin"
+        ],
+        "maps_to_substrate_tier": "EXECUTE",
+        "cardinality": "One or more per department.",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "tier": "member",
+        "level": 2,
+        "description": "Execution-level access. Can view assigned tasks, execute workflows, submit work products, update task status, access documents within their scope. Cannot approve actions, manage other users, or view financials beyond task-level budget.",
+        "capabilities": [
+          "all_viewer_capabilities",
+          "execute_assigned_tasks",
+          "submit_work_products",
+          "update_task_status",
+          "create_draft_documents",
+          "use_assigned_tools",
+          "interact_with_department_agent",
+          "view_own_performance_metrics",
+          "request_task_reassignment"
+        ],
+        "maps_to_substrate_tier": "DRAFT",
+        "cardinality": "Zero or more per department.",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "tier": "viewer",
+        "level": 1,
+        "description": "Read-only access to scoped resources. Can view dashboards, reports, documents, and KPIs within their assigned scope. Cannot execute any actions, modify any data, or interact with agents beyond status queries.",
+        "capabilities": [
+          "view_assigned_dashboards",
+          "view_assigned_reports",
+          "view_assigned_documents",
+          "view_scoped_kpis",
+          "query_agent_status",
+          "export_own_view_data"
+        ],
+        "maps_to_substrate_tier": "READ",
+        "cardinality": "Zero or more. Useful for investors, advisors, board members, accountants.",
+        "provenance": "SYNTHESIZED_CANON"
+      }
+    ],
+    "tier_hierarchy": "owner > admin > manager > member > viewer",
+    "cumulative": true,
+    "cumulative_note": "Each higher tier includes all capabilities of lower tiers. This mirrors UMH substrate PermissionTier cumulative model (READ < DRAFT < EXECUTE < COMMIT)."
+  },
+
+  "rbac_model": {
+    "description": "Role-Based Access Control defines static role assignments that determine baseline permissions. Roles are assigned at specific scopes (portfolio, entity, department). RBAC is the foundation layer — it answers 'what CAN this user do based on their role?'",
+
+    "roles": {
+      "description": "Named roles that map to permission tiers with optional scope restrictions.",
+      "catalog": [
+        {
+          "role_id": "portfolio_owner",
+          "display_name": "Portfolio Owner",
+          "permission_tier": "owner",
+          "scope": "portfolio",
+          "description": "Owns the portfolio and all entities within it. Full authority.",
+          "auto_inherits": ["entity_admin"],
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "role_id": "entity_admin",
+          "display_name": "Entity Administrator",
+          "permission_tier": "admin",
+          "scope": "entity",
+          "description": "Full operational control of a specific entity. Manages departments, agents, workflows within that entity.",
+          "auto_inherits": ["department_manager"],
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "role_id": "department_manager",
+          "display_name": "Department Manager",
+          "permission_tier": "manager",
+          "scope": "department",
+          "description": "Manages a specific department within an entity. Creates tasks, approves department-level actions, manages team.",
+          "auto_inherits": ["department_member"],
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "role_id": "department_member",
+          "display_name": "Department Member",
+          "permission_tier": "member",
+          "scope": "department",
+          "description": "Executes tasks within a department. Views assigned work, submits deliverables.",
+          "auto_inherits": ["department_viewer"],
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "role_id": "department_viewer",
+          "display_name": "Department Viewer",
+          "permission_tier": "viewer",
+          "scope": "department",
+          "description": "Read-only access to department dashboards, reports, and documents.",
+          "auto_inherits": [],
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "role_id": "portfolio_advisor",
+          "display_name": "Portfolio Advisor",
+          "permission_tier": "viewer",
+          "scope": "portfolio",
+          "description": "Cross-entity read access for advisory purposes. Can view consolidated dashboards and reports across all entities in a portfolio. Cannot execute actions.",
+          "auto_inherits": [],
+          "provenance": "INFERRED_PROFESSIONAL_GAP"
+        },
+        {
+          "role_id": "external_accountant",
+          "display_name": "External Accountant",
+          "permission_tier": "viewer",
+          "scope": "entity",
+          "scope_restriction": "financial_data_only",
+          "description": "Scoped read access to financial data for a specific entity. Cannot see non-financial operational data.",
+          "auto_inherits": [],
+          "provenance": "INFERRED_PROFESSIONAL_GAP"
+        },
+        {
+          "role_id": "investor_viewer",
+          "display_name": "Investor Viewer",
+          "permission_tier": "viewer",
+          "scope": "portfolio",
+          "scope_restriction": "investor_reports_only",
+          "description": "Scoped read access to investor-facing reports and KPIs. Cannot see operational details, internal communications, or raw financials.",
+          "auto_inherits": [],
+          "provenance": "INFERRED_PROFESSIONAL_GAP"
+        }
+      ]
+    },
+
+    "role_hierarchy": {
+      "description": "Role inheritance follows the permission tier hierarchy. Higher roles automatically inherit all capabilities of lower roles within their scope. Cross-scope inheritance flows top-down: portfolio roles inherit applicable entity-level access, entity roles inherit applicable department-level access.",
+      "inheritance_chain": "portfolio_owner -> entity_admin -> department_manager -> department_member -> department_viewer",
+      "cross_scope_rule": "A portfolio_owner has entity_admin rights on ALL entities within that portfolio. An entity_admin has department_manager rights on ALL departments within that entity. Inheritance is automatic and cannot be selectively revoked without removing the role entirely.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+
+    "role_assignment": {
+      "description": "How roles are assigned to users and agents.",
+      "rules": [
+        "Roles are assigned by a user with equal or higher permission tier at the target scope",
+        "Portfolio_owner can only be assigned by the instance owner",
+        "Entity_admin can be assigned by portfolio_owner or instance owner",
+        "Department roles can be assigned by entity_admin or above",
+        "A user can hold multiple roles across different scopes (e.g., department_manager in Sales for Entity A, department_viewer in Finance for Entity B)",
+        "Role assignments are audited — every grant and revoke is logged with actor, timestamp, and reason",
+        "Agents receive role assignments at configuration time, not at runtime. Agent role changes require admin approval."
+      ],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+
+    "inheritance": {
+      "model": "hierarchical_with_scope",
+      "description": "Permissions are inherited both vertically (tier hierarchy) and horizontally (scope containment). Vertical: owner > admin > manager > member > viewer. Horizontal: portfolio contains entities, entities contain departments. A higher-scoped role grants the corresponding lower-tier access to all contained scopes.",
+      "example": "A portfolio_owner (tier: owner, scope: portfolio) automatically has entity_admin (tier: admin) access on every entity in the portfolio, and department_manager (tier: manager) access on every department within those entities.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "abac_model": {
+    "description": "Attribute-Based Access Control adds context-sensitive, dynamic policy evaluation on top of RBAC. ABAC answers 'SHOULD this specific action be allowed right now, given the current context?' even if RBAC says the user CAN do it. ABAC is the refinement layer — it can restrict but never expand beyond what RBAC grants.",
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "provenance_note": "No ABAC implementation exists in code today. The substrate governance engine (control_plane/governance.py) provides risk classification and autonomy thresholds which serve as a foundation, but EOS-specific ABAC policies are not yet defined.",
+
+    "attributes": {
+      "description": "The attribute categories evaluated by ABAC policies.",
+      "categories": [
+        {
+          "category": "subject_attributes",
+          "description": "Properties of the user or agent requesting access.",
+          "examples": [
+            "user.role",
+            "user.permission_tier",
+            "user.department",
+            "user.entity_id",
+            "user.portfolio_id",
+            "user.mfa_status",
+            "user.session_age",
+            "user.ip_location",
+            "agent.autonomy_level",
+            "agent.permission_tier",
+            "agent.department",
+            "agent.trust_score"
+          ]
+        },
+        {
+          "category": "resource_attributes",
+          "description": "Properties of the resource being accessed.",
+          "examples": [
+            "resource.type",
+            "resource.owner_entity_id",
+            "resource.classification",
+            "resource.sensitivity_level",
+            "resource.financial_amount",
+            "resource.department",
+            "resource.created_by",
+            "resource.last_modified"
+          ]
+        },
+        {
+          "category": "action_attributes",
+          "description": "Properties of the action being performed.",
+          "examples": [
+            "action.type",
+            "action.risk_class",
+            "action.reversibility",
+            "action.financial_impact",
+            "action.affects_external_parties",
+            "action.requires_approval"
+          ]
+        },
+        {
+          "category": "context_attributes",
+          "description": "Environmental and temporal properties.",
+          "examples": [
+            "context.time_of_day",
+            "context.business_hours",
+            "context.entity_stage",
+            "context.cash_position",
+            "context.active_audit",
+            "context.compliance_mode",
+            "context.system_load"
+          ]
+        }
+      ]
+    },
+
+    "policies": {
+      "description": "Named ABAC policies that apply contextual restrictions beyond RBAC grants.",
+      "catalog": [
+        {
+          "policy_id": "ABAC-FIN-001",
+          "name": "Financial Action Threshold Gate",
+          "description": "Actions involving financial amounts above entity-specific thresholds require additional approval regardless of RBAC role.",
+          "condition": "action.financial_impact > entity.approval_threshold AND user.permission_tier < owner",
+          "effect": "ESCALATE_TO_ADMIN",
+          "example": "A department_manager with EXECUTE tier tries to approve a $50K vendor payment, but the entity approval threshold is $10K. ABAC escalates to entity_admin.",
+          "provenance": "INFERRED_PROFESSIONAL_GAP"
+        },
+        {
+          "policy_id": "ABAC-SENS-001",
+          "name": "Sensitive Data Classification Gate",
+          "description": "Resources classified as SENSITIVE or RESTRICTED require tier >= manager to read and tier >= admin to modify, regardless of department membership.",
+          "condition": "resource.sensitivity_level IN (SENSITIVE, RESTRICTED) AND user.permission_tier < required_tier_for_sensitivity",
+          "effect": "DENY",
+          "provenance": "INFERRED_PROFESSIONAL_GAP"
+        },
+        {
+          "policy_id": "ABAC-CROSS-001",
+          "name": "Cross-Entity Access Restriction",
+          "description": "Users with entity-scoped roles cannot access resources in other entities unless they also hold a role in the target entity or a portfolio-scoped role.",
+          "condition": "resource.owner_entity_id != user.entity_id AND user.scope == entity AND NOT user.has_role_in(resource.owner_entity_id)",
+          "effect": "DENY",
+          "provenance": "SYNTHESIZED_CANON"
+        },
+        {
+          "policy_id": "ABAC-AGENT-001",
+          "name": "Agent Autonomy Risk Gate",
+          "description": "Agents operating at AUTONOMOUS level are blocked from executing HIGH or CRITICAL risk actions. These must escalate to a human operator or higher-tier agent.",
+          "condition": "subject.type == agent AND subject.autonomy_level == autonomous AND action.risk_class IN (HIGH, CRITICAL)",
+          "effect": "ESCALATE_TO_OPERATOR",
+          "maps_to_substrate": "control_plane/governance.py AUTONOMY_THRESHOLDS",
+          "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+        },
+        {
+          "policy_id": "ABAC-AUDIT-001",
+          "name": "Active Audit Lockdown",
+          "description": "When an entity is under active compliance audit, all COMMIT-tier actions on financial records are blocked except by the owner.",
+          "condition": "context.active_audit == true AND action.maps_to_substrate_tier == COMMIT AND resource.type == financial_record AND user.permission_tier < owner",
+          "effect": "DENY_UNTIL_AUDIT_COMPLETE",
+          "provenance": "INFERRED_PROFESSIONAL_GAP"
+        },
+        {
+          "policy_id": "ABAC-TIME-001",
+          "name": "Off-Hours Agent Restriction",
+          "description": "Autonomous agent execution of MEDIUM+ risk actions outside business hours requires operator confirmation.",
+          "condition": "subject.type == agent AND context.business_hours == false AND action.risk_class IN (MEDIUM, HIGH, CRITICAL)",
+          "effect": "DEFER_TO_BUSINESS_HOURS_OR_ESCALATE",
+          "provenance": "INFERRED_PROFESSIONAL_GAP"
+        },
+        {
+          "policy_id": "ABAC-EXT-001",
+          "name": "External Party Action Gate",
+          "description": "Any action that affects external parties (sending emails, creating invoices, signing contracts) requires at least manager tier, regardless of RBAC role.",
+          "condition": "action.affects_external_parties == true AND user.permission_tier < manager",
+          "effect": "DENY",
+          "provenance": "INFERRED_PROFESSIONAL_GAP"
+        }
+      ]
+    },
+
+    "evaluation_engine": {
+      "description": "How ABAC policies are evaluated at runtime.",
+      "model": "deny_overrides",
+      "evaluation_order": [
+        "1. Check RBAC role grants — if RBAC denies, stop (no access)",
+        "2. If RBAC grants, evaluate all applicable ABAC policies",
+        "3. If ANY ABAC policy returns DENY, the action is denied",
+        "4. If ANY ABAC policy returns ESCALATE, the action is held for approval",
+        "5. If ANY ABAC policy returns DEFER, the action is queued",
+        "6. If all ABAC policies pass (or none apply), the action proceeds"
+      ],
+      "caching": "ABAC evaluation results are cached per (subject, resource, action) tuple for 60 seconds to avoid redundant evaluation on rapid sequential requests. Cache is invalidated on role change, policy update, or context attribute change.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "hybrid_model": {
+    "description": "How RBAC and ABAC compose into a single governance decision for every access request in EOS.",
+
+    "how_rbac_and_abac_compose": {
+      "principle": "RBAC defines the ceiling. ABAC refines within that ceiling. ABAC can restrict but never expand.",
+      "flow": [
+        "1. RBAC evaluation: Does the user's role grant the requested capability? If NO -> DENY (fast path, no ABAC needed)",
+        "2. ABAC evaluation: Given the current context, should this specific action be allowed right now? Evaluates all matching policies.",
+        "3. Governance verdict: Combine RBAC grant + ABAC evaluation into a final GovernanceDecision (APPROVE/DENY/DEFER/ESCALATE/CONDITIONAL)",
+        "4. Substrate bridge: Map the EOS governance verdict to a UMH GovernanceVerdict for execution pipeline integration"
+      ],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+
+    "precedence_rules": [
+      {
+        "rule": "EXPLICIT_DENY_WINS",
+        "description": "An explicit DENY from any source (RBAC or ABAC) overrides any APPROVE. This is the fundamental safety property.",
+        "priority": 1
+      },
+      {
+        "rule": "ESCALATE_OVER_APPROVE",
+        "description": "An ESCALATE from ABAC overrides an APPROVE from RBAC. The action is held for higher-tier approval before execution.",
+        "priority": 2
+      },
+      {
+        "rule": "CONDITIONAL_OVER_APPROVE",
+        "description": "A CONDITIONAL from ABAC attaches conditions to an RBAC APPROVE. The action proceeds only if the conditions are met (e.g., 'approve but log for audit', 'approve but notify admin').",
+        "priority": 3
+      },
+      {
+        "rule": "DEFER_OVER_APPROVE",
+        "description": "A DEFER from ABAC queues an otherwise-approved action for later evaluation (e.g., defer to business hours).",
+        "priority": 4
+      },
+      {
+        "rule": "APPROVE_IS_DEFAULT_WHEN_GRANTED",
+        "description": "If RBAC grants access and no ABAC policy restricts, the action is approved. The system is permissive within role boundaries.",
+        "priority": 5
+      }
+    ],
+
+    "provenance": "SYNTHESIZED_CANON"
+  },
+
+  "resource_types": {
+    "description": "The resource types that the EOS governance model protects. Each resource type has a default sensitivity level and a minimum permission tier for CRUD operations.",
+    "catalog": [
+      {
+        "type": "portfolio",
+        "description": "Strategic container grouping entities.",
+        "default_sensitivity": "HIGH",
+        "min_tier_create": "owner",
+        "min_tier_read": "viewer",
+        "min_tier_update": "admin",
+        "min_tier_delete": "owner",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "type": "entity",
+        "description": "Legal or operational vehicle (LLC, C-Corp, etc.).",
+        "default_sensitivity": "HIGH",
+        "min_tier_create": "admin",
+        "min_tier_read": "viewer",
+        "min_tier_update": "admin",
+        "min_tier_delete": "owner",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "type": "department",
+        "description": "Functional division within an entity (Sales, Engineering, etc.).",
+        "default_sensitivity": "MEDIUM",
+        "min_tier_create": "admin",
+        "min_tier_read": "viewer",
+        "min_tier_update": "admin",
+        "min_tier_delete": "admin",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "type": "workflow",
+        "description": "Defined process or SOP within a department.",
+        "default_sensitivity": "LOW",
+        "min_tier_create": "manager",
+        "min_tier_read": "member",
+        "min_tier_update": "manager",
+        "min_tier_delete": "admin",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "type": "task",
+        "description": "Unit of work assigned to a user or agent.",
+        "default_sensitivity": "LOW",
+        "min_tier_create": "manager",
+        "min_tier_read": "member",
+        "min_tier_update": "member",
+        "min_tier_delete": "manager",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "type": "document",
+        "description": "Business document, report, or artifact.",
+        "default_sensitivity": "MEDIUM",
+        "min_tier_create": "member",
+        "min_tier_read": "viewer",
+        "min_tier_update": "member",
+        "min_tier_delete": "manager",
+        "note": "Sensitivity can be overridden per document (e.g., legal contracts -> RESTRICTED)",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "type": "agent",
+        "description": "AI agent configuration and its execution authority.",
+        "default_sensitivity": "HIGH",
+        "min_tier_create": "admin",
+        "min_tier_read": "viewer",
+        "min_tier_update": "admin",
+        "min_tier_delete": "admin",
+        "note": "Agent permission_tier and autonomy_level are HIGH sensitivity because they control what actions the agent can take autonomously.",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "type": "metric",
+        "description": "KPI, financial metric, or performance indicator.",
+        "default_sensitivity": "MEDIUM",
+        "min_tier_create": "manager",
+        "min_tier_read": "viewer",
+        "min_tier_update": "manager",
+        "min_tier_delete": "admin",
+        "note": "Financial metrics may be elevated to HIGH sensitivity by ABAC policy.",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "type": "financial_record",
+        "description": "Transaction, invoice, payment, or accounting entry.",
+        "default_sensitivity": "RESTRICTED",
+        "min_tier_create": "manager",
+        "min_tier_read": "manager",
+        "min_tier_update": "admin",
+        "min_tier_delete": "owner",
+        "note": "Financial records are the most sensitive resource type. Deletion is restricted to owner and is audit-logged with mandatory retention.",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "type": "capital_allocation",
+        "description": "Budget assignment, investment decision, or resource allocation record.",
+        "default_sensitivity": "RESTRICTED",
+        "min_tier_create": "admin",
+        "min_tier_read": "manager",
+        "min_tier_update": "admin",
+        "min_tier_delete": "owner",
+        "provenance": "SYNTHESIZED_CANON"
+      }
+    ]
+  },
+
+  "authority_domains": {
+    "description": "Three orthogonal authority domains that govern different aspects of EOS operation. A user or agent may have different authority levels in each domain.",
+
+    "org_authority": {
+      "description": "Authority over organizational structure — creating/modifying portfolios, entities, departments, roles, and governance policies.",
+      "scope": "portfolio or entity",
+      "governs": ["portfolio_lifecycle", "entity_lifecycle", "department_lifecycle", "role_assignment", "governance_policy_configuration", "subscription_management"],
+      "minimum_tier": "admin",
+      "highest_actions_require": "owner",
+      "examples": [
+        "Creating a new entity under a portfolio (requires admin on portfolio)",
+        "Changing an entity's legal structure (requires owner)",
+        "Adding a new department to an entity (requires admin on entity)",
+        "Assigning a manager role to a user (requires admin on entity)"
+      ],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+
+    "resource_authority": {
+      "description": "Authority over business resources — documents, tasks, workflows, metrics, financial records, and capital allocations.",
+      "scope": "entity or department",
+      "governs": ["document_crud", "task_crud", "workflow_crud", "metric_crud", "financial_record_crud", "capital_allocation"],
+      "minimum_tier": "member",
+      "highest_actions_require": "admin",
+      "examples": [
+        "Creating a task in Sales department (requires manager on Sales)",
+        "Viewing a financial report (requires manager on entity or owner)",
+        "Modifying a workflow SOP (requires manager on department)",
+        "Deleting an old financial record (requires owner)"
+      ],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+
+    "execution_authority": {
+      "description": "Authority over runtime execution — what agents can do autonomously, what requires human approval, and who can override agent decisions.",
+      "scope": "entity or department",
+      "governs": ["agent_execution", "autonomy_level_assignment", "risk_gate_overrides", "escalation_handling", "approval_chain_resolution"],
+      "minimum_tier": "manager",
+      "highest_actions_require": "owner",
+      "maps_to_substrate": "substrate/execution/runtime/worker_runtime_contracts.py AuthorityDomain + control_plane/governance.py autonomy thresholds",
+      "examples": [
+        "Setting Sales agent to AUTONOMOUS mode (requires admin on entity)",
+        "Overriding a governance DENY on a medium-risk action (requires admin)",
+        "Overriding a governance DENY on a critical-risk action (requires owner)",
+        "Configuring the financial threshold for ABAC escalation (requires admin on entity)"
+      ],
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "agent_permissions": {
+    "description": "How EOS AI agents are governed. Agents are subjects in the permissions model — they have assigned roles, permission tiers, and autonomy levels. Agent permissions are a subset of (never exceed) their configuring admin's permissions.",
+
+    "per_agent_authority": {
+      "description": "Each agent has a configured permission tier from UMH substrate PermissionTier enum and an EOS-specific autonomy level. The permission tier controls what actions the agent CAN execute. The autonomy level controls whether it executes without approval.",
+      "current_code_state": {
+        "description": "Current PERMISSION_TIER assignments from projections/eos/agents/ codebase.",
+        "agents": [
+          {"agent": "ceo", "permission_tier": "COMMIT", "rationale": "Entity-level strategic authority. Approves and delegates across all departments."},
+          {"agent": "finance", "permission_tier": "COMMIT", "rationale": "Financial transaction authority. Creates, approves, and commits financial records."},
+          {"agent": "legal", "permission_tier": "COMMIT", "rationale": "Contract and compliance authority. Commits binding legal actions."},
+          {"agent": "engineering", "permission_tier": "EXECUTE", "rationale": "Technical execution. Runs deployments, manages code, but commits require CEO approval."},
+          {"agent": "sales", "permission_tier": "EXECUTE", "rationale": "Pipeline execution. Manages deals, outreach, but closing requires CEO approval."},
+          {"agent": "marketing", "permission_tier": "EXECUTE", "rationale": "Campaign execution. Runs campaigns, creates content."},
+          {"agent": "customer_success", "permission_tier": "EXECUTE", "rationale": "Support execution. Handles tickets, manages client relationships."},
+          {"agent": "hr", "permission_tier": "EXECUTE", "rationale": "People operations. Manages hiring, onboarding, but policy changes require admin."},
+          {"agent": "operations", "permission_tier": "EXECUTE", "rationale": "Process execution. Manages workflows, logistics, vendor relationships."},
+          {"agent": "product", "permission_tier": "DRAFT", "rationale": "Product planning. Creates specs, roadmaps, prioritization. Does not directly execute."}
+        ],
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+
+      "planned_additions": [
+        {"agent": "ea", "permission_tier": "READ", "rationale": "Reads, parses, routes. Never executes domain actions."},
+        {"agent": "portfolio_advisor", "permission_tier": "READ", "rationale": "Cross-entity intelligence and advisory. Reads across all entities but does not execute."}
+      ],
+      "planned_provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+
+    "autonomy_levels": [
+      {
+        "level": "manual",
+        "value": 0,
+        "description": "Agent requires explicit human approval for every action. The agent proposes, the human approves or rejects. Used for onboarding new agents, high-risk domains, or compliance-sensitive contexts.",
+        "substrate_mapping": "GovernanceDecision.ESCALATE for all actions",
+        "use_cases": ["new_agent_probation", "regulated_financial_actions", "legal_contract_execution"]
+      },
+      {
+        "level": "supervised",
+        "value": 1,
+        "description": "Agent executes LOW and NEGLIGIBLE risk actions autonomously. MEDIUM risk actions proceed with notification to the supervising human. HIGH and CRITICAL risk actions require explicit approval before execution.",
+        "substrate_mapping": "AUTONOMY_THRESHOLDS in governance.py — autonomy level checked against risk-class-specific thresholds",
+        "use_cases": ["standard_department_operations", "most_agents_at_mvp", "default_for_new_departments"]
+      },
+      {
+        "level": "autonomous",
+        "value": 2,
+        "description": "Agent executes LOW, NEGLIGIBLE, and MEDIUM risk actions without approval. HIGH risk actions proceed with notification. CRITICAL risk actions still require explicit human approval. Only available for agents that have demonstrated reliability through supervised mode execution history.",
+        "substrate_mapping": "Higher autonomy threshold in governance.py — fewer actions require governance escalation",
+        "use_cases": ["proven_agents_with_track_record", "time_sensitive_operations", "high_volume_departments"],
+        "prerequisites": ["minimum_30_day_supervised_track_record", "zero_critical_incidents", "admin_explicit_approval_to_upgrade"]
+      }
+    ],
+
+    "authority_ceiling_rule": "An agent's effective authority is the MINIMUM of: (1) its configured permission_tier, (2) the autonomy level's risk allowance, and (3) the configuring admin's own permission_tier. An admin with EXECUTE tier cannot create an agent with COMMIT tier. This prevents privilege escalation through agent configuration.",
+
+    "provenance": "SYNTHESIZED_CANON"
+  },
+
+  "approval_gates": {
+    "description": "Approval gates define who must approve what before execution proceeds. Gates are triggered by risk classification, resource sensitivity, financial thresholds, or explicit ABAC policy evaluation.",
+
+    "risk_classification": {
+      "description": "Maps to UMH substrate RiskClass enum (NEGLIGIBLE, LOW, MEDIUM, HIGH, CRITICAL, FORBIDDEN). Each risk class has a defined approval requirement.",
+      "risk_to_approval_map": [
+        {
+          "risk_class": "NEGLIGIBLE",
+          "approval_required": false,
+          "approved_by": "none",
+          "description": "Status queries, dashboard views, read-only operations. No approval needed.",
+          "examples": ["viewing a dashboard", "checking task status", "reading a document"]
+        },
+        {
+          "risk_class": "LOW",
+          "approval_required": false,
+          "approved_by": "none",
+          "description": "Standard CRUD operations within assigned scope. No approval needed if RBAC role allows.",
+          "examples": ["creating a task", "updating task status", "creating a draft document"]
+        },
+        {
+          "risk_class": "MEDIUM",
+          "approval_required": "conditional",
+          "approved_by": "manager_or_above",
+          "description": "Actions with department-level impact. Approval required if agent is in MANUAL or SUPERVISED mode, or if ABAC policy triggers.",
+          "examples": ["modifying a workflow", "sending client communications", "approving a budget line item"]
+        },
+        {
+          "risk_class": "HIGH",
+          "approval_required": true,
+          "approved_by": "admin_or_above",
+          "description": "Actions with entity-level impact. Always requires human approval. Agent execution always escalates.",
+          "examples": ["changing department structure", "committing to a contract above threshold", "modifying agent autonomy levels"]
+        },
+        {
+          "risk_class": "CRITICAL",
+          "approval_required": true,
+          "approved_by": "owner_only",
+          "description": "Actions with portfolio-level or irreversible impact. Only the instance owner can approve.",
+          "examples": ["deleting an entity", "changing governance policies", "deleting financial records", "removing agent authority"]
+        },
+        {
+          "risk_class": "FORBIDDEN",
+          "approval_required": "impossible",
+          "approved_by": "none",
+          "description": "Actions that are never allowed regardless of role or context. Hard-coded system constraint.",
+          "examples": ["deleting audit trail entries", "bypassing MFA for financial actions", "self-escalation of permission tier"]
+        }
+      ],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+    },
+
+    "who_approves_what": {
+      "description": "Explicit mapping of approval authority to scope and risk.",
+      "matrix": [
+        {"scope": "department", "risk": "MEDIUM", "approver": "department_manager or entity_admin or owner"},
+        {"scope": "department", "risk": "HIGH", "approver": "entity_admin or owner"},
+        {"scope": "entity", "risk": "MEDIUM", "approver": "entity_admin or owner"},
+        {"scope": "entity", "risk": "HIGH", "approver": "entity_admin or owner"},
+        {"scope": "entity", "risk": "CRITICAL", "approver": "owner only"},
+        {"scope": "portfolio", "risk": "MEDIUM", "approver": "owner only"},
+        {"scope": "portfolio", "risk": "HIGH", "approver": "owner only"},
+        {"scope": "portfolio", "risk": "CRITICAL", "approver": "owner only"}
+      ],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+
+    "escalation": {
+      "description": "When an action cannot be approved at the current level, it escalates upward. Escalation is automatic and follows the role hierarchy.",
+      "chain": "agent -> department_manager -> entity_admin -> portfolio_owner -> instance_owner",
+      "timeout_behavior": "If an escalation is not resolved within the configured timeout (default: 24 hours for MEDIUM, 4 hours for HIGH, 1 hour for CRITICAL), the system sends a reminder notification. After 3 reminder cycles, the escalation is marked EXPIRED and the requesting agent is notified.",
+      "escalation_override": "An owner can configure auto-deny for expired escalations (secure default) or auto-approve for specific low-impact escalation types (convenience for solo founders).",
+      "maps_to_substrate": "GovernanceDecision.ESCALATE triggers the escalation chain. The substrate governance engine in control_plane/governance.py handles the decision; EOS provides the approval routing.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "audit_trail": {
+    "description": "Every governance-relevant action in EOS is logged to an immutable audit trail. The audit trail serves compliance, debugging, accountability, and agent trust calibration.",
+
+    "what_logged": [
+      "Every access decision (APPROVE, DENY, ESCALATE, DEFER, CONDITIONAL) with full context",
+      "Every role assignment and revocation with actor and reason",
+      "Every agent configuration change (permission_tier, autonomy_level)",
+      "Every approval gate trigger and resolution",
+      "Every escalation and its outcome",
+      "Every financial action above entity-configured threshold",
+      "Every cross-entity access attempt (whether granted or denied)",
+      "Every ABAC policy evaluation result",
+      "Every governance policy change",
+      "Every agent skill execution with tier, input hash, and outcome",
+      "Every login, logout, MFA challenge, and session event"
+    ],
+
+    "log_schema": {
+      "fields": [
+        {"field": "id", "type": "uuid", "description": "Unique log entry identifier"},
+        {"field": "timestamp", "type": "iso8601", "description": "UTC timestamp of the event"},
+        {"field": "event_type", "type": "enum", "description": "Category: ACCESS_DECISION, ROLE_CHANGE, AGENT_CONFIG, APPROVAL_GATE, ESCALATION, FINANCIAL_ACTION, POLICY_CHANGE, SESSION_EVENT"},
+        {"field": "actor_id", "type": "uuid", "description": "User or agent that triggered the event"},
+        {"field": "actor_type", "type": "enum", "description": "HUMAN or AGENT"},
+        {"field": "resource_type", "type": "string", "description": "Type of resource affected"},
+        {"field": "resource_id", "type": "uuid", "description": "ID of resource affected"},
+        {"field": "action", "type": "string", "description": "What was attempted"},
+        {"field": "decision", "type": "enum", "description": "APPROVE, DENY, ESCALATE, DEFER, CONDITIONAL"},
+        {"field": "rbac_result", "type": "string", "description": "RBAC evaluation result"},
+        {"field": "abac_policies_evaluated", "type": "array", "description": "List of ABAC policy IDs evaluated"},
+        {"field": "abac_result", "type": "string", "description": "Combined ABAC evaluation result"},
+        {"field": "risk_class", "type": "enum", "description": "Risk classification of the action"},
+        {"field": "entity_id", "type": "uuid", "description": "Entity context"},
+        {"field": "portfolio_id", "type": "uuid", "description": "Portfolio context"},
+        {"field": "metadata", "type": "object", "description": "Additional context (IP, session ID, reason text, etc.)"}
+      ]
+    },
+
+    "retention": {
+      "default": "7 years for financial actions, 3 years for operational actions, 1 year for session events",
+      "compliance_note": "Retention periods are configurable per entity to meet jurisdiction-specific requirements (e.g., SOX 7-year retention for public companies, GDPR data minimization for EU operations).",
+      "deletion_policy": "Audit trail entries can NEVER be deleted by any user including the owner. Entries expire per retention policy and are archived (not destroyed) after retention period. This is a FORBIDDEN-class action in the risk classification."
+    },
+
+    "compliance": {
+      "description": "The audit trail is designed to support common compliance frameworks without being locked to any single one.",
+      "supported_frameworks": [
+        "SOC 2 Type II (access control, monitoring)",
+        "SOX (financial action logging, segregation of duties)",
+        "GDPR (consent tracking, data access logging, right to audit)",
+        "ISO 27001 (information security event logging)"
+      ],
+      "note": "Framework-specific compliance modules are IMPLEMENTATION_DEBT. The audit trail captures the raw data; compliance report generators are not yet built."
+    },
+
+    "provenance": "SYNTHESIZED_CANON"
+  },
+
+  "umh_substrate_governance": {
+    "description": "How EOS governance maps onto and extends the UMH substrate governance system. EOS is a projection on UMH — it uses substrate primitives and extends them with domain-specific policies.",
+
+    "how_eos_uses_substrate_governance": {
+      "permission_tier_mapping": {
+        "description": "EOS human permission tiers map to UMH PermissionTier for agent execution.",
+        "mapping": [
+          {"eos_tier": "owner", "substrate_tier": "COMMIT", "note": "Full authority"},
+          {"eos_tier": "admin", "substrate_tier": "COMMIT", "note": "Scoped to assigned resources"},
+          {"eos_tier": "manager", "substrate_tier": "EXECUTE", "note": "Department-scoped execution"},
+          {"eos_tier": "member", "substrate_tier": "DRAFT", "note": "Can create/modify drafts, cannot commit"},
+          {"eos_tier": "viewer", "substrate_tier": "READ", "note": "Read-only"}
+        ]
+      },
+
+      "governance_engine_integration": {
+        "description": "EOS routes all agent actions through the UMH substrate governance engine (control_plane/governance.py). The substrate provides risk classification and GovernanceDecision. EOS adds ABAC policy evaluation and approval routing on top.",
+        "flow": [
+          "1. Agent proposes action via skill execution (projections/eos/agents/base.py)",
+          "2. DepartmentAgent._execute_skill() checks PERMISSION_TIER.permits(skill.min_tier)",
+          "3. If tier insufficient, action denied at EOS level (never reaches substrate)",
+          "4. If tier sufficient, action packaged as SignalEnvelope and sent to substrate",
+          "5. Substrate governance engine classifies risk (control_plane/governance.py)",
+          "6. Substrate returns GovernanceVerdict (APPROVE/DENY/DEFER/ESCALATE/CONDITIONAL)",
+          "7. EOS applies ABAC policies on top of substrate verdict",
+          "8. Final composite verdict determines action outcome"
+        ]
+      },
+
+      "risk_class_usage": {
+        "description": "EOS uses UMH RiskClass enum directly. No parallel risk classification system.",
+        "classes": ["NEGLIGIBLE", "LOW", "MEDIUM", "HIGH", "CRITICAL", "FORBIDDEN"],
+        "eos_specific_classification_rules": [
+          "Financial actions above threshold -> minimum MEDIUM, escalates based on amount",
+          "External-facing communications -> minimum MEDIUM",
+          "Legal/contract actions -> minimum HIGH",
+          "Organizational structure changes -> minimum HIGH",
+          "Financial record deletion -> CRITICAL",
+          "Audit trail modification -> FORBIDDEN",
+          "Privilege self-escalation -> FORBIDDEN"
+        ]
+      }
+    },
+
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+  },
+
+  "mvp_scope": {
+    "description": "What ships in the MVP release versus what is deferred. The MVP is for a single founder operating a single primary portfolio with 1-3 entities. Multi-user, multi-operator, and enterprise features are deferred.",
+
+    "simple_rbac_first": {
+      "description": "MVP implements only the RBAC layer. The single founder is automatically the instance owner with full authority. No role assignment UI needed because there is only one user.",
+      "what_ships": [
+        "Single owner role auto-assigned to founding operator",
+        "Agent permission tiers (already implemented in projections/eos/agents/)",
+        "Agent skill execution with tier checking (already implemented in base.py)",
+        "Risk classification via substrate governance engine (already implemented)",
+        "Basic approval gate: HIGH and CRITICAL actions surface to operator via EA agent",
+        "Audit trail logging for all agent actions (basic version)",
+        "Governance verdicts visible in operator dashboard"
+      ],
+      "what_does_not_ship": [
+        "Multi-user role assignment UI",
+        "Admin/manager/member/viewer role management",
+        "Role inheritance across scopes",
+        "ABAC policy engine",
+        "ABAC policy configuration UI",
+        "Cross-entity permission management",
+        "Compliance report generators",
+        "Configurable retention policies",
+        "Escalation timeout and auto-resolution",
+        "Agent autonomy level configuration UI (agents ship at SUPERVISED default)",
+        "External stakeholder access (investor_viewer, external_accountant roles)"
+      ],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+
+    "abac_deferred": {
+      "description": "ABAC is architecturally designed into the model but implementation is deferred to post-MVP. The MVP RBAC layer is designed to be non-breaking when ABAC is added — ABAC policies layer on top without modifying the RBAC foundation.",
+      "target_release": "R3 or R4 (after multi-user support is added in R2)",
+      "rationale": "ABAC adds value only when there are multiple users with different contexts. A single founder operating solo does not benefit from attribute-based policy evaluation.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-GOV-001",
+      "question": "Multi-tenant isolation: Should EOS support true multi-tenancy (multiple independent operators on a shared infrastructure) or single-tenant-per-instance? Multi-tenancy has implications for data isolation, governance policy scoping, and audit trail separation.",
+      "impact": "HIGH — determines database schema, RLS policy design, and whether governance policies can cross tenant boundaries.",
+      "current_assumption": "Single-tenant-per-instance for MVP and likely for V1. Multi-tenancy is an enterprise feature that requires separate infrastructure planning.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-GOV-002",
+      "question": "Cross-entity permissions: When a user holds roles in multiple entities within a portfolio, should they see a unified view or be forced to context-switch? What about actions that span entities (e.g., transferring capital from Entity A to Entity B)?",
+      "impact": "MEDIUM — affects UI design, ABAC policy complexity, and the portfolio_advisor role definition.",
+      "current_assumption": "Users context-switch between entities via the Left Rail entity switcher. Cross-entity actions route through the Portfolio Advisor agent which has portfolio-scoped READ access. Cross-entity write actions (like capital transfers) require owner approval.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-GOV-003",
+      "question": "Agent authority limits: Should there be a hard ceiling on what any agent can do autonomously, regardless of its configured permission tier and autonomy level? For example, should there be a global 'no agent can ever autonomously send money above $X' rule that overrides all other configuration?",
+      "impact": "HIGH — determines whether the governance model has a 'God rule' layer above ABAC that cannot be overridden by any configuration.",
+      "current_assumption": "Yes — FORBIDDEN-class actions in the risk classification serve as this ceiling. But the specific dollar thresholds and action categories for the FORBIDDEN class need operator definition.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-GOV-004",
+      "question": "Delegation chains: Can an admin delegate their approval authority temporarily (e.g., on vacation)? If so, what are the constraints on delegation depth and scope?",
+      "impact": "MEDIUM — affects escalation chain design and audit trail attribution.",
+      "current_assumption": "Deferred to post-MVP. In MVP, only the owner approves HIGH/CRITICAL actions. If the owner is unavailable, actions queue until they return.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-GOV-005",
+      "question": "Agent trust calibration: How should agent autonomy levels be adjusted over time? Pure manual configuration? Performance-based automatic promotion? Hybrid with admin confirmation?",
+      "impact": "MEDIUM — determines whether the governance model is static (configured once) or adaptive (learns and adjusts).",
+      "current_assumption": "MVP ships with static configuration (admin sets autonomy level). Post-MVP introduces performance-based recommendations: the system analyzes agent execution history and suggests autonomy level changes that require admin approval.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-GOV-006",
+      "question": "Segregation of duties: Should EOS enforce SOD policies (e.g., the agent that creates an invoice cannot also approve payment)? If so, at what level — mandatory for all entities, or configurable per entity?",
+      "impact": "MEDIUM — adds complexity to the ABAC policy engine but is critical for financial integrity.",
+      "current_assumption": "Deferred to ABAC implementation phase. The audit trail captures enough data to detect SOD violations retrospectively. Enforcement requires the ABAC engine.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  ],
+
+  "cross_references": {
+    "related_artifacts": [
+      {
+        "artifact": "phase14_6b_eos_portfolio_entity_business_ontology.json",
+        "relationship": "Defines the resource hierarchy (portfolio/entity/department) that this governance model protects"
+      },
+      {
+        "artifact": "phase14_6b_eos_communication_delegation_architecture.json",
+        "relationship": "Defines the agent routing chain that this governance model governs. Permission tiers and approval gates enforce the delegation boundaries."
+      },
+      {
+        "artifact": "phase14_6b_eos_agent_architecture_spec.json",
+        "relationship": "Defines the agent hierarchy, skill model, and per-agent PERMISSION_TIER assignments that this model formalizes and extends with ABAC and autonomy levels."
+      },
+      {
+        "artifact": "phase14_6b_eos_onboarding_first_boot_spec.json",
+        "relationship": "First boot must assign the owner role, configure default agent autonomy levels, and initialize the audit trail."
+      },
+      {
+        "artifact": "phase14_6b_eos_ui_ux_aesthetic_canon.json",
+        "relationship": "Governance decisions surface in the UI via Risk Notices, approval modals, and the Activity Feed. The aesthetic canon governs how these are rendered."
+      }
+    ],
+    "substrate_dependencies": [
+      {
+        "module": "substrate/types.py",
+        "types_used": ["PermissionTier", "RiskClass", "GovernanceDecision", "GovernanceVerdict"],
+        "relationship": "EOS governance imports and extends these canonical types. No parallel types created."
+      },
+      {
+        "module": "substrate/control_plane/governance.py",
+        "relationship": "EOS routes all agent actions through the substrate governance engine for risk classification and governance verdicts."
+      },
+      {
+        "module": "substrate/execution/runtime/worker_runtime_contracts.py",
+        "types_used": ["AuthorityDomain"],
+        "relationship": "EOS authority domains are a projection-level concept that complements substrate AuthorityDomain for agent execution contexts."
+      },
+      {
+        "module": "substrate/canonical_types.py",
+        "relationship": "All types referenced in this model are registered in canonical_types.py. No new types defined here — this is a design spec, not code."
+      },
+      {
+        "module": "projections/eos/agents/base.py",
+        "relationship": "DepartmentAgent base class implements PERMISSION_TIER checking and skill execution gating. This model formalizes that mechanism and extends it."
+      }
+    ]
+  }
+}

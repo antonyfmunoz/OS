@@ -1,0 +1,1263 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+  "description": "Complete CreatorOS data model: every table, column, relationship, constraint, enum, and migration path from schema.ts plus all missing tables required by desired state (16 modules, 10 product types, full commerce/UGC/ads/automation stack).",
+
+  "schema_surfaces": {
+    "summary": "CreatorOS data lives in a single schema surface (shared/schema.ts) with a Python projection integration layer in UMH. Unlike EOS, there is no Beast divergence — GitHub main and Beast are aligned.",
+    "surfaces": [
+      {
+        "id": "GITHUB_MAIN",
+        "file": "shared/schema.ts (GitHub main branch)",
+        "orm": "Drizzle ORM 0.39.3 + drizzle-zod 0.7.0",
+        "language": "TypeScript",
+        "database": "Neon PostgreSQL (via @neondatabase/serverless + postgres.js)",
+        "table_count": 20,
+        "status": "current",
+        "last_modified": "2026-05-20",
+        "auth_model": "Passport.js 0.7.0 + passport-local 1.0.0 + express-session 1.18.1",
+        "pk_strategy": "serial (auto-increment integer) for all tables except notifications (uuid)",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+        "critical_vuln": "comparePasswords returns true for ALL passwords in dev mode — any password works for any user",
+        "auth_target": "Clerk (aligned with EOS target)"
+      },
+      {
+        "id": "BEAST_LOCAL",
+        "file": "C:\\dev\\dev\\CreatorOS (Beast mirror)",
+        "status": "aligned_with_github_main",
+        "no_divergence": true,
+        "uncommitted_changes": [".env", "dump (1).sql"],
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "id": "UMH_PROJECTION",
+        "file": "projections/creatoros/integration/ (Python typed layer)",
+        "language": "Python",
+        "database": "Neon PostgreSQL (via psycopg2)",
+        "tables_accessed": ["products", "revenue", "users"],
+        "total_lines": 1099,
+        "modules": ["signals.py", "handlers.py", "outcomes.py", "correlation.py", "manifest.py", "tables.py"],
+        "status": "active",
+        "note": "Read/write typed Python wrappers over the same Neon tables defined in schema.ts. Single coupling point between UMH substrate and CreatorOS data.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      }
+    ]
+  },
+
+  "current_tables": [
+    {
+      "name": "users",
+      "pg_name": "users",
+      "description": "Core user identity. Serves both creator and consumer roles via text role field. Central entity all other tables FK to.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "username", "type": "text", "nullable": false, "default": null, "constraints": ["UNIQUE", "NOT NULL"]},
+        {"name": "password", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "display_name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "bio", "type": "text", "nullable": true, "default": null, "constraints": []},
+        {"name": "profile_image_url", "type": "text", "nullable": true, "default": null, "constraints": []},
+        {"name": "role", "type": "text", "nullable": false, "default": "'creator'", "constraints": ["NOT NULL"]},
+        {"name": "xp_points", "type": "integer", "nullable": false, "default": "0", "constraints": ["NOT NULL"]},
+        {"name": "level", "type": "integer", "nullable": false, "default": "1", "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "posts", "type": "has_many", "cardinality": "1:N"},
+        {"target": "comments", "type": "has_many", "cardinality": "1:N"},
+        {"target": "products", "type": "has_many", "cardinality": "1:N"},
+        {"target": "ai_agents", "type": "has_many", "cardinality": "1:N"},
+        {"target": "ai_chats", "type": "has_many", "cardinality": "1:N"},
+        {"target": "channel_messages", "type": "has_many", "cardinality": "1:N"},
+        {"target": "revenue", "type": "has_many", "cardinality": "1:N"},
+        {"target": "contacts", "type": "has_many", "cardinality": "1:N"},
+        {"target": "documents", "type": "has_many", "cardinality": "1:N"},
+        {"target": "stories", "type": "has_many", "cardinality": "1:N"},
+        {"target": "notifications", "type": "has_many", "cardinality": "1:N", "note": "recipient notifications"},
+        {"target": "notifications", "type": "has_many", "cardinality": "1:N", "relation_name": "related_user", "note": "notifications where this user is the actor"},
+        {"target": "conversation_participants", "type": "has_many", "cardinality": "1:N"},
+        {"target": "direct_messages", "type": "has_many", "cardinality": "1:N", "relation_name": "sender"},
+        {"target": "saved_posts", "type": "has_many", "cardinality": "1:N"},
+        {"target": "followers", "type": "has_many", "cardinality": "1:N", "relation_name": "followed", "note": "users who follow this user"},
+        {"target": "followers", "type": "has_many", "cardinality": "1:N", "relation_name": "follower", "note": "users this user follows"},
+        {"target": "tagged_users", "type": "has_many", "cardinality": "1:N"}
+      ],
+      "indexes": [],
+      "design_notes": "No email field. No OAuth fields. No email verification. Role is a free-text field with no enum constraint. XP/level system exists but no corresponding XP-earning logic found in codebase."
+    },
+    {
+      "name": "posts",
+      "pg_name": "posts",
+      "description": "Content posts supporting multiple media types (text, photo, audio, video). Denormalized like/comment counts. No cross-posting metadata, no scheduling fields, no platform targeting.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "content", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "image_url", "type": "text", "nullable": true, "default": null, "constraints": []},
+        {"name": "audio_url", "type": "text", "nullable": true, "default": null, "constraints": []},
+        {"name": "video_url", "type": "text", "nullable": true, "default": null, "constraints": []},
+        {"name": "media_type", "type": "text", "nullable": true, "default": "'text'", "constraints": []},
+        {"name": "likes", "type": "integer", "nullable": false, "default": "0", "constraints": ["NOT NULL"]},
+        {"name": "comments", "type": "integer", "nullable": false, "default": "0", "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"},
+        {"target": "comments", "type": "has_many", "cardinality": "1:N"},
+        {"target": "saved_posts", "type": "has_many", "cardinality": "1:N"},
+        {"target": "tagged_users", "type": "has_many", "cardinality": "1:N"}
+      ],
+      "indexes": [],
+      "design_notes": "likes and comments are denormalized counters (not derived from joins). media_type is nullable despite the schema comment suggesting text/photo/audio/video enum. No published_at, scheduled_at, or status field. No platform targeting for cross-posting."
+    },
+    {
+      "name": "saved_posts",
+      "pg_name": "saved_posts",
+      "description": "Junction table for user bookmarks/saves of posts.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "post_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> posts.id ON DELETE CASCADE"]},
+        {"name": "saved_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"},
+        {"target": "posts", "type": "belongs_to", "cardinality": "N:1", "fk": "post_id"}
+      ],
+      "indexes": [
+        {"name": "userPostUnique", "type": "UNIQUE", "columns": ["user_id", "post_id"]}
+      ]
+    },
+    {
+      "name": "comments",
+      "pg_name": "comments",
+      "description": "Threaded comments on posts. Self-referential parent_id for nested replies.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "post_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> posts.id ON DELETE CASCADE"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "parent_id", "type": "integer", "nullable": true, "default": null, "constraints": ["self-referential FK (not enforced in schema)"]},
+        {"name": "content", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "likes", "type": "integer", "nullable": false, "default": "0", "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"},
+        {"target": "posts", "type": "belongs_to", "cardinality": "N:1", "fk": "post_id"},
+        {"target": "comments", "type": "belongs_to", "cardinality": "N:1", "fk": "parent_id", "relation_name": "parent_comment", "note": "self-referential for threading"},
+        {"target": "comments", "type": "has_many", "cardinality": "1:N", "relation_name": "parent_comment", "note": "child replies"}
+      ],
+      "indexes": [],
+      "design_notes": "parent_id has no formal FK constraint in the pgTable definition (just an integer column), but Drizzle relations define parent/replies self-referential relationship. likes is a denormalized counter."
+    },
+    {
+      "name": "products",
+      "pg_name": "products",
+      "description": "Creator products for marketplace. Generic product table with no product type discriminator. No price variants, no inventory, no digital delivery, no checkout flow.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "title", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "description", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "price", "type": "doublePrecision", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "category", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "image_url", "type": "text", "nullable": true, "default": null, "constraints": []},
+        {"name": "rating", "type": "doublePrecision", "nullable": false, "default": "0", "constraints": ["NOT NULL"]},
+        {"name": "review_count", "type": "integer", "nullable": false, "default": "0", "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"}
+      ],
+      "indexes": [],
+      "design_notes": "No product_type discriminator column for the 10 product types defined in PRD. No stripe_product_id, no status field, no published/draft states. rating and review_count are denormalized but no reviews table exists. price is doublePrecision (float) instead of numeric/decimal — problematic for currency. category is free text, not enum. No relationship to orders or entitlements (neither table exists)."
+    },
+    {
+      "name": "ai_agents",
+      "pg_name": "ai_agents",
+      "description": "Creator-configured AI agents with customizable persona, system prompt, and visual appearance. Uses OpenAI SDK.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "description", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "icon", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "icon_color", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "background_color", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "system_prompt", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "is_custom", "type": "boolean", "nullable": false, "default": "false", "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]},
+        {"name": "chat_count", "type": "integer", "nullable": false, "default": "0", "constraints": ["NOT NULL"]},
+        {"name": "status", "type": "text", "nullable": false, "default": "'active'", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"},
+        {"target": "ai_chats", "type": "has_many", "cardinality": "1:N"}
+      ],
+      "indexes": [],
+      "design_notes": "status is free text (no enum). chat_count is denormalized. No token usage tracking, no model selection field, no pricing/billing for AI usage."
+    },
+    {
+      "name": "ai_chats",
+      "pg_name": "ai_chats",
+      "description": "Chat sessions between users and AI agents. Messages stored as JSON blob rather than individual message rows.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "agent_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> ai_agents.id ON DELETE CASCADE"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "messages", "type": "json", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]},
+        {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "ai_agents", "type": "belongs_to", "cardinality": "N:1", "fk": "agent_id"},
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"}
+      ],
+      "indexes": [],
+      "design_notes": "messages is a JSON blob — not queryable, not indexable, no per-message metadata. No title/summary field for chat sessions."
+    },
+    {
+      "name": "communities",
+      "pg_name": "communities",
+      "description": "Discord-like community spaces. Notably has NO owner/creator FK — communities are ownerless in the schema.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "description", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "icon_color", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "channels", "type": "has_many", "cardinality": "1:N"}
+      ],
+      "indexes": [],
+      "design_notes": "CRITICAL GAP: No owner_user_id FK. No membership table (community_members). No privacy/visibility field. No slug for URL routing. No icon_url (only icon_color). No category or type field. The PRD describes communities as creator-owned with membership tiers and access gating — none of that is modeled."
+    },
+    {
+      "name": "channels",
+      "pg_name": "channels",
+      "description": "Text channels within communities (Discord channel model).",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "community_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> communities.id ON DELETE CASCADE"]},
+        {"name": "name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "communities", "type": "belongs_to", "cardinality": "N:1", "fk": "community_id"},
+        {"target": "channel_messages", "type": "has_many", "cardinality": "1:N"}
+      ],
+      "indexes": [],
+      "design_notes": "No channel type (text/voice/video/announcement). No topic/description. No position/order field. No permissions or role-gating."
+    },
+    {
+      "name": "channel_messages",
+      "pg_name": "channel_messages",
+      "description": "Messages within community channels.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "channel_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> channels.id ON DELETE CASCADE"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "content", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "is_pinned", "type": "boolean", "nullable": false, "default": "false", "constraints": ["NOT NULL"]},
+        {"name": "likes", "type": "integer", "nullable": false, "default": "0", "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "channels", "type": "belongs_to", "cardinality": "N:1", "fk": "channel_id"},
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"}
+      ],
+      "indexes": [],
+      "design_notes": "No media attachment support. No reactions (unlike direct_messages which have reactions JSON). No threading/reply support. No edit history."
+    },
+    {
+      "name": "followers",
+      "pg_name": "followers",
+      "description": "User-to-user follow relationships. Bidirectional via two FK columns to users.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "follower_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "followed_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "follower_id", "relation_name": "follower"},
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "followed_id", "relation_name": "followed"}
+      ],
+      "indexes": [
+        {"name": "follower_followed_unique", "type": "UNIQUE", "columns": ["follower_id", "followed_id"]}
+      ]
+    },
+    {
+      "name": "revenue",
+      "pg_name": "revenue",
+      "description": "Revenue tracking entries for creator dashboard. Manual/seeded revenue records — not tied to an orders or transactions table.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "amount", "type": "doublePrecision", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "date", "type": "timestamp", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "source", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"}
+      ],
+      "indexes": [],
+      "design_notes": "amount is doublePrecision (float) — problematic for currency. source is free text. No FK to orders, products, or transactions. No currency field. This table appears designed for dashboard visualization only, not actual commerce."
+    },
+    {
+      "name": "contacts",
+      "pg_name": "contacts",
+      "description": "Basic CRM contacts for creators to track their customers/audience members.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "contact_name", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "contact_image", "type": "text", "nullable": true, "default": null, "constraints": []},
+        {"name": "purchase_info", "type": "text", "nullable": true, "default": null, "constraints": []},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"}
+      ],
+      "indexes": [],
+      "design_notes": "Minimal CRM. purchase_info is free text, not structured. No email field on contacts. No link to user accounts (contacts are not necessarily platform users). No tags, segments, or lifecycle stage."
+    },
+    {
+      "name": "documents",
+      "pg_name": "documents",
+      "description": "Notion-style rich text documents for creators.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "title", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "content", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]},
+        {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"}
+      ],
+      "indexes": [],
+      "design_notes": "content is plain text — no structured block editor format. No sharing/collaboration fields. No folder/hierarchy. Not mentioned in PRD — appears to be an implementation addition."
+    },
+    {
+      "name": "stories",
+      "pg_name": "stories",
+      "description": "24-hour ephemeral stories (Instagram/Snapchat model) with view counting.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "media_url", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "media_type", "type": "text", "nullable": false, "default": "'image'", "constraints": ["NOT NULL"]},
+        {"name": "caption", "type": "text", "nullable": true, "default": null, "constraints": []},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]},
+        {"name": "expires_at", "type": "timestamp", "nullable": true, "default": null, "constraints": []},
+        {"name": "view_count", "type": "integer", "nullable": false, "default": "0", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"}
+      ],
+      "indexes": [],
+      "design_notes": "expires_at is nullable — no automatic enforcement of 24h expiry. view_count is denormalized (no story_views table to track who viewed). media_type defaults to 'image' — supports image/video per schema comment."
+    },
+    {
+      "name": "notifications",
+      "pg_name": "notifications",
+      "description": "User notification feed. Only table using UUID primary key (all others use serial).",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "type", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "message", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "read", "type": "boolean", "nullable": false, "default": "false", "constraints": ["NOT NULL"]},
+        {"name": "link_to", "type": "text", "nullable": true, "default": null, "constraints": []},
+        {"name": "related_user_id", "type": "integer", "nullable": true, "default": null, "constraints": ["FK -> users.id (no cascade)"]},
+        {"name": "related_user_image", "type": "text", "nullable": true, "default": null, "constraints": []},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id", "note": "notification recipient"},
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "related_user_id", "relation_name": "related_user", "note": "the user who triggered the notification"}
+      ],
+      "indexes": [],
+      "design_notes": "related_user_image is denormalized (duplicates profile_image_url from users). type is free text, not enum. Only table with UUID PK — inconsistent with the rest of the schema. related_user_id FK has no ON DELETE behavior specified."
+    },
+    {
+      "name": "conversations",
+      "pg_name": "conversations",
+      "description": "DM conversation containers supporting both 1:1 and group chats.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]},
+        {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]},
+        {"name": "is_group", "type": "boolean", "nullable": false, "default": "false", "constraints": ["NOT NULL"]},
+        {"name": "name", "type": "text", "nullable": true, "default": null, "constraints": []},
+        {"name": "icon", "type": "text", "nullable": true, "default": null, "constraints": []}
+      ],
+      "relationships": [
+        {"target": "conversation_participants", "type": "has_many", "cardinality": "1:N"},
+        {"target": "direct_messages", "type": "has_many", "cardinality": "1:N"}
+      ],
+      "indexes": []
+    },
+    {
+      "name": "conversation_participants",
+      "pg_name": "conversation_participants",
+      "description": "Junction table linking users to conversations. Supports admin designation for group chats.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "conversation_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> conversations.id ON DELETE CASCADE"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "is_admin", "type": "boolean", "nullable": false, "default": "false", "constraints": ["NOT NULL"]},
+        {"name": "joined_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "conversations", "type": "belongs_to", "cardinality": "N:1", "fk": "conversation_id"},
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"}
+      ],
+      "indexes": [
+        {"name": "user_conversation", "type": "UNIQUE", "columns": ["user_id", "conversation_id"]}
+      ]
+    },
+    {
+      "name": "direct_messages",
+      "pg_name": "direct_messages",
+      "description": "Individual messages within conversations. Supports replies, edit tracking, and emoji reactions.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "conversation_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> conversations.id ON DELETE CASCADE"]},
+        {"name": "sender_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "content", "type": "text", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "read", "type": "boolean", "nullable": false, "default": "false", "constraints": ["NOT NULL"]},
+        {"name": "sent_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]},
+        {"name": "is_edited", "type": "boolean", "nullable": true, "default": "false", "constraints": []},
+        {"name": "reply_to_message_id", "type": "integer", "nullable": true, "default": null, "constraints": ["self-referential FK (defined in relations, not in column)"]},
+        {"name": "reactions", "type": "json", "nullable": false, "default": "{}", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "conversations", "type": "belongs_to", "cardinality": "N:1", "fk": "conversation_id"},
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "sender_id", "relation_name": "sender"},
+        {"target": "direct_messages", "type": "belongs_to", "cardinality": "N:1", "fk": "reply_to_message_id", "relation_name": "message_reply", "note": "self-referential for reply threading"}
+      ],
+      "indexes": [],
+      "design_notes": "is_edited is nullable boolean (inconsistent — should be NOT NULL with default false). reactions is a JSON blob {userId: reactionType}. No media attachment support. read is per-message, not per-participant (problematic for group chats)."
+    },
+    {
+      "name": "tagged_users",
+      "pg_name": "tagged_users",
+      "description": "Users tagged at specific positions within image/media posts.",
+      "columns": [
+        {"name": "id", "type": "serial", "nullable": false, "default": "auto_increment", "constraints": ["PRIMARY KEY"]},
+        {"name": "post_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> posts.id ON DELETE CASCADE"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "default": null, "constraints": ["NOT NULL", "FK -> users.id ON DELETE CASCADE"]},
+        {"name": "position_x", "type": "doublePrecision", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "position_y", "type": "doublePrecision", "nullable": false, "default": null, "constraints": ["NOT NULL"]},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()", "constraints": ["NOT NULL"]}
+      ],
+      "relationships": [
+        {"target": "posts", "type": "belongs_to", "cardinality": "N:1", "fk": "post_id"},
+        {"target": "users", "type": "belongs_to", "cardinality": "N:1", "fk": "user_id"}
+      ],
+      "indexes": [
+        {"name": "unique_post_user_position", "type": "UNIQUE", "columns": ["post_id", "user_id", "position_x", "position_y"]}
+      ],
+      "design_notes": "Position-based tagging for Instagram-style photo tags. The unique constraint includes position coordinates, so a user CAN be tagged multiple times on the same post at different positions."
+    }
+  ],
+
+  "missing_tables": [
+    {
+      "name": "businesses",
+      "description": "Creator business entity — the organizational unit that owns products, communities, and commerce. Maps to the PRD concept of a creator's 'store' or 'business'.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "PRD primitive chain is User -> CreatorAccount -> Business -> Product -> Order -> Entitlement. Currently users directly own products. A business entity enables multi-creator businesses, team permissions, Stripe Connect per-business, and proper tax/legal separation.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "owner_user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "name", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "slug", "type": "text", "nullable": false, "constraints": ["UNIQUE", "NOT NULL"]},
+        {"name": "description", "type": "text", "nullable": true},
+        {"name": "logo_url", "type": "text", "nullable": true},
+        {"name": "stripe_account_id", "type": "text", "nullable": true, "note": "Stripe Connect account ID"},
+        {"name": "subscription_tier", "type": "text", "nullable": false, "default": "'free'", "note": "free | pro | business | enterprise"},
+        {"name": "transaction_fee_pct", "type": "doublePrecision", "nullable": false, "default": "8.0", "note": "Platform fee percentage based on tier"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    },
+    {
+      "name": "business_members",
+      "description": "Team members of a business with role-based access. Enables multi-person creator businesses.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "PRD specifies Roles & Permissions module. Business tier includes team seats. Without business_members, there is no multi-user business support.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "business_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> businesses.id"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "role", "type": "text", "nullable": false, "default": "'member'", "note": "owner | admin | editor | member"},
+        {"name": "invited_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "accepted_at", "type": "timestamp", "nullable": true}
+      ]
+    },
+    {
+      "name": "connected_accounts",
+      "description": "OAuth connections to external platforms (YouTube, Instagram, TikTok, Twitter, etc.) for cross-posting and analytics.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "PRD modules 1 (Content Distribution), 10 (Cross-Posting), and Connected Accounts screen all require platform connections. Core to the 'post once, publish everywhere' promise. No current schema support.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "platform", "type": "text", "nullable": false, "note": "youtube | instagram | tiktok | twitter | facebook | twitch | linkedin | spotify"},
+        {"name": "platform_user_id", "type": "text", "nullable": false},
+        {"name": "platform_username", "type": "text", "nullable": true},
+        {"name": "access_token", "type": "text", "nullable": false, "note": "Encrypted at rest"},
+        {"name": "refresh_token", "type": "text", "nullable": true},
+        {"name": "token_expires_at", "type": "timestamp", "nullable": true},
+        {"name": "scopes", "type": "text", "nullable": true},
+        {"name": "connected_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "last_sync_at", "type": "timestamp", "nullable": true}
+      ]
+    },
+    {
+      "name": "orders",
+      "description": "Purchase orders for any product type. Central commerce record linking buyer, product, and payment.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Products table exists but there is no way to purchase anything. PRD primitive chain requires Order. No checkout, no payment, no purchase history without this table.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "buyer_user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "product_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> products.id"]},
+        {"name": "business_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> businesses.id"]},
+        {"name": "status", "type": "text", "nullable": false, "default": "'pending'", "note": "pending | completed | refunded | cancelled"},
+        {"name": "amount_cents", "type": "integer", "nullable": false, "note": "Price in cents to avoid float precision issues"},
+        {"name": "currency", "type": "text", "nullable": false, "default": "'usd'"},
+        {"name": "platform_fee_cents", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "stripe_payment_intent_id", "type": "text", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "completed_at", "type": "timestamp", "nullable": true}
+      ]
+    },
+    {
+      "name": "transactions",
+      "description": "Financial ledger entries for payouts, fees, and refunds. Feeds the revenue dashboard with real data instead of seeded records.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Revenue table is manually seeded data for dashboard visualization. Real commerce needs a proper transaction ledger tied to orders and Stripe events.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "order_id", "type": "uuid", "nullable": true, "constraints": ["FK -> orders.id"]},
+        {"name": "business_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> businesses.id"]},
+        {"name": "type", "type": "text", "nullable": false, "note": "sale | refund | payout | fee"},
+        {"name": "amount_cents", "type": "integer", "nullable": false},
+        {"name": "currency", "type": "text", "nullable": false, "default": "'usd'"},
+        {"name": "stripe_transfer_id", "type": "text", "nullable": true},
+        {"name": "description", "type": "text", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    },
+    {
+      "name": "entitlements",
+      "description": "Access grants that result from completed orders. Controls what a buyer can access (course enrollment, community membership, software access, etc.).",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "PRD primitive chain ends with Entitlement. Without entitlements, purchased products grant no actual access. Required for courses, memberships, software access, and gated communities.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "order_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> orders.id"]},
+        {"name": "product_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> products.id"]},
+        {"name": "type", "type": "text", "nullable": false, "note": "course_access | community_access | download_access | subscription | software_access | event_ticket | service_booking"},
+        {"name": "status", "type": "text", "nullable": false, "default": "'active'", "note": "active | expired | revoked"},
+        {"name": "granted_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "expires_at", "type": "timestamp", "nullable": true, "note": "null = perpetual access"}
+      ]
+    },
+    {
+      "name": "courses",
+      "description": "Online course container with pricing, enrollment tracking, and curriculum structure.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Course Platform is module 3 of 16 in the PRD. Products table has no course-specific fields (curriculum, progress, drip). Courses need dedicated modeling for the Teachable-like experience described in the PRD.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "product_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> products.id", "UNIQUE"]},
+        {"name": "business_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> businesses.id"]},
+        {"name": "status", "type": "text", "nullable": false, "default": "'draft'", "note": "draft | published | archived"},
+        {"name": "difficulty_level", "type": "text", "nullable": true, "note": "beginner | intermediate | advanced"},
+        {"name": "estimated_hours", "type": "doublePrecision", "nullable": true},
+        {"name": "certificate_enabled", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "drip_enabled", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    },
+    {
+      "name": "lessons",
+      "description": "Individual lessons within a course. Supports video, text, quiz, and assignment content types.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "PRD describes drag-and-drop course builder with video hosting, progress tracking, and quizzes. Lessons are the atomic unit of course content.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "course_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> courses.id ON DELETE CASCADE"]},
+        {"name": "title", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "content", "type": "text", "nullable": true},
+        {"name": "video_url", "type": "text", "nullable": true},
+        {"name": "content_type", "type": "text", "nullable": false, "default": "'video'", "note": "video | text | quiz | assignment"},
+        {"name": "position", "type": "integer", "nullable": false, "note": "Sort order within course"},
+        {"name": "duration_seconds", "type": "integer", "nullable": true},
+        {"name": "is_free_preview", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "drip_delay_days", "type": "integer", "nullable": true, "note": "Days after enrollment before lesson unlocks"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    },
+    {
+      "name": "enrollments",
+      "description": "Student enrollment in courses with progress tracking. Links to entitlements for access control.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "PRD describes My Courses screen with progress indicators and Course Player with progress tracking. Without enrollments, there is no course completion tracking.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "course_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> courses.id"]},
+        {"name": "entitlement_id", "type": "uuid", "nullable": true, "constraints": ["FK -> entitlements.id"]},
+        {"name": "progress_pct", "type": "doublePrecision", "nullable": false, "default": "0"},
+        {"name": "completed_lessons", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "last_lesson_id", "type": "uuid", "nullable": true, "constraints": ["FK -> lessons.id"]},
+        {"name": "status", "type": "text", "nullable": false, "default": "'active'", "note": "active | completed | dropped"},
+        {"name": "enrolled_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "completed_at", "type": "timestamp", "nullable": true},
+        {"name": "certificate_issued_at", "type": "timestamp", "nullable": true}
+      ]
+    },
+    {
+      "name": "lesson_completions",
+      "description": "Tracks which lessons each student has completed. Granular progress below enrollment level.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "PRD describes per-lesson progress tracking. enrollment.completed_lessons is a denormalized counter — this table provides the source of truth.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "enrollment_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> enrollments.id ON DELETE CASCADE"]},
+        {"name": "lesson_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> lessons.id"]},
+        {"name": "completed_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    },
+    {
+      "name": "community_members",
+      "description": "Membership tracking for communities with role-based access and tier gating.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Communities table has no owner FK and no membership table. PRD describes free/paid community tiers with membership gating. Without this table, communities have no members.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "community_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> communities.id ON DELETE CASCADE"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "role", "type": "text", "nullable": false, "default": "'member'", "note": "owner | admin | moderator | member"},
+        {"name": "tier", "type": "text", "nullable": false, "default": "'free'", "note": "free | paid"},
+        {"name": "joined_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "entitlement_id", "type": "uuid", "nullable": true, "constraints": ["FK -> entitlements.id"], "note": "null for free tier"}
+      ]
+    },
+    {
+      "name": "ugc_campaigns",
+      "description": "UGC (User-Generated Content) campaign listings created by businesses to recruit creators.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "UGC Campaigns is module 8 of 16 in the PRD. PRD describes full UGC workflow: create listing, review applicants, approve deliverables, pay. No schema support exists.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "business_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> businesses.id"]},
+        {"name": "title", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "description", "type": "text", "nullable": false},
+        {"name": "budget_cents", "type": "integer", "nullable": false},
+        {"name": "per_creator_pay_cents", "type": "integer", "nullable": false},
+        {"name": "max_creators", "type": "integer", "nullable": false},
+        {"name": "requirements", "type": "json", "nullable": true, "note": "Content requirements, platform targets, audience minimums"},
+        {"name": "status", "type": "text", "nullable": false, "default": "'draft'", "note": "draft | active | paused | completed | cancelled"},
+        {"name": "deadline", "type": "timestamp", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    },
+    {
+      "name": "ugc_applications",
+      "description": "Creator applications to participate in UGC campaigns.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "PRD UGC workflow includes review applicants step. Applications are the junction between creators and campaigns.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "campaign_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> ugc_campaigns.id"]},
+        {"name": "creator_user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "pitch", "type": "text", "nullable": true},
+        {"name": "portfolio_urls", "type": "json", "nullable": true},
+        {"name": "status", "type": "text", "nullable": false, "default": "'pending'", "note": "pending | accepted | rejected | withdrawn"},
+        {"name": "applied_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "reviewed_at", "type": "timestamp", "nullable": true}
+      ]
+    },
+    {
+      "name": "ugc_deliverables",
+      "description": "Content deliverables submitted by accepted UGC creators for campaign review and approval.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "PRD UGC workflow includes approve deliverables and pay steps. Deliverables track the actual content submitted for a campaign.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "application_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> ugc_applications.id"]},
+        {"name": "media_url", "type": "text", "nullable": false},
+        {"name": "media_type", "type": "text", "nullable": false, "note": "video | image | text"},
+        {"name": "caption", "type": "text", "nullable": true},
+        {"name": "status", "type": "text", "nullable": false, "default": "'submitted'", "note": "submitted | approved | rejected | revision_requested"},
+        {"name": "feedback", "type": "text", "nullable": true},
+        {"name": "submitted_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "reviewed_at", "type": "timestamp", "nullable": true}
+      ]
+    },
+    {
+      "name": "ad_campaigns",
+      "description": "Advertiser campaigns with targeting, budgets, and bidding. Self-serve ads platform (YouTube/Meta-like).",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Ads Platform is module 9 of 16 in the PRD. PRD describes Ad Campaign Manager screen with targeting, budgets, and metrics. No schema support exists.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "advertiser_user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "business_id", "type": "uuid", "nullable": true, "constraints": ["FK -> businesses.id"]},
+        {"name": "name", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "objective", "type": "text", "nullable": false, "note": "awareness | engagement | conversions | traffic"},
+        {"name": "budget_cents", "type": "integer", "nullable": false},
+        {"name": "daily_budget_cents", "type": "integer", "nullable": true},
+        {"name": "bid_strategy", "type": "text", "nullable": false, "default": "'auto'", "note": "auto | manual_cpc | manual_cpm"},
+        {"name": "targeting", "type": "json", "nullable": true, "note": "Audience targeting criteria: demographics, interests, locations"},
+        {"name": "status", "type": "text", "nullable": false, "default": "'draft'", "note": "draft | active | paused | completed | archived"},
+        {"name": "start_date", "type": "timestamp", "nullable": true},
+        {"name": "end_date", "type": "timestamp", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    },
+    {
+      "name": "ads",
+      "description": "Individual ad creatives within a campaign. Each ad has its own creative content and performance metrics.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Ad campaigns contain multiple ad variations for A/B testing and creative rotation. Performance tracked per-ad.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "campaign_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> ad_campaigns.id ON DELETE CASCADE"]},
+        {"name": "headline", "type": "text", "nullable": false},
+        {"name": "body", "type": "text", "nullable": true},
+        {"name": "media_url", "type": "text", "nullable": true},
+        {"name": "media_type", "type": "text", "nullable": true, "note": "image | video"},
+        {"name": "cta_text", "type": "text", "nullable": true},
+        {"name": "cta_url", "type": "text", "nullable": true},
+        {"name": "impressions", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "clicks", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "spend_cents", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "status", "type": "text", "nullable": false, "default": "'active'", "note": "active | paused | rejected"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    },
+    {
+      "name": "automations",
+      "description": "Visual automation workflows (Manychat-style) with trigger/action chains.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Automation Builder is module 11 of 16 in the PRD. PRD describes visual flow builder for trigger/action automations covering commerce, community, and email. No schema support exists.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "business_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> businesses.id"]},
+        {"name": "name", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "description", "type": "text", "nullable": true},
+        {"name": "status", "type": "text", "nullable": false, "default": "'draft'", "note": "draft | active | paused | archived"},
+        {"name": "flow_definition", "type": "json", "nullable": false, "note": "Serialized visual flow graph: nodes (triggers, conditions, actions) and edges"},
+        {"name": "trigger_count", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "last_triggered_at", "type": "timestamp", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    },
+    {
+      "name": "automation_runs",
+      "description": "Execution log for automation triggers. Tracks each time an automation fires, what it did, and whether it succeeded.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Automations need execution history for debugging, analytics, and audit. Without a runs table, there is no visibility into automation behavior.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "automation_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> automations.id"]},
+        {"name": "trigger_event", "type": "json", "nullable": false, "note": "The event payload that triggered this run"},
+        {"name": "status", "type": "text", "nullable": false, "note": "running | completed | failed"},
+        {"name": "actions_executed", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "error_message", "type": "text", "nullable": true},
+        {"name": "started_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "completed_at", "type": "timestamp", "nullable": true}
+      ]
+    },
+    {
+      "name": "email_lists",
+      "description": "Email subscriber lists for newsletter/broadcast management.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Email/Newsletter is module 12 of 16 in the PRD. PRD describes list management and templates. No schema support exists.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "business_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> businesses.id"]},
+        {"name": "name", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "description", "type": "text", "nullable": true},
+        {"name": "subscriber_count", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    },
+    {
+      "name": "subscribers",
+      "description": "Email subscribers on a list. Can be platform users or external email-only subscribers.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Email lists need subscribers. Subscribers may be platform users or external emails captured via landing pages.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "list_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> email_lists.id ON DELETE CASCADE"]},
+        {"name": "email", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "user_id", "type": "integer", "nullable": true, "constraints": ["FK -> users.id"], "note": "null for external subscribers"},
+        {"name": "status", "type": "text", "nullable": false, "default": "'active'", "note": "active | unsubscribed | bounced"},
+        {"name": "subscribed_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "unsubscribed_at", "type": "timestamp", "nullable": true}
+      ]
+    },
+    {
+      "name": "broadcasts",
+      "description": "Email broadcasts/newsletters sent to subscriber lists.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "PRD describes email broadcasts with templates. Broadcasts are the actual emails sent to lists.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "business_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> businesses.id"]},
+        {"name": "list_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> email_lists.id"]},
+        {"name": "subject", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "body_html", "type": "text", "nullable": false},
+        {"name": "status", "type": "text", "nullable": false, "default": "'draft'", "note": "draft | scheduled | sending | sent | failed"},
+        {"name": "scheduled_at", "type": "timestamp", "nullable": true},
+        {"name": "sent_at", "type": "timestamp", "nullable": true},
+        {"name": "recipients_count", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "opens_count", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "clicks_count", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    },
+    {
+      "name": "reviews",
+      "description": "User reviews and ratings for products. Source of truth for denormalized rating/review_count on products table.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Products table has rating and review_count columns but no reviews table. These denormalized fields have no source of truth. Marketplace requires user reviews for trust.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "product_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> products.id ON DELETE CASCADE"]},
+        {"name": "user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "rating", "type": "integer", "nullable": false, "note": "1-5 star rating"},
+        {"name": "title", "type": "text", "nullable": true},
+        {"name": "body", "type": "text", "nullable": true},
+        {"name": "verified_purchase", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    },
+    {
+      "name": "categories",
+      "description": "Product and content categories for marketplace discovery and filtering.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Products.category is a free-text field. PRD describes marketplace with filters by type, price, category. Structured categories enable consistent filtering and discovery.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "name", "type": "text", "nullable": false, "constraints": ["UNIQUE", "NOT NULL"]},
+        {"name": "slug", "type": "text", "nullable": false, "constraints": ["UNIQUE", "NOT NULL"]},
+        {"name": "parent_id", "type": "uuid", "nullable": true, "constraints": ["self-referential FK for hierarchy"]},
+        {"name": "icon", "type": "text", "nullable": true},
+        {"name": "position", "type": "integer", "nullable": false, "default": "0"}
+      ]
+    },
+    {
+      "name": "post_platforms",
+      "description": "Cross-posting tracking. Records which platforms a post was published to and its per-platform status/metrics.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Core to the 'post once, publish everywhere' promise. Without per-platform tracking, there is no cross-posting analytics, no per-platform status, and no way to know where a post was distributed.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "post_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> posts.id ON DELETE CASCADE"]},
+        {"name": "connected_account_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> connected_accounts.id"]},
+        {"name": "platform", "type": "text", "nullable": false},
+        {"name": "platform_post_id", "type": "text", "nullable": true, "note": "The ID of the post on the external platform"},
+        {"name": "status", "type": "text", "nullable": false, "default": "'pending'", "note": "pending | published | failed | scheduled"},
+        {"name": "scheduled_at", "type": "timestamp", "nullable": true},
+        {"name": "published_at", "type": "timestamp", "nullable": true},
+        {"name": "external_likes", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "external_comments", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "external_shares", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "external_views", "type": "integer", "nullable": false, "default": "0"},
+        {"name": "last_synced_at", "type": "timestamp", "nullable": true}
+      ]
+    },
+    {
+      "name": "moderation_actions",
+      "description": "Content moderation log for trust and safety compliance.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "rationale": "Moderation, Trust & Safety, Compliance is module 15 of 16 in the PRD. PRD describes moderation suite with auto-mod and appeals. No schema support exists.",
+      "columns": [
+        {"name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "moderator_user_id", "type": "integer", "nullable": true, "constraints": ["FK -> users.id"], "note": "null for auto-mod actions"},
+        {"name": "target_type", "type": "text", "nullable": false, "note": "post | comment | channel_message | user | community"},
+        {"name": "target_id", "type": "text", "nullable": false, "note": "Polymorphic ID of the moderated entity"},
+        {"name": "action", "type": "text", "nullable": false, "note": "warn | remove | ban | mute | flag | approve"},
+        {"name": "reason", "type": "text", "nullable": true},
+        {"name": "is_automated", "type": "boolean", "nullable": false, "default": "false"},
+        {"name": "appeal_status", "type": "text", "nullable": true, "note": "null | pending | approved | denied"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ]
+    }
+  ],
+
+  "enums": {
+    "note": "CreatorOS uses free-text columns for all enum-like values. No Drizzle pgEnum declarations exist in schema.ts. These are the de facto value sets inferred from code defaults and PRD specifications.",
+    "provenance": "SYNTHESIZED_CANON",
+    "values": [
+      {
+        "name": "user_role",
+        "column": "users.role",
+        "values": ["creator", "consumer"],
+        "enforcement": "none — free text field with default 'creator'",
+        "note": "PRD also describes 'advertiser' role but not in current schema"
+      },
+      {
+        "name": "post_media_type",
+        "column": "posts.media_type",
+        "values": ["text", "photo", "audio", "video"],
+        "enforcement": "none — free text field with default 'text'",
+        "source": "schema.ts comment"
+      },
+      {
+        "name": "story_media_type",
+        "column": "stories.media_type",
+        "values": ["image", "video"],
+        "enforcement": "none — free text field with default 'image'",
+        "source": "schema.ts comment"
+      },
+      {
+        "name": "ai_agent_status",
+        "column": "ai_agents.status",
+        "values": ["active"],
+        "enforcement": "none — free text field with default 'active'",
+        "note": "Only 'active' default defined; presumably 'inactive', 'archived' exist but are not specified"
+      },
+      {
+        "name": "notification_type",
+        "column": "notifications.type",
+        "values": ["follow", "like", "comment", "mention", "message", "system"],
+        "enforcement": "none — free text field, no default",
+        "note": "Values inferred from typical social platform notification types; not explicitly defined in schema"
+      },
+      {
+        "name": "product_type",
+        "column": "N/A — missing from products table",
+        "values": ["community", "ai_agent", "digital_download", "course", "subscription_membership", "service", "event", "physical_product", "ugc_campaign", "software_access"],
+        "enforcement": "does not exist yet",
+        "provenance": "SOURCE_PRESERVED_TRUTH",
+        "source": "PRD Tab 1 — 10 product types defined",
+        "note": "Products table has no type discriminator. All 10 types would share the same products table with a type column + type-specific extension tables (courses, etc.)"
+      },
+      {
+        "name": "subscription_tier",
+        "column": "N/A — missing from schema",
+        "values": ["free", "pro", "business", "enterprise"],
+        "enforcement": "does not exist yet",
+        "provenance": "SOURCE_PRESERVED_TRUTH",
+        "source": "PRD business model section",
+        "pricing": {"free": "$0", "pro": "$29/mo", "business": "$99/mo", "enterprise": "custom"}
+      },
+      {
+        "name": "platform",
+        "column": "N/A — missing from schema (needed for connected_accounts)",
+        "values": ["youtube", "instagram", "tiktok", "twitter", "facebook", "twitch", "linkedin", "spotify"],
+        "enforcement": "does not exist yet",
+        "provenance": "SYNTHESIZED_CANON",
+        "source": "PRD specifies 8+ platforms for cross-posting"
+      },
+      {
+        "name": "order_status",
+        "column": "N/A — missing from schema (needed for orders table)",
+        "values": ["pending", "completed", "refunded", "cancelled"],
+        "enforcement": "does not exist yet",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "name": "entitlement_type",
+        "column": "N/A — missing from schema (needed for entitlements table)",
+        "values": ["course_access", "community_access", "download_access", "subscription", "software_access", "event_ticket", "service_booking"],
+        "enforcement": "does not exist yet",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "name": "business_member_role",
+        "column": "N/A — missing from schema (needed for business_members table)",
+        "values": ["owner", "admin", "editor", "member"],
+        "enforcement": "does not exist yet",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "name": "community_member_role",
+        "column": "N/A — missing from schema (needed for community_members table)",
+        "values": ["owner", "admin", "moderator", "member"],
+        "enforcement": "does not exist yet",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    ]
+  },
+
+  "primitive_chain": {
+    "canonical": "User -> CreatorAccount/Business -> Product -> Order -> Entitlement",
+    "current_implementation": "User -> Product (direct FK, no Business layer, no Order, no Entitlement)",
+    "provenance": "SOURCE_PRESERVED_TRUTH",
+    "gap_analysis": {
+      "User": "EXISTS — users table",
+      "CreatorAccount_Business": "MISSING — no businesses table. users.role='creator' is the only creator distinction. No Stripe Connect, no team seats, no business profile.",
+      "Product": "PARTIAL — products table exists but lacks type discriminator, status field, Stripe product ID, and variant support",
+      "Order": "MISSING — no orders table. No purchase flow, no checkout, no payment records.",
+      "Entitlement": "MISSING — no entitlements table. Purchased products grant no access. No course enrollment gating, no community membership gating, no download delivery."
+    }
+  },
+
+  "rls": {
+    "status": "none",
+    "current_state": "No Row-Level Security policies exist. All data access is server-side via Express routes with Passport.js session auth. No Neon RLS, no Postgres RLS policies.",
+    "target": "user_id or business_id scoped RLS policies",
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "migration_notes": [
+      "Moving to Clerk auth will change the auth model entirely — session-based to JWT-based",
+      "RLS policies should scope to business_id for creator data (products, orders, revenue, courses, campaigns) and user_id for consumer data (enrollments, saved posts, follows)",
+      "Multi-tenant: each business is a tenant boundary for creator-side data",
+      "Consumer data (follows, saves, enrollments) is scoped to user_id regardless of business"
+    ]
+  },
+
+  "migration_path": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Migration from current 20-table schema to full desired-state schema. Ordered by dependency (leaf tables first, junction tables after parents).",
+    "phases": [
+      {
+        "phase": "M1: Auth Migration (P0 Security)",
+        "changes": [
+          "Replace Passport.js + express-session with Clerk",
+          "Add email column to users table (currently missing)",
+          "Add clerk_id column to users table",
+          "Remove password column after Clerk migration",
+          "Add email_verified_at timestamp column",
+          "Fix comparePasswords security vulnerability by removing dev-mode bypass entirely"
+        ],
+        "risk": "HIGH — breaks all existing sessions",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+        "open_question": "Clerk migration timing: before or after commerce tables? Auth is P0 security but commerce is P0 revenue."
+      },
+      {
+        "phase": "M2: Business Layer",
+        "changes": [
+          "CREATE TABLE businesses",
+          "CREATE TABLE business_members",
+          "ADD COLUMN business_id to products (FK -> businesses.id)",
+          "ADD COLUMN business_id to communities (FK -> businesses.id)",
+          "Migrate existing products: create a default business per creator user, assign products to it",
+          "ADD COLUMN owner_user_id to communities (FK -> users.id) for backward compat"
+        ],
+        "risk": "MEDIUM — new tables, existing table alterations",
+        "note": "This is the foundational migration. Orders, entitlements, courses, campaigns all FK to businesses."
+      },
+      {
+        "phase": "M3: Commerce Stack",
+        "changes": [
+          "CREATE TABLE orders",
+          "CREATE TABLE transactions",
+          "CREATE TABLE entitlements",
+          "CREATE TABLE reviews",
+          "ADD COLUMN product_type to products (text, enum-like)",
+          "ADD COLUMN status to products (text, default 'active')",
+          "ADD COLUMN stripe_product_id to products (text)",
+          "ADD COLUMN stripe_price_id to products (text)",
+          "Migrate revenue table data to transactions (or deprecate revenue table)",
+          "Change products.price from doublePrecision to integer (price_cents) — BREAKING"
+        ],
+        "risk": "HIGH — breaks existing product creation flow",
+        "open_question": "Float-to-integer price migration: multiply existing prices by 100 and truncate? What about non-USD currencies?"
+      },
+      {
+        "phase": "M4: Course Platform",
+        "changes": [
+          "CREATE TABLE courses (with FK to products)",
+          "CREATE TABLE lessons",
+          "CREATE TABLE lesson_completions",
+          "CREATE TABLE enrollments"
+        ],
+        "risk": "LOW — all new tables"
+      },
+      {
+        "phase": "M5: Community Enhancement",
+        "changes": [
+          "CREATE TABLE community_members",
+          "ADD COLUMN slug to communities (text, UNIQUE)",
+          "ADD COLUMN privacy to communities (text, default 'public')",
+          "ADD COLUMN type to channels (text, default 'text')",
+          "ADD COLUMN topic to channels (text)",
+          "ADD COLUMN position to channels (integer)"
+        ],
+        "risk": "MEDIUM — existing table alterations"
+      },
+      {
+        "phase": "M6: Cross-Posting",
+        "changes": [
+          "CREATE TABLE connected_accounts",
+          "CREATE TABLE post_platforms",
+          "ADD COLUMN status to posts (text, default 'published')",
+          "ADD COLUMN scheduled_at to posts (timestamp)"
+        ],
+        "risk": "LOW — mostly new tables, minor post table additions"
+      },
+      {
+        "phase": "M7: UGC + Ads",
+        "changes": [
+          "CREATE TABLE ugc_campaigns",
+          "CREATE TABLE ugc_applications",
+          "CREATE TABLE ugc_deliverables",
+          "CREATE TABLE ad_campaigns",
+          "CREATE TABLE ads"
+        ],
+        "risk": "LOW — all new tables"
+      },
+      {
+        "phase": "M8: Automation + Email",
+        "changes": [
+          "CREATE TABLE automations",
+          "CREATE TABLE automation_runs",
+          "CREATE TABLE email_lists",
+          "CREATE TABLE subscribers",
+          "CREATE TABLE broadcasts"
+        ],
+        "risk": "LOW — all new tables"
+      },
+      {
+        "phase": "M9: Moderation + Categories",
+        "changes": [
+          "CREATE TABLE moderation_actions",
+          "CREATE TABLE categories",
+          "Migrate products.category free-text to FK -> categories.id"
+        ],
+        "risk": "MEDIUM — product category migration"
+      },
+      {
+        "phase": "M10: Schema Hardening",
+        "changes": [
+          "Add pgEnum declarations for all enum-like text columns",
+          "Add missing indexes (user_id on posts, channel_id on channel_messages, etc.)",
+          "Add CHECK constraints for rating (1-5), price (>= 0), etc.",
+          "Normalize PK strategy: decide serial vs uuid for all tables",
+          "Add updated_at columns to tables that need it (posts, products, communities, channels)",
+          "Add RLS policies scoped to business_id / user_id"
+        ],
+        "risk": "LOW individually, HIGH in aggregate",
+        "provenance": "IMPLEMENTATION_DEBT"
+      }
+    ],
+    "total_new_tables": 25,
+    "total_altered_tables": 7,
+    "target_table_count": 45,
+    "note": "20 existing + 25 new = 45 tables in desired state. 7 existing tables get additional columns in migration phases."
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-DATA-1",
+      "question": "Multi-tenant strategy: is each business a tenant, or is the entire platform single-tenant with business_id as a scope?",
+      "impact": "Determines RLS policy design, data isolation boundaries, and whether businesses can share data",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DATA-2",
+      "question": "PK strategy: standardize on serial (integer) or uuid? Current schema uses serial everywhere except notifications (uuid). New tables proposed as uuid.",
+      "impact": "Consistency, URL patterns, external ID exposure, migration complexity",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DATA-3",
+      "question": "Price representation: migrate existing doublePrecision to integer (cents)? This is a breaking change for all product-related code.",
+      "impact": "Financial accuracy for commerce stack. Float prices cause rounding errors.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DATA-4",
+      "question": "Revenue table fate: deprecate in favor of transactions table, or keep as a denormalized analytics view?",
+      "impact": "If kept, revenue becomes a materialized view of transactions. If removed, all dashboard queries rewrite against transactions.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DATA-5",
+      "question": "Product type modeling: single products table with type discriminator + extension tables (courses, etc.) vs separate tables per product type?",
+      "impact": "Shared product fields (title, price, image) in one table with type-specific details in extension tables (recommended) vs duplicated columns across N product tables",
+      "recommendation": "Single products table + extension tables. This is the current direction in the migration path.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DATA-6",
+      "question": "Data isolation between CreatorOS and EOS: separate Neon databases or shared database with schema separation?",
+      "impact": "UMH projection layer currently assumes shared Neon. Separate DBs add operational complexity but guarantee isolation.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DATA-7",
+      "question": "Auth migration timing: Clerk migration before or after commerce tables? Auth is P0 security (broken passwords) but commerce is P0 revenue.",
+      "impact": "If auth first: all commerce code uses Clerk from day 1. If commerce first: commerce code must migrate auth later.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DATA-8",
+      "question": "Documents table: keep or remove? Not mentioned in PRD. Appears to be a Replit Agent addition.",
+      "impact": "Low. If kept, it serves as a creator notes/content drafts tool. If removed, simplifies schema.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DATA-9",
+      "question": "Contacts table: keep as standalone CRM or merge into EOS CRM? EOS already has crm_contacts.",
+      "impact": "If merged, creator CRM becomes an EOS feature accessible from CreatorOS. If kept separate, data is duplicated across apps.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  ],
+
+  "schema_quality_assessment": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "strengths": [
+      "Clean Drizzle ORM schema with proper FK relationships and cascade deletes",
+      "Comprehensive relation definitions for ORM query building",
+      "Unique constraints on junction tables (saved_posts, followers, conversation_participants, tagged_users)",
+      "Type exports for both Select and Insert schemas (40 total)",
+      "Self-referential relationships properly modeled (comments threading, DM replies)"
+    ],
+    "weaknesses": [
+      "No indexes beyond PKs and unique constraints — all table scans on FK lookups",
+      "No enum types — all 'type' and 'status' columns are free text with no validation",
+      "Mixed PK strategy (serial everywhere except notifications uuid)",
+      "doublePrecision for currency amounts (float precision issues)",
+      "Denormalized counters (likes, comments, review_count, chat_count, subscriber_count) with no triggers or application-level sync guarantee",
+      "Missing email on users table — core for any auth migration",
+      "Communities have no owner — can't enforce who manages them",
+      "No soft delete (deleted_at) on any table — cascade delete is the only removal strategy",
+      "No updated_at on posts, products, or communities — no edit tracking",
+      "related_user_image on notifications is denormalized and will go stale",
+      "is_edited on direct_messages is nullable boolean (should be NOT NULL default false)",
+      "comments.parent_id has no formal FK constraint, only a Drizzle relation definition"
+    ],
+    "god_file_risk": "routes.ts (53KB) and storage.ts (105KB) contain all API logic and data access. Any schema migration will require massive rewrites of these two files. Recommendation: decompose before migrating."
+  },
+
+  "table_count_summary": {
+    "current_tables": 20,
+    "missing_tables": 25,
+    "target_total": 45,
+    "current_table_names": [
+      "users", "posts", "saved_posts", "comments", "products", "ai_agents", "ai_chats",
+      "communities", "channels", "channel_messages", "followers", "revenue", "contacts",
+      "documents", "stories", "notifications", "conversations", "conversation_participants",
+      "direct_messages", "tagged_users"
+    ],
+    "missing_table_names": [
+      "businesses", "business_members", "connected_accounts", "orders", "transactions",
+      "entitlements", "courses", "lessons", "enrollments", "lesson_completions",
+      "community_members", "ugc_campaigns", "ugc_applications", "ugc_deliverables",
+      "ad_campaigns", "ads", "automations", "automation_runs", "email_lists", "subscribers",
+      "broadcasts", "reviews", "categories", "post_platforms", "moderation_actions"
+    ]
+  }
+}

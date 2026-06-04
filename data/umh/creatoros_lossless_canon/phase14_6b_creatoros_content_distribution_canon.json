@@ -1,0 +1,1382 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Content creation and cross-platform distribution system -- CreatorOS core differentiator: universal composer, platform integrations, cross-posting, content calendar, editing studio, stories, newsletters, analytics, and AI content assistance",
+
+  "domain_summary": {
+    "tagline": "Post once, publish everywhere.",
+    "role_in_product": "Content distribution is the primary differentiator that separates CreatorOS from point solutions. It is the reason a creator chooses CreatorOS over Buffer + Gumroad + Teachable + Discord. Every other module (community, courses, marketplace) produces content that flows through this distribution system.",
+    "modules_covered": [
+      {"module_number": 1, "name": "Content Distribution Hub / Universal Composer", "status": "PARTIAL"},
+      {"module_number": 7, "name": "In-App Editing Studio (CapCut/TikTok-like)", "status": "NOT_IMPLEMENTED"},
+      {"module_number": 10, "name": "Cross-Posting + Multistreaming", "status": "NOT_IMPLEMENTED"},
+      {"module_number": 12, "name": "Email/Newsletter", "status": "NOT_IMPLEMENTED"},
+      {"module_number": 13, "name": "Stories System", "status": "IMPLEMENTED"}
+    ],
+    "eos_boundary": "EOS handles business operations (client management, revenue tracking, agent orchestration). CreatorOS handles content creation, distribution, community, and consumer experience. Content analytics lives in CreatorOS. Business analytics lives in EOS. Revenue attribution spans both via UMH substrate.",
+    "competitive_position": "Buffer/Hootsuite are scheduling tools. CreatorOS is a full creator business stack where scheduling is one module. The gap: Buffer cannot sell courses, host communities, or run UGC campaigns. CreatorOS can, and the distribution engine ties it all together."
+  },
+
+  "universal_composer": {
+    "provenance": "SYNTHESIZED_CANON",
+    "source_references": [
+      "Google Doc Tab 3 (PRD) -- Content Distribution Hub section",
+      "Google Doc Tab 6 (MVP) -- content distribution as core MVP scope",
+      "GitHub: pages/create-post.tsx, pages/new-text-post.tsx",
+      "Phase 14.4 desired state: feature_list[0], feature_list[1]"
+    ],
+    "description": "Single editor interface for creating content destined for multiple platforms. The composer adapts format per platform while maintaining a single source of truth for the content. Creator writes once, previews per-platform, publishes everywhere.",
+    "features": {
+      "rich_text_editor": {
+        "description": "Block-based rich text editor supporting headings, lists, links, embeds, code blocks, and inline formatting",
+        "implementation_status": "PARTIAL",
+        "code_evidence": "create-post.tsx exists with basic text input. No block-based editor or rich formatting.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "media_upload": {
+        "description": "Support for photo, video, audio, and document attachments with drag-and-drop and paste support",
+        "supported_types": ["photo", "video", "audio"],
+        "implementation_status": "PARTIAL",
+        "code_evidence": "create-post.tsx and schema.ts support imageUrl, audioUrl, videoUrl fields. mediaType enum: text/photo/audio/video. No document attachments.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "platform_selector": {
+        "description": "Toggle-based selector for target platforms. Creator picks which platforms receive the post. Each platform shows character limits, media constraints, and format requirements in real-time.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "code_evidence": "No connected accounts management. No platform selection UI. Posts are CreatorOS-internal only.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "per_platform_preview": {
+        "description": "Live preview showing how the post will appear on each selected platform. Handles character truncation, aspect ratio differences, hashtag formatting, and thread splitting.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      "scheduling": {
+        "description": "Schedule posts for future publication. Supports per-platform scheduling (different times for different platforms), recurring schedules, and AI-recommended optimal times.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "code_evidence": "Schema has no scheduled_at, published_at, or status field on posts table. No scheduling UI.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+        "schema_gap": "posts table lacks: scheduled_at (timestamptz), published_at (timestamptz), status (draft/scheduled/published/failed)"
+      },
+      "drafts": {
+        "description": "Auto-save drafts with manual save. Drafts persist across sessions. Creator can resume editing from any device.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "code_evidence": "No draft status on posts. No auto-save logic. posts.createdAt is the only timestamp.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "thread_composer": {
+        "description": "Compose multi-part threads (Twitter/X threads, LinkedIn carousels, Instagram carousels) as a single unit. Reorder, split, merge segments.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      "hashtag_manager": {
+        "description": "Hashtag suggestions per platform. Saved hashtag groups. Performance tracking per hashtag.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      "first_comment": {
+        "description": "Compose a first comment to be posted immediately after publication (common creator strategy for engagement on Instagram and LinkedIn)",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    },
+    "media_types": {
+      "text": {
+        "max_length_varies_by_platform": true,
+        "platform_limits": {
+          "twitter_x": 280,
+          "threads": 500,
+          "linkedin": 3000,
+          "facebook": 63206,
+          "instagram_caption": 2200,
+          "tiktok_caption": 4000,
+          "pinterest_description": 500,
+          "youtube_description": 5000
+        },
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "note": "Character limits sourced from platform documentation as of 2026. These change frequently and must be maintained."
+      },
+      "photo": {
+        "supported_formats": ["jpg", "png", "gif", "webp"],
+        "max_per_post_varies_by_platform": true,
+        "platform_limits": {
+          "twitter_x": {"max_images": 4, "max_size_mb": 5, "aspect_ratios": ["16:9", "4:3", "1:1"]},
+          "instagram": {"max_images": 10, "max_size_mb": 8, "aspect_ratios": ["1:1", "4:5", "1.91:1"]},
+          "facebook": {"max_images": 80, "max_size_mb": 10},
+          "linkedin": {"max_images": 9, "max_size_mb": 5},
+          "pinterest": {"max_images": 1, "recommended_ratio": "2:3"}
+        },
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      "video": {
+        "supported_formats": ["mp4", "mov", "webm"],
+        "platform_limits": {
+          "twitter_x": {"max_duration_sec": 140, "max_size_mb": 512},
+          "instagram_reel": {"max_duration_sec": 90, "max_size_mb": 250, "aspect_ratio": "9:16"},
+          "instagram_feed": {"max_duration_sec": 60, "max_size_mb": 250},
+          "youtube": {"max_duration_min": 720, "max_size_gb": 256},
+          "tiktok": {"max_duration_sec": 600, "max_size_mb": 287},
+          "facebook": {"max_duration_min": 240, "max_size_gb": 10},
+          "linkedin": {"max_duration_min": 10, "max_size_gb": 5}
+        },
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      "audio": {
+        "description": "Audio posts (podcast clips, voice notes). Limited platform support -- primarily for CreatorOS-native feed and potentially Twitter Spaces clips.",
+        "supported_formats": ["mp3", "wav", "m4a"],
+        "implementation_status": "PARTIAL",
+        "code_evidence": "Schema supports audioUrl field. No platform-specific audio distribution.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "story": {
+        "description": "24-hour ephemeral vertical content. See stories_system section.",
+        "cross_reference": "stories_system"
+      },
+      "reel": {
+        "description": "Short-form vertical video (Instagram Reels, TikTok, YouTube Shorts). Created in composer or editing studio.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      "thread": {
+        "description": "Multi-part sequential content. Twitter/X threads, LinkedIn document carousels, Instagram carousels.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      "carousel": {
+        "description": "Multi-image/multi-slide content. Instagram carousels (up to 10 slides), LinkedIn document posts, Facebook albums.",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      "newsletter": {
+        "description": "Long-form email content. See email_newsletter section.",
+        "cross_reference": "email_newsletter"
+      }
+    },
+    "platform_adapters": {
+      "description": "Per-platform format adaptation layer. Takes universal composer output and transforms it to meet each platform's constraints, aspect ratios, character limits, and content policies.",
+      "adaptation_strategy": "Creator writes once in the universal composer. The adapter layer generates per-platform variants. Creator can override any adaptation before publishing. AI suggests optimizations per platform.",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "provenance": "SYNTHESIZED_CANON",
+      "adapter_responsibilities": [
+        "Character limit enforcement and intelligent truncation (not mid-word, not mid-sentence where possible)",
+        "Aspect ratio cropping suggestions for images and video",
+        "Hashtag format adaptation (Instagram: 30 max, Twitter: 2-3 recommended, LinkedIn: 3-5)",
+        "Mention format conversion (@username varies by platform)",
+        "Link handling (link-in-bio for Instagram, inline for Twitter, see-more for LinkedIn)",
+        "Thread splitting for content exceeding single-post limits",
+        "Alt text propagation for accessibility",
+        "Content warning/sensitive content flags per platform"
+      ]
+    },
+    "preview_modes": {
+      "description": "Preview renders showing how content will appear on each target platform before publishing",
+      "modes": [
+        {"name": "feed_preview", "description": "How the post appears in the platform's feed/timeline"},
+        {"name": "detail_preview", "description": "How the post appears when clicked/opened"},
+        {"name": "notification_preview", "description": "How the post appears in push/email notifications"},
+        {"name": "share_preview", "description": "How the post appears when shared (Open Graph / Twitter Card)"}
+      ],
+      "implementation_status": "NOT_IMPLEMENTED",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "platform_integrations": {
+    "provenance": "SYNTHESIZED_CANON",
+    "source_references": [
+      "Google Doc Tab 3 (PRD) -- 8+ platform references",
+      "Phase 14.4 desired state: feature_list[1] 'One-click distribution to 8+ social platforms'",
+      "Phase 14.4 desired state: feature_list[13] 'Live multistreaming to multiple platforms'",
+      "Schema ontology: connected_accounts table (proposed, not in current schema)"
+    ],
+    "description": "OAuth-based connections to external social platforms enabling cross-posting, analytics ingestion, and audience sync.",
+    "schema_requirements": {
+      "connected_accounts_table": {
+        "status": "NOT_IN_SCHEMA",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+        "proposed_fields": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "user_id", "type": "integer", "references": "users.id"},
+          {"name": "platform", "type": "text", "note": "twitter | instagram | youtube | tiktok | facebook | linkedin | pinterest | threads"},
+          {"name": "platform_user_id", "type": "text"},
+          {"name": "platform_username", "type": "text"},
+          {"name": "access_token", "type": "text", "encrypted": true},
+          {"name": "refresh_token", "type": "text", "encrypted": true, "nullable": true},
+          {"name": "token_expires_at", "type": "timestamptz", "nullable": true},
+          {"name": "scopes", "type": "json", "note": "Granted OAuth scopes"},
+          {"name": "status", "type": "text", "note": "active | expired | revoked | rate_limited"},
+          {"name": "last_synced_at", "type": "timestamptz", "nullable": true},
+          {"name": "created_at", "type": "timestamptz"},
+          {"name": "updated_at", "type": "timestamptz"}
+        ],
+        "note": "Data ontology artifact (phase14_6b_creatoros_data_ontology.json) defines this table. Not yet in schema.ts."
+      }
+    },
+    "platforms": [
+      {
+        "platform": "twitter_x",
+        "display_name": "Twitter / X",
+        "api_status": "AVAILABLE",
+        "api_version": "Twitter API v2",
+        "oauth_type": "OAuth 2.0 PKCE",
+        "features": {
+          "post_text": true,
+          "post_images": true,
+          "post_video": true,
+          "post_thread": true,
+          "post_poll": true,
+          "schedule": true,
+          "delete": true,
+          "analytics_read": true,
+          "mentions_read": true,
+          "dm_read": false,
+          "live_stream": false,
+          "stories": false
+        },
+        "limitations": [
+          "Free tier: 1,500 tweets/month write, 10,000 tweets/month read",
+          "Basic tier ($100/mo): 3,000 tweets/month, 10,000 reads",
+          "Pro tier ($5,000/mo): 300,000 tweets/month, 1M reads",
+          "Rate limits are per-app, not per-user -- shared across all CreatorOS users",
+          "Media upload requires separate endpoint (chunked for video)",
+          "Analytics access requires elevated API tier"
+        ],
+        "cost_tier": "Basic ($100/mo) minimum for meaningful cross-posting volume",
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "open_questions": [
+          "API cost at scale: $100/mo covers 3,000 posts -- sufficient for early users but not at thousands of creators",
+          "Elon-era API changes: Twitter API has been unstable since 2023 acquisition. Pricing and access may change without notice."
+        ]
+      },
+      {
+        "platform": "instagram",
+        "display_name": "Instagram",
+        "api_status": "AVAILABLE_WITH_LIMITATIONS",
+        "api_version": "Instagram Graph API / Instagram Basic Display API",
+        "oauth_type": "OAuth 2.0 (via Facebook Login)",
+        "features": {
+          "post_image": true,
+          "post_carousel": true,
+          "post_reel": true,
+          "post_story": true,
+          "post_text_only": false,
+          "schedule": true,
+          "delete": false,
+          "analytics_read": true,
+          "mentions_read": true,
+          "dm_read": false,
+          "live_stream": false,
+          "comments_read": true,
+          "comments_reply": true
+        },
+        "limitations": [
+          "Business or Creator account required (not Personal)",
+          "Cannot delete posts via API",
+          "Cannot post to feed without media (no text-only posts)",
+          "Carousel: 2-10 images/videos, all same aspect ratio",
+          "Reels: max 90 seconds via API (15 min in app)",
+          "Story: auto-expires 24h, limited analytics",
+          "Rate limit: 25 API calls per user per hour for content publishing",
+          "Scheduling: via Content Publishing API, up to 75 days ahead",
+          "No DM API access for third parties",
+          "Requires Facebook Page linked to Instagram account"
+        ],
+        "cost_tier": "Free (Meta developer platform)",
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "open_questions": [
+          "Instagram Basic Display API deprecated June 2024 -- must use Graph API exclusively",
+          "Meta review process for app approval can take weeks",
+          "Bot detection from VPS IPs is aggressive -- proxy may be needed for auth flows"
+        ]
+      },
+      {
+        "platform": "youtube",
+        "display_name": "YouTube",
+        "api_status": "AVAILABLE",
+        "api_version": "YouTube Data API v3",
+        "oauth_type": "OAuth 2.0",
+        "features": {
+          "upload_video": true,
+          "upload_short": true,
+          "post_community": true,
+          "schedule": true,
+          "delete": true,
+          "analytics_read": true,
+          "comments_read": true,
+          "comments_reply": true,
+          "live_stream": true,
+          "playlists": true
+        },
+        "limitations": [
+          "10,000 quota units/day default. Video upload costs 1,600 units. ~6 uploads/day at default quota.",
+          "Quota increase requires application and justification to Google",
+          "Shorts must be <= 60 seconds, vertical (9:16)",
+          "Community posts require 500+ subscribers",
+          "Live streaming requires channel verification and no live streaming restrictions in past 90 days",
+          "Thumbnails: separate API call, 2MB max, recommended 1280x720"
+        ],
+        "cost_tier": "Free (Google Cloud quota-based)",
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "open_questions": [
+          "Quota at scale: 6 uploads/day is insufficient for multi-creator platform. Quota increase approval is not guaranteed."
+        ]
+      },
+      {
+        "platform": "tiktok",
+        "display_name": "TikTok",
+        "api_status": "AVAILABLE_WITH_LIMITATIONS",
+        "api_version": "TikTok Content Posting API v2",
+        "oauth_type": "OAuth 2.0",
+        "features": {
+          "post_video": true,
+          "post_photo": true,
+          "post_carousel": true,
+          "schedule": false,
+          "delete": false,
+          "analytics_read": true,
+          "comments_read": true,
+          "duet_stitch_control": true,
+          "live_stream": false
+        },
+        "limitations": [
+          "Content Posting API requires TikTok developer app approval (can take weeks)",
+          "No scheduling via API -- immediate publish only",
+          "Cannot delete posts via API",
+          "Video: 1 second to 10 minutes, max 287MB",
+          "Photo mode: 1-35 images per post",
+          "No live stream API for third parties",
+          "Post must include disclosure if published via API (TikTok policy)",
+          "Geographic restrictions on API availability"
+        ],
+        "cost_tier": "Free (developer platform)",
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "open_questions": [
+          "TikTok US ban status: federal law requires ByteDance to divest or face ban. API access may be disrupted.",
+          "No scheduling means CreatorOS must queue and publish at the right time server-side."
+        ]
+      },
+      {
+        "platform": "facebook",
+        "display_name": "Facebook",
+        "api_status": "AVAILABLE",
+        "api_version": "Facebook Graph API v19.0+",
+        "oauth_type": "OAuth 2.0 (Facebook Login)",
+        "features": {
+          "post_text": true,
+          "post_image": true,
+          "post_video": true,
+          "post_link": true,
+          "post_reel": true,
+          "schedule": true,
+          "delete": true,
+          "analytics_read": true,
+          "comments_read": true,
+          "comments_reply": true,
+          "live_stream": true,
+          "groups_post": true
+        },
+        "limitations": [
+          "Page-level posting only (not personal profiles) for most API features",
+          "Group posting requires group admin approval of app",
+          "Reels: max 90 seconds, 9:16 aspect ratio",
+          "Rate limits: 200 posts per hour per Page",
+          "Meta app review required for publish_pages and pages_manage_posts permissions",
+          "Personal profile posting via API severely restricted since Cambridge Analytica"
+        ],
+        "cost_tier": "Free (Meta developer platform)",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "platform": "linkedin",
+        "display_name": "LinkedIn",
+        "api_status": "AVAILABLE_WITH_LIMITATIONS",
+        "api_version": "LinkedIn Community Management API",
+        "oauth_type": "OAuth 2.0",
+        "features": {
+          "post_text": true,
+          "post_image": true,
+          "post_video": true,
+          "post_document": true,
+          "post_article": true,
+          "schedule": false,
+          "delete": true,
+          "analytics_read": true,
+          "comments_read": true,
+          "comments_reply": true,
+          "live_stream": false
+        },
+        "limitations": [
+          "Community Management API requires LinkedIn partner program application",
+          "No scheduling via API -- immediate publish only",
+          "Post limit: not officially documented but ~100/day practical limit",
+          "Document posts (PDF carousels): up to 300 pages, 100MB",
+          "Video: max 10 minutes, 5GB",
+          "Company page posting requires company page admin permissions",
+          "API access approval can take 2-4 weeks"
+        ],
+        "cost_tier": "Free (partner program)",
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "open_questions": [
+          "LinkedIn API partner program approval is competitive -- rejection is possible",
+          "No scheduling means server-side queue needed (same as TikTok)"
+        ]
+      },
+      {
+        "platform": "pinterest",
+        "display_name": "Pinterest",
+        "api_status": "AVAILABLE",
+        "api_version": "Pinterest API v5",
+        "oauth_type": "OAuth 2.0",
+        "features": {
+          "create_pin": true,
+          "create_video_pin": true,
+          "create_idea_pin": false,
+          "schedule": false,
+          "delete": true,
+          "analytics_read": true,
+          "boards_manage": true
+        },
+        "limitations": [
+          "No scheduling via API",
+          "Idea Pins (multi-page) not available via API",
+          "Pin descriptions max 500 characters",
+          "Image: recommended 2:3 aspect ratio, 1000x1500px, max 20MB",
+          "Video: 4 seconds to 15 minutes, max 2GB",
+          "Rate limit: 300 requests per minute per user token"
+        ],
+        "cost_tier": "Free (developer platform)",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "platform": "threads",
+        "display_name": "Threads",
+        "api_status": "AVAILABLE",
+        "api_version": "Threads API (via Meta)",
+        "oauth_type": "OAuth 2.0 (via Instagram/Facebook Login)",
+        "features": {
+          "post_text": true,
+          "post_image": true,
+          "post_video": true,
+          "post_carousel": true,
+          "schedule": false,
+          "delete": true,
+          "analytics_read": true,
+          "reply": true
+        },
+        "limitations": [
+          "Requires Instagram account",
+          "500 character limit per post (as of 2024, may have changed)",
+          "No scheduling via API",
+          "Carousel: up to 10 items",
+          "Video: max 5 minutes",
+          "API launched mid-2024 -- still maturing, breaking changes possible"
+        ],
+        "cost_tier": "Free (Meta developer platform)",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    ],
+    "platform_summary": {
+      "total_platforms": 8,
+      "native_scheduling_support": ["twitter_x", "instagram", "youtube", "facebook"],
+      "no_native_scheduling": ["tiktok", "linkedin", "pinterest", "threads"],
+      "requires_paid_api": ["twitter_x"],
+      "requires_partner_approval": ["linkedin"],
+      "live_stream_capable": ["youtube", "facebook"],
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "cross_posting": {
+    "provenance": "SYNTHESIZED_CANON",
+    "source_references": [
+      "Google Doc Tab 3 (PRD) -- Module 10: Cross-Posting + Multistreaming",
+      "Phase 14.4 desired state: feature_list[1], feature_list[13]",
+      "Data ontology: cross_posts table (proposed)",
+      "Product canon: Module 10 status NOT_IMPLEMENTED"
+    ],
+    "description": "The core mechanism that fulfills the 'post once, publish everywhere' promise. Takes composed content and distributes it to selected platforms with per-platform adaptation.",
+    "flow": {
+      "steps": [
+        {
+          "step": 1,
+          "name": "compose",
+          "description": "Creator writes content in universal composer. Selects target platforms. Attaches media.",
+          "user_action": true
+        },
+        {
+          "step": 2,
+          "name": "adapt",
+          "description": "Platform adapter layer generates per-platform variants. Truncates text, adjusts media, formats hashtags, splits threads. Shows preview per platform.",
+          "user_action": false,
+          "ai_enhanced": true,
+          "ai_role": "Suggest platform-specific copy improvements, optimal hashtag sets, and engagement-maximizing format choices"
+        },
+        {
+          "step": 3,
+          "name": "review",
+          "description": "Creator reviews per-platform previews. Can override any adaptation. Can add platform-specific additions (first comment on Instagram, alt text, etc.).",
+          "user_action": true
+        },
+        {
+          "step": 4,
+          "name": "schedule_or_publish",
+          "description": "Creator chooses immediate publish or scheduled time. Can set different times per platform. AI suggests optimal times per platform based on audience activity.",
+          "user_action": true,
+          "ai_enhanced": true,
+          "ai_role": "Recommend optimal posting times per platform based on historical engagement data"
+        },
+        {
+          "step": 5,
+          "name": "distribute",
+          "description": "Server-side job dispatches to each platform API. Handles retries on failure. Records per-platform status (success/pending/failed/rate_limited).",
+          "user_action": false,
+          "reliability_requirements": [
+            "Retry with exponential backoff on transient failures (429, 500, 502, 503)",
+            "Dead letter queue for permanently failed posts",
+            "Per-platform circuit breaker to avoid cascading failures",
+            "Webhook or polling for async publish confirmation (some platforms are async)"
+          ]
+        },
+        {
+          "step": 6,
+          "name": "confirm",
+          "description": "Creator sees per-platform publish status. Can retry failed platforms. Gets notification when all platforms confirm.",
+          "user_action": false
+        },
+        {
+          "step": 7,
+          "name": "track",
+          "description": "Per-platform engagement metrics aggregated over time. Unified analytics view shows cross-platform performance of a single piece of content.",
+          "user_action": false
+        }
+      ]
+    },
+    "format_adaptation": {
+      "description": "Rules engine that transforms universal content into platform-specific formats",
+      "adaptation_rules": [
+        {
+          "rule": "text_truncation",
+          "description": "If content exceeds platform character limit, truncate intelligently at sentence boundary. Append '...' and link to full post on CreatorOS.",
+          "ai_enhanced": true,
+          "ai_role": "Rewrite to fit limit while preserving key message (not just truncate)"
+        },
+        {
+          "rule": "thread_splitting",
+          "description": "If content exceeds single-post limit on thread-capable platforms (Twitter, Threads), split into numbered thread. Maintain narrative coherence across parts.",
+          "ai_enhanced": true
+        },
+        {
+          "rule": "media_format_conversion",
+          "description": "Convert media to platform-accepted formats. Resize images. Transcode video. Generate thumbnails.",
+          "processing": "server-side (background job)"
+        },
+        {
+          "rule": "aspect_ratio_adaptation",
+          "description": "Suggest or auto-crop media to platform-optimal aspect ratios. Instagram: 1:1 or 4:5. Pinterest: 2:3. TikTok/Reels: 9:16.",
+          "user_override": true
+        },
+        {
+          "rule": "hashtag_optimization",
+          "description": "Adjust hashtag count and selection per platform best practices. Instagram: up to 30, research-backed. Twitter: 2-3 max. LinkedIn: 3-5.",
+          "ai_enhanced": true
+        },
+        {
+          "rule": "link_handling",
+          "description": "Instagram: move link to bio + 'link in bio' CTA. Twitter: inline link with card preview. LinkedIn: link in comment (algorithm prefers no links in post). Pinterest: destination URL field.",
+          "platform_specific": true
+        },
+        {
+          "rule": "mention_conversion",
+          "description": "Convert @mentions to platform-specific format. Verify handle exists on target platform. Warn if mentioned user not found.",
+          "implementation_complexity": "HIGH"
+        }
+      ],
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "scheduling": {
+      "description": "Schedule posts for future publication across platforms",
+      "features": [
+        "Per-platform scheduling (different times for different platforms)",
+        "Recurring schedule (weekly, biweekly, custom)",
+        "Queue system (add to queue, auto-publish at next optimal slot)",
+        "Timezone-aware (creator timezone, audience timezone)",
+        "AI-recommended optimal times per platform",
+        "Bulk scheduling (upload CSV or import from content plan)",
+        "Draft-to-scheduled workflow"
+      ],
+      "server_side_requirements": [
+        "Reliable job scheduler (not cron -- needs sub-minute precision and failure handling)",
+        "Per-platform rate limit tracking and queuing",
+        "Timezone conversion and DST handling",
+        "Missed schedule recovery (if server was down at scheduled time)"
+      ],
+      "implementation_status": "NOT_IMPLEMENTED",
+      "provenance": "SYNTHESIZED_CANON",
+      "schema_gap": "posts table needs: scheduled_at, published_at, status enum, timezone"
+    },
+    "analytics": {
+      "description": "Per-post cross-platform performance tracking",
+      "per_post_metrics": [
+        "impressions",
+        "reach",
+        "engagements (likes, comments, shares, saves, clicks)",
+        "engagement_rate",
+        "per_platform_breakdown",
+        "best_performing_platform",
+        "audience_growth_attributed"
+      ],
+      "cross_platform_aggregate": [
+        "total_impressions_across_platforms",
+        "total_engagements_across_platforms",
+        "platform_comparison_chart",
+        "content_type_performance (which format works best where)",
+        "optimal_posting_time_heatmap",
+        "audience_overlap_estimate"
+      ],
+      "implementation_status": "NOT_IMPLEMENTED",
+      "provenance": "SYNTHESIZED_CANON",
+      "schema_requirements": "cross_posts table (proposed in data ontology) tracks per-platform status and metrics"
+    },
+    "multistreaming": {
+      "description": "Live multistreaming to multiple platforms simultaneously",
+      "target_platforms": ["youtube", "facebook"],
+      "implementation_status": "NOT_IMPLEMENTED",
+      "complexity": "VERY_HIGH",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "source": "Google Doc Tab 3 (PRD) -- Module 10 explicitly mentions multistreaming",
+      "technical_requirements": [
+        "RTMP ingestion server",
+        "Re-encoding pipeline for per-platform transcoding",
+        "Chat aggregation across platforms",
+        "Low-latency forwarding (<3 second delay)",
+        "Bandwidth: ~5-10 Mbps per outbound stream"
+      ],
+      "open_questions": [
+        "Multistreaming requires significant infrastructure investment. Is this MVP or post-MVP?",
+        "Only YouTube and Facebook have live streaming APIs accessible to third parties. Twitch has API but is not in the 8-platform list.",
+        "Cost: RTMP server + transcoding at scale is expensive. Per-stream or per-hour pricing model needed."
+      ]
+    }
+  },
+
+  "content_calendar": {
+    "provenance": "SYNTHESIZED_CANON",
+    "source_references": [
+      "Google Doc Tab 3 (PRD) -- Content Distribution Hub, Screen 11",
+      "Phase 14.4 desired state: screens[5] '/calendar'",
+      "Product canon: Screen 11 NOT_IMPLEMENTED"
+    ],
+    "description": "Visual calendar showing scheduled, published, and draft content across all platforms. The planning hub for content strategy.",
+    "views": [
+      {
+        "name": "monthly",
+        "description": "Month grid showing content density per day. Color-coded by platform. Click day to see posts.",
+        "primary_use": "Strategic planning -- see content cadence gaps and over-scheduling"
+      },
+      {
+        "name": "weekly",
+        "description": "7-day view with hour slots. Shows exact scheduled times. Drag-and-drop to reschedule.",
+        "primary_use": "Tactical scheduling -- precise timing of posts"
+      },
+      {
+        "name": "list",
+        "description": "Chronological list of all content (past and future). Filterable by platform, status, content type.",
+        "primary_use": "Content audit -- review everything in sequence"
+      }
+    ],
+    "features": [
+      "Drag-and-drop rescheduling",
+      "Platform color coding (each platform has a distinct color)",
+      "Status indicators (draft, scheduled, published, failed)",
+      "Quick-compose from calendar (click empty slot to create)",
+      "Content type icons (photo, video, thread, story, etc.)",
+      "Holiday and trending topic overlay",
+      "Team member assignment (Business/Enterprise tier)",
+      "Export to external calendar (iCal format)"
+    ],
+    "integrations": [
+      "Universal Composer (create/edit from calendar)",
+      "Analytics (show performance inline on published posts)",
+      "AI scheduling recommendations (highlight optimal slots)"
+    ],
+    "implementation_status": "NOT_IMPLEMENTED",
+    "provenance": "SYNTHESIZED_CANON"
+  },
+
+  "content_types": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Canonical list of content types supported by CreatorOS, mapped to platform compatibility",
+    "types": [
+      {
+        "type": "text",
+        "description": "Plain text post. Supported on all platforms except Instagram (requires media).",
+        "platforms": ["twitter_x", "facebook", "linkedin", "threads", "creatoros_native"],
+        "implementation_status": "IMPLEMENTED",
+        "code_evidence": "create-post.tsx, posts table content field"
+      },
+      {
+        "type": "photo",
+        "description": "Single image post with optional caption.",
+        "platforms": ["twitter_x", "instagram", "facebook", "linkedin", "pinterest", "threads", "creatoros_native"],
+        "implementation_status": "IMPLEMENTED",
+        "code_evidence": "posts table imageUrl field, create-post.tsx media upload"
+      },
+      {
+        "type": "video",
+        "description": "Video post. Format and duration constraints vary by platform.",
+        "platforms": ["twitter_x", "instagram", "youtube", "tiktok", "facebook", "linkedin", "pinterest", "creatoros_native"],
+        "implementation_status": "PARTIAL",
+        "code_evidence": "posts table videoUrl field. No transcoding, no platform-specific format handling."
+      },
+      {
+        "type": "audio",
+        "description": "Audio post (podcast clip, voice note). Limited cross-platform support.",
+        "platforms": ["creatoros_native"],
+        "implementation_status": "PARTIAL",
+        "code_evidence": "posts table audioUrl field. No external platform distribution for audio."
+      },
+      {
+        "type": "story",
+        "description": "24-hour ephemeral vertical content. Instagram Stories, Facebook Stories, CreatorOS Stories.",
+        "platforms": ["instagram", "facebook", "creatoros_native"],
+        "implementation_status": "PARTIAL",
+        "code_evidence": "stories table, StoriesBar, StoryCreator components. CreatorOS-native only, no cross-platform."
+      },
+      {
+        "type": "reel",
+        "description": "Short-form vertical video. Instagram Reels, TikTok, YouTube Shorts.",
+        "platforms": ["instagram", "tiktok", "youtube", "facebook"],
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "type": "thread",
+        "description": "Multi-part sequential content. Twitter/X threads, Threads threads.",
+        "platforms": ["twitter_x", "threads", "creatoros_native"],
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "type": "carousel",
+        "description": "Multi-image or multi-slide post. Instagram carousels, LinkedIn document posts.",
+        "platforms": ["instagram", "linkedin", "facebook", "threads", "tiktok"],
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "type": "newsletter",
+        "description": "Long-form email content distributed to subscriber lists.",
+        "platforms": ["email"],
+        "implementation_status": "NOT_IMPLEMENTED",
+        "code_evidence": "SendGrid SDK in package.json. No newsletter UI or email_lists/broadcasts tables in schema."
+      }
+    ]
+  },
+
+  "editing_studio": {
+    "provenance": "SOURCE_PRESERVED_TRUTH",
+    "source_references": [
+      "Google Doc Tab 3 (PRD) -- Module 7: In-App Editing Studio",
+      "Phase 14.4 desired state: feature_list[10] 'In-app video editing studio (CapCut-like)'",
+      "Product canon: Module 7 status NOT_IMPLEMENTED"
+    ],
+    "description": "In-app video and image editing studio inspired by CapCut and TikTok's built-in editors. Allows creators to produce polished content without leaving CreatorOS.",
+    "inspiration": "CapCut / TikTok built-in editor",
+    "desired_features": [
+      "Timeline-based video editor",
+      "Trim, cut, merge video clips",
+      "Text overlays with animation presets",
+      "Music/audio library with royalty-free tracks",
+      "Filter and effect presets",
+      "Transition library",
+      "Speed control (slow-mo, time-lapse)",
+      "Aspect ratio presets (9:16 portrait, 1:1 square, 16:9 landscape)",
+      "Auto-caption generation (speech-to-text)",
+      "Background removal",
+      "Image cropping and resizing",
+      "Template library (branded intros, outros, lower thirds)"
+    ],
+    "implementation_status": "NOT_IMPLEMENTED",
+    "code_evidence": "No editing-related pages, components, or libraries in the codebase.",
+    "complexity": "VERY_HIGH",
+    "technical_approach_options": [
+      {
+        "option": "A",
+        "name": "Browser-based (FFmpeg.wasm + Canvas API)",
+        "pros": ["No server-side processing cost", "Works offline", "No upload/download latency"],
+        "cons": ["Performance limited by browser", "Large WASM binary download", "Mobile browser constraints"],
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "option": "B",
+        "name": "Server-side processing (FFmpeg + object storage)",
+        "pros": ["Full FFmpeg capabilities", "Consistent quality", "No client constraints"],
+        "cons": ["Server cost per render", "Upload/download latency", "Queue management"],
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "option": "C",
+        "name": "Third-party SDK integration (Banuba, img.ly, Clipchamp SDK)",
+        "pros": ["Fastest to ship", "Professional quality", "Maintained by vendor"],
+        "cons": ["Licensing cost per user", "Vendor dependency", "Limited customization"],
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    ],
+    "open_questions": [
+      {
+        "id": "OQ-EDIT-001",
+        "question": "Is the editing studio MVP or post-MVP? Original MVP (Tab 6) excludes it. But it is a PRD module.",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      },
+      {
+        "id": "OQ-EDIT-002",
+        "question": "Build vs buy vs embed? Browser-based editing is complex. Third-party SDKs exist but cost $0.01-0.10 per render.",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      }
+    ]
+  },
+
+  "stories_system": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "source_references": [
+      "Google Doc Tab 3 (PRD) -- Module 13: Stories System",
+      "Phase 14.4 desired state: feature_list[16] '24-hour ephemeral stories'",
+      "GitHub: components/explore/Stories.tsx, StoryProgress.tsx, feed/StoriesBar.tsx, feed/StoryCreator.tsx",
+      "Schema: stories table",
+      "Product canon: Module 13 status IMPLEMENTED"
+    ],
+    "description": "24-hour ephemeral stories with view counting, auto-cleanup, and story bar display. One of the few fully-implemented content distribution features.",
+    "ephemeral": true,
+    "duration_hours": 24,
+    "content_types": ["image", "video"],
+    "schema": {
+      "table": "stories",
+      "fields": [
+        {"name": "id", "type": "serial", "primary_key": true},
+        {"name": "userId", "type": "integer", "references": "users.id"},
+        {"name": "mediaUrl", "type": "text"},
+        {"name": "mediaType", "type": "text", "note": "image | video"},
+        {"name": "caption", "type": "text", "nullable": true},
+        {"name": "viewCount", "type": "integer", "default": 0},
+        {"name": "expiresAt", "type": "timestamptz"},
+        {"name": "createdAt", "type": "timestamptz"}
+      ],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "schema_note": "Data ontology flags mediaType as VARCHAR without enum constraint. Should be enum(image, video)."
+    },
+    "components": {
+      "StoriesBar": {
+        "path": "components/feed/StoriesBar.tsx",
+        "description": "Horizontal scrollable bar showing story circles for followed creators. Unviewed stories have colored ring.",
+        "status": "IMPLEMENTED"
+      },
+      "StoryCreator": {
+        "path": "components/feed/StoryCreator.tsx",
+        "description": "Story creation interface for uploading image/video stories.",
+        "status": "IMPLEMENTED"
+      },
+      "Stories": {
+        "path": "components/explore/Stories.tsx",
+        "description": "Full-screen story viewer with tap-to-advance, progress bars.",
+        "status": "IMPLEMENTED"
+      },
+      "StoryProgress": {
+        "path": "components/explore/StoryProgress.tsx",
+        "description": "Progress bar segments showing position within a creator's story sequence.",
+        "status": "IMPLEMENTED"
+      }
+    },
+    "auto_cleanup": {
+      "description": "Server-side cleanup of expired stories. Runs every 5 minutes.",
+      "implementation_status": "IMPLEMENTED",
+      "code_evidence": "Automated orphan cleanup every 5 minutes in routes.ts"
+    },
+    "cross_platform_stories": {
+      "description": "Cross-posting stories to Instagram Stories and Facebook Stories",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "note": "Stories are CreatorOS-native only. No cross-platform story distribution.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "gaps": [
+      "No text-only stories (image or video required by schema)",
+      "No story reactions (only view count)",
+      "No story replies/DMs from story",
+      "No story highlights (save past expiry)",
+      "No story stickers, polls, questions (interactive elements)",
+      "No cross-platform distribution",
+      "No story analytics beyond view count"
+    ]
+  },
+
+  "email_newsletter": {
+    "provenance": "SYNTHESIZED_CANON",
+    "source_references": [
+      "Google Doc Tab 3 (PRD) -- Module 12: Email/Newsletter",
+      "Phase 14.4 desired state: feature_list[15] 'Email/newsletter with list management and templates'",
+      "Product canon: Module 12 status NOT_IMPLEMENTED",
+      "Data ontology: email_lists, email_broadcasts tables (proposed)",
+      "package.json: @sendgrid/mail 8.1.4 (dependency exists)"
+    ],
+    "description": "Email broadcast and newsletter system. Creators can build subscriber lists, compose newsletters, and send broadcasts. Complements social distribution with owned-audience communication.",
+    "features": {
+      "list_management": {
+        "description": "Create and manage subscriber lists. Import from CSV. Manual add. Unsubscribe handling. List segmentation by tags, engagement level, purchase history.",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      "newsletter_composer": {
+        "description": "Visual email editor with templates. Drag-and-drop blocks (text, image, button, divider, product embed). Preview in multiple email clients.",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      "broadcast_send": {
+        "description": "Send to entire list or segment. Schedule for later. A/B subject line testing. Delivery tracking (sent, delivered, opened, clicked, bounced, unsubscribed).",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "code_evidence": "SendGrid SDK (@sendgrid/mail) is in package.json. No newsletter UI, no email composition endpoints, no list management."
+      },
+      "templates": {
+        "description": "Pre-built and custom email templates. Brand-consistent with creator's colors/fonts. Saved for reuse.",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      "analytics": {
+        "description": "Open rate, click rate, unsubscribe rate, bounce rate, revenue attributed to email, subscriber growth over time.",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      "automation_integration": {
+        "description": "Trigger emails from automation builder (Module 11). Welcome series, purchase follow-up, re-engagement campaigns.",
+        "implementation_status": "NOT_IMPLEMENTED"
+      }
+    },
+    "schema_requirements": {
+      "email_lists": {
+        "status": "NOT_IN_SCHEMA",
+        "proposed_in": "data ontology artifact",
+        "fields": ["id", "user_id", "name", "description", "subscriber_count", "created_at", "updated_at"]
+      },
+      "email_subscribers": {
+        "status": "NOT_IN_SCHEMA",
+        "proposed_in": "data ontology artifact",
+        "fields": ["id", "list_id", "email", "name", "status", "tags", "subscribed_at", "unsubscribed_at"]
+      },
+      "email_broadcasts": {
+        "status": "NOT_IN_SCHEMA",
+        "proposed_in": "data ontology artifact",
+        "fields": ["id", "user_id", "list_id", "subject", "content", "status", "sent_at", "scheduled_at", "stats"]
+      }
+    },
+    "email_provider": {
+      "current": "SendGrid",
+      "evidence": "@sendgrid/mail 8.1.4 in package.json",
+      "note": "SendGrid SDK exists but is not wired into any newsletter feature. It may have been added for transactional email (password reset, etc.) not newsletters.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "open_questions": [
+      {
+        "id": "OQ-EMAIL-001",
+        "question": "SendGrid for newsletters or switch to dedicated newsletter provider (ConvertKit API, Resend, Postmark)?",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      },
+      {
+        "id": "OQ-EMAIL-002",
+        "question": "Newsletter as content type in universal composer, or separate dedicated newsletter editor?",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      }
+    ]
+  },
+
+  "ai_content": {
+    "provenance": "SYNTHESIZED_CANON",
+    "source_references": [
+      "Google Doc Tab 3 (PRD) -- AI features section (utility-level)",
+      "Google Doc Tab 8 -- Strategic ecosystem AI runtime",
+      "Phase 14.4 desired state: ai_agent_concepts",
+      "Phase 14.6B contradictions: CONTRA-COS-004 (AI utility vs AI runtime)"
+    ],
+    "description": "AI-powered content assistance. Utility-level (not autonomous). AI enhances the creator's workflow but does not replace creative decisions.",
+    "ai_scope": "UTILITY_LEVEL",
+    "ai_scope_note": "PRD Tab 1/3 defines AI as utility-level (suggestions, optimization, scheduling). Tab 8 defines platform-level AI runtime shared with EOS/LyfeOS. Both are true at different layers. CreatorOS does NOT have autonomous AI agents -- that is EOS's domain. Contradiction CONTRA-COS-004 resolved: product AI is utility, platform AI is UMH substrate.",
+    "features": {
+      "content_suggestions": {
+        "description": "AI suggests content ideas based on trending topics, audience interests, past performance, and creator niche.",
+        "trigger": "On-demand (creator asks) or passive (suggestions surfaced in dashboard)",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "ai_dependency": "LLM call (model_router via UMH substrate)",
+        "deterministic_fallback": "Trending hashtags from platform APIs, top-performing content templates from creator's history"
+      },
+      "caption_optimization": {
+        "description": "AI rewrites captions for each platform. Optimizes for engagement signals specific to each platform's algorithm.",
+        "trigger": "During cross-posting adaptation step",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "ai_dependency": "LLM call per platform",
+        "deterministic_fallback": "Rule-based character truncation, hashtag count adjustment, link placement rules"
+      },
+      "scheduling_recommendations": {
+        "description": "AI recommends optimal posting times per platform based on historical engagement data and audience timezone analysis.",
+        "trigger": "When creator opens scheduler or content calendar",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "ai_dependency": "Statistical model on engagement data (can be deterministic with enough data)",
+        "deterministic_fallback": "Industry-standard best posting times per platform (static lookup table)"
+      },
+      "hashtag_generation": {
+        "description": "AI generates platform-optimized hashtag sets based on content, niche, and trending tags.",
+        "trigger": "During content composition",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "ai_dependency": "LLM call or embedding similarity search",
+        "deterministic_fallback": "Creator's saved hashtag groups, niche-based static hashtag sets"
+      },
+      "alt_text_generation": {
+        "description": "AI generates descriptive alt text for images to improve accessibility across platforms.",
+        "trigger": "When image is attached to post",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "ai_dependency": "Vision model (image description)",
+        "deterministic_fallback": "Prompt creator to add alt text manually"
+      },
+      "content_repurposing": {
+        "description": "AI suggests how to repurpose long-form content into multiple short-form pieces. Blog post to tweet thread, YouTube video to TikTok clips, podcast to audiograms.",
+        "trigger": "After long-form content is created",
+        "implementation_status": "NOT_IMPLEMENTED",
+        "ai_dependency": "LLM call for content summarization and reformatting",
+        "deterministic_fallback": "Template-based extraction (first paragraph as tweet, key quotes as image posts)"
+      }
+    },
+    "umh_integration": {
+      "description": "AI features route through UMH substrate model_router (adapters/models/model_router.py). CreatorOS registers as a UMH projection and uses call_with_fallback() for all LLM calls.",
+      "projection_code_path": "projections/creatoros/integration/",
+      "projection_status": "DORMANT",
+      "projection_lines": 1099,
+      "note": "UMH projection code exists (signals, capabilities, outcomes, correlation) but is not wired into running services. This is implementation debt, not a gap -- the integration surface is defined but not activated."
+    }
+  },
+
+  "analytics": {
+    "provenance": "SYNTHESIZED_CANON",
+    "source_references": [
+      "Google Doc Tab 3 (PRD) -- Module 6: Creator Dashboard & Analytics",
+      "Phase 14.4 desired state: feature_list[9] 'Creator dashboard with cross-platform analytics'",
+      "Product canon: Module 6 status PARTIAL (basic dashboard exists, no cross-platform analytics)"
+    ],
+    "description": "Content performance analytics at three levels: per-post, per-platform, and cross-platform aggregate.",
+    "per_post": {
+      "description": "Performance metrics for a single piece of content, broken down by platform",
+      "metrics": [
+        {"name": "impressions", "description": "Number of times content was displayed"},
+        {"name": "reach", "description": "Unique accounts that saw the content"},
+        {"name": "engagements", "description": "Total interactions (likes + comments + shares + saves + clicks)"},
+        {"name": "engagement_rate", "description": "Engagements / reach (or impressions, platform-dependent)"},
+        {"name": "likes", "description": "Platform-specific positive reactions"},
+        {"name": "comments", "description": "Replies and comments"},
+        {"name": "shares", "description": "Reposts, retweets, shares"},
+        {"name": "saves", "description": "Bookmarks, saves (Instagram, Pinterest)"},
+        {"name": "clicks", "description": "Link clicks, profile visits from post"},
+        {"name": "video_views", "description": "Video view count (definition varies by platform)"},
+        {"name": "video_watch_time", "description": "Total and average watch duration"},
+        {"name": "platform_breakdown", "description": "Same metrics split by each platform the post was distributed to"}
+      ],
+      "implementation_status": "PARTIAL",
+      "code_evidence": "posts table has denormalized likes and comments counters. No per-platform metrics. No impressions, reach, or engagement tracking.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "per_platform": {
+      "description": "Aggregate metrics for all content on a single platform",
+      "metrics": [
+        {"name": "follower_count", "description": "Current follower count on platform"},
+        {"name": "follower_growth", "description": "Net follower change over period"},
+        {"name": "total_impressions", "description": "Aggregate impressions across all posts"},
+        {"name": "average_engagement_rate", "description": "Mean engagement rate across posts"},
+        {"name": "best_performing_content", "description": "Top posts ranked by engagement"},
+        {"name": "posting_frequency", "description": "Posts per day/week/month"},
+        {"name": "audience_demographics", "description": "Age, gender, location of platform audience (where API provides)"}
+      ],
+      "implementation_status": "NOT_IMPLEMENTED",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "cross_platform_aggregate": {
+      "description": "Unified view across all connected platforms. The reason a creator uses CreatorOS analytics instead of checking each platform individually.",
+      "metrics": [
+        {"name": "total_audience", "description": "Sum of followers across all platforms (with overlap caveat)"},
+        {"name": "total_reach", "description": "Aggregate reach across platforms"},
+        {"name": "content_performance_comparison", "description": "Same content posted to multiple platforms -- which platform performed best?"},
+        {"name": "content_type_analysis", "description": "Which content types (photo, video, thread) perform best on which platforms?"},
+        {"name": "optimal_time_heatmap", "description": "Best posting times per platform based on engagement history"},
+        {"name": "revenue_attribution", "description": "Revenue generated from content (link clicks to products, course enrollments from posts)"},
+        {"name": "platform_health_score", "description": "Per-platform growth trajectory, engagement trend, audience quality"}
+      ],
+      "implementation_status": "NOT_IMPLEMENTED",
+      "provenance": "SYNTHESIZED_CANON",
+      "unique_value": "No single-platform analytics tool provides cross-platform comparison. This is a key differentiator. Buffer and Hootsuite offer basic cross-platform analytics. CreatorOS goes deeper by connecting content analytics to revenue (because it also hosts the products being sold)."
+    }
+  },
+
+  "implementation_truth": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "description": "Current state of content distribution implementation in code",
+    "implemented": [
+      {
+        "feature": "Basic post creation",
+        "evidence": "pages/create-post.tsx, pages/new-text-post.tsx",
+        "scope": "Text, photo, audio, video posts to CreatorOS-native feed only"
+      },
+      {
+        "feature": "Stories system",
+        "evidence": "stories table, StoriesBar, StoryCreator, Stories, StoryProgress components",
+        "scope": "24-hour ephemeral stories with view counting and auto-cleanup. CreatorOS-native only."
+      },
+      {
+        "feature": "Basic engagement counters",
+        "evidence": "posts table likes/comments denormalized counters",
+        "scope": "Like and comment counts on CreatorOS-native posts. No per-platform tracking."
+      }
+    ],
+    "partially_implemented": [
+      {
+        "feature": "Media upload",
+        "evidence": "imageUrl, audioUrl, videoUrl fields in posts table",
+        "gap": "No media processing pipeline (transcoding, resizing, format conversion). No media CDN. No aspect ratio handling."
+      }
+    ],
+    "not_implemented": [
+      "Universal composer (per-platform adaptation)",
+      "Platform OAuth connections (connected_accounts)",
+      "Cross-platform distribution",
+      "Post scheduling",
+      "Content calendar",
+      "Drafts system",
+      "Thread/carousel composition",
+      "Editing studio",
+      "Email/newsletter",
+      "Cross-platform analytics",
+      "AI content suggestions",
+      "Hashtag management",
+      "Multistreaming",
+      "Content repurposing"
+    ],
+    "god_file_impact": {
+      "description": "Content distribution features are blocked by the monolithic god files",
+      "routes_ts": "All 89 API routes in server/routes.ts (53KB). Content distribution routes would add 30+ more endpoints to this already-oversized file.",
+      "storage_ts": "All data access in server/storage.ts (104KB). Content distribution storage logic would compound this further.",
+      "resolution": "God files must be split before content distribution can be built safely. Operator confirmed this as P1 blocker (OC-COS-010).",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    }
+  },
+
+  "schema_gaps_for_content_distribution": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "description": "Database schema changes required to support content distribution features",
+    "existing_tables_needing_modification": [
+      {
+        "table": "posts",
+        "needed_fields": [
+          {"name": "scheduled_at", "type": "timestamptz", "nullable": true, "reason": "Scheduling support"},
+          {"name": "published_at", "type": "timestamptz", "nullable": true, "reason": "Track actual publish time (may differ from scheduled)"},
+          {"name": "status", "type": "text", "reason": "draft | scheduled | publishing | published | failed. Currently no status field."},
+          {"name": "timezone", "type": "text", "nullable": true, "reason": "Creator's timezone for scheduling context"},
+          {"name": "is_thread", "type": "boolean", "default": false, "reason": "Flag for thread-type posts"},
+          {"name": "thread_position", "type": "integer", "nullable": true, "reason": "Position within a thread"},
+          {"name": "parent_post_id", "type": "integer", "nullable": true, "reason": "Self-reference for thread linking"}
+        ]
+      },
+      {
+        "table": "stories",
+        "needed_fields": [
+          {"name": "type", "type": "text", "reason": "Constrain mediaType to enum. Currently unconstrained VARCHAR."}
+        ]
+      }
+    ],
+    "new_tables_needed": [
+      {
+        "table": "connected_accounts",
+        "reason": "OAuth connections to external platforms. Required for all cross-posting.",
+        "defined_in": "data ontology artifact"
+      },
+      {
+        "table": "cross_posts",
+        "reason": "Per-platform distribution tracking for a post. Records status, external post ID, per-platform metrics.",
+        "defined_in": "data ontology artifact"
+      },
+      {
+        "table": "content_schedule_queue",
+        "reason": "Server-side job queue for scheduled posts. Separate from posts table to allow retry/failure handling.",
+        "defined_in": "not yet proposed"
+      },
+      {
+        "table": "email_lists",
+        "reason": "Newsletter subscriber list management.",
+        "defined_in": "data ontology artifact"
+      },
+      {
+        "table": "email_subscribers",
+        "reason": "Individual subscribers with tags and status.",
+        "defined_in": "data ontology artifact"
+      },
+      {
+        "table": "email_broadcasts",
+        "reason": "Newsletter broadcasts with delivery tracking.",
+        "defined_in": "data ontology artifact"
+      },
+      {
+        "table": "hashtag_groups",
+        "reason": "Saved hashtag collections per creator.",
+        "defined_in": "not yet proposed"
+      },
+      {
+        "table": "content_templates",
+        "reason": "Reusable post/newsletter templates.",
+        "defined_in": "not yet proposed"
+      }
+    ]
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-DIST-001",
+      "question": "API rate limits at scale: Twitter charges $100/mo for 3,000 posts. YouTube allows ~6 uploads/day at default quota. How does pricing model account for platform API costs?",
+      "category": "business_model",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "options": [
+        "Pass API costs to creators (per-post fee above free tier)",
+        "Absorb costs and build into subscription pricing",
+        "Prioritize free-API platforms (Instagram, Facebook, TikTok, Pinterest) and charge for premium integrations (Twitter, YouTube)"
+      ]
+    },
+    {
+      "id": "OQ-DIST-002",
+      "question": "Platform TOS compliance: several platforms restrict automated posting or require disclosure. How does CreatorOS handle this?",
+      "category": "compliance",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "specifics": [
+        "TikTok requires disclosure that content was posted via API",
+        "Instagram has 25 API publishes per user per hour limit",
+        "Twitter API TOS prohibits certain types of automated content",
+        "LinkedIn partner program has usage restrictions"
+      ]
+    },
+    {
+      "id": "OQ-DIST-003",
+      "question": "Content moderation for cross-posted content: if content violates one platform's policies but not another's, how does CreatorOS handle partial distribution failure?",
+      "category": "trust_safety",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DIST-004",
+      "question": "Content aggregation direction: does CreatorOS pull content FROM other platforms (showing external posts in CreatorOS feed), or only push content TO other platforms?",
+      "category": "product_scope",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "source": "Phase 14.4 open question: 'Content aggregation: pull actual content from other platforms via API, or only show content posted through CreatorOS?'",
+      "note": "Pull aggregation would make the consumer feed much richer but adds API cost and content licensing complexity."
+    },
+    {
+      "id": "OQ-DIST-005",
+      "question": "Multistreaming priority: is live multistreaming MVP or post-MVP? It requires significant infrastructure (RTMP server, transcoding pipeline) with ongoing cost.",
+      "category": "scope",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "source": "PRD Module 10 includes multistreaming. Original MVP (Tab 6) excludes it."
+    },
+    {
+      "id": "OQ-DIST-006",
+      "question": "Editing studio priority: build, buy, or embed? CapCut-like editing is a major engineering investment vs licensing a third-party SDK.",
+      "category": "build_vs_buy",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "cross_reference": "editing_studio.open_questions"
+    },
+    {
+      "id": "OQ-DIST-007",
+      "question": "Newsletter as content type or separate module? Should newsletters be composable in the universal composer alongside social posts, or have a dedicated editor?",
+      "category": "ux_architecture",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "cross_reference": "email_newsletter.open_questions"
+    },
+    {
+      "id": "OQ-DIST-008",
+      "question": "Scheduling infrastructure: what job scheduler for sub-minute precision? Options include BullMQ (Redis-based), pg-boss (Postgres-based), or Temporal (workflow engine).",
+      "category": "infrastructure",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  ],
+
+  "implementation_debt": [
+    {
+      "id": "DEBT-DIST-001",
+      "description": "God files (routes.ts 53KB, storage.ts 104KB) must be split before content distribution can be built. Adding 30+ new endpoints to a 53KB file is technically possible but operationally reckless.",
+      "severity": "P1_BLOCKER",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-DIST-002",
+      "description": "Auth is broken (comparePasswords returns true for ALL passwords). Content distribution involves OAuth tokens for external platforms -- cannot store sensitive tokens behind broken auth.",
+      "severity": "P0_CRITICAL",
+      "provenance": "IMPLEMENTATION_DEBT",
+      "cross_reference": "CONTRA-COS-006 (auth target contradiction)"
+    },
+    {
+      "id": "DEBT-DIST-003",
+      "description": "No test infrastructure. Content distribution involves complex state machines (scheduling, retry, multi-platform coordination). Building without tests guarantees production failures.",
+      "severity": "P1_BLOCKER",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-DIST-004",
+      "description": "UMH projection code (projections/creatoros/integration/, 1099 lines) is DORMANT. AI content features depend on UMH substrate integration which exists in code but is not activated.",
+      "severity": "P2_DEBT",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-DIST-005",
+      "description": "Posts table lacks scheduling fields (scheduled_at, published_at, status). Schema migration required before any scheduling feature can be built.",
+      "severity": "P1_BLOCKER",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-DIST-006",
+      "description": "No connected_accounts table in schema. All cross-posting depends on OAuth connections to external platforms which have no storage surface.",
+      "severity": "P1_BLOCKER",
+      "provenance": "IMPLEMENTATION_DEBT"
+    }
+  ],
+
+  "build_sequence_recommendation": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "description": "Recommended build order for content distribution features, accounting for dependencies and blockers",
+    "note": "This is a professional recommendation, not an operator decision. Build sequence is OPEN_QUESTION_OPERATOR_DECISION_REQUIRED.",
+    "phases": [
+      {
+        "phase": 1,
+        "name": "Foundation (unblocks everything)",
+        "items": [
+          "Fix auth (Clerk migration) -- P0 security, unblocks OAuth token storage",
+          "Split god files (routes.ts, storage.ts) -- P1, unblocks all new feature development",
+          "Add test infrastructure (vitest) -- P1, unblocks safe development",
+          "Schema migration: add scheduling fields to posts, create connected_accounts table"
+        ]
+      },
+      {
+        "phase": 2,
+        "name": "Core distribution",
+        "items": [
+          "Platform OAuth connections (connect social accounts)",
+          "Universal composer with per-platform preview",
+          "Cross-posting engine (publish to connected platforms)",
+          "Post scheduling and content calendar"
+        ]
+      },
+      {
+        "phase": 3,
+        "name": "Intelligence layer",
+        "items": [
+          "Cross-platform analytics ingestion",
+          "AI content suggestions (via UMH substrate)",
+          "AI scheduling recommendations",
+          "Hashtag optimization"
+        ]
+      },
+      {
+        "phase": 4,
+        "name": "Advanced features",
+        "items": [
+          "Email/newsletter system",
+          "Thread/carousel composer",
+          "Editing studio (build/buy decision first)",
+          "Multistreaming (if operator approves for product scope)"
+        ]
+      }
+    ]
+  }
+}
