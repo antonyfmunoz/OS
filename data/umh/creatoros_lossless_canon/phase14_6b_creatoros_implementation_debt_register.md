@@ -1,9 +1,10 @@
 ---
-phase: "14.6B-CreatorOS"
+phase: "14.6B-CreatorOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
+revised: "2026-06-04"
 provenance: "IMPLEMENTATION_DEBT"
 description: "Complete technical debt register for CreatorOS codebase — 38 items across security, architecture, testing, infrastructure, data model, UX, DevOps, and platform integration"
 sources:
@@ -20,6 +21,8 @@ sources:
 
 
 # CreatorOS Implementation Debt Register
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 All debt items traced to verified code state. No speculative entries. Severity uses CRITICAL / HIGH / MEDIUM / LOW. Priority uses P0 (must fix before any deploy) through P3 (long-term improvement). Effort uses T-shirt sizing: XS (<1 day), S (1-2 days), M (3-5 days), L (1-2 weeks), XL (2+ weeks).
 
@@ -101,7 +104,7 @@ All debt items traced to verified code state. No speculative entries. Severity u
 
 | ID | Category | Debt | Severity | Location | Remediation | Effort | Priority |
 |----|----------|------|----------|----------|-------------|--------|----------|
-| COS-INT-001 | UMH Projection | CreatorOS UMH projection code exists (1,099 lines across 6 files) but is unverified at runtime. Signal emitters, capability handlers, and outcome receivers have never been tested against live UMH substrate. | MEDIUM | `projections/creatoros/integration/` | Write integration tests against substrate mock. Verify signal emission, capability dispatch, outcome writeback. Deploy and test with live substrate. | L | P2 |
+| COS-INT-001 | UMH Projection | CreatorOS UMH projection code exists (1,099 lines across 6 files) but is unverified at runtime. Signal emitters, capability handlers, and outcome receivers have never been tested against live UMH substrate. UMH is a reality-isomorphic intelligence harness (DEC-146C-001); activation feeds into Stage 1 organism (DEC-146C-003). | MEDIUM | `projections/creatoros/integration/` | Write integration tests against substrate mock. Verify signal emission, capability dispatch, outcome writeback. Deploy and test with live substrate. | L | P2 |
 | COS-INT-002 | No Payment Integration | No Stripe, no PayPal, no payment processing of any kind. Products exist in marketplace with prices but zero checkout flow. The entire commerce primitive (User -> Product -> Order -> Entitlement) is broken at Order. | HIGH | `server/routes.ts`, `shared/schema.ts` | Implement Stripe Connect integration. Add orders table, checkout flow, webhook handler, entitlement granting. | XL | P1 |
 | COS-INT-003 | OpenAI Hardcoded | AI agents use `openai 4.91.1` SDK directly. No model routing, no fallback chain, no abstraction layer. Tied to single provider. | MEDIUM | `server/routes.ts` (AI routes) | Abstract AI calls behind a provider interface. Consider routing through UMH model_router or at minimum an adapter that supports multiple providers. | M | P2 |
 | COS-INT-004 | No WebSocket Auth | WebSocket server (`ws 8.18.0`) exists for real-time features but WebSocket connection authentication is unverified. May accept unauthenticated connections. | MEDIUM | `server/` (WebSocket setup) | Verify WebSocket upgrade handler validates session cookie or auth token. Reject unauthenticated connections. | S | P1 |
@@ -138,21 +141,32 @@ All debt items traced to verified code state. No speculative entries. Severity u
 
 ## Critical Path
 
-The following debt items block production deployment and must be resolved in order:
+The following debt items block production deployment and must be resolved in order.
+Critical path aligns with ratified build sequence (DEC-146B-COS-004: Auth -> Module Split -> Test Harness -> Content -> Community -> Courses -> Sales -> Integration, OPERATOR-APPROVED).
 
-1. **COS-SEC-001** (CRITICAL) — Broken auth. Nothing else matters until auth works. Target: Clerk migration.
+1. **COS-SEC-001** (CRITICAL) — Broken auth. Nothing else matters until auth works. Target: Clerk migration (DEC-146B-COS-002: Clerk first, block all else until auth migrated, OPERATOR-APPROVED).
 2. **COS-SEC-002** (HIGH) — Hardcoded session secret. Eliminated by Clerk migration.
 3. **COS-SEC-003** (HIGH) — Rate limiting. Must exist before public traffic.
-4. **COS-INFRA-001** (HIGH) — No deployment infrastructure. Cannot ship without it.
+4. **COS-INFRA-001** (HIGH) — No deployment infrastructure. Cannot ship without it. Source code baseline must be verified first (DEC-146B-COS-003: verify current GitHub code, establish canonical baseline, OPERATOR-APPROVED).
 5. **COS-ARCH-001 + COS-ARCH-002** (HIGH) — God file decomposition. Must happen before any serious feature work or parallel development.
 6. **COS-TEST-001** (HIGH) — Test suite. Must exist before shipping features.
-7. **COS-INT-002** (HIGH) — Payment integration. Core monetization primitive.
-8. **COS-DATA-001** (HIGH) — Missing 25 tables. Core product features depend on them.
+7. **COS-INT-002** (HIGH) — Payment integration. Core monetization primitive. Scoped to MVP modules: Content Management + Community Forums + Course Delivery + Sales Pipeline (DEC-146B-COS-001, OPERATOR-APPROVED).
+8. **COS-DATA-001** (HIGH) — Missing 25 tables. Core product features depend on them. Priority tables determined by MVP scope (DEC-146B-COS-001).
 
+
+## Ratified P0 Decision Alignment
+
+All 4 CreatorOS P0 decisions were ratified in Phase 14.6E (2026-06-04). This debt register aligns with:
+
+- **DEC-146B-COS-001**: MVP Scope = Content Management + Community Forums + Course Delivery + Sales Pipeline. OPERATOR-APPROVED. Determines which debt items are MVP-blocking vs post-MVP.
+- **DEC-146B-COS-002**: Auth Migration = Clerk first, block all else until auth is migrated. OPERATOR-APPROVED. Confirms COS-SEC-001 resolution path and eliminates COS-SEC-002, COS-SEC-007, COS-SEC-008 as side effects.
+- **DEC-146B-COS-003**: Source Code Baseline = verify current GitHub code, then establish canonical baseline. OPERATOR-APPROVED. Prerequisite for COS-INFRA-001 and COS-INFRA-002.
+- **DEC-146B-COS-004**: Module Build Sequence = Auth -> Module Split -> Test Harness -> Content -> Community -> Courses -> Sales -> Integration. OPERATOR-APPROVED. Defines the order in which debt items are addressed.
 
 ## Notes
 
 - All severity/priority assessments assume CreatorOS is pre-production (no live users, no real data). If deployment timeline accelerates, all P1 security items become P0.
-- The Clerk migration (COS-SEC-001) eliminates COS-SEC-002, COS-SEC-007, and COS-SEC-008 as side effects. It should be done as a single coordinated effort, not piecemeal Passport.js fixes.
-- God file decomposition (COS-ARCH-001 + COS-ARCH-002) is prerequisite for nearly all other work. The 53KB routes.ts and 104KB storage.ts make every other change harder. Split first, then build.
+- The Clerk migration (COS-SEC-001) eliminates COS-SEC-002, COS-SEC-007, and COS-SEC-008 as side effects. It should be done as a single coordinated effort, not piecemeal Passport.js fixes. This is confirmed by DEC-146B-COS-002 (Clerk first, block all else).
+- God file decomposition (COS-ARCH-001 + COS-ARCH-002) is prerequisite for nearly all other work. The 53KB routes.ts and 104KB storage.ts make every other change harder. Split first, then build. Ratified build sequence (DEC-146B-COS-004) places Module Split immediately after Auth.
 - The Replit Agent origin (COS-ARCH-003) is pervasive debt — it means every file in the codebase has unknown quality. The test suite (COS-TEST-001) is the antidote: as tests are written, Replit Agent code quality gets verified or corrected.
+- UMH operates as a reality-isomorphic intelligence harness (DEC-146C-001). CreatorOS debt remediation feeds into Stage 1 organism: Reality Model + Cockpit + Memory + Governed Execution Loop (DEC-146C-003).

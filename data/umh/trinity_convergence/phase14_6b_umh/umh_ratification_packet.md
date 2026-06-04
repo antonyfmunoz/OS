@@ -1,12 +1,14 @@
 # UMH Phase 14.6B Ratification Packet
 
-**Phase:** 14.6B-UMH | **Status:** DRAFT | **Provenance:** CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION
+**Phase:** 14.6B-UMH (revised 14.6F) | **Status:** RATIFICATION COMPLETE | **Provenance:** CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION + 18 RATIFIED P0 DECISIONS
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ---
 
 ## What This Is
 
-This packet summarizes the Phase 14.6B-UMH code-resolved Universal Meta Harness canon reconstruction. It is a DRAFT awaiting operator ratification. Nothing in this packet is operator-approved. No implementation has occurred.
+This packet summarizes the Phase 14.6B-UMH code-resolved Universal Meta Harness canon reconstruction. All 18 P0 decisions across UMH, EOS, CreatorOS, and LyfeOS were operator-ratified on 2026-06-04 in Phases 14.6C and 14.6E. No implementation has occurred — ratification authorizes future implementation phases.
 
 ## What Was Done
 
@@ -30,18 +32,20 @@ Phase 14.6B-UMH performed a comprehensive, read-only analysis of the UMH codebas
 
 ## Key Findings
 
-### 1. Naming
+### 1. Naming (RESOLVED)
 
-- **Universal Meta Harness** is the canonical product name (pyproject.toml: universal-meta-harness)
+- **Universal Meta Harness** is the canonical product name — RATIFIED (DEC-146B-UMH-001, 2026-06-04)
 - **Universal Mastery Hierarchy** is stale naming debt (~30 files)
 - **EntrepreneurOS** as system name is stale (~503 occurrences); correct as projection name
+- PHILOSOPHY.md ratified for rewrite to be UMH-universal (DEC-146B-UMH-002)
 
-### 2. Architecture
+### 2. Architecture (RESOLVED)
 
 - Substrate is genuine operational architecture: 696 files, 206,602 lines
-- Three parallel execution paths exist -- only Gateway->CognitiveLoop is production
+- Three parallel execution paths — RATIFIED for unification into single path: Substrate -> SignalRouter -> Spine (DEC-146B-UMH-003)
 - Organism is the largest subsystem: 201 files, 70,126 lines
-- 26,671 lines of dead code in workstation/ constitutional engines
+- 26,671 lines of dead code in workstation/ — RATIFIED for extraction and deletion (DEC-146B-UMH-004)
+- ProductConnectionManager upward dependency — RATIFIED for abstract port pattern (DEC-146B-UMH-005)
 - 4 pre-commit gates enforce type coherence, instance context, projection boundary, architecture layers
 
 ### 3. Cockpit
@@ -142,6 +146,46 @@ Phase 14.6B-UMH performed a comprehensive, read-only analysis of the UMH codebas
 13. Professional gap register
 14. Open operator decision queue
 
+## Ratified P0 Decisions (18 total, all approved 2026-06-04)
+
+### Phase 14.6C Reality Model Corrections (3)
+| ID | Decision | Status |
+|----|----------|--------|
+| DEC-146C-001 | UMH Reality Model Identity — reality-isomorphic intelligence harness | OPERATOR-APPROVED WITH MODIFICATION |
+| DEC-146C-002 | Materialization Principle — typed gaps and acquisition paths | OPERATOR-APPROVED WITH MODIFICATION |
+| DEC-146C-003 | Indivisible Stage 1 — Reality Model + Cockpit + Memory + Governed Execution Loop | OPERATOR-APPROVED (Option B) |
+
+### Phase 14.6E UMH P0 Decisions (5)
+| ID | Decision | Status |
+|----|----------|--------|
+| DEC-146B-UMH-001 | Canonical Product Name: Universal Meta Harness | OPERATOR-APPROVED |
+| DEC-146B-UMH-002 | PHILOSOPHY.md Scope: rewrite to UMH-universal | OPERATOR-APPROVED |
+| DEC-146B-UMH-003 | Execution Path Unification: single path (Substrate -> SignalRouter -> Spine) | OPERATOR-APPROVED |
+| DEC-146B-UMH-004 | Dead Workstation Code: extract value, then delete | OPERATOR-APPROVED |
+| DEC-146B-UMH-005 | ProductConnectionManager: abstract port pattern | OPERATOR-APPROVED |
+
+### Phase 14.6E EOS P0 Decisions (3)
+| ID | Decision | Status |
+|----|----------|--------|
+| DEC-146B-EOS-001 | Beast Branch Promotion: canonical EOS codebase | OPERATOR-APPROVED |
+| DEC-146B-EOS-002 | MVP Scope: R1-R5 confirmed | OPERATOR-APPROVED |
+| DEC-146B-EOS-003 | Auth Finalization: Clerk confirmed | OPERATOR-APPROVED |
+
+### Phase 14.6E CreatorOS P0 Decisions (4)
+| ID | Decision | Status |
+|----|----------|--------|
+| DEC-146B-COS-001 | MVP Scope: Content + Community + Courses + Sales (8-12 weeks) | OPERATOR-APPROVED |
+| DEC-146B-COS-002 | Auth Migration: Clerk first, blocks all other work | OPERATOR-APPROVED |
+| DEC-146B-COS-003 | Source Code Baseline: verify, then GitHub canonical | OPERATOR-APPROVED |
+| DEC-146B-COS-004 | Module Build Sequence: Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics | OPERATOR-APPROVED |
+
+### Phase 14.6E LyfeOS P0 Decisions (3)
+| ID | Decision | Status |
+|----|----------|--------|
+| DEC-146B-LOS-001 | PRD Canonical Version: v2.0 canonical, v1.0 historical | OPERATOR-APPROVED |
+| DEC-146B-LOS-002 | Clerk Migration Timing: after CreatorOS proves pattern | OPERATOR-APPROVED |
+| DEC-146B-LOS-003 | Infrastructure: Fly.io is Trinity standard | OPERATOR-APPROVED |
+
 ## Next Step
 
-Operator reviews these artifacts. No implementation until review complete.
+Operator review is complete. All 18 P0 decisions are ratified. Implementation phases may proceed under governance. No implementation has occurred yet — ratification authorizes future work.

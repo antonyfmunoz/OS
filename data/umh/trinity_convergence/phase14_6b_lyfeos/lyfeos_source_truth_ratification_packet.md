@@ -1,10 +1,27 @@
 # LyfeOS Source Truth Ratification Packet
 
-**Phase:** 14.6B-LyfeOS
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
+**Revised:** 2026-06-04
 **Artifact:** 50
 **Operator Approved:** false
 **Allows Implementation:** false
 **Provenance:** SYNTHESIZED_CANON
+
+---
+
+## P0 Decisions Ratified (Phase 14.6E, 2026-06-04)
+
+3 LyfeOS P0 decisions have been OPERATOR-APPROVED:
+
+| Decision ID | Question | Ratified Answer |
+|-------------|----------|-----------------|
+| DEC-146B-LOS-001 | PRD Canonical Version | v2.0 is canonical direction; v1.0 is historical/shipped context |
+| DEC-146B-LOS-002 | Clerk Migration Timing | Migrate from Passport.js+Firebase to Clerk AFTER CreatorOS proves the pattern |
+| DEC-146B-LOS-003 | Infrastructure | Fly.io is the Trinity standard; migrate from Replit to Fly.io |
+
+These decisions reduce the open question count from 16 to 13. See artifact 49 for the updated queue.
 
 ---
 
@@ -62,19 +79,19 @@ Items where documentation and code diverged. Code is canonical:
 
 ---
 
-## What Needs Operator Decision (16 items)
+## What Needs Operator Decision (16 original → 3 RESOLVED, 13 OPEN)
 
-See artifact 49 for full details. Critical decisions:
+See artifact 49 for full details. 3 decisions ratified in Phase 14.6E (2026-06-04):
 
-| Priority | Decision | Impact |
+| Priority | Decision | Status |
 |----------|----------|--------|
-| Immediate | Backup verification (DEC-146B-010) | Data safety — 30 min effort |
-| Immediate | Error tracking selection (DEC-146B-012) | Production visibility — 1 hour |
-| High | PRD version (DEC-146B-001) | Feature scope direction |
-| High | UMH boundary (DEC-146B-003) | Architecture direction |
-| Medium | Clerk migration (DEC-146B-002) | Auth standardization |
-| Medium | Infrastructure (DEC-146B-004) | Hosting direction |
-| Lower | 10 additional decisions | Various feature/infra choices |
+| Immediate | Backup verification (DEC-146B-010) | OPEN |
+| Immediate | Error tracking selection (DEC-146B-012) | OPEN |
+| High | PRD version (DEC-146B-LOS-001) | **RESOLVED** — v2.0 canonical, v1.0 historical |
+| High | UMH boundary (DEC-146B-003) | OPEN |
+| Medium | Clerk migration (DEC-146B-LOS-002) | **RESOLVED** — Migrate after CreatorOS proves pattern |
+| Medium | Infrastructure (DEC-146B-LOS-003) | **RESOLVED** — Fly.io is Trinity standard |
+| Lower | 10 additional decisions | OPEN |
 
 ---
 
@@ -89,11 +106,11 @@ After approval, the following can proceed immediately without further decisions:
 - UptimeRobot setup
 
 The following require specific decisions first:
-- Clerk migration (DEC-146B-002)
-- Fly.io migration (DEC-146B-004)
-- RLS policies (DEC-146B-011)
-- UMH integration (DEC-146B-003 + DEC-146B-006)
-- Stripe billing (DEC-146B-016)
+- Clerk migration (DEC-146B-LOS-002) — **RATIFIED**: proceed after CreatorOS proves pattern
+- Fly.io migration (DEC-146B-LOS-003) — **RATIFIED**: Fly.io is target, migrate from Replit
+- RLS policies (DEC-146B-011) — OPEN
+- UMH integration (DEC-146B-003 + DEC-146B-006) — OPEN
+- Stripe billing (DEC-146B-016) — OPEN
 
 ---
 

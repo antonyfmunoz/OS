@@ -1,6 +1,8 @@
 # UMH Phase 14.6B Audit Report
 
-Phase: 14.6B-UMH | Status: DRAFT | Provenance: CODE_RESOLVED_CURRENT_TRUTH
+Phase: 14.6B-UMH (revised 14.6F) | Status: RATIFICATION COMPLETE | Provenance: CODE_RESOLVED_CURRENT_TRUTH + 18 RATIFIED P0 DECISIONS
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ---
 
@@ -34,8 +36,10 @@ Phase: 14.6B-UMH | Status: DRAFT | Provenance: CODE_RESOLVED_CURRENT_TRUTH
 | Cockpit readiness criteria are buildable | PASS | umh_cockpit_readiness_gap_matrix.md |
 | Professional gap register exists | PASS | umh_professional_gap_register.md |
 | Open operator decision queue exists | PASS | umh_open_questions_operator_decision_queue.md |
-| Tests/gates pass | PENDING | test_phase14_6b_umh_code_resolved_canon.py created |
-| No artifact marks itself operator-approved | PASS | All say "DRAFT -- awaiting operator ratification" |
+| Tests/gates pass | PASS | test_phase14_6b_umh_code_resolved_canon.py + 360 ratification tests (Phase 14.6C) |
+| No artifact marks itself operator-approved | PASS | Artifacts were DRAFT until operator ratified all 18 P0 decisions (2026-06-04) |
+| Open questions Q1-Q5 resolved | PASS | DEC-146B-UMH-001 through 005 ratified (Phase 14.6E) |
+| Reality model corrections ratified | PASS | DEC-146C-001, 002, 003 ratified (Phase 14.6C) |
 
 ## Codebase Metrics Verified
 
@@ -76,4 +80,4 @@ This phase is LOW RISK because:
 
 ## Conclusion
 
-Phase 14.6B-UMH has produced a comprehensive, code-resolved Universal Meta Harness canon reconstruction. 56 artifacts cover naming, architecture, projections, cockpit, governance, security, infrastructure, observability, and gaps. The canon is ready for operator review.
+Phase 14.6B-UMH produced a comprehensive, code-resolved Universal Meta Harness canon reconstruction. 56 artifacts cover naming, architecture, projections, cockpit, governance, security, infrastructure, observability, and gaps. Operator review is complete: all 18 P0 decisions across UMH (5), EOS (3), CreatorOS (4), LyfeOS (3), and Reality Model Corrections (3) were ratified on 2026-06-04. Open questions Q1-Q5 are resolved. Q6-Q15 remain open for future phases. Implementation phases may now proceed under governance.

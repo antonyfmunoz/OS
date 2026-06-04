@@ -1,14 +1,15 @@
 # UMH Projection Ecosystem Doctrine
 
-- **Phase:** 14.6B-UMH (revised 14.6D)
-- **Status:** DRAFT -- awaiting operator ratification
+- **Phase:** 14.6B-UMH (revised 14.6F)
+- **Status:** RATIFIED -- all 18 P0 decisions operator-approved (2026-06-04)
 - **Provenance:** OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH + DEC-146C-001/002/003 ratification
+- **Revision note:** Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ---
 
 ## Core Doctrine
 
-Universal Meta Harness (UMH) is the integrated AI-native system whose core functional purpose is to build, maintain, and act through a reality-isomorphic approximation of reality (DEC-146C-001). UMH attempts to model reality across physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, and OS-level layers. All subsystems -- orchestration, governance, execution, memory, adapters, agents, Cockpit, and projections -- are capabilities and organs serving this reality model. The reality model is the central organizing model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback.
+Universal Meta Harness (UMH) is the integrated AI-native system whose core functional purpose is to build, maintain, and act through a reality-isomorphic approximation of reality (DEC-146C-001, RATIFIED 2026-06-04). Product name: "Universal Meta Harness" (DEC-146B-UMH-001, RATIFIED 2026-06-04). Functional identity: reality-isomorphic intelligence harness. UMH attempts to model reality across physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, and OS-level layers. All subsystems -- orchestration, governance, execution, memory, adapters, agents, Cockpit, and projections -- are capabilities and organs serving this reality model. The reality model is the central organizing model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback.
 
 UMH is NOT:
 - A Cockpit UI only
@@ -49,6 +50,9 @@ Projections:
 - Code location: projections/eos/
 - Components: 10 department agents, 3 views, 3 workflows, entity hierarchy, full integration
 - Separate SaaS codebase exists (TypeScript/React, Drizzle ORM)
+- **Canonical SaaS codebase:** Beast branch (DEC-146B-EOS-001, RATIFIED 2026-06-04). GitHub main is stale/deprecated.
+- **Auth:** Clerk confirmed as production auth provider (DEC-146B-EOS-003, RATIFIED 2026-06-04)
+- **MVP scope:** R1-R5 confirmed (DEC-146B-EOS-002, RATIFIED 2026-06-04)
 
 ### CreatorOS
 - Domain: Creator/content/community/commerce platform
@@ -56,6 +60,10 @@ Projections:
 - Code location: projections/creatoros/
 - Components: Integration manifest, signal/capability/outcome handlers, no agents/views/workflows
 - Separate SaaS codebase exists (shared/schema.ts referenced)
+- **MVP scope:** Content + Community + Courses + Sales, 8-12 weeks (DEC-146B-COS-001, RATIFIED 2026-06-04)
+- **Auth:** Clerk first, blocks all other implementation (DEC-146B-COS-002, RATIFIED 2026-06-04)
+- **Build sequence:** Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics (DEC-146B-COS-004, RATIFIED 2026-06-04)
+- **Source code:** Verify baseline, then GitHub as canonical (DEC-146B-COS-003, RATIFIED 2026-06-04)
 
 ### LyfeOS
 - Domain: Personal life/transformation/wellness
@@ -63,10 +71,16 @@ Projections:
 - Code location: projections/lyfeos/ (integration stubs)
 - Deployed: lyfeos.net on Replit (35 database tables, working app)
 - Phase 14.6B-LyfeOS produced 52 detailed artifacts
+- **PRD:** v2.0 is canonical direction; v1.0 is historical context only (DEC-146B-LOS-001, RATIFIED 2026-06-04)
+- **Auth:** Clerk migration after CreatorOS proves the pattern (DEC-146B-LOS-002, RATIFIED 2026-06-04)
+- **Infrastructure:** Fly.io is the Trinity standard, migrating from Replit (DEC-146B-LOS-003, RATIFIED 2026-06-04)
 
 ## UMH / Projection Relationship
 
 ### What UMH Owns (Reality Model + Capability Pipeline)
+
+Execution flows through a single unified path: Substrate -> SignalRouter -> Spine (DEC-146B-UMH-003, RATIFIED 2026-06-04).
+
 1. Ingestion
 2. Signal interpretation
 3. Decomposition
@@ -126,12 +140,13 @@ Example -- Business operations:
 
 ## How Projections Access UMH
 
-Current implementation (ProductConnectionManager):
+Current implementation (ProductConnectionManager -- DEC-146B-UMH-005 ratified abstract port pattern via substrate/sockets/projection_port.py):
 - Integration manifests define signals and capabilities per projection
 - Polled tables provide signal sources (EOS: CRM tables, CreatorOS: posts/products/revenue, LyfeOS: quests/daily_logs/stats)
 - Signal emitters convert table rows to SignalEnvelopes
 - Capability handlers execute UMH-initiated actions back into projection databases
 - Outcome receivers handle writeback with dual audit
+- **Ratified direction (DEC-146B-UMH-005):** ProductConnectionManager dependency violation resolved via abstract port pattern in substrate/sockets/projection_port.py
 
 Future access methods may include:
 - Internal API
@@ -149,7 +164,7 @@ Future access methods may include:
 
 ## Cockpit's Role
 
-Cockpit is the private operator/Jarvis interface into UMH's reality model (DEC-146C-003). It is part of the indivisible Stage 1 organism -- Cockpit without a reality model is only a dashboard; a reality model without Cockpit is inaccessible to the operator.
+Cockpit is the private operator/Jarvis interface into UMH's reality model (DEC-146C-003, RATIFIED 2026-06-04). It is part of the indivisible Stage 1 organism -- Cockpit without a reality model is only a dashboard; a reality model without Cockpit is inaccessible to the operator.
 
 Cockpit MAY:
 - Inspect projection state
@@ -177,4 +192,4 @@ They are one coherent ecosystem organized around a shared reality model:
 - Explicit data boundaries
 - Governed cross-system orchestration
 
-**Materialization Principle (DEC-146C-002):** If a human can imagine an outcome, UMH should attempt to simulate the path from imagination to materialization. Lack of current knowledge, resources, tools, capital, information, skill, access, or time does not invalidate the intent -- it creates typed gaps and acquisition paths. UMH does not treat missing capability as terminal failure. It classifies the gap, identifies what must be acquired or learned, generates the highest-leverage path, and governs execution. If an outcome violates physical reality, law, safety, ethics, or non-negotiable constraints, UMH states the boundary clearly and proposes the nearest lawful/safe/materializable alternative.
+**Materialization Principle (DEC-146C-002, RATIFIED 2026-06-04):** If a human can imagine an outcome, UMH should attempt to simulate the path from imagination to materialization. Lack of current knowledge, resources, tools, capital, information, skill, access, or time does not invalidate the intent -- it creates typed gaps and acquisition paths. UMH does not treat missing capability as terminal failure. It classifies the gap, identifies what must be acquired or learned, generates the highest-leverage path, and governs execution. If an outcome violates physical reality, law, safety, ethics, or non-negotiable constraints, UMH states the boundary clearly and proposes the nearest lawful/safe/materializable alternative.

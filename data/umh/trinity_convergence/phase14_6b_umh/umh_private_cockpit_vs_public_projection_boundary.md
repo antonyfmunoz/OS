@@ -1,9 +1,11 @@
 # UMH Private Cockpit vs Public Projection Boundary
 
-**Phase:** 14.6B-UMH (revised 14.6D)
+**Phase:** 14.6B-UMH (revised 14.6F)
 **Status:** DRAFT -- awaiting operator ratification
 **Provenance:** OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH + DEC-146C-001/003 ratification
 **Date:** 2026-06-03
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ---
 
@@ -42,9 +44,9 @@ Related documents:
 
 ## Key Boundaries
 
-### 1. Cockpit is not a public product
+### 1. Cockpit is not a public product -- it is the reality-model interface
 
-Cockpit is the private operator command center. It is not a customer-facing product and must never be exposed to end-users of EOS, CreatorOS, or LyfeOS. The Cockpit domain (universalmetaharness.tech) is operator-only. No end-user should ever see a Cockpit URL, Cockpit panel, or Cockpit error message.
+Cockpit is the operator's interface into UMH's full reality model (DEC-146C-001, DEC-146C-003). It renders all 12 reality layers for the operator and accepts commands that mutate reality-model state through governed execution. It is not a customer-facing product and must never be exposed to end-users of EOS, CreatorOS, or LyfeOS. The Cockpit domain (universalmetaharness.tech) is operator-only. No end-user should ever see a Cockpit URL, Cockpit panel, or Cockpit error message. Per DEC-146C-003, Cockpit without a reality model is only a dashboard -- both must be viable together.
 
 **Current implementation:** Three-tier auth (API key + operator token + dev bypass) ensures no unauthenticated access. Dev bypass is restricted to private Tailscale IPs only.
 
@@ -126,7 +128,7 @@ All projections share the same intelligence pipeline (ingestion, model routing, 
 
 2. **EOS-specific endpoints in cockpit.py.** Endpoints `/api/umh/eos/*` (pipeline, KPIs, activity) are directly in cockpit.py rather than a projection-specific route file. This does not violate the boundary per se (Cockpit should be able to view projection data), but it conflates projection-specific API surface with core Cockpit routes. Architectural debt.
 
-3. **ProductConnectionManager dependency direction.** `substrate/integrations/product_connections.py` may import from projections/ -- an upward dependency violation. Needs verification and potential extraction to an abstract port pattern.
+3. **ProductConnectionManager dependency direction.** `substrate/integrations/product_connections.py` may import from projections/ -- an upward dependency violation. RESOLVED per DEC-146B-UMH-005 (ratified 2026-06-04): abstract port pattern via `substrate/sockets/projection_port.py`. Implementation not yet started.
 
 4. **Missing projection panels.** No CreatorOS or LyfeOS specific cockpit panels exist yet. Only EOS views are surfaced in the Cockpit frontend. Not a violation, but an incompleteness -- Cockpit should provide cross-projection visibility.
 

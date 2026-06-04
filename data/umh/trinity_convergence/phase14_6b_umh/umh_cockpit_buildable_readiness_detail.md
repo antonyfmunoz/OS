@@ -1,21 +1,22 @@
 # UMH Stage 1 Organism Buildable Readiness Detail
 
-Phase: 14.6B-UMH (revised 14.6D)
-Status: DRAFT
+Phase: 14.6B-UMH (revised 14.6F)
+Status: RATIFIED -- all 18 P0 decisions operator-approved (2026-06-04)
 Generated: 2026-06-03
+Revision note: Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ---
 
-## Stage 1 Organism Context (DEC-146C-003)
+## Stage 1 Organism Context (DEC-146C-003, RATIFIED 2026-06-04)
 
-Stage 1 is one minimum viable UMH organism: Reality Model + Cockpit + Memory + Governed Execution Loop. These are not separate products or sequential phases. Readiness criteria below must be evaluated in the context of the indivisible Stage 1 organism, not as isolated Cockpit capabilities. Each criterion contributes to one or more of the four organism components:
+Stage 1 is one minimum viable UMH organism (DEC-146C-003, Option B, RATIFIED 2026-06-04): Reality Model + Cockpit + Memory + Governed Execution Loop. These are not separate products or sequential phases. Readiness criteria below must be evaluated in the context of the indivisible Stage 1 organism, not as isolated Cockpit capabilities. Each criterion contributes to one or more of the four organism components:
 
 - **RM** = Reality Model component
 - **CK** = Cockpit component
 - **MM** = Memory component
 - **GE** = Governed Execution component
 
-Stage 1 minimum viability does not require commercial-grade completeness. It requires a partially functional integrated vertical slice (DEC-146C-003 acceptance criteria 1-10).
+Stage 1 minimum viability does not require commercial-grade completeness. It requires a partially functional integrated vertical slice (DEC-146C-003 acceptance criteria 1-10). Per the Materialization Principle (DEC-146C-002, RATIFIED 2026-06-04), gaps in capability do not invalidate Stage 1 -- they create typed gaps and acquisition paths that the organism itself can work to close.
 
 ---
 
@@ -48,7 +49,7 @@ Stage 1 minimum viability does not require commercial-grade completeness. It req
 - `substrate/organism/orchestrator_kernel.py` -- `classify_intent()` method routes through IntentClassifier, returns `IntentClassification`
 - `substrate/control_plane/runtime/gateway.py` -- Gateway class routes classified intents to appropriate execution handlers
 
-**Flow:** CommandPalette -> OrchestratorKernel.classify_intent() -> IntentClassifier.classify() -> Gateway routing -> Handler dispatch
+**Flow:** CommandPalette -> OrchestratorKernel.classify_intent() -> IntentClassifier.classify() -> Gateway routing -> Handler dispatch. Execution flows through single unified path: Substrate -> SignalRouter -> Spine (DEC-146B-UMH-003, RATIFIED 2026-06-04).
 
 **Deterministic-first compliant:** Intent classification uses keyword/pattern matching as spine. No LLM required for routing.
 
@@ -196,24 +197,27 @@ No cockpit component renders git diffs or file mutations. Audit events in `execu
 ### 17. Projection Status Visibility
 
 **Classification:** PARTIALLY_IMPLEMENTED
+**Organism Component:** RM + CK
 
-EOS projection active and queryable. CreatorOS and LyfeOS projections defined in configuration. No cockpit panel showing per-projection health dashboard, active users, or projection-specific metrics.
-
----
-
-### 18. Source Truth Visibility
-
-**Classification:** PARTIALLY_IMPLEMENTED
-
-`substrate/reality_model/canonical.py` (`CanonicalRealityModel`) maintains source truth. Queryable via substrate API. `data/umh/reality_model/canonical.json` stores current canonical state. No cockpit UI showing source truth entries or source-vs-production truth comparison.
+EOS projection active and queryable. CreatorOS and LyfeOS projections defined in configuration. No cockpit panel showing per-projection health dashboard, active users, or projection-specific metrics. Projection access uses abstract port pattern via substrate/sockets/projection_port.py (DEC-146B-UMH-005, RATIFIED 2026-06-04). Each projection is an instance reality model (DEC-146C-001) -- Cockpit must render per-projection reality-model state.
 
 ---
 
-### 19. Production Truth Visibility
+### 18. Source Truth Visibility (Reality Model: source-truth layer)
 
 **Classification:** PARTIALLY_IMPLEMENTED
+**Organism Component:** RM + CK
 
-Production truth promotion lifecycle documented (`umh_source_truth_production_truth_lifecycle.md`). Three reality model tiers (canonical, instance, simulation). No cockpit real-time dashboard for production truth state or promotion history.
+`substrate/reality_model/canonical.py` (`CanonicalRealityModel`) maintains source truth -- one of the 12 reality-model layers (DEC-146C-001). Queryable via substrate API. `data/umh/reality_model/canonical.json` stores current canonical state. No cockpit UI showing source truth entries or source-vs-production truth comparison. This gap blocks the operator from observing the source-truth layer of the reality model through Cockpit (violating indivisible Stage 1 per DEC-146C-003).
+
+---
+
+### 19. Production Truth Visibility (Reality Model: source-truth layer)
+
+**Classification:** PARTIALLY_IMPLEMENTED
+**Organism Component:** RM + CK
+
+Production truth promotion lifecycle documented (`umh_source_truth_production_truth_lifecycle.md`). Three reality model tiers (canonical, instance, simulation). No cockpit real-time dashboard for production truth state or promotion history. Per the Materialization Principle (DEC-146C-002), this gap type is "under-resourced" -- the concept exists, the lifecycle is defined, implementation needs cockpit rendering.
 
 ---
 
@@ -225,11 +229,12 @@ Audit trail files: `data/umh/organism/execution_journal.jsonl`, `events.jsonl`, 
 
 ---
 
-### 21. Memory Visibility
+### 21. Memory Visibility (Reality Model: memory layer)
 
 **Classification:** PARTIALLY_IMPLEMENTED
+**Organism Component:** MM + CK
 
-ConversationMemory and AgentMemory fully queryable. Semantic search via embeddings. MemoryPromoter handles promotion. No cockpit panel for memory browsing, semantic search UI, or promotion status visualization.
+ConversationMemory and AgentMemory fully queryable. Semantic search via embeddings. MemoryPromoter handles promotion. No cockpit panel for memory browsing, semantic search UI, or promotion status visualization. Memory is one of the four indivisible Stage 1 components (DEC-146C-003) -- this gap directly blocks Stage 1 organism viability.
 
 ---
 
@@ -244,8 +249,9 @@ ConversationMemory and AgentMemory fully queryable. Semantic search via embeddin
 ### 23. Recovery/Rollback Visibility
 
 **Classification:** MISSING
+**Organism Component:** GE + CK
 
-No cockpit mechanism for viewing execution outcome history with rollback capability. No undo/revert UI. No snapshot-based recovery. Execution outcomes are recorded but not reversible through the cockpit.
+No cockpit mechanism for viewing execution outcome history with rollback capability. No undo/revert UI. No snapshot-based recovery. Execution outcomes are recorded but not reversible through the cockpit. Per the Materialization Principle (DEC-146C-002), this gap is typed as "not-yet-acquired" capability with a clear acquisition path: execution journal already captures outcomes, rollback requires adding reversibility metadata and a cockpit rendering surface.
 
 ---
 
@@ -260,5 +266,6 @@ Governance provides deterministic risk classification (LOW/MEDIUM/HIGH/CRITICAL)
 ### 25. Degraded-Mode Operation
 
 **Classification:** MISSING
+**Organism Component:** CK + RM
 
-No cockpit fallback behavior when backend services are unavailable. No offline mode. No cached-state rendering for last-known-good state. No graceful degradation UI that communicates reduced capability. When the API is unreachable, cockpit shows connection errors with no useful fallback.
+No cockpit fallback behavior when backend services are unavailable. No offline mode. No cached-state rendering for last-known-good state. No graceful degradation UI that communicates reduced capability. When the API is unreachable, cockpit shows connection errors with no useful fallback. Per indivisible Stage 1 (DEC-146C-003), Cockpit without the reality model is only a dashboard -- but degraded mode should still render last-known reality-model state rather than showing nothing.

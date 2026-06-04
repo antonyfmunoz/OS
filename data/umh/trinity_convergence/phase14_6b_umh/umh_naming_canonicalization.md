@@ -1,8 +1,10 @@
 # UMH Naming Canonicalization
 
-**Phase:** 14.6B-UMH (revised 14.6D)
-**Status:** DRAFT — awaiting operator ratification
-**Provenance:** CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION + DEC-146C-001 ratification
+**Phase:** 14.6B-UMH (revised 14.6F)
+**Status:** RATIFIED
+**Provenance:** CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION + DEC-146C-001 + DEC-146B-UMH-001 ratification
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ---
 
@@ -12,7 +14,7 @@
 
 - Abbreviation: **UMH**
 - Package name: `universal-meta-harness` (pyproject.toml, line 6)
-- **CONFIRMED by operator ratification (DEC-146C-001, 2026-06-04):** Product name remains "Universal Meta Harness." Do not rename to "engine." The operator was explicit: UMH's functional identity is a reality-isomorphic intelligence harness, but the product name is Universal Meta Harness.
+- **CONFIRMED by dual ratification (DEC-146B-UMH-001 + DEC-146C-001, 2026-06-04):** Product name remains "Universal Meta Harness." "Universal Mastery Hierarchy" is stale (DEC-146B-UMH-001). Do not rename to "engine." The operator was explicit: UMH's functional identity is a reality-isomorphic intelligence harness, but the product name is Universal Meta Harness (DEC-146C-001).
 - Functional identity: reality-isomorphic intelligence harness / reality-modeling system (DEC-146C-001).
 
 ---
@@ -83,7 +85,7 @@ These aliases exist for import compatibility and must be preserved until all con
 | File | Issue |
 |------|-------|
 | README.md line 1 | "UMH — Universal Mastery Hierarchy" → "UMH — Universal Meta Harness" |
-| PHILOSOPHY.md (entire file) | Uses "EntrepreneurOS" as if it were the system name, not a projection |
+| PHILOSOPHY.md (entire file) | Uses "EntrepreneurOS" as if it were the system name, not a projection — RATIFIED for UMH-universal rewrite (DEC-146B-UMH-002) |
 | CLAUDE.md | References "Universal Mastery Hierarchy" |
 | cloud.md | References "Universal Mastery Hierarchy" |
 | knowledge/palace/index.md | "EOS Memory Palace" → "UMH Memory Palace" |
@@ -94,7 +96,7 @@ These aliases exist for import compatibility and must be preserved until all con
 
 ## Rules
 
-1. **Universal Meta Harness** is the canonical full product name. Confirmed by DEC-146C-001 ratification (2026-06-04).
+1. **Universal Meta Harness** is the canonical full product name. Confirmed by dual ratification: DEC-146B-UMH-001 + DEC-146C-001 (2026-06-04).
 2. **UMH** is the canonical abbreviation.
 3. **Universal Mastery Hierarchy** is classified as stale/non-canonical naming debt.
 4. **EntrepreneurOS** is a valid projection name but must not be used as the system name.

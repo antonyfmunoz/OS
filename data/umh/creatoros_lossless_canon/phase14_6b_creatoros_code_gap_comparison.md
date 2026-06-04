@@ -1,5 +1,5 @@
 ---
-phase: "14.6B-CreatorOS"
+phase: "14.6B-CreatorOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
@@ -369,8 +369,8 @@ Where current code actively conflicts with the desired state. These must be repl
 | CONTRA-04 | Gamification (XP/Levels) | users.xpPoints (integer, default 0) and users.level (integer, default 1) on every user record. | X/Twitter-inspired minimalism. Design identity explicitly rejects "gamification chrome (XP bars, achievement badges, level indicators)." | Code implements gamification the design system explicitly prohibits. | Remove xpPoints and level columns from users table. Remove any UI components that display XP or levels. |
 | CONTRA-05 | Backend Framework | Express 4 (current). NestJS recommended in Google Doc Tech Architecture section. | Express 4 is the canonical backend framework (operator decision, code resolves). | Google Doc mentions NestJS but code uses Express. Express is the correct current truth. | No action needed. Express stays. NestJS recommendation is stale. |
 | CONTRA-06 | Deployment Target | .replit and replit.nix configs present. Replit Vite plugins in vite.config.ts. REPL_ID env var. | Fly.io deployment via Docker. No Replit dependency. | Code has Replit coupling artifacts that will interfere with Docker/Fly.io deployment. | Remove .replit, replit.nix, generated-icon.png. Clean vite.config.ts of Replit plugins. Remove REPL_ID from env var usage. |
-| CONTRA-07 | Auth Provider in PRD | Google Doc Tab 3 recommends Firebase Auth (Section 6.1), Clerk/NextAuth (Build Guide), and Supabase Auth (Tech Architecture) -- three different providers in the same document. | Clerk is the canonical target per operator directive (DEC-145-004). | Three contradictory auth recommendations in the source PRD, none matching the operator's actual decision. | Clerk is canonical. Firebase, Supabase Auth, and NextAuth recommendations are all stale/superseded. |
-| CONTRA-08 | MVP Scope | Three conflicting MVP definitions across Google Doc Tabs 3, 6, and 7 with mutually incompatible feature sets. | Single recommended Option B: Creator + Course/Product (content + community + courses + marketplace + stabilize existing). | Three source documents disagree on what "MVP" means. Cannot proceed without resolving. | OPEN_QUESTION_OPERATOR_DECISION_REQUIRED (DEC-145-002). Recommended: Option B. |
+| CONTRA-07 | Auth Provider in PRD | Google Doc Tab 3 recommends Firebase Auth (Section 6.1), Clerk/NextAuth (Build Guide), and Supabase Auth (Tech Architecture) -- three different providers in the same document. | Clerk is the canonical target per operator directive (DEC-146B-EOS-003, DEC-146B-COS-002). | Three contradictory auth recommendations in the source PRD, none matching the operator's actual decision. | RESOLVED — DEC-146B-EOS-003 / DEC-146B-COS-002 (ratified 2026-06-04): Clerk is confirmed as production auth provider. Auth migration is CRITICAL and blocks ALL other implementation. Firebase, Supabase Auth, and NextAuth recommendations are all stale/superseded. |
+| CONTRA-08 | MVP Scope | Three conflicting MVP definitions across Google Doc Tabs 3, 6, and 7 with mutually incompatible feature sets. | Content + Community + Courses + Sales (Option 2, 8-12 weeks). | Three source documents disagreed on what "MVP" means. Resolved by operator ratification. | RESOLVED — DEC-146B-COS-001 (ratified 2026-06-04): MVP scope is Content + Community + Courses + Sales (Option 2, 8-12 weeks). |
 | CONTRA-09 | Parallel Auth Path | zustand store in stores.ts has a mock auth flow that fetches the full user list to the client, bypassing Passport entirely. Two auth paths coexist. | Single auth path through Clerk. No client-side user enumeration. | Two parallel auth mechanisms. The zustand path exposes the complete user list to any client. | Remove zustand auth store. Remove user list endpoint or restrict to admin role with pagination. |
 | CONTRA-10 | Dark Mode Default | theme.json sets appearance: "light" as default. | Design identity specifies dark mode as default (true black, OLED-optimized). "Creators work long hours. Dark mode reduces eye strain." | theme.json contradicts the design system's dark-mode-first directive. | Change theme.json appearance to "dark". Implement true black (#000000) background. Offer light mode as preference toggle. |
 
@@ -489,11 +489,15 @@ Ordered by what must happen first based on dependency chains, security requireme
 | Current API routes | 89 (in one god file) |
 | Test files | 0 |
 | Active contradictions requiring resolution | 10 |
-| Operator decisions pending | 2 (MVP scope DEC-145-002, Auth migration order DEC-145-004) |
+| Operator decisions pending | 0 (MVP scope resolved per DEC-146B-COS-001, Auth migration order resolved per DEC-146B-COS-002; both ratified 2026-06-04) |
 | Critical security gaps blocking deployment | 5 (GAP-COS-001 through GAP-COS-005) |
 | Professional gaps total | 67 |
 | Implementation debt items total | 38 |
 | Features in code but not in desired state | 8 |
 | Features in desired state with no code | 26 major feature areas |
 
-The codebase delivers approximately 20% of the desired product surface. The 80% gap is concentrated in commerce (zero payment infrastructure), platform integrations (zero cross-posting), and 9 entirely unbuilt modules. The most critical path forward is resolving the auth security blocker, then architecture stabilization, then the revenue path through Stripe Connect and commerce tables.
+The codebase delivers approximately 20% of the desired product surface. The 80% gap is concentrated in commerce (zero payment infrastructure), platform integrations (zero cross-posting), and 9 entirely unbuilt modules. The most critical path forward is the Clerk auth migration (DEC-146B-COS-002, ratified), then architecture stabilization, then the revenue path through Stripe Connect and commerce tables. MVP scope is ratified as Content + Community + Courses + Sales per DEC-146B-COS-001. Build sequence is ratified as Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics per DEC-146B-COS-004.
+
+---
+
+*Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).*

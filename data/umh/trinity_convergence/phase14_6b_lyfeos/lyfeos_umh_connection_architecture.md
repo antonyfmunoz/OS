@@ -1,16 +1,19 @@
 # LyfeOS UMH Connection Architecture
 
-**Phase:** 14.6B-LyfeOS
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
+**Revised:** 2026-06-04
 **Artifact:** 21 of 30
 **operator_approved:** false
 **allows_implementation:** false
 **Date:** 2026-06-03
 
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
 ---
 
 ## Purpose
 
-Defines the boundary between what LyfeOS owns and what UMH owns, the integration surfaces between them, blocking questions, guiding principles, and the current state of the existing integration layer.
+Defines the boundary between what LyfeOS owns and what UMH owns, the integration surfaces between them, blocking questions, guiding principles, and the current state of the existing integration layer. UMH is a reality-isomorphic intelligence harness (DEC-146C-001), not merely an orchestration kernel or operational tooling. LyfeOS is a projection/instance reality model on the UMH substrate.
 
 ---
 
@@ -47,7 +50,8 @@ UMH is the invisible substrate. It owns:
 
 | Domain | Details |
 |--------|---------|
-| **Agent Runtime** | Model routing, fallback chains, model selection, response generation |
+| **Reality Model** | The world model IS the reality model — the central organizing model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback (DEC-146C-001) |
+| **Agent Runtime** | Model routing, fallback chains, model selection, response generation — all signals route through single execution path (DEC-146B-UMH-003) |
 | **Orchestration Governance** | Risk classification, approval gates, execution boundaries |
 | **Source Truth** | Canonical type system, single-source-of-truth for shared domain models |
 | **Quality Gates** | Response quality scoring, feedback loops, learning |
@@ -55,7 +59,7 @@ UMH is the invisible substrate. It owns:
 | **Execution Boundaries** | What actions the AI can take, rate limits, scope constraints |
 | **Audit** | Execution traces, outcome recording, compliance logging |
 | **Memory / Salience** | Cross-session intelligence, pattern recognition, user model evolution |
-| **Projection Registration** | How LyfeOS registers as a projection with the substrate |
+| **Projection Registration** | How LyfeOS registers as a projection/instance reality model via abstract port pattern (DEC-146B-UMH-005) |
 | **Event Bus** | Signal emission, outcome reception, correlation tracking |
 | **Deterministic Spine** | Rules/regex/lookup that always work, even when AI is unavailable |
 
@@ -71,6 +75,7 @@ These are the interfaces where LyfeOS and UMH must connect:
 - LyfeOS user ID (serial integer) must map to UMH org/user identity
 - LyfeOS uses Passport.js + Firebase; UMH uses its own identity model
 - Mapping table or identity bridge required
+- Clerk migration after CreatorOS proves pattern (DEC-146B-LOS-002)
 
 ### 3.2 User / Profile Mapping
 - LyfeOS `userProfile` (100+ fields) must be accessible to UMH salience engine
@@ -79,14 +84,15 @@ These are the interfaces where LyfeOS and UMH must connect:
 
 ### 3.3 AI Runtime Handoff
 - Currently: LyfeOS calls Anthropic directly
-- Future: LyfeOS sends AI requests to UMH substrate, which routes through `model_router.py`
+- Future: LyfeOS sends AI requests to UMH substrate, which routes through `model_router.py` via single execution path (DEC-146B-UMH-003)
 - UMH handles model selection, fallback, governance
 - LyfeOS handles streaming display, UI rendering
 
 ### 3.4 Tool / Action Registry
-- LyfeOS tools (web_search, create_vision_goal, batch_create_missions, etc.) must be registered as UMH capabilities
+- LyfeOS tools (web_search, create_vision_goal, batch_create_missions, etc.) must be registered as UMH capabilities via abstract port pattern (DEC-146B-UMH-005)
 - UMH governs which tools are available, their risk classes, and approval requirements
 - Existing: `projections/lyfeos/integration/manifest.py` defines `CAPABILITY_DESCRIPTORS`
+- When capability is missing, UMH creates typed gaps and acquisition paths (DEC-146C-002). Gap types: unavailable, under-resourced, unproven, not-yet-acquired, time-bound. Only impossible/illegal/unsafe are true boundaries.
 
 ### 3.5 Memory Boundaries
 - Which conversation data does UMH retain vs. LyfeOS?
@@ -132,6 +138,7 @@ These are the interfaces where LyfeOS and UMH must connect:
 - When UMH is unavailable, LyfeOS must continue to function
 - Deterministic-first principle: all non-AI features work without substrate
 - AI features gracefully degrade to "unavailable" message
+- Stage 1 = indivisible organism: Reality Model + Cockpit + Memory + Governed Execution Loop (DEC-146C-003)
 
 ---
 
@@ -147,7 +154,7 @@ These are the interfaces where LyfeOS and UMH must connect:
 | UMH-004 | What data sensitivity classification applies to financial and health profile data? | Privacy — determines what UMH can access |
 | UMH-005 | Should conversation history be stored in LyfeOS DB, UMH DB, or both? | Data architecture — affects storage and retrieval patterns |
 | UMH-006 | When a user disables AI (`aiAssistantEnabled = false`), does UMH stop all signal processing for that user? | Governance — consent boundary |
-| UMH-007 | Should LyfeOS vision goals be surfaced to other projections (CreatorOS, EntrepreneurOS) via UMH? | Cross-projection — determines data isolation model |
+| UMH-007 | Should LyfeOS vision goals be surfaced to other projections (CreatorOS, EntrepreneurOS) via UMH reality model? | Cross-projection — determines data isolation model |
 | UMH-008 | What is the latency budget for AI responses when routing through UMH vs. direct Anthropic? | Performance — user experience constraint |
 | UMH-009 | Should the AI companion name choice be projection-specific or shared across projections? | Identity — user experience across products |
 | UMH-010 | How does onboarding data (archetype, personality, vision) feed into UMH's user model? | Intelligence — determines depth of cross-projection personalization |
@@ -160,9 +167,9 @@ These are the interfaces where LyfeOS and UMH must connect:
 
 **Provenance:** SYNTHESIZED_CANON
 
-1. **Adapter-first, not rewrite-first**: Integration with UMH should use adapter patterns at the boundary, not rewrite LyfeOS internals
+1. **Adapter-first, not rewrite-first**: Integration with UMH should use adapter patterns at the boundary via abstract port pattern (DEC-146B-UMH-005), not rewrite LyfeOS internals
 2. **LyfeOS stays user-facing**: All UI, UX, and user interaction belongs to LyfeOS. UMH never renders UI.
-3. **UMH stays substrate**: All intelligence routing, governance, audit, and orchestration belongs to UMH. LyfeOS never implements governance logic.
+3. **UMH stays substrate**: All intelligence routing, governance, audit, and orchestration belongs to UMH — the reality-isomorphic intelligence harness (DEC-146C-001). LyfeOS never implements governance logic.
 4. **User never needs to know UMH exists**: From the user's perspective, they are using LyfeOS with their AI companion. UMH is invisible infrastructure.
 5. **LyfeOS DB is source of truth for user data**: Profile, missions, logs, stats, conversations — all owned by LyfeOS. UMH reads, does not write primary user data.
 6. **Deterministic spine preserved**: All non-AI features of LyfeOS work without UMH. Gamification, stat tracking, mission management, daily logging — all deterministic.

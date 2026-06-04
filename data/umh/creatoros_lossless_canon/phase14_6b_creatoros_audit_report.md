@@ -1,16 +1,16 @@
 ---
-phase: "14.6B-CreatorOS"
+phase: "14.6B-CreatorOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
 provenance: "SYNTHESIZED_CANON"
-description: "Phase compliance and quality audit for CreatorOS lossless canon -- verifies all artifacts, provenance labels, success criteria, findings, contradictions, and recommendations."
+description: "Phase compliance and quality audit for CreatorOS lossless canon -- verifies all artifacts, provenance labels, success criteria, findings, contradictions, and recommendations. Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04)."
 ---
 
 # CreatorOS Phase 14.6B Audit Report
 
-**Phase:** 14.6B-CreatorOS
+**Phase:** 14.6B-CreatorOS (revised 14.6F)
 **Artifacts Produced:** 24 (of 45 planned; 21 consolidated into existing artifacts)
 **Operator Approved:** false
 **Allows Implementation:** false
@@ -103,10 +103,11 @@ CreatorOS is the **most source-complete but architecturally blocked** Trinity ap
 ### Key Difference from EOS
 
 CreatorOS has **NO feature branch divergence**. GitHub main IS the single source of
-code truth. Unlike EOS (which has a 603-file Beast feature/company-system branch
-that is the canonical promotion candidate), CreatorOS has one codebase across all
-surfaces. This makes the source topology simpler but means there is no "better
-branch" to promote -- the broken codebase is the only codebase.
+code truth (DEC-146B-COS-003, ratified 2026-06-04: verify baseline, then GitHub as canonical).
+Unlike EOS (which has a 603-file Beast branch that is the canonical codebase per
+DEC-146B-EOS-001), CreatorOS has one codebase across all surfaces. This makes the
+source topology simpler but means there is no "better branch" to promote -- the
+broken codebase is the only codebase.
 
 ---
 
@@ -136,17 +137,19 @@ Module-level testing is impossible. Code review is impractical.
 **Evidence:** phase14_6b_creatoros_current_implementation_truth.json,
 COS-ARCH-001, COS-ARCH-002, GAP-COS-006, GAP-COS-007.
 
-### Finding 3: Three Conflicting MVP Scopes Block All Feature Planning
+### Finding 3: Three Conflicting MVP Scopes — RESOLVED
 
-The Google Doc contains three mutually incompatible MVP scope definitions:
+The Google Doc contained three mutually incompatible MVP scope definitions:
 Tab 6 (original MVP) excludes courses, marketplace, and payments. Tab 7
 (expanded MVP) includes everything Tab 6 excludes. Tab 3 (Build Guide)
-defines a third variant with a 7.4-week timeline. Until the operator selects
-a canonical scope, no feature build, sprint planning, or resource allocation
-can proceed. This is the single highest-impact operator decision for CreatorOS.
+defines a third variant with a 7.4-week timeline. This has been resolved:
+operator ratified DEC-146B-COS-001 (2026-06-04) selecting Content + Community +
+Courses + Sales (Option 2, 8-12 weeks) as the canonical MVP scope. Build
+sequence ratified as Auth -> Split -> Tests -> Content -> Community -> Courses ->
+Stripe -> Analytics per DEC-146B-COS-004.
 
 **Evidence:** phase14_6b_creatoros_versions_contradictions_matrix.json,
-CONTRA-COS-002, DEC-146B-COS-001.
+CONTRA-COS-002, DEC-146B-COS-001 (RESOLVED 2026-06-04).
 
 ### Finding 4: 25 Missing Tables for Full Product
 
@@ -262,8 +265,8 @@ section), DEBT-COS-001, DEBT-COS-002, GAP-COS-066.
 
 | # | Contradiction | Options | Impact |
 |---|---------------|---------|--------|
-| 1 | MVP scope: 3 conflicting definitions (Tab 6 vs Tab 7 vs Build Guide) | A) Content+community only B) Content+community+courses+products C) Full Tab 7 D) Full PRD | Blocks ALL feature build scope decisions. P0 decision. |
-| 2 | Auth migration order: CreatorOS first or EOS first? | A) CreatorOS first (has critical bypass) B) EOS first (closer to revenue) C) Simultaneous with shared Clerk app | Both apps need Clerk. Order and shared-vs-separate decision needed. |
+| 1 | ~~MVP scope: 3 conflicting definitions~~ | **RESOLVED** — DEC-146B-COS-001 (ratified 2026-06-04): Content + Community + Courses + Sales (Option 2, 8-12 weeks). | No longer blocks feature planning. |
+| 2 | ~~Auth migration order: CreatorOS first or EOS first?~~ | **RESOLVED** — DEC-146B-COS-002 (ratified 2026-06-04): Clerk first, block ALL other implementation until auth complete. DEC-146B-COS-004: Build sequence Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics. | No longer blocks. Clerk migration is the defined first step. |
 | 3 | Backend framework: stick with Express or migrate to NestJS? | A) Keep Express (current code) B) Migrate to NestJS (PRD mentions) | Express is working. NestJS migration is large effort with unclear benefit. |
 | 4 | Emergency auth: disable auth or migrate directly to Clerk? | A) Disable auth entirely as stopgap B) Direct Clerk migration | Determines immediate P0 approach and timeline. |
 | 5 | Error tracking: PostHog only or add Sentry? | A) PostHog for analytics + errors B) Sentry for errors + PostHog for analytics | Monitoring architecture decision. |
@@ -523,9 +526,9 @@ This phase produced analysis artifacts only. The following safety properties hol
 
 ### Immediate (Same Day)
 
-1. Operator reviews this audit report and the 13 unresolved contradictions
-2. Operator selects MVP scope from the 4 options in DEC-146B-COS-001 (P0 blocker)
-3. Operator decides Clerk migration order (CreatorOS first vs EOS first, DEC-146B-COS-002)
+1. Operator reviews this audit report and the 11 remaining unresolved contradictions (2 of 13 resolved by ratified P0 decisions)
+2. ~~Operator selects MVP scope~~ — RESOLVED: Content + Community + Courses + Sales (DEC-146B-COS-001, ratified 2026-06-04)
+3. ~~Operator decides Clerk migration order~~ — RESOLVED: Clerk first, block ALL other implementation (DEC-146B-COS-002, ratified 2026-06-04)
 
 ### Short Term (1-2 Weeks)
 
@@ -585,11 +588,11 @@ This phase produced analysis artifacts only. The following safety properties hol
 | Product types in schema | 1 (generic) |
 | Contradictions catalogued | 26 |
 | Contradictions resolved | 13 |
-| Contradictions requiring operator decision | 13 |
+| Contradictions requiring operator decision | 11 (was 13; 2 resolved by DEC-146B-COS-001 and DEC-146B-COS-002) |
 | Implementation debt items | 38 (1 CRITICAL, 14 HIGH, 19 MEDIUM, 4 LOW) |
 | Professional gaps | 67 (5 CRITICAL, 18 HIGH, 28 MEDIUM, 16 LOW) |
 | Operator decisions queued | 32 (4 P0, 10 P1, 10 P2, 8 P3) |
-| P0 items on critical path | 4 (MVP scope, auth migration, auth strategy, Clerk order) |
+| P0 items on critical path | 2 remaining (MVP scope and Clerk order resolved by DEC-146B-COS-001 and DEC-146B-COS-002; auth migration and auth strategy remain as implementation work) |
 | MVP releases to feature-complete | 5 |
 | God file total size | 158KB (routes.ts 53KB + storage.ts 104KB) |
 | API routes in monolith | 89 |
@@ -597,3 +600,7 @@ This phase produced analysis artifacts only. The following safety properties hol
 | UMH projection tests passing | 11 |
 | Design reference files uncatalogued | 90 |
 | Repo bloat in git | ~84MB (attached_assets + uploads) |
+
+---
+
+*Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).*

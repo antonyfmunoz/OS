@@ -1,11 +1,12 @@
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
   "date": "2026-06-04",
+  "revised": "2026-06-04",
   "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
-  "description": "Full auth and security truth for CreatorOS — broken Passport.js auth, target Clerk migration, API security gaps, privacy/trust/safety posture",
+  "description": "Full auth and security truth for CreatorOS — broken Passport.js auth, target Clerk migration, API security gaps, privacy/trust/safety posture. Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).",
 
   "critical_vulnerability": {
     "id": "COS-AUTH-001",
@@ -22,9 +23,9 @@
       "No real user data in database — only seed/test data",
       "Beast and GitHub are the only live copies"
     ],
-    "resolution_status": "UNRESOLVED",
+    "resolution_status": "RESOLVED — Clerk migration ratified as first task per DEC-146B-COS-002 (2026-06-04, Phase 14.6C). Operator approved Option D: block ALL other implementation until auth complete.",
     "resolution_recommendation": "Do NOT fix Passport.js. Migrate directly to Clerk. Fixing broken auth in a system scheduled for replacement is wasted work.",
-    "priority": "P0 — must be resolved before any production deployment"
+    "priority": "P0 — ratified. Clerk migration is the first implementation task per DEC-146B-COS-002 and DEC-146B-COS-004."
   },
 
   "current_auth": {
@@ -61,7 +62,8 @@
 
   "target_auth": {
     "provider": "Clerk",
-    "rationale": "Clerk provides managed auth with OAuth, MFA, session management, webhook-based sync, and prebuilt React components. Eliminates need to maintain auth infrastructure.",
+    "rationale": "Clerk provides managed auth with OAuth, MFA, session management, webhook-based sync, and prebuilt React components. Eliminates need to maintain auth infrastructure. Ratified as production auth provider per DEC-146B-COS-002 (2026-06-04).",
+    "ratification_status": "OPERATOR-APPROVED per DEC-146B-COS-002. Clerk first, block ALL other implementation until auth complete.",
     "oauth_providers": ["Google", "Apple"],
     "sso": {
       "status": "planned",
@@ -95,8 +97,8 @@
   },
 
   "migration_path": {
-    "recommendation": "Migrate directly to Clerk. Do NOT fix Passport.js.",
-    "rationale": "Fixing broken auth is wasted work when the target is a managed auth provider. Every hour spent patching Passport.js is an hour not spent on the migration that replaces it entirely.",
+    "recommendation": "Migrate directly to Clerk. Do NOT fix Passport.js. RATIFIED per DEC-146B-COS-002.",
+    "rationale": "Fixing broken auth is wasted work when the target is a managed auth provider. Every hour spent patching Passport.js is an hour not spent on the migration that replaces it entirely. Operator ratified this approach on 2026-06-04.",
     "phases": [
       {
         "step": 1,

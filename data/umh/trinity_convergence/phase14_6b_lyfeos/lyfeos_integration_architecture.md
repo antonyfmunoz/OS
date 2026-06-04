@@ -1,9 +1,12 @@
 # LyfeOS Integration Architecture
 
-**Phase:** 14.6B-LyfeOS
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
+**Revised:** 2026-06-04
 **Artifact:** 35
 **Operator Approved:** false
 **Allows Implementation:** false
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ---
 
@@ -87,10 +90,16 @@
 - Subscription page UI is intact
 - **Blocked by:** Operator decision on billing timing
 
+### Clerk Auth Migration (DEC-146B-LOS-002)
+- Migrate after CreatorOS proves the Clerk pattern
+- Current Passport.js + Firebase auth works, no security bypass vulnerability
+- Lower priority than CreatorOS migration
+
 ### UMH Substrate Integration (UMH_INTEGRATION_DEPENDENT_GAP)
-- NOVA AI would connect to UMH model_router/agent architecture
-- LyfeOS quests/stats would emit signals to UMH substrate
+- NOVA AI would connect to UMH model_router/agent architecture — UMH is a reality-isomorphic intelligence harness (DEC-146C-001), not merely orchestration tooling
+- LyfeOS quests/stats would emit signals to UMH substrate via single execution path (DEC-146B-UMH-003)
 - UMH outcomes would write back to LyfeOS tables
+- LyfeOS registers as a projection/instance reality model via abstract port pattern (DEC-146B-UMH-005)
 - **Existing bridge:** `projections/lyfeos/integration/` (Python, 6 files, 1184 lines)
   - Signal emitter, capability handler, outcome receiver, correlation map
   - Tables: quests, user_stats, user_daily_logs, vision_goals
@@ -104,7 +113,8 @@
 - Cross-platform events: life.energy_low, business.launch_scheduled
 - Shared kernel: Identity, AI Runtime, Workflow Engine, Event Bus, Memory Graph
 - **Status:** Aspirational architecture, no implementation contracts
-- **Provenance:** SOURCE_PRESERVED_TRUTH (PRD v2.0)
+- **Provenance:** SOURCE_PRESERVED_TRUTH (PRD v2.0 is canonical direction; v1.0 is historical context, DEC-146B-LOS-001)
+- **Infrastructure:** Fly.io (DEC-146B-LOS-003, Trinity standard)
 
 ---
 

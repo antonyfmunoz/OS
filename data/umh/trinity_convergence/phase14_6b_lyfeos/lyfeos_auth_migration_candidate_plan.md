@@ -1,10 +1,21 @@
 # LyfeOS Auth Migration Candidate Plan
 
-**Phase:** 14.6B-LyfeOS
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
+**Revised:** 2026-06-04
 **Artifact:** 38
 **Operator Approved:** false
 **Allows Implementation:** false
 **Provenance:** OPEN_QUESTION_OPERATOR_DECISION_REQUIRED
+
+---
+
+## Ratified Decision
+
+**DEC-146B-LOS-002 — Clerk Migration Timing** (OPERATOR-APPROVED, 2026-06-04)
+
+Migrate LyfeOS from Passport.js+Firebase to Clerk AFTER CreatorOS proves the pattern. This is the ratified direction. The current Passport.js+Firebase system remains the active implementation and is documented below as current-state truth. Firebase documentation is preserved as historical/current-state reference.
 
 ---
 
@@ -25,14 +36,16 @@ LyfeOS uses Passport.js + Firebase for authentication. This is **working and fun
 
 ---
 
-## Candidate Target: Clerk
+## Candidate Target: Clerk — RATIFIED DIRECTION (DEC-146B-LOS-002)
 
-Prior phases identified Clerk as the target auth standard for all Trinity apps. However:
+Clerk migration is the **ratified direction** for LyfeOS auth standardization (DEC-146B-LOS-002, operator-approved 2026-06-04). Migration timing: AFTER CreatorOS proves the Clerk pattern successfully.
+
+Current implementation status:
 
 - Clerk is **NOT** currently installed in LyfeOS (no `@clerk/` packages in dependencies)
 - No Clerk migration code exists
 - No Clerk configuration exists
-- Clerk is a target, not a current implementation truth
+- Clerk is the ratified target, not a current implementation truth
 
 ---
 
@@ -104,17 +117,22 @@ The cost of migration may exceed the benefit, especially since Firebase is alrea
 
 ---
 
-## Operator Decision Required
+## Operator Decision — RESOLVED
 
-**DEC-146B-AUTH-001:** Should LyfeOS migrate from Passport.js+Firebase to Clerk?
+**DEC-146B-LOS-002** (formerly DEC-146B-AUTH-001): Should LyfeOS migrate from Passport.js+Firebase to Clerk?
 
-Options:
-1. **Migrate after CreatorOS proves pattern** — align with platform standard
+**STATUS: RESOLVED** — Ratified 2026-06-04 (Phase 14.6E). OPERATOR-APPROVED.
+
+**Ratified Answer:** Option 1 — Migrate after CreatorOS proves the Clerk pattern.
+
+Original options presented:
+1. **Migrate after CreatorOS proves pattern** — align with platform standard ← **SELECTED**
 2. **Keep Passport.js + Firebase** — working system, Firebase deeply integrated
 3. **Defer indefinitely** — revisit when there is a concrete business reason
 
-Factors to consider:
+Factors considered:
 - Firebase provides more than just auth (notifications, verification, 2FA)
 - Clerk migration requires Firebase features to be replaced or run in parallel
 - Current auth has no known vulnerabilities
 - Standardization benefit must be weighed against migration cost and risk
+- CreatorOS migration validates the approach before LyfeOS commits

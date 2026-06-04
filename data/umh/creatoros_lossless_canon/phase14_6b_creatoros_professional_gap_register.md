@@ -1,9 +1,10 @@
 ---
-phase: "14.6B-CreatorOS"
+phase: "14.6B-CreatorOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
+revised: "2026-06-04"
 provenance: "INFERRED_PROFESSIONAL_GAP"
 description: "Every gap between current CreatorOS code and professional production standard — 67 gaps across security, architecture, infrastructure, features, data, operations, legal, and UX"
 sources:
@@ -25,6 +26,8 @@ sources:
 ---
 
 # CreatorOS Professional Gap Register
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 Every gap between what exists in the codebase today and what a professional production SaaS product requires. Ordered by severity (CRITICAL > HIGH > MEDIUM > LOW). Each gap traced to source evidence.
 
@@ -143,7 +146,7 @@ Gap count: 67
 | GAP-COS-063 | Data | No updated_at timestamps | LOW | Most tables have created_at but no updated_at. Cannot determine when records were last modified. | Add updated_at column (default now(), auto-update on modification) to all mutable tables. Drizzle ORM supports .$onUpdate(() => new Date()). Required for cache invalidation, sync, and audit. | INFERRED | Cannot determine data freshness. Cannot implement "last modified" displays. Cache invalidation is impossible without knowing when data changed. |
 | GAP-COS-064 | UX | 90 design reference files unaudited | LOW | 90 files in attached_assets/ (80 images/screenshots, 10 text pastes, ~84 MB). Committed to git. No Stitch UI inventory mapping references to implemented components. | Stitch UI inventory: map each design reference to its implementing component (or flag as unimplemented). Remove design files from git (store in Figma or design tool). Reference via URL, not committed binary. | CODE | Design intent is captured but not mapped to code. 84 MB of binary in git history. Unknown design coverage. |
 | GAP-COS-065 | Feature | No data export for creators | LOW | No mechanism for creators to export their data (posts, products, revenue, community members, analytics). | Data export API: export posts, products, orders, revenue, subscriber lists, analytics to CSV/JSON. Async export for large datasets with email notification on completion. GDPR right to portability compliance. | INFERRED | Creator lock-in concern. GDPR non-compliance. Creators cannot migrate away or back up their business data. |
-| GAP-COS-066 | Feature | UMH projection integration is dormant | LOW | projections/creatoros/integration/ has 6 Python files (1,099 lines): signals, handlers, outcomes, correlation, manifest, tables. Code exists and compiles. Not wired into any running service. No runtime activation. | Activate UMH projection: register CreatorOS as a projection in substrate at startup. Wire signal emitter to emit on post/product/revenue events. Wire capability handler to receive substrate commands. Wire outcome receiver to record results. This enables UMH intelligence layer for CreatorOS. | CODE | CreatorOS operates independently of UMH. No cross-platform intelligence, no shared analytics, no unified creator view across EOS and CreatorOS. |
+| GAP-COS-066 | Feature | UMH projection integration is dormant | LOW | projections/creatoros/integration/ has 6 Python files (1,099 lines): signals, handlers, outcomes, correlation, manifest, tables. Code exists and compiles. Not wired into any running service. No runtime activation. | Activate UMH projection: register CreatorOS as a projection in substrate at startup. Wire signal emitter to emit on post/product/revenue events. Wire capability handler to receive substrate commands. Wire outcome receiver to record results. UMH is a reality-isomorphic intelligence harness (DEC-146C-001); activation feeds into Stage 1 organism: Reality Model + Cockpit + Memory + Governed Execution Loop (DEC-146C-003). | CODE | CreatorOS operates independently of UMH. No cross-platform intelligence, no shared analytics, no unified creator view across EOS and CreatorOS. |
 | GAP-COS-067 | Infrastructure | No OpenAPI/Swagger documentation | LOW | 89 API routes with no documentation. No OpenAPI spec. No Swagger UI. Consumers of the API must read routes.ts source code to understand endpoints. | OpenAPI 3.1 spec generated from route definitions. Swagger UI at /api/docs. Request/response schemas documented with examples. Authentication requirements per endpoint. Used by frontend team, mobile team, and third-party integrators. | INFERRED | API is undocumented. Onboarding new developers requires reading 53KB of source code. No contract for frontend-backend coordination. |
 
 ---
@@ -184,18 +187,31 @@ Gap count: 67
 
 ---
 
+## Ratified P0 Decision Alignment
+
+All 4 CreatorOS P0 decisions were ratified in Phase 14.6E (2026-06-04). This gap register aligns with:
+
+- **DEC-146B-COS-001**: MVP Scope = Content Management + Community Forums + Course Delivery + Sales Pipeline. OPERATOR-APPROVED. Determines which gaps are MVP-blocking vs post-MVP.
+- **DEC-146B-COS-002**: Auth Migration = Clerk first, block all else until auth is migrated. OPERATOR-APPROVED. Confirms resolution path for GAP-COS-001 through GAP-COS-005 and eliminates GAP-COS-017, GAP-COS-023, GAP-COS-049.
+- **DEC-146B-COS-003**: Source Code Baseline = verify current GitHub code, then establish canonical baseline. OPERATOR-APPROVED. Prerequisite for GAP-COS-009 and GAP-COS-014.
+- **DEC-146B-COS-004**: Module Build Sequence = Auth -> Module Split -> Test Harness -> Content -> Community -> Courses -> Sales -> Integration. OPERATOR-APPROVED. Defines gap resolution ordering.
+
+UMH operates as a reality-isomorphic intelligence harness (DEC-146C-001), not operational tooling. CreatorOS gap closure feeds into Stage 1 organism: Reality Model + Cockpit + Memory + Governed Execution Loop (DEC-146C-003).
+
 ## Dependency Chain (resolution order)
 
 The gaps have a natural dependency chain. Resolving them out of order wastes work.
+Dependency chain aligns with ratified build sequence (DEC-146B-COS-004, OPERATOR-APPROVED).
 
 ```
-Phase 0 (unblocks everything):
+Phase 0 (unblocks everything — DEC-146B-COS-002: Clerk first):
   GAP-COS-001 (auth bypass) + GAP-COS-002 (session secret)
   GAP-COS-003 (CSRF) + GAP-COS-004 (rate limiting)
   GAP-COS-005 (input validation)
   -> Clerk migration eliminates 001, 002, 003, 004, 017, 023, 049 simultaneously
+  Prerequisite: verify source code baseline (DEC-146B-COS-003)
 
-Phase 1 (unblocks development velocity):
+Phase 1 (unblocks development velocity — DEC-146B-COS-004: Module Split + Test Harness):
   GAP-COS-006 + GAP-COS-007 (god file split) -- requires GAP-COS-008 (tests) first
   GAP-COS-008 (test framework) -- write tests BEFORE splitting god files
   GAP-COS-014 (CI/CD) -- automate quality gates
@@ -208,10 +224,10 @@ Phase 2 (unblocks production deployment):
   GAP-COS-020 (migrations)
   GAP-COS-048 (secrets management)
 
-Phase 3 (unblocks commerce):
+Phase 3 (unblocks commerce — DEC-146B-COS-001 MVP: Content + Community + Courses + Sales):
   GAP-COS-022 (integer cents) -- fix before any payment code
   GAP-COS-012 (Stripe Connect)
-  GAP-COS-013 (missing tables) -- incremental, per-module
+  GAP-COS-013 (missing tables) -- incremental, scoped to MVP modules
   GAP-COS-032 (checkout flow)
   GAP-COS-033 (entitlements)
   GAP-COS-045 (business entity)
@@ -223,7 +239,7 @@ Phase 4 (unblocks scale):
   GAP-COS-046 (audit logging)
   GAP-COS-051 (privacy policy)
 
-Phase 5+ (feature buildout):
+Phase 5+ (feature buildout — beyond DEC-146B-COS-001 MVP scope):
   GAP-COS-025 through GAP-COS-031 (unbuilt modules)
   GAP-COS-034 through GAP-COS-067 (remaining gaps)
 ```
@@ -232,10 +248,10 @@ Phase 5+ (feature buildout):
 
 ## Open Questions Requiring Operator Decision
 
-These gaps cannot be fully specified without operator input:
+These gaps cannot be fully specified without operator input. Note: questions 1 and 2 have been resolved by ratified P0 decisions.
 
-1. **MVP scope** (relates to GAP-COS-025 through GAP-COS-031): Which of the 9 unbuilt modules are in MVP? Three conflicting scope definitions exist (CONTRA-COS-002). Decision ID: DEC-145-002.
-2. **Clerk migration order**: CreatorOS first or EOS first? Both need Clerk. Shared Clerk app or separate? Decision ID: DEC-145-004.
+1. **MVP scope** — RESOLVED. DEC-146B-COS-001: Content Management + Community Forums + Course Delivery + Sales Pipeline. OPERATOR-APPROVED. Modules outside this scope (GAP-COS-026 through GAP-COS-031) are post-MVP.
+2. **Clerk migration order** — RESOLVED. DEC-146B-COS-002: Clerk first, block ALL other implementation until auth complete. OPERATOR-APPROVED. DEC-146B-COS-003 confirms GitHub as canonical baseline. DEC-146B-COS-004 confirms Auth as first build step.
 3. **Accent color**: Keep X/Twitter Signal Blue (#1D9BF0) or define a distinct CreatorOS brand accent?
 4. **File storage provider**: S3, Cloudflare R2, or Neon-native blob storage for media uploads?
 5. **Search provider**: PostgreSQL full-text search, Typesense, or Meilisearch?

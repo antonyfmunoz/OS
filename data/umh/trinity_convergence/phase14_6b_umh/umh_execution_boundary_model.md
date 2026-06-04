@@ -1,10 +1,11 @@
 # UMH Execution Boundary Model
 
-**Phase:** 14.6B-UMH (revised 14.6D) | **Status:** DRAFT -- awaiting operator ratification | **Provenance:** CODE_RESOLVED_CURRENT_TRUTH + DEC-146C-002/003 ratification
+**Phase:** 14.6B-UMH (revised 14.6F) | **Status:** DRAFT | **Provenance:** CODE_RESOLVED_CURRENT_TRUTH + 18 ratified P0 decisions (2026-06-04)
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
-**Materialization Principle (DEC-146C-002):** If a human can imagine an outcome, UMH should attempt to simulate the path from imagination to materialization. Missing knowledge, resources, tools, capital, information, skill, access, or time does not invalidate the intent -- it creates typed gaps and acquisition paths: research loops, resource acquisition loops, experiment loops, work packets, delegation paths, agent paths, financing paths, and time-bound execution paths. UMH does not treat missing capability as terminal failure. It classifies the gap, identifies what must be acquired or learned, generates the highest-leverage path, and governs execution. If an outcome violates physical reality, law, safety, ethics, or non-negotiable constraints, UMH states the boundary clearly and proposes the nearest lawful/safe/materializable alternative.
+**Materialization Principle (DEC-146C-002, RATIFIED 2026-06-04):** If a human can imagine an outcome, UMH should attempt to simulate the path from imagination to materialization. This is a core design constraint, not an aspiration. Missing knowledge, resources, tools, capital, information, skill, access, or time does not invalidate the intent -- it creates typed gaps and acquisition paths: research loops, resource acquisition loops, experiment loops, work packets, delegation paths, agent paths, financing paths, and time-bound execution paths. UMH does not treat missing capability as terminal failure. It classifies the gap, identifies what must be acquired or learned, generates the highest-leverage path, and governs execution. Safety/ethics boundary: outcomes violating physical reality, law, safety, ethics, or non-negotiable constraints are not materialized but are met with the nearest lawful/safe alternative.
 
-**Indivisible Stage 1 (DEC-146C-003):** Governed execution is one of the four indivisible Stage 1 organism components. Execution without memory, governance, and reality model state is unsafe and incoherent.
+**Indivisible Stage 1 (DEC-146C-003, RATIFIED 2026-06-04 Option B):** Governed execution is one of the four indivisible Stage 1 organism components (Reality Model + Cockpit + Memory + Governed Execution Loop). Execution without memory, governance, and reality model state is unsafe and incoherent. Incremental builds are permitted only if each increment advances the integrated organism across all four components simultaneously.
 
 ---
 
@@ -48,30 +49,27 @@ The three paths have DIFFERENT:
 - Tracing mechanisms (Neon interaction_id vs TraceRecord vs organism events)
 - Quality assurance (quality loop vs single-pass vs work packet verification)
 
-### OPEN QUESTION -- Operator Decision Required
-Should these paths be unified into a single execution flow? Options:
-1. Keep Path 1 as production, evolve Path 2 as the target architecture, deprecate Path 3's independent execution
-2. Merge governance/memory/tracing into a shared substrate layer used by all three paths
-3. Designate Path 1 for real-time conversational, Path 2 for programmatic/API, Path 3 for batch/autonomous
+### RESOLVED -- Execution Path Unification (DEC-146B-UMH-003, RATIFIED 2026-06-04, Phase 14.6E)
+**Decision:** Unify into single execution path: Substrate -> SignalRouter -> Spine. Path 1 (Gateway/CognitiveLoop) remains production until migration is complete. Path 2 is the target architecture. Path 3 (Organism WorkPackets) converges onto the same Spine. Governance, memory, and tracing unify through the single Substrate execution path.
 
 ## Execution Safety Boundaries
 
 ### Materialization Principle Integration (DEC-146C-002)
 
-UMH must distinguish between gap states and true blockers:
+Lack of resources creates typed loops and acquisition paths, not blockers or dead ends. UMH must distinguish between gap states and true boundaries:
 
 | Gap Type | Response | Example |
 |----------|----------|---------|
-| IMPOSSIBLE | State boundary, propose nearest alternative | Violates physical law |
-| ILLEGAL | State boundary, propose lawful alternative | Violates law |
-| UNSAFE | State boundary, propose safe alternative | Violates safety/ethics |
-| UNAVAILABLE | Generate acquisition path | Tool/resource not currently accessible |
-| UNDER_RESOURCED | Generate resource acquisition loop | Insufficient capital/compute/people |
-| UNPROVEN | Generate experiment loop | Untested approach |
-| NOT_YET_ACQUIRED | Generate research/skill acquisition path | Missing knowledge/skill/access |
-| TIME_BOUND | Generate time-bound execution path | Insufficient time in current window |
+| IMPOSSIBLE | True boundary -- propose nearest materializable alternative | Violates physical law |
+| ILLEGAL | True boundary -- propose nearest lawful alternative | Violates law |
+| UNSAFE | True boundary -- propose nearest safe alternative | Violates safety/ethics |
+| UNAVAILABLE | Typed gap -- generate acquisition path | Tool/resource not currently accessible |
+| UNDER_RESOURCED | Typed gap -- generate resource acquisition loop | Insufficient capital/compute/people |
+| UNPROVEN | Typed gap -- generate experiment loop | Untested approach |
+| NOT_YET_ACQUIRED | Typed gap -- generate research/skill acquisition path | Missing knowledge/skill/access |
+| TIME_BOUND | Typed gap -- generate time-bound execution path | Insufficient time in current window |
 
-"Impossible" must not be used as lazy failure language. Each gap generates a typed path, not a dead end.
+Only the first three (IMPOSSIBLE, ILLEGAL, UNSAFE) are true boundaries. The remaining five are typed gaps that generate acquisition paths. "Impossible" must not be used as lazy failure language. Each gap generates a typed path, not a dead end. Each typed path is a first-class work item that the organism can schedule, delegate, and govern.
 
 ### What CAN execute automatically
 - READ_ONLY operations (memory queries, status checks, analytics, reality-model queries)

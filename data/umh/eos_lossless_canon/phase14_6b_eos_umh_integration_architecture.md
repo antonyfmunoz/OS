@@ -1,22 +1,23 @@
 ---
-phase: "14.6B-EOS"
+phase: "14.6B-EOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
 provenance: "CODE_RESOLVED_CURRENT_TRUTH"
 description: "How EOS connects to and uses the UMH substrate — integration model, signal/capability/outcome flows, data boundaries, agent runtime, governance, and implementation gaps"
+revision_note: "Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04)."
 ---
 
 # EOS-UMH Integration Architecture
 
-How EntrepreneurOS connects to, registers with, and operates on the Universal Mastery Hierarchy substrate.
+How EntrepreneurOS connects to, registers with, and operates on the Universal Meta Harness substrate — a reality-isomorphic intelligence harness (DEC-146C-001, DEC-146B-UMH-001).
 
 ---
 
 ## 1. Integration Model: EOS as UMH Projection
 
-EOS is an **application projection** built on the UMH substrate. It is not a plugin, not a microservice, not a tenant. It is a first-class projection that registers its agents, signals, capabilities, and outcome receivers with the substrate at startup, then operates through the substrate's execution pipeline and governance engine.
+EOS is an **application projection** built on the UMH substrate. UMH (Universal Meta Harness) is a reality-isomorphic intelligence harness whose core functional purpose is to build, maintain, and act through a reality-isomorphic approximation of reality (DEC-146C-001). EOS is not a plugin, not a microservice, not a tenant. It is a first-class projection that registers its agents, signals, capabilities, and outcome receivers with the substrate at startup, then operates through the substrate's execution pipeline and governance engine.
 
 ### Architectural Position
 
@@ -650,3 +651,7 @@ If CreatorOS needs to react to EOS signals (e.g., a new client in EOS triggers a
 EOS connects to UMH through a well-defined integration layer in `projections/eos/integration/` that declares 3 signal types, 5 capabilities, and an outcome receiver with dual writeback. Ten department agents register as Components with skill registries and browser capabilities. All LLM calls route through `adapters/models/model_router.py` with deterministic fallbacks. Governance integration covers signal classification and capability risk assessment.
 
 The integration code is structurally sound — correct protocol conformance, proper layering, typed data boundaries — but operationally incomplete. The startup wiring, signal socket integration, workflow engine connection, and entity persistence are the primary gaps between the current code and a production-ready EOS-on-UMH deployment.
+
+---
+
+*Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).*

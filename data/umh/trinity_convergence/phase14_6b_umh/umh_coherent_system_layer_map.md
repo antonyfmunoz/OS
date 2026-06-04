@@ -1,20 +1,27 @@
 # UMH Coherent System Layer Map
 
-**Phase:** 14.6B-UMH
+**Phase:** 14.6B-UMH (revised 14.6F)
 **Status:** DRAFT -- awaiting operator ratification
-**Provenance:** CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION
+**Provenance:** CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION + DEC-146C-001 ratification
 **Date:** 2026-06-03
 
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
 This document classifies the entire UMH codebase into 6 coherent layers per the
-operator's corrected ecosystem doctrine. UMH is the Universal Meta Harness -- the
-private universal intelligence substrate. All file counts and line counts are
-verified against the live codebase.
+operator's corrected ecosystem doctrine. UMH is the Universal Meta Harness (DEC-146B-UMH-001) --
+the reality-isomorphic intelligence harness (DEC-146C-001) whose core functional purpose is to
+build, maintain, and act through a reality-isomorphic approximation of reality across 12 layers
+(physical, digital, cognitive, biological, social, economic, symbolic, operational, software,
+memory, source-truth, and OS-level). All file counts and line counts are verified against the
+live codebase.
 
 ---
 
-## Layer 1: Universal Substrate (substrate/)
+## Layer 1: Universal Substrate (substrate/) -- Reality Model Infrastructure
 
-The reusable intelligence and control plane. Universal, instance-agnostic,
+The reality-model infrastructure and governed execution engine (DEC-146C-001).
+Implements UMH's core purpose: building, maintaining, and acting through a
+reality-isomorphic approximation of reality. Universal, instance-agnostic,
 projection-agnostic. Works for any operator, any projection, any domain.
 
 **696 Python files. 206,602 lines.**
@@ -59,9 +66,11 @@ concrete implementation registers at startup. Pre-commit hook
 
 ---
 
-## Layer 2: Cockpit / Private Jarvis Interface
+## Layer 2: Cockpit / Private Jarvis Interface -- Reality Model Rendering
 
-The private operator interface into the full UMH ecosystem. Combines a FastAPI
+The operator's interface into UMH's reality model (DEC-146C-003). Part of the
+indivisible Stage 1 organism -- Cockpit without a reality model is only a dashboard;
+reality model without Cockpit is inaccessible to the operator. Combines a FastAPI
 backend (12 Python route files) with an Electron/React frontend.
 
 ### Backend API surface

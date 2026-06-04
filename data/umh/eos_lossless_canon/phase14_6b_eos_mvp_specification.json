@@ -1,5 +1,6 @@
 {
-  "phase": "14.6B-EOS",
+  "phase": "14.6B-EOS (revised 14.6F)",
+  "revision_provenance": "Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04). MVP R1-R5 ratified per DEC-146B-EOS-002. Beast is canonical codebase per DEC-146B-EOS-001. Clerk is ratified auth per DEC-146B-EOS-003.",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -155,8 +156,8 @@
       "dependencies": [
         {
           "id": "R1-DEP-01",
-          "description": "Beast branch promotion decision resolved -- Beast is the promotion candidate per phase14_6b_eos_current_implementation_truth.json",
-          "status": "resolved_in_canon",
+          "description": "Beast branch is the canonical EOS codebase (DEC-146B-EOS-001, ratified 2026-06-04)",
+          "status": "RESOLVED",
           "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
         },
         {
@@ -894,10 +895,10 @@
   "prerequisite_decisions": [
     {
       "id": "PRE-DEC-01",
-      "decision": "Beast branch promotion as canonical codebase",
-      "description": "Beast feature/company-system branch (603 files, Clerk auth, company system, portfolio management) is promoted over GitHub main (202 files, stale Passport.js, Replit Agent code). This means: merge Beast into main, deprecate stale main code, resolve the 401-file divergence.",
-      "status": "resolved_in_canon",
-      "resolution": "Beast is the promotion candidate. Phase 14.5 convergence plan and Phase 14.6B current implementation truth both confirm Beast as canonical.",
+      "decision": "Beast branch as canonical codebase",
+      "description": "Beast feature/company-system branch (603 files, Clerk auth, company system, portfolio management) is the canonical EOS codebase. GitHub main (202 files, stale Passport.js, Replit Agent code) is stale/deprecated. This means: merge Beast into main, deprecate stale main code, resolve the 401-file divergence.",
+      "status": "RESOLVED",
+      "resolution": "Beast is the canonical codebase. Ratified per DEC-146B-EOS-001 (2026-06-04, Phase 14.6C). GitHub main is stale/deprecated.",
       "impact": "R1 development starts from Beast branch codebase, not GitHub main.",
       "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
     },
@@ -950,7 +951,7 @@
       "id": "PRE-DEC-07",
       "decision": "Onboarding simplification for R1",
       "description": "The full onboarding spec has 25 steps. R1 needs a subset that gets the operator to a usable state quickly. Which steps are essential for R1 and which defer to later releases?",
-      "status": "resolved_in_specification",
+      "status": "RESOLVED",
       "resolution": "R1 essential steps: 1-2 (account), 3 (path), 4 (name/type), 5 (stage), 6-7 (industry/model), 9-11 simplified (org chart preview), 13 simplified (KPI selection), 25 (completion). Steps 8, 12, 14-24 defer. Detailed in R1-F02 above.",
       "impact": "Onboarding completion time, first-time user experience quality.",
       "provenance": "SYNTHESIZED_CANON"
@@ -1181,9 +1182,9 @@
   "risk_register": [
     {
       "id": "RISK-01",
-      "risk": "Beast branch promotion creates merge conflicts with UMH substrate changes",
+      "risk": "Beast branch (canonical codebase per DEC-146B-EOS-001) merge to main creates conflicts with UMH substrate changes",
       "severity": "HIGH",
-      "mitigation": "Promote Beast as new main immediately. Do not attempt incremental merge. Fresh start with Beast codebase, then integrate UMH platform layer additions.",
+      "mitigation": "Beast is the canonical codebase. Merge to main immediately. Do not attempt incremental merge. Fresh start with Beast codebase, then integrate UMH platform layer additions.",
       "provenance": "SYNTHESIZED_CANON"
     },
     {
@@ -1231,8 +1232,8 @@
     "total_agents_at_completion": 11,
     "total_explicit_exclusions": 14,
     "total_prerequisite_decisions": 8,
-    "decisions_resolved": 2,
-    "decisions_open": 6,
+    "decisions_resolved": 3,
+    "decisions_open": 5,
     "total_success_criteria": 12,
     "total_risks": 6,
     "estimated_timeline_weeks": "28-38"

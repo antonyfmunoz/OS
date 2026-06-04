@@ -1,17 +1,18 @@
 # UMH Full End-State Canon
 
-Phase: 14.6B-UMH (revised 14.6D)
-Status: DRAFT
+Phase: 14.6B-UMH (revised 14.6F)
+Status: RATIFIED -- all 18 P0 decisions operator-approved (2026-06-04)
+Revision note: Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ## Vision
 
-UMH at end-state is a private Jarvis system -- a reality-isomorphic intelligence harness (DEC-146C-001) that builds, maintains, and acts through an integrated approximation of reality across 12 layers: physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, and OS-level reality. The reality model is the central organizing model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback across the founder's entire operational, creative, and personal domains.
+UMH at end-state is a private Jarvis system -- a reality-isomorphic intelligence harness (DEC-146C-001, RATIFIED 2026-06-04). Product name: "Universal Meta Harness" (DEC-146B-UMH-001, RATIFIED 2026-06-04). UMH builds, maintains, and acts through an integrated approximation of reality across 12 layers: physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, and OS-level reality. The reality model is the central organizing model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback across the founder's entire operational, creative, and personal domains.
 
-**Materialization Principle (DEC-146C-002):** At end-state, UMH fully embodies the materialization principle. If a human can imagine an outcome, UMH simulates the path from imagination to materialization. Missing knowledge, resources, tools, capital, information, skill, access, or time become typed gaps and acquisition paths -- research loops, resource acquisition loops, experiment loops, work packets, delegation paths, agent paths, financing paths, and time-bound execution paths. Outcomes violating physical reality, law, safety, ethics, or non-negotiable constraints are met with the nearest lawful/safe/materializable alternative.
+**Materialization Principle (DEC-146C-002, RATIFIED 2026-06-04):** At end-state, UMH fully embodies the materialization principle. If a human can imagine an outcome, UMH simulates the path from imagination to materialization. Missing knowledge, resources, tools, capital, information, skill, access, or time become typed gaps and acquisition paths -- research loops, resource acquisition loops, experiment loops, work packets, delegation paths, agent paths, financing paths, and time-bound execution paths. Outcomes violating physical reality, law, safety, ethics, or non-negotiable constraints are met with the nearest lawful/safe/materializable alternative.
 
 ## Cockpit End-State
 
-The cockpit becomes the operator's complete interface into UMH's 12-layer reality model (DEC-146C-003). It is not a dashboard -- it is the reality-model rendering surface through which the operator observes, commands, and governs the full UMH ecosystem. Three interaction modes:
+The cockpit becomes the operator's complete interface into UMH's 12-layer reality model (DEC-146C-003, RATIFIED 2026-06-04). It is part of the indivisible Stage 1 organism -- Cockpit without a reality model is only a dashboard; a reality model without Cockpit is inaccessible to the operator. It is the reality-model rendering surface through which the operator observes, commands, and governs the full UMH ecosystem. Three interaction modes:
 
 - **Voice** -- natural language commands and ambient listening
 - **Text** -- structured chat with operator/DEX dialogue
@@ -21,13 +22,15 @@ Ambient display mode shows passive system health, active executions, and incomin
 
 ## Projection Maturity
 
+All execution flows through a single unified path: Substrate -> SignalRouter -> Spine (DEC-146B-UMH-003, RATIFIED 2026-06-04). Dead workstation code (26,671 lines) is extracted for conceptual value into design docs, then deleted (DEC-146B-UMH-004, RATIFIED 2026-06-04). Projection access uses abstract port pattern via substrate/sockets/projection_port.py (DEC-146B-UMH-005, RATIFIED 2026-06-04).
+
 Each projection matures into a governed SaaS-grade product:
 
 | Projection | Domain | End-State |
 |---|---|---|
-| EntrepreneurOS (EOS) | Business | Full venture management -- clients, offers, transactions, analytics, outreach automation |
-| CreatorOS | Creator workflow | Content pipeline, audience analytics, brand management, publishing automation |
-| LyfeOS | Life management | Health tracking, relationship management, financial oversight, habit systems |
+| EntrepreneurOS (EOS) | Business | Full venture management -- clients, offers, transactions, analytics, outreach automation. Beast branch is canonical codebase (DEC-146B-EOS-001). Clerk auth (DEC-146B-EOS-003). MVP R1-R5 (DEC-146B-EOS-002). |
+| CreatorOS | Creator workflow | Content + Community + Courses + Sales (DEC-146B-COS-001). Clerk auth first, blocks all else (DEC-146B-COS-002). GitHub canonical after baseline verify (DEC-146B-COS-003). |
+| LyfeOS | Life management | PRD v2.0 canonical (DEC-146B-LOS-001). Clerk after CreatorOS proves pattern (DEC-146B-LOS-002). Fly.io is Trinity standard (DEC-146B-LOS-003). |
 
 Cross-projection orchestration enables actions in one domain to trigger governed responses in others (e.g., a business win triggers content creation in CreatorOS and financial update in LyfeOS).
 
@@ -44,8 +47,9 @@ Cross-projection orchestration enables actions in one domain to trigger governed
 - Deterministic spine always functional -- AI enhances but never blocks
 - Agent specialization with learned preferences per domain
 - Meta-learning across projections for cross-domain pattern recognition
-- Intelligence serves reality-model construction -- every LLM call either observes, updates, or reasons over the reality model
+- Intelligence serves reality-model construction -- every LLM call either observes, updates, or reasons over the reality model (DEC-146C-001)
 - 12-layer reality model progressively deepens with each interaction, ingestion, and execution outcome
+- **Materialization gap typing:** Missing capability creates typed gaps (research loops, resource acquisition loops, experiment loops, work packets, delegation paths, agent paths, financing paths, time-bound execution paths) -- not terminal failure (DEC-146C-002)
 
 ## Multi-Device Coordination
 

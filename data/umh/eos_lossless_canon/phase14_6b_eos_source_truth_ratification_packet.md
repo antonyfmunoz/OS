@@ -1,11 +1,12 @@
 ---
-phase: "14.6B-EOS"
+phase: "14.6B-EOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
 provenance: "SYNTHESIZED_CANON"
 description: "Ratification packet summarizing the complete Phase 14.6B-EOS source truth reconstruction -- artifact inventory, corrections from 14.6A, resolved contradictions, unresolved contradictions, top blocking decisions, next steps, and safety attestation."
+revision_note: "Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04)."
 ---
 
 # Phase 14.6B-EOS Source Truth Ratification Packet
@@ -47,7 +48,7 @@ Key outcomes:
 - **Code state documented.** GitHub main (202 files, stale Passport.js,
   Replit Agent origin, Feb 2026) vs Beast feature/company-system (603
   files, active, Clerk auth, company/portfolio system). 401-file
-  divergence cataloged. Beast identified as promotion candidate.
+  divergence cataloged. Beast ratified as canonical codebase (DEC-146B-EOS-001, 2026-06-04).
 
 - **159 product signals** traced from origin to preservation across 13
   source documents.
@@ -235,29 +236,23 @@ canon artifact, Beast branch design-tokens.ts.
 most consequential -- they block MVP planning, architecture decisions,
 or deployment strategy.
 
-### OD-01: Beast Branch Promotion (BLOCKS EVERYTHING)
+### OD-01: Beast Branch Promotion — RESOLVED
+
+**Status:** **RESOLVED** (DEC-146B-EOS-001, ratified 2026-06-04, Phase 14.6E)
+**Ratified Answer:** Beast branch is the canonical EOS codebase. GitHub main is stale/deprecated.
 
 **Question:** Promote Beast feature/company-system (603 files, Clerk,
 active) as canonical EOS codebase? Merge to main? Or rebuild from
 desired-state spec?
 
-**Why it blocks:** Every implementation decision downstream depends on
-which codebase is starting point. 401-file divergence from GitHub main
-means this is not a trivial merge.
-
-**Recommended:** Promote Beast. It has Clerk auth, company/portfolio
-system, 32 pages, 14 route modules. GitHub main is stale Replit Agent
-code from Feb 2026 with broken Passport.js auth.
-
 **Source:** mvp_specification, source_inventory, 13_layer_mapping.
 
-### OD-02: Deployment Target
+### OD-02: Deployment Target — RESOLVED
+
+**Status:** **RESOLVED** — Fly.io is the Trinity standard (DEC-146B-LOS-003, ratified 2026-06-04, Phase 14.6E). EOS deploys to Fly.io.
 
 **Question:** Where does EOS deploy? Fly.io (aligned with cockpit),
 Vercel + Fly.io split, Railway, Render, or self-hosted VPS?
-
-**Why it blocks:** Infrastructure architecture, CI/CD pipeline, domain
-configuration, and cost model all depend on this.
 
 **Source:** mvp_specification, infrastructure_deployment_map.
 
@@ -479,11 +474,12 @@ full_end_state_canon.
 
 ### Immediate (before any implementation)
 
-1. **Operator reviews this packet** and approves or rejects the
-   corrections from Section 3.
+1. **Operator reviewed and ratified corrections** from Section 3 — all
+   approved (Phase 14.6C, 2026-06-04). OD-01 (Beast promotion) and
+   OD-02 (deployment target) are resolved.
 
-2. **Operator answers Top 10 Decisions** (Section 4), especially OD-01
-   (Beast promotion) which blocks everything downstream.
+2. **Remaining 8 decisions** (OD-03 through OD-10) still require operator
+   input before their downstream work can proceed.
 
 3. **Secret scan on Beast branch** to resolve CU-01 before any
    promotion activity.
@@ -605,3 +601,4 @@ Which artifact answers which concern:
 ---
 
 *End of ratification packet. No implementation authorized.*
+*Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).*

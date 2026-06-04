@@ -1,10 +1,13 @@
 # LyfeOS UMH-Connected Future Canon
 
-**Phase:** 14.6B-LyfeOS
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
+**Revised:** 2026-06-04
 **Operator Approved:** false
 **Allows Implementation:** false
 
-This document describes what LyfeOS looks like when fully connected to the Universal Mastery Hierarchy (UMH) substrate. It defines ownership boundaries, integration surfaces, blocking questions, architecture principles, and the data boundary model.
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
+This document describes what LyfeOS looks like when fully connected to the Universal Meta Harness (UMH) substrate. It defines ownership boundaries, integration surfaces, blocking questions, architecture principles, and the data boundary model.
 
 ---
 
@@ -27,12 +30,14 @@ This document describes what LyfeOS looks like when fully connected to the Unive
 
 | Domain | Description | Provenance |
 |--------|-------------|------------|
-| **AI Runtime** | Model routing, fallback chains, cost management, provider selection | UMH_INTEGRATION_DEPENDENT_GAP |
+| **Reality Model** | The world model IS the reality model — the central organizing model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback (DEC-146C-001) | UMH_INTEGRATION_DEPENDENT_GAP |
+| **AI Runtime** | Model routing, fallback chains, cost management, provider selection — all signals route through single execution path (DEC-146B-UMH-003) | UMH_INTEGRATION_DEPENDENT_GAP |
 | **Governance** | Risk classification for AI tool executions, approval gates for high-risk actions | UMH_INTEGRATION_DEPENDENT_GAP |
 | **Audit Trail** | Immutable record of all automated actions, AI decisions, and state changes | UMH_INTEGRATION_DEPENDENT_GAP |
 | **Memory Subsystem** | Cross-session memory persistence, memory compression, memory governance | UMH_INTEGRATION_DEPENDENT_GAP |
 | **Cross-Life Intelligence** | Correlation of data across LyfeOS, CreatorOS, EOS projections for a holistic user model | UMH_INTEGRATION_DEPENDENT_GAP |
-| **Signal Processing** | Signal ingestion pipeline (perceive -> interpret -> decompose -> bridge -> map -> persist) | CODE_RESOLVED_CURRENT_TRUTH (pipeline exists) |
+| **Projection Registration** | LyfeOS registers as a projection/instance reality model on the UMH substrate via abstract port pattern (DEC-146B-UMH-005) | UMH_INTEGRATION_DEPENDENT_GAP |
+| **Signal Processing** | Signal ingestion pipeline (perceive -> interpret -> decompose -> bridge -> map -> persist) — single execution path (DEC-146B-UMH-003) | CODE_RESOLVED_CURRENT_TRUTH (pipeline exists) |
 | **Capability Execution** | Governed capability request/response protocol with outcome writeback | CODE_RESOLVED_CURRENT_TRUTH (handler exists) |
 | **Outcome Recording** | Dual writeback (source row umh_status + umh_outcomes audit table) | CODE_RESOLVED_CURRENT_TRUTH (outcomes.py exists) |
 | **Type System** | Canonical types for signals, capabilities, risk classes, outcomes | CODE_RESOLVED_CURRENT_TRUTH (substrate/types.py) |
@@ -53,7 +58,7 @@ This document describes what LyfeOS looks like when fully connected to the Unive
 ### 2a. Auth Integration
 
 **Current:** Passport.js + Firebase (isolated)
-**UMH-Connected:** Clerk authentication shared across projections
+**UMH-Connected:** Clerk authentication shared across projections (DEC-146B-LOS-002 — migrate after CreatorOS proves pattern)
 
 | Surface | Direction | Protocol | Notes |
 |---------|-----------|----------|-------|
@@ -141,7 +146,7 @@ These must be resolved by the operator before UMH connection can proceed.
 |---|----------|--------|-------------------|
 | Q1 | Should NOVA's AI calls route through UMH model_router, or should LyfeOS retain its own Anthropic SDK calls? | Architecture, cost, latency | Route through UMH (adapter-first principle) |
 | Q2 | Should LyfeOS's 35-table schema stay in its own Neon database, or migrate to a shared UMH database? | Data isolation, migration complexity | Separate database (current), UMH accesses via polling |
-| Q3 | Should Clerk auth replace Firebase+Passport before or after UMH connection? | Migration sequencing | After (current auth works; UMH connection is independent) |
+| Q3 | ~~Should Clerk auth replace Firebase+Passport before or after UMH connection?~~ **RESOLVED** (DEC-146B-LOS-002, 2026-06-04): Clerk migration after CreatorOS proves the pattern. UMH connection is independent of auth migration. | Migration sequencing | After (ratified) |
 | Q4 | Should RLS be implemented before or after UMH connection? | Security, data isolation | Before (protects user data regardless of UMH) |
 | Q5 | Should the UMH integration layer remain direct Postgres polling, or switch to an API/webhook model? | Architecture, coupling | Start with polling (already built), migrate to events later |
 | Q6 | How should LyfeOS handle UMH unavailability? Degrade gracefully or block AI features? | User experience, reliability | Degrade gracefully (deterministic-first principle) |
@@ -170,9 +175,11 @@ These must be resolved by the operator before UMH connection can proceed.
 
 LyfeOS should NOT be rewritten to depend on UMH. Instead:
 1. LyfeOS continues to work standalone (current state)
-2. UMH integration is added as an adapter layer
+2. UMH integration is added as an adapter layer via abstract port pattern (DEC-146B-UMH-005)
 3. Adapter can be enabled/disabled via feature flag
 4. If UMH is unavailable, LyfeOS falls back to local behavior
+
+LyfeOS is a projection/instance reality model on the UMH substrate (DEC-146C-001). UMH is a reality-isomorphic intelligence harness — not merely orchestration tooling. The world model IS the reality model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback.
 
 ### 4b. User Never Needs to Know UMH Exists [SYNTHESIZED_CANON]
 
@@ -196,6 +203,8 @@ Every UMH-connected feature must work without UMH:
 - Memory: falls back to conversation-local context
 - Audit: falls back to local user_activity_events
 
+Stage 1 = indivisible organism: Reality Model + Cockpit + Memory + Governed Execution Loop (DEC-146C-003). When capability is missing, UMH creates typed gaps and acquisition paths (DEC-146C-002). Gap types: unavailable, under-resourced, unproven, not-yet-acquired, time-bound. Only impossible/illegal/unsafe are true boundaries.
+
 ### 4d. Boundary Preservation [SYNTHESIZED_CANON]
 
 LyfeOS owns its UX. UMH never dictates:
@@ -208,12 +217,14 @@ UMH provides infrastructure. LyfeOS provides experience.
 
 ### 4e. Progressive Integration [SYNTHESIZED_CANON]
 
-Integration should proceed in phases:
+Integration should proceed in phases, with all signals routing through the single execution path (DEC-146B-UMH-003):
 1. **Phase A:** Signal emission only (UMH observes LyfeOS, no writes)
 2. **Phase B:** Governed capabilities (UMH can create quests, log reflections via capability protocol)
 3. **Phase C:** AI runtime routing (NOVA uses UMH model_router)
 4. **Phase D:** Full memory integration (cross-session NOVA memory via UMH)
 5. **Phase E:** Cross-projection intelligence (LyfeOS data enriches EOS/CreatorOS and vice versa)
+
+Infrastructure: Fly.io (DEC-146B-LOS-003, Trinity standard). PRD v2.0 is canonical direction; v1.0 is historical context (DEC-146B-LOS-001).
 
 ---
 
@@ -294,7 +305,7 @@ When data flows to UMH:
 | Memory | Conversation-local only | No cross-session memory enrichment |
 | Governance | Local rules only | Default to lowest risk classification |
 
-**Key Principle:** LyfeOS must ALWAYS function as a complete product without UMH. UMH is a cognitive enhancement, not a dependency.
+**Key Principle:** LyfeOS must ALWAYS function as a complete product without UMH. UMH is a reality-isomorphic intelligence harness (DEC-146C-001) that provides cognitive enhancement, not a dependency.
 
 ---
 

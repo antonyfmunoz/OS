@@ -1,16 +1,17 @@
 ---
-phase: "14.6B-EOS"
+phase: "14.6B-EOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
 provenance: "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+revision_note: "Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04)."
 ---
 
 # EOS Phase 14.6B: Open Questions & Operator Decision Queue
 
-**Phase:** 14.6B-EOS
-**Status:** DRAFT
+**Phase:** 14.6B-EOS (revised 14.6F)
+**Status:** DRAFT (3 P0 decisions RESOLVED per ratification 2026-06-04)
 **Operator Approved:** false
 **Allows Implementation:** false
 **Date:** 2026-06-04
@@ -42,15 +43,17 @@ with tradeoffs, a default recommendation, and what is blocked pending resolution
 
 ---
 
-## P0 — Must Resolve Before Any Implementation
+## P0 — Must Resolve Before Any Implementation (ALL 3 RESOLVED)
 
-These decisions gate the entire build. No code should be written until P0 is resolved.
+All 3 P0 decisions have been ratified by the operator (2026-06-04). Retained below for historical record.
 
 ---
 
-### DEC-146B-EOS-001: Beast Branch Promotion to Canonical
+### DEC-146B-EOS-001: Beast Branch Promotion to Canonical — RESOLVED
 **Priority:** P0
 **Category:** architecture
+**Status:** **RESOLVED** (DEC-146B-EOS-001, ratified 2026-06-04, Phase 14.6E)
+**Ratified Answer:** Option 1 — Beast branch is the canonical EOS codebase. GitHub main is stale/deprecated.
 **Question:** Should the Beast feature/company-system branch (603 files) be promoted as the canonical EOS codebase, deprecating GitHub main (202 files)?
 **Options:**
 1. **Promote Beast as canonical.** The Beast branch has 401 more files, active Clerk auth integration, company-system architecture, and all recent development. GitHub main has been stale since February 2026. Tradeoff: requires a clean merge strategy for any main-only changes (likely none), and all CI/CD must retarget. Risk is low — the divergence is overwhelmingly additive on Beast.
@@ -58,13 +61,15 @@ These decisions gate the entire build. No code should be written until P0 is res
 3. **Start fresh from neither.** Use the canon reconstruction as the new source of truth and rebuild. Tradeoff: throws away working code on Beast, massively increases timeline. Only justified if both codebases are fundamentally flawed.
 **Default Recommendation:** Option 1. Promote Beast as canonical. The divergence is too large for incremental merge, and GitHub main has no unique value.
 **Blocked By This:** Every implementation task. Cannot write code without knowing which codebase is the starting point.
-**Provenance:** OPEN_QUESTION_OPERATOR_DECISION_REQUIRED
+**Provenance:** RESOLVED — operator ratified 2026-06-04
 
 ---
 
-### DEC-146B-EOS-002: MVP Scope Confirmation — 5-Release Plan (R1-R5)
+### DEC-146B-EOS-002: MVP Scope Confirmation — 5-Release Plan (R1-R5) — RESOLVED
 **Priority:** P0
 **Category:** product_scope
+**Status:** **RESOLVED** (DEC-146B-EOS-002, ratified 2026-06-04, Phase 14.6E)
+**Ratified Answer:** Option 1 — R1-R5 confirmed as defined.
 **Question:** Is the 5-release MVP plan (R1 through R5) confirmed as the implementation roadmap, with R1 targeting single-founder single-business?
 **Options:**
 1. **Confirm R1-R5 as defined.** R1: Auth + onboarding + single company dashboard. R2: EA + basic delegation. R3: Financial tracking + KPIs. R4: Workflow SOPs + templates. R5: Agent autonomy + polish. Tradeoff: well-scoped, predictable, ships value incrementally.
@@ -73,13 +78,15 @@ These decisions gate the entire build. No code should be written until P0 is res
 4. **Redefine scope entirely.** The PRD and canon may have surfaced scope that doesn't match current priorities. Tradeoff: delays everything while re-scoping.
 **Default Recommendation:** Option 1. The R1-R5 plan is well-structured and already documented across multiple canon artifacts.
 **Blocked By This:** Implementation sequencing, sprint planning, all milestone definitions.
-**Provenance:** OPEN_QUESTION_OPERATOR_DECISION_REQUIRED
+**Provenance:** RESOLVED — operator ratified 2026-06-04
 
 ---
 
-### DEC-146B-EOS-003: Auth Finalization — Clerk Confirmed as Production Auth?
+### DEC-146B-EOS-003: Auth Finalization — Clerk Confirmed as Production Auth — RESOLVED
 **Priority:** P0
 **Category:** auth_security
+**Status:** **RESOLVED** (DEC-146B-EOS-003, ratified 2026-06-04, Phase 14.6E)
+**Ratified Answer:** Option 1 — Clerk is confirmed as the production auth provider for EOS.
 **Question:** Is Clerk confirmed as the production authentication provider for EOS, replacing the Passport.js implementation on GitHub main?
 **Options:**
 1. **Confirm Clerk.** Beast branch already has Clerk integration (publishableKey, middleware, ClerkProvider). Managed auth reduces security surface. Tradeoff: vendor dependency, monthly cost at scale ($25/mo at 1K MAU, scales up), less control over auth flow customization.
@@ -88,7 +95,7 @@ These decisions gate the entire build. No code should be written until P0 is res
 4. **Keep Passport.js from main.** Use the existing implementation. Tradeoff: stale code, GitHub main is 4 months behind, Passport.js requires more manual session/token management.
 **Default Recommendation:** Option 1. Clerk is already integrated on Beast, works well for MVP scale, and can be swapped later if cost becomes prohibitive.
 **Blocked By This:** All user-facing features, RLS policy design, session management, middleware architecture.
-**Provenance:** OPEN_QUESTION_OPERATOR_DECISION_REQUIRED
+**Provenance:** RESOLVED — operator ratified 2026-06-04
 
 ---
 
@@ -526,9 +533,9 @@ These decisions affect scale and enterprise features. They should be documented 
 
 | ID | Title | Priority | Category | Default |
 |----|-------|----------|----------|---------|
-| DEC-146B-EOS-001 | Beast Branch Promotion | P0 | architecture | Promote Beast |
-| DEC-146B-EOS-002 | MVP Scope Confirmation | P0 | product_scope | Confirm R1-R5 |
-| DEC-146B-EOS-003 | Auth Finalization | P0 | auth_security | Confirm Clerk |
+| DEC-146B-EOS-001 | Beast Branch Promotion | P0 | architecture | **RESOLVED** — Beast is canonical codebase |
+| DEC-146B-EOS-002 | MVP Scope Confirmation | P0 | product_scope | **RESOLVED** — R1-R5 confirmed as defined |
+| DEC-146B-EOS-003 | Auth Finalization | P0 | auth_security | **RESOLVED** — Clerk confirmed |
 | DEC-146B-EOS-004 | Embedding Dimension | P1 | architecture | 384 for MVP |
 | DEC-146B-EOS-005 | Pricing Model | P1 | product_scope | $39/mo founder access |
 | DEC-146B-EOS-006 | UBOS Template Library | P1 | product_scope | Curated only for MVP |
@@ -569,4 +576,4 @@ These decisions affect scale and enterprise features. They should be documented 
 
 ---
 
-**End of decision queue. 30 decisions total. 3 P0, 10 P1, 12 P2, 5 P3.**
+**End of decision queue. 30 decisions total. 3 P0 (all RESOLVED), 10 P1, 12 P2, 5 P3. 27 remain open.**

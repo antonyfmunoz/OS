@@ -1,6 +1,9 @@
 # LyfeOS Open Questions and Operator Decision Queue
 
-**Phase:** 14.6B-LyfeOS
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
+**Revised:** 2026-06-04
 **Artifact:** 49
 **Operator Approved:** false
 **Allows Implementation:** false
@@ -17,7 +20,9 @@ Every item in this document requires a human operator decision before implementa
 ## Strategic Decisions
 
 ### 1. PRD v1.0 vs v2.0 Canonical Version
-- **Decision ID:** DEC-146B-001
+- **Decision ID:** DEC-146B-001 → **DEC-146B-LOS-001**
+- **STATUS: RESOLVED** — Ratified 2026-06-04 (Phase 14.6E)
+- **Ratified Answer:** PRD v2.0 is canonical direction; v1.0 is historical/shipped context. OPERATOR-APPROVED.
 - **Question:** Which PRD version is canonical?
 - **Context:** Both versions exist in documentation. They differ on tab count (4 vs 5), model count (3 vs 5), onboarding mission count (9 vs 8), and timeline.
 - **Recommendation:** v2.0 as canonical direction, v1.0 as historical context.
@@ -25,7 +30,9 @@ Every item in this document requires a human operator decision before implementa
 - **Blocks:** Feature expansion decisions.
 
 ### 2. Clerk Migration Timing and Approach
-- **Decision ID:** DEC-146B-002
+- **Decision ID:** DEC-146B-002 → **DEC-146B-LOS-002**
+- **STATUS: RESOLVED** — Ratified 2026-06-04 (Phase 14.6E)
+- **Ratified Answer:** Migrate LyfeOS from Passport.js+Firebase to Clerk AFTER CreatorOS proves the pattern. OPERATOR-APPROVED.
 - **Question:** Should LyfeOS migrate from Passport.js+Firebase to Clerk? If so, when?
 - **Context:** Current auth works. Firebase deeply integrated (auth, verification, 2FA, push notifications). CreatorOS should prove the pattern first.
 - **Options:** (A) Migrate after CreatorOS, (B) Keep Firebase, (C) Defer indefinitely.
@@ -39,7 +46,9 @@ Every item in this document requires a human operator decision before implementa
 - **Blocks:** All UMH integration work.
 
 ### 4. Infrastructure Migration (Replit to Fly.io or Other)
-- **Decision ID:** DEC-146B-004
+- **Decision ID:** DEC-146B-004 → **DEC-146B-LOS-003**
+- **STATUS: RESOLVED** — Ratified 2026-06-04 (Phase 14.6E)
+- **Ratified Answer:** Fly.io is the Trinity standard. Migrate from Replit to Fly.io. OPERATOR-APPROVED.
 - **Question:** Should LyfeOS migrate from Replit?
 - **Context:** Replit works but has vendor lock-in, no CI/CD, no staging, autoscale cold starts.
 - **Options:** (A) Stay on Replit, (B) Fly.io (Trinity standard), (C) Vercel, (D) Defer.
@@ -121,11 +130,11 @@ Every item in this document requires a human operator decision before implementa
 
 ## Summary
 
-| Category | Count |
-|----------|-------|
-| Strategic / architectural | 6 |
-| Data / privacy | 4 |
-| Technical / infrastructure | 6 |
-| **Total** | **16** |
+| Category | Count | Resolved | Open |
+|----------|-------|----------|------|
+| Strategic / architectural | 6 | 1 (DEC-146B-LOS-001) | 5 |
+| Data / privacy | 4 | 0 | 4 |
+| Technical / infrastructure | 6 | 2 (DEC-146B-LOS-002, DEC-146B-LOS-003) | 4 |
+| **Total** | **16** | **3** | **13** |
 
-All 16 items require operator decision. None can be resolved by the developer agent alone.
+3 items resolved via operator ratification (Phase 14.6E, 2026-06-04). 13 items remain OPEN and require operator decision.

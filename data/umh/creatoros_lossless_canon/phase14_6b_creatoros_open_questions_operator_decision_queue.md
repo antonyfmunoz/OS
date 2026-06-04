@@ -1,11 +1,12 @@
 ---
-phase: "14.6B-CreatorOS"
+phase: "14.6B-CreatorOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
+revised: "2026-06-04"
 provenance: "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
-description: "Every operator decision needed for CreatorOS — 32 decisions across scope, security, architecture, commerce, design, infrastructure, features, legal, and UMH integration"
+description: "Every operator decision needed for CreatorOS — 32 decisions across scope, security, architecture, commerce, design, infrastructure, features, legal, and UMH integration. 4 P0 decisions RESOLVED per operator ratification (2026-06-04). Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04)."
 sources:
   - "phase14_6b_creatoros_lossless_product_canon.md"
   - "phase14_6b_creatoros_versions_contradictions_matrix.json"
@@ -29,7 +30,7 @@ sources:
 
 Every decision that requires explicit operator selection before implementation can proceed. Nothing here is resolved by default. System recommendations are informational, not authoritative. Only operator-selected options unlock implementation.
 
-Decision count: 32
+Decision count: 32 (4 P0 RESOLVED, 28 remaining open)
 
 ---
 
@@ -58,34 +59,35 @@ Decision count: 32
 
 ---
 
-## P0 — Blocks ALL Implementation (4 decisions)
+## P0 — Blocks ALL Implementation (4 decisions — ALL RESOLVED)
 
-### DEC-146B-COS-001: MVP Scope Definition
+### DEC-146B-COS-001: MVP Scope Definition — RESOLVED
 
 | Field | Value |
 |-------|-------|
 | Priority | P0 |
 | Category | SCOPE |
-| Provenance | OPEN_QUESTION_OPERATOR_DECISION_REQUIRED |
-| Carried from | DEC-145-002 (unresolved) |
+| Status | **RESOLVED** |
+| Resolution | **Option B ratified: Content + Community + Courses + Sales (8-12 weeks)** |
+| Decision ID | DEC-146B-COS-001 |
+| Ratified | 2026-06-04, Phase 14.6C |
+| Carried from | DEC-145-002 (now resolved) |
 | Evidence | CONTRA-COS-002 (3 conflicting MVP definitions), Google Doc Tabs 6, 7, 3 |
 
 **Question:** Which of the three conflicting MVP scope definitions is canonical?
 
-**Options:**
+**Ratified answer:** Option B — Content + Community + Courses + Sales (8-12 weeks). Operator approved.
+
+**Options (historical):**
 
 | Option | Scope | Source | Modules | Timeline estimate |
 |--------|-------|--------|---------|-------------------|
 | A | Content distribution + community only. Excludes courses, marketplace, payments, Stripe, analytics dashboard, native mobile, AI, stories. | Google Doc Tab 6 (original MVP) | 2 of 16 | 4-6 weeks |
-| B | Content + community + courses + basic product sales. Includes Stripe checkout for digital downloads and courses. Excludes UGC, ads, automation, editing studio, email. | System recommendation (synthesized) | 4 of 16 | 8-12 weeks |
+| **B** | **Content + community + courses + basic product sales. Includes Stripe checkout for digital downloads and courses. Excludes UGC, ads, automation, editing studio, email.** | **System recommendation (synthesized)** | **4 of 16** | **8-12 weeks** |
 | C | Content + community + courses + marketplace + payments (Stripe). Everything Tab 6 explicitly excludes. | Google Doc Tab 7 (expanded MVP) | 6 of 16 | 14-18 weeks |
 | D | Full PRD scope. All 16 modules. | Google Doc Tab 3 + Tab 8 combined | 16 of 16 | 6-9 months |
 
-**Default if not decided:** None. Cannot proceed without scope.
-
-**System recommendation:** B — smallest product that generates revenue. Content + community attracts users, courses + products monetize them. Everything else is growth, not survival.
-
-**Blocked by this decision:**
+**Previously blocked by this decision (now unblocked):**
 - ALL feature build scope decisions
 - Sprint planning and sequencing
 - Resource allocation
@@ -94,32 +96,33 @@ Decision count: 32
 
 ---
 
-### DEC-146B-COS-002: Auth Migration Strategy
+### DEC-146B-COS-002: Auth Migration Strategy — RESOLVED
 
 | Field | Value |
 |-------|-------|
 | Priority | P0 |
 | Category | SECURITY |
-| Provenance | OPEN_QUESTION_OPERATOR_DECISION_REQUIRED |
-| Carried from | DEC-145-004 (unresolved) |
+| Status | **RESOLVED** |
+| Resolution | **Clerk first, block ALL other implementation until auth complete (Option D)** |
+| Decision ID | DEC-146B-COS-002 |
+| Ratified | 2026-06-04, Phase 14.6C |
+| Carried from | DEC-145-004 (now resolved) |
 | Evidence | GAP-COS-001 (comparePasswords returns true for ALL), COS-AUTH-001 (critical vulnerability), CONTRA-COS-001 |
 
 **Question:** How is the broken auth resolved and when?
 
-**Options:**
+**Ratified answer:** Option D — Clerk migration as first task, block ALL other implementation until auth is complete. Operator approved.
+
+**Options (historical):**
 
 | Option | Approach | Risk | Timeline |
 |--------|----------|------|----------|
 | A | Fix Passport.js comparePasswords immediately (bandaid), then migrate to Clerk later | Low immediate risk, double work | Fix: 1 day, Clerk: 2-3 weeks later |
 | B | Skip Passport.js fix, migrate directly to Clerk as the first implementation task | Higher risk if timeline slips — app stays broken longer | 2-3 weeks |
 | C | Fix Passport.js comparePasswords AND add rate limiting/CSRF as interim hardening, defer Clerk to post-MVP | Accumulates auth tech debt, but gets secure faster | Fix: 2-3 days, no Clerk timeline |
-| D | Clerk migration as first task, block ALL other implementation until auth is complete | Clean but sequential — nothing else progresses until Clerk is done | 2-3 weeks, then other work begins |
+| **D** | **Clerk migration as first task, block ALL other implementation until auth is complete** | **Clean but sequential — nothing else progresses until Clerk is done** | **2-3 weeks, then other work begins** |
 
-**Default if not decided:** None. No code deploys until auth is resolved.
-
-**System recommendation:** D — Clerk migration first, block everything else. Auth bypass is CRITICAL severity. Fixing Passport.js is wasted work on a system scheduled for replacement. EOS Beast already has Clerk — pattern exists.
-
-**Blocked by this decision:**
+**Previously blocked by this decision (now unblocked):**
 - ALL deployment (cannot deploy with broken auth)
 - ALL feature build (features built on broken auth must be rebuilt)
 - Session management architecture
@@ -128,69 +131,62 @@ Decision count: 32
 
 ---
 
-### DEC-146B-COS-003: Source Code Baseline
+### DEC-146B-COS-003: Source Code Baseline — RESOLVED
 
 | Field | Value |
 |-------|-------|
 | Priority | P0 |
 | Category | ARCHITECTURE |
-| Provenance | OPEN_QUESTION_OPERATOR_DECISION_REQUIRED |
+| Status | **RESOLVED** |
+| Resolution | **Verify baseline, then GitHub as canonical (Option C)** |
+| Decision ID | DEC-146B-COS-003 |
+| Ratified | 2026-06-04, Phase 14.6C |
 | Evidence | phase14_6b_creatoros_source_inventory.json (296 GitHub files, 271 Beast files, aligned) |
 
 **Question:** Which codebase is the starting point for all CreatorOS development?
 
-**Options:**
+**Ratified answer:** Option C — Verify both are identical, then designate GitHub as canonical. Operator approved.
+
+**Options (historical):**
 
 | Option | Baseline | Rationale |
 |--------|----------|-----------|
 | A | GitHub main (antonyfmunoz/CreatorOS) as canonical starting point | Publicly hosted, CI/CD integration straightforward |
 | B | Beast copy as canonical, push to GitHub as first step | Beast may have local-only changes not yet pushed |
-| C | Verify both are identical, then designate GitHub as canonical | Safest — confirms alignment before choosing |
+| **C** | **Verify both are identical, then designate GitHub as canonical** | **Safest — confirms alignment before choosing** |
 
-**Default if not decided:** C (verify then designate).
-
-**System recommendation:** C — source inventory shows 296 vs 271 files (25 file difference needs explanation). Verify alignment, reconcile any drift, then designate GitHub main as canonical with branch protection.
-
-**Blocked by this decision:**
+**Previously blocked by this decision (now unblocked):**
 - All development work (which repo do PRs target?)
 - CI/CD setup (which repo gets GitHub Actions?)
 - Branch protection rules
 
 ---
 
-### DEC-146B-COS-004: Module Build Sequence
+### DEC-146B-COS-004: Module Build Sequence — RESOLVED
 
 | Field | Value |
 |-------|-------|
 | Priority | P0 |
 | Category | SCOPE |
-| Provenance | OPEN_QUESTION_OPERATOR_DECISION_REQUIRED |
+| Status | **RESOLVED** |
+| Resolution | **Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics (Option A)** |
+| Decision ID | DEC-146B-COS-004 |
+| Ratified | 2026-06-04, Phase 14.6C |
 | Evidence | phase14_6b_creatoros_lossless_product_canon.md (16 modules, implementation status varies) |
 
 **Question:** In what order are modules built after MVP scope is decided?
 
-**Options (assuming MVP Option B is selected — adjust if different):**
+**Ratified answer:** Option A — Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics. Systematic, tests-first. Operator approved.
 
-| Phase | Modules | Rationale |
-|-------|---------|-----------|
-| Phase 1 | Auth (Clerk), God file split, Tests | Foundation — cannot build safely without these |
-| Phase 2 | Content distribution, Community (enhance existing) | Core value prop — already partially built |
-| Phase 3 | Courses, Digital products, Checkout (Stripe) | Revenue — monetization enables sustainability |
-| Phase 4 | Analytics dashboard, Creator settings | Retention — creators need data to stay |
-
-**Alternative sequences:**
+**Options (historical):**
 
 | Option | Sequence | Tradeoff |
 |--------|----------|----------|
-| A | Auth → Split → Tests → Content → Community → Courses → Stripe → Analytics | Systematic, tests-first |
-| B | Auth → Stripe → Products → Courses → Content → Community → Analytics → Tests | Revenue-first, riskier |
-| C | Auth → Content → Community → Tests → Courses → Stripe → Analytics | User-value-first, revenue delayed |
+| **A** | **Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics** | **Systematic, tests-first** |
+| B | Auth -> Stripe -> Products -> Courses -> Content -> Community -> Analytics -> Tests | Revenue-first, riskier |
+| C | Auth -> Content -> Community -> Tests -> Courses -> Stripe -> Analytics | User-value-first, revenue delayed |
 
-**Default if not decided:** A (systematic, tests-first).
-
-**System recommendation:** A — you cannot safely refactor god files without tests, cannot build features without split files, and cannot deploy without auth. The dependency chain is mechanical, not preference.
-
-**Blocked by this decision:**
+**Previously blocked by this decision (now unblocked):**
 - Sprint planning
 - Resource allocation per phase
 - Dependency ordering for database migrations
@@ -1110,10 +1106,10 @@ Decision count: 32
 
 | ID | Priority | Category | Decision | Default | Recommendation |
 |----|----------|----------|----------|---------|----------------|
-| DEC-146B-COS-001 | P0 | SCOPE | MVP scope definition | None | B (Content + Community + Courses + Products) |
-| DEC-146B-COS-002 | P0 | SECURITY | Auth migration strategy | None | D (Clerk first, block everything) |
-| DEC-146B-COS-003 | P0 | ARCHITECTURE | Source code baseline | C | C (Verify then designate GitHub) |
-| DEC-146B-COS-004 | P0 | SCOPE | Module build sequence | A | A (Auth > Split > Tests > Content > Community > Courses > Stripe > Analytics) |
+| DEC-146B-COS-001 | P0 | SCOPE | MVP scope definition | **RESOLVED** | **B ratified** (Content + Community + Courses + Sales) |
+| DEC-146B-COS-002 | P0 | SECURITY | Auth migration strategy | **RESOLVED** | **D ratified** (Clerk first, block everything) |
+| DEC-146B-COS-003 | P0 | ARCHITECTURE | Source code baseline | **RESOLVED** | **C ratified** (Verify then designate GitHub) |
+| DEC-146B-COS-004 | P0 | SCOPE | Module build sequence | **RESOLVED** | **A ratified** (Auth > Split > Tests > Content > Community > Courses > Stripe > Analytics) |
 | DEC-146B-COS-005 | P1 | COMMERCE | Payment processor | B | B (Stripe Connect Express) |
 | DEC-146B-COS-006 | P1 | COMMERCE | Pricing model confirmation | A | B (Free + Pro only for MVP) |
 | DEC-146B-COS-007 | P1 | DESIGN | Design system confirmation | A | A + D parallel (confirm direction, audit references) |
@@ -1150,17 +1146,19 @@ Decision count: 32
 Decisions are not independent. This graph shows which decisions must be resolved before others can be meaningfully answered.
 
 ```
-DEC-146B-COS-001 (MVP Scope)
-  ├── DEC-146B-COS-004 (Build Sequence) — sequence depends on what is in scope
-  ├── DEC-146B-COS-006 (Pricing) — tiers depend on which features exist
-  ├── DEC-146B-COS-016 (Community vs Courses) — only relevant if both are in scope
-  ├── DEC-146B-COS-017 (UGC/Ads Timeline) — timing depends on MVP scope
-  ├── DEC-146B-COS-019 (Cross-Posting) — priority depends on whether content distribution is in MVP
-  └── DEC-146B-COS-020 (AI Scope) — AI features may or may not be in MVP
+DEC-146B-COS-001 (MVP Scope) — RESOLVED: Option B (Content + Community + Courses + Sales)
+  ├── DEC-146B-COS-004 (Build Sequence) — RESOLVED: Option A (Auth > Split > Tests > Content > Community > Courses > Stripe > Analytics)
+  ├── DEC-146B-COS-006 (Pricing) — UNBLOCKED: tiers depend on which features exist (now known)
+  ├── DEC-146B-COS-016 (Community vs Courses) — UNBLOCKED: both are in scope per Option B
+  ├── DEC-146B-COS-017 (UGC/Ads Timeline) — UNBLOCKED: excluded from MVP per Option B
+  ├── DEC-146B-COS-019 (Cross-Posting) — UNBLOCKED: deferred to post-MVP per Option B
+  └── DEC-146B-COS-020 (AI Scope) — UNBLOCKED: AI chat agents in scope per Option B
 
-DEC-146B-COS-002 (Auth Migration)
-  ├── DEC-146B-COS-008 (God File Split) — sequence depends on whether Clerk is done first
+DEC-146B-COS-002 (Auth Migration) — RESOLVED: Option D (Clerk first, block everything)
+  ├── DEC-146B-COS-008 (God File Split) — UNBLOCKED: sequenced after Clerk per DEC-146B-COS-004
   └── DEC-146B-COS-011 (Domain) — Clerk OAuth needs redirect URLs
+
+DEC-146B-COS-003 (Source Code Baseline) — RESOLVED: Option C (Verify then GitHub canonical)
 
 DEC-146B-COS-005 (Payment Processor)
   ├── DEC-146B-COS-013 (Money Type) — Stripe uses integer cents natively
@@ -1178,6 +1176,8 @@ DEC-146B-COS-022 (File Storage)
 
 ## Operator Action Required
 
-None of these 32 decisions are resolved. The system has recommendations for each, but recommendations are NOT decisions. Implementation is blocked on P0 decisions (001-004). P1 decisions (005-014) should be resolved before feature build begins. P2 and P3 can be resolved incrementally as those workstreams approach.
+4 of 32 decisions are resolved (all P0). The 4 P0 decisions (DEC-146B-COS-001 through DEC-146B-COS-004) were ratified by operator on 2026-06-04. 28 decisions remain open. P1 decisions (005-014) should be resolved before feature build begins. P2 and P3 can be resolved incrementally as those workstreams approach.
 
 To resolve a decision, the operator selects an option (A/B/C/D/E/F) for each decision ID. Selected options are recorded in the decision ledger and unlock the corresponding implementation work.
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).

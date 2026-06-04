@@ -1,8 +1,11 @@
 # LyfeOS MVP Current Canon
 
-**Phase:** 14.6B-LyfeOS
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
+**Revised:** 2026-06-04
 **Operator Approved:** false
 **Allows Implementation:** false
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 This document contains ONLY what is proven to exist in the current deployed MVP. Every item has CODE_RESOLVED_CURRENT_TRUTH provenance. If it cannot be verified from code, it is not listed here.
 

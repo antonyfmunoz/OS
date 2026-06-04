@@ -1,7 +1,9 @@
 # UMH Lossless Product Canon
 
-Phase: 14.6B-UMH (revised 14.6D)
+Phase: 14.6B-UMH (revised 14.6F)
 Status: DRAFT
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ## Identity
 
@@ -17,7 +19,7 @@ UMH is not a product sold to users -- it is the founder's private reality-modeli
 
 ## Core Substrate
 
-The `substrate/` package is the innermost layer of UMH. It implements the reality-model infrastructure, governed execution pipeline, memory system, and coordination mechanisms that make UMH a reality-isomorphic intelligence harness rather than a collection of unrelated tools.
+The `substrate/` package is the innermost layer of UMH. It implements the reality-model infrastructure, governed execution pipeline, memory system, and coordination mechanisms that make UMH a reality-isomorphic intelligence harness rather than a collection of unrelated tools. PHILOSOPHY.md is ratified for rewrite to be UMH-universal, not EOS-specific (DEC-146B-UMH-002).
 
 - **696 files**, **206,602 lines** of code
 - Single type system via `substrate/types.py` with 197 registered canonical types
@@ -41,7 +43,7 @@ UMH supports multiple application projections, each a domain-specific view of th
 | CreatorOS | Creator workflow | Planned |
 | LyfeOS | Life management | Planned |
 
-Projections register at runtime via abstract ports in `substrate/sockets/`. The substrate never imports from projections.
+Projections register at runtime via abstract ports in `substrate/sockets/`. The substrate never imports from projections. The ProductConnectionManager upward dependency violation is ratified for resolution via abstract port pattern at substrate/sockets/projection_port.py (DEC-146B-UMH-005).
 
 ## Intelligence Routing
 
@@ -60,6 +62,7 @@ Governed execution ensures no autonomous action exceeds its authority.
 - **4 permission tiers** controlling what agents can do without operator approval
 - **Simulation dry-run** mode for cadence operations
 - **Deliberation council** for multi-perspective decision evaluation
+- **Materialization principle (DEC-146C-002)**: When UMH encounters a gap between imagined outcome and current state, governance classifies the gap type (unavailable, under-resourced, unproven, not-yet-acquired, time-bound) and tracks typed acquisition paths. Only impossible/illegal/unsafe are true boundaries. Missing capability creates typed gaps, not dead ends.
 
 ## Memory
 
@@ -71,7 +74,7 @@ Memory is one of the four indivisible Stage 1 organism components (DEC-146C-003)
 
 ## Execution Pipeline
 
-Governed execution is one of the four indivisible Stage 1 organism components (DEC-146C-003). Execution without memory, governance, and reality model state is unsafe and incoherent. The 8-stage execution pipeline in `substrate/execution/spine.py`:
+Governed execution is one of the four indivisible Stage 1 organism components (DEC-146C-003). Execution without memory, governance, and reality model state is unsafe and incoherent. The target architecture is a single unified execution path: Substrate -> SignalRouter -> Spine (DEC-146B-UMH-003). Dead workstation code (26,671 lines) is ratified for extraction and deletion (DEC-146B-UMH-004). The 8-stage execution pipeline in `substrate/execution/spine.py`:
 
 1. **Interpret** -- classify intent from signal
 2. **Recall** -- retrieve relevant memory and context

@@ -1,11 +1,12 @@
 ---
-phase: "14.6B-EOS"
+phase: "14.6B-EOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
 provenance: "SYNTHESIZED_CANON"
 description: "Current and target deployment architecture for EOS — infrastructure, hosting, database, CI/CD, monitoring, environments, scaling, disaster recovery, cost, and open questions."
+revision_provenance: "Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04)."
 ---
 
 # EOS Infrastructure & Deployment Map
@@ -43,7 +44,7 @@ EOS has zero production deployment. Nothing is running, reachable, or serving us
 | Location | Files | Status | Last Activity |
 |---|---|---|---|
 | GitHub `main` (antonyfmunoz/EntrepreneurOS) | 202 | Stale | 2026-02-20 (Replit Agent) |
-| Beast `feature/company-system` | 603 | Promotion candidate | 2026-04-16 |
+| Beast `feature/company-system` | 603 | Canonical codebase (DEC-146B-EOS-001) | 2026-04-16 |
 | VPS `projections/eos/` | ~30 files, 5699 lines | Active UMH projection | Current |
 | VPS `transports/api/http/` | UMH platform layer | Active | Current |
 | VPS `saas/` | Empty (bridge/__pycache__ only) | Placeholder | N/A |
@@ -107,7 +108,7 @@ communicate via API:
 | EOS Backend | Express 4 + Hono API. Business logic, Clerk auth verification, Drizzle ORM queries. | Fly.io Machine (shared-cpu-1x, 1GB) |
 | Neon Postgres | Primary datastore. Dual-pool RLS (neondb_owner + eos_app). Connection pooling via Neon proxy. | Neon managed (us-east-1 or us-west-2) |
 | UMH Substrate | Agent execution, governance, intelligence routing, signal processing. EOS projection registers at boot. | VPS Docker (existing os-operator container or new eos-projection container) |
-| Clerk | Authentication, session management, org/tenant identity, MFA, OAuth. | Clerk cloud (SaaS) |
+| Clerk | Authentication, session management, org/tenant identity, MFA, OAuth. Ratified as production auth provider (DEC-146B-EOS-003). | Clerk cloud (SaaS) |
 | Cloudflare | DNS, CDN for static assets, WAF, DDoS protection, SSL termination. | Cloudflare managed |
 
 ### Separation from UMH Cockpit and other projections
@@ -146,7 +147,7 @@ codebases:
 | Layer | Tables | Managed By | Migration Tool |
 |---|---|---|---|
 | UMH Platform | users, organizations, org_members, portfolios, approvals, embeddings, umh_outcomes, user_agent_sessions | `transports/api/http/db/migrate.ts` | Drizzle Kit |
-| EOS Application | ventures, clients, transactions, offers, crm_contacts, crm_deals, crm_activities, agents, skills, events, skill_versions, workflows, interactions, outcomes, human_profiles | Beast branch schema (promotion candidate) | Drizzle Kit |
+| EOS Application | ventures, clients, transactions, offers, crm_contacts, crm_deals, crm_activities, agents, skills, events, skill_versions, workflows, interactions, outcomes, human_profiles | Beast branch schema (canonical codebase, DEC-146B-EOS-001) | Drizzle Kit |
 
 ### Connection pooling
 
@@ -531,7 +532,7 @@ Before any schema migration or data-altering deployment:
 | DEPLOY-OQ-003 | Should the EOS SaaS repo remain standalone (EntrepreneurOS) or merge into the OS monorepo? | Standalone vs Monorepo | Standalone: simpler CI for SaaS. Monorepo: shared types, single deploy pipeline. | Standalone with shared types package published to npm |
 | DEPLOY-OQ-004 | Which Neon project becomes production? | `ep-dark-poetry` (us-east-1, v2 schema) vs `ep-winter-sea` (us-west-2, v1 schema) vs New project | Schema version, region latency, data migration scope | `ep-dark-poetry` — already has v2 schema with UMH integration |
 | DEPLOY-OQ-005 | Should EOS backend communicate with UMH substrate via HTTP API (Tailscale) or direct DB queries? | HTTP API vs Shared DB | HTTP: clean boundary, network latency. Shared DB: faster, tighter coupling. | HTTP API — maintains architectural separation, substrate runs its own governance |
-| DEPLOY-OQ-006 | When should Beast branch be promoted to main? | Before deployment vs After deployment infra is ready | Blocks downstream work | After deployment infra is ready — promote into a deployable pipeline, not into a void |
+| DEPLOY-OQ-006 | ~~When should Beast branch be promoted to main?~~ | RESOLVED: Beast is the canonical codebase (DEC-146B-EOS-001, ratified 2026-06-04, Phase 14.6C). | No longer blocks — decision ratified. | N/A — merge Beast to main. |
 | DEPLOY-OQ-007 | Should the VPS remain the UMH substrate host long-term or should substrate move to Fly.io? | VPS (current) vs Fly.io migration | Cost, latency, operational complexity | VPS for now — Docker containers are working, no reason to migrate until scaling demands it |
 | DEPLOY-OQ-008 | Fly.io region: SJC (San Jose) like cockpit, or IAD (Ashburn) near Neon us-east-1? | SJC vs IAD | Neon `ep-dark-poetry` is us-east-1. SJC adds ~60ms latency to DB. | IAD — colocate with database for lowest query latency. Or migrate Neon to us-west-2. |
 
@@ -548,7 +549,7 @@ completed before any deployment is possible.
 |---|---|---|---|
 | DEPLOY-DEBT-001 | No Fly.io config (fly.toml, Dockerfile) for EOS | Cannot deploy | Medium |
 | DEPLOY-DEBT-002 | No CI/CD pipeline (GitHub Actions) | No automated deploy, no test gate | Medium |
-| DEPLOY-DEBT-003 | Beast branch not promoted to main | 401-file divergence, stale auth on main | High (merge conflict resolution) |
+| DEPLOY-DEBT-003 | Beast branch (canonical codebase, DEC-146B-EOS-001) not yet merged to main | 401-file divergence, stale auth on main | High (merge conflict resolution) |
 | DEPLOY-DEBT-004 | `DATABASE_APP_URL` fallback silently disables RLS | Security — RLS bypassed in prod if env var missing | Low (make it required, fail on missing) |
 | DEPLOY-DEBT-005 | `eos_app` role uses placeholder password in migration | Security — known weak credential | Low (read from env var) |
 | DEPLOY-DEBT-006 | No health check endpoints | Fly.io cannot verify app is running | Low |
@@ -570,7 +571,7 @@ This is the recommended sequence, not an authorized implementation plan.
 1. **Resolve DEPLOY-OQ-003** (standalone vs monorepo) — determines repo structure for everything after.
 2. **Resolve DEPLOY-OQ-004** (which Neon project) — determines connection strings.
 3. **Close DEPLOY-DEBT-004 and DEPLOY-DEBT-005** — database security basics.
-4. **Promote Beast branch** (DEPLOY-DEBT-003) — get Clerk auth and company system onto main.
+4. **Merge Beast branch to main** (DEPLOY-DEBT-003, DEC-146B-EOS-001) — canonical codebase with Clerk auth (DEC-146B-EOS-003) and company system onto main.
 5. **Create Dockerfiles and fly.toml** (DEPLOY-DEBT-001) — following cockpit pattern.
 6. **Build CI/CD pipeline** (DEPLOY-DEBT-002) — lint, type check, test, deploy.
 7. **Add health checks, rate limiting, CORS, security headers** (DEPLOY-DEBT-006 through DEPLOY-DEBT-009).

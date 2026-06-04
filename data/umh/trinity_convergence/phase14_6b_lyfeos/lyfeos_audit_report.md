@@ -1,6 +1,9 @@
 # LyfeOS Phase 14.6B Audit Report
 
-**Phase:** 14.6B-LyfeOS
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
+**Revised:** 2026-06-04
 **Artifact:** 51
 **Operator Approved:** false
 **Allows Implementation:** false
@@ -93,12 +96,12 @@ projections/lyfeos/integration/ (1184 lines) provides signal emission, capabilit
 
 ## Contradictions Requiring Operator Decision
 
-| # | Contradiction | Options |
-|---|-------------|---------|
-| 1 | PRD v1.0 vs v2.0 canonical version | v2.0 recommended |
-| 2 | Confetti/celebration vs PRD anti-pattern | Keep or remove |
-| 3 | Streak multiplier implementation status | Verify or document as aspirational |
-| 4 | NOVA name finalization | Keep NOVA or change |
+| # | Contradiction | Status |
+|---|-------------|--------|
+| 1 | PRD v1.0 vs v2.0 canonical version | **RESOLVED** (DEC-146B-LOS-001): v2.0 canonical, v1.0 historical |
+| 2 | Confetti/celebration vs PRD anti-pattern | OPEN — Keep or remove |
+| 3 | Streak multiplier implementation status | OPEN — Verify or document as aspirational |
+| 4 | NOVA name finalization | OPEN — Keep NOVA or change |
 
 ---
 
@@ -221,10 +224,10 @@ All artifacts include:
 9. RLS policies on user-scoped tables
 
 ### Medium Term (Operator Decision Dependent)
-10. Clerk migration (if approved)
-11. Fly.io migration (if approved)
-12. UMH integration activation (if boundary defined)
-13. Stripe re-integration (if timed)
+10. Clerk migration — **RATIFIED** (DEC-146B-LOS-002): proceed after CreatorOS proves pattern
+11. Fly.io migration — **RATIFIED** (DEC-146B-LOS-003): Fly.io is Trinity standard, migrate from Replit
+12. UMH integration activation (if boundary defined) — OPEN
+13. Stripe re-integration (if timed) — OPEN
 
 ### Long Term
 14. Full test coverage expansion

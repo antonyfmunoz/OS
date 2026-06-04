@@ -1,6 +1,8 @@
 # UMH Implementation Debt Register
 
-Phase: 14.6B-UMH | Status: DRAFT | Provenance: CODE_RESOLVED_CURRENT_TRUTH + INFERRED_PROFESSIONAL_GAP
+Phase: 14.6B-UMH (revised 14.6F) | Status: DRAFT | Provenance: CODE_RESOLVED_CURRENT_TRUTH + INFERRED_PROFESSIONAL_GAP
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ---
 
@@ -8,9 +10,9 @@ Phase: 14.6B-UMH | Status: DRAFT | Provenance: CODE_RESOLVED_CURRENT_TRUTH + INF
 
 | # | Item | Location | Effort | Priority |
 |---|------|----------|--------|----------|
-| N1 | README.md says "Universal Mastery Hierarchy" | README.md line 1 | LOW | P0 |
-| N2 | PHILOSOPHY.md uses EntrepreneurOS as system name | PHILOSOPHY.md (entire file) | MEDIUM | P0 |
-| N3 | cloud.md says "Universal Mastery Hierarchy" | cloud.md | LOW | P0 |
+| N1 | README.md says "Universal Mastery Hierarchy" | README.md line 1 | LOW | P0 -- RESOLVED: DEC-146B-UMH-001 ratified "Universal Meta Harness" as canonical name (2026-06-04) |
+| N2 | PHILOSOPHY.md uses EntrepreneurOS as system name | PHILOSOPHY.md (entire file) | MEDIUM | P0 -- RESOLVED: DEC-146B-UMH-002 ratified UMH-universal rewrite (2026-06-04) |
+| N3 | cloud.md says "Universal Mastery Hierarchy" | cloud.md | LOW | P0 -- RESOLVED: DEC-146B-UMH-001 ratified "Universal Meta Harness" as canonical name (2026-06-04) |
 | N4 | EntrepreneurOSGateway backward compat alias | gateway.py:1927 | LOW | P1 |
 | N5 | EntrepreneurOSContext backward compat alias | context.py:59 | LOW | P1 |
 | N6 | EntrepreneurOSOrchestrator backward compat alias | orchestrator.py:1910 | LOW | P1 |
@@ -26,9 +28,9 @@ Phase: 14.6B-UMH | Status: DRAFT | Provenance: CODE_RESOLVED_CURRENT_TRUTH + INF
 
 | # | Item | Location | Effort | Priority |
 |---|------|----------|--------|----------|
-| A1 | Three parallel execution paths not unified | gateway.py, spine.py, work_packet.py | HIGH | P0 |
-| A2 | ProductConnectionManager imports from projections/ | product_connections.py | MEDIUM | P1 |
-| A3 | workstation/ constitutional engines (26,671 lines dead code) | substrate/execution/workers/workstation/ | LOW (delete) | P1 |
+| A1 | Three parallel execution paths not unified | gateway.py, spine.py, work_packet.py | HIGH | P0 -- RESOLVED: DEC-146B-UMH-003 ratified single execution path (Substrate -> SignalRouter -> Spine) (2026-06-04) |
+| A2 | ProductConnectionManager imports from projections/ | product_connections.py | MEDIUM | P1 -- RESOLVED: DEC-146B-UMH-005 ratified abstract port pattern via substrate/sockets/projection_port.py (2026-06-04) |
+| A3 | workstation/ constitutional engines (26,671 lines dead code) | substrate/execution/workers/workstation/ | LOW (delete) | P1 -- RESOLVED: DEC-146B-UMH-004 ratified extract conceptual value into design docs, then delete (2026-06-04) |
 | A4 | Empty placeholder directories | substrate/deployment/, distribution/, execution/environments/, logs/ | LOW | P2 |
 | A5 | Broken import in gateway.py | gateway.py:1542 (observability.status.status) | LOW | P1 |
 | A6 | 13 legacy type duplicates in canonical_types.py | canonical_types.py LEGACY_DUPLICATES | MEDIUM | P2 |

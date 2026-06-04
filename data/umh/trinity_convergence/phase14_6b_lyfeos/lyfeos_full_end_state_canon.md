@@ -1,8 +1,11 @@
 # LyfeOS Full End-State Canon
 
-**Phase:** 14.6B-LyfeOS
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
+**Revised:** 2026-06-04
 **Operator Approved:** false
 **Allows Implementation:** false
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 This document describes the complete vision for LyfeOS including everything that exists today and everything planned for the future. Each section clearly labels what is current vs future.
 
@@ -17,13 +20,13 @@ This document describes the complete vision for LyfeOS including everything that
 | Domain | lyfeos.net | lyfeos.net (same) |
 | Hosting | Replit | Fly.io |
 | Auth | Passport.js + Firebase | Clerk |
-| AI Runtime | Local Anthropic SDK | UMH substrate AI runtime |
+| AI Runtime | Local Anthropic SDK | UMH substrate AI runtime (reality-isomorphic intelligence harness, DEC-146C-001) |
 | Error Tracking | None | PostHog / Sentry |
 | Analytics | None | PostHog |
 | Backups | Unverified | Neon verified + tested recovery |
 | CI/CD | None | GitHub Actions |
 | RLS | None | Full RLS on all user-scoped tables |
-| UMH Integration | None (from LyfeOS perspective) | Full projection registration |
+| UMH Integration | None (from LyfeOS perspective) | Full projection registration via abstract port pattern (DEC-146B-UMH-005) |
 
 ---
 
@@ -64,13 +67,14 @@ This document describes the complete vision for LyfeOS including everything that
 - Full user data ingestion (salience engine)
 
 ### Future [UMH_INTEGRATION_DEPENDENT_GAP]
-- NOVA connects to UMH agent runtime
-- UMH governs AI tool execution (risk classification, audit trail)
-- Cross-life intelligence: UMH correlates LyfeOS data with other projections
+- NOVA connects to UMH agent runtime — UMH is a reality-isomorphic intelligence harness (DEC-146C-001), not merely an orchestration kernel
+- All AI tool executions route through UMH single execution path (DEC-146B-UMH-003) with risk classification and audit trail
+- Cross-life intelligence: UMH correlates LyfeOS data with other projections via the world model (the reality model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback)
 - Memory persistence through UMH memory subsystem
-- Governed capability expansion (new tools registered through UMH)
+- Governed capability expansion (new tools registered through UMH via abstract port pattern, DEC-146B-UMH-005)
 - Multi-model routing through UMH model_router (CC SDK -> Gemini -> Ollama fallback chain)
 - Deterministic fallback for all AI-powered features
+- When capability is missing, UMH creates typed gaps and acquisition paths (DEC-146C-002). Gap types: unavailable, under-resourced, unproven, not-yet-acquired, time-bound. Only impossible/illegal/unsafe are true boundaries.
 
 ### Future [INFERRED_PROFESSIONAL_GAP]
 - Proactive AI (NOVA initiates conversations based on user patterns)
@@ -171,14 +175,14 @@ This document describes the complete vision for LyfeOS including everything that
 - Express sessions + Postgres session store
 
 ### Future [SYNTHESIZED_CANON]
-- **Clerk migration** — standardized auth across all Trinity apps
+- **Clerk migration** (DEC-146B-LOS-002) — standardized auth across all Trinity apps; migrate after CreatorOS proves the Clerk pattern
 - Single Sign-On across LyfeOS, CreatorOS, EOS
 - Role-based access control (admin, premium, free)
 - API key management for third-party integrations
 - Session management dashboard
 
 ### Migration Priority [SYNTHESIZED_CANON]
-Lower than CreatorOS (LyfeOS auth works, no security bypass vulnerability). Migrate after CreatorOS proves the Clerk pattern.
+Lower than CreatorOS (LyfeOS auth works, no security bypass vulnerability). Migrate after CreatorOS proves the Clerk pattern (DEC-146B-LOS-002).
 
 ---
 
@@ -212,7 +216,7 @@ Lower than CreatorOS (LyfeOS auth works, no security bypass vulnerability). Migr
 - /api/health endpoint
 
 ### Future [SYNTHESIZED_CANON]
-- **Fly.io deployment** with Dockerfile and fly.toml
+- **Fly.io deployment** (DEC-146B-LOS-003, Trinity standard infrastructure) with Dockerfile and fly.toml
 - **GitHub Actions CI/CD** — build, test, lint on PR; deploy on merge
 - **Neon backup verification** — confirm plan, test recovery
 - **PostHog** — product analytics + error tracking
@@ -253,14 +257,15 @@ UMH has a one-way integration layer at projections/lyfeos/integration/ (1184 lin
 ### Future [UMH_INTEGRATION_DEPENDENT_GAP]
 Full details in `lyfeos_umh_connected_future_canon.md`. Summary:
 
-1. LyfeOS registers as UMH projection
-2. NOVA connects to UMH agent runtime
-3. Auth flows through UMH (Clerk)
+1. LyfeOS registers as UMH projection via abstract port pattern (DEC-146B-UMH-005)
+2. NOVA connects to UMH agent runtime — all signals route through single execution path (DEC-146B-UMH-003)
+3. Auth flows through UMH (Clerk, DEC-146B-LOS-002)
 4. Memory persists through UMH memory subsystem
 5. All AI tool executions governed by UMH risk classification
-6. Cross-life intelligence from UMH (correlate LyfeOS with CreatorOS, EOS data)
+6. Cross-life intelligence from UMH (correlate LyfeOS with CreatorOS, EOS data) via the reality model
 7. Audit trail for all automated actions
 8. Failover mode: LyfeOS works standalone if UMH is unavailable
+9. LyfeOS is a projection/instance reality model on the UMH substrate (DEC-146C-001)
 
 ---
 
