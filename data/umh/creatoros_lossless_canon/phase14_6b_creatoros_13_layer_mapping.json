@@ -1,0 +1,883 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "CreatorOS mapped against the 13-layer production stack -- current state, target state, gaps, blockers, readiness, risk, and cross-layer dependencies for all 13 layers.",
+  "provenance_detail": "Synthesized from: phase14_6b_creatoros_current_implementation_truth.json (code-resolved current state across GitHub main, Beast, UMH projection), phase14_6b_creatoros_auth_security_truth.json (broken Passport.js, target Clerk, API security gaps), phase14_6b_creatoros_data_ontology.json (20-table schema, missing tables inventory), phase14_6b_creatoros_content_distribution_canon.json (universal composer, cross-posting, scheduling), phase14_6b_creatoros_automation_ai_canon.json (automation builder, AI utility features, email/newsletter, search), phase14_6b_creatoros_community_messaging_canon.json (communities, DMs, channels), phase14_6b_creatoros_product_types_commerce_canon.json (10 product types, commerce primitives), phase14_6b_creatoros_ugc_ads_canon.json (UGC campaigns, ads platform), phase14_6b_creatoros_design_identity_canon.json (X/Twitter minimalism), phase14_6b_creatoros_source_inventory.json (all source surfaces).",
+
+  "layer_schema_note": "This mapping uses the same 13-layer production stack schema as the EOS mapping (Phase 14.6B), re-aligned to application-centric concerns: Frontend Foundations, APIs+Backend, Database+Storage, Auth+Permissions, AI Runtime, Workflow/Automation, Memory/Knowledge, Analytics+Observability, Infrastructure+Deployment, Testing+QA, Documentation, Security+Compliance, Integration+Ecosystem. CreatorOS differs fundamentally from EOS: it is a consumer-facing creator platform (Whop on steroids) rather than an AI-native business operating system. AI is utility-level, not agent-level. The 13 layers apply but the concerns within each layer differ significantly.",
+
+  "layers": [
+    {
+      "layer_number": 1,
+      "name": "Frontend Foundations",
+      "current_status": {
+        "summary": "Single codebase with 16 pages, 46 custom components, 48 shadcn/ui primitives, and 3 hooks. No source divergence (GitHub main and Beast are aligned). Mobile-first bottom navigation. Replit Agent authored -- quality unaudited.",
+        "github_main": {
+          "framework": "React 18 + Vite 5 + TypeScript 5.6.3 + Tailwind CSS + shadcn/ui + wouter + zustand + TanStack Query + framer-motion",
+          "page_count": 16,
+          "pages": ["ai.tsx", "auth-page.tsx", "communities.tsx", "contacts.tsx", "create-post.tsx", "create-product.tsx", "documents.tsx", "explore.tsx", "followers.tsx", "following.tsx", "marketplace.tsx", "new-text-post.tsx", "not-found.tsx", "profile.tsx", "revenue.tsx", "saved-posts.tsx"],
+          "custom_component_count": 46,
+          "component_directories": ["ai", "communities", "explore", "feed", "layout", "marketplace", "messages", "notifications", "profile"],
+          "ui_component_count": 48,
+          "hook_count": 3,
+          "hooks": ["use-auth.tsx", "use-mobile.tsx", "use-toast.ts"],
+          "layout": "BottomNavigation.tsx only -- no left rail, no top header, no responsive desktop layout",
+          "routing": "wouter (client-side SPA)",
+          "charts": "recharts 2.13.0 (revenue chart)",
+          "status": "EXISTS -- mobile-first layout, no desktop optimization"
+        },
+        "beast_status": "Aligned with GitHub main -- no divergence, 2 uncommitted files (.env, dump.sql)",
+        "design_aesthetic": "theme.json: variant=professional, appearance=light, radius=0.5. X/Twitter-inspired minimalism per PRD. NOT glassmorphism.",
+        "deployed": false,
+        "missing_pages": [
+          "Content calendar / scheduling",
+          "Course builder / player",
+          "Cross-posting dashboard",
+          "Editing studio",
+          "UGC campaign management",
+          "Ads campaign builder",
+          "Automation builder (visual flow editor)",
+          "Email / newsletter composer",
+          "Analytics dashboard (cross-platform)",
+          "Settings / account management",
+          "Search results",
+          "Moderation / admin panel"
+        ]
+      },
+      "target_status": "React 18 + Vite + TypeScript + shadcn/ui + Tailwind. X/Twitter-inspired minimalism -- clean, fast, functional. Responsive layout (mobile-first with desktop optimization). 28 screens catalogued in PRD covering all 16 modules. Universal composer with per-platform preview. Visual automation flow editor. Course builder with curriculum editor. Community hub with real-time chat. Marketplace with product pages and checkout. Creator dashboard with unified analytics. Consumer feed with For You / Following toggle.",
+      "readiness": "PARTIAL",
+      "risk_level": "MEDIUM",
+      "gaps": [
+        "Only 16 of 28 PRD-catalogued screens implemented -- 12 major screens missing",
+        "No desktop-optimized layout -- mobile-only BottomNavigation, no sidebar/header responsive design",
+        "No content calendar or scheduling UI",
+        "No course builder or player UI",
+        "No cross-posting or connected accounts UI",
+        "No visual automation flow editor (entire Module 11 missing)",
+        "No email composer or newsletter UI (entire Module 12 missing)",
+        "No analytics dashboard beyond basic revenue chart",
+        "No search UI anywhere in the application",
+        "No moderation or admin panel",
+        "No checkout or payment flow UI",
+        "No For You / Following feed toggle (consumer feed algorithm)",
+        "Create-post is basic text input -- no block-based editor, no rich formatting, no media embedding beyond upload",
+        "God file concern: all components created by Replit Agent -- code quality unaudited",
+        "90 design reference files (attached_assets/) uncatalogued -- Stitch UI inventory needed"
+      ],
+      "blockers": ["No critical blockers -- no source divergence to resolve (unlike EOS). Frontend can be extended incrementally on the single codebase."],
+      "dependencies": ["Layer 4 (Auth+Permissions) for protected routes and role-based UI", "Layer 2 (APIs+Backend) for data fetching", "Layer 3 (Database+Storage) for schema-backed features"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 2,
+      "name": "APIs + Backend",
+      "current_status": {
+        "summary": "Single Express backend with all routes in one 53KB god file (routes.ts) and all data access in one 104KB god file (storage.ts). 8 backend files total. No middleware beyond Passport.js sessions. WebSocket for real-time.",
+        "framework": "Express 4 + TypeScript + tsx (dev) + esbuild (prod)",
+        "backend_files": [
+          {"name": "server/index.ts", "size_bytes": 2308, "role": "Express app bootstrap"},
+          {"name": "server/auth.ts", "size_bytes": 6509, "role": "Passport.js setup (BROKEN)"},
+          {"name": "server/routes.ts", "size_bytes": 53388, "role": "ALL API routes (GOD FILE)"},
+          {"name": "server/storage.ts", "size_bytes": 104725, "role": "ALL storage/data access (GOD FILE)"},
+          {"name": "server/db.ts", "size_bytes": 344, "role": "Drizzle database client"},
+          {"name": "server/upload.ts", "size_bytes": 4666, "role": "Multer file upload handling"},
+          {"name": "server/cleanup.ts", "size_bytes": 3352, "role": "Cleanup utilities"},
+          {"name": "server/vite.ts", "size_bytes": 2339, "role": "Vite dev server integration"}
+        ],
+        "route_domains": "CRUD for: auth (register/login/logout/user), posts, products, communities, channels, channel_messages, stories, notifications, documents, contacts, revenue, ai_agents, ai_chats, followers, saved_posts, tagged_users, conversations, direct_messages",
+        "middleware": "Passport.js session middleware only -- no rate limiting, no validation, no CORS config, no error handling middleware",
+        "realtime": "ws (WebSocket) library for real-time features (message delivery, notifications)",
+        "validation": "None at route level -- Zod schemas exist from drizzle-zod but are not used as route middleware",
+        "versioning": "None",
+        "ai_service": "OpenAI SDK (openai 4.91.1) -- direct calls, no abstraction layer",
+        "email_service": "SendGrid SDK (@sendgrid/mail 8.1.4) installed but unused in routes",
+        "deployed": false,
+        "god_file_severity": "HIGH -- routes.ts (53KB) and storage.ts (104KB) make the codebase unmaintainable, untestable, and unauditable for security"
+      },
+      "target_status": "Express 4 + TypeScript API server with modular route files per domain (auth, posts, products, communities, channels, messages, courses, commerce, automations, email, analytics, AI, search, moderation, admin). Request validation via Zod middleware on all endpoints. Rate limiting (express-rate-limit). Error handling middleware with sanitized responses. CORS whitelist for production domain. API versioning (v1 prefix). WebSocket for real-time. Health check endpoint. Clerk auth middleware replacing Passport.js.",
+      "readiness": "PARTIAL",
+      "risk_level": "HIGH",
+      "gaps": [
+        "God file routes.ts (53KB) must be split into 10-15 domain-specific route modules before any serious development",
+        "God file storage.ts (104KB) must be split into domain-specific storage modules",
+        "No request validation middleware -- raw req.body access throughout",
+        "No rate limiting on any endpoint",
+        "No error handling middleware -- stack traces may leak to clients",
+        "No CORS configuration verified",
+        "No API versioning",
+        "No health check endpoint",
+        "Missing route domains: courses, commerce/checkout, automations, email/newsletter, cross-posting, UGC campaigns, ads, search, moderation, admin",
+        "AI routes limited to basic agent CRUD + chat -- no content suggestion, scheduling, or moderation endpoints",
+        "Email routes nonexistent despite SendGrid SDK being installed"
+      ],
+      "blockers": ["COS-ARCH-001 and COS-ARCH-002: god files must be decomposed before extending -- adding routes to a 53KB file is untenable"],
+      "dependencies": ["Layer 3 (Database+Storage) for ORM queries", "Layer 4 (Auth+Permissions) for route protection", "Layer 12 (Security+Compliance) for rate limiting and security headers"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 3,
+      "name": "Database + Storage",
+      "current_status": {
+        "summary": "Single schema surface (shared/schema.ts) with 20 tables via Drizzle ORM. No Beast divergence. Serial integer PKs for all tables except notifications (uuid). One migration file. Seed script exists. No production database provisioned.",
+        "schema": {
+          "file": "shared/schema.ts",
+          "orm": "Drizzle ORM 0.39.3 + drizzle-zod 0.7.0",
+          "database": "Neon Postgres (via @neondatabase/serverless + postgres.js)",
+          "table_count": 20,
+          "tables": ["users", "posts", "saved_posts", "comments", "products", "ai_agents", "ai_chats", "communities", "channels", "channel_messages", "followers", "revenue", "contacts", "documents", "stories", "notifications", "conversations", "conversation_participants", "direct_messages", "tagged_users"],
+          "pk_strategy": "serial (auto-increment integer) for all tables, uuid for notifications only",
+          "exported_types": 40,
+          "exported_types_note": "20 Select types + 20 Insert types"
+        },
+        "user_model": {
+          "roles": ["creator", "consumer"],
+          "role_field": "text with default 'creator' -- no enum constraint",
+          "auth_columns": ["username (text, UNIQUE)", "password (text, NOT NULL)"],
+          "gamification": ["xp_points (integer, default 0)", "level (integer, default 1)"]
+        },
+        "migration": {
+          "count": 1,
+          "file": "migrations/0000_lyrical_vance_astro.sql",
+          "tool": "drizzle-kit push"
+        },
+        "seed": "scripts/seed-db.ts exists",
+        "production_db": "NOT PROVISIONED -- no production Neon database",
+        "development_db": "Beast .env has DATABASE_URL -- database may or may not be active",
+        "umh_projection_layer": {
+          "path": "projections/creatoros/integration/tables.py",
+          "tables_accessed": ["posts", "products", "revenue"],
+          "note": "Python typed wrappers (PostRow, ProductRow, RevenueRow, StoryRow) over same Neon tables. Single coupling point.",
+          "gap": "Projection expects umh_status column and umh_outcomes table -- neither exists in current schema"
+        }
+      },
+      "target_status": "Single Neon Postgres database per environment (dev, staging, prod). Unified Drizzle ORM schema covering all 20 existing tables plus: orders, order_items, entitlements, courses, course_sections, course_lessons, course_progress, businesses (creator accounts), subscriptions, email_lists, email_subscribers, email_templates, email_broadcasts, email_events, automation_flows, automation_executions, user_tags, user_custom_fields, connected_accounts (platform OAuth), scheduled_posts, content_cross_posts, ugc_campaigns, ugc_submissions, ad_campaigns, ad_creatives, moderation_queue, moderation_actions, umh_outcomes. Product type discriminator on products table. Migrations managed via drizzle-kit. RLS on all user-scoped tables.",
+      "readiness": "PARTIAL",
+      "risk_level": "MEDIUM",
+      "gaps": [
+        "No commerce tables (orders, order_items, entitlements, subscriptions) -- zero payment/checkout infrastructure",
+        "No course tables (courses, sections, lessons, progress) -- entire course platform module has no schema",
+        "No email tables (lists, subscribers, templates, broadcasts, events) -- despite SendGrid SDK dependency",
+        "No automation tables (flows, executions) -- entire automation builder module has no schema",
+        "No content scheduling columns (scheduled_at, published_at, status) on posts table",
+        "No connected_accounts table for cross-platform OAuth (the core distribution promise)",
+        "No product_type discriminator -- products.category is freeform text, cannot distinguish 10 PRD product types",
+        "No business/creator_account entity -- communities have no owner FK (COS-ARCH-008)",
+        "UMH projection expects umh_status column and umh_outcomes table that do not exist (DEBT-COS-001, DEBT-COS-002)",
+        "No full-text search indexes on any table",
+        "No moderation queue tables",
+        "PK strategy inconsistency: 19 tables use serial, 1 uses uuid -- should standardize",
+        "No backup strategy documented",
+        "No production Neon database provisioned"
+      ],
+      "blockers": ["No critical blocker -- schema can be extended incrementally with drizzle-kit push. Unlike EOS, no schema divergence to resolve."],
+      "dependencies": ["Layer 4 (Auth+Permissions) for user/auth model alignment with Clerk", "Layer 12 (Security+Compliance) for RLS policies"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 4,
+      "name": "Auth + Permissions",
+      "current_status": {
+        "summary": "CRITICALLY BROKEN. Passport.js auth where comparePasswords() returns true for ALL passwords. No rate limiting on auth endpoints. Hardcoded fallback session secret. No RLS. No role-based access control beyond a text field. Target is Clerk migration.",
+        "current_auth": {
+          "provider": "Passport.js 0.7.0 + passport-local 1.0.0",
+          "status": "BROKEN -- COS-AUTH-001: comparePasswords returns true for ALL passwords",
+          "session": "express-session 1.18.1 with connect-pg-simple + memorystore fallback",
+          "session_secret_fallback": "HARDCODED: 'creatorOS-secret-key' (COS-AUTH-002)",
+          "password_hashing": "scrypt intended but comparePasswords bypasses comparison entirely",
+          "oauth": "none",
+          "mfa": "none",
+          "email_verification": "none",
+          "rate_limiting": "none (COS-AUTH-003)"
+        },
+        "role_model": {
+          "field": "users.role (text, default 'creator')",
+          "values": ["creator", "consumer"],
+          "enforcement": "none -- role field exists but no middleware checks it for route protection",
+          "multi_role": "not supported -- single text column, user is either creator OR consumer"
+        },
+        "permissions": {
+          "rls": "none -- zero RLS policies on any of 20 tables",
+          "row_level_access_control": "none -- any authenticated user (which is everyone due to COS-AUTH-001) can access all data",
+          "role_based_routes": "none -- no middleware differentiates creator vs consumer access"
+        },
+        "mitigating_factors": [
+          "No production deployment -- app is not publicly accessible",
+          "No real user data -- only seed/test data",
+          "Beast and GitHub are the only copies"
+        ]
+      },
+      "target_status": "Clerk authentication for all user flows. OAuth providers (Google, Apple, optionally GitHub/Discord/X). Magic link for consumer accounts. 2FA for creator accounts (TOTP + SMS). Clerk organizations for multi-tenant creator businesses. Session management via Clerk (multi-device, instant revocation). Webhook sync (user.created/updated/deleted) to local users table. Creator/consumer role enforcement via middleware. Creator verification tiers (basic/verified/partner). RLS on all user-scoped tables via Neon.",
+      "readiness": "NOT_READY",
+      "risk_level": "CRITICAL",
+      "gaps": [
+        "COS-AUTH-001: Authentication is non-functional -- comparePasswords bypassed entirely (P0 CRITICAL)",
+        "COS-AUTH-002: Hardcoded session secret fallback enables session hijacking",
+        "COS-AUTH-003: No rate limiting on auth endpoints -- brute force possible",
+        "No Clerk integration -- no @clerk/express, no @clerk/clerk-react in dependencies",
+        "No OAuth providers configured",
+        "No MFA support",
+        "No email verification on registration",
+        "No role-based route protection middleware",
+        "No RLS on any table -- all data accessible to all users",
+        "No creator verification system (identity verification, badges)",
+        "No multi-role support (user cannot be both creator and consumer simultaneously)",
+        "No team/organization support for creator businesses",
+        "Schema lacks clerk_id column on users table"
+      ],
+      "blockers": ["COS-AUTH-001: CRITICAL authentication vulnerability blocks ALL production deployment. Must be resolved before any other layer work matters for production."],
+      "dependencies": ["Layer 3 (Database+Storage) for users table schema migration (add clerk_id, remove password)", "Layer 1 (Frontend) for auth UI component swap"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 5,
+      "name": "AI Runtime",
+      "current_status": {
+        "summary": "CreatorOS AI is UTILITY-LEVEL, not agent-level. One AI feature implemented: basic chatbot creation with OpenAI SDK. No UMH agent framework. No model routing. No governance. AI assists the human creator -- it never acts autonomously.",
+        "implemented": {
+          "ai_agent_creation": {
+            "description": "Creators build AI chatbots with custom system prompts and visual styling. Consumers chat with agents.",
+            "schema_tables": ["ai_agents (12 columns)", "ai_chats (6 columns, messages as JSON blob)"],
+            "page": "pages/ai.tsx",
+            "components": ["AgentCard", "ChatInterface"],
+            "provider": "OpenAI SDK (openai 4.91.1) -- direct API calls, no abstraction",
+            "status": "EXISTS but limited"
+          }
+        },
+        "not_implemented": [
+          "Content idea generation / AI writing assistant",
+          "Smart scheduling (optimal post time recommendations)",
+          "Audience insight summaries (natural language analytics)",
+          "Auto-moderation (keyword + AI classification pipeline)",
+          "AI-enhanced search (semantic search via embeddings)",
+          "AI agent marketplace (buying/selling chatbots)",
+          "Agent analytics (usage stats, popular queries)",
+          "Streaming responses for chat interface",
+          "Model selection (hardcoded to OpenAI)",
+          "Token usage tracking and rate limiting per user",
+          "Knowledge base attachment for agents"
+        ],
+        "eos_boundary_note": "EOS has 10 department agents, 66 skills, full UMH substrate integration, multi-model routing, governance, and autonomous execution. CreatorOS AI is fundamentally different: utility functions that suggest, human decides. No agent hierarchy, no delegation, no authority engine. The only overlap is the AI chatbot product type, and even those are different: EOS agents work FOR the entrepreneur, CreatorOS agents are products creators SELL to consumers.",
+        "umh_integration": "projections/creatoros/integration/ exists (1099 lines) with SignalEmitter, CapabilityHandler, OutcomeReceiver, Poller. This is substrate integration for data flow, NOT AI agent infrastructure. Activation status: NOT_ACTIVATED."
+      },
+      "target_status": "AI utility layer for creators: content suggestion engine (LLM-powered brainstorming + draft writing), smart scheduling (statistical analysis + LLM explanation of optimal times), audience insights (SQL aggregation + LLM narrative summaries), auto-moderation (deterministic keyword spine + AI classification enhancement), AI-enhanced search (PostgreSQL full-text spine + optional pgvector semantic layer). All AI features follow deterministic-first principle: rules/statistics first, AI enhances when available. OpenAI SDK for MVP, abstract provider interface later. Chatbot product type enhanced with: model selection, temperature/max_tokens config, token tracking, knowledge base attachment, streaming responses, per-agent pricing.",
+      "readiness": "PARTIAL",
+      "risk_level": "MEDIUM",
+      "gaps": [
+        "Only 1 of 6 target AI features implemented (basic chatbot creation)",
+        "No content suggestion engine (the most visible AI feature for creators)",
+        "No smart scheduling (requires analytics aggregation that also does not exist)",
+        "No audience insights (requires follower demographic tracking not in schema)",
+        "No auto-moderation (no moderation system at all -- Module 16 missing)",
+        "No AI-enhanced search (no search system at all)",
+        "Existing chatbot feature missing: model selection, token tracking, streaming, knowledge base, per-agent pricing",
+        "ai_chats.messages stored as JSON blob -- not queryable, not indexable, no per-message metadata",
+        "No provider abstraction -- locked to OpenAI SDK direct calls",
+        "No deterministic fallbacks for any AI feature"
+      ],
+      "blockers": ["No critical blocker for MVP AI features. Content suggestion and smart scheduling can be built independently. Auto-moderation depends on moderation tables (Layer 3)."],
+      "dependencies": ["Layer 3 (Database+Storage) for schema extensions (ai_agents columns, moderation tables)", "Layer 8 (Analytics) for audience insights data source", "Layer 2 (APIs+Backend) for new AI endpoints"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 6,
+      "name": "Workflow / Automation",
+      "current_status": {
+        "summary": "ZERO implementation. No automation builder, no workflow engine, no visual flow editor, no trigger system, no scheduled actions. The entire Module 11 (Automation Builder) from the PRD is greenfield. SendGrid SDK is installed but no email automation pipeline exists.",
+        "implemented_workflows": [],
+        "implemented_automations": [],
+        "automation_builder_status": "NOT_IMPLEMENTED -- zero schema tables, zero UI components, zero API routes, zero backend logic",
+        "email_automation_status": "NOT_IMPLEMENTED -- SendGrid SDK installed but no email-related code beyond the dependency",
+        "job_queue_status": "NOT_IMPLEMENTED -- no background job processing system. Required for automation delays, scheduled sends, and cron triggers.",
+        "designed_trigger_categories": ["commerce (product_purchased, subscription_started/cancelled, refund_requested, cart_abandoned)", "community (member_joined/left, message_posted)", "content (post_published, post_milestone, new_follower, comment_received)", "email (email_subscribed, email_link_clicked, email_unsubscribed)", "schedule (cron_schedule, date_based)"],
+        "designed_action_types": ["send_email", "send_dm", "add_tag", "remove_tag", "grant_access", "revoke_access", "webhook", "wait_delay", "conditional_split", "update_user_field", "notify_creator", "post_to_channel"],
+        "designed_templates": ["Welcome Email Sequence", "Purchase Follow-Up", "Community Member Onboarding", "Content Publishing Reminder", "Win-Back Churned Subscribers", "Abandoned Cart Recovery"],
+        "eos_comparison": "EOS has 3 implemented workflows (Outreach, ContentCalendar, FollowUp) plus 8 defined. CreatorOS has zero. EOS workflows are agent-executed via UMH spine. CreatorOS automations are creator-built visual flows executed by a trigger/action engine -- fundamentally different paradigm."
+      },
+      "target_status": "Manychat-style visual flow builder (drag-and-drop DAG editor). 5 trigger categories (commerce, community, content, email, schedule) with 15+ specific trigger types. 12 action types covering email, DM, tagging, access control, webhooks, delays, conditions, notifications. Pre-built automation templates (6+ common patterns). Execution logging with status tracking. pg-boss for background job processing (PostgreSQL-backed, no Redis). Automation tier gating by pricing plan. Integration with email system for drip sequences.",
+      "readiness": "NOT_READY",
+      "risk_level": "HIGH",
+      "gaps": [
+        "Complete greenfield -- zero automation code exists",
+        "No schema tables: automation_flows, automation_executions (required)",
+        "No visual flow editor component (complex React canvas + node graph)",
+        "No trigger event system (event bus or webhook-based trigger detection)",
+        "No action execution engine (orchestrator that runs flow nodes sequentially)",
+        "No background job queue (pg-boss or equivalent not installed)",
+        "No user_tags table (required for add_tag/remove_tag actions and conditional_split)",
+        "No entitlements table (required for grant_access/revoke_access actions)",
+        "Automation templates designed but not buildable until core engine exists",
+        "Delay/scheduling actions require reliable persistence across process restarts"
+      ],
+      "blockers": ["Layer 3 schema extensions required first (automation_flows, automation_executions, user_tags, entitlements tables)", "Background job queue decision (OQ-AUTO-002) must be made before execution engine design"],
+      "dependencies": ["Layer 3 (Database+Storage) for automation schema tables", "Layer 2 (APIs+Backend) for automation CRUD and trigger endpoints", "Layer 7 (Memory/Knowledge) for email templates (if email is the primary action)", "Layer 4 (Auth+Permissions) for automation access by pricing tier"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "layer_number": 7,
+      "name": "Memory + Knowledge",
+      "current_status": {
+        "summary": "Basic document editor exists (Notion-like CRUD). No search, no indexing, no intelligence, no knowledge base for AI agents. No content versioning or history. Email template system designed but not built.",
+        "implemented": {
+          "documents": {
+            "schema": "documents table (id, userId, title, content, createdAt, updatedAt)",
+            "page": "pages/documents.tsx",
+            "component": "DocumentEditor.tsx",
+            "capabilities": "Create, read, update, delete documents. Text content only. No folders, no sharing, no collaboration.",
+            "status": "EXISTS -- basic CRUD, no intelligence"
+          }
+        },
+        "not_implemented": [
+          "Document search (no full-text indexes, no search API)",
+          "Document organization (no folders, no tags, no categories)",
+          "Document sharing or collaboration",
+          "Document versioning or history",
+          "AI agent knowledge base (agents cannot reference documents)",
+          "Email template system (designed in automation canon but no tables or UI)",
+          "Content templates (reusable post/product/course templates)",
+          "Creator knowledge library (educational resources for onboarding)",
+          "Course curriculum storage (courses, sections, lessons -- entire Module 3 missing)"
+        ],
+        "umh_knowledge_system": "UMH substrate has memory palace (knowledge/palace/), wiki (knowledge/), embeddings table, and node summaries. These are UMH-internal knowledge infrastructure -- NOT exposed to CreatorOS users. No bridge exists between UMH knowledge system and CreatorOS document/content features."
+      },
+      "target_status": "Document management with folders and tags. Full-text search across documents (PostgreSQL tsvector). AI agent knowledge base (attach documents to agents for context-aware responses). Email template system (WYSIWYG editor for branded, reusable templates with merge fields). Content templates (reusable post/product formats). Course curriculum storage (courses, sections, lessons with ordering and progress tracking). Creator knowledge library (platform-authored educational content for onboarding). Document versioning for audit trail.",
+      "readiness": "NOT_READY",
+      "risk_level": "LOW",
+      "gaps": [
+        "Documents are isolated CRUD -- no search, no organization, no intelligence",
+        "No AI agent knowledge base (agents cannot reference any stored content)",
+        "No email template system (required for email/newsletter module and automation builder)",
+        "No course content storage (courses, sections, lessons tables missing)",
+        "No content template system for reusable post/product formats",
+        "No document folders, tags, or categorization",
+        "No document versioning or history",
+        "No full-text search indexes on documents table"
+      ],
+      "blockers": ["No critical blocker. Document enhancements can proceed independently. Course schema and email template schema depend on Layer 3 decisions."],
+      "dependencies": ["Layer 3 (Database+Storage) for schema extensions", "Layer 5 (AI Runtime) for agent knowledge base integration"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 8,
+      "name": "Analytics + Observability",
+      "current_status": {
+        "summary": "Basic revenue chart exists (recharts). No cross-platform analytics, no content performance tracking, no audience demographics, no PostHog, no structured logging, no error tracking. UMH projection has 3 analytics views (Pipeline, KPI, Activity) but these are EOS-specific and not surfaced to CreatorOS users.",
+        "implemented": {
+          "revenue_chart": {
+            "page": "pages/revenue.tsx",
+            "component": "RevenueChart.tsx",
+            "library": "recharts 2.13.0",
+            "data_source": "revenue table",
+            "status": "EXISTS -- basic line chart of revenue over time"
+          }
+        },
+        "not_implemented": [
+          "Cross-platform content analytics (per-post performance across connected platforms)",
+          "Audience demographics (age, location, timezone distribution)",
+          "Engagement analytics (likes, comments, shares, saves over time)",
+          "Follower growth tracking and visualization",
+          "Content performance comparison (which posts perform best and why)",
+          "Community analytics (member growth, message volume, active users)",
+          "Product/commerce analytics (conversion rates, cart abandonment, LTV)",
+          "Email analytics (open rates, click rates, bounce rates per broadcast)",
+          "Automation analytics (execution counts, success/failure rates)",
+          "Creator dashboard (unified overview of all metrics)",
+          "PostHog integration (product analytics, session replay, feature flags)",
+          "Structured JSON logging (backend currently uses console.log)",
+          "Error tracking (no Sentry or equivalent)",
+          "Uptime monitoring"
+        ],
+        "umh_projection_analytics": {
+          "pipeline_view": "projections/eos/views/pipeline.py -- EOS-specific, not exposed to CreatorOS",
+          "kpi_view": "projections/eos/views/kpis.py -- EOS-specific",
+          "activity_view": "projections/eos/views/activity.py -- EOS-specific",
+          "note": "UMH projection for CreatorOS polls posts/products/revenue but does NOT generate analytics views. Signal flow exists but no downstream analytics processing."
+        }
+      },
+      "target_status": "Creator dashboard with unified metrics overview. Per-content performance analytics with platform breakdown. Audience demographics and growth tracking. Community health metrics (active members, message velocity, retention). Commerce analytics (conversion funnel, LTV, churn). Email analytics (open/click/bounce/unsubscribe rates). Automation execution analytics. PostHog for product analytics and session replay from day one. Structured JSON logging. Error tracking (PostHog errors or Sentry). Uptime monitoring. Weekly digest report to creator.",
+      "readiness": "NOT_READY",
+      "risk_level": "HIGH",
+      "gaps": [
+        "Only basic revenue chart exists -- everything else is missing",
+        "No cross-platform content analytics (the core metric creators care about)",
+        "No audience demographics tracking (no schema support for follower demographics)",
+        "No engagement rate calculations or visualizations",
+        "No community health metrics",
+        "No commerce funnel analytics (no commerce tables exist yet)",
+        "No email analytics (no email system exists yet)",
+        "No PostHog integration -- not even installed as a dependency",
+        "No structured logging -- console.log only",
+        "No error tracking service",
+        "No uptime monitoring",
+        "No weekly/monthly report generation"
+      ],
+      "blockers": ["Analytics depth depends on data availability -- cross-platform analytics requires connected accounts (Layer 13), commerce analytics requires commerce tables (Layer 3), email analytics requires email system (Layer 6/7). Basic engagement analytics can proceed with existing schema."],
+      "dependencies": ["Layer 3 (Database+Storage) for analytics data sources", "Layer 9 (Infrastructure+Deployment) for production monitoring", "Layer 13 (Integration+Ecosystem) for cross-platform data"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 9,
+      "name": "Infrastructure + Deployment",
+      "current_status": {
+        "summary": "No deployment exists anywhere. Development-only on Beast via tsx dev server. Replit config files exist (from original authoring) but Replit is not the target deployment. No Dockerfile, no Fly.toml, no CI/CD, no health checks.",
+        "deployment": {
+          "production": "none",
+          "staging": "none",
+          "development": "Local on Beast only (tsx server/index.ts)",
+          "dockerfile": false,
+          "fly_toml": false,
+          "docker_compose": false,
+          "github_actions": false,
+          "health_check": false
+        },
+        "replit_config": {
+          "exists": true,
+          "files": [".replit", "replit.nix"],
+          "deployment_target": "autoscale",
+          "node_version": "nodejs-20",
+          "note": "Replit Agent authored the project. Replit is NOT the target deployment platform."
+        },
+        "version_control": {
+          "repo": "antonyfmunoz/CreatorOS on GitHub",
+          "branches": "main only (no feature branches, no divergence)",
+          "branch_protection": "none",
+          "pr_workflow": "none"
+        },
+        "neon_database": {
+          "production": "NOT PROVISIONED",
+          "development": "Beast .env has DATABASE_URL -- status unknown"
+        },
+        "blocked_by": "COS-AUTH-001: CANNOT deploy until authentication vulnerability is fixed. Even aside from auth, no deployment infrastructure exists."
+      },
+      "target_status": "Fly.io deployment (Express + React via esbuild). Dockerfile with multi-stage build (build stage + production stage). Fly.toml configuration. Health check endpoint (/health). GitHub Actions CI/CD (lint, type-check, test on PR; build and deploy on main merge). Branch protection on main. Zero-downtime deploys. Environment variable management via Fly secrets. Staging environment on Fly.io. CDN for static assets. Production Neon database provisioned with connection pooling.",
+      "readiness": "NOT_READY",
+      "risk_level": "MEDIUM",
+      "gaps": [
+        "Complete deployment gap -- zero infrastructure exists",
+        "No Dockerfile for production build",
+        "No Fly.toml configuration",
+        "No CI/CD pipeline",
+        "No branch protection",
+        "No staging environment",
+        "No health check endpoint",
+        "No environment variable management beyond .env files",
+        "No CDN for static assets (images, JS bundles)",
+        "No production Neon database provisioned",
+        "No connection pooling configured",
+        "Replit config files (.replit, replit.nix) should be removed -- they are artifacts of Replit Agent authoring, not useful for Fly.io"
+      ],
+      "blockers": ["COS-AUTH-001 must be resolved before any production deployment. Deployment infrastructure CAN be built in parallel with auth migration."],
+      "dependencies": ["Layer 4 (Auth+Permissions) for Clerk production API keys", "Layer 3 (Database+Storage) for production Neon connection", "Layer 10 (Testing+QA) for CI test suite"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 10,
+      "name": "Testing + QA",
+      "current_status": {
+        "summary": "ZERO tests in the CreatorOS repository. No test framework installed. No vitest, jest, or playwright in dependencies. 11 UMH integration tests exist in the OS repo but test the projection layer, not the app itself.",
+        "creatoros_repo": {
+          "test_files": 0,
+          "test_framework": "none installed",
+          "test_dependencies": "none -- no vitest, jest, playwright, cypress, or any testing library in package.json",
+          "coverage": "0%"
+        },
+        "umh_integration_tests": {
+          "file": "tests/test_lyfeos_creatoros_integration.py",
+          "test_count": 11,
+          "test_classes": [
+            "TestCreatorOSProtocols (4 tests)",
+            "TestCreatorOSSignals (3 tests)",
+            "TestCreatorOSCorrelation (2 tests)",
+            "TestCreatorOSConfig (2 tests)"
+          ],
+          "status": "All 11 pass",
+          "scope_note": "These test the UMH projection integration code (Python), NOT the CreatorOS application (TypeScript). They verify signal emission, capability handling, and correlation mapping."
+        },
+        "code_quality": "Entire codebase authored by Replit Agent. No code review process. God files (routes.ts 53KB, storage.ts 104KB) are untestable in current form."
+      },
+      "target_status": "Vitest for unit and integration tests. Playwright for e2e tests. Minimum 80% coverage on critical paths (auth flow, content creation, product purchase, community join, automation execution). CI integration (tests run on every PR). Component tests for key UI components (composer, chat interface, automation editor). API route tests with mock database. Snapshot tests for UI components. Type checking via tsc --noEmit in CI.",
+      "readiness": "NOT_READY",
+      "risk_level": "HIGH",
+      "gaps": [
+        "ZERO test coverage in the CreatorOS repository -- no tests of any kind",
+        "No test framework installed -- vitest/playwright must be added as dependencies",
+        "God files (routes.ts, storage.ts) are untestable -- must be decomposed first",
+        "No CI pipeline to run tests automatically",
+        "No test data fixtures or factories",
+        "No API contract tests",
+        "No component tests",
+        "No e2e tests",
+        "No type checking in CI (tsc runs but not in any automated process)",
+        "Replit Agent code quality never verified -- unknown bug density"
+      ],
+      "blockers": ["God file decomposition (COS-ARCH-001, COS-ARCH-002) should precede test writing -- testing 53KB/104KB monoliths is impractical. Tests on decomposed modules are far more valuable."],
+      "dependencies": ["Layer 2 (APIs+Backend) for testable route modules", "Layer 9 (Infrastructure+Deployment) for CI pipeline"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 11,
+      "name": "Documentation",
+      "current_status": {
+        "summary": "Extensive design documentation in Phase 14.6B canon artifacts (15 files). No API documentation. No user-facing documentation. No inline code documentation. No architecture docs in the repo. No CLAUDE.md or developer setup guide.",
+        "design_artifacts": {
+          "count": 15,
+          "directory": "data/umh/creatoros_lossless_canon/",
+          "coverage": "Comprehensive design specs covering current state, product vision, auth/security, data ontology, content distribution, automation/AI, community/messaging, product types/commerce, UGC/ads, design identity, analytics, user journeys, source inventory, contradictions matrix",
+          "status": "DRAFT -- none operator-approved"
+        },
+        "prd": {
+          "source": "Google Doc (1.6M chars, 276K words)",
+          "status": "Contains 3 conflicting MVP scope definitions, 3 conflicting auth recommendations, 2 conflicting backend framework references -- contradictions catalogued in versions_contradictions_matrix.json"
+        },
+        "code_documentation": {
+          "inline": "Minimal -- Replit Agent generated, no JSDoc/TSDoc convention visible",
+          "claude_md": "None -- no .claude/ directory, no CLAUDE.md, no developer context (COS-ARCH-007)",
+          "readme": "Unknown -- not inspected from VPS",
+          "architecture": "None in repo",
+          "api_docs": "None -- no OpenAPI/Swagger spec"
+        },
+        "user_documentation": "None -- no help center, no onboarding guides, no creator documentation",
+        "design_references": "90 files in attached_assets/ (80 images, 10 text pastes) uncatalogued -- Stitch UI inventory needed"
+      },
+      "target_status": "CLAUDE.md for AI developer context. OpenAPI/Swagger spec for all API endpoints. Developer documentation (setup guide, architecture overview, contribution guide). Creator-facing help center (how to create content, set up community, list products, build automations). Consumer-facing FAQ. Inline code documentation (JSDoc/TSDoc). Design system documentation with component library reference. API versioning documentation.",
+      "readiness": "PARTIAL",
+      "risk_level": "LOW",
+      "gaps": [
+        "No developer setup guide in the repo",
+        "No CLAUDE.md or AI development context (COS-ARCH-007)",
+        "No API documentation (no OpenAPI spec)",
+        "No user-facing documentation of any kind",
+        "No design system documentation",
+        "No architecture documentation in the repo",
+        "Design artifacts are comprehensive but all DRAFT and none operator-approved",
+        "PRD has unresolved contradictions (3 MVP scopes, 3 auth approaches)",
+        "90 design reference files uncatalogued"
+      ],
+      "blockers": ["Documentation can proceed in parallel with all other layers. PRD contradictions (DEC-145-002) should be resolved before documentation codifies the wrong scope."],
+      "dependencies": ["Layer 2 (APIs+Backend) for API documentation targets", "Layer 1 (Frontend) for design system documentation"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "layer_number": 12,
+      "name": "Security + Compliance",
+      "current_status": {
+        "summary": "CRITICAL security posture. Auth is broken (P0). No RLS. No rate limiting. No CSRF/CSP/security headers. No content moderation. No privacy compliance. No legal policies (ToS, DMCA, Community Guidelines). Not deployable in current state.",
+        "auth_security": {
+          "rating": "BROKEN",
+          "issues": [
+            "COS-AUTH-001 (CRITICAL): comparePasswords returns true for ALL passwords",
+            "COS-AUTH-002 (HIGH): Hardcoded session secret fallback",
+            "COS-AUTH-003 (HIGH): No rate limiting on auth endpoints"
+          ]
+        },
+        "authorization": "NONE -- no RLS, no row-level access control, no role-based route protection",
+        "api_security": {
+          "rate_limiting": "none on any endpoint",
+          "cors": "unverified -- needs code audit",
+          "csrf": "none configured",
+          "input_validation": "partial -- Zod schemas from drizzle-zod exist but not used as route middleware",
+          "sql_injection": "low risk -- Drizzle ORM parameterizes by default",
+          "error_handling": "unknown -- may leak stack traces",
+          "file_upload_security": "unknown -- upload.ts exists but validation/size limits unaudited"
+        },
+        "privacy": {
+          "data_classification": "none",
+          "gdpr": "not addressed (no right to access, erasure, portability, consent management)",
+          "ccpa": "not addressed",
+          "data_retention": "none -- all data retained indefinitely",
+          "pii_handling": "none -- all data treated identically"
+        },
+        "content_moderation": {
+          "status": "none",
+          "description": "No content screening, filtering, reporting, or review mechanisms. Platform is open to abuse once public."
+        },
+        "trust_safety": {
+          "creator_verification": "not implemented",
+          "content_policies": "none (no ToS, no Community Guidelines, no Creator Terms, no AUP)",
+          "dmca": "not implemented (no agent registration, no takedown handler, no counter-notice)",
+          "payment_fraud": "N/A -- no payment processing exists"
+        },
+        "security_headers": "none -- no CSRF token, no CSP, no X-Frame-Options, no X-Content-Type-Options, no HSTS"
+      },
+      "target_status": "Clerk authentication eliminating all Passport.js vulnerabilities. RLS on all user-scoped tables (14+ tables). Rate limiting on all endpoints (stricter on auth, file upload, AI endpoints). CSRF protection via Clerk JWT mechanism. CSP headers. Security headers (X-Frame-Options, X-Content-Type-Options, HSTS, Referrer-Policy). CORS whitelist for production domain only. Input validation via Zod on every endpoint. Error handling middleware with sanitized responses. Content moderation system (deterministic keyword spine + AI classification). Creator verification tiers. GDPR compliance (data export, deletion, consent). DMCA compliance (agent registration, takedown/counter-notice). Content policies (ToS, Community Guidelines, Creator Terms, AUP). Dependency vulnerability scanning. Security audit before production launch.",
+      "readiness": "NOT_READY",
+      "risk_level": "CRITICAL",
+      "gaps": [
+        "COS-AUTH-001: Authentication non-functional (P0 CRITICAL)",
+        "No RLS on any of 20 tables",
+        "No rate limiting on any endpoint",
+        "No security headers (CSRF, CSP, HSTS, X-Frame-Options)",
+        "No content moderation system",
+        "No GDPR compliance (no data export, deletion, or consent mechanisms)",
+        "No DMCA compliance (no takedown handler, no agent registration)",
+        "No content policies or terms of service",
+        "No creator verification system",
+        "No dependency vulnerability scanning",
+        "No security audit performed",
+        "No input validation middleware on routes",
+        "No error handling middleware (stack trace leak risk)",
+        "File upload security unaudited"
+      ],
+      "blockers": ["COS-AUTH-001 is the single gate. Every other security concern is secondary until authentication works. However, content moderation, GDPR, DMCA, and ToS are all required before accepting real user content."],
+      "dependencies": ["Layer 4 (Auth+Permissions) for Clerk migration", "Layer 3 (Database+Storage) for RLS implementation", "Layer 9 (Infrastructure+Deployment) for HTTPS, security headers in production"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 13,
+      "name": "Integration + Ecosystem",
+      "current_status": {
+        "summary": "UMH projection integration exists (1099 lines) but is NOT ACTIVATED. No external platform integrations. No Stripe/payment processing. No OAuth connected accounts for cross-platform publishing. No webhooks. Zero of the 'post once, publish everywhere' promise is implemented.",
+        "umh_integration": {
+          "path": "projections/creatoros/integration/",
+          "total_lines": 1099,
+          "components": ["manifest.py (signal/capability descriptors)", "signals.py (CreatorOSSignalEmitter)", "handlers.py (CreatorOSCapabilityHandler)", "outcomes.py (CreatorOSOutcomeReceiver)", "correlation.py (thread-safe in-memory mapping)", "tables.py (typed row dataclasses + SQL helpers)"],
+          "signal_types": ["creatoros_post_created", "creatoros_product_listed", "creatoros_revenue_recorded"],
+          "capability_types": ["noop", "create_post", "create_product", "record_revenue"],
+          "polled_tables": ["posts", "products", "revenue"],
+          "activation_status": "NOT_ACTIVATED -- code exists, passes 11 tests, but not wired into any running service",
+          "activation_blockers": ["umh_status column not in current schema", "umh_outcomes table not provisioned", "No running CreatorOS instance for the poller to connect to"]
+        },
+        "external_integrations": {
+          "status": "NONE",
+          "missing": [
+            "Stripe Connect (payment processing for creator products) -- the commerce foundation",
+            "Platform OAuth connections (Twitter/X, Instagram, YouTube, TikTok, LinkedIn, Facebook, Pinterest) -- the distribution foundation",
+            "Cross-posting APIs (platform publish endpoints) -- the core 'post once, publish everywhere' promise",
+            "Content scheduling APIs (per-platform scheduling)",
+            "Google Analytics (creator website integration)",
+            "Zapier/Make webhooks (external automation)",
+            "SendGrid (email sending -- SDK installed but not integrated)",
+            "Cloudinary or similar (media CDN for images/video)",
+            "OAuth for consumer social login (Google, Apple -- covered by Clerk migration)"
+          ]
+        },
+        "payment_processing": {
+          "status": "NONE",
+          "target": "Stripe Connect for creator payouts. Stripe Checkout for consumer purchases. Subscription billing for membership products. Marketplace cut model (platform takes percentage).",
+          "current": "No Stripe dependency in package.json. No payment tables in schema. No checkout flow. Revenue table tracks amounts but there is no mechanism to collect payment."
+        },
+        "the_core_promise": {
+          "description": "'Post once, publish everywhere' is the CreatorOS tagline and primary differentiator. It requires OAuth connections to 7+ social platforms, per-platform content adaptation, cross-posting APIs, and scheduling. NONE of this exists in code.",
+          "status": "ZERO IMPLEMENTATION"
+        }
+      },
+      "target_status": "UMH substrate integration fully activated (signal polling, capability execution, outcome writeback). Stripe Connect for creator payments with marketplace fee model. Platform OAuth connections for cross-platform publishing (Twitter/X, Instagram, YouTube, TikTok, LinkedIn, Facebook, Pinterest). Cross-posting engine that adapts content per platform and publishes via APIs. Content scheduling via platform APIs. SendGrid integration for email/newsletter system. Media CDN (Cloudinary or equivalent) for image/video hosting. Webhook system for external integrations (Zapier/Make). Connected accounts management UI. Integration health monitoring dashboard.",
+      "readiness": "NOT_READY",
+      "risk_level": "CRITICAL",
+      "gaps": [
+        "ZERO external integrations implemented -- none of the core distribution promise exists",
+        "No Stripe Connect -- cannot process payments, cannot run marketplace, cannot pay creators",
+        "No platform OAuth connections -- cannot cross-post to any social platform",
+        "No cross-posting engine -- the core 'post once, publish everywhere' feature is entirely missing",
+        "No content scheduling via platform APIs",
+        "No media CDN -- uploaded files go to local uploads/ directory (committed to git)",
+        "No webhook system for external integrations",
+        "No connected accounts UI or management",
+        "UMH projection exists but is not activated (missing schema columns, no running instance)",
+        "SendGrid SDK installed but zero integration code",
+        "No integration health monitoring"
+      ],
+      "blockers": ["Stripe Connect requires business verification and production API keys. Platform OAuth connections require developer app registrations with each platform (Twitter, Instagram, YouTube, etc.) -- some have approval processes that take weeks. These are not just code tasks; they require business/legal preparation."],
+      "dependencies": ["Layer 4 (Auth+Permissions) for OAuth token storage and management", "Layer 3 (Database+Storage) for connected_accounts and payment tables", "Layer 9 (Infrastructure+Deployment) for webhook endpoints and CDN setup"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    }
+  ],
+
+  "cross_layer_dependencies": [
+    {"from_layer": 1, "to_layer": 4, "dependency": "Frontend protected routes require Clerk auth to be implemented", "status": "BLOCKED"},
+    {"from_layer": 1, "to_layer": 2, "dependency": "All frontend data fetching depends on backend API routes", "status": "PARTIAL"},
+    {"from_layer": 1, "to_layer": 3, "dependency": "New pages (courses, checkout, automations) require schema tables to exist", "status": "BLOCKED"},
+    {"from_layer": 2, "to_layer": 3, "dependency": "Route modules for new domains require schema tables", "status": "BLOCKED"},
+    {"from_layer": 2, "to_layer": 4, "dependency": "All API routes need Clerk middleware for protection", "status": "BLOCKED"},
+    {"from_layer": 3, "to_layer": 4, "dependency": "Users table needs clerk_id column and password column removal", "status": "BLOCKED"},
+    {"from_layer": 3, "to_layer": 12, "dependency": "RLS policies require finalized schema", "status": "BLOCKED"},
+    {"from_layer": 4, "to_layer": 12, "dependency": "Clerk migration is the prerequisite for all security hardening", "status": "BLOCKED"},
+    {"from_layer": 5, "to_layer": 3, "dependency": "AI agent enhancements require schema migration (model_id, token tracking)", "status": "BLOCKED"},
+    {"from_layer": 5, "to_layer": 8, "dependency": "Smart scheduling and audience insights require analytics data aggregation", "status": "BLOCKED"},
+    {"from_layer": 6, "to_layer": 3, "dependency": "Automation builder requires automation_flows, automation_executions, user_tags tables", "status": "BLOCKED"},
+    {"from_layer": 6, "to_layer": 7, "dependency": "Email actions in automations require email template system", "status": "BLOCKED"},
+    {"from_layer": 7, "to_layer": 3, "dependency": "Email templates, course curriculum tables not in schema", "status": "BLOCKED"},
+    {"from_layer": 8, "to_layer": 9, "dependency": "Production observability requires deployed application", "status": "BLOCKED"},
+    {"from_layer": 8, "to_layer": 13, "dependency": "Cross-platform analytics requires platform OAuth connections", "status": "BLOCKED"},
+    {"from_layer": 9, "to_layer": 4, "dependency": "Deployment needs Clerk production API keys", "status": "BLOCKED"},
+    {"from_layer": 9, "to_layer": 3, "dependency": "Deployment needs production Neon connection", "status": "BLOCKED"},
+    {"from_layer": 10, "to_layer": 2, "dependency": "API tests require decomposed route modules (not 53KB god file)", "status": "BLOCKED"},
+    {"from_layer": 10, "to_layer": 9, "dependency": "CI test automation requires CI/CD pipeline", "status": "BLOCKED"},
+    {"from_layer": 12, "to_layer": 3, "dependency": "RLS requires finalized schema", "status": "BLOCKED"},
+    {"from_layer": 12, "to_layer": 4, "dependency": "Security hardening depends on auth being functional", "status": "BLOCKED"},
+    {"from_layer": 12, "to_layer": 9, "dependency": "Security headers and HTTPS require deployment", "status": "BLOCKED"},
+    {"from_layer": 13, "to_layer": 3, "dependency": "Payment and connected_accounts tables not in schema", "status": "BLOCKED"},
+    {"from_layer": 13, "to_layer": 4, "dependency": "Platform OAuth connections require auth infrastructure", "status": "BLOCKED"},
+    {"from_layer": 13, "to_layer": 9, "dependency": "Webhook endpoints require deployment", "status": "BLOCKED"}
+  ],
+
+  "critical_path": [
+    {
+      "order": 1,
+      "layer": "Layer 4: Auth + Permissions (COS-AUTH-001 Resolution)",
+      "description": "Fix broken authentication by migrating to Clerk. This is the single P0 gate that blocks ALL production deployment. Do NOT fix Passport.js -- migrate directly to Clerk. Steps: Clerk project setup, add clerk_id to users table, swap middleware from Passport to Clerk Express SDK, swap frontend auth components to Clerk React, implement webhook sync, audit all routes for protection.",
+      "risk": "CRITICAL",
+      "note": "Unlike EOS which has DEC-145-001 (source divergence) as its gate, CreatorOS has COS-AUTH-001 (broken auth) as its gate. This is a smaller, more tractable blocker."
+    },
+    {
+      "order": 2,
+      "layer": "Layer 2: APIs + Backend (God File Decomposition)",
+      "description": "Split routes.ts (53KB) into 10-15 domain-specific route modules. Split storage.ts (104KB) into domain-specific storage modules. This unlocks testability, parallel development, and security auditing. Must happen before any feature expansion.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 3,
+      "layer": "Layer 3: Database + Storage",
+      "description": "Extend schema for MVP features. Phase 1: add product_type discriminator, scheduled_at/published_at/status on posts, clerk_id on users, community owner FK. Phase 2: add commerce tables (orders, order_items, entitlements). Phase 3: add course, email, automation tables. Provision production Neon database.",
+      "risk": "MEDIUM"
+    },
+    {
+      "order": 4,
+      "layer": "Layer 9: Infrastructure + Deployment",
+      "description": "Create Dockerfile, Fly.toml, health check endpoint. Set up GitHub Actions CI (lint, type-check, build). Deploy to Fly.io staging. Provision production Neon database. Can start after auth migration is validated.",
+      "risk": "MEDIUM"
+    },
+    {
+      "order": 5,
+      "layer": "Layer 12: Security + Compliance",
+      "description": "RLS on user-scoped tables. Rate limiting on all endpoints. Security headers (CSP, HSTS, X-Frame-Options). Input validation middleware. Error handling middleware. Content moderation system (at minimum: reporting + manual review). Privacy policy and ToS. Must complete before accepting real user content.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 6,
+      "layer": "Layer 1: Frontend Foundations",
+      "description": "Responsive layout (desktop sidebar + mobile bottom nav). Missing page implementation starting with highest-value screens: content calendar, product creation/checkout, analytics dashboard, settings. Incremental -- each page depends on its backend route module.",
+      "risk": "MEDIUM"
+    },
+    {
+      "order": 7,
+      "layer": "Layer 13: Integration + Ecosystem (Stripe Connect)",
+      "description": "Stripe Connect for creator payouts and consumer purchases. This is the commerce foundation -- without payment processing, marketplace/products/subscriptions are non-functional. Requires business verification with Stripe. Platform OAuth connections (cross-posting) can follow.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 8,
+      "layer": "Layer 5: AI Runtime",
+      "description": "Content suggestion engine (highest creator value). Smart scheduling (statistical spine + LLM explanation). Enhance existing chatbot feature (model selection, streaming, token tracking). Auto-moderation integration with content moderation system.",
+      "risk": "MEDIUM"
+    },
+    {
+      "order": 9,
+      "layer": "Layer 10: Testing + QA",
+      "description": "Install Vitest + Playwright. Write critical path tests: auth flow, content creation, product purchase, community join. CI integration. Should ramp up alongside each layer as decomposed modules are built.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 10,
+      "layer": "Layer 8: Analytics + Observability",
+      "description": "PostHog integration for product analytics. Structured logging. Error tracking. Creator dashboard with engagement metrics. Commerce funnel analytics (after Stripe). Depends on deployment existing.",
+      "risk": "MEDIUM"
+    },
+    {
+      "order": 11,
+      "layer": "Layer 6: Workflow / Automation",
+      "description": "Visual automation flow editor. Trigger/action execution engine. pg-boss background job queue. Pre-built templates. Deferred past core platform because it requires commerce, email, and community systems to provide meaningful triggers and actions.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 12,
+      "layer": "Layer 7: Memory + Knowledge",
+      "description": "Email template system. Course curriculum storage. Document search and organization. AI agent knowledge base. Largely dependent on other systems existing first.",
+      "risk": "LOW"
+    },
+    {
+      "order": 13,
+      "layer": "Layer 13: Integration + Ecosystem (Platform Connections)",
+      "description": "OAuth connections to social platforms (Twitter/X, Instagram, YouTube, TikTok, LinkedIn, Facebook, Pinterest). Cross-posting engine. Content scheduling via platform APIs. This is the 'post once, publish everywhere' promise -- the core differentiator. Deferred because it requires platform developer app approvals (weeks of lead time) and each platform API is a significant integration effort.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 14,
+      "layer": "Layer 11: Documentation",
+      "description": "CLAUDE.md for developer context. OpenAPI spec. Creator help center. Design system docs. Can progress incrementally alongside all other layers.",
+      "risk": "LOW"
+    }
+  ],
+
+  "mvp_layer_scope": {
+    "description": "MVP scope for CreatorOS -- creator content + community + basic marketplace. Informed by DEC-145-002 Option B recommendation (Creator + Course/Product). MVP targets single-creator, no team features.",
+    "mvp_required": [
+      {"layer": 1, "name": "Frontend Foundations", "mvp_scope": "Responsive layout (mobile + desktop). Content creation flow. Product listing + detail page. Community hub. Basic analytics view. Auth pages (Clerk). Profile page. Settings."},
+      {"layer": 2, "name": "APIs + Backend", "mvp_scope": "Decomposed route modules for: auth, posts, products, communities, channels, messages, AI, users, search. Clerk middleware. Rate limiting on auth and AI endpoints."},
+      {"layer": 3, "name": "Database + Storage", "mvp_scope": "Existing 20 tables + product_type discriminator + scheduled_at/status on posts + clerk_id on users + community owner FK + orders + order_items tables. Production Neon database."},
+      {"layer": 4, "name": "Auth + Permissions", "mvp_scope": "Clerk auth (login, signup, OAuth with Google). Creator/consumer role enforcement in middleware. Basic RLS on user-scoped tables. No team roles for MVP."},
+      {"layer": 9, "name": "Infrastructure + Deployment", "mvp_scope": "Fly.io deployment. Dockerfile. Health check. Manual deploy or basic CI. Staging environment."},
+      {"layer": 12, "name": "Security + Compliance", "mvp_scope": "Clerk auth (eliminates COS-AUTH-001). Basic RLS. Rate limiting. Security headers. Input validation. Privacy policy + ToS. Basic content reporting (flag button + manual review queue)."}
+    ],
+    "mvp_partial": [
+      {"layer": 5, "name": "AI Runtime", "mvp_scope": "Existing AI agent chat (enhanced with streaming). Content suggestion engine (MVP AI feature). No smart scheduling or audience insights for MVP."},
+      {"layer": 8, "name": "Analytics + Observability", "mvp_scope": "PostHog basic events. Error logging. Revenue chart (existing). Basic engagement metrics (likes/comments over time)."},
+      {"layer": 10, "name": "Testing + QA", "mvp_scope": "Critical path tests: auth flow, content CRUD, product CRUD, community join. Vitest for unit tests."},
+      {"layer": 13, "name": "Integration + Ecosystem", "mvp_scope": "Stripe Connect for payments (required for marketplace). UMH projection activation (existing code). No cross-platform publishing for MVP."}
+    ],
+    "mvp_deferred": [
+      {"layer": 6, "name": "Workflow / Automation", "reason": "Full automation builder is a major engineering effort. MVP relies on manual creator actions. Automation is a growth/retention feature, not a launch-critical feature."},
+      {"layer": 7, "name": "Memory + Knowledge", "reason": "Basic document CRUD is sufficient. Course system, email templates, and AI knowledge base are post-MVP. Document search is nice-to-have."},
+      {"layer": 11, "name": "Documentation", "reason": "Creator-facing docs can be written during beta. Developer docs written during development. API docs generated from code."},
+      {"layer": 13, "name": "Integration + Ecosystem (Cross-Platform)", "reason": "Platform OAuth connections and cross-posting engine are the core differentiator but require developer app approvals from each platform (weeks of lead time). Ship with CreatorOS-native content first, add cross-posting as the flagship v2 feature. This is a deliberate strategic sequencing, not a priority downgrade."}
+    ]
+  },
+
+  "readiness_summary": {
+    "total_layers": 13,
+    "layers_ready": 0,
+    "layers_partial": 3,
+    "layers_not_ready": 10,
+    "partial_layers": ["Layer 1 (Frontend Foundations -- 16 pages exist, 12 missing)", "Layer 3 (Database+Storage -- 20 tables exist, 20+ missing)", "Layer 5 (AI Runtime -- chatbot exists, 5 features missing)"],
+    "not_ready_layers": ["Layer 2 (APIs -- god files block all work)", "Layer 4 (Auth -- CRITICALLY BROKEN)", "Layer 6 (Automation -- complete greenfield)", "Layer 7 (Memory -- basic docs only)", "Layer 8 (Analytics -- revenue chart only)", "Layer 9 (Infrastructure -- zero deployment)", "Layer 10 (Testing -- zero tests)", "Layer 11 (Documentation -- design artifacts only)", "Layer 12 (Security -- CRITICALLY vulnerable)", "Layer 13 (Integration -- zero external integrations)"],
+    "layers_with_existing_code": {
+      "substantial": ["Layer 1 (16 pages, 46 components, 48 UI primitives, complete Replit Agent frontend)", "Layer 3 (20-table schema, migrations, seed script, UMH projection layer)"],
+      "minimal": ["Layer 2 (8 backend files but 2 are god files)", "Layer 5 (AI agent CRUD + chat with OpenAI)", "Layer 7 (basic document editor)", "Layer 8 (revenue chart only)"],
+      "none": ["Layer 4 (auth is broken, not just missing)", "Layer 6 (Automation -- zero code)", "Layer 9 (Infrastructure -- zero deployment)", "Layer 10 (Testing -- zero tests)", "Layer 11 (Documentation -- design artifacts only, no repo docs)", "Layer 12 (Security -- zero hardening)", "Layer 13 (Integration -- UMH projection exists but is not activated, zero external integrations)"]
+    },
+    "advantage_over_eos": "CreatorOS has a significant structural advantage over EOS: NO SOURCE DIVERGENCE. EOS has 401-file divergence between GitHub main (202 files) and Beast (603 files) gated behind DEC-145-001. CreatorOS has a single aligned codebase. This means the critical path is shorter: fix auth -> decompose god files -> extend schema -> deploy. No source convergence required.",
+    "disadvantage_vs_eos": "CreatorOS has ZERO tests (EOS has 11 UMH integration tests + 4 unit tests + 97 referenced). CreatorOS god files (routes.ts 53KB, storage.ts 104KB) are worse than EOS (which at least has modular route files on Beast). And the core product promise ('post once, publish everywhere') requires external platform integrations that take weeks of approval time."
+  },
+
+  "primary_blocker": "COS-AUTH-001: comparePasswords() returns true for ALL passwords. Authentication is non-functional. This is a CRITICAL P0 vulnerability that blocks all production deployment. Resolution: migrate directly to Clerk (do not fix Passport.js). Unlike EOS where the primary blocker is a decision (DEC-145-001: source divergence), CreatorOS's blocker is a technical fix with a known solution path (Clerk migration). The 3 partially-ready layers (Frontend, Database, AI) can continue development in parallel, but nothing can go to production until auth works.",
+
+  "operator_decisions_required": [
+    {"id": "DEC-145-002", "description": "Which CreatorOS MVP scope is canonical? Three conflicting definitions in PRD. Recommended: Option B (Creator + Course/Product)", "impact": "Determines which layers and features are in-scope for initial launch", "risk": "HIGH"},
+    {"id": "DEC-145-004", "description": "Clerk migration order -- CreatorOS first or EOS first? CreatorOS has the critical auth bypass. EOS is closer to revenue.", "impact": "Determines which app gets Clerk production provisioning and engineering effort first", "risk": "HIGH"},
+    {"id": "Q-14.5A-SEC-COS", "description": "Emergency auth disable vs direct Clerk migration? Should auth be disabled entirely as stopgap, or go straight to Clerk?", "impact": "Determines immediate next step for security posture", "risk": "MEDIUM"},
+    {"id": "Q-14.5A-OBS-COS", "description": "Error tracking provider -- PostHog only or add Sentry?", "impact": "Observability stack decision", "risk": "LOW"},
+    {"id": "OQ-AUTO-002", "description": "Background job queue for automations -- pg-boss (PostgreSQL-backed) vs BullMQ (Redis) vs Inngest (managed)?", "impact": "Determines infrastructure requirements for automation engine", "risk": "MEDIUM"},
+    {"id": "OQ-AI-001", "description": "AI provider strategy -- OpenAI only for MVP, or abstract provider interface?", "impact": "Architecture decision for AI utility layer", "risk": "LOW"},
+    {"id": "OQ-EMAIL-001", "description": "Email sender domain strategy -- shared domain vs creator custom domains?", "impact": "SendGrid configuration and deliverability", "risk": "MEDIUM"}
+  ],
+
+  "risk_register": [
+    {"id": "RISK-COS-001", "description": "Broken authentication (COS-AUTH-001) -- any password works for any user", "risk_level": "CRITICAL", "affected_layers": [4, 9, 12], "mitigation": "Direct Clerk migration (do not fix Passport.js)"},
+    {"id": "RISK-COS-002", "description": "God file paralysis -- routes.ts (53KB) and storage.ts (104KB) block testability, parallel development, and security auditing", "risk_level": "HIGH", "affected_layers": [2, 10, 12], "mitigation": "Decompose into domain-specific modules before any feature work"},
+    {"id": "RISK-COS-003", "description": "Zero test coverage -- entire codebase is Replit Agent authored with unknown bug density", "risk_level": "HIGH", "affected_layers": [10], "mitigation": "Install Vitest/Playwright and write critical path tests during decomposition"},
+    {"id": "RISK-COS-004", "description": "Core promise unimplemented -- 'post once, publish everywhere' requires 7+ platform OAuth integrations that take weeks of approval time", "risk_level": "HIGH", "affected_layers": [13], "mitigation": "Start platform developer app registrations NOW, even before code is ready. Ship with CreatorOS-native content first, add cross-posting as v2."},
+    {"id": "RISK-COS-005", "description": "No payment processing -- marketplace, subscriptions, and commerce are all non-functional without Stripe Connect", "risk_level": "HIGH", "affected_layers": [13, 3], "mitigation": "Stripe Connect integration as early-path item after auth and deployment"},
+    {"id": "RISK-COS-006", "description": "Content moderation gap -- platform accepting user-generated content with zero moderation, no ToS, no DMCA compliance", "risk_level": "HIGH", "affected_layers": [12], "mitigation": "Implement reporting + manual review queue before accepting real user content"},
+    {"id": "RISK-COS-007", "description": "PRD contradictions unresolved -- 3 conflicting MVP scopes, 3 conflicting auth approaches, 2 conflicting backend frameworks", "risk_level": "MEDIUM", "affected_layers": [11], "mitigation": "Resolve DEC-145-002 before development begins"},
+    {"id": "RISK-COS-008", "description": "Repo bloat -- 90 design reference files (84MB) and 28 user uploads committed to git", "risk_level": "LOW", "affected_layers": [9], "mitigation": "Move to external storage, add to .gitignore, run git filter-branch or BFG"}
+  ],
+
+  "eos_comparison_summary": {
+    "description": "Key structural differences between EOS and CreatorOS that affect their respective 13-layer assessments.",
+    "differences": [
+      {"dimension": "Source divergence", "eos": "CRITICAL -- 401-file gap between GitHub main (202 files) and Beast (603 files)", "creatoros": "NONE -- single codebase, GitHub and Beast aligned", "advantage": "CreatorOS"},
+      {"dimension": "Auth status", "eos": "Broken but less critical (Passport.js same issue, plus separate Clerk partially on Beast)", "creatoros": "CRITICALLY broken (COS-AUTH-001), deployment-blocking", "advantage": "EOS (slightly)"},
+      {"dimension": "AI depth", "eos": "10 department agents, 66 skills, UMH substrate integration, multi-model routing", "creatoros": "1 basic chatbot feature, OpenAI-only, utility-level", "advantage": "EOS (significantly)"},
+      {"dimension": "Backend quality", "eos": "Beast has 14 modular route files + middleware", "creatoros": "2 god files (53KB routes, 104KB storage)", "advantage": "EOS"},
+      {"dimension": "Test coverage", "eos": "4 unit tests + 11 integration tests + 97 referenced", "creatoros": "ZERO tests in repo, 11 UMH projection tests in OS repo", "advantage": "EOS"},
+      {"dimension": "Schema surface", "eos": "3 divergent schemas requiring unification", "creatoros": "1 unified schema (20 tables), no divergence", "advantage": "CreatorOS"},
+      {"dimension": "UMH integration", "eos": "10 agents registered, 3 workflows, full substrate wiring", "creatoros": "Projection code exists (1099 lines) but NOT ACTIVATED", "advantage": "EOS"},
+      {"dimension": "Deployment", "eos": "None for SaaS; UMH cockpit on Fly.io", "creatoros": "None", "advantage": "Tie"},
+      {"dimension": "Total existing code", "eos": "296 files (GitHub) + 603 files (Beast)", "creatoros": "296 files (GitHub, aligned)", "advantage": "EOS (more code but divergence is costly)"},
+      {"dimension": "Ready-for-production", "eos": "0 of 13 layers ready", "creatoros": "0 of 13 layers ready", "advantage": "Tie"}
+    ]
+  }
+}

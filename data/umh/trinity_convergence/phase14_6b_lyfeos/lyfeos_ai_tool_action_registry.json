@@ -1,0 +1,259 @@
+{
+  "phase": "14.6B-LyfeOS",
+  "artifact": "22 of 30",
+  "artifact_name": "lyfeos_ai_tool_action_registry",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-03",
+  "description": "Complete registry of all AI tools/actions available to the LyfeOS AI companion, with parameters, model requirements, provenance, and implementation status.",
+  "tools": [
+    {
+      "tool_name": "web_search",
+      "description": "Search the web for information relevant to the user's query. Returns search results with titles, snippets, and URLs.",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "required": true,
+          "description": "Search query string"
+        }
+      },
+      "model_required": "sonnet",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "risk_class": "READ_ONLY",
+      "notes": "Triggers Haiku-to-Sonnet upgrade. External web access."
+    },
+    {
+      "tool_name": "read_webpage",
+      "description": "Scrape and read the content of a specified URL. Returns extracted text content from the page.",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "required": true,
+          "description": "Full URL to read"
+        }
+      },
+      "model_required": "sonnet",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "risk_class": "READ_ONLY",
+      "notes": "Triggers Haiku-to-Sonnet upgrade. External web access."
+    },
+    {
+      "tool_name": "create_vision_goal",
+      "description": "Create a new vision goal from the chat conversation. Allows the AI companion to help users define goals across time horizons.",
+      "parameters": {
+        "title": {
+          "type": "string",
+          "required": true,
+          "description": "Goal title"
+        },
+        "description": {
+          "type": "string",
+          "required": false,
+          "description": "Goal description"
+        },
+        "category": {
+          "type": "string",
+          "required": true,
+          "description": "Time horizon: legacy, 10year, 5year, 18month, 90day"
+        },
+        "rewardText": {
+          "type": "string",
+          "required": false,
+          "description": "Reward description"
+        },
+        "bonusXp": {
+          "type": "integer",
+          "required": false,
+          "description": "Bonus XP on goal completion",
+          "default": 0
+        }
+      },
+      "model_required": "sonnet",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "risk_class": "EXTERNAL_COMMUNICATION",
+      "notes": "Creates data in LyfeOS DB. Triggers Haiku-to-Sonnet upgrade. No approval gate in current implementation (INFERRED_PROFESSIONAL_GAP)."
+    },
+    {
+      "tool_name": "batch_create_missions",
+      "description": "Create multiple missions at once from a single AI action. Allows the AI companion to generate a batch of related quests.",
+      "parameters": {
+        "missions": {
+          "type": "array",
+          "required": true,
+          "description": "Array of mission objects to create",
+          "items": {
+            "title": "string (required)",
+            "description": "string (optional)",
+            "category": "string (optional, default 'general')",
+            "difficulty": "string (optional, S/A/B/C/D, default 'D')",
+            "energyCost": "integer (optional, default 1)",
+            "experienceReward": "integer (optional, default 10)",
+            "visionGoalId": "integer (optional)"
+          }
+        }
+      },
+      "model_required": "sonnet",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "risk_class": "EXTERNAL_COMMUNICATION",
+      "notes": "Bulk data creation. Triggers Haiku-to-Sonnet upgrade. No batch size limit documented (INFERRED_PROFESSIONAL_GAP). No approval gate (INFERRED_PROFESSIONAL_GAP)."
+    },
+    {
+      "tool_name": "uncomplete_mission",
+      "description": "Undo the completion of a mission, reverting it to incomplete status. Useful when a user accidentally marks a mission as done.",
+      "parameters": {
+        "questId": {
+          "type": "integer",
+          "required": true,
+          "description": "ID of the quest to uncomplete"
+        }
+      },
+      "model_required": "sonnet",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "risk_class": "EXTERNAL_COMMUNICATION",
+      "notes": "Modifies existing data. Triggers Haiku-to-Sonnet upgrade. May need to reverse XP award (INFERRED_PROFESSIONAL_GAP)."
+    },
+    {
+      "tool_name": "lookup_knowledge_base",
+      "description": "Search the 16-domain Life OS 2.0 Knowledge Base for relevant domain expertise. Returns matching knowledge entries from philosophy, sleep, exercise, nutrition, psychology, relationships, finance, learning, productivity, crisis management, modern challenges, breathwork, advanced nutrition, functional fitness, biomarkers, and supplementation domains.",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "required": true,
+          "description": "Search query for knowledge base"
+        },
+        "domain": {
+          "type": "string",
+          "required": false,
+          "description": "Optional domain filter to narrow search"
+        }
+      },
+      "model_required": "haiku_or_sonnet",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "status": "implemented",
+      "risk_class": "READ_ONLY",
+      "notes": "Does NOT trigger model upgrade — can run on Haiku. Read-only search against local knowledge base."
+    },
+    {
+      "tool_name": "navigate_to_page",
+      "description": "Navigate the user to a specific page within LyfeOS. Used when the AI companion suggests visiting a particular section of the app.",
+      "parameters": {
+        "route": {
+          "type": "string",
+          "required": true,
+          "description": "Target route path (e.g., '/missions', '/profile', '/chronilog')"
+        }
+      },
+      "model_required": "haiku_or_sonnet",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "inferred",
+      "risk_class": "READ_ONLY",
+      "notes": "Inferred from replit.md mentions of AI navigating user to pages. Client-side navigation only, no data mutation."
+    },
+    {
+      "tool_name": "update_profile",
+      "description": "Update specific fields in the user's profile. Used when the AI companion helps users refine their character sheet during conversation.",
+      "parameters": {
+        "fields": {
+          "type": "object",
+          "required": true,
+          "description": "Key-value pairs of profile fields to update"
+        }
+      },
+      "model_required": "sonnet",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "inferred",
+      "risk_class": "EXTERNAL_COMMUNICATION",
+      "notes": "Inferred from AI companion's role as advisor with profile data access. Would require governance for sensitive fields."
+    },
+    {
+      "tool_name": "update_daily_log",
+      "description": "Update or create a daily log entry. Used when the AI companion helps users with their daily reflection.",
+      "parameters": {
+        "date": {
+          "type": "string",
+          "required": true,
+          "description": "Date in YYYY-MM-DD format"
+        },
+        "fields": {
+          "type": "object",
+          "required": true,
+          "description": "Key-value pairs of daily log fields to update (gratitude, mentalState, etc.)"
+        }
+      },
+      "model_required": "sonnet",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "inferred",
+      "risk_class": "EXTERNAL_COMMUNICATION",
+      "notes": "Inferred from AI companion's Chronilog integration. The UMH integration layer already has log_daily_reflection capability."
+    },
+    {
+      "tool_name": "generate_affirmation",
+      "description": "Generate or play a character affirmation based on the user's profile data (archetype, values, goals, strengths).",
+      "parameters": {
+        "type": {
+          "type": "string",
+          "required": false,
+          "description": "Affirmation type (general, archetype-specific, goal-focused)",
+          "default": "general"
+        }
+      },
+      "model_required": "sonnet",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "inferred",
+      "risk_class": "READ_ONLY",
+      "notes": "Inferred from characterAffirmation field in userProfile (AI-generated third-person narrative). Reads profile data, generates text."
+    },
+    {
+      "tool_name": "toggle_widget",
+      "description": "Toggle dashboard widgets or theme settings based on user preference expressed in conversation.",
+      "parameters": {
+        "widgetId": {
+          "type": "string",
+          "required": true,
+          "description": "Widget identifier to toggle"
+        },
+        "visible": {
+          "type": "boolean",
+          "required": true,
+          "description": "Whether to show or hide the widget"
+        }
+      },
+      "model_required": "haiku_or_sonnet",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "status": "inferred",
+      "risk_class": "EXTERNAL_COMMUNICATION",
+      "notes": "Inferred from widgetStates table and AI companion's executive assistant role. Low-risk data modification."
+    }
+  ],
+  "summary": {
+    "total_tools": 11,
+    "implemented": 6,
+    "inferred": 5,
+    "read_only_tools": 4,
+    "data_mutation_tools": 7,
+    "tools_requiring_sonnet": 8,
+    "tools_working_on_haiku": 3
+  },
+  "open_questions": [
+    {
+      "id": "TOOL-001",
+      "question": "Are the 5 inferred tools actually implemented in the codebase, or are they genuinely missing?",
+      "classification": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "TOOL-002",
+      "question": "Should there be a batch size limit on batch_create_missions?",
+      "classification": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "id": "TOOL-003",
+      "question": "When UMH integration activates, do all tools route through UMH capability descriptors?",
+      "classification": "UMH_INTEGRATION_DEPENDENT_GAP"
+    }
+  ]
+}

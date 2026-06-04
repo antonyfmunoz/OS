@@ -1,0 +1,887 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Every contradiction, version conflict, and inconsistency across CreatorOS sources -- Google Doc tabs, code, prior phase artifacts, and operator corrections",
+
+  "contradictions": [
+    {
+      "id": "CONTRA-COS-001",
+      "type": "AUTH",
+      "description": "comparePasswords returns true for ALL passwords (code) vs secure authentication (PRD describes Firebase/Clerk/Supabase auth with proper password handling)",
+      "source_a": {
+        "claim": "Authentication with proper password verification (Firebase Auth, Clerk/NextAuth, or Supabase Auth depending on section)",
+        "location": "Google Doc Tab 3: Section 6.1 (Firebase), Build Guide (Clerk/NextAuth), Tech Architecture (Supabase)",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "comparePasswords() returns true for ALL plaintext passwords. Comment: 'Force return true for development/demo purposes.' Passport.js local strategy with broken comparison.",
+        "location": "server/auth.ts in GitHub main branch (antonyfmunoz/CreatorOS)",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "CODE RESOLVES current truth: auth is completely broken. Any password works for any user. This is a CRITICAL P0 security vulnerability that blocks all deployment. PRD auth specs are aspirational only.",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "severity": "CRITICAL",
+      "blocked_actions": ["Cannot deploy to any public URL", "Cannot build user-facing features safely", "Cannot claim auth works"]
+    },
+    {
+      "id": "CONTRA-COS-002",
+      "type": "SCOPE",
+      "description": "3 conflicting MVP scope definitions across Google Doc tabs -- original MVP excludes courses/marketplace/payments, Copy of MVP includes them, Build Guide defines a third variant",
+      "source_a": {
+        "claim": "MVP scope: content distribution + community only. Explicitly EXCLUDES courses, marketplace, payments, Stripe, analytics dashboard, native mobile, AI features, stories.",
+        "location": "Google Doc Tab 6 (Minimum Viable Product) -- original MVP definition",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "MVP scope: content + community + courses + marketplace + payments (Stripe). INCLUDES everything Tab 6 explicitly excludes.",
+        "location": "Google Doc Tab 7 (Copy of Minimum Viable Product) -- expanded MVP definition",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_c": {
+        "claim": "MVP scope: 7.4-week timeline, references Clerk auth, includes courses. A third variant that partially overlaps with both Tab 6 and Tab 7.",
+        "location": "Google Doc Tab 3 (Copy of Product Requirements Document) -- Build Guide section",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "resolution": "UNRESOLVED -- operator decision required (DEC-145-002). Three mutually incompatible MVP scopes exist. Options: A) Creator/Community only (Tab 6), B) Creator+Course/Product (recommended), C) Creator+Full Distribution, D) Full PRD scope.",
+      "resolved": false,
+      "operator_decision_needed": true,
+      "decision_id": "DEC-145-002",
+      "severity": "CRITICAL",
+      "blocked_actions": ["ALL CreatorOS feature build scope decisions", "Sprint planning", "Resource allocation"]
+    },
+    {
+      "id": "CONTRA-COS-003",
+      "type": "ARCH",
+      "description": "Monolithic god files (routes.ts 53KB, storage.ts 104KB) in code vs modular architecture described in PRD",
+      "source_a": {
+        "claim": "Modular architecture with separated concerns: route files per domain, service layer, repository pattern, middleware extraction",
+        "location": "Google Doc Tab 3 (Copy of PRD) -- Tech Architecture section",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "ALL 89 API routes in server/routes.ts (53,388 bytes). ALL data access/storage logic in server/storage.ts (104,725 bytes). No separation of concerns.",
+        "location": "GitHub main branch: server/routes.ts, server/storage.ts",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "CODE RESOLVES current truth: architecture is monolithic. PRD architecture is aspirational. God files must be split before parallel development is possible. Operator confirmed this as P1 blocker (OC-COS-010).",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "severity": "HIGH",
+      "blocked_actions": ["Parallel development", "Code review efficiency", "Module-level testing"]
+    },
+    {
+      "id": "CONTRA-COS-004",
+      "type": "AI",
+      "description": "AI as utility-level assistance (Tab 1/PRD) vs AI as ecosystem runtime with autonomous agents (Tab 8 strategic architecture)",
+      "source_a": {
+        "claim": "AI is utility-level: smart scheduling, content suggestions, AI chat assistants for creators. Specific tasks, not autonomous operation. Zero explicit UMH references.",
+        "location": "Google Doc Tab 3 (PRD) -- AI features section. Phase 14.3A extracted claims confirm no agent hierarchy.",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "Shared AI runtime across EOS/CreatorOS/LyfeOS via platform kernel. Event bus, workflow engine, memory graph. Implies autonomous AI capabilities managed by UMH substrate.",
+        "location": "Google Doc Tab 8 -- Strategic Lyfe Ecosystem architecture",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "resolution": "PARTIALLY RESOLVED -- PRD Tab 3 defines the product-level AI scope (utility-level). Tab 8 defines the platform-level AI vision (shared runtime). Both are true at different layers. CreatorOS AI is utility-level in the product. UMH provides the runtime under the hood. CreatorOS does NOT have autonomous agents that run creator businesses -- that is EOS's domain.",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "severity": "MEDIUM",
+      "note": "UMH projection code (projections/creatoros/integration/, 1099 lines) exists but is DORMANT -- not wired into running services. This aligns with Tab 8 being aspirational."
+    },
+    {
+      "id": "CONTRA-COS-005",
+      "type": "PRICING",
+      "description": "4-tier pricing defined in detail (Tab 2/PRD) vs unspecified/absent pricing in original MVP tab (Tab 6)",
+      "source_a": {
+        "claim": "4-tier pricing: Free/Starter (Free, 3 platforms, 1 community, 1 course, 8% transaction fee), Pro ($29/mo, unlimited, 5%), Business ($79/mo, team seats, API, white-label, 3%), Enterprise ($199+/mo, custom). Payment via Stripe Connect.",
+        "location": "Google Doc Tab 2 (PRD) -- Business Model section. Confirmed by operator correction OC-COS-011.",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "MVP explicitly excludes payments and Stripe. No pricing implementation in MVP scope.",
+        "location": "Google Doc Tab 6 (Minimum Viable Product) -- original MVP definition",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_c": {
+        "claim": "Zero pricing/subscription/Stripe implementation in code. No pricing tables, no subscription logic, no payment processing.",
+        "location": "GitHub main branch: shared/schema.ts has no pricing-related tables",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "NOT A TRUE CONTRADICTION -- pricing model exists as desired state but is not in MVP v1 scope. Code has no pricing implementation. The pricing model is canonical for the full product (operator confirmed); it is simply not yet built.",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "severity": "LOW"
+    },
+    {
+      "id": "CONTRA-COS-006",
+      "type": "AUTH_TARGET",
+      "description": "Passport.js (current code) vs Clerk (operator target) vs Firebase/Supabase/NextAuth (various doc sections)",
+      "source_a": {
+        "claim": "Passport.js 0.7.0 with passport-local 1.0.0 and express-session 1.18.1. Local strategy (username + password). comparePasswords BROKEN.",
+        "location": "GitHub main: server/auth.ts, package.json",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "source_b": {
+        "claim": "Firebase Auth recommended",
+        "location": "Google Doc Tab 3, Section 6.1",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_c": {
+        "claim": "Clerk/NextAuth recommended",
+        "location": "Google Doc Tab 3, Build Guide section 1.2",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_d": {
+        "claim": "Supabase Auth or Firebase Auth",
+        "location": "Google Doc Tab 3, Tech Architecture section",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_e": {
+        "claim": "Clerk is the canonical target for all Trinity apps",
+        "location": "Operator correction OC-COS-009, Phase 14.5 decision ledger DEC-145-004",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "resolution": "RESOLVED -- Clerk is the canonical target per operator directive. Firebase recommendation is STALE (OS Platform Standard v1, never implemented, replaced in v2). Supabase Auth was never implemented. Passport.js is the broken current state to be replaced. All three Google Doc auth recommendations are superseded by the Clerk decision.",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "severity": "CRITICAL",
+      "note": "Open sub-question: Clerk migration order -- CreatorOS first or EOS first? (DEC-145-004)"
+    },
+    {
+      "id": "CONTRA-COS-007",
+      "type": "DEPLOY",
+      "description": "Replit (current origin/config) vs Fly.io (target per OS Platform Standard) vs no deployment (actual state)",
+      "source_a": {
+        "claim": "Replit deployment target (autoscale). .replit and replit.nix config files present. Replit Vite plugins in code.",
+        "location": "GitHub main: .replit, replit.nix, vite.config.ts (Replit plugin references)",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "source_b": {
+        "claim": "Fly.io is the target deployment platform per OS Platform Standard v2",
+        "location": "Phase 14.5A: 13-layer production stack, infrastructure layer",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      "source_c": {
+        "claim": "No production deployment exists. No Dockerfile, no Fly.io config, no CI/CD, no GitHub Actions.",
+        "location": "GitHub main branch file listing -- verified absence",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "RESOLVED -- current state is NO deployment. Replit configs are artifacts of origin (Replit Agent authored the codebase). Target is Fly.io. Replit coupling must be extracted before Fly.io deployment. Blocked by auth bypass (RISK-COS-001).",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "severity": "HIGH"
+    },
+    {
+      "id": "CONTRA-COS-008",
+      "type": "BACKEND_FRAMEWORK",
+      "description": "NestJS (Google Doc Tech Architecture section) vs Express (Google Doc Build Guide section and actual code)",
+      "source_a": {
+        "claim": "NestJS recommended as backend framework",
+        "location": "Google Doc Tab 3, Tech Architecture section",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "Express recommended as backend framework",
+        "location": "Google Doc Tab 3, Build Guide section",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_c": {
+        "claim": "Express 4 is the implemented backend framework (server/index.ts, server/routes.ts)",
+        "location": "GitHub main: package.json (express 4.x), server/index.ts",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "CODE RESOLVES -- Express is implemented and is the current truth. NestJS was aspirational in the Tech Architecture section but was never implemented. Whether to migrate to NestJS is an open question (OQ-COS-002).",
+      "resolved": true,
+      "operator_decision_needed": true,
+      "decision_id": "OQ-COS-002",
+      "severity": "MEDIUM",
+      "note": "Express is functional. NestJS migration would be a significant effort with unclear ROI. Code truth wins for current state."
+    },
+    {
+      "id": "CONTRA-COS-009",
+      "type": "ORM",
+      "description": "Drizzle or Prisma (some doc sections) vs Drizzle only (other sections and actual code)",
+      "source_a": {
+        "claim": "Drizzle or Prisma mentioned as ORM options",
+        "location": "Google Doc Tab 3 (Copy of PRD) -- some tech stack sections mention both",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "Drizzle ORM exclusively. Drizzle ORM 0.39.3 + drizzle-zod 0.7.0 + drizzle-kit for migrations.",
+        "location": "GitHub main: package.json, shared/schema.ts, drizzle.config.ts, server/db.ts",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "CODE RESOLVES -- Drizzle is the implemented ORM. Prisma was mentioned as an alternative in early doc sections but never adopted. No migration needed.",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "severity": "LOW"
+    },
+    {
+      "id": "CONTRA-COS-010",
+      "type": "TIMELINE",
+      "description": "3 conflicting timeline/phase structures for building CreatorOS",
+      "source_a": {
+        "claim": "5-phase development plan over approximately 2 years",
+        "location": "Google Doc Tab 4 (Product Development Roadmap)",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "13-phase development structure",
+        "location": "Google Doc Tab 5 (Copy of Product Development Roadmap)",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_c": {
+        "claim": "7.4-week MVP timeline with specific sprint breakdown",
+        "location": "Google Doc Tab 3 (Build Guide section)",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "resolution": "UNRESOLVED -- three incompatible timeline structures exist. The timelines correspond to different MVP scope definitions (CONTRA-COS-002). Cannot resolve timeline until MVP scope is decided. All timelines are pre-revenue aspirations written before the codebase state was fully audited.",
+      "resolved": false,
+      "operator_decision_needed": true,
+      "severity": "MEDIUM",
+      "note": "Timeline resolution depends on DEC-145-002 (MVP scope decision). Current codebase state (broken auth, god files, zero tests) makes all timeline estimates unreliable."
+    },
+    {
+      "id": "CONTRA-COS-011",
+      "type": "SCHEMA",
+      "description": "Database schema appears twice in Google Doc with different levels of detail and different table/column definitions",
+      "source_a": {
+        "claim": "Full database schema with complete column definitions for all tables including relations, constraints, and indexes",
+        "location": "Google Doc Tab 3 (Copy of PRD) -- full schema section",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "MVP database schema with fewer tables and different column sets -- some tables added, some removed, some columns differ from full version",
+        "location": "Google Doc Tab 7 (Copy of Minimum Viable Product) -- MVP schema section",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_c": {
+        "claim": "20 tables implemented via Drizzle ORM with full column definitions and relations. Tables: users, posts, saved_posts, comments, products, ai_agents, ai_chats, communities, channels, channel_messages, followers, revenue, contacts, documents, stories, notifications, conversations, conversation_participants, direct_messages, tagged_users.",
+        "location": "GitHub main: shared/schema.ts (verified via VPS copy)",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "CODE RESOLVES for current truth -- 20 tables in shared/schema.ts is the implemented reality. Both doc schemas are aspirational. The full doc schema includes tables not yet implemented (courses, orders, subscriptions, entitlements). The MVP doc schema is a subset. Neither matches the code exactly.",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "CONTRA-COS-012",
+      "type": "API",
+      "description": "API endpoint specification appears twice in Google Doc with different structures and different endpoints",
+      "source_a": {
+        "claim": "Full API specification with REST endpoints organized by domain (users, posts, products, communities, etc.)",
+        "location": "Google Doc Tab 3 (Copy of PRD) -- full API spec section",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "MVP API specification with a reduced set of endpoints and some different URL patterns",
+        "location": "Google Doc Tab 7 (Copy of Minimum Viable Product) -- MVP API spec section",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_c": {
+        "claim": "89 routes implemented in single monolithic routes.ts god file. Includes CRUD for: auth (4), users (11), posts (15+), products (5+), communities (10+), messaging (10+), AI (5+), documents (5+), stories (5+), notifications (5+), contacts (5+), revenue (3+).",
+        "location": "GitHub main: server/routes.ts (53,388 bytes)",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "CODE RESOLVES for current truth -- 89 implemented routes is the actual API surface. Neither doc API spec matches the code exactly. Doc specs serve as aspirational reference for missing endpoints.",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "CONTRA-COS-013",
+      "type": "TECH_STACK",
+      "description": "Tech stack described 4+ times across Google Doc tabs with minor variations in each occurrence",
+      "source_a": {
+        "claim": "Tech stack definition 1: React + Vite + TypeScript + TailwindCSS + shadcn/ui + NestJS backend + Drizzle",
+        "location": "Google Doc Tab 3, Tech Architecture section",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "Tech stack definition 2: React + Vite + TypeScript + TailwindCSS + shadcn/ui + Express backend + Drizzle + Clerk",
+        "location": "Google Doc Tab 3, Build Guide section",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_c": {
+        "claim": "Tech stack definition 3-4: additional variations in Tabs 4, 5, 7 with minor differences in dependencies and tools mentioned",
+        "location": "Google Doc Tabs 4, 5, 7",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_d": {
+        "claim": "Actual stack: React 18 + Vite 5 + TypeScript 5.6.3 + Tailwind CSS + shadcn/ui (48 components) + Express 4 + Drizzle ORM 0.39.3 + Passport.js 0.7.0 + wouter 3.3.5 + zustand 5.0.3 + TanStack Query 5.60.5 + Neon Postgres",
+        "location": "GitHub main: package.json",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "CODE RESOLVES -- package.json defines the actual tech stack. All doc descriptions are partially correct but none exactly match the implementation. The consistent core (React + Vite + TypeScript + Tailwind + shadcn/ui + Drizzle + Postgres) is stable across all sources. Differences are in backend framework (Express vs NestJS), auth (Passport.js vs Clerk/Firebase/Supabase), and minor dependency details.",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "severity": "LOW"
+    },
+    {
+      "id": "CONTRA-COS-014",
+      "type": "PRICING_TIER",
+      "description": "Business tier price conflict: $99/mo (desired state canon from PRD) vs $79/mo (operator correction)",
+      "source_a": {
+        "claim": "Business tier: $99/month",
+        "location": "phase14_4_creatoros_desired_state_canon.json -- business_model section (extracted from Google Doc)",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      "source_b": {
+        "claim": "Business tier: $79/month",
+        "location": "Operator correction OC-COS-011 (Phase 14.6B mission brief)",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "resolution": "OPERATOR CORRECTION WINS -- $79/mo is the canonical Business tier price. Operator corrections override prior phase claims per canon rules.",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "severity": "LOW"
+    },
+    {
+      "id": "CONTRA-COS-015",
+      "type": "AUTH_PARALLEL",
+      "description": "Two parallel auth implementations coexist in codebase: Passport.js (use-auth.tsx) and mock Zustand store (stores.ts)",
+      "source_a": {
+        "claim": "Passport.js-based auth via use-auth.tsx hook (proper session-based flow, but comparePasswords is broken)",
+        "location": "GitHub main: client/src/hooks/use-auth.tsx",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "source_b": {
+        "claim": "Mock fetch-all-users login via Zustand store in stores.ts (bypasses Passport entirely, fetches all users and lets user pick)",
+        "location": "GitHub main: client/src/lib/stores.ts",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "CODE ISSUE -- both auth implementations exist simultaneously. use-auth.tsx is the intended auth flow (broken). stores.ts has a parallel mock that was likely used during Replit development. Both will be replaced by Clerk migration. Neither provides real security.",
+      "resolved": false,
+      "operator_decision_needed": false,
+      "severity": "HIGH",
+      "note": "Both will be eliminated by Clerk migration. No decision needed -- just awareness of the dual auth paths."
+    },
+    {
+      "id": "CONTRA-COS-016",
+      "type": "WEBSOCKET",
+      "description": "WebSocket dependency installed but no WebSocket server implementation exists",
+      "source_a": {
+        "claim": "ws (WebSocket) 8.18.0 listed as dependency in package.json",
+        "location": "GitHub main: package.json",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "source_b": {
+        "claim": "No WebSocket server setup found in server/index.ts, server/routes.ts, or any other server file",
+        "location": "GitHub main: server/ directory (verified via Phase 14.4 inventory)",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "CODE ISSUE -- ws was installed (possibly by Replit Agent for planned real-time features) but never wired up. Community chat and DMs use HTTP polling, not WebSocket. Dead dependency.",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "severity": "LOW"
+    },
+    {
+      "id": "CONTRA-COS-017",
+      "type": "SCREENS",
+      "description": "28 screens in desired state (PRD) vs 16 pages implemented in code -- 12-screen gap",
+      "source_a": {
+        "claim": "28 screens defined in desired state canon covering all 16 modules (landing, onboarding, auth, feed, profile, composer, communities, courses, marketplace, product detail, dashboard, editing studio, UGC, ads, settings, admin)",
+        "location": "phase14_4_creatoros_desired_state_canon.json -- screens section. Confirmed by operator correction OC-COS-006.",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      "source_b": {
+        "claim": "16 pages implemented: ai, auth-page, communities, contacts, create-post, create-product, documents, explore, followers, following, marketplace, new-text-post, not-found, profile, revenue, saved-posts",
+        "location": "GitHub main: client/src/pages/ directory",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "IMPLEMENTATION DEBT -- 12 screens exist in desired state but have no implementation. Gap maps to unimplemented modules: course platform, editing studio, UGC campaigns, ads platform, cross-posting, automation builder, email/newsletter, moderation, settings.",
+      "resolved": false,
+      "operator_decision_needed": false,
+      "severity": "HIGH",
+      "note": "Gap closure depends on MVP scope decision (DEC-145-002). Not all 28 screens may be needed for MVP."
+    },
+    {
+      "id": "CONTRA-COS-018",
+      "type": "PRODUCT_TYPES",
+      "description": "10 product types defined in desired state vs generic products table with freeform category field in code",
+      "source_a": {
+        "claim": "10 product types: community, ai_agent, digital_download, course, subscription_membership, service, event, physical_product, ugc_campaign, software_access",
+        "location": "Operator correction OC-COS-007, desired state canon",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "Single 'products' table with category (text, NOT NULL) -- no product_type enum, no discriminator, no typed product system",
+        "location": "GitHub main: shared/schema.ts -- products table definition",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "IMPLEMENTATION DEBT -- product type system from PRD is not implemented. products.category is a freeform text field that could theoretically hold type names but has no enum constraint, no validation, and no type-specific columns/tables.",
+      "resolved": false,
+      "operator_decision_needed": false,
+      "severity": "HIGH"
+    },
+    {
+      "id": "CONTRA-COS-019",
+      "type": "DATA_ONTOLOGY",
+      "description": "Canonical primitive hierarchy (User->CreatorAccount->Business->Product->Order->Entitlement) vs flat schema with no hierarchy in code",
+      "source_a": {
+        "claim": "Primitive hierarchy: User -> CreatorAccount -> Business -> Product -> Order -> Entitlement. 6-level entity chain.",
+        "location": "Operator correction OC-COS-008, desired state canon",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "Flat schema: users table with role field. No CreatorAccount, Business, Order, or Entitlement tables. Products table exists but is not connected to orders or entitlements.",
+        "location": "GitHub main: shared/schema.ts -- 20 tables, none matching hierarchy beyond users and products",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "IMPLEMENTATION DEBT -- the canonical entity hierarchy is the target architecture but only User and Product levels exist in code. CreatorAccount, Business, Order, and Entitlement are missing entirely. This is a foundational schema gap.",
+      "resolved": false,
+      "operator_decision_needed": false,
+      "severity": "HIGH"
+    },
+    {
+      "id": "CONTRA-COS-020",
+      "type": "COMMUNITY_OWNERSHIP",
+      "description": "Communities should have creators as owners/managers vs communities table has no owner FK in code",
+      "source_a": {
+        "claim": "Community Hub with creator-managed branded community spaces. Creators own and moderate their communities.",
+        "location": "Google Doc Tab 3 (PRD) -- Community Hub module, desired state canon",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "communities table has columns: id, name, description, iconColor, createdAt. NO owner/creator FK. Communities are not tied to any user in schema.",
+        "location": "GitHub main: shared/schema.ts -- communities table definition",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "IMPLEMENTATION DEBT -- communities table needs a creatorId FK to link communities to their creator/owner. Currently impossible to determine who owns/manages a community.",
+      "resolved": false,
+      "operator_decision_needed": false,
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "CONTRA-COS-021",
+      "type": "DARK_MODE",
+      "description": "Design identity canon specifies dark mode default (OLED true black) vs code ships light mode default",
+      "source_a": {
+        "claim": "Default to dark mode. True black background (OLED-optimized). Creators work long hours, dark mode reduces eye strain. Dark should be default with light as preference override.",
+        "location": "phase14_6b_creatoros_design_identity_canon.json -- dark_mode section",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      "source_b": {
+        "claim": "theme.json: appearance='light', variant='professional'. Light mode is the shipped default.",
+        "location": "GitHub main: theme.json",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "IMPLEMENTATION DEBT -- design canon says dark default, code ships light default. The design identity canon represents the desired state (X/Twitter-inspired, dark-first). Code represents Replit Agent's default. Will align during UI rebuild.",
+      "resolved": false,
+      "operator_decision_needed": false,
+      "severity": "LOW"
+    },
+    {
+      "id": "CONTRA-COS-022",
+      "type": "UMH_PROJECTION",
+      "description": "UMH projection code expects umh_status columns and umh_outcomes table that do not exist in CreatorOS schema",
+      "source_a": {
+        "claim": "Outcome writeback requires umh_status column on posts, products, revenue, stories tables. Audit trail requires umh_outcomes table in CreatorOS database.",
+        "location": "projections/creatoros/integration/tables.py -- writeback SQL and typed row dataclasses",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "source_b": {
+        "claim": "No umh_status column on any table. No umh_outcomes table. Schema has 20 tables with no UMH integration columns.",
+        "location": "GitHub main: shared/schema.ts",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "IMPLEMENTATION DEBT -- UMH projection code was written against a future schema that includes UMH integration columns. Those columns/tables have not been added to the CreatorOS schema. Projection activation will fail without schema migration.",
+      "resolved": false,
+      "operator_decision_needed": false,
+      "severity": "MEDIUM",
+      "note": "This is expected -- projection code is DORMANT and was written anticipating future schema changes."
+    },
+    {
+      "id": "CONTRA-COS-023",
+      "type": "DB_TABLES",
+      "description": "33 data concepts in desired state vs 20 tables implemented in code -- 13 concepts missing",
+      "source_a": {
+        "claim": "33 data concepts defined in desired state including: orders, subscriptions, courses, lessons, enrollments, certificates, campaigns, applications, deliverables, automation rules, email lists, etc.",
+        "location": "phase14_4_creatoros_desired_state_canon.json -- data_concepts section",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      "source_b": {
+        "claim": "20 tables implemented: users, posts, saved_posts, comments, products, ai_agents, ai_chats, communities, channels, channel_messages, followers, revenue, contacts, documents, stories, notifications, conversations, conversation_participants, direct_messages, tagged_users",
+        "location": "GitHub main: shared/schema.ts",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "IMPLEMENTATION DEBT -- 13 data concepts from desired state have no schema representation. Gap aligns with unimplemented modules (courses, orders, subscriptions, UGC campaigns, automation, email).",
+      "resolved": false,
+      "operator_decision_needed": false,
+      "severity": "HIGH"
+    },
+    {
+      "id": "CONTRA-COS-024",
+      "type": "HARDCODED_ROUTE",
+      "description": "Production API should have dynamic route parameters vs hardcoded story ID in DELETE endpoint",
+      "source_a": {
+        "claim": "RESTful API with dynamic parameters for all resource operations",
+        "location": "Google Doc Tab 3 -- API specification",
+        "provenance": "SOURCE_PRESERVED_TRUTH"
+      },
+      "source_b": {
+        "claim": "DELETE /api/force-delete-story/11 -- hardcoded story ID 11 in route definition",
+        "location": "GitHub main: server/routes.ts",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "CODE ISSUE -- Replit Agent artifact. A debug/development route that should be removed before production. Evidence of quick-and-dirty Replit development patterns.",
+      "resolved": false,
+      "operator_decision_needed": false,
+      "severity": "LOW"
+    },
+    {
+      "id": "CONTRA-COS-025",
+      "type": "SESSION_STORE",
+      "description": "connect-pg-simple (Postgres sessions) in dependencies vs memorystore actually used for sessions",
+      "source_a": {
+        "claim": "connect-pg-simple and memorystore both listed in package.json dependencies",
+        "location": "GitHub main: package.json",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "source_b": {
+        "claim": "MemoryStore used for sessions (in-process, not persistent, data lost on restart, cannot scale)",
+        "location": "phase14_6b_creatoros_source_inventory.json -- auth_detail.session_store",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "CODE ISSUE -- connect-pg-simple was likely intended for production session storage (Postgres-backed, persistent, scalable) but memorystore is actually used. Both will be eliminated by Clerk migration (Clerk handles sessions).",
+      "resolved": false,
+      "operator_decision_needed": false,
+      "severity": "MEDIUM"
+    },
+    {
+      "id": "CONTRA-COS-026",
+      "type": "STORY_POLLING",
+      "description": "UMH projection has StoryRow dataclass but stories are not in the polled tables manifest",
+      "source_a": {
+        "claim": "StoryRow dataclass defined in tables.py with typed fields for story data",
+        "location": "projections/creatoros/integration/tables.py",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "source_b": {
+        "claim": "POLLED_TABLES in manifest.py only includes: posts, products, revenue. Stories is NOT included despite StoryRow existing.",
+        "location": "projections/creatoros/integration/manifest.py",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "resolution": "IMPLEMENTATION DEBT -- minor inconsistency in projection code. StoryRow was defined for future use but story polling was not added to the manifest. Low priority since projection is DORMANT.",
+      "resolved": false,
+      "operator_decision_needed": false,
+      "severity": "LOW"
+    }
+  ],
+
+  "version_precedence": {
+    "rule": "Beast code > GitHub code > Operator corrections > Google Doc Tab 3 (Copy of PRD, most detailed) > Tab 7 (Copy of MVP) > Tab 6 (MVP) > Tab 2 (Original PRD) > Tab 8 (Strategic) > Tab 4/5 (Roadmaps) > Phase artifacts",
+    "rationale": "Code is ground truth for CURRENT state. Since Beast and GitHub are aligned for CreatorOS (no feature branch divergence), they are equivalent. Operator corrections override any doc claims. Tab 3 (Copy of PRD) is the most detailed and comprehensive doc section. Tab 7 expands MVP scope. Tab 6 is the original conservative MVP. Tab 2 is the original PRD (less detail than Tab 3 copy). Tab 8 is strategic/aspirational. Tabs 4/5 are roadmap variants. Phase artifacts are derived analysis.",
+    "creatoros_simplification": "Unlike EOS (where Beast branch differs from GitHub main), CreatorOS has a single code source. GitHub main = Beast main. This eliminates branch promotion decisions entirely.",
+    "when_sources_conflict": {
+      "code_vs_doc": "Code wins for current truth. Doc wins for desired/target state.",
+      "doc_tab_vs_doc_tab": "Later tab version supersedes earlier (Tab 7 > Tab 6 for MVP). Tab 3 (most detailed) is primary for feature specs.",
+      "operator_vs_everything": "Operator corrections are absolute. They override any doc or code claim.",
+      "phase_artifact_vs_source": "Phase artifacts are derived from sources. If a phase artifact contradicts a source, the source wins and the artifact is corrected."
+    }
+  },
+
+  "doc_tab_analysis": [
+    {
+      "tab_number": 1,
+      "title": "Tab 1 (untitled/empty)",
+      "word_count": 0,
+      "character_count": 1,
+      "freshness": "EMPTY",
+      "content_summary": "Empty tab. Possibly a placeholder or default first tab that was never populated.",
+      "conflicts_with": [],
+      "provenance_value": "NONE -- no content"
+    },
+    {
+      "tab_number": 2,
+      "title": "Product Requirements Document",
+      "word_count": 2155,
+      "character_count": 15986,
+      "freshness": "ORIGINAL -- first PRD draft, less detailed than Tab 3",
+      "content_summary": "Original PRD with product definition, core features overview, target users, and initial business model including 4-tier pricing. Foundation document that Tab 3 expands on.",
+      "conflicts_with": ["Tab 3 (expanded version has more detail and some differences)", "Tab 6/7 (MVP scopes differ from full PRD feature list)"],
+      "provenance_value": "MEDIUM -- superseded by Tab 3 for feature detail, but original pricing and vision statements are authoritative"
+    },
+    {
+      "tab_number": 3,
+      "title": "Copy of Product Requirements Document",
+      "word_count": 9391,
+      "character_count": 78954,
+      "freshness": "MOST CURRENT -- most detailed PRD version, expanded from Tab 2",
+      "content_summary": "Comprehensive PRD v2.90 expansion. Contains detailed feature tables, complete data model, API specification (full version), tech architecture (mentions NestJS), Build Guide (mentions Express/Clerk), AI features, workflows, acceptance criteria. Most authoritative tab for feature specs. Internally contradictory on auth (Firebase vs Clerk/NextAuth vs Supabase) and backend (NestJS vs Express).",
+      "conflicts_with": ["Self-contradicting on auth provider (3 different recommendations in different sections)", "Self-contradicting on backend framework (NestJS vs Express)", "Tab 6/7 (different MVP scopes)", "Tab 4/5 (different timeline structures)"],
+      "provenance_value": "HIGHEST -- most detailed source, primary reference for feature specifications"
+    },
+    {
+      "tab_number": 4,
+      "title": "Product Development Roadmap",
+      "word_count": 2021,
+      "character_count": 15986,
+      "freshness": "STALE -- roadmap predates codebase reality",
+      "content_summary": "5-phase development roadmap spanning approximately 2 years. Defines phase boundaries and major milestones. Written before code was authored by Replit Agent.",
+      "conflicts_with": ["Tab 5 (13-phase variant)", "Tab 3 Build Guide (7.4-week MVP timeline)", "Current codebase reality (broken auth, god files make all timelines unreliable)"],
+      "provenance_value": "LOW -- timeline estimates are unreliable given actual codebase state"
+    },
+    {
+      "tab_number": 5,
+      "title": "Copy of Product Development Roadmap",
+      "word_count": 742,
+      "character_count": 5454,
+      "freshness": "STALE -- shorter variant of Tab 4",
+      "content_summary": "13-phase development structure. More granular than Tab 4's 5-phase plan. Shorter in word count, suggesting it may be a condensed or partially written variant.",
+      "conflicts_with": ["Tab 4 (5-phase plan vs 13-phase plan)", "Tab 3 Build Guide (7.4-week MVP timeline)"],
+      "provenance_value": "LOW -- shorter, less detailed than Tab 4, and timeline estimates are unreliable"
+    },
+    {
+      "tab_number": 6,
+      "title": "Minimum Viable Product",
+      "word_count": 1860,
+      "character_count": 11964,
+      "freshness": "ORIGINAL -- first MVP definition, conservative scope",
+      "content_summary": "Original MVP definition. Scope: user auth/profiles, connect 4 platforms (Instagram, TikTok, YouTube, X), Universal Composer, basic scheduling, content calendar, consumer feed (chronological), free communities (text only), basic engagement. EXPLICITLY EXCLUDES: courses, paid communities, marketplace, payments/Stripe, analytics dashboard, native mobile, AI, stories. Target: 200 creators, 1000 consumers at 30 days. Timeline: 8-10 weeks.",
+      "conflicts_with": ["Tab 7 (expanded MVP includes everything Tab 6 excludes)", "Tab 3 Build Guide (7.4-week timeline, includes courses)", "Current code (has stories, AI agents, marketplace -- features Tab 6 excludes from MVP)"],
+      "provenance_value": "MEDIUM -- represents original conservative MVP thinking. Useful as minimum viable scope floor."
+    },
+    {
+      "tab_number": 7,
+      "title": "Copy of Minimum Viable Product",
+      "word_count": 4693,
+      "character_count": 34938,
+      "freshness": "EXPANDED -- adds courses/marketplace/payments to MVP scope",
+      "content_summary": "Expanded MVP definition. 2.5x the word count of Tab 6. INCLUDES everything Tab 6 explicitly excludes: courses, marketplace, payments (Stripe), more platforms. Contains its own MVP schema (differs from Tab 3 full schema). Contains its own API spec (differs from Tab 3 full API spec). Represents scope creep or a revised ambition.",
+      "conflicts_with": ["Tab 6 (original MVP explicitly excludes what Tab 7 includes)", "Tab 3 (schema and API specs differ)", "Current code (no courses, no payments, no Stripe -- only partial marketplace)"],
+      "provenance_value": "MEDIUM-HIGH -- represents expanded MVP thinking. More realistic scope than Tab 6 given what code already has (marketplace, AI)."
+    },
+    {
+      "tab_number": 8,
+      "title": "Tab 8 (Strategic Architecture)",
+      "word_count": 6439,
+      "character_count": 45460,
+      "freshness": "ASPIRATIONAL -- defines strategic ecosystem vision, no implementation exists",
+      "content_summary": "Lyfe Ecosystem strategic architecture. Defines 3-layer platform: LyfeOS (Layer 1, Life Operations), EOS (Layer 2, Business Operations), CreatorOS (Layer 3, Distribution/Audience OS). Shared platform kernel: identity, permissions, AI runtime, workflow engine, event bus, memory graph. Defines how all three apps connect through UMH substrate. Most forward-looking tab -- describes end-state vision.",
+      "conflicts_with": ["Tab 3 PRD (utility-level AI vs ecosystem AI runtime)", "Current reality (no UMH integration active, projection code is DORMANT)", "EOS boundary assumptions may not match EOS's actual architecture"],
+      "provenance_value": "MEDIUM -- valuable for long-term vision and boundary definitions. NOT actionable for immediate build. No implementation exists for platform kernel claims."
+    }
+  ],
+
+  "resolution_log": [
+    {
+      "contradiction_id": "CONTRA-COS-001",
+      "resolution": "Code truth: auth is completely broken. PRD auth specs are aspirational only.",
+      "evidence": "server/auth.ts comparePasswords() returns true for ALL passwords. Comment confirms intentional bypass.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-002",
+      "resolution": "UNRESOLVED -- awaiting operator decision DEC-145-002",
+      "evidence": "Tab 6, Tab 7, and Tab 3 Build Guide each define different MVP scopes. Three mutually incompatible versions.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-003",
+      "resolution": "Code truth: architecture is monolithic. PRD modular architecture is aspirational.",
+      "evidence": "routes.ts (53KB, 89 routes) and storage.ts (104KB) contain all logic in single files.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-004",
+      "resolution": "Both are true at different layers. Product AI is utility-level (Tab 3). Platform AI runtime is Tab 8 aspirational vision.",
+      "evidence": "Tab 3 has zero UMH references. Tab 8 describes shared ecosystem AI. Both coexist at different abstraction layers.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-005",
+      "resolution": "Not a true contradiction. Pricing is desired state, not in MVP v1 scope, and not in code.",
+      "evidence": "Pricing model confirmed by operator (OC-COS-011). Schema has no pricing tables. MVP Tab 6 excludes payments.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-006",
+      "resolution": "Clerk is canonical target. All other auth provider mentions are stale or superseded.",
+      "evidence": "Operator correction OC-COS-009, Phase 14.5 decision DEC-145-004. Firebase/Supabase never implemented.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-007",
+      "resolution": "No deployment exists. Replit configs are artifacts of origin. Fly.io is target.",
+      "evidence": "No Dockerfile, no fly.toml, no CI/CD in repo. .replit exists because Replit Agent authored the code.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-008",
+      "resolution": "Express is implemented. NestJS was aspirational. Migration remains an open question.",
+      "evidence": "package.json has express 4.x. server/index.ts uses Express. No NestJS code exists.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-009",
+      "resolution": "Drizzle is the implemented ORM. Prisma was a mentioned alternative that was never adopted.",
+      "evidence": "package.json has drizzle-orm 0.39.3, drizzle-kit, drizzle-zod. No Prisma in dependencies.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-010",
+      "resolution": "UNRESOLVED -- three incompatible timelines. Depends on MVP scope decision.",
+      "evidence": "Tab 4: 5-phase/2 years. Tab 5: 13 phases. Tab 3: 7.4 weeks. All pre-date codebase audit.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-011",
+      "resolution": "Code resolves current truth: 20 tables in shared/schema.ts. Both doc schemas are aspirational.",
+      "evidence": "schema.ts verified on VPS. 20 tables with full column definitions. Neither doc schema matches exactly.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-012",
+      "resolution": "Code resolves current truth: 89 routes in routes.ts. Neither doc API spec matches exactly.",
+      "evidence": "routes.ts god file contains all 89 endpoints. Doc specs describe different endpoint structures.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-013",
+      "resolution": "Code resolves: package.json is definitive. Doc descriptions are partially correct with minor variations.",
+      "evidence": "package.json lists exact versions. Core stack (React+Vite+TS+Tailwind+shadcn+Drizzle) is consistent across all sources.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-014",
+      "resolution": "Operator correction wins: Business tier is $79/mo, not $99/mo.",
+      "evidence": "OC-COS-011 explicitly states $79. Phase 14.4 desired state canon said $99 based on earlier doc extraction.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-015",
+      "resolution": "Both auth implementations exist. Both are broken/mock. Both will be eliminated by Clerk migration.",
+      "evidence": "use-auth.tsx uses Passport (broken). stores.ts has mock fetch-all-users. Code inspection confirms dual paths.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-016",
+      "resolution": "ws installed but never used. Dead dependency.",
+      "evidence": "No WebSocket.Server instantiation in any server file. ws 8.18.0 in package.json only.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-017",
+      "resolution": "Implementation debt: 12-screen gap. Closure depends on MVP scope decision.",
+      "evidence": "16 pages in client/src/pages/. 28 screens in desired state canon. Difference is 12 unimplemented screens.",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-018",
+      "resolution": "Implementation debt: product type system not implemented. products.category is freeform text.",
+      "evidence": "shared/schema.ts products table has category:text. No enum, no discriminator, no type-specific tables.",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-019",
+      "resolution": "Implementation debt: only User and Product levels of the 6-level hierarchy exist in code.",
+      "evidence": "shared/schema.ts has users and products. No CreatorAccount, Business, Order, or Entitlement tables.",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-020",
+      "resolution": "Implementation debt: communities table needs creatorId FK.",
+      "evidence": "shared/schema.ts communities table has no user FK. Cannot determine community ownership.",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-021",
+      "resolution": "Implementation debt: design canon says dark default, code ships light default.",
+      "evidence": "theme.json appearance='light'. Design identity canon specifies dark mode default.",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-022",
+      "resolution": "Implementation debt: UMH projection code expects schema changes that do not exist.",
+      "evidence": "tables.py references umh_status columns and umh_outcomes table. schema.ts has neither.",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-023",
+      "resolution": "Implementation debt: 13 data concepts from desired state have no schema representation.",
+      "evidence": "33 desired data concepts vs 20 implemented tables. Delta of 13.",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-024",
+      "resolution": "Code issue: debug route with hardcoded ID. Needs removal.",
+      "evidence": "DELETE /api/force-delete-story/11 found in routes.ts.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-025",
+      "resolution": "Code issue: connect-pg-simple installed but memorystore is actually used.",
+      "evidence": "Both in package.json. Auth code uses memorystore fallback. Will be eliminated by Clerk.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "contradiction_id": "CONTRA-COS-026",
+      "resolution": "Implementation debt: StoryRow defined but story polling not in manifest.",
+      "evidence": "tables.py has StoryRow dataclass. manifest.py POLLED_TABLES omits stories.",
+      "provenance": "IMPLEMENTATION_DEBT"
+    }
+  ],
+
+  "summary": {
+    "total_contradictions": 26,
+    "by_resolution_status": {
+      "resolved_by_code": 11,
+      "resolved_by_operator": 2,
+      "resolved_by_synthesis": 2,
+      "unresolved_awaiting_operator": 2,
+      "implementation_debt": 9
+    },
+    "by_type": {
+      "AUTH": 1,
+      "AUTH_TARGET": 1,
+      "AUTH_PARALLEL": 1,
+      "SCOPE": 1,
+      "ARCH": 1,
+      "AI": 1,
+      "PRICING": 1,
+      "PRICING_TIER": 1,
+      "DEPLOY": 1,
+      "BACKEND_FRAMEWORK": 1,
+      "ORM": 1,
+      "TIMELINE": 1,
+      "SCHEMA": 1,
+      "API": 1,
+      "TECH_STACK": 1,
+      "SCREENS": 1,
+      "PRODUCT_TYPES": 1,
+      "DATA_ONTOLOGY": 1,
+      "COMMUNITY_OWNERSHIP": 1,
+      "DARK_MODE": 1,
+      "UMH_PROJECTION": 1,
+      "DB_TABLES": 1,
+      "HARDCODED_ROUTE": 1,
+      "SESSION_STORE": 1,
+      "WEBSOCKET": 1,
+      "STORY_POLLING": 1
+    },
+    "by_severity": {
+      "CRITICAL": 3,
+      "HIGH": 7,
+      "MEDIUM": 8,
+      "LOW": 8
+    },
+    "critical_blockers": [
+      "CONTRA-COS-001: Auth bypass (P0 security) -- RESOLVED in analysis, BLOCKED for deployment until Clerk migration",
+      "CONTRA-COS-002: 3 conflicting MVP scopes -- UNRESOLVED, operator decision DEC-145-002 required",
+      "CONTRA-COS-006: Auth target (3 doc providers vs Clerk) -- RESOLVED, Clerk is canonical"
+    ],
+    "operator_decisions_required": [
+      "DEC-145-002: Which MVP scope is canonical? (CONTRA-COS-002)",
+      "OQ-COS-002: Stick with Express or migrate to NestJS? (CONTRA-COS-008)",
+      "DEC-145-004: Clerk migration order -- CreatorOS first or EOS first? (CONTRA-COS-006 sub-question)"
+    ]
+  }
+}

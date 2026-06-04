@@ -1,0 +1,1516 @@
+{
+  "artifact": "phase14_6b_eos_workflow_sop_engine_spec",
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "provenance_detail": "Synthesized from: 14.4 desired state canon (workflow engine with approval gates, retries, checkpoints, branching; 8 core workflows; UBOS template library; workflow library screen; workflow run view screen), 14.6B onboarding spec (steps 12-14: generate workflows, SOPs, recurring tasks), 14.6B communication/delegation architecture (agent delegation to workflow steps, permission tier enforcement, approval protocol), projections/eos/workflows/ code truth (3 implemented workflows: OutreachWorkflow, FollowUpWorkflow, ContentCalendarWorkflow), 14.6B source detail preservation ledger (SIG-MOD-005, SIG-MOD-017, SIG-SCR-007, SIG-SCR-008, SIG-WF-001 through SIG-WF-008, SIG-FEAT-005, SIG-FEAT-017, SIG-FEAT-019), and operator corrections (hierarchy level 6: Workflows/SOPs/Tasks/Tools).",
+  "description": "EOS Workflow and SOP Engine specification -- the complete model for how repeatable business processes are defined, stored, executed, governed, and optimized within EntrepreneurOS. Covers workflow/SOP data models, step types, execution modes, all 8 built-in workflows, UBOS template library, AI integration, governance gates, agent delegation, and task bridging.",
+
+  "design_principles": [
+    "Workflows are the operational nervous system -- every repeatable business activity is a workflow, whether the operator knows it or not",
+    "Generate first, customize second -- onboarding produces workflows from entity type, stage, and complexity; operator refines",
+    "Three execution modes exist on a spectrum: fully manual, AI-assisted, and fully autonomous. The operator controls the dial per workflow, not per system",
+    "Every workflow step has a single owner (human role or AI agent) and a clear permission tier gate",
+    "Approval gates are governance, not friction -- they exist at risk boundaries, not at every step",
+    "SOPs are the knowledge layer beneath workflows -- a workflow defines WHAT happens, an SOP defines HOW each step is performed",
+    "Workflows evolve -- the self-improvement loop detects patterns, suggests refinements, and proposes new workflows from observed behavior",
+    "Deterministic spine first: trigger evaluation, step sequencing, state transitions, and timeout handling are all deterministic. AI enhances content generation, classification, and optimization within steps",
+    "Workflows are entity-scoped but template-shareable -- a workflow instance belongs to one entity, but the template can be reused across entities and even across operators via the UBOS library",
+    "Every workflow run produces a complete audit trail: who triggered it, what happened at each step, who approved what, what the outcome was, and how long it took"
+  ],
+
+  "workflow_model": {
+    "description": "A Workflow is a defined sequence of steps that transforms inputs into outputs within a business operation. Workflows are the executable process layer in the EOS hierarchy (level 6: Workflows/SOPs/Tasks/Tools).",
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "description": "Unique identifier for the workflow definition"
+      },
+      "entity_id": {
+        "type": "uuid",
+        "description": "The entity this workflow belongs to. Workflows are entity-scoped."
+      },
+      "template_id": {
+        "type": "uuid | null",
+        "description": "Reference to the template this workflow was instantiated from. Null if created from scratch."
+      },
+      "name": {
+        "type": "string",
+        "description": "Human-readable workflow name. Max 120 characters.",
+        "examples": ["Lead-to-Close Pipeline", "Employee Onboarding", "Content Publishing"]
+      },
+      "slug": {
+        "type": "string",
+        "description": "URL-safe identifier derived from name. Unique within entity.",
+        "examples": ["lead-to-close-pipeline", "employee-onboarding", "content-publishing"]
+      },
+      "description": {
+        "type": "string",
+        "description": "Plain-text description of what this workflow accomplishes. Max 500 characters."
+      },
+      "department": {
+        "type": "string | null",
+        "description": "Primary department that owns this workflow. Null for cross-department workflows.",
+        "examples": ["sales", "marketing", "operations", "finance", "hr", "engineering", "legal", "customer_success", "product"]
+      },
+      "category": {
+        "type": "enum",
+        "values": ["revenue", "operations", "people", "finance", "compliance", "strategy", "product", "customer", "content", "investment"],
+        "description": "Functional category for grouping and filtering workflows in the library."
+      },
+      "trigger": {
+        "type": "object",
+        "description": "What starts a workflow run. Can be manual, scheduled, or event-driven.",
+        "schema": {
+          "type": {
+            "type": "enum",
+            "values": ["manual", "scheduled", "event", "signal", "condition"],
+            "description": "manual = operator or agent explicitly starts it. scheduled = runs on a cron. event = triggered by a system event (new lead, payment received, etc.). signal = triggered by a UMH SignalEnvelope. condition = triggered when a KPI or metric crosses a threshold."
+          },
+          "schedule": {
+            "type": "string | null",
+            "description": "Cron expression for scheduled triggers. Null for non-scheduled.",
+            "examples": ["0 9 * * 1", "0 0 1 * *", "0 8 * * *"]
+          },
+          "event_type": {
+            "type": "string | null",
+            "description": "Event type for event-driven triggers.",
+            "examples": ["crm_lead_created", "payment_received", "contract_signed", "task_overdue"]
+          },
+          "condition": {
+            "type": "object | null",
+            "description": "Threshold condition for condition-driven triggers.",
+            "schema": {
+              "metric": "string (KPI or metric name)",
+              "operator": "enum (gt, lt, gte, lte, eq, crosses_above, crosses_below)",
+              "value": "number or string"
+            }
+          }
+        }
+      },
+      "steps": {
+        "type": "array<WorkflowStep>",
+        "description": "Ordered list of steps in the workflow. See step_types for step schema."
+      },
+      "execution_mode": {
+        "type": "enum",
+        "values": ["manual_stepthrough", "hybrid_ai_assisted", "fully_autonomous"],
+        "description": "Default execution mode. Can be overridden per-run. See execution_modes section."
+      },
+      "risk_level": {
+        "type": "enum",
+        "values": ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+        "description": "Risk classification of this workflow. Determines governance gates and approval requirements."
+      },
+      "estimated_duration_minutes": {
+        "type": "integer | null",
+        "description": "Estimated time to complete one run of this workflow. Used for scheduling and capacity planning."
+      },
+      "tags": {
+        "type": "array<string>",
+        "description": "Freeform tags for search and filtering.",
+        "examples": [["sales", "outreach", "automated"], ["finance", "monthly", "reporting"]]
+      },
+      "linked_sops": {
+        "type": "array<uuid>",
+        "description": "SOP IDs that document how steps in this workflow should be executed."
+      },
+      "linked_kpis": {
+        "type": "array<uuid>",
+        "description": "KPI IDs that this workflow contributes to or is measured by."
+      },
+      "version": {
+        "type": "integer",
+        "description": "Monotonically increasing version number. Incremented on every structural edit."
+      },
+      "status": {
+        "type": "enum",
+        "values": ["draft", "active", "paused", "archived", "deprecated"],
+        "description": "Lifecycle status of the workflow definition."
+      },
+      "created_by": {
+        "type": "string",
+        "description": "User ID or agent ID that created this workflow."
+      },
+      "created_at": {
+        "type": "datetime",
+        "description": "ISO 8601 timestamp."
+      },
+      "updated_at": {
+        "type": "datetime",
+        "description": "ISO 8601 timestamp of last modification."
+      }
+    },
+
+    "states": {
+      "description": "Lifecycle states for a workflow definition (not a run).",
+      "transitions": {
+        "draft": {
+          "description": "Newly created or under modification. Not executable.",
+          "allowed_transitions": ["active", "archived"]
+        },
+        "active": {
+          "description": "Live and executable. Can be triggered manually, by schedule, or by event.",
+          "allowed_transitions": ["paused", "archived", "deprecated"]
+        },
+        "paused": {
+          "description": "Temporarily inactive. Existing runs can complete but new runs cannot start.",
+          "allowed_transitions": ["active", "archived"]
+        },
+        "archived": {
+          "description": "Retired. Not executable. Preserved for audit and historical reference.",
+          "allowed_transitions": ["active"]
+        },
+        "deprecated": {
+          "description": "Replaced by a newer version or workflow. Links to successor if applicable.",
+          "allowed_transitions": ["archived"]
+        }
+      }
+    },
+
+    "run_model": {
+      "description": "A WorkflowRun is a single execution instance of a workflow definition.",
+      "fields": {
+        "id": "uuid",
+        "workflow_id": "uuid (reference to workflow definition)",
+        "entity_id": "uuid",
+        "triggered_by": "string (user ID, agent ID, 'scheduler', or 'event:{event_type}')",
+        "trigger_context": "object (event payload, manual parameters, or schedule metadata)",
+        "execution_mode": "enum (manual_stepthrough | hybrid_ai_assisted | fully_autonomous) -- may differ from workflow default",
+        "status": "enum (pending | running | paused | waiting_approval | completed | failed | cancelled | timed_out)",
+        "current_step_index": "integer",
+        "step_results": "array<StepResult> -- one per step attempted",
+        "started_at": "datetime | null",
+        "completed_at": "datetime | null",
+        "duration_seconds": "integer | null",
+        "outcome": "object | null -- structured output of the completed workflow",
+        "error": "string | null -- error message if failed",
+        "audit_trail": "array<AuditEntry> -- every state change, approval, input, and output recorded"
+      },
+      "run_states": {
+        "pending": "Created but not yet started (e.g., queued for scheduled execution)",
+        "running": "Actively executing steps",
+        "paused": "Manually paused by operator or agent. Can be resumed.",
+        "waiting_approval": "Blocked at an approval gate. Waiting for authorized approver.",
+        "completed": "All steps finished successfully. Outcome recorded.",
+        "failed": "A step failed and the workflow could not recover. Error recorded.",
+        "cancelled": "Manually cancelled by operator or agent.",
+        "timed_out": "Exceeded maximum allowed duration. Treated as failure."
+      }
+    },
+
+    "branching": {
+      "description": "Workflows support conditional branching at any step. A step can define multiple branches with conditions, and the workflow engine evaluates them in order to determine the next step.",
+      "branch_types": {
+        "conditional": "If/else branching based on step output or workflow context. Evaluated deterministically.",
+        "parallel": "Multiple branches execute simultaneously. All must complete before the workflow continues (join).",
+        "split": "Multiple branches execute simultaneously. Workflow continues when ANY branch completes (race).",
+        "loop": "Repeat a sequence of steps until a condition is met or a maximum iteration count is reached."
+      },
+      "branch_schema": {
+        "branch_id": "string",
+        "condition": "string (expression evaluated against step output and workflow context)",
+        "target_step_index": "integer",
+        "description": "string (human-readable description of when this branch is taken)"
+      }
+    }
+  },
+
+  "sop_model": {
+    "description": "A Standard Operating Procedure is a documented, versioned, step-by-step instruction set for executing a specific task or group of tasks. SOPs are the knowledge layer -- they codify HOW things are done, while workflows codify WHAT happens. SOPs can be linked to workflow steps, roles, and departments.",
+    "fields": {
+      "id": {
+        "type": "uuid",
+        "description": "Unique identifier for the SOP."
+      },
+      "entity_id": {
+        "type": "uuid",
+        "description": "The entity this SOP belongs to."
+      },
+      "title": {
+        "type": "string",
+        "description": "Human-readable SOP title. Max 200 characters.",
+        "examples": ["How to Qualify an Inbound Lead", "Monthly Financial Close Procedure", "New Employee Setup Checklist"]
+      },
+      "slug": {
+        "type": "string",
+        "description": "URL-safe identifier. Unique within entity."
+      },
+      "purpose": {
+        "type": "string",
+        "description": "Why this SOP exists -- what outcome it ensures. Max 300 characters."
+      },
+      "scope": {
+        "type": "string",
+        "description": "What activities and roles this SOP covers."
+      },
+      "department": {
+        "type": "string | null",
+        "description": "Owning department. Null for cross-department SOPs."
+      },
+      "owner_role": {
+        "type": "string",
+        "description": "The role responsible for maintaining and enforcing this SOP."
+      },
+      "steps": {
+        "type": "array<SOPStep>",
+        "description": "Ordered list of instructions.",
+        "step_schema": {
+          "step_number": "integer",
+          "instruction": "string (clear, actionable instruction)",
+          "notes": "string | null (additional context, tips, exceptions)",
+          "tools_required": "array<string> (tools or systems needed for this step)",
+          "expected_duration_minutes": "integer | null",
+          "quality_criteria": "string | null (how to verify this step was done correctly)"
+        }
+      },
+      "prerequisites": {
+        "type": "array<string>",
+        "description": "What must be true before this SOP can be executed."
+      },
+      "exceptions": {
+        "type": "array<object>",
+        "description": "Known exceptions and how to handle them.",
+        "schema": {
+          "condition": "string",
+          "action": "string",
+          "escalation": "string | null"
+        }
+      },
+      "quality_criteria": {
+        "type": "array<string>",
+        "description": "How to verify the SOP was executed correctly as a whole."
+      },
+      "linked_workflows": {
+        "type": "array<uuid>",
+        "description": "Workflow IDs that reference this SOP."
+      },
+      "linked_roles": {
+        "type": "array<string>",
+        "description": "Roles that are expected to know and follow this SOP."
+      },
+      "frequency": {
+        "type": "string | null",
+        "description": "How often this SOP is typically executed.",
+        "examples": ["daily", "weekly", "monthly", "per_event", "as_needed"]
+      },
+      "compliance_tracking": {
+        "type": "object",
+        "description": "Tracks SOP compliance over time.",
+        "schema": {
+          "review_frequency": "string (how often this SOP must be reviewed -- quarterly, annually, etc.)",
+          "last_reviewed": "datetime | null",
+          "next_review_due": "datetime | null",
+          "reviewed_by": "string | null (user ID or role of last reviewer)",
+          "compliance_score": "number | null (0-100 based on execution adherence)",
+          "deviations_logged": "integer (count of logged deviations from this SOP)"
+        }
+      },
+      "version": {
+        "type": "integer",
+        "description": "Monotonically increasing. Incremented on every edit."
+      },
+      "version_history": {
+        "type": "array<object>",
+        "description": "Changelog of all versions.",
+        "entry_schema": {
+          "version": "integer",
+          "changed_by": "string",
+          "changed_at": "datetime",
+          "change_summary": "string",
+          "previous_content_hash": "string (for diffing)"
+        }
+      },
+      "status": {
+        "type": "enum",
+        "values": ["draft", "active", "under_review", "archived", "deprecated"],
+        "description": "Lifecycle status."
+      },
+      "created_by": "string",
+      "created_at": "datetime",
+      "updated_at": "datetime"
+    }
+  },
+
+  "step_types": {
+    "description": "Every step in a workflow has a type that determines its execution behavior, UI representation, and governance requirements.",
+    "types": [
+      {
+        "type": "manual",
+        "description": "A step performed entirely by a human. The system tracks completion but does not execute anything. Operator or team member marks the step complete and optionally records output.",
+        "ui": "Checkbox with optional notes/attachment field",
+        "governance": "No automatic approval needed -- the human performing it IS the executor",
+        "examples": ["Make a phone call", "Attend a meeting", "Sign a physical document", "Conduct a site inspection"]
+      },
+      {
+        "type": "ai_assisted",
+        "description": "A step where AI generates a draft, recommendation, or analysis that a human reviews and optionally edits before proceeding. The AI output is a proposal, not an action.",
+        "ui": "AI output panel with edit/approve/reject controls",
+        "governance": "Human must explicitly approve AI output before the step is marked complete",
+        "examples": ["Draft outreach message (AI writes, human reviews)", "Generate financial forecast (AI calculates, human validates)", "Classify a support ticket (AI suggests category, human confirms)"]
+      },
+      {
+        "type": "fully_automated",
+        "description": "A step executed entirely by an AI agent or system automation with no human in the loop. The step runs, records its output, and proceeds automatically. Used only for LOW risk actions within the agent's permission tier.",
+        "ui": "Status indicator showing execution progress and outcome",
+        "governance": "Must be within executing agent's permission tier. Risk level must be LOW. Audit trail recorded automatically.",
+        "examples": ["Send scheduled email", "Update CRM record", "Generate daily report", "Sync data from integration"]
+      },
+      {
+        "type": "approval_gate",
+        "description": "A step that blocks workflow progress until an authorized approver grants approval. Used at risk boundaries: financial thresholds, legal actions, strategic decisions, external communications.",
+        "ui": "Approval panel showing context, options (approve/reject/request_changes), and approver identity",
+        "governance": "Requires explicit approval from a user or agent with sufficient permission tier. Configurable timeout with auto-escalation.",
+        "examples": ["Approve payment over $500", "Approve contract before signing", "Approve marketing campaign before launch", "Approve new hire offer"],
+        "approval_schema": {
+          "required_tier": "enum (EXECUTE | COMMIT) -- minimum permission tier of approver",
+          "approvers": "array<string> -- user IDs or role names authorized to approve",
+          "timeout_hours": "integer | null -- auto-escalate if no response within this window",
+          "escalation_target": "string | null -- who to escalate to on timeout",
+          "multi_approval": "boolean -- whether multiple approvers are required (e.g., dual sign-off)",
+          "rejection_action": "enum (halt | retry_previous | skip | branch) -- what happens on rejection"
+        }
+      },
+      {
+        "type": "checkpoint",
+        "description": "A step that evaluates a condition and records the result without blocking. Used for data validation, quality checks, and progress verification. If the check fails, the workflow can branch to a remediation path or flag the issue without halting.",
+        "ui": "Status badge (pass/fail/warning) with detail expandable",
+        "governance": "Checkpoint results are logged in the audit trail. Failures can trigger alerts or branches but do not inherently block.",
+        "examples": ["Verify payment was received", "Check that all required fields are populated", "Validate that KPI is within target range", "Confirm inventory is sufficient"]
+      },
+      {
+        "type": "wait",
+        "description": "A step that pauses the workflow until an external condition is met or a time duration elapses. Used for time-based delays, external event waits, and human response waits.",
+        "ui": "Timer or condition indicator showing what the workflow is waiting for",
+        "governance": "Maximum wait duration is configurable. Timeout behavior is configurable (proceed, fail, escalate).",
+        "examples": ["Wait 3 business days for client response", "Wait until payment clears", "Wait for external API callback", "Wait until next business day"]
+      },
+      {
+        "type": "notification",
+        "description": "A step that sends a notification to one or more recipients without blocking the workflow. Used to inform stakeholders of progress, results, or required attention.",
+        "ui": "Sent indicator with recipient list and message preview",
+        "governance": "No approval needed. Audit trail records what was sent to whom.",
+        "examples": ["Notify operator of completed run", "Alert finance team of large transaction", "Send weekly summary to stakeholders"]
+      },
+      {
+        "type": "subprocess",
+        "description": "A step that triggers another workflow as a child run. The parent workflow can wait for the child to complete or continue in parallel. Used for composable, nested workflows.",
+        "ui": "Link to child workflow run with status indicator",
+        "governance": "Child workflow inherits parent's entity context. Child approval gates operate independently.",
+        "examples": ["Trigger employee onboarding workflow when hire is approved", "Trigger compliance review workflow when contract is drafted"]
+      }
+    ],
+
+    "step_common_fields": {
+      "step_index": "integer (position in workflow sequence, 0-indexed)",
+      "step_id": "string (unique within workflow, for branching references)",
+      "name": "string (human-readable step name)",
+      "type": "enum (manual | ai_assisted | fully_automated | approval_gate | checkpoint | wait | notification | subprocess)",
+      "description": "string (what this step accomplishes)",
+      "owner": "string (role name or agent ID responsible for this step)",
+      "estimated_duration_minutes": "integer | null",
+      "timeout_minutes": "integer | null (max time before step is considered stalled)",
+      "on_failure": "enum (halt | retry | skip | branch) -- behavior if step fails",
+      "retry_config": {
+        "max_retries": "integer (default 0)",
+        "retry_delay_seconds": "integer (delay between retries)",
+        "retry_backoff": "enum (none | linear | exponential)"
+      },
+      "branches": "array<Branch> | null -- conditional next-step logic",
+      "linked_sop_id": "uuid | null -- SOP that documents how to perform this step",
+      "metadata": "object -- arbitrary key-value pairs for step-specific configuration"
+    }
+  },
+
+  "execution_modes": {
+    "description": "Three execution modes define the human-AI collaboration spectrum for running workflows. The operator sets the default mode per workflow and can override per run.",
+    "modes": [
+      {
+        "mode": "manual_stepthrough",
+        "description": "The operator or assigned human steps through each workflow step manually. AI provides no automatic execution. The system tracks progress, shows the next step, and records outcomes -- but a human must explicitly advance each step. This is the most controlled mode.",
+        "when_to_use": [
+          "New workflows being tested for the first time",
+          "HIGH or CRITICAL risk workflows",
+          "Workflows where human judgment is required at every step",
+          "Operator wants maximum visibility and control",
+          "Training new team members on a process"
+        ],
+        "ai_role": "AI is available on demand (operator can ask for help at any step) but takes no automatic action. AI may pre-populate fields or provide suggestions that the human can accept or ignore.",
+        "approval_behavior": "Approval gates present normally. All other steps also require human advancement.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH -- current projections/eos/workflows/ classes use this pattern (execute() returns result, no autonomous progression)"
+      },
+      {
+        "mode": "hybrid_ai_assisted",
+        "description": "AI agents execute automated steps and draft outputs for ai_assisted steps. Humans are pulled in for manual steps, approval gates, and review of AI-generated outputs. This is the default mode for most workflows -- it balances automation with human oversight.",
+        "when_to_use": [
+          "Most operational workflows",
+          "Workflows with a mix of automated and judgment-requiring steps",
+          "MEDIUM risk workflows",
+          "Operator trusts AI for routine steps but wants to approve key outputs"
+        ],
+        "ai_role": "AI executes fully_automated steps without human intervention. AI generates drafts for ai_assisted steps and presents them for human review. AI does not execute manual steps or bypass approval gates.",
+        "approval_behavior": "Approval gates block as designed. ai_assisted steps present AI output for human review. fully_automated steps execute silently with audit logging.",
+        "provenance": "SYNTHESIZED_CANON -- implied by the onboarding spec's hybrid agent-human execution model and the delegation architecture's permission tier system"
+      },
+      {
+        "mode": "fully_autonomous",
+        "description": "AI agents execute all steps without human intervention, including ai_assisted steps (AI approves its own drafts). Approval gates still block for COMMIT-tier actions. This mode requires explicit operator opt-in and is only available for LOW risk workflows or when the operator has configured high autonomy for the executing agent.",
+        "when_to_use": [
+          "LOW risk, high-volume workflows that are well-tested",
+          "Scheduled workflows that run during off-hours",
+          "Data sync and reporting workflows",
+          "Operator has established trust in the workflow's reliability"
+        ],
+        "ai_role": "AI executes all steps. For ai_assisted steps, AI generates and auto-approves output (recorded in audit trail as 'auto-approved by [agent]'). For manual steps, AI completes them if the step has an automated equivalent; otherwise the step is flagged for human attention.",
+        "approval_behavior": "Approval gates for COMMIT-tier actions still require human approval (this is a hard governance boundary). Approval gates for EXECUTE-tier and below can be auto-approved by the executing agent if operator has configured agent autonomy to allow it.",
+        "provenance": "SYNTHESIZED_CANON -- target state from 14.4 desired state ('execute workflows manually, hybrid, or autonomously') and the communication/delegation architecture's autonomy configuration in onboarding step 21",
+        "governance_constraint": "Fully autonomous mode requires: (1) workflow risk_level is LOW or operator has explicitly opted in for higher risk, (2) executing agent has sufficient permission tier for all steps, (3) operator has configured the agent's autonomy level to 'autonomous-within-bounds' or higher in agent configuration (onboarding step 21)."
+      }
+    ]
+  },
+
+  "built_in_workflows": {
+    "description": "The 8 core workflows from the 14.4 desired state canon. These are the universal business workflows that EOS generates during onboarding (step 12) and makes available in the workflow library. Each workflow is described at the template level with full step breakdowns. Entity-type-aware generation customizes these templates based on the operator's business type, stage, and complexity.",
+    "source_reference": "14.4 desired state canon: workflows[] array (8 entries)",
+    "workflows": [
+      {
+        "id": "WF-BUILTIN-001",
+        "name": "Business Setup",
+        "source_claim": "Set up business operating system (create workspace, define company, get AI-generated org structure)",
+        "category": "operations",
+        "trigger_type": "manual",
+        "description": "The foundational workflow that establishes a new entity's operational infrastructure. Executed primarily during onboarding (steps 8-19) but also available for adding new entities post-onboarding.",
+        "default_execution_mode": "hybrid_ai_assisted",
+        "risk_level": "MEDIUM",
+        "department": null,
+        "steps": [
+          {
+            "step_index": 0,
+            "name": "Define Entity Identity",
+            "type": "ai_assisted",
+            "description": "Capture entity name, type, legal structure, and fundamental characteristics. AI suggests based on operator input.",
+            "owner": "operator"
+          },
+          {
+            "step_index": 1,
+            "name": "Select Business Stage",
+            "type": "manual",
+            "description": "Operator selects the current operational maturity stage (Idea through Enterprise).",
+            "owner": "operator"
+          },
+          {
+            "step_index": 2,
+            "name": "Define Goals and Constraints",
+            "type": "ai_assisted",
+            "description": "Capture strategic goals and operational constraints. AI suggests common goals/constraints for the entity type and stage.",
+            "owner": "operator"
+          },
+          {
+            "step_index": 3,
+            "name": "Select Complexity Level",
+            "type": "manual",
+            "description": "Operator selects operational complexity (Solo through Multi-Entity).",
+            "owner": "operator"
+          },
+          {
+            "step_index": 4,
+            "name": "Generate Organizational Structure",
+            "type": "fully_automated",
+            "description": "AI generates org chart, departments, roles, and team structure based on entity type, stage, and complexity.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 5,
+            "name": "Review and Approve Structure",
+            "type": "approval_gate",
+            "description": "Operator reviews generated org chart, departments, and roles. Can edit before approving.",
+            "owner": "operator",
+            "approval_tier": "COMMIT"
+          },
+          {
+            "step_index": 6,
+            "name": "Generate Operational Artifacts",
+            "type": "fully_automated",
+            "description": "AI generates workflows, SOPs, recurring tasks, KPIs, and dashboard based on all prior context.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 7,
+            "name": "Configure Agent Behavior",
+            "type": "ai_assisted",
+            "description": "Configure EA, CEO, and department agent behavior: autonomy level, communication style, focus areas.",
+            "owner": "operator"
+          },
+          {
+            "step_index": 8,
+            "name": "Set Approval Policies",
+            "type": "manual",
+            "description": "Configure governance: what requires approval, thresholds, and auto-approve rules.",
+            "owner": "operator"
+          },
+          {
+            "step_index": 9,
+            "name": "Final Review and Activation",
+            "type": "approval_gate",
+            "description": "Operator reviews all generated artifacts and activates the entity workspace.",
+            "owner": "operator",
+            "approval_tier": "COMMIT"
+          }
+        ],
+        "provenance": "SOURCE_PRESERVED_TRUTH + SYNTHESIZED_CANON",
+        "provenance_detail": "Workflow from 14.4 desired state workflows[0]. Step breakdown synthesized from 14.6B onboarding spec (steps 4-25)."
+      },
+      {
+        "id": "WF-BUILTIN-002",
+        "name": "Daily Command Center Review",
+        "source_claim": "See what matters today (home dashboard, KPIs, alerts, next-best actions, active workflows)",
+        "category": "strategy",
+        "trigger_type": "scheduled",
+        "trigger_schedule": "0 8 * * *",
+        "description": "The daily operating rhythm. Surfaces what matters today: KPI status, alerts, priority tasks, active workflow runs, and AI-recommended next-best actions. This is the workflow behind the Home Dashboard.",
+        "default_execution_mode": "hybrid_ai_assisted",
+        "risk_level": "LOW",
+        "department": "executive",
+        "steps": [
+          {
+            "step_index": 0,
+            "name": "Aggregate Overnight Activity",
+            "type": "fully_automated",
+            "description": "Collect all events, task completions, metric changes, and alerts since last review.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 1,
+            "name": "Generate KPI Snapshot",
+            "type": "fully_automated",
+            "description": "Pull current values for all tracked KPIs. Flag any that crossed thresholds.",
+            "owner": "finance_agent"
+          },
+          {
+            "step_index": 2,
+            "name": "Generate Priority List",
+            "type": "ai_assisted",
+            "description": "AI ranks today's tasks and workflows by urgency and impact. Surfaces the top 5 priorities.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 3,
+            "name": "Surface Next-Best Actions",
+            "type": "ai_assisted",
+            "description": "AI recommends 3-5 next-best actions based on goals, current pipeline, and detected opportunities/risks.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 4,
+            "name": "Compile Morning Brief",
+            "type": "fully_automated",
+            "description": "Assemble all above into the morning brief displayed on the Home Dashboard and delivered via EA.",
+            "owner": "ea_agent"
+          },
+          {
+            "step_index": 5,
+            "name": "Deliver to Operator",
+            "type": "notification",
+            "description": "EA agent presents the morning brief to the operator via chat and dashboard.",
+            "owner": "ea_agent"
+          }
+        ],
+        "provenance": "SOURCE_PRESERVED_TRUTH + SYNTHESIZED_CANON",
+        "provenance_detail": "Workflow from 14.4 desired state workflows[1]. Step breakdown synthesized from CEO agent morning_brief skill, KPI dashboard generation (onboarding step 16), and communication architecture EA-to-operator briefing pattern."
+      },
+      {
+        "id": "WF-BUILTIN-003",
+        "name": "Organizational Structure Management",
+        "source_claim": "Define org structure (departments, roles, responsibilities)",
+        "category": "people",
+        "trigger_type": "manual",
+        "description": "The ongoing workflow for modifying the entity's organizational structure: adding departments, creating roles, adjusting responsibilities, and managing reporting lines. Initially set up during onboarding but evolves as the entity grows.",
+        "default_execution_mode": "hybrid_ai_assisted",
+        "risk_level": "MEDIUM",
+        "department": "hr",
+        "steps": [
+          {
+            "step_index": 0,
+            "name": "Identify Structural Need",
+            "type": "manual",
+            "description": "Operator or CEO agent identifies a need for structural change (new department, new role, restructure).",
+            "owner": "operator"
+          },
+          {
+            "step_index": 1,
+            "name": "Analyze Impact",
+            "type": "ai_assisted",
+            "description": "AI analyzes the proposed change: affected workflows, reporting lines, permission scope, and budget impact.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 2,
+            "name": "Generate Proposed Structure",
+            "type": "ai_assisted",
+            "description": "AI generates the proposed org chart change with role definitions, responsibilities, and permission tiers.",
+            "owner": "hr_agent"
+          },
+          {
+            "step_index": 3,
+            "name": "Approve Structural Change",
+            "type": "approval_gate",
+            "description": "Operator approves the proposed structural change.",
+            "owner": "operator",
+            "approval_tier": "COMMIT"
+          },
+          {
+            "step_index": 4,
+            "name": "Apply Changes",
+            "type": "fully_automated",
+            "description": "System applies the approved changes: creates/modifies departments, roles, permissions, and updates affected workflows.",
+            "owner": "operations_agent"
+          },
+          {
+            "step_index": 5,
+            "name": "Update Affected Workflows",
+            "type": "fully_automated",
+            "description": "System scans all workflows and SOPs for references to changed roles/departments and flags those needing updates.",
+            "owner": "operations_agent"
+          },
+          {
+            "step_index": 6,
+            "name": "Notify Affected Parties",
+            "type": "notification",
+            "description": "Notify team members and agents affected by the structural change.",
+            "owner": "ea_agent"
+          }
+        ],
+        "provenance": "SOURCE_PRESERVED_TRUTH + SYNTHESIZED_CANON",
+        "provenance_detail": "Workflow from 14.4 desired state workflows[2]. Step breakdown synthesized from onboarding spec (steps 9-11), communication architecture (delegation protocol), and portfolio/entity ontology (Team, Agent, Role definitions)."
+      },
+      {
+        "id": "WF-BUILTIN-004",
+        "name": "Workflow/SOP Lifecycle",
+        "source_claim": "Store and run workflows/SOPs (create or AI-generate, step through with AI)",
+        "category": "operations",
+        "trigger_type": "manual",
+        "description": "The meta-workflow for creating, managing, and running workflows and SOPs. This is what powers the Workflow Library and Workflow Run View screens. Covers the full lifecycle from creation through execution through optimization.",
+        "default_execution_mode": "hybrid_ai_assisted",
+        "risk_level": "MEDIUM",
+        "department": "operations",
+        "steps": [
+          {
+            "step_index": 0,
+            "name": "Identify Process Need",
+            "type": "manual",
+            "description": "Operator identifies a recurring process that should be formalized as a workflow or SOP.",
+            "owner": "operator"
+          },
+          {
+            "step_index": 1,
+            "name": "Draft Workflow/SOP",
+            "type": "ai_assisted",
+            "description": "AI generates a draft workflow or SOP based on the operator's description, entity type, and existing patterns. Operator reviews and edits.",
+            "owner": "operations_agent"
+          },
+          {
+            "step_index": 2,
+            "name": "Define Steps and Owners",
+            "type": "ai_assisted",
+            "description": "AI suggests step sequence, step types, owners, and estimated durations. Operator refines.",
+            "owner": "operations_agent"
+          },
+          {
+            "step_index": 3,
+            "name": "Set Governance Rules",
+            "type": "manual",
+            "description": "Operator configures approval gates, risk level, and execution mode for the new workflow.",
+            "owner": "operator"
+          },
+          {
+            "step_index": 4,
+            "name": "Test Run",
+            "type": "manual",
+            "description": "Execute the workflow in manual_stepthrough mode to validate the sequence and identify issues.",
+            "owner": "operator"
+          },
+          {
+            "step_index": 5,
+            "name": "Checkpoint: Test Run Successful",
+            "type": "checkpoint",
+            "description": "Verify the test run completed without errors and produced expected outputs.",
+            "owner": "operations_agent"
+          },
+          {
+            "step_index": 6,
+            "name": "Activate Workflow",
+            "type": "approval_gate",
+            "description": "Operator approves the workflow for active use.",
+            "owner": "operator",
+            "approval_tier": "EXECUTE"
+          },
+          {
+            "step_index": 7,
+            "name": "Document as SOP",
+            "type": "ai_assisted",
+            "description": "AI generates a matching SOP document for the workflow, capturing step-by-step instructions and quality criteria.",
+            "owner": "operations_agent"
+          }
+        ],
+        "provenance": "SOURCE_PRESERVED_TRUTH + SYNTHESIZED_CANON",
+        "provenance_detail": "Workflow from 14.4 desired state workflows[3]. Step breakdown synthesized from Workflow Library screen spec, Workflow Run View screen spec, and SOP management design."
+      },
+      {
+        "id": "WF-BUILTIN-005",
+        "name": "AI Planning and Drafting",
+        "source_claim": "Use AI to plan and draft work (plans, documents, role definitions, workflow drafts, summaries)",
+        "category": "strategy",
+        "trigger_type": "manual",
+        "description": "The workflow for using AI to generate business artifacts: strategic plans, documents, role definitions, workflow drafts, meeting summaries, reports, and proposals. This powers the AI Copilot Workspace.",
+        "default_execution_mode": "hybrid_ai_assisted",
+        "risk_level": "LOW",
+        "department": null,
+        "steps": [
+          {
+            "step_index": 0,
+            "name": "Define Request",
+            "type": "manual",
+            "description": "Operator describes what they need: type of artifact, purpose, audience, constraints.",
+            "owner": "operator"
+          },
+          {
+            "step_index": 1,
+            "name": "Gather Context",
+            "type": "fully_automated",
+            "description": "AI retrieves relevant context from entity memory: existing documents, KPIs, workflows, team structure, strategic goals.",
+            "owner": "ea_agent"
+          },
+          {
+            "step_index": 2,
+            "name": "Generate Draft",
+            "type": "fully_automated",
+            "description": "AI generates the requested artifact using entity context and the operator's specifications.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 3,
+            "name": "Review and Refine",
+            "type": "ai_assisted",
+            "description": "Operator reviews the draft. Can request revisions, provide feedback, or edit directly. AI iterates.",
+            "owner": "operator"
+          },
+          {
+            "step_index": 4,
+            "name": "Finalize and Store",
+            "type": "manual",
+            "description": "Operator approves the final version. Document is stored in the entity's docs/notes workspace.",
+            "owner": "operator"
+          }
+        ],
+        "provenance": "SOURCE_PRESERVED_TRUTH + SYNTHESIZED_CANON",
+        "provenance_detail": "Workflow from 14.4 desired state workflows[4]. Step breakdown synthesized from AI Copilot Workspace screen spec and Docs/Notes Workspace screen spec."
+      },
+      {
+        "id": "WF-BUILTIN-006",
+        "name": "Task and Priority Management",
+        "source_claim": "Track tasks and priorities (create/assign tasks, link to workflows, status dashboard)",
+        "category": "operations",
+        "trigger_type": "event",
+        "trigger_event": "task_created",
+        "description": "The workflow for creating, assigning, tracking, and completing tasks. Tasks can be standalone or derived from workflow steps. This powers the Task Board/List screen.",
+        "default_execution_mode": "hybrid_ai_assisted",
+        "risk_level": "LOW",
+        "department": null,
+        "steps": [
+          {
+            "step_index": 0,
+            "name": "Create or Receive Task",
+            "type": "fully_automated",
+            "description": "Task is created manually by operator, delegated by CEO agent, or generated from a workflow step.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 1,
+            "name": "Classify and Prioritize",
+            "type": "ai_assisted",
+            "description": "AI classifies the task by domain, estimates effort, and suggests priority based on strategic alignment and deadlines.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 2,
+            "name": "Assign to Owner",
+            "type": "fully_automated",
+            "description": "Task is assigned to the appropriate role or agent based on department, skill match, and capacity.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 3,
+            "name": "Execute Task",
+            "type": "manual",
+            "description": "The assigned owner (human or agent) performs the task and records output.",
+            "owner": "assigned_role"
+          },
+          {
+            "step_index": 4,
+            "name": "Verify Completion",
+            "type": "checkpoint",
+            "description": "System verifies that the task output meets quality criteria and all required fields are populated.",
+            "owner": "operations_agent"
+          },
+          {
+            "step_index": 5,
+            "name": "Update Linked Workflows",
+            "type": "fully_automated",
+            "description": "If the task was generated from a workflow step, update the parent workflow run's status.",
+            "owner": "operations_agent"
+          }
+        ],
+        "provenance": "SOURCE_PRESERVED_TRUTH + SYNTHESIZED_CANON",
+        "provenance_detail": "Workflow from 14.4 desired state workflows[5]. Step breakdown synthesized from Task Board/List screen spec and delegation architecture (CEO delegation protocol)."
+      },
+      {
+        "id": "WF-BUILTIN-007",
+        "name": "Business Context Persistence",
+        "source_claim": "Keep business context persistent (memory stores company context, workflow context, preferences)",
+        "category": "operations",
+        "trigger_type": "event",
+        "trigger_event": "context_change",
+        "description": "The background workflow that captures, stores, and retrieves business context. Every operator interaction, workflow run, decision, and metric change contributes to the entity's persistent memory. This powers the operating memory system and enables AI agents to have context-aware conversations.",
+        "default_execution_mode": "fully_autonomous",
+        "risk_level": "LOW",
+        "department": null,
+        "steps": [
+          {
+            "step_index": 0,
+            "name": "Detect Context Signal",
+            "type": "fully_automated",
+            "description": "System detects a meaningful context change: operator decision, workflow outcome, KPI update, preference change, or new information from a conversation.",
+            "owner": "ea_agent"
+          },
+          {
+            "step_index": 1,
+            "name": "Extract and Classify",
+            "type": "fully_automated",
+            "description": "AI extracts structured facts, preferences, and decisions from the context signal. Classifies by type (fact, preference, decision, observation).",
+            "owner": "ea_agent"
+          },
+          {
+            "step_index": 2,
+            "name": "Store in Memory",
+            "type": "fully_automated",
+            "description": "Persist the extracted context to the entity's memory store with metadata (source, confidence, timestamp, expiry).",
+            "owner": "ea_agent"
+          },
+          {
+            "step_index": 3,
+            "name": "Update Agent Context",
+            "type": "fully_automated",
+            "description": "Propagate relevant context updates to agents that need them for their domains.",
+            "owner": "ea_agent"
+          }
+        ],
+        "provenance": "SOURCE_PRESERVED_TRUTH + SYNTHESIZED_CANON",
+        "provenance_detail": "Workflow from 14.4 desired state workflows[6]. Step breakdown synthesized from UMH memory system design and communication architecture (EA memory responsibilities)."
+      },
+      {
+        "id": "WF-BUILTIN-008",
+        "name": "KPI Review and Next-Best Actions",
+        "source_claim": "Review key metrics and next-best actions (KPI cards, AI recommendations, portfolio views)",
+        "category": "strategy",
+        "trigger_type": "scheduled",
+        "trigger_schedule": "0 0 * * 1",
+        "description": "The periodic strategic review workflow. Provides deeper analysis than the daily command center: trend analysis, goal progress, competitive positioning, and strategic recommendations. Can be weekly, monthly, or quarterly depending on entity stage and operator preference.",
+        "default_execution_mode": "hybrid_ai_assisted",
+        "risk_level": "LOW",
+        "department": "executive",
+        "steps": [
+          {
+            "step_index": 0,
+            "name": "Compile KPI Data",
+            "type": "fully_automated",
+            "description": "Pull KPI time-series data for the review period. Calculate trends, growth rates, and variance from targets.",
+            "owner": "finance_agent"
+          },
+          {
+            "step_index": 1,
+            "name": "Analyze Trends",
+            "type": "ai_assisted",
+            "description": "AI analyzes KPI trends, identifies patterns, flags anomalies, and correlates metrics across departments.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 2,
+            "name": "Assess Goal Progress",
+            "type": "ai_assisted",
+            "description": "AI evaluates progress toward strategic goals set during onboarding or last planning cycle. Flags at-risk goals.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 3,
+            "name": "Generate Recommendations",
+            "type": "ai_assisted",
+            "description": "AI generates 3-5 strategic recommendations based on trend analysis, goal progress, and entity context.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 4,
+            "name": "Compile Review Report",
+            "type": "fully_automated",
+            "description": "Assemble findings into a structured review report with visualizations, trend charts, and recommendation cards.",
+            "owner": "ceo_agent"
+          },
+          {
+            "step_index": 5,
+            "name": "Present to Operator",
+            "type": "notification",
+            "description": "EA presents the review report to the operator with actionable next steps highlighted.",
+            "owner": "ea_agent"
+          },
+          {
+            "step_index": 6,
+            "name": "Capture Operator Decisions",
+            "type": "manual",
+            "description": "Operator reviews recommendations, makes decisions, and the system captures them as strategic context for future workflows.",
+            "owner": "operator"
+          }
+        ],
+        "provenance": "SOURCE_PRESERVED_TRUTH + SYNTHESIZED_CANON",
+        "provenance_detail": "Workflow from 14.4 desired state workflows[7]. Step breakdown synthesized from KPI dashboard generation (onboarding step 16), strategic context capture (onboarding step 6), and communication architecture (decision surfacing pattern)."
+      }
+    ]
+  },
+
+  "template_library": {
+    "description": "The UBOS (Universal Business Operating System) Template Library provides franchise-like business templates that operators can instantiate for their entities. Templates include pre-configured workflows, SOPs, org charts, KPI sets, and agent configurations for specific business types.",
+    "ubos_templates": {
+      "description": "UBOS templates are curated, tested, complete business operating system templates. Each template is a full package that generates an entity's operational infrastructure when instantiated during onboarding or entity creation.",
+      "template_schema": {
+        "id": "uuid",
+        "name": "string",
+        "business_type": "string (matches business_types from ontology)",
+        "target_stage": "array<string> (which stages this template is designed for)",
+        "target_complexity": "array<string> (which complexity levels this template supports)",
+        "description": "string",
+        "included_workflows": "array<WorkflowTemplate> (pre-configured workflow definitions)",
+        "included_sops": "array<SOPTemplate> (pre-configured SOP documents)",
+        "included_org_chart": "OrgChartTemplate (suggested organizational structure)",
+        "included_kpis": "array<KPITemplate> (pre-configured KPI definitions)",
+        "included_roles": "array<RoleTemplate> (pre-configured role definitions)",
+        "included_agent_configs": "array<AgentConfigTemplate> (pre-configured agent behaviors)",
+        "customization_points": "array<string> (what the operator should customize after instantiation)",
+        "version": "integer",
+        "author": "string (creator or curator of the template)",
+        "rating": "number | null (community rating, future feature)",
+        "usage_count": "integer (how many entities have been created from this template)",
+        "status": "enum (draft | published | deprecated)"
+      },
+      "initial_templates": [
+        {
+          "name": "SaaS Startup",
+          "business_type": "SaaS",
+          "target_stage": ["idea", "validation", "launch", "early_revenue"],
+          "included_workflow_count": 8,
+          "key_workflows": ["Lead-to-Trial", "Trial-to-Paid Conversion", "Feature Request Pipeline", "Monthly MRR Review", "Customer Onboarding", "Bug Report Triage", "Sprint Planning", "Churn Prevention"]
+        },
+        {
+          "name": "Service Agency",
+          "business_type": "AI Automation Agency",
+          "target_stage": ["launch", "early_revenue", "growth"],
+          "included_workflow_count": 7,
+          "key_workflows": ["Lead-to-Close Pipeline", "Client Onboarding", "Project Delivery", "Invoice-to-Payment", "Client Review Cycle", "Proposal Generation", "Team Capacity Planning"]
+        },
+        {
+          "name": "Coaching/Info-Product Business",
+          "business_type": "Coaching / Info-Product",
+          "target_stage": ["validation", "launch", "early_revenue"],
+          "included_workflow_count": 7,
+          "key_workflows": ["Lead Funnel", "Sales Call Pipeline", "Student Onboarding", "Content Publishing", "Community Engagement", "Testimonial Collection", "Cohort Launch"]
+        },
+        {
+          "name": "E-Commerce Store",
+          "business_type": "E-Commerce",
+          "target_stage": ["launch", "early_revenue", "growth"],
+          "included_workflow_count": 8,
+          "key_workflows": ["Order Fulfillment", "Inventory Management", "Customer Service", "Product Launch", "Marketing Campaign", "Supplier Management", "Returns Processing", "Monthly P&L Review"]
+        },
+        {
+          "name": "Real Estate Portfolio",
+          "business_type": "Real Estate",
+          "target_stage": ["early_revenue", "growth", "scale"],
+          "included_workflow_count": 7,
+          "key_workflows": ["Deal Evaluation", "Acquisition Due Diligence", "Tenant Onboarding", "Rent Collection", "Maintenance Request", "Property Inspection", "Monthly NOI Review"]
+        },
+        {
+          "name": "Stock/Investment Portfolio",
+          "business_type": "Stock / Investment",
+          "target_stage": ["any"],
+          "included_workflow_count": 5,
+          "key_workflows": ["Investment Thesis Development", "Position Entry", "Portfolio Rebalancing", "Performance Review", "Tax Lot Management"]
+        },
+        {
+          "name": "Content/Media Company",
+          "business_type": "Media / Content",
+          "target_stage": ["launch", "early_revenue", "growth"],
+          "included_workflow_count": 7,
+          "key_workflows": ["Content Calendar", "Publishing Pipeline", "Sponsorship Outreach", "Audience Growth", "Newsletter Management", "Analytics Review", "Collaboration Management"]
+        },
+        {
+          "name": "Consulting Practice",
+          "business_type": "Consulting",
+          "target_stage": ["launch", "early_revenue", "growth"],
+          "included_workflow_count": 6,
+          "key_workflows": ["Client Acquisition", "Engagement Scoping", "Project Delivery", "Knowledge Capture", "Thought Leadership", "Monthly Utilization Review"]
+        }
+      ],
+      "mvp_scope": "Initial templates for SaaS and Coaching/Info-Product (matching Initiate Arena and future product lines). Additional templates built progressively.",
+      "end_state": "Community-contributed template marketplace where operators can publish, rate, and fork templates.",
+      "provenance": "SOURCE_PRESERVED_TRUTH + INFERRED_PROFESSIONAL_GAP",
+      "provenance_detail": "UBOS template library from 14.4 desired state feature list (SIG-MOD-017, SIG-FEAT-017). Individual template breakdowns are INFERRED_PROFESSIONAL_GAP -- they do not exist in any prior source and are synthesized from professional knowledge of each business type's operational needs."
+    },
+
+    "business_type_specific": {
+      "description": "Beyond UBOS templates, the workflow engine generates business-type-specific workflows dynamically during onboarding based on the operator's entity type selection (onboarding step 4). This is the entity-type-aware generation that serves as the MVP equivalent of the full template library.",
+      "generation_logic": "When an operator selects a business type, the generation engine selects from a matrix of workflows appropriate to that type. The 8 built-in workflows are always included; business-type-specific workflows are added on top.",
+      "examples": {
+        "saas": {
+          "additional_workflows": ["Trial-to-Paid Conversion", "Feature Request Triage", "Sprint Planning", "Churn Prevention", "Product-Led Growth Loop"],
+          "reasoning": "SaaS businesses need product development cycles, subscription metrics tracking, and conversion optimization in addition to general business workflows."
+        },
+        "agency": {
+          "additional_workflows": ["Proposal Generation", "Project Delivery Tracking", "Client Review Cycle", "Team Capacity Planning", "Statement of Work Drafting"],
+          "reasoning": "Agencies need project-based delivery tracking, utilization management, and client relationship cycles beyond general sales and operations."
+        },
+        "real_estate": {
+          "additional_workflows": ["Deal Evaluation", "Acquisition Due Diligence", "Tenant Screening", "Rent Collection", "Maintenance Dispatch", "Property Inspection Cycle"],
+          "reasoning": "Real estate entities need property-specific operational workflows that do not exist in standard business operations."
+        },
+        "investment": {
+          "additional_workflows": ["Investment Thesis Development", "Due Diligence Checklist", "Position Entry/Exit", "Portfolio Rebalancing", "Performance Attribution"],
+          "reasoning": "Investment entities need portfolio management workflows focused on analysis, execution, and performance tracking rather than traditional sales/operations."
+        }
+      },
+      "provenance": "SYNTHESIZED_CANON",
+      "provenance_detail": "Synthesized from 14.6B onboarding spec step 12 (generate workflows based on entity_type, stage, departments, goals) and the 19 business types in the portfolio/entity ontology."
+    }
+  },
+
+  "ai_integration": {
+    "description": "How AI is woven into the workflow engine at every level, from step execution to workflow generation to optimization.",
+    "step_level_ai": {
+      "description": "AI capabilities available at the individual step level.",
+      "capabilities": [
+        {
+          "capability": "draft_generation",
+          "description": "AI generates draft content for ai_assisted steps: messages, documents, reports, analyses, proposals. Human reviews before proceeding.",
+          "examples": ["Draft outreach message", "Generate financial forecast", "Write meeting summary"],
+          "deterministic_fallback": "Template-based generation using entity context variables. Always produces usable output even if LLM is unavailable.",
+          "current_code_truth": "projections/eos/workflows/outreach.py _draft_message() implements this pattern: deterministic template first, AI enhancement when available."
+        },
+        {
+          "capability": "classification",
+          "description": "AI classifies inputs for routing, prioritization, and categorization at steps.",
+          "examples": ["Classify support ticket by department", "Prioritize lead by qualification score", "Categorize expense by type"],
+          "deterministic_fallback": "Rule-based classification using regex, keyword matching, and lookup tables."
+        },
+        {
+          "capability": "analysis",
+          "description": "AI performs analytical tasks at steps: trend detection, anomaly identification, correlation analysis, sentiment analysis.",
+          "examples": ["Analyze customer feedback themes", "Detect KPI anomalies", "Identify churn risk signals"],
+          "deterministic_fallback": "Statistical analysis (averages, standard deviations, threshold comparisons). AI adds pattern recognition and natural language insight."
+        },
+        {
+          "capability": "validation",
+          "description": "AI validates step outputs against quality criteria, checking for completeness, accuracy, and consistency.",
+          "examples": ["Validate that a contract covers all required clauses", "Check that a report includes all requested metrics"],
+          "deterministic_fallback": "Checklist-based validation: required fields present, value ranges correct, format valid."
+        },
+        {
+          "capability": "next_best_action",
+          "description": "AI suggests the optimal next action based on workflow context, entity state, and historical patterns.",
+          "examples": ["Recommend which lead to contact next", "Suggest optimal meeting time", "Recommend pricing strategy"],
+          "deterministic_fallback": "Rules-based scoring (FIFO, priority, recency) to rank options."
+        }
+      ]
+    },
+
+    "workflow_generation": {
+      "description": "AI generates complete workflow definitions from operator descriptions, entity context, and business type knowledge.",
+      "generation_sources": [
+        "Operator's natural language description of a process",
+        "Entity type and business model",
+        "Existing workflows (for pattern reuse)",
+        "UBOS template library (for template matching)",
+        "Industry best practices (embedded in model knowledge)"
+      ],
+      "generation_output": "Complete workflow definition including: name, steps with types and owners, trigger conditions, risk level, estimated duration, linked KPIs, and matching SOP draft.",
+      "generation_trigger": "Onboarding step 12 (generate workflows) and ongoing via AI Copilot ('create a workflow for...')",
+      "provenance": "SYNTHESIZED_CANON",
+      "provenance_detail": "From 14.4 acceptance criteria: 'Founder can create or AI-generate workflows'. Generation capability synthesized from onboarding spec and AI Copilot Workspace design."
+    },
+
+    "optimization": {
+      "description": "AI continuously monitors workflow performance and suggests optimizations.",
+      "optimization_signals": [
+        "Step duration exceeding estimates (bottleneck detection)",
+        "Frequent step failures at specific points",
+        "Approval gate delays (suggesting threshold adjustment)",
+        "Underutilized or skipped steps (suggesting removal or simplification)",
+        "Repeated manual patterns that could be automated",
+        "Workflow runs that consistently deviate from the defined sequence"
+      ],
+      "optimization_actions": [
+        "Suggest step reordering for efficiency",
+        "Recommend automation of manual steps that show consistent patterns",
+        "Propose workflow consolidation when two workflows overlap significantly",
+        "Suggest new workflows when repeated ad-hoc patterns are detected",
+        "Recommend risk level adjustment based on historical execution data"
+      ],
+      "provenance": "SOURCE_PRESERVED_TRUTH + SYNTHESIZED_CANON",
+      "provenance_detail": "Self-improvement loop from 14.4 desired state (SIG-MOD-019, SIG-FEAT-019): 'pattern detection and workflow refinement'. Optimization mechanism synthesized from UMH feedback loop architecture."
+    }
+  },
+
+  "governance": {
+    "description": "Governance mechanisms that ensure workflow execution is safe, auditable, and within authority boundaries.",
+    "approval_gates": {
+      "description": "Approval gates are governance checkpoints within workflows. They block progression until an authorized party approves the action.",
+      "placement_rules": [
+        "Any step that involves financial transactions above a threshold",
+        "Any step that sends external communications to clients or prospects",
+        "Any step that modifies organizational structure (departments, roles, permissions)",
+        "Any step that creates legal obligations (contracts, commitments)",
+        "Any step that changes strategic parameters (KPI targets, goals, budgets)",
+        "Any step classified as HIGH or CRITICAL risk",
+        "Configurable: operator can add approval gates to any step via approval settings (onboarding step 22)"
+      ],
+      "approval_flow": {
+        "request": "Executing agent or system queues an approval request with context, proposed action, and risk assessment",
+        "routing": "Request routes to the authorized approver based on the step's required_tier and the entity's approval policies",
+        "decision": "Approver reviews and chooses: approve, reject, or request_changes",
+        "approve": "Workflow proceeds to the next step. Approval recorded in audit trail.",
+        "reject": "Workflow takes the rejection_action path: halt, retry_previous, skip, or branch to remediation",
+        "request_changes": "Workflow returns to the previous step with the approver's feedback for revision",
+        "timeout": "If no decision within timeout_hours, request escalates to the escalation_target. If no escalation target, the workflow enters waiting_approval state indefinitely until resolved."
+      },
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "provenance_detail": "14.4 desired state: 'Workflow engine with approval gates'. Approval flow synthesized from 14.6B communication architecture approval protocol and onboarding step 22 (configure approval settings)."
+    },
+
+    "risk_classification": {
+      "description": "Every workflow and every step is classified by risk level. Risk classification determines governance requirements.",
+      "levels": {
+        "LOW": {
+          "description": "Routine, reversible, internal-only actions.",
+          "governance": "No approval gate required. Audit trail recorded. Fully autonomous execution allowed.",
+          "examples": ["Generate report", "Update CRM field", "Send internal notification"]
+        },
+        "MEDIUM": {
+          "description": "Actions with moderate business impact or limited reversibility.",
+          "governance": "Approval gate recommended but not required. AI-assisted mode recommended. Audit trail recorded.",
+          "examples": ["Send external email", "Modify workflow definition", "Change team assignment"]
+        },
+        "HIGH": {
+          "description": "Actions with significant business impact or difficult reversibility.",
+          "governance": "Approval gate required. Manual or hybrid mode required. Cannot run fully autonomous. Audit trail with full context.",
+          "examples": ["Financial transaction over threshold", "Contract execution", "Hiring decision"]
+        },
+        "CRITICAL": {
+          "description": "Actions with severe, potentially irreversible business impact.",
+          "governance": "Dual approval gate required (two authorized approvers). Manual stepthrough mode required. CEO agent involvement mandatory. Complete audit trail with operator sign-off.",
+          "examples": ["Entity dissolution", "Large financial commitment", "Legal filing", "Data deletion"]
+        }
+      }
+    },
+
+    "audit_trail": {
+      "description": "Every workflow run produces a complete, immutable audit trail.",
+      "recorded_events": [
+        "Run created (who triggered, why, what context)",
+        "Each step started (timestamp, executor, inputs)",
+        "Each step completed (timestamp, outcome, outputs)",
+        "Each step failed (timestamp, error, retry count)",
+        "Approval requested (timestamp, requester, approver, context)",
+        "Approval granted/rejected/modified (timestamp, decider, rationale)",
+        "Workflow state transitions (running, paused, waiting_approval, etc.)",
+        "AI-generated content (what was generated, what was approved, what was modified by human)",
+        "Escalation events (who escalated to whom, why)",
+        "Manual overrides (operator bypassed a step or changed execution mode mid-run)"
+      ],
+      "storage": "Audit entries persist to Neon Postgres with RLS scoped by entity_id. Queryable through the activity feed and workflow run detail view.",
+      "retention": "Audit trails are never deleted. Archived workflow runs retain their complete audit trail."
+    }
+  },
+
+  "agent_delegation": {
+    "description": "How EOS agents interact with workflows: which agents execute which steps, how delegation works, and how escalation flows.",
+    "delegation_model": {
+      "description": "Agent delegation to workflow steps follows the communication/delegation architecture. The CEO agent is the primary workflow orchestrator within an entity.",
+      "ceo_agent": {
+        "role_in_workflows": "Primary orchestrator. Receives workflow triggers (from EA or scheduler), selects which department agent should execute each step, monitors progress, and handles cross-department coordination.",
+        "owns_steps": ["Strategic analysis", "Cross-department coordination", "Morning brief compilation", "Goal progress assessment", "Next-best action generation"],
+        "delegates_to": "Department agents based on step domain and required skills"
+      },
+      "ea_agent": {
+        "role_in_workflows": "Communication layer. Delivers workflow outputs to operator, surfaces approval requests, and captures operator decisions. Does NOT execute domain steps.",
+        "owns_steps": ["Operator notification", "Morning brief delivery", "Decision surfacing", "Context capture from conversations"],
+        "delegates_to": "Never -- EA routes to CEO or Portfolio Advisor, not to department agents"
+      },
+      "department_agents": {
+        "role_in_workflows": "Domain executors. Each department agent executes steps within its domain.",
+        "mapping": {
+          "sales_agent": ["Lead qualification", "Outreach drafting", "Pipeline reporting", "Follow-up management"],
+          "marketing_agent": ["Content generation", "Campaign management", "Audience analysis", "Brand audit"],
+          "operations_agent": ["Workflow health monitoring", "Process automation", "Resource allocation", "Bottleneck detection"],
+          "finance_agent": ["Financial reporting", "Budget forecasting", "Payment processing", "Invoice generation", "KPI compilation"],
+          "legal_agent": ["Contract review", "Compliance checking", "Terms drafting", "IP audit"],
+          "customer_success_agent": ["Ticket routing", "Satisfaction tracking", "Churn detection", "Customer onboarding"],
+          "product_agent": ["Roadmap management", "Feature prioritization", "User feedback analysis", "Spec drafting"],
+          "hr_agent": ["Candidate screening", "Onboarding planning", "Performance review", "Contractor sourcing"],
+          "engineering_agent": ["Code review", "Architecture analysis", "Deployment", "Incident response"]
+        }
+      },
+      "escalation": {
+        "description": "Escalation within workflows follows the delegation architecture's escalation protocol.",
+        "within_workflow": "If a department agent cannot complete a step (insufficient permission, ambiguity, cross-department dependency), it escalates to the CEO agent who either resolves the issue or escalates further to the EA for operator input.",
+        "to_operator": "Escalation to operator always flows through the EA agent. The EA formats the escalation as a decision with context, options, and recommendation."
+      }
+    }
+  },
+
+  "task_integration": {
+    "description": "How workflows and tasks interoperate. Workflows generate tasks, tasks can trigger workflows, and both share a unified tracking surface.",
+    "workflow_to_task_bridge": {
+      "description": "Workflow steps can generate tasks that are tracked independently in the task management system.",
+      "generation_rules": [
+        "When a workflow step is assigned to a human role, a task is automatically created in the task board with a link back to the workflow run",
+        "Recurring workflows generate recurring tasks at each scheduled run",
+        "Subprocess steps generate child tasks in the parent task's context",
+        "Approval gate steps generate approval tasks in the approver's task queue"
+      ],
+      "task_fields_from_workflow": {
+        "title": "Derived from step name",
+        "description": "Derived from step description",
+        "assigned_to": "Derived from step owner",
+        "priority": "Derived from workflow risk_level and step position",
+        "due_date": "Derived from workflow schedule and step estimated_duration",
+        "source_workflow_id": "Reference to parent workflow definition",
+        "source_run_id": "Reference to specific workflow run",
+        "source_step_index": "Reference to specific step"
+      }
+    },
+    "status_sync": {
+      "description": "Task status and workflow step status are kept in sync bidirectionally.",
+      "task_to_workflow": "When a task is marked complete, the corresponding workflow step is marked complete and the workflow advances.",
+      "workflow_to_task": "When a workflow run is cancelled or fails, all pending tasks generated from that run are cancelled with a reference to the workflow event.",
+      "conflict_resolution": "If a task is completed but the workflow step checkpoint fails validation, the task is reopened with the failure reason."
+    }
+  },
+
+  "current_code_truth": {
+    "description": "Ground truth from projections/eos/workflows/ as of 2026-06-04",
+    "implemented_workflows": [
+      {
+        "class": "OutreachWorkflow",
+        "file": "projections/eos/workflows/outreach.py",
+        "trigger": "New lead enters pipeline",
+        "steps": ["qualify", "research", "draft", "review", "send"],
+        "execution_mode": "manual_stepthrough (execute() returns result, no autonomous progression)",
+        "ai_integration": "AI-enhanced draft generation via call_with_fallback with deterministic template fallback",
+        "instance_specific_concern": "outreach.py references 'Initiate Arena' in AI prompt system message. Needs generalization.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "class": "FollowUpWorkflow",
+        "file": "projections/eos/workflows/followup.py",
+        "trigger": "Lead has not responded in N days",
+        "steps": ["check_status", "decide_approach", "draft_followup", "queue"],
+        "execution_mode": "manual_stepthrough",
+        "ai_integration": "Purely deterministic (template-based follow-up messages by staleness tier). No AI call.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "class": "ContentCalendarWorkflow",
+        "file": "projections/eos/workflows/content.py",
+        "trigger": "Scheduled or manual",
+        "steps": ["ideate", "draft", "schedule", "publish", "measure"],
+        "execution_mode": "manual_stepthrough",
+        "ai_integration": "AI-enhanced content ideation via call_with_fallback with deterministic template fallback",
+        "instance_specific_concern": "content.py references 'Lyfe Institute / Initiate Arena' in AI prompt. Needs generalization.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      }
+    ],
+    "not_implemented": [
+      "Workflow definition data model (workflows are Python classes, not DB-persisted definitions)",
+      "Workflow run tracking (no run model, no state machine, no audit trail)",
+      "SOP model (no SOP data structure exists)",
+      "Approval gates (steps return 'pending_approval' status but no approval mechanism exists)",
+      "Workflow library UI (no browse/create/manage interface)",
+      "Workflow run view UI (no step-through execution UI)",
+      "Template library (no UBOS template system)",
+      "Trigger system (no scheduled, event, or condition triggers)",
+      "Branching logic (linear step sequences only)",
+      "AI optimization loop (no workflow performance monitoring)",
+      "Task integration (no workflow-to-task bridge)"
+    ],
+    "architectural_assessment": "Current implementation is a valid pattern for the workflow execution engine (Python classes with step methods, deterministic spine with AI enhancement). The gap is the infrastructure layer: data model persistence, run tracking, trigger system, governance gates, and UI surfaces. The existing code can serve as the execution backend; the data model and orchestration layer must be built on top."
+  },
+
+  "mvp_scope": {
+    "r3_scope": {
+      "description": "R3 (Workflows) is the third MVP release. It delivers the workflow library, workflow runner, and AI-assisted workflow drafting.",
+      "included": [
+        "Workflow definition data model persisted in Neon Postgres",
+        "Workflow library screen: browse, search, filter active workflows",
+        "Workflow creation: manual definition and AI-generated from description",
+        "Workflow run view: step-through execution with manual and hybrid modes",
+        "Basic step types: manual, ai_assisted, approval_gate, checkpoint",
+        "Basic approval gates with single-approver flow",
+        "SOP creation and linking to workflow steps",
+        "Audit trail for workflow runs",
+        "3 pre-built workflows matching current code (outreach, follow-up, content)",
+        "8 built-in workflow templates generated during onboarding",
+        "Task generation from workflow steps"
+      ],
+      "not_included_in_r3": [
+        "Fully autonomous execution mode (requires mature agent configuration from R4)",
+        "UBOS template marketplace (requires multi-operator support)",
+        "Event-driven and condition-based triggers (requires event bus infrastructure)",
+        "Branching beyond simple conditional (parallel, split, loop)",
+        "Workflow optimization AI (requires historical run data)",
+        "Community template publishing (end-state feature)",
+        "Multi-approval gates (dual sign-off)",
+        "Subprocess step type (requires recursive workflow runs)"
+      ]
+    },
+    "deferred": {
+      "to_r4": [
+        "AI Copilot integration for natural language workflow creation",
+        "Agent autonomy configuration affecting workflow execution mode",
+        "Fully autonomous mode with governed boundaries"
+      ],
+      "to_r5_plus": [
+        "UBOS template marketplace",
+        "Community-contributed templates",
+        "Workflow optimization AI with pattern detection",
+        "Advanced branching (parallel, split, loop)",
+        "Cross-entity workflow orchestration",
+        "Workflow versioning with diff and rollback"
+      ],
+      "end_state_only": [
+        "Skill marketplace integration (workflows can be packaged as skills)",
+        "Self-improving workflows (system autonomously refines based on patterns)",
+        "Multi-region workflow execution",
+        "Enterprise-grade compliance workflows with regulatory templates"
+      ]
+    }
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-WF-001",
+      "question": "Should workflow definitions be version-controlled with full diff history, or is a simple version number with snapshots sufficient for MVP?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "Simple version number with snapshots for MVP. Full diff history is end-state."
+    },
+    {
+      "id": "OQ-WF-002",
+      "question": "Should the UBOS template library be curated-only (EOS team publishes templates) or community-contributed from the start?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "Curated-only for MVP and early releases. Community contribution is end-state. This aligns with 14.4 open question about UBOS community vs curated.",
+      "prior_reference": "SIG-OQ-004 in source detail preservation ledger"
+    },
+    {
+      "id": "OQ-WF-003",
+      "question": "Should workflows support real-time collaboration (multiple operators step through the same run simultaneously) or is single-operator execution sufficient?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "Single-operator execution for MVP. Real-time collaboration is end-state for multi-team entities."
+    },
+    {
+      "id": "OQ-WF-004",
+      "question": "How should the workflow engine handle long-running steps (days or weeks)? Should there be a maximum step duration or do steps persist indefinitely until completed?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "Steps persist indefinitely with configurable reminders and escalation timeouts. No hard maximum. Stale step detection surfaces warnings after configurable thale period."
+    },
+    {
+      "id": "OQ-WF-005",
+      "question": "Should the operator be able to modify a workflow definition while a run is in progress? If so, does the running instance use the old definition or switch to the new one?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "Running instances use the definition version that was active when the run started. New runs use the updated definition. This is standard workflow engine behavior."
+    },
+    {
+      "id": "OQ-WF-006",
+      "question": "For the 8 built-in workflows, should all 8 be generated for every entity type during onboarding, or should entity-type filtering exclude irrelevant ones (e.g., 'Business Context Persistence' is universal but 'Org Structure Management' may be skipped for solo operators)?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "All 8 are generated for every entity. For solo operators, steps involving team/department management are simplified or marked as 'activate when you scale'. No workflow is hidden -- the operator sees the full potential of their operating system."
+    },
+    {
+      "id": "OQ-WF-007",
+      "question": "Should SOP compliance tracking be automatic (system detects when a workflow run deviates from its linked SOP) or manual (operator marks compliance)?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "Automatic detection for measurable deviations (step order, step skipping, duration thresholds). Manual for qualitative compliance. Hybrid approach."
+    },
+    {
+      "id": "OQ-WF-008",
+      "question": "How should financial approval thresholds work across entities within a portfolio? Per-entity thresholds, portfolio-level thresholds, or both?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "default_assumption": "Per-entity thresholds with optional portfolio-level overrides. Entity CEO agent enforces entity thresholds; Portfolio Advisor flags portfolio-level concerns."
+    }
+  ],
+
+  "implementation_debt": [
+    {
+      "id": "DEBT-WF-001",
+      "description": "Workflow definitions are Python classes (projections/eos/workflows/), not persisted data models. Must build data model in Neon with Drizzle ORM schema to enable dynamic creation, editing, and template instantiation.",
+      "provenance": "IMPLEMENTATION_DEBT",
+      "severity": "high",
+      "blocking": true
+    },
+    {
+      "id": "DEBT-WF-002",
+      "description": "No workflow run tracking or state machine exists. Must build WorkflowRun model with state transitions, step results, and audit trail.",
+      "provenance": "IMPLEMENTATION_DEBT",
+      "severity": "high",
+      "blocking": true
+    },
+    {
+      "id": "DEBT-WF-003",
+      "description": "Approval gates return 'pending_approval' status but no approval mechanism, queue, or resolution flow exists. Must build approval request/response system tied to permission tiers.",
+      "provenance": "IMPLEMENTATION_DEBT",
+      "severity": "high",
+      "blocking": true
+    },
+    {
+      "id": "DEBT-WF-004",
+      "description": "No trigger system exists. Workflows can only be executed by direct Python method call. Must build trigger infrastructure for scheduled, event-driven, and condition-based triggers.",
+      "provenance": "IMPLEMENTATION_DEBT",
+      "severity": "medium",
+      "blocking": false
+    },
+    {
+      "id": "DEBT-WF-005",
+      "description": "Instance-specific references in outreach.py ('Initiate Arena') and content.py ('Lyfe Institute / Initiate Arena'). Must be generalized to use entity context from BIS runtime lookup.",
+      "provenance": "IMPLEMENTATION_DEBT",
+      "severity": "medium",
+      "blocking": false
+    },
+    {
+      "id": "DEBT-WF-006",
+      "description": "No SOP data model or storage exists. Must build SOP model with versioning, compliance tracking, and linking to workflow steps.",
+      "provenance": "IMPLEMENTATION_DEBT",
+      "severity": "medium",
+      "blocking": false
+    },
+    {
+      "id": "DEBT-WF-007",
+      "description": "No Workflow Library or Workflow Run View UI exists in the SaaS layer. Must build both screens as defined in 14.4 desired state screens list.",
+      "provenance": "IMPLEMENTATION_DEBT",
+      "severity": "high",
+      "blocking": true
+    },
+    {
+      "id": "DEBT-WF-008",
+      "description": "No UBOS template system exists. Must build template schema, storage, instantiation logic, and (for end-state) marketplace infrastructure.",
+      "provenance": "IMPLEMENTATION_DEBT",
+      "severity": "low",
+      "blocking": false
+    }
+  ]
+}

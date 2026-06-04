@@ -1,0 +1,931 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Complete inventory of all CreatorOS source truth surfaces: Google Docs, GitHub main, Beast clone, UMH projection code, prior phase artifacts, operator corrections, VPS schema copy, and design references.",
+
+  "google_docs": [
+    {
+      "doc_id": "1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI",
+      "title": "CreatorOS",
+      "url": "https://docs.google.com/document/d/1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI/edit",
+      "modified": "2026-05-15T20:31:14.198Z",
+      "tabs": ["1", "8"],
+      "tab_count": 2,
+      "content_chars": 1602036,
+      "word_count_estimate": 276213,
+      "extraction_status": "FULLY_EXTRACTED",
+      "extraction_phase": "14.3A",
+      "extraction_artifact": "phase14_3a_full_content_extracted_claims.json",
+      "content_summary": "PRD v2.90. Comprehensive product requirements document defining 16 modules, 28 screens, workflows, AI concepts, business model, pricing tiers, data concepts, and acceptance criteria. Contains 3 conflicting MVP scope definitions, 3 conflicting auth provider recommendations, 2 conflicting backend framework references, and 3 conflicting timeline definitions.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "notes": "Operator-authored product vision document. Primary source of desired state claims. Read via GWS API in Phase 14.3A. Tab 1 is the main PRD, Tab 8 contains supplementary material. Unlike the EOS doc (10 tabs, 2.09M chars), CreatorOS is a more focused single-product PRD."
+    },
+    {
+      "doc_id": "11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8",
+      "title": "UMH",
+      "url": "https://docs.google.com/document/d/11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8/edit",
+      "modified": "2026-05-10T00:06:44.500Z",
+      "tabs": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "11", "12", "13"],
+      "tab_count": 12,
+      "content_chars": 219966,
+      "word_count_estimate": 36661,
+      "extraction_status": "FULLY_EXTRACTED",
+      "extraction_phase": "14.3A",
+      "extraction_artifact": "phase14_3a_full_content_extracted_claims.json",
+      "relevance_to_creatoros": "Defines UMH substrate that CreatorOS registers with as a projection. CreatorOS-UMH integration boundary, abstract ports, signal flow, capability routing.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "notes": "Not CreatorOS-specific but defines the platform contract CreatorOS must satisfy as a UMH projection."
+    },
+    {
+      "doc_id": "11p9ts6TTVDlCgOX1oV5u_0BGuHyHmgwclqEUgI4b6yM",
+      "title": "THE MUNOZ EMPIRE -- Elite Structural Architecture",
+      "url": "https://docs.google.com/document/d/11p9ts6TTVDlCgOX1oV5u_0BGuHyHmgwclqEUgI4b6yM/edit",
+      "modified": "2026-05-25T02:55:38.232Z",
+      "tabs": ["1"],
+      "tab_count": 1,
+      "content_chars": 89462,
+      "word_count_estimate": 14910,
+      "extraction_status": "FULLY_EXTRACTED",
+      "extraction_phase": "14.3A",
+      "extraction_artifact": "phase14_3a_full_content_extracted_claims.json",
+      "relevance_to_creatoros": "Corporate structure context. Defines Empyrean Studio as owner of CreatorOS. Maps CreatorOS within the broader Munoz Conglomerate hierarchy.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "notes": "Source of operator correction that CreatorOS is owned by Empyrean Studio, not Lyfe Institute."
+    }
+  ],
+
+  "github_main": {
+    "repo": "antonyfmunoz/CreatorOS",
+    "branch": "main",
+    "files": 296,
+    "files_on_vps_copy": 14,
+    "vps_copy_path": "data/repos/creatoros/",
+    "vps_copy_note": "VPS copy is a minimal read-only snapshot: 14 files (config files + schema + seed script). Full repo (296 files) exists on GitHub and Beast clone. VPS copy includes shared/schema.ts which is the critical file for schema analysis.",
+    "last_substantive_commit": "2026-03-01",
+    "last_merge_commit": "2026-05-20",
+    "author": "Replit Agent",
+    "auth": "Passport.js (local strategy, BROKEN: comparePasswords returns true for ALL passwords)",
+    "auth_status": "CRITICAL VULNERABILITY",
+    "auth_detail": {
+      "strategy": "passport-local (username + password)",
+      "session_store": "memorystore (in-process, not persistent)",
+      "password_hashing": "scrypt (64-byte key, random 16-byte salt)",
+      "session_cookie": "connect.sid, 30-day maxAge, httpOnly",
+      "security_issues": [
+        "CRITICAL: comparePasswords() returns true for ALL plaintext passwords ('Force return true for development/demo purposes')",
+        "Session secret has hardcoded fallback: 'creatorOS-secret-key'",
+        "MemoryStore is not production-suitable (data lost on restart, no scaling)",
+        "No rate limiting on login/register endpoints",
+        "No CSRF protection"
+      ],
+      "auth_files": ["server/auth.ts", "client/src/hooks/use-auth.tsx", "client/src/lib/protected-route.tsx"],
+      "parallel_auth": "Zustand store in stores.ts has mock fetch-all-users login alongside proper passport-based use-auth.tsx"
+    },
+    "status": "active_but_broken_auth",
+    "framework": {
+      "frontend": "React 18 + Vite + wouter + TanStack Query",
+      "backend": "Express + Node.js (tsx dev, esbuild prod)",
+      "ui_library": "shadcn/ui (Radix + Tailwind CSS)",
+      "orm": "Drizzle ORM 0.39",
+      "database": "PostgreSQL (Neon serverless + @neondatabase/serverless + postgres.js)",
+      "language": "TypeScript",
+      "runtime": "Node.js (Replit modules)"
+    },
+    "key_files": {
+      "schema": "shared/schema.ts",
+      "server_entry": "server/index.ts",
+      "server_routes": "server/routes.ts (GOD FILE: 53KB, 89 routes in single monolithic file)",
+      "server_auth": "server/auth.ts (BROKEN: comparePasswords bypassed)",
+      "server_db": "server/db.ts",
+      "server_storage": "server/storage.ts (GOD FILE: 104KB, all data access logic in single file)",
+      "client_entry": "client/src/main.tsx",
+      "client_app": "client/src/App.tsx",
+      "drizzle_config": "drizzle.config.ts",
+      "vite_config": "vite.config.ts",
+      "package_json": "package.json"
+    },
+    "pages": [
+      "client/src/pages/ai.tsx",
+      "client/src/pages/auth-page.tsx",
+      "client/src/pages/communities.tsx",
+      "client/src/pages/contacts.tsx",
+      "client/src/pages/create-post.tsx",
+      "client/src/pages/create-product.tsx",
+      "client/src/pages/documents.tsx",
+      "client/src/pages/explore.tsx",
+      "client/src/pages/followers.tsx",
+      "client/src/pages/following.tsx",
+      "client/src/pages/marketplace.tsx",
+      "client/src/pages/new-text-post.tsx",
+      "client/src/pages/not-found.tsx",
+      "client/src/pages/profile.tsx",
+      "client/src/pages/revenue.tsx",
+      "client/src/pages/saved-posts.tsx"
+    ],
+    "page_count": 16,
+    "component_groups": {
+      "ai": ["AgentCard.tsx", "ChatInterface.tsx"],
+      "communities": ["ChannelSidebar.tsx", "ChatMessage.tsx"],
+      "explore": ["CommentSection.tsx", "Post.tsx", "Stories.tsx", "StoryProgress.tsx"],
+      "feed": ["FilterDropdown.tsx", "FloatingActionButton.tsx", "LocationPicker.tsx", "PhotoUploader.tsx", "PollCreator.tsx", "PostOptionsPanel.tsx", "StoriesBar.tsx", "StoryCreator.tsx", "Tabs.tsx", "TagEditor.tsx", "TextComposer.tsx", "VideoRecorder.tsx", "VoicePostCard.tsx"],
+      "layout": ["BottomNav.tsx", "HeaderNav.tsx"],
+      "messaging": ["MessagePanel.tsx"],
+      "notifications": ["NotificationPanel.tsx"],
+      "profile": ["EditProfileDialog.tsx"]
+    },
+    "custom_component_count": 14,
+    "ui_primitive_count": 42,
+    "total_component_count": 56,
+    "total_route_count": 89,
+    "feature_areas": [
+      "Social feed (Instagram-style posts, stories, likes, comments, saves)",
+      "User profiles (edit, image upload, stats, followers/following)",
+      "Marketplace (products, product creation)",
+      "AI agents (custom AI chat, agent cards)",
+      "Communities (channels, channel sidebar, chat messages)",
+      "Direct messaging (conversations, reactions, reply-to)",
+      "Notifications (bell, panel, toast)",
+      "Documents (Notion-style editor)",
+      "Revenue dashboard (charts)",
+      "Contacts (CRM-style contact list)"
+    ],
+    "notable_patterns": {
+      "monorepo_style": "Single package.json, path aliases (@, @shared, @assets), no workspaces",
+      "replit_origin": "Built on Replit (has .replit, replit.nix, Replit vite plugins, attached_assets from Replit pasting)",
+      "uploaded_files_in_repo": "uploads/ directory with 26 user-uploaded files committed to git (images, videos)",
+      "backup_files_in_repo": "MessagePanel.tsx.bak and MessagePanel.tsx.new committed to repo",
+      "hardcoded_route": "DELETE /api/force-delete-story/11 (hardcoded story ID)",
+      "openai_key_fallback": "OpenAI client initialized with fallback string 'your-api-key'",
+      "story_cleanup": "Automated orphan story cleanup runs every 5 minutes",
+      "zustand_auth_store": "Parallel auth: use-auth.tsx (passport-based) AND stores.ts (mock fetch-all-users login). Both coexist.",
+      "missing_websocket_handlers": "ws dependency installed but no WebSocket server setup found"
+    },
+    "top_level_structure": [
+      ".gitignore", ".replit", "attached_assets", "client", "drizzle.config.ts",
+      "generated-icon.png", "migrations", "package-lock.json", "package.json",
+      "postcss.config.js", "replit.nix", "scripts", "server", "shared",
+      "tailwind.config.ts", "theme.json", "tsconfig.json", "uploads", "vite.config.ts"
+    ],
+    "god_files": [
+      {
+        "file": "server/routes.ts",
+        "size_kb": 53,
+        "issue": "All 89 API routes in single monolithic file. Must be split before parallel development is possible.",
+        "route_categories": ["auth (4)", "user (11)", "post (15+)", "product (5+)", "community (10+)", "messaging (10+)", "ai (5+)", "documents (5+)", "stories (5+)", "notifications (5+)", "contacts (5+)", "revenue (3+)"]
+      },
+      {
+        "file": "server/storage.ts",
+        "size_kb": 104,
+        "issue": "All data access/storage logic in single file. Every table's CRUD operations in one file. Tightly coupled to Drizzle ORM with no abstraction layer."
+      }
+    ],
+    "db_implementation": {
+      "provider": "Neon PostgreSQL (serverless driver @neondatabase/serverless + postgres.js)",
+      "orm": "Drizzle ORM 0.39",
+      "schema_location": "shared/schema.ts",
+      "migration_tool": "drizzle-kit (push mode)",
+      "table_count": 20,
+      "tables": [
+        "users", "posts", "saved_posts", "comments", "products",
+        "ai_agents", "ai_chats", "communities", "channels", "channel_messages",
+        "followers", "revenue", "contacts", "documents", "stories",
+        "notifications", "conversations", "conversation_participants",
+        "direct_messages", "tagged_users"
+      ],
+      "migrations": [
+        "migrations/0000_lyrical_vance_astro.sql",
+        "migrations/meta/0000_snapshot.json",
+        "migrations/meta/_journal.json",
+        "migrations/seed-stories.ts"
+      ],
+      "seed_scripts": ["scripts/seed-db.ts", "migrations/seed-stories.ts"],
+      "db_files": ["server/db.ts", "drizzle.config.ts", "shared/schema.ts"]
+    },
+    "tests": "ZERO -- no test files exist in the repository",
+    "deployment_config": "NONE -- no Dockerfile, no Fly.io config, no CI/CD",
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+  },
+
+  "beast": {
+    "path": "C:\\dev\\dev\\CreatorOS",
+    "branch": "main",
+    "files": 271,
+    "status": "aligned with GitHub, no divergence",
+    "divergent_feature_branch": false,
+    "auth": "Passport.js (same broken code as GitHub main)",
+    "vps_accessible": false,
+    "vps_note": "Beast clone lives on Windows machine at C:\\dev\\dev\\CreatorOS. Same main branch, same commits as GitHub. No divergent feature branch exists (unlike EOS which has a 603-file feature/company-system branch). Analysis uses GitHub main as single code source.",
+    "file_count_difference_note": "271 files on Beast vs 296 on GitHub. Difference is likely .gitignored files or attached_assets not present locally. No code divergence -- same commits, same branch.",
+    "uncommitted_local_files": [".env", "dump.sql"],
+    "key_difference_from_eos": "CreatorOS has NO feature branch divergence. GitHub main IS the single source of code truth. EOS has a 603-file Beast branch that is the canonical promotion candidate. This makes CreatorOS source topology simpler: one codebase to analyze, not two.",
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+  },
+
+  "prior_phases": [
+    {
+      "phase_id": "14.3",
+      "artifact": "phase14_3_product_requirements_gap_report.json",
+      "path": "data/umh/product_docs_convergence/phase14_3_product_requirements_gap_report.json",
+      "description": "Initial product requirements gap report for Trinity apps including CreatorOS. Based on doc metadata only (pre-full-content-access).",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3",
+      "artifact": "phase14_3_extracted_product_claims.json",
+      "path": "data/umh/product_docs_convergence/phase14_3_extracted_product_claims.json",
+      "description": "Initial claim extraction from Google Docs metadata (before full content access).",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3",
+      "artifact": "phase14_3_end_state_design_map.json",
+      "path": "data/umh/product_docs_convergence/phase14_3_end_state_design_map.json",
+      "description": "Initial end-state design mapping for Trinity apps including CreatorOS.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3",
+      "artifact": "phase14_3_doc_classification.json",
+      "path": "data/umh/product_docs_convergence/phase14_3_doc_classification.json",
+      "description": "Document classification for all Trinity product docs.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3",
+      "artifact": "phase14_3_google_docs_inventory.json",
+      "path": "data/umh/product_docs_convergence/phase14_3_google_docs_inventory.json",
+      "description": "Initial Google Docs inventory (metadata only, before full content read).",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3A",
+      "artifact": "phase14_3a_full_google_docs_inventory.json",
+      "path": "data/umh/product_docs_convergence/phase14_3a_full_google_docs_inventory.json",
+      "description": "Full Google Docs inventory with content char counts, tab listings, and extraction status for all 47 drive files. CreatorOS doc: 1,602,036 chars across 2 tabs.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3A",
+      "artifact": "phase14_3a_product_requirements_gap_report.json",
+      "path": "data/umh/product_docs_convergence/phase14_3a_product_requirements_gap_report.json",
+      "description": "Full content gap report with extracted claims, end-state design map, doc classification for all Trinity apps including CreatorOS.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3A",
+      "artifact": "phase14_3a_full_content_extracted_claims.json",
+      "path": "data/umh/product_docs_convergence/phase14_3a_full_content_extracted_claims.json",
+      "description": "Exhaustive claim extraction from all Google Docs with full content access. CreatorOS section defines product_definition, core_features (16 modules), target_users, screens, workflows, data concepts, AI concepts, business model.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3A",
+      "artifact": "phase14_3a_end_state_design_map.json",
+      "path": "data/umh/product_docs_convergence/phase14_3a_end_state_design_map.json",
+      "description": "End-state design mapping for all Trinity apps from full content analysis.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3A",
+      "artifact": "phase14_3a_doc_classification.json",
+      "path": "data/umh/product_docs_convergence/phase14_3a_doc_classification.json",
+      "description": "Updated document classification from full content extraction.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3A",
+      "artifact": "phase14_3a_shared_trinity_architecture.json",
+      "path": "data/umh/product_docs_convergence/phase14_3a_shared_trinity_architecture.json",
+      "description": "Shared architecture patterns across Trinity apps (EOS, CreatorOS, LyfeOS). Defines common platform standard that CreatorOS must satisfy.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_creatoros_desired_state_canon.json",
+      "path": "data/umh/trinity_alignment/phase14_4_creatoros_desired_state_canon.json",
+      "description": "CreatorOS desired state canon. 16 modules, 28 screens, workflows, feature list, 33 data concepts, AI agent concepts, business model, pricing tiers, 11 open questions, 8 contradictions. Defines CreatorOS as the command center for modern creators.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_creatoros_github_inventory.json",
+      "path": "data/umh/trinity_alignment/phase14_4_creatoros_github_inventory.json",
+      "description": "GitHub main branch deep inventory. 296 files, Replit Agent authored, Passport.js auth (BROKEN), 20 DB tables via Drizzle ORM, 16 pages, 56 components (14 custom + 42 UI primitives), 89 API routes. God files: routes.ts (53KB), storage.ts (104KB).",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_creatoros_beast_inventory.json",
+      "path": "data/umh/trinity_alignment/phase14_4_creatoros_beast_inventory.json",
+      "description": "Beast clone inventory. 271 files on main branch, aligned with GitHub. No divergent feature branch (unlike EOS). Same codebase, same commit history. 2 uncommitted local files (.env, dump.sql).",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_feature_preservation_matrices.json",
+      "path": "data/umh/trinity_alignment/phase14_4_feature_preservation_matrices.json",
+      "description": "Feature preservation matrices tracking what exists in GitHub main, Beast, and desired state for all Trinity apps including CreatorOS.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_gap_maps_build_sequences.json",
+      "path": "data/umh/trinity_alignment/phase14_4_gap_maps_build_sequences.json",
+      "description": "Gap maps and build sequences for closing divergences between current code and desired state.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_architecture_diffs.json",
+      "path": "data/umh/trinity_alignment/phase14_4_architecture_diffs.json",
+      "description": "Architecture diffs between GitHub main and Beast for all Trinity apps. For CreatorOS: no diff (aligned).",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_product_design_diffs.json",
+      "path": "data/umh/trinity_alignment/phase14_4_product_design_diffs.json",
+      "description": "Product design diffs between current implementations and desired state for all Trinity apps.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_current_source_inventory.json",
+      "path": "data/umh/trinity_alignment/phase14_4_current_source_inventory.json",
+      "description": "Combined source inventory across all Trinity apps with GitHub and Beast state per app.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_current_state_summaries.json",
+      "path": "data/umh/trinity_alignment/phase14_4_current_state_summaries.json",
+      "description": "Current state summaries per Trinity app with implementation maturity scores.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "phase_id": "14.5",
+      "artifact": "phase14_5_creatoros_convergence_plan.json",
+      "path": "data/umh/trinity_convergence/phase14_5_creatoros_convergence_plan.json",
+      "description": "CreatorOS convergence plan. Source divergence analysis (GitHub and Beast aligned), auth state (CRITICAL bypass), schema state (20 tables), UI state, top gaps, contradictions (8), work packets, operator decisions needed. No branch promotion needed (unlike EOS).",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5",
+      "artifact": "phase14_5_convergence_decision_ledger.json",
+      "path": "data/umh/trinity_convergence/phase14_5_convergence_decision_ledger.json",
+      "description": "Decision ledger for all Trinity convergence decisions. CreatorOS entries: no branch promotion decision needed (single source).",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5",
+      "artifact": "phase14_5_source_truth_packet.json",
+      "path": "data/umh/trinity_convergence/phase14_5_source_truth_packet.json",
+      "description": "Source truth packet summarizing convergence state across all Trinity apps including CreatorOS.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5",
+      "artifact": "phase14_5_risk_register.json",
+      "path": "data/umh/trinity_convergence/phase14_5_risk_register.json",
+      "description": "Risk register for convergence operations. CreatorOS risks: auth bypass, god files, 3 conflicting MVP scopes.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5",
+      "artifact": "phase14_5_umh_integration_boundary_plan.json",
+      "path": "data/umh/trinity_convergence/phase14_5_umh_integration_boundary_plan.json",
+      "description": "UMH integration boundary plan defining how EOS, CreatorOS, LyfeOS connect to UMH substrate.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5",
+      "artifact": "phase14_5_work_packet_tree.json",
+      "path": "data/umh/trinity_convergence/phase14_5_work_packet_tree.json",
+      "description": "Work packet tree for executing convergence across all Trinity apps including CreatorOS.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_creatoros_13_layer_production_stack.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_creatoros_13_layer_production_stack.json",
+      "description": "13-layer production stack for CreatorOS with desired state, current state, and gaps per layer. Auth layer CRITICAL (comparePasswords returns true for ALL). All layers BLOCKED pending source convergence and MVP scope decision.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_contradiction_ledger.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_contradiction_ledger.json",
+      "description": "Contradiction ledger documenting conflicts across sources. CreatorOS has more internal doc contradictions than EOS: auth x3, MVP scope x3, backend framework x2, ORM x2, timeline x3.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_operator_decision_ledger.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_operator_decision_ledger.json",
+      "description": "Operator decision ledger tracking decisions requiring operator input. CreatorOS decisions: MVP scope, auth provider, backend framework.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_operator_question_ledger.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_operator_question_ledger.json",
+      "description": "Open questions requiring operator resolution across all Trinity apps.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_clarification_ledger.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_clarification_ledger.json",
+      "description": "Clarification ledger for ambiguous claims needing resolution.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_intent_extrapolation.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_intent_extrapolation.json",
+      "description": "Intent extrapolation where analyst inferred product intent from incomplete or ambiguous source material.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_technical_grounding.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_technical_grounding.json",
+      "description": "Technical grounding document mapping desired state features to concrete implementation patterns.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_umh_13_layer_integration_boundary.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_umh_13_layer_integration_boundary.json",
+      "description": "UMH 13-layer integration boundary defining how projections connect at each layer.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  ],
+
+  "phase_14_6b_artifacts": [
+    {
+      "artifact": "phase14_6b_creatoros_preflight.json",
+      "path": "data/umh/creatoros_lossless_canon/phase14_6b_creatoros_preflight.json",
+      "description": "Corrective product-source-truth reconstruction preflight. Defines all source inputs (12), core rules (15), success criteria (45), expected artifacts (45), provenance labels (6), blocked gates (7), and key differences from EOS canon process.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  ],
+
+  "projection_code": {
+    "path": "projections/creatoros/",
+    "files": 8,
+    "lines": 1099,
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "components": {
+      "integration": {
+        "path": "projections/creatoros/integration/",
+        "files": ["__init__.py", "signals.py", "manifest.py", "handlers.py", "outcomes.py", "correlation.py", "tables.py"],
+        "file_count": 7,
+        "description": "UMH integration layer for CreatorOS projection. Signal factory (146 lines), outcome tracking (180 lines), manifest (139 lines), correlation (44 lines), handler dispatch (150 lines), table definitions (439 lines). Defines how CreatorOS would interface with UMH substrate. No active runtime integration.",
+        "file_line_counts": {
+          "__init__.py": 1,
+          "signals.py": 146,
+          "manifest.py": 139,
+          "handlers.py": 150,
+          "outcomes.py": 180,
+          "correlation.py": 44,
+          "tables.py": 439
+        }
+      },
+      "root": {
+        "files": ["__init__.py"],
+        "file_count": 1,
+        "description": "Root module init. Empty (0 lines). No entity model defined (unlike EOS which has entities.py at 879 lines)."
+      }
+    },
+    "comparison_to_eos_projection": {
+      "eos_files": 31,
+      "eos_lines": 5699,
+      "creatoros_files": 8,
+      "creatoros_lines": 1099,
+      "delta": "CreatorOS projection is 81% smaller than EOS projection. Missing: agents (EOS has 10 department agents), views (EOS has 3 view modules), workflows (EOS has 3 workflow modules), entity model (EOS has 879-line entities.py), integration DESIGN.md (EOS has 1463-line design doc)."
+    }
+  },
+
+  "saas_code": {
+    "path": "saas/",
+    "schema_path": null,
+    "tables": 0,
+    "status": "NOT_PRESENT",
+    "note": "No saas/ directory exists for CreatorOS in the OS repo. The saas/ directory is EOS projection only. CreatorOS SaaS code lives entirely in the standalone GitHub repo (antonyfmunoz/CreatorOS). Unlike EOS, CreatorOS has no SaaS layer extracted into the OS repo.",
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+  },
+
+  "design_references": {
+    "count": 90,
+    "path": "Google Drive (not on VPS)",
+    "description": "90 design reference files catalogued during Phase 14.4. These are Google Stitch UI references and screenshots that define the X/Twitter-inspired minimalism aesthetic. Not downloaded to VPS. Stitch UI component inventory needed to map which components have design coverage.",
+    "design_identity": {
+      "style": "X/Twitter-inspired minimalism",
+      "not_this": "NOT glassmorphism, NOT RPG, NOT gamification",
+      "characteristics": "Clean, fast, functional. Mobile-first social platform aesthetic. Bottom navigation, stories bar, feed-centric layout.",
+      "comparison_to_eos": "CreatorOS = social platform aesthetic (X/Twitter). EOS = executive command center (finance-grade). Fundamentally different design languages."
+    },
+    "stitch_inventory_status": "NOT_DONE",
+    "stitch_inventory_note": "Stitch UI component inventory needs to be created to map which of the 90 reference files cover which UI components.",
+    "provenance": "SOURCE_PRESERVED_TRUTH"
+  },
+
+  "umh_artifacts": [
+    {
+      "artifact": "CreatorOS Projection Registration",
+      "path": "projections/creatoros/__init__.py",
+      "type": "projection_registration",
+      "description": "CreatorOS projection init module (0 lines, empty). Placeholder registration only.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "CreatorOS Integration Signals",
+      "path": "projections/creatoros/integration/signals.py",
+      "type": "signal_factory",
+      "description": "Signal factory for CreatorOS events (146 lines). Defines how CreatorOS events map to UMH SignalEnvelope format.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "CreatorOS Integration Manifest",
+      "path": "projections/creatoros/integration/manifest.py",
+      "type": "projection_manifest",
+      "description": "Projection manifest (139 lines). Declares CreatorOS capabilities, signal types, and outcome definitions for UMH registration.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "CreatorOS Integration Handlers",
+      "path": "projections/creatoros/integration/handlers.py",
+      "type": "event_handlers",
+      "description": "Handler dispatch for CreatorOS events (150 lines). Routes incoming UMH signals to CreatorOS-specific processing.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "CreatorOS Integration Outcomes",
+      "path": "projections/creatoros/integration/outcomes.py",
+      "type": "outcome_tracking",
+      "description": "Outcome tracking for CreatorOS operations (180 lines). Defines success/failure outcomes for UMH feedback loop.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "CreatorOS Integration Correlation",
+      "path": "projections/creatoros/integration/correlation.py",
+      "type": "event_correlation",
+      "description": "Event correlation for CreatorOS signals (44 lines). Links related events across time for pattern detection.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "CreatorOS Integration Tables",
+      "path": "projections/creatoros/integration/tables.py",
+      "type": "schema_definition",
+      "description": "Integration table definitions for UMH substrate persistence (439 lines). Largest file in CreatorOS projection.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "CreatorOS/LyfeOS Integration Test",
+      "path": "tests/test_lyfeos_creatoros_integration.py",
+      "type": "test",
+      "description": "Test suite for CreatorOS and LyfeOS integration with UMH substrate.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "UMH Integration Boundary Plan",
+      "path": "data/umh/trinity_convergence/phase14_5_umh_integration_boundary_plan.json",
+      "type": "architecture_doc",
+      "description": "Defines how CreatorOS registers as UMH projection. Signal/capability/outcome mapping from projection code.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "Shared Trinity Architecture",
+      "path": "data/umh/product_docs_convergence/phase14_3a_shared_trinity_architecture.json",
+      "type": "architecture_doc",
+      "description": "Shared architecture patterns across all Trinity apps. Defines the common platform standard CreatorOS must satisfy.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "VPS Schema Copy",
+      "path": "data/repos/creatoros/shared/schema.ts",
+      "type": "schema_file",
+      "description": "Read-only copy of Drizzle ORM schema defining 20 tables with full column definitions and relations. Primary schema analysis source on VPS.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "VPS Seed Script",
+      "path": "data/repos/creatoros/scripts/seed-db.ts",
+      "type": "seed_script",
+      "description": "Database seed script for initial data population.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    }
+  ],
+
+  "operator_corrections": [
+    {
+      "correction_id": "OC-COS-001",
+      "source": "Phase 14.6B mission brief",
+      "content": "CreatorOS is owned by Empyrean Studio, not Lyfe Institute. Empyrean Studio is the entity that owns all creative/media products.",
+      "date": "2026-06-03",
+      "impact": "Corrects ownership attribution. Empyrean Studio, not Lyfe Institute, is the parent entity.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-002",
+      "source": "Phase 14.6B mission brief",
+      "content": "CreatorOS is a creator-economy operating system -- 'Whop on steroids.' NOT a 'content management tool' or 'creator platform.' It is the command center for modern creators.",
+      "date": "2026-06-03",
+      "impact": "Elevates product positioning from tool/platform to operating system. Center of gravity is creator economic activity.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-003",
+      "source": "Phase 14.6B mission brief",
+      "content": "Product promise: 'Post once, publish everywhere. Host everything, sell to everyone.'",
+      "date": "2026-06-03",
+      "impact": "Canonical one-line product promise. Captures both distribution (post/publish) and commerce (host/sell) value propositions.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-004",
+      "source": "Phase 14.6B mission brief",
+      "content": "Design identity: X/Twitter-inspired minimalism, NOT glassmorphism. Clean, fast, functional. Mobile-first social platform aesthetic.",
+      "date": "2026-06-03",
+      "impact": "Constrains all UI/UX decisions. Kills any glassmorphism or RPG aesthetic that may appear in prior docs or references.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-005",
+      "source": "Phase 14.6B mission brief",
+      "content": "16 modules catalogued: Content Distribution, Community Hub, Course Platform, Marketplace, Consumer Feed, Dashboard, Editing Studio, UGC Campaigns, Ads Platform, Cross-Posting, Automation Builder, Email/Newsletter, Stories, Notifications, Moderation, Roles & Permissions.",
+      "date": "2026-06-03",
+      "impact": "Canonical module list. Confirms 16 modules align with desired state canon.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-006",
+      "source": "Phase 14.6B mission brief",
+      "content": "28 screens catalogued from desired state. 16 pages implemented in current code.",
+      "date": "2026-06-03",
+      "impact": "12-screen gap between desired (28) and implemented (16). Gap analysis needed per screen.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-007",
+      "source": "Phase 14.6B mission brief",
+      "content": "10 product types: community, ai_agent, digital_download, course, subscription_membership, service, event, physical_product, ugc_campaign, software_access.",
+      "date": "2026-06-03",
+      "impact": "Canonical product type list. Commerce architecture must support all 10 types.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-008",
+      "source": "Phase 14.6B mission brief",
+      "content": "Primitive hierarchy: User -> CreatorAccount -> Business -> Product -> Order -> Entitlement.",
+      "date": "2026-06-03",
+      "impact": "Canonical data ontology primitive chain. Different from EOS hierarchy (Operator -> Portfolio -> Entity -> Operations -> Teams -> Workflows -> Capital).",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-009",
+      "source": "Phase 14.6B mission brief",
+      "content": "Passport.js auth is BROKEN (comparePasswords returns true for ALL). P0 security vulnerability. Target auth: Clerk.",
+      "date": "2026-06-03",
+      "impact": "Confirms auth bypass is P0 blocker. Cannot ship anything user-facing. Migration target is Clerk (same as EOS Beast branch).",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-010",
+      "source": "Phase 14.6B mission brief",
+      "content": "God files: routes.ts (53KB) and storage.ts (104KB) must be split before parallel development.",
+      "date": "2026-06-03",
+      "impact": "Confirms god files as P1 blocker for development velocity. Must split before any significant feature work.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-011",
+      "source": "Phase 14.6B mission brief",
+      "content": "4-tier pricing: Free/Starter (Free, 3 platforms, 1 community, 1 course, 8% fee), Pro ($29/mo, unlimited, 5% fee), Business ($79/mo, team seats, API, white-label, 3% fee), Enterprise ($199+/mo, custom).",
+      "date": "2026-06-03",
+      "impact": "Canonical pricing structure. Revenue model combines subscription + transaction fees.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-012",
+      "source": "Phase 14.6B mission brief",
+      "content": "EOS boundary: EOS handles business operations (portfolio, entity, org chart, financial tracking, AI agent hierarchy). CreatorOS handles creator product/distribution/community (content, publishing, audience, commerce, marketplace, courses, UGC, ads). Shared via UMH: identity, permissions, AI runtime, workflow engine, event bus, memory graph.",
+      "date": "2026-06-03",
+      "impact": "Canonical boundary definition. CreatorOS and EOS are separate products with separate databases, separate deployments, but shared UMH platform kernel.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-013",
+      "source": "Phase 14.6B mission brief",
+      "content": "No tests exist. No production deployment. No UMH integration active. 90 design reference files exist (Stitch UI inventory needed).",
+      "date": "2026-06-03",
+      "impact": "Confirms zero test coverage, zero deployment infrastructure, zero runtime UMH integration. Design references need cataloguing.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-COS-014",
+      "source": "Phase 14.6B mission brief",
+      "content": "Target users: Creators (3 tiers: Emerging 1K-50K, Established 50K-500K, Creator Businesses 500K+), Consumers (Superfans, Learners, Community Members), UGC Creators, Advertisers.",
+      "date": "2026-06-03",
+      "impact": "Canonical user segmentation. Creator tiers define feature gating and pricing strategy.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    }
+  ],
+
+  "source_surface_summary": {
+    "total_source_categories": 8,
+    "categories": [
+      "google_docs (3 relevant docs, primary: CreatorOS 1.6M chars across 2 tabs)",
+      "github_main (296 files, Replit Agent authored, broken auth, 14 files on VPS copy)",
+      "beast (271 files, main branch, aligned with GitHub, no divergent feature branch)",
+      "prior_phases (34 artifacts across phases 14.3, 14.3A, 14.4, 14.5, 14.5A)",
+      "phase_14_6b_artifacts (1 preflight artifact so far)",
+      "projection_code (8 files, 1099 lines in projections/creatoros/)",
+      "design_references (90 files in Google Drive, Stitch UI references, not on VPS)",
+      "operator_corrections (14 explicit corrections from Phase 14.6B mission brief)"
+    ],
+    "total_artifacts_inventoried": 74,
+    "provenance_distribution": {
+      "SOURCE_PRESERVED_TRUTH": 20,
+      "CODE_RESOLVED_CURRENT_TRUTH": 18,
+      "SYNTHESIZED_CANON": 32,
+      "INFERRED_PROFESSIONAL_GAP": 1,
+      "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED": 2,
+      "IMPLEMENTATION_DEBT": 0
+    },
+    "provenance_total_check": 73,
+    "provenance_note": "1 artifact (preflight) counted separately in phase_14_6b_artifacts section. Total matches: 73 + 1 = 74."
+  },
+
+  "key_divergences": {
+    "code_source_topology": {
+      "github_main": "296 files, main branch, Replit Agent authored",
+      "beast_clone": "271 files, same main branch, aligned",
+      "divergence": "NONE -- GitHub main IS the single code source. No feature branch divergence exists for CreatorOS.",
+      "comparison_to_eos": "EOS has 401-file divergence between GitHub main (202 files) and Beast feature/company-system (603 files). CreatorOS has zero code divergence."
+    },
+    "auth_state": {
+      "current": "Passport.js (BROKEN: comparePasswords returns true for ALL passwords)",
+      "target": "Clerk",
+      "severity": "CRITICAL -- P0 security vulnerability",
+      "comparison_to_eos": "Same Passport.js vulnerability on GitHub main. But EOS Beast branch already has Clerk migration in progress. CreatorOS has no Clerk migration started."
+    },
+    "docs_vs_code_contradictions": [
+      {
+        "topic": "Auth provider",
+        "doc_says": "Firebase (Section 6.1) OR Clerk/NextAuth (Build Guide) OR Supabase Auth (Tech Architecture)",
+        "code_has": "Passport.js (local strategy, broken)",
+        "operator_says": "Clerk",
+        "resolution": "Clerk is canonical target per operator correction OC-COS-009"
+      },
+      {
+        "topic": "Backend framework",
+        "doc_says": "NestJS (Tech Architecture) OR Express (Build Guide)",
+        "code_has": "Express",
+        "resolution": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED -- code uses Express, doc mentions NestJS"
+      },
+      {
+        "topic": "ORM",
+        "doc_says": "Drizzle or Prisma (mentioned in different sections)",
+        "code_has": "Drizzle ORM 0.39",
+        "resolution": "Code resolves: Drizzle is current truth"
+      },
+      {
+        "topic": "MVP scope",
+        "doc_says": "3 conflicting definitions: (1) original excludes courses/marketplace/payments, (2) Copy of MVP includes them, (3) a third variant exists",
+        "code_has": "Marketplace and products partially implemented, courses not implemented",
+        "resolution": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED -- 3 conflicting MVP scopes, operator must decide"
+      },
+      {
+        "topic": "Timeline",
+        "doc_says": "5-phase over 2 years OR 13 phases OR 7.4 weeks MVP",
+        "resolution": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED -- 3 conflicting timelines"
+      },
+      {
+        "topic": "DB tables",
+        "doc_says": "Varying schema definitions with different detail levels",
+        "code_has": "20 tables via Drizzle ORM in shared/schema.ts",
+        "resolution": "Code resolves: 20 tables is current truth"
+      },
+      {
+        "topic": "API endpoints",
+        "doc_says": "Two different endpoint structures in different doc sections",
+        "code_has": "89 routes in routes.ts god file",
+        "resolution": "Code resolves: 89 routes is current truth"
+      },
+      {
+        "topic": "Desired screens vs implemented pages",
+        "doc_says": "28 screens",
+        "code_has": "16 pages",
+        "gap": 12,
+        "resolution": "IMPLEMENTATION_DEBT -- 12 screens exist in desired state but not in code"
+      }
+    ],
+    "desired_vs_implemented": {
+      "modules_desired": 16,
+      "modules_partially_implemented": 10,
+      "screens_desired": 28,
+      "pages_implemented": 16,
+      "screen_gap": 12,
+      "data_concepts_desired": 33,
+      "tables_implemented": 20,
+      "table_gap": 13,
+      "product_types_desired": 10,
+      "product_types_in_schema": 1,
+      "product_type_note": "Schema has a generic 'products' table but no typed product_type enum covering all 10 types"
+    }
+  },
+
+  "open_questions": [
+    {
+      "question_id": "OQ-COS-001",
+      "question": "Which of the 3 conflicting MVP scope definitions is canonical? (1) Original excludes courses/marketplace/payments, (2) Copy of MVP includes them, (3) third variant with different boundaries.",
+      "source": "Phase 14.4 desired state canon, contradictions[0]",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-COS-002",
+      "question": "Backend framework: stick with Express (current code) or migrate to NestJS (mentioned in Tech Architecture doc section)?",
+      "source": "Phase 14.4 desired state canon, contradictions[4]",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-COS-003",
+      "question": "Content aggregation: pull actual content from other platforms via API, or only show content posted through CreatorOS?",
+      "source": "Phase 14.4 desired state canon, open_questions[0]",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-COS-004",
+      "question": "Free tier limits: how to balance adoption vs cannibalization of paid tiers?",
+      "source": "Phase 14.4 desired state canon, open_questions[1]",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-COS-005",
+      "question": "Marketplace curation: fully open or quality review/approval process?",
+      "source": "Phase 14.4 desired state canon, open_questions[2]",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-COS-006",
+      "question": "Mobile priority: iOS-first, Android-first, or simultaneous launch?",
+      "source": "Phase 14.4 desired state canon, open_questions[3]",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-COS-007",
+      "question": "White-label: allow custom branding/domains for Business tier ($79/mo)?",
+      "source": "Phase 14.4 desired state canon, open_questions[4]",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-COS-008",
+      "question": "Backend hosting: Fly.io vs Render vs Railway?",
+      "source": "Phase 14.4 desired state canon, open_questions[7]",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-COS-009",
+      "question": "Feed algorithm: when to introduce algorithmic ranking vs pure chronological?",
+      "source": "Phase 14.4 desired state canon, open_questions[9]",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-COS-010",
+      "question": "Live features priority: live streaming vs recorded content first?",
+      "source": "Phase 14.4 desired state canon, open_questions[10]",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-COS-011",
+      "question": "Stitch UI inventory: which of the 90 design reference files maps to which UI component? Inventory needed before UI build.",
+      "source": "Phase 14.6B operator corrections",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-COS-012",
+      "question": "God file splitting strategy: split by domain (posts, products, communities, messaging, etc.) or by HTTP method? Needed before parallel development.",
+      "source": "Phase 14.6B operator corrections",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  ],
+
+  "key_differences_from_eos_source_inventory": {
+    "source_topology": "SIMPLER -- one codebase (GitHub main = Beast clone) vs EOS two divergent codebases requiring promotion decision",
+    "no_branch_promotion_needed": "CreatorOS has NO feature branch on Beast. GitHub main IS the single code source. No DEC-145-001 equivalent decision needed.",
+    "smaller_projection": "CreatorOS UMH projection is 8 files / 1099 lines vs EOS 31 files / 5699 lines (81% smaller). No agents, views, workflows, or entity model defined.",
+    "no_saas_layer": "No saas/ directory for CreatorOS in OS repo. All SaaS code is in standalone repo.",
+    "more_doc_contradictions": "8 contradictions (auth x3, MVP scope x3, backend framework x2, ORM x2, timeline x3, API x2, DB x2, tech stack x4) vs EOS which has fewer internal doc contradictions.",
+    "same_auth_vulnerability": "Same Passport.js broken auth. But EOS Beast branch has Clerk migration in progress; CreatorOS has none.",
+    "different_owner": "CreatorOS owned by Empyrean Studio. EOS owned by OST.",
+    "different_design_language": "X/Twitter minimalism (social platform) vs EOS executive command center (business cockpit).",
+    "no_operator_corrections_on_hierarchy": "EOS had corrections on entity hierarchy (Operator->Portfolio->Entities). CreatorOS hierarchy (User->CreatorAccount->Business->Product->Order->Entitlement) was established in this phase directly.",
+    "fewer_umh_artifacts": "12 CreatorOS-related UMH artifacts vs 30 for EOS. CreatorOS has less existing integration work."
+  }
+}

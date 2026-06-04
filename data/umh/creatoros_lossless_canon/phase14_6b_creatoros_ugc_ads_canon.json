@@ -1,0 +1,1302 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "UGC campaign management and self-serve ads platform: campaign lifecycle, creator/brand experiences, ad formats, targeting, bidding, analytics, payment infrastructure, content rights, and competitive positioning",
+
+  "sources": [
+    "phase14_6b_creatoros_current_implementation_truth.json (implementation status: NOT IMPLEMENTED for both modules)",
+    "phase14_6b_creatoros_data_ontology.json (desired schema: ugc_campaigns, ugc_applications, ugc_deliverables, ad_campaigns, ads — all INFERRED_PROFESSIONAL_GAP)",
+    "phase14_6b_creatoros_product_types_commerce_canon.json (ugc_campaign product type, payment variant: no buyer checkout, Stripe Connect transfer)",
+    "phase14_6b_creatoros_lossless_product_canon.md (Module 8: UGC Campaigns, Module 9: Ads Platform — both NOT IMPLEMENTED)",
+    "phase14_6b_creatoros_user_journeys_onboarding.json (UGC Creator and Advertiser personas, journey stages)",
+    "phase14_6b_creatoros_design_identity_canon.json (X/Twitter minimalism, clean/fast/functional)",
+    "phase14_6b_creatoros_versions_contradictions_matrix.json (UGC/Ads as implementation debt, no contradictions — purely unbuilt)",
+    "CreatorOS_1NIZXMZR.json (Google Doc PRD: modules 8 and 9, screen 25: UGC Campaign Dashboard)"
+  ],
+
+  "ugc_model": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Full UGC campaign system: brands post campaign briefs, UGC creators apply, submit deliverables, receive payment on approval. This is module 8 of 16 in the PRD. Zero implementation exists.",
+    "implementation_status": "NOT_IMPLEMENTED",
+    "implementation_note": "No UGC-related pages, components, schema tables, API routes, or backend logic. Entirely greenfield.",
+
+    "campaign_lifecycle": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "The five-stage UGC campaign lifecycle from creation to completion",
+      "stages": [
+        {
+          "stage": "create",
+          "actor": "brand",
+          "description": "Brand creates campaign brief with title, description, requirements, budget, per-creator pay, max creators, deadline, target platforms, and style guide. Campaign starts in draft status.",
+          "inputs": ["campaign_fields"],
+          "outputs": ["ugc_campaign record with status=draft"],
+          "rules": [
+            "Campaign must have at least one target platform",
+            "per_creator_pay_cents must be > 0",
+            "budget_cents must be >= per_creator_pay_cents * max_creators",
+            "deadline must be at least 7 days in the future for active campaigns",
+            "Business must have Stripe Connect account connected before activating"
+          ]
+        },
+        {
+          "stage": "recruit",
+          "actor": "platform + brand",
+          "description": "Campaign published to UGC marketplace. UGC creators browse, filter, and apply with pitch and portfolio. Brand reviews applicants and accepts/rejects.",
+          "inputs": ["campaign brief (active status)", "creator applications"],
+          "outputs": ["ugc_application records with status transitions: pending -> accepted | rejected"],
+          "rules": [
+            "Applications close on application_deadline or when max_creators accepted",
+            "Brand can view creator profile, portfolio, and past campaign ratings before deciding",
+            "Rejected creators receive notification with optional feedback",
+            "Accepted creators receive brief details and any product shipping info"
+          ]
+        },
+        {
+          "stage": "review",
+          "actor": "brand",
+          "description": "Accepted UGC creators produce and submit content deliverables. Brand reviews each submission against brief requirements.",
+          "inputs": ["media files (video, image, text)", "caption/copy", "platform-ready formatting"],
+          "outputs": ["ugc_deliverable records with status transitions: submitted -> approved | rejected | revision_requested"],
+          "rules": [
+            "Creator can submit multiple deliverables per campaign (up to deliverable_count limit)",
+            "Each deliverable is reviewed independently",
+            "Brand can request revision with specific feedback text",
+            "Maximum 3 revision requests per deliverable before auto-escalation",
+            "Deliverables must be submitted before campaign deadline"
+          ]
+        },
+        {
+          "stage": "approve",
+          "actor": "brand",
+          "description": "Brand approves final deliverables. Approved content becomes available for brand use under agreed content rights.",
+          "inputs": ["reviewed deliverables"],
+          "outputs": ["deliverable status=approved", "content_rights_granted flag", "payment trigger"],
+          "rules": [
+            "Approval is per-deliverable, not per-creator",
+            "Approval triggers payment processing automatically",
+            "Brand receives download links for approved content",
+            "Content rights transfer per the campaign's rights agreement (see content_rights section)"
+          ]
+        },
+        {
+          "stage": "pay",
+          "actor": "platform (automated)",
+          "description": "Payment released to UGC creator's connected Stripe account via Stripe Connect transfer. Platform takes service fee.",
+          "inputs": ["approved deliverable", "creator Stripe Connect account"],
+          "outputs": ["ugc_payment record", "Stripe transfer executed", "creator earnings updated"],
+          "rules": [
+            "Payment is per approved deliverable at per_deliverable_rate_cents",
+            "Performance bonus added if bonus_performance_rate_cents set and conditions met",
+            "Platform service fee deducted before transfer (rate TBD — see open_questions)",
+            "Payment processed within 48 hours of approval",
+            "Creator must have connected Stripe Express account to receive payment"
+          ]
+        }
+      ]
+    },
+
+    "campaign_fields": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "All fields for a UGC campaign, combining data ontology schema with product type canon",
+      "core": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "business_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> businesses.id"]},
+        {"name": "creator_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"], "note": "The brand user who created the campaign"},
+        {"name": "title", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "description", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+        {"name": "brand_name", "type": "text", "nullable": false, "constraints": ["NOT NULL"], "note": "Display name of the brand for marketplace listing"},
+        {"name": "brand_logo_url", "type": "text", "nullable": true, "note": "Brand logo shown on campaign card"},
+        {"name": "cover_image_url", "type": "text", "nullable": true, "note": "Campaign hero image for marketplace listing"}
+      ],
+      "campaign_details": [
+        {"name": "campaign_type", "type": "text", "nullable": false, "default": "'ugc_video'", "note": "ugc_video | ugc_photo | ugc_review | ugc_tutorial | ugc_unboxing | ugc_testimonial"},
+        {"name": "target_platforms", "type": "json", "nullable": false, "note": "Array of platforms: ['tiktok', 'instagram_reels', 'youtube_shorts', 'instagram_stories', 'youtube']"},
+        {"name": "content_requirements", "type": "json", "nullable": true, "note": "Structured brief: talking points, dos/donts, hashtags, mentions, music requirements"},
+        {"name": "style_guide_url", "type": "text", "nullable": true, "note": "Link to brand style guide PDF or doc"},
+        {"name": "product_shipped", "type": "boolean", "nullable": false, "default": "false", "note": "Whether brand ships physical product to creator"},
+        {"name": "product_details", "type": "json", "nullable": true, "note": "Product name, description, shipping requirements if product_shipped=true"},
+        {"name": "deliverable_count", "type": "integer", "nullable": false, "default": "1", "note": "Number of deliverables expected per accepted creator"},
+        {"name": "deliverable_specs", "type": "json", "nullable": true, "note": "Technical specs: aspect_ratio, min_duration_seconds, max_duration_seconds, resolution, format"}
+      ],
+      "budget_and_pay": [
+        {"name": "budget_cents", "type": "integer", "nullable": false, "note": "Total campaign budget in cents"},
+        {"name": "per_creator_pay_cents", "type": "integer", "nullable": false, "note": "Flat rate paid per creator for completing all deliverables"},
+        {"name": "per_deliverable_rate_cents", "type": "integer", "nullable": false, "note": "Rate per individual approved deliverable"},
+        {"name": "bonus_performance_rate_cents", "type": "integer", "nullable": true, "note": "Optional bonus per deliverable if performance metrics met"},
+        {"name": "bonus_conditions", "type": "json", "nullable": true, "note": "Conditions for bonus: minimum views, engagement rate threshold, etc."}
+      ],
+      "recruitment": [
+        {"name": "max_creators", "type": "integer", "nullable": false, "note": "Maximum number of creators to accept"},
+        {"name": "application_deadline", "type": "timestamp", "nullable": true, "note": "Cutoff for new applications. Null = open until max_creators reached."},
+        {"name": "creator_requirements", "type": "json", "nullable": true, "note": "Minimum follower count, niche tags, location, language, past campaign rating"},
+        {"name": "niche_tags", "type": "json", "nullable": true, "note": "Array of niche tags for discoverability: ['fitness', 'skincare', 'tech']"},
+        {"name": "age_range", "type": "json", "nullable": true, "note": "Preferred creator age range: {min: 18, max: 35}"}
+      ],
+      "timeline": [
+        {"name": "deadline", "type": "timestamp", "nullable": true, "note": "Final deadline for all deliverable submissions"},
+        {"name": "start_date", "type": "timestamp", "nullable": true, "note": "When campaign goes live in marketplace"},
+        {"name": "estimated_duration_days", "type": "integer", "nullable": true, "note": "Expected campaign duration for planning"}
+      ],
+      "status_and_meta": [
+        {"name": "status", "type": "text", "nullable": false, "default": "'draft'", "note": "draft | active | paused | completed | cancelled"},
+        {"name": "visibility", "type": "text", "nullable": false, "default": "'public'", "note": "public (marketplace) | invite_only (direct invite to specific creators)"},
+        {"name": "accepted_count", "type": "integer", "nullable": false, "default": "0", "note": "Denormalized count of accepted applications"},
+        {"name": "completed_deliverable_count", "type": "integer", "nullable": false, "default": "0", "note": "Denormalized count of approved deliverables"},
+        {"name": "total_spent_cents", "type": "integer", "nullable": false, "default": "0", "note": "Denormalized total payments made"},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ],
+      "indexes": [
+        {"name": "ugc_campaign_business_idx", "type": "INDEX", "columns": ["business_id"]},
+        {"name": "ugc_campaign_status_idx", "type": "INDEX", "columns": ["status"]},
+        {"name": "ugc_campaign_niche_idx", "type": "GIN", "columns": ["niche_tags"], "note": "GIN index for JSONB niche tag filtering"}
+      ]
+    },
+
+    "application_model": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "UGC creator applications to campaigns. Junction between creators and campaigns with portfolio, pitch, and review workflow.",
+      "fields": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "campaign_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> ugc_campaigns.id ON DELETE CASCADE"]},
+        {"name": "creator_user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "pitch", "type": "text", "nullable": true, "note": "Creator's pitch explaining why they are a good fit"},
+        {"name": "portfolio_urls", "type": "json", "nullable": true, "note": "Array of URLs to past work samples"},
+        {"name": "portfolio_media", "type": "json", "nullable": true, "note": "Array of uploaded media samples: [{url, type, thumbnail_url}]"},
+        {"name": "proposed_concept", "type": "text", "nullable": true, "note": "Creator's proposed content concept/angle"},
+        {"name": "social_profiles", "type": "json", "nullable": true, "note": "Relevant social handles: {tiktok, instagram, youtube}"},
+        {"name": "follower_count", "type": "integer", "nullable": true, "note": "Self-reported or verified follower count on primary platform"},
+        {"name": "status", "type": "text", "nullable": false, "default": "'pending'", "note": "pending | accepted | rejected | withdrawn"},
+        {"name": "rejection_reason", "type": "text", "nullable": true, "note": "Optional feedback when rejecting"},
+        {"name": "shipping_address", "type": "json", "nullable": true, "note": "Shipping address if campaign.product_shipped=true, collected on acceptance"},
+        {"name": "applied_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "reviewed_at", "type": "timestamp", "nullable": true}
+      ],
+      "constraints": [
+        {"type": "UNIQUE", "columns": ["campaign_id", "creator_user_id"], "note": "One application per creator per campaign"},
+        {"type": "INDEX", "columns": ["campaign_id", "status"], "note": "Fast lookup of pending applications by campaign"}
+      ],
+      "status_transitions": {
+        "pending": ["accepted", "rejected", "withdrawn"],
+        "accepted": [],
+        "rejected": [],
+        "withdrawn": []
+      }
+    },
+
+    "deliverable_model": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Content deliverables submitted by accepted UGC creators. Each deliverable is independently reviewed and approved, triggering payment on approval.",
+      "fields": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "application_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> ugc_applications.id ON DELETE CASCADE"]},
+        {"name": "campaign_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> ugc_campaigns.id"], "note": "Denormalized for query performance — derived from application.campaign_id"},
+        {"name": "creator_user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"], "note": "Denormalized for query performance"},
+        {"name": "media_url", "type": "text", "nullable": false, "note": "Primary media file URL (video, image)"},
+        {"name": "media_type", "type": "text", "nullable": false, "note": "video | image | text"},
+        {"name": "thumbnail_url", "type": "text", "nullable": true, "note": "Auto-generated or uploaded thumbnail"},
+        {"name": "media_duration_seconds", "type": "integer", "nullable": true, "note": "Duration for video deliverables"},
+        {"name": "media_resolution", "type": "text", "nullable": true, "note": "Resolution string: 1080x1920, 1920x1080, etc."},
+        {"name": "caption", "type": "text", "nullable": true, "note": "Accompanying caption/copy for the content"},
+        {"name": "hashtags", "type": "json", "nullable": true, "note": "Array of hashtags used in the content"},
+        {"name": "target_platform", "type": "text", "nullable": true, "note": "Which platform this deliverable is formatted for"},
+        {"name": "status", "type": "text", "nullable": false, "default": "'submitted'", "note": "submitted | approved | rejected | revision_requested"},
+        {"name": "feedback", "type": "text", "nullable": true, "note": "Brand feedback on submission — required for rejection or revision request"},
+        {"name": "revision_count", "type": "integer", "nullable": false, "default": "0", "note": "Number of revisions requested. Max 3 before escalation."},
+        {"name": "version", "type": "integer", "nullable": false, "default": "1", "note": "Deliverable version — incremented on resubmission after revision"},
+        {"name": "submitted_at", "type": "timestamp", "nullable": false, "default": "now()"},
+        {"name": "reviewed_at", "type": "timestamp", "nullable": true},
+        {"name": "approved_at", "type": "timestamp", "nullable": true}
+      ],
+      "constraints": [
+        {"type": "INDEX", "columns": ["application_id"]},
+        {"type": "INDEX", "columns": ["campaign_id", "status"], "note": "Fast lookup of pending deliverables by campaign"}
+      ],
+      "status_transitions": {
+        "submitted": ["approved", "rejected", "revision_requested"],
+        "revision_requested": ["submitted"],
+        "approved": [],
+        "rejected": []
+      }
+    },
+
+    "payment_model": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "UGC payment tracking. Each approved deliverable triggers a payment via Stripe Connect transfer. No buyer checkout — brand funds campaign upfront, platform releases to creator on approval.",
+      "fields": [
+        {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+        {"name": "deliverable_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> ugc_deliverables.id", "UNIQUE"], "note": "One payment per deliverable"},
+        {"name": "campaign_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> ugc_campaigns.id"]},
+        {"name": "creator_user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "brand_user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+        {"name": "amount_cents", "type": "integer", "nullable": false, "note": "Base payment amount (per_deliverable_rate_cents from campaign)"},
+        {"name": "bonus_cents", "type": "integer", "nullable": false, "default": "0", "note": "Performance bonus if conditions met"},
+        {"name": "platform_fee_cents", "type": "integer", "nullable": false, "note": "Platform service fee deducted"},
+        {"name": "net_creator_payout_cents", "type": "integer", "nullable": false, "note": "amount_cents + bonus_cents - platform_fee_cents"},
+        {"name": "stripe_transfer_id", "type": "text", "nullable": true, "note": "Stripe Connect transfer ID once executed"},
+        {"name": "stripe_payment_intent_id", "type": "text", "nullable": true, "note": "Original payment intent from brand's campaign funding"},
+        {"name": "status", "type": "text", "nullable": false, "default": "'pending'", "note": "pending | processing | completed | failed"},
+        {"name": "failure_reason", "type": "text", "nullable": true, "note": "Stripe error message on failure"},
+        {"name": "paid_at", "type": "timestamp", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+      ],
+      "payment_flow": {
+        "description": "UGC payment is NOT a buyer checkout. Brand funds campaign upfront via Stripe. Platform holds funds. On deliverable approval, platform transfers per-deliverable rate to creator via Stripe Connect.",
+        "steps": [
+          {"step": 1, "action": "Brand creates campaign and funds total budget via Stripe Payment Intent or Charge"},
+          {"step": 2, "action": "Platform holds campaign funds in Stripe Connect balance"},
+          {"step": 3, "action": "On each deliverable approval, platform creates Stripe Transfer to creator's Connected Account"},
+          {"step": 4, "action": "Platform fee deducted at transfer time. Net amount sent to creator."},
+          {"step": 5, "action": "If campaign cancelled with remaining budget, unused funds refunded to brand minus platform's earned fees"}
+        ],
+        "provenance_note": "SOURCE_PRESERVED_TRUTH — product types commerce canon explicitly states: 'No buyer checkout. Campaign posted by brand. UGC creators apply. Payment released on deliverable approval via Stripe Connect transfer.'"
+      }
+    }
+  },
+
+  "ugc_creator_experience": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "The UGC creator's end-to-end experience: from discovering campaigns to building reputation. Synthesized from user journeys persona (UGC Creator) and campaign lifecycle.",
+
+    "persona": {
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "source": "phase14_6b_creatoros_user_journeys_onboarding.json",
+      "type": "ugc_creator",
+      "description": "Creates content on behalf of brands in response to campaign briefs. Not building their own audience — making content for others. Paid per deliverable. Overlaps with Emerging Creator tier but motivated by brand campaign income.",
+      "goals": [
+        "Find well-paying UGC campaign briefs that match their niche and style",
+        "Apply to campaigns quickly with a strong portfolio",
+        "Submit deliverables efficiently and get paid fast",
+        "Build a reputation and track record that unlocks better campaigns"
+      ],
+      "pain_points": [
+        "UGC campaign discovery is fragmented across many platforms and DMs",
+        "Payment terms vary wildly and payment is often delayed",
+        "No centralized portfolio or reputation score across campaigns",
+        "Brief requirements are unclear, leading to revision cycles"
+      ]
+    },
+
+    "discovery": {
+      "description": "UGC marketplace where creators browse and filter available campaign briefs",
+      "screen": "ugc-campaign-dashboard",
+      "route": "/ugc/campaigns",
+      "features": [
+        "Campaign cards showing brand, title, pay rate, deadline, platform targets, niche tags",
+        "Filter by niche/category, pay range, target platform, deadline, product_shipped",
+        "Sort by newest, highest pay, deadline approaching, most applicants",
+        "Search by keyword across title, description, brand name, niche tags",
+        "Save/bookmark campaigns for later application",
+        "Campaign status badges: accepting, closing soon, full"
+      ],
+      "design_note": "X/Twitter minimalism. Campaign cards as clean rows or compact cards. No glassmorphism. Monochrome with accent color for pay rate emphasis."
+    },
+
+    "application": {
+      "description": "Creator applies to campaign with pitch, portfolio, and proposed concept",
+      "features": [
+        "One-click apply with saved profile (prefill portfolio and social handles)",
+        "Custom pitch text field with character limit",
+        "Portfolio media upload or URL paste (up to 5 samples)",
+        "Proposed content concept/angle text field",
+        "Application confirmation with estimated timeline",
+        "Application status tracking in creator dashboard"
+      ],
+      "rules": [
+        "Creator must have completed UGC profile setup (portfolio, social handles)",
+        "Creator cannot apply to same campaign twice",
+        "Creator can withdraw application before acceptance",
+        "Application auto-expires if campaign deadline passes without review"
+      ]
+    },
+
+    "submission": {
+      "description": "Accepted creator produces and submits content deliverables",
+      "features": [
+        "Campaign workspace with brief details, brand guidelines, deliverable specs",
+        "Media upload with drag-and-drop and progress indicator",
+        "Caption/copy composition with platform-specific formatting preview",
+        "Draft save before final submission",
+        "Revision workflow: receive feedback, resubmit updated version",
+        "Version history showing all submissions and feedback",
+        "Deadline countdown and reminder notifications"
+      ],
+      "integration_note": "Future: integration with Editing Studio (module 7) for in-platform video editing before submission"
+    },
+
+    "payment": {
+      "description": "Creator tracks earnings, receives payments, and views payment history",
+      "features": [
+        "Earnings dashboard with total earned, pending, and available balance",
+        "Per-campaign earnings breakdown",
+        "Payment history with Stripe transfer IDs and timestamps",
+        "Stripe Connect account setup wizard",
+        "Instant payout option (1% fee) vs standard weekly payout",
+        "Tax document generation (1099 for US creators above threshold)"
+      ]
+    },
+
+    "reputation": {
+      "description": "Creator builds a rating and track record that unlocks better campaigns",
+      "features": [
+        "Campaign completion rating (1-5 stars from brand after campaign)",
+        "Completion rate (completed/accepted campaigns percentage)",
+        "Response time metric (average time from acceptance to first deliverable)",
+        "Revision rate metric (lower is better)",
+        "Portfolio showcase with approved deliverables (with brand permission)",
+        "Badges: 'Top Creator', 'Fast Turnaround', 'Zero Revisions', 'Premium Creator'",
+        "Invite-only campaign access for creators above rating threshold"
+      ],
+      "open_question": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED — Should reputation be visible to other creators or only to brands? Public leaderboard vs private rating."
+    }
+  },
+
+  "brand_experience": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "The brand/business experience for creating and managing UGC campaigns",
+
+    "campaign_creation": {
+      "description": "Multi-step campaign creation wizard for brands",
+      "screen": "ugc-campaign-create",
+      "route": "/ugc/campaigns/new",
+      "steps": [
+        {
+          "step": 1,
+          "name": "basics",
+          "description": "Campaign title, description, brand name, cover image",
+          "fields": ["title", "description", "brand_name", "brand_logo_url", "cover_image_url"]
+        },
+        {
+          "step": 2,
+          "name": "brief",
+          "description": "Content requirements, target platforms, campaign type, style guide, product shipping",
+          "fields": ["campaign_type", "target_platforms", "content_requirements", "style_guide_url", "product_shipped", "product_details", "deliverable_count", "deliverable_specs"]
+        },
+        {
+          "step": 3,
+          "name": "creators",
+          "description": "Creator requirements, max creators, niche targeting, application deadline",
+          "fields": ["max_creators", "creator_requirements", "niche_tags", "age_range", "application_deadline", "visibility"]
+        },
+        {
+          "step": 4,
+          "name": "budget",
+          "description": "Total budget, per-creator pay, per-deliverable rate, optional performance bonus",
+          "fields": ["budget_cents", "per_creator_pay_cents", "per_deliverable_rate_cents", "bonus_performance_rate_cents", "bonus_conditions"]
+        },
+        {
+          "step": 5,
+          "name": "timeline",
+          "description": "Start date, deadline, estimated duration",
+          "fields": ["start_date", "deadline", "estimated_duration_days"]
+        },
+        {
+          "step": 6,
+          "name": "review_and_fund",
+          "description": "Review campaign summary, fund campaign budget via Stripe, publish or save as draft",
+          "fields": [],
+          "actions": ["save_draft", "fund_and_publish"]
+        }
+      ]
+    },
+
+    "applicant_review": {
+      "description": "Brand reviews and manages creator applications",
+      "features": [
+        "Application inbox with filter by status (pending, accepted, rejected)",
+        "Creator profile preview: portfolio, social handles, follower count, reputation rating",
+        "Batch accept/reject for high-volume campaigns",
+        "Accept with personalized message",
+        "Reject with optional feedback",
+        "Applicant comparison view (side-by-side portfolio comparison)",
+        "Application deadline management (extend or close early)"
+      ]
+    },
+
+    "content_approval": {
+      "description": "Brand reviews submitted deliverables and manages approval workflow",
+      "features": [
+        "Deliverable inbox with filter by status (submitted, revision_requested, approved, rejected)",
+        "Full-screen media preview for video and image deliverables",
+        "Side-by-side brief vs deliverable comparison",
+        "Approve with one click — triggers automatic payment",
+        "Request revision with specific feedback (annotate on video timeline or image regions)",
+        "Reject with required reason",
+        "Download approved deliverables individually or as batch zip",
+        "Content rights confirmation dialog on approval"
+      ]
+    },
+
+    "campaign_analytics": {
+      "description": "Brand dashboard for campaign performance tracking",
+      "features": [
+        "Campaign overview: status, budget spent/remaining, creators accepted, deliverables completed",
+        "Per-creator performance: deliverables submitted, approval rate, revision count, payment status",
+        "Timeline visualization: campaign milestones and actual progress",
+        "Content performance tracking (if UGC published with tracking links): views, engagement, conversions",
+        "ROI calculation: spend vs tracked conversions/engagement",
+        "Export campaign report as CSV or PDF"
+      ]
+    }
+  },
+
+  "content_rights": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "description": "Content rights management for UGC deliverables. Industry standard is that brands receive usage rights on approval, but specifics vary. This section codifies the rights model.",
+    "open_question": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED — What content rights model does CreatorOS enforce? Options below.",
+
+    "options": [
+      {
+        "option": "full_buyout",
+        "description": "Brand owns all rights to approved content. Creator retains no usage rights. Standard for most UGC platforms.",
+        "pros": ["Simple, clear. Brands expect this.", "No ongoing rights management needed."],
+        "cons": ["Creators may push back — limits portfolio use.", "Higher pay expectations."]
+      },
+      {
+        "option": "licensed_usage",
+        "description": "Brand receives perpetual license to use content in marketing. Creator retains ownership and can display in portfolio. Platform specifies allowed usage types per campaign.",
+        "pros": ["Creator-friendly. Portfolio value retained.", "More competitive for creator recruitment."],
+        "cons": ["More complex. Need license terms per campaign.", "Brand may want exclusivity."]
+      },
+      {
+        "option": "per_campaign_rights",
+        "description": "Rights terms set by brand per campaign. Campaign brief includes rights_type field: full_buyout | licensed_perpetual | licensed_time_limited | portfolio_only.",
+        "pros": ["Flexible. Brands choose based on needs.", "Different campaigns can have different terms."],
+        "cons": ["Complexity. Creators must read each campaign's terms.", "Dispute surface area increases."]
+      }
+    ],
+
+    "recommended": "per_campaign_rights",
+    "recommended_note": "Per-campaign rights gives maximum flexibility. Campaign brief includes rights_type and rights_details fields. Platform provides standard templates for each rights type. Creator sees rights terms clearly before applying.",
+
+    "rights_fields": [
+      {"name": "rights_type", "type": "text", "on": "ugc_campaigns", "note": "full_buyout | licensed_perpetual | licensed_time_limited | portfolio_only"},
+      {"name": "rights_details", "type": "text", "on": "ugc_campaigns", "note": "Human-readable rights terms displayed to creators"},
+      {"name": "rights_duration_days", "type": "integer", "on": "ugc_campaigns", "nullable": true, "note": "For licensed_time_limited: number of days brand can use content"},
+      {"name": "rights_acknowledged", "type": "boolean", "on": "ugc_applications", "note": "Creator acknowledges content rights before applying"},
+      {"name": "content_rights_granted", "type": "boolean", "on": "ugc_deliverables", "default": "false", "note": "Set to true on brand approval — rights transfer confirmed"}
+    ]
+  },
+
+  "ads_platform": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Self-serve advertising platform (YouTube/Meta-like). Module 9 of 16 in PRD. Enables advertisers to reach CreatorOS audiences with targeted paid campaigns. Zero implementation exists.",
+    "implementation_status": "NOT_IMPLEMENTED",
+    "implementation_note": "No ads-related pages, components, schema tables, API routes, or backend logic. Entirely greenfield. Separate from UGC campaigns — ads are paid media, UGC is content creation.",
+
+    "relationship_to_ugc": {
+      "description": "UGC and Ads are separate but complementary modules. UGC = brands pay creators to make content. Ads = advertisers pay the platform to show content to audiences. A brand might run a UGC campaign to get content, then use that content in ad campaigns.",
+      "overlap": "An advertiser persona may also be a UGC campaign brand. The same business_id may have both UGC campaigns and ad campaigns. UGC-sourced content can be used as ad creative."
+    },
+
+    "campaign_model": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Ad campaign structure: campaign -> ad sets (targeting groups) -> individual ads (creatives)",
+
+      "campaign_fields": {
+        "source": "phase14_6b_creatoros_data_ontology.json (ad_campaigns table)",
+        "fields": [
+          {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+          {"name": "advertiser_user_id", "type": "integer", "nullable": false, "constraints": ["NOT NULL", "FK -> users.id"]},
+          {"name": "business_id", "type": "uuid", "nullable": true, "constraints": ["FK -> businesses.id"]},
+          {"name": "name", "type": "text", "nullable": false, "constraints": ["NOT NULL"]},
+          {"name": "objective", "type": "text", "nullable": false, "note": "awareness | engagement | conversions | traffic | app_installs | video_views"},
+          {"name": "budget_cents", "type": "integer", "nullable": false, "note": "Total campaign budget"},
+          {"name": "daily_budget_cents", "type": "integer", "nullable": true, "note": "Daily spend cap. If null, budget allocated by platform optimization."},
+          {"name": "bid_strategy", "type": "text", "nullable": false, "default": "'auto'", "note": "auto | manual_cpc | manual_cpm | target_cpa"},
+          {"name": "manual_bid_cents", "type": "integer", "nullable": true, "note": "Manual bid amount when bid_strategy is manual_cpc or manual_cpm"},
+          {"name": "status", "type": "text", "nullable": false, "default": "'draft'", "note": "draft | pending_review | active | paused | completed | rejected | archived"},
+          {"name": "start_date", "type": "timestamp", "nullable": true},
+          {"name": "end_date", "type": "timestamp", "nullable": true},
+          {"name": "total_spend_cents", "type": "integer", "nullable": false, "default": "0"},
+          {"name": "total_impressions", "type": "integer", "nullable": false, "default": "0"},
+          {"name": "total_clicks", "type": "integer", "nullable": false, "default": "0"},
+          {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"},
+          {"name": "updated_at", "type": "timestamp", "nullable": false, "default": "now()"}
+        ],
+        "status_transitions": {
+          "draft": ["pending_review", "archived"],
+          "pending_review": ["active", "rejected"],
+          "active": ["paused", "completed"],
+          "paused": ["active", "completed", "archived"],
+          "completed": ["archived"],
+          "rejected": ["draft"]
+        }
+      },
+
+      "ad_set_fields": {
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "description": "Ad sets group targeting and budget within a campaign. Standard in Meta/Google ads architecture.",
+        "note": "Not in data ontology. Professional gap — campaign -> ad_set -> ad is the industry standard three-tier structure.",
+        "fields": [
+          {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+          {"name": "campaign_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> ad_campaigns.id ON DELETE CASCADE"]},
+          {"name": "name", "type": "text", "nullable": false},
+          {"name": "targeting", "type": "json", "nullable": false, "note": "Structured targeting object (see targeting section)"},
+          {"name": "placement", "type": "json", "nullable": false, "note": "Array of ad placement locations: ['feed', 'stories', 'community_sidebar', 'course_interstitial', 'search_results']"},
+          {"name": "daily_budget_cents", "type": "integer", "nullable": true, "note": "Ad set level daily budget (overrides campaign level)"},
+          {"name": "schedule", "type": "json", "nullable": true, "note": "Day-parting schedule: which hours/days to run ads"},
+          {"name": "status", "type": "text", "nullable": false, "default": "'active'", "note": "active | paused"},
+          {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+        ]
+      },
+
+      "ad_creative_fields": {
+        "source": "phase14_6b_creatoros_data_ontology.json (ads table)",
+        "fields": [
+          {"name": "id", "type": "uuid", "default": "gen_random_uuid()", "constraints": ["PRIMARY KEY"]},
+          {"name": "ad_set_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> ad_sets.id ON DELETE CASCADE"]},
+          {"name": "campaign_id", "type": "uuid", "nullable": false, "constraints": ["NOT NULL", "FK -> ad_campaigns.id ON DELETE CASCADE"], "note": "Denormalized for query performance"},
+          {"name": "format", "type": "text", "nullable": false, "note": "feed_ad | story_ad | community_sponsorship | course_promotion | product_boost"},
+          {"name": "headline", "type": "text", "nullable": false},
+          {"name": "body", "type": "text", "nullable": true},
+          {"name": "media_url", "type": "text", "nullable": true, "note": "Image or video creative URL"},
+          {"name": "media_type", "type": "text", "nullable": true, "note": "image | video | carousel"},
+          {"name": "carousel_items", "type": "json", "nullable": true, "note": "Array of {image_url, headline, description, cta_url} for carousel format"},
+          {"name": "cta_text", "type": "text", "nullable": true, "note": "Call-to-action button text: Shop Now, Learn More, Sign Up, etc."},
+          {"name": "cta_url", "type": "text", "nullable": true, "note": "Destination URL when CTA clicked"},
+          {"name": "destination_type", "type": "text", "nullable": false, "default": "'external_url'", "note": "external_url | product_page | community | course | creator_profile"},
+          {"name": "destination_id", "type": "uuid", "nullable": true, "note": "Internal CreatorOS entity ID for in-platform destinations"},
+          {"name": "impressions", "type": "integer", "nullable": false, "default": "0"},
+          {"name": "clicks", "type": "integer", "nullable": false, "default": "0"},
+          {"name": "spend_cents", "type": "integer", "nullable": false, "default": "0"},
+          {"name": "conversions", "type": "integer", "nullable": false, "default": "0"},
+          {"name": "review_status", "type": "text", "nullable": false, "default": "'pending'", "note": "pending | approved | rejected"},
+          {"name": "review_rejection_reason", "type": "text", "nullable": true},
+          {"name": "status", "type": "text", "nullable": false, "default": "'active'", "note": "active | paused | rejected"},
+          {"name": "created_at", "type": "timestamp", "nullable": false, "default": "now()"}
+        ]
+      }
+    },
+
+    "targeting": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Audience targeting capabilities for the ads platform. CreatorOS has unique targeting advantages: creator niche data, community membership, course enrollment, product purchase history.",
+
+      "demographic": {
+        "description": "Standard demographic targeting based on user profile data",
+        "criteria": [
+          {"name": "age_range", "type": "range", "note": "Min/max age. Minimum 13 (COPPA compliance)."},
+          {"name": "gender", "type": "multi_select", "values": ["male", "female", "non_binary", "prefer_not_to_say"]},
+          {"name": "location", "type": "geo", "note": "Country, state/region, city, postal code radius"},
+          {"name": "language", "type": "multi_select", "note": "User interface language preference"}
+        ]
+      },
+
+      "interest": {
+        "description": "Interest-based targeting unique to CreatorOS: derived from community membership, course enrollment, content engagement, and product purchases",
+        "criteria": [
+          {"name": "niche_categories", "type": "multi_select", "note": "Creator niche categories the user follows or engages with: fitness, tech, beauty, finance, etc."},
+          {"name": "community_membership", "type": "multi_select", "note": "Target users who are members of specific communities or community categories"},
+          {"name": "course_enrollment", "type": "multi_select", "note": "Target users enrolled in courses by topic/category"},
+          {"name": "product_interests", "type": "multi_select", "note": "Product categories the user has browsed, purchased, or wishlisted"},
+          {"name": "content_engagement", "type": "multi_select", "note": "Content topics the user engages with (likes, comments, shares)"}
+        ],
+        "competitive_advantage": "CreatorOS has first-party data on user interests derived from actual behavior (purchases, enrollments, community participation) rather than inferred from browsing. This is more accurate and privacy-compliant than third-party cookie targeting."
+      },
+
+      "behavioral": {
+        "description": "Behavioral targeting based on user actions within CreatorOS",
+        "criteria": [
+          {"name": "purchase_history", "type": "boolean", "note": "Users who have made a purchase in last N days"},
+          {"name": "purchase_recency_days", "type": "range", "note": "Days since last purchase"},
+          {"name": "purchase_value_range", "type": "range", "note": "Total spend range in cents"},
+          {"name": "engagement_level", "type": "select", "values": ["high", "medium", "low"], "note": "Based on login frequency, content interactions, community activity"},
+          {"name": "creator_follower", "type": "multi_select", "note": "Followers of specific creators — for sponsored content targeting"},
+          {"name": "new_user", "type": "boolean", "note": "Registered in last 30 days"},
+          {"name": "active_subscriber", "type": "boolean", "note": "Has at least one active subscription"}
+        ]
+      },
+
+      "custom_audiences": {
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "description": "Custom audience creation from email lists, website visitors, or lookalikes",
+        "types": [
+          {"type": "email_list", "description": "Upload CSV of email addresses to match against CreatorOS users"},
+          {"type": "website_pixel", "description": "Retarget users who visited advertiser's website (requires pixel installation)"},
+          {"type": "lookalike", "description": "Find users similar to a source audience (customers, high-value purchasers, community members)"},
+          {"type": "engagement", "description": "Users who engaged with advertiser's previous ads or content on CreatorOS"}
+        ],
+        "open_question": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED — Pixel-based retargeting and email list matching have privacy implications (GDPR, CCPA). What level of targeting is acceptable for v1?"
+      }
+    },
+
+    "bidding": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Bidding strategies for ad delivery optimization",
+      "strategies": [
+        {
+          "strategy": "auto",
+          "label": "Automatic (Recommended)",
+          "description": "Platform optimizes bids to maximize results within budget. Best for most advertisers. No manual bid setting required.",
+          "pricing_model": "varied",
+          "note": "Default for new campaigns. Platform sets bids based on competition and predicted performance."
+        },
+        {
+          "strategy": "manual_cpc",
+          "label": "Manual CPC (Cost Per Click)",
+          "description": "Advertiser sets maximum cost per click. Platform optimizes delivery within that CPC cap.",
+          "pricing_model": "CPC",
+          "note": "Best for traffic and conversion campaigns where clicks are the primary goal."
+        },
+        {
+          "strategy": "manual_cpm",
+          "label": "Manual CPM (Cost Per 1,000 Impressions)",
+          "description": "Advertiser sets maximum cost per 1,000 impressions. Platform delivers to maximize reach within CPM cap.",
+          "pricing_model": "CPM",
+          "note": "Best for awareness campaigns where impressions are the primary goal."
+        },
+        {
+          "strategy": "target_cpa",
+          "label": "Target CPA (Cost Per Acquisition)",
+          "description": "Advertiser sets target cost per conversion. Platform optimizes to hit that CPA. Requires conversion tracking setup.",
+          "pricing_model": "CPA",
+          "note": "Best for performance campaigns. Requires sufficient conversion data for optimization (minimum 50 conversions recommended)."
+        }
+      ],
+      "auction_model": {
+        "description": "Second-price auction. Winner pays $0.01 more than the second-highest bid. Standard industry model.",
+        "note": "Actual implementation may use Vickrey auction variant. Exact auction mechanics are implementation detail."
+      }
+    },
+
+    "budget": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Budget controls for ad campaigns",
+      "controls": [
+        {"name": "campaign_budget", "description": "Total lifetime budget for the campaign. Campaign pauses when depleted."},
+        {"name": "daily_budget", "description": "Maximum spend per day. Platform smooths delivery across the day. Optional — if not set, campaign budget used with platform pacing."},
+        {"name": "ad_set_budget", "description": "Budget per ad set for granular control. Sum of ad set budgets must not exceed campaign budget."},
+        {"name": "billing_threshold", "description": "Advertiser charged when spend reaches threshold or at end of billing period, whichever comes first."}
+      ],
+      "minimum_spend": {
+        "open_question": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED — What is the minimum campaign budget and daily budget? Options: $5/day (Meta-like, accessible), $10/day (YouTube-like), $1/day (aggressive, small-advertiser friendly). See open_questions section."
+      },
+      "billing_model": {
+        "description": "Prepaid billing. Advertiser funds account balance or provides payment method. Charges drawn from balance as spend occurs.",
+        "payment_methods": ["credit_card", "debit_card"],
+        "billing_currency": "usd",
+        "note": "Stripe for payment processing. Same Stripe account as commerce, different flow."
+      }
+    }
+  },
+
+  "ad_formats": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Five ad format types corresponding to CreatorOS placement surfaces. Each format has specific creative requirements and is displayed natively within its placement context.",
+
+    "formats": [
+      {
+        "format": "feed_ad",
+        "label": "Feed Ad",
+        "description": "Sponsored post in the consumer feed. Looks like a regular post with 'Sponsored' label. Supports image, video, and carousel. Highest reach format.",
+        "placement": "consumer_feed",
+        "creative_specs": {
+          "image": {"aspect_ratios": ["1:1", "4:5", "16:9"], "max_file_size_mb": 10, "formats": ["jpg", "png", "webp"]},
+          "video": {"aspect_ratios": ["1:1", "4:5", "9:16", "16:9"], "max_duration_seconds": 60, "max_file_size_mb": 250, "formats": ["mp4", "mov"]},
+          "carousel": {"max_cards": 10, "card_aspect_ratio": "1:1", "max_file_size_mb_per_card": 10}
+        },
+        "required_fields": ["headline", "media_url", "cta_url"],
+        "optional_fields": ["body", "cta_text"],
+        "metrics": ["impressions", "clicks", "ctr", "spend", "cpc", "conversions"],
+        "example": "Skincare brand showing product image in feed with 'Shop Now' CTA linking to external store"
+      },
+      {
+        "format": "story_ad",
+        "label": "Story Ad",
+        "description": "Full-screen vertical ad between stories. Auto-plays. Swipe-up CTA. High engagement format optimized for mobile.",
+        "placement": "stories",
+        "creative_specs": {
+          "image": {"aspect_ratio": "9:16", "max_file_size_mb": 10, "display_duration_seconds": 5},
+          "video": {"aspect_ratio": "9:16", "max_duration_seconds": 15, "max_file_size_mb": 100, "formats": ["mp4", "mov"]}
+        },
+        "required_fields": ["media_url", "cta_url"],
+        "optional_fields": ["headline", "cta_text"],
+        "metrics": ["impressions", "swipe_ups", "completion_rate", "spend"],
+        "example": "Fitness app showing 15-second workout clip with swipe-up to download"
+      },
+      {
+        "format": "community_sponsorship",
+        "label": "Community Sponsorship",
+        "description": "Sponsored placement within community channels. Pinned message or sidebar banner within relevant communities. Highly targeted by community niche.",
+        "placement": "community_channels",
+        "creative_specs": {
+          "pinned_message": {"max_text_length": 500, "image_optional": true, "image_aspect_ratio": "16:9"},
+          "sidebar_banner": {"aspect_ratio": "1:1", "max_file_size_mb": 5, "formats": ["jpg", "png", "webp", "gif"]}
+        },
+        "required_fields": ["headline", "body", "cta_url"],
+        "optional_fields": ["media_url", "cta_text"],
+        "metrics": ["impressions", "clicks", "ctr", "engagement_reactions", "spend"],
+        "targeting_note": "Can target specific communities or community categories. High-intent audience — members actively engaged in niche.",
+        "example": "Developer tool sponsoring a coding community with pinned announcement and sidebar banner"
+      },
+      {
+        "format": "course_promotion",
+        "label": "Course Promotion",
+        "description": "Promoted course listing in course discovery and search results. Boosted visibility for creator courses or external educational products.",
+        "placement": "course_discovery",
+        "creative_specs": {
+          "course_card": {"uses_existing_course_data": true, "additional_headline": true, "max_headline_length": 100},
+          "interstitial": {"aspect_ratio": "16:9", "max_file_size_mb": 10, "display_context": "between course lessons"}
+        },
+        "required_fields": ["headline", "cta_url"],
+        "optional_fields": ["body", "media_url"],
+        "metrics": ["impressions", "clicks", "enrollments", "spend", "cost_per_enrollment"],
+        "targeting_note": "Target by course category, student interests, enrollment history. Can promote own courses (creator self-serve) or external courses (advertiser).",
+        "example": "Creator promoting their advanced photography course to students enrolled in beginner photography courses"
+      },
+      {
+        "format": "product_boost",
+        "label": "Product Boost",
+        "description": "Boosted product listing in marketplace search results and discovery. Increases visibility for creator products. Similar to Etsy Ads or Amazon Sponsored Products.",
+        "placement": "marketplace",
+        "creative_specs": {
+          "product_card": {"uses_existing_product_data": true, "boost_badge": "'Promoted' label on product card"},
+          "note": "No custom creative required — uses existing product listing data (title, image, price). Advertiser only sets bid and budget."
+        },
+        "required_fields": ["product_id"],
+        "optional_fields": [],
+        "metrics": ["impressions", "clicks", "purchases", "spend", "roas", "cost_per_purchase"],
+        "targeting_note": "Automatic targeting based on product category, search keywords, and buyer behavior. No manual targeting needed.",
+        "example": "Creator boosting their Lightroom presets pack to appear at top of marketplace search for 'photo presets'"
+      }
+    ],
+
+    "format_selection_guidance": {
+      "awareness": ["feed_ad", "story_ad", "community_sponsorship"],
+      "engagement": ["feed_ad", "community_sponsorship"],
+      "conversions": ["product_boost", "course_promotion", "feed_ad"],
+      "traffic": ["feed_ad", "story_ad", "course_promotion"],
+      "note": "Platform recommends formats based on campaign objective during creation wizard."
+    }
+  },
+
+  "analytics": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Analytics for both UGC campaigns and ad campaigns. Separate dashboards, shared infrastructure.",
+
+    "ugc_campaign_metrics": {
+      "description": "Metrics tracked for UGC campaigns from the brand perspective",
+      "campaign_level": [
+        {"metric": "applications_received", "type": "count", "description": "Total applications received"},
+        {"metric": "acceptance_rate", "type": "percentage", "description": "Accepted / total applications"},
+        {"metric": "deliverables_submitted", "type": "count", "description": "Total deliverables submitted across all accepted creators"},
+        {"metric": "deliverables_approved", "type": "count", "description": "Total deliverables approved"},
+        {"metric": "approval_rate", "type": "percentage", "description": "Approved / submitted deliverables"},
+        {"metric": "avg_revision_count", "type": "decimal", "description": "Average revisions per deliverable before approval"},
+        {"metric": "avg_turnaround_days", "type": "decimal", "description": "Average days from creator acceptance to first deliverable submission"},
+        {"metric": "budget_spent_cents", "type": "currency", "description": "Total payments made to creators + platform fees"},
+        {"metric": "budget_remaining_cents", "type": "currency", "description": "Campaign budget minus total spent"},
+        {"metric": "cost_per_deliverable_cents", "type": "currency", "description": "Total spend / approved deliverables"},
+        {"metric": "completion_percentage", "type": "percentage", "description": "Approved deliverables / expected total deliverables (max_creators * deliverable_count)"}
+      ],
+      "creator_level": [
+        {"metric": "deliverables_submitted", "type": "count"},
+        {"metric": "deliverables_approved", "type": "count"},
+        {"metric": "revision_count", "type": "count"},
+        {"metric": "turnaround_days", "type": "decimal"},
+        {"metric": "total_earned_cents", "type": "currency"},
+        {"metric": "brand_rating", "type": "decimal", "note": "1-5 star rating given by brand after campaign completion"}
+      ],
+      "content_performance": {
+        "description": "Optional: if approved UGC content is published with tracking links, track downstream performance",
+        "metrics": [
+          {"metric": "views", "type": "count", "note": "Requires tracking pixel or UTM on published content"},
+          {"metric": "engagement", "type": "count", "note": "Likes, comments, shares on published UGC"},
+          {"metric": "conversions", "type": "count", "note": "Purchases or signups attributed to UGC content"},
+          {"metric": "revenue_attributed_cents", "type": "currency", "note": "Revenue from conversions attributed to UGC"},
+          {"metric": "roas", "type": "decimal", "note": "Revenue / campaign spend. Requires conversion tracking."}
+        ],
+        "implementation_note": "Content performance tracking requires integration with external platforms (TikTok, Instagram, YouTube) or tracking pixel infrastructure. Phase 2+ feature."
+      }
+    },
+
+    "ad_campaign_metrics": {
+      "description": "Metrics tracked for paid ad campaigns from the advertiser perspective",
+      "campaign_level": [
+        {"metric": "impressions", "type": "count", "description": "Total times ad was displayed"},
+        {"metric": "clicks", "type": "count", "description": "Total clicks on ad"},
+        {"metric": "ctr", "type": "percentage", "description": "Click-through rate: clicks / impressions * 100"},
+        {"metric": "spend_cents", "type": "currency", "description": "Total ad spend"},
+        {"metric": "cpc_cents", "type": "currency", "description": "Cost per click: spend / clicks"},
+        {"metric": "cpm_cents", "type": "currency", "description": "Cost per 1,000 impressions: (spend / impressions) * 1000"},
+        {"metric": "conversions", "type": "count", "description": "Total tracked conversions (requires pixel or event tracking)"},
+        {"metric": "conversion_rate", "type": "percentage", "description": "Conversions / clicks * 100"},
+        {"metric": "cpa_cents", "type": "currency", "description": "Cost per acquisition: spend / conversions"},
+        {"metric": "roas", "type": "decimal", "description": "Return on ad spend: revenue / spend"},
+        {"metric": "frequency", "type": "decimal", "description": "Average times ad shown to unique user: impressions / reach"},
+        {"metric": "reach", "type": "count", "description": "Unique users who saw the ad"}
+      ],
+      "ad_level": [
+        {"metric": "impressions", "type": "count"},
+        {"metric": "clicks", "type": "count"},
+        {"metric": "ctr", "type": "percentage"},
+        {"metric": "spend_cents", "type": "currency"},
+        {"metric": "conversions", "type": "count"},
+        {"metric": "video_views", "type": "count", "note": "For video ads: 3-second views"},
+        {"metric": "video_completion_rate", "type": "percentage", "note": "Percentage who watched to end"},
+        {"metric": "engagement_rate", "type": "percentage", "note": "For feed ads: (likes + comments + shares) / impressions"}
+      ],
+      "time_series": {
+        "description": "All metrics available as time series for charting",
+        "granularities": ["hourly", "daily", "weekly", "monthly"],
+        "default_granularity": "daily",
+        "retention_days": 365,
+        "note": "Hourly granularity available for active campaigns only. Historical data aggregated to daily."
+      }
+    },
+
+    "roi_tracking": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Cross-channel ROI tracking combining UGC investment and ad spend against business outcomes",
+      "features": [
+        "Unified dashboard showing UGC campaign spend + ad campaign spend vs total revenue attributed",
+        "Attribution model: last-click default, with optional multi-touch attribution",
+        "Conversion pixel for external websites",
+        "In-platform conversion tracking for marketplace purchases, course enrollments, community joins",
+        "UTM parameter auto-generation for tracking links",
+        "Cohort analysis: users acquired through ads vs organic",
+        "LTV projection: estimated lifetime value of ad-acquired users"
+      ],
+      "implementation_note": "ROI tracking requires event infrastructure, attribution logic, and reporting pipeline. Phase 2+ feature. v1 ships with basic impression/click/spend tracking only."
+    }
+  },
+
+  "screens": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Screen inventory for UGC and Ads modules. All NOT IMPLEMENTED.",
+
+    "ugc_screens": [
+      {
+        "screen": "ugc-campaign-dashboard",
+        "route": "/ugc/campaigns",
+        "actor": "ugc_creator",
+        "description": "UGC marketplace: browse available campaigns, filter, search, apply",
+        "prd_reference": "Screen 25 in product canon",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ugc-campaign-detail",
+        "route": "/ugc/campaigns/:id",
+        "actor": "ugc_creator",
+        "description": "Campaign detail page: full brief, requirements, pay rate, apply button",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ugc-application-form",
+        "route": "/ugc/campaigns/:id/apply",
+        "actor": "ugc_creator",
+        "description": "Application form: pitch, portfolio upload, proposed concept",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ugc-my-campaigns",
+        "route": "/ugc/my-campaigns",
+        "actor": "ugc_creator",
+        "description": "Creator's active campaigns: accepted briefs, submission status, payment status",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ugc-deliverable-submit",
+        "route": "/ugc/campaigns/:id/submit",
+        "actor": "ugc_creator",
+        "description": "Deliverable submission: media upload, caption, preview",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ugc-earnings",
+        "route": "/ugc/earnings",
+        "actor": "ugc_creator",
+        "description": "Earnings dashboard: total earned, pending, payment history",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ugc-brand-dashboard",
+        "route": "/dashboard/ugc",
+        "actor": "brand",
+        "description": "Brand UGC dashboard: active campaigns, applicant pipeline, deliverable inbox",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ugc-campaign-create",
+        "route": "/dashboard/ugc/new",
+        "actor": "brand",
+        "description": "Campaign creation wizard: 6-step form",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ugc-applicant-review",
+        "route": "/dashboard/ugc/:id/applicants",
+        "actor": "brand",
+        "description": "Applicant review: profiles, portfolios, accept/reject",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ugc-deliverable-review",
+        "route": "/dashboard/ugc/:id/deliverables",
+        "actor": "brand",
+        "description": "Deliverable review: media preview, approve/reject/revision, download",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ugc-campaign-analytics",
+        "route": "/dashboard/ugc/:id/analytics",
+        "actor": "brand",
+        "description": "Campaign analytics: spend, completion, per-creator performance",
+        "implementation_status": "NOT_IMPLEMENTED"
+      }
+    ],
+
+    "ads_screens": [
+      {
+        "screen": "ads-dashboard",
+        "route": "/ads",
+        "actor": "advertiser",
+        "description": "Ads manager home: campaign list, spend overview, performance summary",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ads-campaign-create",
+        "route": "/ads/new",
+        "actor": "advertiser",
+        "description": "Campaign creation wizard: objective, targeting, budget, creative, schedule",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ads-campaign-detail",
+        "route": "/ads/:id",
+        "actor": "advertiser",
+        "description": "Campaign detail: ad sets, individual ads, performance charts, edit controls",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ads-creative-builder",
+        "route": "/ads/:id/creative",
+        "actor": "advertiser",
+        "description": "Ad creative builder: upload media, write copy, preview ad in placement context",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ads-audience-manager",
+        "route": "/ads/audiences",
+        "actor": "advertiser",
+        "description": "Custom audience management: create, edit, view audience sizes",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ads-analytics",
+        "route": "/ads/analytics",
+        "actor": "advertiser",
+        "description": "Cross-campaign analytics: spend trends, ROI, audience insights",
+        "implementation_status": "NOT_IMPLEMENTED"
+      },
+      {
+        "screen": "ads-billing",
+        "route": "/ads/billing",
+        "actor": "advertiser",
+        "description": "Billing management: payment methods, invoices, spend history, top-up balance",
+        "implementation_status": "NOT_IMPLEMENTED"
+      }
+    ]
+  },
+
+  "competitive_analysis": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Competitive positioning of CreatorOS UGC and Ads against existing platforms",
+
+    "vs_aspire": {
+      "competitor": "Aspire (formerly AspireIQ)",
+      "category": "UGC/Influencer Platform",
+      "what_they_do": "Influencer discovery, campaign management, content approval, payment processing. Enterprise-focused. $2K+/mo pricing.",
+      "creatoros_advantages": [
+        "Integrated into creator ecosystem — UGC creators are already on CreatorOS building their business",
+        "Built-in creator reputation from platform activity (not just self-reported metrics)",
+        "Lower cost: platform fee per campaign, not $2K/mo SaaS subscription",
+        "UGC content can be used directly in CreatorOS ads platform (closed loop)",
+        "Creators can transition from UGC work to building their own audience/products on same platform"
+      ],
+      "creatoros_disadvantages": [
+        "No existing creator database — Aspire has millions of indexed creators",
+        "No cross-platform analytics — Aspire integrates with social platforms for verified metrics",
+        "No established brand trust — Aspire has enterprise case studies"
+      ]
+    },
+
+    "vs_meta_ads": {
+      "competitor": "Meta Ads (Facebook/Instagram)",
+      "category": "Self-Serve Ads Platform",
+      "what_they_do": "Largest self-serve ads platform. Sophisticated targeting, massive reach, advanced ML optimization, full-funnel attribution.",
+      "creatoros_advantages": [
+        "First-party data from actual purchases, enrollments, and community activity (no cookie dependency)",
+        "Creator niche targeting — reach audiences by the creator they follow, not just interest categories",
+        "Lower minimum spend accessible to small businesses and individual creators",
+        "Native UGC pipeline: source content AND run ads on same platform",
+        "Community sponsorship format — no equivalent on Meta (groups ads limited)"
+      ],
+      "creatoros_disadvantages": [
+        "Tiny audience compared to Meta's billions of users",
+        "No ML-optimized bidding (v1 will be rule-based)",
+        "No cross-platform tracking or attribution network",
+        "No brand safety tools, no third-party verification",
+        "Advertisers won't move budget from Meta to unproven platform without proven ROI"
+      ]
+    },
+
+    "vs_youtube_ads": {
+      "competitor": "YouTube Ads (Google)",
+      "category": "Video Ads Platform",
+      "what_they_do": "Video-first ads platform. Pre-roll, mid-roll, display. Google's targeting data. Massive video audience.",
+      "creatoros_advantages": [
+        "Story and feed ad formats optimized for short-form mobile content (not pre-roll interruptions)",
+        "Course promotion format — directly target learners (YouTube has no equivalent)",
+        "Product boost format — marketplace ads like Etsy, not available on YouTube",
+        "Creator self-serve: creators can boost their own products without ad agency knowledge"
+      ],
+      "creatoros_disadvantages": [
+        "No video hosting scale — YouTube has 2B+ monthly active users",
+        "No Google search integration or Display Network reach",
+        "No TrueView format (skip after 5s) — proven engagement model",
+        "Limited advertiser tooling compared to Google Ads suite"
+      ]
+    },
+
+    "positioning_summary": "CreatorOS ads platform is NOT competing with Meta or Google for ad budgets. It's a niche, high-intent advertising surface for the creator economy. Competitive advantages are first-party data, creator-niche targeting, UGC pipeline integration, and accessible self-serve for small creators/businesses. Initial market: creators boosting their own products, small brands targeting creator audiences, UGC brands wanting closed-loop sourcing+promotion."
+  },
+
+  "current_code": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "status": "NOT_IMPLEMENTED",
+    "description": "Zero implementation exists for either UGC Campaigns or Ads Platform",
+    "existing_files": [],
+    "existing_tables": [],
+    "existing_routes": [],
+    "existing_components": [],
+    "note": "Both modules are listed as NOT IMPLEMENTED in the current implementation truth audit. No pages, components, schema tables, API routes, or backend logic exist. The only UGC/Ads-related code is in the UMH integration layer (substrate/understanding/domains/creator.py) which maps 'campaigns' as one of 10 creator domain areas with keyword detection."
+  },
+
+  "required_schema_tables": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "All database tables required for UGC + Ads modules. Combines data ontology desired state with this canon's expanded fields.",
+    "tables": [
+      {"table": "ugc_campaigns", "status": "NOT_EXISTS", "source": "data_ontology + this canon (expanded fields)"},
+      {"table": "ugc_applications", "status": "NOT_EXISTS", "source": "data_ontology + this canon (expanded fields)"},
+      {"table": "ugc_deliverables", "status": "NOT_EXISTS", "source": "data_ontology + this canon (expanded fields)"},
+      {"table": "ugc_payments", "status": "NOT_EXISTS", "source": "this canon (new table for payment tracking)"},
+      {"table": "ugc_creator_ratings", "status": "NOT_EXISTS", "source": "this canon (new table for reputation system)"},
+      {"table": "ad_campaigns", "status": "NOT_EXISTS", "source": "data_ontology + this canon (expanded fields)"},
+      {"table": "ad_sets", "status": "NOT_EXISTS", "source": "this canon (new table for targeting groups)"},
+      {"table": "ads", "status": "NOT_EXISTS", "source": "data_ontology + this canon (expanded with format and review fields)"},
+      {"table": "ad_events", "status": "NOT_EXISTS", "source": "this canon (new table for impression/click event log)"},
+      {"table": "ad_conversions", "status": "NOT_EXISTS", "source": "this canon (new table for conversion tracking)"},
+      {"table": "custom_audiences", "status": "NOT_EXISTS", "source": "this canon (new table for saved audiences)"},
+      {"table": "advertiser_billing", "status": "NOT_EXISTS", "source": "this canon (new table for ad account billing)"}
+    ],
+    "total_new_tables": 12,
+    "migration_note": "All tables are greenfield. No migration from existing schema needed — only new table creation."
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-UGC-001",
+      "area": "payment_infrastructure",
+      "question": "What is the platform service fee percentage for UGC campaigns? Is it tiered by creator pricing tier (8%/5%/3% like marketplace), flat, or different?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Directly affects platform revenue model and creator economics. Must be decided before UGC payment flow implementation.",
+      "options": [
+        "Same as marketplace: 8% Free tier, 5% Pro, 3% Business",
+        "Flat 10% for all UGC transactions (higher because platform provides matching service)",
+        "Flat 15% (comparable to Aspire/Upfluence take rates)"
+      ]
+    },
+    {
+      "id": "OQ-UGC-002",
+      "area": "content_rights",
+      "question": "What content rights model does CreatorOS enforce for UGC deliverables? Full buyout, licensed usage, or per-campaign configurable?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Affects creator willingness to participate, brand expectations, and legal terms. See content_rights section for full analysis.",
+      "recommended": "per_campaign_rights"
+    },
+    {
+      "id": "OQ-UGC-003",
+      "area": "campaign_funding",
+      "question": "Does the brand fund the full campaign budget upfront, or does the platform charge per approved deliverable?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Affects cash flow, refund policy, and platform risk. Upfront funding is safer for creators but requires larger initial commitment from brands.",
+      "options": [
+        "Full upfront: brand funds total budget at campaign creation. Unused refunded on completion/cancellation.",
+        "Pay-as-you-go: brand charged per approved deliverable. Payment method on file required. Higher risk of non-payment.",
+        "Hybrid: brand funds first batch of payments upfront. Additional charges as more deliverables approved."
+      ],
+      "recommended": "full_upfront",
+      "recommended_note": "Full upfront ensures creators always get paid. Platform holds funds. Lower risk. Standard in UGC marketplace platforms."
+    },
+    {
+      "id": "OQ-ADS-001",
+      "area": "ad_review_process",
+      "question": "How are ads reviewed before going live? Automated, manual, or hybrid?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Affects ad quality, brand safety, time-to-live, and operational cost.",
+      "options": [
+        "Automated only: keyword filter + image classifier. Fast but lower quality.",
+        "Manual only: human reviews every ad. High quality but slow and expensive.",
+        "Hybrid: automated filter catches obvious violations, human reviews flagged ads. Standard approach."
+      ],
+      "recommended": "automated_v1_hybrid_later",
+      "recommended_note": "v1 ships with automated keyword/image filter only (low operational cost at low volume). Add manual review queue when ad volume justifies it."
+    },
+    {
+      "id": "OQ-ADS-002",
+      "area": "minimum_spend",
+      "question": "What are the minimum campaign budget and daily budget for the ads platform?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Affects advertiser accessibility. Lower minimums attract small creators/businesses but increase operational cost per dollar of ad revenue.",
+      "options": [
+        {"label": "Aggressive ($1/day)", "daily_min_cents": 100, "campaign_min_cents": 500, "note": "Most accessible. Attracts individual creators boosting products. Low revenue per advertiser."},
+        {"label": "Standard ($5/day)", "daily_min_cents": 500, "campaign_min_cents": 2500, "note": "Meta's minimum. Balanced. Sufficient for optimization algorithms."},
+        {"label": "Premium ($10/day)", "daily_min_cents": 1000, "campaign_min_cents": 5000, "note": "YouTube's minimum. Filters out lowest-value advertisers."}
+      ],
+      "recommended": "$5/day",
+      "recommended_note": "Standard $5/day matches industry expectation. Low enough for individual creators, high enough for meaningful delivery."
+    },
+    {
+      "id": "OQ-ADS-003",
+      "area": "ad_revenue_share",
+      "question": "Does CreatorOS share ad revenue with creators whose content/audiences are being targeted? Or does the platform keep 100% of ad revenue?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Major strategic decision. Revenue share incentivizes creators to build audiences on CreatorOS. No share maximizes platform revenue.",
+      "options": [
+        "No share: platform keeps all ad revenue. Standard for most platforms in early stage.",
+        "YouTube model: share % of ad revenue with creators whose content has ads placed. Requires significant ad volume to be meaningful.",
+        "Community sponsor share: community owners receive % of community_sponsorship ad revenue. Incentivizes community building."
+      ],
+      "recommended": "no_share_v1_community_share_v2",
+      "recommended_note": "No revenue share at launch (insufficient volume for meaningful payouts). Introduce community sponsorship revenue share once ad volume proves the model. YouTube-style revenue share is a v3+ consideration."
+    },
+    {
+      "id": "OQ-UGC-004",
+      "area": "dispute_resolution",
+      "question": "How are disputes handled when a brand rejects deliverables that the creator believes meet the brief?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Affects creator trust and brand satisfaction. No dispute resolution means creators bear all risk.",
+      "options": [
+        "No formal dispute: brand's decision is final. Standard in most UGC platforms.",
+        "Platform mediation: creator can escalate to platform team. Platform reviews brief vs deliverable.",
+        "Escrow with auto-release: if brand doesn't review within N days, payment auto-releases to creator."
+      ],
+      "recommended": "escrow_auto_release_plus_mediation",
+      "recommended_note": "Auto-release after 7 days protects creators from ghost brands. Optional platform mediation for disputes. Builds creator trust."
+    }
+  ],
+
+  "implementation_priorities": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Recommended build order for UGC and Ads modules",
+    "phases": [
+      {
+        "phase": "UGC-v1",
+        "label": "UGC Campaign MVP",
+        "description": "Core UGC campaign workflow: create, apply, submit, approve, pay",
+        "scope": [
+          "ugc_campaigns, ugc_applications, ugc_deliverables, ugc_payments tables",
+          "Brand campaign creation wizard (6 steps)",
+          "UGC marketplace (campaign discovery for creators)",
+          "Application flow (apply, accept/reject)",
+          "Deliverable submission and review workflow",
+          "Payment via Stripe Connect transfer",
+          "Basic campaign analytics"
+        ],
+        "dependencies": ["Stripe Connect integration (shared with marketplace commerce)", "File upload infrastructure (shared with content distribution)"],
+        "new_tables": 4,
+        "new_screens": 11,
+        "estimated_complexity": "HIGH"
+      },
+      {
+        "phase": "UGC-v2",
+        "label": "UGC Reputation + Content Rights",
+        "description": "Creator reputation system, content rights management, invite-only campaigns",
+        "scope": [
+          "ugc_creator_ratings table",
+          "Creator reputation profile (ratings, badges, completion metrics)",
+          "Content rights configuration per campaign",
+          "Invite-only campaign flow",
+          "UGC content performance tracking (external platform integration)"
+        ],
+        "dependencies": ["UGC-v1 complete"],
+        "new_tables": 1,
+        "estimated_complexity": "MEDIUM"
+      },
+      {
+        "phase": "ADS-v1",
+        "label": "Ads Platform MVP",
+        "description": "Basic ads platform: campaign creation, feed_ad and product_boost formats, auto bidding, basic analytics",
+        "scope": [
+          "ad_campaigns, ad_sets, ads tables",
+          "Campaign creation wizard (objective, targeting, budget, creative)",
+          "Feed ad and product boost formats only (highest value, lowest complexity)",
+          "Auto bidding only (no manual bid strategies)",
+          "Basic demographic + interest targeting",
+          "Impression/click tracking",
+          "Ads dashboard with spend and CTR metrics",
+          "Automated ad review (keyword filter)"
+        ],
+        "dependencies": ["Consumer feed exists (for feed ad placement)", "Marketplace exists (for product boost placement)", "Stripe billing integration"],
+        "new_tables": 4,
+        "new_screens": 5,
+        "estimated_complexity": "VERY_HIGH"
+      },
+      {
+        "phase": "ADS-v2",
+        "label": "Ads Platform Advanced",
+        "description": "Full targeting, all ad formats, manual bidding, conversion tracking, custom audiences",
+        "scope": [
+          "ad_events, ad_conversions, custom_audiences, advertiser_billing tables",
+          "Story ad, community sponsorship, course promotion formats",
+          "Manual CPC, CPM, target CPA bidding strategies",
+          "Conversion pixel and tracking infrastructure",
+          "Custom audience creation (email list, website pixel, lookalike)",
+          "Advanced analytics with ROI tracking",
+          "Billing management (invoices, spend history)"
+        ],
+        "dependencies": ["ADS-v1 complete", "Stories module exists", "Community module exists", "Course module exists"],
+        "new_tables": 4,
+        "new_screens": 2,
+        "estimated_complexity": "VERY_HIGH"
+      }
+    ],
+    "total_new_tables_all_phases": 12,
+    "total_new_screens_all_phases": 18,
+    "note": "UGC should be built before Ads. UGC is simpler (workflow management vs ad serving infrastructure), provides immediate value (brands get content), and generates the content that can later be used in ads (closed loop)."
+  },
+
+  "eos_boundary": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Boundary between EOS (business operations) and CreatorOS (creator product/distribution/community) for UGC and Ads",
+    "eos_handles": [
+      "Business entity management (the business that runs UGC campaigns or ads)",
+      "Financial reporting and accounting for UGC spend and ad revenue",
+      "Tax compliance (1099s for UGC creators above threshold)",
+      "Client/lead management for advertiser relationships",
+      "Pipeline management for ad sales (enterprise/managed accounts)"
+    ],
+    "creatoros_handles": [
+      "UGC campaign creation, management, and lifecycle",
+      "UGC marketplace and creator matching",
+      "Deliverable submission and review workflow",
+      "Ad campaign creation, targeting, and optimization",
+      "Ad serving and placement within CreatorOS surfaces",
+      "Ad creative management and review",
+      "Campaign analytics and performance tracking",
+      "Creator reputation system",
+      "Advertiser self-serve tools"
+    ],
+    "integration_points": [
+      "Stripe Connect: shared infrastructure between EOS commerce and CreatorOS UGC/Ads payments",
+      "Business entity: UGC campaigns and ad campaigns link to businesses managed in EOS",
+      "Revenue signals: UGC payments and ad spend emit signals consumed by EOS financial reporting"
+    ]
+  }
+}

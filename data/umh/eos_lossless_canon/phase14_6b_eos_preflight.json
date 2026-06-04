@@ -1,0 +1,260 @@
+{
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-03",
+  "objective": "Corrective product-source-truth reconstruction for EntrepreneurOS. Produce a lossless, provenance-labeled canon that captures every product truth from all source inputs (Google Docs, prior phases, GitHub main, Beast feature branch, UMH projection, operator corrections) without mutation, implementation, or source modification.",
+  "provenance": "SYNTHESIZED_CANON",
+  "center_of_gravity": "EOS democratizes the ability to structure, operate, optimize, and scale economic activity. Operator can operate one or more portfolios with entities as execution vehicles. Entities include businesses, investments, startups, real estate, stocks, asset holdings, agencies, SaaS companies, media companies, operating companies.",
+  "ownership": {
+    "product": "EntrepreneurOS (EOS)",
+    "owner": "OST (not Lyfe Institute)",
+    "note": "Lyfe Institute is a company/venture incubated through Empyrean Studios, managed inside EOS"
+  },
+  "hierarchy": "Operator/User -> Portfolio(s) -> Entities -> Business/Investment/Asset Operations -> Teams/Agents/Roles/Permissions -> Workflows/SOPs/Tasks/Tools -> Capital/Transactions/KPIs/Reports -> Outcomes/Proof/Optimization",
+  "communication_architecture": "User/Founder -> EA Agent -> Portfolio Advisor OR CEO Agent -> Department/Specialist Agents. EA does NOT route directly to department/specialist agents.",
+  "ui_shell": {
+    "components": ["Left Rail (role-dependent navigation, portfolio/company/entity switcher)", "Main Workspace", "Right Rail AI Assistant", "Floating AI Control Panel", "Risk/Approval Notices", "Activity/Event Feed", "Chat/EA command box"],
+    "aesthetic": "Executive command center, business cockpit, finance-grade clarity, strategic control, modern AI-native enterprise. NOT playful, NOT creator-social, NOT RPG."
+  },
+  "source_inputs": [
+    {
+      "id": "SRC-GDOC-001",
+      "name": "Google Doc: EntrepreneurOS",
+      "doc_id": "1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo",
+      "type": "product_vision_document",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "description": "Original product vision document authored by operator. Defines modules, screens, workflows, agent hierarchy, governance model."
+    },
+    {
+      "id": "SRC-PHASE-14_3A",
+      "name": "Phase 14.3A: Product Requirements Gap Report",
+      "path": "data/umh/product_docs_convergence/phase14_3a_product_requirements_gap_report.json",
+      "type": "analysis_artifact",
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Extracted claims, end-state design map, doc classification for all Trinity apps including EOS."
+    },
+    {
+      "id": "SRC-PHASE-14_3A-CLAIMS",
+      "name": "Phase 14.3A: Full Content Extracted Claims",
+      "path": "data/umh/product_docs_convergence/phase14_3a_full_content_extracted_claims.json",
+      "type": "analysis_artifact",
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Exhaustive claim extraction from all Google Docs including EOS product doc."
+    },
+    {
+      "id": "SRC-PHASE-14_3A-DESIGN",
+      "name": "Phase 14.3A: End State Design Map",
+      "path": "data/umh/product_docs_convergence/phase14_3a_end_state_design_map.json",
+      "type": "analysis_artifact",
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "End-state design mapping for all Trinity apps including EOS."
+    },
+    {
+      "id": "SRC-PHASE-14_4",
+      "name": "Phase 14.4: EOS Desired State Canon",
+      "path": "data/umh/trinity_alignment/phase14_4_eos_desired_state_canon.json",
+      "type": "desired_state_artifact",
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "19 modules, 11 screens, target architecture. Defines EOS as AI-native business operating system for founders."
+    },
+    {
+      "id": "SRC-PHASE-14_5",
+      "name": "Phase 14.5: EOS Convergence Plan",
+      "path": "data/umh/trinity_convergence/phase14_5_eos_convergence_plan.json",
+      "type": "convergence_plan",
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Source divergence analysis, auth state, schema state, UI state, gaps, contradictions, work packets. Identifies Beast as canonical candidate."
+    },
+    {
+      "id": "SRC-PHASE-14_5A",
+      "name": "Phase 14.5A: EOS 13-Layer Production Stack",
+      "path": "data/umh/trinity_convergence/phase14_5a_eos_13_layer_production_stack.json",
+      "type": "production_stack_design",
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "13-layer production stack with desired state, current state, gaps per layer. All layers BLOCKED pending source convergence."
+    },
+    {
+      "id": "SRC-GITHUB-MAIN",
+      "name": "GitHub main branch (entrepreneuros repo)",
+      "path": "data/repos/entrepreneuros/",
+      "type": "codebase",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "description": "202 files, Replit Agent authored, stale since 2026-02-20. Passport.js auth. Basic React/Vite/TypeScript/shadcn/Tailwind. 15 DB tables. Minimal routes.",
+      "status": "stale"
+    },
+    {
+      "id": "SRC-BEAST-FEATURE",
+      "name": "Beast feature/company-system branch",
+      "type": "codebase",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "description": "603 files, Clerk auth, company system, portfolio management, 14 route modules, 32 pages, expanded schema. Active development branch on Beast Windows machine. Canonical candidate per DEC-145-001.",
+      "status": "canonical_candidate",
+      "note": "Not directly available on VPS — lives on Beast at C:\\dev\\dev\\entrepreneuros"
+    },
+    {
+      "id": "SRC-UMH-PROJECTION",
+      "name": "UMH EOS Projection",
+      "path": "projections/eos/",
+      "type": "projection_code",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+      "description": "10 department agents, 3 views, 3 workflows, entities.py, full UMH integration. 5699 lines. Defines how EOS interfaces with UMH substrate."
+    },
+    {
+      "id": "SRC-OPERATOR-CORRECTIONS",
+      "name": "Operator Corrections (Phase 14.6B mission brief)",
+      "type": "operator_directive",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "description": "Corrective inputs from operator: EOS owned by OST not Lyfe Institute; center of gravity is economic activity democratization; hierarchy is Operator->Portfolio->Entity->Operations->Teams->Workflows->Capital->Outcomes; EA does not route to department agents directly; UI aesthetic is executive command center not RPG."
+    }
+  ],
+  "current_code_truth": {
+    "github_main": {
+      "files": 202,
+      "last_commit": "2026-02-20",
+      "author": "Replit Agent",
+      "auth": "Passport.js + Firebase",
+      "status": "stale"
+    },
+    "beast_feature_branch": {
+      "files": 603,
+      "branch": "feature/company-system",
+      "auth": "Clerk",
+      "status": "active_development",
+      "canonical_candidate": true,
+      "decision_ref": "DEC-145-001"
+    },
+    "umh_projection": {
+      "path": "projections/eos/",
+      "agents": 10,
+      "views": 3,
+      "workflows": 3,
+      "total_lines": 5699
+    }
+  },
+  "core_rules": [
+    "NO implementation — all artifacts are READ-ONLY analysis",
+    "NO source mutation — no code changes to any EOS codebase",
+    "ALL artifacts are DRAFT with operator_approved=false and allows_implementation=false",
+    "Every claim must have provenance label from: SOURCE_PRESERVED_TRUTH, CODE_RESOLVED_CURRENT_TRUTH, SYNTHESIZED_CANON, INFERRED_PROFESSIONAL_GAP, OPEN_QUESTION_OPERATOR_DECISION_REQUIRED, IMPLEMENTATION_DEBT",
+    "Code resolves ambiguity — when docs and code disagree, code wins for current truth",
+    "Operator corrections override prior phase claims where explicitly stated",
+    "Beast feature/company-system is canonical candidate (DEC-145-001) but NOT yet promoted — treat both branches as source",
+    "No blind merge — Beast promotion requires build validation, secret scan, operator review, rollback plan",
+    "EOS is owned by OST, not Lyfe Institute — correct any prior artifacts that state otherwise",
+    "Center of gravity is economic activity democratization, not just founder tooling",
+    "Entity model is broader than businesses — includes investments, real estate, stocks, asset holdings, agencies, SaaS, media, operating companies",
+    "Communication architecture: User -> EA -> Portfolio Advisor/CEO -> Department agents (EA never routes directly to specialists)",
+    "UI aesthetic is executive command center / business cockpit, never playful/RPG/creator-social",
+    "Every artifact must include phase, status, operator_approved, allows_implementation, date header"
+  ],
+  "success_criteria": [
+    "SC-001: Preflight JSON written to data/umh/eos_lossless_canon/phase14_6b_eos_preflight.json with all metadata",
+    "SC-002: Source inventory covers ALL EOS sources (Google Doc, Phase 14.3A, 14.4, 14.5, 14.5A, GitHub main, Beast branch, UMH projection, operator corrections)",
+    "SC-003: Every artifact has provenance label from the 6 valid categories",
+    "SC-004: Code-resolved current truth accurately reflects GitHub main (202 files, Passport.js, stale) and Beast (603 files, Clerk, active)",
+    "SC-005: GitHub main codebase deep analysis covers schema, routes, pages, auth, dependencies, and file structure",
+    "SC-006: Beast branch analysis documents all 14 route modules, 32 pages, company system, portfolio management, Clerk auth",
+    "SC-007: Database table inventory covers both GitHub main schema and Beast schema with column-level detail",
+    "SC-008: Screen inventory maps all screens from both branches plus desired state (11 screens from Phase 14.4)",
+    "SC-009: API contract map documents all endpoints from both branches with method, path, auth requirement, response shape",
+    "SC-010: Auth session security truth documents Passport.js (main), Clerk (Beast), and target auth architecture",
+    "SC-011: Data ontology captures all entity types, relationships, and hierarchy (Operator->Portfolio->Entity->Operations->...->Outcomes)",
+    "SC-012: EOS lossless product canon synthesizes complete product truth from all sources without loss",
+    "SC-013: Code-resolved product canon reflects what code actually implements vs what docs claim",
+    "SC-014: Full end-state canon documents the complete desired product including all operator corrections",
+    "SC-015: MVP current canon accurately reflects what is buildable/shippable from existing code",
+    "SC-016: Navigation shell canon documents Left Rail, Main Workspace, Right Rail, Floating Panel, role-dependent navigation",
+    "SC-017: Docs vs code convergence matrix identifies every divergence between documentation claims and code reality",
+    "SC-018: Contradiction matrix captures all contradictions across sources (auth, ownership, hierarchy, modules)",
+    "SC-019: Implementation debt register catalogs all gaps between desired state and current code with severity",
+    "SC-020: Professional gap register identifies gaps inferred from professional standards not in any source doc",
+    "SC-021: Open questions operator decision queue lists all decisions requiring operator input",
+    "SC-022: AI agent architecture documents the full agent hierarchy (EA -> Portfolio Advisor/CEO -> Department agents)",
+    "SC-023: AI permissions approval model documents governance, risk gates, and approval flows",
+    "SC-024: AI tool action registry catalogs all AI-invocable actions with risk classification",
+    "SC-025: Portfolio entity architecture documents the multi-portfolio, multi-entity model and entity type taxonomy",
+    "SC-026: Workflow SOP engine architecture documents workflow creation, execution, AI-assisted step completion",
+    "SC-027: Department role management architecture documents org chart, departments, roles, responsibilities",
+    "SC-028: UMH connection architecture documents how EOS registers as UMH projection via abstract ports",
+    "SC-029: UMH connected future canon documents the end-state EOS-UMH integration boundary",
+    "SC-030: Infrastructure deployment map documents target deployment (Fly.io, Neon, Clerk) and current state (none)",
+    "SC-031: Security trust privacy compliance documents auth, RLS, tenant isolation, data protection requirements",
+    "SC-032: Test coverage inventory documents current test state (near-zero) and target test architecture",
+    "SC-033: Backup recovery risk packet documents data protection, disaster recovery, rollback strategy",
+    "SC-034: Source truth ratification packet provides operator-facing summary for review and ratification",
+    "SC-035: Audit report provides exhaustive verification that all 36 artifacts exist, all provenance labels valid, all success criteria met"
+  ],
+  "expected_artifacts": [
+    "phase14_6b_eos_preflight.json",
+    "eos_source_inventory.json",
+    "eos_github_codebase_deep_analysis.md",
+    "eos_current_implementation_truth.json",
+    "eos_code_source_inventory.md",
+    "eos_database_table_inventory.json",
+    "eos_screen_inventory.json",
+    "eos_api_contract_map.json",
+    "eos_secondary_module_route_map.json",
+    "eos_auth_session_security_truth.md",
+    "eos_data_ontology.json",
+    "eos_lossless_product_canon.md",
+    "eos_code_resolved_product_canon.md",
+    "eos_full_end_state_canon.md",
+    "eos_mvp_current_canon.md",
+    "eos_navigation_shell_canon.md",
+    "eos_docs_vs_code_convergence_matrix.json",
+    "eos_contradiction_matrix.json",
+    "eos_version_precedence_matrix.json",
+    "eos_implementation_debt_register.md",
+    "eos_professional_gap_register.md",
+    "eos_open_questions_operator_decision_queue.md",
+    "eos_ai_agent_architecture.md",
+    "eos_ai_permissions_approval_model.md",
+    "eos_ai_tool_action_registry.json",
+    "eos_portfolio_entity_architecture.md",
+    "eos_workflow_sop_engine_architecture.md",
+    "eos_department_role_management_architecture.md",
+    "eos_umh_connection_architecture.md",
+    "eos_umh_connected_future_canon.md",
+    "eos_infrastructure_deployment_map.md",
+    "eos_security_trust_privacy_compliance.md",
+    "eos_test_coverage_inventory.md",
+    "eos_backup_recovery_risk_packet.md",
+    "eos_source_truth_ratification_packet.md",
+    "eos_audit_report.md"
+  ],
+  "artifact_count": 36,
+  "provenance_labels": {
+    "SOURCE_PRESERVED_TRUTH": "Directly from operator-authored documents (Google Docs, operator corrections). No interpretation.",
+    "CODE_RESOLVED_CURRENT_TRUTH": "Derived from reading actual source code. Code wins over docs when they conflict.",
+    "SYNTHESIZED_CANON": "Synthesized from multiple sources with explicit provenance chain. Analyst judgment applied.",
+    "INFERRED_PROFESSIONAL_GAP": "Gap identified from professional standards/best practices not stated in any source document.",
+    "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED": "Ambiguity or conflict that only the operator can resolve. Must not be auto-resolved.",
+    "IMPLEMENTATION_DEBT": "Known gap between desired state and current implementation. Documented for future work packets."
+  },
+  "blocked_gates": {
+    "feature_build": false,
+    "infrastructure_mutation": false,
+    "auth_migration": false,
+    "source_promotion": false,
+    "deployment": false,
+    "note": "ALL gates remain blocked. This phase produces analysis artifacts only."
+  },
+  "preflight_verification": {
+    "target_directory_exists": true,
+    "target_directory": "data/umh/eos_lossless_canon/",
+    "prior_phase_artifacts_available": {
+      "phase14_3a": true,
+      "phase14_4_eos_desired_state": true,
+      "phase14_5_eos_convergence_plan": true,
+      "phase14_5a_eos_13_layer_stack": true
+    },
+    "github_main_repo_available": true,
+    "github_main_repo_path": "data/repos/entrepreneuros/",
+    "beast_branch_available": false,
+    "beast_branch_note": "Beast branch lives on Windows machine at C:\\dev\\dev\\entrepreneuros (feature/company-system). Analysis will use prior phase documentation of Beast contents where direct code access is not available.",
+    "umh_projection_available": true,
+    "umh_projection_path": "projections/eos/"
+  }
+}

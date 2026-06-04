@@ -1,0 +1,835 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "The 10 product types, full commerce model, pricing tiers, revenue model, order lifecycle, entitlement model, and marketplace structure for CreatorOS",
+
+  "product_types": [
+    {
+      "type": "community",
+      "name": "Community",
+      "description": "Branded community spaces with text, voice, and video channels. Discord-like experience with free and paid membership tiers, channel-level permissions, and role-based gating.",
+      "fields": {
+        "core": ["name", "description", "cover_image_url", "creator_id", "business_id", "visibility", "member_count"],
+        "type_specific": ["max_members", "tier_id", "welcome_message", "rules", "invite_code", "channel_categories"],
+        "pricing_fields": ["is_free", "monthly_price_cents", "annual_price_cents", "trial_days"]
+      },
+      "pricing_model": "free_or_recurring",
+      "pricing_note": "Free tier for open communities; paid monthly/annual subscriptions for premium communities. Creator sets price.",
+      "delivery_mechanism": "instant_access",
+      "delivery_note": "On purchase or free join, user is added to community member list with appropriate role. Access granted via entitlement.",
+      "entitlement_type": "community_access",
+      "entitlement_duration": "recurring_while_subscribed",
+      "revocation_trigger": "subscription_cancelled_or_manual_ban",
+      "implementation_status": "PARTIAL",
+      "implementation_note": "communities and channels tables exist. Basic community CRUD and channel messaging works. No membership tiers, no payment gating, no voice/video channels, no role-based access.",
+      "schema_tables": ["communities", "channels", "channel_messages"],
+      "missing_tables": ["community_members", "community_tiers"],
+      "examples": ["Creator mastermind group ($49/mo)", "Free fan community", "Paid coaching community with tiered channels"]
+    },
+    {
+      "type": "ai_agent",
+      "name": "AI Agent",
+      "description": "Custom AI agents with configurable system prompts, personality, and knowledge base. Creators build and sell AI chatbots trained on their expertise.",
+      "fields": {
+        "core": ["name", "description", "icon", "icon_color", "background_color", "system_prompt", "creator_id"],
+        "type_specific": ["model_id", "temperature", "max_tokens", "knowledge_base_ids", "is_custom", "chat_count", "status"],
+        "pricing_fields": ["is_free", "price_cents", "token_limit_per_month", "pricing_model"]
+      },
+      "pricing_model": "free_or_one_time_or_recurring",
+      "pricing_note": "Free agents for lead gen, one-time purchase for standalone bots, or recurring subscription for ongoing AI access with token limits.",
+      "delivery_mechanism": "instant_access",
+      "delivery_note": "On purchase, buyer gets chat interface access to the AI agent. Token usage tracked per user.",
+      "entitlement_type": "software_access",
+      "entitlement_duration": "perpetual_or_recurring",
+      "revocation_trigger": "subscription_cancelled_or_token_limit_exceeded",
+      "implementation_status": "PARTIAL",
+      "implementation_note": "ai_agents and ai_chats tables exist. AI page with AgentCard and ChatInterface components work. No pricing, no purchasing, no token tracking, no model selection.",
+      "schema_tables": ["ai_agents", "ai_chats"],
+      "missing_tables": [],
+      "missing_columns": ["model_id", "temperature", "max_tokens", "token_limit_per_month", "price_cents"],
+      "examples": ["Fitness coach AI ($9.99/mo)", "Free recipe suggestion bot", "Paid trading strategy advisor ($29.99)"]
+    },
+    {
+      "type": "digital_download",
+      "name": "Digital Download",
+      "description": "Digital files sold for one-time purchase. Templates, presets, ebooks, music, art, PDFs, design assets, and any downloadable digital goods.",
+      "fields": {
+        "core": ["name", "description", "price_cents", "category", "images", "creator_id", "business_id"],
+        "type_specific": ["file_url", "file_size_bytes", "file_type", "download_limit", "preview_url", "version", "license_type"],
+        "pricing_fields": ["price_cents", "compare_at_price_cents", "is_pay_what_you_want", "minimum_price_cents"]
+      },
+      "pricing_model": "one_time",
+      "pricing_note": "Single purchase grants perpetual download access. Optional pay-what-you-want with minimum price. No recurring billing.",
+      "delivery_mechanism": "file_download",
+      "delivery_note": "On purchase completion, buyer receives download link via order confirmation page and email. Download link is time-limited and authenticated.",
+      "entitlement_type": "download_access",
+      "entitlement_duration": "perpetual",
+      "revocation_trigger": "refund_processed",
+      "implementation_status": "PARTIAL",
+      "implementation_note": "Products table exists (generic, no type discriminator). Product creation form renders. No file upload, no download delivery, no checkout, no Stripe.",
+      "schema_tables": ["products"],
+      "missing_columns": ["product_type", "file_url", "file_size_bytes", "file_type", "download_limit", "license_type", "status", "stripe_product_id"],
+      "examples": ["Lightroom presets pack ($19)", "Business plan template ($49)", "Sound effect library ($29)", "Ebook PDF ($14.99)"]
+    },
+    {
+      "type": "course",
+      "name": "Course",
+      "description": "Structured online learning content with modules, video lessons, quizzes, assignments, certificates, and progress tracking. Teachable-like experience within CreatorOS.",
+      "fields": {
+        "core": ["title", "description", "price_cents", "cover_image_url", "creator_id", "business_id", "product_id"],
+        "type_specific": ["difficulty_level", "estimated_hours", "certificate_enabled", "drip_enabled", "status", "module_count", "lesson_count", "total_duration_seconds"],
+        "pricing_fields": ["price_cents", "compare_at_price_cents", "is_free", "installment_count", "installment_amount_cents"]
+      },
+      "pricing_model": "one_time_or_installments",
+      "pricing_note": "One-time purchase for lifetime access, or installment plans (e.g., 3x payments). Free courses supported for lead generation. No recurring subscription for individual courses.",
+      "delivery_mechanism": "progressive_unlock",
+      "delivery_note": "On purchase, enrollment record created. Lessons available immediately or via drip schedule (configurable delay in days after enrollment). Progress tracked per lesson.",
+      "entitlement_type": "course_access",
+      "entitlement_duration": "perpetual",
+      "revocation_trigger": "refund_processed",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "implementation_note": "No course-related pages or components in codebase. No course, lesson, or enrollment tables in schema. Course Platform is module 3 of 16 in the PRD.",
+      "schema_tables": [],
+      "required_tables": ["courses", "lessons", "enrollments", "lesson_completions"],
+      "examples": ["YouTube Growth Masterclass ($497)", "Free intro to photography course", "Fitness certification program ($299, 3x $99 installments)"]
+    },
+    {
+      "type": "subscription_membership",
+      "name": "Subscription / Membership",
+      "description": "Recurring subscription granting access to a bundle of content, community, courses, and perks. The creator's equivalent of a Patreon tier.",
+      "fields": {
+        "core": ["name", "description", "creator_id", "business_id"],
+        "type_specific": ["tier_level", "included_product_ids", "included_community_ids", "perks_description", "member_count", "max_members"],
+        "pricing_fields": ["monthly_price_cents", "annual_price_cents", "trial_days", "setup_fee_cents"]
+      },
+      "pricing_model": "recurring",
+      "pricing_note": "Monthly or annual billing cycle. Optional free trial period. Optional one-time setup fee. Annual discount typically 15-20% off monthly rate.",
+      "delivery_mechanism": "bundled_access",
+      "delivery_note": "On subscription start, entitlements created for all included products, communities, and perks. Entitlements revoked on subscription cancellation (with optional grace period).",
+      "entitlement_type": "subscription",
+      "entitlement_duration": "recurring_while_subscribed",
+      "revocation_trigger": "subscription_cancelled_after_grace_period",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "implementation_note": "No subscription or membership tables in schema. No Stripe subscription integration. No billing portal. No tier management UI.",
+      "schema_tables": [],
+      "required_tables": ["subscription_plans", "subscriptions", "subscription_items"],
+      "examples": ["Creator Inner Circle ($29/mo)", "VIP All-Access Pass ($99/mo)", "Free newsletter membership with paid upgrade"]
+    },
+    {
+      "type": "service",
+      "name": "Service",
+      "description": "Coaching sessions, consulting calls, done-for-you services, audits, reviews, and any human-delivered service. Bookable with calendar integration.",
+      "fields": {
+        "core": ["name", "description", "price_cents", "category", "creator_id", "business_id"],
+        "type_specific": ["duration_minutes", "delivery_method", "booking_lead_time_hours", "max_concurrent_bookings", "calendar_integration_id", "questionnaire_fields"],
+        "pricing_fields": ["price_cents", "deposit_amount_cents", "package_sessions", "package_price_cents"]
+      },
+      "pricing_model": "one_time_or_package",
+      "pricing_note": "Single session price or multi-session package discount. Optional deposit required at booking. Balance due before session.",
+      "delivery_mechanism": "scheduled_booking",
+      "delivery_note": "On purchase, booking confirmation sent. Calendar event created (if integration active). Questionnaire sent if configured. Zoom/Meet link generated.",
+      "entitlement_type": "service_booking",
+      "entitlement_duration": "single_use_or_package_count",
+      "revocation_trigger": "no_show_policy_or_refund_processed",
+      "implementation_status": "PARTIAL",
+      "implementation_note": "Products table serves as generic product container. Product creation form can create service-like products. No booking system, no calendar integration, no scheduling UI.",
+      "schema_tables": ["products"],
+      "required_tables": ["service_bookings", "availability_windows"],
+      "examples": ["1-on-1 coaching call ($150/hr)", "Brand audit ($499)", "5-session coaching package ($599)"]
+    },
+    {
+      "type": "event",
+      "name": "Event",
+      "description": "Live workshops, webinars, conferences, meetups, and virtual or in-person events with ticketing, capacity limits, and attendee management.",
+      "fields": {
+        "core": ["name", "description", "creator_id", "business_id"],
+        "type_specific": ["start_datetime", "end_datetime", "timezone", "location_type", "location_address", "meeting_url", "max_attendees", "attendee_count", "is_recorded", "recording_url"],
+        "pricing_fields": ["price_cents", "early_bird_price_cents", "early_bird_deadline", "vip_price_cents", "is_free"]
+      },
+      "pricing_model": "one_time_tiered",
+      "pricing_note": "Single ticket purchase with optional tier pricing (general, early bird, VIP). Free events supported. No recurring billing for events.",
+      "delivery_mechanism": "event_ticket",
+      "delivery_note": "On purchase, ticket confirmation sent with event details. Calendar invite attached. Meeting link shared 24h before event (or immediately for recorded events).",
+      "entitlement_type": "event_ticket",
+      "entitlement_duration": "single_use",
+      "revocation_trigger": "event_cancelled_or_refund_processed",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "implementation_note": "No event-related pages, components, or schema tables. Events module not started.",
+      "schema_tables": [],
+      "required_tables": ["events", "event_tickets", "event_attendees"],
+      "examples": ["Live trading workshop ($97)", "Free community meetup", "3-day creator summit ($299 general, $499 VIP)"]
+    },
+    {
+      "type": "physical_product",
+      "name": "Physical Product",
+      "description": "Physical goods shipped to buyers. Merchandise, books, art prints, equipment, branded products. Requires inventory tracking and shipping integration.",
+      "fields": {
+        "core": ["name", "description", "price_cents", "category", "images", "creator_id", "business_id"],
+        "type_specific": ["sku", "weight_grams", "dimensions", "inventory_count", "track_inventory", "requires_shipping", "shipping_class", "variants"],
+        "pricing_fields": ["price_cents", "compare_at_price_cents", "cost_per_item_cents"]
+      },
+      "pricing_model": "one_time",
+      "pricing_note": "Single purchase price plus shipping. Optional compare-at price for sale display. Cost tracking for margin calculation.",
+      "delivery_mechanism": "physical_shipment",
+      "delivery_note": "On purchase, order created with shipping address. Creator fulfills and provides tracking number. Buyer receives shipping confirmation and tracking updates.",
+      "entitlement_type": "none",
+      "entitlement_note": "Physical products do not create digital entitlements. Order completion is the delivery proof. Optional digital bonus entitlements can be bundled.",
+      "entitlement_duration": "not_applicable",
+      "revocation_trigger": "return_processed_or_refund",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "implementation_note": "Products table is generic with no inventory, shipping, or variant fields. No shipping integration, no fulfillment workflow, no inventory management.",
+      "schema_tables": ["products"],
+      "required_tables": ["product_variants", "inventory", "shipping_rates", "fulfillments"],
+      "examples": ["Branded hoodie ($59)", "Signed art print ($89)", "Creator's published book ($24.99)"]
+    },
+    {
+      "type": "ugc_campaign",
+      "name": "UGC Campaign",
+      "description": "User-generated content campaign briefs posted by brands/creators seeking UGC creators. Includes application flow, deliverable tracking, compensation, and content approval workflow.",
+      "fields": {
+        "core": ["title", "description", "creator_id", "business_id", "brand_name"],
+        "type_specific": ["campaign_type", "target_platforms", "content_requirements", "deliverable_count", "deadline", "application_deadline", "max_creators", "style_guide_url", "product_shipped"],
+        "pricing_fields": ["budget_cents", "per_deliverable_rate_cents", "bonus_performance_rate_cents"]
+      },
+      "pricing_model": "creator_paid_per_deliverable",
+      "pricing_note": "Brand/creator pays UGC creators per approved deliverable. Platform takes a service fee. Performance bonuses optional.",
+      "delivery_mechanism": "campaign_workflow",
+      "delivery_note": "UGC creators apply to campaign. Brand selects creators. Product shipped if physical. Creators produce content. Brand reviews and approves. Payment released on approval.",
+      "entitlement_type": "none",
+      "entitlement_note": "UGC campaigns do not create buyer entitlements. The deliverable is content produced by the UGC creator for the brand.",
+      "entitlement_duration": "not_applicable",
+      "revocation_trigger": "campaign_cancelled",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "implementation_note": "No UGC-related pages, components, or schema tables. UGC Campaigns module (module 8 of 16 in PRD) not started.",
+      "schema_tables": [],
+      "required_tables": ["ugc_campaigns", "ugc_applications", "ugc_deliverables", "ugc_payments"],
+      "examples": ["Skincare brand seeking 10 TikTok reviews ($200/video)", "SaaS company seeking 5 tutorial videos ($500/video)"]
+    },
+    {
+      "type": "software_access",
+      "name": "Software Access",
+      "description": "SaaS tool access, API keys, plugin licenses, and software subscriptions sold by creators. Grants authenticated access to external software via license keys or OAuth.",
+      "fields": {
+        "core": ["name", "description", "creator_id", "business_id"],
+        "type_specific": ["access_url", "documentation_url", "license_type", "api_rate_limit", "seats_included", "version", "changelog_url"],
+        "pricing_fields": ["monthly_price_cents", "annual_price_cents", "lifetime_price_cents", "is_free_tier_available"]
+      },
+      "pricing_model": "recurring_or_lifetime",
+      "pricing_note": "Monthly/annual subscription or one-time lifetime purchase. Free tier optional for freemium model. Seat-based pricing for team tools.",
+      "delivery_mechanism": "license_key_or_oauth",
+      "delivery_note": "On purchase, license key generated or OAuth access granted. Buyer redirected to software with active entitlement. Usage tracked against rate limits.",
+      "entitlement_type": "software_access",
+      "entitlement_duration": "perpetual_or_recurring",
+      "revocation_trigger": "subscription_cancelled_or_refund_processed",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "implementation_note": "No software access pages, components, or schema. Products table has no license key generation, no OAuth integration, no usage tracking.",
+      "schema_tables": [],
+      "required_tables": ["software_licenses", "license_activations"],
+      "examples": ["Notion template pack with updates ($29/lifetime)", "Trading bot API access ($49/mo)", "WordPress plugin license ($99/yr)"]
+    }
+  ],
+
+  "commerce_model": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "End-to-end commerce system for CreatorOS marketplace and creator storefronts",
+    "implementation_status": "NOT_IMPLEMENTED",
+    "implementation_note": "Zero commerce infrastructure exists. No Stripe dependency in package.json. No payment tables in schema. No checkout flow. No billing portal.",
+
+    "checkout_flow": {
+      "steps": [
+        {"step": 1, "name": "product_selection", "description": "Buyer clicks 'Buy' or 'Subscribe' on product page or marketplace listing"},
+        {"step": 2, "name": "auth_check", "description": "If not logged in, redirect to auth (Clerk). Return to checkout after auth."},
+        {"step": 3, "name": "checkout_form", "description": "Display order summary, collect billing info. For physical products, collect shipping address. Apply coupon/promo codes."},
+        {"step": 4, "name": "payment_processing", "description": "Stripe Checkout Session or Payment Intent created. Platform fee calculated based on creator's tier (8%/5%/3%). Stripe Connect split payment."},
+        {"step": 5, "name": "payment_confirmation", "description": "Stripe webhook confirms payment_intent.succeeded. Order status updated to 'completed'."},
+        {"step": 6, "name": "entitlement_provisioning", "description": "Entitlement record created based on product type. Access granted immediately for digital products. For services, booking flow initiated."},
+        {"step": 7, "name": "order_confirmation", "description": "Confirmation page displayed. Email sent with order details, download links (digital), booking details (services), or ticket (events)."},
+        {"step": 8, "name": "post_purchase", "description": "Buyer redirected to purchased content. Creator notified of sale. Revenue dashboard updated. UMH signal emitted."}
+      ],
+      "variants": {
+        "free_product": "Skip steps 3-5. Create order with amount_cents=0, status='completed'. Proceed to entitlement provisioning.",
+        "subscription": "Stripe Subscription created instead of Payment Intent. Recurring billing managed by Stripe. Webhook handles subscription lifecycle (renewal, cancellation, failed payment).",
+        "physical_product": "Additional shipping address collection in step 3. Fulfillment workflow after step 5 (creator ships, provides tracking).",
+        "ugc_campaign": "No buyer checkout. Campaign posted by brand. UGC creators apply. Payment released on deliverable approval via Stripe Connect transfer."
+      }
+    },
+
+    "payment_processing": {
+      "provider": "Stripe Connect",
+      "provider_provenance": "SOURCE_PRESERVED_TRUTH",
+      "provider_note": "PRD specifies Stripe Connect. Not implemented. No Stripe dependency in package.json.",
+      "account_type": "Express",
+      "account_note": "Each creator business connects a Stripe Express account for payouts. Platform (CreatorOS) is the Connect platform.",
+      "split_payment": {
+        "description": "Every transaction splits between creator and platform via Stripe Connect application_fee_amount",
+        "creator_receives": "sale_amount - platform_fee - stripe_processing_fee",
+        "platform_receives": "platform_fee (tier-dependent: 8%/5%/3%)",
+        "stripe_receives": "standard processing fee (2.9% + $0.30 for US cards)"
+      },
+      "supported_methods": ["card", "apple_pay", "google_pay", "link"],
+      "currencies": {
+        "default": "usd",
+        "supported": "all Stripe-supported currencies",
+        "note": "Creator sets product currency. Buyer sees price in product currency. Multi-currency display is future scope."
+      },
+      "payout_schedule": {
+        "default": "weekly",
+        "minimum_payout_cents": 2500,
+        "instant_payout": {
+          "available": true,
+          "fee_pct": 1.0,
+          "requirement": "verified Stripe Express account"
+        }
+      },
+      "countries": "135+ (Stripe Connect supported countries)"
+    },
+
+    "refunds": {
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "description": "Refund policy and processing flow",
+      "proposed_policy": {
+        "digital_downloads": {
+          "window_days": 14,
+          "condition": "no_download_or_creator_discretion",
+          "note": "Digital goods are non-refundable after download unless creator opts into extended refund policy"
+        },
+        "courses": {
+          "window_days": 30,
+          "condition": "less_than_20_pct_completed",
+          "note": "Full refund if less than 20% of course completed within 30 days. No refund after 20% progress."
+        },
+        "subscriptions": {
+          "window_days": 0,
+          "condition": "cancel_anytime_no_refund",
+          "note": "Subscriptions cancel at end of billing period. No prorated refunds. Creator can override."
+        },
+        "services": {
+          "window_days": 2,
+          "condition": "before_scheduled_session",
+          "note": "Full refund if cancelled 48+ hours before scheduled session. No refund for no-shows."
+        },
+        "events": {
+          "window_days": 7,
+          "condition": "before_event_date",
+          "note": "Full refund 7+ days before event. 50% refund 2-7 days before. No refund within 48 hours."
+        },
+        "physical_products": {
+          "window_days": 30,
+          "condition": "return_required",
+          "note": "Full refund within 30 days of delivery. Buyer ships back at own cost. Creator can override."
+        }
+      },
+      "processing": {
+        "initiator": "buyer_or_creator",
+        "approval": "creator_approval_required_unless_auto_policy",
+        "stripe_refund": "Stripe Refund API. Funds returned to buyer's original payment method.",
+        "entitlement_revocation": "Entitlement status set to 'revoked' on refund completion.",
+        "platform_fee_refund": "Platform fee refunded proportionally. Stripe processing fee NOT refunded (Stripe policy)."
+      },
+      "open_questions": [
+        "Should platform enforce a minimum refund policy or let creators set their own?",
+        "Should there be an automated dispute resolution system or manual review?",
+        "How to handle partial refunds for bundles/packages?"
+      ]
+    },
+
+    "disputes": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Stripe handles chargebacks. Platform needs a dispute management layer on top.",
+      "flow": [
+        {"step": 1, "description": "Buyer files dispute with their bank or via platform support"},
+        {"step": 2, "description": "Stripe notifies platform via charge.dispute.created webhook"},
+        {"step": 3, "description": "Creator notified with dispute details and evidence request"},
+        {"step": 4, "description": "Creator submits evidence (delivery proof, communication logs, access logs) within Stripe deadline (typically 7-21 days)"},
+        {"step": 5, "description": "Platform submits evidence to Stripe on creator's behalf"},
+        {"step": 6, "description": "Stripe/bank resolves dispute. Platform updates order status accordingly."}
+      ],
+      "platform_responsibility": "Provide creator with dispute management UI. Auto-collect evidence where possible (download logs, access logs, enrollment progress). Coach creators on evidence requirements.",
+      "dispute_fee": "Stripe charges $15 per dispute. Platform absorbs or passes to creator — operator decision required."
+    }
+  },
+
+  "pricing": {
+    "provenance": "SOURCE_PRESERVED_TRUTH",
+    "source": "PRD business model section (Tab 8)",
+    "description": "4-tier SaaS pricing for creator accounts on CreatorOS platform",
+    "discrepancy_note": "Task description states Business=$79, Enterprise=$199+. PRD states Business=$99, Enterprise=custom. PRD is authoritative source. Both values preserved.",
+
+    "free_tier": {
+      "name": "Starter",
+      "price_monthly_cents": 0,
+      "platforms": 3,
+      "communities": 1,
+      "courses": 1,
+      "transaction_fee_pct": 8,
+      "features": [
+        "Basic cross-posting to 3 platforms",
+        "1 community with up to 100 members",
+        "1 course with up to 5 lessons",
+        "Basic analytics dashboard",
+        "Standard support",
+        "CreatorOS branding on storefront"
+      ],
+      "limitations": [
+        "8% transaction fee on all sales",
+        "No custom domain",
+        "No API access",
+        "No team seats",
+        "No automation builder",
+        "No ads platform access",
+        "CreatorOS watermark on community"
+      ]
+    },
+
+    "pro": {
+      "name": "Pro",
+      "price_monthly_cents": 2900,
+      "price_annual_cents": 29000,
+      "annual_note": "Annual pricing not specified in PRD. $290/yr ($24.17/mo) is typical 17% annual discount.",
+      "platforms": "unlimited",
+      "communities": "unlimited",
+      "courses": "unlimited",
+      "transaction_fee_pct": 5,
+      "features": [
+        "Unlimited cross-posting to all platforms",
+        "Unlimited communities",
+        "Unlimited courses with all content types",
+        "Full distribution scheduling and automation",
+        "Advanced analytics (audience, revenue, content performance)",
+        "Priority support",
+        "Custom domain for storefront",
+        "Email/newsletter (up to 5,000 subscribers)",
+        "Remove CreatorOS branding",
+        "Basic automation builder (5 workflows)"
+      ]
+    },
+
+    "business": {
+      "name": "Business",
+      "price_monthly_cents": 9900,
+      "price_monthly_cents_task_alt": 7900,
+      "price_note": "PRD says $99/mo. Task description says $79/mo. PRD is authoritative. Both preserved.",
+      "price_annual_cents": 99000,
+      "platforms": "unlimited",
+      "communities": "unlimited",
+      "courses": "unlimited",
+      "transaction_fee_pct": 3,
+      "features": [
+        "Everything in Pro",
+        "Team seats (up to 5 included, additional at $10/mo each)",
+        "API access for custom integrations",
+        "White-label storefront with custom branding",
+        "UGC campaign management",
+        "Ads platform access (self-serve)",
+        "Advanced automation builder (unlimited workflows)",
+        "Email/newsletter (up to 50,000 subscribers)",
+        "Dedicated account manager",
+        "Advanced analytics with export",
+        "Webhook integrations"
+      ]
+    },
+
+    "enterprise": {
+      "name": "Enterprise",
+      "price_monthly_cents": null,
+      "price_monthly_cents_task_alt": 19900,
+      "price_note": "PRD says custom pricing. Task description says $199+/mo. PRD is authoritative. Both preserved.",
+      "pricing_model": "custom",
+      "platforms": "unlimited",
+      "communities": "unlimited",
+      "courses": "unlimited",
+      "transaction_fee_pct": "custom",
+      "features": [
+        "Everything in Business",
+        "Custom SLAs",
+        "Dedicated support with named representative",
+        "Unlimited team seats",
+        "Custom API rate limits",
+        "SSO/SAML authentication",
+        "Priority feature requests",
+        "Custom integrations",
+        "Volume discount on transaction fees",
+        "On-call support",
+        "Data export and migration assistance"
+      ]
+    }
+  },
+
+  "revenue_model": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "How CreatorOS (the platform) generates revenue",
+
+    "streams": [
+      {
+        "stream": "saas_subscriptions",
+        "description": "Monthly/annual subscription revenue from creator accounts (Pro/Business/Enterprise tiers)",
+        "model": "recurring",
+        "processor": "Stripe Billing (platform's own Stripe account, not Connect)",
+        "margin": "high — near 100% gross margin on SaaS revenue"
+      },
+      {
+        "stream": "transaction_fees",
+        "description": "Percentage of every sale through the platform, tiered by creator's plan (8%/5%/3%)",
+        "model": "per_transaction",
+        "processor": "Stripe Connect application_fee_amount on each payment",
+        "margin": "high — platform fee is pure revenue after Stripe's cut"
+      },
+      {
+        "stream": "ads_platform",
+        "description": "Self-serve advertising revenue from brands promoting products/content within CreatorOS feed and marketplace",
+        "model": "cpm_or_cpc",
+        "processor": "Stripe (advertiser billing)",
+        "margin": "medium-high — ad serving infrastructure cost",
+        "timeline": "future — not in MVP scope"
+      },
+      {
+        "stream": "enterprise_contracts",
+        "description": "Custom pricing contracts for large creator businesses and agencies",
+        "model": "annual_contract",
+        "processor": "manual invoicing or Stripe",
+        "margin": "high — custom pricing always above standard tiers"
+      }
+    ],
+
+    "platform_fee": {
+      "description": "Percentage taken from every creator sale, applied as Stripe Connect application_fee_amount",
+      "tiers": {
+        "starter_free": {"fee_pct": 8, "note": "Highest fee incentivizes upgrade to paid plan"},
+        "pro": {"fee_pct": 5, "note": "Reduced fee for paying creators"},
+        "business": {"fee_pct": 3, "note": "Lowest standard fee"},
+        "enterprise": {"fee_pct": "custom", "note": "Negotiated, typically 1-3%"}
+      }
+    },
+
+    "payment_processing_fee": {
+      "description": "Stripe's standard processing fee, paid by the creator (deducted from payout)",
+      "rate": "2.9% + $0.30 per successful card charge (US)",
+      "international_rate": "additional 1.5% for international cards",
+      "note": "This is Stripe's fee, not CreatorOS revenue. Passed through to creator."
+    },
+
+    "premium_features": {
+      "description": "Features gated behind paid tiers that drive subscription upgrades",
+      "key_gates": [
+        {"feature": "Custom domain", "minimum_tier": "pro"},
+        {"feature": "Remove platform branding", "minimum_tier": "pro"},
+        {"feature": "Team seats", "minimum_tier": "business"},
+        {"feature": "API access", "minimum_tier": "business"},
+        {"feature": "White-label", "minimum_tier": "business"},
+        {"feature": "UGC campaigns", "minimum_tier": "business"},
+        {"feature": "Ads platform", "minimum_tier": "business"},
+        {"feature": "Automation builder (basic)", "minimum_tier": "pro"},
+        {"feature": "Automation builder (unlimited)", "minimum_tier": "business"},
+        {"feature": "SSO/SAML", "minimum_tier": "enterprise"}
+      ]
+    },
+
+    "implementation_status": "NOT_IMPLEMENTED",
+    "implementation_note": "Zero revenue infrastructure exists. No Stripe account, no subscription management, no transaction fee collection, no checkout flow, no billing portal, no revenue dashboard with real data."
+  },
+
+  "order_lifecycle": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "description": "State machine for order records from creation through completion, refund, or cancellation",
+
+    "states": [
+      {"state": "pending", "description": "Order created, payment not yet confirmed. Stripe PaymentIntent created but not succeeded."},
+      {"state": "processing", "description": "Payment confirmed, entitlements being provisioned. Short-lived transitional state."},
+      {"state": "completed", "description": "Payment confirmed, entitlements provisioned, order fulfilled. Terminal success state."},
+      {"state": "refund_requested", "description": "Buyer or creator initiated refund. Awaiting approval or processing."},
+      {"state": "refunded", "description": "Refund processed via Stripe. Entitlements revoked. Terminal state."},
+      {"state": "partially_refunded", "description": "Partial refund processed (e.g., one item in a bundle). Some entitlements may remain."},
+      {"state": "cancelled", "description": "Order cancelled before payment completion. No charge processed. Terminal state."},
+      {"state": "disputed", "description": "Buyer filed a chargeback with their bank. Under investigation."},
+      {"state": "failed", "description": "Payment failed (declined card, insufficient funds). Terminal failure state."}
+    ],
+
+    "transitions": [
+      {"from": "pending", "to": "processing", "trigger": "payment_intent.succeeded webhook", "auto": true},
+      {"from": "pending", "to": "cancelled", "trigger": "buyer cancels or payment intent expires (30 min)", "auto": true},
+      {"from": "pending", "to": "failed", "trigger": "payment_intent.payment_failed webhook", "auto": true},
+      {"from": "processing", "to": "completed", "trigger": "entitlements provisioned successfully", "auto": true},
+      {"from": "completed", "to": "refund_requested", "trigger": "buyer or creator initiates refund", "auto": false},
+      {"from": "refund_requested", "to": "refunded", "trigger": "refund approved and processed via Stripe", "auto": false},
+      {"from": "refund_requested", "to": "completed", "trigger": "refund denied by creator", "auto": false},
+      {"from": "completed", "to": "partially_refunded", "trigger": "partial refund processed", "auto": false},
+      {"from": "completed", "to": "disputed", "trigger": "charge.dispute.created webhook", "auto": true},
+      {"from": "disputed", "to": "completed", "trigger": "dispute resolved in creator's favor", "auto": true},
+      {"from": "disputed", "to": "refunded", "trigger": "dispute resolved in buyer's favor", "auto": true}
+    ],
+
+    "automations": [
+      {"trigger": "order.completed", "action": "Send order confirmation email to buyer", "type": "notification"},
+      {"trigger": "order.completed", "action": "Send sale notification to creator", "type": "notification"},
+      {"trigger": "order.completed", "action": "Create entitlement records based on product type", "type": "provisioning"},
+      {"trigger": "order.completed", "action": "Update creator revenue dashboard", "type": "analytics"},
+      {"trigger": "order.completed", "action": "Emit UMH signal (creatoros_product_sold)", "type": "integration"},
+      {"trigger": "order.refunded", "action": "Revoke entitlements", "type": "provisioning"},
+      {"trigger": "order.refunded", "action": "Send refund confirmation email to buyer", "type": "notification"},
+      {"trigger": "order.refunded", "action": "Emit UMH signal (creatoros_refund_processed)", "type": "integration"},
+      {"trigger": "order.disputed", "action": "Notify creator with evidence collection prompt", "type": "notification"},
+      {"trigger": "order.failed", "action": "Send payment failure email to buyer with retry link", "type": "notification"},
+      {"trigger": "order.cancelled", "action": "Release any held inventory (physical products)", "type": "inventory"}
+    ]
+  },
+
+  "entitlement_model": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "description": "Access control system linking purchases to product access. Every non-physical purchase creates an entitlement record.",
+
+    "types": [
+      {
+        "type": "course_access",
+        "grants": "Access to course content, lessons, quizzes. Creates enrollment record.",
+        "product_types": ["course"],
+        "duration": "perpetual",
+        "revocation_triggers": ["refund_processed", "manual_admin_revoke"]
+      },
+      {
+        "type": "community_access",
+        "grants": "Membership in community with role assignment. Access to gated channels.",
+        "product_types": ["community", "subscription_membership"],
+        "duration": "recurring_while_subscribed_or_perpetual",
+        "revocation_triggers": ["subscription_cancelled", "manual_ban", "refund_processed"]
+      },
+      {
+        "type": "download_access",
+        "grants": "Access to download digital files. Download link generation and tracking.",
+        "product_types": ["digital_download"],
+        "duration": "perpetual",
+        "revocation_triggers": ["refund_processed"]
+      },
+      {
+        "type": "subscription",
+        "grants": "Access to a bundle of products, communities, and perks included in the subscription tier.",
+        "product_types": ["subscription_membership"],
+        "duration": "recurring",
+        "revocation_triggers": ["subscription_cancelled_after_grace_period", "payment_failed_after_retry", "refund_processed"]
+      },
+      {
+        "type": "software_access",
+        "grants": "License key or OAuth token for external software. Usage tracking against rate limits.",
+        "product_types": ["software_access", "ai_agent"],
+        "duration": "perpetual_or_recurring",
+        "revocation_triggers": ["subscription_cancelled", "license_revoked", "refund_processed"]
+      },
+      {
+        "type": "event_ticket",
+        "grants": "Admission to event. Calendar invite and meeting link access.",
+        "product_types": ["event"],
+        "duration": "single_use",
+        "revocation_triggers": ["event_cancelled", "refund_processed"]
+      },
+      {
+        "type": "service_booking",
+        "grants": "Confirmed booking for service session(s). Calendar slot reserved.",
+        "product_types": ["service"],
+        "duration": "single_use_or_package_count",
+        "revocation_triggers": ["cancellation_within_policy", "refund_processed", "no_show_3x"]
+      }
+    ],
+
+    "duration_types": {
+      "perpetual": "Never expires. Access granted forever unless explicitly revoked (refund, admin action).",
+      "recurring": "Active while subscription is current. Checked against Stripe subscription status on each access.",
+      "single_use": "Consumed on use (event attendance, service session). Cannot be re-used.",
+      "package_count": "Decremented on each use (e.g., 5-session coaching package). Expires when count reaches 0.",
+      "time_limited": "Expires after a fixed duration (e.g., 90-day access). Checked against expires_at timestamp."
+    },
+
+    "revocation": {
+      "process": [
+        {"step": 1, "action": "Trigger received (refund, cancellation, manual action)"},
+        {"step": 2, "action": "Entitlement status set to 'revoked'"},
+        {"step": 3, "action": "Access check middleware returns 403 for revoked entitlements"},
+        {"step": 4, "action": "Buyer notified of access removal with reason"},
+        {"step": 5, "action": "Associated records updated (enrollment dropped, community member removed, license deactivated)"}
+      ],
+      "grace_period": {
+        "subscriptions": "Access continues until end of current billing period even after cancellation",
+        "failed_payments": "3 retry attempts over 7 days before entitlement revoked",
+        "note": "Grace period is configurable per product by the creator"
+      }
+    },
+
+    "transfer": {
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "description": "Whether entitlements can be transferred between users",
+      "proposed": "NOT_TRANSFERABLE by default. Creator can enable transfer for specific product types (e.g., event tickets). Transfer creates new entitlement for recipient and revokes original.",
+      "open_questions": [
+        "Should gifting be supported (buy for someone else)?",
+        "Should event tickets be transferable/resellable?",
+        "Should course access be transferable within a team?"
+      ]
+    },
+
+    "access_check": {
+      "description": "How the system determines if a user can access gated content",
+      "flow": [
+        {"step": 1, "description": "User requests gated resource (course lesson, community channel, download link)"},
+        {"step": 2, "description": "Middleware queries entitlements table: user_id + product_id + status='active' + (expires_at IS NULL OR expires_at > NOW())"},
+        {"step": 3, "description": "If entitlement found and valid: grant access. If not: return 403 with upgrade/purchase prompt."},
+        {"step": 4, "description": "For subscriptions: additionally verify Stripe subscription status is active (webhook-driven, cached in entitlement status)"}
+      ]
+    }
+  },
+
+  "marketplace": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Product discovery, search, and browsing experience for consumers on CreatorOS",
+
+    "discovery": {
+      "mechanisms": [
+        {"type": "feed", "description": "Consumer feed shows products from followed creators alongside content posts. Algorithm ranks by relevance, recency, and engagement."},
+        {"type": "marketplace_browse", "description": "Dedicated marketplace page with category navigation, featured products, and trending listings."},
+        {"type": "creator_storefront", "description": "Each creator has a storefront page listing all their products organized by type."},
+        {"type": "recommendations", "description": "AI-powered recommendations based on purchase history, browsing behavior, and similar creators."},
+        {"type": "social_proof", "description": "Products surfaced based on purchases by people you follow, trending in your communities, and review ratings."}
+      ]
+    },
+
+    "search": {
+      "scope": "All published products across all creators on the platform",
+      "features": [
+        "Full-text search across product name, description, and tags",
+        "Filter by product type (10 types)",
+        "Filter by price range (free, under $10, $10-50, $50-100, $100+)",
+        "Filter by category (creator-defined categories)",
+        "Filter by rating (4+ stars, 3+ stars)",
+        "Sort by: relevance, newest, price low-to-high, price high-to-low, best selling, highest rated",
+        "Creator search (find products by specific creator)"
+      ],
+      "implementation_status": "NOT_IMPLEMENTED",
+      "implementation_note": "Marketplace page exists with basic product listing. No search, no filters, no sorting. ProductCard and ProductList components render but with no interaction."
+    },
+
+    "categories": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Product categories for marketplace navigation. Creator selects category when creating product.",
+      "proposed_top_level": [
+        "Business & Entrepreneurship",
+        "Marketing & Social Media",
+        "Design & Creative",
+        "Technology & Development",
+        "Health & Fitness",
+        "Finance & Investing",
+        "Education & Learning",
+        "Music & Audio",
+        "Photography & Video",
+        "Writing & Publishing",
+        "Lifestyle & Personal Development",
+        "Gaming & Entertainment"
+      ],
+      "note": "Categories are currently a free-text field on the products table. No enum enforcement. No category table."
+    },
+
+    "reviews": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Product review and rating system for marketplace trust and discovery",
+      "model": {
+        "rating": "1-5 stars",
+        "review_text": "Optional text review (max 2000 chars)",
+        "verified_purchase": "Boolean — only buyers with completed orders can leave reviews",
+        "helpful_votes": "Other users can mark reviews as helpful",
+        "creator_response": "Creator can respond to each review once"
+      },
+      "implementation_status": "NOT_IMPLEMENTED",
+      "implementation_note": "Products table has rating and review_count columns (denormalized) but no reviews table exists. No review submission UI. No review display on product pages.",
+      "required_tables": ["reviews"]
+    },
+
+    "ratings": {
+      "calculation": "Average of all verified-purchase review ratings. Displayed as X.X stars with review count.",
+      "display": "Product cards show star rating + review count. Product pages show full review breakdown (5-star distribution).",
+      "minimum_reviews": "Products with 0 reviews show 'New' badge instead of stars. Rating displayed after 3+ reviews.",
+      "fraud_prevention": "Only verified purchasers can review. One review per user per product. Reviews moderated for spam/abuse."
+    }
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-COMMERCE-001",
+      "topic": "Payment processor",
+      "question": "Confirm Stripe Connect as sole payment processor, or evaluate alternatives (PayPal, Square, Lemonsqueezy)?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "Stripe Connect is the industry standard for marketplace/platform payments. PRD specifies it. No reason to deviate unless operator has specific requirements.",
+      "impact": "All checkout, payout, subscription, and refund flows depend on this choice."
+    },
+    {
+      "id": "OQ-COMMERCE-002",
+      "topic": "Refund policy enforcement",
+      "question": "Should the platform enforce a minimum refund policy, or let each creator set their own refund terms?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "Platform-enforced minimum (e.g., 14-day for digital, 30-day for courses <20% complete) with creator ability to offer MORE generous terms. This protects consumers and platform reputation.",
+      "impact": "Affects buyer trust, creator flexibility, dispute rates, and platform ToS."
+    },
+    {
+      "id": "OQ-COMMERCE-003",
+      "topic": "Tax handling",
+      "question": "How will sales tax / VAT be handled? Stripe Tax? Third-party (TaxJar, Avalara)? Creator responsibility?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "Stripe Tax for simplicity — auto-calculates and collects tax based on buyer location. Included in checkout flow. Platform remits or creator remits depending on MoR (Merchant of Record) model.",
+      "impact": "Legal compliance. Affects checkout flow, pricing display (tax-inclusive vs exclusive), and financial reporting. Must be resolved before any public commerce launch."
+    },
+    {
+      "id": "OQ-COMMERCE-004",
+      "topic": "International commerce",
+      "question": "What currencies will be supported at launch? Multi-currency pricing or single currency with conversion?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "USD-only at launch. Add multi-currency pricing as a Business/Enterprise tier feature. Stripe handles currency conversion for international buyers automatically.",
+      "impact": "Affects product creation flow (price field per currency vs single price), checkout display, and creator payout currency."
+    },
+    {
+      "id": "OQ-COMMERCE-005",
+      "topic": "Merchant of Record",
+      "question": "Is CreatorOS the Merchant of Record (MoR) or is each creator their own MoR?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "Each creator is their own MoR via Stripe Connect Express accounts. Platform is the facilitator, not the seller. This simplifies tax liability — each creator is responsible for their own tax obligations. Platform provides 1099-K reporting data.",
+      "impact": "Fundamental business model decision. Affects tax liability, refund processing, legal risk, Stripe Connect account type, and platform ToS."
+    },
+    {
+      "id": "OQ-COMMERCE-006",
+      "topic": "Dispute fee responsibility",
+      "question": "Who pays the $15 Stripe dispute fee — the platform or the creator?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "Creator pays dispute fees (deducted from next payout). This incentivizes creators to maintain quality and resolve issues before they become chargebacks. Platform absorbs first dispute as goodwill.",
+      "impact": "Affects creator payout calculation and creator ToS."
+    },
+    {
+      "id": "OQ-COMMERCE-007",
+      "topic": "Free tier transaction limit",
+      "question": "Should the free tier have a maximum monthly GMV (gross merchandise volume) before forcing upgrade?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "Yes — cap free tier at $1,000/mo GMV. Creators exceeding this clearly have a viable business and should upgrade. The 8% transaction fee alone makes this profitable, but the cap encourages subscription revenue.",
+      "impact": "Affects free tier economics and upgrade conversion rate."
+    },
+    {
+      "id": "OQ-COMMERCE-008",
+      "topic": "Entitlement transferability",
+      "question": "Should purchased access be transferable (gifting, resale, team sharing)?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "Not transferable by default. Enable gifting (buy-for-someone-else) as a checkout option. Event tickets transferable. No resale marketplace (avoid scalping). Team sharing via Business tier team seats.",
+      "impact": "Affects entitlement model complexity, potential for abuse, and revenue (transfers bypass platform fees on resale)."
+    },
+    {
+      "id": "OQ-COMMERCE-009",
+      "topic": "Auth migration timing vs commerce",
+      "question": "Should Clerk auth migration happen before or after commerce tables? Auth is P0 security (broken passwords). Commerce is P0 revenue.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "Auth first. The broken comparePasswords vulnerability means any deployed commerce would be exploitable. Fix auth, then build commerce on the secure foundation.",
+      "impact": "If auth first: all commerce code uses Clerk from day 1. If commerce first: commerce code must be rewritten when auth migrates."
+    },
+    {
+      "id": "OQ-COMMERCE-010",
+      "topic": "Pricing discrepancy resolution",
+      "question": "PRD says Business=$99/mo, Enterprise=custom. Task inputs say Business=$79, Enterprise=$199+. Which is canonical?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "recommendation": "PRD is the original operator-authored source. Use PRD values ($99, custom) unless operator explicitly overrides.",
+      "impact": "Affects pricing page, Stripe product configuration, and revenue projections."
+    }
+  ]
+}

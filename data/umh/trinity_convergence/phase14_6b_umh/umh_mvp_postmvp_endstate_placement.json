@@ -1,0 +1,72 @@
+{
+  "phase": "14.6B-UMH",
+  "status": "DRAFT",
+  "categories": {
+    "MVP": {
+      "description": "Minimum viable cockpit/UMH for operator to govern implementation",
+      "items": [
+        {"item": "Naming canonicalization (Universal Meta Harness)", "status": "NEEDS_WORK", "effort": "LOW"},
+        {"item": "Gateway → CognitiveLoop execution path (production)", "status": "IMPLEMENTED"},
+        {"item": "Cockpit API with three-tier auth", "status": "IMPLEMENTED"},
+        {"item": "Cockpit frontend (27 panels)", "status": "IMPLEMENTED"},
+        {"item": "Discord bot interface (DEX)", "status": "IMPLEMENTED"},
+        {"item": "Model routing (10 providers)", "status": "IMPLEMENTED"},
+        {"item": "Governance risk classification", "status": "IMPLEMENTED"},
+        {"item": "Approval workflow (file-based)", "status": "IMPLEMENTED"},
+        {"item": "Execution traces and memory", "status": "IMPLEMENTED"},
+        {"item": "EOS projection (agents, views, workflows)", "status": "IMPLEMENTED"},
+        {"item": "ProductConnectionManager (3 projections)", "status": "IMPLEMENTED"},
+        {"item": "4 Docker services with resource limits", "status": "IMPLEMENTED"},
+        {"item": "Pre-commit enforcement gates (4)", "status": "IMPLEMENTED"},
+        {"item": "Execution control (pause/resume/abort)", "status": "STUB", "effort": "MEDIUM"},
+        {"item": "Request/access logging on cockpit API", "status": "NOT_IMPLEMENTED", "effort": "MEDIUM"},
+        {"item": "Fix /profile instance context leak", "status": "NOT_IMPLEMENTED", "effort": "LOW"},
+        {"item": "RLS bypass fix for substrate", "status": "NOT_IMPLEMENTED", "effort": "MEDIUM"},
+        {"item": "Backup/restore verification for Neon", "status": "NOT_IMPLEMENTED", "effort": "LOW"}
+      ]
+    },
+    "POST_MVP": {
+      "description": "Required before Trinity feature build",
+      "items": [
+        {"item": "CreatorOS projection completion (agents, views, workflows)", "status": "INTEGRATION_ONLY"},
+        {"item": "LyfeOS projection completion (full integration layer)", "status": "PARTIAL"},
+        {"item": "Execution path unification or explicit separation", "status": "NOT_STARTED"},
+        {"item": "EOS naming debt cleanup", "status": "NOT_STARTED"},
+        {"item": "CI/CD pipeline", "status": "NOT_STARTED"},
+        {"item": "HTTPS enforcement", "status": "NOT_STARTED"},
+        {"item": "Persistent rate limiting", "status": "NOT_STARTED"},
+        {"item": "Container health checks", "status": "NOT_STARTED"},
+        {"item": "Cross-projection data boundary framework", "status": "NOT_STARTED"},
+        {"item": "LyfeOS sensitive data exclusion policy", "status": "NOT_STARTED"},
+        {"item": "Integration contract versioning", "status": "NOT_STARTED"},
+        {"item": "E2E test coverage", "status": "NOT_STARTED"},
+        {"item": "API documentation", "status": "NOT_STARTED"},
+        {"item": "Alerting system", "status": "NOT_STARTED"},
+        {"item": "Secret rotation mechanism", "status": "NOT_STARTED"},
+        {"item": "Dead code cleanup (workstation/ 26,671 lines)", "status": "NOT_STARTED"}
+      ]
+    },
+    "END_STATE": {
+      "description": "Full Jarvis experience + multi-projection ecosystem",
+      "items": [
+        {"item": "Voice command (wake word, natural language control)", "status": "PARTIAL"},
+        {"item": "Meta-IDE (integrated file browser, diff viewer, terminal)", "status": "PARTIAL"},
+        {"item": "Full tmux/session visibility panel", "status": "NOT_STARTED"},
+        {"item": "Overnight autonomous mode with morning summary", "status": "PARTIAL"},
+        {"item": "Cross-device session handoff", "status": "NOT_STARTED"},
+        {"item": "Degraded mode with graceful fallback UI", "status": "NOT_STARTED"},
+        {"item": "Computer vision / screen analysis", "status": "NOT_STARTED"},
+        {"item": "Proactive mobile alerting", "status": "NOT_STARTED"},
+        {"item": "Multi-tenant support", "status": "NOT_STARTED"},
+        {"item": "GDPR/privacy compliance framework", "status": "NOT_STARTED"},
+        {"item": "Distributed tracing across services", "status": "NOT_STARTED"},
+        {"item": "WAF/DDoS protection", "status": "NOT_STARTED"},
+        {"item": "Disaster recovery with tested runbook", "status": "NOT_STARTED"},
+        {"item": "Ambient display / always-on dashboard", "status": "NOT_STARTED"},
+        {"item": "MCP server for projection integration", "status": "NOT_STARTED"},
+        {"item": "Embedded AI assistants in projections", "status": "NOT_STARTED"},
+        {"item": "Browser/computer-use agent framework", "status": "SCAFFOLD"}
+      ]
+    }
+  }
+}

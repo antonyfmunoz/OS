@@ -1,0 +1,796 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "CreatorOS visual identity system and navigation architecture -- X/Twitter-inspired minimalism, component library, color system, layout patterns, and responsive strategy",
+
+  "design_philosophy": {
+    "inspiration": "X/Twitter",
+    "inspiration_rationale": "X/Twitter represents the gold standard for information-dense, speed-optimized creator interfaces. Clean chrome disappears so content dominates. Every pixel earns its place.",
+    "principles": [
+      "minimalism",
+      "speed",
+      "function-first",
+      "content-density",
+      "progressive-disclosure"
+    ],
+    "principle_definitions": {
+      "minimalism": "Remove every element that does not directly serve the current task. White space is not wasted space -- it is a navigation aid.",
+      "speed": "Every interaction must feel instantaneous. Perceived performance matters as much as actual performance. Skeleton screens, optimistic updates, prefetching.",
+      "function-first": "Aesthetic decisions are always subordinate to usability. A beautiful button that confuses users is a failed button.",
+      "content-density": "Creators manage high volumes. The interface must show maximum relevant information without scrolling. Dense does not mean cluttered -- it means well-organized.",
+      "progressive-disclosure": "Show the 20% of controls used 80% of the time. Advanced features exist but do not compete for attention with primary actions."
+    }
+  },
+
+  "what_it_is": [
+    "Clean lines with precise alignment grids",
+    "Monochrome base palette with strategic accent colors for primary actions",
+    "Content-first layouts where creator content is the visual hero",
+    "Dense information architecture optimized for power users",
+    "Typographic hierarchy that creates structure without decorative elements",
+    "Subtle borders and dividers instead of shadows or depth effects",
+    "System-native feel -- fast, predictable, no visual surprises",
+    "Icon-driven navigation with text labels only where disambiguation is needed"
+  ],
+
+  "what_it_is_not": [
+    "Glassmorphism or frosted glass effects",
+    "Heavy gradients or color washes",
+    "Playful illustrations or mascots",
+    "Gamification chrome (XP bars, achievement badges, level indicators)",
+    "RPG or game-inspired aesthetic",
+    "Rounded blob shapes or organic forms",
+    "Animated backgrounds or particle effects",
+    "Skeuomorphic textures (paper, leather, wood)",
+    "Neon/cyberpunk color schemes",
+    "Excessive drop shadows or 3D depth simulation"
+  ],
+
+  "color_system": {
+    "primary": {
+      "name": "Ink",
+      "light_mode": "#0F1419",
+      "dark_mode": "#E7E9EA",
+      "usage": "Primary text, active navigation icons, headings"
+    },
+    "secondary": {
+      "name": "Steel",
+      "light_mode": "#536471",
+      "dark_mode": "#8B98A5",
+      "usage": "Secondary text, metadata, timestamps, inactive icons"
+    },
+    "accent": {
+      "name": "Signal Blue",
+      "value": "#1D9BF0",
+      "usage": "Primary CTAs, links, active states, selected tabs, publish/post actions",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "note": "Signal Blue follows X/Twitter convention. Operator may choose a distinct CreatorOS accent to differentiate brand identity."
+    },
+    "semantic": {
+      "success": "#00BA7C",
+      "warning": "#FFD400",
+      "error": "#F4212E",
+      "info": "#1D9BF0",
+      "usage": "Toasts, validation states, status badges, revenue indicators"
+    },
+    "surface": {
+      "light_mode": {
+        "background": "#FFFFFF",
+        "surface_elevated": "#F7F9F9",
+        "surface_overlay": "#EFF3F4",
+        "border": "#EFF3F4",
+        "divider": "#EFF3F4"
+      },
+      "dark_mode": {
+        "background": "#000000",
+        "surface_elevated": "#16181C",
+        "surface_overlay": "#1D1F23",
+        "border": "#2F3336",
+        "divider": "#2F3336"
+      }
+    },
+    "dark_mode": {
+      "strategy": "True black background (OLED-optimized), not dark gray",
+      "default": "dark",
+      "rationale": "Creators work long hours. Dark mode reduces eye strain and makes content (images, video thumbnails) pop. Default to dark, offer light as preference.",
+      "toggle": "System preference detection with manual override in settings"
+    },
+    "open_questions": [
+      "Should CreatorOS have a distinct accent color separate from X/Twitter blue?",
+      "Should each module have a subtle accent tint (e.g., green for Marketplace, purple for Courses) or remain monochrome?"
+    ]
+  },
+
+  "typography": {
+    "heading": {
+      "family": "Inter",
+      "fallback": "system-ui, -apple-system, sans-serif",
+      "weights": [600, 700],
+      "rationale": "Inter is optimized for screens, has excellent legibility at small sizes, and supports the full range of weights needed for typographic hierarchy."
+    },
+    "body": {
+      "family": "Inter",
+      "fallback": "system-ui, -apple-system, sans-serif",
+      "weights": [400, 500],
+      "rationale": "Single font family reduces load time and maintains visual consistency."
+    },
+    "mono": {
+      "family": "JetBrains Mono",
+      "fallback": "Menlo, Consolas, monospace",
+      "weights": [400, 500],
+      "usage": "Code blocks in courses, API keys, embed codes, analytics numbers, revenue figures"
+    },
+    "sizes": {
+      "xs": "11px / 0.6875rem",
+      "sm": "13px / 0.8125rem",
+      "base": "15px / 0.9375rem",
+      "lg": "17px / 1.0625rem",
+      "xl": "20px / 1.25rem",
+      "2xl": "24px / 1.5rem",
+      "3xl": "30px / 1.875rem",
+      "display": "36px / 2.25rem"
+    },
+    "line_heights": {
+      "tight": 1.2,
+      "normal": 1.4,
+      "relaxed": 1.6
+    },
+    "usage_map": {
+      "page_titles": "2xl / bold / tight",
+      "section_headers": "lg / semibold / tight",
+      "card_titles": "base / semibold / normal",
+      "body_text": "base / regular / relaxed",
+      "metadata": "sm / regular / normal",
+      "labels": "xs / medium / normal",
+      "revenue_figures": "xl / mono / semibold / tight"
+    }
+  },
+
+  "navigation": {
+    "bottom_tab_bar": {
+      "platform": "mobile",
+      "tabs": [
+        {
+          "label": "Home",
+          "icon": "home",
+          "destination": "Dashboard",
+          "badge": false
+        },
+        {
+          "label": "Content",
+          "icon": "edit-3",
+          "destination": "Content Distribution Hub",
+          "badge": false
+        },
+        {
+          "label": "Create",
+          "icon": "plus-circle",
+          "destination": "New Content Modal",
+          "badge": false,
+          "style": "accent-highlighted"
+        },
+        {
+          "label": "Store",
+          "icon": "shopping-bag",
+          "destination": "Marketplace",
+          "badge": "unread_orders_count"
+        },
+        {
+          "label": "Inbox",
+          "icon": "message-circle",
+          "destination": "Community Hub / DMs",
+          "badge": "unread_messages_count"
+        }
+      ],
+      "behavior": {
+        "active_indicator": "Filled icon + accent color label",
+        "inactive": "Outline icon + secondary color label",
+        "haptic_feedback": true,
+        "safe_area_respected": true,
+        "hide_on_scroll": false,
+        "height": "56px + safe area inset"
+      }
+    },
+    "top_bar": {
+      "platform": "both",
+      "structure": {
+        "left": "Avatar / back arrow (context-dependent)",
+        "center": "Page title or search bar",
+        "right": "Action icons (notifications bell, settings gear, contextual actions)"
+      },
+      "behavior": {
+        "sticky": true,
+        "blur_on_scroll": false,
+        "height": "48px",
+        "border_bottom": "1px solid border color"
+      }
+    },
+    "side_drawer": {
+      "platform": "mobile",
+      "trigger": "Avatar tap or swipe-right from left edge",
+      "sections": [
+        {
+          "label": "Profile",
+          "items": ["View Profile", "Edit Profile", "Creator Settings"]
+        },
+        {
+          "label": "Modules",
+          "items": ["Courses", "Community", "Marketplace", "UGC Campaigns", "Ads Platform", "Automation", "Email/Newsletter"]
+        },
+        {
+          "label": "Business",
+          "items": ["Analytics", "Revenue", "Subscribers", "Roles & Permissions"]
+        },
+        {
+          "label": "System",
+          "items": ["Settings", "Help", "Sign Out"]
+        }
+      ],
+      "behavior": {
+        "overlay": true,
+        "width": "85vw max 320px",
+        "animation": "slide-right 200ms ease-out"
+      }
+    },
+    "desktop_sidebar": {
+      "platform": "desktop",
+      "width": {
+        "collapsed": "68px",
+        "expanded": "240px"
+      },
+      "sections": [
+        {
+          "label": "Core",
+          "items": ["Dashboard", "Content", "Community", "Courses", "Marketplace"]
+        },
+        {
+          "label": "Growth",
+          "items": ["Analytics", "Ads", "UGC Campaigns", "Cross-Posting", "Email"]
+        },
+        {
+          "label": "Manage",
+          "items": ["Automation", "Moderation", "Roles", "Settings"]
+        }
+      ],
+      "behavior": {
+        "collapse_toggle": true,
+        "hover_expand": false,
+        "active_indicator": "Left border accent + filled icon",
+        "tooltip_on_collapse": true
+      }
+    },
+    "screen_transitions": {
+      "push": "slide-left 250ms ease-in-out (hierarchical navigation)",
+      "pop": "slide-right 250ms ease-in-out (back navigation)",
+      "modal": "slide-up 300ms ease-out (creation flows, detail views)",
+      "tab_switch": "instant (no animation between tabs)",
+      "drawer": "slide-right 200ms ease-out"
+    }
+  },
+
+  "layout_patterns": {
+    "feed_layout": {
+      "description": "Vertical scrolling list of content cards. Used for Content Distribution, Community posts, Consumer Feed.",
+      "structure": {
+        "container_max_width": "600px",
+        "card_spacing": "0px (divider lines, not gaps)",
+        "card_padding": "16px",
+        "pull_to_refresh": true,
+        "infinite_scroll": true,
+        "skeleton_loading": true
+      },
+      "x_twitter_reference": "Home timeline layout -- full-width cards separated by hairline dividers, no card elevation"
+    },
+    "grid_layout": {
+      "description": "Multi-column grid of visual items. Used for Marketplace products, Course catalog, Media gallery.",
+      "structure": {
+        "mobile_columns": 2,
+        "tablet_columns": 3,
+        "desktop_columns": 4,
+        "gap": "2px (Instagram-style tight grid) or 16px (card grid with metadata)",
+        "aspect_ratio": "1:1 for products, 16:9 for courses, mixed for gallery"
+      }
+    },
+    "detail_layout": {
+      "description": "Single-item detail view with scrollable content. Used for Product detail, Course lesson, Post detail.",
+      "structure": {
+        "hero_area": "Full-width media (image/video) or cover",
+        "content_area": "Padded content below hero, max-width 680px",
+        "sticky_footer": "Purchase CTA or action bar fixed at bottom",
+        "back_navigation": "Top-left arrow"
+      }
+    },
+    "form_layout": {
+      "description": "Data entry screens. Used for Product creation, Course builder, Settings, Profile edit.",
+      "structure": {
+        "max_width": "560px",
+        "label_position": "above input",
+        "field_spacing": "24px",
+        "section_spacing": "40px",
+        "sticky_submit": "Bottom bar with Save/Cancel"
+      }
+    },
+    "dashboard_layout": {
+      "description": "Multi-widget overview. Used for Creator Dashboard, Analytics, Revenue.",
+      "structure": {
+        "mobile": "Stacked full-width cards",
+        "tablet": "2-column grid",
+        "desktop": "Mixed grid with featured metrics row + 2-3 column detail grid",
+        "metric_cards": {
+          "height": "auto",
+          "content": "Label + large number + trend indicator + sparkline"
+        }
+      }
+    },
+    "split_layout": {
+      "description": "Two-panel layout for desktop. Used for Community (thread list + detail), DMs, Moderation queue.",
+      "structure": {
+        "left_panel_width": "360px",
+        "right_panel": "flex-1",
+        "divider": "1px solid border",
+        "mobile_fallback": "Stack with push navigation"
+      }
+    }
+  },
+
+  "component_library": {
+    "buttons": {
+      "variants": [
+        {
+          "name": "primary",
+          "style": "Solid accent background, white text, rounded-full (pill shape)",
+          "usage": "Main CTAs: Publish, Post, Buy, Subscribe, Save"
+        },
+        {
+          "name": "secondary",
+          "style": "Border accent color, transparent background, accent text, rounded-full",
+          "usage": "Secondary actions: Follow, Edit, Share"
+        },
+        {
+          "name": "ghost",
+          "style": "No border, no background, secondary text color, rounded-lg",
+          "usage": "Tertiary actions: Cancel, More options, Settings links"
+        },
+        {
+          "name": "destructive",
+          "style": "Solid error-red background, white text, rounded-full",
+          "usage": "Delete, Remove, Unsubscribe, Ban"
+        },
+        {
+          "name": "icon-only",
+          "style": "Circular, 36px, transparent background, hover background surface-overlay",
+          "usage": "Like, Reply, Repost, Share, Bookmark, More"
+        }
+      ],
+      "sizes": {
+        "sm": "32px height, 13px text",
+        "md": "36px height, 15px text",
+        "lg": "44px height, 15px text, min-width 120px",
+        "xl": "52px height, 17px text, full-width on mobile"
+      },
+      "states": ["default", "hover", "active", "disabled", "loading"],
+      "loading_indicator": "Spinner replacing text, maintaining button width"
+    },
+    "cards": {
+      "variants": [
+        {
+          "name": "feed-card",
+          "description": "Full-width, no border-radius, separated by hairline dividers. Avatar + name + timestamp header, content body, action bar footer.",
+          "usage": "Content feed, Community posts, Activity feed"
+        },
+        {
+          "name": "product-card",
+          "description": "Thumbnail image (1:1 or 16:9), title, price, creator name. Subtle border, rounded-lg.",
+          "usage": "Marketplace grid, Course catalog"
+        },
+        {
+          "name": "metric-card",
+          "description": "Label, large number (mono font), trend arrow with percentage, optional sparkline. No border, surface-elevated background.",
+          "usage": "Dashboard, Analytics overview"
+        },
+        {
+          "name": "list-item",
+          "description": "Horizontal row: left icon/avatar, title + subtitle, right accessory (chevron, toggle, value).",
+          "usage": "Settings, navigation lists, subscriber lists"
+        },
+        {
+          "name": "media-card",
+          "description": "Image/video fill with overlay gradient at bottom for title/metadata.",
+          "usage": "Stories, media gallery, featured content"
+        }
+      ]
+    },
+    "inputs": {
+      "variants": [
+        {
+          "name": "text-input",
+          "style": "Border-bottom only (underline style) or full border rounded-lg depending on context",
+          "states": ["default", "focused (accent border)", "error (red border + message)", "disabled (reduced opacity)"]
+        },
+        {
+          "name": "textarea",
+          "style": "Auto-expanding, character count in bottom-right when limit set",
+          "usage": "Post composer, product descriptions, bio"
+        },
+        {
+          "name": "search",
+          "style": "Rounded-full, surface-elevated background, search icon left, clear button right",
+          "usage": "Global search, filter within lists"
+        },
+        {
+          "name": "select",
+          "style": "Matches text-input style, chevron-down right, dropdown on interaction",
+          "usage": "Category selection, pricing tier, scheduling"
+        },
+        {
+          "name": "toggle",
+          "style": "24px height, pill shape, accent when active, surface when inactive",
+          "usage": "Settings, feature toggles, visibility controls"
+        },
+        {
+          "name": "checkbox",
+          "style": "16px square, rounded-sm, accent fill with check icon when active",
+          "usage": "Multi-select, terms agreement, bulk actions"
+        }
+      ]
+    },
+    "modals": {
+      "variants": [
+        {
+          "name": "bottom-sheet",
+          "platform": "mobile",
+          "style": "Slides up from bottom, rounded-t-2xl, drag handle at top, overlay behind",
+          "usage": "Action menus, filters, quick creation"
+        },
+        {
+          "name": "center-dialog",
+          "platform": "both",
+          "style": "Centered, rounded-2xl, max-width 480px, overlay behind",
+          "usage": "Confirmations, alerts, small forms"
+        },
+        {
+          "name": "full-screen-modal",
+          "platform": "both",
+          "style": "Full viewport, top bar with close/cancel + title + action button",
+          "usage": "Content creation, course builder, complex forms"
+        }
+      ],
+      "behavior": {
+        "overlay_opacity": 0.5,
+        "close_on_overlay_tap": true,
+        "escape_to_close": true,
+        "trap_focus": true
+      }
+    },
+    "toasts": {
+      "position": "top-center on mobile, top-right on desktop",
+      "duration_ms": 4000,
+      "variants": ["success (green left border)", "error (red left border)", "info (blue left border)", "warning (yellow left border)"],
+      "style": "Surface-elevated background, subtle shadow, rounded-lg, icon + message + optional action link",
+      "max_visible": 3,
+      "stack_direction": "down"
+    },
+    "badges": {
+      "variants": [
+        {
+          "name": "status",
+          "style": "Pill shape, small (20px height), uppercase xs text",
+          "values": ["Published (green)", "Draft (gray)", "Scheduled (blue)", "Archived (dim)"]
+        },
+        {
+          "name": "count",
+          "style": "Circular, 18px, accent background, white text, positioned top-right of parent",
+          "usage": "Notification count, unread messages, cart items"
+        },
+        {
+          "name": "tag",
+          "style": "Pill shape, surface-overlay background, secondary text, removable (x icon)",
+          "usage": "Content tags, categories, filters"
+        },
+        {
+          "name": "role",
+          "style": "Pill shape, colored per role type, xs text",
+          "values": ["Creator (accent)", "Pro (gold)", "Admin (red)", "Mod (purple)"]
+        }
+      ]
+    },
+    "avatars": {
+      "sizes": {
+        "xs": "24px (inline mentions, compact lists)",
+        "sm": "32px (feed card headers, comment authors)",
+        "md": "40px (list items, navigation)",
+        "lg": "48px (profile header in drawer)",
+        "xl": "80px (profile page)",
+        "2xl": "120px (profile edit)"
+      },
+      "shape": "circular",
+      "fallback": "First letter of display name on accent-tinted background",
+      "border": "2px solid background color (for overlap/stacking)",
+      "online_indicator": "8px green dot, bottom-right, only in community/DM contexts"
+    },
+    "tabs": {
+      "style": "Underline tabs (X/Twitter style) -- text labels, accent underline on active, no background change",
+      "height": "44px",
+      "behavior": {
+        "swipe_between": true,
+        "scroll_horizontal": "when tabs exceed viewport width",
+        "indicator_animation": "slide 200ms ease-out"
+      },
+      "usage": "Profile sections, Content types, Analytics periods, Course sections"
+    },
+    "empty_states": {
+      "style": "Centered vertically, single muted icon (48px), heading (lg), description (sm/secondary), optional CTA button",
+      "tone": "Functional, not whimsical. No illustrations or characters.",
+      "examples": [
+        "No products yet -- Create your first product",
+        "No messages -- Start a conversation",
+        "No analytics data -- Publish content to see insights"
+      ]
+    }
+  },
+
+  "responsive_strategy": {
+    "mobile_first": true,
+    "rationale": "Creators manage their business on the go. Mobile is the primary editing and management surface, not just consumption.",
+    "breakpoints": {
+      "sm": "640px",
+      "md": "768px",
+      "lg": "1024px",
+      "xl": "1280px",
+      "2xl": "1536px"
+    },
+    "adaptive_components": {
+      "navigation": {
+        "mobile": "Bottom tab bar + side drawer",
+        "tablet": "Bottom tab bar + expanded side drawer",
+        "desktop": "Persistent left sidebar (collapsible)"
+      },
+      "feed": {
+        "mobile": "Full-width, edge-to-edge",
+        "tablet": "Centered, max-width 600px",
+        "desktop": "Centered column with optional right sidebar (trending, suggestions)"
+      },
+      "modals": {
+        "mobile": "Bottom sheet (default) or full-screen",
+        "desktop": "Center dialog or side panel"
+      },
+      "grids": {
+        "mobile": "2 columns",
+        "tablet": "3 columns",
+        "desktop": "4 columns"
+      },
+      "tables": {
+        "mobile": "Card list (each row becomes a card)",
+        "desktop": "Full data table with sorting and column controls"
+      }
+    },
+    "touch_targets": {
+      "minimum": "44px",
+      "recommended": "48px",
+      "spacing_between_targets": "8px minimum"
+    }
+  },
+
+  "icon_system": {
+    "library": "Lucide (open source, consistent with clean aesthetic)",
+    "fallback": "Heroicons Outline",
+    "style": "Outline for inactive, filled for active state",
+    "size": {
+      "navigation": "24px",
+      "inline": "16px or 20px",
+      "feature": "32px or 48px (empty states, onboarding)"
+    },
+    "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+    "open_question": "Final icon set choice between Lucide, Heroicons, Phosphor, or custom icon font"
+  },
+
+  "animation_and_motion": {
+    "philosophy": "Motion serves function, never decoration. Transitions orient the user spatially.",
+    "timing": {
+      "instant": "0ms (tab switches, toggles)",
+      "fast": "150ms (hovers, micro-interactions)",
+      "normal": "250ms (page transitions, expanding/collapsing)",
+      "slow": "350ms (modals, drawers, complex transitions)"
+    },
+    "easing": "ease-in-out for most; ease-out for entrances; ease-in for exits",
+    "reduced_motion": "Respect prefers-reduced-motion media query -- collapse all animations to instant",
+    "skeleton_screens": {
+      "style": "Pulse animation on surface-overlay colored rectangles matching content shape",
+      "duration": "1.5s infinite"
+    },
+    "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+    "open_question": "Level of animation richness -- strictly utilitarian (X-like) or slightly more expressive (e.g., subtle scale on card tap)?"
+  },
+
+  "google_stitch_inventory": {
+    "file_count": 90,
+    "description": "90 design reference files from Google Stitch UI library. These represent the initial design exploration and need cataloging to determine which patterns were adopted, which were abandoned, and which should inform the canon.",
+    "categories": [
+      {
+        "name": "Layout References",
+        "estimated_count": "15-20",
+        "relevance": "Feed, grid, and dashboard layout patterns"
+      },
+      {
+        "name": "Component Designs",
+        "estimated_count": "25-30",
+        "relevance": "Buttons, cards, inputs, modals -- compare against component_library above"
+      },
+      {
+        "name": "Navigation Patterns",
+        "estimated_count": "10-15",
+        "relevance": "Tab bars, sidebars, drawers -- compare against navigation section"
+      },
+      {
+        "name": "Screen Mockups",
+        "estimated_count": "20-25",
+        "relevance": "Full-screen designs for specific modules -- map to 28 catalogued screens"
+      },
+      {
+        "name": "Style Tiles / Tokens",
+        "estimated_count": "5-10",
+        "relevance": "Color, typography, spacing tokens -- compare against color_system and typography"
+      }
+    ],
+    "usage_in_canon": "These files are SOURCE material, not canon themselves. The canon defined in this document supersedes any conflicting Stitch reference. Stitch files should be audited to extract any patterns not yet captured here.",
+    "audit_status": "NOT_STARTED",
+    "provenance": "INFERRED_PROFESSIONAL_GAP"
+  },
+
+  "screen_to_module_map": {
+    "description": "Maps the 28 catalogued screens to the 16 modules and their primary layout patterns",
+    "screens": [
+      {"screen": "Creator Dashboard", "module": "Dashboard", "layout": "dashboard_layout"},
+      {"screen": "Content Feed / Timeline", "module": "Content Distribution", "layout": "feed_layout"},
+      {"screen": "Content Composer", "module": "Content Distribution", "layout": "form_layout (full-screen-modal)"},
+      {"screen": "Cross-Post Manager", "module": "Cross-Posting", "layout": "form_layout"},
+      {"screen": "Community Feed", "module": "Community Hub", "layout": "feed_layout"},
+      {"screen": "Community Thread Detail", "module": "Community Hub", "layout": "split_layout (desktop) / detail_layout (mobile)"},
+      {"screen": "Direct Messages", "module": "Community Hub", "layout": "split_layout"},
+      {"screen": "Course Catalog", "module": "Course Platform", "layout": "grid_layout"},
+      {"screen": "Course Builder", "module": "Course Platform", "layout": "form_layout (full-screen-modal)"},
+      {"screen": "Course Lesson Player", "module": "Course Platform", "layout": "detail_layout"},
+      {"screen": "Marketplace Storefront", "module": "Marketplace", "layout": "grid_layout"},
+      {"screen": "Product Detail", "module": "Marketplace", "layout": "detail_layout"},
+      {"screen": "Product Editor", "module": "Marketplace", "layout": "form_layout"},
+      {"screen": "Order Management", "module": "Marketplace", "layout": "split_layout (desktop) / feed_layout (mobile)"},
+      {"screen": "Consumer Feed", "module": "Consumer Feed", "layout": "feed_layout"},
+      {"screen": "Consumer Profile", "module": "Consumer Feed", "layout": "detail_layout + feed_layout"},
+      {"screen": "Editing Studio", "module": "Editing Studio", "layout": "full-screen-modal (custom canvas)"},
+      {"screen": "UGC Campaign Dashboard", "module": "UGC Campaigns", "layout": "dashboard_layout"},
+      {"screen": "UGC Campaign Builder", "module": "UGC Campaigns", "layout": "form_layout"},
+      {"screen": "Ads Manager", "module": "Ads Platform", "layout": "dashboard_layout + split_layout"},
+      {"screen": "Ad Builder", "module": "Ads Platform", "layout": "form_layout"},
+      {"screen": "Automation Builder", "module": "Automation Builder", "layout": "full-screen-modal (node canvas)"},
+      {"screen": "Email Campaign Editor", "module": "Email/Newsletter", "layout": "form_layout (full-screen-modal)"},
+      {"screen": "Stories Viewer", "module": "Stories", "layout": "full-screen-modal (custom)"},
+      {"screen": "Notifications Center", "module": "Notifications", "layout": "feed_layout"},
+      {"screen": "Moderation Queue", "module": "Moderation", "layout": "split_layout"},
+      {"screen": "Roles & Permissions", "module": "Roles & Permissions", "layout": "form_layout + split_layout"},
+      {"screen": "Analytics Deep Dive", "module": "Dashboard", "layout": "dashboard_layout"}
+    ]
+  },
+
+  "spacing_system": {
+    "unit": "4px",
+    "scale": {
+      "0": "0px",
+      "1": "4px",
+      "2": "8px",
+      "3": "12px",
+      "4": "16px",
+      "5": "20px",
+      "6": "24px",
+      "8": "32px",
+      "10": "40px",
+      "12": "48px",
+      "16": "64px"
+    },
+    "common_usage": {
+      "icon_to_text": "8px",
+      "card_padding": "16px",
+      "section_gap": "24px",
+      "page_margin_mobile": "16px",
+      "page_margin_desktop": "24px",
+      "between_form_fields": "24px",
+      "between_form_sections": "40px"
+    }
+  },
+
+  "border_radius_system": {
+    "none": "0px (feed cards, full-width elements)",
+    "sm": "4px (checkboxes, small tags)",
+    "md": "8px (cards, inputs, containers)",
+    "lg": "12px (modals, elevated cards)",
+    "xl": "16px (bottom sheets top corners)",
+    "full": "9999px (buttons, badges, avatars, search inputs, pills)"
+  },
+
+  "shadow_system": {
+    "philosophy": "Minimal shadows. Prefer borders and background color contrast over elevation shadows.",
+    "levels": {
+      "none": "Default for most elements",
+      "sm": "0 1px 2px rgba(0,0,0,0.05) -- subtle lift for dropdowns",
+      "md": "0 4px 12px rgba(0,0,0,0.1) -- modals, popovers",
+      "lg": "0 8px 24px rgba(0,0,0,0.15) -- full-screen overlays (rarely used)"
+    }
+  },
+
+  "accessibility": {
+    "contrast_ratio": {
+      "minimum_aa": "4.5:1 for body text",
+      "minimum_aa_large": "3:1 for large text (18px+) and UI components"
+    },
+    "focus_indicators": "2px solid accent color, 2px offset -- visible on all interactive elements",
+    "screen_reader": "All icons have aria-labels, all images have alt text, all interactive elements have roles",
+    "keyboard_navigation": "Full keyboard navigation support, logical tab order, skip-to-content link",
+    "reduced_motion": "prefers-reduced-motion respected globally"
+  },
+
+  "product_types_visual_treatment": {
+    "description": "Each of the 10 product types has a consistent visual identity within the design system",
+    "types": [
+      {"type": "community", "icon": "users", "card_style": "Member count + activity indicator"},
+      {"type": "ai_agent", "icon": "bot", "card_style": "Chat preview + capability tags"},
+      {"type": "digital_download", "icon": "download", "card_style": "File type icon + size + format"},
+      {"type": "course", "icon": "book-open", "card_style": "Lesson count + duration + progress bar"},
+      {"type": "subscription_membership", "icon": "crown", "card_style": "Tier name + price/period + member count"},
+      {"type": "service", "icon": "briefcase", "card_style": "Deliverables list + turnaround time"},
+      {"type": "event", "icon": "calendar", "card_style": "Date/time + location/virtual + attendee count"},
+      {"type": "physical_product", "icon": "package", "card_style": "Shipping badge + variants + stock status"},
+      {"type": "ugc_campaign", "icon": "video", "card_style": "Brief summary + budget + submission count"},
+      {"type": "software_access", "icon": "key", "card_style": "Platform + license type + active users"}
+    ]
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-DI-001",
+      "question": "Final accent color -- keep X/Twitter blue (#1D9BF0) or establish distinct CreatorOS brand color?",
+      "impact": "Affects all CTAs, active states, links, and accent usage across every screen",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DI-002",
+      "question": "Icon library -- Lucide (recommended), Heroicons, Phosphor, or custom icon font?",
+      "impact": "Affects all 28 screens, all navigation, all product type visuals",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DI-003",
+      "question": "Animation richness level -- strictly utilitarian or slightly expressive?",
+      "impact": "Affects perceived polish and brand personality across all interactions",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DI-004",
+      "question": "Module-specific accent tints -- should Marketplace, Courses, Ads, etc. each have a subtle color identity or remain monochrome?",
+      "impact": "Affects wayfinding and visual distinction between modules",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-DI-005",
+      "question": "Stitch UI inventory audit -- which of the 90 reference files contain patterns not yet captured in this canon?",
+      "impact": "May reveal missing components or layout patterns that should be added",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "id": "OQ-DI-006",
+      "question": "Dark mode as default vs light mode as default -- confirmed dark or operator preference?",
+      "impact": "Affects first-run experience and brand perception",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  ],
+
+  "implementation_notes": {
+    "css_framework": "Tailwind CSS (already in stack) -- all tokens map directly to Tailwind config",
+    "component_framework": "shadcn/ui (already in stack) -- override default styles to match this canon",
+    "god_file_risk": "routes.ts (53KB) and storage.ts (104KB) are existing god files. Design system implementation must NOT add to them. New UI components go in dedicated files.",
+    "auth_dependency": "Auth is BROKEN (P0). Design system work can proceed on component library and layout, but auth-dependent screens (profile, settings, role-based views) cannot be fully implemented until Clerk migration.",
+    "provenance": "IMPLEMENTATION_DEBT"
+  }
+}

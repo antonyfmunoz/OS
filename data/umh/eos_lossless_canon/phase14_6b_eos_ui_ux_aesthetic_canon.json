@@ -1,0 +1,481 @@
+{
+  "artifact": "phase14_6b_eos_ui_ux_aesthetic_canon",
+  "phase": "14.6B",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-03",
+  "description": "EOS UI/UX Aesthetic Canon -- the canonical design direction, visual identity, design token architecture, and boundary between shared OS platform standards and product-specific aesthetic for EntrepreneurOS.",
+  "provenance": "OPERATOR_CORRECTION + SYNTHESIZED_CANON",
+  "provenance_detail": "Aesthetic direction corrected by operator (executive command center, NOT playful/RPG/creator-social). Design token architecture synthesized from Beast codebase (design-tokens.ts, theme.json), Phase 14.4 desired state (Universal Dashboard Architecture), and professional inference for finance-grade standards. OS platform shared standards synthesized from Phase 14.5 OS Platform Standard v2.",
+
+  "aesthetic_identity": {
+    "primary_metaphor": "Executive Command Center / Business Cockpit",
+    "description": "EOS looks and feels like the command bridge of a high-performance enterprise. Every element communicates control, clarity, and operational authority. The interface serves operators who manage portfolios, entities, capital flows, and teams -- it must inspire confidence and enable rapid, precise decision-making.",
+    "keywords": [
+      "executive command center",
+      "business cockpit",
+      "family-office infrastructure",
+      "holding-company control surface",
+      "finance-grade clarity",
+      "strategic control",
+      "high-trust professional interface",
+      "powerful and precise",
+      "operational and decisive",
+      "modern AI-native enterprise",
+      "institutional-quality",
+      "Bloomberg-meets-Figma"
+    ],
+    "emotional_tone": "Authoritative, confident, precise, professional, trustworthy. The operator should feel like they are in control of a sophisticated machine -- not playing a game, not browsing a social feed, not navigating a toy.",
+    "ux_metaphor_hierarchy": [
+      "Primary: Financial terminal / Bloomberg terminal -- dense, information-rich, multi-panel",
+      "Secondary: Cockpit / mission control -- status indicators, real-time feeds, action surfaces",
+      "Tertiary: Enterprise dashboard -- clean KPI cards, sortable tables, drill-down navigation"
+    ],
+    "reference_products": [
+      "Bloomberg Terminal (information density, multi-panel layout, real-time data)",
+      "Carta (cap table management, finance-grade UX, institutional trust)",
+      "AngelList (portfolio management, venture operations)",
+      "Mercury (banking dashboard, clean finance UX)",
+      "Stripe Dashboard (developer-quality precision, clear data hierarchy)",
+      "Linear (modern SaaS UX, keyboard shortcuts, fast and precise)",
+      "Notion (workspace flexibility -- but NOT the playful aesthetic)",
+      "Monday.com (workflow management -- but NOT the colorful/casual aesthetic)"
+    ],
+    "provenance": "OPERATOR_CORRECTION + SYNTHESIZED_CANON"
+  },
+
+  "what_eos_is_not_visually": {
+    "description": "Explicit anti-patterns that EOS must never adopt. These exist because three sibling products (LyfeOS, CreatorOS) have different aesthetic directions, and EOS must maintain its distinct identity.",
+    "anti_patterns": [
+      {
+        "pattern": "Playful / gamified",
+        "description": "No XP bars, no leveling systems, no achievement badges, no quest metaphors, no RPG-style character sheets. LyfeOS uses these -- EOS does not.",
+        "sibling_product": "LyfeOS",
+        "provenance": "OPERATOR_CORRECTION"
+      },
+      {
+        "pattern": "Creator-social",
+        "description": "No social feeds, no follower counts, no content engagement metrics as primary UI. CreatorOS uses these -- EOS does not.",
+        "sibling_product": "CreatorOS",
+        "provenance": "OPERATOR_CORRECTION"
+      },
+      {
+        "pattern": "RPG / personal development",
+        "description": "No skill trees, no character archetypes, no stat tokens, no energy logs as primary interface elements. EOS is a business operating system, not a self-improvement platform.",
+        "sibling_product": "LyfeOS",
+        "provenance": "OPERATOR_CORRECTION"
+      },
+      {
+        "pattern": "Glassmorphic / frosted glass",
+        "description": "No frosted-glass overlays, no heavy blur effects, no translucent cards as primary design language. Finance-grade interfaces prioritize clarity over visual effects.",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "pattern": "Neon / cyberpunk",
+        "description": "No bright neon accents, no cyberpunk color schemes, no sci-fi terminal aesthetics. EOS is institutional, not futuristic-theatrical.",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "pattern": "Casual / rounded / friendly",
+        "description": "No oversized rounded corners, no bouncy animations, no emoji-heavy copy, no playful illustrations. The tone is serious and operational.",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "pattern": "Marketing-site aesthetic",
+        "description": "No hero sections, no gradient CTAs, no testimonial carousels inside the operating interface. This is an operating system, not a landing page.",
+        "provenance": "SYNTHESIZED_CANON"
+      }
+    ],
+    "provenance": "OPERATOR_CORRECTION + SYNTHESIZED_CANON"
+  },
+
+  "design_tokens": {
+    "description": "Design token direction for EOS. These are directional specifications, not final implementation values. Final values will be resolved during implementation.",
+    "color_palette": {
+      "direction": "Professional, muted, high-contrast. Finance-grade palette optimized for long working sessions, dense information display, and clear status signaling.",
+      "dark_mode": {
+        "priority": "PRIMARY -- EOS operators will work in dark mode by default. Bloomberg, trading terminals, and professional tools default dark.",
+        "background_direction": "Deep charcoal to near-black (not pure black). Layered surfaces with subtle elevation.",
+        "surface_direction": "Slightly lighter charcoal for cards, panels, modals. Clear visual hierarchy through surface elevation.",
+        "text_direction": "High-contrast white/off-white for primary text. Muted gray for secondary. Never low-contrast.",
+        "accent_direction": "Cool blue primary accent (trust, authority, professionalism). Green for positive/gain. Red for negative/loss/risk. Amber for warning/pending.",
+        "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+      },
+      "light_mode": {
+        "priority": "SECONDARY -- available but not default. Some operators prefer light mode for meetings, presentations, or daytime use.",
+        "background_direction": "Clean white to warm off-white. Not stark hospital-white.",
+        "surface_direction": "Light gray for elevated surfaces. Subtle borders over shadows for card delineation.",
+        "text_direction": "Near-black for primary text. Dark gray for secondary. Clear hierarchy.",
+        "accent_direction": "Same accent colors as dark mode, adjusted for light background contrast.",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      "status_colors": {
+        "positive_gain_success": "Green family -- financial gain, task complete, healthy KPI, approved",
+        "negative_loss_danger": "Red family -- financial loss, overdue, unhealthy KPI, rejected, risk",
+        "warning_pending_caution": "Amber/yellow family -- pending approval, approaching threshold, needs attention",
+        "neutral_informational": "Blue family -- informational, in-progress, navigational",
+        "inactive_disabled": "Muted gray family -- disabled, archived, inactive entity"
+      },
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    "typography": {
+      "direction": "Professional sans-serif. High legibility at small sizes for dense data displays. Monospace for financial figures.",
+      "primary_font_direction": "Inter, system-ui, or equivalent modern sans-serif. NOT decorative, NOT serif, NOT handwritten.",
+      "monospace_direction": "JetBrains Mono, SF Mono, or equivalent for financial figures, KPI values, transaction amounts, code. Tabular numerals required for aligned columns.",
+      "scale": {
+        "xs": "Dense data tables, timestamps, secondary metadata (11-12px)",
+        "sm": "Table cells, form labels, navigation items (13-14px)",
+        "base": "Body text, descriptions, form inputs (14-16px)",
+        "lg": "Section headers, card titles (18-20px)",
+        "xl": "Page titles, KPI hero numbers (24-28px)",
+        "xxl": "Dashboard hero metrics, portfolio total values (32-48px)"
+      },
+      "weight_direction": "Regular (400) for body. Medium (500) for labels and navigation. Semibold (600) for headings. Bold (700) for KPI values and emphasis. No thin/light weights in data-dense contexts.",
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    "spacing": {
+      "direction": "Compact and efficient. Finance-grade interfaces maximize information density without sacrificing readability. NOT generous SaaS whitespace.",
+      "density_model": "EOS uses COMPACT density by default. Large whitespace wastes viewport on data-rich screens. Operators need to see more, scroll less.",
+      "grid": "8px base grid. 4px for micro-adjustments. 16px standard gap. 24px section gap. 32px page-level padding.",
+      "table_rows": "Compact row height (36-40px) for data tables. Not padded list items (48-56px).",
+      "card_padding": "12-16px internal padding. Not 24-32px SaaS-style padding.",
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    "component_style": {
+      "direction": "Sharp, precise, functional. Components communicate data, not decoration.",
+      "border_radius": "Small (4-6px) for most elements. Sharp corners for data tables. Slightly larger (8px) for modals and cards. NEVER pill-shaped buttons or fully-rounded cards.",
+      "elevation": "Subtle. Use border + slight shadow over heavy drop shadows. Bloomberg-style flat panels over Material Design elevation.",
+      "borders": "Visible, thin borders (1px) for structure delineation. Panels, cards, tables all have clear boundaries. NOT borderless floating elements.",
+      "animations": "Minimal and fast. No bouncy transitions. No slide-in panels. Instant state changes preferred. Subtle fade (150ms) acceptable for modals.",
+      "icons": "Lucide or equivalent clean line icons. NOT filled/solid by default. NOT emoji-style. Consistent stroke width.",
+      "buttons": "Solid primary, outline secondary, ghost tertiary. Compact sizing. Clear hover/active states. No gradient buttons.",
+      "tables": "First-class citizen. Sortable columns, fixed headers, row selection, inline actions. Dense but readable. Stripe alternate rows in dark mode.",
+      "charts": "Recharts or Tremor. Clean axes, muted gridlines, data-focused. No decorative chart elements. Tooltips on hover.",
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    "current_code_truth_beast": {
+      "description": "Design tokens and theme configuration found in Beast feature/company-system branch",
+      "files": {
+        "design_tokens": "client/src/lib/design-tokens.ts",
+        "theme_json": "theme.json",
+        "tailwind_config": "tailwind.config.ts"
+      },
+      "theme_json_note": "Beast has a theme.json file that likely defines base theme values (colors, radii, etc.) for the application. Exact contents not available on VPS -- documented from Beast inventory.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    }
+  },
+
+  "os_platform_standard_shared": {
+    "description": "Technical UX patterns, component discipline, accessibility standards, and interaction standards that are SHARED across all Trinity products (EOS, CreatorOS, LyfeOS). These are the universal platform layer -- every product inherits these, then applies its own aesthetic.",
+    "shared_standards": [
+      {
+        "category": "Component Library Foundation",
+        "standard": "All Trinity products use shadcn/ui as the base component library built on Radix UI primitives. Products customize theme tokens but share the same underlying component API and accessibility guarantees.",
+        "applies_to": ["EOS", "CreatorOS", "LyfeOS"],
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "category": "CSS Framework",
+        "standard": "Tailwind CSS for all styling. Utility-first. Custom theme tokens injected via tailwind.config.ts. No CSS-in-JS. No separate CSS files except for global resets.",
+        "applies_to": ["EOS", "CreatorOS", "LyfeOS"],
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "category": "Responsive Design",
+        "standard": "Mobile-responsive layouts. Breakpoints: sm (640px), md (768px), lg (1024px), xl (1280px), 2xl (1536px). Three-panel layout (left rail + workspace + right rail) collapses to single-panel on mobile.",
+        "applies_to": ["EOS", "CreatorOS", "LyfeOS"],
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "category": "Accessibility",
+        "standard": "WCAG 2.1 AA minimum. Keyboard navigable. Screen reader compatible (via Radix UI primitives). Color contrast ratios enforced. Focus indicators visible. ARIA labels on interactive elements.",
+        "applies_to": ["EOS", "CreatorOS", "LyfeOS"],
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "category": "Design Token Architecture",
+        "standard": "CSS custom properties (variables) for all theme values. Token categories: color, typography, spacing, border, shadow, animation. Tokens defined in tailwind.config.ts and/or design-tokens.ts. Dark/light mode via CSS class toggle.",
+        "applies_to": ["EOS", "CreatorOS", "LyfeOS"],
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+      },
+      {
+        "category": "Interaction Standards",
+        "standard": "Toast notifications for async feedback. Confirmation dialogs for destructive actions. Optimistic UI updates where safe. Loading skeletons over spinners. Error boundaries with retry. Form validation on blur + submit.",
+        "applies_to": ["EOS", "CreatorOS", "LyfeOS"],
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "category": "Navigation Pattern",
+        "standard": "Three-panel shell: collapsible Left Rail (navigation + context switcher), Main Workspace (content area), collapsible Right Rail (AI assistant). All products share this shell structure.",
+        "applies_to": ["EOS", "CreatorOS", "LyfeOS"],
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "category": "State Management",
+        "standard": "TanStack Query (React Query) for server state. React context for UI state (theme, rail collapse, active entity). No Redux. No Zustand unless justified.",
+        "applies_to": ["EOS", "CreatorOS", "LyfeOS"],
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "category": "Routing",
+        "standard": "Client-side routing via wouter (lightweight) or React Router. URL-driven state for bookmarkable views. Route guards for auth and permissions.",
+        "applies_to": ["EOS", "CreatorOS", "LyfeOS"],
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "category": "TypeScript Discipline",
+        "standard": "Strict TypeScript. Zod for runtime validation of API responses. Drizzle-Zod for schema-derived types. No `any` in production code. Shared types in shared/ directory.",
+        "applies_to": ["EOS", "CreatorOS", "LyfeOS"],
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      }
+    ],
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+  },
+
+  "product_specific_aesthetic_boundary": {
+    "description": "Each Trinity product owns its own brand identity, aesthetic, emotional tone, UX metaphor, and visual hierarchy. The shared OS platform standard provides the structural skeleton; the product-specific layer provides the soul.",
+    "principle": "Products share skeleton, not skin. Same components, different character.",
+    "boundaries": {
+      "eos_owns": [
+        "Color palette (finance-grade, muted, professional)",
+        "Typography scale (compact, data-dense)",
+        "Spacing density (compact by default)",
+        "Component variants (sharp borders, minimal radius)",
+        "Animation style (fast, minimal, no bounce)",
+        "Icon style (line icons, professional)",
+        "Dashboard layouts (multi-panel, Bloomberg-inspired)",
+        "Table density and styling",
+        "Chart theming and data visualization approach",
+        "Status color semantics (gain/loss/risk/pending)",
+        "Dark mode as default",
+        "Information hierarchy (KPIs first, then drill-down)",
+        "Navigation taxonomy (portfolios, entities, operations)",
+        "AI panel behavior (EA-mediated, contextual intelligence)",
+        "Approval/governance UI patterns"
+      ],
+      "os_platform_standard_owns": [
+        "Component library selection (shadcn/ui + Radix)",
+        "CSS framework (Tailwind)",
+        "Responsive breakpoints",
+        "Accessibility minimums (WCAG 2.1 AA)",
+        "Design token architecture (CSS variables structure)",
+        "Three-panel shell structure (left rail + workspace + right rail)",
+        "State management pattern (TanStack Query)",
+        "Routing approach",
+        "TypeScript discipline",
+        "Form validation patterns",
+        "Error handling patterns",
+        "Toast/notification system"
+      ]
+    },
+    "sibling_comparison": [
+      {
+        "product": "EOS (EntrepreneurOS)",
+        "aesthetic": "Executive command center / business cockpit",
+        "emotional_tone": "Authoritative, precise, professional, trustworthy",
+        "ux_metaphor": "Financial terminal, cockpit, enterprise dashboard",
+        "default_mode": "Dark",
+        "density": "Compact",
+        "primary_accent": "Cool blue (trust/authority)",
+        "provenance": "OPERATOR_CORRECTION + SYNTHESIZED_CANON"
+      },
+      {
+        "product": "LyfeOS",
+        "aesthetic": "RPG life operating system / gamified personal development",
+        "emotional_tone": "Motivating, adventurous, personal, empowering",
+        "ux_metaphor": "Character sheet, quest log, skill tree",
+        "default_mode": "Dark (RPG-themed)",
+        "density": "Standard",
+        "primary_accent": "Purple/gold (achievement/mastery)",
+        "provenance": "SYNTHESIZED_CANON"
+      },
+      {
+        "product": "CreatorOS",
+        "aesthetic": "Creator studio / content command center",
+        "emotional_tone": "Creative, energetic, productive, social-aware",
+        "ux_metaphor": "Studio workspace, content calendar, audience dashboard",
+        "default_mode": "Light or Dark",
+        "density": "Standard",
+        "primary_accent": "Vibrant warm (creative energy)",
+        "provenance": "SYNTHESIZED_CANON"
+      }
+    ],
+    "provenance": "OPERATOR_CORRECTION + SYNTHESIZED_CANON"
+  },
+
+  "layout_architecture": {
+    "description": "EOS shell layout architecture -- the structural skeleton that all EOS screens share.",
+    "shell_components": [
+      {
+        "component": "Left Rail",
+        "width": "240-280px (collapsible to icon-only ~60px)",
+        "position": "Fixed left",
+        "content": "Portfolio/entity switcher at top, role-dependent navigation tree below, settings/profile at bottom",
+        "behavior": "Collapsible via toggle or hotkey. Remembers state. Shows entity context at all times.",
+        "beast_code_file": "client/src/components/left-rail.tsx",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION"
+      },
+      {
+        "component": "Main Workspace",
+        "width": "Flexible (fills remaining space)",
+        "position": "Center",
+        "content": "Context-dependent: dashboards, tables, forms, boards, org charts, workflow views, document editors",
+        "behavior": "Full-width when both rails collapsed. Scrollable content area. Breadcrumb navigation at top.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+      },
+      {
+        "component": "Right Rail AI Assistant",
+        "width": "320-400px (collapsible)",
+        "position": "Fixed right",
+        "content": "Contextual AI interface: EA or context-appropriate agent. Shows recommendations, risks, explanations, suggested actions relevant to current workspace view.",
+        "behavior": "Collapsible. Context-aware -- changes content based on current page/entity/selection. Chat input at bottom.",
+        "beast_code_file": "client/src/components/right-rail.tsx",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION"
+      },
+      {
+        "component": "Header",
+        "height": "48-56px",
+        "position": "Fixed top",
+        "content": "Global search, notification bell, user avatar, entity context breadcrumb, quick-action triggers",
+        "beast_code_file": "client/src/components/header.tsx",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "component": "Floating AI Control Panel",
+        "position": "Bottom-right overlay (FAB pattern)",
+        "content": "Quick command input, agent status indicator, expand to full command palette. Ask EA, generate business, generate entity, create workflow, assign task.",
+        "behavior": "Always visible. Expands on click/hotkey. Collapses after action. Does not block workspace content.",
+        "beast_code_file": "client/src/components/floating-ai-panel.tsx",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION"
+      },
+      {
+        "component": "Risk/Approval Notices",
+        "position": "Inline within workspace or as banner below header",
+        "content": "Pending approvals, unsafe action warnings, permission conflicts, business risks, compliance alerts, agent autonomy escalation requests",
+        "behavior": "Contextual -- only appears when relevant. Dismissible after action. Persists until resolved for critical items.",
+        "provenance": "OPERATOR_CORRECTION + INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "component": "Activity/Event Feed",
+        "position": "Tab within Right Rail or dedicated panel",
+        "content": "Real-time stream: human actions, agent actions, workflow executions, approvals, comments, system events, KPI changes, decisions",
+        "behavior": "Filterable by type (human, agent, system). Chronological. Linkable entries. Auto-updates.",
+        "provenance": "OPERATOR_CORRECTION + SYNTHESIZED_CANON"
+      }
+    ],
+    "beast_layout_files": [
+      "client/src/components/layout/",
+      "client/src/components/universal-layout.tsx",
+      "client/src/components/left-rail.tsx",
+      "client/src/components/right-rail.tsx",
+      "client/src/components/header.tsx",
+      "client/src/components/floating-ai-panel.tsx",
+      "client/src/components/sidebar.tsx"
+    ],
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION + SYNTHESIZED_CANON"
+  },
+
+  "data_visualization_standards": {
+    "description": "Standards for how EOS displays financial, operational, and strategic data.",
+    "kpi_display": {
+      "format": "Hero metric cards with label, current value, trend indicator (up/down/flat), change amount, change percentage, sparkline",
+      "currency": "Locale-aware formatting. Monospace/tabular numerals for alignment.",
+      "comparison": "Period-over-period comparison (vs last week, month, quarter, year). Color-coded change (green positive, red negative).",
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    "tables": {
+      "default": "Dense data tables with sortable columns, fixed header, row hover, row selection, inline actions",
+      "features": ["Column resize", "Column reorder", "Multi-sort", "Filter per column", "Bulk actions", "Export (CSV/Excel)", "Pagination or virtual scroll"],
+      "financial_tables": "Right-aligned numbers. Tabular numerals. Thousand separators. Negative values in red or parentheses.",
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    "charts": {
+      "library_direction": "Recharts or Tremor (both React-native, composable, shadcn-compatible)",
+      "style": "Clean, data-focused. Muted gridlines. Clear axes. Tooltips on hover. No decorative elements. Consistent color coding with status colors.",
+      "types": ["Line (time series, trends)", "Bar (comparison, distribution)", "Area (cumulative, volume)", "Pie/Donut (composition, allocation)", "Scatter (correlation)", "Heatmap (density, calendar views)"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+  },
+
+  "keyboard_and_power_user": {
+    "description": "EOS targets power users who operate their businesses daily. Keyboard shortcuts and command palette are first-class features.",
+    "command_palette": {
+      "trigger": "Cmd+K / Ctrl+K",
+      "capabilities": "Navigate to any page, switch entity, search entities/tasks/workflows, trigger actions, invoke EA commands",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "keyboard_shortcuts": {
+      "examples": ["Cmd+K: Command palette", "Cmd+/: Toggle AI panel", "Cmd+B: Toggle left rail", "Cmd+.: Toggle right rail", "G then D: Go to dashboard", "G then T: Go to tasks", "G then W: Go to workflows"],
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "provenance": "INFERRED_PROFESSIONAL_GAP"
+  },
+
+  "open_questions": [
+    {
+      "id": "Q-UI-001",
+      "question": "Should EOS enforce dark mode only for initial launch, or ship with both dark and light from day one?",
+      "recommendation": "Ship both, default to dark. Many operators will present to stakeholders in light mode.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "Q-UI-002",
+      "question": "Should the Beast design-tokens.ts values be preserved as-is, or should they be replaced with the finance-grade direction described here?",
+      "recommendation": "Audit Beast tokens against this spec during implementation. Preserve compatible values, update divergent ones.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "Q-UI-003",
+      "question": "Should EOS adopt a specific commercial font (e.g., Inter, Geist) or stay with system fonts?",
+      "recommendation": "Inter -- free, professional, excellent tabular numerals, widely used in finance/enterprise SaaS.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "Q-UI-004",
+      "question": "What level of information density should the default dashboard target? Bloomberg-level (extreme density) vs Stripe-level (balanced density)?",
+      "recommendation": "Stripe-level as default with operator option to increase density. Bloomberg-level is overwhelming for most operators.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "Q-UI-005",
+      "question": "Should the Activity/Event Feed live as a tab in the Right Rail or as a separate expandable panel?",
+      "recommendation": "Tab in Right Rail (switch between AI Assistant and Activity Feed). Avoids adding more shell chrome.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  ],
+
+  "implementation_debt": [
+    {
+      "id": "DEBT-UI-001",
+      "description": "Beast branch has no documented design system. design-tokens.ts exists but no design spec or Storybook.",
+      "severity": "MEDIUM",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-UI-002",
+      "description": "No component documentation or Storybook for Beast UI components.",
+      "severity": "MEDIUM",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-UI-003",
+      "description": "No dark mode implementation verified in Beast. theme.json exists but dark mode behavior unconfirmed.",
+      "severity": "MEDIUM",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-UI-004",
+      "description": "No accessibility audit has been performed on either GitHub main or Beast branch.",
+      "severity": "HIGH",
+      "provenance": "IMPLEMENTATION_DEBT"
+    },
+    {
+      "id": "DEBT-UI-005",
+      "description": "No keyboard shortcuts or command palette implemented in Beast.",
+      "severity": "LOW",
+      "provenance": "IMPLEMENTATION_DEBT"
+    }
+  ]
+}

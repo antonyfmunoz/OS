@@ -1,0 +1,48 @@
+{
+  "phase": "14.6B-UMH",
+  "status": "DRAFT",
+  "total_endpoints": 210,
+  "route_files": [
+    {"file": "transports/api/cockpit.py", "lines": 2304, "endpoints": 65, "auth": "api_key + operator_token + dev_bypass"},
+    {"file": "transports/api/cockpit_spine_router.py", "lines": 518, "endpoints": 30, "auth": "api_key + operator_token"},
+    {"file": "transports/api/cockpit_organism_routes.py", "lines": 557, "endpoints": 39, "auth": "api_key + operator_token"},
+    {"file": "transports/api/cockpit_autonomous_routes.py", "lines": 586, "endpoints": 27, "auth": "api_key + operator_token"},
+    {"file": "transports/api/cockpit_economy_routes.py", "lines": 447, "endpoints": 20, "auth": "api_key + operator_token"},
+    {"file": "transports/api/cockpit_entity_routes.py", "lines": 333, "endpoints": 10, "auth": "api_key + operator_token"},
+    {"file": "transports/api/cockpit_context_assimilation_routes.py", "lines": 551, "endpoints": 27, "auth": "api_key + operator_token"},
+    {"file": "transports/api/cockpit_self_build_routes.py", "lines": 191, "endpoints": 12, "auth": "api_key + operator_token"},
+    {"file": "transports/api/cockpit_universal_work_routes.py", "lines": 210, "endpoints": 16, "auth": "api_key + operator_token"},
+    {"file": "transports/api/cockpit_propagation_graph_routes.py", "lines": 216, "endpoints": 10, "auth": "api_key + operator_token"},
+    {"file": "transports/api/cockpit_operator_experience_routes.py", "lines": 145, "endpoints": 9, "auth": "api_key + operator_token"},
+    {"file": "transports/api/cockpit_runtime_surface_routes.py", "lines": 163, "endpoints": 10, "auth": "api_key + operator_token"}
+  ],
+  "key_endpoints": [
+    {"method": "GET", "path": "/api/umh/build", "auth": "api_key", "status": "IMPLEMENTED"},
+    {"method": "GET", "path": "/api/umh/pulse", "auth": "api_key", "status": "IMPLEMENTED"},
+    {"method": "GET", "path": "/api/umh/models", "auth": "api_key", "status": "IMPLEMENTED"},
+    {"method": "GET", "path": "/api/umh/infra", "auth": "api_key", "status": "IMPLEMENTED"},
+    {"method": "GET", "path": "/api/umh/approvals", "auth": "api_key", "status": "IMPLEMENTED"},
+    {"method": "POST", "path": "/api/umh/approvals/{id}/approve", "auth": "operator_token", "status": "IMPLEMENTED", "rate_limited": "30s"},
+    {"method": "GET", "path": "/api/umh/agents", "auth": "api_key", "status": "IMPLEMENTED"},
+    {"method": "GET", "path": "/api/umh/memory", "auth": "api_key", "status": "IMPLEMENTED"},
+    {"method": "GET", "path": "/api/umh/governance", "auth": "api_key", "status": "IMPLEMENTED"},
+    {"method": "WS", "path": "/api/umh/ws", "auth": "ws_token", "status": "IMPLEMENTED"},
+    {"method": "GET", "path": "/api/umh/execution/status", "auth": "api_key", "status": "STUB"},
+    {"method": "POST", "path": "/api/umh/execution/start", "auth": "operator_token", "status": "STUB"},
+    {"method": "POST", "path": "/api/umh/execution/stop", "auth": "operator_token", "status": "STUB"},
+    {"method": "POST", "path": "/api/umh/execution/pause", "auth": "operator_token", "status": "STUB"},
+    {"method": "POST", "path": "/api/umh/execution/resume", "auth": "operator_token", "status": "STUB"},
+    {"method": "GET", "path": "/api/umh/profile", "auth": "api_key", "status": "INSTANCE_LEAK"}
+  ],
+  "auth_model": {
+    "api_key": {"header": "X-API-Key", "env": "UMH_OPERATOR_API_KEY", "required_for": "all_endpoints"},
+    "operator_token": {"header": "X-Operator-Token", "env": "UMH_OPERATOR_TOKEN", "required_for": "mutation_endpoints"},
+    "dev_bypass": {"env": "UMH_DEV_BYPASS", "condition": "true + private_ip", "private_ips": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10"]},
+    "websocket": {"protocol": "Sec-WebSocket-Protocol: bearer.<token>", "fallback": "?token=<token>"}
+  },
+  "rate_limits": [
+    {"action": "promote", "window_seconds": 60},
+    {"action": "execute", "window_seconds": 30},
+    {"action": "approve", "window_seconds": 30}
+  ]
+}

@@ -1,0 +1,1294 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Complete user journey maps for all 8 user types plus onboarding flows, conversion funnels, and retention hooks",
+
+  "sources": [
+    "phase14_6b_creatoros_lossless_product_canon.md (Section 2: Target Users, Section 4-6: Modules/Screens/Workflows)",
+    "phase14_6b_creatoros_current_implementation_truth.json (implemented features, schema truth, missing features)",
+    "phase14_6b_creatoros_source_inventory.json (PRD Tab 1-8 analysis)",
+    "CreatorOS_1NIZXMZR.json (canonical Google Doc — 8 tabs, 27,301 words)"
+  ],
+
+  "user_types": [
+    {
+      "type": "creator_emerging",
+      "label": "Emerging Creator",
+      "following_range": "1K-50K",
+      "description": "Solo creator building an audience. Learning what works. Needs simplicity over power. Time-poor, tool-overwhelmed. Came from Linktree + Canva + multiple social apps and wants one place.",
+      "goals": [
+        "Grow audience across platforms without managing each one individually",
+        "Monetize early with digital products or community access",
+        "Build a consistent posting cadence without burnout",
+        "Understand what content performs and double down"
+      ],
+      "pain_points": [
+        "Managing 4-6 social platforms manually is exhausting",
+        "No clear view of what is working across platforms",
+        "Revenue tools are fragmented — Gumroad for products, Patreon for subs, separate for courses",
+        "Cannot afford $200/month in stacked SaaS subscriptions",
+        "Posting is inconsistent because the workflow is too many steps"
+      ],
+      "journey_stages": [
+        {
+          "stage": "awareness",
+          "trigger": "Sees creator they follow using CreatorOS, or ad/post about 'post once publish everywhere'",
+          "channel": "Social media, creator referral, organic search"
+        },
+        {
+          "stage": "consideration",
+          "trigger": "Visits landing page, sees free tier, compares to Linktree + Gumroad + Discord stack",
+          "channel": "Landing page, comparison content, testimonials"
+        },
+        {
+          "stage": "activation",
+          "trigger": "Signs up free, connects first social account, creates first post",
+          "channel": "Onboarding flow"
+        },
+        {
+          "stage": "engagement",
+          "trigger": "Posts regularly, starts community, lists first product",
+          "channel": "Dashboard, notifications, analytics"
+        },
+        {
+          "stage": "monetization",
+          "trigger": "First sale or first paid community member",
+          "channel": "Marketplace, community tiers, revenue dashboard"
+        },
+        {
+          "stage": "expansion",
+          "trigger": "Upgrades to Pro, connects more platforms, builds course",
+          "channel": "Upgrade prompt, feature gates"
+        }
+      ]
+    },
+    {
+      "type": "creator_established",
+      "label": "Established Creator",
+      "following_range": "50K-500K",
+      "description": "Growing team, monetizing, scaling. Has existing revenue streams and audience. Evaluates CreatorOS as consolidation — replace 5 tools with 1. Cares about reliability, analytics depth, and time saved.",
+      "goals": [
+        "Consolidate distribution into one tool and eliminate manual cross-posting",
+        "Scale course and product sales without adding more platforms",
+        "Get unified analytics across all platforms in one dashboard",
+        "Automate repetitive tasks — welcome sequences, DM responses, email funnels",
+        "Manage a small team with proper permissions"
+      ],
+      "pain_points": [
+        "Paying $300-500/month across 6-8 SaaS tools that do not talk to each other",
+        "No single view of total revenue, audience size, or content performance",
+        "Team members need access to posting but not billing — no granular permissions anywhere",
+        "Switching between tools for different tasks wastes hours per week",
+        "Content scheduling across platforms requires manual calendar management"
+      ],
+      "journey_stages": [
+        {
+          "stage": "awareness",
+          "trigger": "Peer recommendation, creator community discussion, or pain-point search",
+          "channel": "Word of mouth, creator communities, SEO"
+        },
+        {
+          "stage": "evaluation",
+          "trigger": "Requests demo or trial, compares feature matrix against current stack",
+          "channel": "Pro trial, feature comparison page, onboarding call"
+        },
+        {
+          "stage": "migration",
+          "trigger": "Imports existing content, connects all social accounts, migrates community",
+          "channel": "Import tools, connected accounts setup, migration wizard"
+        },
+        {
+          "stage": "consolidation",
+          "trigger": "Runs full workflow through CreatorOS — post, distribute, sell, analyze",
+          "channel": "Dashboard, cross-posting, analytics"
+        },
+        {
+          "stage": "team_expansion",
+          "trigger": "Invites team members, sets roles and permissions",
+          "channel": "Team management, roles & permissions"
+        },
+        {
+          "stage": "advocacy",
+          "trigger": "Recommends CreatorOS to peers, becomes case study",
+          "channel": "Referral program, testimonials"
+        }
+      ]
+    },
+    {
+      "type": "creator_business",
+      "label": "Creator Business",
+      "following_range": "500K+",
+      "description": "Team or agency operating a creator brand as a business. Diversified revenue. Needs API access, white-label, enterprise analytics, and team management. Evaluates on scale, reliability, and customization.",
+      "goals": [
+        "Run entire creator business from one platform with API access for custom integrations",
+        "White-label the storefront and community under their own brand",
+        "Enterprise-grade analytics with export, custom reports, and cross-platform attribution",
+        "Multi-seat team management with granular permissions per function",
+        "Reduce transaction fees to maximize margin at scale"
+      ],
+      "pain_points": [
+        "Current tools cap out at scale — rate limits, feature ceilings, no API",
+        "White-labeling requires custom development on top of existing platforms",
+        "Finance team needs data exports that creator tools do not provide",
+        "Managing 10+ team members across 5 tools with separate logins and permission models",
+        "Transaction fees at volume represent significant revenue leakage"
+      ],
+      "journey_stages": [
+        {
+          "stage": "sourcing",
+          "trigger": "Manager or ops lead evaluates platforms for consolidation project",
+          "channel": "Enterprise sales, RFP, industry events"
+        },
+        {
+          "stage": "technical_evaluation",
+          "trigger": "Evaluates API, white-label capabilities, migration feasibility",
+          "channel": "API docs, sandbox environment, sales engineer"
+        },
+        {
+          "stage": "negotiation",
+          "trigger": "Custom pricing, SLA discussion, feature commitments",
+          "channel": "Enterprise sales, custom contract"
+        },
+        {
+          "stage": "migration",
+          "trigger": "Phased migration of content, products, community, and team",
+          "channel": "Migration support, dedicated onboarding"
+        },
+        {
+          "stage": "operation",
+          "trigger": "Full production use across team with custom integrations",
+          "channel": "Dashboard, API, analytics, support"
+        },
+        {
+          "stage": "expansion",
+          "trigger": "Adds more brands, sub-accounts, or higher tier features",
+          "channel": "Account management, upsell"
+        }
+      ]
+    },
+    {
+      "type": "consumer_superfan",
+      "label": "Consumer — Superfan",
+      "description": "Follows multiple creators actively, high engagement. Wants a single feed to track all their favorite creators across platforms. Comments, shares, and purchases frequently. Values community belonging.",
+      "goals": [
+        "See all content from followed creators in one feed without visiting 6 apps",
+        "Get notified when favorite creators post, go live, or release products",
+        "Save and organize content across creators for later consumption",
+        "Engage in creator communities alongside other fans"
+      ],
+      "pain_points": [
+        "Missing posts because platform algorithms suppress content",
+        "Following creators on 4 platforms means 4 separate feeds with no cross-view",
+        "Notifications are scattered across apps and easy to miss",
+        "Community access requires separate Discord servers for each creator"
+      ],
+      "journey_stages": [
+        {
+          "stage": "discovery",
+          "trigger": "Creator they follow shares CreatorOS link, or they find marketplace/community",
+          "channel": "Creator promotion, search, social share"
+        },
+        {
+          "stage": "signup",
+          "trigger": "Creates consumer account to follow creator or join community",
+          "channel": "Onboarding (consumer path)"
+        },
+        {
+          "stage": "engagement",
+          "trigger": "Follows multiple creators, joins communities, saves content",
+          "channel": "Feed, community, bookmarks"
+        },
+        {
+          "stage": "purchase",
+          "trigger": "Buys a digital product, course, or community membership",
+          "channel": "Marketplace, product pages, checkout"
+        },
+        {
+          "stage": "retention",
+          "trigger": "Daily feed check, community participation, course progress",
+          "channel": "Notifications, feed, community"
+        }
+      ]
+    },
+    {
+      "type": "consumer_learner",
+      "label": "Consumer — Learner",
+      "description": "Course purchaser and skill seeker. Primary interaction is course consumption, not social feed. Values progress tracking, structured learning, and certificates. Less interested in community unless it supports learning.",
+      "goals": [
+        "Find high-quality courses from creators they trust",
+        "Track progress across multiple courses with clear completion milestones",
+        "Get certificates or proof of completion for professional development",
+        "Ask questions and get help within the course community"
+      ],
+      "pain_points": [
+        "Course platforms are separate from the creator's other content — missed context",
+        "No unified view of all courses purchased across different creators",
+        "Progress resets or gets lost when switching devices",
+        "Certificate quality varies — some platforms offer nothing"
+      ],
+      "journey_stages": [
+        {
+          "stage": "search",
+          "trigger": "Searches for course by topic, or creator promotes course",
+          "channel": "Marketplace search, creator profile, social promotion"
+        },
+        {
+          "stage": "evaluation",
+          "trigger": "Reviews course curriculum, preview content, ratings, price",
+          "channel": "Course detail page, reviews"
+        },
+        {
+          "stage": "purchase",
+          "trigger": "Buys course (one-time or subscription)",
+          "channel": "Checkout, payment"
+        },
+        {
+          "stage": "learning",
+          "trigger": "Works through modules, watches videos, completes quizzes",
+          "channel": "Course player, progress tracker"
+        },
+        {
+          "stage": "completion",
+          "trigger": "Finishes course, receives certificate",
+          "channel": "Certificate, profile badge"
+        },
+        {
+          "stage": "continuation",
+          "trigger": "Enrolls in next course from same or different creator",
+          "channel": "Recommendations, creator profile, marketplace"
+        }
+      ]
+    },
+    {
+      "type": "consumer_community",
+      "label": "Consumer — Community Member",
+      "description": "Joins communities for belonging, networking, and niche conversation. Less interested in purchasing products — more in connecting with like-minded people around a creator's topic. Overlaps with Discord users.",
+      "goals": [
+        "Find communities around topics they care about",
+        "Connect with like-minded people and build relationships",
+        "Participate in discussions without the noise of public social media",
+        "Access exclusive content or channels within the community"
+      ],
+      "pain_points": [
+        "Discord servers are hard to discover and have steep onboarding",
+        "Communities across creators are fragmented — separate servers, logins, notification settings",
+        "Free communities lack quality control; paid ones are scattered across platforms",
+        "No unified profile across communities — reputation does not transfer"
+      ],
+      "journey_stages": [
+        {
+          "stage": "discovery",
+          "trigger": "Creator invites them, or they browse community directory",
+          "channel": "Creator promotion, community directory, invite link"
+        },
+        {
+          "stage": "join",
+          "trigger": "Joins free community or purchases membership for paid community",
+          "channel": "Community page, membership checkout"
+        },
+        {
+          "stage": "lurking",
+          "trigger": "Reads channels, absorbs culture, finds their footing",
+          "channel": "Channel feed, pinned messages"
+        },
+        {
+          "stage": "participation",
+          "trigger": "Posts first message, responds to others, contributes",
+          "channel": "Channel chat, threads, reactions"
+        },
+        {
+          "stage": "belonging",
+          "trigger": "Becomes regular, recognized by community, helps newcomers",
+          "channel": "Community, DMs, mentions"
+        },
+        {
+          "stage": "expansion",
+          "trigger": "Joins more communities, purchases creator's other products",
+          "channel": "Community directory, marketplace, creator profile"
+        }
+      ]
+    },
+    {
+      "type": "ugc_creator",
+      "label": "UGC Creator",
+      "description": "Creates content on behalf of brands in response to campaign briefs. Not building their own audience — making content for others. Paid per deliverable. Overlaps with Emerging Creator tier but motivated by brand campaign income.",
+      "goals": [
+        "Find well-paying UGC campaign briefs that match their niche and style",
+        "Apply to campaigns quickly with a strong portfolio",
+        "Submit deliverables efficiently and get paid fast",
+        "Build a reputation and track record that unlocks better campaigns"
+      ],
+      "pain_points": [
+        "UGC campaign discovery is fragmented across many platforms and DMs",
+        "Payment terms vary wildly and payment is often delayed",
+        "No centralized portfolio or reputation score across campaigns",
+        "Brief requirements are unclear, leading to revision cycles"
+      ],
+      "journey_stages": [
+        {
+          "stage": "profile_setup",
+          "trigger": "Hears about CreatorOS UGC marketplace, creates profile with portfolio",
+          "channel": "UGC landing page, creator referral"
+        },
+        {
+          "stage": "browse_campaigns",
+          "trigger": "Browses available campaign briefs, filters by niche/pay/requirements",
+          "channel": "UGC campaign dashboard"
+        },
+        {
+          "stage": "apply",
+          "trigger": "Applies to campaign with pitch and portfolio samples",
+          "channel": "Campaign application form"
+        },
+        {
+          "stage": "create",
+          "trigger": "Accepted by brand, receives brief, creates content",
+          "channel": "Campaign workspace, brief viewer, editing studio"
+        },
+        {
+          "stage": "submit",
+          "trigger": "Uploads deliverable for brand review",
+          "channel": "Deliverable submission, review workflow"
+        },
+        {
+          "stage": "payment",
+          "trigger": "Brand approves, payment processed",
+          "channel": "Payment dashboard, earnings history"
+        },
+        {
+          "stage": "reputation",
+          "trigger": "Completes campaigns, builds rating, gets invited to premium campaigns",
+          "channel": "Profile reputation, campaign invites"
+        }
+      ]
+    },
+    {
+      "type": "advertiser",
+      "label": "Advertiser",
+      "description": "Business or brand running paid campaigns on the CreatorOS ads platform. Targets creator audiences with sponsored content. Also may run UGC campaigns. Evaluates based on audience quality, targeting precision, and ROAS.",
+      "goals": [
+        "Reach creator audiences with precise targeting by niche, demographics, and engagement",
+        "Run UGC campaigns to get authentic brand content at scale",
+        "Measure campaign performance with clear attribution and ROAS metrics",
+        "Manage budget efficiently with bid optimization and spend controls"
+      ],
+      "pain_points": [
+        "Creator audiences are walled inside platform ecosystems with limited targeting",
+        "UGC procurement is manual — emailing creators, negotiating rates, managing deliverables",
+        "Attribution across creator channels is nearly impossible",
+        "Minimum spends on major platforms price out smaller advertisers"
+      ],
+      "journey_stages": [
+        {
+          "stage": "platform_evaluation",
+          "trigger": "Evaluates CreatorOS ads platform for audience reach and targeting capabilities",
+          "channel": "Ads landing page, case studies, sales outreach"
+        },
+        {
+          "stage": "account_setup",
+          "trigger": "Creates advertiser account, sets up billing, connects payment method",
+          "channel": "Advertiser onboarding"
+        },
+        {
+          "stage": "campaign_creation",
+          "trigger": "Creates first campaign with targeting, budget, creative, and schedule",
+          "channel": "Ad campaign manager"
+        },
+        {
+          "stage": "optimization",
+          "trigger": "Reviews performance, adjusts targeting/bids, tests creative variants",
+          "channel": "Campaign analytics, A/B testing"
+        },
+        {
+          "stage": "scaling",
+          "trigger": "Increases budget on winning campaigns, adds UGC campaigns",
+          "channel": "Campaign manager, UGC campaign dashboard"
+        },
+        {
+          "stage": "retention",
+          "trigger": "Becomes recurring advertiser with monthly/quarterly budget allocation",
+          "channel": "Account management, performance reports"
+        }
+      ]
+    }
+  ],
+
+  "creator_onboarding": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Creator onboarding flow — from signup through first value moment (first published post)",
+    "time_estimate_minutes": 5,
+    "target_time_to_value_minutes": 3,
+    "design_principle": "Every step must deliver visible value. No empty states. Prefill aggressively. Default to working, not configuring.",
+    "steps": [
+      {
+        "step": 1,
+        "name": "signup",
+        "screen": "auth-page",
+        "route": "/auth",
+        "action": "Create account with email or social OAuth",
+        "implementation_status": "PARTIAL — Passport.js exists but is broken (comparePasswords returns true for all). Target: Clerk.",
+        "fields": ["email", "password", "display_name"],
+        "defaults": {
+          "role": "creator"
+        },
+        "decision_point": null,
+        "time_seconds": 30
+      },
+      {
+        "step": 2,
+        "name": "profile_setup",
+        "screen": "onboarding-profile",
+        "route": "/onboarding/profile",
+        "action": "Set display name, bio, profile image. Import from existing social account if connected.",
+        "implementation_status": "PARTIAL — profile editing exists on profile.tsx but no dedicated onboarding screen",
+        "fields": ["display_name", "bio", "profile_image_url"],
+        "defaults": {
+          "bio": "",
+          "profile_image": "generated avatar"
+        },
+        "decision_point": null,
+        "time_seconds": 45
+      },
+      {
+        "step": 3,
+        "name": "connect_platforms",
+        "screen": "onboarding-connections",
+        "route": "/onboarding/connections",
+        "action": "Connect social accounts (Instagram, YouTube, TikTok, Twitter/X, LinkedIn, Facebook, Twitch, Pinterest). At least 1 required for cross-posting value. Skip-able.",
+        "implementation_status": "NOT IMPLEMENTED — no connected accounts management, no OAuth flows for social platforms",
+        "fields": ["platform_connections"],
+        "defaults": {},
+        "decision_point": "Skip or connect. Skipping delays core value proposition (cross-posting) but allows exploration.",
+        "time_seconds": 60
+      },
+      {
+        "step": 4,
+        "name": "choose_focus",
+        "screen": "onboarding-focus",
+        "route": "/onboarding/focus",
+        "action": "Select primary creator category (content creator, educator, community builder, commerce seller, multi-mode). This personalizes the dashboard and feature emphasis.",
+        "implementation_status": "NOT IMPLEMENTED",
+        "fields": ["creator_category"],
+        "defaults": {
+          "creator_category": "content_creator"
+        },
+        "decision_point": "Determines which modules surface first in the dashboard. Content creator sees feed first. Educator sees course builder first. Commerce seller sees marketplace first.",
+        "time_seconds": 15
+      },
+      {
+        "step": 5,
+        "name": "first_post",
+        "screen": "create-post",
+        "route": "/create",
+        "action": "Create and publish first post. This is the activation moment — creator sees their content go live. If platforms were connected, they see cross-posting in action.",
+        "implementation_status": "PARTIAL — create-post.tsx exists with text/photo/video/audio support. No cross-platform distribution.",
+        "fields": ["content", "media", "target_platforms"],
+        "defaults": {
+          "target_platforms": ["creatoros_native"]
+        },
+        "decision_point": null,
+        "time_seconds": 60
+      },
+      {
+        "step": 6,
+        "name": "dashboard_tour",
+        "screen": "explore",
+        "route": "/explore",
+        "action": "Guided tour highlighting key areas: feed, communities, marketplace, analytics. Dismissible. Surfaces contextual tips as creator explores.",
+        "implementation_status": "NOT IMPLEMENTED — no guided tour or tooltip system",
+        "fields": [],
+        "defaults": {},
+        "decision_point": null,
+        "time_seconds": 30
+      }
+    ],
+    "screens_involved": [
+      "/auth",
+      "/onboarding/profile",
+      "/onboarding/connections",
+      "/onboarding/focus",
+      "/create",
+      "/explore"
+    ],
+    "activation_metric": "First post published (with or without cross-platform distribution)",
+    "implementation_gaps": [
+      "No dedicated onboarding screens — profile setup is only on profile.tsx edit mode",
+      "No connected accounts / OAuth for social platforms",
+      "No creator category selection or personalization",
+      "No guided tour or progressive disclosure system",
+      "Auth is broken (Passport.js comparePasswords vulnerability)"
+    ]
+  },
+
+  "consumer_onboarding": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Consumer onboarding flow — from discovery through first meaningful engagement",
+    "time_estimate_minutes": 2,
+    "target_time_to_value_minutes": 1,
+    "design_principle": "Consumers arrive through creator links. Show them what they came for immediately. Sign-up wall only for actions that require identity (follow, join, purchase).",
+    "steps": [
+      {
+        "step": 1,
+        "name": "landing",
+        "screen": "creator-profile or product-page or community-page",
+        "route": "/{creator_username} or /products/{id} or /c/{slug}",
+        "action": "Consumer arrives via creator link. Sees creator content, product, or community before any sign-up. Browsing is gated-free.",
+        "implementation_status": "PARTIAL — profile.tsx exists but no public-facing unauthenticated view. Auth is required for all routes.",
+        "first_experience": "Content-first. The consumer sees what they came for. No sign-up wall on browse."
+      },
+      {
+        "step": 2,
+        "name": "signup_trigger",
+        "screen": "auth-page",
+        "route": "/auth",
+        "action": "Prompted to create account when they try to follow, join community, purchase, or save content. Minimal friction — email + password or social OAuth.",
+        "implementation_status": "PARTIAL — auth-page.tsx exists but auth is broken. No social OAuth.",
+        "first_experience": "Sign-up appears contextual to action, not as a gate to browsing."
+      },
+      {
+        "step": 3,
+        "name": "interest_selection",
+        "screen": "onboarding-interests",
+        "route": "/onboarding/interests",
+        "action": "Select topics and creators of interest. Populates initial feed with relevant content instead of empty state.",
+        "implementation_status": "NOT IMPLEMENTED",
+        "first_experience": "Consumer immediately gets a personalized feed based on selections."
+      },
+      {
+        "step": 4,
+        "name": "first_engagement",
+        "screen": "explore",
+        "route": "/explore",
+        "action": "Consumer lands on personalized feed. Can follow creators, browse communities, and explore marketplace.",
+        "implementation_status": "PARTIAL — explore.tsx exists with posts and stories. No personalization algorithm. No 'For You' vs 'Following' toggle.",
+        "first_experience": "Feed populated with content from selected interests and followed creator."
+      }
+    ],
+    "screens_involved": [
+      "/{creator_username}",
+      "/auth",
+      "/onboarding/interests",
+      "/explore"
+    ],
+    "activation_metric": "First follow, first community join, or first purchase — whichever happens first",
+    "implementation_gaps": [
+      "No unauthenticated browsing — all routes require login currently",
+      "No consumer-specific onboarding (interest selection, personalized feed)",
+      "No social OAuth for faster consumer signup",
+      "No 'For You' algorithm or personalized feed",
+      "Auth is broken (same Passport.js vulnerability affects consumer flow)"
+    ]
+  },
+
+  "journeys": [
+    {
+      "journey_id": "first_post",
+      "user_type": "creator_emerging",
+      "goal": "Create and publish first piece of content",
+      "provenance": "SYNTHESIZED_CANON",
+      "steps": [
+        {
+          "step": 1,
+          "screen": "explore",
+          "route": "/explore",
+          "action": "Creator lands on feed after onboarding. Sees example content and CTA to create first post.",
+          "outcome": "Creator clicks create button (FloatingActionButton or top nav)"
+        },
+        {
+          "step": 2,
+          "screen": "create-post",
+          "route": "/create",
+          "action": "Creator selects media type (text, photo, video, audio, voice). Composes content. Adds tags, location, poll if desired.",
+          "outcome": "Content is ready to publish"
+        },
+        {
+          "step": 3,
+          "screen": "create-post (platform selection)",
+          "route": "/create",
+          "action": "Creator selects target platforms. If no platforms connected, publishes to CreatorOS native only. If connected, selects which platforms to cross-post to.",
+          "outcome": "Platform targets selected"
+        },
+        {
+          "step": 4,
+          "screen": "create-post (publish)",
+          "route": "/create",
+          "action": "Creator hits publish. Content goes live on CreatorOS and selected platforms.",
+          "outcome": "Post is live. Creator sees confirmation with links to each platform."
+        },
+        {
+          "step": 5,
+          "screen": "explore",
+          "route": "/explore",
+          "action": "Creator sees their post in the feed. Views, likes, and comments begin accumulating.",
+          "outcome": "Creator experiences first value — content is distributed."
+        }
+      ],
+      "happy_path": "Creator has connected at least one social platform during onboarding. First post is cross-posted. Creator sees content appear on both CreatorOS feed and connected platform. Analytics begin populating within minutes.",
+      "edge_cases": [
+        "No platforms connected — post publishes to CreatorOS native only. Value prop is reduced to local feed visibility only.",
+        "Large media upload on slow connection — needs progress indicator and retry on failure. No upload progress UI exists currently.",
+        "Creator abandons mid-composition — draft auto-save needed. No draft system exists currently.",
+        "First post gets zero engagement — need seeded discovery mechanism to prevent empty-feed discouragement."
+      ],
+      "implementation_status": {
+        "implemented": ["Post creation with multiple media types", "Post display in feed", "FloatingActionButton for quick access"],
+        "missing": ["Cross-platform distribution", "Platform selection UI", "Draft auto-save", "Upload progress indicator", "Post-publish analytics view"]
+      }
+    },
+    {
+      "journey_id": "build_community",
+      "user_type": "creator_established",
+      "goal": "Create a branded community with channels and membership tiers",
+      "provenance": "SYNTHESIZED_CANON",
+      "steps": [
+        {
+          "step": 1,
+          "screen": "communities",
+          "route": "/communities",
+          "action": "Creator navigates to communities section. Sees existing communities and CTA to create new one.",
+          "outcome": "Creator initiates community creation"
+        },
+        {
+          "step": 2,
+          "screen": "create-community",
+          "route": "/communities/create",
+          "action": "Creator names community, writes description, sets icon color, chooses visibility (public/private).",
+          "outcome": "Community shell created"
+        },
+        {
+          "step": 3,
+          "screen": "community-settings",
+          "route": "/c/{slug}/settings",
+          "action": "Creator creates channels (general, announcements, off-topic, etc.). Sets channel types (text, voice, video). Configures which channels are free vs paid-tier only.",
+          "outcome": "Channel structure established"
+        },
+        {
+          "step": 4,
+          "screen": "community-tiers",
+          "route": "/c/{slug}/tiers",
+          "action": "Creator sets up membership tiers: free (basic channels), paid monthly (premium channels, DMs with creator, exclusive content).",
+          "outcome": "Monetization structure in place"
+        },
+        {
+          "step": 5,
+          "screen": "community-invite",
+          "route": "/c/{slug}/invite",
+          "action": "Creator generates invite link, shares on social platforms. Configures auto-post announcing community launch.",
+          "outcome": "Community is discoverable and joinable"
+        },
+        {
+          "step": 6,
+          "screen": "community-view",
+          "route": "/c/{slug}",
+          "action": "Members join. Creator and members interact in channels. Pinned messages, reactions, threads.",
+          "outcome": "Active community with engagement"
+        }
+      ],
+      "happy_path": "Creator creates community, sets up 3-5 channels with a free and paid tier, shares invite link on their platforms. First 50 members join within a week. Paid tier converts 5-10% of free members.",
+      "edge_cases": [
+        "Community gets no members — creator needs discovery boost (marketplace listing, cross-promotion)",
+        "Spam/moderation issues — no moderation tools exist currently",
+        "Paid tier setup without Stripe — cannot collect payments currently",
+        "Voice/video channels — not implemented, text-only currently",
+        "Community ownership ambiguity — communities table has no creator FK currently"
+      ],
+      "implementation_status": {
+        "implemented": ["Community creation (name, description, iconColor)", "Channel creation within communities", "Channel messaging with pinned/liked messages", "ChannelSidebar navigation"],
+        "missing": ["Membership tiers (free/paid)", "Payment processing for paid communities", "Voice/video channels", "Invite link generation", "Community settings/configuration page", "Moderation tools", "Community ownership (no userId FK on communities table)"]
+      }
+    },
+    {
+      "journey_id": "create_course",
+      "user_type": "creator_established",
+      "goal": "Build and sell an online course with structured curriculum",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "steps": [
+        {
+          "step": 1,
+          "screen": "course-builder",
+          "route": "/courses/create",
+          "action": "Creator opens course builder. Enters title, description, category, cover image.",
+          "outcome": "Course shell created"
+        },
+        {
+          "step": 2,
+          "screen": "curriculum-editor",
+          "route": "/courses/{id}/curriculum",
+          "action": "Creator builds curriculum: creates modules (sections), adds lessons within modules. Each lesson can be video, text, quiz, or assignment. Drag-and-drop reordering.",
+          "outcome": "Curriculum structure defined"
+        },
+        {
+          "step": 3,
+          "screen": "lesson-editor",
+          "route": "/courses/{id}/lessons/{lesson_id}",
+          "action": "Creator records or uploads video for each lesson. Adds supplementary text, downloadable resources. Sets drip schedule if applicable.",
+          "outcome": "Lesson content populated"
+        },
+        {
+          "step": 4,
+          "screen": "course-pricing",
+          "route": "/courses/{id}/pricing",
+          "action": "Creator sets price (one-time or subscription). Configures launch discount, bundle options, free preview lessons.",
+          "outcome": "Course is priced and configured for sale"
+        },
+        {
+          "step": 5,
+          "screen": "course-publish",
+          "route": "/courses/{id}/publish",
+          "action": "Creator previews course landing page. Reviews curriculum. Publishes to marketplace.",
+          "outcome": "Course is live and purchasable"
+        },
+        {
+          "step": 6,
+          "screen": "course-analytics",
+          "route": "/courses/{id}/analytics",
+          "action": "Creator monitors enrollment, completion rates, revenue, student feedback.",
+          "outcome": "Creator has data to improve course and marketing"
+        }
+      ],
+      "happy_path": "Creator builds a 5-module course with 20 lessons. Sets one-time price of $99. Publishes and promotes to their audience. Gets 50 enrollments in the first week. 60% completion rate.",
+      "edge_cases": [
+        "Large video uploads — need chunked upload, progress tracking, and resume on failure",
+        "Creator abandons mid-build — course drafts must persist and be resumable",
+        "Student refund requests — need refund workflow integrated with payment",
+        "Quiz grading — need automatic grading for multiple-choice, manual review for assignments",
+        "Course updates after students enrolled — need versioning or notification system"
+      ],
+      "implementation_status": {
+        "implemented": [],
+        "missing": ["Entire course platform — no schema tables (courses, modules, lessons, enrollments), no UI pages, no video hosting, no progress tracking, no quiz system, no certificate generation"]
+      }
+    },
+    {
+      "journey_id": "sell_product",
+      "user_type": "creator_emerging",
+      "goal": "List a digital product on the marketplace and complete first sale",
+      "provenance": "SYNTHESIZED_CANON",
+      "steps": [
+        {
+          "step": 1,
+          "screen": "create-product",
+          "route": "/create-product",
+          "action": "Creator opens product creation form. Enters title, description, price, category. Uploads product image.",
+          "outcome": "Product listing created"
+        },
+        {
+          "step": 2,
+          "screen": "product-detail (preview)",
+          "route": "/products/{id}",
+          "action": "Creator previews how the product appears in marketplace. Checks description, image, price display.",
+          "outcome": "Product is ready for marketplace"
+        },
+        {
+          "step": 3,
+          "screen": "marketplace",
+          "route": "/marketplace",
+          "action": "Product appears in marketplace listings. Consumers can browse, filter, and discover it.",
+          "outcome": "Product is discoverable"
+        },
+        {
+          "step": 4,
+          "screen": "product-detail (consumer view)",
+          "route": "/products/{id}",
+          "action": "Consumer views product detail page. Reads description, sees price, reviews. Clicks purchase.",
+          "outcome": "Consumer initiates purchase"
+        },
+        {
+          "step": 5,
+          "screen": "checkout",
+          "route": "/checkout/{product_id}",
+          "action": "Consumer enters payment information. Completes purchase via Stripe.",
+          "outcome": "Payment processed, digital product delivered"
+        },
+        {
+          "step": 6,
+          "screen": "revenue",
+          "route": "/revenue",
+          "action": "Creator sees sale reflected in revenue dashboard. Payout scheduled.",
+          "outcome": "Creator earns revenue"
+        }
+      ],
+      "happy_path": "Creator lists a $19 digital download (ebook/template). Shares link on social platforms. Consumer finds it via marketplace or direct link. Purchases. Creator gets payout minus transaction fee (8% on free tier = $1.52 fee, $17.48 to creator).",
+      "edge_cases": [
+        "Consumer wants refund — no refund workflow exists",
+        "Digital delivery failure — no file hosting or delivery mechanism exists currently",
+        "Product has no reviews/ratings — cold start problem for trust",
+        "Creator changes price after consumer added to cart — race condition",
+        "High-value product ($500+) — consumer may want installment payments"
+      ],
+      "implementation_status": {
+        "implemented": ["Product creation form (title, description, price, category, image)", "Product listing in marketplace (ProductCard, ProductList)", "Revenue tracking table"],
+        "missing": ["Product detail page (standalone)", "Checkout flow", "Stripe payment integration", "Digital product delivery (file hosting)", "Order management", "Revenue dashboard with per-product breakdown", "Refund workflow", "Product reviews/ratings (schema field exists but no UI)"]
+      }
+    },
+    {
+      "journey_id": "run_ugc_campaign",
+      "user_type": "advertiser",
+      "goal": "Launch a UGC campaign, receive creator-made content, and pay creators",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "steps": [
+        {
+          "step": 1,
+          "screen": "ugc-campaign-create",
+          "route": "/campaigns/create",
+          "action": "Advertiser creates campaign: brand name, brief description, content requirements (format, length, style), budget per deliverable, total budget, deadline.",
+          "outcome": "Campaign brief published"
+        },
+        {
+          "step": 2,
+          "screen": "ugc-campaign-detail",
+          "route": "/campaigns/{id}",
+          "action": "Campaign appears in UGC marketplace. UGC creators browse available campaigns by niche, pay, and requirements.",
+          "outcome": "Campaign is discoverable by UGC creators"
+        },
+        {
+          "step": 3,
+          "screen": "ugc-applications",
+          "route": "/campaigns/{id}/applications",
+          "action": "UGC creators apply with pitch and portfolio. Advertiser reviews applications, accepts or rejects.",
+          "outcome": "Creator cohort selected"
+        },
+        {
+          "step": 4,
+          "screen": "ugc-workspace",
+          "route": "/campaigns/{id}/workspace",
+          "action": "Accepted creators produce content according to brief. Submit deliverables through the platform.",
+          "outcome": "Content deliverables submitted"
+        },
+        {
+          "step": 5,
+          "screen": "ugc-review",
+          "route": "/campaigns/{id}/review",
+          "action": "Advertiser reviews submitted content. Approves, requests revisions, or rejects. Approved content triggers payment.",
+          "outcome": "Content approved and ready to use"
+        },
+        {
+          "step": 6,
+          "screen": "ugc-payment",
+          "route": "/campaigns/{id}/payments",
+          "action": "Platform processes payment to approved creators. Advertiser sees total spend and content library.",
+          "outcome": "Creators paid, advertiser has content assets"
+        }
+      ],
+      "happy_path": "Brand creates a $5,000 UGC campaign for 10 videos at $500 each. 30 creators apply. Brand selects 10. All deliver within deadline. Brand approves 8 on first submission, 2 after one revision. All creators paid within 7 days.",
+      "edge_cases": [
+        "Creator misses deadline — need grace period and replacement mechanism",
+        "Deliverable does not meet brief — revision workflow with clear limits (max 2 revisions)",
+        "Dispute over quality — need mediation/escalation path",
+        "Brand cancels mid-campaign — need partial payment policy for work already submitted",
+        "Creator submits copyrighted content — need content verification and rights assignment"
+      ],
+      "implementation_status": {
+        "implemented": [],
+        "missing": ["Entire UGC campaign system — no schema tables, no UI pages, no campaign workflow, no payment processing, no deliverable management"]
+      }
+    },
+    {
+      "journey_id": "consumer_discover",
+      "user_type": "consumer_superfan",
+      "goal": "Discover new creators and content through the feed and marketplace",
+      "provenance": "SYNTHESIZED_CANON",
+      "steps": [
+        {
+          "step": 1,
+          "screen": "explore",
+          "route": "/explore",
+          "action": "Consumer opens the explore feed. Sees content from followed creators and algorithmically suggested content.",
+          "outcome": "Consumer browses content"
+        },
+        {
+          "step": 2,
+          "screen": "explore (stories)",
+          "route": "/explore",
+          "action": "Consumer taps through stories from creators they follow. Discovers new creators via story suggestions.",
+          "outcome": "Consumer engages with ephemeral content"
+        },
+        {
+          "step": 3,
+          "screen": "creator-profile",
+          "route": "/{username}",
+          "action": "Consumer visits a new creator's profile. Sees their posts, products, community, and bio.",
+          "outcome": "Consumer evaluates whether to follow"
+        },
+        {
+          "step": 4,
+          "screen": "creator-profile (follow)",
+          "route": "/{username}",
+          "action": "Consumer follows the creator. Creator's content now appears in their feed.",
+          "outcome": "New follow established, feed updated"
+        },
+        {
+          "step": 5,
+          "screen": "marketplace",
+          "route": "/marketplace",
+          "action": "Consumer browses marketplace. Discovers products, courses, and communities from creators they follow and new creators.",
+          "outcome": "Consumer finds purchasable content"
+        },
+        {
+          "step": 6,
+          "screen": "saved-posts",
+          "route": "/bookmarks",
+          "action": "Consumer saves content and products for later. Bookmarks serve as a personal library.",
+          "outcome": "Consumer organizes content for future engagement"
+        }
+      ],
+      "happy_path": "Consumer opens feed, sees post from followed creator, discovers tagged creator, visits their profile, follows them, browses their products in marketplace, saves a course for later purchase.",
+      "edge_cases": [
+        "Cold start — new consumer with no follows sees empty feed. Need trending/suggested content.",
+        "Algorithm shows irrelevant content — need feedback mechanism (not interested, hide)",
+        "Creator posts are infrequent — feed feels empty. Need cross-platform aggregation.",
+        "Consumer follows 200+ creators — feed becomes overwhelming. Need algorithmic ranking."
+      ],
+      "implementation_status": {
+        "implemented": ["Explore feed with posts", "Stories display", "Creator profile pages", "Follow/unfollow functionality", "Marketplace browsing", "Saved posts/bookmarks"],
+        "missing": ["Feed algorithm (For You vs Following)", "Content discovery/suggestions", "Search functionality", "Cross-platform content aggregation", "Feed feedback mechanism (hide/not interested)"]
+      }
+    },
+    {
+      "journey_id": "consumer_purchase",
+      "user_type": "consumer_learner",
+      "goal": "Find, purchase, and consume a course from a creator",
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "steps": [
+        {
+          "step": 1,
+          "screen": "marketplace",
+          "route": "/marketplace",
+          "action": "Consumer searches marketplace for courses by topic. Filters by price, rating, category.",
+          "outcome": "Consumer finds relevant courses"
+        },
+        {
+          "step": 2,
+          "screen": "course-detail",
+          "route": "/courses/{id}",
+          "action": "Consumer views course landing page: curriculum outline, preview lessons, instructor bio, reviews, price.",
+          "outcome": "Consumer decides to purchase"
+        },
+        {
+          "step": 3,
+          "screen": "checkout",
+          "route": "/checkout/{course_id}",
+          "action": "Consumer enters payment. Completes purchase. Receives instant access.",
+          "outcome": "Consumer owns the course"
+        },
+        {
+          "step": 4,
+          "screen": "course-player",
+          "route": "/courses/{id}/learn",
+          "action": "Consumer works through course modules. Watches videos, reads text, takes quizzes. Progress auto-tracked.",
+          "outcome": "Consumer is learning"
+        },
+        {
+          "step": 5,
+          "screen": "course-player (completion)",
+          "route": "/courses/{id}/certificate",
+          "action": "Consumer completes all modules. Receives certificate. Course marked complete in profile.",
+          "outcome": "Consumer has completed the course"
+        },
+        {
+          "step": 6,
+          "screen": "creator-profile",
+          "route": "/{creator_username}",
+          "action": "Consumer visits creator's profile to see other courses and products. May leave a review on completed course.",
+          "outcome": "Consumer may purchase again or follow for future content"
+        }
+      ],
+      "happy_path": "Consumer searches for 'photography basics', finds a $49 course with 4.8 rating and 200 reviews. Purchases. Completes 12 lessons over 2 weeks. Receives certificate. Enrolls in the creator's advanced course.",
+      "edge_cases": [
+        "Consumer wants to preview before buying — need free preview lessons",
+        "Consumer stops mid-course and returns weeks later — need resume exactly where they left off",
+        "Course content is updated after purchase — consumer needs notification and access to updated content",
+        "Consumer wants refund after starting — need refund policy tied to progress percentage",
+        "Course has community component — need gated community access tied to enrollment"
+      ],
+      "implementation_status": {
+        "implemented": [],
+        "missing": ["Entire course system — marketplace search/filter, course detail page, checkout, course player, progress tracking, quizzes, certificates, reviews. No schema tables exist for courses."]
+      }
+    }
+  ],
+
+  "conversion_funnels": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "description": "Key conversion funnels with expected metrics and optimization levers",
+
+    "visitor_to_signup": {
+      "stages": [
+        {
+          "stage": "landing_page_view",
+          "description": "Visitor arrives on landing page or creator profile (public view)",
+          "target_conversion": "30-40% click to signup form",
+          "levers": ["Value proposition clarity", "Social proof (creator count, testimonials)", "Free tier visibility", "Page load speed"]
+        },
+        {
+          "stage": "signup_form_view",
+          "description": "Visitor sees signup form (email/social auth options)",
+          "target_conversion": "50-60% form start to form complete",
+          "levers": ["Minimal fields (email + password only)", "Social OAuth (Google, Apple, Twitter)", "No credit card required for free tier", "Trust signals (privacy, security)"]
+        },
+        {
+          "stage": "signup_complete",
+          "description": "Account created, user enters onboarding",
+          "target_conversion": "15-24% of landing page visitors become signed-up users",
+          "levers": ["Total fields minimized", "Error messages clear", "Email verification deferred (not blocking)"]
+        }
+      ],
+      "implementation_status": "NOT IMPLEMENTED — no landing page, broken auth, no social OAuth, no analytics"
+    },
+
+    "signup_to_first_action": {
+      "stages": [
+        {
+          "stage": "onboarding_start",
+          "description": "New user begins onboarding flow",
+          "target_conversion": "80-90% start onboarding",
+          "levers": ["Immediate redirect after signup", "No email verification gate", "Progress indicator showing steps"]
+        },
+        {
+          "stage": "profile_complete",
+          "description": "User fills in profile (display name, bio, image)",
+          "target_conversion": "70-80% complete profile",
+          "levers": ["Prefill from social OAuth data", "Skip-able but encouraged", "Show 'profile completeness' score"]
+        },
+        {
+          "stage": "first_action",
+          "description": "Creator: first post published. Consumer: first follow or community join.",
+          "target_conversion": "50-60% complete first meaningful action within first session",
+          "levers": ["Guided prompts", "Pre-populated content suggestions", "One-tap follow for suggested creators", "Empty state CTAs"]
+        }
+      ],
+      "implementation_status": "NOT IMPLEMENTED — no onboarding flow, no progress tracking, no guided prompts"
+    },
+
+    "free_to_paid": {
+      "stages": [
+        {
+          "stage": "feature_gate_encounter",
+          "description": "Free user hits a feature limit (platforms, communities, courses, or transaction fee awareness)",
+          "target_conversion": "40-50% of active free users encounter a gate within 14 days",
+          "levers": ["Strategic gate placement", "Usage tracking to predict upgrade readiness", "Gate messaging that shows value not restriction"]
+        },
+        {
+          "stage": "pricing_page_view",
+          "description": "User views pricing comparison after hitting gate",
+          "target_conversion": "30-40% of gate-encountering users view pricing",
+          "levers": ["In-context upgrade prompts (not separate page redirect)", "Clear value comparison", "Savings calculator for transaction fees"]
+        },
+        {
+          "stage": "trial_start_or_purchase",
+          "description": "User starts Pro trial or purchases directly",
+          "target_conversion": "10-15% of pricing viewers convert",
+          "levers": ["14-day free trial of Pro", "Annual discount (2 months free)", "Money-back guarantee"]
+        },
+        {
+          "stage": "trial_to_paid",
+          "description": "Trial user converts to paying subscriber",
+          "target_conversion": "40-60% trial-to-paid conversion",
+          "levers": ["Usage emails during trial", "Value delivered tracking", "Downgrade friction (show what they lose)"]
+        }
+      ],
+      "overall_target": "3-5% of all free users convert to paid within 60 days",
+      "implementation_status": "NOT IMPLEMENTED — no subscription system, no feature gates, no pricing page, no Stripe billing"
+    }
+  },
+
+  "retention_hooks": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "description": "Mechanisms that drive repeat usage and reduce churn",
+
+    "creator_retention": [
+      {
+        "hook": "content_calendar_obligation",
+        "description": "Scheduled posts create future commitment. Creator returns to check performance and maintain cadence.",
+        "frequency": "Daily to weekly depending on posting cadence",
+        "implementation_status": "NOT IMPLEMENTED — no scheduling system"
+      },
+      {
+        "hook": "revenue_dashboard",
+        "description": "Daily revenue updates and payout notifications pull creators back to check earnings.",
+        "frequency": "Daily",
+        "implementation_status": "PARTIAL — revenue chart exists but no real payment data"
+      },
+      {
+        "hook": "community_activity",
+        "description": "Community members posting and asking questions creates obligation for creator to respond and engage.",
+        "frequency": "Multiple times daily for active communities",
+        "implementation_status": "PARTIAL — community channels exist but no notification for creator engagement"
+      },
+      {
+        "hook": "analytics_curiosity",
+        "description": "Content performance metrics create curiosity loop — creator checks what performed well and adjusts strategy.",
+        "frequency": "Daily to weekly",
+        "implementation_status": "NOT IMPLEMENTED — no content analytics"
+      },
+      {
+        "hook": "cross_posting_efficiency",
+        "description": "Once the creator relies on CreatorOS for distribution, switching cost is high. Each connected platform increases lock-in.",
+        "frequency": "Every posting session",
+        "implementation_status": "NOT IMPLEMENTED — no cross-posting"
+      },
+      {
+        "hook": "subscriber_growth_notifications",
+        "description": "Notifications about new followers, community members, and course enrollments create positive reinforcement loop.",
+        "frequency": "Daily digest or real-time",
+        "implementation_status": "PARTIAL — notifications table exists but no growth-specific notifications"
+      }
+    ],
+
+    "consumer_retention": [
+      {
+        "hook": "feed_freshness",
+        "description": "New content from followed creators appears daily. FOMO on missing content from favorite creators.",
+        "frequency": "Daily",
+        "implementation_status": "PARTIAL — feed exists but no notification-driven return"
+      },
+      {
+        "hook": "community_belonging",
+        "description": "Active community conversations create social obligation to participate and maintain relationships.",
+        "frequency": "Multiple times daily for engaged members",
+        "implementation_status": "PARTIAL — community channels exist"
+      },
+      {
+        "hook": "course_progress",
+        "description": "Incomplete courses create completion drive. Progress bars and streak tracking motivate return.",
+        "frequency": "Every learning session",
+        "implementation_status": "NOT IMPLEMENTED — no course system"
+      },
+      {
+        "hook": "stories_fomo",
+        "description": "24-hour expiry on stories creates urgency to check daily or miss content.",
+        "frequency": "Daily",
+        "implementation_status": "IMPLEMENTED — stories with 24h expiry and view counting"
+      },
+      {
+        "hook": "dm_conversations",
+        "description": "Active DM conversations with creators or community members pull users back.",
+        "frequency": "Variable — per conversation activity",
+        "implementation_status": "IMPLEMENTED — DM system with conversations, reactions, reply-to"
+      },
+      {
+        "hook": "notifications_pull",
+        "description": "Push notifications for likes, comments, mentions, and new content from followed creators.",
+        "frequency": "Multiple times daily",
+        "implementation_status": "PARTIAL — in-app notifications exist, no push notifications"
+      }
+    ]
+  },
+
+  "open_questions": [
+    {
+      "id": "UJ-OQ-001",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "question": "Should consumer onboarding be completely gate-free (browse without account) or require signup before any interaction?",
+      "impact": "Determines whether unauthenticated routes exist, which affects SEO, sharing, and conversion funnel design.",
+      "options": ["Gate-free browsing with signup on action (follow/purchase/join)", "Signup required but minimal (email only, complete profile later)", "Fully gated (signup before seeing any content)"],
+      "recommendation": "Gate-free browsing with signup on action — maximizes top-of-funnel while maintaining clear conversion points"
+    },
+    {
+      "id": "UJ-OQ-002",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "question": "Should creator onboarding branch based on tier (emerging vs established) or be uniform with post-onboarding personalization?",
+      "impact": "Branched onboarding is more relevant per user but adds maintenance burden. Uniform onboarding is simpler but may feel generic.",
+      "options": ["Branched onboarding with tier-specific steps", "Uniform onboarding with post-onboarding personalization based on stated goals", "Adaptive onboarding that adjusts dynamically based on connected account metrics (follower count)"],
+      "recommendation": "Adaptive onboarding — connect accounts first, infer tier from follower count, personalize remaining steps automatically"
+    },
+    {
+      "id": "UJ-OQ-003",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "question": "What is the first monetization journey to implement — product sales (marketplace), course sales, or community memberships?",
+      "impact": "Determines which Stripe integration to build first and which schema tables to add first.",
+      "options": ["Digital product sales (simplest — single payment, file delivery)", "Community memberships (recurring revenue, existing community UI)", "Course sales (highest ticket, but course platform is fully missing)"],
+      "recommendation": "Digital product sales first — lowest implementation effort (products table exists), clear transaction flow, proves payment infrastructure that all other types reuse"
+    },
+    {
+      "id": "UJ-OQ-004",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "question": "Should UGC creators be a separate user type with distinct onboarding, or a mode/role within the existing creator type?",
+      "impact": "Separate type means distinct onboarding and profile. Role-based means shared profile with UGC capabilities toggled on.",
+      "options": ["Separate user type with distinct onboarding and profile", "Role/mode within creator type — toggle UGC mode in settings", "Hybrid — same account, separate UGC portfolio page"],
+      "recommendation": "Hybrid — same creator account with a UGC portfolio tab. Reduces onboarding friction and lets emerging creators do both."
+    }
+  ],
+
+  "implementation_debt": {
+    "provenance": "IMPLEMENTATION_DEBT",
+    "description": "Summary of implementation gaps between desired journeys and current codebase state",
+    "critical_blockers": [
+      {
+        "id": "DEBT-AUTH",
+        "description": "Authentication is broken — comparePasswords returns true for all. No journey can be safely tested until auth works.",
+        "affects_journeys": "ALL",
+        "resolution": "Migrate to Clerk (eliminates Passport.js entirely)"
+      },
+      {
+        "id": "DEBT-PAYMENTS",
+        "description": "Zero payment infrastructure — no Stripe, no checkout, no orders table, no transaction processing.",
+        "affects_journeys": ["sell_product", "create_course", "run_ugc_campaign", "build_community (paid tiers)"],
+        "resolution": "Implement Stripe Connect with marketplace pattern (platform collects, pays out to creators)"
+      },
+      {
+        "id": "DEBT-CROSS-POST",
+        "description": "No cross-platform distribution — the core product promise ('post once, publish everywhere') is unimplemented.",
+        "affects_journeys": ["first_post"],
+        "resolution": "Build connected accounts OAuth + platform API adapters for Instagram, YouTube, TikTok, Twitter/X minimum"
+      }
+    ],
+    "high_priority_gaps": [
+      {
+        "id": "DEBT-ONBOARDING",
+        "description": "No dedicated onboarding flow — new users land on explore page with no guidance.",
+        "affects_journeys": "ALL (creator and consumer onboarding)",
+        "resolution": "Build onboarding screen sequence: profile setup, platform connections, focus selection, first action"
+      },
+      {
+        "id": "DEBT-COURSES",
+        "description": "Entire course platform is missing — no schema, no UI, no builder, no player.",
+        "affects_journeys": ["create_course", "consumer_purchase"],
+        "resolution": "Design and build courses, modules, lessons, enrollments tables + course builder UI + course player"
+      },
+      {
+        "id": "DEBT-SEARCH",
+        "description": "No search functionality anywhere in the app.",
+        "affects_journeys": ["consumer_discover", "consumer_purchase"],
+        "resolution": "Implement full-text search across posts, products, creators, communities"
+      },
+      {
+        "id": "DEBT-ANALYTICS",
+        "description": "No content or audience analytics — only a basic revenue chart.",
+        "affects_journeys": ["first_post (post-publish feedback)", "build_community"],
+        "resolution": "Build analytics dashboard with content performance, audience growth, engagement metrics"
+      }
+    ],
+    "medium_priority_gaps": [
+      {
+        "id": "DEBT-FEED-ALGO",
+        "description": "No feed algorithm — all content is chronological with no personalization or For You/Following toggle.",
+        "affects_journeys": ["consumer_discover"]
+      },
+      {
+        "id": "DEBT-UGC",
+        "description": "Entire UGC campaign system is missing.",
+        "affects_journeys": ["run_ugc_campaign"]
+      },
+      {
+        "id": "DEBT-MODERATION",
+        "description": "No moderation tools for communities.",
+        "affects_journeys": ["build_community"]
+      },
+      {
+        "id": "DEBT-COMMUNITY-OWNER",
+        "description": "Communities table has no creator FK — ownership is ambiguous.",
+        "affects_journeys": ["build_community"]
+      },
+      {
+        "id": "DEBT-PUBLIC-ROUTES",
+        "description": "All routes require authentication — no unauthenticated browsing for consumers.",
+        "affects_journeys": ["consumer_discover", "consumer_purchase"]
+      }
+    ]
+  }
+}

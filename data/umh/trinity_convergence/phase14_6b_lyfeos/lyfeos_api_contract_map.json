@@ -1,0 +1,131 @@
+{
+  "phase": "14.6B-LyfeOS",
+  "artifact_number": 32,
+  "task": "lyfeos_api_contract_map",
+  "timestamp": "2026-06-03T12:00:00Z",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "description": "Complete API route map for LyfeOS Express backend. Derived from replit.md documentation and backend code structure evidence.",
+  "provenance": "CODE_RESOLVED_CURRENT_TRUTH (routes confirmed from replit.md and server/ structure)",
+  "base_url": "https://lyfeos.net",
+  "server_port": 5000,
+  "auth_mechanism": "express-session with connect-pg-simple PostgreSQL store",
+  "total_route_groups": 17,
+  "routes": {
+    "health": [
+      {"method": "GET", "path": "/api/health", "description": "Health check endpoint", "auth_required": false, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ],
+    "auth": [
+      {"method": "POST", "path": "/api/auth/register", "description": "Register new user (email/password + Firebase user creation)", "auth_required": false, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/auth/login", "description": "Login with email/password (bcrypt validation)", "auth_required": false, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/auth/logout", "description": "Destroy session and logout", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "GET", "path": "/api/auth/me", "description": "Get current authenticated user", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/auth/firebase", "description": "Firebase OAuth login (Google/Apple/Facebook token verification)", "auth_required": false, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/auth/forgot-password", "description": "Initiate password reset via Firebase", "auth_required": false, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/auth/reset-password", "description": "Complete password reset", "auth_required": false, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/auth/verify-email", "description": "Email verification via Firebase", "auth_required": false, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/auth/verify-2fa", "description": "Two-factor authentication verification (email or phone)", "auth_required": false, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ],
+    "profile": [
+      {"method": "GET", "path": "/api/profile", "description": "Get user profile (100+ fields)", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "PATCH", "path": "/api/profile", "description": "Update user profile fields", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ],
+    "stats": [
+      {"method": "GET", "path": "/api/stats", "description": "Get user stats (XP, level, streak, tokens)", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "PATCH", "path": "/api/stats", "description": "Update user stats", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ],
+    "quests": [
+      {"method": "GET", "path": "/api/quests", "description": "List all quests for authenticated user", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/quests", "description": "Create a new quest/mission", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "PATCH", "path": "/api/quests/:id", "description": "Update a quest (completion, details, status)", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "DELETE", "path": "/api/quests/:id", "description": "Soft delete a quest", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ],
+    "goals": [
+      {"method": "GET", "path": "/api/goals", "description": "List vision goals", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/goals", "description": "Create vision goal", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "PATCH", "path": "/api/goals/:id", "description": "Update vision goal", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "DELETE", "path": "/api/goals/:id", "description": "Delete vision goal", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ],
+    "daily_logs": [
+      {"method": "GET", "path": "/api/daily-logs", "description": "List daily logs (filterable by date)", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/daily-logs", "description": "Create daily log entry", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "PATCH", "path": "/api/daily-logs/:id", "description": "Update daily log entry", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ],
+    "conversations": [
+      {"method": "GET", "path": "/api/conversations", "description": "List NOVA AI conversations", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/conversations", "description": "Create new conversation", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "GET", "path": "/api/conversations/:id", "description": "Get conversation with messages", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "DELETE", "path": "/api/conversations/:id", "description": "Soft delete conversation", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/conversations/:id/messages", "description": "Send message to NOVA (streaming response via Anthropic)", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ],
+    "documents": [
+      {"method": "GET", "path": "/api/documents", "description": "List documents (filterable by folder, type)", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/documents", "description": "Create document", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "PATCH", "path": "/api/documents/:id", "description": "Update document", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "DELETE", "path": "/api/documents/:id", "description": "Soft delete document", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ],
+    "folders": [
+      {"method": "GET", "path": "/api/folders", "description": "List folders (nested structure)", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/folders", "description": "Create folder", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "PATCH", "path": "/api/folders/:id", "description": "Update folder", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "DELETE", "path": "/api/folders/:id", "description": "Soft delete folder", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ],
+    "google": [
+      {"method": "GET", "path": "/api/google/auth-url", "description": "Generate Google OAuth authorization URL", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "GET", "path": "/api/google/callback", "description": "Handle Google OAuth callback, exchange code for tokens", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/google/sync", "description": "Sync Google Calendar events (bidirectional with dedup)", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "GET", "path": "/api/google/tasks", "description": "Fetch Google Tasks", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/google/import-tasks", "description": "Import Google Tasks as missions with XP", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "POST", "path": "/api/google/disconnect", "description": "Disconnect Google integration, remove tokens", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"},
+      {"method": "GET", "path": "/api/google/status", "description": "Check Google integration connection status", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ],
+    "contacts": [
+      {"method": "GET", "path": "/api/contacts", "description": "List contacts (Rolodex)", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "POST", "path": "/api/contacts", "description": "Create contact", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "PATCH", "path": "/api/contacts/:id", "description": "Update contact", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "DELETE", "path": "/api/contacts/:id", "description": "Delete contact", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"}
+    ],
+    "kanban": [
+      {"method": "GET", "path": "/api/kanban/boards", "description": "List kanban boards", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "POST", "path": "/api/kanban/boards", "description": "Create kanban board", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "PATCH", "path": "/api/kanban/boards/:id", "description": "Update kanban board", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "DELETE", "path": "/api/kanban/boards/:id", "description": "Delete kanban board", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "GET", "path": "/api/kanban/boards/:boardId/columns", "description": "List columns for board", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "GET", "path": "/api/kanban/boards/:boardId/tasks", "description": "List tasks for board", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"}
+    ],
+    "media": [
+      {"method": "GET", "path": "/api/media/albums", "description": "List media albums", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "POST", "path": "/api/media/albums", "description": "Create album", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "GET", "path": "/api/media/items", "description": "List media items", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "POST", "path": "/api/media/items", "description": "Upload media item", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "GET", "path": "/api/inline-upload/:id", "description": "Serve inline-uploaded image by ID (authenticated)", "auth_required": true, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ],
+    "other_crud": [
+      {"method": "CRUD", "path": "/api/spreadsheets", "description": "Spreadsheet CRUD", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/canvases", "description": "Canvas CRUD", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/graphs", "description": "Knowledge graph CRUD", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/templates", "description": "Document template CRUD", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/categories", "description": "User category CRUD", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/ritual-groups", "description": "Ritual group CRUD", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/widget-states", "description": "Dashboard widget state persistence", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/push-subscriptions", "description": "FCM push subscription management", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/mission-views", "description": "Custom Notion-style mission view CRUD", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/progress-trackers", "description": "Progress tracker CRUD", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/smart-reminders", "description": "Smart reminder configuration", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/activity-events", "description": "User activity event logging", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/dismissed-knowledge", "description": "Knowledge dismissal tracking", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/calendar-events", "description": "Local calendar event CRUD", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "CRUD", "path": "/api/mission-pages", "description": "Mission page CRUD", "auth_required": true, "provenance": "INFERRED_PROFESSIONAL_GAP"},
+      {"method": "POST", "path": "/api/waitlist", "description": "Waitlist email submission", "auth_required": false, "provenance": "INFERRED_PROFESSIONAL_GAP"}
+    ],
+    "firebase_proxy": [
+      {"method": "ALL", "path": "/__/auth/*", "description": "Reverse proxy to Firebase for same-origin OAuth flows (avoids 3rd-party cookie blocking)", "auth_required": false, "provenance": "CODE_RESOLVED_CURRENT_TRUTH"}
+    ]
+  },
+  "notes": {
+    "route_provenance": "Routes marked CODE_RESOLVED_CURRENT_TRUTH are confirmed from replit.md documentation. Routes marked INFERRED_PROFESSIONAL_GAP are inferred from schema.ts table definitions but exact paths not confirmed from server code inspection.",
+    "streaming": "POST /api/conversations/:id/messages uses Server-Sent Events (SSE) for streaming NOVA AI responses",
+    "validation": "Zod schemas used for request validation (drizzle-zod insert schemas)",
+    "middleware": "Helmet.js security headers, compression, express-session"
+  }
+}

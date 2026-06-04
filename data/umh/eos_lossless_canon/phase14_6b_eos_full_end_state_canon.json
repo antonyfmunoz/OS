@@ -1,0 +1,887 @@
+{
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Complete EOS end-state vision — everything EntrepreneurOS will become when fully built, from MVP through enterprise platform, including capability map, architecture, agent autonomy, integrations, business model, scale targets, and competitive moat.",
+  "provenance_detail": "Synthesized from all 14.6B canonical artifacts: business democratization doctrine (product identity, UMH capability mappings), portfolio/entity/business ontology (8-level hierarchy, 8 entity types, 19 business types), communication/delegation architecture (EA -> Portfolio Advisor | CEO -> Department agents, routing rules, escalation protocol), onboarding first-boot spec (25-step flow, 4 paths, 8 stages, 5 complexity levels, 15 output artifacts), UI/UX aesthetic canon (executive command center, 7-component shell, design tokens, data visualization), source detail preservation ledger (120 signals preserved losslessly), workflow/SOP engine spec, agent architecture spec, analytics/KPI spec, governance/permissions model, infrastructure/deployment map, and operator corrections. Each capability is traced to its source artifact and tagged with timeline tier.",
+
+  "end_state_vision": {
+    "description": "EntrepreneurOS is the operating system for economic activity. It democratizes the ability to structure, operate, optimize, and scale any economic entity — from a solo founder with one LLC to an institutional holding company with a diversified portfolio of businesses, investments, and assets. EOS gives every operator the infrastructure that was previously only available to well-capitalized enterprises with dedicated operations teams: governed AI agents that execute real business work, workflows that run deterministically with approval gates, KPI dashboards with finance-grade clarity, multi-entity portfolio management with cross-entity intelligence, and a full organizational substrate that scales from one person to hundreds.",
+    "differentiation": [
+      "Business-in-a-box operating system — not a tool, not a dashboard, not a copilot. EOS IS the business runtime.",
+      "Portfolio-first architecture — every operator manages portfolios of entities, not just companies. Investments, real estate, assets, holding structures are first-class citizens.",
+      "AI agents as governed employees — agents have defined roles, bounded authority, permission tiers, and escalation chains. They are not chat assistants; they are autonomous operators.",
+      "Generate-first UX — onboarding produces a complete operating system (org chart, roles, workflows, SOPs, tasks, KPIs, dashboards) from a few operator inputs. The operator refines, not builds.",
+      "Entity-type-aware intelligence — every generated artifact (workflows, KPIs, roles, SOPs) is tailored to the specific entity type (SaaS, agency, real estate, investment, etc.) and maturity stage.",
+      "UMH substrate integration — EOS inherits every UMH capability (execution pipeline, governance engine, intelligence routing, feedback loops, knowledge graph, organism coordination) as a business-specific projection. As UMH evolves, EOS evolves.",
+      "Finance-grade aesthetic — executive command center, not playful SaaS. Bloomberg-meets-Linear. Information-dense, dark-mode-first, monospace financials, compact density.",
+      "Deterministic spine with AI enhancement — workflows, governance, routing, and scheduling are deterministic. AI enhances content generation, classification, and optimization within the deterministic frame.",
+      "Full audit trail — every operator input, agent action, decision, approval, and workflow step is logged as a structured event. Compliance-grade traceability from intent to outcome."
+    ],
+    "market_position": "EOS occupies the intersection of business operating systems, AI-native enterprise tools, and portfolio management platforms. It is not competing with project management tools (Asana, Monday), not competing with CRMs (Salesforce, HubSpot), and not competing with accounting software (QuickBooks, Xero). EOS is the layer ABOVE all of these — the operating system that orchestrates them. The closest analogues are Carta (for institutional rigor), Mercury (for modern finance UX), and Notion (for workspace flexibility) — but none of these are actual operating systems with governed AI agents, multi-entity portfolio management, and workflow execution engines."
+  },
+
+  "capability_map": [
+    {
+      "capability": "Clerk Authentication + SSO",
+      "module": "auth",
+      "status": "partially_implemented",
+      "status_detail": "Beast branch has Clerk auth. GitHub main has stale Passport.js. SSO (SAML, OIDC) not implemented.",
+      "dependency": "None",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_auth_security_truth.json"
+    },
+    {
+      "capability": "Portfolio Management (create, configure, dashboard, cross-entity analytics)",
+      "module": "portfolio",
+      "status": "schema_only",
+      "status_detail": "Beast has company model. Portfolio layer above company does not exist. Must be added as top-level container.",
+      "dependency": "auth",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_portfolio_entity_business_ontology.json"
+    },
+    {
+      "capability": "Entity/Business/Investment CRUD + Lifecycle Management",
+      "module": "entities",
+      "status": "partially_implemented",
+      "status_detail": "Beast has company CRUD. Entity types beyond operating companies (investments, assets, holding structures) not modeled. 8 entity types, 19 business types defined in ontology.",
+      "dependency": "portfolio",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_portfolio_entity_business_ontology.json"
+    },
+    {
+      "capability": "25-Step Onboarding with AI Generation",
+      "module": "onboarding",
+      "status": "not_implemented",
+      "status_detail": "Beast has basic company creation. Full 25-step flow with 4 paths, 8 stages, 5 complexity levels, and AI generation (steps 8-19) does not exist.",
+      "dependency": "portfolio, entities, agents, workflows",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_onboarding_first_boot_spec.json"
+    },
+    {
+      "capability": "Executive Command Center Dashboard",
+      "module": "dashboard",
+      "status": "basic_in_beast",
+      "status_detail": "Beast has home dashboard. Finance-grade KPI cards, trend indicators, sparklines, period comparison not implemented.",
+      "dependency": "entities, kpis",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_ui_ux_aesthetic_canon.json"
+    },
+    {
+      "capability": "Three-Panel Shell (Left Rail + Workspace + Right Rail AI)",
+      "module": "shell",
+      "status": "partially_implemented",
+      "status_detail": "Beast has left-rail, right-rail, header, floating-ai-panel components. Not wired to finance-grade aesthetic or role-dependent navigation.",
+      "dependency": "auth, entities",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_ui_ux_aesthetic_canon.json"
+    },
+    {
+      "capability": "Org Chart Generation and Management",
+      "module": "org_chart",
+      "status": "not_implemented",
+      "status_detail": "No org chart generation or visual editor in either codebase. Onboarding step 9 requires this.",
+      "dependency": "entities, onboarding",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_onboarding_first_boot_spec.json"
+    },
+    {
+      "capability": "Department, Role, and Permission Management",
+      "module": "roles_permissions",
+      "status": "not_implemented",
+      "status_detail": "UMH projection has PermissionTier enum and DepartmentAgent base. No UI or API for department/role CRUD in SaaS product.",
+      "dependency": "entities, org_chart",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_governance_permissions_model.json"
+    },
+    {
+      "capability": "Task Board/List (create, assign, track, link to workflows)",
+      "module": "tasks",
+      "status": "not_implemented",
+      "status_detail": "No task management in either codebase. Onboarding step 14 generates recurring tasks.",
+      "dependency": "entities, roles_permissions",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_source_detail_preservation_ledger.json"
+    },
+    {
+      "capability": "Workflow Library (create, store, browse, execute workflows)",
+      "module": "workflow_engine",
+      "status": "projection_only",
+      "status_detail": "UMH projection has 3 workflows (Outreach, FollowUp, ContentCalendar). No SaaS workflow builder, library, or run view.",
+      "dependency": "entities, roles_permissions, tasks",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_workflow_sop_engine_spec.json"
+    },
+    {
+      "capability": "SOP Management (create, version, link to workflows)",
+      "module": "sops",
+      "status": "not_implemented",
+      "status_detail": "No SOP management in any codebase. Onboarding step 13 generates SOPs.",
+      "dependency": "workflow_engine",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_workflow_sop_engine_spec.json"
+    },
+    {
+      "capability": "EA Agent (operator intake, triage, routing)",
+      "module": "agents.ea",
+      "status": "not_implemented",
+      "status_detail": "Critical gap. No EA agent in code. Required for corrected routing chain.",
+      "dependency": "entities, agents.ceo",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_communication_delegation_architecture.json"
+    },
+    {
+      "capability": "CEO Agent (entity-level strategy, department delegation)",
+      "module": "agents.ceo",
+      "status": "implemented_needs_generalization",
+      "status_detail": "CEOAgent in projections/eos/agents/ceo.py. Contains hardcoded Initiate Arena references. Needs BIS runtime lookup.",
+      "dependency": "entities",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_agent_architecture_spec.json"
+    },
+    {
+      "capability": "9 Department Agents (sales, marketing, ops, finance, legal, CS, product, HR, engineering)",
+      "module": "agents.departments",
+      "status": "implemented",
+      "status_detail": "10 agents implemented in projections/eos/agents/ with 62 skills total. DepartmentAgent base class with tier-gated execution.",
+      "dependency": "agents.ceo",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_agent_architecture_spec.json"
+    },
+    {
+      "capability": "Inter-Agent Routing Infrastructure (message passing, delegation protocol)",
+      "module": "agents.routing",
+      "status": "not_implemented",
+      "status_detail": "Agents are standalone classes. No message bus, delegation queue, or routing logic between them.",
+      "dependency": "agents.ea, agents.ceo, agents.departments",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_communication_delegation_architecture.json"
+    },
+    {
+      "capability": "AI Copilot / Right Rail Conversational Interface",
+      "module": "ai_copilot",
+      "status": "shell_only",
+      "status_detail": "Beast has right-rail component shell. No agent integration, no context-awareness, no EA routing.",
+      "dependency": "agents.ea, shell",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_ui_ux_aesthetic_canon.json"
+    },
+    {
+      "capability": "KPI Framework and Analytics",
+      "module": "analytics",
+      "status": "not_implemented",
+      "status_detail": "No KPI tracking, no analytics pipeline, no materialized views. Full KPI framework specified with universal and entity-type-specific metrics.",
+      "dependency": "entities, dashboard",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_analytics_kpi_spec.json"
+    },
+    {
+      "capability": "Documents/Notes Workspace",
+      "module": "documents",
+      "status": "not_implemented",
+      "status_detail": "No document editor in either codebase. SOPs, strategy notes, operating memory need a document surface.",
+      "dependency": "entities",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_source_detail_preservation_ledger.json"
+    },
+    {
+      "capability": "Approval and Governance Gates",
+      "module": "governance",
+      "status": "substrate_only",
+      "status_detail": "UMH substrate has deterministic risk classification and PermissionTier. No SaaS approval UI, approval queue, or configurable governance policies.",
+      "dependency": "agents, roles_permissions",
+      "timeline_tier": "tier_1_mvp",
+      "source_artifact": "phase14_6b_eos_governance_permissions_model.json"
+    },
+    {
+      "capability": "Portfolio Advisor Agent (cross-entity intelligence, capital allocation)",
+      "module": "agents.portfolio_advisor",
+      "status": "not_implemented",
+      "status_detail": "No Portfolio Advisor in code. Required for multi-entity portfolio management and cross-entity analysis.",
+      "dependency": "portfolio, agents.ea",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_eos_communication_delegation_architecture.json"
+    },
+    {
+      "capability": "Multi-Portfolio Management",
+      "module": "multi_portfolio",
+      "status": "not_implemented",
+      "status_detail": "MVP supports one primary portfolio. Multi-portfolio adds portfolio selection, cross-portfolio analytics, and portfolio-level governance.",
+      "dependency": "portfolio, agents.portfolio_advisor",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_eos_portfolio_entity_business_ontology.json"
+    },
+    {
+      "capability": "6 Additional Department Agents (admin, research, content, automation, investment_analyst, asset_manager, property_manager)",
+      "module": "agents.extended",
+      "status": "not_implemented",
+      "status_detail": "Architecturally defined as INFERRED_PROFESSIONAL_GAP. Required for entity types beyond basic businesses.",
+      "dependency": "agents.ceo",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_eos_communication_delegation_architecture.json"
+    },
+    {
+      "capability": "Autonomous Agent Execution (agents act within bounds without per-action approval)",
+      "module": "agent_autonomy",
+      "status": "not_implemented",
+      "status_detail": "Current agents require explicit invocation. Autonomous execution within permission bounds needs trust scoring, threshold tuning, and confidence gates.",
+      "dependency": "agents, governance",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_eos_agent_architecture_spec.json"
+    },
+    {
+      "capability": "UBOS Template Library (franchise-like business templates)",
+      "module": "template_library",
+      "status": "not_implemented",
+      "status_detail": "Onboarding entity-type-aware generation is the MVP equivalent. Full template library with curated and community templates is growth-phase.",
+      "dependency": "workflow_engine, entities, onboarding",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_eos_source_detail_preservation_ledger.json"
+    },
+    {
+      "capability": "Skill Marketplace (buy/sell/share agent skills across operators)",
+      "module": "skill_marketplace",
+      "status": "not_implemented",
+      "status_detail": "Agent skills exist in UMH projection (62 skills). Marketplace for trading, sharing, and monetizing skills is a growth-phase platform play.",
+      "dependency": "agents, template_library",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_eos_source_detail_preservation_ledger.json"
+    },
+    {
+      "capability": "Self-Improvement Loop (pattern detection, workflow refinement, optimization suggestions)",
+      "module": "self_improvement",
+      "status": "substrate_design_only",
+      "status_detail": "UMH substrate has feedback loop architecture. EOS-specific business pattern detection and workflow optimization not implemented.",
+      "dependency": "workflow_engine, analytics, agents",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_eos_business_democratization_doctrine.json"
+    },
+    {
+      "capability": "Integration Marketplace (OAuth connectors to external tools)",
+      "module": "integrations",
+      "status": "not_implemented",
+      "status_detail": "No integration connectors. Onboarding step 23 lists planned integrations (email, calendar, accounting, CRM, PM, social, payments).",
+      "dependency": "workflow_engine, entities",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_eos_onboarding_first_boot_spec.json"
+    },
+    {
+      "capability": "Human Intelligence Layer (contact profiles, relationship intelligence)",
+      "module": "human_intelligence",
+      "status": "not_implemented",
+      "status_detail": "Explicitly excluded from MVP. Rich contact profiles with interaction history, sentiment, and relationship mapping.",
+      "dependency": "entities, agents.sales, agents.customer_success",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_eos_source_detail_preservation_ledger.json"
+    },
+    {
+      "capability": "Reality Intelligence Engine (market research, competitor intelligence, trend analysis)",
+      "module": "market_intelligence",
+      "status": "not_implemented",
+      "status_detail": "Explicitly excluded from MVP. External data pipeline for market intelligence, competitor monitoring, and trend detection.",
+      "dependency": "agents.research, entities",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_eos_source_detail_preservation_ledger.json"
+    },
+    {
+      "capability": "Three-Tier Memory (working, session, long-term) with Knowledge Graph",
+      "module": "memory",
+      "status": "substrate_partial",
+      "status_detail": "UMH substrate has memory architecture. Onboarding seeds initial memory. Full knowledge graph with semantic retrieval is growth-phase.",
+      "dependency": "entities, agents",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_eos_business_democratization_doctrine.json"
+    },
+    {
+      "capability": "Command Palette and Keyboard Shortcuts",
+      "module": "power_user",
+      "status": "not_implemented",
+      "status_detail": "Cmd+K command palette, keyboard navigation, hotkey system for power operators.",
+      "dependency": "shell",
+      "timeline_tier": "tier_2_growth",
+      "source_artifact": "phase14_6b_eos_ui_ux_aesthetic_canon.json"
+    },
+    {
+      "capability": "Multi-Tenant Architecture with Tenant Isolation",
+      "module": "multi_tenant",
+      "status": "not_implemented",
+      "status_detail": "MVP is single-operator. Multi-tenant requires RLS policies, tenant isolation, data partitioning, and per-tenant configuration.",
+      "dependency": "auth, portfolio, entities",
+      "timeline_tier": "tier_3_enterprise",
+      "source_artifact": "phase14_6b_eos_governance_permissions_model.json"
+    },
+    {
+      "capability": "Enterprise SSO (SAML 2.0, OIDC)",
+      "module": "enterprise_auth",
+      "status": "not_implemented",
+      "status_detail": "Clerk supports SSO but not configured. Enterprise customers require SAML/OIDC integration with their IdP.",
+      "dependency": "auth, multi_tenant",
+      "timeline_tier": "tier_3_enterprise",
+      "source_artifact": "phase14_6b_eos_auth_security_truth.json"
+    },
+    {
+      "capability": "Compliance and Audit Suite (SOC 2, GDPR, HIPAA-readiness)",
+      "module": "compliance",
+      "status": "not_implemented",
+      "status_detail": "Audit trail infrastructure exists in substrate. Compliance reporting, data retention policies, and regulatory frameworks not implemented.",
+      "dependency": "governance, multi_tenant",
+      "timeline_tier": "tier_3_enterprise",
+      "source_artifact": "phase14_6b_eos_governance_permissions_model.json"
+    },
+    {
+      "capability": "Hybrid RBAC+ABAC Governance with Autonomy Levels",
+      "module": "governance_advanced",
+      "status": "rbac_basic",
+      "status_detail": "Basic permission tiers implemented in substrate. Full RBAC+ABAC with attribute-based policies, contextual permissions, and autonomy levels not implemented.",
+      "dependency": "roles_permissions, governance",
+      "timeline_tier": "tier_3_enterprise",
+      "source_artifact": "phase14_6b_eos_governance_permissions_model.json"
+    },
+    {
+      "capability": "Team Collaboration (multi-user workspaces, shared entities, concurrent editing)",
+      "module": "collaboration",
+      "status": "not_implemented",
+      "status_detail": "MVP is single-operator. Team collaboration requires real-time sync, concurrent editing, activity feeds per user, and permission-scoped views.",
+      "dependency": "multi_tenant, roles_permissions",
+      "timeline_tier": "tier_3_enterprise",
+      "source_artifact": "phase14_6b_eos_governance_permissions_model.json"
+    },
+    {
+      "capability": "Multi-Region Deployment",
+      "module": "infrastructure_global",
+      "status": "not_implemented",
+      "status_detail": "Single-region for MVP. Multi-region requires data residency, latency routing, and cross-region replication.",
+      "dependency": "infrastructure",
+      "timeline_tier": "tier_3_enterprise",
+      "source_artifact": "phase14_6b_eos_infrastructure_deployment_map.md"
+    },
+    {
+      "capability": "Resilience Architecture (circuit breakers, saga compensation, failover)",
+      "module": "resilience",
+      "status": "basic_retry_only",
+      "status_detail": "UMH substrate has basic retry. Full circuit breakers, saga compensation for multi-step workflows, and service failover not implemented.",
+      "dependency": "workflow_engine, infrastructure",
+      "timeline_tier": "tier_3_enterprise",
+      "source_artifact": "phase14_6b_eos_source_detail_preservation_ledger.json"
+    },
+    {
+      "capability": "Public REST/GraphQL API for Third-Party Integrations",
+      "module": "public_api",
+      "status": "not_implemented",
+      "status_detail": "No public API. Internal endpoints exist in Beast for SaaS product. Public API with versioning, rate limiting, and documentation is platform-phase.",
+      "dependency": "entities, auth, governance",
+      "timeline_tier": "tier_4_platform",
+      "source_artifact": "phase14_6b_eos_api_contract_map.json"
+    },
+    {
+      "capability": "Webhook System (inbound and outbound event delivery)",
+      "module": "webhooks",
+      "status": "not_implemented",
+      "status_detail": "No webhook infrastructure for EOS. Inbound webhooks for integration triggers, outbound webhooks for event notifications.",
+      "dependency": "public_api, workflow_engine",
+      "timeline_tier": "tier_4_platform",
+      "source_artifact": "phase14_6b_eos_api_contract_map.json"
+    },
+    {
+      "capability": "Plugin/Extension System (third-party modules in EOS)",
+      "module": "plugins",
+      "status": "not_implemented",
+      "status_detail": "Plugin architecture allowing third-party developers to extend EOS with custom agents, workflows, integrations, and UI components.",
+      "dependency": "public_api, skill_marketplace",
+      "timeline_tier": "tier_4_platform",
+      "source_artifact": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "capability": "White-Label / Reseller Program",
+      "module": "white_label",
+      "status": "not_implemented",
+      "status_detail": "White-label EOS for agencies, consultants, and service providers to offer branded business operating systems to their clients.",
+      "dependency": "multi_tenant, public_api, compliance",
+      "timeline_tier": "tier_4_platform",
+      "source_artifact": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "capability": "Cross-Platform Integration (CreatorOS, LyfeOS shared intelligence)",
+      "module": "cross_platform",
+      "status": "not_implemented",
+      "status_detail": "Explicitly excluded from MVP. Cross-platform bridges through shared UMH substrate when all Trinity products are operational.",
+      "dependency": "All tier 1-3 capabilities",
+      "timeline_tier": "tier_4_platform",
+      "source_artifact": "phase14_6b_eos_source_detail_preservation_ledger.json"
+    },
+    {
+      "capability": "Native Mobile App (iOS/Android)",
+      "module": "mobile",
+      "status": "not_implemented",
+      "status_detail": "Web-responsive is the default. Native mobile with push notifications, offline mode, and mobile-optimized command surface is platform-phase.",
+      "dependency": "public_api, shell",
+      "timeline_tier": "tier_4_platform",
+      "source_artifact": "phase14_6b_eos_source_detail_preservation_ledger.json"
+    },
+    {
+      "capability": "Local/Private AI Runtime (on-premise, air-gapped)",
+      "module": "local_ai",
+      "status": "not_implemented",
+      "status_detail": "Explicitly excluded from MVP. UMH substrate supports local model routing (Ollama). Full on-premise deployment with data sovereignty is platform-phase.",
+      "dependency": "All tier 1-3 capabilities",
+      "timeline_tier": "tier_4_platform",
+      "source_artifact": "phase14_6b_eos_source_detail_preservation_ledger.json"
+    }
+  ],
+
+  "architecture_end_state": {
+    "frontend": {
+      "framework": "React 18 + TypeScript (strict)",
+      "bundler": "Vite",
+      "styling": "Tailwind CSS with design tokens in tailwind.config.ts",
+      "components": "shadcn/ui (Radix UI primitives)",
+      "state_management": "TanStack Query for server state, React context for UI state",
+      "routing": "wouter or React Router with URL-driven state",
+      "validation": "Zod for runtime validation, Drizzle-Zod for schema-derived types",
+      "charts": "Recharts or Tremor for finance-grade data visualization",
+      "auth": "Clerk (MVP through Tier 3), custom auth provider possible in Tier 4",
+      "design_system": "Finance-grade executive command center. Dark mode primary. Inter font. Compact density. Sharp borders. Monospace financial figures. See UI/UX aesthetic canon for full specification.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+    },
+    "backend": {
+      "runtime": "Node.js (Express or Hono) for SaaS API layer",
+      "orm": "Drizzle ORM with Zod validation",
+      "database": "Neon Postgres (serverless) with connection pooling",
+      "session": "Clerk session management (MVP), expandable to custom session store",
+      "api_style": "REST (MVP), GraphQL (Tier 4 public API)",
+      "python_bridge": "stdin/stdout JSON protocol bridges in transports/api/ connecting TypeScript frontend to Python UMH substrate",
+      "agent_runtime": "Python via UMH substrate (projections/eos/) — agents execute in Python, results surface in TypeScript UI via bridges",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+    },
+    "ai": {
+      "intelligence_routing": "UMH model_router.py — call_with_fallback() with cost-aware selection. cc_sdk (Opus via subscription) primary, Gemini Flash secondary, Groq tertiary, Ollama local fallback.",
+      "agent_framework": "UMH DepartmentAgent base class with skill registration, permission tier enforcement, and tier-gated execution",
+      "strategic_routing": "CEO/strategic tasks use best available model (agent_type='ceo'). Routine tasks use fast/cheap models.",
+      "deterministic_spine": "All routing, governance, workflow sequencing, and scheduling are deterministic. AI enhances content generation, classification, optimization, and reasoning within deterministic frames.",
+      "agent_count_end_state": "18+ agents: EA, Portfolio Advisor, CEO, and 15 department agents (9 implemented + 6 planned)",
+      "skill_count_end_state": "200+ skills across all agents (currently 62 across 10 agents)",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH + SYNTHESIZED_CANON"
+    },
+    "data": {
+      "primary_store": "Neon Postgres — all transactional data, entity records, workflow state, KPIs, agent logs",
+      "analytics": "PostHog for product analytics, session replay, feature flags, experimentation (planned, not implemented)",
+      "knowledge_graph": "UMH substrate ontology system — business entities, relationships, and semantic knowledge as typed graph",
+      "memory": "Three-tier: working memory (session-scoped), session memory (conversation-scoped), long-term memory (persistent knowledge base)",
+      "search": "Semantic search via embeddings stored in Neon pgvector extension",
+      "caching": "Redis or Neon connection pooling for hot data (KPI snapshots, dashboard state)",
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    "infrastructure": {
+      "hosting": "Fly.io for SaaS frontend and backend (containerized, global edge)",
+      "database": "Neon Postgres (serverless, auto-scaling, branching for preview environments)",
+      "auth": "Clerk (hosted auth, SSO, MFA, user management)",
+      "ci_cd": "GitHub Actions for lint, test, build, deploy pipeline",
+      "monitoring": "PostHog (product analytics) + structured logging + error tracking (Sentry or equivalent)",
+      "cdn": "Fly.io edge or Cloudflare for static assets",
+      "containers": "Docker for local development and VPS services, Fly.io machines for production",
+      "secrets": "Environment variables via Fly.io secrets, local .env files",
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "agent_end_state": {
+    "full_autonomy": {
+      "description": "End-state agents operate as autonomous employees within governed bounds. They do not wait for per-action instructions — they observe context, plan actions, execute within their permission tier, and report outcomes. Operator configures autonomy levels per agent and per action category.",
+      "autonomy_levels": [
+        {
+          "level": "suggest_only",
+          "description": "Agent analyzes and suggests. Every action requires operator approval before execution. Lowest autonomy.",
+          "use_case": "High-risk actions, new operators building trust, financial transactions above threshold"
+        },
+        {
+          "level": "act_with_approval",
+          "description": "Agent queues actions for approval. Executes automatically if approved, holds if denied. Default for most agents at MVP.",
+          "use_case": "Standard business operations, outreach, content publishing, task creation"
+        },
+        {
+          "level": "autonomous_within_bounds",
+          "description": "Agent executes freely within defined bounds (spending limits, action categories, risk levels). Escalates only when bounds are exceeded.",
+          "use_case": "Trusted operations, routine workflows, low-risk actions, high-frequency tasks"
+        },
+        {
+          "level": "fully_autonomous",
+          "description": "Agent operates independently with post-hoc reporting. Only escalates on critical failures or novel situations. Highest autonomy.",
+          "use_case": "Mature operations with proven agent track records, operations-grade automation"
+        }
+      ],
+      "trust_scoring": "Each agent accumulates a trust score based on outcome quality, approval rates, escalation frequency, and error rates. Trust score influences autonomy recommendations. Operators can override trust-based suggestions.",
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    "multi_agent_collaboration": {
+      "description": "End-state agents collaborate on cross-department tasks without CEO mediation for routine coordination. CEO retains authority for strategic decisions and conflict resolution.",
+      "patterns": [
+        {
+          "pattern": "Sequential handoff",
+          "description": "One agent completes a step and hands off to the next. E.g., marketing creates content, sales distributes it.",
+          "coordination": "Workflow engine manages step transitions and handoff payloads"
+        },
+        {
+          "pattern": "Parallel execution",
+          "description": "Multiple agents work simultaneously on independent sub-tasks. CEO delegates in parallel and aggregates results.",
+          "coordination": "CEO agent creates coordination plan, delegates sub-tasks, manages dependency graph"
+        },
+        {
+          "pattern": "Advisory consultation",
+          "description": "One agent requests analysis from another without delegation. E.g., sales asks research for competitor intel.",
+          "coordination": "Direct inter-agent query protocol (requires trust threshold between agents)"
+        },
+        {
+          "pattern": "Conflict resolution",
+          "description": "Two agents disagree (e.g., marketing wants budget, finance wants to cut). CEO arbitrates based on strategic priorities.",
+          "coordination": "Escalation protocol with structured arguments from each agent"
+        }
+      ],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "learning_loops": {
+      "description": "End-state agents learn from outcomes and improve over time. Three feedback loops operate continuously.",
+      "loops": [
+        {
+          "loop": "Outcome correlation",
+          "description": "Track which agent actions lead to positive business outcomes (revenue increase, customer satisfaction, operational efficiency). Reinforce high-correlation actions.",
+          "frequency": "Weekly batch analysis"
+        },
+        {
+          "loop": "Workflow optimization",
+          "description": "Detect inefficiencies in workflows: bottleneck steps, unnecessary approvals, skipped steps. Suggest workflow refinements.",
+          "frequency": "Per workflow completion"
+        },
+        {
+          "loop": "Skill evolution",
+          "description": "Agent skills that consistently produce poor results are flagged for revision. Skills with high success rates are recommended for broader deployment.",
+          "frequency": "Monthly skill audit"
+        }
+      ],
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "integration_end_state": {
+    "creatoros_bridge": {
+      "description": "EOS and CreatorOS share intelligence through UMH substrate. A content studio (CreatorOS) can be linked to a marketing department (EOS), enabling content production workflows that flow from EOS strategy to CreatorOS execution and back.",
+      "bridge_points": [
+        "Content strategy from EOS marketing agent feeds CreatorOS content calendar",
+        "Audience analytics from CreatorOS feed EOS customer intelligence",
+        "Brand assets managed in CreatorOS are available to EOS marketing workflows",
+        "Revenue attribution from EOS finance tracks content-driven conversions"
+      ],
+      "mechanism": "UMH abstract ports in substrate/sockets/ — both projections register capabilities and consume signals through the same substrate",
+      "timeline": "Tier 4 — requires both products operational",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "lyfeos_bridge": {
+      "description": "EOS and LyfeOS share intelligence through UMH substrate. An operator's personal development tracked in LyfeOS (skills, energy, focus) can inform EOS resource allocation and scheduling decisions.",
+      "bridge_points": [
+        "Operator energy and focus state from LyfeOS influences EOS meeting scheduling and task prioritization",
+        "Skill development tracked in LyfeOS maps to EOS role capability requirements",
+        "LyfeOS goal tracking feeds EOS strategic planning for operator-dependent ventures",
+        "EOS business outcomes feed LyfeOS proof-of-mastery and achievement tracking"
+      ],
+      "mechanism": "UMH abstract ports — shared substrate, separate projections",
+      "timeline": "Tier 4 — requires both products operational",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "umh_substrate_full": {
+      "description": "End-state EOS is fully integrated with every UMH substrate capability. 15 UMH capabilities have 15 business-specific EOS projections (documented in business democratization doctrine). EOS is not just built ON UMH — EOS IS UMH for business operations.",
+      "substrate_capabilities_projected": [
+        "Signal Processing -> Business Event Processing",
+        "Execution Pipeline -> Business Task Execution",
+        "Governance Engine -> Business Governance",
+        "Intelligence Routing -> Business Intelligence Routing",
+        "Agent Coordination -> Team and Agent Coordination",
+        "State Management -> Business State Management",
+        "Type System -> Business Domain Types",
+        "Context Management -> Business Context",
+        "Observability -> Business Observability",
+        "Feedback Loop -> Business Feedback Loop",
+        "Trace Recording -> Business Audit Trail",
+        "Capability Router -> Business Capability Matching",
+        "Notification Port -> Business Notifications",
+        "Session Management -> Business Session Management",
+        "Ontology System -> Business Ontology"
+      ],
+      "implication": "As UMH gains new substrate capabilities, EOS automatically gains the business-specific projection. UMH evolution is EOS evolution.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "business_model_end_state": {
+    "pricing_tiers": [
+      {
+        "tier": "Solo",
+        "target": "Solo operators, single entity, getting started",
+        "includes": "1 portfolio, 3 entities, EA + CEO agent, 5 department agents, basic workflows, standard KPIs, community support",
+        "pricing_model": "Free or low-cost entry (freemium or $29/mo)",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "tier": "Growth",
+        "target": "Growing operators, multiple entities, expanding teams",
+        "includes": "Unlimited portfolios, unlimited entities, all department agents, autonomous agent execution, UBOS templates, integrations, priority support",
+        "pricing_model": "$99-199/mo per operator",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "tier": "Enterprise",
+        "target": "Institutional operators, holding companies, family offices",
+        "includes": "Everything in Growth + SSO/SAML, RBAC+ABAC, compliance suite, audit reports, multi-region, dedicated support, custom integrations",
+        "pricing_model": "$499-999/mo per operator, or annual contract",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "tier": "Platform",
+        "target": "Agencies and consultants white-labeling EOS for their clients",
+        "includes": "Everything in Enterprise + white-label branding, client management, reseller dashboard, API access, custom domain",
+        "pricing_model": "Custom pricing, per-seat or per-client model",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    ],
+    "revenue_streams": [
+      {
+        "stream": "Subscription revenue",
+        "description": "Monthly/annual SaaS subscriptions from operators across all pricing tiers",
+        "percentage_of_revenue": "60-70% at maturity",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "stream": "AI compute usage",
+        "description": "Metered AI usage for autonomous agent execution, advanced analytics, and generation beyond tier limits",
+        "percentage_of_revenue": "15-20% at maturity",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "stream": "Marketplace commissions",
+        "description": "Revenue share from UBOS template library and skill marketplace transactions",
+        "percentage_of_revenue": "5-10% at maturity",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      {
+        "stream": "Integration partnerships",
+        "description": "Revenue from integration partnerships (accounting, banking, CRM, payment processors) as referral or rev-share",
+        "percentage_of_revenue": "5-10% at maturity",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    ],
+    "marketplace_economics": {
+      "template_marketplace": {
+        "description": "UBOS Template Library — curated and community-contributed business templates. Operators can publish entity-type templates (complete workflow+role+KPI+SOP packages) and earn revenue when others use them.",
+        "economics": "70/30 split (creator/platform) for paid templates. Free tier for community contributions.",
+        "quality_gate": "All templates reviewed against business logic correctness, governance compliance, and security before listing.",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      "skill_marketplace": {
+        "description": "Agent Skill Marketplace — operators and developers can publish custom agent skills. Skills extend what EOS agents can do: custom integrations, industry-specific workflows, specialized analytics.",
+        "economics": "70/30 split (creator/platform) for paid skills. Open-source skill contributions encouraged.",
+        "quality_gate": "Skills must pass security review, capability declaration validation, and sandbox testing before listing.",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    },
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "open_question": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED — pricing tiers, price points, and revenue model are operator decisions. The structure above is a professional inference based on comparable SaaS products."
+  },
+
+  "scale_targets": {
+    "tier_1_mvp": {
+      "users": "1-100 operators",
+      "companies": "1-300 entities across all operators",
+      "concurrent_agents": "10-50 active agent sessions",
+      "data_volume": "< 10 GB in Neon Postgres",
+      "infrastructure": "Single Fly.io region, single Neon database",
+      "timeline": "6-12 months from first implementation",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "tier_2_growth": {
+      "users": "100-10,000 operators",
+      "companies": "300-50,000 entities",
+      "concurrent_agents": "50-5,000 active agent sessions",
+      "data_volume": "10-500 GB",
+      "infrastructure": "Multi-region Fly.io, Neon with read replicas, Redis caching",
+      "timeline": "12-24 months post-MVP",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "tier_3_enterprise": {
+      "users": "10,000-100,000 operators",
+      "companies": "50,000-1,000,000 entities",
+      "concurrent_agents": "5,000-100,000 active agent sessions",
+      "data_volume": "500 GB - 10 TB",
+      "infrastructure": "Global Fly.io deployment, Neon horizontal scaling, dedicated compute for large tenants",
+      "timeline": "24-48 months post-MVP",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "tier_4_platform": {
+      "users": "100,000+ operators",
+      "companies": "1,000,000+ entities",
+      "concurrent_agents": "100,000+ active agent sessions",
+      "data_volume": "10+ TB",
+      "infrastructure": "Multi-cloud, dedicated infrastructure for enterprise tenants, edge computing for local AI",
+      "timeline": "48+ months post-MVP",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "competitive_moat": [
+    {
+      "moat": "Full-stack business operating system",
+      "description": "EOS is not a feature — it is an operating system. Competitors offer tools (CRM, PM, accounting). EOS is the layer that orchestrates all of them. Switching from EOS means rebuilding your entire operational substrate.",
+      "defensibility": "HIGH — deep integration across all business functions creates massive switching costs",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "AI agents as governed employees",
+      "description": "EOS agents are not chat copilots. They are autonomous operators with defined roles, bounded authority, and governance. No competitor has agents that operate within a real organizational structure with permission tiers, escalation chains, and audit trails.",
+      "defensibility": "HIGH — agent governance is a complex system that takes years to build and tune",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "Portfolio-first architecture for any economic entity",
+      "description": "EOS supports businesses, investments, real estate, assets, holding structures, and mixed portfolios natively. Competitors focus on one entity type (usually businesses). EOS treats all economic activity as first-class.",
+      "defensibility": "MEDIUM-HIGH — entity-type breadth requires deep domain modeling that competitors would need to rebuild",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "Generate-first onboarding",
+      "description": "EOS generates a complete operating system from a few operator inputs. Competitors require manual setup. The onboarding experience IS the product demo — operators feel the power of EOS within 5 minutes.",
+      "defensibility": "MEDIUM — generation logic is complex but reproducible with enough investment",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "UMH substrate inheritance",
+      "description": "EOS inherits every UMH capability as a business projection. As UMH evolves (new execution primitives, governance mechanisms, intelligence routing), EOS automatically gains business-specific versions. Competitors would need to build their own substrate.",
+      "defensibility": "VERY HIGH — universal substrate is the hardest asset to replicate. Competitors cannot buy this, they must build it over years.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "UBOS Template Library and Skill Marketplace",
+      "description": "Network effects from community-contributed templates and skills. Each new template and skill makes EOS more valuable for every operator. Marketplace creates a two-sided network that is hard to displace once established.",
+      "defensibility": "HIGH at scale — network effects compound, but requires critical mass",
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "moat": "Deterministic spine with AI enhancement",
+      "description": "EOS works without AI. Workflows run, governance gates fire, tasks route, and KPIs compute deterministically. AI makes it better but is not a dependency. Competitors built on AI-first architectures break when AI fails.",
+      "defensibility": "MEDIUM — design principle more than technical moat, but produces measurably higher reliability",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "moat": "Compliance-grade audit trail",
+      "description": "Every operator input, agent action, decision, approval, and workflow step is logged as a structured event with full provenance. This is not optional logging — it is architectural. Enterprises require this; most competitors retrofit it.",
+      "defensibility": "MEDIUM — can be built but is expensive to retrofit and easy to get wrong",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  ],
+
+  "open_questions_for_end_state": [
+    {
+      "id": "OQ-END-001",
+      "question": "What are the exact price points for each tier?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Revenue projections, market positioning, competitive strategy"
+    },
+    {
+      "id": "OQ-END-002",
+      "question": "Should the UBOS template library be curated-only or accept community contributions from launch?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Marketplace dynamics, quality control, content velocity"
+    },
+    {
+      "id": "OQ-END-003",
+      "question": "How does the Python UMH substrate bridge to the TypeScript SaaS frontend at scale?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Architecture, latency, development velocity, operational complexity"
+    },
+    {
+      "id": "OQ-END-004",
+      "question": "Should EOS pursue a native mobile app or remain web-responsive only?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Development cost, user experience, market expectations"
+    },
+    {
+      "id": "OQ-END-005",
+      "question": "What is the competitive positioning relative to Monday.com AI, Notion AI, ClickUp Brain, and emerging AI-native business tools?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Marketing, product priorities, differentiation messaging"
+    },
+    {
+      "id": "OQ-END-006",
+      "question": "Should EOS support on-premise/air-gapped deployment for enterprise customers, or cloud-only?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Infrastructure complexity, enterprise sales, security posture"
+    },
+    {
+      "id": "OQ-END-007",
+      "question": "Should department agents be instantiated per-entity (each entity gets its own SalesAgent) or shared across entities with context?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Memory isolation, resource efficiency, agent specialization"
+    },
+    {
+      "id": "OQ-END-008",
+      "question": "What embedding dimension (384 vs 1536) for the knowledge graph and semantic retrieval?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "impact": "Retrieval quality, storage cost, model compatibility"
+    }
+  ],
+
+  "timeline_summary": {
+    "tier_1_mvp": {
+      "name": "MVP — Single Founder, Single Business",
+      "description": "Core shell, authentication, portfolio + entity CRUD, dashboard, EA + CEO + 9 department agents with inter-agent routing, workflow library, task management, SOP management, documents workspace, KPI framework, approval gates, 25-step onboarding with AI generation.",
+      "releases": [
+        "R1: Core Shell + Auth + Entity Management + Dashboard",
+        "R2: Task Board + Role/Permission Management",
+        "R3: Workflow Library + SOP Management + Approval Gates",
+        "R4: AI Copilot + EA Agent + Inter-Agent Routing",
+        "R5: Documents Workspace + Memory Seeding + Onboarding Flow"
+      ],
+      "capability_count": 19,
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "tier_2_growth": {
+      "name": "Growth — Multi-Portfolio, Autonomous Agents, Marketplace",
+      "description": "Portfolio Advisor agent, multi-portfolio management, 6 additional department agents, autonomous agent execution, UBOS template library, skill marketplace, integration marketplace, self-improvement loop, human intelligence layer, market intelligence engine, three-tier memory with knowledge graph, command palette and keyboard shortcuts.",
+      "capability_count": 12,
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "tier_3_enterprise": {
+      "name": "Enterprise — Multi-Tenant, Compliance, Global",
+      "description": "Multi-tenant architecture, enterprise SSO, compliance suite, hybrid RBAC+ABAC governance, team collaboration, multi-region deployment, resilience architecture.",
+      "capability_count": 7,
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    "tier_4_platform": {
+      "name": "Platform — API Ecosystem, Third-Party, White-Label",
+      "description": "Public API, webhook system, plugin/extension system, white-label program, cross-platform integration (CreatorOS/LyfeOS bridges), native mobile app, local/private AI runtime.",
+      "capability_count": 7,
+      "provenance": "SYNTHESIZED_CANON + INFERRED_PROFESSIONAL_GAP"
+    },
+    "total_capabilities_mapped": 45
+  },
+
+  "cross_references": {
+    "existing_artifacts_not_recreated": [
+      "phase14_6b_eos_preflight.json — source inventory, rules, success criteria",
+      "phase14_6b_eos_business_democratization_doctrine.json — product identity, UMH capability mappings",
+      "phase14_6b_eos_portfolio_entity_business_ontology.json — 8-level hierarchy, entity types, business types",
+      "phase14_6b_eos_communication_delegation_architecture.json — routing chain, 15 agents, delegation/escalation protocols",
+      "phase14_6b_eos_onboarding_first_boot_spec.json — 25-step flow, 4 paths, 15 output artifacts",
+      "phase14_6b_eos_ui_ux_aesthetic_canon.json — aesthetic identity, design tokens, layout architecture",
+      "phase14_6b_eos_source_detail_preservation_ledger.json — 120 signals losslessly preserved"
+    ],
+    "additional_artifacts_referenced": [
+      "phase14_6b_eos_workflow_sop_engine_spec.json — workflow/SOP data model, step types, 8 built-in workflows",
+      "phase14_6b_eos_agent_architecture_spec.json — multi-agent architecture, skill system, model routing",
+      "phase14_6b_eos_analytics_kpi_spec.json — KPI framework, universal and entity-type-specific metrics",
+      "phase14_6b_eos_governance_permissions_model.json — hybrid RBAC+ABAC, 5 human tiers, agent authority",
+      "phase14_6b_eos_infrastructure_deployment_map.md — current state (zero deployment), target architecture",
+      "phase14_6b_eos_auth_security_truth.json — Clerk auth, session management, API security",
+      "phase14_6b_eos_api_contract_map.json — all endpoints current and planned"
+    ]
+  }
+}

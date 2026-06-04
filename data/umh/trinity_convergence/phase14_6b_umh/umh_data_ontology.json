@@ -1,0 +1,61 @@
+{
+  "phase": "14.6B-UMH",
+  "status": "DRAFT",
+  "type_system": {
+    "canonical_location": "substrate/types.py",
+    "registered_types": 197,
+    "registry": "substrate/canonical_types.py",
+    "enum_count": 33,
+    "basemodel_count": 30,
+    "core_enums": [
+      {"name": "SignalSource", "values": 8, "examples": ["USER", "SYSTEM", "EXTERNAL_API", "SCHEDULED", "ORGANISM"]},
+      {"name": "PermissionTier", "values": 4, "examples": ["READ", "DRAFT", "EXECUTE", "COMMIT"]},
+      {"name": "RiskClass", "values": 6, "examples": ["NEGLIGIBLE", "LOW", "MEDIUM", "HIGH", "CRITICAL", "FORBIDDEN"]},
+      {"name": "GovernanceDecision", "values": 5, "examples": ["APPROVE", "DENY", "DEFER", "ESCALATE", "CONDITIONAL"]},
+      {"name": "ExecutionOutcome", "values": 6, "examples": ["SUCCESS", "PARTIAL_SUCCESS", "FAILURE", "TIMEOUT", "BLOCKED"]},
+      {"name": "ComponentType", "values": 7, "examples": ["ADAPTER", "AGENT", "SKILL", "WORKFLOW", "TRANSPORT", "NODE"]},
+      {"name": "PrimitiveType", "values": 10, "examples": ["STATE", "CHANGE", "CONSTRAINT", "RESOURCE", "SIGNAL", "ACTION"]},
+      {"name": "MemoryType", "values": 8, "examples": ["FACT", "BELIEF", "DECISION", "OBSERVATION", "COMMITMENT"]},
+      {"name": "TaskType", "values": 20, "location": "substrate/contracts/agent_types.py"},
+      {"name": "ModelProvider", "values": 12, "location": "substrate/contracts/agent_types.py"},
+      {"name": "ActionRiskCategory", "values": 8, "location": "substrate/governance/risk_classes.py"}
+    ],
+    "core_models": [
+      {"name": "SignalEnvelope", "fields": ["id", "source", "urgency", "modality", "content", "user_id", "org_id", "venture_id", "authority_tier", "attachments", "metadata"]},
+      {"name": "ExecutionResult", "fields": ["signal_id", "trace_id", "outcome", "output", "provider", "model", "duration_ms", "risk_class", "governance_decision", "error"]},
+      {"name": "GovernanceVerdict", "fields": ["decision", "risk_class", "rationale", "is_executable"]},
+      {"name": "TraceRecord", "fields": ["id", "signal_id", "events", "started_at", "completed_at", "success"]},
+      {"name": "Component", "fields": ["component_type", "name", "capabilities", "metadata"]},
+      {"name": "MemoryEntry", "fields": ["id", "memory_type", "content", "relevance"]},
+      {"name": "SubstrateStatus", "fields": ["healthy", "subsystems", "adapter_count", "trace_count", "uptime_seconds"]}
+    ]
+  },
+  "projection_data": {
+    "eos": {
+      "signal_types": ["contact_created", "deal_created", "activity_logged"],
+      "capability_types": ["noop", "create_contact", "create_deal", "update_deal_stage", "log_activity"],
+      "tables_polled": ["crm_contacts", "crm_deals", "crm_activities"],
+      "id_type": "text_uuid"
+    },
+    "creatoros": {
+      "signal_types": ["post_created", "product_listed", "revenue_recorded"],
+      "capability_types": ["noop", "create_post", "create_product", "record_revenue"],
+      "tables_polled": ["posts", "products", "revenue"],
+      "id_type": "serial_integer"
+    },
+    "lyfeos": {
+      "signal_types": ["quest_completed", "daily_log_created", "stats_updated"],
+      "capability_types": ["noop", "create_quest", "complete_quest", "log_daily_reflection"],
+      "tables_polled": ["quests", "user_daily_logs", "vision_goals"],
+      "id_type": "serial_integer"
+    }
+  },
+  "provenance_labels": [
+    "SOURCE_PRESERVED_TRUTH",
+    "CODE_RESOLVED_CURRENT_TRUTH",
+    "SYNTHESIZED_CANON",
+    "INFERRED_PROFESSIONAL_GAP",
+    "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+    "IMPLEMENTATION_DEBT"
+  ]
+}

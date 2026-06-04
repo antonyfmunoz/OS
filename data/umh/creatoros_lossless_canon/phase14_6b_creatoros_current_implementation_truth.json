@@ -1,0 +1,676 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+  "description": "What actually exists in CreatorOS code today — verified from schema.ts, beast inventory, projection integration code, and test suite",
+
+  "github_main": {
+    "repo": "antonyfmunoz/CreatorOS",
+    "branch": "main",
+    "latest_commit": {
+      "hash": "9081c01",
+      "message": "merge Development branch into main",
+      "date": "2026-05-20T02:21:13-07:00"
+    },
+    "file_count": 296,
+    "file_count_note": "296 on GitHub, 271 on Beast (difference is attached_assets and uploads committed to git)",
+    "auth": "Passport.js (local strategy, username/password, express-session)",
+    "critical_vuln": "comparePasswords returns true for ALL passwords in dev mode — any password works for any user",
+    "god_files": [
+      {
+        "name": "server/routes.ts",
+        "size_bytes": 53388,
+        "note": "All API routes in single monolithic file"
+      },
+      {
+        "name": "server/storage.ts",
+        "size_bytes": 104725,
+        "note": "All storage/data-access logic in single monolithic file"
+      }
+    ],
+    "framework": {
+      "frontend": "React 18 + Vite 5 + TypeScript 5.6.3 + Tailwind CSS + shadcn/ui + wouter",
+      "backend": "Express 4 + tsx (dev) + esbuild (prod)",
+      "orm": "Drizzle ORM 0.39.3 + drizzle-zod 0.7.0",
+      "database": "Neon Postgres (via @neondatabase/serverless + postgres.js driver)",
+      "auth_lib": "Passport.js 0.7.0 + passport-local 1.0.0 + express-session 1.18.1",
+      "session_store": "connect-pg-simple (Postgres sessions) + memorystore fallback",
+      "state_management": "zustand 5.0.3 + @tanstack/react-query 5.60.5",
+      "ai_sdk": "openai 4.91.1",
+      "email": "@sendgrid/mail 8.1.4",
+      "realtime": "ws 8.18.0",
+      "routing_client": "wouter 3.3.5",
+      "ui_library": "shadcn/ui (48 components via Radix primitives)",
+      "charts": "recharts 2.13.0",
+      "animation": "framer-motion 11.13.1",
+      "validation": "zod 3.23.8 + zod-validation-error 3.4.0"
+    },
+    "db_tables": 20,
+    "test_files": 0,
+    "test_framework": null,
+    "test_note": "No test files in the CreatorOS repo. No vitest, jest, or playwright in dependencies.",
+    "env_vars": ["DATABASE_URL", "SESSION_SECRET", "OPENAI_API_KEY", "PORT", "NODE_ENV", "REPL_ID"],
+    "build_scripts": {
+      "dev": "tsx server/index.ts",
+      "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+      "start": "NODE_ENV=production node dist/index.js",
+      "check": "tsc",
+      "db:push": "drizzle-kit push"
+    }
+  },
+
+  "beast": {
+    "path": "C:\\dev\\dev\\CreatorOS",
+    "status": "aligned with GitHub main",
+    "no_divergence": true,
+    "uncommitted_changes_count": 2,
+    "uncommitted_files": [".env", "dump (1).sql"],
+    "file_count": 271,
+    "file_count_discrepancy_note": "271 vs 296 on GitHub — likely .gitignored files or counting methodology difference. Top-level structure matches."
+  },
+
+  "vps_state": {
+    "path": "/opt/OS/data/repos/creatoros",
+    "files_present": ["shared/schema.ts", "package.json", "drizzle.config.ts", "vite.config.ts", "postcss.config.js", "tailwind.config.ts", "scripts/seed-db.ts", ".replit", "theme.json", "replit.nix", "generated-icon.png", "package-lock.json", "tsconfig.json"],
+    "note": "VPS has schema.ts + config files only — no client/, server/, or node_modules. Full repo lives on Beast and GitHub."
+  },
+
+  "schema_truth": {
+    "source_file": "shared/schema.ts",
+    "orm": "Drizzle ORM + drizzle-zod + Zod",
+    "table_count": 20,
+    "tables": [
+      {
+        "name": "users",
+        "pg_name": "users",
+        "columns": ["id (serial PK)", "username (text, unique, NOT NULL)", "password (text, NOT NULL)", "displayName (text, NOT NULL)", "bio (text)", "profileImageUrl (text)", "role (text, default 'creator', NOT NULL)", "xpPoints (integer, default 0, NOT NULL)", "level (integer, default 1, NOT NULL)", "createdAt (timestamp, default now(), NOT NULL)"],
+        "relationships": ["has many: posts, comments, products, aiAgents, aiChats, channelMessages, revenues, contacts, documents, stories, notifications, conversationParticipants, sentMessages, savedPosts, followers, following, taggedIn"]
+      },
+      {
+        "name": "posts",
+        "pg_name": "posts",
+        "columns": ["id (serial PK)", "userId (integer FK -> users.id, cascade, NOT NULL)", "content (text, NOT NULL)", "imageUrl (text)", "audioUrl (text)", "videoUrl (text)", "mediaType (text, default 'text')", "likes (integer, default 0, NOT NULL)", "comments (integer, default 0, NOT NULL)", "createdAt (timestamp, default now(), NOT NULL)"],
+        "relationships": ["belongs to: users", "has many: comments, savedPosts, taggedUsers"]
+      },
+      {
+        "name": "saved_posts",
+        "pg_name": "saved_posts",
+        "columns": ["id (serial PK)", "userId (integer FK -> users.id, cascade, NOT NULL)", "postId (integer FK -> posts.id, cascade, NOT NULL)", "savedAt (timestamp, default now(), NOT NULL)"],
+        "constraints": ["unique(userId, postId)"],
+        "relationships": ["belongs to: users, posts"]
+      },
+      {
+        "name": "comments",
+        "pg_name": "comments",
+        "columns": ["id (serial PK)", "postId (integer FK -> posts.id, cascade, NOT NULL)", "userId (integer FK -> users.id, cascade, NOT NULL)", "parentId (integer, self-ref for threading)", "content (text, NOT NULL)", "likes (integer, default 0, NOT NULL)", "createdAt (timestamp, default now(), NOT NULL)"],
+        "relationships": ["belongs to: users, posts", "self-referential: parent/replies"]
+      },
+      {
+        "name": "products",
+        "pg_name": "products",
+        "columns": ["id (serial PK)", "userId (integer FK -> users.id, cascade, NOT NULL)", "title (text, NOT NULL)", "description (text, NOT NULL)", "price (doublePrecision, NOT NULL)", "category (text, NOT NULL)", "imageUrl (text)", "rating (doublePrecision, default 0, NOT NULL)", "reviewCount (integer, default 0, NOT NULL)", "createdAt (timestamp, default now(), NOT NULL)"],
+        "relationships": ["belongs to: users"]
+      },
+      {
+        "name": "ai_agents",
+        "pg_name": "ai_agents",
+        "columns": ["id (serial PK)", "userId (integer FK -> users.id, cascade, NOT NULL)", "name (text, NOT NULL)", "description (text, NOT NULL)", "icon (text, NOT NULL)", "iconColor (text, NOT NULL)", "backgroundColor (text, NOT NULL)", "systemPrompt (text, NOT NULL)", "isCustom (boolean, default false, NOT NULL)", "createdAt (timestamp, default now(), NOT NULL)", "chatCount (integer, default 0, NOT NULL)", "status (text, default 'active', NOT NULL)"],
+        "relationships": ["belongs to: users", "has many: aiChats"]
+      },
+      {
+        "name": "ai_chats",
+        "pg_name": "ai_chats",
+        "columns": ["id (serial PK)", "agentId (integer FK -> aiAgents.id, cascade, NOT NULL)", "userId (integer FK -> users.id, cascade, NOT NULL)", "messages (json, NOT NULL)", "createdAt (timestamp, default now(), NOT NULL)", "updatedAt (timestamp, default now(), NOT NULL)"],
+        "relationships": ["belongs to: users, aiAgents"]
+      },
+      {
+        "name": "communities",
+        "pg_name": "communities",
+        "columns": ["id (serial PK)", "name (text, NOT NULL)", "description (text, NOT NULL)", "iconColor (text, NOT NULL)", "createdAt (timestamp, default now(), NOT NULL)"],
+        "relationships": ["has many: channels"],
+        "note": "No owner/creator FK — communities are not tied to a specific user in schema"
+      },
+      {
+        "name": "channels",
+        "pg_name": "channels",
+        "columns": ["id (serial PK)", "communityId (integer FK -> communities.id, cascade, NOT NULL)", "name (text, NOT NULL)", "createdAt (timestamp, default now(), NOT NULL)"],
+        "relationships": ["belongs to: communities", "has many: channelMessages"]
+      },
+      {
+        "name": "channel_messages",
+        "pg_name": "channel_messages",
+        "columns": ["id (serial PK)", "channelId (integer FK -> channels.id, cascade, NOT NULL)", "userId (integer FK -> users.id, cascade, NOT NULL)", "content (text, NOT NULL)", "isPinned (boolean, default false, NOT NULL)", "likes (integer, default 0, NOT NULL)", "createdAt (timestamp, default now(), NOT NULL)"],
+        "relationships": ["belongs to: channels, users"]
+      },
+      {
+        "name": "followers",
+        "pg_name": "followers",
+        "columns": ["id (serial PK)", "followerId (integer FK -> users.id, cascade, NOT NULL)", "followedId (integer FK -> users.id, cascade, NOT NULL)", "createdAt (timestamp, default now(), NOT NULL)"],
+        "constraints": ["unique(followerId, followedId)"],
+        "relationships": ["belongs to: users (both sides)"]
+      },
+      {
+        "name": "revenue",
+        "pg_name": "revenue",
+        "columns": ["id (serial PK)", "userId (integer FK -> users.id, cascade, NOT NULL)", "amount (doublePrecision, NOT NULL)", "date (timestamp, NOT NULL)", "source (text, NOT NULL)"],
+        "relationships": ["belongs to: users"]
+      },
+      {
+        "name": "contacts",
+        "pg_name": "contacts",
+        "columns": ["id (serial PK)", "userId (integer FK -> users.id, cascade, NOT NULL)", "contactName (text, NOT NULL)", "contactImage (text)", "purchaseInfo (text)", "createdAt (timestamp, default now(), NOT NULL)"],
+        "relationships": ["belongs to: users"],
+        "note": "CRM-like contacts table — tracks creator's contacts/customers"
+      },
+      {
+        "name": "documents",
+        "pg_name": "documents",
+        "columns": ["id (serial PK)", "userId (integer FK -> users.id, cascade, NOT NULL)", "title (text, NOT NULL)", "content (text, NOT NULL)", "createdAt (timestamp, default now(), NOT NULL)", "updatedAt (timestamp, default now(), NOT NULL)"],
+        "relationships": ["belongs to: users"],
+        "note": "Notion-style document editor"
+      },
+      {
+        "name": "stories",
+        "pg_name": "stories",
+        "columns": ["id (serial PK)", "userId (integer FK -> users.id, cascade, NOT NULL)", "mediaUrl (text, NOT NULL)", "mediaType (text, default 'image', NOT NULL)", "caption (text)", "createdAt (timestamp, default now(), NOT NULL)", "expiresAt (timestamp)", "viewCount (integer, default 0, NOT NULL)"],
+        "relationships": ["belongs to: users"],
+        "note": "24-hour ephemeral stories (Instagram/TikTok style)"
+      },
+      {
+        "name": "notifications",
+        "pg_name": "notifications",
+        "columns": ["id (uuid PK, default random)", "userId (integer FK -> users.id, cascade, NOT NULL)", "type (text, NOT NULL)", "message (text, NOT NULL)", "read (boolean, default false, NOT NULL)", "linkTo (text)", "relatedUserId (integer FK -> users.id)", "relatedUserImage (text)", "createdAt (timestamp, default now(), NOT NULL)"],
+        "relationships": ["belongs to: users (two FKs — recipient and related user)"]
+      },
+      {
+        "name": "conversations",
+        "pg_name": "conversations",
+        "columns": ["id (serial PK)", "createdAt (timestamp, default now(), NOT NULL)", "updatedAt (timestamp, default now(), NOT NULL)", "isGroup (boolean, default false, NOT NULL)", "name (text)", "icon (text)"],
+        "relationships": ["has many: conversationParticipants, directMessages"]
+      },
+      {
+        "name": "conversation_participants",
+        "pg_name": "conversation_participants",
+        "columns": ["id (serial PK)", "conversationId (integer FK -> conversations.id, cascade, NOT NULL)", "userId (integer FK -> users.id, cascade, NOT NULL)", "isAdmin (boolean, default false, NOT NULL)", "joinedAt (timestamp, default now(), NOT NULL)"],
+        "constraints": ["unique(userId, conversationId)"],
+        "relationships": ["belongs to: conversations, users"]
+      },
+      {
+        "name": "direct_messages",
+        "pg_name": "direct_messages",
+        "columns": ["id (serial PK)", "conversationId (integer FK -> conversations.id, cascade, NOT NULL)", "senderId (integer FK -> users.id, cascade, NOT NULL)", "content (text, NOT NULL)", "read (boolean, default false, NOT NULL)", "sentAt (timestamp, default now(), NOT NULL)", "isEdited (boolean, default false)", "replyToMessageId (integer, self-ref)", "reactions (json, default {}, NOT NULL)"],
+        "relationships": ["belongs to: conversations, users (sender)", "self-referential: replyTo"]
+      },
+      {
+        "name": "tagged_users",
+        "pg_name": "tagged_users",
+        "columns": ["id (serial PK)", "postId (integer FK -> posts.id, cascade, NOT NULL)", "userId (integer FK -> users.id, cascade, NOT NULL)", "positionX (doublePrecision, NOT NULL)", "positionY (doublePrecision, NOT NULL)", "createdAt (timestamp, default now(), NOT NULL)"],
+        "constraints": ["unique(postId, userId, positionX, positionY)"],
+        "relationships": ["belongs to: posts, users"]
+      }
+    ],
+    "user_roles": ["creator", "consumer"],
+    "user_role_note": "Role is a text field with default 'creator'. No enum constraint — consumer role assumed from PRD but not enforced in schema.",
+    "exported_types_count": 40,
+    "exported_types_note": "20 Select types + 20 Insert types (one pair per table)"
+  },
+
+  "implemented_features": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "note": "Derived from pages directory, component inventory, and schema. These features have UI pages and backend support, though code quality is unverified (Replit Agent authored).",
+    "features": [
+      {
+        "name": "User Authentication",
+        "pages": ["auth-page.tsx"],
+        "backend": ["server/auth.ts"],
+        "status": "BROKEN — comparePasswords returns true for all in dev mode",
+        "note": "Login/register UI exists but auth is non-functional as a security boundary"
+      },
+      {
+        "name": "Content Feed / Explore",
+        "pages": ["explore.tsx"],
+        "components": ["Post.tsx", "Stories.tsx", "StoryProgress.tsx", "CommentSection.tsx"],
+        "status": "EXISTS — renders posts, stories, comments"
+      },
+      {
+        "name": "Post Creation",
+        "pages": ["create-post.tsx", "new-text-post.tsx"],
+        "components": ["TextComposer.tsx", "PhotoUploader.tsx", "VideoRecorder.tsx", "VoiceRecorder.tsx", "VoicePostCard.tsx", "TagEditor.tsx", "LocationPicker.tsx", "PollCreator.tsx", "PostOptionsPanel.tsx", "StoriesBar.tsx", "StoryCreator.tsx", "FilterDropdown.tsx", "FloatingActionButton.tsx", "Tabs.tsx"],
+        "status": "EXISTS — multiple media types supported (text, photo, video, audio, voice)"
+      },
+      {
+        "name": "User Profile",
+        "pages": ["profile.tsx"],
+        "components": ["EditProfilePage.tsx", "ProfileEditForm.tsx", "ProfileFeed.tsx", "ProfileImagePicker.tsx", "ProfileImageUploader.tsx", "SimpleImagePicker.tsx", "InstagramImagePicker.tsx", "StatCard.tsx"],
+        "status": "EXISTS — profile view, edit, image upload"
+      },
+      {
+        "name": "Followers / Following",
+        "pages": ["followers.tsx", "following.tsx"],
+        "status": "EXISTS — follow/unfollow with unique constraint"
+      },
+      {
+        "name": "Saved Posts / Bookmarks",
+        "pages": ["saved-posts.tsx"],
+        "status": "EXISTS — save/unsave with unique constraint per user-post pair"
+      },
+      {
+        "name": "Communities (Discord-like)",
+        "pages": ["communities.tsx"],
+        "components": ["ChannelSidebar.tsx", "ChatMessage.tsx"],
+        "status": "EXISTS — community listing, channel navigation, chat messages"
+      },
+      {
+        "name": "Marketplace / Products",
+        "pages": ["marketplace.tsx", "create-product.tsx"],
+        "components": ["ProductCard.tsx", "ProductList.tsx", "ProductForm.tsx"],
+        "status": "EXISTS — product listing, creation, browsing. No checkout/payment."
+      },
+      {
+        "name": "AI Agents / Chat",
+        "pages": ["ai.tsx"],
+        "components": ["AgentCard.tsx", "ChatInterface.tsx"],
+        "status": "EXISTS — AI agent creation, chat interface. Uses OpenAI SDK."
+      },
+      {
+        "name": "Revenue Dashboard",
+        "pages": ["revenue.tsx"],
+        "components": ["RevenueChart.tsx"],
+        "status": "EXISTS — revenue tracking with recharts visualization"
+      },
+      {
+        "name": "Contacts / CRM",
+        "pages": ["contacts.tsx"],
+        "components": ["ContactList.tsx"],
+        "status": "EXISTS — basic CRM contact management"
+      },
+      {
+        "name": "Documents (Notion-like)",
+        "pages": ["documents.tsx"],
+        "components": ["DocumentEditor.tsx"],
+        "status": "EXISTS — document creation and editing"
+      },
+      {
+        "name": "Stories",
+        "schema": "stories table with 24h expiry",
+        "components": ["Stories.tsx", "StoryProgress.tsx", "StoryCreator.tsx", "StoriesBar.tsx"],
+        "status": "EXISTS — ephemeral stories with view counts and expiry"
+      },
+      {
+        "name": "Direct Messages",
+        "schema": "conversations + conversation_participants + direct_messages tables",
+        "components": ["MessageButton.tsx", "MessageCard.tsx", "MessagePanel.tsx"],
+        "status": "EXISTS — 1:1 and group DMs with reactions, replies, read status"
+      },
+      {
+        "name": "Notifications",
+        "schema": "notifications table (uuid PK)",
+        "components": ["NotificationBell.tsx", "NotificationPanel.tsx", "Toast.tsx", "ToastContainer.tsx"],
+        "status": "EXISTS — notification feed with read/unread, toast system"
+      },
+      {
+        "name": "User Tagging",
+        "schema": "tagged_users table with x/y position",
+        "status": "EXISTS — tag users at specific positions on posts (Instagram-style)"
+      }
+    ]
+  },
+
+  "missing_features": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "note": "Features from the PRD / desired state that have NO implementation in current code",
+    "features": [
+      "Cross-platform content distribution (the core 'post once, publish everywhere' promise)",
+      "Connected accounts / OAuth platform connections",
+      "Content calendar / scheduling",
+      "Course platform (builder, player, progress tracking, curriculum editor)",
+      "In-app editing studio (CapCut-like)",
+      "UGC campaign management",
+      "Ads platform (campaign creation, targeting, budgets)",
+      "Cross-posting / multistreaming",
+      "Automation builder (Manychat-style)",
+      "Email / newsletter system",
+      "Subscriptions / membership tiers",
+      "Payment processing (Stripe Connect or equivalent)",
+      "Order management / checkout",
+      "Analytics dashboard (cross-platform)",
+      "Moderation, trust & safety, compliance",
+      "Roles & permissions (team management)",
+      "Consumer feed algorithm (For You / Following toggle)",
+      "Search functionality",
+      "Content discovery / explore algorithm"
+    ]
+  },
+
+  "broken_features": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "items": [
+      {
+        "id": "COS-AUTH-001",
+        "severity": "CRITICAL",
+        "feature": "Authentication",
+        "description": "comparePasswords() returns true for ALL passwords in dev mode. Any password works for any user account.",
+        "file": "server/auth.ts",
+        "impact": "Entire app has zero authentication security. Cannot be deployed.",
+        "resolution_target": "Clerk migration (eliminates Passport.js entirely)"
+      },
+      {
+        "id": "COS-AUTH-002",
+        "severity": "HIGH",
+        "feature": "Session Security",
+        "description": "Hardcoded fallback session secret: 'creatorOS-secret-key'",
+        "file": "server/auth.ts",
+        "impact": "Predictable session secret enables session hijacking"
+      },
+      {
+        "id": "COS-AUTH-003",
+        "severity": "HIGH",
+        "feature": "Auth Rate Limiting",
+        "description": "No rate limiting on /api/register, /api/login, /api/logout, /api/user",
+        "impact": "Brute force attacks possible"
+      }
+    ]
+  },
+
+  "code_quality_issues": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "items": [
+      {
+        "id": "COS-ARCH-001",
+        "severity": "HIGH",
+        "description": "God file: server/routes.ts at 53,388 bytes — all API routes in one file",
+        "impact": "Blocks parallel development, hard to navigate and maintain"
+      },
+      {
+        "id": "COS-ARCH-002",
+        "severity": "HIGH",
+        "description": "God file: server/storage.ts at 104,725 bytes — all data access logic in one file",
+        "impact": "Blocks parallel development, hard to test, hard to maintain"
+      },
+      {
+        "id": "COS-ARCH-003",
+        "severity": "MEDIUM",
+        "description": "Replit-origin code — entire codebase authored by Replit Agent. Quality unaudited.",
+        "impact": "Unknown code quality, potential hidden bugs, inconsistent patterns"
+      },
+      {
+        "id": "COS-ARCH-004",
+        "severity": "MEDIUM",
+        "description": "Repo bloat: attached_assets/ has 90 files (80 images, 10 text pastes) totaling ~84MB committed to git",
+        "impact": "Large repo clone size, should be in .gitignore or external storage"
+      },
+      {
+        "id": "COS-ARCH-005",
+        "severity": "LOW",
+        "description": "Repo bloat: uploads/ has 28 user-uploaded media files committed to git",
+        "impact": "User content in git history, should be external storage"
+      },
+      {
+        "id": "COS-ARCH-006",
+        "severity": "LOW",
+        "description": "Backup .bak and .new files in components: MessagePanel.tsx.bak, MessagePanel.tsx.new",
+        "impact": "Stale backup files in production codebase"
+      },
+      {
+        "id": "COS-ARCH-007",
+        "severity": "MEDIUM",
+        "description": "No .claude/ configuration, no CLAUDE.md, no docs/ directory",
+        "impact": "No AI development context, no architecture documentation"
+      },
+      {
+        "id": "COS-ARCH-008",
+        "severity": "MEDIUM",
+        "description": "Communities table has no owner/creator FK — not tied to any user",
+        "impact": "Cannot determine who owns/manages a community"
+      }
+    ]
+  },
+
+  "projection_code": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "path": "projections/creatoros/integration/",
+    "total_lines": 1099,
+    "files": [
+      {"name": "__init__.py", "lines": 1, "description": "Package docstring only"},
+      {"name": "manifest.py", "lines": 139, "description": "Integration ID, signal descriptors (3), capability descriptors (4), polled tables, config loader"},
+      {"name": "signals.py", "lines": 146, "description": "CreatorOSSignalEmitter — builds SignalEnvelopes from PostRow, ProductRow, RevenueRow"},
+      {"name": "handlers.py", "lines": 150, "description": "CreatorOSCapabilityHandler — noop, create_post, create_product, record_revenue"},
+      {"name": "outcomes.py", "lines": 180, "description": "CreatorOSOutcomeReceiver — dual writeback (source row umh_status + umh_outcomes audit table)"},
+      {"name": "correlation.py", "lines": 44, "description": "CreatorOSCorrelationMap + CreatorOSWritebackTarget — thread-safe in-memory correlation"},
+      {"name": "tables.py", "lines": 439, "description": "Typed row dataclasses, fetch helpers, insert helpers, outcome writeback SQL"}
+    ],
+    "signal_types": [
+      {"content_type": "creatoros_post_created", "urgency": "NORMAL", "risk": "READ_ONLY"},
+      {"content_type": "creatoros_product_listed", "urgency": "NORMAL", "risk": "READ_ONLY"},
+      {"content_type": "creatoros_revenue_recorded", "urgency": "HIGH", "risk": "READ_ONLY"}
+    ],
+    "capability_types": [
+      {"name": "noop", "category": "RETRIEVE", "risk": "READ_ONLY"},
+      {"name": "create_post", "category": "COMMUNICATE", "risk": "EXTERNAL_COMMUNICATION"},
+      {"name": "create_product", "category": "COMMUNICATE", "risk": "EXTERNAL_COMMUNICATION"},
+      {"name": "record_revenue", "category": "COMMUNICATE", "risk": "EXTERNAL_COMMUNICATION"}
+    ],
+    "polled_tables": ["posts", "products", "revenue"],
+    "default_poll_interval_seconds": 60.0,
+    "env_vars": ["CREATOROS_DATABASE_URL", "CREATOROS_USER_IDS", "CREATOROS_POLL_INTERVAL"],
+    "protocols_satisfied": ["SignalEmitter", "CapabilityHandler", "OutcomeReceiver (structurally)"],
+    "activation_status": "NOT_ACTIVATED — projection code exists and passes tests but is not wired into any running service",
+    "typed_row_dataclasses": ["PostRow", "ProductRow", "RevenueRow", "StoryRow"],
+    "writeback_status_map": {
+      "success": "success",
+      "failure": "error",
+      "error": "error",
+      "governance_denied": "governance_denied",
+      "timeout": "timeout"
+    },
+    "severity_ladder": {
+      "success": 0,
+      "timeout": 1,
+      "governance_denied": 2,
+      "error": 3
+    },
+    "umh_outcomes_table": "umh_outcomes (expected in CreatorOS DB — not yet provisioned)",
+    "umh_status_column": "umh_status (expected on posts, products, revenue, stories — not in current schema.ts)"
+  },
+
+  "test_coverage": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "creatoros_repo_tests": 0,
+    "umh_integration_tests": {
+      "file": "tests/test_lyfeos_creatoros_integration.py",
+      "creatoros_test_classes": [
+        "TestCreatorOSProtocols (4 tests: emitter protocol, handler protocol, handler noop, handler unsupported)",
+        "TestCreatorOSSignals (3 tests: post signal, product signal, revenue signal)",
+        "TestCreatorOSCorrelation (2 tests: register/lookup/remove, lookup missing)",
+        "TestCreatorOSConfig (2 tests: empty env, parse env)"
+      ],
+      "creatoros_test_count": 11,
+      "status": "All 11 CreatorOS tests pass (verified via test suite)",
+      "note": "These test the UMH projection integration code, NOT the CreatorOS app itself"
+    }
+  },
+
+  "design_references": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "location": "attached_assets/ (committed to git on Beast/GitHub)",
+    "image_count": 80,
+    "text_paste_count": 10,
+    "total_count": 90,
+    "total_size_bytes": 83908223,
+    "types": ["screenshots", "UI mockups", "Replit prompt pastes"],
+    "usage": "Google Stitch UI inventory needed — 90 files uncatalogued",
+    "design_aesthetic_note": "X/Twitter-inspired minimalism per PRD, NOT glassmorphism. Current implementation is professional/clean theme (theme.json: variant=professional, appearance=light, radius=0.5)."
+  },
+
+  "frontend_inventory": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "entry_point": "client/src/main.tsx",
+    "app_file": "client/src/App.tsx",
+    "page_count": 16,
+    "pages": [
+      "ai.tsx", "auth-page.tsx", "communities.tsx", "contacts.tsx",
+      "create-post.tsx", "create-product.tsx", "documents.tsx", "explore.tsx",
+      "followers.tsx", "following.tsx", "marketplace.tsx", "new-text-post.tsx",
+      "not-found.tsx", "profile.tsx", "revenue.tsx", "saved-posts.tsx"
+    ],
+    "custom_component_count": 46,
+    "component_directories": ["ai", "communities", "explore", "feed", "layout", "marketplace", "messages", "notifications", "profile"],
+    "ui_component_count": 48,
+    "ui_library": "shadcn/ui (48 Radix-based components)",
+    "hooks": ["use-auth.tsx", "use-mobile.tsx", "use-toast.ts"],
+    "lib_files": ["protected-route.tsx", "queryClient.ts", "stores.ts", "textParser.ts", "utils.ts"],
+    "layout_components": ["BottomNavigation.tsx"],
+    "routing": "wouter (client-side)"
+  },
+
+  "backend_inventory": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "entry_point": "server/index.ts",
+    "file_count": 8,
+    "files": [
+      {"name": "server/index.ts", "size_bytes": 2308, "description": "Express app bootstrap"},
+      {"name": "server/auth.ts", "size_bytes": 6509, "description": "Passport.js setup (BROKEN)"},
+      {"name": "server/routes.ts", "size_bytes": 53388, "description": "ALL API routes (GOD FILE)"},
+      {"name": "server/storage.ts", "size_bytes": 104725, "description": "ALL storage/data access (GOD FILE)"},
+      {"name": "server/db.ts", "size_bytes": 344, "description": "Drizzle database client"},
+      {"name": "server/upload.ts", "size_bytes": 4666, "description": "Multer file upload handling"},
+      {"name": "server/cleanup.ts", "size_bytes": 3352, "description": "Cleanup utilities"},
+      {"name": "server/vite.ts", "size_bytes": 2339, "description": "Vite dev server integration"}
+    ],
+    "api_endpoints_note": "All in routes.ts. Includes: /api/register, /api/login, /api/logout, /api/user, plus CRUD for posts, products, communities, channels, messages, stories, notifications, documents, contacts, revenue, AI agents, AI chats, followers, saved posts, tagged users, conversations, DMs.",
+    "middleware": "None beyond Passport.js session middleware",
+    "realtime": "ws (WebSocket) for real-time features"
+  },
+
+  "deployment": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "current": "none (development only)",
+    "replit_config_exists": true,
+    "replit_deployment_target": "autoscale",
+    "replit_node_version": "nodejs-20",
+    "dockerfile": false,
+    "fly_toml": false,
+    "docker_compose": false,
+    "ci_cd": false,
+    "github_actions": false,
+    "target": "Fly.io (per OS Platform Standard v2)",
+    "blocked_by": "Auth bypass vulnerability — CANNOT deploy until fixed"
+  },
+
+  "database_deployment": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "production_db_provisioned": false,
+    "development_db": "Unknown — .env on Beast has DATABASE_URL but content not inspected",
+    "migration_count": 1,
+    "migration_file": "migrations/0000_lyrical_vance_astro.sql",
+    "seed_scripts": ["scripts/seed-db.ts"],
+    "note": "No production Neon database provisioned. Schema push via drizzle-kit push."
+  },
+
+  "product_type_mapping": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "note": "The PRD lists 10 product types but only 'products' table exists in schema — no product_type enum or discriminator column",
+    "prd_product_types": ["community", "ai_agent", "digital_download", "course", "subscription_membership", "service", "event", "physical_product", "ugc_campaign", "software_access"],
+    "implemented_product_types": "Generic products table with category (text) — no enforced product type system",
+    "gap": "Product type system from PRD is not implemented. products.category is freeform text."
+  },
+
+  "pricing_model": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "prd_tiers": [
+      {"name": "Free", "price": 0},
+      {"name": "Pro", "price": 29},
+      {"name": "Business", "price": 79},
+      {"name": "Enterprise", "price": "199+"}
+    ],
+    "implementation_status": "NOT_IMPLEMENTED — no pricing tables, no subscription logic, no Stripe integration in schema or code"
+  },
+
+  "eos_boundary": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "EOS handles business operations (agents, tasks, portfolios, CRM, workflows). CreatorOS handles creator product/distribution/community.",
+    "overlap_areas": [
+      "CRM — both have contacts tables (EOS: crm_contacts, CreatorOS: contacts)",
+      "Revenue tracking — both track revenue (EOS: business analytics, CreatorOS: creator revenue)",
+      "AI agents — both have AI chat/agent features (EOS: multi-provider, CreatorOS: OpenAI only)"
+    ],
+    "boundary_note": "Overlap is architectural — will need reconciliation when both apps are production. UMH projection layer is the intended integration point."
+  },
+
+  "open_questions_requiring_operator_decision": {
+    "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+    "questions": [
+      {
+        "id": "DEC-145-002",
+        "question": "Which MVP scope is canonical? Three conflicting definitions exist.",
+        "options": {
+          "A": "Creator/Community Only (content + community, smallest)",
+          "B": "Creator + Course/Product (content + community + courses + products, recommended)",
+          "C": "Creator + Full Distribution (content + community + courses + cross-platform + analytics, large)",
+          "D": "Full PRD Scope (everything including marketplace, ads, UGC, multistreaming, massive)"
+        },
+        "previous_recommendation": "Option B"
+      },
+      {
+        "id": "DEC-145-004",
+        "question": "Clerk migration order — CreatorOS first or EOS first?",
+        "context": "Both apps target Clerk. EOS is closer to revenue. CreatorOS has the critical auth bypass."
+      },
+      {
+        "id": "Q-14.5A-SEC-COS",
+        "question": "Emergency auth disable vs direct Clerk migration?",
+        "context": "Should we disable auth entirely (no login) as stopgap, or go straight to Clerk?"
+      },
+      {
+        "id": "Q-14.5A-OBS-COS",
+        "question": "Error tracking provider — PostHog only or add Sentry?",
+        "context": "PostHog for product analytics is decided. Error tracking provider still open."
+      }
+    ]
+  },
+
+  "implementation_debt": {
+    "provenance": "IMPLEMENTATION_DEBT",
+    "items": [
+      {
+        "id": "DEBT-COS-001",
+        "description": "UMH projection expects umh_status column on posts/products/revenue/stories tables — column does not exist in current schema.ts",
+        "impact": "Outcome writeback will fail if projection is activated without schema migration"
+      },
+      {
+        "id": "DEBT-COS-002",
+        "description": "UMH projection expects umh_outcomes audit table — table does not exist in current schema.ts",
+        "impact": "Audit trail writeback will fail if projection is activated without schema migration"
+      },
+      {
+        "id": "DEBT-COS-003",
+        "description": "Projection polls posts/products/revenue but StoryRow dataclass exists with no story polling in manifest POLLED_TABLES",
+        "impact": "Stories table will not be polled even though typed row exists — minor inconsistency"
+      },
+      {
+        "id": "DEBT-COS-004",
+        "description": "Communities table has no owner FK — cannot determine community creator/manager",
+        "impact": "Community ownership/permissions cannot be enforced"
+      },
+      {
+        "id": "DEBT-COS-005",
+        "description": "No product_type discriminator — PRD lists 10 product types but schema has generic products table",
+        "impact": "Cannot distinguish between digital downloads, courses, subscriptions, etc."
+      }
+    ]
+  },
+
+  "source_artifacts_referenced": [
+    "data/repos/creatoros/shared/schema.ts (20 tables, 568 lines)",
+    "data/repos/creatoros/package.json (113 lines, 78 dependencies)",
+    "data/umh/trinity_alignment/phase14_4_creatoros_beast_inventory.json",
+    "data/umh/trinity_alignment/phase14_4_creatoros_desired_state_canon.json",
+    "data/umh/trinity_convergence/phase14_5_creatoros_convergence_plan.json",
+    "data/umh/trinity_convergence/phase14_5a_creatoros_13_layer_production_stack.json",
+    "projections/creatoros/integration/ (6 Python files, 1099 lines)",
+    "tests/test_lyfeos_creatoros_integration.py (11 CreatorOS tests)"
+  ]
+}

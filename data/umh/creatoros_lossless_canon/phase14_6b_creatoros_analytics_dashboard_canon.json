@@ -1,0 +1,813 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Creator analytics and business dashboard: overview metrics, revenue/content/community/course analytics views, KPI framework, real-time metrics, reporting, consumer feed algorithm, search analytics, and platform instrumentation",
+
+  "sources": [
+    "phase14_6b_creatoros_current_implementation_truth.json (Dashboard module: PARTIALLY_IMPLEMENTED — basic overview page exists)",
+    "phase14_6b_creatoros_data_ontology.json (orders, products, content, community tables — SOURCE_PRESERVED_TRUTH from Drizzle schema)",
+    "phase14_6b_creatoros_product_types_commerce_canon.json (10 product types, pricing tiers, order/entitlement lifecycle)",
+    "phase14_6b_creatoros_content_distribution_canon.json (content model, cross-posting, scheduling — analytics source data)",
+    "phase14_6b_creatoros_community_messaging_canon.json (community metrics: members, activity, engagement)",
+    "phase14_6b_creatoros_ugc_ads_canon.json (UGC campaign analytics, ads analytics — NOT IMPLEMENTED)",
+    "phase14_6b_creatoros_lossless_product_canon.md (Module 6: Dashboard, Screen 14: Creator Dashboard — listed as PARTIALLY_IMPLEMENTED)",
+    "phase14_6b_creatoros_design_identity_canon.json (X/Twitter minimalism, clean/fast/functional — dashboard styling constraint)",
+    "phase14_6b_creatoros_user_journeys_onboarding.json (Creator persona analytics needs across tiers)",
+    "CreatorOS_1NIZXMZR.json (Google Doc PRD: Module 6 Dashboard, Module 15 Notifications — analytics context)"
+  ],
+
+  "creator_dashboard": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Main dashboard view that creators see after login. Aggregates key metrics across all business dimensions into a single command-center overview.",
+    "implementation_status": "PARTIALLY_IMPLEMENTED",
+    "implementation_note": "Basic overview page exists in current codebase with placeholder metrics. No real data aggregation, no time-range filtering, no drill-down. All computed metrics are greenfield.",
+
+    "overview_metrics": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Top-level KPIs visible on dashboard landing. These are the first numbers a creator sees.",
+      "metrics": [
+        {
+          "name": "total_revenue",
+          "type": "currency",
+          "description": "Gross revenue across all product types for selected time range",
+          "source_tables": ["orders"],
+          "computation": "SUM(orders.total_cents) WHERE orders.status = 'completed' AND orders.creator_id = ? AND orders.created_at BETWEEN ? AND ?",
+          "display": "formatted currency with trend indicator vs previous period"
+        },
+        {
+          "name": "total_orders",
+          "type": "count",
+          "description": "Number of completed orders across all product types",
+          "source_tables": ["orders"],
+          "computation": "COUNT(orders.id) WHERE orders.status = 'completed'",
+          "display": "integer with trend percentage"
+        },
+        {
+          "name": "total_followers",
+          "type": "count",
+          "description": "Combined follower/subscriber count across platform",
+          "source_tables": ["follows", "subscriptions"],
+          "computation": "COUNT(DISTINCT follows.follower_id) + COUNT(DISTINCT active_subscriptions.user_id)",
+          "display": "integer with net change indicator"
+        },
+        {
+          "name": "total_content_views",
+          "type": "count",
+          "description": "Aggregate view count across all published content",
+          "source_tables": ["content_analytics"],
+          "computation": "SUM(content_analytics.views) for selected period",
+          "display": "abbreviated number (e.g., 12.4K) with trend"
+        },
+        {
+          "name": "active_community_members",
+          "type": "count",
+          "description": "Members who posted, commented, or reacted in the last 7 days",
+          "source_tables": ["community_posts", "community_comments", "community_reactions"],
+          "computation": "COUNT(DISTINCT user_id) across activity tables WHERE created_at > NOW() - INTERVAL '7 days'",
+          "display": "integer with percentage of total members"
+        },
+        {
+          "name": "average_order_value",
+          "type": "currency",
+          "description": "Mean order value for completed orders in selected period",
+          "source_tables": ["orders"],
+          "computation": "AVG(orders.total_cents) WHERE orders.status = 'completed'",
+          "display": "formatted currency with trend"
+        }
+      ]
+    },
+
+    "revenue_metrics": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Detailed revenue breakdown available from dashboard overview drill-down",
+      "metrics": [
+        {
+          "name": "revenue_by_product_type",
+          "description": "Revenue grouped by the 10 product types",
+          "product_types": ["community", "ai_agent", "digital_download", "course", "subscription_membership", "service", "event", "physical_product", "ugc_campaign", "software_access"],
+          "visualization": "stacked bar chart or donut chart"
+        },
+        {
+          "name": "revenue_by_product",
+          "description": "Revenue per individual product, sortable and filterable",
+          "visualization": "table with sparkline trends"
+        },
+        {
+          "name": "mrr",
+          "description": "Monthly recurring revenue from subscription_membership and community products",
+          "computation": "SUM of active subscription amounts, annualized to monthly",
+          "visualization": "line chart with MRR growth over time"
+        },
+        {
+          "name": "refund_rate",
+          "description": "Percentage of orders refunded in period",
+          "computation": "COUNT(refunded_orders) / COUNT(all_orders) * 100",
+          "visualization": "percentage with threshold coloring (green < 2%, yellow < 5%, red >= 5%)"
+        },
+        {
+          "name": "net_revenue",
+          "description": "Gross revenue minus refunds minus platform fees",
+          "computation": "gross_revenue - refunds - platform_fee_amount",
+          "visualization": "currency with waterfall breakdown"
+        },
+        {
+          "name": "payout_history",
+          "description": "Stripe Connect payout timeline showing when funds were transferred to creator bank account",
+          "source": "Stripe Connect payouts API",
+          "visualization": "timeline with payout amounts and statuses"
+        }
+      ]
+    },
+
+    "content_metrics": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Content performance metrics across all published content and cross-posted platforms",
+      "metrics": [
+        {
+          "name": "total_published",
+          "description": "Count of published content items in period",
+          "source_tables": ["content"]
+        },
+        {
+          "name": "views_by_content",
+          "description": "Per-content view counts, sortable by performance",
+          "visualization": "table with thumbnail, title, views, engagement rate"
+        },
+        {
+          "name": "engagement_rate",
+          "description": "Interactions (likes + comments + shares + saves) / views * 100",
+          "computation": "(likes + comments + shares + saves) / views * 100",
+          "benchmark_note": "Platform-wide benchmarks TBD (see open_questions)"
+        },
+        {
+          "name": "cross_post_performance",
+          "description": "Performance comparison across platforms where content was cross-posted",
+          "platforms": ["native", "youtube", "tiktok", "instagram", "twitter", "linkedin"],
+          "visualization": "grouped bar chart per platform per content item"
+        },
+        {
+          "name": "best_posting_times",
+          "description": "Heatmap of engagement by day-of-week and hour-of-day",
+          "visualization": "heatmap grid (7 x 24)"
+        },
+        {
+          "name": "content_funnel",
+          "description": "View -> click -> purchase conversion from content to commerce",
+          "stages": ["view", "click_link", "product_page_view", "add_to_cart", "purchase"],
+          "visualization": "funnel chart with drop-off percentages"
+        }
+      ]
+    },
+
+    "community_metrics": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Community health and engagement metrics for creators running community products",
+      "metrics": [
+        {
+          "name": "total_members",
+          "description": "Total community members (paid + free tiers)",
+          "breakdown": ["free_members", "paid_members"]
+        },
+        {
+          "name": "member_growth",
+          "description": "Net new members per period (joins minus leaves)",
+          "visualization": "line chart with joins and churns stacked"
+        },
+        {
+          "name": "churn_rate",
+          "description": "Percentage of paid members who cancelled in period",
+          "computation": "cancelled_in_period / active_at_period_start * 100",
+          "threshold": {"healthy": "< 5%", "warning": "5-10%", "critical": "> 10%"}
+        },
+        {
+          "name": "posts_per_day",
+          "description": "Average community posts per day in selected period",
+          "visualization": "bar chart daily with trend line"
+        },
+        {
+          "name": "response_time",
+          "description": "Average time between a member post and first reply (creator or other member)",
+          "visualization": "metric card with trend"
+        },
+        {
+          "name": "top_contributors",
+          "description": "Most active community members by posts + comments + reactions given",
+          "visualization": "leaderboard table (top 10)"
+        },
+        {
+          "name": "engagement_depth",
+          "description": "Distribution of member activity: lurkers (view only) vs contributors (post/comment) vs power users (daily activity)",
+          "visualization": "segmented bar or pie chart"
+        }
+      ]
+    },
+
+    "course_metrics": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Course platform analytics for creators selling courses",
+      "metrics": [
+        {
+          "name": "total_enrollments",
+          "description": "Total course enrollments across all courses in period",
+          "source_tables": ["entitlements", "orders"]
+        },
+        {
+          "name": "completion_rate",
+          "description": "Percentage of enrolled students who completed all lessons",
+          "computation": "completed_students / enrolled_students * 100",
+          "visualization": "percentage per course with overall average"
+        },
+        {
+          "name": "lesson_drop_off",
+          "description": "Where students stop progressing through course content",
+          "visualization": "funnel chart showing student count at each lesson/module"
+        },
+        {
+          "name": "average_progress",
+          "description": "Mean percentage completion across all active students",
+          "visualization": "progress bar with distribution histogram"
+        },
+        {
+          "name": "student_satisfaction",
+          "description": "Average rating from course reviews",
+          "scale": "1-5 stars",
+          "visualization": "star rating with count and distribution"
+        },
+        {
+          "name": "revenue_per_student",
+          "description": "Average revenue generated per enrolled student",
+          "computation": "total_course_revenue / total_enrollments",
+          "visualization": "currency metric with per-course breakdown"
+        }
+      ]
+    }
+  },
+
+  "analytics_views": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Dedicated analytics pages accessible from main navigation. Each view provides deep drill-down into a specific domain. The dashboard overview links to these views for detail.",
+    "implementation_status": "NOT_IMPLEMENTED",
+    "implementation_note": "No dedicated analytics views exist. The current dashboard is a single overview page with placeholder data.",
+
+    "views": [
+      {
+        "view": "content_analytics",
+        "description": "Deep analytics for all published content across native and cross-posted platforms",
+        "route": "/dashboard/analytics/content",
+        "metrics": [
+          "views_over_time",
+          "engagement_rate_over_time",
+          "top_performing_content",
+          "content_type_breakdown",
+          "platform_comparison",
+          "audience_demographics_from_content",
+          "content_funnel_to_commerce",
+          "hashtag_and_topic_performance",
+          "share_and_save_rates"
+        ],
+        "filters": ["date_range", "content_type", "platform", "product_linked", "status"],
+        "time_ranges": ["24h", "7d", "30d", "90d", "12m", "all_time", "custom"],
+        "visualizations": ["line_chart", "bar_chart", "table", "heatmap", "funnel"]
+      },
+      {
+        "view": "creator_analytics",
+        "description": "Creator profile and audience analytics — who follows you, where they come from, how they engage",
+        "route": "/dashboard/analytics/audience",
+        "metrics": [
+          "follower_growth_over_time",
+          "follower_demographics",
+          "follower_acquisition_source",
+          "profile_views",
+          "profile_to_follow_conversion",
+          "audience_overlap_with_other_creators",
+          "top_audience_segments",
+          "geographic_distribution"
+        ],
+        "filters": ["date_range", "acquisition_source", "segment"],
+        "time_ranges": ["7d", "30d", "90d", "12m", "all_time", "custom"],
+        "visualizations": ["line_chart", "geo_map", "donut_chart", "table"]
+      },
+      {
+        "view": "business_analytics",
+        "description": "Commerce and revenue analytics across all product types and pricing tiers",
+        "route": "/dashboard/analytics/business",
+        "metrics": [
+          "revenue_over_time",
+          "revenue_by_product_type",
+          "revenue_by_individual_product",
+          "mrr_and_arr",
+          "average_order_value",
+          "customer_lifetime_value",
+          "conversion_rate_by_product",
+          "refund_rate_and_reasons",
+          "coupon_and_discount_impact",
+          "pricing_tier_distribution",
+          "payout_timeline",
+          "tax_summary"
+        ],
+        "filters": ["date_range", "product_type", "product", "pricing_tier", "coupon_code", "payment_status"],
+        "time_ranges": ["24h", "7d", "30d", "90d", "12m", "all_time", "custom"],
+        "visualizations": ["line_chart", "stacked_bar", "waterfall", "table", "donut_chart"]
+      },
+      {
+        "view": "ugc_analytics",
+        "description": "UGC campaign performance analytics for brands running campaigns",
+        "route": "/dashboard/analytics/ugc",
+        "metrics": [
+          "active_campaigns",
+          "applications_per_campaign",
+          "acceptance_rate",
+          "deliverable_approval_rate",
+          "average_time_to_delivery",
+          "cost_per_deliverable",
+          "campaign_roi",
+          "creator_quality_scores",
+          "content_performance_post_delivery",
+          "repeat_creator_rate"
+        ],
+        "filters": ["date_range", "campaign_status", "campaign", "creator"],
+        "time_ranges": ["30d", "90d", "12m", "all_time", "custom"],
+        "visualizations": ["table", "bar_chart", "funnel", "line_chart"],
+        "implementation_note": "Depends on UGC module (NOT_IMPLEMENTED). Analytics view is greenfield."
+      },
+      {
+        "view": "ads_analytics",
+        "description": "Self-serve ads platform performance metrics for advertisers",
+        "route": "/dashboard/analytics/ads",
+        "metrics": [
+          "impressions",
+          "clicks",
+          "ctr",
+          "cpc",
+          "cpm",
+          "total_spend",
+          "conversions",
+          "roas",
+          "frequency",
+          "reach",
+          "ad_creative_performance_comparison",
+          "audience_segment_performance",
+          "placement_performance"
+        ],
+        "filters": ["date_range", "campaign", "ad_set", "ad_creative", "placement", "audience_segment"],
+        "time_ranges": ["24h", "7d", "30d", "90d", "custom"],
+        "visualizations": ["line_chart", "bar_chart", "table", "comparison_chart"],
+        "implementation_note": "Depends on Ads module (NOT_IMPLEMENTED). Analytics view is greenfield."
+      }
+    ]
+  },
+
+  "kpi_framework": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Structured KPI hierarchy organized by business domain. These KPIs define what creators should measure and optimize. Each KPI has a clear definition, computation, and relevance to creator business health.",
+
+    "content": {
+      "description": "Content creation and distribution KPIs",
+      "kpis": [
+        {"name": "publish_frequency", "definition": "Number of content items published per week", "target": "creator-defined goal", "importance": "consistency signal to algorithm and audience"},
+        {"name": "cross_post_reach_multiplier", "definition": "Total reach across all platforms / native-only reach", "target": "> 2.0x", "importance": "validates cross-posting value proposition"},
+        {"name": "engagement_rate", "definition": "(likes + comments + shares + saves) / impressions * 100", "target": "varies by content type; > 3% is healthy", "importance": "core content quality signal"},
+        {"name": "content_to_commerce_rate", "definition": "Orders attributed to content / content views * 100", "target": "> 0.5%", "importance": "measures content as a revenue driver"},
+        {"name": "average_watch_time", "definition": "Mean seconds watched for video content", "target": "> 60% of video length", "importance": "retention quality for courses and video content"}
+      ]
+    },
+
+    "community": {
+      "description": "Community health and engagement KPIs",
+      "kpis": [
+        {"name": "monthly_active_rate", "definition": "Members active in last 30 days / total members * 100", "target": "> 40%", "importance": "community vitality — below 20% indicates a dead community"},
+        {"name": "member_churn_rate", "definition": "Cancelled paid members in period / active paid at start * 100", "target": "< 5% monthly", "importance": "revenue sustainability for community products"},
+        {"name": "contributor_ratio", "definition": "Members who posted or commented / total members * 100", "target": "> 10%", "importance": "1% rule — most communities have < 1% contributors"},
+        {"name": "time_to_first_post", "definition": "Hours between member join and their first post", "target": "< 48h", "importance": "onboarding effectiveness signal"},
+        {"name": "creator_response_rate", "definition": "Member posts that received a creator reply / total member posts * 100", "target": "> 50% for small communities, > 20% for large", "importance": "creator engagement drives member retention"}
+      ]
+    },
+
+    "commerce": {
+      "description": "Revenue and transaction KPIs across all product types",
+      "kpis": [
+        {"name": "gross_revenue", "definition": "Total order value before refunds and fees", "target": "creator-defined", "importance": "top-line growth metric"},
+        {"name": "net_revenue", "definition": "Gross revenue - refunds - platform fees", "target": "creator-defined", "importance": "actual take-home metric"},
+        {"name": "mrr", "definition": "Monthly recurring revenue from subscriptions", "target": "growing month-over-month", "importance": "predictable income for subscription-based creators"},
+        {"name": "average_order_value", "definition": "Total revenue / number of orders", "target": "increasing over time", "importance": "pricing and upsell effectiveness"},
+        {"name": "customer_lifetime_value", "definition": "Average revenue per customer over their entire relationship", "target": "> 3x customer acquisition cost", "importance": "business sustainability metric"},
+        {"name": "refund_rate", "definition": "Refunded orders / total orders * 100", "target": "< 2%", "importance": "product quality and expectation-setting signal"},
+        {"name": "conversion_rate", "definition": "Purchases / product page views * 100", "target": "> 2% for digital products", "importance": "product page and pricing effectiveness"}
+      ]
+    },
+
+    "courses": {
+      "description": "Course-specific KPIs for creators selling educational content",
+      "kpis": [
+        {"name": "enrollment_rate", "definition": "Enrollments / course page views * 100", "target": "> 3%", "importance": "course landing page effectiveness"},
+        {"name": "completion_rate", "definition": "Students who completed all lessons / total enrolled * 100", "target": "> 30% (industry average is ~15%)", "importance": "course quality and structure signal"},
+        {"name": "lesson_engagement", "definition": "Average time spent per lesson / expected lesson duration", "target": "> 80%", "importance": "content pacing and quality"},
+        {"name": "student_satisfaction", "definition": "Average course rating (1-5 stars)", "target": "> 4.0", "importance": "social proof for new enrollments"},
+        {"name": "revenue_per_student", "definition": "Total course revenue / total students", "target": "varies by pricing; track trend", "importance": "unit economics for course creators"}
+      ]
+    },
+
+    "ugc": {
+      "description": "UGC campaign KPIs for brands using the UGC marketplace",
+      "kpis": [
+        {"name": "applications_per_campaign", "definition": "Number of creator applications per active campaign", "target": "> 10 for healthy marketplace liquidity", "importance": "marketplace health signal"},
+        {"name": "deliverable_approval_rate", "definition": "Approved deliverables / submitted deliverables * 100", "target": "> 70%", "importance": "brief clarity and creator quality matching"},
+        {"name": "cost_per_approved_deliverable", "definition": "Total campaign spend / approved deliverables", "target": "brand-defined; track trend", "importance": "campaign cost efficiency"},
+        {"name": "time_to_delivery", "definition": "Average days from creator acceptance to deliverable submission", "target": "< 14 days for standard campaigns", "importance": "campaign velocity"},
+        {"name": "campaign_roi", "definition": "(Revenue attributed to UGC content - campaign cost) / campaign cost * 100", "target": "> 200%", "importance": "ultimate brand success metric"}
+      ]
+    },
+
+    "ads": {
+      "description": "Advertising KPIs for the self-serve ads platform",
+      "kpis": [
+        {"name": "ctr", "definition": "Clicks / impressions * 100", "target": "> 1% for feed ads, > 0.5% for sidebar", "importance": "ad relevance and creative quality"},
+        {"name": "cpc", "definition": "Total spend / total clicks", "target": "competitive with platform benchmarks", "importance": "cost efficiency for advertisers"},
+        {"name": "cpm", "definition": "(Total spend / impressions) * 1000", "target": "varies by audience; $5-$20 typical", "importance": "awareness campaign efficiency"},
+        {"name": "roas", "definition": "Revenue attributed to ads / ad spend", "target": "> 3x for profitable campaigns", "importance": "the metric that determines if advertisers stay"},
+        {"name": "frequency", "definition": "Average times a unique user sees the same ad", "target": "< 5 per week", "importance": "ad fatigue prevention"},
+        {"name": "conversion_rate", "definition": "Conversions / clicks * 100", "target": "> 2% for product ads", "importance": "landing page and offer effectiveness"}
+      ]
+    }
+  },
+
+  "real_time_metrics": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "description": "Live metrics surfaced on the dashboard that update without page refresh. Standard for modern creator platforms. No source material specifies these — inferred from professional standards.",
+    "implementation_status": "NOT_IMPLEMENTED",
+
+    "metrics": [
+      {
+        "name": "active_users",
+        "description": "Number of users currently active on the creator's storefront, community, or course content",
+        "update_interval": "30 seconds",
+        "source": "session tracking / WebSocket heartbeat",
+        "display": "live counter with pulse animation"
+      },
+      {
+        "name": "live_views",
+        "description": "Current viewers on any live-streaming content (if live features exist) or real-time content view counter",
+        "update_interval": "10 seconds",
+        "source": "view event stream",
+        "display": "live counter"
+      },
+      {
+        "name": "unread_messages",
+        "description": "Count of unread DMs and community mentions requiring creator attention",
+        "update_interval": "on new message (push)",
+        "source": "messaging system events",
+        "display": "badge counter on dashboard and navigation"
+      },
+      {
+        "name": "recent_orders",
+        "description": "Live feed of incoming orders with product name, amount, and buyer",
+        "update_interval": "on new order (push)",
+        "source": "order creation events",
+        "display": "scrolling feed or toast notifications"
+      },
+      {
+        "name": "active_community_threads",
+        "description": "Currently active discussions with recent replies",
+        "update_interval": "60 seconds",
+        "source": "community post activity",
+        "display": "list with activity indicators"
+      }
+    ],
+
+    "transport": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Real-time metrics require either WebSocket or Server-Sent Events transport",
+      "recommended": "WebSocket for bidirectional (community chat), SSE for dashboard metrics push",
+      "implementation_note": "No WebSocket or SSE infrastructure exists in current codebase. Greenfield."
+    }
+  },
+
+  "reporting": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Reporting capabilities for scheduled reports, data export, and period-over-period comparison",
+    "implementation_status": "NOT_IMPLEMENTED",
+
+    "scheduled": {
+      "description": "Automated reports delivered on a schedule to creator email or dashboard",
+      "report_types": [
+        {
+          "name": "weekly_summary",
+          "description": "Weekly digest of key metrics across all domains",
+          "delivery": "email + in-app notification",
+          "schedule": "Monday 9:00 AM creator timezone",
+          "contents": ["revenue_summary", "content_performance_top_5", "community_health", "new_followers", "upcoming_actions"]
+        },
+        {
+          "name": "monthly_business_report",
+          "description": "Comprehensive monthly business analytics report",
+          "delivery": "email with PDF attachment + in-app",
+          "schedule": "1st of month, 9:00 AM creator timezone",
+          "contents": ["revenue_breakdown", "mrr_change", "product_performance_ranking", "refund_analysis", "customer_growth", "month_over_month_comparison"]
+        },
+        {
+          "name": "course_progress_report",
+          "description": "Student progress and completion analytics for course creators",
+          "delivery": "email + in-app",
+          "schedule": "configurable (weekly or monthly)",
+          "contents": ["new_enrollments", "completion_milestones", "drop_off_points", "student_feedback_summary"]
+        }
+      ],
+      "customization": {
+        "description": "Creators can customize which reports they receive and at what frequency",
+        "options": ["enable/disable per report", "change schedule", "add/remove metrics", "set comparison period"]
+      }
+    },
+
+    "export": {
+      "description": "Data export functionality for creators who want to analyze in external tools",
+      "formats": ["csv", "xlsx", "pdf"],
+      "scope": ["all_analytics", "per_view", "per_metric", "custom_date_range"],
+      "limits": {
+        "max_rows_csv": 100000,
+        "max_date_range": "all_time",
+        "rate_limit": "10 exports per hour"
+      },
+      "delivery": "immediate download for small datasets, email link for large exports"
+    },
+
+    "comparison": {
+      "description": "Period-over-period comparison functionality available in all analytics views",
+      "comparison_types": [
+        {"type": "previous_period", "description": "Compare selected range vs immediately prior range of same length"},
+        {"type": "same_period_last_year", "description": "Compare selected range vs same dates one year ago"},
+        {"type": "custom", "description": "Compare any two arbitrary date ranges"}
+      ],
+      "display": "overlay line charts, delta percentages, color-coded up/down indicators"
+    }
+  },
+
+  "consumer_feed_algorithm": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "The algorithm that powers the Consumer Feed (Module 5) — determines what content consumers see, in what order. This directly impacts creator analytics because it determines content distribution.",
+    "implementation_status": "NOT_IMPLEMENTED",
+    "implementation_note": "Consumer Feed page exists but uses simple chronological ordering. No algorithmic ranking implemented.",
+
+    "factors": {
+      "description": "Signals that influence content ranking in the consumer feed",
+      "signals": [
+        {"name": "recency", "weight": "high", "description": "Newer content ranks higher, with time decay function"},
+        {"name": "engagement_velocity", "weight": "high", "description": "Content gaining engagement quickly gets boosted (trending signal)"},
+        {"name": "creator_follow_status", "weight": "high", "description": "Content from followed creators ranks significantly higher"},
+        {"name": "content_type_affinity", "weight": "medium", "description": "User's historical preference for content types (video vs text vs image)"},
+        {"name": "topic_relevance", "weight": "medium", "description": "Content topic matches user's demonstrated interests"},
+        {"name": "engagement_rate", "weight": "medium", "description": "Content's overall engagement rate as quality signal"},
+        {"name": "completion_rate", "weight": "medium", "description": "For video/courses: what percentage of viewers finish"},
+        {"name": "creator_tier", "weight": "low", "description": "Pro/Business creators may get slight boost (premium feature)"},
+        {"name": "diversity_penalty", "weight": "low", "description": "Prevent feed from being dominated by single creator or content type"}
+      ]
+    },
+
+    "ranking": {
+      "description": "How signals combine into a final ranking score",
+      "approach": "weighted_score",
+      "formula_concept": "score = recency_decay(age) * (w1*engagement_velocity + w2*follow_boost + w3*affinity + w4*relevance + w5*quality) - diversity_penalty",
+      "implementation_approach": "Start with simple weighted linear model. Iterate to ML model when sufficient engagement data exists.",
+      "fallback": "Chronological ordering when insufficient data for personalization (new users, cold start)"
+    },
+
+    "personalization": {
+      "description": "How the feed personalizes for individual consumers",
+      "cold_start": "New users see trending content + editorial picks until sufficient engagement history (minimum 20 interactions)",
+      "warm_user": "Personalized feed based on follow graph, engagement history, and content type preferences",
+      "explore_vs_exploit": "80% personalized (exploit) / 20% discovery (explore) to prevent filter bubbles",
+      "refresh_rate": "Feed recalculates on pull-to-refresh or every 5 minutes of active browsing"
+    }
+  },
+
+  "search_analytics": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "description": "Analytics derived from platform search behavior. Valuable for both creators (what are people looking for?) and platform (marketplace health). No source material specifies this — inferred from professional standards.",
+    "implementation_status": "NOT_IMPLEMENTED",
+
+    "trending": {
+      "description": "Trending search terms across the platform in a rolling window",
+      "window": "24 hours with hourly refresh",
+      "display": "trending topics widget on consumer feed and creator dashboard",
+      "creator_value": "Creators see what consumers are searching for — content opportunity signal"
+    },
+
+    "popular": {
+      "description": "Most searched terms over longer periods, segmented by content type and product type",
+      "windows": ["7d", "30d"],
+      "display": "searchable table with volume, trend direction, and competition level",
+      "creator_value": "Informs product creation and content strategy"
+    },
+
+    "recent": {
+      "description": "Individual creator's view of recent searches that led to their content or products",
+      "scope": "searches that resulted in a click on the creator's content/product",
+      "display": "table with search term, click count, conversion rate",
+      "creator_value": "SEO optimization — which terms drive traffic to your products"
+    },
+
+    "zero_results": {
+      "description": "Searches that returned no results — marketplace gap signal",
+      "scope": "platform-wide, anonymized",
+      "display": "available to Business and Enterprise tier creators",
+      "creator_value": "Unmet demand signal — create products/content for these terms"
+    }
+  },
+
+  "platform_instrumentation": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Technical analytics infrastructure that powers all dashboards and metrics. PostHog is the target platform per PRD. Nothing is implemented.",
+    "implementation_status": "NOT_IMPLEMENTED",
+
+    "target_platform": "PostHog",
+    "status": "not_implemented",
+    "rationale": "PostHog provides event tracking, session replay, feature flags, and analytics in one platform. Aligns with UMH's PostHog integration.",
+
+    "event_taxonomy": {
+      "description": "Standardized event naming convention for all trackable actions",
+      "convention": "domain.entity.action (e.g., content.post.published, commerce.order.completed, community.post.created)",
+      "core_events": [
+        "content.post.published",
+        "content.post.viewed",
+        "content.post.engaged",
+        "content.post.shared",
+        "commerce.product.viewed",
+        "commerce.order.created",
+        "commerce.order.completed",
+        "commerce.order.refunded",
+        "community.member.joined",
+        "community.post.created",
+        "community.post.replied",
+        "course.lesson.started",
+        "course.lesson.completed",
+        "course.enrolled",
+        "course.completed",
+        "user.profile.viewed",
+        "user.followed",
+        "user.unfollowed",
+        "search.performed",
+        "search.result.clicked",
+        "ugc.campaign.created",
+        "ugc.application.submitted",
+        "ugc.deliverable.submitted",
+        "ugc.deliverable.approved",
+        "ads.impression.served",
+        "ads.click.recorded",
+        "ads.conversion.tracked"
+      ]
+    },
+
+    "properties": {
+      "description": "Standard properties attached to every event for filtering and segmentation",
+      "global_properties": [
+        "user_id",
+        "user_role (creator | consumer)",
+        "session_id",
+        "timestamp",
+        "device_type",
+        "browser",
+        "referrer",
+        "utm_source",
+        "utm_medium",
+        "utm_campaign"
+      ],
+      "creator_properties": [
+        "creator_id",
+        "pricing_tier (free | pro | business | enterprise)",
+        "product_count",
+        "follower_count_bucket"
+      ]
+    },
+
+    "data_pipeline": {
+      "description": "How raw events become dashboard metrics",
+      "stages": [
+        {"stage": "capture", "tool": "PostHog JS SDK (client) + PostHog Node SDK (server)", "description": "Capture events at point of action"},
+        {"stage": "enrich", "tool": "PostHog property enrichment + server-side augmentation", "description": "Add user properties, session context, geo data"},
+        {"stage": "aggregate", "tool": "PostHog insights + custom SQL for complex metrics", "description": "Compute KPIs from raw events"},
+        {"stage": "serve", "tool": "PostHog API + caching layer", "description": "Dashboard queries hit PostHog API with response caching for performance"},
+        {"stage": "export", "tool": "PostHog data warehouse export or direct query", "description": "Scheduled reports and CSV exports pull from aggregated data"}
+      ]
+    }
+  },
+
+  "design_constraints": {
+    "provenance": "SOURCE_PRESERVED_TRUTH",
+    "description": "Dashboard design constraints inherited from CreatorOS design identity",
+    "source": "phase14_6b_creatoros_design_identity_canon.json",
+
+    "style": "X/Twitter-inspired minimalism — clean, fast, functional",
+    "principles": [
+      "Data-dense without clutter — every pixel earns its place",
+      "Monochrome primary with accent color for alerts and CTAs",
+      "Tables over cards for data-heavy views (content list, order history)",
+      "Sparklines inline with metrics for instant trend visibility",
+      "No glassmorphism, no gradients, no decorative elements",
+      "Mobile-first responsive — dashboard must work on phone",
+      "Loading states: skeleton screens, never spinners",
+      "Empty states: actionable guidance, not just 'no data'"
+    ],
+
+    "color_semantics": {
+      "positive_trend": "green (#22C55E or equivalent)",
+      "negative_trend": "red (#EF4444 or equivalent)",
+      "neutral": "muted gray",
+      "accent": "brand primary (TBD — see design identity canon)"
+    },
+
+    "chart_library": {
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "description": "Chart library selection needed. Candidates: Recharts (React-native, lightweight), Chart.js (canvas-based, performant), D3 (maximum flexibility, highest complexity).",
+      "recommendation": "Recharts — best fit for React + TypeScript stack, good defaults, minimal config"
+    }
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-DASH-001",
+      "question": "Should creators be able to build custom dashboards with drag-and-drop widget arrangement?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "context": "Custom dashboards add significant implementation complexity (widget registry, layout persistence, permission scoping). Most creator platforms ship fixed dashboards first.",
+      "recommendation": "Ship fixed dashboard layout for v1. Add custom dashboards in v2 based on creator feedback.",
+      "impact": "HIGH — affects dashboard architecture, component design, and persistence layer"
+    },
+    {
+      "id": "OQ-DASH-002",
+      "question": "Should there be a public API for creators to query their own analytics programmatically?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "context": "API analytics access enables power creators to build custom reports, integrate with external tools (Notion, spreadsheets), and automate reporting. Adds API design and rate-limiting scope.",
+      "recommendation": "Expose read-only analytics API for Business and Enterprise tiers. Rate-limit at 100 requests/hour.",
+      "impact": "MEDIUM — requires API design, auth scoping by tier, rate limiting, documentation"
+    },
+    {
+      "id": "OQ-DASH-003",
+      "question": "Should the platform provide benchmark data so creators can compare their metrics against platform averages?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "context": "Benchmarks are valuable for creators to contextualize their performance (e.g., 'your engagement rate is in the top 20% of creators in your niche'). Requires computing and updating platform-wide aggregates, and deciding granularity (by niche, by tier, by product type).",
+      "recommendation": "Yes, for Pro tier and above. Compute weekly aggregates by product type and creator tier. Show percentile rankings.",
+      "impact": "MEDIUM — requires aggregate computation pipeline, privacy considerations, UI for comparisons"
+    },
+    {
+      "id": "OQ-DASH-004",
+      "question": "What attribution model should be used for content-to-commerce conversion tracking?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "context": "When a consumer views content and later purchases a product, how is that attributed? Options: last-touch (simplest), first-touch, linear (split credit), time-decay. Affects content_to_commerce_rate KPI accuracy.",
+      "recommendation": "Start with last-touch attribution (30-day window). Simplest to implement and explain to creators. Add multi-touch attribution as a Business tier feature later.",
+      "impact": "MEDIUM — affects all commerce analytics accuracy and creator decision-making"
+    },
+    {
+      "id": "OQ-DASH-005",
+      "question": "Should AI-powered insights be surfaced on the dashboard (e.g., 'your engagement drops on Tuesdays' or 'this product converts 3x better with video content')?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "context": "AI insights differentiate from commodity analytics tools. Aligns with UMH intelligence substrate. But adds LLM cost per creator per insight refresh cycle.",
+      "recommendation": "Yes, as a Pro tier feature. Generate weekly insights batch via UMH substrate. Display as 'AI Insights' card on dashboard. Start with 3 insight types: best posting time, top converting content format, churn risk alert.",
+      "impact": "HIGH — differentiating feature, requires UMH integration, LLM cost per creator"
+    }
+  ],
+
+  "implementation_debt": {
+    "provenance": "IMPLEMENTATION_DEBT",
+    "description": "Known implementation gaps and technical debt items specific to analytics and dashboard",
+    "items": [
+      {
+        "id": "DEBT-DASH-001",
+        "description": "No event tracking infrastructure exists. PostHog SDK not installed. Zero analytics events captured.",
+        "severity": "CRITICAL",
+        "blocks": "All analytics views, all KPIs, all real-time metrics"
+      },
+      {
+        "id": "DEBT-DASH-002",
+        "description": "No aggregation layer for computing metrics from raw events. Need materialized views or scheduled aggregation jobs.",
+        "severity": "HIGH",
+        "blocks": "Dashboard performance at scale — raw event queries will be too slow"
+      },
+      {
+        "id": "DEBT-DASH-003",
+        "description": "No real-time transport (WebSocket/SSE) for live dashboard updates.",
+        "severity": "MEDIUM",
+        "blocks": "Real-time metrics, live order feed, active user count"
+      },
+      {
+        "id": "DEBT-DASH-004",
+        "description": "Current dashboard page is a placeholder with hardcoded sample data. No data fetching, no API routes for metrics.",
+        "severity": "HIGH",
+        "blocks": "Any meaningful dashboard functionality"
+      },
+      {
+        "id": "DEBT-DASH-005",
+        "description": "No chart/visualization library installed. Chart rendering is greenfield.",
+        "severity": "MEDIUM",
+        "blocks": "All chart-based visualizations"
+      },
+      {
+        "id": "DEBT-DASH-006",
+        "description": "No scheduled report or export infrastructure. Email delivery system not implemented.",
+        "severity": "LOW",
+        "blocks": "Scheduled reports, export functionality"
+      }
+    ]
+  }
+}

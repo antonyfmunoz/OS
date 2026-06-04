@@ -1,0 +1,625 @@
+{
+  "artifact_id": "EOS-AUTH-SEC-001",
+  "title": "EOS Auth and Security Analysis — Complete Current State and Target Architecture",
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+  "description": "Complete auth and security analysis for EOS: current auth state across all code locations, target auth architecture, RLS implementation, session management, API security posture, data encryption, agent security model, privacy posture, identified vulnerabilities, migration path, and open questions requiring operator decision.",
+  "provenance_detail": "Resolved from direct code inspection of transports/api/http/middleware/auth.ts (header-based org auth), transports/api/http/middleware/operator.ts (operator guard), transports/api/http/db/client.ts (dual-pool RLS architecture with withOrg()), transports/api/http/db/migrate.ts (14-table RLS policies, eos_app role creation), transports/api/http/db/schema.ts (users/orgs/members/approvals schema), transports/api/http/server.ts (route-level auth middleware binding), transports/api/http/package.json (dependency audit), substrate/types.py (PermissionTier 4-tier model, RiskClass, TIER_ACTION_MAP), substrate/control_plane/governance.py (deterministic governance engine), substrate/governance/policy/authority_engine.py (AuthorityEngine with risk classification and approval queuing), phase14_6b_eos_current_implementation_truth.json (Beast branch Clerk state, GitHub main Passport.js state), phase14_6b_eos_governance_permissions_model.json (RBAC+ABAC hybrid model).",
+
+  "current_auth": {
+    "github_main": {
+      "provider": "Passport.js (local strategy) + Firebase (Google OAuth + MFA)",
+      "status": "legacy_stale",
+      "last_commit": "2026-02-20T03:18:51Z",
+      "last_commit_author": "Replit Agent",
+      "details": {
+        "passport_local": "Username/password local strategy",
+        "firebase_google_oauth": "Google OAuth via Firebase Auth",
+        "firebase_mfa": "Multi-factor authentication via Firebase",
+        "session_store": "Express session (likely memory or connect-pg-simple, unverified)",
+        "middleware": "Single monolithic routes.ts with inline auth checks"
+      },
+      "problems": [
+        "Passport.js is stateful session-based — incompatible with serverless/edge deployment",
+        "Firebase Auth adds a second identity provider alongside Passport — split-brain user identity",
+        "No middleware separation — auth logic inline with route handlers",
+        "No org/tenant scoping in auth layer",
+        "No RLS integration",
+        "Replit Agent authored — no manual security review performed",
+        "Stale since Feb 2026 — 4 months of security patches not applied"
+      ],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "beast_branch": {
+      "provider": "Clerk (React + Express)",
+      "status": "target_achieved_in_branch",
+      "branch": "feature/company-system",
+      "file_count": 603,
+      "last_commit": "2026-04-16",
+      "details": {
+        "clerk_react": "ClerkProvider wrapping React app, SignIn/SignUp components",
+        "clerk_express": "clerkMiddleware() on Express backend",
+        "clerk_org": "Clerk organizations for multi-tenant org switching",
+        "middleware_files": [
+          "server/middleware/auth.ts",
+          "server/middleware/clerk-org.ts",
+          "server/middleware/error-handler.ts",
+          "server/middleware/validation.ts"
+        ],
+        "oauth_providers": ["Google (via Clerk)"],
+        "session_handling": "Clerk manages sessions — JWTs, token refresh, device management all delegated",
+        "company_guard": "CompanyGuard React component gates routes until org selected"
+      },
+      "assessment": "Clerk integration is architecturally correct and represents the promotion candidate. It replaces both Passport.js AND Firebase with a single identity provider. Middleware is properly separated. Org context flows through Clerk Organizations.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "umh_platform_layer": {
+      "provider": "Header-based org identity (x-org-id)",
+      "status": "solo_founder_placeholder",
+      "location": "transports/api/http/middleware/auth.ts",
+      "details": {
+        "mechanism": "Client sends x-org-id UUID header. Middleware validates UUID format, checks org exists in DB, sets orgId and userId (derived from org owner) on Hono context.",
+        "operator_guard": "transports/api/http/middleware/operator.ts — verifies context user is org owner, re-validates against DB. Designed to work unchanged when real auth (signed sessions, bearer tokens) replaces the header mechanism.",
+        "protected_routes": [
+          "/organism/*", "/governance", "/governance/*", "/chat/*",
+          "/config", "/config/*", "/execution", "/execution/*",
+          "/settings", "/ide/*", "/observations", "/memory",
+          "/tracking", "/sessions", "/docker", "/workspaces",
+          "/files", "/file"
+        ],
+        "unprotected_routes": ["/health", "/system/*"],
+        "identity_source": "Org ownerId — NOT an independently authenticated user. This is the critical gap: any client that knows a valid org UUID can impersonate the owner.",
+        "framework": "Hono (v4.12.8) on @hono/node-server"
+      },
+      "assessment": "The UMH platform layer currently has NO real authentication. It has authorization (org-scoped, owner-verified) but identity is self-asserted via header. This is acceptable for solo-founder cockpit phase but is a P0 security gap before any multi-user or public deployment.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    }
+  },
+
+  "target_auth": {
+    "provider": "Clerk",
+    "decision_ref": "DEC-145-001",
+    "rationale": "Beast branch already has working Clerk integration. Clerk handles identity, sessions, MFA, OAuth, org management, device sessions. Eliminates need to build or maintain any of these. Single identity provider across SaaS frontend and UMH platform API.",
+    "sso": {
+      "status": "planned_not_implemented",
+      "target": "Clerk Enterprise SSO (SAML/OIDC)",
+      "trigger": "Enterprise plan tier",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "magic_link": {
+      "status": "undefined",
+      "note": "Clerk supports magic links natively. Decision needed: enable as primary passwordless flow or keep as fallback.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    "oauth_providers": {
+      "confirmed": ["Google"],
+      "planned": ["Apple"],
+      "rationale": "Google confirmed via Beast Clerk config. Apple is standard for consumer-facing SaaS. Additional providers (GitHub, Microsoft) are trivial to enable in Clerk dashboard.",
+      "provenance_google": "CODE_RESOLVED_CURRENT_TRUTH",
+      "provenance_apple": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "mfa": {
+      "status": "available_via_clerk",
+      "current": "Firebase MFA on GitHub main (stale)",
+      "target": "Clerk MFA — TOTP and SMS. Enforced for owner/admin tiers.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "session_token_architecture": {
+      "frontend": "Clerk session token (JWT) — short-lived, auto-refreshed by Clerk SDK",
+      "api_calls": "Bearer token in Authorization header — Clerk verifyToken() or clerkMiddleware()",
+      "umh_platform": "Replace x-org-id header with Clerk JWT verification. Extract userId from Clerk token, orgId from Clerk Organization membership. Current operator_guard.ts needs zero changes — only auth.ts identity source changes.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "integration_plan": {
+      "step_1": "Promote Beast branch Clerk implementation as canonical auth",
+      "step_2": "Add @clerk/backend to UMH platform API (transports/api/http/) — verify JWT, extract userId and orgId from Clerk session",
+      "step_3": "Replace x-org-id header mechanism in auth.ts with Clerk token verification",
+      "step_4": "Map Clerk Organization → EOS org_id in platform DB",
+      "step_5": "Remove Passport.js and Firebase dependencies from merged codebase",
+      "step_6": "Configure Clerk webhook to sync user/org creation to platform DB",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "rls": {
+    "current_state": {
+      "status": "implemented_and_enforced",
+      "implementation_file": "transports/api/http/db/migrate.ts",
+      "mechanism": "PostgreSQL RLS policies keyed to app.current_org_id GUC variable",
+      "tenant_tables": [
+        "organizations", "org_members", "ventures", "agents", "skills",
+        "events", "skill_versions", "workflows", "interactions", "outcomes",
+        "human_profiles", "approvals", "embeddings", "user_agent_sessions"
+      ],
+      "tenant_table_count": 14,
+      "policy_pattern": {
+        "organizations": "id = current_setting('app.current_org_id', true)::uuid",
+        "all_others": "org_id = current_setting('app.current_org_id', true)::uuid"
+      },
+      "enforcement": "ALTER TABLE ... ENABLE ROW LEVEL SECURITY + FORCE ROW LEVEL SECURITY on all 14 tables",
+      "role_architecture": {
+        "admin_role": "neondb_owner — BYPASSRLS. Migrations and seeds only.",
+        "app_role": "eos_app — No BYPASSRLS. RLS enforced. All application queries.",
+        "connection_pools": {
+          "admin_pool": "DATABASE_URL env var — neondb_owner credentials",
+          "app_pool": "DATABASE_APP_URL env var — eos_app credentials (falls back to DATABASE_URL if not set)"
+        }
+      },
+      "query_wrapper": {
+        "function": "withOrg(orgId, async (tx) => { ... })",
+        "file": "transports/api/http/db/client.ts",
+        "mechanism": "Opens transaction on app pool, SET LOCAL app.current_org_id, executes callback, commits/rollbacks. Transaction-scoped — never bleeds to other requests.",
+        "fail_closed": "Queries outside withOrg() on appDb return zero rows. By design."
+      },
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "gaps": [
+      {
+        "id": "RLS-GAP-001",
+        "description": "DATABASE_APP_URL fallback to DATABASE_URL means if the env var is not set, all queries run as neondb_owner (BYPASSRLS). RLS is silently disabled.",
+        "severity": "HIGH",
+        "remediation": "Make DATABASE_APP_URL required (throw on missing), or at minimum log a warning when falling back to admin pool.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "id": "RLS-GAP-002",
+        "description": "eos_app role creation in migrate.ts uses placeholder password: 'REPLACE_WITH_STRONG_PASSWORD'. If migration is run without changing this, the app role has a known weak credential.",
+        "severity": "MEDIUM",
+        "remediation": "Read password from environment variable EOS_APP_ROLE_PASSWORD. Fail migration if not set.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "id": "RLS-GAP-003",
+        "description": "auth.ts uses admin db pool (not appDb) for org validation lookup. This is documented as intentional ('neondb_owner bypasses RLS, correct for auth checks') but means the auth middleware itself bypasses tenant isolation.",
+        "severity": "LOW",
+        "remediation": "Acceptable for auth lookup (needs cross-tenant visibility). Document explicitly that admin pool is ONLY used in auth middleware and migration scripts.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "id": "RLS-GAP-004",
+        "description": "users and portfolios tables are NOT in TENANT_TABLES list — they have no RLS policies. User emails and portfolio data are visible across tenants.",
+        "severity": "HIGH",
+        "remediation": "Add org_id to portfolios table (or scope via user_id → org membership join). Users table needs careful design — a user may belong to multiple orgs, so simple org_id RLS does not work. Consider a user_orgs join table with RLS.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      }
+    ],
+    "assessment": "RLS implementation is architecturally sound — dual-pool model, transaction-scoped GUC, FORCE ROW LEVEL SECURITY. The design is correct. The gaps are operational (env var fallback, placeholder password) and coverage (2 tables missing). P1 priority to close before any multi-tenant deployment."
+  },
+
+  "session_management": {
+    "current": {
+      "umh_platform": {
+        "mechanism": "Stateless — no sessions. Each request sends x-org-id header. No session tokens, no cookies, no JWT.",
+        "user_agent_sessions_table": "Exists in schema (user_agent_sessions) but tracks agent session state (which AI agent the user is talking to), NOT authentication sessions.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "github_main": {
+        "mechanism": "Express session (connect-session, likely memory store or pg-simple). Passport.js serializes user to session. Firebase has its own session management.",
+        "problems": ["Dual session systems (Passport + Firebase)", "Memory store does not scale", "No session invalidation on password change"],
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      "beast_branch": {
+        "mechanism": "Clerk-managed sessions. JWT-based. Short-lived access tokens with automatic refresh. Device session management. Multi-session support.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      }
+    },
+    "target": {
+      "mechanism": "Clerk-managed sessions end-to-end",
+      "session_lifecycle": {
+        "creation": "Clerk handles on sign-in (OAuth, password, magic link, SSO)",
+        "storage": "Clerk cloud — no session state in EOS database",
+        "refresh": "Automatic via Clerk SDK (frontend) and @clerk/backend (API)",
+        "invalidation": "Clerk dashboard or API — immediate revocation across all devices",
+        "timeout": "Configurable in Clerk dashboard (idle timeout + absolute timeout)"
+      },
+      "multi_device": "Clerk supports concurrent sessions across devices. Session list visible to user.",
+      "impersonation": "Clerk admin impersonation for support workflows. Logged and auditable.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "api_security": {
+    "rate_limiting": {
+      "current": "none",
+      "evidence": "No rate limiting middleware in server.ts, no rate-limit package in package.json dependencies. Every endpoint is unbounded.",
+      "target": "Hono rate-limiter middleware or external (Cloudflare, Fly.io proxy). Per-org and per-IP limits.",
+      "severity": "HIGH",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "cors": {
+      "current": "not_configured",
+      "evidence": "No CORS middleware in server.ts. No hono/cors import. Hono defaults to no CORS headers — browser cross-origin requests will fail, but server-to-server requests are unrestricted.",
+      "target": "Explicit CORS configuration — allowlist cockpit domain (universalmetaharness.tech), localhost for dev. Deny all others.",
+      "severity": "MEDIUM",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "csrf": {
+      "current": "not_applicable_yet",
+      "evidence": "API is header-authenticated (x-org-id), not cookie-authenticated. CSRF attacks require cookie-based auth. When Clerk JWT is added via cookies (if using Clerk's cookie mode), CSRF protection becomes necessary.",
+      "target": "If Clerk uses Authorization header (Bearer token) — CSRF is not applicable. If Clerk uses cookies — add Hono CSRF middleware or use SameSite=Strict.",
+      "severity": "LOW_CURRENTLY",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "input_validation": {
+      "current": "minimal_ad_hoc",
+      "evidence": "auth.ts validates UUID format for x-org-id. chat/converse validates content is non-empty string. No Zod validation middleware despite zod being in dependencies. Most routes cast req.json() to TypeScript types with 'as' — no runtime validation.",
+      "target": "Zod validation middleware on all POST/PUT/PATCH routes. Zod is already a dependency — wire it into a Hono middleware pattern.",
+      "severity": "MEDIUM",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "error_handling": {
+      "current": "partially_implemented",
+      "evidence": "Global onError handler in server.ts catches unhandled errors, logs them, returns 500 with err.message. Risk: err.message may leak internal details (stack traces, DB errors, file paths) to the client.",
+      "target": "Sanitize error messages in production. Return generic 'Internal Server Error' to client, log full error server-side only.",
+      "severity": "MEDIUM",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "request_size_limits": {
+      "current": "hono_defaults",
+      "evidence": "No explicit body size limit configured. Hono/node-server has default limits but they are generous. Large payloads could cause memory pressure.",
+      "target": "Explicit body size limit (e.g., 1MB for JSON, 10MB for file uploads).",
+      "severity": "LOW",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "security_headers": {
+      "current": "none",
+      "evidence": "No helmet-equivalent middleware. No Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, Strict-Transport-Security headers.",
+      "target": "Add Hono secureHeaders() middleware or equivalent. Critical for browser-facing endpoints.",
+      "severity": "MEDIUM",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    }
+  },
+
+  "data_encryption": {
+    "at_rest": {
+      "provider": "Neon Postgres",
+      "mechanism": "Neon encrypts all data at rest by default (AES-256). No additional application-level encryption.",
+      "assessment": "Sufficient for current stage. Application-level field encryption (e.g., API keys, PII) is a future consideration for enterprise tier.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "in_transit": {
+      "database": "TLS enforced by Neon (sslmode=require in connection strings). WebSocket connections also use TLS via @neondatabase/serverless.",
+      "api": "Depends on deployment. Fly.io provides TLS termination at edge. Local dev is plain HTTP.",
+      "assessment": "TLS coverage is adequate. No plaintext database connections possible (Neon enforces it).",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "application_level": {
+      "current": "none",
+      "sensitive_fields_unencrypted": [
+        "users.email — stored plaintext in DB",
+        "API keys — managed by Clerk (not stored in EOS DB) but any integration API keys (if stored) would be plaintext",
+        "Agent conversation content — stored plaintext in interactions/messages"
+      ],
+      "target": "Field-level encryption for PII (emails, names) and integration credentials. pgcrypto extension is already enabled in migrations — can use pgp_sym_encrypt/decrypt.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    }
+  },
+
+  "agent_security": {
+    "agent_authority_bounds": {
+      "description": "UMH substrate enforces agent authority via a 4-tier permission model (READ < DRAFT < EXECUTE < COMMIT). Each EOS agent has a declared permission_tier that caps what actions it can perform.",
+      "implementation_file": "substrate/types.py — PermissionTier enum, TIER_ACTION_MAP, required_tier_for_action()",
+      "enforcement_file": "substrate/control_plane/governance.py — GovernanceEngine._check_permission_tier()",
+      "authority_engine_file": "substrate/governance/policy/authority_engine.py — AuthorityEngine class",
+      "agent_tiers": {
+        "ceo": "COMMIT — can execute payments, delete records, production deployments",
+        "sales": "EXECUTE — can send DMs, create outreach, book calls",
+        "marketing": "EXECUTE — can post content, send messages, publish",
+        "finance": "EXECUTE — can run bulk updates but NOT execute payments (that requires COMMIT)",
+        "cs": "EXECUTE — customer-facing actions",
+        "hr": "DRAFT — can create tasks and documents, cannot execute externally",
+        "legal": "READ — analysis and research only, no mutations",
+        "ops": "EXECUTE — container execution, desktop automation",
+        "product": "DRAFT — create documents and tasks",
+        "engineering": "EXECUTE — container execution, browser automation"
+      },
+      "risk_classification": {
+        "classes": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE"],
+        "enforcement": "Deterministic-first. GovernanceEngine classifies by keyword/pattern matching before any AI involvement.",
+        "approval_flow": "HIGH and CRITICAL actions are queued for operator approval via AuthorityEngine.queue_for_approval(). CRITICAL actions NEVER auto-execute regardless of autonomy level."
+      },
+      "assessment": "The authority model is well-designed and enforced at the substrate level. Every agent action passes through governance. The tier system prevents privilege escalation — an agent cannot perform actions above its declared tier.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "execution_sandboxing": {
+      "current": "partial",
+      "details": {
+        "browser_actions": "Browser research and browser act are skills on every agent. Execution happens via adapters (browser adapter). No sandbox — the browser runs in the same process/container context.",
+        "container_execution": "EXECUTE tier agents can spawn containers. Container isolation depends on Docker security (namespaces, cgroups) — not application-level sandboxing.",
+        "desktop_automation": "Listed in EXECUTE tier actions. Would run on Beast node via Windows daemon. Sandboxing depends on Windows Service isolation.",
+        "code_execution": "No direct code execution by agents in current implementation. Agent skills are Python functions, not arbitrary code execution."
+      },
+      "gaps": [
+        "No network isolation for agent browser sessions — agents could access internal services",
+        "No resource limits (CPU, memory, time) on individual agent task execution",
+        "No output size limits on agent responses"
+      ],
+      "target": "Per-agent execution environments with resource limits, network policies, and output caps. UMH organism/workcell_protocol.py has workcell isolation patterns that can be extended.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "tool_access_controls": {
+      "current": {
+        "mechanism": "TIER_ACTION_MAP in substrate/types.py maps each permission tier to a frozen set of allowed action strings. required_tier_for_action() determines minimum tier for any action.",
+        "enforcement_point": "GovernanceEngine._check_permission_tier() checks before execution. If caller tier is insufficient, action is blocked.",
+        "granularity": "Action-type level (e.g., 'send_dm', 'execute_payment'). Not per-tool or per-resource.",
+        "audit": "AuthorityEngine records approval requests and decisions. Governance decisions are logged."
+      },
+      "gaps": [
+        "No per-entity tool scoping — a sales agent with EXECUTE can send DMs for ANY entity in the org, not just assigned ones",
+        "No time-based access controls (e.g., no outreach outside business hours)",
+        "No budget/spend limits per agent per action type",
+        "No tool invocation audit trail separate from governance decisions"
+      ],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    }
+  },
+
+  "privacy": {
+    "data_classification": {
+      "status": "not_done",
+      "what_exists": "No formal data classification scheme. No fields marked as PII, sensitive, confidential, or public. Schema has no data_classification column or metadata.",
+      "what_is_needed": "Classify every field in schema as: PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED. PII fields (email, name, conversation content) need CONFIDENTIAL or RESTRICTED classification. This classification drives encryption, retention, export, and deletion policies.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "gdpr": {
+      "status": "not_addressed",
+      "gaps": [
+        "No right to erasure (Article 17) implementation — no user deletion flow",
+        "No data portability (Article 20) — no data export endpoint",
+        "No consent management — no record of what user consented to",
+        "No data processing agreement documentation",
+        "No privacy policy or terms of service in application",
+        "No cookie consent (relevant when Clerk or PostHog uses cookies)",
+        "No Data Protection Officer designation (required if processing at scale)"
+      ],
+      "assessment": "GDPR compliance is entirely unaddressed. For solo-founder phase this is acceptable. Before any EU user signs up, a compliance pass is mandatory.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "ccpa": {
+      "status": "not_addressed",
+      "note": "Similar gaps as GDPR. California Consumer Privacy Act applies if serving CA residents. Right to know, right to delete, right to opt-out of sale. No implementation.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "data_retention": {
+      "status": "undefined",
+      "current": "All data retained indefinitely. No TTL, no archival, no purge policy.",
+      "tables_needing_retention_policy": [
+        "interactions — conversation history grows unbounded",
+        "embeddings — vector data grows with every interaction",
+        "events — event log grows unbounded",
+        "user_agent_sessions — session records never cleaned up",
+        "umh_outcomes — outcome log grows with every trace"
+      ],
+      "target": "Define retention periods per data type. Implement automated archival/purge. Minimum: 90-day active, 1-year archive, then purge (except where legal hold applies).",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    "data_residency": {
+      "status": "undefined",
+      "current": "Neon Postgres region (likely us-east). No data residency controls.",
+      "note": "Enterprise customers may require data to stay in specific regions (EU, US, APAC). Neon supports regional databases. Not relevant until enterprise tier.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  },
+
+  "vulnerabilities": [
+    {
+      "id": "VULN-001",
+      "severity": "CRITICAL",
+      "category": "authentication",
+      "description": "UMH platform API has no real authentication. Any client that knows a valid org UUID can impersonate the org owner by sending x-org-id header. The userId is derived from the org's ownerId, not from an authenticated session.",
+      "affected_file": "transports/api/http/middleware/auth.ts",
+      "remediation": "Replace x-org-id header mechanism with Clerk JWT verification. Extract userId from verified Clerk token. Map Clerk orgId to platform org via DB lookup or Clerk webhook sync.",
+      "timeline": "Before any public or multi-user deployment. Acceptable for solo-founder cockpit phase.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "VULN-002",
+      "severity": "HIGH",
+      "category": "rls_bypass",
+      "description": "DATABASE_APP_URL falls back to DATABASE_URL (admin/BYPASSRLS role) when not set. If deployment misconfigures env vars, all RLS policies are silently bypassed — every query sees all tenant data.",
+      "affected_file": "transports/api/http/db/client.ts (line 41)",
+      "remediation": "Remove fallback. Require DATABASE_APP_URL explicitly. Throw on startup if missing.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "VULN-003",
+      "severity": "HIGH",
+      "category": "rls_coverage",
+      "description": "users and portfolios tables have no RLS policies. In multi-tenant deployment, any org can query any user's email/name and any portfolio data via the app pool.",
+      "affected_file": "transports/api/http/db/migrate.ts (TENANT_TABLES array does not include users or portfolios)",
+      "remediation": "Design cross-tenant user visibility model (users can belong to multiple orgs). Add portfolios to TENANT_TABLES with org_id scoping. For users, consider a membership-based RLS policy.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "VULN-004",
+      "severity": "HIGH",
+      "category": "api_security",
+      "description": "No rate limiting on any endpoint. An attacker (or misconfigured client) can exhaust server resources, flood the database, or abuse AI-powered endpoints (chat/converse) which trigger LLM calls.",
+      "affected_file": "transports/api/http/server.ts",
+      "remediation": "Add rate limiting middleware. Critical endpoints (chat/converse, execution) need strict per-org limits. Health/system endpoints need IP-based limits.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "VULN-005",
+      "severity": "MEDIUM",
+      "category": "information_disclosure",
+      "description": "Global error handler returns err.message to client. Database errors, file path leaks, and stack traces may be exposed in error responses.",
+      "affected_file": "transports/api/http/server.ts (line 53)",
+      "remediation": "In production, return generic error message to client. Log full error server-side. Use NODE_ENV check to control verbosity.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "VULN-006",
+      "severity": "MEDIUM",
+      "category": "credential_management",
+      "description": "eos_app role migration uses hardcoded placeholder password 'REPLACE_WITH_STRONG_PASSWORD'. If migration runs without manual intervention, the DB role has a known weak password.",
+      "affected_file": "transports/api/http/db/migrate.ts (line 102)",
+      "remediation": "Read password from EOS_APP_ROLE_PASSWORD env var. Refuse to create role if env var is not set.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "VULN-007",
+      "severity": "MEDIUM",
+      "category": "input_validation",
+      "description": "Most API routes accept JSON bodies cast to TypeScript types via 'as' without runtime validation. Malformed or malicious payloads pass through to business logic and database queries.",
+      "affected_files": ["transports/api/http/routes/chat.ts", "transports/api/http/routes/organism.ts", "transports/api/http/routes/governance.ts"],
+      "remediation": "Add Zod validation middleware. Zod is already a dependency. Create a withValidation() helper that validates request body against schema before handler runs.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "VULN-008",
+      "severity": "MEDIUM",
+      "category": "security_headers",
+      "description": "No security headers configured. Missing: Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, Strict-Transport-Security, Referrer-Policy, Permissions-Policy.",
+      "affected_file": "transports/api/http/server.ts",
+      "remediation": "Add Hono secureHeaders() middleware from hono/secure-headers.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "id": "VULN-009",
+      "severity": "LOW",
+      "category": "dependency_security",
+      "description": "No automated dependency vulnerability scanning. package.json has 7 runtime dependencies — low surface area, but no CI/CD check for known CVEs.",
+      "affected_file": "transports/api/http/package.json",
+      "remediation": "Add npm audit to CI pipeline. Consider Dependabot or Renovate for automated security updates.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "id": "VULN-010",
+      "severity": "LOW",
+      "category": "agent_security",
+      "description": "No per-entity scoping on agent actions. A sales agent with EXECUTE permission can send outreach for any entity in the org, not just the entity it is assigned to.",
+      "affected_files": ["substrate/types.py (TIER_ACTION_MAP)", "projections/eos/agents/"],
+      "remediation": "Add entity_scope to agent execution context. Governance engine checks entity assignment before permitting action.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    }
+  ],
+
+  "migration_path": {
+    "passport_to_clerk": {
+      "status": "completed_in_beast_branch",
+      "description": "Beast feature/company-system branch has fully replaced Passport.js + Firebase with Clerk. React frontend uses ClerkProvider, SignIn/SignUp. Express backend uses clerkMiddleware(). Clerk Organizations for multi-tenant.",
+      "remaining_work": "Merge Beast branch to main. Remove all Passport.js and Firebase dependencies and dead code from merged result.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    "firebase_cleanup": {
+      "status": "needed_on_merge",
+      "description": "GitHub main has Firebase Auth dependencies (firebase, firebase-admin). These must be removed during Beast-to-main merge. Firebase project can be decommissioned after merge.",
+      "files_to_remove": [
+        "Any firebase.ts / firebase-config.ts configuration files",
+        "Firebase Auth imports in server routes",
+        "Firebase SDK dependencies in package.json",
+        "Firebase environment variables in .env"
+      ],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "umh_platform_clerk_integration": {
+      "status": "not_started",
+      "description": "transports/api/http/ needs @clerk/backend added to verify JWTs from the SaaS frontend. This replaces the x-org-id header mechanism. The operator_guard.ts is already designed to work without changes.",
+      "steps": [
+        "Add @clerk/backend to transports/api/http/package.json",
+        "Create Clerk client initialization (CLERK_SECRET_KEY env var)",
+        "Rewrite auth.ts to verify Bearer token via Clerk, extract userId and orgId",
+        "Add Clerk webhook handler to sync user/org creation to platform DB",
+        "Test: cockpit authenticates via Clerk, platform API validates JWT"
+      ],
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-AUTH-001",
+      "question": "SSO provider selection: Clerk Enterprise SSO supports SAML and OIDC. Which identity providers should be supported at enterprise tier? (Okta, Azure AD, Google Workspace, custom SAML)",
+      "impact": "Determines Clerk plan tier and enterprise pricing",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-AUTH-002",
+      "question": "Magic link authentication: Enable as primary passwordless flow, secondary fallback, or disabled?",
+      "impact": "Affects onboarding flow UX. Magic link reduces friction but some users prefer password.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-AUTH-003",
+      "question": "Enterprise auth features timeline: When do SSO, SCIM provisioning, and audit logs become requirements? Tied to which plan tier or customer size?",
+      "impact": "Determines when Clerk Enterprise plan is needed ($$$) and what infrastructure prep is needed now.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-AUTH-004",
+      "question": "Data residency requirements: Do we need to support EU-only, US-only, or other regional data storage for enterprise customers?",
+      "impact": "Affects database architecture (multi-region Neon), Clerk configuration, and compliance posture.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-AUTH-005",
+      "question": "MFA enforcement policy: Require MFA for all users, only owner/admin, or make it optional with org-level policy?",
+      "impact": "Security vs. friction tradeoff. Recommendation: require for owner/admin, optional for member/viewer.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-AUTH-006",
+      "question": "Agent execution audit retention: How long should agent action logs, governance decisions, and approval records be retained?",
+      "impact": "Compliance, storage costs, and forensic capability. Financial actions may have legal retention requirements.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-AUTH-007",
+      "question": "API key authentication: Should EOS support API key auth for programmatic access (integrations, CI/CD, third-party apps) in addition to Clerk sessions?",
+      "impact": "Determines if we need a separate API key table, rotation mechanism, and scope-limited permissions.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  ],
+
+  "security_posture_summary": {
+    "overall_rating": "DEVELOPMENT_ONLY",
+    "rationale": "The system has strong architectural foundations (RLS, permission tiers, governance engine, dual-pool DB) but lacks the authentication layer that ties it all together. The x-org-id header mechanism means all authorization infrastructure is built on an unauthenticated identity assertion. Once Clerk JWT verification replaces the header, the security posture jumps to PRODUCTION_READY_SINGLE_TENANT. Multi-tenant production requires closing the RLS gaps and adding rate limiting.",
+    "strengths": [
+      "RLS architecture is correct: dual-pool, transaction-scoped, FORCE ROW LEVEL SECURITY on 14 tables",
+      "Permission tier model is well-designed: 4 tiers, cumulative, with explicit action mappings",
+      "Governance engine is deterministic-first: no AI dependency for security decisions",
+      "Authority engine queues HIGH/CRITICAL actions for operator approval",
+      "CRITICAL actions never auto-execute regardless of autonomy level",
+      "Operator guard is pre-designed for real auth integration (zero changes needed)",
+      "Fail-closed design: queries outside withOrg() return zero rows"
+    ],
+    "critical_gaps": [
+      "No real authentication — identity is self-asserted via header",
+      "No rate limiting on any endpoint",
+      "RLS fallback silently disables tenant isolation",
+      "2 tables (users, portfolios) have no RLS policies",
+      "No security headers",
+      "No input validation middleware despite Zod being available"
+    ],
+    "priority_order": [
+      "P0: Replace x-org-id with Clerk JWT verification (VULN-001)",
+      "P0: Make DATABASE_APP_URL required, remove fallback (VULN-002)",
+      "P1: Add rate limiting middleware (VULN-004)",
+      "P1: Add users/portfolios to RLS coverage (VULN-003)",
+      "P1: Sanitize error responses in production (VULN-005)",
+      "P1: Add Zod validation middleware (VULN-007)",
+      "P2: Add security headers (VULN-008)",
+      "P2: Fix eos_app role password (VULN-006)",
+      "P2: Add dependency scanning (VULN-009)",
+      "P3: Per-entity agent scoping (VULN-010)",
+      "P3: Data classification scheme",
+      "P3: GDPR/CCPA compliance pass",
+      "P4: Field-level encryption for PII",
+      "P4: Data retention policies"
+    ]
+  },
+
+  "cross_references": {
+    "governance_model": "phase14_6b_eos_governance_permissions_model.json — RBAC+ABAC hybrid model, permission tier mapping, agent authority ceilings",
+    "current_implementation": "phase14_6b_eos_current_implementation_truth.json — Beast vs GitHub main code state, auth provider details",
+    "communication_architecture": "phase14_6b_eos_communication_delegation_architecture.json — agent delegation chain, EA routing, authority boundaries",
+    "agent_architecture": "phase14_6b_eos_agent_architecture_spec.json — per-agent permission tiers, skill registrations",
+    "onboarding_spec": "phase14_6b_eos_onboarding_first_boot_spec.json — auth flow during first boot, org creation",
+    "api_contract_map": "phase14_6b_eos_api_contract_map.json — route inventory, middleware binding"
+  }
+}

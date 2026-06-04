@@ -1,0 +1,1062 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Automation builder (Manychat-style visual flows), AI utility features, email/newsletter system, and search — with current implementation truth, desired state, and EOS boundary delineation",
+
+  "sources": [
+    "phase14_6b_creatoros_current_implementation_truth.json (schema: ai_agents, ai_chats tables; OpenAI SDK; SendGrid dep; NOT IMPLEMENTED modules: automation, email, search)",
+    "phase14_6b_creatoros_data_ontology.json (column-level schema for ai_agents, ai_chats; missing tables inventory)",
+    "phase14_6b_creatoros_product_types_commerce_canon.json (ai_agent product type, pricing model, entitlement)",
+    "phase14_6b_creatoros_lossless_product_canon.md (Module 11: Automation Builder, Module 12: Email/Newsletter, Workflow 7: Set up automations, Workflow 8: Send email broadcasts)",
+    "phase14_6b_creatoros_design_identity_canon.json (X/Twitter minimalism, clean/fast/functional)",
+    "phase14_6b_creatoros_user_journeys_onboarding.json (creator setup journey)",
+    "CreatorOS_1NIZXMZR.json (Google Doc Tab 3: PRD modules, Tab 8: platform kernel vision with AI runtime + workflow engine)",
+    "shared/schema.ts (GitHub main branch — Drizzle ORM source of truth)"
+  ],
+
+  "automation_builder": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Manychat-style visual flow builder for trigger/action automations. Creators build automations to handle commerce, community, content, email, and schedule events without code. This is a full visual programming environment scoped to creator workflows.",
+    "implementation_status": "NOT_IMPLEMENTED",
+    "implementation_note": "No automation-related pages, components, schema tables, or API routes exist anywhere in the codebase. The PRD names it as Module 11. Workflow 7 ('Set up automations') is listed as NOT IMPLEMENTED.",
+
+    "visual_flow_editor": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Drag-and-drop canvas where creators assemble automation flows from triggers, conditions, and actions. Each flow is a directed acyclic graph (DAG) of nodes connected by edges.",
+      "ui_model": {
+        "canvas_type": "node_graph",
+        "node_types": ["trigger", "condition", "action", "delay", "split"],
+        "connection_type": "directed_edge",
+        "layout": "vertical_top_to_bottom",
+        "design_reference": "X/Twitter minimalism — clean node cards with minimal chrome, monochrome with accent color for active/selected states",
+        "sidebar": "right-panel node property editor, appears on node click",
+        "toolbar": "top bar with save, test, activate/deactivate toggle, name/description"
+      },
+      "flow_model": {
+        "provenance": "SYNTHESIZED_CANON",
+        "entity": "automation_flow",
+        "properties": [
+          {"name": "id", "type": "uuid"},
+          {"name": "creator_id", "type": "integer", "constraints": ["FK -> users.id"]},
+          {"name": "business_id", "type": "uuid", "nullable": true, "constraints": ["FK -> businesses.id"]},
+          {"name": "name", "type": "text", "nullable": false},
+          {"name": "description", "type": "text", "nullable": true},
+          {"name": "trigger_type", "type": "text", "nullable": false},
+          {"name": "trigger_config", "type": "jsonb", "nullable": false, "note": "Trigger-specific parameters (e.g., product_id for purchase triggers, channel_id for community triggers)"},
+          {"name": "nodes", "type": "jsonb", "nullable": false, "note": "Array of node definitions [{id, type, config, position}]"},
+          {"name": "edges", "type": "jsonb", "nullable": false, "note": "Array of edge definitions [{source_node_id, target_node_id, condition_label}]"},
+          {"name": "is_active", "type": "boolean", "default": false},
+          {"name": "last_triggered_at", "type": "timestamp", "nullable": true},
+          {"name": "trigger_count", "type": "integer", "default": 0, "note": "Denormalized total executions"},
+          {"name": "error_count", "type": "integer", "default": 0, "note": "Denormalized total errors"},
+          {"name": "created_at", "type": "timestamp", "default": "now()"},
+          {"name": "updated_at", "type": "timestamp", "default": "now()"}
+        ],
+        "indexes": [
+          {"name": "automation_flow_creator_idx", "columns": ["creator_id"]},
+          {"name": "automation_flow_trigger_type_idx", "columns": ["trigger_type"]},
+          {"name": "automation_flow_active_idx", "columns": ["is_active"]}
+        ]
+      },
+      "execution_log_model": {
+        "provenance": "SYNTHESIZED_CANON",
+        "entity": "automation_execution",
+        "description": "Log of each automation run. One row per trigger event. Tracks which nodes executed, final status, and error details.",
+        "properties": [
+          {"name": "id", "type": "uuid"},
+          {"name": "flow_id", "type": "uuid", "constraints": ["FK -> automation_flows.id"]},
+          {"name": "trigger_event", "type": "jsonb", "note": "Snapshot of the event that triggered this execution"},
+          {"name": "target_user_id", "type": "integer", "nullable": true, "note": "The user the automation acted upon (buyer, new member, etc.)"},
+          {"name": "nodes_executed", "type": "jsonb", "note": "Ordered list of node IDs that ran"},
+          {"name": "status", "type": "text", "note": "completed | failed | partial | cancelled"},
+          {"name": "error_message", "type": "text", "nullable": true},
+          {"name": "started_at", "type": "timestamp"},
+          {"name": "completed_at", "type": "timestamp", "nullable": true},
+          {"name": "duration_ms", "type": "integer", "nullable": true}
+        ],
+        "indexes": [
+          {"name": "automation_exec_flow_idx", "columns": ["flow_id"]},
+          {"name": "automation_exec_status_idx", "columns": ["status"]},
+          {"name": "automation_exec_started_idx", "columns": ["started_at"]}
+        ]
+      }
+    },
+
+    "trigger_types": [
+      {
+        "category": "commerce",
+        "triggers": [
+          {
+            "type": "product_purchased",
+            "description": "Fires when any product (or a specific product) is purchased by a consumer",
+            "parameters": {"product_id": "uuid | null (null = any product)", "product_type": "text | null (filter by type)"},
+            "event_payload": {"buyer_user_id": "integer", "product_id": "uuid", "order_id": "uuid", "amount_cents": "integer", "product_type": "text"},
+            "examples": ["Send thank-you email on any purchase", "Grant community access when course is bought", "Tag buyer with 'customer' label"]
+          },
+          {
+            "type": "subscription_started",
+            "description": "Fires when a recurring subscription begins (membership, community, AI agent)",
+            "parameters": {"product_id": "uuid | null", "tier_id": "uuid | null"},
+            "event_payload": {"subscriber_user_id": "integer", "product_id": "uuid", "tier_id": "uuid", "billing_interval": "monthly | annual"},
+            "examples": ["Welcome sequence for new members", "Grant premium channel access"]
+          },
+          {
+            "type": "subscription_cancelled",
+            "description": "Fires when a subscriber cancels (but before access expires)",
+            "parameters": {"product_id": "uuid | null"},
+            "event_payload": {"subscriber_user_id": "integer", "product_id": "uuid", "cancellation_reason": "text | null", "access_expires_at": "timestamp"},
+            "examples": ["Send win-back sequence", "Survey on cancellation reason", "Notify creator of churn"]
+          },
+          {
+            "type": "refund_requested",
+            "description": "Fires when a buyer requests a refund",
+            "parameters": {"product_id": "uuid | null"},
+            "event_payload": {"buyer_user_id": "integer", "order_id": "uuid", "refund_reason": "text | null"},
+            "examples": ["Route to creator for manual review", "Auto-approve refunds under $10"]
+          },
+          {
+            "type": "cart_abandoned",
+            "description": "Fires when a consumer adds a product to cart but does not complete checkout within a configurable window",
+            "parameters": {"delay_minutes": "integer (default 60)", "product_id": "uuid | null"},
+            "event_payload": {"user_id": "integer", "cart_items": "jsonb", "cart_total_cents": "integer"},
+            "examples": ["Send reminder email after 1 hour", "Offer 10% discount after 24 hours"]
+          }
+        ]
+      },
+      {
+        "category": "community",
+        "triggers": [
+          {
+            "type": "member_joined",
+            "description": "Fires when a user joins a community (free or paid)",
+            "parameters": {"community_id": "uuid | null (null = any community)", "tier_id": "uuid | null"},
+            "event_payload": {"user_id": "integer", "community_id": "uuid", "tier_id": "uuid | null", "joined_at": "timestamp"},
+            "examples": ["Send welcome DM with community rules", "Grant starter role", "Add to onboarding email sequence"]
+          },
+          {
+            "type": "member_left",
+            "description": "Fires when a member leaves or is removed from a community",
+            "parameters": {"community_id": "uuid | null"},
+            "event_payload": {"user_id": "integer", "community_id": "uuid", "reason": "voluntary | kicked | banned | subscription_expired"},
+            "examples": ["Send feedback survey", "Remove role/tags", "Notify moderators"]
+          },
+          {
+            "type": "message_posted",
+            "description": "Fires when a message is posted in a community channel (optionally filtered by channel or keyword)",
+            "parameters": {"community_id": "uuid | null", "channel_id": "uuid | null", "keyword_filter": "text | null"},
+            "event_payload": {"user_id": "integer", "channel_id": "uuid", "message_id": "uuid", "message_text": "text"},
+            "examples": ["Auto-moderate messages containing flagged keywords", "Notify creator when mentioned", "Track engagement metrics"]
+          }
+        ]
+      },
+      {
+        "category": "content",
+        "triggers": [
+          {
+            "type": "post_published",
+            "description": "Fires when the creator publishes a new post",
+            "parameters": {"content_type": "text | null (e.g., article, video, image)"},
+            "event_payload": {"post_id": "integer", "creator_id": "integer", "content_type": "text", "title": "text"},
+            "examples": ["Auto-cross-post to other platforms", "Notify email subscribers", "Share in community announcement channel"]
+          },
+          {
+            "type": "post_milestone",
+            "description": "Fires when a post reaches a like/comment/share threshold",
+            "parameters": {"metric": "likes | comments | shares | saves", "threshold": "integer"},
+            "event_payload": {"post_id": "integer", "metric": "text", "current_value": "integer"},
+            "examples": ["Celebrate 100 likes in community", "Boost post to email list when it hits 50 saves"]
+          },
+          {
+            "type": "new_follower",
+            "description": "Fires when someone follows the creator",
+            "parameters": {},
+            "event_payload": {"follower_user_id": "integer", "creator_id": "integer", "follower_count": "integer"},
+            "examples": ["Send auto-DM to new followers", "Add to 'new followers' email segment"]
+          },
+          {
+            "type": "comment_received",
+            "description": "Fires when a comment is posted on the creator's content",
+            "parameters": {"post_id": "integer | null", "keyword_filter": "text | null"},
+            "event_payload": {"comment_id": "integer", "post_id": "integer", "commenter_user_id": "integer", "comment_text": "text"},
+            "examples": ["Auto-reply to comments on specific posts", "Flag comments containing support keywords"]
+          }
+        ]
+      },
+      {
+        "category": "email",
+        "triggers": [
+          {
+            "type": "email_subscribed",
+            "description": "Fires when a consumer subscribes to the creator's email list",
+            "parameters": {"list_id": "uuid | null"},
+            "event_payload": {"user_id": "integer", "email": "text", "list_id": "uuid", "source": "text"},
+            "examples": ["Start welcome drip sequence", "Send lead magnet download link"]
+          },
+          {
+            "type": "email_link_clicked",
+            "description": "Fires when a subscriber clicks a tracked link in an email",
+            "parameters": {"broadcast_id": "uuid | null", "link_url": "text | null"},
+            "event_payload": {"user_id": "integer", "broadcast_id": "uuid", "link_url": "text", "clicked_at": "timestamp"},
+            "examples": ["Tag subscriber as 'interested in product X'", "Move to sales sequence"]
+          },
+          {
+            "type": "email_unsubscribed",
+            "description": "Fires when a subscriber unsubscribes from an email list",
+            "parameters": {"list_id": "uuid | null"},
+            "event_payload": {"user_id": "integer", "list_id": "uuid", "reason": "text | null"},
+            "examples": ["Send final feedback survey", "Remove from all automation flows", "Update CRM tags"]
+          }
+        ]
+      },
+      {
+        "category": "schedule",
+        "triggers": [
+          {
+            "type": "cron_schedule",
+            "description": "Fires on a recurring cron schedule (daily, weekly, monthly, custom)",
+            "parameters": {"cron_expression": "text", "timezone": "text (default UTC)"},
+            "event_payload": {"scheduled_at": "timestamp", "cron_expression": "text"},
+            "examples": ["Send weekly digest every Monday at 9am", "Monthly analytics report to creator", "Daily engagement check"]
+          },
+          {
+            "type": "date_based",
+            "description": "Fires relative to a stored date (e.g., X days after signup, before subscription renewal)",
+            "parameters": {"date_field": "text (e.g., 'user.created_at', 'subscription.renews_at')", "offset_days": "integer", "direction": "before | after"},
+            "event_payload": {"user_id": "integer", "reference_date": "timestamp", "offset_days": "integer"},
+            "examples": ["Send renewal reminder 3 days before subscription expires", "Check in 7 days after purchase", "Birthday greeting on user's birthday"]
+          }
+        ]
+      }
+    ],
+
+    "action_types": [
+      {
+        "type": "send_email",
+        "description": "Send a templated email to the target user via SendGrid",
+        "parameters": {
+          "template_id": "uuid (references email_templates)",
+          "subject_override": "text | null",
+          "merge_fields": "jsonb (dynamic data injected into template: {{user.name}}, {{product.title}}, etc.)",
+          "delay_minutes": "integer | null (optional delay before sending)"
+        },
+        "dependencies": ["email_templates table", "SendGrid API integration", "verified sender domain"],
+        "examples": ["Send welcome email with creator branding", "Send purchase receipt with download link"]
+      },
+      {
+        "type": "send_dm",
+        "description": "Send a direct message to the target user within CreatorOS messaging",
+        "parameters": {
+          "message_template": "text (supports {{merge_fields}})",
+          "from_user_id": "integer (creator or bot user ID)"
+        },
+        "dependencies": ["direct_messages table", "conversations table"],
+        "examples": ["Welcome DM to new community members", "Support follow-up after purchase"]
+      },
+      {
+        "type": "add_tag",
+        "description": "Add a tag/label to the target user for segmentation and filtering",
+        "parameters": {
+          "tag_name": "text",
+          "tag_category": "text | null (e.g., 'interest', 'lifecycle', 'product')"
+        },
+        "dependencies": ["user_tags table (NOT IMPLEMENTED)"],
+        "examples": ["Tag buyer as 'customer'", "Tag subscriber as 'interested-in-courses'", "Tag churned member as 'win-back-candidate'"]
+      },
+      {
+        "type": "remove_tag",
+        "description": "Remove a tag/label from the target user",
+        "parameters": {
+          "tag_name": "text"
+        },
+        "dependencies": ["user_tags table (NOT IMPLEMENTED)"],
+        "examples": ["Remove 'prospect' tag after purchase", "Remove 'active-member' tag after leaving community"]
+      },
+      {
+        "type": "grant_access",
+        "description": "Grant the target user access to a product, community tier, or content",
+        "parameters": {
+          "entitlement_type": "text (community_access | course_access | download_access | software_access)",
+          "resource_id": "uuid (product_id, community_id, etc.)",
+          "duration": "text | null (perpetual | X_days | until_date)"
+        },
+        "dependencies": ["entitlements table (NOT IMPLEMENTED)", "product-specific access control"],
+        "examples": ["Grant free community access to course buyers", "Give 7-day trial access to premium content"]
+      },
+      {
+        "type": "revoke_access",
+        "description": "Remove the target user's access to a product or community tier",
+        "parameters": {
+          "entitlement_type": "text",
+          "resource_id": "uuid"
+        },
+        "dependencies": ["entitlements table (NOT IMPLEMENTED)"],
+        "examples": ["Revoke community access on subscription cancellation", "Remove course access on refund"]
+      },
+      {
+        "type": "webhook",
+        "description": "Send an HTTP POST to an external URL with the trigger event payload and optional custom data",
+        "parameters": {
+          "url": "text (HTTPS required)",
+          "headers": "jsonb | null (custom headers, e.g., Authorization)",
+          "body_template": "jsonb | null (custom body; if null, sends full event payload)",
+          "retry_count": "integer (default 3)",
+          "timeout_ms": "integer (default 10000)"
+        },
+        "dependencies": [],
+        "examples": ["Notify Zapier on purchase", "Update external CRM on new subscriber", "Trigger fulfillment system for physical products"]
+      },
+      {
+        "type": "wait_delay",
+        "description": "Pause the automation flow for a specified duration before continuing to the next action",
+        "parameters": {
+          "delay_minutes": "integer",
+          "note": "Minimum 1 minute, maximum 43200 (30 days)"
+        },
+        "dependencies": ["job queue / scheduler"],
+        "examples": ["Wait 24 hours before sending follow-up", "Wait 3 days before win-back email"]
+      },
+      {
+        "type": "conditional_split",
+        "description": "Branch the flow based on a condition. Evaluates target user attributes, event data, or tag membership.",
+        "parameters": {
+          "condition": {
+            "field": "text (dot-notation path: user.tag, event.amount_cents, user.created_days_ago)",
+            "operator": "equals | not_equals | greater_than | less_than | contains | not_contains | exists | not_exists",
+            "value": "any"
+          },
+          "true_branch_node_id": "text",
+          "false_branch_node_id": "text"
+        },
+        "dependencies": [],
+        "examples": ["If buyer spent > $100, send VIP welcome; else send standard welcome", "If user has tag 'premium', skip upsell step"]
+      },
+      {
+        "type": "update_user_field",
+        "description": "Update a custom field on the target user's profile (for CRM-style tracking)",
+        "parameters": {
+          "field_name": "text",
+          "field_value": "any"
+        },
+        "dependencies": ["user_custom_fields table (NOT IMPLEMENTED)"],
+        "examples": ["Set lead_score = lead_score + 10", "Set last_purchase_date = now()"]
+      },
+      {
+        "type": "notify_creator",
+        "description": "Send an in-app notification to the creator about the triggered event",
+        "parameters": {
+          "notification_template": "text (supports {{merge_fields}})",
+          "priority": "low | normal | high"
+        },
+        "dependencies": ["notifications table (EXISTS)"],
+        "examples": ["Alert creator when high-value purchase occurs", "Notify when community member count hits milestone"]
+      },
+      {
+        "type": "post_to_channel",
+        "description": "Automatically post a message to a community channel",
+        "parameters": {
+          "channel_id": "uuid",
+          "message_template": "text (supports {{merge_fields}})",
+          "as_user_id": "integer (creator or bot)"
+        },
+        "dependencies": ["channel_messages table (EXISTS)"],
+        "examples": ["Post welcome message in #general when new member joins", "Announce new product in #announcements"]
+      }
+    ],
+
+    "condition_types": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Conditions used in conditional_split actions and as optional guards on any flow node",
+      "operators": [
+        {"operator": "equals", "description": "Exact match", "applicable_types": ["text", "integer", "boolean"]},
+        {"operator": "not_equals", "description": "Not equal", "applicable_types": ["text", "integer", "boolean"]},
+        {"operator": "greater_than", "description": "Numeric comparison", "applicable_types": ["integer", "timestamp"]},
+        {"operator": "less_than", "description": "Numeric comparison", "applicable_types": ["integer", "timestamp"]},
+        {"operator": "contains", "description": "Substring match", "applicable_types": ["text"]},
+        {"operator": "not_contains", "description": "Substring exclusion", "applicable_types": ["text"]},
+        {"operator": "exists", "description": "Field is not null/empty", "applicable_types": ["any"]},
+        {"operator": "not_exists", "description": "Field is null/empty", "applicable_types": ["any"]},
+        {"operator": "in_list", "description": "Value is in a list of values", "applicable_types": ["text", "integer"]},
+        {"operator": "has_tag", "description": "User has a specific tag", "applicable_types": ["tag"]},
+        {"operator": "not_has_tag", "description": "User does not have a specific tag", "applicable_types": ["tag"]}
+      ],
+      "evaluable_fields": [
+        {"path": "user.role", "type": "text", "note": "creator | consumer"},
+        {"path": "user.created_at", "type": "timestamp"},
+        {"path": "user.level", "type": "integer"},
+        {"path": "user.xp_points", "type": "integer"},
+        {"path": "user.tags", "type": "tag[]"},
+        {"path": "user.total_spend_cents", "type": "integer", "note": "Requires orders aggregation (NOT IMPLEMENTED)"},
+        {"path": "user.order_count", "type": "integer", "note": "Requires orders aggregation (NOT IMPLEMENTED)"},
+        {"path": "event.*", "type": "any", "note": "All trigger event payload fields are evaluable"}
+      ]
+    }
+  },
+
+  "automation_templates": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Pre-built automation templates creators can install with one click and customize. Reduces time-to-value for non-technical creators.",
+    "templates": [
+      {
+        "id": "welcome_sequence",
+        "name": "Welcome Email Sequence",
+        "description": "3-email drip sequence sent to new email subscribers over 7 days. Email 1: Welcome + lead magnet. Email 2 (Day 3): Value content + social proof. Email 3 (Day 7): Soft product introduction.",
+        "trigger": {"type": "email_subscribed", "parameters": {}},
+        "nodes": [
+          {"type": "send_email", "label": "Welcome email + lead magnet", "delay_minutes": 0},
+          {"type": "wait_delay", "delay_minutes": 4320},
+          {"type": "send_email", "label": "Value content + testimonials", "delay_minutes": 0},
+          {"type": "wait_delay", "delay_minutes": 5760},
+          {"type": "conditional_split", "condition": "user has_tag 'purchased'", "true_label": "Skip (already customer)", "false_label": "Continue"},
+          {"type": "send_email", "label": "Product introduction + offer", "delay_minutes": 0}
+        ],
+        "category": "email",
+        "estimated_setup_minutes": 15
+      },
+      {
+        "id": "purchase_followup",
+        "name": "Purchase Follow-Up",
+        "description": "Post-purchase nurture: immediate thank-you email, Day 3 check-in asking for feedback, Day 7 request for review/testimonial, Day 14 cross-sell recommendation.",
+        "trigger": {"type": "product_purchased", "parameters": {}},
+        "nodes": [
+          {"type": "add_tag", "tag": "customer"},
+          {"type": "send_email", "label": "Thank you + receipt + getting started", "delay_minutes": 0},
+          {"type": "notify_creator", "label": "New sale notification", "delay_minutes": 0},
+          {"type": "wait_delay", "delay_minutes": 4320},
+          {"type": "send_email", "label": "How's it going? Feedback request", "delay_minutes": 0},
+          {"type": "wait_delay", "delay_minutes": 5760},
+          {"type": "send_email", "label": "Review/testimonial request", "delay_minutes": 0},
+          {"type": "wait_delay", "delay_minutes": 10080},
+          {"type": "send_email", "label": "Related product recommendation", "delay_minutes": 0}
+        ],
+        "category": "commerce",
+        "estimated_setup_minutes": 20
+      },
+      {
+        "id": "community_onboarding",
+        "name": "Community Member Onboarding",
+        "description": "Automated onboarding for new community members: welcome DM with rules and getting-started guide, post introduction prompt in #introductions channel, grant starter role after first post.",
+        "trigger": {"type": "member_joined", "parameters": {}},
+        "nodes": [
+          {"type": "send_dm", "label": "Welcome DM with community rules + guide"},
+          {"type": "post_to_channel", "label": "Post welcome card in #introductions"},
+          {"type": "add_tag", "tag": "new-member"},
+          {"type": "wait_delay", "delay_minutes": 1440},
+          {"type": "conditional_split", "condition": "user has_tag 'first-post'", "true_label": "Grant active role", "false_label": "Send nudge DM"},
+          {"type": "send_dm", "label": "Nudge: introduce yourself in #introductions"}
+        ],
+        "category": "community",
+        "estimated_setup_minutes": 10
+      },
+      {
+        "id": "content_reminder",
+        "name": "Content Publishing Reminder",
+        "description": "Weekly cron-triggered reminder to the creator to publish content. Includes engagement stats from the previous week as motivation.",
+        "trigger": {"type": "cron_schedule", "parameters": {"cron_expression": "0 9 * * 1", "timezone": "creator_local"}},
+        "nodes": [
+          {"type": "notify_creator", "label": "Weekly content reminder with last week's stats"}
+        ],
+        "category": "schedule",
+        "estimated_setup_minutes": 2
+      },
+      {
+        "id": "win_back_churned",
+        "name": "Win-Back Churned Subscribers",
+        "description": "Triggered on subscription cancellation. Sends a cancellation survey immediately, a value-recap email after 3 days, and a discount offer after 7 days.",
+        "trigger": {"type": "subscription_cancelled", "parameters": {}},
+        "nodes": [
+          {"type": "add_tag", "tag": "churned"},
+          {"type": "send_email", "label": "Sorry to see you go + cancellation survey", "delay_minutes": 0},
+          {"type": "wait_delay", "delay_minutes": 4320},
+          {"type": "send_email", "label": "Here's what you'll miss (value recap)", "delay_minutes": 0},
+          {"type": "wait_delay", "delay_minutes": 5760},
+          {"type": "conditional_split", "condition": "user not_has_tag 'resubscribed'", "true_label": "Send discount offer", "false_label": "Skip (re-engaged)"},
+          {"type": "send_email", "label": "Come back: 20% off for 3 months", "delay_minutes": 0}
+        ],
+        "category": "commerce",
+        "estimated_setup_minutes": 15
+      },
+      {
+        "id": "abandoned_cart_recovery",
+        "name": "Abandoned Cart Recovery",
+        "description": "Triggered when a consumer abandons their cart. Sends reminder after 1 hour and a discount offer after 24 hours if still not converted.",
+        "trigger": {"type": "cart_abandoned", "parameters": {"delay_minutes": 60}},
+        "nodes": [
+          {"type": "send_email", "label": "You left something behind (cart reminder)", "delay_minutes": 0},
+          {"type": "wait_delay", "delay_minutes": 1380},
+          {"type": "conditional_split", "condition": "user has_tag 'purchased'", "true_label": "Skip (converted)", "false_label": "Send discount"},
+          {"type": "send_email", "label": "Still interested? Here's 10% off", "delay_minutes": 0}
+        ],
+        "category": "commerce",
+        "estimated_setup_minutes": 10
+      }
+    ]
+  },
+
+  "ai_features": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "CreatorOS AI is UTILITY-LEVEL, not agent-level. AI assists the human creator with content creation, scheduling, recommendations, and moderation. The creator is always in control. AI never acts autonomously on business decisions.",
+
+    "boundary_principle": "AI as tool, not agent. Every AI feature has a human approval step before any external-facing action. AI suggests, creator approves.",
+
+    "content_suggestions": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "AI-powered content idea generation based on creator's niche, audience demographics, trending topics, and past performance data. Generates post drafts, titles, captions, and hashtag sets.",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "inputs": ["creator_niche", "past_post_performance", "audience_demographics", "trending_topics", "creator_voice_samples"],
+      "outputs": ["content_ideas_list", "draft_post_text", "suggested_titles", "hashtag_sets", "optimal_format_recommendation"],
+      "model_requirements": "General-purpose LLM (GPT-4o-mini or equivalent). Low token usage per request. No fine-tuning required.",
+      "user_flow": "Creator opens content studio -> clicks 'Get AI suggestions' -> AI generates 3-5 ideas -> creator picks one -> AI drafts post -> creator edits and publishes",
+      "cost_model": "Per-request to LLM API. Estimated $0.001-0.01 per suggestion batch. Included in Pro tier; limited on Free tier.",
+      "current_code_note": "OpenAI SDK (openai 4.91.1) is a dependency. Basic chat completion exists in AI agent feature. No content suggestion UI or API endpoint."
+    },
+
+    "smart_scheduling": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "AI analyzes historical engagement data to recommend optimal posting times per platform. Accounts for audience timezone distribution, day-of-week patterns, and content type performance.",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "inputs": ["historical_post_timestamps", "engagement_metrics_per_post", "audience_timezone_distribution", "platform_type"],
+      "outputs": ["recommended_publish_time", "confidence_score", "reasoning_text"],
+      "model_requirements": "Can be deterministic (statistical analysis) with AI enhancement for explanation. Does not require LLM for core scheduling — regression/heuristic model is sufficient.",
+      "deterministic_fallback": "Default to platform best-practice times (e.g., Instagram: 10am-2pm local, Twitter: 8am-10am local) when insufficient historical data. This is the spine.",
+      "user_flow": "Creator schedules post -> AI recommends 'Best time: Tuesday 10:30am (your audience is 73% US Eastern)' -> creator accepts or overrides",
+      "current_code_note": "No scheduling UI, no calendar component, no engagement analytics aggregation."
+    },
+
+    "audience_insights": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "AI-generated audience analysis: demographic breakdowns, engagement patterns, growth trends, content preference signals. Summarized in natural language with charts.",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "inputs": ["follower_demographics", "engagement_history", "content_type_performance", "growth_rate_data"],
+      "outputs": ["audience_summary_text", "top_performing_content_types", "growth_trend_analysis", "engagement_rate_benchmarks", "segment_recommendations"],
+      "model_requirements": "Statistical analysis layer (deterministic) + LLM for natural language summary. Heavy lifting is SQL aggregation, not AI.",
+      "deterministic_fallback": "Raw metric dashboards with numbers and charts. AI adds the narrative layer ('Your audience grew 12% this week, driven by your tutorial posts').",
+      "current_code_note": "No analytics dashboard beyond basic revenue numbers. No follower demographic tracking in schema."
+    },
+
+    "auto_moderation": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "AI-assisted content moderation for community channels and comments. Detects spam, hate speech, self-promotion, and policy violations. Flags for human review (never auto-removes without creator policy).",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "tiers": [
+        {"level": "deterministic", "method": "Keyword blocklist + regex patterns + rate limiting", "action": "Auto-flag or auto-hide based on creator's policy", "note": "This is the spine — always active, zero AI cost"},
+        {"level": "ai_enhanced", "method": "LLM classification of flagged content for context-aware judgment", "action": "Reclassify false positives, detect subtle policy violations", "note": "Only invoked for content that passes deterministic layer but has low confidence"}
+      ],
+      "creator_controls": {
+        "sensitivity_level": "low | medium | high | custom",
+        "auto_actions": ["flag_for_review", "auto_hide", "auto_delete", "mute_user", "warn_user"],
+        "custom_rules": "Creator-defined keyword lists and regex patterns",
+        "appeal_flow": "Moderated users can appeal; creator reviews and overrides"
+      },
+      "current_code_note": "No moderation UI, no moderation table in schema. Module 16 (Moderation) listed as NOT IMPLEMENTED."
+    },
+
+    "ai_search": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Unified search across all creator content, products, communities, and profiles with AI-enhanced ranking and typo tolerance.",
+      "implementation_status": "NOT_IMPLEMENTED",
+      "search_domains": [
+        {"domain": "content", "searchable_fields": ["title", "body", "tags", "creator_name"], "entity": "posts"},
+        {"domain": "products", "searchable_fields": ["title", "description", "category", "creator_name"], "entity": "products"},
+        {"domain": "communities", "searchable_fields": ["name", "description", "category"], "entity": "communities"},
+        {"domain": "creators", "searchable_fields": ["display_name", "bio", "niche_tags"], "entity": "users (role=creator)"},
+        {"domain": "messages", "searchable_fields": ["message_text"], "entity": "channel_messages, direct_messages", "note": "Scoped to user's accessible conversations only"}
+      ],
+      "approach": {
+        "deterministic_layer": "PostgreSQL full-text search (tsvector/tsquery) for keyword matching. This is the spine.",
+        "ai_enhancement": "Optional semantic search via embeddings for 'related content' and 'you might also like' features. Not required for MVP.",
+        "ranking": "Recency + relevance + creator authority score (follower count, engagement rate)"
+      },
+      "current_code_note": "No search UI, no search API endpoint, no full-text indexes in schema."
+    }
+  },
+
+  "ai_vs_eos_boundary": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Clear delineation between EOS agent architecture and CreatorOS AI utility features. These are fundamentally different paradigms.",
+
+    "eos_agent_system": {
+      "description": "EOS has a full autonomous agent framework: CEO agent, specialized sub-agents, task delegation, authority engine, governance, spine execution pipeline, multi-model intelligence routing, and recursive self-improvement. Agents can reason, plan, and execute multi-step workflows autonomously within governance bounds.",
+      "capabilities": [
+        "Autonomous task execution (spine.py 8-stage pipeline)",
+        "Multi-agent delegation (CEO -> specialist agents)",
+        "Authority-gated governance (risk classification, approval flows)",
+        "Intelligence routing across providers (cc_sdk -> Gemini -> Groq -> Ollama)",
+        "Memory and learning (trace recording, feedback loops, quality scoring)",
+        "Self-directed work (cognitive_loop, organism coordination)"
+      ],
+      "integration_model": "UMH substrate — agents ARE the system"
+    },
+
+    "creatoros_ai_system": {
+      "description": "CreatorOS uses AI as a utility/assistant layer. AI generates suggestions, the human creator decides. No autonomous execution. No agent identity. No delegation. AI is a tool in the creator's toolkit, like a calculator or spell checker — powerful but always human-driven.",
+      "capabilities": [
+        "Content idea generation (LLM-powered brainstorming)",
+        "Post draft writing (creator edits before publishing)",
+        "Scheduling recommendations (statistical + LLM explanation)",
+        "Audience insight summaries (SQL aggregation + LLM narrative)",
+        "Content moderation assistance (deterministic spine + AI enhancement)",
+        "Search ranking (full-text search + optional semantic layer)",
+        "AI agent product type (creator builds chatbots for their audience)"
+      ],
+      "integration_model": "API calls to LLM providers. No substrate integration. No agent framework. AI is stateless per-request unless chat history is explicitly stored."
+    },
+
+    "key_differences": [
+      {"dimension": "Autonomy", "eos": "Agents act autonomously within governance bounds", "creatoros": "AI only acts when creator explicitly requests; never autonomous"},
+      {"dimension": "Identity", "eos": "Named agents with soul documents, roles, and authority domains", "creatoros": "Anonymous utility functions — no agent identity"},
+      {"dimension": "Decision making", "eos": "Agents make and execute decisions (with risk classification)", "creatoros": "AI suggests, creator decides. Always human-in-the-loop."},
+      {"dimension": "Memory", "eos": "Persistent memory, learning loops, trace recording", "creatoros": "Stateless per-request (except AI agent chat history stored in ai_chats.messages JSON)"},
+      {"dimension": "Multi-agent", "eos": "CEO agent delegates to specialist sub-agents", "creatoros": "No agent hierarchy. Single LLM call per feature."},
+      {"dimension": "Governance", "eos": "Full governance: risk classes, authority engine, accountability", "creatoros": "No governance layer. Creator is the only authority."},
+      {"dimension": "Model routing", "eos": "call_with_fallback() across 4+ providers with escalation", "creatoros": "Direct OpenAI SDK call. Single provider. No fallback chain."},
+      {"dimension": "Cost model", "eos": "Per-agent-call via subscription (cc_sdk) or API keys", "creatoros": "Per-feature-request. Costs passed through or absorbed in tier pricing."}
+    ],
+
+    "overlap_area": {
+      "description": "The AI agent product type is the one area where both systems touch AI chatbot functionality. EOS has multi-provider, governance-wrapped agents. CreatorOS has simple OpenAI-powered chatbots creators sell to consumers. These must NOT be conflated.",
+      "eos_agents": "Internal business operations agents — they work FOR the entrepreneur",
+      "creatoros_agents": "Sellable AI chatbot products — creators BUILD them, consumers USE them. No governance, no authority, no autonomous action."
+    }
+  },
+
+  "email_newsletter": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Email broadcast and newsletter system. Creators manage subscriber lists, design emails with templates, send broadcasts, and view analytics. Deeply integrated with automation builder for drip sequences and event-triggered emails.",
+    "implementation_status": "NOT_IMPLEMENTED",
+    "implementation_note": "SendGrid SDK (@sendgrid/mail 8.1.4) is a dependency in package.json but no email-related UI, API endpoints, or schema tables exist. Module 12 (Email/Newsletter) is listed as NOT IMPLEMENTED. Workflow 8 ('Send email broadcasts') is NOT IMPLEMENTED.",
+
+    "list_management": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Subscriber list management with segmentation, tags, and import/export. Each creator can have multiple lists. Subscribers can belong to multiple lists.",
+      "schema_model": {
+        "tables": [
+          {
+            "name": "email_lists",
+            "status": "NOT_IMPLEMENTED",
+            "columns": [
+              {"name": "id", "type": "uuid"},
+              {"name": "creator_id", "type": "integer", "constraints": ["FK -> users.id"]},
+              {"name": "name", "type": "text", "nullable": false},
+              {"name": "description", "type": "text", "nullable": true},
+              {"name": "subscriber_count", "type": "integer", "default": 0, "note": "Denormalized"},
+              {"name": "is_default", "type": "boolean", "default": false, "note": "One default list per creator"},
+              {"name": "double_opt_in", "type": "boolean", "default": true},
+              {"name": "created_at", "type": "timestamp"},
+              {"name": "updated_at", "type": "timestamp"}
+            ]
+          },
+          {
+            "name": "email_subscribers",
+            "status": "NOT_IMPLEMENTED",
+            "columns": [
+              {"name": "id", "type": "uuid"},
+              {"name": "list_id", "type": "uuid", "constraints": ["FK -> email_lists.id"]},
+              {"name": "user_id", "type": "integer", "nullable": true, "constraints": ["FK -> users.id"], "note": "Null for non-registered subscribers (email-only)"},
+              {"name": "email", "type": "text", "nullable": false},
+              {"name": "status", "type": "text", "note": "active | unsubscribed | bounced | complained"},
+              {"name": "source", "type": "text", "note": "signup_form | import | purchase | community_join | manual"},
+              {"name": "subscribed_at", "type": "timestamp"},
+              {"name": "unsubscribed_at", "type": "timestamp", "nullable": true}
+            ],
+            "indexes": [
+              {"name": "email_sub_list_email_unique", "columns": ["list_id", "email"], "type": "UNIQUE"},
+              {"name": "email_sub_status_idx", "columns": ["status"]}
+            ]
+          }
+        ]
+      },
+      "features": [
+        "Create multiple lists per creator",
+        "Subscriber import via CSV",
+        "Subscriber export for portability",
+        "Tag-based segmentation within lists",
+        "Double opt-in flow with confirmation email",
+        "Automatic bounce and complaint handling",
+        "Embeddable signup forms for external sites"
+      ]
+    },
+
+    "templates": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Email template system for branded, reusable email designs. WYSIWYG editor with drag-and-drop blocks.",
+      "schema_model": {
+        "table": "email_templates",
+        "status": "NOT_IMPLEMENTED",
+        "columns": [
+          {"name": "id", "type": "uuid"},
+          {"name": "creator_id", "type": "integer", "constraints": ["FK -> users.id"]},
+          {"name": "name", "type": "text", "nullable": false},
+          {"name": "subject_line", "type": "text", "nullable": false},
+          {"name": "html_content", "type": "text", "nullable": false, "note": "Rendered HTML with {{merge_field}} placeholders"},
+          {"name": "json_design", "type": "jsonb", "nullable": false, "note": "Editor state for re-editing (block tree structure)"},
+          {"name": "plain_text_content", "type": "text", "nullable": true, "note": "Auto-generated from HTML for text-only clients"},
+          {"name": "thumbnail_url", "type": "text", "nullable": true, "note": "Preview image for template gallery"},
+          {"name": "category", "type": "text", "note": "welcome | newsletter | promotion | receipt | notification | custom"},
+          {"name": "is_system", "type": "boolean", "default": false, "note": "System templates (receipts, confirmations) cannot be deleted"},
+          {"name": "created_at", "type": "timestamp"},
+          {"name": "updated_at", "type": "timestamp"}
+        ]
+      },
+      "merge_fields": [
+        {"field": "{{user.name}}", "description": "Subscriber's display name"},
+        {"field": "{{user.email}}", "description": "Subscriber's email address"},
+        {"field": "{{creator.name}}", "description": "Creator's display name"},
+        {"field": "{{product.title}}", "description": "Product name (for purchase-triggered emails)"},
+        {"field": "{{product.price}}", "description": "Formatted product price"},
+        {"field": "{{order.id}}", "description": "Order reference number"},
+        {"field": "{{unsubscribe_url}}", "description": "One-click unsubscribe link (CAN-SPAM required)"},
+        {"field": "{{community.name}}", "description": "Community name (for community-triggered emails)"}
+      ]
+    },
+
+    "broadcasts": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "One-time email sends to a list or segment. Creator composes, previews, and either sends immediately or schedules for a future time.",
+      "schema_model": {
+        "table": "email_broadcasts",
+        "status": "NOT_IMPLEMENTED",
+        "columns": [
+          {"name": "id", "type": "uuid"},
+          {"name": "creator_id", "type": "integer", "constraints": ["FK -> users.id"]},
+          {"name": "template_id", "type": "uuid", "nullable": true, "constraints": ["FK -> email_templates.id"]},
+          {"name": "list_id", "type": "uuid", "constraints": ["FK -> email_lists.id"]},
+          {"name": "subject", "type": "text", "nullable": false},
+          {"name": "html_content", "type": "text", "nullable": false},
+          {"name": "segment_filter", "type": "jsonb", "nullable": true, "note": "Optional filter to target a subset of the list (by tags, activity, etc.)"},
+          {"name": "status", "type": "text", "note": "draft | scheduled | sending | sent | failed"},
+          {"name": "scheduled_at", "type": "timestamp", "nullable": true},
+          {"name": "sent_at", "type": "timestamp", "nullable": true},
+          {"name": "recipient_count", "type": "integer", "nullable": true},
+          {"name": "open_count", "type": "integer", "default": 0},
+          {"name": "click_count", "type": "integer", "default": 0},
+          {"name": "bounce_count", "type": "integer", "default": 0},
+          {"name": "unsubscribe_count", "type": "integer", "default": 0},
+          {"name": "created_at", "type": "timestamp"},
+          {"name": "updated_at", "type": "timestamp"}
+        ]
+      },
+      "workflow": [
+        "Creator opens Newsletter -> clicks 'New Broadcast'",
+        "Selects list (or segment within list)",
+        "Chooses template or starts from scratch",
+        "Edits content in WYSIWYG editor",
+        "Previews (desktop + mobile views)",
+        "Sends test email to self",
+        "Schedules or sends immediately",
+        "Tracks opens, clicks, bounces, unsubscribes in analytics"
+      ]
+    },
+
+    "analytics": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Per-broadcast and aggregate email analytics. Open rates, click rates, bounce rates, unsubscribe rates, best-performing subject lines.",
+      "metrics": [
+        {"name": "open_rate", "formula": "open_count / recipient_count", "benchmark": "20-25% is good for creator newsletters"},
+        {"name": "click_rate", "formula": "click_count / open_count", "benchmark": "2-5% is good"},
+        {"name": "bounce_rate", "formula": "bounce_count / recipient_count", "benchmark": "< 2% is healthy"},
+        {"name": "unsubscribe_rate", "formula": "unsubscribe_count / recipient_count", "benchmark": "< 0.5% is healthy"},
+        {"name": "list_growth_rate", "formula": "(new_subscribers - unsubscribes) / total_subscribers per period"}
+      ],
+      "tracking_method": "SendGrid webhook events (open, click, bounce, unsubscribe, spam_report) -> stored per broadcast"
+    },
+
+    "automation_integration": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Email is the primary action channel for automations. The automation builder's send_email action type references email_templates and targets email_subscribers. All drip sequences are automation flows with wait_delay + send_email action chains.",
+      "connection_points": [
+        "automation send_email action -> email_templates for content",
+        "automation email_subscribed trigger -> email_subscribers table",
+        "automation email_link_clicked trigger -> broadcast click tracking",
+        "automation add_tag action -> subscriber segmentation",
+        "broadcast scheduling -> same job queue as automation delays"
+      ]
+    },
+
+    "compliance": {
+      "provenance": "SYNTHESIZED_CANON",
+      "description": "Email compliance requirements that are non-negotiable for any email sending feature.",
+      "requirements": [
+        {"regulation": "CAN-SPAM", "requirement": "Unsubscribe link in every email, physical mailing address, no misleading headers", "implementation": "{{unsubscribe_url}} merge field required in all templates; address from creator profile"},
+        {"regulation": "GDPR", "requirement": "Double opt-in for EU subscribers, right to deletion, data export", "implementation": "double_opt_in flag on email_lists; subscriber deletion cascade; CSV export"},
+        {"regulation": "CASL", "requirement": "Express consent required for Canadian recipients", "implementation": "Same double opt-in mechanism as GDPR"}
+      ]
+    }
+  },
+
+  "search": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Unified search system spanning all content types in CreatorOS. Deterministic full-text search spine with optional AI-enhanced semantic layer.",
+    "implementation_status": "NOT_IMPLEMENTED",
+    "implementation_note": "No search UI, no search API endpoints, no full-text search indexes in schema.ts. The explore page has manual browsing but no search input.",
+
+    "content_search": {
+      "description": "Search across posts, articles, and stories by title, body text, tags, and creator name",
+      "tables": ["posts", "stories"],
+      "index_strategy": "tsvector column on posts (title || ' ' || body) with GIN index",
+      "ranking_factors": ["text_relevance", "recency", "engagement_score", "creator_authority"],
+      "filters": ["content_type", "date_range", "creator_id", "min_engagement"]
+    },
+
+    "product_search": {
+      "description": "Search across all product types by title, description, category, and creator",
+      "tables": ["products"],
+      "index_strategy": "tsvector column on products (title || ' ' || description || ' ' || category) with GIN index",
+      "ranking_factors": ["text_relevance", "rating", "review_count", "price_range", "creator_authority"],
+      "filters": ["product_type", "price_range", "rating_min", "category", "creator_id"]
+    },
+
+    "community_search": {
+      "description": "Search across community names, descriptions, and categories",
+      "tables": ["communities"],
+      "index_strategy": "tsvector column on communities (name || ' ' || description) with GIN index",
+      "ranking_factors": ["text_relevance", "member_count", "activity_level"],
+      "filters": ["visibility", "category", "member_count_range"]
+    },
+
+    "creator_discovery": {
+      "description": "Search and discover creators by display name, bio, niche, and content focus",
+      "tables": ["users (where role = 'creator')"],
+      "index_strategy": "tsvector column on users (display_name || ' ' || bio) with GIN index, filtered for role = 'creator'",
+      "ranking_factors": ["text_relevance", "follower_count", "content_frequency", "engagement_rate"],
+      "filters": ["niche_category", "follower_count_range", "content_type_focus"]
+    },
+
+    "message_search": {
+      "description": "Search within community channel messages and direct messages, scoped to user's accessible conversations",
+      "tables": ["channel_messages", "direct_messages"],
+      "access_control": "User can only search messages in communities they belong to and DMs they are a participant in",
+      "index_strategy": "tsvector on message content with GIN index; access control via JOIN to community_members / conversation_participants",
+      "ranking_factors": ["text_relevance", "recency"],
+      "filters": ["community_id", "channel_id", "conversation_id", "date_range", "sender_id"]
+    },
+
+    "api_design": {
+      "provenance": "SYNTHESIZED_CANON",
+      "endpoint": "GET /api/search",
+      "query_params": {
+        "q": "text (search query, required)",
+        "domain": "text (content | products | communities | creators | messages | all)",
+        "filters": "jsonb (domain-specific filters)",
+        "page": "integer (default 1)",
+        "limit": "integer (default 20, max 50)",
+        "sort": "relevance | recent | popular"
+      },
+      "response": {
+        "results": "[{domain, id, title, snippet, score, metadata}]",
+        "total_count": "integer",
+        "facets": "{domain_counts: {content: N, products: N, ...}}"
+      }
+    }
+  },
+
+  "current_code": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "description": "What actually exists in the codebase today for automation, AI, email, and search functionality.",
+
+    "automation": {
+      "status": "NOT_IMPLEMENTED",
+      "files": [],
+      "tables": [],
+      "routes": [],
+      "components": [],
+      "note": "Zero automation code exists. Not a single file, table, route, or component."
+    },
+
+    "ai": {
+      "status": "PARTIAL",
+      "dependencies": ["openai 4.91.1 (package.json)"],
+      "env_vars": ["OPENAI_API_KEY"],
+      "tables": [
+        {
+          "name": "ai_agents",
+          "columns": ["id (serial PK)", "user_id (FK users)", "name", "description", "icon", "icon_color", "background_color", "system_prompt", "is_custom (default false)", "created_at", "chat_count (default 0)", "status (default 'active')"],
+          "note": "No model_id, no temperature, no max_tokens, no token limit, no pricing fields"
+        },
+        {
+          "name": "ai_chats",
+          "columns": ["id (serial PK)", "agent_id (FK ai_agents CASCADE)", "user_id (FK users CASCADE)", "messages (json NOT NULL)", "created_at", "updated_at"],
+          "note": "Messages stored as JSON blob — not queryable, not indexable, no per-message metadata, no title/summary field"
+        }
+      ],
+      "pages": ["pages/ai.tsx — AI agent interface"],
+      "components": ["AgentCard", "ChatInterface"],
+      "routes": ["AI agent CRUD", "AI chat endpoints"],
+      "what_works": "Creator can create AI agents with custom system prompts and visual styling. Users can chat with agents via ChatInterface. Messages stored as JSON blob in ai_chats.",
+      "what_is_missing": [
+        "No model selection (hardcoded to OpenAI)",
+        "No temperature/max_tokens configuration",
+        "No token usage tracking",
+        "No pricing/billing for AI access",
+        "No knowledge base attachment",
+        "No agent marketplace (buying/selling agents)",
+        "No agent analytics (usage stats, popular queries)",
+        "No rate limiting per user",
+        "No streaming responses"
+      ]
+    },
+
+    "email": {
+      "status": "DEPENDENCY_ONLY",
+      "dependencies": ["@sendgrid/mail 8.1.4 (package.json)"],
+      "tables": [],
+      "routes": [],
+      "components": [],
+      "note": "SendGrid SDK is installed but no email UI, no email tables, no email routes, no newsletter components exist. The SDK is likely imported for transactional emails (account verification, etc.) but even that is unconfirmed."
+    },
+
+    "search": {
+      "status": "NOT_IMPLEMENTED",
+      "tables": [],
+      "routes": [],
+      "components": [],
+      "indexes": [],
+      "note": "No search functionality exists anywhere. The explore page provides manual browsing (scroll/filter) but no text search input, no search API endpoint, no full-text indexes in the database."
+    }
+  },
+
+  "missing_schema_tables": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Complete list of new database tables required to implement automation, email, and enhanced search. All marked as NOT IMPLEMENTED.",
+    "tables": [
+      {"name": "automation_flows", "module": "Automation Builder", "priority": "P1", "note": "Core automation definition. See visual_flow_editor.flow_model for full schema."},
+      {"name": "automation_executions", "module": "Automation Builder", "priority": "P1", "note": "Execution log. See visual_flow_editor.execution_log_model for full schema."},
+      {"name": "user_tags", "module": "Automation Builder / CRM", "priority": "P1", "note": "Tag-based user segmentation. Required by add_tag/remove_tag actions and conditional_split conditions."},
+      {"name": "user_custom_fields", "module": "Automation Builder / CRM", "priority": "P2", "note": "Custom user attributes for CRM-style tracking. Required by update_user_field action."},
+      {"name": "email_lists", "module": "Email/Newsletter", "priority": "P1", "note": "See email_newsletter.list_management.schema_model."},
+      {"name": "email_subscribers", "module": "Email/Newsletter", "priority": "P1", "note": "See email_newsletter.list_management.schema_model."},
+      {"name": "email_templates", "module": "Email/Newsletter", "priority": "P1", "note": "See email_newsletter.templates.schema_model."},
+      {"name": "email_broadcasts", "module": "Email/Newsletter", "priority": "P2", "note": "See email_newsletter.broadcasts.schema_model."},
+      {"name": "email_events", "module": "Email/Newsletter", "priority": "P2", "note": "SendGrid webhook events (open, click, bounce, unsubscribe) stored per recipient per broadcast."}
+    ]
+  },
+
+  "open_questions": {
+    "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+    "description": "Decisions that require operator input before implementation can proceed.",
+    "questions": [
+      {
+        "id": "OQ-AUTO-001",
+        "question": "Should automation builder be available on all pricing tiers or gated to Pro ($29) and above?",
+        "context": "Manychat gates advanced automations behind paid plans. ConvertKit includes basic automations in free tier. Whop includes automation in all plans.",
+        "options": [
+          "Free: 1 active automation, 100 executions/month. Pro: unlimited automations, 10K executions/month. Business: unlimited everything.",
+          "Pro and above only. No automation on Free tier.",
+          "All tiers get automation. Differentiate by trigger types (Free gets basic triggers only)."
+        ],
+        "recommendation": "Option 1 — limited free tier with usage caps drives conversion to Pro while letting creators experience the value."
+      },
+      {
+        "id": "OQ-AUTO-002",
+        "question": "What job queue / background processing system for automation delays and scheduled sends?",
+        "context": "Automation wait_delay and cron_schedule triggers need reliable background job processing. Current stack has no job queue.",
+        "options": [
+          "BullMQ (Redis-backed, Node.js native, well-supported with Drizzle)",
+          "pg-boss (PostgreSQL-backed, no Redis dependency, simpler ops)",
+          "Inngest (managed serverless, event-driven, good DX but external dependency)"
+        ],
+        "recommendation": "pg-boss — keeps everything in Neon Postgres, zero new infrastructure, sufficient for creator-scale automation volumes."
+      },
+      {
+        "id": "OQ-AI-001",
+        "question": "Should CreatorOS AI features use OpenAI exclusively or support multiple providers via model_router pattern?",
+        "context": "Current code imports openai SDK directly. EOS uses model_router with multi-provider fallback. CreatorOS is a separate TypeScript application, not a UMH substrate consumer.",
+        "options": [
+          "OpenAI only (GPT-4o-mini for cost efficiency). Simplest implementation.",
+          "OpenAI primary + Anthropic fallback. Two providers for resilience.",
+          "Abstract AI provider interface in TypeScript, similar to model_router pattern. Future-proof but more engineering."
+        ],
+        "recommendation": "Option 1 for MVP — OpenAI only via existing SDK. Abstract later if cost or availability becomes an issue. CreatorOS AI is utility-level; provider diversity is not critical."
+      },
+      {
+        "id": "OQ-AI-002",
+        "question": "How should AI feature costs be allocated across pricing tiers?",
+        "context": "AI content suggestions, smart scheduling explanations, and audience insights use LLM tokens. At GPT-4o-mini pricing (~$0.15/1M input, $0.60/1M output), costs are low per request but can accumulate with high usage.",
+        "options": [
+          "Free: 10 AI requests/month. Pro: 500/month. Business: 5000/month. Enterprise: unlimited.",
+          "Free: no AI features. Pro: included (soft cap at 1000 requests). Business/Enterprise: unlimited.",
+          "All tiers get AI. Hard cap per tier with option to buy more credits."
+        ],
+        "recommendation": "Option 1 — gives free tier a taste of AI features, Pro tier generous enough for daily use, Business handles power users."
+      },
+      {
+        "id": "OQ-EMAIL-001",
+        "question": "What sender domain strategy for CreatorOS email?",
+        "context": "SendGrid requires verified sender domains. Options range from shared domain (mail.creatoros.com) to creator custom domains. Domain reputation directly affects deliverability.",
+        "options": [
+          "Shared domain (mail.creatoros.com) for all tiers. Simplest setup, shared reputation risk.",
+          "Shared domain for Free/Pro, custom domain support for Business/Enterprise.",
+          "Custom domain required for all creators (higher setup friction, best deliverability)."
+        ],
+        "recommendation": "Option 2 — shared domain gets creators started fast, custom domain for serious creators who need deliverability control."
+      },
+      {
+        "id": "OQ-EMAIL-002",
+        "question": "Email subscriber limits per pricing tier?",
+        "context": "ConvertKit: Free up to 10K subscribers. Mailchimp: Free up to 500. Beehiiv: Free up to 2.5K.",
+        "options": [
+          "Free: 500 subscribers. Pro: 5,000. Business: 25,000. Enterprise: unlimited.",
+          "Free: 1,000 subscribers. Pro: 10,000. Business: 50,000. Enterprise: unlimited.",
+          "No subscriber limits. Charge per email sent instead."
+        ],
+        "recommendation": "Option 2 — generous free tier (1K) to compete with Beehiiv/ConvertKit for creator acquisition. Revenue comes from Pro tier."
+      },
+      {
+        "id": "OQ-SEARCH-001",
+        "question": "Should search include semantic/AI-powered search in MVP or stay with PostgreSQL full-text search only?",
+        "context": "PostgreSQL tsvector/tsquery provides solid keyword search with stemming and ranking. Semantic search (embeddings) adds 'find similar content' but requires embedding storage and vector search (pgvector or external service).",
+        "options": [
+          "PostgreSQL full-text search only. Fast to implement, zero additional cost, covers 90% of use cases.",
+          "PostgreSQL full-text search + pgvector for semantic similarity. Neon supports pgvector extension.",
+          "External search service (Meilisearch, Typesense, Algolia). Best search UX but operational overhead."
+        ],
+        "recommendation": "Option 1 for MVP — PostgreSQL full-text search covers keyword search needs. Add pgvector semantic layer later when 'related content' and 'you might also like' features are prioritized."
+      }
+    ]
+  },
+
+  "implementation_debt": {
+    "provenance": "IMPLEMENTATION_DEBT",
+    "description": "Known gaps between desired state and current implementation that must be closed before these features can ship.",
+    "items": [
+      {
+        "id": "DEBT-AUTO-001",
+        "area": "Automation Builder",
+        "description": "Entire automation builder is not implemented — zero schema, zero UI, zero API. This is a full greenfield build covering visual editor, trigger system, action execution, execution logging, and template library.",
+        "estimated_scope": "Large — 8-12 new files, 3+ schema tables, visual editor component, execution engine",
+        "dependencies": ["Job queue system (OQ-AUTO-002)", "user_tags table", "email system (for send_email action)", "entitlements system (for grant/revoke_access actions)"]
+      },
+      {
+        "id": "DEBT-AI-001",
+        "area": "AI Features",
+        "description": "AI agent chat exists but all other AI features (content suggestions, smart scheduling, audience insights, auto-moderation) are not implemented. Existing AI agent feature is missing model selection, token tracking, pricing, and marketplace.",
+        "estimated_scope": "Medium per feature — each AI feature is a focused API endpoint + UI component",
+        "dependencies": ["Analytics aggregation (for audience insights and smart scheduling)", "Community moderation table (for auto-moderation)"]
+      },
+      {
+        "id": "DEBT-EMAIL-001",
+        "area": "Email/Newsletter",
+        "description": "SendGrid SDK is installed but zero email infrastructure exists — no lists, no subscribers, no templates, no broadcasts, no analytics, no WYSIWYG editor, no webhook handling.",
+        "estimated_scope": "Large — 5 new schema tables, WYSIWYG email editor, list management UI, broadcast sending pipeline, webhook event processing",
+        "dependencies": ["Verified sender domain (OQ-EMAIL-001)", "Subscriber limit decision (OQ-EMAIL-002)", "CAN-SPAM compliance implementation"]
+      },
+      {
+        "id": "DEBT-SEARCH-001",
+        "area": "Search",
+        "description": "No search functionality exists. Needs full-text indexes on key tables, unified search API endpoint, search UI component with domain tabs and filters.",
+        "estimated_scope": "Medium — migration to add tsvector columns + GIN indexes, one API endpoint, one search component",
+        "dependencies": ["None — can be implemented independently with existing schema"]
+      },
+      {
+        "id": "DEBT-AI-002",
+        "area": "AI Agent Enhancements",
+        "description": "ai_agents table missing: model_id, temperature, max_tokens, token_limit_per_month, price_cents. ai_chats.messages is a JSON blob (not queryable). No streaming. No rate limiting.",
+        "estimated_scope": "Small-medium — schema migration + API updates + ChatInterface streaming",
+        "dependencies": ["Pricing/billing system (for per-agent pricing)", "Stripe integration (for agent purchases)"]
+      }
+    ]
+  }
+}

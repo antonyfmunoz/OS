@@ -1,0 +1,1387 @@
+{
+  "phase": "14.6B-CreatorOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Complete API surface and infrastructure for CreatorOS -- current 89-route monolith truth, domain-split target architecture, god file decomposition strategy, deployment infrastructure, monitoring, CI/CD, and UMH integration boundary",
+
+  "sources": [
+    "phase14_6b_creatoros_current_implementation_truth.json (89 routes in routes.ts god file, 8 backend files, Express 4, Passport.js broken auth)",
+    "phase14_6b_creatoros_source_inventory.json (GitHub 296 files, Beast 271 aligned, VPS 14 config-only files)",
+    "phase14_6b_creatoros_data_ontology.json (20 current tables, 25 missing tables, 45 target total)",
+    "phase14_6b_creatoros_content_distribution_canon.json (cross-posting APIs, content calendar, analytics)",
+    "phase14_6b_creatoros_community_messaging_canon.json (community CRUD, channels, DMs, notifications)",
+    "phase14_6b_creatoros_product_types_commerce_canon.json (10 product types, orders, entitlements, Stripe Connect)",
+    "phase14_6b_creatoros_ugc_ads_canon.json (UGC campaigns, ad campaigns, ad creatives)",
+    "phase14_6b_creatoros_automation_ai_canon.json (automation flows, AI agents, email broadcasts)",
+    "phase14_6b_creatoros_design_identity_canon.json (X/Twitter minimalism, mobile-first)",
+    "phase14_6b_creatoros_user_journeys_onboarding.json (onboarding flows, creator setup)",
+    "data/umh/eos_lossless_canon/phase14_6b_eos_api_contract_map.json (EOS API structure reference for pattern consistency)",
+    "shared/schema.ts (Drizzle ORM schema -- 20 tables, 568 lines)",
+    "projections/creatoros/integration/ (UMH projection -- 6 Python files, 1099 lines)"
+  ],
+
+  "current_routes": {
+    "source": "server/routes.ts (53,388 bytes -- GOD FILE)",
+    "framework": "Express 4",
+    "auth_middleware": "Passport.js session (BROKEN: comparePasswords returns true for ALL)",
+    "route_count": 89,
+    "status": "active_but_broken_auth",
+    "last_modified": "2026-05-20",
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+
+    "route_groups": [
+      {
+        "domain": "auth",
+        "route_count": 4,
+        "source": "server/auth.ts (setupAuth function registers these on the Express app)",
+        "routes": [
+          {"method": "POST", "path": "/api/register", "description": "Register a new user (username + password)", "auth_required": false},
+          {"method": "POST", "path": "/api/login", "description": "Login with username + password via Passport local strategy", "auth_required": false},
+          {"method": "POST", "path": "/api/logout", "description": "Destroy session and logout", "auth_required": true},
+          {"method": "GET", "path": "/api/user", "description": "Get current authenticated user", "auth_required": true}
+        ],
+        "critical_issues": [
+          "comparePasswords() returns true for ALL passwords in dev mode -- any password works for any user",
+          "Hardcoded fallback session secret: 'creatorOS-secret-key'",
+          "No rate limiting on register/login endpoints",
+          "No CSRF protection",
+          "MemoryStore session storage -- not production-suitable (data lost on restart)"
+        ]
+      },
+      {
+        "domain": "users",
+        "route_count": 11,
+        "routes": [
+          {"method": "GET", "path": "/api/users", "description": "List all users", "auth_required": true},
+          {"method": "GET", "path": "/api/users/:id", "description": "Get user by ID", "auth_required": true},
+          {"method": "PATCH", "path": "/api/users/:id", "description": "Update user profile (bio, displayName, profileImageUrl)", "auth_required": true},
+          {"method": "GET", "path": "/api/users/:id/posts", "description": "Get posts by user", "auth_required": true},
+          {"method": "GET", "path": "/api/users/:id/followers", "description": "Get user's followers", "auth_required": true},
+          {"method": "GET", "path": "/api/users/:id/following", "description": "Get users this user follows", "auth_required": true},
+          {"method": "POST", "path": "/api/users/:id/follow", "description": "Follow a user", "auth_required": true},
+          {"method": "DELETE", "path": "/api/users/:id/follow", "description": "Unfollow a user", "auth_required": true},
+          {"method": "GET", "path": "/api/users/:id/saved-posts", "description": "Get user's saved posts", "auth_required": true},
+          {"method": "GET", "path": "/api/users/:id/products", "description": "Get products by user", "auth_required": true},
+          {"method": "GET", "path": "/api/users/:id/stories", "description": "Get stories by user", "auth_required": true}
+        ]
+      },
+      {
+        "domain": "posts",
+        "route_count": 15,
+        "routes": [
+          {"method": "GET", "path": "/api/posts", "description": "List posts (feed)", "auth_required": true},
+          {"method": "GET", "path": "/api/posts/:id", "description": "Get single post", "auth_required": true},
+          {"method": "POST", "path": "/api/posts", "description": "Create a new post (text, photo, video, audio)", "auth_required": true},
+          {"method": "PATCH", "path": "/api/posts/:id", "description": "Update post content", "auth_required": true},
+          {"method": "DELETE", "path": "/api/posts/:id", "description": "Delete a post", "auth_required": true},
+          {"method": "POST", "path": "/api/posts/:id/like", "description": "Like a post (increment counter)", "auth_required": true},
+          {"method": "DELETE", "path": "/api/posts/:id/like", "description": "Unlike a post (decrement counter)", "auth_required": true},
+          {"method": "GET", "path": "/api/posts/:id/comments", "description": "Get comments for a post", "auth_required": true},
+          {"method": "POST", "path": "/api/posts/:id/comments", "description": "Add a comment to a post", "auth_required": true},
+          {"method": "DELETE", "path": "/api/comments/:id", "description": "Delete a comment", "auth_required": true},
+          {"method": "POST", "path": "/api/comments/:id/like", "description": "Like a comment", "auth_required": true},
+          {"method": "POST", "path": "/api/posts/:id/save", "description": "Save/bookmark a post", "auth_required": true},
+          {"method": "DELETE", "path": "/api/posts/:id/save", "description": "Unsave a post", "auth_required": true},
+          {"method": "POST", "path": "/api/posts/:id/tags", "description": "Tag users on a post with x/y positions", "auth_required": true},
+          {"method": "GET", "path": "/api/posts/:id/tags", "description": "Get tagged users on a post", "auth_required": true}
+        ]
+      },
+      {
+        "domain": "products",
+        "route_count": 5,
+        "routes": [
+          {"method": "GET", "path": "/api/products", "description": "List products (marketplace)", "auth_required": true},
+          {"method": "GET", "path": "/api/products/:id", "description": "Get single product", "auth_required": true},
+          {"method": "POST", "path": "/api/products", "description": "Create a product", "auth_required": true},
+          {"method": "PATCH", "path": "/api/products/:id", "description": "Update a product", "auth_required": true},
+          {"method": "DELETE", "path": "/api/products/:id", "description": "Delete a product", "auth_required": true}
+        ],
+        "notes": "No checkout, no payment, no order creation. Products are display-only with no commerce flow."
+      },
+      {
+        "domain": "communities",
+        "route_count": 10,
+        "routes": [
+          {"method": "GET", "path": "/api/communities", "description": "List all communities", "auth_required": true},
+          {"method": "GET", "path": "/api/communities/:id", "description": "Get single community", "auth_required": true},
+          {"method": "POST", "path": "/api/communities", "description": "Create a community", "auth_required": true},
+          {"method": "PATCH", "path": "/api/communities/:id", "description": "Update community details", "auth_required": true},
+          {"method": "GET", "path": "/api/communities/:id/channels", "description": "List channels in a community", "auth_required": true},
+          {"method": "POST", "path": "/api/communities/:id/channels", "description": "Create a channel", "auth_required": true},
+          {"method": "GET", "path": "/api/channels/:id/messages", "description": "Get messages in a channel", "auth_required": true},
+          {"method": "POST", "path": "/api/channels/:id/messages", "description": "Post a message to a channel", "auth_required": true},
+          {"method": "POST", "path": "/api/channel-messages/:id/pin", "description": "Pin a channel message", "auth_required": true},
+          {"method": "POST", "path": "/api/channel-messages/:id/like", "description": "Like a channel message", "auth_required": true}
+        ]
+      },
+      {
+        "domain": "messaging",
+        "route_count": 10,
+        "routes": [
+          {"method": "GET", "path": "/api/conversations", "description": "List conversations for current user", "auth_required": true},
+          {"method": "GET", "path": "/api/conversations/:id", "description": "Get single conversation with participants", "auth_required": true},
+          {"method": "POST", "path": "/api/conversations", "description": "Create a new conversation (1:1 or group)", "auth_required": true},
+          {"method": "GET", "path": "/api/conversations/:id/messages", "description": "Get messages in a conversation", "auth_required": true},
+          {"method": "POST", "path": "/api/conversations/:id/messages", "description": "Send a direct message", "auth_required": true},
+          {"method": "PATCH", "path": "/api/messages/:id", "description": "Edit a message", "auth_required": true},
+          {"method": "DELETE", "path": "/api/messages/:id", "description": "Delete a message", "auth_required": true},
+          {"method": "POST", "path": "/api/messages/:id/read", "description": "Mark message as read", "auth_required": true},
+          {"method": "POST", "path": "/api/messages/:id/react", "description": "Add emoji reaction to a message", "auth_required": true},
+          {"method": "DELETE", "path": "/api/messages/:id/react", "description": "Remove emoji reaction", "auth_required": true}
+        ]
+      },
+      {
+        "domain": "ai",
+        "route_count": 5,
+        "routes": [
+          {"method": "GET", "path": "/api/ai-agents", "description": "List AI agents for current user", "auth_required": true},
+          {"method": "GET", "path": "/api/ai-agents/:id", "description": "Get single AI agent", "auth_required": true},
+          {"method": "POST", "path": "/api/ai-agents", "description": "Create a custom AI agent", "auth_required": true},
+          {"method": "GET", "path": "/api/ai-agents/:id/chats", "description": "Get chat sessions for an agent", "auth_required": true},
+          {"method": "POST", "path": "/api/ai-agents/:id/chat", "description": "Send message to AI agent and get response (OpenAI)", "auth_required": true}
+        ],
+        "notes": "Uses OpenAI SDK directly with fallback key 'your-api-key'. Single provider, no model selection."
+      },
+      {
+        "domain": "stories",
+        "route_count": 5,
+        "routes": [
+          {"method": "GET", "path": "/api/stories", "description": "Get all active (non-expired) stories", "auth_required": true},
+          {"method": "GET", "path": "/api/stories/:id", "description": "Get single story", "auth_required": true},
+          {"method": "POST", "path": "/api/stories", "description": "Create a story (image or video)", "auth_required": true},
+          {"method": "DELETE", "path": "/api/stories/:id", "description": "Delete a story", "auth_required": true},
+          {"method": "DELETE", "path": "/api/force-delete-story/11", "description": "Hardcoded story deletion (dev artifact)", "auth_required": true}
+        ],
+        "notes": "5-minute orphan story cleanup runs on interval. force-delete-story/11 is a hardcoded dev artifact that should be removed."
+      },
+      {
+        "domain": "documents",
+        "route_count": 5,
+        "routes": [
+          {"method": "GET", "path": "/api/documents", "description": "List documents for current user", "auth_required": true},
+          {"method": "GET", "path": "/api/documents/:id", "description": "Get single document", "auth_required": true},
+          {"method": "POST", "path": "/api/documents", "description": "Create a document", "auth_required": true},
+          {"method": "PATCH", "path": "/api/documents/:id", "description": "Update document content", "auth_required": true},
+          {"method": "DELETE", "path": "/api/documents/:id", "description": "Delete a document", "auth_required": true}
+        ],
+        "notes": "Not mentioned in PRD. Appears to be Replit Agent addition. Operator decision needed on keep/remove."
+      },
+      {
+        "domain": "contacts",
+        "route_count": 5,
+        "routes": [
+          {"method": "GET", "path": "/api/contacts", "description": "List contacts for current user", "auth_required": true},
+          {"method": "GET", "path": "/api/contacts/:id", "description": "Get single contact", "auth_required": true},
+          {"method": "POST", "path": "/api/contacts", "description": "Create a contact", "auth_required": true},
+          {"method": "PATCH", "path": "/api/contacts/:id", "description": "Update a contact", "auth_required": true},
+          {"method": "DELETE", "path": "/api/contacts/:id", "description": "Delete a contact", "auth_required": true}
+        ],
+        "notes": "Basic CRM. Overlaps with EOS crm_contacts. Operator decision needed on keep-separate vs merge."
+      },
+      {
+        "domain": "revenue",
+        "route_count": 3,
+        "routes": [
+          {"method": "GET", "path": "/api/revenue", "description": "Get revenue entries for current user", "auth_required": true},
+          {"method": "POST", "path": "/api/revenue", "description": "Create a revenue entry", "auth_required": true},
+          {"method": "GET", "path": "/api/revenue/summary", "description": "Get revenue summary/aggregates", "auth_required": true}
+        ],
+        "notes": "Manually seeded data for dashboard visualization. Will be replaced by transactions table when commerce stack is built."
+      },
+      {
+        "domain": "notifications",
+        "route_count": 5,
+        "routes": [
+          {"method": "GET", "path": "/api/notifications", "description": "Get notifications for current user", "auth_required": true},
+          {"method": "GET", "path": "/api/notifications/count", "description": "Get unread notification count", "auth_required": true},
+          {"method": "POST", "path": "/api/notifications/:id/read", "description": "Mark notification as read", "auth_required": true},
+          {"method": "POST", "path": "/api/notifications/read-all", "description": "Mark all notifications as read", "auth_required": true},
+          {"method": "DELETE", "path": "/api/notifications/:id", "description": "Delete a notification", "auth_required": true}
+        ]
+      },
+      {
+        "domain": "upload",
+        "route_count": 1,
+        "routes": [
+          {"method": "POST", "path": "/api/upload", "description": "Upload a file (Multer middleware, stored to uploads/ directory)", "auth_required": true}
+        ],
+        "notes": "Files stored to local filesystem uploads/ directory. Committed to git. Must migrate to object storage (S3/R2) for production."
+      }
+    ],
+
+    "missing_from_god_file": {
+      "note": "Routes that should exist per PRD but are NOT in routes.ts",
+      "domains": [
+        "search -- no /api/search endpoint despite explore page existing",
+        "cross-posting -- no connected accounts, no platform publishing",
+        "content calendar -- no scheduling endpoints",
+        "courses -- no course CRUD, no enrollment, no progress tracking",
+        "orders / checkout -- no purchase flow, no payment intent creation",
+        "subscriptions -- no subscription management, no billing",
+        "UGC campaigns -- no campaign CRUD, no application management",
+        "ads -- no ad campaign management, no creative upload",
+        "automations -- no flow CRUD, no execution logs",
+        "email / newsletter -- no list management, no broadcast endpoints",
+        "analytics -- no cross-platform analytics endpoints",
+        "settings -- no user preferences, no business settings",
+        "moderation -- no content moderation endpoints",
+        "roles / permissions -- no team management endpoints"
+      ]
+    }
+  },
+
+  "current_storage": {
+    "source": "server/storage.ts (104,725 bytes -- GOD FILE)",
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "description": "All data access logic in a single monolithic file. Every table's CRUD operations, query construction, and data transformation live here. No repository pattern, no service layer, no abstraction.",
+    "pattern": "Direct Drizzle ORM queries with eq/and/desc operators. Each function maps 1:1 to a route handler. No connection pooling configuration visible. No query caching.",
+    "function_categories": [
+      {"domain": "users", "estimated_functions": 10, "operations": "getUser, getUserByUsername, createUser, updateUser, getFollowers, getFollowing, followUser, unfollowUser, getUserStats, searchUsers"},
+      {"domain": "posts", "estimated_functions": 12, "operations": "getPosts, getPost, createPost, updatePost, deletePost, likePost, unlikePost, getPostComments, createComment, deleteComment, likeComment, getTaggedUsers"},
+      {"domain": "saved_posts", "estimated_functions": 3, "operations": "getSavedPosts, savePost, unsavePost"},
+      {"domain": "products", "estimated_functions": 5, "operations": "getProducts, getProduct, createProduct, updateProduct, deleteProduct"},
+      {"domain": "ai_agents", "estimated_functions": 5, "operations": "getAgents, getAgent, createAgent, getChats, createChat"},
+      {"domain": "communities", "estimated_functions": 6, "operations": "getCommunities, getCommunity, createCommunity, updateCommunity, getChannels, createChannel"},
+      {"domain": "channel_messages", "estimated_functions": 4, "operations": "getChannelMessages, createChannelMessage, pinMessage, likeMessage"},
+      {"domain": "conversations", "estimated_functions": 5, "operations": "getConversations, getConversation, createConversation, getMessages, sendMessage"},
+      {"domain": "direct_messages", "estimated_functions": 4, "operations": "editMessage, deleteMessage, markRead, toggleReaction"},
+      {"domain": "stories", "estimated_functions": 4, "operations": "getStories, getStory, createStory, deleteStory"},
+      {"domain": "documents", "estimated_functions": 5, "operations": "getDocuments, getDocument, createDocument, updateDocument, deleteDocument"},
+      {"domain": "contacts", "estimated_functions": 5, "operations": "getContacts, getContact, createContact, updateContact, deleteContact"},
+      {"domain": "revenue", "estimated_functions": 3, "operations": "getRevenue, createRevenue, getRevenueSummary"},
+      {"domain": "notifications", "estimated_functions": 4, "operations": "getNotifications, getUnreadCount, markRead, markAllRead"},
+      {"domain": "tagged_users", "estimated_functions": 2, "operations": "tagUsers, getTaggedUsers"}
+    ],
+    "estimated_total_functions": 77,
+    "quality_issues": [
+      "All 77+ functions in a single file -- impossible to test in isolation",
+      "No interface/repository abstraction -- routes.ts directly calls storage.ts functions",
+      "No error handling patterns -- raw Drizzle errors propagate to route handlers",
+      "No query optimization -- no indexes, no pagination strategy, no cursor-based pagination",
+      "No connection pooling configuration -- relies on Neon serverless defaults",
+      "Denormalized counter updates not atomic -- race conditions on like/comment counts"
+    ]
+  },
+
+  "god_file_splitting": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Strategy for decomposing the two god files (routes.ts 53KB, storage.ts 105KB) into domain-scoped modules. This is P1 prerequisite before any feature development.",
+
+    "routes_ts": {
+      "current_size_bytes": 53388,
+      "current_route_count": 89,
+      "target_modules": [
+        {"module": "server/routes/auth.ts", "domain": "auth", "route_count": 4, "description": "Registration, login, logout, current user. Will be replaced entirely by Clerk."},
+        {"module": "server/routes/users.ts", "domain": "users", "route_count": 11, "description": "User profile, followers, following, user content listings."},
+        {"module": "server/routes/posts.ts", "domain": "posts", "route_count": 15, "description": "Post CRUD, likes, comments, saves, tags."},
+        {"module": "server/routes/products.ts", "domain": "products", "route_count": 5, "description": "Product CRUD. Will expand with checkout, orders, entitlements."},
+        {"module": "server/routes/communities.ts", "domain": "communities", "route_count": 10, "description": "Community CRUD, channels, channel messages."},
+        {"module": "server/routes/messaging.ts", "domain": "messaging", "route_count": 10, "description": "Conversations, DMs, reactions, read status."},
+        {"module": "server/routes/ai.ts", "domain": "ai", "route_count": 5, "description": "AI agents, chat sessions."},
+        {"module": "server/routes/stories.ts", "domain": "stories", "route_count": 5, "description": "Story CRUD, cleanup."},
+        {"module": "server/routes/documents.ts", "domain": "documents", "route_count": 5, "description": "Document CRUD. Operator decision pending on keep/remove."},
+        {"module": "server/routes/contacts.ts", "domain": "contacts", "route_count": 5, "description": "Contact CRUD. Operator decision pending on EOS merge."},
+        {"module": "server/routes/revenue.ts", "domain": "revenue", "route_count": 3, "description": "Revenue entries and summary. Will be replaced by transactions."},
+        {"module": "server/routes/notifications.ts", "domain": "notifications", "route_count": 5, "description": "Notification CRUD and read-marking."},
+        {"module": "server/routes/upload.ts", "domain": "upload", "route_count": 1, "description": "File upload. Must migrate to S3/R2."},
+        {"module": "server/routes/index.ts", "domain": "router_registry", "route_count": 0, "description": "Imports all route modules and registers them on the Express app. Single wiring point."}
+      ],
+      "strategy": "Extract domain-by-domain starting with the simplest (upload, revenue, notifications) to build confidence, then tackle the large ones (posts, communities, messaging). Each extraction: create module, move routes, update imports in routes/index.ts, verify build, verify runtime.",
+      "execution_order": [
+        "1. Create server/routes/ directory and index.ts router registry",
+        "2. Extract upload.ts (1 route, zero dependencies on other domains)",
+        "3. Extract notifications.ts (5 routes, self-contained)",
+        "4. Extract revenue.ts (3 routes, self-contained)",
+        "5. Extract contacts.ts (5 routes, self-contained)",
+        "6. Extract documents.ts (5 routes, self-contained)",
+        "7. Extract stories.ts (5 routes, self-contained)",
+        "8. Extract ai.ts (5 routes, self-contained)",
+        "9. Extract products.ts (5 routes, depends on auth middleware only)",
+        "10. Extract users.ts (11 routes, references followers/posts/products)",
+        "11. Extract communities.ts (10 routes, references channels and messages)",
+        "12. Extract messaging.ts (10 routes, references conversations and participants)",
+        "13. Extract posts.ts (15 routes, references comments, saves, tags)",
+        "14. Extract auth.ts (4 routes, Passport setup -- or skip if Clerk migration is imminent)",
+        "15. Delete original routes.ts once empty"
+      ],
+      "risk": "MEDIUM -- each extraction can break if imports are wrong or middleware is not forwarded. Must have runtime verification after each step.",
+      "prerequisite_for": "All new feature development. Cannot add courses, checkout, automations, cross-posting, etc. to a 53KB god file."
+    },
+
+    "storage_ts": {
+      "current_size_bytes": 104725,
+      "estimated_function_count": 77,
+      "target_modules": [
+        {"module": "server/storage/users.ts", "domain": "users", "functions": 10},
+        {"module": "server/storage/posts.ts", "domain": "posts", "functions": 12},
+        {"module": "server/storage/saved-posts.ts", "domain": "saved_posts", "functions": 3},
+        {"module": "server/storage/products.ts", "domain": "products", "functions": 5},
+        {"module": "server/storage/ai-agents.ts", "domain": "ai_agents", "functions": 5},
+        {"module": "server/storage/communities.ts", "domain": "communities", "functions": 6},
+        {"module": "server/storage/channel-messages.ts", "domain": "channel_messages", "functions": 4},
+        {"module": "server/storage/conversations.ts", "domain": "conversations", "functions": 5},
+        {"module": "server/storage/direct-messages.ts", "domain": "direct_messages", "functions": 4},
+        {"module": "server/storage/stories.ts", "domain": "stories", "functions": 4},
+        {"module": "server/storage/documents.ts", "domain": "documents", "functions": 5},
+        {"module": "server/storage/contacts.ts", "domain": "contacts", "functions": 5},
+        {"module": "server/storage/revenue.ts", "domain": "revenue", "functions": 3},
+        {"module": "server/storage/notifications.ts", "domain": "notifications", "functions": 4},
+        {"module": "server/storage/tagged-users.ts", "domain": "tagged_users", "functions": 2},
+        {"module": "server/storage/index.ts", "domain": "barrel_export", "functions": 0, "description": "Re-exports all storage functions for backward compatibility during migration."}
+      ],
+      "strategy": "Split storage.ts in parallel with routes.ts. Each route module imports from its corresponding storage module. storage/index.ts barrel export preserves backward compatibility until all routes are migrated.",
+      "risk": "MEDIUM -- shared Drizzle db client import must be consistent. Some functions may have cross-domain dependencies (e.g., createComment updates posts.comments counter)."
+    }
+  },
+
+  "planned_routes": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Full desired-state API surface derived from PRD modules, data ontology (45 target tables), and feature canons. Organized by domain. All routes require authentication unless noted. Domains map 1:1 to target route modules.",
+
+    "auth": {
+      "module": "server/routes/auth.ts",
+      "auth_provider": "Clerk (target)",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "note": "Current Passport.js routes will be entirely replaced. Clerk handles registration, login, password reset, OAuth, MFA, email verification via its hosted UI components + Express middleware.",
+      "routes": [
+        {"method": "GET", "path": "/api/auth/me", "description": "Get current authenticated user profile (from Clerk session)", "auth_required": true},
+        {"method": "POST", "path": "/api/auth/sync", "description": "Sync Clerk user data to local users table (webhook or on-demand)", "auth_required": true},
+        {"method": "POST", "path": "/api/auth/webhook", "description": "Clerk webhook receiver for user.created, user.updated, user.deleted events", "auth_required": false, "note": "Verified via Clerk webhook signature"}
+      ],
+      "clerk_hosted_routes": [
+        {"path": "/sign-in", "description": "Clerk hosted sign-in page", "note": "Clerk React component, not a backend route"},
+        {"path": "/sign-up", "description": "Clerk hosted sign-up page", "note": "Clerk React component, not a backend route"},
+        {"path": "/user-profile", "description": "Clerk hosted user settings page", "note": "Clerk React component, not a backend route"}
+      ],
+      "migration_notes": [
+        "Remove Passport.js, express-session, passport-local, connect-pg-simple, memorystore dependencies",
+        "Add @clerk/express, @clerk/clerk-react dependencies",
+        "Add email column to users table (required by Clerk but missing from current schema)",
+        "Add clerk_id column to users table for Clerk user mapping",
+        "Remove password column after migration (Clerk manages credentials)",
+        "Session middleware: replace express-session with Clerk's clerkMiddleware()",
+        "All routes: replace req.isAuthenticated() / req.user with getAuth(req) / clerkClient"
+      ]
+    },
+
+    "users": {
+      "module": "server/routes/users.ts",
+      "route_count": 13,
+      "routes": [
+        {"method": "GET", "path": "/api/users/me", "description": "Get current user profile with stats", "auth_required": true},
+        {"method": "PATCH", "path": "/api/users/me", "description": "Update current user profile", "auth_required": true},
+        {"method": "GET", "path": "/api/users/me/preferences", "description": "Get user notification/privacy preferences", "auth_required": true},
+        {"method": "PATCH", "path": "/api/users/me/preferences", "description": "Update user preferences", "auth_required": true},
+        {"method": "GET", "path": "/api/users/:id", "description": "Get public user profile", "auth_required": true},
+        {"method": "GET", "path": "/api/users/:id/followers", "description": "List followers", "auth_required": true},
+        {"method": "GET", "path": "/api/users/:id/following", "description": "List following", "auth_required": true},
+        {"method": "POST", "path": "/api/users/:id/follow", "description": "Follow a user", "auth_required": true},
+        {"method": "DELETE", "path": "/api/users/:id/follow", "description": "Unfollow a user", "auth_required": true},
+        {"method": "GET", "path": "/api/users/:id/posts", "description": "Get user's posts", "auth_required": true},
+        {"method": "GET", "path": "/api/users/:id/products", "description": "Get user's products", "auth_required": true},
+        {"method": "GET", "path": "/api/users/:id/stories", "description": "Get user's active stories", "auth_required": true},
+        {"method": "GET", "path": "/api/users/search", "description": "Search users by username/displayName", "auth_required": true}
+      ]
+    },
+
+    "businesses": {
+      "module": "server/routes/businesses.ts",
+      "route_count": 10,
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "note": "Entirely new. No current implementation. Businesses are the organizational unit for creator commerce.",
+      "routes": [
+        {"method": "GET", "path": "/api/businesses", "description": "List businesses for current user", "auth_required": true},
+        {"method": "GET", "path": "/api/businesses/:id", "description": "Get single business detail", "auth_required": true},
+        {"method": "POST", "path": "/api/businesses", "description": "Create a new business", "auth_required": true},
+        {"method": "PATCH", "path": "/api/businesses/:id", "description": "Update business details (name, description, logo)", "auth_required": true},
+        {"method": "DELETE", "path": "/api/businesses/:id", "description": "Archive a business (soft delete)", "auth_required": true},
+        {"method": "GET", "path": "/api/businesses/:id/members", "description": "List team members", "auth_required": true},
+        {"method": "POST", "path": "/api/businesses/:id/members", "description": "Invite a team member", "auth_required": true},
+        {"method": "PATCH", "path": "/api/businesses/:id/members/:memberId", "description": "Update member role", "auth_required": true},
+        {"method": "DELETE", "path": "/api/businesses/:id/members/:memberId", "description": "Remove a team member", "auth_required": true},
+        {"method": "POST", "path": "/api/businesses/:id/stripe-connect", "description": "Initiate Stripe Connect onboarding for the business", "auth_required": true}
+      ]
+    },
+
+    "content": {
+      "module": "server/routes/content.ts",
+      "route_count": 22,
+      "description": "Unified content management covering posts, scheduling, cross-posting, and content calendar.",
+      "routes": [
+        {"method": "GET", "path": "/api/posts", "description": "List posts (feed) with pagination and filtering", "auth_required": true},
+        {"method": "GET", "path": "/api/posts/:id", "description": "Get single post with engagement stats", "auth_required": true},
+        {"method": "POST", "path": "/api/posts", "description": "Create a post (supports scheduling and platform targeting)", "auth_required": true},
+        {"method": "PATCH", "path": "/api/posts/:id", "description": "Update post content or scheduling", "auth_required": true},
+        {"method": "DELETE", "path": "/api/posts/:id", "description": "Delete a post (and all cross-posted versions)", "auth_required": true},
+        {"method": "POST", "path": "/api/posts/:id/like", "description": "Like a post", "auth_required": true},
+        {"method": "DELETE", "path": "/api/posts/:id/like", "description": "Unlike a post", "auth_required": true},
+        {"method": "GET", "path": "/api/posts/:id/comments", "description": "Get threaded comments", "auth_required": true},
+        {"method": "POST", "path": "/api/posts/:id/comments", "description": "Add comment (with optional parentId for threading)", "auth_required": true},
+        {"method": "DELETE", "path": "/api/comments/:id", "description": "Delete a comment", "auth_required": true},
+        {"method": "POST", "path": "/api/posts/:id/save", "description": "Save/bookmark a post", "auth_required": true},
+        {"method": "DELETE", "path": "/api/posts/:id/save", "description": "Unsave a post", "auth_required": true},
+        {"method": "POST", "path": "/api/posts/:id/tags", "description": "Tag users with x/y positions", "auth_required": true},
+        {"method": "GET", "path": "/api/posts/:id/tags", "description": "Get tagged users", "auth_required": true},
+        {"method": "POST", "path": "/api/posts/:id/publish", "description": "Publish a draft post to selected platforms", "auth_required": true},
+        {"method": "GET", "path": "/api/posts/:id/platforms", "description": "Get cross-posting status per platform", "auth_required": true},
+        {"method": "GET", "path": "/api/content/calendar", "description": "Get scheduled posts by date range (calendar view)", "auth_required": true},
+        {"method": "GET", "path": "/api/content/drafts", "description": "Get draft posts", "auth_required": true},
+        {"method": "GET", "path": "/api/content/scheduled", "description": "Get scheduled posts awaiting publication", "auth_required": true},
+        {"method": "POST", "path": "/api/content/bulk-schedule", "description": "Schedule multiple posts at once", "auth_required": true},
+        {"method": "GET", "path": "/api/stories", "description": "Get active stories from followed users", "auth_required": true},
+        {"method": "POST", "path": "/api/stories", "description": "Create a story", "auth_required": true}
+      ]
+    },
+
+    "connected_accounts": {
+      "module": "server/routes/connected-accounts.ts",
+      "route_count": 7,
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "note": "Entirely new. Core to 'post once, publish everywhere' promise.",
+      "routes": [
+        {"method": "GET", "path": "/api/connected-accounts", "description": "List all connected platform accounts for current user", "auth_required": true},
+        {"method": "POST", "path": "/api/connected-accounts/:platform/connect", "description": "Initiate OAuth flow for a platform (youtube, instagram, tiktok, twitter, etc.)", "auth_required": true},
+        {"method": "GET", "path": "/api/connected-accounts/:platform/callback", "description": "OAuth callback handler", "auth_required": false, "note": "OAuth redirect -- state parameter verified"},
+        {"method": "DELETE", "path": "/api/connected-accounts/:id", "description": "Disconnect a platform account", "auth_required": true},
+        {"method": "POST", "path": "/api/connected-accounts/:id/refresh", "description": "Force refresh OAuth tokens", "auth_required": true},
+        {"method": "GET", "path": "/api/connected-accounts/:id/status", "description": "Check connection health and token validity", "auth_required": true},
+        {"method": "GET", "path": "/api/connected-accounts/:id/analytics", "description": "Get platform-specific analytics for a connected account", "auth_required": true}
+      ],
+      "supported_platforms": ["youtube", "instagram", "tiktok", "twitter", "facebook", "twitch", "linkedin", "spotify"]
+    },
+
+    "commerce": {
+      "module": "server/routes/commerce.ts",
+      "route_count": 18,
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "note": "Entirely new. No commerce routes exist today.",
+      "routes": [
+        {"method": "GET", "path": "/api/products", "description": "List products (marketplace) with filters (type, category, price range)", "auth_required": true},
+        {"method": "GET", "path": "/api/products/:id", "description": "Get product detail with reviews", "auth_required": true},
+        {"method": "POST", "path": "/api/products", "description": "Create a product (any of 10 types)", "auth_required": true},
+        {"method": "PATCH", "path": "/api/products/:id", "description": "Update product", "auth_required": true},
+        {"method": "DELETE", "path": "/api/products/:id", "description": "Archive product (soft delete)", "auth_required": true},
+        {"method": "POST", "path": "/api/products/:id/checkout", "description": "Create a Stripe checkout session for product purchase", "auth_required": true},
+        {"method": "POST", "path": "/api/webhooks/stripe", "description": "Stripe webhook for payment events (checkout.session.completed, etc.)", "auth_required": false, "note": "Verified via Stripe webhook signature"},
+        {"method": "GET", "path": "/api/orders", "description": "List orders for current user (as buyer)", "auth_required": true},
+        {"method": "GET", "path": "/api/orders/:id", "description": "Get order detail", "auth_required": true},
+        {"method": "GET", "path": "/api/businesses/:id/orders", "description": "List orders for a business (as seller)", "auth_required": true},
+        {"method": "GET", "path": "/api/businesses/:id/transactions", "description": "List financial transactions for a business", "auth_required": true},
+        {"method": "GET", "path": "/api/businesses/:id/revenue", "description": "Get revenue dashboard data for a business", "auth_required": true},
+        {"method": "GET", "path": "/api/entitlements", "description": "List entitlements for current user (purchased access)", "auth_required": true},
+        {"method": "GET", "path": "/api/products/:id/reviews", "description": "List reviews for a product", "auth_required": true},
+        {"method": "POST", "path": "/api/products/:id/reviews", "description": "Create a review (requires verified purchase)", "auth_required": true},
+        {"method": "PATCH", "path": "/api/reviews/:id", "description": "Update own review", "auth_required": true},
+        {"method": "DELETE", "path": "/api/reviews/:id", "description": "Delete own review", "auth_required": true},
+        {"method": "GET", "path": "/api/categories", "description": "List product categories (hierarchical)", "auth_required": false}
+      ]
+    },
+
+    "courses": {
+      "module": "server/routes/courses.ts",
+      "route_count": 14,
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "note": "Entirely new. Module 3 of 16 in PRD.",
+      "routes": [
+        {"method": "GET", "path": "/api/courses", "description": "List courses (browse/discover)", "auth_required": true},
+        {"method": "GET", "path": "/api/courses/:id", "description": "Get course detail with curriculum outline", "auth_required": true},
+        {"method": "POST", "path": "/api/courses", "description": "Create a course (creates product + course record)", "auth_required": true},
+        {"method": "PATCH", "path": "/api/courses/:id", "description": "Update course metadata", "auth_required": true},
+        {"method": "DELETE", "path": "/api/courses/:id", "description": "Archive course", "auth_required": true},
+        {"method": "GET", "path": "/api/courses/:id/lessons", "description": "List lessons in a course", "auth_required": true},
+        {"method": "POST", "path": "/api/courses/:id/lessons", "description": "Create a lesson", "auth_required": true},
+        {"method": "PATCH", "path": "/api/lessons/:id", "description": "Update lesson content/position", "auth_required": true},
+        {"method": "DELETE", "path": "/api/lessons/:id", "description": "Delete a lesson", "auth_required": true},
+        {"method": "POST", "path": "/api/lessons/:id/reorder", "description": "Reorder lessons within a course", "auth_required": true},
+        {"method": "GET", "path": "/api/enrollments", "description": "List current user's enrollments", "auth_required": true},
+        {"method": "GET", "path": "/api/enrollments/:id", "description": "Get enrollment detail with progress", "auth_required": true},
+        {"method": "POST", "path": "/api/enrollments/:id/complete-lesson", "description": "Mark a lesson as completed", "auth_required": true},
+        {"method": "GET", "path": "/api/courses/:id/students", "description": "List enrolled students (creator view)", "auth_required": true}
+      ]
+    },
+
+    "community": {
+      "module": "server/routes/communities.ts",
+      "route_count": 16,
+      "routes": [
+        {"method": "GET", "path": "/api/communities", "description": "List communities (discover/browse)", "auth_required": true},
+        {"method": "GET", "path": "/api/communities/:id", "description": "Get community detail", "auth_required": true},
+        {"method": "POST", "path": "/api/communities", "description": "Create a community (tied to business)", "auth_required": true},
+        {"method": "PATCH", "path": "/api/communities/:id", "description": "Update community settings", "auth_required": true},
+        {"method": "DELETE", "path": "/api/communities/:id", "description": "Archive community", "auth_required": true},
+        {"method": "GET", "path": "/api/communities/:id/members", "description": "List community members", "auth_required": true},
+        {"method": "POST", "path": "/api/communities/:id/join", "description": "Join a community (free or gated by entitlement)", "auth_required": true},
+        {"method": "DELETE", "path": "/api/communities/:id/leave", "description": "Leave a community", "auth_required": true},
+        {"method": "PATCH", "path": "/api/communities/:id/members/:memberId", "description": "Update member role (admin, moderator, member)", "auth_required": true},
+        {"method": "GET", "path": "/api/communities/:id/channels", "description": "List channels", "auth_required": true},
+        {"method": "POST", "path": "/api/communities/:id/channels", "description": "Create channel (text, announcement, etc.)", "auth_required": true},
+        {"method": "PATCH", "path": "/api/channels/:id", "description": "Update channel settings", "auth_required": true},
+        {"method": "DELETE", "path": "/api/channels/:id", "description": "Delete channel", "auth_required": true},
+        {"method": "GET", "path": "/api/channels/:id/messages", "description": "Get channel messages with pagination", "auth_required": true},
+        {"method": "POST", "path": "/api/channels/:id/messages", "description": "Post a channel message", "auth_required": true},
+        {"method": "POST", "path": "/api/channel-messages/:id/pin", "description": "Pin/unpin a message", "auth_required": true}
+      ]
+    },
+
+    "messaging": {
+      "module": "server/routes/messaging.ts",
+      "route_count": 10,
+      "routes": [
+        {"method": "GET", "path": "/api/conversations", "description": "List conversations", "auth_required": true},
+        {"method": "GET", "path": "/api/conversations/:id", "description": "Get conversation with participants", "auth_required": true},
+        {"method": "POST", "path": "/api/conversations", "description": "Create conversation (1:1 or group)", "auth_required": true},
+        {"method": "GET", "path": "/api/conversations/:id/messages", "description": "Get messages with pagination", "auth_required": true},
+        {"method": "POST", "path": "/api/conversations/:id/messages", "description": "Send a message", "auth_required": true},
+        {"method": "PATCH", "path": "/api/messages/:id", "description": "Edit a message", "auth_required": true},
+        {"method": "DELETE", "path": "/api/messages/:id", "description": "Delete a message", "auth_required": true},
+        {"method": "POST", "path": "/api/messages/:id/read", "description": "Mark as read", "auth_required": true},
+        {"method": "POST", "path": "/api/messages/:id/react", "description": "Add reaction", "auth_required": true},
+        {"method": "DELETE", "path": "/api/messages/:id/react", "description": "Remove reaction", "auth_required": true}
+      ]
+    },
+
+    "ugc": {
+      "module": "server/routes/ugc.ts",
+      "route_count": 12,
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "note": "Entirely new. Module 8 of 16 in PRD.",
+      "routes": [
+        {"method": "GET", "path": "/api/ugc/campaigns", "description": "List UGC campaigns (browse as creator, manage as business)", "auth_required": true},
+        {"method": "GET", "path": "/api/ugc/campaigns/:id", "description": "Get campaign detail", "auth_required": true},
+        {"method": "POST", "path": "/api/ugc/campaigns", "description": "Create a UGC campaign", "auth_required": true},
+        {"method": "PATCH", "path": "/api/ugc/campaigns/:id", "description": "Update campaign", "auth_required": true},
+        {"method": "DELETE", "path": "/api/ugc/campaigns/:id", "description": "Cancel/archive campaign", "auth_required": true},
+        {"method": "POST", "path": "/api/ugc/campaigns/:id/apply", "description": "Apply to a campaign (as UGC creator)", "auth_required": true},
+        {"method": "GET", "path": "/api/ugc/campaigns/:id/applications", "description": "List applications (as campaign owner)", "auth_required": true},
+        {"method": "PATCH", "path": "/api/ugc/applications/:id", "description": "Review application (accept/reject)", "auth_required": true},
+        {"method": "POST", "path": "/api/ugc/applications/:id/deliverables", "description": "Submit a deliverable", "auth_required": true},
+        {"method": "GET", "path": "/api/ugc/applications/:id/deliverables", "description": "List deliverables for an application", "auth_required": true},
+        {"method": "PATCH", "path": "/api/ugc/deliverables/:id", "description": "Review deliverable (approve/reject/request revision)", "auth_required": true},
+        {"method": "GET", "path": "/api/ugc/my-applications", "description": "List current user's UGC applications", "auth_required": true}
+      ]
+    },
+
+    "ads": {
+      "module": "server/routes/ads.ts",
+      "route_count": 10,
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "note": "Entirely new. Module 9 of 16 in PRD.",
+      "routes": [
+        {"method": "GET", "path": "/api/ads/campaigns", "description": "List ad campaigns for current user/business", "auth_required": true},
+        {"method": "GET", "path": "/api/ads/campaigns/:id", "description": "Get campaign detail with performance metrics", "auth_required": true},
+        {"method": "POST", "path": "/api/ads/campaigns", "description": "Create an ad campaign", "auth_required": true},
+        {"method": "PATCH", "path": "/api/ads/campaigns/:id", "description": "Update campaign (targeting, budget, status)", "auth_required": true},
+        {"method": "DELETE", "path": "/api/ads/campaigns/:id", "description": "Archive campaign", "auth_required": true},
+        {"method": "GET", "path": "/api/ads/campaigns/:id/ads", "description": "List ad creatives in a campaign", "auth_required": true},
+        {"method": "POST", "path": "/api/ads/campaigns/:id/ads", "description": "Create an ad creative", "auth_required": true},
+        {"method": "PATCH", "path": "/api/ads/:id", "description": "Update ad creative", "auth_required": true},
+        {"method": "DELETE", "path": "/api/ads/:id", "description": "Delete ad creative", "auth_required": true},
+        {"method": "GET", "path": "/api/ads/campaigns/:id/analytics", "description": "Get campaign performance analytics (impressions, clicks, CTR, spend)", "auth_required": true}
+      ]
+    },
+
+    "automations": {
+      "module": "server/routes/automations.ts",
+      "route_count": 8,
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "note": "Entirely new. Module 11 of 16 in PRD.",
+      "routes": [
+        {"method": "GET", "path": "/api/automations", "description": "List automations for current business", "auth_required": true},
+        {"method": "GET", "path": "/api/automations/:id", "description": "Get automation with flow definition", "auth_required": true},
+        {"method": "POST", "path": "/api/automations", "description": "Create an automation flow", "auth_required": true},
+        {"method": "PATCH", "path": "/api/automations/:id", "description": "Update automation (flow definition, name, status)", "auth_required": true},
+        {"method": "DELETE", "path": "/api/automations/:id", "description": "Delete automation", "auth_required": true},
+        {"method": "POST", "path": "/api/automations/:id/activate", "description": "Activate an automation (start listening for triggers)", "auth_required": true},
+        {"method": "POST", "path": "/api/automations/:id/deactivate", "description": "Deactivate an automation", "auth_required": true},
+        {"method": "GET", "path": "/api/automations/:id/runs", "description": "List execution history", "auth_required": true}
+      ]
+    },
+
+    "email": {
+      "module": "server/routes/email.ts",
+      "route_count": 12,
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "note": "Entirely new. Module 12 of 16 in PRD. SendGrid dependency exists in package.json but no email routes.",
+      "routes": [
+        {"method": "GET", "path": "/api/email/lists", "description": "List email subscriber lists", "auth_required": true},
+        {"method": "POST", "path": "/api/email/lists", "description": "Create a subscriber list", "auth_required": true},
+        {"method": "PATCH", "path": "/api/email/lists/:id", "description": "Update list name/description", "auth_required": true},
+        {"method": "DELETE", "path": "/api/email/lists/:id", "description": "Delete a list", "auth_required": true},
+        {"method": "GET", "path": "/api/email/lists/:id/subscribers", "description": "List subscribers on a list", "auth_required": true},
+        {"method": "POST", "path": "/api/email/lists/:id/subscribers", "description": "Add subscriber (manual or via form submission)", "auth_required": true},
+        {"method": "DELETE", "path": "/api/email/subscribers/:id", "description": "Remove subscriber", "auth_required": true},
+        {"method": "GET", "path": "/api/email/broadcasts", "description": "List broadcasts", "auth_required": true},
+        {"method": "POST", "path": "/api/email/broadcasts", "description": "Create a broadcast (draft)", "auth_required": true},
+        {"method": "PATCH", "path": "/api/email/broadcasts/:id", "description": "Update broadcast content/scheduling", "auth_required": true},
+        {"method": "POST", "path": "/api/email/broadcasts/:id/send", "description": "Send or schedule a broadcast", "auth_required": true},
+        {"method": "GET", "path": "/api/email/broadcasts/:id/analytics", "description": "Get send/open/click analytics", "auth_required": true}
+      ]
+    },
+
+    "analytics": {
+      "module": "server/routes/analytics.ts",
+      "route_count": 7,
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "routes": [
+        {"method": "GET", "path": "/api/analytics/overview", "description": "Dashboard overview (followers, posts, revenue, engagement)", "auth_required": true},
+        {"method": "GET", "path": "/api/analytics/content", "description": "Content performance analytics (per-post metrics, best time to post)", "auth_required": true},
+        {"method": "GET", "path": "/api/analytics/audience", "description": "Audience analytics (growth, demographics, location)", "auth_required": true},
+        {"method": "GET", "path": "/api/analytics/revenue", "description": "Revenue analytics (sales by product, MRR, churn)", "auth_required": true},
+        {"method": "GET", "path": "/api/analytics/platforms", "description": "Cross-platform analytics (per-platform engagement)", "auth_required": true},
+        {"method": "GET", "path": "/api/analytics/community", "description": "Community analytics (active members, message volume, retention)", "auth_required": true},
+        {"method": "GET", "path": "/api/analytics/export", "description": "Export analytics data as CSV", "auth_required": true}
+      ]
+    },
+
+    "search": {
+      "module": "server/routes/search.ts",
+      "route_count": 3,
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "routes": [
+        {"method": "GET", "path": "/api/search/users", "description": "Search users by username, displayName", "auth_required": true},
+        {"method": "GET", "path": "/api/search/posts", "description": "Search posts by content text", "auth_required": true},
+        {"method": "GET", "path": "/api/search/products", "description": "Search products by title, description, category", "auth_required": true}
+      ]
+    },
+
+    "moderation": {
+      "module": "server/routes/moderation.ts",
+      "route_count": 6,
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "note": "Module 15 of 16 in PRD.",
+      "routes": [
+        {"method": "GET", "path": "/api/moderation/queue", "description": "Get flagged content queue for review", "auth_required": true},
+        {"method": "POST", "path": "/api/moderation/action", "description": "Take moderation action (warn, remove, ban, mute)", "auth_required": true},
+        {"method": "GET", "path": "/api/moderation/log", "description": "Get moderation action history", "auth_required": true},
+        {"method": "POST", "path": "/api/content/:id/report", "description": "Report content (post, comment, message)", "auth_required": true},
+        {"method": "GET", "path": "/api/moderation/appeals", "description": "List moderation appeals", "auth_required": true},
+        {"method": "PATCH", "path": "/api/moderation/appeals/:id", "description": "Resolve an appeal (approve/deny)", "auth_required": true}
+      ]
+    },
+
+    "notifications": {
+      "module": "server/routes/notifications.ts",
+      "route_count": 5,
+      "routes": [
+        {"method": "GET", "path": "/api/notifications", "description": "Get notifications for current user", "auth_required": true},
+        {"method": "GET", "path": "/api/notifications/count", "description": "Get unread count", "auth_required": true},
+        {"method": "POST", "path": "/api/notifications/:id/read", "description": "Mark as read", "auth_required": true},
+        {"method": "POST", "path": "/api/notifications/read-all", "description": "Mark all as read", "auth_required": true},
+        {"method": "DELETE", "path": "/api/notifications/:id", "description": "Delete notification", "auth_required": true}
+      ]
+    },
+
+    "settings": {
+      "module": "server/routes/settings.ts",
+      "route_count": 4,
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "routes": [
+        {"method": "GET", "path": "/api/settings/business/:id", "description": "Get business settings (branding, features, billing)", "auth_required": true},
+        {"method": "PATCH", "path": "/api/settings/business/:id", "description": "Update business settings", "auth_required": true},
+        {"method": "GET", "path": "/api/settings/business/:id/billing", "description": "Get subscription/billing info from Stripe", "auth_required": true},
+        {"method": "POST", "path": "/api/settings/business/:id/billing/portal", "description": "Create Stripe billing portal session", "auth_required": true}
+      ]
+    },
+
+    "upload": {
+      "module": "server/routes/upload.ts",
+      "route_count": 3,
+      "routes": [
+        {"method": "POST", "path": "/api/upload", "description": "Upload a file (image, video, audio, document)", "auth_required": true},
+        {"method": "POST", "path": "/api/upload/presigned", "description": "Get presigned URL for direct-to-S3 upload (large files)", "auth_required": true},
+        {"method": "DELETE", "path": "/api/upload/:key", "description": "Delete an uploaded file from object storage", "auth_required": true}
+      ],
+      "migration_notes": [
+        "Current: Multer middleware writing to local uploads/ directory (committed to git)",
+        "Target: S3-compatible object storage (Cloudflare R2 or AWS S3)",
+        "Must support presigned URLs for large video uploads (avoid server memory pressure)",
+        "CDN in front of storage for global delivery (Cloudflare)",
+        "File validation: type checking, size limits, virus scanning for user uploads"
+      ]
+    }
+  },
+
+  "planned_route_summary": {
+    "total_planned_routes": 180,
+    "routes_by_domain": {
+      "auth": 3,
+      "users": 13,
+      "businesses": 10,
+      "content": 22,
+      "connected_accounts": 7,
+      "commerce": 18,
+      "courses": 14,
+      "community": 16,
+      "messaging": 10,
+      "ugc": 12,
+      "ads": 10,
+      "automations": 8,
+      "email": 12,
+      "analytics": 7,
+      "search": 3,
+      "moderation": 6,
+      "notifications": 5,
+      "settings": 4,
+      "upload": 3
+    },
+    "current_route_count": 89,
+    "new_routes_needed": 91,
+    "route_modules_count": 19,
+    "note": "89 current routes reorganized into domain modules + 91 new routes across 9 new domains (businesses, connected_accounts, commerce, courses, ugc, ads, automations, email, analytics, search, moderation, settings). Some current routes are absorbed into expanded domain modules (e.g., current products routes merge into commerce)."
+  },
+
+  "middleware": {
+    "provenance": "SYNTHESIZED_CANON",
+    "current": {
+      "auth": "Passport.js session middleware (BROKEN)",
+      "body_parser": "express.json() + express.urlencoded()",
+      "upload": "Multer (local disk storage)",
+      "static": "Vite dev server (dev) / express.static (prod)",
+      "cors": "Not configured (single-origin assumed)",
+      "rate_limiting": "None",
+      "validation": "None (no Zod middleware, raw req.body used)",
+      "error_handling": "None (Express default)",
+      "logging": "None (no request logging)"
+    },
+    "target": {
+      "auth": {
+        "provider": "Clerk",
+        "middleware": "@clerk/express clerkMiddleware()",
+        "session": "Clerk JWT (stateless)",
+        "user_context": "getAuth(req) replaces req.user",
+        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      },
+      "validation": {
+        "library": "Zod",
+        "pattern": "Middleware function that validates req.body/req.params/req.query against a Zod schema. Rejects with 400 and structured error if invalid.",
+        "note": "zod and zod-validation-error already in package.json, just not wired as middleware"
+      },
+      "rate_limiting": {
+        "library": "express-rate-limit or similar",
+        "targets": [
+          {"path": "/api/auth/*", "limit": "10 req/min per IP"},
+          {"path": "/api/upload", "limit": "20 req/min per user"},
+          {"path": "/api/ai-agents/*/chat", "limit": "30 req/min per user"},
+          {"path": "/api/**", "limit": "100 req/min per user (general)"}
+        ]
+      },
+      "error_handling": {
+        "pattern": "Centralized error handler middleware at end of middleware chain. Catches all unhandled errors, logs them, returns structured JSON error response. Never leaks stack traces in production.",
+        "format": {"error": "string", "code": "string", "status": "number", "details": "object | null"}
+      },
+      "logging": {
+        "library": "pino or morgan",
+        "log_fields": ["method", "path", "status", "duration_ms", "user_id", "request_id"],
+        "note": "Structured JSON logging for production. Human-readable for development."
+      },
+      "cors": {
+        "note": "Needed if API and frontend are on different domains in production",
+        "config": "Allow origin from environment variable, credentials true"
+      },
+      "request_id": {
+        "pattern": "Generate UUID per request, attach to req and response headers. Thread through all logging.",
+        "header": "X-Request-ID"
+      }
+    }
+  },
+
+  "realtime": {
+    "provenance": "SYNTHESIZED_CANON",
+    "current": {
+      "websocket_dependency": "ws 8.18.0 in package.json",
+      "websocket_server": "No WebSocket server setup found in codebase",
+      "status": "DEPENDENCY_ONLY -- ws is installed but no WebSocket server is created or used"
+    },
+    "target": {
+      "protocol": "WebSocket (ws or Socket.IO)",
+      "use_cases": [
+        {"feature": "Direct messages", "events": ["new_message", "message_edited", "message_deleted", "typing_indicator", "read_receipt"]},
+        {"feature": "Channel messages", "events": ["new_channel_message", "message_pinned"]},
+        {"feature": "Notifications", "events": ["new_notification", "notification_count_update"]},
+        {"feature": "Stories", "events": ["new_story", "story_viewed"]},
+        {"feature": "Post interactions", "events": ["post_liked", "post_commented", "new_follower"]},
+        {"feature": "Community presence", "events": ["member_online", "member_offline"]}
+      ],
+      "auth": "Clerk JWT token passed on WebSocket connection. Verify on handshake.",
+      "scaling": "Single-server WebSocket for MVP. Redis pub/sub adapter for multi-server scaling."
+    }
+  },
+
+  "infrastructure": {
+    "provenance": "SYNTHESIZED_CANON",
+
+    "current": {
+      "hosting": "None -- development only (was Replit, now Beast local)",
+      "database": "Neon Postgres (dev DB via DATABASE_URL in Beast .env)",
+      "cdn": "None",
+      "object_storage": "None (files in local uploads/ directory, committed to git)",
+      "ci_cd": "None",
+      "monitoring": "None",
+      "error_tracking": "None",
+      "email_service": "SendGrid (dependency exists: @sendgrid/mail 8.1.4, not wired to any endpoint)",
+      "payment_processing": "None",
+      "search_engine": "None",
+      "cache": "None",
+      "queue": "None"
+    },
+
+    "target": {
+      "hosting": {
+        "platform": "Fly.io",
+        "provenance": "SYNTHESIZED_CANON",
+        "note": "Per OS Platform Standard v2. Same platform as UMH cockpit.",
+        "config": {
+          "app_name": "creatoros",
+          "region": "sea (Seattle, nearest to Portland)",
+          "vm_size": "shared-cpu-1x, 256MB (MVP), scale as needed",
+          "auto_scaling": true,
+          "min_machines": 1,
+          "max_machines": 3,
+          "health_check": "/api/health"
+        },
+        "open_question": "OQ-COS-008: Fly.io vs Render vs Railway. Fly.io is recommended for consistency with UMH cockpit."
+      },
+      "database": {
+        "platform": "Neon Postgres",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+        "note": "Already using Neon via @neondatabase/serverless. Need to provision production database.",
+        "config": {
+          "plan": "Free tier for MVP, Pro ($19/mo) for production",
+          "region": "us-west-2 (Oregon, nearest to Portland)",
+          "branching": "Use Neon branching for staging environments",
+          "connection_pooling": "PgBouncer via Neon's built-in pooler"
+        },
+        "migration_tool": "Drizzle Kit (already configured in drizzle.config.ts)",
+        "open_question": "OQ-DATA-6: Separate Neon database or shared with EOS? Recommendation: separate databases with UMH projection layer as the integration point."
+      },
+      "cdn": {
+        "platform": "Cloudflare",
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "use_cases": ["Static asset delivery (Vite build output)", "User-uploaded media (images, videos, audio)", "Global edge caching for API responses (cache-control headers)"],
+        "config": {
+          "zone": "TBD (domain not yet decided)",
+          "cache_rules": "Static assets: 1 year. API: no-cache by default. Media: 30 days."
+        },
+        "open_question": "Domain name for CreatorOS not yet decided."
+      },
+      "object_storage": {
+        "platform": "Cloudflare R2 (recommended) or AWS S3",
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "rationale": "Current uploads/ directory is committed to git (28 files). Must move to object storage for: scalability, CDN integration, presigned uploads, cost efficiency.",
+        "config": {
+          "bucket": "creatoros-uploads",
+          "regions": "auto (R2 is globally distributed)",
+          "access": "Presigned URLs for upload, CDN URL for read",
+          "lifecycle": "Auto-delete expired story media after 48h (24h expiry + 24h grace)"
+        }
+      },
+      "ci_cd": {
+        "platform": "GitHub Actions",
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "pipelines": [
+          {"name": "ci", "trigger": "push to any branch", "steps": ["install", "lint (eslint)", "type-check (tsc)", "test (vitest)", "build"]},
+          {"name": "deploy-staging", "trigger": "push to main", "steps": ["ci", "deploy to Fly.io staging"]},
+          {"name": "deploy-production", "trigger": "manual or tag", "steps": ["ci", "deploy to Fly.io production"]}
+        ]
+      },
+      "monitoring": {
+        "platform": "PostHog",
+        "provenance": "SYNTHESIZED_CANON",
+        "note": "PostHog for product analytics is decided per EOS canon. Same platform for CreatorOS.",
+        "features": ["Page views and user flows", "Feature flags for gradual rollout", "Session replay for debugging", "Custom events for business metrics"],
+        "open_question": "OQ-COS (from 14.5A): Error tracking provider -- PostHog only or add Sentry?"
+      },
+      "email_service": {
+        "platform": "SendGrid",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+        "note": "@sendgrid/mail already in package.json. Needs to be wired to email/newsletter routes and transactional emails (order confirmation, password reset, etc.).",
+        "email_types": [
+          {"type": "transactional", "examples": ["Order confirmation", "Course enrollment", "Password reset (if not fully Clerk-hosted)", "Community invite"]},
+          {"type": "broadcast", "examples": ["Newsletter", "Product announcement", "Course update"]},
+          {"type": "automated", "examples": ["Welcome sequence", "Abandoned cart", "Re-engagement"]}
+        ]
+      },
+      "payment_processing": {
+        "platform": "Stripe",
+        "provenance": "INFERRED_PROFESSIONAL_GAP",
+        "products": [
+          {"name": "Stripe Connect", "use": "Multi-party payments -- platform collects, splits to creator businesses", "account_type": "Express (recommended) or Standard"},
+          {"name": "Stripe Checkout", "use": "Hosted checkout page for product purchases", "note": "Simplest integration, handles PCI compliance"},
+          {"name": "Stripe Billing", "use": "Subscription management for platform tiers (Free/Pro/Business/Enterprise) and creator subscription products"},
+          {"name": "Stripe Webhooks", "use": "Event-driven updates: checkout.session.completed, invoice.paid, customer.subscription.updated, etc."}
+        ],
+        "fee_structure": {
+          "stripe_base": "2.9% + $0.30 per transaction",
+          "platform_fee": "8% (Free), 5% (Pro), 3% (Business), custom (Enterprise)",
+          "note": "Platform fee is on top of Stripe's base fee. Creator sees: sale amount - Stripe fee - platform fee = payout."
+        }
+      },
+      "search_engine": {
+        "options": ["Postgres full-text search (pg_trgm + tsvector)", "Meilisearch", "Algolia"],
+        "recommendation": "Postgres full-text search for MVP (zero additional infrastructure). Migrate to Meilisearch if search quality or performance becomes a bottleneck.",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      "cache": {
+        "options": ["Fly.io Redis (Upstash)", "In-memory LRU"],
+        "use_cases": ["Rate limiting counters", "Session data (if not using Clerk stateless JWT)", "Feed ranking cache", "Analytics aggregation cache"],
+        "recommendation": "Start without cache. Add Upstash Redis when needed for rate limiting or feed caching.",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      },
+      "queue": {
+        "options": ["BullMQ (Redis-backed)", "Inngest", "Trigger.dev"],
+        "use_cases": ["Cross-posting to external platforms (async, rate-limited)", "Email broadcast sending (batch)", "Automation execution (trigger/action processing)", "Video transcoding", "Analytics aggregation jobs"],
+        "recommendation": "Inngest or Trigger.dev for serverless-friendly job queue. BullMQ if self-hosting Redis.",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    }
+  },
+
+  "deployment": {
+    "provenance": "SYNTHESIZED_CANON",
+
+    "current": {
+      "dockerfile": false,
+      "fly_toml": false,
+      "docker_compose": false,
+      "ci_cd": false,
+      "github_actions": false,
+      "replit_config": true,
+      "replit_deployment_target": "autoscale",
+      "status": "NOT_DEPLOYED",
+      "blocked_by": "COS-AUTH-001: comparePasswords returns true for ALL passwords. Cannot deploy."
+    },
+
+    "target": {
+      "environments": [
+        {
+          "name": "development",
+          "description": "Local development on Beast (C:\\dev\\dev\\CreatorOS)",
+          "database": "Neon dev branch",
+          "run_command": "npm run dev (tsx server/index.ts)",
+          "hot_reload": true
+        },
+        {
+          "name": "staging",
+          "description": "Fly.io staging app for pre-production testing",
+          "database": "Neon staging branch (via Neon branching)",
+          "url": "TBD (creatoros-staging.fly.dev or staging.{domain})",
+          "deploy_trigger": "push to main branch"
+        },
+        {
+          "name": "production",
+          "description": "Fly.io production app",
+          "database": "Neon production database",
+          "url": "TBD ({domain})",
+          "deploy_trigger": "manual or git tag",
+          "scaling": "1-3 machines, auto-scaling"
+        }
+      ],
+      "dockerfile": {
+        "base_image": "node:20-slim",
+        "build_steps": [
+          "COPY package*.json .",
+          "RUN npm ci --production=false",
+          "COPY . .",
+          "RUN npm run build (vite build + esbuild server)",
+          "ENV NODE_ENV=production",
+          "CMD [\"node\", \"dist/index.js\"]"
+        ],
+        "port": 5000,
+        "health_check": "/api/health"
+      },
+      "fly_toml": {
+        "app": "creatoros",
+        "primary_region": "sea",
+        "vm_size": "shared-cpu-1x",
+        "memory": "256mb",
+        "auto_scaling": {"min": 1, "max": 3},
+        "services": [{"internal_port": 5000, "protocol": "tcp", "ports": [{"port": 443, "handlers": ["tls", "http"]}]}],
+        "env": {
+          "NODE_ENV": "production",
+          "PORT": "5000"
+        },
+        "secrets": ["DATABASE_URL", "SESSION_SECRET", "CLERK_SECRET_KEY", "CLERK_PUBLISHABLE_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "SENDGRID_API_KEY", "OPENAI_API_KEY", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME", "R2_ENDPOINT"]
+      },
+      "domain": {
+        "status": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+        "note": "Domain name not yet decided. Options need operator decision.",
+        "options": ["creatoros.io", "creatoros.app", "creatoros.com", "creator.{empyrean-domain}"]
+      }
+    }
+  },
+
+  "health_endpoint": {
+    "provenance": "INFERRED_PROFESSIONAL_GAP",
+    "note": "No health check endpoint exists. Required for Fly.io deployment and monitoring.",
+    "planned": {
+      "method": "GET",
+      "path": "/api/health",
+      "auth_required": false,
+      "response": {
+        "status": "ok | degraded | down",
+        "version": "string (git commit hash or package.json version)",
+        "uptime_seconds": "number",
+        "database": "connected | disconnected",
+        "timestamp": "ISO 8601"
+      }
+    }
+  },
+
+  "umh_integration": {
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "description": "How CreatorOS connects to the UMH substrate as a projection. Integration code exists in projections/creatoros/integration/ (1099 lines, 6 Python files) but is NOT activated.",
+
+    "projection_registration": {
+      "path": "projections/creatoros/integration/manifest.py",
+      "integration_id": "creatoros",
+      "signal_types": [
+        {"content_type": "creatoros_post_created", "urgency": "NORMAL", "risk": "READ_ONLY"},
+        {"content_type": "creatoros_product_listed", "urgency": "NORMAL", "risk": "READ_ONLY"},
+        {"content_type": "creatoros_revenue_recorded", "urgency": "HIGH", "risk": "READ_ONLY"}
+      ],
+      "capability_types": [
+        {"name": "noop", "category": "RETRIEVE", "risk": "READ_ONLY"},
+        {"name": "create_post", "category": "COMMUNICATE", "risk": "EXTERNAL_COMMUNICATION"},
+        {"name": "create_product", "category": "COMMUNICATE", "risk": "EXTERNAL_COMMUNICATION"},
+        {"name": "record_revenue", "category": "COMMUNICATE", "risk": "EXTERNAL_COMMUNICATION"}
+      ],
+      "polled_tables": ["posts", "products", "revenue"],
+      "poll_interval_seconds": 60,
+      "env_vars": ["CREATOROS_DATABASE_URL", "CREATOROS_USER_IDS", "CREATOROS_POLL_INTERVAL"]
+    },
+
+    "signal_emission": {
+      "path": "projections/creatoros/integration/signals.py",
+      "pattern": "CreatorOSSignalEmitter reads rows from polled tables, builds SignalEnvelope objects for UMH substrate processing",
+      "typed_row_dataclasses": ["PostRow", "ProductRow", "RevenueRow", "StoryRow"],
+      "note": "StoryRow exists but stories are NOT in POLLED_TABLES -- inconsistency (DEBT-COS-003)"
+    },
+
+    "capability_handling": {
+      "path": "projections/creatoros/integration/handlers.py",
+      "pattern": "CreatorOSCapabilityHandler dispatches UMH capability requests to CreatorOS actions. Currently supports noop, create_post, create_product, record_revenue.",
+      "note": "Handler writes to CreatorOS Neon database via psycopg2 SQL."
+    },
+
+    "outcome_tracking": {
+      "path": "projections/creatoros/integration/outcomes.py",
+      "pattern": "Dual writeback: updates source row umh_status column + inserts to umh_outcomes audit table",
+      "status_map": {"success": "success", "failure": "error", "error": "error", "governance_denied": "governance_denied", "timeout": "timeout"},
+      "blockers": [
+        "DEBT-COS-001: umh_status column does not exist on posts/products/revenue/stories tables",
+        "DEBT-COS-002: umh_outcomes audit table does not exist"
+      ]
+    },
+
+    "api_integration_routes": {
+      "provenance": "INFERRED_PROFESSIONAL_GAP",
+      "description": "Routes that CreatorOS exposes for UMH substrate to call (not user-facing)",
+      "routes": [
+        {"method": "POST", "path": "/api/umh/signal", "description": "Receive a signal from UMH substrate", "auth_required": true, "auth_type": "UMH service token"},
+        {"method": "POST", "path": "/api/umh/capability", "description": "Execute a capability requested by UMH", "auth_required": true, "auth_type": "UMH service token"},
+        {"method": "GET", "path": "/api/umh/status", "description": "Health/status endpoint for UMH projection monitor", "auth_required": true, "auth_type": "UMH service token"}
+      ],
+      "note": "These routes enable push-based integration (UMH calls CreatorOS) alongside the existing poll-based integration (CreatorOS polls tables). Both patterns coexist."
+    },
+
+    "test_coverage": {
+      "file": "tests/test_lyfeos_creatoros_integration.py",
+      "test_classes": [
+        "TestCreatorOSProtocols (4 tests)",
+        "TestCreatorOSSignals (3 tests)",
+        "TestCreatorOSCorrelation (2 tests)",
+        "TestCreatorOSConfig (2 tests)"
+      ],
+      "total_tests": 11,
+      "status": "ALL PASS"
+    },
+
+    "activation_status": "NOT_ACTIVATED",
+    "activation_prerequisites": [
+      "Provision production Neon database for CreatorOS",
+      "Add umh_status column to posts, products, revenue, stories tables",
+      "Create umh_outcomes audit table",
+      "Set CREATOROS_DATABASE_URL environment variable in UMH services",
+      "Wire CreatorOS projection into UMH substrate startup sequence",
+      "Add stories to POLLED_TABLES in manifest.py (fix DEBT-COS-003)"
+    ]
+  },
+
+  "eos_boundary": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "API surface boundary between CreatorOS and EOS. Both are UMH projections with separate databases, separate deployments, but shared platform kernel.",
+
+    "creatoros_owns": [
+      "Content creation/distribution/scheduling/cross-posting",
+      "Community management (communities, channels, membership)",
+      "Marketplace (products, orders, entitlements, reviews)",
+      "Course platform (courses, lessons, enrollments)",
+      "UGC campaigns",
+      "Ads platform",
+      "Automation builder (creator-facing)",
+      "Email/newsletter",
+      "Stories",
+      "Direct messaging between platform users",
+      "Content analytics / audience analytics",
+      "Creator CRM (contacts)"
+    ],
+
+    "eos_owns": [
+      "Portfolio/entity/venture management",
+      "AI agent hierarchy and orchestration",
+      "Business operations workflows",
+      "Task management with agent assignment",
+      "Financial tracking and business analytics",
+      "Document management (business docs)",
+      "CRM (deals, activities, pipeline)",
+      "Org chart engine",
+      "Governance and permissions (business-level)"
+    ],
+
+    "shared_via_umh": [
+      "Identity/auth (Clerk, shared user pool)",
+      "AI runtime (model routing, fallback chain)",
+      "Workflow engine (substrate execution pipeline)",
+      "Event bus (signal/capability/outcome)",
+      "Memory graph (cross-projection knowledge)"
+    ],
+
+    "overlap_areas": [
+      {
+        "area": "CRM",
+        "creatoros": "contacts table (basic creator CRM -- customer tracking)",
+        "eos": "crm_contacts + crm_deals + crm_activities (full CRM with pipeline)",
+        "resolution": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED -- keep separate or merge via UMH"
+      },
+      {
+        "area": "Revenue tracking",
+        "creatoros": "revenue table + transactions table (commerce-derived)",
+        "eos": "Business analytics (financial tracking)",
+        "resolution": "Different data sources. CreatorOS tracks commerce revenue. EOS tracks business operation financials. Both feed into UMH for unified view."
+      },
+      {
+        "area": "AI agents",
+        "creatoros": "ai_agents + ai_chats (creator-facing AI chat, OpenAI SDK)",
+        "eos": "Multi-provider agent hierarchy with task assignment",
+        "resolution": "CreatorOS AI is consumer-facing (chat product). EOS AI is business-operations-facing (agent orchestration). Different purposes, different architectures."
+      },
+      {
+        "area": "Notifications",
+        "creatoros": "notifications table (social platform notifications)",
+        "eos": "notifications (business operation notifications)",
+        "resolution": "Separate notification systems. Could share delivery infrastructure via UMH."
+      }
+    ]
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-API-1",
+      "question": "Domain name for CreatorOS production deployment?",
+      "impact": "Affects Fly.io config, Cloudflare setup, Clerk redirect URLs, Stripe webhook URLs",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-2",
+      "question": "CDN provider -- Cloudflare (recommended for R2 integration) or other?",
+      "impact": "Object storage choice, caching strategy, edge computing capability",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-3",
+      "question": "CI/CD platform -- GitHub Actions (recommended) or other?",
+      "impact": "Deployment pipeline, test automation, staging environments",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-4",
+      "question": "Error tracking -- PostHog only or add Sentry for error monitoring?",
+      "impact": "Debugging capability, error alerting, stack trace capture",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-5",
+      "question": "WebSocket library -- raw ws (current dependency) or Socket.IO (richer API, auto-reconnect, rooms)?",
+      "impact": "Real-time feature complexity, client library choice, scaling strategy",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-6",
+      "question": "Job queue -- Inngest, Trigger.dev, or BullMQ? Needed for cross-posting, email sending, automation execution.",
+      "impact": "Infrastructure cost (Redis for BullMQ vs managed service), developer experience, observability",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-7",
+      "question": "API versioning strategy -- path-based (/api/v1/) or no versioning for MVP?",
+      "impact": "Future API evolution, backward compatibility",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-8",
+      "question": "God file splitting timing -- split before or after Clerk auth migration?",
+      "impact": "If before: Passport routes get split into module then replaced. If after: fewer files to touch during Clerk migration.",
+      "recommendation": "Split first. The god file makes ANY change harder, including auth migration.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "id": "OQ-API-9",
+      "question": "Backend framework -- stay with Express (current) or migrate to NestJS (mentioned in PRD Tech Architecture)?",
+      "impact": "Express is working and familiar. NestJS adds structure but is a major rewrite. Migration cost vs structure benefit.",
+      "recommendation": "Stay with Express. The god file decomposition gives sufficient structure. NestJS migration would be a rewrite with no user-facing benefit.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  ],
+
+  "implementation_debt": {
+    "provenance": "IMPLEMENTATION_DEBT",
+    "items": [
+      {
+        "id": "DEBT-API-001",
+        "severity": "CRITICAL",
+        "description": "Auth bypass: comparePasswords returns true for ALL passwords. Cannot deploy until fixed.",
+        "resolution": "Clerk migration replaces entire auth system"
+      },
+      {
+        "id": "DEBT-API-002",
+        "severity": "HIGH",
+        "description": "God file routes.ts (53KB) -- all 89 routes in single file. Blocks parallel development and makes every change risky.",
+        "resolution": "Split into 14 domain modules per god_file_splitting strategy"
+      },
+      {
+        "id": "DEBT-API-003",
+        "severity": "HIGH",
+        "description": "God file storage.ts (105KB) -- all 77 data access functions in single file. No abstraction, no testability.",
+        "resolution": "Split into 15 domain modules per god_file_splitting strategy"
+      },
+      {
+        "id": "DEBT-API-004",
+        "severity": "MEDIUM",
+        "description": "No request validation middleware. Raw req.body used everywhere. No Zod schemas on routes despite Zod being in dependencies.",
+        "resolution": "Add Zod validation middleware. Define request/response schemas per route."
+      },
+      {
+        "id": "DEBT-API-005",
+        "severity": "MEDIUM",
+        "description": "No error handling middleware. Unhandled errors return Express default 500. Some errors leak internal details.",
+        "resolution": "Add centralized error handler that catches all errors and returns structured JSON."
+      },
+      {
+        "id": "DEBT-API-006",
+        "severity": "MEDIUM",
+        "description": "No rate limiting. Auth endpoints, AI chat, and file upload have no request throttling.",
+        "resolution": "Add express-rate-limit with per-endpoint configuration."
+      },
+      {
+        "id": "DEBT-API-007",
+        "severity": "MEDIUM",
+        "description": "File uploads stored to local filesystem and committed to git. 28 user files in uploads/ directory.",
+        "resolution": "Migrate to S3/R2 object storage. Add uploads/ to .gitignore."
+      },
+      {
+        "id": "DEBT-API-008",
+        "severity": "LOW",
+        "description": "Hardcoded DELETE /api/force-delete-story/11 route -- dev artifact with hardcoded story ID.",
+        "resolution": "Remove during god file split."
+      },
+      {
+        "id": "DEBT-API-009",
+        "severity": "LOW",
+        "description": "OpenAI client initialized with fallback 'your-api-key' string.",
+        "resolution": "Remove fallback. Require OPENAI_API_KEY env var. Return 503 if not configured."
+      },
+      {
+        "id": "DEBT-API-010",
+        "severity": "LOW",
+        "description": "No request logging. No way to debug production issues, track response times, or monitor API usage.",
+        "resolution": "Add pino or morgan logging middleware."
+      },
+      {
+        "id": "DEBT-API-011",
+        "severity": "LOW",
+        "description": "No health check endpoint. Required for Fly.io deployment and monitoring.",
+        "resolution": "Add GET /api/health with database connectivity check."
+      },
+      {
+        "id": "DEBT-API-012",
+        "severity": "LOW",
+        "description": "WebSocket dependency (ws 8.18.0) installed but no WebSocket server created or used.",
+        "resolution": "Either wire up WebSocket server for real-time features or remove ws dependency."
+      }
+    ]
+  },
+
+  "build_sequence": {
+    "provenance": "SYNTHESIZED_CANON",
+    "description": "Recommended order of API infrastructure work. Each phase unlocks the next. Dependencies are strict.",
+    "phases": [
+      {
+        "phase": "API-P0: Security",
+        "description": "Fix the auth bypass. Nothing else can ship until this is resolved.",
+        "deliverables": ["Clerk integration (replace Passport.js)", "Rate limiting on auth endpoints", "Remove hardcoded session secret"],
+        "blocked_by": "Operator decision: Clerk migration timing (before or after god file split)"
+      },
+      {
+        "phase": "API-P1: God File Decomposition",
+        "description": "Split routes.ts and storage.ts into domain modules. Prerequisite for all feature development.",
+        "deliverables": ["14 route modules in server/routes/", "15 storage modules in server/storage/", "Router registry in server/routes/index.ts", "Barrel export in server/storage/index.ts"],
+        "estimated_effort": "2-3 focused sessions",
+        "risk": "MEDIUM -- each extraction can break runtime"
+      },
+      {
+        "phase": "API-P2: Infrastructure Foundation",
+        "description": "Production deployment infrastructure.",
+        "deliverables": ["Dockerfile", "fly.toml", "Health check endpoint", "Error handling middleware", "Request validation (Zod)", "Request logging", "GitHub Actions CI pipeline"],
+        "blocked_by": "API-P0 (auth fix) and API-P1 (god file split)"
+      },
+      {
+        "phase": "API-P3: Commerce Stack",
+        "description": "Payment processing and product commerce.",
+        "deliverables": ["Stripe Connect integration", "Checkout flow", "Orders table and routes", "Transactions table", "Entitlements table and routes", "Webhook handling"],
+        "blocked_by": "API-P2 (infrastructure) and businesses table migration"
+      },
+      {
+        "phase": "API-P4: Content Distribution",
+        "description": "Cross-platform posting -- the core differentiator.",
+        "deliverables": ["Connected accounts OAuth flows", "Cross-posting to external platforms", "Content calendar/scheduling", "Platform-specific analytics"],
+        "blocked_by": "API-P2 (infrastructure) and job queue for async publishing"
+      },
+      {
+        "phase": "API-P5: Course Platform",
+        "description": "Course builder and student experience.",
+        "deliverables": ["Course/lesson CRUD", "Enrollment management", "Progress tracking", "Certificate generation"],
+        "blocked_by": "API-P3 (commerce -- courses are purchasable products)"
+      },
+      {
+        "phase": "API-P6: Community Enhancement",
+        "description": "Community features beyond basic channels.",
+        "deliverables": ["Community membership/roles", "Entitlement-gated communities", "WebSocket real-time messaging", "Community analytics"],
+        "blocked_by": "API-P3 (commerce -- paid communities)"
+      },
+      {
+        "phase": "API-P7: Engagement Features",
+        "description": "UGC, ads, automations, email.",
+        "deliverables": ["UGC campaign management", "Ads platform", "Automation builder", "Email/newsletter system"],
+        "blocked_by": "API-P3 (commerce) and API-P4 (content distribution)"
+      }
+    ]
+  },
+
+  "source_artifacts_referenced": [
+    "server/routes.ts (53,388 bytes -- 89 routes in god file)",
+    "server/storage.ts (104,725 bytes -- 77+ data access functions in god file)",
+    "server/auth.ts (6,509 bytes -- Passport.js BROKEN)",
+    "server/index.ts (2,308 bytes -- Express bootstrap)",
+    "server/db.ts (344 bytes -- Drizzle client)",
+    "server/upload.ts (4,666 bytes -- Multer file upload)",
+    "server/cleanup.ts (3,352 bytes -- cleanup utilities)",
+    "server/vite.ts (2,339 bytes -- Vite dev server integration)",
+    "shared/schema.ts (20 tables, 568 lines)",
+    "package.json (78 dependencies, including ws, @sendgrid/mail, openai, zod, multer)",
+    "projections/creatoros/integration/ (6 Python files, 1099 lines)",
+    "tests/test_lyfeos_creatoros_integration.py (11 tests, all passing)"
+  ]
+}

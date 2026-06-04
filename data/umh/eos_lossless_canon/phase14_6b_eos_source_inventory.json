@@ -1,0 +1,1099 @@
+{
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "Complete inventory of all EOS source truth surfaces: Google Docs, GitHub main, Beast feature branch, UMH projection code, prior phase artifacts, operator corrections, and UMH infrastructure artifacts.",
+
+  "google_docs": [
+    {
+      "doc_id": "1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo",
+      "title": "EntrepreneurOS",
+      "url": "https://docs.google.com/document/d/1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo/edit",
+      "modified": "2026-04-06T23:06:19.780Z",
+      "tabs": ["1", "5", "8", "9", "10", "11", "12", "13", "14", "15"],
+      "tab_count": 10,
+      "content_chars": 2088859,
+      "word_count_estimate": 348143,
+      "extraction_status": "FULLY_EXTRACTED",
+      "extraction_phase": "14.3A",
+      "extraction_artifact": "phase14_3a_full_content_extracted_claims.json",
+      "content_summary": "Multi-tab PRD with EOS substrate audit, integration specs, gap analysis. Defines modules, screens, workflows, agent hierarchy, governance model, memory architecture, skill system, cross-platform integration.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "notes": "Operator-authored product vision document. Primary source of desired state claims. Read via GWS API in Phase 14.3A."
+    },
+    {
+      "doc_id": "11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8",
+      "title": "UMH",
+      "url": "https://docs.google.com/document/d/11p36P6TMvTnnz2KdQ2wYd3cDKfjHtCvVKp2_XEkuvz8/edit",
+      "modified": "2026-05-10T00:06:44.500Z",
+      "tabs": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "11", "12", "13"],
+      "tab_count": 12,
+      "content_chars": 219966,
+      "word_count_estimate": 36661,
+      "extraction_status": "FULLY_EXTRACTED",
+      "extraction_phase": "14.3A",
+      "extraction_artifact": "phase14_3a_full_content_extracted_claims.json",
+      "relevance_to_eos": "Defines UMH substrate that EOS runs on. EOS-UMH integration boundary, projection registration model, abstract ports.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "notes": "Relevant to EOS as the substrate integration surface. Not EOS-specific but defines the platform contract EOS must satisfy."
+    },
+    {
+      "doc_id": "11p9ts6TTVDlCgOX1oV5u_0BGuHyHmgwclqEUgI4b6yM",
+      "title": "THE MUNOZ EMPIRE -- Elite Structural Architecture",
+      "url": "https://docs.google.com/document/d/11p9ts6TTVDlCgOX1oV5u_0BGuHyHmgwclqEUgI4b6yM/edit",
+      "modified": "2026-05-25T02:55:38.232Z",
+      "tabs": ["1"],
+      "tab_count": 1,
+      "content_chars": 89462,
+      "word_count_estimate": 14910,
+      "extraction_status": "FULLY_EXTRACTED",
+      "extraction_phase": "14.3A",
+      "extraction_artifact": "phase14_3a_full_content_extracted_claims.json",
+      "relevance_to_eos": "Corporate structure context. Defines OST as owner of EOS. Lyfe Institute as a venture managed inside EOS. Hierarchy of entities.",
+      "provenance": "SOURCE_PRESERVED_TRUTH",
+      "notes": "Source of operator correction that EOS is owned by OST, not Lyfe Institute."
+    }
+  ],
+
+  "github_main": {
+    "repo": "antonyfmunoz/EntrepreneurOS",
+    "branch": "main",
+    "files": 202,
+    "files_on_vps_copy": 154,
+    "vps_copy_path": "data/repos/entrepreneuros/",
+    "vps_copy_note": "VPS copy excludes attached_assets/, .replit, and some binary assets. 154 files present, 202 reported by GitHub API in Phase 14.4.",
+    "last_commit": "2026-02-20T03:18:51Z",
+    "last_commit_sha": "86041f58",
+    "last_commit_message": "Published your App",
+    "author": "Replit Agent",
+    "auth": "Passport.js (local strategy) + Firebase (Google OAuth + MFA)",
+    "status": "stale",
+    "framework": {
+      "frontend": "React 18 + Vite 5 + wouter + TanStack Query",
+      "backend": "Express 4 + Node.js (tsx dev, esbuild prod)",
+      "ui_library": "shadcn/ui (Radix + Tailwind CSS 3)",
+      "orm": "Drizzle ORM 0.39",
+      "database": "PostgreSQL (Neon serverless + postgres.js)",
+      "language": "TypeScript 5.6",
+      "runtime": "Node.js 20 (Replit modules)"
+    },
+    "key_files": {
+      "schema": "shared/schema.ts",
+      "shared_models": "shared/models/chat.ts",
+      "server_entry": "server/index.ts",
+      "server_routes": "server/routes.ts",
+      "server_auth": "server/auth.ts",
+      "server_db": "server/db.ts",
+      "server_storage": "server/storage.ts",
+      "client_entry": "client/src/main.tsx",
+      "client_app": "client/src/App.tsx",
+      "drizzle_config": "drizzle.config.ts",
+      "vite_config": "vite.config.ts",
+      "package_json": "package.json"
+    },
+    "pages": [
+      "agent-chat.tsx",
+      "agent-os-dashboard.tsx",
+      "agent-programming.tsx",
+      "analytics-page.tsx",
+      "auth-page.tsx",
+      "crm-page.tsx",
+      "dashboard.tsx",
+      "documents-page.tsx",
+      "gpt4o-chat-page.tsx",
+      "integrations-page.tsx",
+      "not-found.tsx",
+      "notifications-page.tsx",
+      "settings-page.tsx",
+      "support-page.tsx",
+      "task-board-page.tsx",
+      "tutorials-page.tsx"
+    ],
+    "page_count": 16,
+    "components": [
+      "action-approval-panel.tsx",
+      "agent-card.tsx",
+      "agent-metrics.tsx",
+      "ai-fab.tsx",
+      "ai-model-selector.tsx",
+      "api-key-dialog.tsx",
+      "create-agent-form.tsx",
+      "create-agent-modal.tsx",
+      "direct-gpt4o-chat.tsx",
+      "gmail-connect-button.tsx",
+      "header.tsx",
+      "integrations.tsx",
+      "layout.tsx",
+      "notification-dropdown.tsx",
+      "performance-analytics.tsx",
+      "sidebar.tsx",
+      "sop-template-button.tsx",
+      "stats-overview.tsx",
+      "task-board.tsx",
+      "task-card.tsx"
+    ],
+    "component_count": 20,
+    "ui_component_count": 45,
+    "hooks": [
+      "use-ai-api-keys.ts",
+      "use-ai-models.ts",
+      "use-auth.tsx",
+      "use-mobile.tsx",
+      "use-notifications.tsx",
+      "use-toast.ts"
+    ],
+    "lib_files": [
+      "firebase.ts",
+      "llmApi.ts",
+      "openai.ts",
+      "protected-route.tsx",
+      "queryClient.ts",
+      "utils.ts"
+    ],
+    "server_ai_services": [
+      "anthropic-service.ts",
+      "gemini-service.ts",
+      "index.ts",
+      "openai-service.ts",
+      "perplexity-service.ts",
+      "xai-service.ts"
+    ],
+    "server_integrations": ["gmail.ts"],
+    "server_services": ["action-executor.ts"],
+    "scripts": [
+      "add-metadata-column.ts",
+      "create-demo-user.ts",
+      "create-notifications-table.ts",
+      "fix-messages-table.ts",
+      "setup-crm-tables.ts",
+      "setup-documents-table.ts",
+      "setup-folders-table.ts",
+      "setup-tables.ts",
+      "update-agents-table.ts",
+      "update-messages-table.ts",
+      "update-notifications-table.ts",
+      "update-tasks-table.ts"
+    ],
+    "schema_tables": ["users", "agents", "tasks", "messages", "integrations", "notifications"],
+    "schema_table_count": 6,
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+  },
+
+  "beast_branch": {
+    "path": "C:\\dev\\dev\\EntrepreneurOS",
+    "branch": "feature/company-system",
+    "files": 603,
+    "auth": "Clerk (React + Express)",
+    "status": "active_development",
+    "canonical_candidate": true,
+    "decision_ref": "DEC-145-001",
+    "last_commit_sha": "d4ecc8d",
+    "last_commit_message": "chore(eos): remove skill infrastructure -- product only",
+    "last_commit_date": "2026-04-16 11:13:03 -0700",
+    "vps_accessible": false,
+    "vps_note": "Beast branch lives on Windows machine at C:\\dev\\dev\\entrepreneuros. Not directly accessible from VPS. Analysis based on Phase 14.4 beast inventory.",
+    "framework": {
+      "frontend": "React 18 + Vite + Tailwind + shadcn/ui + wouter",
+      "backend": "Express + tsx",
+      "orm": "Drizzle ORM",
+      "database": "Neon Postgres (serverless)",
+      "auth": "Clerk (React + Express)",
+      "ai_sdks": ["@anthropic-ai/sdk", "openai", "@google/generative-ai", "@google/stitch-sdk"],
+      "analytics": "PostHog",
+      "testing": "Vitest + Playwright",
+      "type_system": "TypeScript 5.6.3 + Zod"
+    },
+    "additions_over_main": [
+      "Company system (setup, management, switching)",
+      "Portfolio management (list, detail, multi-entity)",
+      "Clerk auth (replacing Passport.js + Firebase)",
+      "14 route modules (vs 1 monolithic routes.ts)",
+      "32 pages (vs 16)",
+      "Layout system (universal-layout, left-rail, right-rail, floating-ai-panel)",
+      "Org chart page",
+      "Workflow page",
+      "Command center page",
+      "Admin dashboard",
+      "Generated code layer (server/generated/)",
+      "Middleware layer (auth, clerk-org, error-handler, validation)",
+      "PostHog analytics integration",
+      "Vitest + Playwright test infrastructure",
+      "Design tokens system",
+      "Company guard component",
+      "AI gateway (server/ai/gateway.ts)",
+      "Migrations directory"
+    ],
+    "key_files": {
+      "schema": "shared/schema.ts",
+      "design_schema": "shared/design-schema.ts",
+      "spec_schema": "shared/spec-schema.ts",
+      "shared_models": "shared/models/chat.ts"
+    },
+    "pages": [
+      "admin-dashboard-page.tsx",
+      "agent-chat-page.tsx",
+      "agent-chat.tsx",
+      "agent-os-dashboard.tsx",
+      "agent-programming.tsx",
+      "analytics-page.tsx",
+      "auth-page.tsx",
+      "command-center-page.tsx",
+      "company-setup-page.tsx",
+      "crm-page.tsx",
+      "dashboard-page.tsx",
+      "dashboard.tsx",
+      "documents-page.tsx",
+      "forgot-password-page.tsx",
+      "gpt4o-chat-page.tsx",
+      "integrations-page.tsx",
+      "login-page.tsx",
+      "not-found-page.tsx",
+      "not-found.tsx",
+      "notifications-page.tsx",
+      "org-chart-page.tsx",
+      "portfolio-detail-page.tsx",
+      "portfolio-list-page.tsx",
+      "reset-password-page.tsx",
+      "settings-page.tsx",
+      "signup-page.tsx",
+      "support-page.tsx",
+      "task-board-page-new.tsx",
+      "task-board-page.tsx",
+      "tutorials-page.tsx",
+      "workflows-page.tsx"
+    ],
+    "page_count": 31,
+    "components": [
+      "action-approval-panel.tsx",
+      "agent-card.tsx",
+      "agent-chat-stub.tsx",
+      "agent-metrics.tsx",
+      "ai-fab.tsx",
+      "ai-model-selector.tsx",
+      "api-key-dialog.tsx",
+      "BuildStatusOverlay.tsx",
+      "create-agent-form.tsx",
+      "create-agent-modal.tsx",
+      "direct-gpt4o-chat.tsx",
+      "floating-ai-panel.tsx",
+      "gmail-connect-button.tsx",
+      "header.tsx",
+      "integrations.tsx",
+      "layout/",
+      "layout.tsx",
+      "left-rail.tsx",
+      "notification-dropdown.tsx",
+      "performance-analytics.tsx",
+      "right-rail.tsx",
+      "sidebar.tsx",
+      "sop-template-button.tsx",
+      "stats-overview.tsx",
+      "task-board.tsx",
+      "task-card.tsx",
+      "universal-layout.tsx"
+    ],
+    "layout_components": [
+      "agent-chat-stub.tsx",
+      "floating-ai-panel.tsx",
+      "header.tsx",
+      "left-rail.tsx",
+      "right-rail.tsx",
+      "universal-layout.tsx"
+    ],
+    "ui_component_count": 46,
+    "hooks": [
+      "use-ai-api-keys.ts",
+      "use-ai-models.ts",
+      "use-auth.tsx",
+      "use-company.ts",
+      "use-mobile.tsx",
+      "use-notifications.tsx",
+      "use-organization.ts",
+      "use-rail-collapse.ts",
+      "use-toast.ts"
+    ],
+    "lib_files": [
+      "clerk.ts",
+      "company-guard.tsx",
+      "design-tokens.ts",
+      "llmApi.ts",
+      "openai.ts",
+      "protected-route.tsx",
+      "queryClient.ts",
+      "utils.ts"
+    ],
+    "server_core": [
+      "server/auth.ts",
+      "server/db.ts",
+      "server/index.ts",
+      "server/openai.ts",
+      "server/routes.ts",
+      "server/storage.ts",
+      "server/vite.ts"
+    ],
+    "server_ai_services": [
+      "server/ai/anthropic-service.ts",
+      "server/ai/gateway.ts",
+      "server/ai/gemini-service.ts",
+      "server/ai/index.ts",
+      "server/ai/openai-service.ts",
+      "server/ai/perplexity-service.ts",
+      "server/ai/xai-service.ts"
+    ],
+    "server_middleware": [
+      "server/middleware/auth.ts",
+      "server/middleware/clerk-org.ts",
+      "server/middleware/error-handler.ts",
+      "server/middleware/validation.ts"
+    ],
+    "api_route_modules": [
+      "actions.ts",
+      "agents.ts",
+      "ai.ts",
+      "analytics.ts",
+      "companies.ts",
+      "conversations.ts",
+      "crm.ts",
+      "documents.ts",
+      "integrations.ts",
+      "notifications.ts",
+      "portfolios.ts",
+      "tasks.ts",
+      "users.ts",
+      "workflows.ts"
+    ],
+    "api_route_module_count": 14,
+    "generated_layer": {
+      "directory": "server/generated/",
+      "contents": ["index.ts", "routes/", "schema.ts", "storage/"],
+      "storage_modules": [
+        "activity.ts", "auth.ts", "capabilities.ts", "companies.ts",
+        "conversations.ts", "departments.ts", "kpis.ts", "login.ts",
+        "logout.ts", "me.ts", "notifications.ts", "onboarding.ts",
+        "portfolios.ts", "preferences.ts", "read.ts", "readAll.ts",
+        "register.ts", "roles.ts", "steps.ts", "tasks.ts", "workflows.ts"
+      ],
+      "storage_module_count": 21
+    },
+    "schema_tables": ["users", "agents", "tasks", "messages", "integrations", "notifications"],
+    "schema_table_count": 6,
+    "schema_note": "shared/schema.ts has same 6 core tables as main. Beast adds design-schema.ts and spec-schema.ts for additional type definitions. Generated layer has its own schema.ts extension.",
+    "file_divergence_from_main": 401,
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+  },
+
+  "prior_phases": [
+    {
+      "phase_id": "14.3",
+      "artifact": "phase14_3_product_requirements_gap_report.json",
+      "path": "data/umh/product_docs_convergence/phase14_3_product_requirements_gap_report.json",
+      "description": "Initial product requirements gap report for Trinity apps including EOS.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3",
+      "artifact": "phase14_3_extracted_product_claims.json",
+      "path": "data/umh/product_docs_convergence/phase14_3_extracted_product_claims.json",
+      "description": "Initial claim extraction from Google Docs metadata (before full content access).",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3",
+      "artifact": "phase14_3_end_state_design_map.json",
+      "path": "data/umh/product_docs_convergence/phase14_3_end_state_design_map.json",
+      "description": "Initial end-state design mapping for Trinity apps.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3",
+      "artifact": "phase14_3_doc_classification.json",
+      "path": "data/umh/product_docs_convergence/phase14_3_doc_classification.json",
+      "description": "Document classification for all Trinity product docs.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3",
+      "artifact": "phase14_3_google_docs_inventory.json",
+      "path": "data/umh/product_docs_convergence/phase14_3_google_docs_inventory.json",
+      "description": "Initial Google Docs inventory (metadata only, before full content read).",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3A",
+      "artifact": "phase14_3a_full_google_docs_inventory.json",
+      "path": "data/umh/product_docs_convergence/phase14_3a_full_google_docs_inventory.json",
+      "description": "Full Google Docs inventory with content char counts, tab listings, and extraction status for all 47 drive files. EOS doc: 2,088,859 chars across 10 tabs.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3A",
+      "artifact": "phase14_3a_product_requirements_gap_report.json",
+      "path": "data/umh/product_docs_convergence/phase14_3a_product_requirements_gap_report.json",
+      "description": "Full content gap report with extracted claims, end-state design map, doc classification for all Trinity apps including EOS.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3A",
+      "artifact": "phase14_3a_full_content_extracted_claims.json",
+      "path": "data/umh/product_docs_convergence/phase14_3a_full_content_extracted_claims.json",
+      "description": "Exhaustive claim extraction from all Google Docs with full content access. EOS section defines product_definition, core_features (19 modules), target_users, screens, workflows.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3A",
+      "artifact": "phase14_3a_end_state_design_map.json",
+      "path": "data/umh/product_docs_convergence/phase14_3a_end_state_design_map.json",
+      "description": "End-state design mapping for all Trinity apps from full content analysis.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3A",
+      "artifact": "phase14_3a_doc_classification.json",
+      "path": "data/umh/product_docs_convergence/phase14_3a_doc_classification.json",
+      "description": "Updated document classification from full content extraction.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.3A",
+      "artifact": "phase14_3a_shared_trinity_architecture.json",
+      "path": "data/umh/product_docs_convergence/phase14_3a_shared_trinity_architecture.json",
+      "description": "Shared architecture patterns across Trinity apps (EOS, CreatorOS, LyfeOS). Defines common platform standard.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_eos_desired_state_canon.json",
+      "path": "data/umh/trinity_alignment/phase14_4_eos_desired_state_canon.json",
+      "description": "EOS desired state canon. 19 modules, 11 screens, 8 workflows, feature list, target architecture. Defines EOS as AI-native business operating system for founders.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_eos_github_inventory.json",
+      "path": "data/umh/trinity_alignment/phase14_4_eos_github_inventory.json",
+      "description": "GitHub main branch deep inventory. 202 files, Replit Agent authored, Passport.js + Firebase auth, 6 schema tables, 16 pages, 20 components, 6 AI services.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_eos_beast_inventory.json",
+      "path": "data/umh/trinity_alignment/phase14_4_eos_beast_inventory.json",
+      "description": "Beast feature/company-system branch deep inventory. 603 files, Clerk auth, 31 pages, 14 route modules, generated code layer, middleware, PostHog, Vitest + Playwright.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_feature_preservation_matrices.json",
+      "path": "data/umh/trinity_alignment/phase14_4_feature_preservation_matrices.json",
+      "description": "Feature preservation matrices tracking what exists in GitHub main, Beast, and desired state for all Trinity apps.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_gap_maps_build_sequences.json",
+      "path": "data/umh/trinity_alignment/phase14_4_gap_maps_build_sequences.json",
+      "description": "Gap maps and build sequences for closing divergences between current code and desired state.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_architecture_diffs.json",
+      "path": "data/umh/trinity_alignment/phase14_4_architecture_diffs.json",
+      "description": "Architecture diffs between GitHub main and Beast branch for all Trinity apps.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_product_design_diffs.json",
+      "path": "data/umh/trinity_alignment/phase14_4_product_design_diffs.json",
+      "description": "Product design diffs between current implementations and desired state.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_current_source_inventory.json",
+      "path": "data/umh/trinity_alignment/phase14_4_current_source_inventory.json",
+      "description": "Combined source inventory across all Trinity apps with GitHub and Beast state per app.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "phase_id": "14.4",
+      "artifact": "phase14_4_current_state_summaries.json",
+      "path": "data/umh/trinity_alignment/phase14_4_current_state_summaries.json",
+      "description": "Current state summaries per Trinity app with implementation maturity scores.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "phase_id": "14.5",
+      "artifact": "phase14_5_eos_convergence_plan.json",
+      "path": "data/umh/trinity_convergence/phase14_5_eos_convergence_plan.json",
+      "description": "EOS convergence plan. Source divergence analysis, auth state, schema state, UI state, gaps, contradictions, work packets. Identifies Beast as canonical candidate (DEC-145-001). 401-file divergence.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5",
+      "artifact": "phase14_5_convergence_decision_ledger.json",
+      "path": "data/umh/trinity_convergence/phase14_5_convergence_decision_ledger.json",
+      "description": "Decision ledger for all Trinity convergence decisions. Contains DEC-145-001 (Beast as canonical candidate for EOS).",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5",
+      "artifact": "phase14_5_source_truth_packet.json",
+      "path": "data/umh/trinity_convergence/phase14_5_source_truth_packet.json",
+      "description": "Source truth packet summarizing convergence state across all Trinity apps.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5",
+      "artifact": "phase14_5_risk_register.json",
+      "path": "data/umh/trinity_convergence/phase14_5_risk_register.json",
+      "description": "Risk register for convergence operations including Beast promotion risks.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5",
+      "artifact": "phase14_5_umh_integration_boundary_plan.json",
+      "path": "data/umh/trinity_convergence/phase14_5_umh_integration_boundary_plan.json",
+      "description": "UMH integration boundary plan defining how EOS, CreatorOS, LyfeOS connect to UMH substrate.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5",
+      "artifact": "phase14_5_work_packet_tree.json",
+      "path": "data/umh/trinity_convergence/phase14_5_work_packet_tree.json",
+      "description": "Work packet tree for executing convergence across all Trinity apps.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_eos_13_layer_production_stack.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_eos_13_layer_production_stack.json",
+      "description": "13-layer production stack for EOS with desired state, current state, and gaps per layer. All layers BLOCKED pending source convergence. Layers: Auth, Schema, API, UI Shell, Pages, Components, State, AI, Integrations, Testing, Deploy, Monitoring, Docs.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_contradiction_ledger.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_contradiction_ledger.json",
+      "description": "Contradiction ledger documenting conflicts across sources (auth contradictions, ownership contradictions, hierarchy contradictions).",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_operator_decision_ledger.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_operator_decision_ledger.json",
+      "description": "Operator decision ledger tracking decisions requiring operator input.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_operator_question_ledger.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_operator_question_ledger.json",
+      "description": "Open questions requiring operator resolution.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_clarification_ledger.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_clarification_ledger.json",
+      "description": "Clarification ledger for ambiguous claims needing resolution.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_intent_extrapolation.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_intent_extrapolation.json",
+      "description": "Intent extrapolation where analyst inferred product intent from incomplete or ambiguous source material.",
+      "provenance": "INFERRED_PROFESSIONAL_GAP"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_technical_grounding.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_technical_grounding.json",
+      "description": "Technical grounding document mapping desired state features to concrete implementation patterns.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "phase_id": "14.5A",
+      "artifact": "phase14_5a_umh_13_layer_integration_boundary.json",
+      "path": "data/umh/trinity_convergence/phase14_5a_umh_13_layer_integration_boundary.json",
+      "description": "UMH 13-layer integration boundary defining how projections connect at each layer.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  ],
+
+  "phase_14_6b_artifacts": [
+    {
+      "artifact": "phase14_6b_eos_preflight.json",
+      "path": "data/umh/eos_lossless_canon/phase14_6b_eos_preflight.json",
+      "description": "Corrective product-source-truth reconstruction preflight. Defines all source inputs, core rules, success criteria (35), expected artifacts (36), and provenance labels.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "phase14_6b_eos_business_democratization_doctrine.json",
+      "path": "data/umh/eos_lossless_canon/phase14_6b_eos_business_democratization_doctrine.json",
+      "description": "EOS business democratization doctrine. Center of gravity: democratizing economic activity. Not just founder tooling. Entity model broader than businesses.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "phase14_6b_eos_portfolio_entity_business_ontology.json",
+      "path": "data/umh/eos_lossless_canon/phase14_6b_eos_portfolio_entity_business_ontology.json",
+      "description": "Portfolio-entity-business ontology. Hierarchy: Operator -> Portfolio(s) -> Entities -> Operations -> Teams -> Workflows -> Capital -> Outcomes. Entity types include businesses, investments, real estate, stocks, asset holdings, agencies, SaaS, media, operating companies.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "phase14_6b_eos_communication_delegation_architecture.json",
+      "path": "data/umh/eos_lossless_canon/phase14_6b_eos_communication_delegation_architecture.json",
+      "description": "Communication and delegation architecture. User -> EA Agent -> Portfolio Advisor OR CEO Agent -> Department/Specialist Agents. EA never routes directly to department/specialist agents. Permission tiers: READ/DRAFT/EXECUTE/COMMIT.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "phase14_6b_eos_onboarding_first_boot_spec.json",
+      "path": "data/umh/eos_lossless_canon/phase14_6b_eos_onboarding_first_boot_spec.json",
+      "description": "Onboarding and first-boot specification. 25-step onboarding flow from account creation through AI-generated org structure.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "phase14_6b_eos_ui_ux_aesthetic_canon.json",
+      "path": "data/umh/eos_lossless_canon/phase14_6b_eos_ui_ux_aesthetic_canon.json",
+      "description": "UI/UX aesthetic canon. Executive command center, business cockpit, finance-grade clarity, strategic control, modern AI-native enterprise. NOT playful, NOT creator-social, NOT RPG.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "phase14_6b_eos_source_detail_preservation_ledger.json",
+      "path": "data/umh/eos_lossless_canon/phase14_6b_eos_source_detail_preservation_ledger.json",
+      "description": "Lossless accounting of every meaningful product signal from every EOS source document. 120 signals traced from origin through preservation in 14.6B artifacts.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  ],
+
+  "projection_code": {
+    "path": "projections/eos/",
+    "files": 31,
+    "lines": 5699,
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH",
+    "components": {
+      "agents": {
+        "path": "projections/eos/agents/",
+        "files": ["__init__.py", "base.py", "ceo.py", "customer_success.py", "engineering.py", "finance.py", "hr.py", "legal.py", "marketing.py", "operations.py", "product.py", "sales.py"],
+        "file_count": 12,
+        "description": "10 department agents (CEO, Sales, Marketing, Finance, Customer Success, HR, Legal, Operations, Product, Engineering) plus base class and __init__."
+      },
+      "views": {
+        "path": "projections/eos/views/",
+        "files": ["__init__.py", "activity.py", "kpis.py", "pipeline.py"],
+        "file_count": 4,
+        "description": "3 view modules (Activity feed, KPI dashboards, Pipeline view) plus __init__."
+      },
+      "workflows": {
+        "path": "projections/eos/workflows/",
+        "files": ["__init__.py", "content.py", "followup.py", "outreach.py"],
+        "file_count": 4,
+        "description": "3 workflow modules (Content creation, Follow-up automation, Outreach campaigns) plus __init__."
+      },
+      "integration": {
+        "path": "projections/eos/integration/",
+        "files": ["__init__.py", "DESIGN.md", "correlation.py", "handlers.py", "manifest.py", "outcomes.py", "poller.py", "signals.py", "tables.py"],
+        "file_count": 9,
+        "description": "UMH integration layer. Signal factory, outcome tracking, manifest, polling, correlation, handler dispatch, table definitions. DESIGN.md (1463 lines) documents integration architecture."
+      },
+      "root": {
+        "files": ["__init__.py", "entities.py"],
+        "file_count": 2,
+        "description": "Root module init (92 lines) and entities module (879 lines, largest file, defines EOS entity model)."
+      }
+    },
+    "file_line_counts": {
+      "entities.py": 879,
+      "integration/tables.py": 582,
+      "agents/customer_success.py": 283,
+      "agents/legal.py": 269,
+      "integration/poller.py": 256,
+      "agents/product.py": 246,
+      "agents/operations.py": 243,
+      "agents/finance.py": 236,
+      "agents/engineering.py": 219,
+      "agents/marketing.py": 213,
+      "agents/ceo.py": 212,
+      "agents/hr.py": 207,
+      "agents/base.py": 198,
+      "integration/outcomes.py": 182,
+      "agents/sales.py": 169,
+      "integration/signals.py": 157,
+      "integration/handlers.py": 157,
+      "integration/manifest.py": 156,
+      "views/kpis.py": 145
+    }
+  },
+
+  "saas_code": {
+    "path": "saas/",
+    "status": "NOT_PRESENT_ON_VPS",
+    "schema_file": null,
+    "note": "saas/ directory does not exist in current VPS worktree. Per CLAUDE.md architecture notes, saas/ is the EOS projection ONLY layer (EOS-specific routes, schema, seed data). It imports UMH infrastructure from transports/api/http/. The EOS SaaS code lives primarily in the Beast branch at C:\\dev\\dev\\entrepreneuros, not in the OS repo saas/ directory.",
+    "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+  },
+
+  "umh_artifacts": [
+    {
+      "artifact": "EOS Projection Registration",
+      "path": "projections/eos/__init__.py",
+      "type": "projection_registration",
+      "description": "EOS projection init module (92 lines). Defines how EOS registers with UMH substrate.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Entity Model",
+      "path": "projections/eos/entities.py",
+      "type": "domain_model",
+      "description": "EOS entity model (879 lines). Defines portfolio, entity, business, investment, and asset models for UMH integration.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Integration Design",
+      "path": "projections/eos/integration/DESIGN.md",
+      "type": "architecture_doc",
+      "description": "EOS-UMH integration architecture design document (1463 lines). Defines signal flow, outcome tracking, manifest, polling, correlation.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Integration Tables",
+      "path": "projections/eos/integration/tables.py",
+      "type": "schema_definition",
+      "description": "EOS integration table definitions for UMH substrate persistence (582 lines).",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Projection Test",
+      "path": "tests/test_eos_projection.py",
+      "type": "test",
+      "description": "Test suite for EOS projection registration and functionality.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "UMH-EOS Boundary Doctrine",
+      "path": "docs/operations/umh_eos_boundary_doctrine_v1.md",
+      "type": "architecture_doc",
+      "description": "Defines the boundary between UMH substrate and EOS projection. What belongs where.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "EOS Voice Responder",
+      "path": "substrate/execution/bridge/voice_eos_responder.py",
+      "type": "voice_integration",
+      "description": "Voice interface responder for EOS projection within UMH execution bridge.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Status Script",
+      "path": "scripts/eos_status.py",
+      "type": "operational_script",
+      "description": "Operational script for checking EOS projection status.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Watermark Seeder",
+      "path": "scripts/seed_eos_watermarks_to_now.py",
+      "type": "operational_script",
+      "description": "Script to seed EOS watermarks to current timestamp.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "Phase 12 EOS Liquidation Report",
+      "path": "docs/audits/phase12_eos_liquidation_report.md",
+      "type": "audit_doc",
+      "description": "Historical audit from Phase 12 documenting EOS liquidation/extraction decisions.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "EOS Code Reviewer Agent",
+      "path": ".claude/agents/eos-code-reviewer.md",
+      "type": "cc_agent",
+      "description": "Claude Code subagent for reviewing EOS code changes.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Researcher Agent",
+      "path": ".claude/agents/eos-researcher.md",
+      "type": "cc_agent",
+      "description": "Claude Code subagent for researching EOS implementation questions.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Simplifier Agent",
+      "path": ".claude/agents/eos-simplifier.md",
+      "type": "cc_agent",
+      "description": "Claude Code subagent for simplifying EOS code.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Verifier Agent",
+      "path": ".claude/agents/eos-verifier.md",
+      "type": "cc_agent",
+      "description": "Claude Code subagent for verifying EOS changes.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Audit Command",
+      "path": ".claude/commands/eos-audit.md",
+      "type": "cc_command",
+      "description": "Claude Code slash command for EOS audits.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Build Command",
+      "path": ".claude/commands/eos-build.md",
+      "type": "cc_command",
+      "description": "Claude Code slash command for EOS build operations.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Deploy Command",
+      "path": ".claude/commands/eos-deploy.md",
+      "type": "cc_command",
+      "description": "Claude Code slash command for EOS deployment.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Fix Command",
+      "path": ".claude/commands/eos-fix.md",
+      "type": "cc_command",
+      "description": "Claude Code slash command for EOS bug fixes.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Sync Command",
+      "path": ".claude/commands/eos-sync.md",
+      "type": "cc_command",
+      "description": "Claude Code slash command for EOS sync operations.",
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "artifact": "EOS Knowledge: Architectural Preservation Decision",
+      "path": "knowledge/decisions/eos-architectural-preservation.md",
+      "type": "knowledge_doc",
+      "description": "Decision record for preserving EOS architecture during convergence.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "EOS Knowledge: System Components",
+      "path": "knowledge/concepts/eos-system-components.md",
+      "type": "knowledge_doc",
+      "description": "Concept documentation for EOS system components.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "EOS Knowledge: Infrastructure Components",
+      "path": "knowledge/concepts/eos-infrastructure-components.md",
+      "type": "knowledge_doc",
+      "description": "Concept documentation for EOS infrastructure components.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "EOS Knowledge: MVP",
+      "path": "knowledge/concepts/eos-mvp.md",
+      "type": "knowledge_doc",
+      "description": "Concept documentation for EOS MVP scope.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "EOS Knowledge: Builder Mode",
+      "path": "knowledge/concepts/eos-builder-mode.md",
+      "type": "knowledge_doc",
+      "description": "Concept documentation for EOS builder mode.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "EOS Knowledge: Product Mode",
+      "path": "knowledge/concepts/eos-product-mode.md",
+      "type": "knowledge_doc",
+      "description": "Concept documentation for EOS product mode.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "EOS Knowledge: Morning Preparation",
+      "path": "knowledge/concepts/eos-morning-preparation.md",
+      "type": "knowledge_doc",
+      "description": "Concept documentation for EOS morning preparation workflow.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "EOS Knowledge: Auto-Clear Mechanism",
+      "path": "knowledge/concepts/eos-auto-clear-mechanism.md",
+      "type": "knowledge_doc",
+      "description": "Concept documentation for EOS auto-clear mechanism.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "EOS Knowledge: SessionState System",
+      "path": "knowledge/entities/eos-sessionstate-system.md",
+      "type": "knowledge_doc",
+      "description": "Entity documentation for EOS SessionState system.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "EOS Knowledge: Mode Behavior Control",
+      "path": "knowledge/synthesis/eos-mode-behavior-control.md",
+      "type": "knowledge_doc",
+      "description": "Synthesis documentation for EOS mode behavior control patterns.",
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "artifact": "EOS Memory Palace Wing",
+      "path": "knowledge/palace/wings/eos_ai-wing.md",
+      "type": "memory_palace",
+      "description": "Memory palace wing for EOS AI-related knowledge.",
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  ],
+
+  "operator_corrections": [
+    {
+      "correction_id": "OC-001",
+      "source": "Phase 14.6B mission brief",
+      "content": "EOS is owned by OST (not Lyfe Institute). Lyfe Institute is a company/venture incubated through Empyrean Studios, managed inside EOS.",
+      "date": "2026-06-03",
+      "impact": "Corrects ownership attribution in all prior artifacts that attributed EOS to Lyfe Institute.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-002",
+      "source": "Phase 14.6B mission brief",
+      "content": "EOS is a business-in-a-box operating system, NOT a 'business management tool'. It democratizes the ability to structure, operate, optimize, and scale economic activity.",
+      "date": "2026-06-03",
+      "impact": "Elevates product positioning from tool to operating system. Center of gravity is economic activity democratization.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-003",
+      "source": "Phase 14.6B mission brief",
+      "content": "Hierarchy: Operator -> Portfolio(s) -> Entities -> Business/Investment/Asset Operations -> Teams/Agents/Roles/Permissions -> Workflows/SOPs/Tasks/Tools -> Capital/Transactions/KPIs",
+      "date": "2026-06-03",
+      "impact": "Establishes canonical hierarchy. Entity model is broader than businesses (investments, real estate, stocks, asset holdings, agencies, SaaS, media, operating companies).",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-004",
+      "source": "Phase 14.6B mission brief",
+      "content": "Communication: User -> EA Agent -> Portfolio Advisor OR CEO Agent -> Department/Specialist Agents. EA does NOT route directly to specialists.",
+      "date": "2026-06-03",
+      "impact": "Corrects delegation chain. EA is gatekeeper, not router. Portfolio Advisor and CEO are the routing layer.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-005",
+      "source": "Phase 14.6B mission brief",
+      "content": "UI aesthetic: Executive command center, finance-grade clarity, strategic control, AI-native enterprise. NOT playful, NOT social, NOT RPG.",
+      "date": "2026-06-03",
+      "impact": "Constrains all UI/UX decisions. No gamification, no social features, no RPG metaphors.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-006",
+      "source": "Phase 14.6B mission brief",
+      "content": "Beast feature/company-system is promotion candidate. 401-file source divergence from GitHub main. Auth: Clerk (Beast) vs Passport.js (main). GitHub main has stale Passport.js.",
+      "date": "2026-06-03",
+      "impact": "Confirms Beast branch canonical status per DEC-145-001. Promotion requires build validation, secret scan, operator review, rollback plan.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-007",
+      "source": "Phase 14.6B mission brief",
+      "content": "MVP: 5 releases (R1 Core Shell -> R5 Docs+Memory). Single founder, single business.",
+      "date": "2026-06-03",
+      "impact": "Defines MVP scope and release sequence. Multi-portfolio is post-MVP.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    },
+    {
+      "correction_id": "OC-008",
+      "source": "Phase 14.6B mission brief",
+      "content": "End state: multi-portfolio, autonomous agents, skill marketplace, enterprise permissions.",
+      "date": "2026-06-03",
+      "impact": "Defines end-state vision beyond MVP. These features are in desired state but not MVP scope.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
+    }
+  ],
+
+  "source_surface_summary": {
+    "total_source_categories": 8,
+    "categories": [
+      "google_docs (3 relevant docs, primary: EntrepreneurOS 2.09M chars)",
+      "github_main (154 files on VPS, 202 reported by API, stale since 2026-02-20)",
+      "beast_branch (603 files, feature/company-system, Clerk auth, not on VPS)",
+      "prior_phases (34 artifacts across phases 14.3, 14.3A, 14.4, 14.5, 14.5A)",
+      "phase_14_6b_artifacts (7 corrective canon artifacts)",
+      "projection_code (31 files, 5699 lines in projections/eos/)",
+      "umh_artifacts (30 UMH-EOS related artifacts across code, docs, knowledge, agents, commands)",
+      "operator_corrections (8 explicit corrections from Phase 14.6B mission brief)"
+    ],
+    "total_artifacts_inventoried": 85,
+    "provenance_distribution": {
+      "SOURCE_PRESERVED_TRUTH": 11,
+      "CODE_RESOLVED_CURRENT_TRUTH": 20,
+      "SYNTHESIZED_CANON": 50,
+      "INFERRED_PROFESSIONAL_GAP": 1,
+      "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED": 2,
+      "IMPLEMENTATION_DEBT": 0
+    }
+  },
+
+  "key_divergences": {
+    "auth_divergence": {
+      "github_main": "Passport.js (local strategy) + Firebase (Google OAuth + MFA)",
+      "beast_branch": "Clerk (React + Express)",
+      "desired_state": "Clerk",
+      "resolution": "Beast branch auth is canonical per DEC-145-001. Passport.js is deprecated."
+    },
+    "file_count_divergence": {
+      "github_main": 202,
+      "beast_branch": 603,
+      "delta": 401,
+      "note": "Beast adds company system, portfolio management, 14 route modules, generated code layer, middleware, testing infrastructure."
+    },
+    "page_count_divergence": {
+      "github_main": 16,
+      "beast_branch": 31,
+      "desired_state": 11,
+      "note": "Beast has more pages than desired state because it includes auth pages (login, signup, forgot-password, reset-password), admin dashboard, and duplicate pages (dashboard vs dashboard-page, not-found vs not-found-page)."
+    },
+    "schema_state": {
+      "github_main_tables": 6,
+      "beast_branch_tables": 6,
+      "beast_additional_schemas": ["design-schema.ts", "spec-schema.ts"],
+      "beast_generated_schema": "server/generated/schema.ts",
+      "note": "Core shared/schema.ts has same 6 tables in both branches. Beast adds separate schema files and a generated layer schema."
+    }
+  },
+
+  "open_questions": [
+    {
+      "question_id": "OQ-SRC-001",
+      "question": "Should the generated code layer (server/generated/) in Beast branch be preserved or regenerated during promotion?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-SRC-002",
+      "question": "Beast branch has .env file in top-level structure. Has it been committed to git? Secret scan needed before promotion.",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-SRC-003",
+      "question": "Beast branch has .claude/, .cursor/, .memory/, .planning/, .features/, .playwright-mcp/ directories. Which should be preserved vs excluded in promotion?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-SRC-004",
+      "question": "Beast branch has duplicate pages (dashboard.tsx + dashboard-page.tsx, not-found.tsx + not-found-page.tsx). Which is canonical?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    },
+    {
+      "question_id": "OQ-SRC-005",
+      "question": "Google Doc has 10 tabs. Phase 14.3A extracted content from all tabs. Are all tabs current, or are some historical/superseded?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+    }
+  ]
+}

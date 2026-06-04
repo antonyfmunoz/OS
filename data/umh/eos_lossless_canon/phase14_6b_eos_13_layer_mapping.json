@@ -1,0 +1,818 @@
+{
+  "phase": "14.6B-EOS",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-04",
+  "provenance": "SYNTHESIZED_CANON",
+  "description": "EOS mapped against the 13-layer production stack from Phase 14.5A -- current state, target state, gaps, blockers, readiness, risk, and cross-layer dependencies for all 13 layers.",
+  "provenance_detail": "Synthesized from: phase14_5a_eos_13_layer_production_stack.json (Phase 14.5A original 13-layer stack), phase14_6b_eos_current_implementation_truth.json (code-resolved current state across GitHub main, Beast branch, UMH projection), phase14_6b_eos_api_contract_map.json (72 GitHub main routes, 14 Beast route modules, UMH platform routes), phase14_6b_eos_data_ontology.json (3 schema surfaces, 15+6+8 tables), phase14_6b_eos_auth_security_truth.json (Passport.js vs Clerk vs UMH middleware auth surfaces), phase14_6b_eos_agent_architecture_spec.json (10 department agents + EA + Portfolio Advisor hierarchy), phase14_6b_eos_workflow_sop_engine_spec.json (3 implemented + 8 target workflows), phase14_6b_eos_governance_permissions_model.json (RBAC+ABAC hybrid model), phase14_6b_eos_business_template_library.json (UBOS template library), phase14_6b_eos_org_chart_engine_spec.json (10 departments, 10 roles), phase14_6b_eos_source_inventory.json (all source surfaces).",
+
+  "layer_schema_note": "This mapping uses the 13-layer production stack schema defined in Phase 14.5A, re-aligned to application-centric concerns: Frontend Foundations, APIs+Backend, Database+Storage, Auth+Permissions, AI+Agent Runtime, Workflow Engine, Memory+Knowledge, Analytics+Observability, Infrastructure+Deployment, Testing+QA, Documentation, Security+Compliance, Integration+Ecosystem. This differs from the original 14.5A 13 layers which used infra-centric naming (Hosting, Cloud, CI/CD, Rate Limiting, Caching, Load Balancing, Availability). The re-alignment better captures EOS as an AI-native application platform.",
+
+  "layers": [
+    {
+      "layer_number": 1,
+      "name": "Frontend Foundations",
+      "current_status": {
+        "summary": "Two divergent frontend codebases. Neither is deployed or validated.",
+        "github_main": {
+          "framework": "React 18 + Vite 5 + TypeScript 5.6 + shadcn/ui + Tailwind CSS 3 + wouter + TanStack Query",
+          "page_count": 16,
+          "component_count": 20,
+          "ui_component_count": 45,
+          "hook_count": 6,
+          "pages": ["dashboard", "agent-chat", "agent-programming", "analytics", "auth", "crm", "documents", "gpt4o-chat", "integrations", "notifications", "settings", "support", "task-board", "tutorials", "agent-os-dashboard", "not-found"],
+          "missing": ["No portfolio management UI", "No company/entity system", "No multi-org support", "No layout system (left-rail, right-rail, floating AI panel)", "No command center", "No org chart", "No design token system"],
+          "status": "stale_since_2026-02-20"
+        },
+        "beast_branch": {
+          "framework": "React 18 + Vite + TypeScript 5.6.3 + shadcn/ui + Tailwind + wouter + Zod",
+          "page_count": 31,
+          "layout_components": ["universal-layout.tsx", "left-rail.tsx", "right-rail.tsx", "floating-ai-panel.tsx", "header.tsx", "agent-chat-stub.tsx"],
+          "additions_over_main": ["Company system pages", "Portfolio list + detail", "Org chart page", "Workflow page", "Command center page", "Admin dashboard", "Design tokens system", "Company guard component"],
+          "status": "canonical_candidate_on_beast_only"
+        },
+        "projection_eos": "N/A -- Python substrate layer, no frontend",
+        "deployed": false
+      },
+      "target_status": "React 18 + Vite 5 + TypeScript + shadcn/ui + Tailwind CSS. Executive command center aesthetic. Left Rail (role-dependent nav, portfolio/entity switcher) + Main Workspace + Right Rail AI + Floating AI Control + Risk Notices + Activity Feed + EA Chat. Component library aligned with OS Platform Standard v2. Dark mode. Responsive design. 11 screens from Phase 14.4 desired state.",
+      "readiness": "NOT_READY",
+      "risk_level": "HIGH",
+      "gaps": [
+        "401-file source divergence between GitHub main (202 files) and Beast (603 files) -- no unified codebase",
+        "Beast branch not on VPS -- cannot build or validate from current infrastructure",
+        "No component tests on either branch",
+        "No design system documentation",
+        "No accessibility testing",
+        "11 desired-state screens from Phase 14.4 not mapped to either codebase implementation",
+        "EA Chat interface not implemented on any branch",
+        "Risk/Approval Notices UI not implemented",
+        "Activity/Event Feed not implemented as standalone component"
+      ],
+      "blockers": ["DEC-145-001: Beast branch promotion decision -- must resolve which codebase to promote before any frontend work"],
+      "dependencies": ["Layer 4 (Auth+Permissions) for protected route rendering", "Layer 5 (AI+Agent Runtime) for Right Rail AI and Floating AI Panel", "Layer 3 (Database+Storage) for data queries"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 2,
+      "name": "APIs + Backend",
+      "current_status": {
+        "summary": "Three separate API surfaces: GitHub main (72 routes in monolith), Beast (14 route modules), UMH platform (8 route handlers). No unified backend.",
+        "github_main": {
+          "framework": "Express 4 + TypeScript + tsx dev + esbuild prod",
+          "route_file": "server/routes.ts (single monolithic file)",
+          "route_count": 72,
+          "domains": ["ai (8)", "agents (10)", "tasks (11)", "conversations (1)", "analytics (2)", "integrations (2)", "notifications (5)", "ai-assistant (3)", "crm/contacts (4)", "crm/deals (4)", "crm/activities (4)", "documents (5)", "folders (5)", "settings (1)", "auth (4)", "support (2)", "tutorials (1)"],
+          "ai_services": ["anthropic-service.ts", "gemini-service.ts", "openai-service.ts", "perplexity-service.ts", "xai-service.ts"],
+          "auth": "Passport.js session middleware",
+          "validation": "None (no request validation middleware)",
+          "versioning": "None",
+          "status": "stale"
+        },
+        "beast_branch": {
+          "framework": "Express + TypeScript + tsx",
+          "route_modules": ["actions.ts", "agents.ts", "ai.ts", "analytics.ts", "companies.ts", "conversations.ts", "crm.ts", "documents.ts", "integrations.ts", "notifications.ts", "portfolios.ts", "tasks.ts", "users.ts", "workflows.ts"],
+          "route_module_count": 14,
+          "middleware": ["auth.ts", "clerk-org.ts", "error-handler.ts", "validation.ts"],
+          "generated_layer": "server/generated/ (21 storage modules with routes and schema)",
+          "ai_gateway": "server/ai/gateway.ts",
+          "auth": "Clerk middleware",
+          "status": "canonical_candidate"
+        },
+        "umh_platform": {
+          "path": "transports/api/http/",
+          "route_handlers": ["execution.ts", "system.ts", "config.ts", "governance.ts", "knowledge.ts", "organism.ts", "settings.ts", "chat.ts"],
+          "middleware": ["auth.ts (header-based org auth)", "operator.ts (operator guard)"],
+          "description": "UMH substrate API -- not EOS-specific. Handles platform concerns (execution, governance, organism, system health).",
+          "status": "active"
+        },
+        "deployed": false
+      },
+      "target_status": "Express 4 + TypeScript API server. RESTful endpoints for portfolios, entities, departments, roles, workflows, tasks, documents, agents, analytics, CRM, settings, AI. API versioning (v1 prefix). Request validation via Zod. Typed request/response contracts. OpenAPI spec. Rate limiting middleware. Error handling middleware. Clerk auth middleware. Modular route files (not monolithic).",
+      "readiness": "NOT_READY",
+      "risk_level": "HIGH",
+      "gaps": [
+        "No API versioning on any surface",
+        "No OpenAPI/Swagger spec",
+        "No request validation middleware on GitHub main (Beast has Zod validation middleware)",
+        "No rate limiting on any surface",
+        "Beast routes unvalidated -- 14 modules + 21 generated storage modules not tested",
+        "Portfolio CRUD endpoints exist on Beast but not validated",
+        "Entity management endpoints (beyond companies) not implemented -- no investment, asset, real estate entity routes",
+        "Workflow execution endpoints exist on Beast but runtime behavior untested",
+        "Agent delegation endpoints (EA -> CEO -> Department chain) not implemented",
+        "No approval/governance API endpoints for frontend consumption (substrate governance exists but no HTTP surface for EOS UI)"
+      ],
+      "blockers": ["DEC-145-001: Beast branch promotion decision"],
+      "dependencies": ["Layer 3 (Database+Storage) for ORM queries", "Layer 4 (Auth+Permissions) for route protection", "Layer 5 (AI+Agent Runtime) for AI endpoints"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 3,
+      "name": "Database + Storage",
+      "current_status": {
+        "summary": "Three separate schema surfaces that must be unified. Two Neon databases exist (ep_dark_poetry dev, ep_winter_sea prod). No migration path defined.",
+        "github_main_schema": {
+          "file": "shared/schema.ts",
+          "orm": "Drizzle ORM 0.39",
+          "table_count": 15,
+          "tables": ["users", "agents", "tasks", "messages", "integrations", "notifications", "crm_contacts", "crm_deals", "crm_activities", "folders", "documents", "agent_actions", "agent_metrics", "conversations", "pipeline_runs"],
+          "pk_strategy": "text (client-generated UUIDs)",
+          "auth_model": "Passport.js users table (username/password columns)"
+        },
+        "beast_schema": {
+          "files": ["shared/schema.ts", "shared/design-schema.ts", "shared/spec-schema.ts", "server/generated/schema.ts"],
+          "orm": "Drizzle ORM",
+          "core_table_count": 6,
+          "generated_storage_modules": 21,
+          "auth_model": "Clerk (no password column, Clerk user ID)",
+          "note": "Beast schema not directly inspectable from VPS. 21 generated storage modules imply additional tables (companies, portfolios, departments, roles, kpis, workflows, steps, capabilities, onboarding, preferences, activity)."
+        },
+        "umh_platform_schema": {
+          "file": "transports/api/http/db/schema.ts",
+          "table_count": 8,
+          "tables": ["users", "portfolios", "organizations", "orgMembers", "userAgentSessions", "approvals", "umhOutcomes", "embeddings"],
+          "pk_strategy": "uuid (server-generated via defaultRandom())",
+          "rls": "14-table RLS policies defined in migrate.ts, eos_app role created"
+        },
+        "projection_python_layer": {
+          "file": "projections/eos/integration/tables.py (582 lines)",
+          "tables_accessed": ["crm_contacts", "crm_deals", "crm_activities", "tasks", "agent_actions"],
+          "description": "Python typed wrappers over same Neon tables via psycopg2. Single coupling point between UMH substrate and EOS data."
+        },
+        "neon_databases": {
+          "ep_dark_poetry": {"region": "us-east-1", "purpose": "dev/staging", "schema_version": "v2 events-driven", "has_umh_status": true, "has_umh_outcomes": true},
+          "ep_winter_sea": {"region": "us-west-2", "purpose": "production", "schema_version": "v1 companies/crm/agents/pipeline_runs", "note": "Older schema, cutover deferred"}
+        },
+        "deployed": "partial -- Neon databases exist but no unified production schema"
+      },
+      "target_status": "Single Neon Postgres database per environment (dev, staging, prod). Unified Drizzle ORM schema covering users, orgs, portfolios, entities (all types), departments, roles, teams, workflows, tasks, documents, CRM, agents, analytics, transactions, KPIs, approvals, audit trail. Migrations managed via Drizzle. Seed data for template library. RLS on all user-scoped tables. Connection pooling via Neon.",
+      "readiness": "NOT_READY",
+      "risk_level": "HIGH",
+      "gaps": [
+        "Three separate schema surfaces (GitHub main 15 tables, Beast 6+ tables, UMH platform 8 tables) -- no unified schema",
+        "PK strategy divergence: GitHub main uses text, UMH platform uses uuid",
+        "Auth model divergence in users table: GitHub main has username/password, Beast has Clerk IDs, UMH platform has clerk_id + role",
+        "No migration path defined between any schema surfaces",
+        "No backup strategy documented",
+        "No data seeding plan",
+        "Entity types beyond companies not in any schema (investments, assets, real estate, stocks, agencies)",
+        "Portfolio table exists in UMH platform but not in GitHub main or Beast schemas",
+        "Schema for workflow steps, SOP definitions, template library not in any current schema"
+      ],
+      "blockers": ["DEC-145-001: Beast branch promotion determines which schema is canonical starting point", "Schema unification requires architectural decision on PK strategy and auth model alignment"],
+      "dependencies": ["Layer 4 (Auth+Permissions) for user/org model alignment", "Layer 12 (Security+Compliance) for RLS policies"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 4,
+      "name": "Auth + Permissions",
+      "current_status": {
+        "summary": "Three incompatible auth systems across code surfaces. Clerk is the target but only partially integrated on Beast. Governance exists in substrate but no EOS-facing approval UI.",
+        "github_main_auth": {
+          "provider": "Passport.js (local strategy) + Firebase (Google OAuth + MFA)",
+          "session_store": "Express session (memory or connect-pg-simple, unverified)",
+          "middleware": "Inline auth checks in monolithic routes.ts",
+          "problems": ["Stateful session-based -- incompatible with serverless", "Firebase creates split-brain user identity alongside Passport", "No org/tenant scoping", "No RLS integration", "Stale 4+ months"]
+        },
+        "beast_branch_auth": {
+          "provider": "Clerk (React + Express)",
+          "components": ["ClerkProvider wrapping React app", "SignIn/SignUp Clerk components", "clerkMiddleware() on Express"],
+          "middleware_files": ["server/middleware/auth.ts", "server/middleware/clerk-org.ts", "server/middleware/error-handler.ts", "server/middleware/validation.ts"],
+          "clerk_org": "Clerk organizations for multi-tenant org switching",
+          "status": "integrated but not end-to-end validated",
+          "problems": ["Not validated in production", "No Clerk API keys provisioned for production", "RBAC policies not defined beyond basic auth"]
+        },
+        "umh_platform_auth": {
+          "middleware": "transports/api/http/middleware/auth.ts (header-based org auth) + operator.ts (operator guard)",
+          "rls": "14-table RLS policies in migrate.ts, eos_app role, withOrg() dual-pool pattern",
+          "session": "userAgentSessions table for agent session tracking"
+        },
+        "substrate_governance": {
+          "permission_tiers": ["READ", "DRAFT", "EXECUTE", "COMMIT"],
+          "risk_classes": "Deterministic classification in substrate/control_plane/governance.py",
+          "authority_engine": "substrate/governance/policy/authority_engine.py with approval queuing",
+          "tier_action_map": "TIER_ACTION_MAP in substrate/types.py maps risk to required tier"
+        },
+        "permissions_model": {
+          "designed": "5-tier human RBAC (owner/admin/manager/contributor/viewer) + 4-tier agent ABAC (READ/DRAFT/EXECUTE/COMMIT)",
+          "implemented": "Agent permission tiers enforced per skill execution in projections/eos/agents/. Human RBAC not implemented.",
+          "provenance": "Designed in phase14_6b_eos_governance_permissions_model.json, partially implemented in code"
+        }
+      },
+      "target_status": "Clerk authentication for all user flows. Clerk organizations for multi-tenant. 5-tier human RBAC (owner/admin/manager/contributor/viewer). 4-tier agent ABAC (READ/DRAFT/EXECUTE/COMMIT). UMH substrate governance integration (risk classification, approval gates). RLS on all user-scoped tables via Neon. Session persistence via Clerk. OAuth providers (Google, GitHub).",
+      "readiness": "NOT_READY",
+      "risk_level": "HIGH",
+      "gaps": [
+        "Clerk not provisioned for production (no API keys, no org settings)",
+        "Human RBAC (5-tier) designed but not implemented in code",
+        "Beast Clerk integration not end-to-end validated",
+        "No Clerk-to-RLS bridge (Clerk user identity must flow to Postgres RLS context)",
+        "No user permission management UI",
+        "No team/role assignment UI",
+        "Agent ABAC attribute policies not implemented (only static permission tier per agent class)",
+        "No approval flow UI (substrate governance exists but no EOS-facing approval screens)"
+      ],
+      "blockers": ["DEC-145-001: Beast branch promotion (determines auth starting point)", "DEC-145-004: Clerk migration order (which app gets Clerk first)"],
+      "dependencies": ["Layer 3 (Database+Storage) for user/org schema", "Layer 1 (Frontend Foundations) for auth UI components"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 5,
+      "name": "AI + Agent Runtime",
+      "current_status": {
+        "summary": "10 department agents implemented in UMH projection with 66 skills, permission tier enforcement, and model_router integration. EA Agent and Portfolio Advisor architecturally required but not implemented. Agent delegation chain not wired.",
+        "implemented_agents": {
+          "count": 10,
+          "base_class": "DepartmentAgent (projections/eos/agents/base.py, 198 lines)",
+          "registry": {
+            "ceo": {"class": "CEOAgent", "department": "executive", "tier": "COMMIT", "skills": 6, "uses_model_router": true},
+            "sales": {"class": "SalesAgent", "department": "sales", "tier": "EXECUTE", "skills": 6, "uses_model_router": false},
+            "marketing": {"class": "MarketingAgent", "department": "marketing", "tier": "EXECUTE", "skills": 6, "uses_model_router": true},
+            "finance": {"class": "FinanceAgent", "department": "finance", "tier": "COMMIT", "skills": 7, "uses_model_router": false},
+            "customer_success": {"class": "CustomerSuccessAgent", "department": "customer_success", "tier": "EXECUTE", "skills": 7, "uses_model_router": true},
+            "hr": {"class": "HRAgent", "department": "hr", "tier": "EXECUTE", "skills": 6, "uses_model_router": true},
+            "legal": {"class": "LegalAgent", "department": "legal", "tier": "COMMIT", "skills": 6, "uses_model_router": true},
+            "operations": {"class": "OperationsAgent", "department": "operations", "tier": "EXECUTE", "skills": 6, "uses_model_router": true},
+            "product": {"class": "ProductAgent", "department": "product", "tier": "DRAFT", "skills": 6, "uses_model_router": true},
+            "engineering": {"class": "EngineeringAgent", "department": "engineering", "tier": "EXECUTE", "skills": 6, "uses_model_router": true}
+          },
+          "total_skills": 66,
+          "browser_skills_per_agent": 2,
+          "total_including_browser": 86,
+          "registration": "projections/eos/__init__.py register_eos_agents() uses substrate.register() for each ComponentType.AGENT"
+        },
+        "not_implemented": {
+          "ea_agent": {"role": "Operator-facing triage, routing, inbox management", "provenance": "INFERRED_PROFESSIONAL_GAP"},
+          "portfolio_advisor": {"role": "Portfolio-level intelligence, cross-entity analysis, capital allocation", "provenance": "INFERRED_PROFESSIONAL_GAP"}
+        },
+        "model_routing": {
+          "path": "adapters/models/model_router.py",
+          "entry_point": "call_with_fallback()",
+          "chain": "cc_sdk (Opus 4.6) -> Gemini 2.5 Flash -> Groq -> Ollama",
+          "deterministic_first": "All agent skills that use AI have deterministic fallbacks"
+        },
+        "saas_ai": {
+          "github_main": "5 AI provider services (Anthropic, OpenAI, Gemini, Perplexity, xAI) -- direct SDK calls, no model_router",
+          "beast_branch": "server/ai/gateway.ts -- AI gateway for unified model access"
+        },
+        "delegation_chain": "Designed (User -> EA -> Portfolio Advisor/CEO -> Department) but not wired in code. Department agents execute independently via substrate.execute()."
+      },
+      "target_status": "EA Agent as primary user interface. Portfolio Advisor for cross-entity intelligence. CEO Agent coordinates entity-level execution. 9 department agents execute domain work. Full delegation chain wired. All agents use model_router with deterministic fallbacks. Agent memory and context across conversations. Skill marketplace for operator-installable capabilities. Agent performance scoring and learning loop.",
+      "readiness": "PARTIAL",
+      "risk_level": "MEDIUM",
+      "gaps": [
+        "EA Agent not implemented -- architecturally the most critical agent (user-facing gateway)",
+        "Portfolio Advisor not implemented -- required for multi-entity operations",
+        "Agent delegation chain (EA -> CEO -> Department) not wired -- agents execute independently",
+        "No agent conversation memory (agents are stateless per-execution)",
+        "No agent performance scoring frontend (feedback.py exists in substrate but no EOS UI)",
+        "No skill marketplace",
+        "GitHub main AI services (5 direct SDK integrations) not compatible with UMH model_router pattern",
+        "Beast AI gateway (server/ai/gateway.ts) relationship to UMH model_router unclear"
+      ],
+      "blockers": ["EA Agent design requires operator input on conversation UX expectations", "Portfolio Advisor requires multi-portfolio entity model to be finalized (Layer 3 schema)"],
+      "dependencies": ["Layer 3 (Database+Storage) for agent state persistence", "Layer 4 (Auth+Permissions) for agent authority scoping", "Layer 6 (Workflow Engine) for agent-triggered workflow execution"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 6,
+      "name": "Workflow Engine",
+      "current_status": {
+        "summary": "3 workflows implemented in UMH projection (Outreach, ContentCalendar, FollowUp). 10 workflows defined in entities.py defaults. UBOS template library designed but not built. No workflow execution UI.",
+        "implemented_workflows": [
+          {"name": "OutreachWorkflow", "file": "projections/eos/workflows/outreach.py", "lines": 114, "steps": ["qualify", "research", "draft", "review", "send"], "deterministic_first": true, "ai_enhanced": true},
+          {"name": "ContentCalendarWorkflow", "file": "projections/eos/workflows/content.py", "lines": 100, "channels": ["instagram", "twitter", "youtube", "podcast", "newsletter"], "deterministic_first": true, "ai_enhanced": true},
+          {"name": "FollowUpWorkflow", "file": "projections/eos/workflows/followup.py", "lines": 93, "deterministic_first": true, "ai_enhanced": false}
+        ],
+        "defined_not_implemented": [
+          "Morning Brief (executive, scheduled 7am daily)",
+          "Expense Review (finance, scheduled 6pm Friday)",
+          "Ticket Routing (customer_success, event trigger)",
+          "Hiring Pipeline (hr, manual trigger)",
+          "Contract Review (legal, manual trigger)",
+          "Incident Response (operations, event trigger)",
+          "Feature Prioritization (product, scheduled 10am Monday)",
+          "Code Review & Deploy (engineering, event trigger)"
+        ],
+        "template_library": {
+          "status": "DESIGNED_NOT_BUILT",
+          "spec": "phase14_6b_eos_business_template_library.json",
+          "business_types_covered": "18+ (agency, saas, ecommerce, consulting, etc.)",
+          "each_template_generates": ["departments", "workflows", "roles", "KPIs", "agents", "industry-specific config"]
+        },
+        "workflow_engine_spec": {
+          "status": "DESIGNED_NOT_BUILT",
+          "spec": "phase14_6b_eos_workflow_sop_engine_spec.json",
+          "features_designed": ["Approval gates", "Retries", "Checkpoints", "Branching", "Three execution modes (manual/AI-assisted/autonomous)", "SOP layer", "Self-improvement loop"]
+        },
+        "saas_layer": {
+          "beast_branch": "Workflow page exists. server/routes/workflows.ts route module exists. 1 generated storage module (workflows.ts). Runtime behavior untested.",
+          "github_main": "No workflow UI or routes."
+        }
+      },
+      "target_status": "Full workflow engine with visual builder. 8 core workflows per entity type. UBOS template library with 18+ business type templates. Three execution modes (manual, AI-assisted, autonomous). Approval gates at risk boundaries. SOP documentation layer. Self-improvement loop for workflow optimization. Agent delegation within workflow steps. Complete audit trail per workflow run.",
+      "readiness": "PARTIAL",
+      "risk_level": "MEDIUM",
+      "gaps": [
+        "Only 3 of 10 defined workflows implemented (7 defined but not built)",
+        "No workflow execution UI (Beast has workflow page but runtime untested)",
+        "No visual workflow builder",
+        "No approval gate UI within workflow steps",
+        "UBOS template library designed but no templates actually exist in code",
+        "SOP layer designed but not implemented",
+        "Self-improvement loop designed but not implemented",
+        "Workflow step branching not implemented",
+        "Workflow retry/checkpoint logic not implemented"
+      ],
+      "blockers": ["DEC-145-001: Source convergence required to determine which workflow UI surface (Beast) to build on"],
+      "dependencies": ["Layer 5 (AI+Agent Runtime) for agent-executed workflow steps", "Layer 3 (Database+Storage) for workflow definition and run state persistence", "Layer 4 (Auth+Permissions) for approval gate authorization"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 7,
+      "name": "Memory + Knowledge",
+      "current_status": {
+        "summary": "UMH substrate has memory infrastructure (memory palace, knowledge wiki, embeddings table). No EOS-specific memory or knowledge features implemented. No document intelligence. No agent conversation memory.",
+        "umh_substrate_memory": {
+          "memory_palace": "knowledge/palace/ -- room-based knowledge organization",
+          "wiki": "knowledge/ -- markdown wiki with backlinks",
+          "embeddings": "umhEmbeddings table in transports/api/http/db/schema.ts",
+          "node_summaries": "data/node_summaries.json -- one-line summaries for every file/class/function",
+          "knowledge_routes": "transports/api/http/routes/knowledge.ts -- UMH knowledge API"
+        },
+        "eos_specific": {
+          "documents_page": "GitHub main has documents-page.tsx with folder/document CRUD (7 routes)",
+          "beast_documents": "Beast has documents route module + storage module",
+          "agent_memory": "None -- agents are stateless per execution. No conversation history, no learning across executions.",
+          "document_intelligence": "None -- documents are stored but not indexed, searched, or used by agents"
+        }
+      },
+      "target_status": "Document management with folder hierarchy. Document intelligence (search, summarization, agent-accessible knowledge base). Agent conversation memory and context persistence. Per-entity knowledge base. SOP documentation library. Searchable audit trail. UMH embeddings integration for semantic search across EOS data.",
+      "readiness": "NOT_READY",
+      "risk_level": "MEDIUM",
+      "gaps": [
+        "No agent conversation memory -- agents cannot learn or reference past interactions",
+        "No document intelligence -- stored documents not indexed or searchable by agents",
+        "No per-entity knowledge base",
+        "No SOP documentation storage (SOP engine designed but no persistence layer)",
+        "No semantic search integration (UMH embeddings table exists but no EOS indexing pipeline)",
+        "Documents UI exists but is basic CRUD -- no intelligence features"
+      ],
+      "blockers": ["Layer 3 (Database+Storage) schema unification must happen first -- document and knowledge tables need to be defined"],
+      "dependencies": ["Layer 3 (Database+Storage) for knowledge persistence", "Layer 5 (AI+Agent Runtime) for document intelligence and semantic search", "Layer 8 (Analytics+Observability) for searchable audit trail"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "layer_number": 8,
+      "name": "Analytics + Observability",
+      "current_status": {
+        "summary": "3 EOS views query Neon for analytics (Pipeline, KPI, Activity). Beast has PostHog integration. No structured logging. No error tracking. No production analytics.",
+        "eos_views": {
+          "pipeline": {"file": "projections/eos/views/pipeline.py", "lines": 101, "output": "PipelineSnapshot with stages, total_leads, total_value, conversion_rate", "data_source": "Neon events table"},
+          "kpi": {"file": "projections/eos/views/kpis.py", "lines": 145, "cards": ["Monthly Revenue", "Leads This Month", "Conversion Rate", "Outreach This Week", "Response Rate"], "data_source": "Neon events table"},
+          "activity": {"file": "projections/eos/views/activity.py", "lines": 91, "event_types": ["crm_lead", "outreach", "revenue", "commitment", "cognitive_reflection", "agent_task"], "data_source": "Neon events table"}
+        },
+        "beast_analytics": {
+          "posthog": "PostHog SDK integrated in Beast branch (frontend + backend)",
+          "analytics_page": "analytics-page.tsx exists on both branches",
+          "analytics_routes": "analytics.ts route module on Beast"
+        },
+        "umh_observability": {
+          "error_recorder": "substrate/observability/error_recorder.py -- centralized error recording",
+          "execution_trace": "substrate/execution/trace.py -- trace recording + Neon persistence",
+          "execution_feedback": "substrate/execution/feedback.py -- quality scoring + learning loop"
+        },
+        "production_observability": {
+          "structured_logging": "None (console.log only on SaaS side, Python logging on UMH side)",
+          "error_tracking": "None (no Sentry or equivalent for EOS SaaS)",
+          "uptime_monitoring": "None for EOS"
+        }
+      },
+      "target_status": "PostHog for product analytics from day one. Structured JSON logging. Error tracking (Sentry or PostHog errors). Application performance monitoring. KPI dashboards per entity with real-time data. Pipeline analytics. Agent performance analytics. Workflow execution analytics. Uptime monitoring. Critical error alerting.",
+      "readiness": "PARTIAL",
+      "risk_level": "HIGH",
+      "gaps": [
+        "No structured logging on EOS SaaS side",
+        "No error tracking service configured for EOS",
+        "No uptime monitoring for EOS",
+        "No critical error alerting",
+        "PostHog integrated on Beast but not validated in production",
+        "EOS views (Pipeline, KPI, Activity) only accessible via Python substrate -- no HTTP API for frontend consumption",
+        "No agent performance analytics UI",
+        "No workflow execution analytics UI",
+        "No real-time data streaming to frontend dashboards"
+      ],
+      "blockers": ["Deployment required before production observability is meaningful", "DEC-145-001 must resolve before PostHog configuration can be finalized"],
+      "dependencies": ["Layer 9 (Infrastructure+Deployment) for production environment", "Layer 3 (Database+Storage) for analytics data", "Layer 5 (AI+Agent Runtime) for agent performance data"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 9,
+      "name": "Infrastructure + Deployment",
+      "current_status": {
+        "summary": "No EOS deployment exists anywhere. No Dockerfile, no Fly.toml, no CI/CD, no health checks. UMH infrastructure exists on VPS (Docker Compose, 4 containers) but does not serve EOS SaaS.",
+        "eos_deployment": {
+          "production": "None",
+          "staging": "None",
+          "development": "Local only on Beast (Windows)",
+          "dockerfile": "None for EOS SaaS",
+          "fly_toml": "None",
+          "health_check": "None",
+          "ci_cd": "None (no GitHub Actions)"
+        },
+        "umh_infrastructure": {
+          "vps": "100.77.233.50 via Tailscale",
+          "docker_compose": "4 containers (os-discord, os-operator, os-webhook, os-scraper) on eos_network",
+          "fly_io": "UMH cockpit deployed at universalmetaharness.tech",
+          "neon": "2 databases (ep_dark_poetry dev, ep_winter_sea prod)"
+        },
+        "version_control": {
+          "repo": "antonyfmunoz/EntrepreneurOS on GitHub",
+          "branches": "main (stale, Replit), feature/company-system (Beast, canonical candidate)",
+          "branch_protection": "None",
+          "pr_workflow": "None"
+        }
+      },
+      "target_status": "Fly.io deployment for EOS SaaS (Express + React). Dockerfile with multi-stage build. Fly.toml configuration. Health check endpoint. GitHub Actions CI/CD (build, test, lint on PR; deploy on main merge). Branch protection on main. Zero-downtime deploys. Environment variable management. Staging environment.",
+      "readiness": "NOT_READY",
+      "risk_level": "MEDIUM",
+      "gaps": [
+        "Complete deployment gap -- no infrastructure exists for EOS SaaS",
+        "No Dockerfile for production build",
+        "No Fly.toml configuration",
+        "No CI/CD pipeline (no GitHub Actions)",
+        "No branch protection",
+        "No staging environment",
+        "No health check endpoint",
+        "No environment variable management strategy (beyond .env files)",
+        "No zero-downtime deployment strategy",
+        "Beast branch not pushed to GitHub -- lives only on Windows machine"
+      ],
+      "blockers": ["DEC-145-001: Beast branch promotion must happen before any deployment work", "Fly.io account/project must be set up for EOS"],
+      "dependencies": ["Layer 4 (Auth+Permissions) for Clerk production keys", "Layer 3 (Database+Storage) for production Neon connection", "Layer 10 (Testing+QA) for CI test suite"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 10,
+      "name": "Testing + QA",
+      "current_status": {
+        "summary": "Near-zero test coverage. 4 dedicated EOS unit tests. 97 integration tests referenced in DESIGN.md but location uncertain. Beast has Vitest + Playwright infrastructure but no confirmed test count.",
+        "dedicated_eos_tests": {
+          "file": "tests/test_eos_projection.py",
+          "test_count": 4,
+          "tests": ["test_eos_module_importable", "test_eos_agents_can_register", "test_registered_eos_agent_discoverable", "test_all_eos_agents_register"]
+        },
+        "integration_tests_from_design_doc": {
+          "test_eos_tables": "11 tests (DESIGN.md Phase 1)",
+          "test_eos_signal_emitter": "12 tests (DESIGN.md Phase 1)",
+          "test_eos_poller": "13 tests (DESIGN.md Phase 1)",
+          "test_eos_integration": "16 tests total",
+          "test_eos_handlers": "18 tests (DESIGN.md Phase 2)",
+          "test_eos_outcomes": "27 tests (DESIGN.md Phase 3)",
+          "total_referenced": 97,
+          "location_status": "UNCERTAIN -- tests written alongside services/umh/integrations/eos/ code, may need relocation after convergence migration to projections/eos/integration/"
+        },
+        "beast_testing_infra": {
+          "frameworks": ["Vitest (unit/integration)", "Playwright (e2e)"],
+          "test_count": "Unknown -- Beast branch not inspectable from VPS",
+          "status": "Infrastructure exists but test coverage unverified"
+        },
+        "github_main_tests": "None (no test files, no test infrastructure)",
+        "saas_ui_tests": "None",
+        "saas_api_tests": "None"
+      },
+      "target_status": "Vitest for unit and integration tests. Playwright for e2e tests. Minimum 80% coverage on critical paths (auth, workflow execution, agent delegation, CRM operations). CI integration (tests run on every PR). Snapshot tests for UI components. API contract tests. Agent skill execution tests. Workflow step tests.",
+      "readiness": "NOT_READY",
+      "risk_level": "HIGH",
+      "gaps": [
+        "Only 4 dedicated EOS unit tests -- near-zero coverage",
+        "97 integration tests referenced in DESIGN.md but location/status uncertain after migration",
+        "No SaaS frontend tests (no component tests, no e2e tests)",
+        "No SaaS API tests (no route tests, no contract tests)",
+        "No agent skill execution tests beyond import verification",
+        "No workflow execution tests",
+        "No auth flow tests",
+        "No CI integration (no automated test runs)",
+        "Beast test infrastructure exists but coverage unknown"
+      ],
+      "blockers": ["DEC-145-001: Source convergence required to know which codebase to test", "Migration of 97 integration tests to correct location needed"],
+      "dependencies": ["Layer 9 (Infrastructure+Deployment) for CI pipeline", "Layer 2 (APIs+Backend) for API contract test targets"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 11,
+      "name": "Documentation",
+      "current_status": {
+        "summary": "Extensive design documentation in Phase 14.6B artifacts. No API documentation. No user-facing documentation. No inline code documentation verified.",
+        "design_artifacts": {
+          "count": 18,
+          "directory": "data/umh/eos_lossless_canon/",
+          "coverage": "Comprehensive design specs for all major concerns (agents, auth, data, workflows, governance, onboarding, UI, templates, org chart, communication, portfolio/entity model)",
+          "status": "DRAFT -- none operator-approved"
+        },
+        "code_documentation": {
+          "github_main": "Minimal -- Replit Agent generated, no JSDoc/TSDoc convention visible",
+          "beast_branch": "Unknown -- not inspectable from VPS",
+          "projection_eos": "Python docstrings present on classes and public methods (follows Python rules)",
+          "umh_substrate": "Type hints and docstrings on public API"
+        },
+        "api_documentation": "None -- no OpenAPI spec, no Swagger UI, no API reference",
+        "user_documentation": "None -- no user guides, no onboarding docs, no help center content",
+        "architecture_docs": "ARCHITECTURE.md exists for UMH. No EOS-specific architecture doc."
+      },
+      "target_status": "OpenAPI/Swagger spec for all API endpoints. Developer documentation (setup guide, architecture overview, contribution guide). User-facing help documentation. Inline code documentation (JSDoc/TSDoc for TypeScript, docstrings for Python). Design system documentation for UI components. Agent capability documentation for operators.",
+      "readiness": "PARTIAL",
+      "risk_level": "LOW",
+      "gaps": [
+        "No API documentation (no OpenAPI spec)",
+        "No user-facing documentation",
+        "No developer setup guide for EOS SaaS",
+        "No design system documentation",
+        "No agent capability reference for operators",
+        "No architecture decision records (ADRs) for EOS-specific decisions",
+        "Design artifacts are comprehensive but all DRAFT status"
+      ],
+      "blockers": ["Documentation can proceed in parallel but has limited value until source convergence resolves what is being documented"],
+      "dependencies": ["Layer 2 (APIs+Backend) for API documentation targets", "Layer 1 (Frontend Foundations) for design system documentation"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    {
+      "layer_number": 12,
+      "name": "Security + Compliance",
+      "current_status": {
+        "summary": "UMH platform has RLS policies (14 tables), org auth middleware, and operator guard. EOS SaaS has no security hardening. No security audit performed on either codebase.",
+        "umh_rls": {
+          "migrate_file": "transports/api/http/db/migrate.ts",
+          "table_count_with_rls": 14,
+          "eos_app_role": "Created in migration, used for RLS context",
+          "dual_pool_pattern": "withOrg() for tenant-scoped queries"
+        },
+        "eos_saas_security": {
+          "csrf": "None configured",
+          "csp": "None configured",
+          "security_headers": "None configured",
+          "xss": "React default prevention only",
+          "sql_injection": "Drizzle parameterized queries (passive protection)",
+          "secret_management": ".env files (not committed)",
+          "https": "N/A (no deployment)",
+          "vulnerability_scanning": "None",
+          "dependency_audit": "None"
+        },
+        "data_protection": {
+          "tenant_isolation": "Not implemented in EOS SaaS (Beast has Clerk org scoping but not validated)",
+          "data_encryption_at_rest": "Neon provides encryption at rest by default",
+          "data_encryption_in_transit": "Neon enforces TLS by default",
+          "pii_handling": "No PII classification or special handling defined",
+          "data_retention": "No retention policy defined",
+          "gdpr": "Not addressed"
+        }
+      },
+      "target_status": "RLS on all user-scoped EOS tables. CSRF protection. CSP headers. Security headers (X-Frame-Options, X-Content-Type-Options, HSTS). HTTPS enforced. Secret rotation policy. Dependency vulnerability scanning. Security audit before production launch. PII classification and handling. Data retention policy. Multi-tenant data isolation via RLS + Clerk org scoping.",
+      "readiness": "NOT_READY",
+      "risk_level": "HIGH",
+      "gaps": [
+        "No security headers on EOS SaaS (CSRF, CSP, X-Frame-Options, HSTS)",
+        "No vulnerability scanning or dependency audit",
+        "No PII classification or handling policy",
+        "No data retention policy",
+        "No GDPR compliance assessment",
+        "No secret rotation policy",
+        "No security audit performed on any EOS codebase",
+        "EOS SaaS RLS not implemented (UMH platform has RLS but EOS-specific tables do not)",
+        "Multi-tenant data isolation not validated end-to-end",
+        "No penetration testing"
+      ],
+      "blockers": ["Deployment must exist before security hardening is testable", "DEC-145-001 determines which codebase gets security treatment"],
+      "dependencies": ["Layer 4 (Auth+Permissions) for auth-based security", "Layer 3 (Database+Storage) for RLS implementation", "Layer 9 (Infrastructure+Deployment) for HTTPS and security header deployment"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    },
+    {
+      "layer_number": 13,
+      "name": "Integration + Ecosystem",
+      "current_status": {
+        "summary": "EOS integration layer (projections/eos/integration/) implements UMH substrate integration with Signal/Capability/Outcome pattern. CRM polling (contacts, deals, activities) implemented. GitHub main has Gmail integration. No external integrations beyond substrate.",
+        "umh_integration": {
+          "path": "projections/eos/integration/",
+          "file_count": 9,
+          "total_lines": 1556,
+          "components": {
+            "manifest": "Signal/capability descriptors, poll config, env vars",
+            "signals": "EOSSignalEmitter -- builds contact/deal/activity signals",
+            "handlers": "EOSCapabilityHandler -- create_contact, create_deal, update_deal_stage, log_activity",
+            "outcomes": "EOSOutcomeReceiver -- dual writeback (source row + audit table)",
+            "poller": "EOSPoller -- watermark-based daemon thread polling crm_contacts/deals/activities",
+            "correlation": "EOSCorrelationMap -- in-memory signal-to-source mapping",
+            "tables": "Single SQL coupling point -- all queries/inserts/updates"
+          },
+          "implementation_phases": {
+            "phase_1_polling": "IMPLEMENTED",
+            "phase_2_capabilities": "IMPLEMENTED",
+            "phase_3_outcome_writeback": "IMPLEMENTED",
+            "phase_4_intelligent_routing": "NOT IMPLEMENTED"
+          }
+        },
+        "external_integrations": {
+          "github_main_gmail": "Gmail integration (server/integrations/gmail.ts) -- read/send via Gmail API",
+          "beast_integrations": "integrations route module + storage module exist, details unknown from VPS",
+          "desired_state_integrations_from_14_4": ["Gmail", "Google Calendar", "Stripe", "QuickBooks", "Slack", "Zapier", "Notion", "HubSpot"]
+        },
+        "skill_marketplace": {
+          "status": "NOT_IMPLEMENTED",
+          "desired": "Operator-installable skill packages that extend agent capabilities",
+          "current": "Skills are hardcoded per agent class in Python code"
+        }
+      },
+      "target_status": "UMH substrate integration fully wired (all 4 phases). External integrations: Gmail, Google Calendar, Stripe/payment processing, QuickBooks/accounting, Slack/communication, Zapier/automation. Skill marketplace for operator-installable agent capabilities. API webhooks for external systems. Integration health monitoring. Data sync status dashboard.",
+      "readiness": "PARTIAL",
+      "risk_level": "MEDIUM",
+      "gaps": [
+        "Phase 4 intelligent routing not implemented (which signals trigger which capabilities)",
+        "No external integrations beyond Gmail (from GitHub main)",
+        "No Stripe/payment processing integration",
+        "No accounting integration (QuickBooks/Xero)",
+        "No calendar integration",
+        "No Slack integration",
+        "No Zapier/automation integration",
+        "No skill marketplace",
+        "No API webhooks for external systems",
+        "No integration health monitoring",
+        "Correlation map is in-memory only -- does not survive restarts"
+      ],
+      "blockers": ["Phase 4 intelligent routing requires operator decisions on routing rules", "External integrations require third-party API accounts and keys"],
+      "dependencies": ["Layer 5 (AI+Agent Runtime) for agent-integration bridging", "Layer 3 (Database+Storage) for integration state persistence", "Layer 4 (Auth+Permissions) for integration OAuth flows"],
+      "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+    }
+  ],
+
+  "cross_layer_dependencies": [
+    {"from_layer": 1, "to_layer": 4, "dependency": "Frontend route protection requires Auth+Permissions (Clerk) to be wired", "status": "BLOCKED"},
+    {"from_layer": 1, "to_layer": 5, "dependency": "Right Rail AI and Floating AI Panel require AI+Agent Runtime HTTP surface", "status": "BLOCKED"},
+    {"from_layer": 1, "to_layer": 2, "dependency": "All frontend data fetching depends on APIs+Backend being live and tested", "status": "BLOCKED"},
+    {"from_layer": 2, "to_layer": 3, "dependency": "All API routes depend on Database+Storage schema being unified and migrated", "status": "BLOCKED"},
+    {"from_layer": 2, "to_layer": 4, "dependency": "API route protection depends on Clerk middleware being validated", "status": "BLOCKED"},
+    {"from_layer": 3, "to_layer": 4, "dependency": "Users/orgs schema must align with Clerk identity model", "status": "BLOCKED"},
+    {"from_layer": 3, "to_layer": 12, "dependency": "RLS policies depend on schema being finalized", "status": "BLOCKED"},
+    {"from_layer": 4, "to_layer": 3, "dependency": "Clerk-to-RLS bridge requires both auth and schema to be aligned", "status": "BLOCKED"},
+    {"from_layer": 5, "to_layer": 3, "dependency": "Agent state persistence requires database schema", "status": "BLOCKED"},
+    {"from_layer": 5, "to_layer": 4, "dependency": "Agent authority scoping requires RBAC model", "status": "PARTIAL"},
+    {"from_layer": 5, "to_layer": 6, "dependency": "Agent-triggered workflow execution requires workflow engine", "status": "PARTIAL"},
+    {"from_layer": 6, "to_layer": 3, "dependency": "Workflow definitions and run state require database tables", "status": "BLOCKED"},
+    {"from_layer": 6, "to_layer": 5, "dependency": "AI-assisted workflow steps require agent runtime", "status": "PARTIAL"},
+    {"from_layer": 7, "to_layer": 3, "dependency": "Knowledge persistence requires database tables", "status": "BLOCKED"},
+    {"from_layer": 7, "to_layer": 5, "dependency": "Document intelligence requires AI agent capabilities", "status": "BLOCKED"},
+    {"from_layer": 8, "to_layer": 9, "dependency": "Production observability requires deployed application", "status": "BLOCKED"},
+    {"from_layer": 9, "to_layer": 3, "dependency": "Deployment needs production Neon connection string", "status": "BLOCKED"},
+    {"from_layer": 9, "to_layer": 4, "dependency": "Deployment needs production Clerk API keys", "status": "BLOCKED"},
+    {"from_layer": 10, "to_layer": 9, "dependency": "CI test automation requires CI/CD pipeline", "status": "BLOCKED"},
+    {"from_layer": 12, "to_layer": 3, "dependency": "RLS implementation depends on finalized schema", "status": "BLOCKED"},
+    {"from_layer": 12, "to_layer": 4, "dependency": "Security hardening depends on auth being resolved", "status": "BLOCKED"},
+    {"from_layer": 12, "to_layer": 9, "dependency": "Security headers and HTTPS require deployment", "status": "BLOCKED"},
+    {"from_layer": 13, "to_layer": 5, "dependency": "Integration capabilities feed into agent runtime", "status": "PARTIAL"},
+    {"from_layer": 13, "to_layer": 3, "dependency": "Integration state requires database persistence", "status": "PARTIAL"}
+  ],
+
+  "critical_path": [
+    {
+      "order": 1,
+      "layer": "DEC-145-001 Resolution",
+      "description": "Beast branch promotion decision. Until this is resolved, every layer except AI+Agent Runtime (projection code) and Integration+Ecosystem (projection code) is blocked. This is the single gate that unlocks all downstream work.",
+      "risk": "CRITICAL",
+      "note": "This is not a layer -- it is the pre-requisite decision that unblocks layers 1-4 and 9-12."
+    },
+    {
+      "order": 2,
+      "layer": "Layer 3: Database + Storage",
+      "description": "Schema unification across three surfaces. PK strategy decision. Auth model alignment. Migration path. Seed data. Without a unified schema, no backend or frontend work can proceed.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 3,
+      "layer": "Layer 4: Auth + Permissions",
+      "description": "Clerk production provisioning. Clerk-to-RLS bridge. End-to-end auth validation. Human RBAC implementation. Without auth, no protected routes, no multi-tenant isolation.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 4,
+      "layer": "Layer 2: APIs + Backend",
+      "description": "Route validation and expansion. API versioning. Request validation. Approval/governance endpoints. Portfolio/entity CRUD. Depends on schema and auth being resolved.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 5,
+      "layer": "Layer 1: Frontend Foundations",
+      "description": "Component validation. Design system alignment. Page completion against 11 desired-state screens. EA Chat interface. Depends on backend APIs being stable.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 6,
+      "layer": "Layer 9: Infrastructure + Deployment",
+      "description": "Dockerfile. Fly.toml. CI/CD pipeline. GitHub Actions. Branch protection. Staging environment. Can start after auth + backend are validated.",
+      "risk": "MEDIUM"
+    },
+    {
+      "order": 7,
+      "layer": "Layer 12: Security + Compliance",
+      "description": "RLS on EOS tables. Security headers. CSRF/CSP. Vulnerability scanning. Must happen before production launch.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 8,
+      "layer": "Layer 5: AI + Agent Runtime",
+      "description": "EA Agent implementation. Portfolio Advisor. Delegation chain wiring. Agent conversation memory. Can progress in parallel with layers 1-4 on the projection side.",
+      "risk": "MEDIUM"
+    },
+    {
+      "order": 9,
+      "layer": "Layer 6: Workflow Engine",
+      "description": "Remaining 7 workflows. Workflow execution UI. Template library population. Depends on agent runtime and database.",
+      "risk": "MEDIUM"
+    },
+    {
+      "order": 10,
+      "layer": "Layer 10: Testing + QA",
+      "description": "Test suite creation. Integration test relocation. CI integration. Should ramp up alongside each layer as it is built.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 11,
+      "layer": "Layer 8: Analytics + Observability",
+      "description": "PostHog production setup. Structured logging. Error tracking. KPI dashboards. Depends on deployment existing.",
+      "risk": "HIGH"
+    },
+    {
+      "order": 12,
+      "layer": "Layer 7: Memory + Knowledge",
+      "description": "Agent conversation memory. Document intelligence. Per-entity knowledge base. Can be deferred past MVP.",
+      "risk": "MEDIUM"
+    },
+    {
+      "order": 13,
+      "layer": "Layer 13: Integration + Ecosystem",
+      "description": "External integrations (Stripe, Calendar, Slack). Skill marketplace. Mostly post-MVP except Gmail which exists.",
+      "risk": "MEDIUM"
+    },
+    {
+      "order": 14,
+      "layer": "Layer 11: Documentation",
+      "description": "API docs. User guides. Design system docs. Can progress incrementally alongside all other layers.",
+      "risk": "LOW"
+    }
+  ],
+
+  "mvp_layer_scope": {
+    "description": "MVP scope (R1-R5 releases per Phase 14.4 desired state) for single founder, single business. Layers classified by MVP necessity.",
+    "mvp_required": [
+      {"layer": 1, "name": "Frontend Foundations", "mvp_scope": "Core shell (Left Rail, Main Workspace, Right Rail AI, EA Chat). Dashboard, CRM, Tasks, Settings, Auth pages. Executive command center aesthetic. Not all 11 desired-state screens."},
+      {"layer": 2, "name": "APIs + Backend", "mvp_scope": "Core CRUD for portfolios, entities, tasks, CRM, documents, agents. Auth endpoints. AI chat endpoint. No API versioning required for single-user MVP."},
+      {"layer": 3, "name": "Database + Storage", "mvp_scope": "Unified schema for users, orgs, portfolios, entities, departments, tasks, CRM, documents, agents. Single Neon database. Migrations via Drizzle."},
+      {"layer": 4, "name": "Auth + Permissions", "mvp_scope": "Clerk auth (login, signup, session). Single-user RBAC (owner tier only). No multi-tenant, no team roles."},
+      {"layer": 5, "name": "AI + Agent Runtime", "mvp_scope": "EA Agent (basic triage and routing). CEO Agent (delegation). 3-5 department agents active. Basic agent chat interface."},
+      {"layer": 9, "name": "Infrastructure + Deployment", "mvp_scope": "Fly.io deployment. Dockerfile. Health check. Manual deploy (no full CI/CD required for MVP)."},
+      {"layer": 12, "name": "Security + Compliance", "mvp_scope": "Basic RLS on user-scoped tables. HTTPS. Clerk session security. No full security audit for MVP."}
+    ],
+    "mvp_partial": [
+      {"layer": 6, "name": "Workflow Engine", "mvp_scope": "3 existing workflows (Outreach, Content, FollowUp). Basic workflow status display. No visual builder."},
+      {"layer": 8, "name": "Analytics + Observability", "mvp_scope": "PostHog basic events. Error logging. KPI dashboard (using existing 3 views). No advanced analytics."},
+      {"layer": 10, "name": "Testing + QA", "mvp_scope": "Critical path tests (auth flow, CRM CRUD, agent execution). No full coverage target."},
+      {"layer": 13, "name": "Integration + Ecosystem", "mvp_scope": "UMH substrate integration (existing). Gmail integration (existing from GitHub main). No new external integrations."}
+    ],
+    "mvp_deferred": [
+      {"layer": 7, "name": "Memory + Knowledge", "reason": "Document intelligence, agent memory, and semantic search are enhancement features. Basic document CRUD sufficient for MVP."},
+      {"layer": 11, "name": "Documentation", "reason": "Single founder user does not need user documentation. API docs deferred until API stabilizes. Inline docs written during development."}
+    ]
+  },
+
+  "readiness_summary": {
+    "total_layers": 13,
+    "layers_ready": 0,
+    "layers_partial": 4,
+    "layers_not_ready": 9,
+    "partial_layers": ["Layer 5 (AI+Agent Runtime)", "Layer 6 (Workflow Engine)", "Layer 8 (Analytics+Observability)", "Layer 13 (Integration+Ecosystem)"],
+    "not_ready_layers": ["Layer 1 (Frontend)", "Layer 2 (APIs)", "Layer 3 (Database)", "Layer 4 (Auth)", "Layer 7 (Memory)", "Layer 9 (Infrastructure)", "Layer 10 (Testing)", "Layer 11 (Documentation)", "Layer 12 (Security)"],
+    "layers_with_existing_code": {
+      "substantial": ["Layer 5 (10 agents, 66 skills, registration)", "Layer 6 (3 workflows implemented)", "Layer 13 (full UMH integration layer, 1556 lines)"],
+      "minimal": ["Layer 1 (two divergent frontends)", "Layer 2 (two divergent API surfaces)", "Layer 3 (three divergent schemas)", "Layer 4 (three incompatible auth systems)", "Layer 8 (3 views, PostHog on Beast)", "Layer 10 (4 unit tests)"],
+      "none": ["Layer 7 (Memory)", "Layer 9 (Infrastructure)", "Layer 11 (Documentation)", "Layer 12 (Security)"]
+    }
+  },
+
+  "primary_blocker": "DEC-145-001: Beast branch promotion decision. The 401-file source divergence between GitHub main (202 files, stale Replit Agent, Passport.js) and Beast feature/company-system (603 files, Clerk, company/portfolio system) is the single gate blocking 9 of 13 layers. Until this decision is made and executed (with build validation, secret scan, operator review, rollback plan), no unified codebase exists to build on. The 4 partially-ready layers (AI+Agent Runtime, Workflow Engine, Analytics views, Integration) operate in the UMH projection layer (Python) which is independent of the SaaS source divergence.",
+
+  "operator_decisions_required": [
+    {"id": "DEC-145-001", "description": "Beast branch promotion -- promote feature/company-system as canonical EOS SaaS, merge to main, or rebuild?", "impact": "Blocks layers 1-4, 9-12", "risk": "CRITICAL"},
+    {"id": "DEC-145-004", "description": "Clerk migration order -- which Trinity app gets Clerk production provisioning first?", "impact": "Blocks layer 4", "risk": "HIGH"},
+    {"id": "Q-14.5A-SEC-EOS", "description": "RLS and multi-tenant security expectations -- what level of tenant isolation for MVP?", "impact": "Blocks layer 12", "risk": "HIGH"},
+    {"id": "Q-14.5A-OBS-EOS", "description": "Error tracking approach -- PostHog errors vs Sentry vs other?", "impact": "Blocks layer 8", "risk": "MEDIUM"}
+  ],
+
+  "risk_register": [
+    {"id": "RISK-001", "description": "Source divergence -- 401-file gap between branches, no unified codebase", "risk_level": "CRITICAL", "affected_layers": [1, 2, 3, 4, 9, 10, 12], "mitigation": "Resolve DEC-145-001"},
+    {"id": "RISK-002", "description": "Blind merge risk -- Beast branch has never been built or validated from VPS", "risk_level": "HIGH", "affected_layers": [1, 2, 3, 4], "mitigation": "Build validation, secret scan, and rollback plan before promotion"},
+    {"id": "RISK-003", "description": "Schema divergence -- three separate schema surfaces with PK strategy and auth model conflicts", "risk_level": "HIGH", "affected_layers": [3, 4, 12], "mitigation": "Schema unification plan with migration scripts"},
+    {"id": "RISK-004", "description": "No deployment exists -- zero production infrastructure for EOS SaaS", "risk_level": "HIGH", "affected_layers": [8, 9, 12], "mitigation": "Fly.io provisioning as early work packet after source convergence"},
+    {"id": "RISK-005", "description": "EA Agent gap -- the most critical user-facing agent (gateway to all EOS functionality) does not exist in code", "risk_level": "MEDIUM", "affected_layers": [5], "mitigation": "EA Agent as high-priority MVP work packet"},
+    {"id": "RISK-006", "description": "Near-zero test coverage -- 4 unit tests for the entire EOS system", "risk_level": "HIGH", "affected_layers": [10], "mitigation": "Test-first development for all new code; 97 integration tests need relocation verification"}
+  ]
+}

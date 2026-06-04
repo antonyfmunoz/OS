@@ -1,0 +1,172 @@
+{
+  "phase": "14.6B-LyfeOS",
+  "artifact": "lyfeos_contradiction_matrix",
+  "timestamp": "2026-06-03T12:00:00Z",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "description": "All contradictions found across sources. Each classified with resolution strategy.",
+  "contradictions": [
+    {
+      "id": "CTR-001",
+      "domain": "Navigation",
+      "source_a": "PRD v1.0: 4 tabs (Dashboard, Missions, AI, Systems)",
+      "source_b": "PRD v2.0 / Current code: 5 tabs (Dashboard, Missions, AI, Chronilog, Profile)",
+      "description": "PRD v1.0 defined a 4-tab layout without Chronilog or Profile as primary. PRD v2.0 and current code both use 5 primary tabs with Profile as the 5th.",
+      "classification": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution_notes": "5 tabs is current truth. PRD v1.0 is historical. Phase 14.5 incorrectly listed 'Systems' as primary; operator corrected this."
+    },
+    {
+      "id": "CTR-002",
+      "domain": "Navigation",
+      "source_a": "Phase 14.5 convergence plan: 'Dashboard, Missions, NOVA AI, Chronilog, Systems, Profile' (6 items in primary nav)",
+      "source_b": "Operator correction: 5 primary tabs are Dashboard, Missions, AI, Chronilog, Profile",
+      "description": "Phase 14.5 listed 6 items including both Systems and Profile. Current truth is 5 tabs with Profile as 5th and Systems as secondary.",
+      "classification": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution_notes": "Operator correction is canonical. Systems is a secondary navigation area, not primary."
+    },
+    {
+      "id": "CTR-003",
+      "domain": "AI Identity",
+      "source_a": "replit.md / common references: 'NOVA AI System' (implies system-level brand)",
+      "source_b": "schema.ts: aiAssistantName default 'NOVA' (user-renamable field)",
+      "description": "NOVA is sometimes referenced as if it is a system name or brand, but in code it is simply the default value of a user-editable field.",
+      "classification": "SEMANTICALLY_MERGEABLE",
+      "resolution_notes": "NOVA is the default AI companion name, user-renamable. It is not a system brand. When referring to the AI system, use 'AI companion' or 'AI assistant'. When referring to the default persona, use 'NOVA (default)'."
+    },
+    {
+      "id": "CTR-004",
+      "domain": "Auth Provider",
+      "source_a": "Phase 14.5/14.5A: 'Target auth is Clerk'",
+      "source_b": "package.json: Zero Clerk dependencies. Passport.js + Firebase auth confirmed.",
+      "description": "Prior phase artifacts describe Clerk as the target auth provider. Current code has no Clerk implementation whatsoever.",
+      "classification": "STAGE_BASED_TRUTH",
+      "resolution_notes": "Current stage: Passport.js + Firebase (functional). Future stage: Clerk migration (planned, lower priority than CreatorOS). Both truths are valid for their respective stages."
+    },
+    {
+      "id": "CTR-005",
+      "domain": "Deployment Platform",
+      "source_a": "Phase 14.5A: 'Target: Fly.io deployment'",
+      "source_b": "Current: Replit hosting (confirmed by deps and operator)",
+      "description": "Desired deployment is Fly.io but current deployment is Replit.",
+      "classification": "STAGE_BASED_TRUTH",
+      "resolution_notes": "Current stage: Replit. Future stage: Fly.io. Migration is an enhancement, not a repair. Replit deployment is functional."
+    },
+    {
+      "id": "CTR-006",
+      "domain": "Security",
+      "source_a": "Phase 14.5A layer 8: 'No security headers confirmed'",
+      "source_b": "package.json: helmet 8.1.0. replit.md: 'Security headers (Helmet)'",
+      "description": "Phase 14.5A claimed security headers were not confirmed. Helmet dependency proves they are present.",
+      "classification": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution_notes": "Helmet is installed and documented. Phase 14.5A claim was based on incomplete analysis. Security headers ARE present."
+    },
+    {
+      "id": "CTR-007",
+      "domain": "Rate Limiting",
+      "source_a": "replit.md: mentions 'rate limiting' in auth features",
+      "source_b": "Phase 14.5A: 'No rate limiting.' No express-rate-limit dependency in package.json.",
+      "description": "replit.md references rate limiting but no standard rate-limiting library exists in dependencies.",
+      "classification": "OPEN_OPERATOR_DECISION",
+      "resolution_notes": "Possible explanations: (1) Custom rate limiting middleware exists in server code (not in snapshot). (2) replit.md documents intent, not implementation. (3) Replit platform may provide rate limiting. Operator verification needed."
+    },
+    {
+      "id": "CTR-008",
+      "domain": "Chat Data Model",
+      "source_a": "shared/models/chat.ts: conversations + messages tables WITHOUT userId on conversations",
+      "source_b": "shared/schema.ts: conversations + messages tables WITH userId and deletedAt on conversations",
+      "description": "Two definitions of the same tables exist. chat.ts is a simpler legacy model. schema.ts has the richer production model.",
+      "classification": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution_notes": "schema.ts is canonical. chat.ts is a legacy/superseded model file. drizzle.config.ts points to shared/schema.ts as the schema source."
+    },
+    {
+      "id": "CTR-009",
+      "domain": "AI Messages",
+      "source_a": "schema.ts: ai_messages table (sender: 'ai'/'user', userId, content, timestamp)",
+      "source_b": "schema.ts: conversations + messages tables (conversationId, role: 'user'/'assistant')",
+      "description": "Two AI message storage systems exist in the same schema. ai_messages is a flat per-user log. conversations+messages is a threaded chat system.",
+      "classification": "IMPLEMENTATION_DEBT",
+      "resolution_notes": "ai_messages appears to be the legacy system. conversations+messages is the current chat system (matches modern chat patterns). Both exist in production. Migration/cleanup TBD."
+    },
+    {
+      "id": "CTR-010",
+      "domain": "Integrations Table Structure",
+      "source_a": "user_integrations table: boolean flags (appleHealthConnected, googleCalendarConnected, notionConnected)",
+      "source_b": "integrations table: full OAuth records (provider, accessToken, refreshToken, tokenExpiry, scope, status)",
+      "description": "Two integration tracking systems. user_integrations has simple booleans. integrations table has full OAuth token management.",
+      "classification": "SEMANTICALLY_MERGEABLE",
+      "resolution_notes": "Both serve different purposes and coexist. user_integrations provides quick connection status checks. integrations table stores actual OAuth credentials. Not a true contradiction but potential simplification target."
+    },
+    {
+      "id": "CTR-011",
+      "domain": "Transformation Thread",
+      "source_a": "Prior phase artifacts reference 'Transformation Thread' as a LyfeOS concept",
+      "source_b": "No 'transformation_thread' table, field, or reference in schema.ts or any code in snapshot",
+      "description": "Transformation Thread appears in design documents but has no code implementation.",
+      "classification": "SOURCE_PRESERVED_FUTURE_CANON",
+      "resolution_notes": "Transformation Thread is a design concept that has not been implemented. Preserve as future candidate feature."
+    },
+    {
+      "id": "CTR-012",
+      "domain": "Backup Strategy",
+      "source_a": "Phase 14.5A: 'No confirmed backups. If the database is lost, user data is gone.'",
+      "source_b": "Neon Postgres default: Neon provides automatic backups and branching by default on all plans",
+      "description": "Phase 14.5A raised alarm about no backups, but Neon's default behavior includes automatic backups.",
+      "classification": "OPEN_OPERATOR_DECISION",
+      "resolution_notes": "Need to verify: (1) Which Neon plan is LyfeOS on? (2) Are automatic backups enabled? (3) What is the retention period? (4) Has a recovery test been performed? The alarm may be overstated if Neon defaults are active, but it is still unverified."
+    },
+    {
+      "id": "CTR-013",
+      "domain": "Test Coverage",
+      "source_a": "Phase 14.5: 'Test coverage unknown'",
+      "source_b": "Actual: 2 test files, 21 test cases (api-auth + xp-calculations)",
+      "description": "Phase 14.5 did not know the test state. Now confirmed: minimal coverage.",
+      "classification": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution_notes": "2 test files is the code truth. Represents significant test coverage gap for a 35-table application."
+    },
+    {
+      "id": "CTR-014",
+      "domain": "Session Storage",
+      "source_a": "package.json: both connect-pg-simple (Postgres sessions) and memorystore (in-memory sessions)",
+      "source_b": "replit.md: 'Session-based authentication managed with express-session'",
+      "description": "Two session store options are in dependencies. Which is active in production?",
+      "classification": "OPEN_OPERATOR_DECISION",
+      "resolution_notes": "connect-pg-simple is the production session store (persistent, survives restarts). memorystore is likely a development fallback. Server code (not in snapshot) would confirm which is active."
+    },
+    {
+      "id": "CTR-015",
+      "domain": "Password Hashing",
+      "source_a": "package.json: bcrypt v6.0.0 in dependencies",
+      "source_b": "replit.md: mentions both 'scrypt' and 'bcrypt' in auth documentation",
+      "description": "replit.md references scrypt in some contexts but the installed dependency is bcrypt. No scrypt library in package.json.",
+      "classification": "CODE_RESOLVED_CURRENT_TRUTH",
+      "resolution_notes": "bcrypt is the installed and active password hashing library. replit.md scrypt reference is a documentation error or refers to a legacy/planned approach that was never implemented. bcrypt confirmed in auth test suite."
+    },
+    {
+      "id": "CTR-016",
+      "domain": "Onboarding Integrations",
+      "source_a": "schema.ts setupMissionStatus field contains 'integrations: incomplete' in default JSONB",
+      "source_b": "Current onboarding: 8 missions (0-7), none of which is an integrations/sync mission",
+      "description": "The userProfile.setupMissionStatus field includes an 'integrations' key in its default value, indicating an integrations onboarding mission was planned. No such mission exists in the current 8-mission flow.",
+      "classification": "UMH_INTEGRATION_DEPENDENT_GAP",
+      "resolution_notes": "An Integrations/Synchronization onboarding mission was originally planned (evidenced by setupMissionStatus default and userIntegrations table). It was never implemented. When UMH integration is established, this mission should guide users through connecting external data sources (Google Calendar/Tasks, future Apple Health, Notion). See lyfeos_integrations_onboarding_gap.md for full analysis."
+    }
+  ],
+  "summary": {
+    "total_contradictions": 16,
+    "classification_breakdown": {
+      "CODE_RESOLVED_CURRENT_TRUTH": 6,
+      "STAGE_BASED_TRUTH": 2,
+      "SEMANTICALLY_MERGEABLE": 2,
+      "OPEN_OPERATOR_DECISION": 3,
+      "IMPLEMENTATION_DEBT": 1,
+      "SOURCE_PRESERVED_FUTURE_CANON": 1,
+      "UMH_INTEGRATION_DEPENDENT_GAP": 1
+    },
+    "operator_decisions_needed": [
+      "CTR-007: Rate limiting status verification",
+      "CTR-012: Neon backup verification",
+      "CTR-014: Session store in production",
+      "CTR-016: Integrations onboarding mission design (UMH-dependent)"
+    ]
+  }
+}

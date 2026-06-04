@@ -1,0 +1,299 @@
+{
+  "artifact": "phase14_6b_eos_portfolio_entity_business_ontology",
+  "phase": "14.6B",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-03",
+  "description": "EOS Portfolio/Entity/Business Ontology — the corrected hierarchy, entity taxonomy, business type catalog, and level definitions",
+  "hierarchy": {
+    "chain": "Operator/User -> Portfolio(s) -> Entities -> Business/Investment/Asset Operations -> Teams/Agents/Roles/Permissions -> Workflows/SOPs/Tasks/Tools -> Capital/Transactions/KPIs/Reports -> Outcomes/Proof/Optimization",
+    "levels": [
+      "Operator/User",
+      "Portfolio",
+      "Entity",
+      "Business/Investment/Asset Operations",
+      "Teams/Agents/Roles/Permissions",
+      "Workflows/SOPs/Tasks/Tools",
+      "Capital/Transactions/KPIs/Reports",
+      "Outcomes/Proof/Optimization"
+    ],
+    "depth": 8,
+    "direction": "top-down ownership, bottom-up value flow"
+  },
+  "definitions": {
+    "Operator/User": {
+      "definition": "The human principal who owns and governs one or more portfolios. The operator is the ultimate authority — all governance chains terminate at the operator. In MVP, one operator per instance. At scale, operators may delegate to sub-operators with scoped authority.",
+      "cardinality": "One operator can own multiple portfolios",
+      "key_attributes": ["identity", "authentication", "global_preferences", "authority_ceiling", "subscription_tier"],
+      "provenance": "OPERATOR_CORRECTION"
+    },
+    "Portfolio": {
+      "definition": "A strategic container that groups related entities under a unified governance and reporting umbrella. A portfolio represents a coherent economic strategy — e.g., 'tech ventures', 'real estate holdings', 'personal brand companies'. Portfolios provide consolidated dashboards, cross-entity analytics, and capital allocation views.",
+      "cardinality": "One operator can own multiple portfolios. Each portfolio contains one or more entities.",
+      "key_attributes": ["name", "strategy", "governance_rules", "capital_allocation", "consolidated_kpis", "entity_list"],
+      "mvp_scope": "MVP supports one primary portfolio per operator, data model future-proofed for multiple",
+      "provenance": "OPERATOR_CORRECTION + SYNTHESIZED_CANON"
+    },
+    "Entity": {
+      "definition": "A legal or operational vehicle through which economic activity is conducted. An entity is the structural wrapper — it has a legal form (LLC, C-Corp, SPV, etc.), jurisdiction, compliance requirements, and financial identity. Entities are the units that own bank accounts, sign contracts, file taxes, and hold assets.",
+      "cardinality": "One portfolio contains one or more entities. Each entity runs one or more business/investment/asset operations.",
+      "key_attributes": ["legal_name", "entity_type", "jurisdiction", "ein_or_tax_id", "formation_date", "status", "registered_agent", "compliance_requirements"],
+      "provenance": "OPERATOR_CORRECTION + SYNTHESIZED_CANON"
+    },
+    "Business/Company/Venture/Organization": {
+      "definition": "The operating activity conducted through an entity. This is where revenue is generated, products are built, services are delivered, and customers are served. A single entity may run multiple business operations (e.g., an LLC that runs both a consulting practice and a SaaS product). The terms 'company', 'venture', and 'organization' are contextual synonyms for the operating activity layer.",
+      "cardinality": "One entity can run one or more business operations",
+      "key_attributes": ["business_name", "industry", "business_model", "stage", "revenue_model", "product_lines", "customer_segments", "competitive_position"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "Asset": {
+      "definition": "A resource of economic value owned or controlled by an entity. Assets can be tangible (real estate, equipment, inventory) or intangible (IP, brand, software, domain names). Assets are tracked for valuation, depreciation, and strategic allocation.",
+      "cardinality": "One entity can hold multiple assets",
+      "key_attributes": ["asset_name", "asset_type", "acquisition_date", "acquisition_cost", "current_value", "depreciation_schedule", "location"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "Investment": {
+      "definition": "A capital deployment made through an entity with the expectation of financial return. Investments can be active (operator involvement in the investee) or passive (equity/debt positions held for return). Investments track cost basis, current value, return metrics, and exit strategy.",
+      "cardinality": "One entity can hold multiple investments",
+      "key_attributes": ["investment_name", "investment_type", "cost_basis", "current_value", "return_metrics", "exit_strategy", "active_or_passive"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "Team": {
+      "definition": "A group of humans and/or AI agents assigned to operate within a business. Teams have defined responsibilities, reporting lines, and capacity. Teams are the execution units — they do the work.",
+      "cardinality": "One business operation can have multiple teams",
+      "key_attributes": ["team_name", "department", "members", "capacity", "reporting_to", "responsibilities"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "Agent": {
+      "definition": "An AI entity with a defined role, authority scope, and governed capabilities operating within a business. Agents are peers to human team members within the organism protocol — they have soul documents, capability declarations, and governance constraints. Agents are NOT chat assistants; they are autonomous operators with bounded authority.",
+      "cardinality": "One team can include multiple agents alongside human members",
+      "key_attributes": ["agent_name", "role", "authority_scope", "capabilities", "governance_constraints", "soul_document", "performance_metrics"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "Role": {
+      "definition": "A named set of permissions, responsibilities, and authority boundaries assigned to a human or agent within a business. Roles define what someone CAN do (permissions), what they SHOULD do (responsibilities), and what they CANNOT do (authority boundaries). Standard roles include CEO, CFO, COO, department head, specialist, advisor.",
+      "cardinality": "One team member (human or agent) can hold one or more roles",
+      "key_attributes": ["role_name", "permissions", "responsibilities", "authority_boundaries", "escalation_rules"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "Workflow": {
+      "definition": "A defined sequence of steps that transforms inputs into outputs within a business operation. Workflows are the executable processes — they can be fully automated, fully manual, or hybrid (human-in-the-loop with AI execution). Workflows have trigger conditions, governance gates, and outcome verification.",
+      "cardinality": "One business operation can have multiple workflows",
+      "key_attributes": ["workflow_name", "trigger", "steps", "governance_gates", "inputs", "outputs", "automation_level"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "SOP": {
+      "definition": "A Standard Operating Procedure — a documented, repeatable process that codifies how a specific task or workflow should be executed. SOPs are the knowledge layer that ensures consistency, quality, and trainability. SOPs can be executed by humans, agents, or both.",
+      "cardinality": "One workflow may reference one or more SOPs",
+      "key_attributes": ["sop_name", "version", "steps", "quality_criteria", "exceptions", "last_reviewed", "owner"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "Tool": {
+      "definition": "An external system, API, or capability that agents and humans use to execute tasks. Tools are registered in the capability router and matched to tasks based on requirements. Examples: email sender, payment processor, social media publisher, analytics API, document generator.",
+      "cardinality": "One workflow step may use one or more tools",
+      "key_attributes": ["tool_name", "tool_type", "api_endpoint", "auth_method", "capabilities", "cost_per_use", "rate_limits"],
+      "provenance": "SYNTHESIZED_CANON"
+    },
+    "KPI": {
+      "definition": "A Key Performance Indicator — a quantified metric that measures business performance against strategic objectives. KPIs flow upward: business KPIs aggregate to entity KPIs, which aggregate to portfolio KPIs. KPIs drive governance decisions (e.g., if MRR drops below threshold, trigger review).",
+      "cardinality": "One business operation tracks multiple KPIs",
+      "key_attributes": ["kpi_name", "metric_type", "current_value", "target_value", "threshold_low", "threshold_high", "measurement_frequency", "data_source"],
+      "provenance": "SYNTHESIZED_CANON"
+    }
+  },
+  "entity_types": [
+    {
+      "type": "LLC",
+      "full_name": "Limited Liability Company",
+      "description": "Most common US business entity for small-to-medium operations. Pass-through taxation, liability protection, flexible management structure.",
+      "typical_use": "Solo operators, small teams, service businesses, holding companies"
+    },
+    {
+      "type": "C-Corp",
+      "full_name": "C Corporation",
+      "description": "Standard corporate structure for venture-backed or publicly traded companies. Double taxation but enables stock options, institutional investment, and unlimited shareholders.",
+      "typical_use": "VC-backed startups, companies planning IPO, businesses seeking institutional investment"
+    },
+    {
+      "type": "Holding Company",
+      "full_name": "Holding Company",
+      "description": "An entity whose primary purpose is to own and manage other entities. Does not typically conduct business operations directly. Provides asset protection, tax optimization, and centralized governance.",
+      "typical_use": "Multi-entity operators, family offices, serial entrepreneurs managing multiple ventures"
+    },
+    {
+      "type": "SPV",
+      "full_name": "Special Purpose Vehicle",
+      "description": "A subsidiary entity created for a specific, limited purpose — typically a single investment, deal, or asset isolation. Ring-fences risk from the parent entity.",
+      "typical_use": "Real estate deals, investment syndications, joint ventures, asset isolation"
+    },
+    {
+      "type": "Real Estate Entity",
+      "full_name": "Real Estate Holding Entity",
+      "description": "An entity (typically LLC) structured specifically to hold and manage real estate assets. May hold single or multiple properties. Provides liability isolation per property or property group.",
+      "typical_use": "Rental properties, commercial real estate, real estate development, BRRRR strategy"
+    },
+    {
+      "type": "Investment Entity",
+      "full_name": "Investment Management Entity",
+      "description": "An entity structured to make and manage investments — equity positions, debt instruments, fund allocations. May be structured as an LLC, LP, or fund.",
+      "typical_use": "Angel investing, fund management, stock portfolios, alternative investments"
+    },
+    {
+      "type": "Operating Company",
+      "full_name": "Operating Company",
+      "description": "An entity that directly conducts business operations — sells products, delivers services, employs staff. The most common entity type for active businesses.",
+      "typical_use": "Any actively operating business: agencies, SaaS companies, e-commerce, local services"
+    },
+    {
+      "type": "Asset Holding Entity",
+      "full_name": "Asset Holding Entity",
+      "description": "An entity whose primary purpose is to hold and protect specific assets — IP, brand names, equipment, or other valuable property. Separates asset ownership from operational risk.",
+      "typical_use": "IP protection, brand ownership, equipment leasing to operating companies"
+    }
+  ],
+  "business_types": [
+    {
+      "type": "AI Automation Agency",
+      "description": "Agency that builds and deploys AI automation solutions for clients",
+      "model": "service/project-based",
+      "example_kpis": ["monthly_revenue", "client_retention", "project_margin", "pipeline_value"]
+    },
+    {
+      "type": "Creative Agency",
+      "description": "Agency providing creative services — design, video, branding, content production",
+      "model": "retainer/project-based",
+      "example_kpis": ["monthly_revenue", "utilization_rate", "client_satisfaction", "project_profitability"]
+    },
+    {
+      "type": "Marketing Agency",
+      "description": "Agency providing marketing strategy and execution — paid ads, SEO, social, email",
+      "model": "retainer/performance-based",
+      "example_kpis": ["mrr", "client_roas", "churn_rate", "cac"]
+    },
+    {
+      "type": "Consulting",
+      "description": "Expert advisory services — strategy, operations, technology, management",
+      "model": "hourly/project/retainer",
+      "example_kpis": ["revenue_per_consultant", "utilization_rate", "client_nps", "repeat_engagement_rate"]
+    },
+    {
+      "type": "Coaching / Info-Product",
+      "description": "Knowledge-based business — courses, coaching programs, digital products, memberships",
+      "model": "product/subscription/cohort",
+      "example_kpis": ["mrr", "ltv", "course_completion_rate", "student_outcomes", "refund_rate"]
+    },
+    {
+      "type": "SaaS",
+      "description": "Software-as-a-Service — recurring revenue software product",
+      "model": "subscription",
+      "example_kpis": ["mrr", "arr", "churn_rate", "cac", "ltv", "ltv_cac_ratio", "nrr"]
+    },
+    {
+      "type": "E-Commerce",
+      "description": "Online retail — physical or digital products sold through web storefront",
+      "model": "transaction-based",
+      "example_kpis": ["revenue", "aov", "conversion_rate", "cac", "return_rate", "inventory_turnover"]
+    },
+    {
+      "type": "Local Service",
+      "description": "Location-based service business — plumbing, cleaning, landscaping, fitness, salon",
+      "model": "service/subscription",
+      "example_kpis": ["monthly_revenue", "customer_retention", "service_margin", "review_rating", "booking_rate"]
+    },
+    {
+      "type": "Media / Content",
+      "description": "Content-driven business — media company, publishing, content studio, newsletter",
+      "model": "advertising/sponsorship/subscription",
+      "example_kpis": ["audience_size", "engagement_rate", "rpm", "subscriber_count", "sponsorship_revenue"]
+    },
+    {
+      "type": "Fashion / Apparel",
+      "description": "Fashion brand — clothing, accessories, streetwear, luxury goods",
+      "model": "DTC/wholesale/marketplace",
+      "example_kpis": ["revenue", "sell_through_rate", "return_rate", "brand_awareness", "margin"]
+    },
+    {
+      "type": "Real Estate",
+      "description": "Real estate operations — rental income, development, flipping, BRRRR",
+      "model": "asset/rental/development",
+      "example_kpis": ["noi", "cap_rate", "cash_on_cash_return", "occupancy_rate", "equity_position"]
+    },
+    {
+      "type": "Stock / Investment",
+      "description": "Active investment management — stock portfolio, options, crypto, alternative assets",
+      "model": "capital_gains/dividends/yield",
+      "example_kpis": ["total_return", "alpha", "sharpe_ratio", "drawdown", "portfolio_value"]
+    },
+    {
+      "type": "Private Investment / Holding",
+      "description": "Private equity or holding company operations — acquiring, operating, and optimizing businesses",
+      "model": "acquisition/operation/exit",
+      "example_kpis": ["portfolio_value", "irr", "moic", "ebitda_multiple", "portfolio_company_performance"]
+    },
+    {
+      "type": "Family Office",
+      "description": "Multi-generational wealth management — diversified portfolio across asset classes with governance",
+      "model": "diversified/multi-asset",
+      "example_kpis": ["total_aum", "annual_return", "risk_adjusted_return", "distribution_yield", "generational_transfer_readiness"]
+    },
+    {
+      "type": "Productized Service",
+      "description": "Standardized service sold as a product — fixed scope, fixed price, repeatable delivery",
+      "model": "subscription/package",
+      "example_kpis": ["mrr", "delivery_cost", "margin", "client_satisfaction", "capacity_utilization"]
+    },
+    {
+      "type": "Marketplace",
+      "description": "Platform connecting buyers and sellers — takes commission or subscription from participants",
+      "model": "commission/subscription/freemium",
+      "example_kpis": ["gmv", "take_rate", "liquidity", "supply_growth", "demand_growth", "repeat_rate"]
+    },
+    {
+      "type": "Community / Knowledge",
+      "description": "Community-driven business — paid community, knowledge base, mastermind, network",
+      "model": "subscription/cohort/lifetime",
+      "example_kpis": ["member_count", "retention_rate", "engagement_rate", "mrr", "community_nps"]
+    },
+    {
+      "type": "Manufacturing",
+      "description": "Physical product manufacturing — production, supply chain, distribution",
+      "model": "wholesale/DTC/contract",
+      "example_kpis": ["units_produced", "cogs", "margin", "defect_rate", "lead_time", "inventory_days"]
+    },
+    {
+      "type": "Enterprise",
+      "description": "Enterprise-focused business — B2B software, services, or solutions for large organizations",
+      "model": "contract/subscription/professional_services",
+      "example_kpis": ["acv", "arr", "sales_cycle_length", "win_rate", "nrr", "logo_retention"]
+    }
+  ],
+  "communication_delegation_architecture": {
+    "chain": "User/Founder -> EA Agent -> Portfolio Advisor OR CEO Agent -> Department/Specialist Agents",
+    "rule": "EA does NOT route directly to department/specialist agents. EA routes to the portfolio advisor (for portfolio-level concerns) or CEO agent (for entity-level concerns). CEO then delegates downward.",
+    "rationale": "This mirrors real organizational communication — a founder's EA talks to the CEO or portfolio manager, not directly to the marketing intern.",
+    "provenance": "OPERATOR_CORRECTION"
+  },
+  "eos_ui_shell": {
+    "components": [
+      "Left Rail — role-dependent navigation, portfolio/company/entity switcher",
+      "Main Workspace — primary content area, context-dependent",
+      "Right Rail AI Assistant — conversational AI interface for current context",
+      "Floating AI Control Panel — quick actions, agent status, system controls",
+      "Risk/Approval Notices — governance gates surfaced in workflow",
+      "Activity/Event Feed — real-time stream of business events and agent actions",
+      "Chat/EA Command Box — primary operator input for directing the EA agent"
+    ],
+    "aesthetic": "Executive command center, business cockpit, finance-grade clarity, strategic control, modern AI-native enterprise",
+    "aesthetic_not": "NOT playful, NOT creator-social, NOT RPG, NOT gamified, NOT casual",
+    "provenance": "OPERATOR_CORRECTION"
+  },
+  "mvp_scope": {
+    "portfolio": "One primary portfolio per operator, data model future-proofed for multiple portfolios",
+    "entities": "Multiple entities within the primary portfolio",
+    "business_types": "All 19 business types supported in schema, initial validation against AI automation agency and coaching/info-product",
+    "agents": "EA agent + CEO agent per entity, department agents as needed",
+    "provenance": "OPERATOR_CORRECTION + SYNTHESIZED_CANON"
+  },
+  "provenance": "OPERATOR_CORRECTION + SYNTHESIZED_CANON"
+}

@@ -1,0 +1,719 @@
+{
+  "artifact_id": "EOS-COMMS-ARCH-001",
+  "title": "EOS Communication and Delegation Architecture",
+  "phase": "14.6B",
+  "status": "DRAFT",
+  "operator_approved": false,
+  "allows_implementation": false,
+  "date": "2026-06-03",
+  "provenance": "OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH",
+  "provenance_detail": "Routing chain corrected by operator directive (EA does NOT route directly to department/specialist agents). Department agent capabilities resolved from projections/eos/agents/ codebase (10 agents, DepartmentAgent base class, PermissionTier enforcement). Five additional department roles (research, content, automation, investment_analyst, asset_manager, property_manager) are INFERRED_PROFESSIONAL_GAP -- they do not exist in code today.",
+
+  "routing_chain": {
+    "summary": "User/Founder/Operator -> EA Agent -> Portfolio Advisor Agent OR Company/Entity CEO Agent -> CEO Agent delegates to Department/Specialist Agents",
+    "nodes": [
+      "operator",
+      "ea_agent",
+      "portfolio_advisor_agent",
+      "ceo_agent",
+      "department_specialist_agents"
+    ],
+    "flow_description": "The operator communicates exclusively through the EA Agent. The EA Agent triages, clarifies, and routes to either the Portfolio Advisor (for portfolio-level concerns) or the Company/Entity CEO Agent (for entity-level execution). The CEO Agent then delegates to the appropriate department/specialist agents. Department agents never receive direct routing from the EA.",
+    "critical_constraint": "EA Agent does NOT route directly to department/specialist agents. This is a hard boundary. All department-level work flows through the CEO Agent."
+  },
+
+  "nodes": {
+    "ea_agent": {
+      "id": "EA-001",
+      "name": "EA Agent",
+      "role": "Primary communication interface and operator-facing coordination layer",
+      "position_in_chain": 1,
+      "receives_from": ["operator"],
+      "routes_to": ["portfolio_advisor_agent", "ceo_agent"],
+      "never_routes_to": ["department_specialist_agents"],
+      "capabilities": [
+        "chat_and_command_intake",
+        "inbox_management",
+        "clarification_and_disambiguation",
+        "scheduling_and_reminders",
+        "task_intake_and_triage",
+        "routing_decisions",
+        "status_summaries",
+        "decision_surfacing",
+        "operator_facing_coordination",
+        "context_gathering_before_routing",
+        "multi_entity_awareness"
+      ],
+      "responsibilities": {
+        "intake": "Receives all operator input via chat box, voice, or command surface. Parses intent, gathers missing context, confirms understanding before routing.",
+        "triage": "Classifies incoming requests by scope (portfolio-level vs entity-level), urgency, and domain. Determines routing target.",
+        "routing": "Routes to Portfolio Advisor for portfolio-scope concerns or to the appropriate Company/Entity CEO Agent for entity-scope execution.",
+        "status": "Aggregates status from all downstream agents and presents unified summaries to operator on demand.",
+        "memory": "Maintains conversation history, operator preferences, pending decisions, and follow-up items.",
+        "scheduling": "Manages operator calendar awareness, meeting prep, reminder scheduling, and deadline tracking.",
+        "decision_surfacing": "Identifies decisions that require operator input and surfaces them with context, options, and recommendations from downstream agents."
+      },
+      "permission_tier": "READ",
+      "permission_rationale": "EA reads and routes but does not execute domain actions. All execution flows through CEO or Portfolio Advisor.",
+      "current_code_status": "NOT_IMPLEMENTED",
+      "current_code_note": "No EA agent exists in projections/eos/agents/. This is INFERRED_PROFESSIONAL_GAP. The EA role is critical to the corrected routing chain and must be built."
+    },
+
+    "portfolio_advisor_agent": {
+      "id": "PA-001",
+      "name": "Portfolio Advisor Agent",
+      "role": "Portfolio-level strategy, allocation, and cross-entity intelligence",
+      "position_in_chain": 2,
+      "receives_from": ["ea_agent"],
+      "routes_to": [],
+      "reports_to": ["ea_agent"],
+      "capabilities": [
+        "portfolio_level_strategy",
+        "capital_allocation_analysis",
+        "resource_allocation_across_entities",
+        "cross_entity_comparison",
+        "risk_detection_portfolio_level",
+        "opportunity_detection_portfolio_level",
+        "portfolio_dashboard_intelligence",
+        "high_level_prioritization",
+        "portfolio_level_reporting",
+        "entity_health_scoring",
+        "diversification_analysis",
+        "correlation_analysis_across_holdings"
+      ],
+      "responsibilities": {
+        "strategy": "Provides portfolio-level strategic recommendations: which entities to invest in, divest from, restructure, or create.",
+        "allocation": "Analyzes capital and resource allocation across all entities within a portfolio. Recommends rebalancing.",
+        "comparison": "Compares entity performance, identifies underperformers, surfaces entities that need intervention.",
+        "risk": "Detects portfolio-level risks: concentration, correlation, liquidity, market exposure, operational dependency.",
+        "opportunity": "Identifies cross-entity synergies, new entity opportunities, and market gaps the portfolio could fill.",
+        "reporting": "Generates portfolio-level dashboards, scorecards, and reports for operator review.",
+        "prioritization": "Ranks entities and initiatives by expected impact, risk-adjusted return, and strategic alignment."
+      },
+      "permission_tier": "DRAFT",
+      "permission_rationale": "Portfolio Advisor analyzes and recommends but does not execute. Execution happens at entity level through CEO agents.",
+      "current_code_status": "NOT_IMPLEMENTED",
+      "current_code_note": "No Portfolio Advisor agent exists in projections/eos/agents/. This is INFERRED_PROFESSIONAL_GAP. Required for multi-entity portfolio management."
+    },
+
+    "ceo_agent": {
+      "id": "CEO-001",
+      "name": "Company/Entity CEO Agent",
+      "role": "Company/entity-level execution, strategy, and department coordination",
+      "position_in_chain": 3,
+      "receives_from": ["ea_agent"],
+      "routes_to": ["department_specialist_agents"],
+      "reports_to": ["ea_agent"],
+      "capabilities": [
+        "company_entity_strategy",
+        "operating_cadence_management",
+        "department_coordination",
+        "workflow_ownership",
+        "kpi_accountability",
+        "team_agent_coordination",
+        "strategic_analysis",
+        "decision_briefs",
+        "delegation_to_departments",
+        "pipeline_review",
+        "morning_briefing",
+        "action_approval"
+      ],
+      "responsibilities": {
+        "strategy": "Owns company/entity-level strategy. Translates portfolio-level directives into entity-level execution plans.",
+        "cadence": "Manages operating rhythm: daily standups, weekly reviews, monthly reporting, quarterly planning.",
+        "coordination": "Coordinates across all department agents. Resolves cross-department conflicts and dependencies.",
+        "delegation": "Receives tasks from EA (via operator) and delegates to appropriate department agents with context, constraints, and deadlines.",
+        "accountability": "Tracks KPIs, holds department agents accountable for deliverables, escalates blockers.",
+        "approval": "Approves high-tier actions (COMMIT level) that department agents queue for review."
+      },
+      "permission_tier": "COMMIT",
+      "permission_rationale": "CEO has full authority within the entity. Can approve any action across departments.",
+      "current_code_status": "IMPLEMENTED",
+      "current_code_location": "projections/eos/agents/ceo.py",
+      "current_code_class": "CEOAgent",
+      "current_code_department": "executive",
+      "current_code_skills": [
+        {"name": "strategic_analysis", "action_type": "analyze", "description": "Analyze strategic position and opportunities"},
+        {"name": "decision_brief", "action_type": "report", "description": "Generate decision brief for a key decision"},
+        {"name": "delegation", "action_type": "create_task", "description": "Delegate a task to a department agent"},
+        {"name": "pipeline_review", "action_type": "report", "description": "Review full pipeline across all departments"},
+        {"name": "morning_brief", "action_type": "report", "description": "Generate CEO morning briefing"},
+        {"name": "approve_action", "action_type": "execute_payment", "description": "Approve a queued action (COMMIT tier)"}
+      ],
+      "implementation_note": "Current CEO agent is instance-specific (hardcoded Initiate Arena references in strategic_analysis). Needs generalization for multi-entity support."
+    },
+
+    "department_specialist_agents": {
+      "overview": "Department/specialist agents that receive delegation exclusively from the CEO Agent. Never from EA directly.",
+      "receives_from": ["ceo_agent"],
+      "never_receives_from": ["ea_agent", "operator"],
+      "reports_to": ["ceo_agent"],
+      "escalates_to": ["ceo_agent"],
+      "total_defined": 15,
+      "implemented_in_code": 9,
+      "not_implemented": 6,
+
+      "agents": {
+        "sales": {
+          "id": "DEPT-SALES-001",
+          "name": "Sales Agent",
+          "department": "sales",
+          "permission_tier": "EXECUTE",
+          "current_code_status": "IMPLEMENTED",
+          "current_code_location": "projections/eos/agents/sales.py",
+          "current_code_class": "SalesAgent",
+          "skills": [
+            {"name": "lead_score", "action_type": "score", "description": "Score a lead based on qualification criteria"},
+            {"name": "outreach_draft", "action_type": "draft_message", "description": "Draft an outreach message for a prospect"},
+            {"name": "pipeline_report", "action_type": "report", "description": "Report on current sales pipeline"},
+            {"name": "follow_up", "action_type": "draft_message", "description": "Draft follow-up message for stale leads"},
+            {"name": "send_outreach", "action_type": "send_dm", "description": "Send outreach message to prospect"},
+            {"name": "book_call", "action_type": "book_call", "description": "Book a discovery/sales call"}
+          ],
+          "domain_scope": "Pipeline management, lead scoring, outreach execution, follow-up cadence, call booking, deal tracking"
+        },
+
+        "marketing": {
+          "id": "DEPT-MARKETING-001",
+          "name": "Marketing Agent",
+          "department": "marketing",
+          "permission_tier": "EXECUTE",
+          "current_code_status": "IMPLEMENTED",
+          "current_code_location": "projections/eos/agents/marketing.py",
+          "current_code_class": "MarketingAgent",
+          "skills": [
+            {"name": "content_calendar", "action_type": "draft_content", "description": "Generate a content calendar for upcoming period"},
+            {"name": "content_ideation", "action_type": "draft_content", "description": "Generate content ideas for a topic/channel"},
+            {"name": "audience_analysis", "action_type": "analyze", "description": "Analyze audience demographics and engagement"},
+            {"name": "brand_audit", "action_type": "analyze", "description": "Audit brand consistency across channels"},
+            {"name": "post_content", "action_type": "post_content", "description": "Post content to a channel"},
+            {"name": "campaign_report", "action_type": "report", "description": "Report on campaign performance"}
+          ],
+          "domain_scope": "Content strategy, brand execution, audience analysis, content publishing, campaign tracking, channel management"
+        },
+
+        "operations": {
+          "id": "DEPT-OPS-001",
+          "name": "Operations Agent",
+          "department": "operations",
+          "permission_tier": "EXECUTE",
+          "current_code_status": "IMPLEMENTED",
+          "current_code_location": "projections/eos/agents/operations.py",
+          "current_code_class": "OperationsAgent",
+          "skills": [
+            {"name": "system_health", "action_type": "status_check", "description": "Check overall system health"},
+            {"name": "workflow_audit", "action_type": "analyze", "description": "Audit workflows for bottlenecks and optimization"},
+            {"name": "process_automation", "action_type": "create_task", "description": "Identify and draft automation opportunities"},
+            {"name": "resource_allocation", "action_type": "analyze", "description": "Analyze resource allocation efficiency"},
+            {"name": "bottleneck_detection", "action_type": "analyze", "description": "Detect operational bottlenecks"},
+            {"name": "ops_report", "action_type": "report", "description": "Generate operations status report"}
+          ],
+          "domain_scope": "Workflow optimization, process automation, system health, resource allocation, bottleneck detection, operational reporting"
+        },
+
+        "finance": {
+          "id": "DEPT-FINANCE-001",
+          "name": "Finance Agent",
+          "department": "finance",
+          "permission_tier": "COMMIT",
+          "current_code_status": "IMPLEMENTED",
+          "current_code_location": "projections/eos/agents/finance.py",
+          "current_code_class": "FinanceAgent",
+          "skills": [
+            {"name": "revenue_report", "action_type": "report", "description": "Generate revenue summary for a time period"},
+            {"name": "expense_tracking", "action_type": "report", "description": "Track and categorize expenses"},
+            {"name": "budget_forecast", "action_type": "analyze", "description": "Forecast budget based on current burn rate and revenue"},
+            {"name": "unit_economics", "action_type": "analyze", "description": "Calculate unit economics (CAC, LTV, margins)"},
+            {"name": "cashflow_analysis", "action_type": "analyze", "description": "Analyze cash flow position and runway"},
+            {"name": "payment_processing", "action_type": "execute_payment", "description": "Process a payment (requires approval)"},
+            {"name": "invoice_draft", "action_type": "draft_content", "description": "Draft an invoice"}
+          ],
+          "domain_scope": "Revenue tracking, expense management, budgeting, forecasting, unit economics, cash flow, payment processing, invoicing"
+        },
+
+        "legal_compliance": {
+          "id": "DEPT-LEGAL-001",
+          "name": "Legal/Compliance Agent",
+          "department": "legal",
+          "permission_tier": "COMMIT",
+          "current_code_status": "IMPLEMENTED",
+          "current_code_location": "projections/eos/agents/legal.py",
+          "current_code_class": "LegalAgent",
+          "skills": [
+            {"name": "contract_review", "action_type": "analyze", "description": "Review a contract for risks and obligations"},
+            {"name": "compliance_check", "action_type": "analyze", "description": "Check compliance status against requirements"},
+            {"name": "entity_status", "action_type": "report", "description": "Report on entity registration status"},
+            {"name": "terms_draft", "action_type": "draft_content", "description": "Draft terms of service or legal document"},
+            {"name": "ip_audit", "action_type": "analyze", "description": "Audit intellectual property status"},
+            {"name": "contract_execute", "action_type": "execute_payment", "description": "Execute a contract (requires approval)"}
+          ],
+          "domain_scope": "Contract review, compliance tracking, entity management, terms drafting, IP protection, legal execution"
+        },
+
+        "customer_success": {
+          "id": "DEPT-CS-001",
+          "name": "Customer Success Agent",
+          "department": "customer_success",
+          "permission_tier": "EXECUTE",
+          "current_code_status": "IMPLEMENTED",
+          "current_code_location": "projections/eos/agents/customer_success.py",
+          "current_code_class": "CustomerSuccessAgent",
+          "skills": [
+            {"name": "ticket_routing", "action_type": "classify", "description": "Classify and route a support ticket to the right handler"},
+            {"name": "satisfaction_report", "action_type": "report", "description": "Generate customer satisfaction report"},
+            {"name": "churn_detection", "action_type": "analyze", "description": "Identify customers at risk of churning"},
+            {"name": "onboarding_guide", "action_type": "draft_content", "description": "Create onboarding guide for new customers"},
+            {"name": "feedback_analysis", "action_type": "analyze", "description": "Analyze customer feedback themes"},
+            {"name": "response_draft", "action_type": "draft_message", "description": "Draft customer response"},
+            {"name": "send_response", "action_type": "send_message", "description": "Send response to customer"}
+          ],
+          "domain_scope": "Retention, satisfaction tracking, support routing, onboarding, churn detection, feedback analysis, customer communication"
+        },
+
+        "product_service_delivery": {
+          "id": "DEPT-PRODUCT-001",
+          "name": "Product/Service Delivery Agent",
+          "department": "product",
+          "permission_tier": "DRAFT",
+          "current_code_status": "IMPLEMENTED",
+          "current_code_location": "projections/eos/agents/product.py",
+          "current_code_class": "ProductAgent",
+          "skills": [
+            {"name": "roadmap_status", "action_type": "report", "description": "Report on product roadmap status"},
+            {"name": "feature_prioritize", "action_type": "analyze", "description": "Prioritize features using ICE scoring"},
+            {"name": "user_feedback_summary", "action_type": "analyze", "description": "Summarize user feedback into themes"},
+            {"name": "competitor_analysis", "action_type": "research", "description": "Analyze competitor products and positioning"},
+            {"name": "release_plan", "action_type": "draft_content", "description": "Draft a release plan"},
+            {"name": "spec_draft", "action_type": "create_document", "description": "Draft a product specification"}
+          ],
+          "domain_scope": "Roadmap management, feature prioritization, user feedback, competitor analysis, release planning, spec writing"
+        },
+
+        "hr_recruiting": {
+          "id": "DEPT-HR-001",
+          "name": "HR/Recruiting Agent",
+          "department": "hr",
+          "permission_tier": "EXECUTE",
+          "current_code_status": "IMPLEMENTED",
+          "current_code_location": "projections/eos/agents/hr.py",
+          "current_code_class": "HRAgent",
+          "skills": [
+            {"name": "candidate_screen", "action_type": "analyze", "description": "Screen a candidate against role requirements"},
+            {"name": "hiring_pipeline", "action_type": "report", "description": "Report on current hiring pipeline status"},
+            {"name": "onboarding_plan", "action_type": "draft_content", "description": "Create onboarding plan for a new team member"},
+            {"name": "performance_review", "action_type": "analyze", "description": "Analyze employee/contractor performance"},
+            {"name": "contractor_search", "action_type": "research", "description": "Search for contractors matching role requirements"},
+            {"name": "outreach_candidate", "action_type": "send_dm", "description": "Send outreach to a candidate"}
+          ],
+          "domain_scope": "Hiring pipeline, candidate screening, onboarding, performance management, contractor sourcing, team management"
+        },
+
+        "engineering": {
+          "id": "DEPT-ENG-001",
+          "name": "Engineering Agent",
+          "department": "engineering",
+          "permission_tier": "EXECUTE",
+          "current_code_status": "IMPLEMENTED",
+          "current_code_location": "projections/eos/agents/engineering.py",
+          "current_code_class": "EngineeringAgent",
+          "skills": [
+            {"name": "code_review", "action_type": "analyze", "description": "Review code for quality, security, and style"},
+            {"name": "architecture_analysis", "action_type": "analyze", "description": "Analyze system architecture for issues"},
+            {"name": "deployment_status", "action_type": "report", "description": "Report on deployment and service health"},
+            {"name": "tech_debt_report", "action_type": "report", "description": "Report on technical debt"},
+            {"name": "incident_response", "action_type": "analyze", "description": "Analyze and respond to incidents"},
+            {"name": "deploy", "action_type": "container_execution", "description": "Deploy a service or container"}
+          ],
+          "domain_scope": "Technical execution, architecture, code review, deployment, tech debt management, incident response"
+        },
+
+        "admin_ea": {
+          "id": "DEPT-ADMIN-001",
+          "name": "Admin/EA Department Agent",
+          "department": "admin",
+          "permission_tier": "EXECUTE",
+          "current_code_status": "NOT_IMPLEMENTED",
+          "provenance": "INFERRED_PROFESSIONAL_GAP",
+          "rationale": "Distinct from the top-level EA Agent. This is a department-level administrative function handling internal scheduling, document management, meeting coordination, expense reports, travel booking, and office/workspace management within a single entity.",
+          "planned_skills": [
+            "meeting_scheduling",
+            "document_management",
+            "expense_report_processing",
+            "travel_booking",
+            "workspace_management",
+            "internal_communications"
+          ],
+          "domain_scope": "Internal admin operations, scheduling, document management, expense processing, travel, workspace coordination"
+        },
+
+        "research": {
+          "id": "DEPT-RESEARCH-001",
+          "name": "Research Agent",
+          "department": "research",
+          "permission_tier": "READ",
+          "current_code_status": "NOT_IMPLEMENTED",
+          "provenance": "INFERRED_PROFESSIONAL_GAP",
+          "rationale": "Deep research capability for market analysis, competitor intelligence, technology scouting, academic/industry research. Read-only tier since research produces analysis, not actions.",
+          "planned_skills": [
+            "market_research",
+            "competitor_intelligence",
+            "technology_scouting",
+            "trend_analysis",
+            "industry_report",
+            "data_gathering"
+          ],
+          "domain_scope": "Market research, competitor intelligence, technology scouting, trend analysis, data gathering, industry reporting"
+        },
+
+        "content": {
+          "id": "DEPT-CONTENT-001",
+          "name": "Content Agent",
+          "department": "content",
+          "permission_tier": "EXECUTE",
+          "current_code_status": "NOT_IMPLEMENTED",
+          "provenance": "INFERRED_PROFESSIONAL_GAP",
+          "rationale": "Distinct from marketing. Marketing owns strategy and brand; Content owns production -- writing, editing, media creation, repurposing, distribution queue management. Many entity types (media companies, agencies, personal brands) need dedicated content operations separate from marketing strategy.",
+          "planned_skills": [
+            "content_writing",
+            "content_editing",
+            "media_production",
+            "content_repurposing",
+            "distribution_queue",
+            "content_analytics"
+          ],
+          "domain_scope": "Content production, writing, editing, media creation, repurposing, distribution management, content performance analytics"
+        },
+
+        "automation": {
+          "id": "DEPT-AUTOMATION-001",
+          "name": "Automation Agent",
+          "department": "automation",
+          "permission_tier": "EXECUTE",
+          "current_code_status": "NOT_IMPLEMENTED",
+          "provenance": "INFERRED_PROFESSIONAL_GAP",
+          "rationale": "Distinct from operations and engineering. Automation agent owns workflow automation, integration management, trigger/action configuration, no-code/low-code tool orchestration. As EOS scales to serve many entity types, automation becomes its own discipline.",
+          "planned_skills": [
+            "workflow_automation_design",
+            "integration_management",
+            "trigger_action_configuration",
+            "automation_monitoring",
+            "automation_optimization",
+            "tool_orchestration"
+          ],
+          "domain_scope": "Workflow automation, integration management, trigger/action systems, automation monitoring, tool orchestration"
+        },
+
+        "investment_analyst": {
+          "id": "DEPT-INVEST-001",
+          "name": "Investment Analyst Agent",
+          "department": "investment_analysis",
+          "permission_tier": "DRAFT",
+          "current_code_status": "NOT_IMPLEMENTED",
+          "provenance": "INFERRED_PROFESSIONAL_GAP",
+          "rationale": "EOS supports investment entities (stocks, crypto, real estate, private equity). Investment Analyst performs due diligence, valuation modeling, risk assessment, portfolio analytics at the entity level. Distinct from Portfolio Advisor which operates at portfolio level across entities.",
+          "planned_skills": [
+            "due_diligence",
+            "valuation_modeling",
+            "risk_assessment",
+            "investment_thesis",
+            "market_analysis",
+            "position_sizing"
+          ],
+          "domain_scope": "Due diligence, valuation, risk assessment, investment thesis development, market analysis, position sizing"
+        },
+
+        "asset_manager": {
+          "id": "DEPT-ASSET-001",
+          "name": "Asset Manager Agent",
+          "department": "asset_management",
+          "permission_tier": "EXECUTE",
+          "current_code_status": "NOT_IMPLEMENTED",
+          "provenance": "INFERRED_PROFESSIONAL_GAP",
+          "rationale": "Manages physical and digital asset entities: equipment, IP portfolios, digital products, inventory. Tracks depreciation, maintenance schedules, licensing, and asset lifecycle. Relevant for operating companies, real estate, and holding entities.",
+          "planned_skills": [
+            "asset_inventory",
+            "depreciation_tracking",
+            "maintenance_scheduling",
+            "license_management",
+            "asset_valuation",
+            "lifecycle_reporting"
+          ],
+          "domain_scope": "Asset inventory, depreciation, maintenance, licensing, valuation, lifecycle management"
+        },
+
+        "property_manager": {
+          "id": "DEPT-PROPERTY-001",
+          "name": "Property Manager Agent",
+          "department": "property_management",
+          "permission_tier": "EXECUTE",
+          "current_code_status": "NOT_IMPLEMENTED",
+          "provenance": "INFERRED_PROFESSIONAL_GAP",
+          "rationale": "EOS supports real estate entities. Property Manager handles tenant management, lease tracking, maintenance requests, rent collection, property inspections, vendor coordination. Specialized enough to warrant its own department agent.",
+          "planned_skills": [
+            "tenant_management",
+            "lease_tracking",
+            "maintenance_request_routing",
+            "rent_collection_tracking",
+            "property_inspection",
+            "vendor_coordination"
+          ],
+          "domain_scope": "Tenant management, lease tracking, maintenance, rent collection, property inspections, vendor coordination"
+        }
+      }
+    }
+  },
+
+  "routing_rules": {
+    "description": "Rules governing how the EA Agent decides whether to route to Portfolio Advisor or Company/Entity CEO Agent",
+    "decision_logic": {
+      "route_to_portfolio_advisor": {
+        "conditions": [
+          "Request concerns multiple entities simultaneously",
+          "Request is about capital allocation across entities",
+          "Request asks for cross-entity comparison or benchmarking",
+          "Request involves portfolio-level risk assessment",
+          "Request asks about which entity to prioritize, create, or wind down",
+          "Request involves resource rebalancing between entities",
+          "Request asks for portfolio-level reporting or dashboards",
+          "Request uses language like 'across all companies', 'portfolio', 'which entity', 'compare businesses'"
+        ],
+        "examples": [
+          "How is my portfolio performing overall?",
+          "Which company should I focus on this quarter?",
+          "Compare revenue growth across my entities",
+          "Should I allocate more capital to Entity A or Entity B?",
+          "What is my total exposure across all holdings?"
+        ]
+      },
+      "route_to_ceo_agent": {
+        "conditions": [
+          "Request targets a specific entity or company",
+          "Request involves department-level execution within an entity",
+          "Request asks about a specific company's KPIs, pipeline, or operations",
+          "Request involves hiring, marketing, sales, or product decisions for one entity",
+          "Request asks for a specific company's status or morning brief",
+          "Operator has already selected an entity context in the UI"
+        ],
+        "examples": [
+          "What is the sales pipeline for Initiate Arena?",
+          "Draft an outreach message for a prospect",
+          "Review the marketing content calendar",
+          "How is the engineering deployment going?",
+          "Approve the contractor payment"
+        ]
+      },
+      "ambiguous_handling": "When scope is unclear, EA asks a clarifying question: 'Is this about [specific entity] or across your entire portfolio?' EA never guesses scope.",
+      "multi_entity_single_request": "If operator asks about a specific action that spans entities (e.g., 'send the same outreach template to prospects across all companies'), EA routes to Portfolio Advisor who coordinates with relevant CEO Agents."
+    }
+  },
+
+  "delegation_protocol": {
+    "description": "Protocol governing how the CEO Agent delegates work to department/specialist agents",
+    "delegation_flow": {
+      "step_1": "CEO receives task from EA (operator-originated) or generates task from strategic analysis",
+      "step_2": "CEO classifies task by department domain using skill/capability matching",
+      "step_3": "CEO checks department agent permission tier against required action tier",
+      "step_4": "If department agent has sufficient tier: delegate with context, constraints, deadline",
+      "step_5": "If action requires COMMIT tier and department agent has lower: CEO retains approval authority and delegates the analysis/draft portion",
+      "step_6": "CEO monitors task completion and aggregates results for reporting back to EA"
+    },
+    "delegation_payload": {
+      "task_id": "Unique identifier for tracking",
+      "source": "ea_agent or ceo_self_generated",
+      "department": "Target department slug",
+      "skill": "Specific skill name to invoke",
+      "context": "Business context, constraints, background",
+      "deadline": "Expected completion time (if applicable)",
+      "priority": "critical | high | medium | low",
+      "approval_required": "Whether CEO must approve output before it reaches operator",
+      "operator_visibility": "Whether this task appears in operator activity feed"
+    },
+    "multi_department_tasks": "When a task spans departments (e.g., 'launch a new product' involves product, marketing, sales, engineering), CEO creates a coordination plan, delegates sub-tasks to each department, and manages dependencies between them.",
+    "parallel_delegation": "Independent sub-tasks are delegated in parallel. Dependent sub-tasks are sequenced with explicit dependency tracking."
+  },
+
+  "escalation_protocol": {
+    "description": "Protocol governing how department agents escalate issues back up the chain",
+    "escalation_triggers": [
+      "Action requires higher permission tier than agent possesses",
+      "Department agent encounters ambiguity that needs business judgment",
+      "Cross-department dependency blocks progress",
+      "Risk classification exceeds agent authority (HIGH or CRITICAL risk actions)",
+      "Agent detects anomaly or potential issue outside its domain",
+      "Task deadline at risk and agent cannot resolve independently",
+      "Financial threshold exceeded (amount requiring human approval)",
+      "Legal/compliance concern detected in non-legal domain"
+    ],
+    "escalation_chain": {
+      "department_agent_to_ceo": {
+        "when": "Most escalations. Department agent cannot proceed within its authority.",
+        "payload": "Original task context, what was attempted, why escalation is needed, recommended action, risk assessment"
+      },
+      "ceo_to_ea": {
+        "when": "CEO needs operator decision. Cross-entity impact detected. Approval required for CRITICAL actions.",
+        "payload": "Decision summary, options with pros/cons, recommendation, urgency level, impact assessment"
+      },
+      "ea_to_operator": {
+        "when": "EA surfaces decision to operator. Always formatted as actionable decision with clear options.",
+        "payload": "Decision title, context summary, options, recommendation, deadline for decision, impact of inaction"
+      }
+    },
+    "escalation_format": "Every escalation includes: what happened, what was tried, what is needed, and a recommended path forward. Never escalate without a recommendation."
+  },
+
+  "logging": {
+    "description": "All communication across the routing chain is logged as structured events",
+    "event_types": [
+      {
+        "type": "communication",
+        "subtypes": ["operator_message", "ea_routing_decision", "ceo_delegation", "department_report", "escalation"],
+        "fields": ["timestamp", "source_agent", "target_agent", "message_type", "content_summary", "session_id"]
+      },
+      {
+        "type": "task",
+        "subtypes": ["created", "delegated", "in_progress", "blocked", "completed", "failed", "escalated"],
+        "fields": ["timestamp", "task_id", "source_agent", "assigned_agent", "department", "skill_used", "status", "result_summary"]
+      },
+      {
+        "type": "decision",
+        "subtypes": ["operator_decision", "ceo_decision", "automated_decision"],
+        "fields": ["timestamp", "decision_id", "decider", "options_presented", "option_chosen", "rationale", "impact_scope"]
+      },
+      {
+        "type": "approval",
+        "subtypes": ["requested", "granted", "denied", "expired"],
+        "fields": ["timestamp", "approval_id", "requestor_agent", "approver", "action_type", "permission_tier", "risk_level"]
+      },
+      {
+        "type": "workflow_action",
+        "subtypes": ["started", "step_completed", "paused", "resumed", "completed", "failed"],
+        "fields": ["timestamp", "workflow_id", "workflow_name", "step", "agent", "status", "output_summary"]
+      },
+      {
+        "type": "memory_item",
+        "subtypes": ["fact_learned", "preference_recorded", "pattern_detected", "context_updated"],
+        "fields": ["timestamp", "memory_type", "content", "source_agent", "confidence", "expiry"]
+      }
+    ],
+    "persistence": "All events persist to the organism event log (data/umh/organism/events.jsonl) and are queryable through the substrate observability layer.",
+    "audit_trail": "Every operator-facing action has a complete audit trail from operator input through EA routing through CEO delegation through department execution and back."
+  },
+
+  "chat_box_doctrine": {
+    "description": "The chat/command box is the operator's communication surface for the EA Agent. It is NOT the entire product.",
+    "principles": [
+      "The chat box is one input surface among many (navigation, dashboards, forms, buttons, approval panels)",
+      "EA processes chat input but the resulting work manifests across the entire UI -- dashboards update, pipeline views change, KPI cards refresh, approval queues populate",
+      "Chat is for: commands, questions, quick tasks, status checks, and conversational delegation",
+      "Chat is NOT for: reviewing complex data (use dashboards), managing pipelines (use pipeline view), financial review (use finance dashboard), approving actions (use approval panel)",
+      "The EA should proactively suggest moving to the appropriate UI surface: 'I have generated the report -- you can review it in the Finance dashboard'",
+      "Chat history is part of the communication log but the product experience extends far beyond the chat window"
+    ],
+    "interaction_model": "Chat box -> EA parses intent -> routes to appropriate agent -> agent executes -> result surfaces in appropriate UI component (dashboard, panel, notification, approval queue, etc.) -> EA summarizes outcome in chat"
+  },
+
+  "current_code_truth": {
+    "description": "Ground truth from projections/eos/agents/ as of 2026-06-03",
+    "base_class": {
+      "location": "projections/eos/agents/base.py",
+      "class": "DepartmentAgent",
+      "features": [
+        "Skill registration via _add_skill()",
+        "Permission tier enforcement via PermissionTier enum",
+        "Tier-gated action execution",
+        "Browser research and browser act skills auto-registered on every agent",
+        "Org/venture context awareness"
+      ]
+    },
+    "implemented_agents": [
+      {"class": "CEOAgent", "department": "executive", "tier": "COMMIT", "file": "ceo.py", "skill_count": 6},
+      {"class": "SalesAgent", "department": "sales", "tier": "EXECUTE", "file": "sales.py", "skill_count": 6},
+      {"class": "MarketingAgent", "department": "marketing", "tier": "EXECUTE", "file": "marketing.py", "skill_count": 6},
+      {"class": "OperationsAgent", "department": "operations", "tier": "EXECUTE", "file": "operations.py", "skill_count": 6},
+      {"class": "FinanceAgent", "department": "finance", "tier": "COMMIT", "file": "finance.py", "skill_count": 7},
+      {"class": "LegalAgent", "department": "legal", "tier": "COMMIT", "file": "legal.py", "skill_count": 6},
+      {"class": "CustomerSuccessAgent", "department": "customer_success", "tier": "EXECUTE", "file": "customer_success.py", "skill_count": 7},
+      {"class": "ProductAgent", "department": "product", "tier": "DRAFT", "file": "product.py", "skill_count": 6},
+      {"class": "HRAgent", "department": "hr", "tier": "EXECUTE", "file": "hr.py", "skill_count": 6},
+      {"class": "EngineeringAgent", "department": "engineering", "tier": "EXECUTE", "file": "engineering.py", "skill_count": 6}
+    ],
+    "total_implemented_skills": 62,
+    "not_implemented_agents": [
+      "EA Agent (critical gap -- required for corrected routing chain)",
+      "Portfolio Advisor Agent (critical gap -- required for multi-entity portfolio management)",
+      "Admin/EA Department Agent",
+      "Research Agent",
+      "Content Agent",
+      "Automation Agent",
+      "Investment Analyst Agent",
+      "Asset Manager Agent",
+      "Property Manager Agent"
+    ],
+    "permission_tier_distribution": {
+      "COMMIT": ["executive (CEO)", "finance", "legal"],
+      "EXECUTE": ["sales", "marketing", "operations", "customer_success", "hr", "engineering"],
+      "DRAFT": ["product"],
+      "READ": []
+    },
+    "instance_specific_concerns": "CEO agent strategic_analysis skill contains hardcoded references to 'Initiate Arena' and specific business context. Needs generalization for multi-entity support via BIS runtime lookup."
+  },
+
+  "implementation_gaps": {
+    "critical": [
+      {
+        "gap": "EA Agent does not exist",
+        "impact": "The entire corrected routing chain depends on EA as the primary intake node. Without it, operator communicates directly with CEO agent, bypassing triage and portfolio-level routing.",
+        "provenance": "OPERATOR_CORRECTION"
+      },
+      {
+        "gap": "Portfolio Advisor Agent does not exist",
+        "impact": "No portfolio-level intelligence layer. Multi-entity operators cannot get cross-entity analysis, capital allocation recommendations, or portfolio-level risk detection.",
+        "provenance": "OPERATOR_CORRECTION"
+      },
+      {
+        "gap": "No inter-agent routing infrastructure",
+        "impact": "Current agents are standalone classes with no message passing, delegation protocol, or routing logic between them. The routing chain is architecturally defined but not mechanically implemented.",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      }
+    ],
+    "moderate": [
+      {
+        "gap": "CEO agent contains instance-specific hardcoded values",
+        "impact": "Cannot serve multi-entity scenarios without generalization",
+        "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
+      },
+      {
+        "gap": "6 department agents not implemented (admin, research, content, automation, investment_analyst, asset_manager, property_manager)",
+        "impact": "Entity types beyond basic businesses (investments, real estate, media companies) lack specialized department support",
+        "provenance": "INFERRED_PROFESSIONAL_GAP"
+      }
+    ]
+  },
+
+  "open_questions": [
+    {
+      "id": "OQ-COMMS-001",
+      "question": "Should the EA Agent be implemented as a DepartmentAgent subclass or as a distinct agent type with its own base class?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "EA has fundamentally different responsibilities (routing, not execution). DepartmentAgent base class assumes department-level execution with skill registration. EA may need a different abstraction."
+    },
+    {
+      "id": "OQ-COMMS-002",
+      "question": "Should operators be able to bypass the EA and communicate directly with CEO or department agents in advanced/power-user mode?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "Some operators may want direct access for speed. This would violate the routing chain but could be a configurable permission."
+    },
+    {
+      "id": "OQ-COMMS-003",
+      "question": "How should the routing chain handle multi-portfolio operators (operator manages multiple portfolios, each with multiple entities)?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "Current model assumes one portfolio context. Multi-portfolio adds another routing layer: EA -> Portfolio Selector -> Portfolio Advisor -> CEO."
+    },
+    {
+      "id": "OQ-COMMS-004",
+      "question": "Should department agents be instantiated per-entity (each entity gets its own SalesAgent instance) or shared across entities with entity context passed per-call?",
+      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED",
+      "rationale": "Per-entity instances enable entity-specific memory and configuration. Shared instances are lighter but risk context bleeding."
+    }
+  ]
+}
