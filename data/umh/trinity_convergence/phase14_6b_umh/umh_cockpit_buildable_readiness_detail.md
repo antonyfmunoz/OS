@@ -1,8 +1,21 @@
-# UMH Cockpit Buildable Readiness Detail
+# UMH Stage 1 Organism Buildable Readiness Detail
 
-Phase: 14.6B-UMH
+Phase: 14.6B-UMH (revised 14.6D)
 Status: DRAFT
 Generated: 2026-06-03
+
+---
+
+## Stage 1 Organism Context (DEC-146C-003)
+
+Stage 1 is one minimum viable UMH organism: Reality Model + Cockpit + Memory + Governed Execution Loop. These are not separate products or sequential phases. Readiness criteria below must be evaluated in the context of the indivisible Stage 1 organism, not as isolated Cockpit capabilities. Each criterion contributes to one or more of the four organism components:
+
+- **RM** = Reality Model component
+- **CK** = Cockpit component
+- **MM** = Memory component
+- **GE** = Governed Execution component
+
+Stage 1 minimum viability does not require commercial-grade completeness. It requires a partially functional integrated vertical slice (DEC-146C-003 acceptance criteria 1-10).
 
 ---
 

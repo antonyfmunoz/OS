@@ -1,8 +1,12 @@
-# UMH World Model and Memory Architecture
+# UMH Reality Model and Memory Architecture
 
-Phase: 14.6B-UMH
+Phase: 14.6B-UMH (revised 14.6D)
 Status: DRAFT
 Generated: 2026-06-03
+
+**Reality Model Context (DEC-146C-001):** UMH's core functional purpose is to build, maintain, and act through a reality-isomorphic approximation of reality across 12 layers: physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, and OS-level. The world model and memory subsystems documented here are the implementation of UMH's reality model -- the central organizing model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback.
+
+**Indivisible Stage 1 (DEC-146C-003):** Memory is one of the four indivisible Stage 1 organism components (Reality Model + Cockpit + Memory + Governed Execution Loop). Memory without execution is passive storage. Memory feeds the reality model; the reality model feeds execution; execution outcomes update memory.
 
 ---
 
@@ -52,25 +56,25 @@ Semantic search via `ConversationMemory.semantic_search()` backed by EmbeddingEn
 
 ---
 
-## World Model Subsystem
+## Reality Model Subsystem
 
-### World Model
+### World Model (Reality Model Core)
 
-`substrate/understanding/world_model/world_model.py` -- Maintains the system's understanding of external reality. Represents entities, relationships, and state as perceived through signals.
+`substrate/understanding/world_model/world_model.py` -- Maintains UMH's reality-isomorphic approximation of reality (DEC-146C-001). Represents entities, relationships, and state across the 12 reality layers as perceived through signals, observations, and execution outcomes. This is the core of UMH's identity -- not merely operational tooling, but the central organizing model of reality.
 
 ### World Pulse
 
 `substrate/understanding/world_pulse/world_pulse.py` -- Continuous heartbeat of world state changes. Detects and propagates state transitions through the understanding layer.
 
-### Reality Model
+### Reality Model Tiers
 
 Three-tier reality model in `substrate/reality_model/`:
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `canonical.py` | `CanonicalRealityModel` | Source truth -- what the system knows with certainty |
-| `instance.py` | `InstanceRealityModel` | Runtime-loaded instance-specific reality (BIS values, env config) |
-| `simulation.py` | `SimulationReality` | Dry-run execution sandbox. Enables simulation without production side effects. Used by governance for risk evaluation before actuation. |
+| `canonical.py` | `CanonicalRealityModel` | Source truth -- what the system knows with certainty about reality. The canonical 12-layer reality model (DEC-146C-001). |
+| `instance.py` | `InstanceRealityModel` | Instance reality model -- carries the same isomorphic ambition but from the perspective/context of a specific instantiated user, company, product, environment, or incarnation (DEC-146C-001). Runtime-loaded. |
+| `simulation.py` | `SimulationReality` | Dry-run execution sandbox. Enables simulation without production side effects. Used by governance for risk evaluation before actuation. Implements part of the materialization principle (DEC-146C-002) -- simulates paths from intent to outcome. |
 
 ### SimulationReality
 

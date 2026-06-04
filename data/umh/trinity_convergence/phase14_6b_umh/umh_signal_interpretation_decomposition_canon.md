@@ -1,11 +1,13 @@
 # UMH Signal Interpretation and Decomposition Canon
 
-Phase: 14.6B-UMH
+Phase: 14.6B-UMH (revised 14.6D)
 Status: DRAFT
+
+**Reality Model Context (DEC-146C-001):** Signals are reality-model observations — the primary input mechanism through which UMH perceives and updates its reality-isomorphic approximation of reality. Decomposition feeds the reality model, not just execution. Every signal, once interpreted and decomposed, enriches one or more of the 12 reality layers (physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, OS-level).
 
 ## Signal Intake
 
-All signals enter UMH via `SignalEnvelope` (defined in `substrate/types.py`). Every input -- Discord messages, API calls, ingested files, scheduled events -- is wrapped in a SignalEnvelope before processing.
+All signals enter UMH via `SignalEnvelope` (defined in `substrate/types.py`). Every input -- Discord messages, API calls, ingested files, scheduled events -- is wrapped in a SignalEnvelope before processing. Signals are the observation layer of the reality model.
 
 The envelope carries:
 - Source identifier and transport origin
@@ -35,13 +37,13 @@ Intent is classified at two levels:
 
 The deterministic layer always produces a usable classification. LLM refinement improves accuracy when available but is never required.
 
-## Decomposition
+## Decomposition (Reality Model Input)
 
 ### Engine
 
 `substrate/understanding/ontology/primitive_decomposition_v1.py`
 
-Decomposition extracts structured PrimitiveObservation objects from interpreted input. It uses LLM extraction as the primary path with heuristic fallback for when all providers are down.
+Decomposition extracts structured PrimitiveObservation objects from interpreted input — converting raw signals into reality-model observations that enrich UMH's understanding of reality across the 12 layers. It uses LLM extraction as the primary path with heuristic fallback for when all providers are down.
 
 ### LLM Extraction Path
 

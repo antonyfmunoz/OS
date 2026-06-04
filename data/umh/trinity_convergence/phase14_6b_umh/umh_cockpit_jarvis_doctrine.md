@@ -1,24 +1,26 @@
 # UMH Cockpit / Jarvis Doctrine
 
-**Phase:** 14.6B-UMH
+**Phase:** 14.6B-UMH (revised 14.6D)
 **Status:** DRAFT -- awaiting operator ratification
-**Provenance:** OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH
+**Provenance:** OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH + DEC-146C-001/002/003 ratification
 **Date:** 2026-06-03
 
 ---
 
 ## What Cockpit Is
 
-Cockpit is the private operator/Jarvis interface into UMH.
+Cockpit is part of the indivisible Stage 1 UMH organism (DEC-146C-003): Reality Model + Cockpit + Memory + Governed Execution Loop. These four components must reach minimum viability as one integrated system. Cockpit without a reality model is only a dashboard; a reality model without Cockpit is inaccessible to the operator.
+
+Cockpit is the operator's interface into UMH's reality model -- the rendering surface through which the operator observes, commands, and governs UMH's reality-isomorphic approximation of reality across 12 layers (physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, and OS-level).
 
 Cockpit is NOT:
-- Merely a dashboard
-- Merely a status page
+- Merely a dashboard or status page (it is a reality-model interface)
 - The whole UMH system
 - A public-facing product
 - A customer-facing UI
+- A sequential build deliverable that ships before or after the reality model
 
-Cockpit IS the private universal control surface that allows Antony (the operator) to:
+Cockpit IS the private universal control surface that allows the operator to:
 
 1. Observe the entire ecosystem
 2. Command UMH directly
@@ -106,9 +108,24 @@ activity, agent, analytics, approval, chat, cockpit, coherence, config, editor, 
 
 ---
 
-## Cockpit Readiness Gate
+## Stage 1 Organism Readiness Gate (DEC-146C-003)
 
-Cockpit readiness is the MVP gate for UMH. The following capabilities must be buildable and testable.
+Stage 1 readiness is the MVP gate for UMH. Per DEC-146C-003, Stage 1 is indivisible: Reality Model + Cockpit + Memory + Governed Execution Loop must reach minimum viability together. Each increment must advance the integrated organism -- completing one component in isolation and deferring the others is rejected.
+
+Stage 1 does not require commercial-grade completeness before use. It requires a partially functional integrated vertical slice. The 10 operator-specified acceptance criteria for Stage 1 minimum viability:
+
+1. Operator can use Cockpit/Jarvis as primary interface
+2. UMH can capture intent and preserve it in memory/source truth
+3. UMH can maintain a usable reality model (work, products, companies, files, artifacts, agents, blockers)
+4. UMH can generate work packets from operator intent
+5. UMH can route work packets to agents/tools
+6. UMH can govern risky actions through approval gates
+7. UMH can verify outputs (tests, audit reports, diffs, review packets)
+8. UMH can update memory/reality model after outcomes
+9. UMH can work on itself through governed self-improvement work packets
+10. UMH can build and improve projection apps from inside the UMH operating loop
+
+The following capabilities must be buildable and testable.
 
 ### Voice/Text Command Intake
 
@@ -399,9 +416,9 @@ Cockpit never contains business logic. It is a transport surface that exposes su
 
 The Jarvis analogy is the correct mental model for Cockpit:
 
-1. **Cockpit is the operator's private bridge.** It is not a product. It is not a demo. It is the real control surface for a real system. Aesthetics serve function.
+1. **Cockpit is the operator's reality-model interface.** It is not a product. It is not a demo. It is not a dashboard. It is the surface through which the operator perceives UMH's 12-layer reality model and acts through it. Aesthetics serve function.
 
-2. **Every UMH capability must be observable through Cockpit.** If a capability exists in substrate but has no Cockpit surface, the operator is blind to it. Blindness is unacceptable.
+2. **Every reality-model layer must be observable through Cockpit.** If a reality layer exists in substrate but has no Cockpit surface, the operator is blind to it. Blindness is unacceptable.
 
 3. **Every UMH capability must be commandable through Cockpit.** Observation without control is a dashboard. Cockpit is not a dashboard. The operator must be able to act on anything they observe.
 
@@ -409,11 +426,13 @@ The Jarvis analogy is the correct mental model for Cockpit:
 
 5. **Cockpit degrades gracefully.** When infrastructure is down, Cockpit shows what is down and what still works. It never shows a blank page or a spinner.
 
-6. **Cockpit is the single pane of glass.** The operator should not need to SSH into the VPS, open Docker logs, check Discord, and inspect files separately. All of that flows through Cockpit.
+6. **Cockpit is the single pane of glass onto reality.** The operator should not need to SSH into the VPS, open Docker logs, check Discord, and inspect files separately. All of that flows through Cockpit as layers of the reality model.
 
 7. **Cockpit is the approval gateway.** Autonomous execution proposes. The operator approves or denies through Cockpit. This is the governance boundary.
 
-8. **Cockpit is projection-agnostic.** It shows EOS, CreatorOS, LyfeOS, and any future projection through the same universal interface. Projections register their views; Cockpit renders them.
+8. **Cockpit is projection-agnostic.** It shows EOS, CreatorOS, LyfeOS, and any future projection as instance reality models through the same universal interface. Projections register their views; Cockpit renders them.
+
+9. **Cockpit is indivisible from the reality model (DEC-146C-003).** Cockpit and the reality model advance together. Every increment that advances the reality model must also advance its Cockpit rendering. Every Cockpit improvement must be grounded in reality-model state, not synthetic/mock data.
 
 ---
 

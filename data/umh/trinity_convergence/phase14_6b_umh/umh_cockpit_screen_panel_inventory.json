@@ -1,8 +1,10 @@
 {
-  "phase": "14.6B-UMH",
+  "phase": "14.6B-UMH (revised 14.6D)",
   "status": "DRAFT",
+  "stage1_context": "DEC-146C-003: Panels are reality-model rendering surfaces within the indivisible Stage 1 organism. Each panel renders one or more reality-model layers. Panels must be evaluated by their contribution to the 10 Stage 1 acceptance criteria, not as isolated dashboard widgets.",
+  "reality_model_mapping_note": "Each panel should map to one or more of the 12 reality layers (physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, OS-level). This mapping is a future 14.6E task.",
   "panels": [
-    {"name": "DashboardPanel", "file": "cockpit/src/renderer/panels/DashboardPanel.tsx", "description": "Main dashboard with HUD overview", "store": "cockpitStore", "status": "IMPLEMENTED"},
+    {"name": "DashboardPanel", "file": "cockpit/src/renderer/panels/DashboardPanel.tsx", "description": "Main dashboard with HUD overview — reality-model summary surface", "store": "cockpitStore", "status": "IMPLEMENTED"},
     {"name": "AgentsPanel", "file": "cockpit/src/renderer/panels/AgentsPanel.tsx", "description": "List and inspect all registered agents", "store": "agentStore", "status": "IMPLEMENTED"},
     {"name": "AnalyticsPanel", "file": "cockpit/src/renderer/panels/AnalyticsPanel.tsx", "description": "Model usage, daily traces, error rate analytics", "store": "analyticsStore", "status": "IMPLEMENTED"},
     {"name": "ApprovalsPanel", "file": "cockpit/src/renderer/panels/ApprovalsPanel.tsx", "description": "List, approve, deny pending approvals", "store": "approvalStore", "status": "IMPLEMENTED"},
@@ -27,7 +29,7 @@
     {"name": "TrackingPanel", "file": "cockpit/src/renderer/panels/TrackingPanel.tsx", "description": "Document tracking from memory store", "store": "cockpitStore", "status": "IMPLEMENTED"},
     {"name": "UniversalWorkPanel", "file": "cockpit/src/renderer/panels/UniversalWorkPanel.tsx", "description": "Work packets, workcells, roles", "store": "cockpitStore", "status": "IMPLEMENTED"},
     {"name": "WorkflowsPanel", "file": "cockpit/src/renderer/panels/WorkflowsPanel.tsx", "description": "Workflow definitions and triggers", "store": "cockpitStore", "status": "IMPLEMENTED"},
-    {"name": "WorldModelPanel", "file": "cockpit/src/renderer/panels/WorldModelPanel.tsx", "description": "World model visualization", "store": "worldModelStore", "status": "IMPLEMENTED"},
+    {"name": "WorldModelPanel", "file": "cockpit/src/renderer/panels/WorldModelPanel.tsx", "description": "Reality model visualization — primary reality-layer rendering surface per DEC-146C-001", "store": "worldModelStore", "status": "IMPLEMENTED"},
     {"name": "ActivityPanel", "file": "cockpit/src/renderer/panels/ActivityPanel.tsx", "description": "Unified activity feed", "store": "activityStore", "status": "IMPLEMENTED"}
   ],
   "components": [

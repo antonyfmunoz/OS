@@ -1,8 +1,8 @@
 # UMH Naming Canonicalization
 
-**Phase:** 14.6B-UMH
+**Phase:** 14.6B-UMH (revised 14.6D)
 **Status:** DRAFT — awaiting operator ratification
-**Provenance:** CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION
+**Provenance:** CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION + DEC-146C-001 ratification
 
 ---
 
@@ -12,7 +12,8 @@
 
 - Abbreviation: **UMH**
 - Package name: `universal-meta-harness` (pyproject.toml, line 6)
-- This is the canonical product name per operator correction in Phase 14.6B.
+- **CONFIRMED by operator ratification (DEC-146C-001, 2026-06-04):** Product name remains "Universal Meta Harness." Do not rename to "engine." The operator was explicit: UMH's functional identity is a reality-isomorphic intelligence harness, but the product name is Universal Meta Harness.
+- Functional identity: reality-isomorphic intelligence harness / reality-modeling system (DEC-146C-001).
 
 ---
 
@@ -93,10 +94,12 @@ These aliases exist for import compatibility and must be preserved until all con
 
 ## Rules
 
-1. **Universal Meta Harness** is the canonical full product name.
+1. **Universal Meta Harness** is the canonical full product name. Confirmed by DEC-146C-001 ratification (2026-06-04).
 2. **UMH** is the canonical abbreviation.
 3. **Universal Mastery Hierarchy** is classified as stale/non-canonical naming debt.
 4. **EntrepreneurOS** is a valid projection name but must not be used as the system name.
 5. No artifact in this phase promotes Universal Mastery Hierarchy as the canonical product name.
 6. The pyproject.toml package name `universal-meta-harness` is the code truth.
 7. Backward compatibility aliases in substrate/ are technical debt, not canonical names.
+8. **Do not rename to "engine."** The operator explicitly rejected using "engine" as part of the product name. The functional identity (reality-isomorphic intelligence harness) is separate from the product name (Universal Meta Harness).
+9. **"Reality-isomorphic intelligence harness"** is the correct functional descriptor, not a product name.

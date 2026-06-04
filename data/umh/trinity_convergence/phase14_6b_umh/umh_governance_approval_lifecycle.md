@@ -1,6 +1,8 @@
 # UMH Governance and Approval Lifecycle
 
-Phase: 14.6B-UMH | Status: DRAFT -- awaiting operator ratification | Provenance: CODE_RESOLVED_CURRENT_TRUTH
+Phase: 14.6B-UMH (revised 14.6D) | Status: DRAFT -- awaiting operator ratification | Provenance: CODE_RESOLVED_CURRENT_TRUTH + DEC-146C-002/003 ratification
+
+**Governance Scope Expansion (DEC-146C-001/002):** Governance must cover not just signal/action governance, but reality-model mutation governance. The reality model is the central organizing model of UMH -- mutations to source truth, canonical state, and instance reality models are governed actions with risk classification. The materialization principle (DEC-146C-002) adds gap-classification governance: when UMH encounters missing capability, it must classify the gap type (unavailable, under-resourced, unproven, not-yet-acquired, time-bound, impossible, illegal, unsafe) and generate a typed acquisition path rather than treating it as terminal failure.
 
 ---
 
@@ -146,13 +148,25 @@ Every action produces:
 - Proof store for governance proofs (substrate/observability/proof_store.py)
 - Organism event spine (substrate/organism/event_spine.py)
 
+## Reality-Model Mutation Governance (DEC-146C-001)
+
+| Reality-Model Mutation | Risk Class | Approval Required |
+|----------------------|------------|-------------------|
+| Observation recording (new signal → reality model) | LOW | No |
+| Memory update (execution outcome → memory) | LOW | No |
+| Instance reality model update (runtime config) | MEDIUM | No (logged) |
+| Source truth promotion (observation → canonical) | HIGH | Yes |
+| Canonical reality model correction (manual override) | CRITICAL | Yes |
+| Reality layer schema change | CRITICAL | Yes |
+
 ## Gaps and Open Questions
 
-### P0 Gaps (must resolve before Cockpit governs implementation)
+### P0 Gaps (must resolve before Stage 1 organism governs implementation — DEC-146C-003)
 1. Execution control stubs -- /execution/start, /stop, /pause, /resume return static {ok: true}
 2. No cross-projection data access control mechanism
 3. SimulationReality needs runtime verification -- does it actually block?
 4. Dev bypass allows unauthenticated access from private IPs -- acceptable for single-operator but not for multi-user
+5. Reality-model mutation governance not yet implemented -- no risk classification on canonical state changes
 
 ### P1 Gaps (must resolve before Trinity feature build)
 1. Rate limiting is in-memory -- resets on restart

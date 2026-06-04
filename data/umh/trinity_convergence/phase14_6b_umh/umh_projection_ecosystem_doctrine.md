@@ -1,14 +1,14 @@
 # UMH Projection Ecosystem Doctrine
 
-- **Phase:** 14.6B-UMH
+- **Phase:** 14.6B-UMH (revised 14.6D)
 - **Status:** DRAFT -- awaiting operator ratification
-- **Provenance:** OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH
+- **Provenance:** OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH + DEC-146C-001/002/003 ratification
 
 ---
 
 ## Core Doctrine
 
-UMH (Universal Meta Harness) is the private universal intelligence substrate, orchestration kernel, governed execution control plane, and operator/Jarvis system that powers, integrates with, and coordinates the Trinity ecosystem.
+Universal Meta Harness (UMH) is the integrated AI-native system whose core functional purpose is to build, maintain, and act through a reality-isomorphic approximation of reality (DEC-146C-001). UMH attempts to model reality across physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, and OS-level layers. All subsystems -- orchestration, governance, execution, memory, adapters, agents, Cockpit, and projections -- are capabilities and organs serving this reality model. The reality model is the central organizing model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback.
 
 UMH is NOT:
 - A Cockpit UI only
@@ -20,22 +20,26 @@ UMH is NOT:
 - A CRM, dashboard, or tool wrapper
 - A collection of unrelated agents or modules
 - A public mega-app
+- Merely an orchestration kernel or operational tooling model
 
 UMH IS:
-- The private universal substrate that powers all projections
-- The governed execution control plane
-- The operator/Jarvis system
-- The shared capability pipeline owner
-- The cross-system coordination brain
+- The private reality-isomorphic intelligence harness that powers all projections
+- A reality-modeling system that governs execution through its understanding of reality state
+- The operator/Jarvis system whose interface (Cockpit) renders the reality model for human use
+- The shared capability pipeline owner -- all capabilities serve reality-model construction and actuation
+- The cross-system coordination brain whose coordination authority derives from its reality model
 
 ## Projection Definition
 
-Projections are public/domain-specific SaaS products that:
-- Package UMH capabilities into safe, purpose-built user experiences
+Projections are domain-specific views of the UMH reality model, manifested as public SaaS products. Each projection is an instance reality model -- it carries the same isomorphic ambition as UMH but from the perspective/context of a specific domain, user base, and use case.
+
+Projections:
+- Package UMH reality-model capabilities into safe, purpose-built user experiences
 - Own their own domain UX, workflows, permissions, customer experience, and data models
 - Are NOT dumb frontends -- they have real product logic
 - Are NOT the limit of UMH -- UMH can privately orchestrate beyond any single projection
 - Can function independently (degraded) if UMH is unavailable
+- Feed observations back into the UMH reality model, enriching the system's understanding of reality
 
 ## Current Projections
 
@@ -62,7 +66,7 @@ Projections are public/domain-specific SaaS products that:
 
 ## UMH / Projection Relationship
 
-### What UMH Owns (Shared Capability Pipeline)
+### What UMH Owns (Reality Model + Capability Pipeline)
 1. Ingestion
 2. Signal interpretation
 3. Decomposition
@@ -97,7 +101,7 @@ Projections are public/domain-specific SaaS products that:
 
 ### Correct UMH <-> Projection Relationship
 
-"UMH has universal orchestration reach, but not universal public product-interface ownership."
+"UMH owns the universal reality model; projections are domain-specific lenses onto that reality model. UMH has universal reality-modeling and orchestration reach, but not universal public product-interface ownership."
 
 Example -- Running ads:
 - UMH is NOT a public ads product
@@ -145,7 +149,7 @@ Future access methods may include:
 
 ## Cockpit's Role
 
-Cockpit is the private operator/Jarvis interface into the FULL UMH ecosystem.
+Cockpit is the private operator/Jarvis interface into UMH's reality model (DEC-146C-003). It is part of the indivisible Stage 1 organism -- Cockpit without a reality model is only a dashboard; a reality model without Cockpit is inaccessible to the operator.
 
 Cockpit MAY:
 - Inspect projection state
@@ -160,15 +164,17 @@ Cockpit MAY:
 - Operate external tools
 - Orchestrate EOS/CreatorOS/LyfeOS workflows
 
-Cockpit is NOT the public customer-facing product surface.
+Cockpit is NOT the public customer-facing product surface. Cockpit is NOT merely a dashboard -- it is the reality-model interface through which the operator observes, commands, and governs the entire UMH ecosystem.
 
 ## One Coherent Ecosystem
 
 Do not interpret EOS, CreatorOS, LyfeOS, and UMH as unrelated systems.
-They are one coherent ecosystem:
-- One universal private substrate
-- Multiple public/domain-specific product surfaces
-- Shared intelligence pipeline
+They are one coherent ecosystem organized around a shared reality model:
+- One universal private reality-isomorphic intelligence harness (UMH)
+- Multiple public/domain-specific product surfaces (projections as instance reality models)
+- Shared reality model and intelligence pipeline
 - Separate product UX
 - Explicit data boundaries
 - Governed cross-system orchestration
+
+**Materialization Principle (DEC-146C-002):** If a human can imagine an outcome, UMH should attempt to simulate the path from imagination to materialization. Lack of current knowledge, resources, tools, capital, information, skill, access, or time does not invalidate the intent -- it creates typed gaps and acquisition paths. UMH does not treat missing capability as terminal failure. It classifies the gap, identifies what must be acquired or learned, generates the highest-leverage path, and governs execution. If an outcome violates physical reality, law, safety, ethics, or non-negotiable constraints, UMH states the boundary clearly and proposes the nearest lawful/safe/materializable alternative.

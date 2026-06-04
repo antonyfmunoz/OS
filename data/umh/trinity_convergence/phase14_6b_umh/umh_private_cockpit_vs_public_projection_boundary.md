@@ -1,15 +1,17 @@
 # UMH Private Cockpit vs Public Projection Boundary
 
-**Phase:** 14.6B-UMH
+**Phase:** 14.6B-UMH (revised 14.6D)
 **Status:** DRAFT -- awaiting operator ratification
-**Provenance:** OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH
+**Provenance:** OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH + DEC-146C-001/003 ratification
 **Date:** 2026-06-03
 
 ---
 
 ## Purpose
 
-This document codifies the hard boundary between the private operator Cockpit and the public projection products (EOS, CreatorOS, LyfeOS). The boundary exists because Cockpit and projections serve fundamentally different audiences, have different security models, and must never be conflated. Violations of this boundary create security risks (exposing substrate internals to end-users) and architectural drift (projections becoming dependent on Cockpit UX instead of owning their own).
+This document codifies the hard boundary between the private operator Cockpit (the operator's reality-model interface) and the public projection products (EOS, CreatorOS, LyfeOS -- instance reality models for specific domains). The boundary exists because Cockpit and projections serve fundamentally different audiences, have different security models, and must never be conflated.
+
+**Reality-model framing (DEC-146C-001/003):** Cockpit is the operator's interface into the full UMH reality model. Projections are domain-specific instance reality models. The boundary is not merely UI separation -- it is the boundary between universal reality-model access (Cockpit) and domain-scoped reality-model access (projections). Cockpit sees all 12 reality layers; projections see the subset relevant to their domain.
 
 Related documents:
 - `umh_substrate_cockpit_projection_boundary_matrix.md` -- 5-layer boundary matrix (substrate / cockpit / projection runtime / projection product / cross-projection)

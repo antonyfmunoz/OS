@@ -1,8 +1,10 @@
-# UMH Cockpit Readiness Buildable Criteria
+# UMH Stage 1 Organism Readiness Buildable Criteria
 
-Phase: 14.6B-UMH
+Phase: 14.6B-UMH (revised 14.6D)
 Status: DRAFT
 Generated: 2026-06-03
+
+**Stage 1 Organism Context (DEC-146C-003):** These 25 criteria must be evaluated as components of the indivisible Stage 1 organism (Reality Model + Cockpit + Memory + Governed Execution Loop), not as isolated Cockpit-only capabilities. Stage 1 does not require commercial-grade completeness -- it requires a partially functional integrated vertical slice. Each criterion serves one or more organism components. The 10 operator-specified Stage 1 acceptance criteria (DEC-146C-003) are the primary readiness gate; these 25 technical criteria support them.
 
 ---
 

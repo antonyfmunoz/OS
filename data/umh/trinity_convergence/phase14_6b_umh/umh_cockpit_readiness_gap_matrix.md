@@ -1,8 +1,14 @@
-# UMH Cockpit Readiness Gap Matrix
+# UMH Stage 1 Organism Readiness Gap Matrix
 
-Phase: 14.6B-UMH
+Phase: 14.6B-UMH (revised 14.6D)
 Status: DRAFT
 Generated: 2026-06-03
+
+---
+
+## Stage 1 Organism Context (DEC-146C-003)
+
+Gaps are evaluated against the indivisible Stage 1 organism target (Reality Model + Cockpit + Memory + Governed Execution Loop). Per DEC-146C-003, each gap should be assessed by how it blocks integrated organism viability, not just isolated Cockpit or dashboard functionality. The 10 operator-specified acceptance criteria for Stage 1 minimum viability are the primary gap-closure target. Gaps in reality-model rendering through Cockpit are as critical as gaps in the reality model itself.
 
 ---
 
