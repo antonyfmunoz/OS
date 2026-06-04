@@ -116,6 +116,42 @@ def _track_cc_sdk_result(success: bool) -> None:
         pass
 
 
+# ─── CPU pressure gate ────────────────────────────────────────────────────────
+
+# load-per-core threshold above which we refuse to spawn new CLI processes
+_CPU_LOAD_CEILING: float = 1.5
+
+
+def _cpu_too_hot() -> bool:
+    """Return True if system CPU load is too high to spawn more CLI processes."""
+    try:
+        load1, _, _ = os.getloadavg()
+        cores = os.cpu_count() or 4
+        load_per_core = load1 / cores
+        if load_per_core > _CPU_LOAD_CEILING:
+            logger.warning(
+                "[cc_sdk] CPU gate: load=%.1f cores=%d (%.1f/core > %.1f) — blocked",
+                load1, cores, load_per_core, _CPU_LOAD_CEILING,
+            )
+            return True
+    except Exception:
+        pass
+    return False
+
+
+# ─── CLI path resolution ─────────────────────────────────────────────────────
+
+_UMH_ROOT = os.environ.get("UMH_ROOT") or "/opt/OS"
+_CPU_LIMITED_CLI = os.path.join(_UMH_ROOT, "scripts", "claude-cpu-limited")
+
+
+def _resolve_cli_path() -> str:
+    """Return CPU-limited wrapper if available, else raw binary."""
+    if os.path.isfile(_CPU_LIMITED_CLI) and os.access(_CPU_LIMITED_CLI, os.X_OK):
+        return _CPU_LIMITED_CLI
+    return "/usr/bin/claude"
+
+
 # ─── Subprocess environment ────────────────────────────────────────────────
 
 
@@ -217,6 +253,9 @@ async def query_cc(
         logger.info("[CC SDK] Nested session detected, skipping")
         return None
 
+    if _cpu_too_hot():
+        return None
+
     # Lower budget for fast tasks
     if task_type == "fast_response":
         max_budget_usd = min(max_budget_usd, 0.05)
@@ -249,7 +288,7 @@ async def query_cc(
         max_budget_usd=max_budget_usd,
         permission_mode="auto",
         max_turns=1,
-        cli_path="/usr/bin/claude",
+        cli_path=_resolve_cli_path(),
         setting_sources=[],
         env=_get_subprocess_env(),
     )
@@ -399,6 +438,11 @@ def query_cc_sync(
     """
     if timeout is None:
         timeout = _resolve_timeout()
+    # CPU gate: refuse to spawn when system is already hot
+    if _cpu_too_hot():
+        _track_cc_sdk_result(False)
+        return None
+
     # Backpressure: don't spawn subprocesses when system is degraded
     try:
         from substrate.state.providers.provider_state import get_system_state

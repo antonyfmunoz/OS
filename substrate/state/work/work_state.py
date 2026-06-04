@@ -81,7 +81,11 @@ def has_recent_signal() -> bool:
 
 
 def _measure_pressure() -> Pressure:
-    """Read OS load and swap to determine resource pressure."""
+    """Read OS load and swap to determine resource pressure.
+
+    Thresholds tuned for shared VPS (Hostinger) where sustained high CPU
+    triggers a week-long account limitation. Conservative to stay safe.
+    """
     try:
         load1, _, _ = os.getloadavg()
         cpu_count = os.cpu_count() or 1
@@ -89,11 +93,11 @@ def _measure_pressure() -> Pressure:
 
         swap_pct = _get_swap_pct()
 
-        if load_per_cpu > 10.0 or swap_pct > 80.0:
+        if load_per_cpu > 3.0 or swap_pct > 60.0:
             return Pressure.CRITICAL
-        if load_per_cpu > 5.0 or swap_pct > 50.0:
+        if load_per_cpu > 2.0 or swap_pct > 40.0:
             return Pressure.HIGH
-        if load_per_cpu > 2.0 or swap_pct > 20.0:
+        if load_per_cpu > 1.0 or swap_pct > 20.0:
             return Pressure.MODERATE
         return Pressure.LOW
     except Exception:
@@ -148,12 +152,13 @@ def _compute_idle_delay(pressure: Pressure, is_idle: bool) -> float:
             _consecutive_idle = 0
             delay = _NORMAL_INTERVAL
 
-    # Scale by pressure — even working cycles slow down under load
+    # Scale by pressure — even working cycles slow down under load.
+    # Aggressive multipliers to prevent Hostinger CPU throttling.
     multipliers = {
         Pressure.LOW: 1.0,
-        Pressure.MODERATE: 1.0,
-        Pressure.HIGH: 2.0,
-        Pressure.CRITICAL: 4.0,
+        Pressure.MODERATE: 1.5,
+        Pressure.HIGH: 4.0,
+        Pressure.CRITICAL: 10.0,
     }
     delay *= multipliers.get(pressure, 1.0)
 

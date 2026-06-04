@@ -1,0 +1,38 @@
+# ─── UMH Cron — CPU-safe with flock + nice + timeout ───
+# Managed file: edit this, then install with:
+#   crontab /opt/OS/infra/crontab.managed
+#
+# Every Python call wrapped with scripts/cron-run which provides:
+#   - flock (no overlapping runs of same script)
+#   - nice -n 15 + ionice -c 3 (lowest priority)
+#   - timeout 240s (kill before next cron fire)
+#   - CPU load gate (skip if system already overloaded)
+
+CR=/opt/OS/scripts/cron-run
+
+# ── Every 5 minutes (staggered: one per minute) ──
+0-55/5 * * * * cd /opt/OS && $CR scripts/day_reminder.py >> /opt/OS/logs/day_reminder.log 2>&1
+1-56/5 * * * * cd /opt/OS && $CR scripts/agent_task_executor.py >> /opt/OS/scripts/agent_executor.log 2>&1
+2-57/5 * * * * cd /opt/OS && $CR scripts/orchestrator_loop.py --cycles 1 >> /opt/OS/logs/orchestrator_loop.log 2>&1
+3-58/5 * * * * bash /opt/OS/scripts/auth_monitor/health_check.sh
+4-59/5 * * * * bash /opt/OS/scripts/auth_monitor/session_resurrector.sh
+
+# ── Every 15 minutes (staggered: 2-min gaps) ──
+0,15,30,45 * * * * cd /opt/OS && $CR scripts/call_prep.py >> /opt/OS/logs/call_prep.log 2>&1
+2,17,32,47 * * * * cd /opt/OS && $CR scripts/notion_tasks_sync.py >> /opt/OS/logs/notion_tasks_sync.log 2>&1
+4,19,34,49 * * * * cd /opt/OS && $CR scripts/post_meeting_capture.py >> /opt/OS/logs/post_meeting.log 2>&1
+6,21,36,51 * * * * cd /opt/OS && $CR scripts/calendar_invite_handler.py >> /opt/OS/logs/calendar_invites.log 2>&1
+8,23,38,53 * * * * cd /opt/OS && $CR scripts/noshow_detector.py >> /opt/OS/logs/noshow.log 2>&1
+10,25,40,55 * * * * cd /opt/OS && $CR scripts/notion_sync_poller.py >> /opt/OS/logs/notion_sync.log 2>&1
+
+# ── Every 30 minutes ──
+*/30 * * * * nice -n 15 /opt/OS/scripts/sync_all.sh --pull >> /opt/OS/logs/sync_all.log 2>&1
+
+# ── Every 6 hours ──
+0 */6 * * * bash /opt/OS/scripts/auth_monitor/cc_keepalive.sh
+
+# ── Nightly (2-4am) ──
+0 2 * * * nice -n 15 bash /opt/OS/scripts/scheduled/nightly_maintenance.sh
+0 3 * * * cd /opt/OS && $CR scripts/discord_daily_clear.py >> /opt/OS/logs/discord_clear.log 2>&1
+0 3 * * * cd /opt/OS && $CR scripts/emit_signal.py nightly_cycle >> /opt/OS/logs/cron_emit.log 2>&1
+0 4 * * * docker-compose run --rm os-scraper >> /opt/OS/logs/scraper.log 2>&1

@@ -1,0 +1,38 @@
+#!/bin/bash
+# CPU-safe cron wrapper for UMH Python scripts.
+#
+# Usage: cron-run <script.py> [args...]
+#
+# Provides three layers of protection:
+#   1. flock — prevents overlapping runs of the same script
+#   2. nice/ionice — lowest scheduling priority
+#   3. timeout — kills if running longer than 4 minutes (cron fires every 5)
+#   4. CPU load gate — skips entirely if system is already overloaded
+#
+# Lock files live in /tmp/umh-cron/ to avoid cluttering the repo.
+
+set -euo pipefail
+
+SCRIPT="$1"
+shift
+
+LOCK_DIR="/tmp/umh-cron"
+mkdir -p "$LOCK_DIR"
+
+LOCK_NAME=$(basename "$SCRIPT" .py)
+LOCK_FILE="$LOCK_DIR/${LOCK_NAME}.lock"
+
+# CPU load gate: skip if load per core > 2.0
+CORES=$(nproc 2>/dev/null || echo 4)
+LOAD=$(awk '{print $1}' /proc/loadavg 2>/dev/null || echo "0")
+THRESHOLD=$(echo "$CORES * 2" | bc 2>/dev/null || echo "8")
+if [ "$(echo "$LOAD > $THRESHOLD" | bc 2>/dev/null || echo 0)" -eq 1 ]; then
+    echo "[cron-run] SKIPPED $LOCK_NAME — load=$LOAD > threshold=$THRESHOLD"
+    exit 0
+fi
+
+# flock -n = non-blocking; exits immediately if another instance holds the lock
+exec flock -n "$LOCK_FILE" \
+    nice -n 15 ionice -c 3 \
+    timeout 240 \
+    python3 "$SCRIPT" "$@"

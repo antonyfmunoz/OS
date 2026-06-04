@@ -1,0 +1,6 @@
+#!/bin/bash
+# CPU-limited wrapper for Claude CLI.
+# cc_sdk.py uses this as cli_path instead of /usr/bin/claude directly.
+# Runs the real binary under nice -n 19 (lowest scheduling priority)
+# and ionice -c 3 (idle I/O class) so it never starves other processes.
+exec nice -n 19 ionice -c 3 /usr/bin/claude "$@"
