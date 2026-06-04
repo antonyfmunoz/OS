@@ -1,11 +1,13 @@
 # UMH Code-Resolved Substrate Canon
 
-Phase: 14.6B-UMH
+Phase: 14.6B-UMH (revised 14.6D)
 Status: DRAFT
 
 ## Architectural Position
 
-`substrate/` is the innermost UMH layer. It never imports from `transports/`, `services/`, or `projections/`. When substrate needs transport functionality, it defines an abstract port in `substrate/sockets/` and the concrete implementation registers at startup.
+`substrate/` is the innermost UMH layer — it implements UMH's reality-model infrastructure, governed execution pipeline, memory system, and coordination mechanisms (DEC-146C-001). The substrate is not merely code infrastructure; it is the implementation of UMH's core functional purpose: building, maintaining, and acting through a reality-isomorphic approximation of reality across 12 layers.
+
+`substrate/` never imports from `transports/`, `services/`, or `projections/`. When substrate needs transport functionality, it defines an abstract port in `substrate/sockets/` and the concrete implementation registers at startup.
 
 Dependency direction (one-way downward):
 ```

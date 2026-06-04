@@ -1,16 +1,17 @@
 # UMH Substrate / Cockpit / Projection Boundary Matrix
 
-**Phase:** 14.6B-UMH
+**Phase:** 14.6B-UMH (revised 14.6D)
 **Status:** DRAFT -- awaiting operator ratification
-**Provenance:** OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH
+**Provenance:** OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH + DEC-146C-001/003 ratification
 
-This document explicitly distinguishes the 5 architectural boundaries per operator doctrine.
+This document explicitly distinguishes the 5 architectural boundaries per operator doctrine. Per DEC-146C-001, UMH's core purpose is reality-isomorphic approximation of reality. Per DEC-146C-003, Cockpit + Reality Model + Memory + Governed Execution are indivisible in Stage 1. The boundary model below incorporates the reality-model scope as a first-class dimension.
 
 ---
 
-## 1. Universal Substrate
+## 1. Universal Substrate (Reality Model Infrastructure)
 
-**What it is:** The reusable intelligence/control plane used by Cockpit and all projections.
+**What it is:** The reality-model infrastructure and governed execution engine used by Cockpit and all projections. Implements UMH's core purpose: building, maintaining, and acting through a reality-isomorphic approximation of reality across 12 layers (DEC-146C-001).
+**Reality-model scope:** Owns the canonical reality model (all 12 layers), simulation reality (dry-run), and instance reality model (runtime-loaded).
 **Owner:** UMH platform
 **User type:** Internal -- consumed by Cockpit and projections, not directly by end-users
 **Public/Private:** PRIVATE -- internal infrastructure
@@ -25,9 +26,10 @@ This document explicitly distinguishes the 5 architectural boundaries per operat
 **Examples:** Signal routing, memory recall, trace recording, governance classification, execution spine
 **What must NOT happen:** Substrate must never import from transports/, services/, or projections/ (except via abstract ports in substrate/sockets/). Substrate must never contain projection-specific logic, instance-specific values, or UI code.
 
-## 2. Cockpit / Private Jarvis Interface
+## 2. Cockpit / Private Jarvis Interface (Reality Model Rendering)
 
-**What it is:** The private operator control surface into the full UMH ecosystem.
+**What it is:** The operator's interface into UMH's reality model (DEC-146C-003). Part of the indivisible Stage 1 organism -- Cockpit without a reality model is only a dashboard.
+**Reality-model scope:** Full visibility into all 12 reality layers. Renders reality-model state for the operator. Accepts operator commands that mutate reality-model state through governed execution.
 **Owner:** Operator (Antony)
 **User type:** Single operator / founder
 **Public/Private:** PRIVATE -- operator-only
@@ -59,9 +61,10 @@ This document explicitly distinguishes the 5 architectural boundaries per operat
 **Examples:** EOS CRM poller emitting signals, CreatorOS creating a post via capability handler, LyfeOS logging a reflection
 **What must NOT happen:** Projections must not directly access substrate internals. Projections must not share data across projections without governance. Integration layer must not bypass risk classification.
 
-## 4. Public Projections / Products
+## 4. Public Projections / Products (Instance Reality Models)
 
-**What it is:** Domain-specific SaaS products used by customers/users.
+**What it is:** Domain-specific SaaS products used by customers/users. Each projection is an instance reality model -- it carries the same isomorphic ambition as UMH but scoped to a specific domain, user base, and use case (DEC-146C-001).
+**Reality-model scope:** Domain-scoped subset of the UMH reality model, rendered through projection-specific UX.
 **Owner:** Product-specific teams/entities
 **User type:** Multiple end-users, teams, organizations
 **Public/Private:** PUBLIC -- customer-facing

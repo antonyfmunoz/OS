@@ -1,11 +1,15 @@
 # UMH Lossless Product Canon
 
-Phase: 14.6B-UMH
+Phase: 14.6B-UMH (revised 14.6D)
 Status: DRAFT
 
 ## Identity
 
-Universal Meta Harness (UMH) is the private universal intelligence substrate, orchestration kernel, governed execution control plane, and operator/Jarvis system. It is not a product sold to users -- it is the founder's personal command infrastructure that all projections run on.
+Universal Meta Harness (UMH) is the integrated AI-native system whose core functional purpose is to build, maintain, and act through a reality-isomorphic approximation of reality (DEC-146C-001). UMH attempts to model reality across physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, and OS-level layers. Orchestration, governance, execution, memory, adapters, agents, Cockpit, and projections are capabilities and organs serving this reality model; they are not separate identities from UMH. The reality model is the central organizing model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback.
+
+UMH is not a product sold to users -- it is the founder's private reality-modeling intelligence harness that all projections run on.
+
+**Stage 1 Organism Definition (DEC-146C-003):** Stage 1 is one minimum viable UMH organism: Reality Model + Cockpit + Memory + Governed Execution Loop. These four components are indivisible -- they must reach minimum viability as one integrated system. Incremental builds are allowed only if each increment advances the integrated organism across all four components. Stage 1 does not require commercial-grade completeness before use; it requires a partially functional integrated vertical slice sufficient for the operator to actually operate through it.
 
 - **Package**: universal-meta-harness
 - **License**: MIT
@@ -13,7 +17,7 @@ Universal Meta Harness (UMH) is the private universal intelligence substrate, or
 
 ## Core Substrate
 
-The `substrate/` package is the innermost layer of UMH.
+The `substrate/` package is the innermost layer of UMH. It implements the reality-model infrastructure, governed execution pipeline, memory system, and coordination mechanisms that make UMH a reality-isomorphic intelligence harness rather than a collection of unrelated tools.
 
 - **696 files**, **206,602 lines** of code
 - Single type system via `substrate/types.py` with 197 registered canonical types
@@ -22,10 +26,10 @@ The `substrate/` package is the innermost layer of UMH.
 
 ## Cockpit
 
-The cockpit is the operator command center at universalmetaharness.tech.
+The cockpit is the operator's interface into UMH's reality model at universalmetaharness.tech. Cockpit is part of the indivisible Stage 1 organism (DEC-146C-003) -- it is not a separate product or a passive dashboard. Cockpit without a reality model is only a dashboard; a reality model without Cockpit is inaccessible to the operator.
 
 - **210 API endpoints** across substrate, organism, governance, system, and projection routes
-- **27 panels** covering organism state, execution traces, governance decisions, intelligence routing, memory, and projection views
+- **27 panels** covering reality-model state, execution traces, governance decisions, intelligence routing, memory, and projection views
 
 ## Projections
 
@@ -59,15 +63,15 @@ Governed execution ensures no autonomous action exceeds its authority.
 
 ## Memory
 
-Three persistent memory stores backed by Neon Postgres:
+Memory is one of the four indivisible Stage 1 organism components (DEC-146C-003). Memory without execution is passive storage; execution without memory is incoherent. Three persistent memory stores backed by Neon Postgres feed the reality model:
 
 - **Conversation memory** -- session history and context continuity
 - **Agent memory** -- per-agent learning, preferences, and accumulated knowledge
-- **Canonical memory** -- structured knowledge from ingestion pipeline
+- **Canonical memory** -- structured knowledge from ingestion pipeline, forming the persistence layer of the reality model
 
 ## Execution Pipeline
 
-The 8-stage execution pipeline in `substrate/execution/spine.py`:
+Governed execution is one of the four indivisible Stage 1 organism components (DEC-146C-003). Execution without memory, governance, and reality model state is unsafe and incoherent. The 8-stage execution pipeline in `substrate/execution/spine.py`:
 
 1. **Interpret** -- classify intent from signal
 2. **Recall** -- retrieve relevant memory and context

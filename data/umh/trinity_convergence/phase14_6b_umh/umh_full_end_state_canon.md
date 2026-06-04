@@ -1,15 +1,17 @@
 # UMH Full End-State Canon
 
-Phase: 14.6B-UMH
+Phase: 14.6B-UMH (revised 14.6D)
 Status: DRAFT
 
 ## Vision
 
-UMH at end-state is a private Jarvis system -- a fully autonomous intelligence substrate that governs the founder's entire operational surface across business, creative, and personal domains.
+UMH at end-state is a private Jarvis system -- a reality-isomorphic intelligence harness (DEC-146C-001) that builds, maintains, and acts through an integrated approximation of reality across 12 layers: physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, and OS-level reality. The reality model is the central organizing model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback across the founder's entire operational, creative, and personal domains.
+
+**Materialization Principle (DEC-146C-002):** At end-state, UMH fully embodies the materialization principle. If a human can imagine an outcome, UMH simulates the path from imagination to materialization. Missing knowledge, resources, tools, capital, information, skill, access, or time become typed gaps and acquisition paths -- research loops, resource acquisition loops, experiment loops, work packets, delegation paths, agent paths, financing paths, and time-bound execution paths. Outcomes violating physical reality, law, safety, ethics, or non-negotiable constraints are met with the nearest lawful/safe/materializable alternative.
 
 ## Cockpit End-State
 
-The cockpit becomes a full command center with three interaction modes:
+The cockpit becomes the operator's complete interface into UMH's 12-layer reality model (DEC-146C-003). It is not a dashboard -- it is the reality-model rendering surface through which the operator observes, commands, and governs the full UMH ecosystem. Three interaction modes:
 
 - **Voice** -- natural language commands and ambient listening
 - **Text** -- structured chat with operator/DEX dialogue
@@ -42,6 +44,8 @@ Cross-projection orchestration enables actions in one domain to trigger governed
 - Deterministic spine always functional -- AI enhances but never blocks
 - Agent specialization with learned preferences per domain
 - Meta-learning across projections for cross-domain pattern recognition
+- Intelligence serves reality-model construction -- every LLM call either observes, updates, or reasons over the reality model
+- 12-layer reality model progressively deepens with each interaction, ingestion, and execution outcome
 
 ## Multi-Device Coordination
 

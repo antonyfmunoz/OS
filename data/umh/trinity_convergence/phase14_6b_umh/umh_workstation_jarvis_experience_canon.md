@@ -1,17 +1,21 @@
 # UMH Workstation / Jarvis Experience Canon
 
-Phase: 14.6B-UMH | Status: DRAFT | Provenance: CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION
+Phase: 14.6B-UMH (revised 14.6D) | Status: DRAFT | Provenance: CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION + DEC-146C-001/002/003 ratification
 
 ---
 
 ## What UMH Is to the Operator
 
-UMH is Antony's private Jarvis-like operator system. It is not merely a developer tool or a business dashboard — it is a universal intelligence substrate that the operator can command across all domains, devices, and contexts.
+UMH is the operator's private Jarvis-style system — a reality-isomorphic intelligence harness (DEC-146C-001) that builds, maintains, and acts through an integrated approximation of reality. It is not merely a developer tool, a business dashboard, or an operational tooling system. The operator interacts with UMH's reality model through multiple experience modes, each providing a lens onto the same underlying 12-layer reality model.
+
+**Stage 1 Organism (DEC-146C-003):** The Jarvis experience is part of the indivisible Stage 1 organism (Reality Model + Cockpit + Memory + Governed Execution Loop). Experience modes are not separate from the reality model — they are interfaces into it.
 
 ## Current Experience Modes
 
+Each mode is a lens onto UMH's reality model. The underlying reality model is the same; the rendering surface differs by device and context.
+
 ### 1. Cockpit UI Mode
-**What:** Full graphical command center
+**What:** Full graphical reality-model interface (not merely a command center)
 **Technology:** Electron + React frontend at cockpit/src/
 **Panels:** 27 panels covering dashboard, agents, organism, execution, infrastructure, knowledge, approvals, analytics, and more
 **Components:** VoiceCommandBar, CommandPalette, ChatDrawer, HudBar, EventConsole, TopologyMap

@@ -1,6 +1,10 @@
 # UMH Execution Boundary Model
 
-**Phase:** 14.6B-UMH | **Status:** DRAFT -- awaiting operator ratification | **Provenance:** CODE_RESOLVED_CURRENT_TRUTH
+**Phase:** 14.6B-UMH (revised 14.6D) | **Status:** DRAFT -- awaiting operator ratification | **Provenance:** CODE_RESOLVED_CURRENT_TRUTH + DEC-146C-002/003 ratification
+
+**Materialization Principle (DEC-146C-002):** If a human can imagine an outcome, UMH should attempt to simulate the path from imagination to materialization. Missing knowledge, resources, tools, capital, information, skill, access, or time does not invalidate the intent -- it creates typed gaps and acquisition paths: research loops, resource acquisition loops, experiment loops, work packets, delegation paths, agent paths, financing paths, and time-bound execution paths. UMH does not treat missing capability as terminal failure. It classifies the gap, identifies what must be acquired or learned, generates the highest-leverage path, and governs execution. If an outcome violates physical reality, law, safety, ethics, or non-negotiable constraints, UMH states the boundary clearly and proposes the nearest lawful/safe/materializable alternative.
+
+**Indivisible Stage 1 (DEC-146C-003):** Governed execution is one of the four indivisible Stage 1 organism components. Execution without memory, governance, and reality model state is unsafe and incoherent.
 
 ---
 
@@ -52,11 +56,29 @@ Should these paths be unified into a single execution flow? Options:
 
 ## Execution Safety Boundaries
 
+### Materialization Principle Integration (DEC-146C-002)
+
+UMH must distinguish between gap states and true blockers:
+
+| Gap Type | Response | Example |
+|----------|----------|---------|
+| IMPOSSIBLE | State boundary, propose nearest alternative | Violates physical law |
+| ILLEGAL | State boundary, propose lawful alternative | Violates law |
+| UNSAFE | State boundary, propose safe alternative | Violates safety/ethics |
+| UNAVAILABLE | Generate acquisition path | Tool/resource not currently accessible |
+| UNDER_RESOURCED | Generate resource acquisition loop | Insufficient capital/compute/people |
+| UNPROVEN | Generate experiment loop | Untested approach |
+| NOT_YET_ACQUIRED | Generate research/skill acquisition path | Missing knowledge/skill/access |
+| TIME_BOUND | Generate time-bound execution path | Insufficient time in current window |
+
+"Impossible" must not be used as lazy failure language. Each gap generates a typed path, not a dead end.
+
 ### What CAN execute automatically
-- READ_ONLY operations (memory queries, status checks, analytics)
-- SAFE_WRITE operations (internal logging, memory updates)
+- READ_ONLY operations (memory queries, status checks, analytics, reality-model queries)
+- SAFE_WRITE operations (internal logging, memory updates, reality-model observation recording)
 - REVERSIBLE_WRITE operations when autonomy level permits
 - Deterministic fallback responses (always -- no LLM required)
+- Gap classification and acquisition path generation (typed gap → typed path)
 
 ### What REQUIRES approval
 - IRREVERSIBLE_WRITE (data deletion, schema changes)
@@ -64,12 +86,14 @@ Should these paths be unified into a single execution flow? Options:
 - FINANCIAL (payments, billing, subscriptions)
 - SECURITY_SENSITIVE (auth changes, permission modifications)
 - PHYSICAL_WORLD (device control, infrastructure changes)
+- Reality-model mutation of source-truth layer (promotes observation to canonical)
 
 ### What is ALWAYS blocked
 - FORBIDDEN risk class actions
 - Actions exceeding autonomy level threshold
 - Actions failing simulation dry-run
 - Actions rejected by deliberation council
+- Outcomes violating physical reality, law, safety, ethics, or non-negotiable constraints (DEC-146C-002)
 
 ## Docker Service Execution Context
 
