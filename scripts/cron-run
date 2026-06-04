@@ -9,15 +9,16 @@
 #   3. timeout — kills if running longer than 4 minutes (cron fires every 5)
 #   4. CPU load gate — skips entirely if system is already overloaded
 #
-# Lock files live in /tmp/umh-cron/ to avoid cluttering the repo.
+# Lock files live in /run/umh-cron/ (root-only tmpfs, not world-writable /tmp).
 
 set -euo pipefail
 
 SCRIPT="$1"
 shift
 
-LOCK_DIR="/tmp/umh-cron"
+LOCK_DIR="/run/umh-cron"
 mkdir -p "$LOCK_DIR"
+chmod 0700 "$LOCK_DIR"
 
 LOCK_NAME=$(basename "$SCRIPT" .py)
 LOCK_FILE="$LOCK_DIR/${LOCK_NAME}.lock"
