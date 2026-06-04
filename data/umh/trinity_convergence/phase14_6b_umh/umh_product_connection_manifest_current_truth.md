@@ -1,7 +1,9 @@
 # UMH Product Connection Manifest -- Current Truth
 
-**Phase:** 14.6B-UMH
+**Phase:** 14.6B-UMH (revised 14.6F)
 **Status:** DRAFT
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ## Location
 
@@ -52,4 +54,4 @@ Returns a dictionary:
 
 This violates the architecture layer law: substrate must never import from projections or transports.
 
-**Required fix**: Projections register their manifests via an abstract port (`substrate/sockets/projection_port.py`). ProductConnectionManager queries the port registry instead of importing projection code.
+**Ratified fix (DEC-146B-UMH-005, 2026-06-04)**: Projections register their manifests via an abstract port (`substrate/sockets/projection_port.py`). ProductConnectionManager queries the port registry instead of importing projection code. Decision ratified; implementation not yet started.

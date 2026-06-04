@@ -1,14 +1,17 @@
 ---
-phase: "14.6B-CreatorOS"
+phase: "14.6B-CreatorOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
+revised: "2026-06-04"
 provenance: "SYNTHESIZED_CANON"
-description: "Ratification packet summarizing the complete Phase 14.6B-CreatorOS source truth reconstruction -- artifact inventory, corrections from 14.6A, resolved contradictions, unresolved contradictions, top blocking decisions, next steps, and safety attestation."
+description: "Ratification packet summarizing the complete Phase 14.6B-CreatorOS source truth reconstruction -- artifact inventory, corrections from 14.6A, resolved contradictions, unresolved contradictions, top blocking decisions, next steps, and safety attestation. Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04)."
 ---
 
 # Phase 14.6B-CreatorOS Source Truth Ratification Packet
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 Operator review document. This packet summarizes what Phase 14.6B-CreatorOS
 reconstructed, what it corrected, what remains unresolved, and what
@@ -69,8 +72,9 @@ Key outcomes:
   operator decisions).
 
 - **32 operator decisions** collected requiring explicit selection
-  before implementation can proceed. 4 are P0 (block ALL
-  implementation), 10 are P1 (block major workstreams).
+  before implementation can proceed. 4 were P0 (block ALL
+  implementation) -- all 4 P0 decisions now OPERATOR-APPROVED
+  (Phase 14.6E, 2026-06-04). 10 are P1 (block major workstreams).
 
 - **67 professional gaps** identified between current code and
   production standard across security, architecture, testing,
@@ -86,14 +90,32 @@ Key outcomes:
   EOS; if it helps a creator produce, distribute, monetize, or build
   community, it belongs to CreatorOS.
 
-- **UMH integration documented.** projections/creatoros/integration/
+- **UMH integration documented.** UMH operates as a reality-isomorphic
+  intelligence harness (DEC-146C-001). projections/creatoros/integration/
   has 1,099 lines of DORMANT integration code (signals, capabilities,
   outcomes, correlation). substrate/understanding/domains/creator.py
   has 516 lines of creator domain bridge. Neither is wired into
-  running services.
+  running services. Activation feeds into Stage 1 organism (DEC-146C-003).
 
 - **Zero implementation performed.** No code modified, no schema
   migrated, no branches merged, no services deployed.
+
+---
+
+## 1.1 P0 Decision Ratification Status (Phase 14.6F Update)
+
+All 4 CreatorOS P0 decisions were ratified by operator in Phase 14.6E (2026-06-04). This unblocks implementation planning (Phase 14.7).
+
+| Decision ID | Description | Resolution | Status |
+|-------------|-------------|------------|--------|
+| DEC-146B-COS-001 | MVP Scope | Content Management + Community Forums + Course Delivery + Sales Pipeline | OPERATOR-APPROVED |
+| DEC-146B-COS-002 | Auth Migration | Clerk first, block all else until auth is migrated | OPERATOR-APPROVED |
+| DEC-146B-COS-003 | Source Code Baseline | Verify current GitHub code, then establish canonical baseline | OPERATOR-APPROVED |
+| DEC-146B-COS-004 | Module Build Sequence | Auth -> Module Split -> Test Harness -> Content -> Community -> Courses -> Sales -> Integration | OPERATOR-APPROVED |
+
+UMH context: UMH is a reality-isomorphic intelligence harness (DEC-146C-001, OPERATOR-APPROVED), not operational tooling. Stage 1 = indivisible organism: Reality Model + Cockpit + Memory + Governed Execution Loop (DEC-146C-003, OPERATOR-APPROVED). CreatorOS implementation proceeds within this framework.
+
+28 operator decisions remain unresolved (10 P1, 10 P2, 8 P3). P1 decisions are the next priority for ratification.
 
 ---
 
@@ -242,70 +264,69 @@ canon, CreatorOS Tab 8 layer architecture.
 the 10 most consequential -- they block MVP planning, architecture
 decisions, or deployment strategy.
 
-### OD-01: MVP Scope Definition (BLOCKS EVERYTHING)
+### OD-01: MVP Scope Definition — RESOLVED
 
-**Question:** Which of the three conflicting MVP scope definitions is
+**Decision ID:** DEC-146B-COS-001
+**Ratified:** 2026-06-04, Phase 14.6C
+**Resolution:** Option B ratified — Content + Community + Courses + Sales (8-12 weeks). Operator approved.
+
+**Original question:** Which of the three conflicting MVP scope definitions is
 canonical? Content+Community only (Tab 6)? Content+Community+Courses+
 Products (recommended)? Full 6-module (Tab 7)? Or all 16 modules?
 
-**Why it blocks:** Every implementation decision downstream depends on
+**Why it blocked:** Every implementation decision downstream depends on
 scope. Sprint planning, database migration planning (which of 25
 missing tables to build), module priority ordering, and resource
 allocation all require this answer.
 
-**Recommended:** Option B -- Content + Community + Courses + Basic
-Product Sales. Smallest product that generates revenue. Content and
-community attract users; courses and products monetize them.
-
 **Source:** DEC-146B-COS-001, CONTRA-COS-002 (3 conflicting MVP
 definitions from Google Doc Tabs 3, 6, 7).
 
-### OD-02: Auth Migration Strategy (BLOCKS ALL DEPLOYMENT)
+### OD-02: Auth Migration Strategy — RESOLVED
 
-**Question:** How is the broken auth (comparePasswords returns true
+**Decision ID:** DEC-146B-COS-002
+**Ratified:** 2026-06-04, Phase 14.6C
+**Resolution:** Clerk first, block ALL other implementation until auth complete (Option D). Operator approved.
+
+**Original question:** How is the broken auth (comparePasswords returns true
 for ALL passwords) resolved? Fix Passport.js first then migrate to
 Clerk? Skip fix and migrate directly? Fix and defer Clerk? Block
 everything on Clerk?
 
-**Why it blocks:** Cannot deploy to any public URL with broken auth.
+**Why it blocked:** Cannot deploy to any public URL with broken auth.
 Cannot build features on broken auth without rebuilding them later.
 Every second of development on top of broken auth is risk.
-
-**Recommended:** Option D -- Clerk migration as first task, block ALL
-other implementation until complete. EOS Beast already has Clerk
-implementation as reference pattern.
 
 **Source:** DEC-146B-COS-002, GAP-COS-001, COS-SEC-001,
 CONTRA-COS-001, CONTRA-COS-006.
 
-### OD-03: Source Code Baseline (BLOCKS ALL DEVELOPMENT)
+### OD-03: Source Code Baseline — RESOLVED
 
-**Question:** Which codebase is the starting point? GitHub main (296
+**Decision ID:** DEC-146B-COS-003
+**Ratified:** 2026-06-04, Phase 14.6C
+**Resolution:** Verify baseline, then GitHub as canonical (Option C). Operator approved.
+
+**Original question:** Which codebase is the starting point? GitHub main (296
 files)? Beast copy (271 files)? Verify alignment first?
 
-**Why it blocks:** All PRs, CI/CD, and branch protection depend on
+**Why it blocked:** All PRs, CI/CD, and branch protection depend on
 knowing which repo is canonical. 25-file difference between GitHub
 and Beast needs explanation (likely node_modules, .env, or
 attached_assets differences, not code divergence).
 
-**Recommended:** Option C -- verify both are identical, then designate
-GitHub main as canonical with branch protection enabled.
-
 **Source:** DEC-146B-COS-003, source_inventory.
 
-### OD-04: Module Build Sequence
+### OD-04: Module Build Sequence — RESOLVED
 
-**Question:** After MVP scope is decided, in what order are modules
+**Decision ID:** DEC-146B-COS-004
+**Ratified:** 2026-06-04, Phase 14.6C
+**Resolution:** Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics (Option A). Operator approved.
+
+**Original question:** After MVP scope is decided, in what order are modules
 built? Auth first? Revenue first? User-value first?
 
-**Why it blocks:** Sprint planning, resource allocation, database
+**Why it blocked:** Sprint planning, resource allocation, database
 migration ordering, and developer focus all depend on sequence.
-
-**Recommended:** Option A -- Auth (Clerk) -> God File Split -> Tests
--> Content (enhance) -> Community (enhance) -> Courses -> Stripe ->
-Analytics. Systematic, tests-first. You cannot safely refactor god
-files without tests, cannot build features without split files, and
-cannot deploy without auth.
 
 **Source:** DEC-146B-COS-004.
 
@@ -420,7 +441,7 @@ true for ALL passwords.
 
 **Resolution:** Code resolves current truth: auth is completely
 broken. PRD auth specs are aspirational. Clerk is the canonical
-target per operator directive (DEC-145-004). All Google Doc auth
+target per operator directive (DEC-146B-COS-002, ratified 2026-06-04). All Google Doc auth
 recommendations are superseded.
 
 ### CR-02: Architecture (HIGH) -- CONTRA-COS-003
@@ -625,44 +646,50 @@ without resolution.
 
 ### Immediate (before any implementation)
 
-1. **Operator reviews this packet** and approves or rejects the
-   corrections from Section 3.
+1. **P0 decisions are ratified.** All 4 P0 decisions (OD-01 through
+   OD-04) were ratified by operator on 2026-06-04:
+   - OD-01 (MVP Scope): Option B — Content + Community + Courses + Sales (DEC-146B-COS-001)
+   - OD-02 (Auth): Clerk first, block all (DEC-146B-COS-002)
+   - OD-03 (Baseline): Verify then GitHub canonical (DEC-146B-COS-003)
+   - OD-04 (Sequence): Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics (DEC-146B-COS-004)
 
-2. **Operator answers Top 4 P0 decisions** (OD-01 through OD-04),
-   especially OD-01 (MVP scope) and OD-02 (auth strategy) which
-   block everything downstream.
-
-3. **Verify GitHub/Beast alignment** -- the 25-file difference (296
+2. **Verify GitHub/Beast alignment** -- the 25-file difference (296
    vs 271) needs explanation. Likely non-code files (node_modules,
    .env, attached_assets) but must be confirmed before designating
-   canonical baseline.
+   canonical baseline. This is now the primary remaining blocker
+   per DEC-146B-COS-003.
 
-4. **EOS ratification packet review** -- both projections share
+3. **EOS ratification packet review** -- both projections share
    identical foundational problems (broken auth, zero tests, no
    deployment). Operator decisions on shared concerns (Clerk
    migration, Fly.io deployment, Neon project isolation) should be
-   coordinated across both products.
+   coordinated across both products. EOS P0 decisions also ratified
+   (DEC-146B-EOS-001 through EOS-003).
 
-### After operator approval
+### After P0 ratification (completed 2026-06-04)
 
-5. **Phase 14.6C: Review** -- cross-artifact consistency check,
-   completeness audit, contradiction resolution verification across
-   both EOS and CreatorOS canons.
+5. **Phase 14.6C: Review** -- completed. Cross-artifact consistency
+   check, operator ratification of P0 decisions across all 4 products.
+   3 reality model corrections + 15 product P0 decisions ratified.
 
-6. **Phase 14.7: Implementation Planning** -- convert approved canon
+6. **Phase 14.6F: Canon Revision** -- current phase. Aligning all
+   canon artifacts with 18 ratified P0 decisions.
+
+7. **Phase 14.7: Implementation Planning** -- convert approved canon
    into implementation tickets with dependency ordering, effort
    estimates, and release assignment.
 
-7. **Phase 15: Implementation** -- build against approved canon.
-   Clerk migration first (shared decision with EOS). God file split.
-   Test foundation. Then feature build per MVP scope.
+8. **Phase 15: Implementation** -- build against approved canon.
+   Clerk migration first per DEC-146B-COS-002. God file split.
+   Test foundation. Then feature build per ratified sequence
+   (DEC-146B-COS-004).
 
 ### Ongoing
 
-8. **Decision burndown** -- the 32 operator decisions should be
-   triaged into: (a) answer now, (b) answer before Phase 1 build,
-   (c) answer before Phase 2 build, (d) defer post-MVP. The 4 P0
-   decisions must be answered before any implementation begins.
+9. **Decision burndown** -- 4 of 32 operator decisions are resolved
+   (all P0). The remaining 28 should be triaged into: (a) answer
+   before Phase 1 build, (b) answer before Phase 2 build, (c) defer
+   post-MVP. P1 decisions (005-014) are the next priority.
 
 ---
 
@@ -740,7 +767,7 @@ Which artifact answers which concern:
 
 | Priority | Count | Description |
 |----------|-------|-------------|
-| P0 | 4 | Blocks ALL implementation (MVP scope, auth strategy, code baseline, module sequence) |
+| P0 | 4 (ALL RESOLVED) | MVP scope, auth strategy, code baseline, module sequence — ratified 2026-06-04 |
 | P1 | 10 | Blocks major workstreams (payments, pricing, design, deployment, APIs, backend, real-time, database, connected accounts, notification) |
 | P2 | 10 | Blocks specific modules (community, UGC, email, automation, course, editing, admin, content format, social, analytics) |
 | P3 | 8 | Shapes long-term direction (mobile, marketplace, AI, multi-tenancy, internationalization, accessibility, compliance, white-label) |

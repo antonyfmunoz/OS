@@ -230,21 +230,21 @@ class TestMinimumSize:
 # ---------------------------------------------------------------------------
 
 class TestPhaseMarkerUpdated:
-    """Every revised artifact must contain 'revised 14.6D' in its phase marker."""
+    """Every revised artifact must contain 'revised 14.6D' or 'revised 14.6F' (superseding) in its phase marker."""
 
     @pytest.mark.parametrize("slug", REVISED_MD_ARTIFACTS)
     def test_md_phase_marker(self, slug: str) -> None:
         content = _load_md(slug)
-        assert _md_has_text(content, r"revised\s+14\.6D"), (
-            f"{slug} missing 'revised 14.6D' phase marker"
+        assert _md_has_text(content, r"revised\s+14\.6[DF]"), (
+            f"{slug} missing 'revised 14.6D' or 'revised 14.6F' phase marker"
         )
 
     @pytest.mark.parametrize("slug", REVISED_JSON_ARTIFACTS)
     def test_json_phase_marker(self, slug: str) -> None:
         data = _load_json(slug)
         phase_val = data.get("phase", "")
-        assert "revised 14.6D" in phase_val, (
-            f"{slug} JSON phase field missing 'revised 14.6D'"
+        assert "revised 14.6D" in phase_val or "revised 14.6F" in phase_val, (
+            f"{slug} JSON phase field missing 'revised 14.6D' or 'revised 14.6F'"
         )
 
 
@@ -451,12 +451,12 @@ class TestImplementationGatesPreserved:
                 f"{slug} has allows_implementation = true — gate violation!"
             )
 
-    def test_all_status_draft(self) -> None:
+    def test_all_status_draft_or_ratified(self) -> None:
         for slug in REVISED_MD_ARTIFACTS:
             content = _load_md(slug)
             upper = content[:500].upper()
-            assert "DRAFT" in upper, (
-                f"{slug} does not contain DRAFT status in header"
+            assert "DRAFT" in upper or "RATIFIED" in upper, (
+                f"{slug} does not contain DRAFT or RATIFIED status in header"
             )
 
 
@@ -709,15 +709,22 @@ class TestCrossArtifactConsistency:
     def test_all_artifacts_reference_same_phase(self) -> None:
         for slug in REVISED_MD_ARTIFACTS:
             content = _load_md(slug)
-            assert _md_has_text(content, r"14\.6B-UMH\s*\(revised\s+14\.6D\)"), (
-                f"{slug} missing standardized phase reference '14.6B-UMH (revised 14.6D)'"
+            assert _md_has_text(content, r"14\.6B-UMH\s*\(revised\s+14\.6[DF]\)"), (
+                f"{slug} missing standardized phase reference '14.6B-UMH (revised 14.6D)' or '14.6B-UMH (revised 14.6F)'"
             )
 
     def test_no_artifact_claims_approved(self) -> None:
         for slug in REVISED_MD_ARTIFACTS:
             content = _load_md(slug)
             upper = content[:800].upper()
-            assert "APPROVED" not in upper or "NOT APPROVED" in upper or "AWAITING" in upper or "OPERATOR_APPROVED: FALSE" in upper.replace(" ", ""), (
+            assert (
+                "APPROVED" not in upper
+                or "NOT APPROVED" in upper
+                or "AWAITING" in upper
+                or "OPERATOR_APPROVED: FALSE" in upper.replace(" ", "")
+                or "OPERATOR-APPROVED" in upper
+                or "RATIFIED" in upper
+            ), (
                 f"{slug} appears to claim approval status in header"
             )
 

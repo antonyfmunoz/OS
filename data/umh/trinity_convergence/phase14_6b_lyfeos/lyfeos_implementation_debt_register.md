@@ -1,10 +1,18 @@
 # LyfeOS Implementation Debt Register
 
-**Phase:** 14.6B-LyfeOS
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
 **Artifact:** 47
+**Revised:** 2026-06-04
 **Operator Approved:** false
 **Allows Implementation:** false
 **Provenance:** SYNTHESIZED_CANON
+
+**Ratified Decisions Affecting Debt Prioritization:**
+- **DEC-146B-LOS-001** (PRD v2.0 canonical): Debt items should be prioritized against v2.0 scope, not v1.0.
+- **DEC-146B-LOS-002** (Clerk migration after CreatorOS): Auth-related debt (Passport.js/Firebase) will be addressed during Clerk migration. Timing: after CreatorOS proves the pattern.
+- **DEC-146B-LOS-003** (Fly.io infrastructure): Infrastructure debt related to Replit will be resolved during Fly.io migration.
 
 ---
 
@@ -172,8 +180,8 @@ Each debt item is classified by:
 
 ### DEBT-021: Replit-Specific Dependencies
 - **Category:** INFRASTRUCTURE
-- **Description:** @replit/vite-plugin-shadcn-theme-json, .replit config, Replit AI Integrations — platform lock-in.
-- **Effort:** MEDIUM (remove during platform migration)
+- **Description:** @replit/vite-plugin-shadcn-theme-json, .replit config, Replit AI Integrations — platform lock-in. Will be resolved during Fly.io migration (DEC-146B-LOS-003, OPERATOR-APPROVED 2026-06-04; Fly.io is the ratified Trinity standard).
+- **Effort:** MEDIUM (remove during Fly.io migration)
 - **Provenance:** IMPLEMENTATION_DEBT
 
 ### DEBT-022: Base64 Image Storage

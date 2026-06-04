@@ -1,6 +1,9 @@
 # LyfeOS Lossless Product Canon
 
-**Phase:** 14.6B-LyfeOS
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
+**Revised:** 2026-06-04
 **Operator Approved:** false
 **Allows Implementation:** false
 
@@ -42,7 +45,7 @@ Treats human life as a stateful system with:
 
 ### 1.4 Future Identity Aspirations [SYNTHESIZED_CANON]
 
-From phase 14.5: "Personal Life Operating System treating human life as a stateful system." Most mature MVP in the Trinity (LyfeOS, CreatorOS, EOS). Eventual UMH projection.
+From phase 14.5: "Personal Life Operating System treating human life as a stateful system." Most mature MVP in the Trinity (LyfeOS, CreatorOS, EOS). Eventual projection of UMH (Universal Meta Harness, DEC-146B-UMH-001) — a reality-isomorphic intelligence harness (DEC-146C-001).
 
 ---
 
@@ -183,9 +186,9 @@ Every table from schema.ts with field counts and purpose:
 - Graphs
 - Media
 
-### 4.3 Historical: PRD v1.0 Navigation [SOURCE_PRESERVED_TRUTH]
+### 4.3 Historical: PRD v1.0 Navigation [SOURCE_PRESERVED_TRUTH — HISTORICAL per DEC-146B-LOS-001]
 
-4-tab layout: Dashboard, Missions, AI, Systems. No Chronilog or Profile as primary. Superseded.
+4-tab layout: Dashboard, Missions, AI, Systems. No Chronilog or Profile as primary. Superseded. PRD v2.0 is the canonical direction (DEC-146B-LOS-001, ratified 2026-06-04); v1.0 is retained as historical/shipped context.
 
 ### 4.4 Historical: Phase 14.5 Navigation Claim [SOURCE_PRESERVED_TRUTH]
 
@@ -338,11 +341,12 @@ Legacy tracking: setupMissionStatus JSONB with keys: archetype, integrations, fu
 - **SMS:** Firebase Phone Auth (not Twilio)
 - **Reverse Proxy:** `/__/auth/*` -> Firebase to avoid third-party cookie blocking
 
-### 8.2 Future Auth [SYNTHESIZED_CANON]
+### 8.2 Future Auth [SYNTHESIZED_CANON — RATIFIED DEC-146B-LOS-002]
 
-- **Target:** Clerk authentication
-- **Priority:** Lower than CreatorOS migration
+- **Target:** Clerk authentication — **RATIFIED DIRECTION** (DEC-146B-LOS-002, 2026-06-04)
+- **Priority:** After CreatorOS proves the Clerk migration pattern
 - **Status:** Zero implementation. Future standardization effort.
+- **Gate:** CreatorOS Clerk migration must succeed before LyfeOS migration begins.
 
 ---
 
@@ -451,11 +455,11 @@ Table: waitlist_emails. Pre-launch email collection with referral source.
 - No rate limiting library (may have custom middleware)
 - No uptime monitoring
 
-### 11.3 Future Target [SYNTHESIZED_CANON]
+### 11.3 Future Target [SYNTHESIZED_CANON — RATIFIED DEC-146B-LOS-002, DEC-146B-LOS-003]
 
-- Fly.io deployment
+- **Fly.io deployment** — RATIFIED DIRECTION (DEC-146B-LOS-003, 2026-06-04). Trinity standard. Migrate from Replit.
 - PostHog analytics
-- Clerk authentication
+- **Clerk authentication** — RATIFIED DIRECTION (DEC-146B-LOS-002, 2026-06-04). After CreatorOS proves pattern.
 - Neon backup verification
 - RLS implementation
 - GitHub Actions CI/CD
@@ -480,7 +484,7 @@ Direct Postgres polling via LYFEOS_DATABASE_URL. UMH connects to LyfeOS database
 
 ### 12.3 Future Integration [UMH_INTEGRATION_DEPENDENT_GAP]
 
-LyfeOS registers as UMH projection. NOVA connects to UMH agent runtime. Auth, profile, memory, governance flow through UMH.
+LyfeOS registers as a projection of UMH (Universal Meta Harness per DEC-146B-UMH-001 — reality-isomorphic intelligence harness, DEC-146C-001). NOVA connects to UMH agent runtime. Auth, profile, memory, governance flow through UMH.
 
 ### 12.4 Complete End-State AI Companion (UMH Substrate) [UMH_INTEGRATION_DEPENDENT_GAP]
 

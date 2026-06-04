@@ -1,21 +1,22 @@
 # UMH Workstation / Jarvis Experience Canon
 
-Phase: 14.6B-UMH (revised 14.6D) | Status: DRAFT | Provenance: CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION + DEC-146C-001/002/003 ratification
+Phase: 14.6B-UMH (revised 14.6F) | Status: DRAFT | Provenance: CODE_RESOLVED_CURRENT_TRUTH + OPERATOR_CORRECTION + 18 ratified P0 decisions (2026-06-04)
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ---
 
 ## What UMH Is to the Operator
 
-UMH is the operator's private Jarvis-style system — a reality-isomorphic intelligence harness (DEC-146C-001) that builds, maintains, and acts through an integrated approximation of reality. It is not merely a developer tool, a business dashboard, or an operational tooling system. The operator interacts with UMH's reality model through multiple experience modes, each providing a lens onto the same underlying 12-layer reality model.
+The Universal Meta Harness (DEC-146B-UMH-001) is the operator's private Jarvis-style system -- a reality-isomorphic intelligence harness (DEC-146C-001) that builds, maintains, and acts through an integrated approximation of reality across 12 layers. It is not merely a developer tool, a business dashboard, or an operational tooling system. The operator interacts with UMH's reality model through multiple experience modes, each providing a lens onto the same underlying 12-layer reality model. The Jarvis experience is not about dashboards -- it is about interfacing with a living reality model that knows the operator's world, constraints, resources, and goals.
 
-**Stage 1 Organism (DEC-146C-003):** The Jarvis experience is part of the indivisible Stage 1 organism (Reality Model + Cockpit + Memory + Governed Execution Loop). Experience modes are not separate from the reality model — they are interfaces into it.
+**Stage 1 Organism (DEC-146C-003, RATIFIED 2026-06-04 Option B):** The Jarvis experience is part of the indivisible Stage 1 organism (Reality Model + Cockpit + Memory + Governed Execution Loop). Experience modes are not separate from the reality model -- they are interfaces into it. Cockpit without reality model = only dashboard. Reality model without Cockpit = inaccessible to operator. Both must advance together; incremental builds only if each increment advances all four components.
 
 ## Current Experience Modes
 
-Each mode is a lens onto UMH's reality model. The underlying reality model is the same; the rendering surface differs by device and context.
+Each mode is a lens onto UMH's reality model -- not a separate application or dashboard. The underlying 12-layer reality model is the same across all modes; the rendering surface differs by device and context. Every experience mode must be able to: (1) perceive reality-model state, (2) initiate governed actions, (3) receive feedback on outcomes, and (4) surface gaps and acquisition paths per the materialization principle (DEC-146C-002).
 
 ### 1. Cockpit UI Mode
-**What:** Full graphical reality-model interface (not merely a command center)
+**What:** Full graphical reality-model interface -- the operator's primary window into the 12-layer reality model (DEC-146C-001). Not merely a command center or dashboard.
 **Technology:** Electron + React frontend at cockpit/src/
 **Panels:** 27 panels covering dashboard, agents, organism, execution, infrastructure, knowledge, approvals, analytics, and more
 **Components:** VoiceCommandBar, CommandPalette, ChatDrawer, HudBar, EventConsole, TopologyMap
@@ -143,11 +144,13 @@ CLI command → Claude Code session → code changes
 
 ## Gaps for Full Jarvis Experience
 
-### P0
+### P0 (must resolve for Stage 1 organism -- DEC-146C-003)
 1. No tmux session visibility panel in cockpit
 2. Execution control stubs (pause/resume/abort return static ok)
 3. No overnight summary upon operator return
 4. No degraded mode detection or UI indicator
+5. Experience modes do not yet surface reality-model layer state -- Cockpit shows operational data, not the 12-layer reality model directly (DEC-146C-001)
+6. No gap/acquisition path surfacing in any experience mode (DEC-146C-002) -- operator cannot see typed gaps or their resolution paths
 
 ### P1
 1. No meta-IDE file browser in cockpit (EditorPanel exists but limited)
@@ -160,4 +163,18 @@ CLI command → Claude Code session → code changes
 1. No computer vision / screen analysis
 2. No proactive alerting to operator's phone
 3. No adaptive UX based on device/context
-4. No ambient display mode (always-on dashboard)
+4. No ambient display mode (always-on reality-model visualization)
+
+## Workstation Code Status (DEC-146B-UMH-004, RATIFIED 2026-06-04)
+
+The codebase contains 26,671 lines of dead workstation code from the original Jarvis-style build. Per DEC-146B-UMH-004, conceptual value is to be extracted into design docs, then the dead code deleted. The Jarvis experience documented here captures the target vision; the dead code is a historical artifact, not the implementation path.
+
+## Reality Model Interface Design Principles (DEC-146C-001)
+
+The Jarvis experience is not about building better dashboards. It is about giving the operator a natural interface into UMH's living reality model:
+
+1. **Reality model, not data model** -- Every panel, command, and voice response should reflect the operator's reality as modeled across 12 layers, not raw database records or API responses.
+2. **Bidirectional** -- The operator both reads reality-model state AND initiates governed mutations through every experience mode. Reading without acting is a dashboard; acting without reading is blind execution.
+3. **Gap-aware (DEC-146C-002)** -- When the reality model has gaps (typed per the materialization principle), the experience must surface them with their acquisition paths, not hide them or display empty states.
+4. **Context-adaptive** -- The same reality-model state renders differently on Cockpit (full visualization), Discord (conversational summary), CLI (structured output), and Mobile (critical alerts). The model is the same; the rendering adapts.
+5. **Stage 1 completeness (DEC-146C-003)** -- The Jarvis experience is not complete until it interfaces with all four indivisible components: Reality Model (perceive state), Cockpit (visualize it), Memory (recall context), Governed Execution (act on it).

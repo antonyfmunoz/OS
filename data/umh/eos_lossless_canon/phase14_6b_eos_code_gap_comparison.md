@@ -1,11 +1,12 @@
 ---
-phase: "14.6B-EOS"
+phase: "14.6B-EOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
 provenance: "CODE_RESOLVED_CURRENT_TRUTH"
 description: "Side-by-side comparison of what exists in code vs what is specified in canon across all 19 desired-state modules and their sub-features, with discovered features, pure gaps, contradictions, and priority ordering for gap closure."
+revision_provenance: "Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04)."
 ---
 
 # EOS Code vs Canon Gap Comparison
@@ -378,7 +379,7 @@ formally canonized.
 | Agent programming interface | GitHub main: agent-programming.tsx | UI for programming agent behavior | EVALUATE -- may conflict with skill system approach |
 | 5 separate AI services | GitHub main: server/ai/ (anthropic, openai, gemini, perplexity, xai) | Individual provider wrappers with no unified router | SUPERSEDED -- model_router.py in UMH projection replaces this pattern |
 | Gmail integration | GitHub main: server/integrations/gmail.ts | OAuth Gmail connector | ADOPT -- first integration for Integration Marketplace (Module 15 end-state) |
-| Firebase auth with MFA | GitHub main | Google OAuth + multi-factor authentication | SUPERSEDED -- Clerk auth replaces Firebase (operator decision DEC-145-001) |
+| Firebase auth with MFA | GitHub main | Google OAuth + multi-factor authentication | SUPERSEDED -- Clerk auth replaces Firebase (ratified DEC-146B-EOS-003, 2026-06-04) |
 | Tutorials page | GitHub main + Beast: tutorials-page.tsx | User tutorials/guides | EVALUATE -- not in desired state; may serve onboarding needs |
 | Support page | GitHub main + Beast: support-page.tsx | Support/help interface | ADOPT -- standard SaaS requirement, not formally specified |
 | Notifications page | GitHub main + Beast: notifications-page.tsx | Notification center | ADOPT -- aligns with Activity Feed in shell architecture |
@@ -434,7 +435,7 @@ Features where code exists but contradicts the desired state specification.
 
 | Feature | Desired State | Actual Implementation | Contradiction | Resolution |
 |---------|--------------|----------------------|---------------|------------|
-| Authentication | Clerk auth (Beast canonical) | GitHub main has Passport.js + Firebase; Beast has Clerk | Two incompatible auth systems. GitHub main is stale but represents prior investment. | Promote Beast (Clerk). Passport.js + Firebase are deprecated. DEC-145-001 confirms this. |
+| Authentication | Clerk auth (Beast canonical) | GitHub main has Passport.js + Firebase; Beast has Clerk | Two incompatible auth systems. GitHub main is stale but represents prior investment. | Beast is the canonical codebase (DEC-146B-EOS-001). Clerk is ratified auth (DEC-146B-EOS-003). Passport.js + Firebase are deprecated. |
 | AI model routing | Single centralized gateway (model_router.py) | GitHub main has 5 separate provider services (no router); Beast has server/ai/gateway.ts; Projection uses model_router.py | Three different routing architectures across code surfaces. | model_router.py (UMH substrate) is canonical. Beast gateway.ts needs to call UMH, not implement its own. GitHub main services are obsolete. |
 | Business primitives | 16 business-specific categories (revenue, expense, customer, etc.) | Substrate has 10 ontology primitives (state, change, constraint, resource, signal, action, outcome, feedback, goal, time) | Ontology primitives are domain-agnostic; business primitives are domain-specific. These are different layers, not alternatives. | Both are needed. Ontology primitives live in substrate. Business primitives should be an EOS projection of ontology primitives (domain bridge pattern). |
 | Entity model | 8 entity types with 19 business sub-types | Beast has single "company" model; GitHub main has no entity concept | Company model is a subset of entity model. "Company" conflates operating_company with all entity types. | Rename "company" to "entity" or "operating_company". Add entity_type discriminator. Schema migration required. |
@@ -452,8 +453,8 @@ Ordered by deployment dependency and business impact.
 
 | Priority | Gap | Module | Rationale |
 |----------|-----|--------|-----------|
-| P0.1 | Beast branch promotion to main | Architecture | 401-file divergence blocks everything. Single codebase required. |
-| P0.2 | Auth -- Clerk integration validated | Auth | Cannot deploy without working authentication. |
+| P0.1 | Beast branch merge to main (canonical codebase per DEC-146B-EOS-001) | Architecture | 401-file divergence blocks everything. Single codebase required. RESOLVED: Beast is canonical. |
+| P0.2 | Auth -- Clerk integration validated (ratified per DEC-146B-EOS-003) | Auth | Cannot deploy without working authentication. RESOLVED: Clerk is production auth. |
 | P0.3 | RLS bypass fix (DATABASE_APP_URL) | Security | Multi-tenant data leak if env var missing. |
 | P0.4 | Schema unification | Data | Three schema surfaces must converge to one. |
 | P0.5 | Rate limiting | Security | AI endpoints without limits = unbounded cost exposure. |
@@ -569,7 +570,7 @@ These gaps cannot be resolved by engineering alone.
 
 | ID | Question | Impact |
 |----|----------|--------|
-| OQ-GAP-001 | Should Beast branch be promoted as-is, or should specific files be cherry-picked? | Determines P0.1 approach and effort |
+| OQ-GAP-001 | ~~Should Beast branch be promoted as-is, or should specific files be cherry-picked?~~ | RESOLVED: Beast is the canonical codebase per DEC-146B-EOS-001 (ratified 2026-06-04, Phase 14.6C). Promote as-is. |
 | OQ-GAP-002 | Python-TypeScript bridge architecture: HTTP API, shared DB, or event-driven? | Determines how EOS SaaS calls UMH substrate |
 | OQ-GAP-003 | Embedding dimension: 384 (local models) or 1536 (OpenAI)? | Affects semantic search quality and cost |
 | OQ-GAP-004 | Should department agents be per-entity or shared with entity context? | Memory isolation vs resource efficiency |

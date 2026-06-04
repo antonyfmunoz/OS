@@ -1,11 +1,12 @@
 ---
-phase: "14.6B-EOS"
+phase: "14.6B-EOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
 provenance: "SYNTHESIZED_CANON"
 description: "Master EOS product canon — single coherent product truth document synthesizing all source inputs, operator corrections, code-resolved truth, and professional gap analysis into the definitive product reference."
+revision_note: "Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04)."
 ---
 
 # EntrepreneurOS (EOS) — Master Product Canon
@@ -39,7 +40,7 @@ Existing artifacts referenced but NOT duplicated:
 | Product promise | The AI-assisted company command center — a cognitive operating system for business execution that lets operators run multiple businesses from anywhere in a few focused hours per day |
 | Vision | To build the world's first truly AI-native operating system for entrepreneurs: a platform that structures companies, guides founders, deploys agentic labor, manages workflows, learns continuously, and helps humans operate at a world-class level regardless of prior experience |
 | Center of gravity | Economic activity democratization — any operator, from solo founder to institutional holding company, gets enterprise-grade operational infrastructure |
-| Relationship to UMH | EOS is a projection built on the UMH substrate. UMH provides universal mechanisms; EOS applies them to business operations. EOS registers with UMH at runtime via abstract ports. |
+| Relationship to UMH | EOS is a projection built on the Universal Meta Harness (UMH) substrate — a reality-isomorphic intelligence harness (DEC-146C-001). UMH provides universal mechanisms for modeling and acting through reality; EOS applies them to business operations. EOS registers with UMH at runtime via abstract ports. |
 | Relationship to Trinity | EOS is one of three products (EOS, CreatorOS, LyfeOS) that share the UMH substrate and OS Platform Standard but each have distinct identity, aesthetic, and domain |
 | Aesthetic metaphor | Executive command center / business cockpit / finance-grade clarity |
 | Scale range | Solo operator to institutional holding company |
@@ -577,7 +578,7 @@ These exclusions are canonical. They define the product boundary and prevent sco
 | SRC-PHASE-14_5 | Phase 14.5: EOS Convergence Plan | Convergence plan | SYNTHESIZED_CANON | Divergence analysis, auth state, work packets |
 | SRC-PHASE-14_5A | Phase 14.5A: EOS 13-Layer Production Stack | Production stack design | SYNTHESIZED_CANON | Layer-by-layer current vs desired state |
 | SRC-GITHUB-MAIN | GitHub main branch (entrepreneuros repo) | Codebase | CODE_RESOLVED_CURRENT_TRUTH | 202 files, stale (2026-02-20), Passport.js |
-| SRC-BEAST-FEATURE | Beast feature/company-system branch | Codebase | CODE_RESOLVED_CURRENT_TRUTH | 603 files, Clerk, active, canonical candidate |
+| SRC-BEAST-FEATURE | Beast feature/company-system branch | Codebase | CODE_RESOLVED_CURRENT_TRUTH | 603 files, Clerk, active, **canonical codebase** (DEC-146B-EOS-001) |
 | SRC-UMH-PROJECTION | UMH EOS Projection (projections/eos/) | Projection code | CODE_RESOLVED_CURRENT_TRUTH | 10 agents, 62 skills, 5699 lines |
 | SRC-OPERATOR-CORRECTIONS | Operator corrections (Phase 14.6B mission brief) | Operator directive | SOURCE_PRESERVED_TRUTH | Highest authority — overrides all |
 | SRC-14.6B-* | Phase 14.6B corrective artifacts (7 total) | Corrective canon | SYNTHESIZED_CANON | This phase's output |
@@ -607,7 +608,7 @@ When sources disagree:
 | Contradiction | Resolution | Source |
 |---|---|---|
 | EOS ownership: Lyfe Institute vs OST | OST owns EOS. Lyfe Institute is a venture managed inside EOS. | SRC-OPERATOR-CORRECTIONS |
-| Auth: Passport.js (main) vs Clerk (Beast) | Clerk is canonical. Passport.js is stale. | SRC-BEAST-FEATURE (canonical candidate per DEC-145-001) |
+| Auth: Passport.js (main) vs Clerk (Beast) | Clerk is the confirmed production auth provider (DEC-146B-EOS-003, ratified 2026-06-04). Passport.js is stale. | SRC-BEAST-FEATURE (canonical codebase per DEC-146B-EOS-001) |
 | Class names: EOSGateway vs Gateway, EOSContext vs SubstrateContext | Generic names are canonical (Gateway, SubstrateContext). EOS-prefixed names were renamed during substrate cleanup. | SRC-UMH-PROJECTION (code truth) |
 | Module paths: eos_ai/ vs substrate/+adapters/+transports/ | Post-convergence paths (substrate/, adapters/, transports/) are canonical. eos_ai/ is historical. | SRC-UMH-PROJECTION (code truth) |
 | North star: $100K vs $10K/month | $10K/month net profit is the current north star. $100K appears in aspirational context. | SRC-OPERATOR-CORRECTIONS |
@@ -619,12 +620,13 @@ When sources disagree:
 ## Appendix A: MVP Definition
 
 **Provenance: SYNTHESIZED_CANON (14.4 mvp_definition + operator corrections)**
+**Decision: MVP scope R1-R5 confirmed as defined (DEC-146B-EOS-002, ratified 2026-06-04).**
 
 ### Scope
 
 AI-assisted company command center for one founder and one business.
 
-### 5 releases
+### 5 releases (ratified)
 
 | Release | Name | Core deliverable |
 |---|---|---|
@@ -659,7 +661,7 @@ These features are NOT in MVP. They are end-state.
 
 **Provenance: CODE_RESOLVED_CURRENT_TRUTH**
 
-### Two codebases, one canonical candidate
+### Two codebases, one canonical codebase (ratified)
 
 | Dimension | GitHub main | Beast feature/company-system |
 |---|---|---|
@@ -670,17 +672,16 @@ These features are NOT in MVP. They are end-state.
 | Schema | 15 tables (basic) | Expanded (company, portfolio, team) |
 | Pages | ~11 | 32 |
 | Route modules | Basic | 14 |
-| Status | Stale | Canonical candidate (DEC-145-001) |
+| Status | Stale (deprecated) | **Canonical codebase** (DEC-146B-EOS-001, ratified 2026-06-04) |
 | Location | GitHub repository | Beast Windows machine (C:\dev\dev\entrepreneuros) |
 
 ### Source divergence
 
 401-file divergence between branches. Beast has 401 files that main does not.
-Beast is the promotion candidate but has NOT been promoted. Promotion requires:
+Beast has been ratified as the canonical EOS codebase (DEC-146B-EOS-001, ratified 2026-06-04). GitHub main is stale/deprecated. Promotion execution still requires:
 
 - Build validation (clean compile on target)
 - Secret scan (no hardcoded credentials)
-- Operator review
 - Rollback plan
 
 ### UMH projection (third codebase)
@@ -1032,3 +1033,4 @@ This canon synthesizes content from all 7 existing Phase 14.6B artifacts plus Ph
 
 *This document is DRAFT. operator_approved = false. allows_implementation = false.*
 *No code changes, no infrastructure mutations, no deployments are authorized from this document.*
+*Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).*

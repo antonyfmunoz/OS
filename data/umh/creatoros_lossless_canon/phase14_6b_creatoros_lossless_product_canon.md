@@ -1,11 +1,12 @@
 ---
-phase: "14.6B-CreatorOS"
+phase: "14.6B-CreatorOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
+revised: "2026-06-04"
 provenance: "SYNTHESIZED_CANON"
-description: "Master lossless product canon for CreatorOS — synthesizes all source inputs into single ground truth"
+description: "Master lossless product canon for CreatorOS — synthesizes all source inputs into single ground truth. Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04)."
 sources:
   - "phase14_4_creatoros_desired_state_canon.json (desired product truth)"
   - "phase14_4_creatoros_github_inventory.json (GitHub code truth)"
@@ -24,12 +25,14 @@ sources:
 
 Master product canon for CreatorOS. This document is the single source of truth for all product decisions, architectural facts, codebase state, and integration boundaries. Every claim traces to a specific source artifact. Nothing is invented. Contradictions are preserved, not resolved.
 
+**UMH Reality Model Context (DEC-146C-001):** CreatorOS is a projection on the Universal Meta Harness substrate. UMH is the integrated AI-native system whose core functional purpose is to build, maintain, and act through a reality-isomorphic approximation of reality. CreatorOS surfaces the creator-economy domain of that reality model -- content, community, courses, and commerce -- through a creator-facing product experience. The intelligence layer lives in UMH; the product layer lives in CreatorOS.
+
 
 ## 1. Product Identity
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -61,7 +64,7 @@ Master product canon for CreatorOS. This document is the single source of truth 
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -100,7 +103,7 @@ Businesses running campaigns on the CreatorOS ads platform. Create campaigns, se
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -143,7 +146,7 @@ accordion, alert-dialog, alert, aspect-ratio, avatar-group, avatar, badge, bread
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -183,7 +186,7 @@ accordion, alert-dialog, alert, aspect-ratio, avatar-group, avatar, badge, bread
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -246,7 +249,7 @@ accordion, alert-dialog, alert, aspect-ratio, avatar-group, avatar, badge, bread
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -274,7 +277,7 @@ accordion, alert-dialog, alert, aspect-ratio, avatar-group, avatar, badge, bread
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -323,7 +326,7 @@ accordion, alert-dialog, alert, aspect-ratio, avatar-group, avatar, badge, bread
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -355,7 +358,7 @@ accordion, alert-dialog, alert, aspect-ratio, avatar-group, avatar, badge, bread
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -430,7 +433,7 @@ This chain is NOT fully implemented. Current schema has Users and Products but n
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -506,7 +509,7 @@ UMH integration exists as a projection in `projections/creatoros/integration/` (
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -552,7 +555,7 @@ Zero revenue infrastructure is implemented. No Stripe integration. No subscripti
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -614,7 +617,7 @@ They do NOT share:
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -645,7 +648,7 @@ They do NOT share:
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -686,7 +689,7 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -748,7 +751,7 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -758,12 +761,14 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 }
 ```
 
-### Critical (blocks all work)
+### Critical (blocks all work) -- RESOLVED
 
-| ID | Question | Context | Options |
-|----|----------|---------|---------|
-| DEC-145-002 | What is the canonical MVP scope for CreatorOS? | 3 conflicting MVP definitions exist in the Google Doc. | A: Creator/Community only. B: Creator+Course/Product (recommended). C: Creator+Full Distribution. D: Full PRD scope. |
-| DEC-145-004 | What order should Clerk migration happen? | Both EOS and CreatorOS need Clerk. | CreatorOS first (smaller codebase, simpler). EOS first (higher priority product). Simultaneous (more risk). |
+| ID | Question | Status | Resolution |
+|----|----------|--------|------------|
+| DEC-146B-COS-001 (was DEC-145-002) | What is the canonical MVP scope for CreatorOS? | RESOLVED (2026-06-04, Phase 14.6C) | **Option B ratified: Content + Community + Courses + Sales (8-12 weeks).** Operator approved. |
+| DEC-146B-COS-002 | Auth migration strategy? | RESOLVED (2026-06-04, Phase 14.6C) | **Clerk first, block ALL other implementation until auth complete.** Operator approved per DEC-146B-COS-002. |
+| DEC-146B-COS-003 | Source code baseline? | RESOLVED (2026-06-04, Phase 14.6C) | **Verify baseline, then GitHub as canonical.** Operator approved per DEC-146B-COS-003. |
+| DEC-146B-COS-004 (was DEC-145-004) | Module build sequence? | RESOLVED (2026-06-04, Phase 14.6C) | **Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics.** Operator approved per DEC-146B-COS-004. |
 
 ### High (blocks security/deployment)
 
@@ -788,7 +793,7 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -800,14 +805,14 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 | # | Contradiction | Source A | Source B | Resolution status |
 |---|--------------|---------|---------|-------------------|
-| 1 | **3 MVP scope definitions** | Tab 6: content+community only (excludes courses/marketplace/payments) | Tab 7: content+community+courses+marketplace+payments (includes everything Tab 6 excludes) | UNRESOLVED — operator decision required (DEC-145-002) |
+| 1 | **3 MVP scope definitions** | Tab 6: content+community only (excludes courses/marketplace/payments) | Tab 7: content+community+courses+marketplace+payments (includes everything Tab 6 excludes) | RESOLVED — Option B ratified per DEC-146B-COS-001 (2026-06-04): Content + Community + Courses + Sales (8-12 weeks) |
 | 2 | **Auth provider: 3 options** | Tab 3 Section 6.1: Firebase Auth | Tab 3 Build Guide: Clerk/NextAuth | RESOLVED in desired state canon — target is Clerk, aligned with EOS |
 | 3 | **Auth provider: 3 options (cont.)** | Tab 3 Tech Architecture: Supabase Auth | Tab 3 Build Guide: Clerk/NextAuth | Same as above — 3 different providers in one document |
 | 4 | **Backend framework** | Tab 3 Tech Architecture: NestJS | Tab 3 Build Guide: Express | CODE RESOLVES — Express is implemented. NestJS was aspirational. |
-| 5 | **Database schema appears twice** | Tab 3 (full version with complete columns) | Tab 7 (MVP version with different columns/tables) | UNRESOLVED — depends on MVP scope decision |
-| 6 | **API spec appears twice** | Tab 3 (full endpoint structure) | Tab 7 (different endpoint structure) | UNRESOLVED — depends on MVP scope decision |
+| 5 | **Database schema appears twice** | Tab 3 (full version with complete columns) | Tab 7 (MVP version with different columns/tables) | PARTIALLY RESOLVED — MVP scope ratified as Option B (DEC-146B-COS-001). Tables for Content + Community + Courses + Sales are in scope. Full schema vs MVP schema difference now narrowed. |
+| 6 | **API spec appears twice** | Tab 3 (full endpoint structure) | Tab 7 (different endpoint structure) | PARTIALLY RESOLVED — MVP scope ratified as Option B (DEC-146B-COS-001). API surface determined by ratified module set. |
 | 7 | **Tech stack described 4+ times** | Tabs 3, 4, 5, 7 all describe tech stack with minor variations | | CODE RESOLVES — actual tech stack is in package.json |
-| 8 | **Timeline: 3 different estimates** | 5-phase over 2 years | 13 phases | 7.4 weeks MVP | UNRESOLVED — depends on scope |
+| 8 | **Timeline: 3 different estimates** | 5-phase over 2 years | 13 phases | 7.4 weeks MVP | PARTIALLY RESOLVED — MVP scope ratified as Option B (DEC-146B-COS-001, 8-12 weeks). Build sequence ratified per DEC-146B-COS-004. Historical timeline estimates remain contradictory but are now superseded by the ratified sequence. |
 | 9 | **ORM choice** | Some sections: "Drizzle or Prisma" | Other sections: "Drizzle" | CODE RESOLVES — Drizzle is implemented |
 | 10 | **Business tier price** | Desired state canon: $99/mo | Task description: $79 | UNRESOLVED — source documents disagree. PRD says $99. |
 | 11 | **Zustand auth store** | use-auth.tsx: proper Passport.js integration | stores.ts: mock fetch-all-users login | CODE ISSUE — parallel auth implementations both exist in codebase |
@@ -818,7 +823,7 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -861,7 +866,7 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -873,8 +878,8 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 | Layer | Name | Status | Primary blocker |
 |-------|------|--------|-----------------|
-| 1 | Frontend Foundations | BLOCKED | MVP scope unresolved (DEC-145-002) |
-| 2 | APIs + Backend Logic | BLOCKED | MVP scope unresolved + god files |
+| 1 | Frontend Foundations | BLOCKED | MVP scope resolved (DEC-146B-COS-001); blocked on auth fix and god file split |
+| 2 | APIs + Backend Logic | BLOCKED | MVP scope resolved (DEC-146B-COS-001); blocked on god file split |
 | 3 | Database + Storage | BLOCKED | No production database provisioned |
 | 4 | Auth + Permissions | CRITICAL | comparePasswords bypass — P0 security |
 | 5 | Hosting + Deployment | BLOCKED | Auth fix prerequisite |
@@ -894,7 +899,7 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -918,19 +923,19 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 | ID | Objective | Priority | Can execute now |
 |----|-----------|----------|-----------------|
-| WP-COS-001 | Clerk auth migration planning | P0 | NO — needs operator decision on order |
-| WP-COS-002 | God file splitting plan | P1 | NO — planning only in current phase |
+| WP-COS-001 | Clerk auth migration planning | P0 | UNBLOCKED — Clerk ratified as first task per DEC-146B-COS-002; blocks all other work |
+| WP-COS-002 | God file splitting plan | P1 | UNBLOCKED — sequenced after auth per DEC-146B-COS-004 |
 | WP-COS-003 | Repo bloat cleanup | P2 | NO — planning only in current phase |
-| WP-COS-004 | MVP scope stabilization | P0 | NO — needs operator decision |
-| WP-COS-005 | Test suite creation | P2 | NO — planning only in current phase |
-| WP-COS-006 | Production deployment setup | P3 | NO — depends on all above |
+| WP-COS-004 | MVP scope stabilization | P0 | RESOLVED — Option B ratified per DEC-146B-COS-001 (Content + Community + Courses + Sales) |
+| WP-COS-005 | Test suite creation | P2 | UNBLOCKED — sequenced after god file split per DEC-146B-COS-004 |
+| WP-COS-006 | Production deployment setup | P3 | NO — depends on auth + tests; Fly.io is Trinity standard per DEC-146B-LOS-003 |
 
 
 ## 21. Implementation Debt Register
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -972,7 +977,7 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -1017,7 +1022,7 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -1053,7 +1058,7 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 ```json
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -1065,18 +1070,20 @@ CreatorOS positions as the convergence point where Kajabi's all-in-one approach 
 
 | Gate | Status | Blocker |
 |------|--------|---------|
-| Auth vulnerability fixed | FAIL | comparePasswords bypass |
-| God files split | FAIL | routes.ts + storage.ts monolithic |
-| MVP scope decided | FAIL | Operator decision required |
+| Auth vulnerability fixed | FAIL | comparePasswords bypass — Clerk migration ratified as first task (DEC-146B-COS-002) |
+| God files split | FAIL | routes.ts + storage.ts monolithic — sequenced after auth (DEC-146B-COS-004) |
+| MVP scope decided | PASS | RESOLVED — Option B ratified per DEC-146B-COS-001 (Content + Community + Courses + Sales) |
+| Module build sequence decided | PASS | RESOLVED — Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics (DEC-146B-COS-004) |
+| Source code baseline decided | PASS | RESOLVED — Verify then GitHub canonical per DEC-146B-COS-003 |
 | Tests passing | FAIL | No tests exist |
-| Deployment ready | FAIL | No infrastructure |
+| Deployment ready | FAIL | No infrastructure — Fly.io is the Trinity standard (DEC-146B-LOS-003) |
 | UMH boundary defined | FAIL | Integration code dormant |
-| Feature build complete | FAIL | Blocked by all above |
+| Feature build complete | FAIL | Blocked by auth fix and infrastructure |
 | Security audit passed | FAIL | Auth bypass invalidates everything |
 | Performance baseline established | FAIL | No measurement infrastructure |
 
-**Overall readiness: 0 of 9 gates passing.**
+**Overall readiness: 3 of 11 gates passing (P0 decisions resolved).**
 
 ---
 
-*This canon was synthesized on 2026-06-04 from 10 source artifacts spanning Google Docs PRD (8 tabs, 27,301 words), GitHub code inventory (296 files), Beast code inventory (271 files), convergence plan, 13-layer production stack analysis, database schema (20 tables, 568 lines of TypeScript), UMH projection integration code (1,099 lines of Python), and creator domain bridge (516 lines of Python). Every claim traces to a specific source. Contradictions are preserved, not resolved. No implementation is authorized until operator approval.*
+*This canon was synthesized on 2026-06-04 from 10 source artifacts spanning Google Docs PRD (8 tabs, 27,301 words), GitHub code inventory (296 files), Beast code inventory (271 files), convergence plan, 13-layer production stack analysis, database schema (20 tables, 568 lines of TypeScript), UMH projection integration code (1,099 lines of Python), and creator domain bridge (516 lines of Python). Every claim traces to a specific source. Contradictions are preserved, not resolved. No implementation is authorized until operator approval. Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).*

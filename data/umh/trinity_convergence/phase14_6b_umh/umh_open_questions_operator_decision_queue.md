@@ -1,41 +1,42 @@
 # UMH Open Questions -- Operator Decision Queue
 
-**Phase:** 14.6B-UMH | **Status:** DRAFT | **Provenance:** OPEN_QUESTION_OPERATOR_DECISION_REQUIRED
+**Phase:** 14.6B-UMH (revised 14.6F) | **Status:** PARTIALLY RESOLVED | **Provenance:** OPEN_QUESTION_OPERATOR_DECISION_REQUIRED
 
-These questions cannot be resolved from code or documentation alone. They require operator judgment.
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
+These questions cannot be resolved from code or documentation alone. They require operator judgment. Q1-Q5 have been resolved via operator ratification in Phase 14.6C/14.6E. Q6-Q15 remain open for future phases.
+
+**Resolved:** 5 of 15 | **Open:** 10 of 15
 
 ---
 
 ## Naming
 
-**Q1.** Confirm that "Universal Meta Harness" is the canonical product name. The pyproject.toml uses universal-meta-harness, README says Universal Mastery Hierarchy. Which is correct?
-- Recommended: Universal Meta Harness (per this phase's operator correction)
+**Q1.** ~~Confirm that "Universal Meta Harness" is the canonical product name.~~
+- **STATUS: RESOLVED** (DEC-146B-UMH-001, ratified 2026-06-04, Phase 14.6E)
+- **Ratified answer:** "Universal Meta Harness" is the canonical product name. "Universal Mastery Hierarchy" is stale.
 - Impact: ~50 files need renaming, README rewrite, PHILOSOPHY.md rewrite
 
-**Q2.** Should PHILOSOPHY.md be rewritten to use UMH instead of EntrepreneurOS, or should it remain as the EOS-specific philosophy with a separate UMH philosophy document?
-- Option A: Rewrite PHILOSOPHY.md to be UMH-universal
-- Option B: Keep PHILOSOPHY.md as EOS philosophy, create UMH_PHILOSOPHY.md
+**Q2.** ~~Should PHILOSOPHY.md be rewritten to use UMH instead of EntrepreneurOS?~~
+- **STATUS: RESOLVED** (DEC-146B-UMH-002, ratified 2026-06-04, Phase 14.6E)
+- **Ratified answer:** Rewrite PHILOSOPHY.md to be UMH-universal, not EOS-specific (Option A).
 - Impact: Foundational document that defines system values
 
 ## Architecture
 
-**Q3.** Three parallel execution paths exist. What is the target?
-- Option A: Unify into single path (Path 2: Substrate -> SignalRouter -> Spine)
-- Option B: Keep Path 1 for conversational, Path 2 for programmatic, Path 3 for batch
-- Option C: Keep Path 1 as production, deprecate others
+**Q3.** ~~Three parallel execution paths exist. What is the target?~~
+- **STATUS: RESOLVED** (DEC-146B-UMH-003, ratified 2026-06-04, Phase 14.6E)
+- **Ratified answer:** Unify into single execution path (Substrate -> SignalRouter -> Spine) (Option A).
 - Impact: Governance, memory, and tracing differ across paths
 
-**Q4.** Should substrate/execution/workers/workstation/ (26,671 lines, 43 files) be deleted?
-- Identified as dead code in exhaustive audit
-- Constitutional engines with no callers
+**Q4.** ~~Should substrate/execution/workers/workstation/ (26,671 lines, 43 files) be deleted?~~
+- **STATUS: RESOLVED** (DEC-146B-UMH-004, ratified 2026-06-04, Phase 14.6E)
+- **Ratified answer:** Extract conceptual value into design docs, then delete dead workstation code.
 - Risk: May contain conceptual value worth preserving elsewhere
-- Recommended: Archive, then delete from substrate/
 
-**Q5.** ProductConnectionManager imports from projections/ (upward dependency). How should this be resolved?
-- Option A: Move to projections/ or transports/ layer
-- Option B: Use abstract registration pattern via substrate/sockets/projection_port.py
-- Option C: Accept as a pragmatic exception with documentation
-- Recommended: Option B (abstract port pattern)
+**Q5.** ~~ProductConnectionManager imports from projections/ (upward dependency). How should this be resolved?~~
+- **STATUS: RESOLVED** (DEC-146B-UMH-005, ratified 2026-06-04, Phase 14.6E)
+- **Ratified answer:** Abstract port pattern via substrate/sockets/projection_port.py (Option B).
 
 ## Cockpit
 

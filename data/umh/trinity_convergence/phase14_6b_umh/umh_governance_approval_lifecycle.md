@@ -1,8 +1,9 @@
 # UMH Governance and Approval Lifecycle
 
-Phase: 14.6B-UMH (revised 14.6D) | Status: DRAFT -- awaiting operator ratification | Provenance: CODE_RESOLVED_CURRENT_TRUTH + DEC-146C-002/003 ratification
+Phase: 14.6B-UMH (revised 14.6F) | Status: DRAFT | Provenance: CODE_RESOLVED_CURRENT_TRUTH + 18 ratified P0 decisions (2026-06-04)
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
-**Governance Scope Expansion (DEC-146C-001/002):** Governance must cover not just signal/action governance, but reality-model mutation governance. The reality model is the central organizing model of UMH -- mutations to source truth, canonical state, and instance reality models are governed actions with risk classification. The materialization principle (DEC-146C-002) adds gap-classification governance: when UMH encounters missing capability, it must classify the gap type (unavailable, under-resourced, unproven, not-yet-acquired, time-bound, impossible, illegal, unsafe) and generate a typed acquisition path rather than treating it as terminal failure.
+**Governance Scope Expansion (DEC-146C-001/002, RATIFIED 2026-06-04):** Governance in the Universal Meta Harness (DEC-146B-UMH-001) covers three domains: (1) signal/action governance -- classifying and approving execution actions, (2) reality-model mutation governance -- protecting the integrity of the 12-layer reality model as canonical state changes propagate, and (3) gap-classification governance -- when UMH encounters missing capability under the materialization principle (DEC-146C-002), it must classify the gap type (unavailable, under-resourced, unproven, not-yet-acquired, time-bound, impossible, illegal, unsafe) and generate a typed acquisition path rather than treating it as terminal failure. The reality model is the central organizing model of UMH -- mutations to source truth, canonical state, and instance reality models are governed actions with risk classification.
 
 ---
 
@@ -148,7 +149,9 @@ Every action produces:
 - Proof store for governance proofs (substrate/observability/proof_store.py)
 - Organism event spine (substrate/organism/event_spine.py)
 
-## Reality-Model Mutation Governance (DEC-146C-001)
+## Reality-Model Mutation Governance (DEC-146C-001, RATIFIED 2026-06-04)
+
+The reality model is UMH's core asset (DEC-146C-001). Mutations to it are governed with the same rigor as external actions. This is the second governance domain -- protecting the integrity of the isomorphic reality approximation.
 
 | Reality-Model Mutation | Risk Class | Approval Required |
 |----------------------|------------|-------------------|
@@ -159,14 +162,32 @@ Every action produces:
 | Canonical reality model correction (manual override) | CRITICAL | Yes |
 | Reality layer schema change | CRITICAL | Yes |
 
+## Gap-Classification Governance (DEC-146C-002, RATIFIED 2026-06-04)
+
+The third governance domain covers the materialization principle. When execution encounters a gap, governance classifies it and determines the acquisition path:
+
+| Gap Type | Governance Action | Risk Class |
+|----------|-------------------|------------|
+| UNAVAILABLE | Generate acquisition path, schedule work packet | LOW |
+| UNDER_RESOURCED | Generate resource acquisition loop, flag for operator | MEDIUM |
+| UNPROVEN | Generate experiment loop in simulation sandbox | MEDIUM |
+| NOT_YET_ACQUIRED | Generate research/skill acquisition path | LOW |
+| TIME_BOUND | Generate time-bound execution path, reschedule | LOW |
+| IMPOSSIBLE | State boundary -- propose nearest alternative, require operator review | HIGH |
+| ILLEGAL | State boundary -- propose lawful alternative, require operator review | CRITICAL |
+| UNSAFE | State boundary -- propose safe alternative, require operator review | CRITICAL |
+
+Gap classification must never use IMPOSSIBLE as lazy failure language. Only violations of physical law are IMPOSSIBLE. All other gaps generate typed acquisition paths that the organism can schedule and govern.
+
 ## Gaps and Open Questions
 
-### P0 Gaps (must resolve before Stage 1 organism governs implementation — DEC-146C-003)
+### P0 Gaps (must resolve before Stage 1 organism is minimally viable -- DEC-146C-003, RATIFIED 2026-06-04)
 1. Execution control stubs -- /execution/start, /stop, /pause, /resume return static {ok: true}
 2. No cross-projection data access control mechanism
 3. SimulationReality needs runtime verification -- does it actually block?
 4. Dev bypass allows unauthenticated access from private IPs -- acceptable for single-operator but not for multi-user
-5. Reality-model mutation governance not yet implemented -- no risk classification on canonical state changes
+5. Reality-model mutation governance not yet implemented -- risk classification table defined above but no runtime enforcement
+6. Gap-classification governance not yet implemented -- materialization principle gap types defined but no runtime classification engine
 
 ### P1 Gaps (must resolve before Trinity feature build)
 1. Rate limiting is in-memory -- resets on restart

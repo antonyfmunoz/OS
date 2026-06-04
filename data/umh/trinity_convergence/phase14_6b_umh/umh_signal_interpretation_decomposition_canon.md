@@ -1,13 +1,16 @@
 # UMH Signal Interpretation and Decomposition Canon
 
-Phase: 14.6B-UMH (revised 14.6D)
+Phase: 14.6B-UMH (revised 14.6F)
 Status: DRAFT
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
-**Reality Model Context (DEC-146C-001):** Signals are reality-model observations — the primary input mechanism through which UMH perceives and updates its reality-isomorphic approximation of reality. Decomposition feeds the reality model, not just execution. Every signal, once interpreted and decomposed, enriches one or more of the 12 reality layers (physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, OS-level).
+**Reality Model Input Layer (DEC-146C-001, RATIFIED 2026-06-04):** Signal interpretation and decomposition is the reality model's primary input layer. Signals are reality-model observations -- the mechanism through which the Universal Meta Harness (DEC-146B-UMH-001) perceives and updates its reality-isomorphic approximation of reality. Decomposition feeds the reality model, not just execution. Every signal, once interpreted and decomposed, enriches one or more of the 12 reality layers (physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, OS-level). Without this input layer, the reality model is static and blind.
+
+**Indivisible Stage 1 (DEC-146C-003):** Signal processing is part of the Reality Model component of the indivisible Stage 1 organism. Signals that cannot update the reality model, or a reality model that cannot receive signals, violate the indivisibility constraint.
 
 ## Signal Intake
 
-All signals enter UMH via `SignalEnvelope` (defined in `substrate/types.py`). Every input -- Discord messages, API calls, ingested files, scheduled events -- is wrapped in a SignalEnvelope before processing. Signals are the observation layer of the reality model.
+All signals enter UMH via `SignalEnvelope` (defined in `substrate/types.py`). Every input -- Discord messages, API calls, ingested files, scheduled events -- is wrapped in a SignalEnvelope before processing. Signals are the observation layer of the reality model. Through the unified execution path (DEC-146B-UMH-003, RATIFIED), all signals route: Substrate -> SignalRouter -> Spine.
 
 The envelope carries:
 - Source identifier and transport origin
@@ -37,13 +40,13 @@ Intent is classified at two levels:
 
 The deterministic layer always produces a usable classification. LLM refinement improves accuracy when available but is never required.
 
-## Decomposition (Reality Model Input)
+## Decomposition (Reality Model Enrichment)
 
 ### Engine
 
 `substrate/understanding/ontology/primitive_decomposition_v1.py`
 
-Decomposition extracts structured PrimitiveObservation objects from interpreted input — converting raw signals into reality-model observations that enrich UMH's understanding of reality across the 12 layers. It uses LLM extraction as the primary path with heuristic fallback for when all providers are down.
+Decomposition is the critical bridge between raw perception and reality-model enrichment. It extracts structured PrimitiveObservation objects from interpreted input -- converting raw signals into reality-model observations that update UMH's isomorphic approximation of reality across the 12 layers (DEC-146C-001). Each decomposed observation maps to at least one reality layer; unmappable observations indicate either a misclassified signal or a gap in the reality model's layer coverage. It uses LLM extraction as the primary path with heuristic fallback for when all providers are down.
 
 ### LLM Extraction Path
 
@@ -82,15 +85,15 @@ The full pipeline from raw source to queryable knowledge:
 perceive -> interpret -> decompose -> bridge -> map -> persist -> query_back
 ```
 
-| Stage | Role |
-|---|---|
-| Perceive | Detect and ingest raw input from source |
-| Interpret | Classify intent and extract structure |
-| Decompose | Extract PrimitiveObservation objects |
-| Bridge | Map ontology primitives to domain-typed projections |
-| Map | Relate observations to existing knowledge graph |
-| Persist | Write to canonical memory store (Neon-backed) |
-| Query Back | Verify round-trip integrity |
+| Stage | Role | Reality Model Function |
+|---|---|---|
+| Perceive | Detect and ingest raw input from source | Observation intake |
+| Interpret | Classify intent and extract structure | Signal classification |
+| Decompose | Extract PrimitiveObservation objects | Reality model enrichment (DEC-146C-001) |
+| Bridge | Map ontology primitives to domain-typed projections | Layer-specific projection |
+| Map | Relate observations to existing knowledge graph | Reality model integration |
+| Persist | Write to canonical memory store (Neon-backed) | Reality model persistence |
+| Query Back | Verify round-trip integrity | Isomorphism verification |
 
 Canonical path: `substrate.execution.ingestion`
 Legacy compatibility: `runtime.ingestion`
@@ -105,3 +108,7 @@ Legacy compatibility: `runtime.ingestion`
 | GitHub | Webhook transport | Commits, PRs, issues |
 
 Proofs of ingestion pipeline operation: `data/runtime/canonical_memory_store/proofs/`
+
+## Materialization Principle Impact (DEC-146C-002)
+
+Decomposition must also detect gap signals -- observations that indicate missing knowledge, resources, or capability. When a signal decomposes into a gap observation, the materialization principle activates: the gap is typed (unavailable, under-resourced, unproven, not-yet-acquired, time-bound, impossible, illegal, unsafe) and routed to the appropriate acquisition path rather than being treated as terminal failure. The decomposition layer is where UMH first distinguishes "I don't know this yet" from "this cannot be done."

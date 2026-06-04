@@ -1,17 +1,18 @@
 # UMH Cockpit / Jarvis Doctrine
 
-**Phase:** 14.6B-UMH (revised 14.6D)
-**Status:** DRAFT -- awaiting operator ratification
+**Phase:** 14.6B-UMH (revised 14.6F)
+**Status:** RATIFIED -- all 18 P0 decisions operator-approved (2026-06-04)
 **Provenance:** OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH + DEC-146C-001/002/003 ratification
-**Date:** 2026-06-03
+**Date:** 2026-06-04
+**Revision note:** Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ---
 
 ## What Cockpit Is
 
-Cockpit is part of the indivisible Stage 1 UMH organism (DEC-146C-003): Reality Model + Cockpit + Memory + Governed Execution Loop. These four components must reach minimum viability as one integrated system. Cockpit without a reality model is only a dashboard; a reality model without Cockpit is inaccessible to the operator.
+Cockpit is part of the indivisible Stage 1 UMH organism (DEC-146C-003, RATIFIED 2026-06-04): Reality Model + Cockpit + Memory + Governed Execution Loop. These four components must reach minimum viability as one integrated system. Cockpit without a reality model is only a dashboard; a reality model without Cockpit is inaccessible to the operator.
 
-Cockpit is the operator's interface into UMH's reality model -- the rendering surface through which the operator observes, commands, and governs UMH's reality-isomorphic approximation of reality across 12 layers (physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, and OS-level).
+Cockpit is the operator's interface into UMH's reality model (DEC-146C-001, RATIFIED 2026-06-04) -- the rendering surface through which the operator observes, commands, and governs UMH's reality-isomorphic approximation of reality across 12 layers (physical, digital, cognitive, biological, social, economic, symbolic, operational, software, memory, source-truth, and OS-level). Product name: "Universal Meta Harness" (DEC-146B-UMH-001, RATIFIED 2026-06-04).
 
 Cockpit is NOT:
 - Merely a dashboard or status page (it is a reality-model interface)
@@ -41,6 +42,7 @@ Cockpit IS the private universal control surface that allows the operator to:
 17. Use voice or text commands
 18. Operate across VPS/Windows/device contexts
 19. Use UMH as a Jarvis-like personal intelligence system
+20. Surface materialization paths and typed gaps (DEC-146C-002, RATIFIED 2026-06-04) -- when the operator imagines an outcome, Cockpit renders the path from imagination to materialization, including research loops, resource acquisition loops, experiment loops, work packets, delegation paths, agent paths, financing paths, and time-bound execution paths
 
 ---
 
@@ -108,9 +110,9 @@ activity, agent, analytics, approval, chat, cockpit, coherence, config, editor, 
 
 ---
 
-## Stage 1 Organism Readiness Gate (DEC-146C-003)
+## Stage 1 Organism Readiness Gate (DEC-146C-003, RATIFIED 2026-06-04)
 
-Stage 1 readiness is the MVP gate for UMH. Per DEC-146C-003, Stage 1 is indivisible: Reality Model + Cockpit + Memory + Governed Execution Loop must reach minimum viability together. Each increment must advance the integrated organism -- completing one component in isolation and deferring the others is rejected.
+Stage 1 readiness is the MVP gate for UMH. Per DEC-146C-003 (Option B, RATIFIED 2026-06-04), Stage 1 is indivisible: Reality Model + Cockpit + Memory + Governed Execution Loop must reach minimum viability together. Each increment must advance the integrated organism -- completing one component in isolation and deferring the others is rejected.
 
 Stage 1 does not require commercial-grade completeness before use. It requires a partially functional integrated vertical slice. The 10 operator-specified acceptance criteria for Stage 1 minimum viability:
 
@@ -432,7 +434,7 @@ The Jarvis analogy is the correct mental model for Cockpit:
 
 8. **Cockpit is projection-agnostic.** It shows EOS, CreatorOS, LyfeOS, and any future projection as instance reality models through the same universal interface. Projections register their views; Cockpit renders them.
 
-9. **Cockpit is indivisible from the reality model (DEC-146C-003).** Cockpit and the reality model advance together. Every increment that advances the reality model must also advance its Cockpit rendering. Every Cockpit improvement must be grounded in reality-model state, not synthetic/mock data.
+9. **Cockpit is indivisible from the reality model (DEC-146C-003, RATIFIED 2026-06-04).** Cockpit and the reality model advance together. Every increment that advances the reality model must also advance its Cockpit rendering. Every Cockpit improvement must be grounded in reality-model state, not synthetic/mock data.
 
 ---
 

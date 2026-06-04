@@ -1,7 +1,8 @@
 {
   "artifact_id": "EOS-AUTH-SEC-001",
   "title": "EOS Auth and Security Analysis — Complete Current State and Target Architecture",
-  "phase": "14.6B-EOS",
+  "phase": "14.6B-EOS (revised 14.6F)",
+  "revision_provenance": "Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -36,7 +37,7 @@
     },
     "beast_branch": {
       "provider": "Clerk (React + Express)",
-      "status": "target_achieved_in_branch",
+      "status": "canonical_codebase",
       "branch": "feature/company-system",
       "file_count": 603,
       "last_commit": "2026-04-16",
@@ -54,7 +55,7 @@
         "session_handling": "Clerk manages sessions — JWTs, token refresh, device management all delegated",
         "company_guard": "CompanyGuard React component gates routes until org selected"
       },
-      "assessment": "Clerk integration is architecturally correct and represents the promotion candidate. It replaces both Passport.js AND Firebase with a single identity provider. Middleware is properly separated. Org context flows through Clerk Organizations.",
+      "assessment": "Clerk integration is architecturally correct and represents the canonical codebase (ratified DEC-146B-EOS-001, DEC-146B-EOS-003, 2026-06-04). It replaces both Passport.js AND Firebase with a single identity provider. Middleware is properly separated. Org context flows through Clerk Organizations.",
       "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
     },
     "umh_platform_layer": {
@@ -82,7 +83,8 @@
 
   "target_auth": {
     "provider": "Clerk",
-    "decision_ref": "DEC-145-001",
+    "decision_ref": "DEC-146B-EOS-001, DEC-146B-EOS-003",
+    "decision_status": "RESOLVED — Clerk ratified as production auth provider (DEC-146B-EOS-003, 2026-06-04, Phase 14.6C). Beast branch ratified as canonical codebase (DEC-146B-EOS-001, 2026-06-04, Phase 14.6C).",
     "rationale": "Beast branch already has working Clerk integration. Clerk handles identity, sessions, MFA, OAuth, org management, device sessions. Eliminates need to build or maintain any of these. Single identity provider across SaaS frontend and UMH platform API.",
     "sso": {
       "status": "planned_not_implemented",
@@ -115,7 +117,7 @@
       "provenance": "SYNTHESIZED_CANON"
     },
     "integration_plan": {
-      "step_1": "Promote Beast branch Clerk implementation as canonical auth",
+      "step_1": "Beast branch Clerk implementation is the canonical codebase (DEC-146B-EOS-001)",
       "step_2": "Add @clerk/backend to UMH platform API (transports/api/http/) — verify JWT, extract userId and orgId from Clerk session",
       "step_3": "Replace x-org-id header mechanism in auth.ts with Clerk token verification",
       "step_4": "Map Clerk Organization → EOS org_id in platform DB",
@@ -501,14 +503,14 @@
 
   "migration_path": {
     "passport_to_clerk": {
-      "status": "completed_in_beast_branch",
-      "description": "Beast feature/company-system branch has fully replaced Passport.js + Firebase with Clerk. React frontend uses ClerkProvider, SignIn/SignUp. Express backend uses clerkMiddleware(). Clerk Organizations for multi-tenant.",
+      "status": "completed_in_canonical_codebase",
+      "description": "Beast feature/company-system branch (canonical codebase per DEC-146B-EOS-001) has fully replaced Passport.js + Firebase with Clerk (ratified per DEC-146B-EOS-003). React frontend uses ClerkProvider, SignIn/SignUp. Express backend uses clerkMiddleware(). Clerk Organizations for multi-tenant.",
       "remaining_work": "Merge Beast branch to main. Remove all Passport.js and Firebase dependencies and dead code from merged result.",
       "provenance": "CODE_RESOLVED_CURRENT_TRUTH"
     },
     "firebase_cleanup": {
       "status": "needed_on_merge",
-      "description": "GitHub main has Firebase Auth dependencies (firebase, firebase-admin). These must be removed during Beast-to-main merge. Firebase project can be decommissioned after merge.",
+      "description": "GitHub main has Firebase Auth dependencies (firebase, firebase-admin). These must be removed during merge with canonical codebase. Firebase project can be decommissioned after merge.",
       "files_to_remove": [
         "Any firebase.ts / firebase-config.ts configuration files",
         "Firebase Auth imports in server routes",

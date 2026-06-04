@@ -1,10 +1,13 @@
 # LyfeOS NOVA Legacy Naming Correction
 
-**Phase:** 14.6B-LyfeOS
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
+**Revised:** 2026-06-04
 **Artifact:** 20 of 30
 **operator_approved:** false
 **allows_implementation:** false
 **Date:** 2026-06-03
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ---
 
@@ -110,11 +113,14 @@ Any component that displays the AI name should read from `userStats.aiAssistantN
 
 **Provenance:** SYNTHESIZED_CANON
 
-- UMH (Universal Mastery Hierarchy) is the orchestration and intelligence substrate
+- UMH (Universal Meta Harness, DEC-146B-UMH-001) is the reality-isomorphic intelligence harness (DEC-146C-001), not merely an orchestration kernel or operational tooling
+- The world model IS the reality model — the central organizing model through which UMH understands intent, state, constraints, resources, possible actions, consequences, and feedback
 - The AI companion in LyfeOS is a **projection-specific user interface** to AI capabilities
-- UMH provides: model routing, governance, execution pipeline, audit, memory
+- LyfeOS is a projection/instance reality model on the UMH substrate
+- UMH provides: model routing, governance, execution pipeline, audit, memory — all through single execution path (DEC-146B-UMH-003) and abstract port pattern (DEC-146B-UMH-005)
 - LyfeOS provides: user-facing chat UI, personalization (including AI name), domain knowledge
 - The user never needs to know UMH exists — they interact with their named AI companion
+- Stage 1 = indivisible organism: Reality Model + Cockpit + Memory + Governed Execution Loop (DEC-146C-003)
 
 ### Name Architecture
 

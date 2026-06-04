@@ -1,7 +1,9 @@
 # UMH Projection Registration Protocol
 
-**Phase:** 14.6B-UMH
+**Phase:** 14.6B-UMH (revised 14.6F)
 **Status:** DRAFT
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ## Current Registration Pattern
 
@@ -27,15 +29,17 @@ Projections register with UMH via manifest files. Each projection provides a `ma
 3. Signal descriptors are registered with the signal routing system
 4. Capability descriptors are registered with the capability router
 
-## Future: Abstract Port Pattern
+## Ratified: Abstract Port Pattern (DEC-146B-UMH-005, 2026-06-04)
 
-Planned enhancement: `substrate/sockets/projection_port.py`
+Ratified fix for the ProductConnectionManager dependency violation: `substrate/sockets/projection_port.py`
 
 - Abstract base class defining the projection registration contract
 - Projections implement the port interface instead of using manifest conventions
 - API endpoint registration for dynamic projection discovery
 - Runtime projection health checks and capability negotiation
 
+Decision ratified; implementation not yet started.
+
 ## Architecture Note
 
-Current manifest-based registration is functional but informal. The abstract port pattern would enforce the registration contract at the type level and enable runtime projection management without restarts.
+Current manifest-based registration is functional but informal. The abstract port pattern (ratified per DEC-146B-UMH-005) will enforce the registration contract at the type level and enable runtime projection management without restarts.

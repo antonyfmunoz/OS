@@ -1,10 +1,12 @@
 # UMH Substrate / Cockpit / Projection Boundary Matrix
 
-**Phase:** 14.6B-UMH (revised 14.6D)
+**Phase:** 14.6B-UMH (revised 14.6F)
 **Status:** DRAFT -- awaiting operator ratification
 **Provenance:** OPERATOR_CORRECTION + CODE_RESOLVED_CURRENT_TRUTH + DEC-146C-001/003 ratification
 
-This document explicitly distinguishes the 5 architectural boundaries per operator doctrine. Per DEC-146C-001, UMH's core purpose is reality-isomorphic approximation of reality. Per DEC-146C-003, Cockpit + Reality Model + Memory + Governed Execution are indivisible in Stage 1. The boundary model below incorporates the reality-model scope as a first-class dimension.
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
+This document explicitly distinguishes the 5 architectural boundaries per operator doctrine. Per DEC-146C-001, UMH (Universal Meta Harness, DEC-146B-UMH-001) is the reality-isomorphic intelligence harness whose core purpose is building, maintaining, and acting through a reality-isomorphic approximation of reality across 12 layers. Per DEC-146C-003, Cockpit + Reality Model + Memory + Governed Execution are indivisible in Stage 1. The boundary model below incorporates the reality-model scope as a first-class dimension.
 
 ---
 

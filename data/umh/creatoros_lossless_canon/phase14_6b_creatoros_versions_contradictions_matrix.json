@@ -1,5 +1,5 @@
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
@@ -47,10 +47,10 @@
         "location": "Google Doc Tab 3 (Copy of Product Requirements Document) -- Build Guide section",
         "provenance": "SOURCE_PRESERVED_TRUTH"
       },
-      "resolution": "UNRESOLVED -- operator decision required (DEC-145-002). Three mutually incompatible MVP scopes exist. Options: A) Creator/Community only (Tab 6), B) Creator+Course/Product (recommended), C) Creator+Full Distribution, D) Full PRD scope.",
-      "resolved": false,
-      "operator_decision_needed": true,
-      "decision_id": "DEC-145-002",
+      "resolution": "RESOLVED -- DEC-146B-COS-001 (ratified 2026-06-04, Phase 14.6C): MVP scope is Content + Community + Courses + Sales (Option 2, 8-12 weeks). Build sequence ratified as Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics per DEC-146B-COS-004.",
+      "resolved": true,
+      "operator_decision_needed": false,
+      "decision_id": "DEC-146B-COS-001",
       "severity": "CRITICAL",
       "blocked_actions": ["ALL CreatorOS feature build scope decisions", "Sprint planning", "Resource allocation"]
     },
@@ -144,14 +144,14 @@
       },
       "source_e": {
         "claim": "Clerk is the canonical target for all Trinity apps",
-        "location": "Operator correction OC-COS-009, Phase 14.5 decision ledger DEC-145-004",
+        "location": "Operator correction OC-COS-009, DEC-146B-EOS-003 / DEC-146B-COS-002 (ratified 2026-06-04)",
         "provenance": "SOURCE_PRESERVED_TRUTH"
       },
       "resolution": "RESOLVED -- Clerk is the canonical target per operator directive. Firebase recommendation is STALE (OS Platform Standard v1, never implemented, replaced in v2). Supabase Auth was never implemented. Passport.js is the broken current state to be replaced. All three Google Doc auth recommendations are superseded by the Clerk decision.",
       "resolved": true,
       "operator_decision_needed": false,
       "severity": "CRITICAL",
-      "note": "Open sub-question: Clerk migration order -- CreatorOS first or EOS first? (DEC-145-004)"
+      "note": "Sub-question RESOLVED: Clerk migration order -- DEC-146B-COS-002 (ratified 2026-06-04): Clerk first, block ALL other implementation until auth complete. DEC-146B-COS-004 ratifies build sequence: Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics."
     },
     {
       "id": "CONTRA-COS-007",
@@ -245,7 +245,7 @@
       "resolved": false,
       "operator_decision_needed": true,
       "severity": "MEDIUM",
-      "note": "Timeline resolution depends on DEC-145-002 (MVP scope decision). Current codebase state (broken auth, god files, zero tests) makes all timeline estimates unreliable."
+      "note": "MVP scope now resolved (DEC-146B-COS-001). Timeline still unresolved because all three pre-date codebase audit. Build sequence ratified per DEC-146B-COS-004 but effort estimates remain unreliable given codebase state (broken auth, god files, zero tests)."
     },
     {
       "id": "CONTRA-COS-011",
@@ -400,7 +400,7 @@
       "resolved": false,
       "operator_decision_needed": false,
       "severity": "HIGH",
-      "note": "Gap closure depends on MVP scope decision (DEC-145-002). Not all 28 screens may be needed for MVP."
+      "note": "MVP scope ratified as Content + Community + Courses + Sales (DEC-146B-COS-001). Not all 28 screens are needed for MVP; gap closure scoped to ratified modules."
     },
     {
       "id": "CONTRA-COS-018",
@@ -680,9 +680,9 @@
     },
     {
       "contradiction_id": "CONTRA-COS-002",
-      "resolution": "UNRESOLVED -- awaiting operator decision DEC-145-002",
-      "evidence": "Tab 6, Tab 7, and Tab 3 Build Guide each define different MVP scopes. Three mutually incompatible versions.",
-      "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+      "resolution": "RESOLVED -- DEC-146B-COS-001 (ratified 2026-06-04): Content + Community + Courses + Sales (Option 2, 8-12 weeks). Three conflicting scopes existed; operator selected Option 2.",
+      "evidence": "Tab 6, Tab 7, and Tab 3 Build Guide each defined different MVP scopes. DEC-146B-COS-001 ratified Option 2.",
+      "provenance": "SOURCE_PRESERVED_TRUTH"
     },
     {
       "contradiction_id": "CONTRA-COS-003",
@@ -705,7 +705,7 @@
     {
       "contradiction_id": "CONTRA-COS-006",
       "resolution": "Clerk is canonical target. All other auth provider mentions are stale or superseded.",
-      "evidence": "Operator correction OC-COS-009, Phase 14.5 decision DEC-145-004. Firebase/Supabase never implemented.",
+      "evidence": "Operator correction OC-COS-009, DEC-146B-EOS-003 / DEC-146B-COS-002 (was DEC-145-004). Firebase/Supabase never implemented.",
       "provenance": "SOURCE_PRESERVED_TRUTH"
     },
     {
@@ -834,9 +834,9 @@
     "total_contradictions": 26,
     "by_resolution_status": {
       "resolved_by_code": 11,
-      "resolved_by_operator": 2,
+      "resolved_by_operator": 3,
       "resolved_by_synthesis": 2,
-      "unresolved_awaiting_operator": 2,
+      "unresolved_awaiting_operator": 1,
       "implementation_debt": 9
     },
     "by_type": {
@@ -874,14 +874,17 @@
       "LOW": 8
     },
     "critical_blockers": [
-      "CONTRA-COS-001: Auth bypass (P0 security) -- RESOLVED in analysis, BLOCKED for deployment until Clerk migration",
-      "CONTRA-COS-002: 3 conflicting MVP scopes -- UNRESOLVED, operator decision DEC-145-002 required",
-      "CONTRA-COS-006: Auth target (3 doc providers vs Clerk) -- RESOLVED, Clerk is canonical"
+      "CONTRA-COS-001: Auth bypass (P0 security) -- RESOLVED in analysis, BLOCKED for deployment until Clerk migration (DEC-146B-COS-002)",
+      "CONTRA-COS-002: 3 conflicting MVP scopes -- RESOLVED by DEC-146B-COS-001 (ratified 2026-06-04): Content + Community + Courses + Sales",
+      "CONTRA-COS-006: Auth target (3 doc providers vs Clerk) -- RESOLVED, Clerk is canonical (DEC-146B-EOS-003, DEC-146B-COS-002)"
     ],
     "operator_decisions_required": [
-      "DEC-145-002: Which MVP scope is canonical? (CONTRA-COS-002)",
-      "OQ-COS-002: Stick with Express or migrate to NestJS? (CONTRA-COS-008)",
-      "DEC-145-004: Clerk migration order -- CreatorOS first or EOS first? (CONTRA-COS-006 sub-question)"
+      "OQ-COS-002: Stick with Express or migrate to NestJS? (CONTRA-COS-008)"
+    ],
+    "operator_decisions_resolved_in_14_6F": [
+      "DEC-146B-COS-001: MVP scope ratified as Content + Community + Courses + Sales (was DEC-145-002, CONTRA-COS-002) — ratified 2026-06-04, Phase 14.6C",
+      "DEC-146B-COS-002: Clerk first, block ALL other implementation — ratified 2026-06-04, Phase 14.6C",
+      "DEC-146B-COS-004: Build sequence Auth -> Split -> Tests -> Content -> Community -> Courses -> Stripe -> Analytics — ratified 2026-06-04, Phase 14.6C"
     ]
   }
 }

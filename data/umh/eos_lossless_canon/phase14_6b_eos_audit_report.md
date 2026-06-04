@@ -1,16 +1,17 @@
 ---
-phase: "14.6B-EOS"
+phase: "14.6B-EOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
 provenance: "SYNTHESIZED_CANON"
 description: "Phase compliance and quality audit for EOS lossless canon — verifies all artifacts, provenance labels, success criteria, findings, contradictions, and recommendations."
+revision_note: "Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04)."
 ---
 
 # EOS Phase 14.6B Audit Report
 
-**Phase:** 14.6B-EOS
+**Phase:** 14.6B-EOS (revised 14.6F)
 **Artifacts Produced:** 28 (of 36 planned; 8 consolidated into existing artifacts)
 **Operator Approved:** false
 **Allows Implementation:** false
@@ -48,7 +49,7 @@ Institute). Lyfe Institute is a venture managed INSIDE EOS.
 | Phase 14.5: EOS Convergence Plan | 219 lines | Source divergence analysis, auth state, schema state, gaps, contradictions |
 | Phase 14.5A: EOS 13-Layer Production Stack | 219 lines | 13-layer readiness assessment; all layers BLOCKED pending convergence |
 | GitHub main (antonyfmunoz/EntrepreneurOS) | 202 files (154 on VPS copy) | Stale Replit Agent codebase: Passport.js auth, 16 pages, 6 DB tables, 5 AI services |
-| Beast feature/company-system | 603 files | Promotion candidate: Clerk auth, 14 route modules, 32 pages, portfolio/company system |
+| Beast feature/company-system | 603 files | **Canonical codebase** (DEC-146B-EOS-001): Clerk auth (DEC-146B-EOS-003), 14 route modules, 32 pages, portfolio/company system |
 | UMH EOS Projection (projections/eos/) | ~30 files, 5699 lines | 10 department agents, 3 views, 3 workflows, integration layer |
 | Operator Corrections (Phase 14.6B mission brief) | Directive | OST ownership, hierarchy correction, delegation chain, aesthetic canon |
 
@@ -62,7 +63,7 @@ Institute). Lyfe Institute is a venture managed INSIDE EOS.
 - **Owner:** OST
 - **Stack:** React 18 + TypeScript + Vite + Express + Neon Postgres + Drizzle ORM
 - **AI:** 5 provider integrations on GitHub main; UMH model_router with fallback chain on projection
-- **Auth:** Passport.js + Firebase (GitHub main, stale) vs Clerk (Beast, canonical candidate)
+- **Auth:** Passport.js + Firebase (GitHub main, stale/deprecated) vs Clerk (Beast, canonical codebase per DEC-146B-EOS-001; Clerk confirmed per DEC-146B-EOS-003)
 - **Database:** 6 tables on GitHub main schema; 6+ tables on Beast; 8 tables on UMH platform (3 schema surfaces)
 - **Codebase surfaces:** 3 independent code locations (GitHub main 202 files, Beast 603 files, UMH projection 30 files)
 - **Test coverage:** 0 tests on GitHub main; Vitest + Playwright configured on Beast (unverified); 4 tests on UMH projection (~63 lines)
@@ -91,7 +92,7 @@ EOS is the **least deployed but most architecturally ambitious** Trinity app:
 | Layout system | Flat sidebar | 3-panel (left/main/right) | N/A |
 | Test files | 0 | Vitest + Playwright (configured) | 1 (63 lines) |
 | Last activity | 2026-02-20 | 2026-04-16 | Current |
-| Status | Stale | Promotion candidate | Active |
+| Status | Stale (deprecated) | **Canonical codebase** (DEC-146B-EOS-001) | Active |
 
 ---
 
@@ -102,8 +103,8 @@ EOS is the **least deployed but most architecturally ambitious** Trinity app:
 GitHub main has 202 files. Beast feature/company-system has 603 files. The 401-file
 delta is the single largest blocker to EOS development. These 401 files on Beast have
 never been reviewed on GitHub, never been through CI, and are inaccessible from the
-VPS. Beast is the canonical candidate (DEC-145-001) but cannot be promoted, reviewed,
-or deployed until it is pushed to GitHub and audited.
+VPS. Beast has been ratified as the canonical codebase (DEC-146B-EOS-001, 2026-06-04) but
+promotion execution still requires pushing to GitHub and auditing.
 
 **Evidence:** phase14_6b_eos_current_implementation_truth.json, DEBT-003, DEBT-014,
 DEBT-041, GAP-ARC-001.
@@ -222,7 +223,7 @@ code surfaces.
 | # | Contradiction | Resolution |
 |---|---------------|------------|
 | 1 | EOS ownership: Lyfe Institute (prior phases) vs OST (operator correction) | OST is canonical. Operator correction overrides prior phase claims. |
-| 2 | Auth: Passport.js + Firebase (GitHub main) vs Clerk (Beast) | Clerk is canonical. Beast is promotion candidate per DEC-145-001. |
+| 2 | Auth: Passport.js + Firebase (GitHub main) vs Clerk (Beast) | Clerk is the confirmed production auth provider (DEC-146B-EOS-003). Beast is the canonical codebase (DEC-146B-EOS-001). Both ratified 2026-06-04. |
 | 3 | AI routing: 5 separate services (GitHub main) vs gateway.ts (Beast) vs model_router.py (projection) | model_router.py (UMH substrate) is canonical. Beast gateway.ts should call UMH, not implement its own routing. |
 | 4 | Entity model: single "company" (Beast) vs 8 entity types + 19 business types (desired state) | Beast "company" is a subset. Rename to "entity" or "operating_company" with type discriminator. Schema migration required. |
 | 5 | Agent invocation: direct callable (code) vs EA -> CEO -> Department chain (operator correction) | EA delegation chain is canonical per operator correction. Direct invocation locked to internal-only. |
@@ -238,7 +239,7 @@ code surfaces.
 
 | # | Contradiction | Options | Impact |
 |---|---------------|---------|--------|
-| 1 | Beast branch promotion strategy | A) Promote as-is B) Cherry-pick specific files C) Staged promotion with review gates | Determines P0 approach and timeline |
+| 1 | ~~Beast branch promotion strategy~~ | **RESOLVED** (DEC-146B-EOS-001, ratified 2026-06-04): Beast is canonical codebase | No longer blocking |
 | 2 | Python-TypeScript bridge architecture | A) HTTP API bridge B) Shared Neon DB with event-driven coordination C) Hybrid | Determines EOS SaaS to UMH substrate communication |
 | 3 | Embedding dimension | A) Keep 384 (local BAAI model, free) B) Switch to 1536 (OpenAI, paid) | Affects semantic search quality, cost, and migration |
 | 4 | Department agent scoping | A) Per-entity agents (memory isolation) B) Shared agents with entity context (resource efficient) | Affects multi-entity architecture |
@@ -475,13 +476,13 @@ This phase produced analysis artifacts only. The following safety properties hol
 
 ### Immediate (Same Day)
 
-1. Operator reviews this audit report and the 10 contradictions requiring decision
-2. Push Beast feature/company-system branch to GitHub remote (DEBT-014, P0.1)
+1. ~~Operator reviews this audit report and the 10 contradictions requiring decision~~ — 3 P0 EOS decisions ratified (DEC-146B-EOS-001/002/003, 2026-06-04); 9 contradictions remain
+2. Push Beast feature/company-system branch (canonical codebase per DEC-146B-EOS-001) to GitHub remote (DEBT-014, P0.1)
 3. Run `tsc --noEmit` and `npm audit` on Beast branch once accessible
 
 ### Short Term (1-2 Weeks)
 
-4. Promote Beast as new main after audit (DEBT-003, DEBT-041)
+4. Promote Beast (canonical codebase, DEC-146B-EOS-001) as new main after audit (DEBT-003, DEBT-041)
 5. Unify three schema surfaces into one canonical schema (DEBT-015)
 6. Bridge Clerk auth to UMH platform API (DEBT-028, GAP-SEC-001)
 7. Fix RLS bypass vulnerability (GAP-SEC-002)
@@ -530,11 +531,15 @@ This phase produced analysis artifacts only. The following safety properties hol
 | Sub-features MISSING | 56 |
 | Sub-features CONTRADICTED | 3 |
 | Discovered features (code, not in canon) | 18 |
-| Contradictions resolved | 10 |
-| Contradictions requiring operator decision | 10 |
+| Contradictions resolved | 11 (10 original + 1 resolved via P0 ratification) |
+| Contradictions requiring operator decision | 9 (1 of 10 resolved via DEC-146B-EOS-001) |
 | Implementation debt items | 44 (13 CRITICAL, 15 HIGH, 12 MEDIUM, 4 LOW) |
 | Professional gaps | 83 (6 CRITICAL, 27 HIGH, 36 MEDIUM, 14 LOW) |
 | Deployment-blocking gaps | 38 |
 | P0 items on critical path | 13 |
 | MVP releases to feature-complete | 5 |
 | Estimated P0 timeline | 2-3 weeks focused work |
+
+---
+
+*Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).*

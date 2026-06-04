@@ -1,7 +1,9 @@
 # UMH Cross-Product Integration Architecture
 
-**Phase:** 14.6B-UMH
+**Phase:** 14.6B-UMH (revised 14.6F)
 **Status:** DRAFT
+
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
 
 ## Current State
 
@@ -47,4 +49,4 @@ Returns a dictionary with:
 
 ## Architecture Violation Note
 
-ProductConnectionManager currently lives in `substrate/integrations/` but imports from projection-specific modules. This violates the architecture layer law (substrate must not import from projections). Planned fix: projections register capabilities via abstract ports, ProductConnectionManager queries the port registry.
+ProductConnectionManager currently lives in `substrate/integrations/` but imports from projection-specific modules. This violates the architecture layer law (substrate must not import from projections). Ratified fix (DEC-146B-UMH-005, 2026-06-04): projections register capabilities via abstract port (`substrate/sockets/projection_port.py`), ProductConnectionManager queries the port registry. Decision ratified; implementation not yet started.

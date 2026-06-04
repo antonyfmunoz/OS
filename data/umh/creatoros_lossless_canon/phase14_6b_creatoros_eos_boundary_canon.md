@@ -1,11 +1,11 @@
 ---
-phase: "14.6B-CreatorOS"
+phase: "14.6B-CreatorOS (revised 14.6F)"
 status: "DRAFT"
 operator_approved: false
 allows_implementation: false
 date: "2026-06-04"
 provenance: "SYNTHESIZED_CANON"
-description: "Definitive boundary document between CreatorOS and EntrepreneurOS — what each product owns, what crosses, what must not cross, and where UMH substrate mediates"
+description: "Definitive boundary document between CreatorOS and EntrepreneurOS — what each product owns, what crosses, what must not cross, and where UMH (Universal Meta Harness) substrate mediates"
 sources:
   - "phase14_6b_creatoros_lossless_product_canon.md (CreatorOS master canon)"
   - "phase14_6b_eos_lossless_product_canon.md (EOS master canon)"
@@ -24,7 +24,7 @@ sources:
 
 # CreatorOS / EOS Boundary Canon
 
-This document defines the authoritative boundary between CreatorOS and EntrepreneurOS (EOS). Every boundary claim traces to a source artifact. Where boundaries are uncertain or contested, the document flags OPEN_QUESTION_OPERATOR_DECISION_REQUIRED rather than inventing a resolution.
+This document defines the authoritative boundary between CreatorOS and EntrepreneurOS (EOS). Both are projections built on the Universal Meta Harness (UMH) — a reality-isomorphic intelligence harness whose core functional purpose is to build, maintain, and act through a reality-isomorphic approximation of reality (DEC-146C-001, DEC-146B-UMH-001, ratified 2026-06-04). Every boundary claim traces to a source artifact. Where boundaries are uncertain or contested, the document flags OPEN_QUESTION_OPERATOR_DECISION_REQUIRED rather than inventing a resolution.
 
 
 ## 1. Boundary Principle
@@ -138,11 +138,13 @@ It is the command center for modern creators. Its center of gravity is a creator
 | Agent skill system (versioned, trust-scored) | OWNS | - | - |
 | Agent delegation chain and escalation | OWNS | - | - |
 
-### Shared Infrastructure (UMH Substrate)
+### Shared Infrastructure (Universal Meta Harness Substrate)
+
+UMH (Universal Meta Harness) is the reality-isomorphic intelligence harness that both projections register with (DEC-146C-001, DEC-146B-UMH-001). Clerk is the ratified production auth provider for all projections (DEC-146B-EOS-003, DEC-146B-COS-002).
 
 | Capability | EOS | CreatorOS | UMH Substrate |
 |---|---|---|---|
-| Authentication provider (Clerk target) | - | - | SHARED |
+| Authentication provider (Clerk — ratified DEC-146B-EOS-003, DEC-146B-COS-002) | - | - | SHARED |
 | Intelligence routing (model_router) | - | - | SHARED |
 | Execution pipeline (8-stage spine) | - | - | SHARED |
 | Governance engine (risk classification) | - | - | SHARED |
@@ -192,9 +194,9 @@ CreatorOS owns all data that represents the creator's product, content, audience
 | Email | (none) | email_lists, email_subscribers, email_campaigns, email_sends |
 | Search | (none) | search_index (or external service) |
 
-### EOS-Owned Data (15 GitHub main + Beast expansion)
+### EOS-Owned Data (Beast canonical codebase — DEC-146B-EOS-001)
 
-EOS owns all data that represents the operator's business structure, operations, and intelligence. Three schema surfaces exist (GitHub main, Beast feature/company-system, UMH platform layer).
+EOS owns all data that represents the operator's business structure, operations, and intelligence. Beast branch is the canonical EOS codebase (DEC-146B-EOS-001, ratified 2026-06-04); GitHub main is stale/deprecated. Three schema surfaces exist (GitHub main [stale], Beast canonical, UMH platform layer).
 
 | Data Domain | Current Tables | Notes |
 |---|---|---|
@@ -468,11 +470,11 @@ Before adding any feature to either product, ask:
 
 | Component | Current State | Target State |
 |---|---|---|
-| EOS auth | Passport.js + Firebase (GitHub main), Clerk (Beast branch) | Clerk |
-| CreatorOS auth | Passport.js (BROKEN — comparePasswords returns true for ALL) | Clerk |
+| EOS auth | Passport.js + Firebase (GitHub main [stale]), Clerk (Beast canonical) | Clerk (ratified DEC-146B-EOS-003) |
+| CreatorOS auth | Passport.js (BROKEN — comparePasswords returns true for ALL) | Clerk (ratified DEC-146B-COS-002) |
 | UMH platform auth | JWT middleware in transports/api/http/ | Clerk SSO for all projections |
 
-**P0 security note:** CreatorOS auth is fundamentally broken. The comparePasswords function in server/auth.ts returns true for every password combination. This is a critical vulnerability that must be fixed before any deployment. The target for both products is Clerk, which would provide shared SSO across EOS and CreatorOS.
+**P0 security note:** CreatorOS auth is fundamentally broken. The comparePasswords function in server/auth.ts returns true for every password combination. This is a critical vulnerability that must be fixed before any deployment. Clerk is ratified as the production auth provider for both products (DEC-146B-EOS-003, DEC-146B-COS-002). CreatorOS Clerk migration is CRITICAL and blocks ALL other implementation (DEC-146B-COS-002). Migration order: Clerk first, block all other work until auth complete (DEC-146B-COS-004, ratified 2026-06-04).
 
 ### Database
 
@@ -496,8 +498,8 @@ Both products submit signals to the same `substrate/execution/spine.py` 8-stage 
 
 | Product | Current Deployment | Target Deployment |
 |---|---|---|
-| EOS SaaS layer | Not deployed (Beast branch, local only) | Fly.io (saas/ TypeScript app) |
-| CreatorOS | Not deployed (GitHub main, local dev only) | Fly.io or similar PaaS |
+| EOS SaaS layer | Not deployed (Beast canonical branch, local only) | Fly.io (saas/ TypeScript app) — Fly.io is the Trinity standard (DEC-146B-LOS-003) |
+| CreatorOS | Not deployed (GitHub main, local dev only) | Fly.io — Trinity standard (DEC-146B-LOS-003) |
 | UMH substrate | Docker on VPS (os-discord, os-operator, os-webhook, os-scraper) | Docker on VPS (orchestration brain) |
 | UMH cockpit | Fly.io (universalmetaharness.tech) | Fly.io |
 
@@ -585,3 +587,7 @@ Both products have independent design systems. They do NOT share UI components:
 **Implied answer from UMH platform layer:** One account. The UMH platform database (transports/api/http/db/schema.ts) provides shared user identity. Both products authenticate against the same user record. But the actual SSO implementation does not exist yet.
 
 **Source: All prior canon documents listed in sources header. Open questions derived from ambiguities identified during synthesis — no answer in existing source material resolves them definitively.**
+
+---
+
+*Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).*

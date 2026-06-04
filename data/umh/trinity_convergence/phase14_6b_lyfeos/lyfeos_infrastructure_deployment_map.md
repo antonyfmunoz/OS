@@ -1,10 +1,15 @@
 # LyfeOS Infrastructure and Deployment Map
 
-**Phase:** 14.6B-LyfeOS
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
 **Artifact:** 44
+**Revised:** 2026-06-04
 **Operator Approved:** false
 **Allows Implementation:** false
 **Provenance:** CODE_RESOLVED_CURRENT_TRUTH
+
+**Ratified Infrastructure Direction (DEC-146B-LOS-003, OPERATOR-APPROVED 2026-06-04):** Fly.io is the Trinity standard infrastructure. LyfeOS will migrate from Replit to Fly.io. Current Replit deployment documented below is accurate current-state truth. Migration to Fly.io is the ratified direction but has not been implemented. Implementation does not begin until a separate implementation gate is approved.
 
 ---
 
@@ -101,7 +106,7 @@ LyfeOS is deployed on Replit (autoscale) with Neon Postgres as the external data
 | Item | Status | Impact |
 |------|--------|--------|
 | Docker / Dockerfile | NOT present | Cannot containerize or self-host |
-| Fly.io configuration | NOT present | No alternative hosting configured |
+| Fly.io configuration | NOT present — **RATIFIED TARGET** (DEC-146B-LOS-003) | Migration to Fly.io is ratified direction |
 | Vercel configuration | NOT present | No serverless deployment option |
 | CI/CD pipeline | NOT present | No automated testing before deploy |
 | GitHub Actions | NOT present | No automated workflows |
@@ -157,14 +162,20 @@ No tests run before deploy. No staging validation. No approval gate.
 
 ---
 
-## Operator Decision Required
+## Operator Decision — RESOLVED
 
-**DEC-146B-INFRA-001:** Infrastructure migration path
+**DEC-146B-LOS-003** (formerly DEC-146B-INFRA-001): Infrastructure migration path
 
-Options:
+**STATUS: RESOLVED** — Ratified 2026-06-04 (Phase 14.6E). OPERATOR-APPROVED.
+
+**Ratified Answer:** Option 2 — Migrate to Fly.io. Fly.io is the Trinity standard.
+
+Original options presented:
 1. **Stay on Replit** — accept platform limitations, focus on application features
-2. **Migrate to Fly.io** — containerize, gain deployment control, CI/CD, staging env
+2. **Migrate to Fly.io** — containerize, gain deployment control, CI/CD, staging env ← **SELECTED**
 3. **Migrate to Vercel** — serverless, better DX for React+Express, built-in CI
 4. **Hybrid** — keep Replit for development, deploy production elsewhere
 
-**Recommendation:** Defer migration until after production hardening (backup, RLS, error tracking). The current Replit deployment works. Migration is a standardization and reliability improvement, not an emergency. When ready, Fly.io aligns with the Trinity platform standard established in Phase 14.5.
+**Original recommendation:** Defer migration until after production hardening (backup, RLS, error tracking). The current Replit deployment works. Migration is a standardization and reliability improvement, not an emergency. When ready, Fly.io aligns with the Trinity platform standard established in Phase 14.5.
+
+**Current state:** Replit remains the active deployment platform. Fly.io migration has not begun. All Replit documentation above is current-state truth.

@@ -1,12 +1,13 @@
 {
-  "phase": "14.6B-CreatorOS",
+  "phase": "14.6B-CreatorOS (revised 14.6F)",
   "status": "DRAFT",
   "operator_approved": false,
   "allows_implementation": false,
   "date": "2026-06-04",
+  "revised": "2026-06-04",
   "provenance": "SYNTHESIZED_CANON",
-  "description": "Precise MVP scope for CreatorOS -- resolves 3 conflicting MVP definitions into a single recommended release plan across 5 incremental releases, with explicit exclusions, prerequisite decisions, tech stack, and success criteria.",
-  "provenance_detail": "SYNTHESIZED_CANON for the recommended MVP and release structure. OPEN_QUESTION_OPERATOR_DECISION_REQUIRED for scope confirmation (DEC-145-002) and auth migration order (DEC-145-004). SOURCE_PRESERVED_TRUTH for the 3 conflicting definitions extracted verbatim from Google Doc Tabs 3, 6, and 7.",
+  "description": "Precise MVP scope for CreatorOS -- resolves 3 conflicting MVP definitions into a single recommended release plan across 5 incremental releases, with explicit exclusions, prerequisite decisions, tech stack, and success criteria. Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).",
+  "provenance_detail": "SYNTHESIZED_CANON for the recommended MVP and release structure. DEC-146B-COS-001 (MVP scope Option B ratified 2026-06-04) and DEC-146B-COS-002 (Clerk auth ratified 2026-06-04, was DEC-145-004). SOURCE_PRESERVED_TRUTH for the 3 conflicting definitions extracted verbatim from Google Doc Tabs 3, 6, and 7.",
   "cross_references": [
     "phase14_6b_creatoros_versions_contradictions_matrix.json (CONTRA-COS-002: 3 conflicting MVP scopes)",
     "phase14_6b_creatoros_current_implementation_truth.json (16 pages, 20 tables, broken auth, god files)",
@@ -656,7 +657,8 @@
     "description": "Operator decisions that MUST be made before R1 development begins. Each decision blocks concrete implementation work.",
     "decisions": [
       {
-        "id": "DEC-145-002",
+        "id": "DEC-146B-COS-001",
+        "original_id": "DEC-145-002",
         "question": "Which MVP scope is canonical? Three conflicting definitions exist in the Google Doc.",
         "options": {
           "A": "Creator/Community Only (Tab 6 -- smallest, excludes revenue features)",
@@ -664,25 +666,34 @@
           "C": "Creator + Full Distribution (Tab 7-ish -- adds cross-platform publishing to B)",
           "D": "Full PRD Scope (everything including UGC, ads, automation, editing studio)"
         },
+        "ratified_answer": "B — Content + Community + Courses + Sales (8-12 weeks). Operator approved.",
         "recommendation": "B",
         "recommendation_rationale": "Builds on existing code. Includes revenue. Defers hardest engineering (platform integrations) to post-MVP. Provable business model in 5 releases over ~15 weeks.",
-        "impact": "Blocks all feature prioritization, sprint planning, and resource allocation.",
-        "status": "OPEN",
-        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+        "impact": "Previously blocked all feature prioritization, sprint planning, and resource allocation. Now UNBLOCKED.",
+        "status": "RESOLVED",
+        "ratified_date": "2026-06-04",
+        "ratified_phase": "14.6C",
+        "provenance": "OPERATOR_RATIFIED"
       },
       {
-        "id": "DEC-145-004",
-        "question": "Clerk migration order -- CreatorOS first or EOS first?",
+        "id": "DEC-146B-COS-002",
+        "original_id": "DEC-145-004",
+        "question": "Auth migration strategy for CreatorOS?",
         "context": "Both apps target Clerk. EOS Beast branch already has partial Clerk implementation. CreatorOS has CRITICAL auth bypass (any password works). EOS is closer to revenue (primary focus).",
         "options": {
-          "A": "EOS first (closer to revenue, partial Clerk already implemented on Beast)",
-          "B": "CreatorOS first (more critical security vulnerability)",
-          "C": "Parallel (Clerk auth is similar pattern in both apps, could be templated)"
+          "A": "Fix Passport.js comparePasswords immediately (bandaid), then migrate to Clerk later",
+          "B": "Skip Passport.js fix, migrate directly to Clerk as first task",
+          "C": "Fix Passport.js AND add security hardening, defer Clerk to post-MVP",
+          "D": "Clerk migration as first task, block ALL other implementation until auth is complete"
         },
-        "recommendation": "A -- EOS first. CreatorOS is not deployed anywhere, so the auth vulnerability has zero real-world impact. EOS is the revenue priority. Clerk pattern established in EOS can be templated for CreatorOS.",
-        "impact": "Determines which codebase gets auth attention first. CreatorOS R1 is blocked until Clerk migration starts.",
-        "status": "OPEN",
-        "provenance": "OPEN_QUESTION_OPERATOR_DECISION_REQUIRED"
+        "ratified_answer": "D — Clerk first, block ALL other implementation until auth complete. Operator approved. Clerk is confirmed as production auth provider (DEC-146B-EOS-003 also ratifies Clerk for EOS).",
+        "recommendation": "D",
+        "recommendation_rationale": "Auth bypass is CRITICAL severity. Fixing Passport.js is wasted work on a system scheduled for replacement. EOS Beast already has Clerk pattern as reference.",
+        "impact": "Previously blocked all deployment and feature build. Now UNBLOCKED — Clerk migration is the ratified first task.",
+        "status": "RESOLVED",
+        "ratified_date": "2026-06-04",
+        "ratified_phase": "14.6C",
+        "provenance": "OPERATOR_RATIFIED"
       },
       {
         "id": "DEC-COS-MVP-001",
@@ -943,7 +954,7 @@
     "total_weeks": "14-19",
     "total_months": "3.5-4.75",
     "caveat": "Timeline assumes CreatorOS gets dedicated development attention. If CreatorOS is nights/weekends only (current reality per CLAUDE.md: 'Future side projects are not being actively worked on'), elapsed calendar time will be 3-5x longer than effort weeks. EOS and Initiate Arena are the current priorities.",
-    "dependency_on_eos": "Clerk migration pattern established in EOS (DEC-145-004) will template CreatorOS R1, reducing auth migration effort."
+    "dependency_on_eos": "Clerk migration pattern established in EOS (DEC-146B-EOS-003 ratified Clerk for EOS) will template CreatorOS R1, reducing auth migration effort. Both auth decisions ratified 2026-06-04."
   },
 
   "post_mvp_roadmap_sketch": {
@@ -1035,9 +1046,9 @@
     "operator_decisions_required": 6,
     "explicit_exclusions": 16,
     "critical_blockers": [
-      "DEC-145-002: MVP scope confirmation (blocks ALL development)",
-      "DEC-145-004: Clerk migration order (blocks R1)",
-      "COS-AUTH-001: Auth bypass (blocks deployment -- resolved by R1 Clerk migration)"
+      "DEC-146B-COS-001 (was DEC-145-002): MVP scope — RESOLVED. Option B ratified (Content + Community + Courses + Sales).",
+      "DEC-146B-COS-002 (was DEC-145-004): Auth strategy — RESOLVED. Clerk first, block all other implementation.",
+      "COS-AUTH-001: Auth bypass — resolution path ratified (Clerk migration per DEC-146B-COS-002). Implementation not yet started."
     ],
     "release_sequence": "R1 Auth+Profile+Shell -> R2 Content+Feed -> R3 Community+Messaging -> R4 Products+Marketplace+Payments -> R5 Courses+AI+Revenue"
   }

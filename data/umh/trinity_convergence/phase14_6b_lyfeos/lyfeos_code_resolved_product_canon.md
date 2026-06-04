@@ -1,6 +1,9 @@
 # LyfeOS Code-Resolved Product Canon
 
-**Phase:** 14.6B-LyfeOS
+Revised in Phase 14.6F to align with 18 ratified P0 decisions (2026-06-04).
+
+**Phase:** 14.6B-LyfeOS (revised 14.6F)
+**Revised:** 2026-06-04
 **Operator Approved:** false
 **Allows Implementation:** false
 
@@ -12,7 +15,7 @@ This is the master canon document for LyfeOS. Every claim is grounded in code ev
 
 **LyfeOS** is a gamified personal life operating system that treats human life as a stateful system with measurable inputs, outputs, and progression mechanics.
 
-- **Domain:** lyfeos.net (deployed on Replit)
+- **Domain:** lyfeos.net (deployed on Replit; ratified migration target: Fly.io per DEC-146B-LOS-003)
 - **Repository:** Private GitHub + Beast at C:\dev\dev\LyfeOS
 - **Stack:** React 18 + TypeScript + Vite + Express + Neon Postgres + Drizzle ORM
 - **Aesthetic:** Dark-only, "Solo Leveling" anime-inspired, neon cyan accents, HUD-style interfaces
@@ -236,6 +239,10 @@ Energy, Health, Wealth, Time, Attention. All current/max pairs defaulting to 100
 ---
 
 ## 11. UMH Connection
+
+UMH (Universal Meta Harness, DEC-146B-UMH-001) is the reality-isomorphic intelligence harness (DEC-146C-001) that LyfeOS connects to as a projection.
+
+3 LyfeOS strategic decisions are now ratified (Phase 14.6E, 2026-06-04): PRD v2.0 is canonical (DEC-146B-LOS-001), Clerk migration after CreatorOS proves pattern (DEC-146B-LOS-002), Fly.io is Trinity standard (DEC-146B-LOS-003).
 
 **Provenance:** SYNTHESIZED_CANON / UMH_INTEGRATION_DEPENDENT_GAP
 
