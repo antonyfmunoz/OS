@@ -34,6 +34,7 @@ class PacketLifecycleStatus(str, Enum):
     APPROVED = "approved"
     DELEGATED = "delegated"
     EXECUTING = "executing"
+    PAUSED = "paused"
     RECONVERGING = "reconverging"
     VALIDATING = "validating"
     COMPLETED = "completed"
@@ -81,8 +82,13 @@ _VALID_TRANSITIONS: dict[PacketLifecycleStatus, frozenset[PacketLifecycleStatus]
         PacketLifecycleStatus.FAILED,
     }),
     PacketLifecycleStatus.EXECUTING: frozenset({
-        PacketLifecycleStatus.RECONVERGING, PacketLifecycleStatus.VALIDATING,
-        PacketLifecycleStatus.FAILED, PacketLifecycleStatus.BLOCKED,
+        PacketLifecycleStatus.PAUSED, PacketLifecycleStatus.RECONVERGING,
+        PacketLifecycleStatus.VALIDATING, PacketLifecycleStatus.FAILED,
+        PacketLifecycleStatus.BLOCKED,
+    }),
+    PacketLifecycleStatus.PAUSED: frozenset({
+        PacketLifecycleStatus.EXECUTING, PacketLifecycleStatus.BLOCKED,
+        PacketLifecycleStatus.FAILED, PacketLifecycleStatus.ARCHIVED,
     }),
     PacketLifecycleStatus.RECONVERGING: frozenset({
         PacketLifecycleStatus.VALIDATING, PacketLifecycleStatus.FAILED,
