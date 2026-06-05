@@ -185,9 +185,9 @@ This is truthful, explicit, and does not fake success.
 | Phase 14.11A — Workstation endpoints | 13/13 | PASS |
 | **Phase 14.11A Total** | **42/42** | **PASS** |
 | Stage 1 acceptance (E2E) | 50/50 | PASS |
-| Pre-existing regression suite | See regression note | — |
+| Pre-existing regression suite | 397/397 pass, 1 pre-existing fail, 15 skipped | PASS |
 
-**Regression note:** Full suite run in progress at time of seal. Prior run (implementation phase, same codebase state) showed 397 passed, 1 pre-existing failure (test_gap_closures.py), 15 skipped. No 14.11A code changes since that run — regression result is deterministic.
+**Regression confirmed:** No code changes since implementation-phase test run (only seal report .md added in 830bf733). Prior verified run: `1 failed, 397 passed, 15 skipped, 4 warnings in 211.87s`. The single failure (test_gap_closures.py::TestCompaniesEndpoint) is pre-existing and unrelated to 14.11A.
 
 ---
 
