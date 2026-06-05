@@ -1,23 +1,34 @@
-"""Workstation mode resolver — read-only composite of all mode systems.
+"""Workstation mode resolver — authoritative composite of all mode systems.
 
-Reads OperatorDayMode, OperationalMode, StationPresenceMode, and OperatorMode
-without replacing any of them. Returns a unified snapshot for the cockpit.
+Reads OperatorDayMode, OperationalMode, StationPresenceMode, OperatorMode,
+the continuity state machine, lifecycle modes, and profile modes. Returns
+a unified snapshot for the cockpit and governance layers.
 
-Phase 14.11A. Substrate layer. Instance-agnostic.
+Phase 14.11A: read-only aggregator of 4 legacy systems.
+Phase 14.11B: upgraded to compose continuity + lifecycle + profile.
+
+Substrate layer. Instance-agnostic.
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-def resolve_composite_mode() -> dict[str, Any]:
-    """Read all four mode systems and return a unified composite.
+def resolve_composite_mode(
+    continuity_state: str = "",
+    lifecycle_mode: str = "",
+    active_profile_modes: list[str] | None = None,
+) -> dict[str, Any]:
+    """Read all mode systems and return a unified composite.
 
     Never mutates state. Pure read-only aggregation.
+    New 14.11B fields are additive — all 14.11A fields preserved.
     """
     result: dict[str, Any] = {
         "operator_day_mode": _read_operator_day_mode(),
@@ -27,17 +38,18 @@ def resolve_composite_mode() -> dict[str, Any]:
     }
 
     result["effective_posture"] = _derive_posture(result)
+
+    result["continuity_state"] = continuity_state or _read_continuity_state()
+    result["lifecycle_mode"] = lifecycle_mode or _derive_lifecycle_mode(result)
+    result["active_profile_modes"] = active_profile_modes or _read_profile_modes()
+    result["risk_ceiling"] = _derive_risk_ceiling(result.get("lifecycle_mode", "day_cycle"))
+
     return result
 
 
 def _read_operator_day_mode() -> dict[str, Any]:
     try:
-        from substrate.execution.bridge.operator_session import (
-            OperatorDayMode,
-            OperatorSession,
-        )
-        import json
-        import os
+        import json as _json
 
         path = os.path.join(
             os.environ.get("UMH_ROOT", "/opt/OS"),
@@ -54,7 +66,7 @@ def _read_operator_day_mode() -> dict[str, Any]:
         if not last_line:
             return {"mode": "unknown", "source": "empty session file"}
 
-        data = json.loads(last_line)
+        data = _json.loads(last_line)
         return {
             "mode": data.get("day_mode", "unknown"),
             "source": "operator_session",
@@ -66,7 +78,7 @@ def _read_operator_day_mode() -> dict[str, Any]:
 
 def _read_operational_mode() -> dict[str, Any]:
     try:
-        from substrate.execution.workers.workstation.workstation_operational_modes_v1 import (
+        from substrate.execution.workers.workstation.workstation_contracts_v1 import (
             OperationalMode,
         )
         return {
@@ -103,6 +115,78 @@ def _read_operator_mode() -> dict[str, Any]:
     except Exception as exc:
         logger.debug("operator_mode read failed: %s", exc)
         return {"mode": "unknown", "source": f"error: {type(exc).__name__}"}
+
+
+def _read_continuity_state() -> str:
+    """Read persisted continuity state, default to 'active'."""
+    try:
+        path = os.path.join(
+            os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "umh", "workstation_state", "continuity.json",
+        )
+        if os.path.exists(path):
+            data = json.loads(open(path, encoding="utf-8").read())
+            return data.get("current_state", "active")
+    except Exception as exc:
+        logger.debug("continuity_state read failed: %s", exc)
+    return "active"
+
+
+def _read_profile_modes() -> list[str]:
+    """Read active profile modes, default to ['developer']."""
+    try:
+        path = os.path.join(
+            os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "umh", "workstation_state", "profile_modes.json",
+        )
+        if os.path.exists(path):
+            data = json.loads(open(path, encoding="utf-8").read())
+            modes = data.get("active_modes", [])
+            if modes:
+                return modes
+    except Exception as exc:
+        logger.debug("profile_modes read failed: %s", exc)
+    return ["developer"]
+
+
+def _derive_lifecycle_mode(modes: dict[str, Any]) -> str:
+    """Derive lifecycle mode from continuity state + day mode."""
+    continuity = modes.get("continuity_state", "active")
+    day = modes.get("operator_day_mode", {}).get("mode", "unknown")
+
+    if continuity == "night_sleeping" or day == "overnight":
+        return "night_cycle"
+    if continuity == "extended_absence":
+        return "overnight"
+    if continuity in ("returning", "resume_brief"):
+        return "day_cycle"
+    if continuity == "away":
+        return "away"
+    if continuity == "remote":
+        return "remote_work"
+    if continuity == "idle":
+        return "idle"
+    if day == "deep_work":
+        return "day_cycle"
+    if day == "inactive":
+        return "idle"
+    return "day_cycle"
+
+
+def _derive_risk_ceiling(lifecycle_mode: str) -> str:
+    """Map lifecycle mode to maximum permitted risk level."""
+    ceilings = {
+        "day_cycle": "HIGH",
+        "night_cycle": "LOW",
+        "overnight": "LOW",
+        "maintenance": "MEDIUM",
+        "idle": "LOW",
+        "away": "LOW",
+        "remote_work": "MEDIUM",
+        "end_of_workday": "LOW",
+        "emergency": "CRITICAL",
+    }
+    return ceilings.get(lifecycle_mode, "LOW")
 
 
 def _derive_posture(modes: dict[str, Any]) -> str:
