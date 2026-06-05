@@ -1,0 +1,457 @@
+"""Cockpit workspace routes — file browser, diff, test results, logs, proof, health.
+
+Mounted under /api/umh/ via include_router in cockpit.py.
+Phase 14.11C. UMH transport layer. Instance-agnostic.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import platform
+import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable
+
+from fastapi import APIRouter, Depends, Request
+
+logger = logging.getLogger(__name__)
+
+workspace_router: APIRouter = APIRouter()
+
+_configured: bool = False
+
+_REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+_DATA_ROOT = os.path.join(_REPO_ROOT, "data")
+_UMH_DATA = os.path.join(_DATA_ROOT, "umh")
+
+
+def configure(require_operator_dep: Any) -> None:
+    global _configured, workspace_router
+    _configured = True
+    workspace_router = _build_router(require_operator_dep)
+
+
+def _build_router(require_operator_dep: Any) -> APIRouter:
+    r = APIRouter()
+    auth = [Depends(require_operator_dep)]
+
+    r.add_api_route("/workspace/browse", _browse_dir, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workspace/read-file", _read_file, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workspace/git-status", _git_status, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workspace/git-diff", _git_diff, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workspace/git-diff-file", _git_diff_file, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workspace/test-results", _test_results, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workspace/execution-logs", _execution_logs, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workspace/proof-artifacts", _proof_artifacts, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workspace/health", _health_check, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workspace/trace-linkage", _trace_linkage, methods=["GET"], dependencies=auth)
+
+    return r
+
+
+# ---------------------------------------------------------------------------
+# File browser
+# ---------------------------------------------------------------------------
+
+async def _browse_dir(request: Request) -> dict[str, Any]:
+    from substrate.workstation.file_browser import browse_directory
+    path = request.query_params.get("path", _REPO_ROOT)
+    result = browse_directory(path)
+    return result.to_dict()
+
+
+async def _read_file(request: Request) -> dict[str, Any]:
+    from substrate.workstation.file_browser import read_file
+    path = request.query_params.get("path", "")
+    if not path:
+        return {"ok": False, "error": "path parameter required"}
+    result = read_file(path)
+    return result.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Git diff / status
+# ---------------------------------------------------------------------------
+
+def _run_git(args: list[str], cwd: str | None = None) -> tuple[bool, str]:
+    try:
+        result = subprocess.run(
+            ["git"] + args,
+            cwd=cwd or _REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        return result.returncode == 0, result.stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+        return False, str(e)
+
+
+async def _git_status(request: Request) -> dict[str, Any]:
+    ok, output = _run_git(["status", "--porcelain"])
+    if not ok:
+        return {"ok": False, "error": output, "source_env": _detect_env()}
+
+    changed: list[dict[str, str]] = []
+    for line in output.strip().splitlines():
+        if len(line) >= 4:
+            status = line[:2].strip()
+            filepath = line[3:]
+            changed.append({"status": status, "path": filepath})
+
+    ok2, branch_out = _run_git(["rev-parse", "--abbrev-ref", "HEAD"])
+    ok3, commit_out = _run_git(["rev-parse", "--short", "HEAD"])
+
+    return {
+        "ok": True,
+        "branch": branch_out.strip() if ok2 else "unknown",
+        "commit": commit_out.strip() if ok3 else "unknown",
+        "changed_count": len(changed),
+        "changed_files": changed[:100],
+        "source_env": _detect_env(),
+    }
+
+
+async def _git_diff(request: Request) -> dict[str, Any]:
+    staged = request.query_params.get("staged", "false") == "true"
+    args = ["diff", "--stat"]
+    if staged:
+        args.append("--cached")
+
+    ok, stat_output = _run_git(args)
+    if not ok:
+        return {"ok": False, "error": stat_output, "source_env": _detect_env()}
+
+    ok2, diff_output = _run_git(["diff"] + (["--cached"] if staged else []))
+
+    return {
+        "ok": True,
+        "staged": staged,
+        "stat": stat_output.strip(),
+        "diff": diff_output[:50000] if ok2 else "",
+        "truncated": len(diff_output) > 50000 if ok2 else False,
+        "source_env": _detect_env(),
+    }
+
+
+async def _git_diff_file(request: Request) -> dict[str, Any]:
+    filepath = request.query_params.get("path", "")
+    if not filepath:
+        return {"ok": False, "error": "path parameter required"}
+
+    ok, output = _run_git(["diff", "--", filepath])
+    if not ok:
+        ok, output = _run_git(["diff", "--cached", "--", filepath])
+
+    return {
+        "ok": ok,
+        "path": filepath,
+        "diff": output[:50000] if ok else "",
+        "truncated": len(output) > 50000 if ok else False,
+        "source_env": _detect_env(),
+        "error": output if not ok else "",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Test results
+# ---------------------------------------------------------------------------
+
+_TEST_RESULTS_PATH = os.path.join(_UMH_DATA, "workspace", "last_test_result.json")
+
+
+async def _test_results(request: Request) -> dict[str, Any]:
+    if os.path.exists(_TEST_RESULTS_PATH):
+        try:
+            with open(_TEST_RESULTS_PATH) as f:
+                data = json.load(f)
+            return {"ok": True, "has_results": True, "source_env": _detect_env(), **data}
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    return {
+        "ok": True,
+        "has_results": False,
+        "source_env": _detect_env(),
+        "recommended_command": "python3 -m pytest tests/ -v --tb=short",
+        "message": "No test results available. Run the recommended command to generate results.",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Execution logs
+# ---------------------------------------------------------------------------
+
+async def _execution_logs(request: Request) -> dict[str, Any]:
+    limit = int(request.query_params.get("limit", "50"))
+    limit = min(limit, 200)
+
+    logs: list[dict[str, Any]] = []
+
+    journal_path = os.path.join(_UMH_DATA, "organism", "execution_journal.jsonl")
+    if os.path.exists(journal_path):
+        try:
+            with open(journal_path) as f:
+                lines = f.readlines()
+            for line in lines[-limit:]:
+                line = line.strip()
+                if line:
+                    try:
+                        logs.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            pass
+
+    events_path = os.path.join(_UMH_DATA, "organism", "events.jsonl")
+    if os.path.exists(events_path) and len(logs) < limit:
+        try:
+            with open(events_path) as f:
+                lines = f.readlines()
+            remaining = limit - len(logs)
+            for line in lines[-remaining:]:
+                line = line.strip()
+                if line:
+                    try:
+                        entry = json.loads(line)
+                        entry["_source"] = "events"
+                        logs.append(entry)
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            pass
+
+    return {
+        "ok": True,
+        "count": len(logs),
+        "logs": logs,
+        "source_env": _detect_env(),
+        "sources": ["execution_journal.jsonl", "events.jsonl"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Proof / preview artifacts
+# ---------------------------------------------------------------------------
+
+_PROOF_DIR = os.path.join(_UMH_DATA, "workspace", "proof")
+
+
+async def _proof_artifacts(request: Request) -> dict[str, Any]:
+    artifacts: list[dict[str, Any]] = []
+
+    if os.path.isdir(_PROOF_DIR):
+        try:
+            for name in sorted(os.listdir(_PROOF_DIR))[-20:]:
+                fpath = os.path.join(_PROOF_DIR, name)
+                if os.path.isfile(fpath):
+                    stat = os.stat(fpath)
+                    artifacts.append({
+                        "name": name,
+                        "path": fpath,
+                        "size": stat.st_size,
+                        "modified": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                        "type": _classify_proof(name),
+                    })
+        except OSError:
+            pass
+
+    playwright_available = os.path.exists(os.path.join(_REPO_ROOT, "skills", "tools", "playwright"))
+
+    return {
+        "ok": True,
+        "count": len(artifacts),
+        "artifacts": artifacts,
+        "proof_dir": _PROOF_DIR,
+        "playwright_available": playwright_available,
+        "console_capture_available": False,
+        "console_capture_blocker": "Console log capture requires Playwright MCP connection — not wired for headless VPS mode yet",
+        "source_env": _detect_env(),
+    }
+
+
+def _classify_proof(name: str) -> str:
+    lower = name.lower()
+    if lower.endswith((".png", ".jpg", ".jpeg", ".webp")):
+        return "screenshot"
+    if lower.endswith(".json"):
+        return "metadata"
+    if lower.endswith(".md"):
+        return "report"
+    if lower.endswith(".html"):
+        return "html_snapshot"
+    return "other"
+
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+async def _health_check(request: Request) -> dict[str, Any]:
+    checks: list[dict[str, Any]] = []
+
+    ok_api, _ = _run_git(["rev-parse", "HEAD"])
+    checks.append({
+        "name": "git_repo",
+        "status": "reachable" if ok_api else "unreachable",
+        "last_check": datetime.now(tz=timezone.utc).isoformat(),
+    })
+
+    cockpit_url = os.environ.get("COCKPIT_HEALTH_URL", "")
+    if cockpit_url:
+        try:
+            import urllib.request
+            with urllib.request.urlopen(cockpit_url, timeout=5) as resp:
+                checks.append({
+                    "name": "cockpit_app",
+                    "status": "reachable" if resp.status == 200 else "error",
+                    "last_check": datetime.now(tz=timezone.utc).isoformat(),
+                    "http_status": resp.status,
+                })
+        except Exception as e:
+            checks.append({
+                "name": "cockpit_app",
+                "status": "unreachable",
+                "last_check": datetime.now(tz=timezone.utc).isoformat(),
+                "error": str(e),
+            })
+    else:
+        checks.append({
+            "name": "cockpit_app",
+            "status": "unconfigured",
+            "last_check": datetime.now(tz=timezone.utc).isoformat(),
+            "message": "Set COCKPIT_HEALTH_URL env var to enable",
+        })
+
+    docker_ok = False
+    try:
+        result = subprocess.run(
+            ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            docker_ok = True
+            containers: list[dict[str, str]] = []
+            for line in result.stdout.strip().splitlines():
+                parts = line.split("\t", 1)
+                if len(parts) == 2:
+                    containers.append({"name": parts[0], "status": parts[1]})
+            checks.append({
+                "name": "docker",
+                "status": "reachable",
+                "last_check": datetime.now(tz=timezone.utc).isoformat(),
+                "containers": containers,
+            })
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        pass
+
+    if not docker_ok:
+        checks.append({
+            "name": "docker",
+            "status": "unreachable",
+            "last_check": datetime.now(tz=timezone.utc).isoformat(),
+        })
+
+    mesh_path = os.path.join(_DATA_ROOT, "runtime", "mesh_nodes.json")
+    if os.path.exists(mesh_path):
+        try:
+            with open(mesh_path) as f:
+                nodes = json.load(f)
+            checks.append({
+                "name": "mesh_nodes",
+                "status": "reachable",
+                "node_count": len(nodes) if isinstance(nodes, list) else 0,
+                "last_check": datetime.now(tz=timezone.utc).isoformat(),
+            })
+        except (json.JSONDecodeError, OSError):
+            checks.append({"name": "mesh_nodes", "status": "unavailable",
+                           "last_check": datetime.now(tz=timezone.utc).isoformat()})
+    else:
+        checks.append({"name": "mesh_nodes", "status": "unavailable",
+                       "last_check": datetime.now(tz=timezone.utc).isoformat()})
+
+    all_reachable = all(c.get("status") in ("reachable", "unconfigured") for c in checks)
+
+    return {
+        "ok": True,
+        "overall": "healthy" if all_reachable else "degraded",
+        "checks": checks,
+        "source_env": _detect_env(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Trace linkage
+# ---------------------------------------------------------------------------
+
+async def _trace_linkage(request: Request) -> dict[str, Any]:
+    trace_id = request.query_params.get("trace_id", "")
+    work_packet_id = request.query_params.get("work_packet_id", "")
+
+    links: dict[str, Any] = {
+        "trace_id": trace_id,
+        "work_packet_id": work_packet_id,
+        "execution_log": None,
+        "test_result": None,
+        "diff": None,
+        "proof": None,
+        "resume_state": None,
+    }
+
+    if trace_id:
+        journal_path = os.path.join(_UMH_DATA, "organism", "execution_journal.jsonl")
+        if os.path.exists(journal_path):
+            try:
+                with open(journal_path) as f:
+                    for line in f:
+                        if trace_id in line:
+                            try:
+                                entry = json.loads(line)
+                                links["execution_log"] = entry
+                                break
+                            except json.JSONDecodeError:
+                                continue
+            except OSError:
+                pass
+
+    if work_packet_id:
+        wp_path = os.path.join(_UMH_DATA, "universal_work", "work_packets.jsonl")
+        if os.path.exists(wp_path):
+            try:
+                with open(wp_path) as f:
+                    for line in f:
+                        if work_packet_id in line:
+                            try:
+                                entry = json.loads(line)
+                                links["work_packet"] = entry
+                                break
+                            except json.JSONDecodeError:
+                                continue
+            except OSError:
+                pass
+
+    from substrate.workstation.checkpoint import CheckpointManager
+    mgr = CheckpointManager()
+    latest = mgr.latest()
+    if latest:
+        links["resume_state"] = latest.to_dict()
+
+    return {"ok": True, "links": links, "source_env": _detect_env()}
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _detect_env() -> str:
+    system = platform.system().lower()
+    if system == "linux":
+        if os.path.exists("/.dockerenv"):
+            return "container"
+        return "vps"
+    if system == "windows":
+        return "windows"
+    return system
