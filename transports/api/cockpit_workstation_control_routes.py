@@ -9,7 +9,9 @@ Phase 14.11A. UMH transport layer. Instance-agnostic.
 from __future__ import annotations
 
 import logging
+import os
 import platform
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
@@ -117,6 +119,36 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route(
         "/workstation/return-brief/generate",
         _generate_return_brief,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/workstation/mode-switch",
+        _mode_switch,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/workstation/profile-modes",
+        _set_profile_modes,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/workstation/overnight/queue",
+        _overnight_queue_work,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/workstation/overnight/status",
+        _overnight_status,
+        methods=["GET"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/workstation/overnight/approve",
+        _overnight_approve,
         methods=["POST"],
         dependencies=auth,
     )
@@ -583,3 +615,128 @@ async def _generate_return_brief(request: Request) -> dict[str, Any]:
         active_environment=platform.system().lower(),
     )
     return {"ok": True, "brief": brief.to_dict()}
+
+
+# ── Mode switching ─────────────────────────────────────────────────────────
+
+
+async def _mode_switch(request: Request) -> dict[str, Any]:
+    body = await request.json()
+    text = body.get("command", "")
+    if not text:
+        return {"ok": False, "error": "No command text provided"}
+
+    from substrate.workstation.mode_commands import parse_mode_command
+    result = parse_mode_command(text)
+
+    if not result.recognized:
+        return {
+            "ok": False,
+            "error": "Command not recognized as a mode switch",
+            "raw_input": text,
+        }
+
+    if result.command_type == "continuity":
+        from substrate.workstation.continuity import ContinuityState
+        try:
+            target = ContinuityState(result.target_value)
+        except ValueError:
+            return {"ok": False, "error": f"Invalid continuity state: {result.target_value}"}
+
+        machine = _get_continuity_machine()
+        if not machine.can_transition(target):
+            return {
+                "ok": False,
+                "error": f"Cannot transition to {result.target_value} from {machine.current_state.value}",
+                "valid_transitions": [s.value for s in machine.valid_transitions()],
+            }
+
+        prev = machine.current_state.value
+        machine.transition(target, reason=f"mode command: {text}")
+        _persist_continuity()
+
+        from substrate.workstation.checkpoint import CheckpointManager
+        from substrate.workstation.mode_resolver import resolve_composite_mode
+        mode = resolve_composite_mode(continuity_state=result.target_value)
+        mgr = CheckpointManager()
+        mgr.create_checkpoint(
+            previous_state=prev,
+            new_state=result.target_value,
+            lifecycle_mode=mode.get("lifecycle_mode", ""),
+            transition_reason=f"mode command: {text}",
+        )
+
+        return {
+            "ok": True,
+            "command_type": "continuity",
+            "target_value": result.target_value,
+            "previous_state": prev,
+            "new_state": machine.current_state.value,
+        }
+
+    return {
+        "ok": True,
+        "command_type": result.command_type,
+        "target_value": result.target_value,
+        "applied": True,
+    }
+
+
+async def _set_profile_modes(request: Request) -> dict[str, Any]:
+    body = await request.json()
+    modes = body.get("modes", [])
+    if not modes:
+        return {"ok": False, "error": "No modes provided"}
+
+    from substrate.workstation.profile_modes import ProfileMode
+    valid_values = {m.value for m in ProfileMode}
+    invalid = [m for m in modes if m not in valid_values]
+    if invalid:
+        return {"ok": False, "error": f"Invalid profile modes: {invalid}", "valid": sorted(valid_values)}
+
+    import json as _json
+    path = os.path.join(
+        os.environ.get("UMH_ROOT", "/opt/OS"),
+        "data", "umh", "workstation_state", "profile_modes.json",
+    )
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        _json.dump({"active_modes": modes, "updated_at": datetime.now(timezone.utc).isoformat()}, f, indent=2)
+
+    return {"ok": True, "active_modes": modes}
+
+
+# ── Overnight queue ────────────────────────────────────────────────────────
+
+
+async def _overnight_queue_work(request: Request) -> dict[str, Any]:
+    body = await request.json()
+    from substrate.workstation.overnight_queue import OvernightQueue
+    queue = OvernightQueue()
+    item = queue.queue_work(
+        work_packet_id=body.get("work_packet_id", ""),
+        title=body.get("title", ""),
+        risk_level=body.get("risk_level", "LOW"),
+        reason=body.get("reason", ""),
+    )
+    return {"ok": True, "item": item.to_dict()}
+
+
+async def _overnight_status(request: Request) -> dict[str, Any]:
+    from substrate.workstation.overnight_queue import OvernightQueue
+    queue = OvernightQueue()
+    return {"ok": True, "summary": queue.morning_summary()}
+
+
+async def _overnight_approve(request: Request) -> dict[str, Any]:
+    body = await request.json()
+    item_id = body.get("item_id", "")
+    if not item_id:
+        return {"ok": False, "error": "No item_id provided"}
+
+    from substrate.workstation.overnight_queue import OvernightQueue
+    queue = OvernightQueue()
+    item = queue.approve(item_id)
+    if not item:
+        return {"ok": False, "error": f"Item {item_id} not found"}
+    return {"ok": True, "item": item.to_dict()}
