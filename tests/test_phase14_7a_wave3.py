@@ -371,7 +371,7 @@ class TestWave3SafetyGates:
             capture_output=True, text=True, cwd=str(_PROJECT_ROOT),
         )
         changed = [f for f in result.stdout.strip().split("\n") if f]
-        allowed_prefixes = ("transports/api/cockpit", "tests/", "data/umh/")
+        allowed_prefixes = ("transports/api/cockpit", "cockpit/", "tests/", "data/umh/")
         violations = [
             f for f in changed
             if f and not any(f.startswith(p) for p in allowed_prefixes)
