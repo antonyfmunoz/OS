@@ -122,6 +122,10 @@ class WorkPacketEngine:
         self.score_effectiveness(packet, classification)
         self.score_efficiency(packet, classification)
 
+        target_proj = self.detect_target_projection(user_intent)
+        if target_proj:
+            packet.target_projection = target_proj
+
         packet.status = PacketLifecycleStatus.CLASSIFIED
         packet.updated_at = time.time()
 
@@ -351,9 +355,56 @@ class WorkPacketEngine:
                 pkt.status = new_status
                 pkt.status_reason = reason
                 pkt.updated_at = time.time()
+                if new_status in (
+                    PacketLifecycleStatus.COMPLETED,
+                    PacketLifecycleStatus.FAILED,
+                ):
+                    self._record_outcome(pkt, new_status, reason)
                 self.persist_packet()
                 return True
         return False
+
+    def _record_outcome(
+        self,
+        pkt: WorkPacket,
+        terminal_status: PacketLifecycleStatus,
+        reason: str,
+    ) -> None:
+        """Record an outcome observation to InstanceRealityModel on terminal transition."""
+        try:
+            from substrate.reality_model.instance import (
+                InstanceRealityModel,
+                InstanceObservation,
+            )
+            outcome_type = "success" if terminal_status == PacketLifecycleStatus.COMPLETED else "failure"
+            content = (
+                f"Work packet {pkt.packet_id} ({pkt.title}) "
+                f"reached {terminal_status.value}: {reason or 'no reason given'}"
+            )
+            observation = InstanceObservation(
+                content=content[:2000],
+                domain=pkt.domain or "general",
+                confidence=0.8 if outcome_type == "success" else 0.6,
+                tags=[
+                    f"outcome:{outcome_type}",
+                    f"packet:{pkt.packet_id}",
+                    f"work_type:{pkt.intent_summary.split(' in ')[0] if ' in ' in pkt.intent_summary else 'unknown'}",
+                ],
+                metadata={
+                    "packet_id": pkt.packet_id,
+                    "outcome_type": outcome_type,
+                    "terminal_status": terminal_status.value,
+                    "risk_class": pkt.risk_class,
+                    "leverage_score": pkt.leverage_score,
+                },
+            )
+            model = InstanceRealityModel(user_id="system", org_id="system")
+            obs_id = model.record(observation)
+            pkt.outcome_observation_id = str(obs_id)
+            pkt.outcome_summary = content[:500]
+            logger.debug("outcome recorded: %s -> %s", pkt.packet_id, obs_id)
+        except Exception as exc:
+            logger.debug("outcome recording failed: %s", exc)
 
     def link_packet_to_self_build_item(self, packet_id: str, work_item_id: str) -> bool:
         for pkt in self._packets:
@@ -387,6 +438,114 @@ class WorkPacketEngine:
 
     def all_packets(self) -> list[WorkPacket]:
         return list(self._packets)
+
+    # ── WP-3.3: Verification Pipeline ────────────────────────────────────────
+
+    _GATE_SCRIPTS: list[str] = [
+        "scripts/check_dependency_direction.py",
+        "scripts/check_type_divergence.py",
+        "scripts/check_instance_leak.py",
+        "scripts/check_projection_leak.py",
+    ]
+
+    def run_verification(self, packet_id: str) -> list[dict[str, Any]]:
+        """Run gate scripts against a completed packet and attach results."""
+        pkt = self.get_packet(packet_id)
+        if pkt is None:
+            return [{"error": f"packet {packet_id} not found"}]
+        if pkt.status != PacketLifecycleStatus.VALIDATING:
+            return [{"error": f"packet must be in validating status, got {pkt.status.value}"}]
+
+        results: list[dict[str, Any]] = []
+        repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
+        all_passed = True
+
+        for script_rel in self._GATE_SCRIPTS:
+            script_path = os.path.join(repo_root, script_rel)
+            gate_name = os.path.basename(script_rel).replace(".py", "").replace("check_", "")
+            result: dict[str, Any] = {
+                "gate": gate_name,
+                "script": script_rel,
+                "passed": False,
+                "exit_code": -1,
+                "output": "",
+            }
+            if not os.path.isfile(script_path):
+                result["output"] = f"gate script not found: {script_path}"
+                results.append(result)
+                all_passed = False
+                continue
+            try:
+                import subprocess
+                proc = subprocess.run(
+                    ["python3", script_path, "--all"],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    cwd=repo_root,
+                )
+                result["exit_code"] = proc.returncode
+                result["passed"] = proc.returncode == 0
+                result["output"] = (proc.stdout + proc.stderr)[:1000]
+                if proc.returncode != 0:
+                    all_passed = False
+            except subprocess.TimeoutExpired:
+                result["output"] = "gate script timed out (60s)"
+                all_passed = False
+            except Exception as exc:
+                result["output"] = str(exc)[:500]
+                all_passed = False
+            results.append(result)
+
+        pkt.verification_results = results
+        pkt.verification_passed = all_passed
+        pkt.updated_at = time.time()
+        self.persist_packet()
+        return results
+
+    # ── WP-3.4: Projection Routing ───────────────────────────────────────────
+
+    _KNOWN_PROJECTIONS: list[str] = ["eos", "creatoros", "lyfeos"]
+
+    def detect_target_projection(self, user_intent: str) -> str:
+        """Detect if user intent targets a specific projection directory.
+
+        Returns the projection name (e.g., 'eos') or empty string if
+        the intent is projection-agnostic (substrate/general work).
+        Checks longer/more-specific projections first to avoid false matches.
+        """
+        intent_lower = user_intent.lower()
+        # Order matters: check specific projections before generic ones
+        # ("lyfeos" contains "eos", "creatoros" contains "creator")
+        projection_signals: list[tuple[str, list[str]]] = [
+            ("lyfeos", [
+                "lyfeos", "lyfe os", "life operating",
+                "personal system",
+            ]),
+            ("creatoros", [
+                "creatoros", "creator ",
+                "content creation", "media production",
+            ]),
+            ("eos", [
+                "entrepreneur", "entrepreneuros", "eos ",
+                "venture", "client pipeline",
+            ]),
+        ]
+        for proj_name, signals in projection_signals:
+            for signal in signals:
+                if signal in intent_lower:
+                    return proj_name
+        return ""
+
+    def get_projection_root(self, projection_name: str) -> str | None:
+        """Return the filesystem root for a projection, or None if unknown."""
+        if projection_name not in self._KNOWN_PROJECTIONS:
+            return None
+        repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
+        proj_root = os.path.join(repo_root, "projections", projection_name)
+        if os.path.isdir(proj_root):
+            return proj_root
+        return None
 
     def _generate_title(self, intent: str, classification: IntentClassification) -> str:
         prefix = classification.work_type.replace("_", " ").title()

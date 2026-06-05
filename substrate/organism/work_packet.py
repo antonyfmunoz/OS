@@ -174,6 +174,11 @@ class WorkPacket:
     linked_pr_url: str = ""
     linked_production_truth_delta_id: str = ""
     outcome_ids: list[str] = field(default_factory=list)
+    outcome_observation_id: str = ""
+    outcome_summary: str = ""
+    verification_results: list[dict[str, Any]] = field(default_factory=list)
+    verification_passed: bool | None = None
+    target_projection: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -242,6 +247,11 @@ class WorkPacket:
             "linked_pr_url": self.linked_pr_url,
             "linked_production_truth_delta_id": self.linked_production_truth_delta_id,
             "outcome_ids": self.outcome_ids,
+            "outcome_observation_id": self.outcome_observation_id,
+            "outcome_summary": self.outcome_summary,
+            "verification_results": self.verification_results,
+            "verification_passed": self.verification_passed,
+            "target_projection": self.target_projection,
         }
 
     def to_safe_dict(self) -> dict[str, Any]:
@@ -270,6 +280,8 @@ class WorkPacket:
             "blockers": self.blockers,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "verification_passed": self.verification_passed,
+            "target_projection": self.target_projection,
         }
 
     @classmethod
@@ -345,6 +357,11 @@ class WorkPacket:
             linked_pr_url=d.get("linked_pr_url", ""),
             linked_production_truth_delta_id=d.get("linked_production_truth_delta_id", ""),
             outcome_ids=d.get("outcome_ids", []),
+            outcome_observation_id=d.get("outcome_observation_id", ""),
+            outcome_summary=d.get("outcome_summary", ""),
+            verification_results=d.get("verification_results", []),
+            verification_passed=d.get("verification_passed"),
+            target_projection=d.get("target_projection", ""),
         )
 
     def summarize(self) -> str:
