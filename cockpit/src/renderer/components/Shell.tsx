@@ -37,6 +37,7 @@ import PropagationGraphPanel from '../panels/PropagationGraphPanel'
 import { OperatorPanel } from '../panels/OperatorPanel'
 import { RuntimePanel } from '../panels/RuntimePanel'
 import { TmuxPanel } from '../panels/TmuxPanel'
+import { WorkspacePanel } from '../panels/WorkspacePanel'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -98,6 +99,8 @@ function ActivePanel() {
       return <RuntimePanel />
     case 'tmux':
       return <TmuxPanel />
+    case 'workspace':
+      return <WorkspacePanel />
     default:
       return <DashboardPanel />
   }

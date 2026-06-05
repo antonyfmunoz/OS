@@ -29,6 +29,7 @@ export type Panel =
   | 'operator'
   | 'runtime'
   | 'tmux'
+  | 'workspace'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
