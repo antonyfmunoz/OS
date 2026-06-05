@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react'
 import { useSystemStore } from '../stores/systemStore'
 import { useApprovalStore } from '../stores/approvalStore'
 import { useOrganismStore } from '../stores/organismStore'
@@ -187,6 +188,12 @@ export function DashboardPanel() {
 
           {/* Right column */}
           <div className="space-y-4">
+            {/* Resume Widget */}
+            <ResumeWidget />
+
+            {/* Cross-Device Workspace */}
+            <CrossDeviceWorkspaceWidget />
+
             {/* Unified Approval Queue */}
             <section className="wv-card p-3">
               <h3 className="wv-label mb-2">Approval Queue — {totalPending} pending</h3>
@@ -296,6 +303,98 @@ export function DashboardPanel() {
         </div>
       </div>
     </div>
+  )
+}
+
+function ResumeWidget() {
+  const [resume, setResume] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  const fetchResume = useCallback(async () => {
+    try {
+      const res = await fetch('/api/umh/workstation/resume')
+      const data = await res.json()
+      if (data.ok) setResume(data)
+    } catch { /* silent */ }
+    setLoading(false)
+  }, [])
+
+  usePolling(fetchResume, 10000)
+
+  if (loading || !resume) return null
+
+  const posture = resume.mode_composite?.effective_posture ?? 'unknown'
+  const goals = resume.resume_state?.active_goals ?? []
+  const nextActions = resume.resume_state?.suggested_next_actions ?? []
+  const hasResume = resume.has_resume
+
+  return (
+    <section className="wv-card p-3">
+      <div className="flex items-center gap-2 mb-2">
+        <h3 className="wv-label">Resume Brief</h3>
+        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+          posture === 'active' ? 'bg-ok/10 text-ok' :
+          posture === 'deep_work' ? 'bg-cyan/10 text-cyan' :
+          posture === 'remote' ? 'bg-warn/10 text-warn' :
+          'bg-surface text-text-tertiary'
+        }`}>{posture.toUpperCase()}</span>
+      </div>
+      {!hasResume && <p className="text-xs text-text-tertiary">No resume state — fresh session</p>}
+      {hasResume && (
+        <div className="space-y-1.5">
+          {goals.length > 0 && (
+            <div>
+              <span className="text-[10px] text-text-tertiary">Goals:</span>
+              {goals.slice(0, 3).map((g: string, i: number) => (
+                <p key={i} className="text-[11px] text-text-primary truncate">• {g}</p>
+              ))}
+            </div>
+          )}
+          {nextActions.length > 0 && (
+            <div>
+              <span className="text-[10px] text-text-tertiary">Next:</span>
+              {nextActions.slice(0, 3).map((a: string, i: number) => (
+                <p key={i} className="text-[11px] text-cyan truncate">→ {a}</p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function CrossDeviceWorkspaceWidget() {
+  const [nodes, setNodes] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchNodes = useCallback(async () => {
+    try {
+      const res = await fetch('/api/umh/workstation/nodes')
+      const data = await res.json()
+      if (data.ok) setNodes(data.nodes ?? [])
+    } catch { /* silent */ }
+    setLoading(false)
+  }, [])
+
+  usePolling(fetchNodes, 10000)
+
+  if (loading || nodes.length === 0) return null
+
+  return (
+    <section className="wv-card p-3">
+      <h3 className="wv-label mb-2">Workspace — {nodes.length} nodes</h3>
+      <div className="space-y-1.5">
+        {nodes.map((n: any, i: number) => (
+          <div key={n.id || i} className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${n.status === 'connected' ? 'bg-ok' : n.status === 'degraded' ? 'bg-warn' : 'bg-danger'}`} />
+            <span className="text-xs text-text-primary font-mono truncate flex-1">{n.name}</span>
+            <span className="text-[10px] text-text-tertiary">{n.os}</span>
+            {n.role && <span className="text-[10px] text-cyan">{n.role}</span>}
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
