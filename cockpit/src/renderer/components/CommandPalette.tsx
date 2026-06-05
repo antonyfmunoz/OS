@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useCockpitStore, type Panel } from '../stores/cockpitStore'
 import { useConfigStore } from '../stores/configStore'
 
@@ -42,6 +42,7 @@ export function CommandPalette() {
     { id: 'win-medium-fab', label: 'Window: Medium FAB', action: () => setWindowMode('medium-fab') },
     { id: 'win-small-fab', label: 'Window: Small FAB', action: () => setWindowMode('small-fab') },
     { id: 'win-invisible', label: 'Window: Invisible', action: () => setWindowMode('invisible') },
+    { id: 'tmux', label: 'Go to Tmux Sessions', action: () => setPanel('tmux') },
   ]
 
   useEffect(() => {
@@ -118,7 +119,28 @@ export function CommandPalette() {
               )}
             </button>
           ))}
-          {filtered.length === 0 && (
+          {filtered.length === 0 && query.length > 2 && (
+            <button
+              className="w-full text-left px-4 py-3 text-sm hover:bg-[var(--color-surface-raised)] transition-colors"
+              style={{ color: 'var(--color-cyan)' }}
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/umh/intent/classify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: query }),
+                  })
+                  const data = await res.json()
+                  if (data.intent) {
+                    setQuery(`[${data.intent}] ${query}`)
+                  }
+                } catch { /* silent */ }
+              }}
+            >
+              Classify intent: "{query}"
+            </button>
+          )}
+          {filtered.length === 0 && query.length <= 2 && (
             <p className="px-4 py-3 text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
               No matching commands
             </p>

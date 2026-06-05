@@ -1,7 +1,9 @@
+import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { useSystemStore } from '../stores/systemStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useVoiceStore } from '../stores/voiceStore'
+import { usePolling } from '../hooks/usePolling'
 
 function StatusDot({ status }: { status: 'connected' | 'connecting' | 'disconnected' }) {
   return (
@@ -48,6 +50,26 @@ export function HudBar() {
   const audioLevel = useVoiceStore((s) => s.audioLevel)
   const lastTranscript = useVoiceStore((s) => s.lastTranscript)
 
+  const [posture, setPosture] = useState<string>('')
+  const [nodeCount, setNodeCount] = useState<number>(0)
+
+  const fetchWorkstationMode = useCallback(async () => {
+    try {
+      const res = await fetch('/api/umh/workstation/mode-composite')
+      const data = await res.json()
+      if (data.ok) {
+        setPosture(data.mode_composite?.effective_posture ?? '')
+      }
+    } catch { /* silent */ }
+    try {
+      const res = await fetch('/api/umh/workstation/nodes')
+      const data = await res.json()
+      if (data.ok) setNodeCount(data.count ?? 0)
+    } catch { /* silent */ }
+  }, [])
+
+  usePolling(fetchWorkstationMode, 15000)
+
   const modes = ['EXECUTE', 'PLAN', 'REVIEW'] as const
 
   return (
@@ -65,6 +87,25 @@ export function HudBar() {
       >
         {mode}
       </button>
+
+      {/* Workstation posture */}
+      {posture && (
+        <span className={clsx(
+          'text-[10px] font-mono px-1.5 py-0.5 rounded',
+          posture === 'active' && 'bg-ok/10 text-ok',
+          posture === 'deep_work' && 'bg-cyan/10 text-cyan',
+          posture === 'remote' && 'bg-warn/10 text-warn',
+          posture === 'overnight_autonomous' && 'bg-purple-500/10 text-purple-400',
+          posture === 'inactive' && 'bg-surface text-text-tertiary',
+        )}>{posture.toUpperCase()}</span>
+      )}
+
+      {/* Node count */}
+      {nodeCount > 0 && (
+        <span className="wv-label">
+          nodes:<span className="text-cyan">{nodeCount}</span>
+        </span>
+      )}
 
       {/* Active route */}
       <span className="wv-label">{activePanel}</span>
