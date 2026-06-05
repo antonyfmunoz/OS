@@ -66,6 +66,8 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/universal-work/generate", _generate_from_intent, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/universal-work/packets/{packet_id}/status", _update_status, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/universal-work/packets/{packet_id}/link", _link_artifact, methods=["POST"], dependencies=auth)
+    r.add_api_route("/organism/universal-work/packets/{packet_id}/outcomes", _packet_outcomes, methods=["GET"])
+    r.add_api_route("/organism/universal-work/packets/{packet_id}/verification", _packet_verification, methods=["GET"])
 
     r.add_api_route("/organism/workcells", _workcells_list, methods=["GET"])
     r.add_api_route("/organism/workcells/{workcell_id}", _workcell_detail, methods=["GET"])
@@ -240,3 +242,30 @@ async def _role_contracts_list():
 async def _knowledge_models_list():
     registry = _get_knowledge_registry()
     return registry.summary()
+
+
+async def _packet_outcomes(packet_id: str):
+    """Return outcome observation details for a completed/failed packet."""
+    pkt = _get_queue().get_packet(packet_id)
+    if not pkt:
+        return {"error": "Not found", "packet_id": packet_id}
+    return {
+        "packet_id": packet_id,
+        "status": pkt.status.value,
+        "outcome_observation_id": pkt.outcome_observation_id,
+        "outcome_summary": pkt.outcome_summary,
+        "outcome_ids": pkt.outcome_ids,
+    }
+
+
+async def _packet_verification(packet_id: str):
+    """Return verification results for a packet."""
+    pkt = _get_queue().get_packet(packet_id)
+    if not pkt:
+        return {"error": "Not found", "packet_id": packet_id}
+    return {
+        "packet_id": packet_id,
+        "status": pkt.status.value,
+        "verification_passed": pkt.verification_passed,
+        "verification_results": pkt.verification_results,
+    }
