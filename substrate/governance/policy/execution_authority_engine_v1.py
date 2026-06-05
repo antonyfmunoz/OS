@@ -139,6 +139,17 @@ CONTAINER_ACTIONS = frozenset(
     }
 )
 
+DESTRUCTIVE_DATA_ACTIONS = frozenset(
+    {
+        "data_deletion",
+        "data_wipe",
+        "bulk_delete",
+        "schema_drop",
+        "table_truncate",
+        "record_purge",
+    }
+)
+
 
 @dataclass
 class EnvironmentAuthority:
@@ -621,6 +632,9 @@ class ExecutionAuthorityEngine:
 
         if request.action_type in CONTAINER_ACTIONS:
             return RiskClass.LOW
+
+        if request.action_type in DESTRUCTIVE_DATA_ACTIONS:
+            return RiskClass.HIGH
 
         return RiskClass.LOW
 
