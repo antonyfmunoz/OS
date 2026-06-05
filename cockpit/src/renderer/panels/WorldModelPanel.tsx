@@ -2,22 +2,8 @@ import { useState } from 'react'
 import { useWorldModelStore } from '../stores/worldModelStore'
 import { usePolling } from '../hooks/usePolling'
 
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: 'text-danger',
-  high: 'text-warn',
-  medium: 'text-cyan',
-  low: 'text-text-secondary',
-  info: 'text-text-tertiary',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  operational: 'text-ok',
-  degraded: 'text-warn',
-  partial: 'text-cyan',
-  dormant: 'text-text-tertiary',
-  missing: 'text-danger',
-  unknown: 'text-text-tertiary',
-}
+const CONFIDENCE_COLORS = (v: number) =>
+  v >= 0.8 ? 'text-ok' : v >= 0.5 ? 'text-cyan' : v >= 0.3 ? 'text-warn' : 'text-danger'
 
 const RISK_BADGE: Record<string, string> = {
   low: 'bg-ok/20 text-ok',
@@ -29,17 +15,16 @@ const RISK_BADGE: Record<string, string> = {
 const TABS = [
   { id: 'world' as const, label: 'World' },
   { id: 'graph' as const, label: 'Dependencies' },
-  { id: 'contradictions' as const, label: 'Contradictions' },
-  { id: 'compose' as const, label: 'Compose' },
-  { id: 'outcomes' as const, label: 'Outcomes' },
-  { id: 'memory' as const, label: 'Memory' },
+  { id: 'contradictions' as const, label: 'Search' },
+  { id: 'compose' as const, label: 'Simulate' },
+  { id: 'outcomes' as const, label: 'Observations' },
+  { id: 'memory' as const, label: 'Instance' },
 ]
 
 function TabBar() {
   const tab = useWorldModelStore((s) => s.tab)
   const setTab = useWorldModelStore((s) => s.setTab)
-  const contradictions = useWorldModelStore((s) => s.contradictions)
-  const memoryPromotion = useWorldModelStore((s) => s.memoryPromotion)
+  const status = useWorldModelStore((s) => s.status)
 
   return (
     <div className="flex items-center gap-1 px-4 py-2 border-b border-border bg-canvas">
@@ -54,11 +39,11 @@ function TabBar() {
           }`}
         >
           {t.label}
-          {t.id === 'contradictions' && contradictions && contradictions.summary.total > 0 && (
-            <span className="ml-1.5 text-warn">{contradictions.summary.total}</span>
+          {t.id === 'world' && status && (
+            <span className="ml-1.5 text-text-tertiary">{status.canonical.pattern_count}</span>
           )}
-          {t.id === 'memory' && memoryPromotion && memoryPromotion.summary.pending_approvals > 0 && (
-            <span className="ml-1.5 text-cyan">{memoryPromotion.summary.pending_approvals}</span>
+          {t.id === 'outcomes' && status && (
+            <span className="ml-1.5 text-text-tertiary">{status.instance.observation_count}</span>
           )}
         </button>
       ))}
@@ -67,82 +52,128 @@ function TabBar() {
 }
 
 function WorldTab() {
-  const worldModel = useWorldModelStore((s) => s.worldModel)
+  const status = useWorldModelStore((s) => s.status)
+  const patterns = useWorldModelStore((s) => s.patterns)
+  const canonicalDomains = useWorldModelStore((s) => s.canonicalDomains)
   const loading = useWorldModelStore((s) => s.loading)
+  const fetchPatternDetail = useWorldModelStore((s) => s.fetchPatternDetail)
+  const selectedPattern = useWorldModelStore((s) => s.selectedPattern)
 
-  if (loading) return <Empty msg="Loading world model..." />
-  if (!worldModel) return <Empty msg="World model endpoints not yet available — use Reality Model panel for current data" />
+  if (loading) return <Empty msg="Loading reality model..." />
+  if (!status) return <Empty msg="Reality model not yet available" />
 
-  const entities = Object.values(worldModel.entities)
-  const byCategory: Record<string, typeof entities> = {}
-  for (const e of entities) {
-    if (!byCategory[e.category]) byCategory[e.category] = []
-    byCategory[e.category].push(e)
+  const byDomain: Record<string, typeof patterns> = {}
+  for (const p of patterns) {
+    if (!byDomain[p.domain]) byDomain[p.domain] = []
+    byDomain[p.domain].push(p)
   }
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-4 gap-2">
-        <Stat label="Entities" value={worldModel.summary.total_entities} />
-        <Stat label="Gaps" value={worldModel.summary.total_gaps} color={worldModel.summary.total_gaps > 0 ? 'warn' : 'ok'} />
-        <Stat label="Uncertainties" value={worldModel.summary.total_uncertainties} />
-        <Stat label="Extracted" value={new Date(worldModel.extracted_at * 1000).toLocaleTimeString()} />
+        <Stat label="Patterns" value={status.canonical.pattern_count} />
+        <Stat label="Relationships" value={status.canonical.relationship_count} />
+        <Stat label="Domains" value={status.canonical.domains.length} />
+        <Stat
+          label="Avg Confidence"
+          value={`${(status.canonical.avg_confidence * 100).toFixed(0)}%`}
+          color={status.canonical.avg_confidence >= 0.5 ? 'ok' : 'warn'}
+        />
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        {Object.entries(worldModel.summary.by_status).map(([status, count]) => (
-          <div key={status} className="flex items-center gap-2">
-            <span className={`text-xs font-mono ${STATUS_COLORS[status] || 'text-text-tertiary'}`}>{status}</span>
-            <span className="text-xs font-mono text-text-primary">{count}</span>
-          </div>
-        ))}
-      </div>
-
-      {Object.entries(byCategory).sort().map(([cat, ents]) => (
-        <section key={cat}>
-          <h3 className="wv-label mb-2">{cat.replace(/_/g, ' ')} ({ents.length})</h3>
-          <div className="space-y-1">
-            {ents.sort((a, b) => a.name.localeCompare(b.name)).map((e) => (
-              <div key={e.id} className="flex items-center gap-2 py-0.5 px-2 rounded hover:bg-surface-overlay">
-                <span className={`w-1.5 h-1.5 rounded-full ${statusDot(e.status)}`} />
-                <span className="text-xs text-text-primary flex-1 truncate">{e.name}</span>
-                <span className={`text-[10px] font-mono ${STATUS_COLORS[e.status] || 'text-text-tertiary'}`}>{e.status}</span>
-                {e.evidence.length > 0 && (
-                  <span className="text-[10px] text-text-tertiary">{e.evidence.length} ev</span>
-                )}
-              </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <h3 className="wv-label mb-2">Layers</h3>
+          <div className="flex gap-1">
+            {status.layers.map((l) => (
+              <span key={l} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan/10 text-cyan">{l}</span>
             ))}
+          </div>
+        </div>
+        <div>
+          <h3 className="wv-label mb-2">Domains</h3>
+          <div className="flex flex-wrap gap-1">
+            {canonicalDomains.map((d) => (
+              <span key={d.domain} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-overlay text-text-secondary">
+                {d.domain} <span className="text-text-tertiary">({d.pattern_count})</span>
+              </span>
+            ))}
+            {canonicalDomains.length === 0 && (
+              <span className="text-[10px] text-text-tertiary">No domains yet</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {Object.entries(byDomain).sort().map(([domain, domainPatterns]) => (
+        <section key={domain}>
+          <h3 className="wv-label mb-2">{domain} ({domainPatterns.length})</h3>
+          <div className="space-y-1">
+            {domainPatterns
+              .sort((a, b) => b.effective_confidence - a.effective_confidence)
+              .map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => fetchPatternDetail(p.name)}
+                  className="flex items-center gap-2 py-1 px-2 rounded hover:bg-surface-overlay cursor-pointer"
+                >
+                  <span className={`text-[10px] font-mono w-10 text-right ${CONFIDENCE_COLORS(p.effective_confidence)}`}>
+                    {(p.effective_confidence * 100).toFixed(0)}%
+                  </span>
+                  <span className="text-xs text-text-primary flex-1 truncate">{p.name}</span>
+                  <span className="text-[10px] text-text-tertiary">{p.evidence_count} ev</span>
+                  {p.tags.length > 0 && (
+                    <span className="text-[10px] text-text-tertiary">{p.tags[0]}</span>
+                  )}
+                </div>
+              ))}
           </div>
         </section>
       ))}
 
-      {worldModel.gaps.length > 0 && (
-        <section>
-          <h3 className="wv-label mb-2">Gaps ({worldModel.gaps.length})</h3>
-          <div className="space-y-1">
-            {worldModel.gaps.map((g) => (
-              <div key={g.id} className="wv-card p-2">
-                <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-mono uppercase ${SEVERITY_COLORS[g.severity]}`}>{g.severity}</span>
-                  <span className="text-xs text-text-primary flex-1">{g.description}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+      {patterns.length === 0 && (
+        <div className="text-center py-6">
+          <p className="text-xs text-text-tertiary font-mono">No canonical patterns yet</p>
+          <p className="text-[10px] text-text-tertiary mt-1">Patterns are promoted from instance observations through governed review.</p>
+        </div>
       )}
 
-      {worldModel.uncertainties.length > 0 && (
-        <section>
-          <h3 className="wv-label mb-2">Uncertainties ({worldModel.uncertainties.length})</h3>
-          <div className="space-y-1">
-            {worldModel.uncertainties.map((u) => (
-              <div key={u.id} className="flex items-center gap-2 py-0.5">
-                <span className="text-[10px] font-mono text-text-tertiary">{(u.confidence * 100).toFixed(0)}%</span>
-                <span className="text-xs text-text-secondary flex-1">{u.description}</span>
-              </div>
-            ))}
+      {selectedPattern && (
+        <section className="wv-card p-3 border border-cyan/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-cyan">{selectedPattern.name}</span>
+            <span className={`text-[10px] font-mono ${CONFIDENCE_COLORS(selectedPattern.effective_confidence)}`}>
+              {(selectedPattern.effective_confidence * 100).toFixed(0)}% confidence
+            </span>
           </div>
+          <p className="text-xs text-text-secondary mb-2">{selectedPattern.description}</p>
+          <div className="flex items-center gap-3 text-[10px] text-text-tertiary mb-2">
+            <span>domain: {selectedPattern.domain}</span>
+            <span>{selectedPattern.evidence_count} evidence</span>
+            <span>promoted: {new Date(selectedPattern.promoted_at).toLocaleDateString()}</span>
+            <span>confirmed: {new Date(selectedPattern.last_confirmed).toLocaleDateString()}</span>
+          </div>
+          {selectedPattern.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {selectedPattern.tags.map((t) => (
+                <span key={t} className="text-[10px] font-mono px-1 py-0.5 rounded bg-surface-overlay text-text-tertiary">{t}</span>
+              ))}
+            </div>
+          )}
+          {selectedPattern.relationships.length > 0 && (
+            <div>
+              <span className="text-[10px] text-text-tertiary">Relationships:</span>
+              <div className="space-y-0.5 mt-1">
+                {selectedPattern.relationships.map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[10px] font-mono">
+                    <span className="text-text-primary">{r.name}</span>
+                    <span className="text-text-tertiary">{r.type}</span>
+                    <span className="text-cyan">{(r.strength * 100).toFixed(0)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       )}
     </div>
@@ -150,417 +181,430 @@ function WorldTab() {
 }
 
 function GraphTab() {
-  const depGraph = useWorldModelStore((s) => s.depGraph)
-
+  const patterns = useWorldModelStore((s) => s.patterns)
+  const relationships = useWorldModelStore((s) => s.relationships)
+  const fetchRelationships = useWorldModelStore((s) => s.fetchRelationships)
   const loading = useWorldModelStore((s) => s.loading)
+  const status = useWorldModelStore((s) => s.status)
+  const [selectedName, setSelectedName] = useState<string | null>(null)
+
   if (loading) return <Empty msg="Loading dependency graph..." />
-  if (!depGraph) return <Empty msg="Dependency graph not yet available" />
+  if (!status) return <Empty msg="Reality model not loaded" />
 
-  const { summary, orphaned, cycles, critical_paths, edges } = depGraph
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-2">
-        <Stat label="Nodes" value={summary.total_nodes} />
-        <Stat label="Edges" value={summary.total_edges} />
-        <Stat label="Orphans" value={summary.orphaned} color={summary.orphaned > 0 ? 'warn' : 'ok'} />
-        <Stat label="Cycles" value={summary.cycles} color={summary.cycles > 0 ? 'danger' : 'ok'} />
-      </div>
-
-      {summary.critical_path_length > 0 && (
-        <section>
-          <h3 className="wv-label mb-2">Critical Paths</h3>
-          <div className="space-y-2">
-            {critical_paths.map((cp, i) => (
-              <div key={i} className="wv-card p-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-[10px] font-mono uppercase ${SEVERITY_COLORS[cp.risk]}`}>{cp.risk}</span>
-                  <span className="text-[10px] text-text-tertiary">length {cp.length}</span>
-                </div>
-                <div className="flex flex-wrap items-center gap-1">
-                  {cp.path.map((node, idx) => (
-                    <span key={idx} className="text-xs font-mono text-text-primary">
-                      {node}{idx < cp.path.length - 1 && <span className="text-text-tertiary mx-0.5">&rarr;</span>}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {cycles.length > 0 && (
-        <section>
-          <h3 className="wv-label mb-2 text-danger">Circular Dependencies</h3>
-          <div className="space-y-1">
-            {cycles.map((cycle, i) => (
-              <div key={i} className="text-xs font-mono text-danger/80">{cycle.join(' → ')}</div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {orphaned.length > 0 && (
-        <section>
-          <h3 className="wv-label mb-2">Orphaned Nodes ({orphaned.length})</h3>
-          <div className="flex flex-wrap gap-1">
-            {orphaned.map((id) => (
-              <span key={id} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-overlay text-text-tertiary">{id}</span>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section>
-        <h3 className="wv-label mb-2">Edge Types</h3>
-        <div className="grid grid-cols-3 gap-2">
-          {Object.entries(summary.edge_types).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
-            <div key={type} className="flex items-center gap-2">
-              <span className="text-xs text-text-secondary">{type}</span>
-              <span className="text-xs font-mono text-text-primary">{count}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h3 className="wv-label mb-2">All Edges ({edges.length})</h3>
-        <div className="max-h-60 overflow-y-auto space-y-0.5">
-          {edges.map((e, i) => (
-            <div key={i} className="flex items-center gap-2 py-0.5 text-[11px] font-mono">
-              <span className="text-text-primary">{e.source}</span>
-              <span className="text-text-tertiary">&rarr;</span>
-              <span className="text-text-primary">{e.target}</span>
-              <span className="text-text-tertiary ml-auto">{e.type}</span>
-              <span className={`text-[9px] ${e.strength === 'hard' ? 'text-cyan' : 'text-text-tertiary'}`}>{e.strength}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function ContradictionsTab() {
-  const contradictions = useWorldModelStore((s) => s.contradictions)
-  const compose = useWorldModelStore((s) => s.compose)
-  const composing = useWorldModelStore((s) => s.composing)
-
-  const loading = useWorldModelStore((s) => s.loading)
-  if (loading) return <Empty msg="Loading contradictions..." />
-  if (!contradictions) return <Empty msg="Contradictions endpoint not yet available" />
-
-  const topContradiction = contradictions.contradictions[0]
+  const handleSelect = (name: string) => {
+    setSelectedName(name)
+    fetchRelationships(name)
+  }
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-2">
-        <Stat label="Total" value={contradictions.summary.total} color={contradictions.summary.total > 0 ? 'warn' : 'ok'} />
-        <Stat label="Critical" value={contradictions.summary.by_severity?.critical ?? 0} color={(contradictions.summary.by_severity?.critical ?? 0) > 0 ? 'danger' : 'ok'} />
-        <Stat label="High" value={contradictions.summary.by_severity?.high ?? 0} color={(contradictions.summary.by_severity?.high ?? 0) > 0 ? 'warn' : 'ok'} />
-        <Stat label="Checks" value={contradictions.summary.checks_performed} />
+      <div className="grid grid-cols-3 gap-2">
+        <Stat label="Patterns" value={status.canonical.pattern_count} />
+        <Stat label="Relationships" value={status.canonical.relationship_count} />
+        <Stat label="Avg Evidence" value={status.canonical.avg_evidence_count.toFixed(1)} />
       </div>
 
-      {topContradiction && (
-        <div className="wv-card p-3 border border-warn/30">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-warn font-mono uppercase">Top Contradiction</span>
-            <button
-              onClick={() => compose(`Fix: ${topContradiction.recommended_fix || topContradiction.type}`)}
-              disabled={composing}
-              className="px-2 py-0.5 text-[10px] font-mono bg-cyan/20 text-cyan rounded hover:bg-cyan/30 disabled:opacity-50"
+      <section>
+        <h3 className="wv-label mb-2">Select pattern to view relationships</h3>
+        <div className="max-h-40 overflow-y-auto space-y-0.5">
+          {patterns.map((p) => (
+            <div
+              key={p.id}
+              onClick={() => handleSelect(p.name)}
+              className={`flex items-center gap-2 py-0.5 px-2 rounded cursor-pointer text-[11px] font-mono ${
+                selectedName === p.name
+                  ? 'bg-cyan/20 text-cyan'
+                  : 'text-text-primary hover:bg-surface-overlay'
+              }`}
             >
-              {composing ? 'COMPOSING...' : 'COMPOSE FIX'}
-            </button>
-          </div>
-          <p className="text-xs text-text-primary">{topContradiction.type.replace(/_/g, ' ')}</p>
-          {topContradiction.recommended_fix && (
-            <p className="text-xs text-text-secondary mt-1">{topContradiction.recommended_fix}</p>
-          )}
-          <div className="flex items-center gap-3 mt-1.5">
-            <span className={`text-[10px] font-mono ${SEVERITY_COLORS[topContradiction.severity]}`}>{topContradiction.severity}</span>
-            <span className="text-[10px] text-text-tertiary">{(topContradiction.confidence * 100).toFixed(0)}% confidence</span>
-          </div>
-        </div>
-      )}
-
-      <section>
-        <h3 className="wv-label mb-2">All Contradictions</h3>
-        <div className="space-y-1.5">
-          {contradictions.contradictions.map((c) => (
-            <div key={c.id} className="wv-card p-2">
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-mono uppercase ${SEVERITY_COLORS[c.severity]}`}>{c.severity}</span>
-                <span className="text-xs text-text-primary flex-1">{c.type.replace(/_/g, ' ')}</span>
-                <span className="text-[10px] text-text-tertiary">{(c.confidence * 100).toFixed(0)}%</span>
-              </div>
-              {c.recommended_fix && (
-                <p className="text-[10px] text-text-secondary mt-1 ml-12">{c.recommended_fix}</p>
-              )}
+              <span className="flex-1 truncate">{p.name}</span>
+              <span className="text-text-tertiary">{p.domain}</span>
             </div>
           ))}
-          {contradictions.contradictions.length === 0 && (
-            <p className="text-xs text-ok font-mono">No contradictions detected</p>
+          {patterns.length === 0 && (
+            <p className="text-xs text-text-tertiary">No patterns available</p>
           )}
         </div>
       </section>
+
+      {selectedName && (
+        <section>
+          <h3 className="wv-label mb-2">Relationships: {selectedName}</h3>
+          {relationships.length > 0 ? (
+            <div className="space-y-1">
+              {relationships.map((r, i) => (
+                <div key={i} className="flex items-center gap-2 py-0.5 text-[11px] font-mono">
+                  <span className="text-text-primary">{selectedName}</span>
+                  <span className="text-text-tertiary">&rarr;</span>
+                  <span className="text-text-primary">{r.name}</span>
+                  <span className="text-text-tertiary ml-auto">{r.type}</span>
+                  <span className={`text-[9px] ${r.strength >= 0.7 ? 'text-cyan' : 'text-text-tertiary'}`}>
+                    {(r.strength * 100).toFixed(0)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-text-tertiary">No relationships for this pattern</p>
+          )}
+        </section>
+      )}
     </div>
   )
 }
 
-function ComposeTab() {
-  const plan = useWorldModelStore((s) => s.plan)
-  const compose = useWorldModelStore((s) => s.compose)
+function SearchTab() {
+  const searchCanonical = useWorldModelStore((s) => s.searchCanonical)
+  const searchResults = useWorldModelStore((s) => s.searchResults)
+  const simulate = useWorldModelStore((s) => s.simulate)
   const composing = useWorldModelStore((s) => s.composing)
-  const [intent, setIntent] = useState('')
+  const [query, setQuery] = useState('')
+
+  const handleSearch = () => {
+    if (query.trim()) searchCanonical(query.trim())
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <input
           type="text"
-          value={intent}
-          onChange={(e) => setIntent(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && intent.trim()) compose(intent.trim()) }}
-          placeholder="Describe what to fix or improve..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }}
+          placeholder="Search canonical patterns..."
           className="flex-1 px-3 py-1.5 text-xs font-mono bg-surface border border-border rounded text-text-primary placeholder-text-tertiary focus:border-cyan focus:outline-none"
         />
         <button
-          onClick={() => intent.trim() && compose(intent.trim())}
-          disabled={composing || !intent.trim()}
+          onClick={handleSearch}
+          disabled={!query.trim()}
           className="px-3 py-1.5 text-xs font-mono bg-cyan/20 text-cyan rounded hover:bg-cyan/30 disabled:opacity-50"
         >
-          {composing ? 'COMPOSING...' : 'COMPOSE'}
+          SEARCH
         </button>
       </div>
 
-      {plan && (
+      {searchResults.length > 0 && (
+        <section>
+          <h3 className="wv-label mb-2">Results ({searchResults.length})</h3>
+          <div className="space-y-1.5">
+            {searchResults.map((r) => (
+              <div key={r.id} className="wv-card p-2">
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-mono ${CONFIDENCE_COLORS(r.effective_confidence)}`}>
+                    {(r.effective_confidence * 100).toFixed(0)}%
+                  </span>
+                  <span className="text-xs text-text-primary flex-1">{r.name || r.content}</span>
+                  <span className="text-[10px] text-text-tertiary">{r.domain}</span>
+                </div>
+                {r.description && (
+                  <p className="text-[10px] text-text-secondary mt-1 ml-10">{r.description}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {searchResults.length > 0 && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => simulate(`Analyze patterns related to: ${query}`)}
+            disabled={composing}
+            className="px-3 py-1.5 text-xs font-mono bg-warn/20 text-warn rounded hover:bg-warn/30 disabled:opacity-50"
+          >
+            {composing ? 'SIMULATING...' : 'SIMULATE'}
+          </button>
+          <span className="text-[10px] text-text-tertiary">Run hypothesis test against reality model</span>
+        </div>
+      )}
+
+      {searchResults.length === 0 && query && (
+        <p className="text-xs text-text-tertiary text-center py-4">No patterns match &ldquo;{query}&rdquo;</p>
+      )}
+    </div>
+  )
+}
+
+function SimulateTab() {
+  const simulation = useWorldModelStore((s) => s.simulation)
+  const simulate = useWorldModelStore((s) => s.simulate)
+  const composing = useWorldModelStore((s) => s.composing)
+  const [hypothesis, setHypothesis] = useState('')
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={hypothesis}
+          onChange={(e) => setHypothesis(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && hypothesis.trim()) simulate(hypothesis.trim()) }}
+          placeholder="Enter hypothesis to simulate..."
+          className="flex-1 px-3 py-1.5 text-xs font-mono bg-surface border border-border rounded text-text-primary placeholder-text-tertiary focus:border-cyan focus:outline-none"
+        />
+        <button
+          onClick={() => hypothesis.trim() && simulate(hypothesis.trim())}
+          disabled={composing || !hypothesis.trim()}
+          className="px-3 py-1.5 text-xs font-mono bg-cyan/20 text-cyan rounded hover:bg-cyan/30 disabled:opacity-50"
+        >
+          {composing ? 'SIMULATING...' : 'SIMULATE'}
+        </button>
+      </div>
+
+      {simulation && (
         <div className="space-y-3">
           <div className="wv-card p-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-text-primary">{plan.summary.intent}</span>
+              <span className="text-xs font-semibold text-text-primary">{simulation.hypothesis}</span>
               <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${RISK_BADGE[plan.overall_risk]}`}>{plan.overall_risk}</span>
-                <span className="text-[10px] font-mono text-text-tertiary">{plan.governance_required}</span>
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                  simulation.safe_to_execute ? 'bg-ok/20 text-ok' : 'bg-danger/20 text-danger'
+                }`}>
+                  {simulation.safe_to_execute ? 'SAFE' : 'RISKY'}
+                </span>
               </div>
             </div>
             <div className="grid grid-cols-4 gap-2 text-[10px] text-text-tertiary">
-              <span>{plan.summary.total_steps} steps</span>
-              <span>{plan.summary.risks} risks</span>
-              <span>{plan.summary.missing_prerequisites} missing</span>
-              <span>ID: {plan.summary.plan_id}</span>
+              <span>{simulation.step_count} steps</span>
+              <span>{(simulation.overall_confidence * 100).toFixed(0)}% confidence</span>
+              <span>{simulation.duration_ms.toFixed(0)}ms</span>
+              <span>{simulation.predicted_outcome}</span>
             </div>
           </div>
 
-          <section>
-            <h3 className="wv-label mb-2">Steps</h3>
-            <div className="space-y-1.5">
-              {plan.steps.map((step, idx) => (
-                <div key={step.id} className="wv-card p-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-text-tertiary w-4">{idx + 1}</span>
-                    <span className={`text-[10px] font-mono px-1 rounded ${RISK_BADGE[step.risk_class]}`}>{step.risk_class}</span>
-                    <span className="text-xs text-text-primary flex-1">{step.description}</span>
-                    <span className="text-[10px] font-mono text-text-tertiary">{step.governance_mode}</span>
-                  </div>
-                  {step.verification && (
-                    <p className="text-[10px] text-text-secondary mt-0.5 ml-6">verify: {step.verification}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {plan.risks.length > 0 && (
+          {simulation.risk_factors.length > 0 && (
             <section>
-              <h3 className="wv-label mb-2">Risks</h3>
+              <h3 className="wv-label mb-2 text-danger">Risk Factors</h3>
               <div className="space-y-1">
-                {plan.risks.map((r, i) => (
-                  <div key={i} className="flex items-start gap-2 py-0.5">
-                    <span className={`text-[10px] font-mono ${SEVERITY_COLORS[r.risk_class]}`}>{r.risk_class}</span>
-                    <div className="flex-1">
-                      <p className="text-xs text-text-primary">{r.description}</p>
-                      {r.mitigation && <p className="text-[10px] text-text-secondary">{r.mitigation}</p>}
-                    </div>
+                {simulation.risk_factors.map((rf, i) => (
+                  <div key={i} className="flex items-center gap-2 py-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-danger" />
+                    <span className="text-xs text-danger/80">{rf}</span>
                   </div>
                 ))}
               </div>
             </section>
           )}
 
-          {plan.evidence.length > 0 && (
+          {simulation.matched_patterns.length > 0 && (
             <section>
-              <h3 className="wv-label mb-2">Evidence</h3>
-              <div className="space-y-0.5">
-                {plan.evidence.map((ev, i) => (
-                  <p key={i} className="text-[10px] font-mono text-text-tertiary">{ev}</p>
+              <h3 className="wv-label mb-2">Matched Patterns</h3>
+              <div className="flex flex-wrap gap-1">
+                {simulation.matched_patterns.map((p) => (
+                  <span key={p} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan/10 text-cyan">{p}</span>
                 ))}
+              </div>
+            </section>
+          )}
+
+          {simulation.ai_risk_analysis && Object.keys(simulation.ai_risk_analysis).length > 0 && (
+            <section>
+              <h3 className="wv-label mb-2">AI Risk Analysis</h3>
+              <div className="wv-card p-2">
+                {simulation.ai_risk_analysis.severity && (
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded ${
+                      RISK_BADGE[simulation.ai_risk_analysis.severity as string] || 'bg-surface-overlay text-text-tertiary'
+                    }`}>
+                      {simulation.ai_risk_analysis.severity as string}
+                    </span>
+                    {simulation.ai_risk_analysis.confidence != null && (
+                      <span className="text-[10px] text-text-tertiary">
+                        {((simulation.ai_risk_analysis.confidence as number) * 100).toFixed(0)}% conf
+                      </span>
+                    )}
+                  </div>
+                )}
+                {simulation.ai_risk_analysis.reasoning && (
+                  <p className="text-xs text-text-secondary">{simulation.ai_risk_analysis.reasoning as string}</p>
+                )}
+                {Array.isArray(simulation.ai_risk_analysis.mitigations) && (
+                  <div className="mt-1 space-y-0.5">
+                    {(simulation.ai_risk_analysis.mitigations as string[]).map((m, i) => (
+                      <p key={i} className="text-[10px] text-text-tertiary">• {m}</p>
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
           )}
         </div>
       )}
 
-      {!plan && !composing && (
+      {!simulation && !composing && (
         <div className="text-center py-8">
-          <p className="text-xs text-text-tertiary">Compose a plan from observed capabilities.</p>
-          <p className="text-[10px] text-text-tertiary mt-1">Intent → Capabilities → Dependencies → Risks → Executable plan</p>
+          <p className="text-xs text-text-tertiary">Test hypotheses against the reality model.</p>
+          <p className="text-[10px] text-text-tertiary mt-1">Hypothesis → Pattern matching → Risk analysis → Predicted outcome</p>
         </div>
       )}
     </div>
   )
 }
 
-function OutcomesTab() {
-  const learningLoop = useWorldModelStore((s) => s.learningLoop)
-
+function ObservationsTab() {
+  const recentObservations = useWorldModelStore((s) => s.recentObservations)
+  const instanceDomains = useWorldModelStore((s) => s.instanceDomains)
   const loading = useWorldModelStore((s) => s.loading)
-  if (loading) return <Empty msg="Loading outcome history..." />
-  if (!learningLoop) return <Empty msg="Outcome history not yet available" />
+  const status = useWorldModelStore((s) => s.status)
+
+  if (loading) return <Empty msg="Loading observations..." />
+  if (!status) return <Empty msg="Instance model not yet available" />
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-4 gap-2">
-        <Stat label="Outcomes" value={learningLoop.total_outcomes} />
-        <Stat label="Success" value={learningLoop.by_status?.success ?? 0} color="ok" />
-        <Stat label="Failed" value={learningLoop.by_status?.failure ?? 0} color={(learningLoop.by_status?.failure ?? 0) > 0 ? 'danger' : 'ok'} />
-        <Stat label="Signals" value={learningLoop.signals?.length ?? 0} />
+        <Stat label="Observations" value={status.instance.observation_count} />
+        <Stat label="Domains" value={status.instance.domains.length} />
+        <Stat
+          label="Avg Confidence"
+          value={`${(status.instance.avg_effective_confidence * 100).toFixed(0)}%`}
+          color={status.instance.avg_effective_confidence >= 0.3 ? 'ok' : 'warn'}
+        />
+        <Stat
+          label="Newest"
+          value={status.instance.newest ? new Date(status.instance.newest).toLocaleTimeString() : '—'}
+        />
       </div>
 
-      {learningLoop.signals && learningLoop.signals.length > 0 && (
+      {instanceDomains.length > 0 && (
         <section>
-          <h3 className="wv-label mb-2">Learning Signals</h3>
-          <div className="space-y-1">
-            {learningLoop.signals.map((s, i) => (
-              <div key={i} className="wv-card p-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-cyan">{s.signal_type.replace(/_/g, ' ')}</span>
-                  <span className="text-xs text-text-primary flex-1">{s.description}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {Object.keys(learningLoop.reliability ?? {}).length > 0 && (
-        <section>
-          <h3 className="wv-label mb-2">Reliability by Action</h3>
-          <div className="space-y-1">
-            {Object.entries(learningLoop.reliability).sort((a, b) => a[1] - b[1]).map(([action, rate]) => (
-              <div key={action} className="flex items-center gap-2">
-                <span className="text-xs text-text-primary flex-1">{action.replace(/_/g, ' ')}</span>
-                <div className="w-24 h-1.5 bg-surface-overlay rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${rate >= 0.8 ? 'bg-ok' : rate >= 0.5 ? 'bg-warn' : 'bg-danger'}`} style={{ width: `${rate * 100}%` }} />
-                </div>
-                <span className="text-[10px] font-mono w-8 text-right">{(rate * 100).toFixed(0)}%</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {learningLoop.recent_outcomes && learningLoop.recent_outcomes.length > 0 && (
-        <section>
-          <h3 className="wv-label mb-2">Recent Outcomes</h3>
-          <div className="space-y-1">
-            {learningLoop.recent_outcomes.map((o) => (
-              <div key={o.id} className="flex items-center gap-2 py-0.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${o.status === 'success' ? 'bg-ok' : o.status === 'failure' ? 'bg-danger' : 'bg-warn'}`} />
-                <span className="text-xs text-text-primary flex-1 truncate">{o.description || o.action_type}</span>
-                <span className="text-[10px] font-mono text-text-tertiary">{o.duration_seconds.toFixed(1)}s</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {learningLoop.promotion_candidates && learningLoop.promotion_candidates.length > 0 && (
-        <section>
-          <h3 className="wv-label mb-2">Promotion Candidates</h3>
+          <h3 className="wv-label mb-2">Instance Domains</h3>
           <div className="flex flex-wrap gap-1">
-            {learningLoop.promotion_candidates.map((id) => (
-              <span key={id} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan/10 text-cyan">{id}</span>
+            {instanceDomains.map((d) => (
+              <span key={d.domain} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-overlay text-text-secondary">
+                {d.domain} <span className="text-text-tertiary">({d.observation_count})</span>
+              </span>
             ))}
           </div>
         </section>
       )}
+
+      <section>
+        <h3 className="wv-label mb-2">Recent Observations</h3>
+        {recentObservations.length > 0 ? (
+          <div className="space-y-1">
+            {recentObservations.map((o) => (
+              <div key={o.id} className="wv-card p-2">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className={`text-[10px] font-mono ${CONFIDENCE_COLORS(o.effective_confidence)}`}>
+                    {(o.effective_confidence * 100).toFixed(0)}%
+                  </span>
+                  <span className="text-[10px] font-mono text-text-tertiary">{o.domain}</span>
+                  <span className="text-[10px] text-text-tertiary ml-auto">
+                    {new Date(o.observed_at).toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-xs text-text-primary">{o.content}</p>
+                {o.tags.length > 0 && (
+                  <div className="flex gap-1 mt-1">
+                    {o.tags.map((t) => (
+                      <span key={t} className="text-[9px] font-mono px-1 rounded bg-surface-overlay text-text-tertiary">{t}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-text-tertiary text-center py-4">No observations recorded yet</p>
+        )}
+      </section>
     </div>
   )
 }
 
-function MemoryTab() {
-  const memoryPromotion = useWorldModelStore((s) => s.memoryPromotion)
-  const approveMemory = useWorldModelStore((s) => s.approveMemory)
-  const rejectMemory = useWorldModelStore((s) => s.rejectMemory)
-
+function InstanceTab() {
+  const instanceStats = useWorldModelStore((s) => s.instanceStats)
+  const status = useWorldModelStore((s) => s.status)
   const loading = useWorldModelStore((s) => s.loading)
-  if (loading) return <Empty msg="Loading memory promotion..." />
-  if (!memoryPromotion) return <Empty msg="Memory promotion not yet available" />
+
+  if (loading) return <Empty msg="Loading instance stats..." />
+  if (!status || !instanceStats) return <Empty msg="Instance stats not yet available" />
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-4 gap-2">
-        <Stat label="Candidates" value={memoryPromotion.summary.total_candidates} />
-        <Stat label="Canonical" value={memoryPromotion.summary.canonical_entries} color="ok" />
-        <Stat label="Pending" value={memoryPromotion.summary.pending_approvals} color={memoryPromotion.summary.pending_approvals > 0 ? 'cyan' : 'ok'} />
-        <Stat label="Status" value={Object.keys(memoryPromotion.summary.by_status).length + ' states'} />
+        <Stat label="Observations" value={instanceStats.observation_count} />
+        <Stat label="Domains" value={instanceStats.domains.length} />
+        <Stat
+          label="Avg Confidence"
+          value={`${(instanceStats.avg_effective_confidence * 100).toFixed(0)}%`}
+          color={instanceStats.avg_effective_confidence >= 0.3 ? 'ok' : 'warn'}
+        />
+        <Stat label="Canonical" value={status.canonical.pattern_count} color="cyan" />
       </div>
 
-      {memoryPromotion.pending_approvals.length > 0 && (
-        <section>
-          <h3 className="wv-label mb-2">Pending Approvals</h3>
-          <div className="space-y-2">
-            {memoryPromotion.pending_approvals.map((c) => (
-              <div key={c.id} className="wv-card p-3">
-                <p className="text-xs text-text-primary mb-1.5">{c.content}</p>
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-[10px] font-mono text-text-tertiary">{c.category}</span>
-                  <span className="text-[10px] font-mono text-text-tertiary">{c.scope}</span>
-                  <span className="text-[10px] font-mono text-text-tertiary">{(c.confidence * 100).toFixed(0)}% conf</span>
-                  {c.source_action && <span className="text-[10px] font-mono text-text-tertiary">from: {c.source_action}</span>}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => approveMemory(c.id)}
-                    className="px-2 py-0.5 text-[10px] font-mono bg-ok/20 text-ok rounded hover:bg-ok/30"
-                  >
-                    PROMOTE
-                  </button>
-                  <button
-                    onClick={() => rejectMemory(c.id, 'operator_rejected')}
-                    className="px-2 py-0.5 text-[10px] font-mono bg-danger/20 text-danger rounded hover:bg-danger/30"
-                  >
-                    REJECT
-                  </button>
-                </div>
-              </div>
-            ))}
+      <section>
+        <h3 className="wv-label mb-2">Temporal Range</h3>
+        <div className="wv-card p-3">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <span className="text-[10px] text-text-tertiary block">Oldest observation</span>
+              <span className="text-xs font-mono text-text-primary">
+                {instanceStats.oldest ? new Date(instanceStats.oldest).toLocaleString() : '—'}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-text-tertiary block">Newest observation</span>
+              <span className="text-xs font-mono text-text-primary">
+                {instanceStats.newest ? new Date(instanceStats.newest).toLocaleString() : '—'}
+              </span>
+            </div>
           </div>
-        </section>
-      )}
-
-      {memoryPromotion.pending_approvals.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-xs text-ok font-mono">No pending promotions</p>
-          <p className="text-[10px] text-text-tertiary mt-1">Patterns detected through repeated outcomes will surface here.</p>
         </div>
-      )}
+      </section>
 
-      {Object.keys(memoryPromotion.summary.by_status).length > 0 && (
-        <section>
-          <h3 className="wv-label mb-2">Pipeline Status</h3>
-          <div className="grid grid-cols-3 gap-2">
-            {Object.entries(memoryPromotion.summary.by_status).map(([status, count]) => (
-              <div key={status} className="flex items-center gap-2">
-                <span className="text-xs text-text-secondary">{status}</span>
-                <span className="text-xs font-mono text-text-primary">{count}</span>
-              </div>
-            ))}
+      <section>
+        <h3 className="wv-label mb-2">Instance Domains</h3>
+        <div className="space-y-1">
+          {instanceStats.domains.map((d) => (
+            <div key={d} className="flex items-center gap-2 py-0.5">
+              <span className="text-xs text-text-primary">{d}</span>
+            </div>
+          ))}
+          {instanceStats.domains.length === 0 && (
+            <p className="text-xs text-text-tertiary">No domains recorded</p>
+          )}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="wv-label mb-2">Reality Model Layers</h3>
+        <div className="space-y-2">
+          <div className="wv-card p-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-cyan font-mono">canonical</span>
+              <span className="text-[10px] text-text-tertiary">
+                {status.canonical.pattern_count} patterns, {status.canonical.relationship_count} relationships
+              </span>
+            </div>
+            <p className="text-[10px] text-text-tertiary mt-0.5">
+              Sacred, governance-protected. {(status.canonical.avg_confidence * 100).toFixed(0)}% avg confidence.
+            </p>
           </div>
-        </section>
-      )}
+          <div className="wv-card p-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-warn font-mono">instance</span>
+              <span className="text-[10px] text-text-tertiary">
+                {instanceStats.observation_count} observations
+              </span>
+            </div>
+            <p className="text-[10px] text-text-tertiary mt-0.5">
+              Ephemeral, high-volume. 14-day half-life decay. {(instanceStats.avg_effective_confidence * 100).toFixed(0)}% avg confidence.
+            </p>
+          </div>
+          <div className="wv-card p-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-text-secondary font-mono">simulation</span>
+              <span className="text-[10px] text-text-tertiary">non-mutating hypothesis testing</span>
+            </div>
+            <p className="text-[10px] text-text-tertiary mt-0.5">
+              Clones instance reality for dry-run predictions. Use the Simulate tab.
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }
@@ -577,10 +621,10 @@ export function WorldModelPanel() {
       <div className="flex-1 overflow-y-auto p-4">
         {tab === 'world' && <WorldTab />}
         {tab === 'graph' && <GraphTab />}
-        {tab === 'contradictions' && <ContradictionsTab />}
-        {tab === 'compose' && <ComposeTab />}
-        {tab === 'outcomes' && <OutcomesTab />}
-        {tab === 'memory' && <MemoryTab />}
+        {tab === 'contradictions' && <SearchTab />}
+        {tab === 'compose' && <SimulateTab />}
+        {tab === 'outcomes' && <ObservationsTab />}
+        {tab === 'memory' && <InstanceTab />}
       </div>
     </div>
   )
@@ -602,12 +646,4 @@ function Empty({ msg }: { msg: string }) {
       <p className="text-text-tertiary text-sm">{msg}</p>
     </div>
   )
-}
-
-function statusDot(status: string): string {
-  if (status === 'operational') return 'bg-ok'
-  if (status === 'degraded') return 'bg-warn'
-  if (status === 'partial') return 'bg-cyan'
-  if (status === 'missing') return 'bg-danger'
-  return 'bg-text-tertiary'
 }
