@@ -344,6 +344,9 @@ async def _autonomous_cadence_run_dry_run():
     return result.to_dict()
 
 
+_SAFE_API_MODES = frozenset({"off", "dry_run_only", "production_verify_only"})
+
+
 async def _autonomous_cadence_set_mode(payload: dict):
     daemon = _get_organism()
     if daemon is None:
@@ -353,6 +356,11 @@ async def _autonomous_cadence_set_mode(payload: dict):
         return {"error": "cadence not available"}
     from substrate.organism.autonomous_cadence import CadenceMode
     mode_str = payload.get("mode", "off")
+    if mode_str not in _SAFE_API_MODES:
+        return {
+            "error": f"mode '{mode_str}' is not API-settable (dry_run_only enforcement)",
+            "allowed_modes": sorted(_SAFE_API_MODES),
+        }
     try:
         cadence.mode = CadenceMode(mode_str)
     except ValueError:

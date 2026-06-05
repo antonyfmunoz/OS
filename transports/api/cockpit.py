@@ -2153,6 +2153,91 @@ async def execution_pause(request: Request):
     return {"ok": ok, "packet_id": packet_id}
 
 
+@router.post("/execution/complete", dependencies=[Depends(_require_operator_role)])
+async def execution_complete(request: Request):
+    """Mark a work packet as completed, triggering outcome recording and verification."""
+    body = await request.json()
+    packet_id = body.get("packet_id", "")
+    if not packet_id:
+        return {"ok": False, "error": "packet_id is required"}
+    reason = body.get("reason", "completed by operator")
+
+    from substrate.organism.work_packet_engine import WorkPacketEngine
+    from substrate.organism.work_packet import PacketLifecycleStatus
+    wpe = WorkPacketEngine()
+    pkt = wpe.get_packet(packet_id)
+    if not pkt:
+        return {"ok": False, "error": f"Work packet {packet_id} not found"}
+
+    if pkt.status == PacketLifecycleStatus.EXECUTING:
+        ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.VALIDATING, "validating before completion")
+        if ok:
+            verification = wpe.run_verification(packet_id)
+            pkt = wpe.get_packet(packet_id)
+            if pkt and pkt.verification_passed is False:
+                wpe.update_packet_status(packet_id, PacketLifecycleStatus.FAILED, "verification failed")
+                return {
+                    "ok": False,
+                    "packet_id": packet_id,
+                    "status": "failed",
+                    "reason": "verification failed",
+                    "verification": verification,
+                }
+            ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.COMPLETED, reason)
+    elif pkt.status == PacketLifecycleStatus.VALIDATING:
+        ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.COMPLETED, reason)
+    else:
+        return {
+            "ok": False,
+            "error": f"Cannot complete from status '{pkt.status.value}'",
+            "valid_statuses": ["executing", "validating"],
+        }
+
+    return {
+        "ok": ok,
+        "packet_id": packet_id,
+        "status": "completed",
+        "outcome_observation_id": pkt.outcome_observation_id if pkt else "",
+        "verification_passed": pkt.verification_passed if pkt else None,
+    }
+
+
+@router.post("/execution/fail", dependencies=[Depends(_require_operator_role)])
+async def execution_fail(request: Request):
+    """Mark a work packet as failed, triggering failure outcome recording."""
+    body = await request.json()
+    packet_id = body.get("packet_id", "")
+    if not packet_id:
+        return {"ok": False, "error": "packet_id is required"}
+    reason = body.get("reason", "failed")
+
+    from substrate.organism.work_packet_engine import WorkPacketEngine
+    from substrate.organism.work_packet import PacketLifecycleStatus
+    wpe = WorkPacketEngine()
+    pkt = wpe.get_packet(packet_id)
+    if not pkt:
+        return {"ok": False, "error": f"Work packet {packet_id} not found"}
+
+    if pkt.status not in (
+        PacketLifecycleStatus.EXECUTING,
+        PacketLifecycleStatus.VALIDATING,
+        PacketLifecycleStatus.DELEGATED,
+    ):
+        return {
+            "ok": False,
+            "error": f"Cannot fail from status '{pkt.status.value}'",
+            "valid_statuses": ["executing", "validating", "delegated"],
+        }
+
+    ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.FAILED, reason)
+    return {
+        "ok": ok,
+        "packet_id": packet_id,
+        "status": "failed",
+        "outcome_observation_id": pkt.outcome_observation_id if pkt else "",
+    }
+
+
 @router.post("/execution/resume", dependencies=[Depends(_require_operator_role)])
 async def execution_resume(request: Request):
     """Resume a blocked work packet back to classified for re-planning."""
