@@ -44,7 +44,7 @@ interface TrackingEntry {
   status: string
 }
 
-type ViewMode = 'observations' | 'memory' | 'skills' | 'tracking'
+type ViewMode = 'observations' | 'memory' | 'skills' | 'tracking' | 'reality'
 
 interface KnowledgeState {
   observations: Observation[]
