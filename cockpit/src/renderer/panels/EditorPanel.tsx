@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useEditorStore } from '../stores/editorStore'
+import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 
 interface FileNodeProps {
   name: string
@@ -189,22 +190,102 @@ export function EditorPanel() {
             )}
           </div>
 
-          {/* Live preview */}
+          {/* Right sidebar: Preview or Provider Registry */}
           {showPreview && (
             <div className="w-1/2 shrink-0 flex flex-col border-l border-border">
-              <div className="flex items-center h-8 px-3 shrink-0 border-b border-border bg-canvas">
-                <p className="wv-label">Live Preview</p>
-              </div>
-              <div className="flex-1 flex items-center justify-center bg-surface-raised">
-                <div className="text-center">
-                  <p className="text-xs text-text-tertiary">Live preview server integration coming in Phase 5.</p>
-                  <p className="text-xs mt-1 text-text-tertiary">Will render running web apps with hot reload (Replit pattern).</p>
-                </div>
-              </div>
+              <RightSidebar />
             </div>
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function RightSidebar() {
+  const [tab, setTab] = useState<'preview' | 'providers'>('providers')
+  return (
+    <>
+      <div className="flex items-center h-8 px-3 shrink-0 border-b border-border bg-canvas gap-2">
+        <button onClick={() => setTab('providers')}
+          className={`wv-label text-[10px] ${tab === 'providers' ? 'text-cyan' : 'text-text-tertiary'}`}>
+          Providers
+        </button>
+        <button onClick={() => setTab('preview')}
+          className={`wv-label text-[10px] ${tab === 'preview' ? 'text-cyan' : 'text-text-tertiary'}`}>
+          Preview
+        </button>
+      </div>
+      {tab === 'providers' ? <ProviderRegistrySurface /> : (
+        <div className="flex-1 flex items-center justify-center bg-surface-raised">
+          <div className="text-center">
+            <p className="text-xs text-text-tertiary">Live preview server integration coming in Phase 5.</p>
+            <p className="text-xs mt-1 text-text-tertiary">Will render running web apps with hot reload (Replit pattern).</p>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+const STATUS_BADGE: Record<string, { color: string; label: string }> = {
+  operational: { color: 'bg-ok', label: 'OK' },
+  configured: { color: 'bg-cyan', label: 'CFG' },
+  not_configured: { color: 'bg-text-tertiary', label: 'N/A' },
+  error: { color: 'bg-danger', label: 'ERR' },
+  unknown: { color: 'bg-text-tertiary', label: '?' },
+}
+
+function ProviderRegistrySurface() {
+  const providers = useProviderRegistryStore((s) => s.providers)
+  const fetchProviders = useProviderRegistryStore((s) => s.fetchProviders)
+  const smokeTest = useProviderRegistryStore((s) => s.smokeTest)
+  const [testResult, setTestResult] = useState<Record<string, string>>({})
+
+  useEffect(() => { fetchProviders() }, [fetchProviders])
+
+  const runSmoke = async (id: string) => {
+    setTestResult((p) => ({ ...p, [id]: 'testing...' }))
+    const res = await smokeTest(id)
+    setTestResult((p) => ({ ...p, [id]: res.success ? 'pass' : res.detail }))
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="flex items-center justify-between mb-2">
+        <p className="wv-label">Provider Registry</p>
+        <button onClick={fetchProviders}
+          className="text-[10px] text-cyan font-mono hover:underline">refresh</button>
+      </div>
+      {providers.map((p) => {
+        const badge = STATUS_BADGE[p.status] || STATUS_BADGE.unknown
+        return (
+          <div key={p.id} className="border border-border rounded p-2 bg-surface-secondary">
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${badge.color}`} />
+              <span className="text-xs font-medium text-text-primary">{p.name}</span>
+              <span className="text-[9px] font-mono text-text-tertiary">{p.type}</span>
+              <span className="ml-auto text-[9px] font-mono text-text-tertiary">{badge.label}</span>
+            </div>
+            <div className="flex flex-wrap gap-1 mb-1.5">
+              {p.capabilities.map((c) => (
+                <span key={c} className="px-1 py-0.5 text-[9px] rounded bg-surface-raised text-text-secondary">{c}</span>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => runSmoke(p.id)}
+                className="px-1.5 py-0.5 text-[10px] rounded text-cyan border border-border hover:bg-cyan/10">
+                smoke test
+              </button>
+              {testResult[p.id] && (
+                <span className={`text-[10px] font-mono ${testResult[p.id] === 'pass' ? 'text-ok' : testResult[p.id] === 'testing...' ? 'text-text-tertiary' : 'text-danger'}`}>
+                  {testResult[p.id]}
+                </span>
+              )}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

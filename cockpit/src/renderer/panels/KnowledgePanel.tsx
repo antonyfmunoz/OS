@@ -1,5 +1,7 @@
+import { useState, useEffect, useCallback } from 'react'
 import { useKnowledgeStore } from '../stores/knowledgeStore'
 import { usePolling } from '../hooks/usePolling'
+import { fetchApi } from '../api/client'
 
 const PRIMITIVE_COLORS: Record<string, string> = {
   state: 'var(--color-cyan)',
@@ -19,6 +21,7 @@ const TABS = [
   { id: 'memory' as const, label: 'Memory' },
   { id: 'skills' as const, label: 'Skills' },
   { id: 'tracking' as const, label: 'Tracking' },
+  { id: 'reality' as const, label: 'Reality Model' },
 ]
 
 export function KnowledgePanel() {
@@ -178,6 +181,8 @@ export function KnowledgePanel() {
               )}
             </div>
           )}
+
+          {viewMode === 'reality' && <RealityModelTab searchQuery={q} />}
         </div>
       </div>
 
@@ -245,6 +250,88 @@ export function KnowledgePanel() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+interface RealityEntry {
+  id: string
+  label: string
+  category: string
+  confidence: number
+  source: string
+  timestamp: string
+  details: string
+}
+
+function RealityModelTab({ searchQuery }: { searchQuery: string }) {
+  const [entries, setEntries] = useState<RealityEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedEntry, setSelectedEntry] = useState<RealityEntry | null>(null)
+
+  const fetchReality = useCallback(async () => {
+    try {
+      const data = await fetchApi<{ entries: RealityEntry[] }>('/reality-model/snapshot')
+      setEntries(data.entries || [])
+    } catch {
+      try {
+        const decisions = await fetchApi<{ decisions: RealityEntry[] }>('/reality-model/active-decisions')
+        setEntries(decisions.decisions || [])
+      } catch {
+        setEntries([])
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchReality() }, [fetchReality])
+
+  const filtered = searchQuery
+    ? entries.filter((e) => e.label?.toLowerCase().includes(searchQuery) || e.category?.toLowerCase().includes(searchQuery))
+    : entries
+
+  if (loading) {
+    return <p className="text-center text-xs py-8 text-text-tertiary">Loading reality model...</p>
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {filtered.map((entry) => (
+        <button
+          key={entry.id}
+          onClick={() => setSelectedEntry(selectedEntry?.id === entry.id ? null : entry)}
+          className={`w-full text-left wv-card px-3 py-2 transition-colors ${
+            selectedEntry?.id === entry.id ? 'border border-cyan/30' : ''
+          }`}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-mono text-xs text-cyan">{entry.category || 'general'}</span>
+            {entry.confidence != null && (
+              <span className={`text-[10px] font-mono ${entry.confidence >= 0.8 ? 'text-ok' : entry.confidence >= 0.5 ? 'text-warn' : 'text-danger'}`}>
+                {(entry.confidence * 100).toFixed(0)}%
+              </span>
+            )}
+            {entry.source && (
+              <span className="text-[10px] text-text-tertiary ml-auto truncate max-w-[100px]">{entry.source}</span>
+            )}
+          </div>
+          <p className="text-sm text-text-primary">{entry.label}</p>
+          {selectedEntry?.id === entry.id && entry.details && (
+            <p className="text-xs text-text-secondary mt-1.5 whitespace-pre-wrap">{entry.details}</p>
+          )}
+          {entry.timestamp && (
+            <p className="text-[10px] text-text-tertiary mt-1">
+              {new Date(entry.timestamp).toLocaleString()}
+            </p>
+          )}
+        </button>
+      ))}
+      {filtered.length === 0 && (
+        <p className="text-center text-xs py-8 text-text-tertiary">
+          {entries.length === 0 ? 'No reality model entries — connect to /reality-model/* routes' : 'No matches'}
+        </p>
       )}
     </div>
   )
