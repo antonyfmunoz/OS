@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react'
 import { useOrganismStore } from '../stores/organismStore'
 import { useRealtimeStore } from '../stores/realtimeStore'
 import { usePolling } from '../hooks/usePolling'
@@ -54,9 +55,10 @@ export function ExecutionPanel() {
 
       {/* Main content — two-column */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: execution lifecycle timeline */}
-        <div className="flex-1 overflow-y-auto p-3">
+        {/* Left: execution lifecycle timeline + trace */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-4">
           <ExecutionTimeline />
+          <TraceTimeline />
         </div>
 
         {/* Right: event console + leverage sidebar */}
@@ -110,6 +112,52 @@ export function ExecutionPanel() {
         </div>
       </div>
     </div>
+  )
+}
+
+function TraceTimeline() {
+  const [events, setEvents] = useState<any[]>([])
+
+  const fetchEvents = useCallback(async () => {
+    try {
+      const res = await fetch('/api/umh/organism/runtime-surface/sessions')
+      const data = await res.json()
+      if (data.sessions) {
+        const recent = data.sessions
+          .filter((s: any) => s.runtime_status !== 'drafted')
+          .slice(-10)
+          .reverse()
+        setEvents(recent)
+      }
+    } catch { /* silent */ }
+  }, [])
+
+  usePolling(fetchEvents, 5000)
+
+  if (events.length === 0) return null
+
+  return (
+    <section>
+      <h3 className="wv-label mb-2">Runtime Trace</h3>
+      <div className="space-y-1">
+        {events.map((e: any) => (
+          <div key={e.session_id} className="flex items-center gap-2 py-0.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              e.runtime_status === 'completed' ? 'bg-ok' :
+              e.runtime_status === 'failed' ? 'bg-danger' :
+              e.runtime_status === 'running' ? 'bg-cyan' :
+              e.runtime_status === 'blocked' ? 'bg-warn' :
+              'bg-text-tertiary'
+            }`} />
+            <span className="text-[10px] font-mono text-text-primary truncate flex-1">
+              {e.session_id?.slice(0, 16)}
+            </span>
+            <span className="text-[10px] text-text-tertiary">{e.runtime_type}</span>
+            <span className="text-[10px] font-mono text-text-secondary">{e.runtime_status}</span>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 

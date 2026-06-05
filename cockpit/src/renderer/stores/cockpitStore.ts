@@ -28,6 +28,7 @@ export type Panel =
   | 'propagation'
   | 'operator'
   | 'runtime'
+  | 'tmux'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
