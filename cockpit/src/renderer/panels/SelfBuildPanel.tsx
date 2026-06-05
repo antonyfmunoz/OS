@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { fetchApi } from '../api/client'
 import { ConnectionBanner } from '../components/ConnectionBanner'
 import { usePolling } from '../hooks/usePolling'
+import { useOperatorLoopStore } from '../stores/operatorLoopStore'
 
 interface QueueSummary {
   total_items: number
@@ -228,8 +229,67 @@ export function SelfBuildPanel() {
             </div>
           </section>
         )}
+
+        {/* Self-Improvement Loop */}
+        <SelfImprovementSection />
       </div>
     </div>
+  )
+}
+
+function SelfImprovementSection() {
+  const improvementStatus = useOperatorLoopStore((s) => s.improvementStatus)
+  const fetchImprovementStatus = useOperatorLoopStore((s) => s.fetchImprovementStatus)
+
+  useEffect(() => { fetchImprovementStatus() }, [fetchImprovementStatus])
+  usePolling(fetchImprovementStatus, 15000)
+
+  if (!improvementStatus) return null
+
+  return (
+    <section>
+      <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Self-Improvement Loop</h3>
+      <div className="border border-border rounded p-3 bg-surface-secondary space-y-3">
+        <div className="flex items-center gap-4 text-xs">
+          <span className="text-text-secondary">
+            Loop: <span className={`font-mono ${improvementStatus.loop_active ? 'text-ok' : 'text-text-tertiary'}`}>
+              {improvementStatus.loop_active ? 'ACTIVE' : 'INACTIVE'}
+            </span>
+          </span>
+          <span className="text-text-secondary">
+            Outcomes: <span className="font-mono text-cyan">{improvementStatus.recent_execution_outcomes}</span>
+          </span>
+        </div>
+
+        {/* Safety indicators */}
+        <div className="flex gap-2">
+          {improvementStatus.safety.dry_run_only && (
+            <span className="px-1.5 py-0.5 text-[10px] font-mono bg-ok/10 text-ok rounded">DRY RUN</span>
+          )}
+          {improvementStatus.safety.no_auto_merge && (
+            <span className="px-1.5 py-0.5 text-[10px] font-mono bg-warn/10 text-warn rounded">NO AUTO MERGE</span>
+          )}
+          {improvementStatus.safety.operator_approval_required && (
+            <span className="px-1.5 py-0.5 text-[10px] font-mono bg-warn/10 text-warn rounded">APPROVAL REQ</span>
+          )}
+        </div>
+
+        {/* Cadence info */}
+        {improvementStatus.cadence && Object.keys(improvementStatus.cadence).length > 0 && (
+          <div className="text-xs text-text-secondary">
+            <span className="font-semibold">Cadence:</span>
+            <div className="mt-1 grid grid-cols-2 gap-1 text-[11px]">
+              {Object.entries(improvementStatus.cadence).slice(0, 6).map(([k, v]) => (
+                <div key={k}>
+                  <span className="text-text-tertiary">{k.replace(/_/g, ' ')}:</span>{' '}
+                  <span className="text-text-primary font-mono">{String(v)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   )
 }
 

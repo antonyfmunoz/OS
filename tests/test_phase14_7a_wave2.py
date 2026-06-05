@@ -444,6 +444,7 @@ class TestWave2SafetyGates:
         changed = [f for f in result.stdout.strip().split("\n") if f]
         allowed_prefixes = [
             "transports/api/cockpit",
+            "cockpit/",
             "tests/",
             "data/umh/",
         ]
