@@ -68,8 +68,10 @@ function TabBar() {
 
 function WorldTab() {
   const worldModel = useWorldModelStore((s) => s.worldModel)
+  const loading = useWorldModelStore((s) => s.loading)
 
-  if (!worldModel) return <Empty msg="Loading world model..." />
+  if (loading) return <Empty msg="Loading world model..." />
+  if (!worldModel) return <Empty msg="World model endpoints not yet available — use Reality Model panel for current data" />
 
   const entities = Object.values(worldModel.entities)
   const byCategory: Record<string, typeof entities> = {}
@@ -150,7 +152,9 @@ function WorldTab() {
 function GraphTab() {
   const depGraph = useWorldModelStore((s) => s.depGraph)
 
-  if (!depGraph) return <Empty msg="Loading dependency graph..." />
+  const loading = useWorldModelStore((s) => s.loading)
+  if (loading) return <Empty msg="Loading dependency graph..." />
+  if (!depGraph) return <Empty msg="Dependency graph not yet available" />
 
   const { summary, orphaned, cycles, critical_paths, edges } = depGraph
 
@@ -243,7 +247,9 @@ function ContradictionsTab() {
   const compose = useWorldModelStore((s) => s.compose)
   const composing = useWorldModelStore((s) => s.composing)
 
-  if (!contradictions) return <Empty msg="Loading contradictions..." />
+  const loading = useWorldModelStore((s) => s.loading)
+  if (loading) return <Empty msg="Loading contradictions..." />
+  if (!contradictions) return <Empty msg="Contradictions endpoint not yet available" />
 
   const topContradiction = contradictions.contradictions[0]
 
@@ -409,7 +415,9 @@ function ComposeTab() {
 function OutcomesTab() {
   const learningLoop = useWorldModelStore((s) => s.learningLoop)
 
-  if (!learningLoop) return <Empty msg="Loading outcome history..." />
+  const loading = useWorldModelStore((s) => s.loading)
+  if (loading) return <Empty msg="Loading outcome history..." />
+  if (!learningLoop) return <Empty msg="Outcome history not yet available" />
 
   return (
     <div className="space-y-4">
@@ -487,7 +495,9 @@ function MemoryTab() {
   const approveMemory = useWorldModelStore((s) => s.approveMemory)
   const rejectMemory = useWorldModelStore((s) => s.rejectMemory)
 
-  if (!memoryPromotion) return <Empty msg="Loading memory promotion..." />
+  const loading = useWorldModelStore((s) => s.loading)
+  if (loading) return <Empty msg="Loading memory promotion..." />
+  if (!memoryPromotion) return <Empty msg="Memory promotion not yet available" />
 
   return (
     <div className="space-y-4">
