@@ -60,6 +60,36 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         methods=["GET"],
         dependencies=auth,
     )
+    r.add_api_route(
+        "/workstation/nodes",
+        _workstation_nodes,
+        methods=["GET"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/workstation/resume",
+        _workstation_resume,
+        methods=["GET"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/workstation/mode-composite",
+        _mode_composite,
+        methods=["GET"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/tmux/sessions",
+        _tmux_sessions,
+        methods=["GET"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/tmux/capture/{session_name}/{pane_id}",
+        _tmux_capture,
+        methods=["GET"],
+        dependencies=auth,
+    )
 
     return r
 
@@ -234,4 +264,143 @@ async def _execution_status(request: Request) -> dict[str, Any]:
         "session_id": session_id,
         "environment": platform.system().lower(),
         "status": status_result,
+    }
+
+
+# ── Cross-device node awareness ─────────────────────────────────────────────
+
+
+def _read_mesh_snapshot() -> list[dict[str, Any]]:
+    """Read the node mesh snapshot file for connected nodes."""
+    import json
+    import os
+    path = os.path.join(
+        os.environ.get("UMH_ROOT", "/opt/OS"),
+        "data", "runtime", "mesh_nodes.json",
+    )
+    if not os.path.exists(path):
+        return []
+    try:
+        return json.loads(open(path, encoding="utf-8").read())
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _read_vps_node() -> dict[str, Any]:
+    """Build VPS node info from local system."""
+    import os
+    hostname = platform.node()
+    return {
+        "id": f"vps-{hostname}",
+        "name": hostname,
+        "os": platform.system().lower(),
+        "os_version": platform.release(),
+        "status": "connected",
+        "role": "orchestrator",
+        "environment": platform.system().lower(),
+    }
+
+
+async def _workstation_nodes(request: Request) -> dict[str, Any]:
+    vps = _read_vps_node()
+    mesh_nodes = _read_mesh_snapshot()
+
+    all_nodes = [vps] + mesh_nodes
+    return {
+        "ok": True,
+        "nodes": all_nodes,
+        "count": len(all_nodes),
+        "vps": vps,
+        "remote_nodes": mesh_nodes,
+    }
+
+
+# ── Cross-device resume ─────────────────────────────────────────────────────
+
+
+async def _workstation_resume(request: Request) -> dict[str, Any]:
+    import json
+    import os
+    resume_path = os.path.join(
+        os.environ.get("UMH_ROOT", "/opt/OS"),
+        "data", "runtime", "workstation", "resume_state.json",
+    )
+
+    resume_data: dict[str, Any] = {}
+    if os.path.exists(resume_path):
+        try:
+            resume_data = json.loads(open(resume_path, encoding="utf-8").read())
+        except (json.JSONDecodeError, OSError):
+            resume_data = {}
+
+    from substrate.workstation.mode_resolver import resolve_composite_mode
+    mode = resolve_composite_mode()
+
+    return {
+        "ok": True,
+        "resume_state": resume_data,
+        "has_resume": bool(resume_data),
+        "mode_composite": mode,
+        "environment": platform.system().lower(),
+    }
+
+
+# ── Mode composite ───────────────────────────────────────────────────────────
+
+
+async def _mode_composite(request: Request) -> dict[str, Any]:
+    from substrate.workstation.mode_resolver import resolve_composite_mode
+    mode = resolve_composite_mode()
+    return {
+        "ok": True,
+        "mode_composite": mode,
+    }
+
+
+# ── Tmux visibility ─────────────────────────────────────────────────────────
+
+
+async def _tmux_sessions(request: Request) -> dict[str, Any]:
+    from adapters.tool_adapters.tmux import TmuxAdapter
+    adapter = TmuxAdapter()
+    result = adapter._execute_impl("list_sessions", {})
+    if not result.get("success"):
+        return {
+            "ok": False,
+            "error": result.get("stderr", "tmux not available"),
+            "sessions": [],
+        }
+
+    sessions: list[dict[str, Any]] = []
+    for line in result.get("stdout", "").strip().split("\n"):
+        if not line.strip():
+            continue
+        parts = line.split(":")
+        if len(parts) >= 3:
+            sessions.append({
+                "name": parts[0],
+                "windows": int(parts[1]) if parts[1].isdigit() else 0,
+                "attached": parts[2] == "1",
+            })
+
+    return {"ok": True, "sessions": sessions, "count": len(sessions)}
+
+
+async def _tmux_capture(request: Request, session_name: str, pane_id: str) -> dict[str, Any]:
+    from adapters.tool_adapters.tmux import TmuxAdapter
+    adapter = TmuxAdapter()
+    target = f"{session_name}:{pane_id}"
+    result = adapter._execute_impl("capture_pane", {"target": target})
+    if not result.get("success"):
+        return {
+            "ok": False,
+            "error": result.get("stderr", "capture failed"),
+            "target": target,
+            "output": "",
+        }
+
+    return {
+        "ok": True,
+        "target": target,
+        "output": result.get("stdout", ""),
     }
