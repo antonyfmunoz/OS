@@ -1,298 +1,235 @@
 import { create } from 'zustand'
 import { fetchApi } from '../api/client'
 
-interface WorldEntity {
+interface CanonicalPattern {
   id: string
   name: string
-  category: string
-  status: string
+  domain: string
   description: string
-  evidence: Array<{ type: string; detail: string; observed_at: number }>
-  capabilities: Array<{ name: string; provided_by: string; status: string }>
-  depends_on: string[]
-}
-
-interface WorldGap {
-  id: string
-  description: string
-  severity: string
-  entity_id: string
-  evidence: Array<{ type: string; detail: string }>
-}
-
-interface WorldUncertainty {
-  id: string
-  description: string
-  entity_id: string
-  reason: string
+  evidence_count: number
   confidence: number
+  effective_confidence: number
+  promoted_at: string
+  last_confirmed: string
+  tags: string[]
 }
 
-interface WorldModelSummary {
-  total_entities: number
-  by_status: Record<string, number>
-  by_category: Record<string, number>
-  total_gaps: number
-  gaps_by_severity: Record<string, number>
-  total_uncertainties: number
-  extracted_at: number
+interface PatternDetail extends CanonicalPattern {
+  metadata: Record<string, unknown>
+  relationships: PatternRelationship[]
 }
 
-interface WorldModelData {
-  summary: WorldModelSummary
-  entities: Record<string, WorldEntity>
-  gaps: WorldGap[]
-  uncertainties: WorldUncertainty[]
-  extracted_at: number
-}
-
-interface DependencyNode {
-  id: string
+interface PatternRelationship {
   name: string
-  category: string
-  status: string
-}
-
-interface DependencyEdge {
-  source: string
-  target: string
   type: string
-  strength: string
+  strength: number
 }
 
-interface CriticalPath {
-  path: string[]
-  length: number
-  risk: string
-  description: string
+interface CanonicalStats {
+  pattern_count: number
+  relationship_count: number
+  domains: string[]
+  avg_confidence: number
+  avg_evidence_count: number
 }
 
-interface DependencyGraphData {
-  summary: {
-    total_nodes: number
-    total_edges: number
-    edge_types: Record<string, number>
-    orphaned: number
-    cycles: number
-    critical_path_length: number
-    extracted_at: number
-  }
-  nodes: Record<string, DependencyNode>
-  edges: DependencyEdge[]
-  orphaned: string[]
-  cycles: string[][]
-  critical_paths: CriticalPath[]
-  extracted_at: number
+interface InstanceStats {
+  observation_count: number
+  domains: string[]
+  avg_effective_confidence: number
+  oldest: string | null
+  newest: string | null
 }
 
-interface Contradiction {
-  id: string
-  type: string
-  severity: string
-  confidence: number
-  recommended_fix: string
+interface RealityModelStatus {
+  canonical: CanonicalStats
+  instance: InstanceStats
+  layers: string[]
 }
 
-interface ContradictionData {
-  summary: {
-    total: number
-    by_severity: Record<string, number>
-    by_type: Record<string, number>
-    checks_performed: number
-    checked_at: number
-  }
-  contradictions: Contradiction[]
-  checked_at: number
-}
-
-interface CompositionStep {
-  id: string
-  description: string
-  action: string
-  depends_on: string[]
-  status: string
-  risk_class: string
-  governance_mode: string
-  verification: string
-}
-
-interface CompositionPlan {
-  summary: {
-    plan_id: string
-    intent: string
-    total_steps: number
-    step_status: Record<string, number>
-    overall_risk: string
-    governance_required: string
-    missing_prerequisites: number
-    risks: number
-    created_at: number
-  }
-  steps: CompositionStep[]
-  risks: Array<{ description: string; risk_class: string; mitigation: string }>
-  evidence: string[]
-  overall_risk: string
-  governance_required: string
-}
-
-interface MemoryCandidate {
+interface InstanceObservation {
   id: string
   content: string
-  category: string
-  scope: string
-  status: string
+  domain: string
   confidence: number
-  source_action: string
-  created_at: number
+  effective_confidence: number
+  observed_at: string
+  tags: string[]
 }
 
-interface MemoryPromotionData {
-  summary: {
-    total_candidates: number
-    by_status: Record<string, number>
-    canonical_entries: number
-    pending_approvals: number
-  }
-  pending_approvals: MemoryCandidate[]
+interface DomainCount {
+  domain: string
+  pattern_count?: number
+  observation_count?: number
 }
 
-interface OutcomeRecord {
+interface SearchResult {
   id: string
-  action_type: string
-  plan_id: string
-  step_id: string
-  description: string
-  status: string
-  actual_result: string
-  duration_seconds: number
-  recorded_at: number
+  name?: string
+  domain: string
+  description?: string
+  content?: string
+  effective_confidence: number
+  observed_at?: string
 }
 
-interface LearningLoopData {
-  total_outcomes: number
-  by_status: Record<string, number>
-  reliability: Record<string, number>
-  recent_outcomes: OutcomeRecord[]
-  signals: Array<{ signal_type: string; description: string; generated_at: number }>
-  promotion_candidates: string[]
+interface SimulationResult {
+  simulation_id: string
+  hypothesis: string
+  step_count: number
+  overall_confidence: number
+  duration_ms: number
+  safe_to_execute: boolean
+  predicted_outcome: string
+  risk_factors: string[]
+  ai_risk_analysis: Record<string, unknown>
+  new_observations: number
+  matched_patterns: string[]
 }
 
 type Tab = 'world' | 'graph' | 'contradictions' | 'compose' | 'outcomes' | 'memory'
 
 interface WorldModelState {
   tab: Tab
-  worldModel: WorldModelData | null
-  depGraph: DependencyGraphData | null
-  contradictions: ContradictionData | null
-  plan: CompositionPlan | null
-  learningLoop: LearningLoopData | null
-  memoryPromotion: MemoryPromotionData | null
+  status: RealityModelStatus | null
+  patterns: CanonicalPattern[]
+  selectedPattern: PatternDetail | null
+  relationships: PatternRelationship[]
+  recentObservations: InstanceObservation[]
+  instanceStats: InstanceStats | null
+  canonicalDomains: DomainCount[]
+  instanceDomains: DomainCount[]
+  searchResults: SearchResult[]
+  simulation: SimulationResult | null
   composing: boolean
   loading: boolean
   error: string | null
 
   setTab: (tab: Tab) => void
-  fetchWorldModel: () => Promise<void>
-  fetchDepGraph: () => Promise<void>
-  fetchContradictions: () => Promise<void>
-  fetchLearningLoop: () => Promise<void>
-  fetchMemoryPromotion: () => Promise<void>
-  compose: (intent: string) => Promise<void>
-  approveMemory: (id: string) => Promise<void>
-  rejectMemory: (id: string, reason: string) => Promise<void>
+  fetchStatus: () => Promise<void>
+  fetchPatterns: (domain?: string) => Promise<void>
+  fetchPatternDetail: (name: string) => Promise<void>
+  fetchRelationships: (name: string) => Promise<void>
+  fetchRecentObservations: () => Promise<void>
+  fetchInstanceStats: () => Promise<void>
+  fetchDomains: () => Promise<void>
+  searchCanonical: (q: string) => Promise<void>
+  simulate: (hypothesis: string) => Promise<void>
   fetchAll: () => Promise<void>
 }
 
 export const useWorldModelStore = create<WorldModelState>((set, get) => ({
   tab: 'world',
-  worldModel: null,
-  depGraph: null,
-  contradictions: null,
-  plan: null,
-  learningLoop: null,
-  memoryPromotion: null,
+  status: null,
+  patterns: [],
+  selectedPattern: null,
+  relationships: [],
+  recentObservations: [],
+  instanceStats: null,
+  canonicalDomains: [],
+  instanceDomains: [],
+  searchResults: [],
+  simulation: null,
   composing: false,
   loading: false,
   error: null,
 
   setTab: (tab) => set({ tab }),
 
-  fetchWorldModel: async () => {
+  fetchStatus: async () => {
     try {
-      const data = await fetchApi<WorldModelData>('/organism/world-model')
-      set({ worldModel: data })
+      const data = await fetchApi<RealityModelStatus>('/reality-model/status')
+      set({ status: data })
     } catch {
-      set({ error: 'Failed to fetch world model' })
+      set({ error: 'Failed to fetch reality model status' })
     }
   },
 
-  fetchDepGraph: async () => {
+  fetchPatterns: async (domain?: string) => {
     try {
-      const data = await fetchApi<DependencyGraphData>('/organism/dependency-graph')
-      set({ depGraph: data })
+      const path = domain
+        ? `/reality-model/canonical/patterns?domain=${encodeURIComponent(domain)}`
+        : '/reality-model/canonical/patterns'
+      const data = await fetchApi<CanonicalPattern[]>(path)
+      set({ patterns: data })
     } catch {
-      set({ error: 'Failed to fetch dependency graph' })
+      set({ error: 'Failed to fetch canonical patterns' })
     }
   },
 
-  fetchContradictions: async () => {
+  fetchPatternDetail: async (name: string) => {
     try {
-      const data = await fetchApi<ContradictionData>('/organism/contradictions')
-      set({ contradictions: data })
+      const data = await fetchApi<PatternDetail>(
+        `/reality-model/canonical/pattern/${encodeURIComponent(name)}`
+      )
+      set({ selectedPattern: data })
     } catch {
-      set({ error: 'Failed to fetch contradictions' })
+      set({ error: 'Failed to fetch pattern detail' })
     }
   },
 
-  fetchLearningLoop: async () => {
+  fetchRelationships: async (name: string) => {
     try {
-      const data = await fetchApi<LearningLoopData>('/organism/learning-loop')
-      set({ learningLoop: data })
+      const data = await fetchApi<PatternRelationship[]>(
+        `/reality-model/canonical/relationships/${encodeURIComponent(name)}`
+      )
+      set({ relationships: data })
     } catch {
-      set({ error: 'Failed to fetch learning loop' })
+      set({ error: 'Failed to fetch relationships' })
     }
   },
 
-  fetchMemoryPromotion: async () => {
+  fetchRecentObservations: async () => {
     try {
-      const data = await fetchApi<MemoryPromotionData>('/organism/memory-promotion')
-      set({ memoryPromotion: data })
+      const data = await fetchApi<InstanceObservation[]>('/reality-model/instance/recent')
+      set({ recentObservations: data })
     } catch {
-      set({ error: 'Failed to fetch memory promotion' })
+      set({ error: 'Failed to fetch recent observations' })
     }
   },
 
-  compose: async (intent: string) => {
+  fetchInstanceStats: async () => {
+    try {
+      const data = await fetchApi<InstanceStats>('/reality-model/instance/stats')
+      set({ instanceStats: data })
+    } catch {
+      set({ error: 'Failed to fetch instance stats' })
+    }
+  },
+
+  fetchDomains: async () => {
+    try {
+      const [canonical, instance] = await Promise.all([
+        fetchApi<DomainCount[]>('/reality-model/canonical/domains'),
+        fetchApi<DomainCount[]>('/reality-model/instance/domains'),
+      ])
+      set({ canonicalDomains: canonical, instanceDomains: instance })
+    } catch {
+      set({ error: 'Failed to fetch domains' })
+    }
+  },
+
+  searchCanonical: async (q: string) => {
+    try {
+      const data = await fetchApi<SearchResult[]>(
+        `/reality-model/canonical/search?q=${encodeURIComponent(q)}`
+      )
+      set({ searchResults: data })
+    } catch {
+      set({ error: 'Failed to search canonical patterns' })
+    }
+  },
+
+  simulate: async (hypothesis: string) => {
     set({ composing: true, error: null })
     try {
-      const data = await fetchApi<CompositionPlan>('/organism/compose', {
-        method: 'POST',
-        body: JSON.stringify({ intent }),
-      })
-      set({ plan: data, composing: false, tab: 'compose' })
+      const resp = await fetchApi<{ success: boolean; result: SimulationResult }>(
+        '/reality-model/simulate',
+        { method: 'POST', body: JSON.stringify({ hypothesis }) }
+      )
+      set({ simulation: resp.result, composing: false, tab: 'compose' })
     } catch {
-      set({ composing: false, error: 'Composition failed' })
-    }
-  },
-
-  approveMemory: async (id: string) => {
-    try {
-      await fetchApi(`/organism/memory-promotion/${id}/approve`, { method: 'POST' })
-      get().fetchMemoryPromotion()
-    } catch {
-      set({ error: 'Failed to approve memory' })
-    }
-  },
-
-  rejectMemory: async (id: string, reason: string) => {
-    try {
-      await fetchApi(`/organism/memory-promotion/${id}/reject`, {
-        method: 'POST',
-        body: JSON.stringify({ reason }),
-      })
-      get().fetchMemoryPromotion()
-    } catch {
-      set({ error: 'Failed to reject memory' })
+      set({ composing: false, error: 'Simulation failed' })
     }
   },
 
@@ -300,11 +237,11 @@ export const useWorldModelStore = create<WorldModelState>((set, get) => ({
     set({ loading: true })
     const s = get()
     await Promise.all([
-      s.fetchWorldModel(),
-      s.fetchDepGraph(),
-      s.fetchContradictions(),
-      s.fetchLearningLoop(),
-      s.fetchMemoryPromotion(),
+      s.fetchStatus(),
+      s.fetchPatterns(),
+      s.fetchRecentObservations(),
+      s.fetchInstanceStats(),
+      s.fetchDomains(),
     ])
     set({ loading: false })
   },
