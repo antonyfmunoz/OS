@@ -158,6 +158,7 @@ class ShellRuntimeAdapter(RuntimeAdapter):
         self._processes: dict[str, subprocess.Popen[str]] = {}
         self._outputs: dict[str, str] = {}
         self._start_times: dict[str, float] = {}
+        self._paused_sessions: set[str] = set()
 
     def is_available(self) -> bool:
         return True
@@ -339,6 +340,66 @@ class ShellRuntimeAdapter(RuntimeAdapter):
         ))
         return {"stopped": True, "exit_code": proc.returncode, "reason": reason}
 
+    def pause(self, session_id: str, reason: str = "") -> dict[str, Any]:
+        import sys
+        if sys.platform != "linux":
+            return {
+                "paused": False,
+                "supported": False,
+                "reason": f"pause not supported on {sys.platform} — SIGSTOP is Linux-only",
+            }
+
+        proc = self._processes.get(session_id)
+        if not proc:
+            return {"paused": False, "supported": True, "reason": "no process found"}
+        if proc.poll() is not None:
+            return {"paused": False, "supported": True, "reason": "process already terminated"}
+        if session_id in self._paused_sessions:
+            return {"paused": True, "supported": True, "reason": "already paused"}
+
+        try:
+            os.kill(proc.pid, signal.SIGSTOP)
+            self._paused_sessions.add(session_id)
+            persist_event(RuntimeEvent.create(
+                session_id=session_id,
+                event_type=RuntimeEventType.STOP_REQUESTED,
+                message=f"SIGSTOP sent, reason={reason or 'operator requested pause'}",
+            ))
+            return {"paused": True, "supported": True, "pid": proc.pid, "reason": reason}
+        except (ProcessLookupError, PermissionError) as exc:
+            logger.warning("pause failed for session %s: %s", session_id, exc)
+            return {"paused": False, "supported": True, "reason": f"SIGSTOP failed: {exc}"}
+
+    def resume(self, session_id: str, reason: str = "") -> dict[str, Any]:
+        import sys
+        if sys.platform != "linux":
+            return {
+                "resumed": False,
+                "supported": False,
+                "reason": f"resume not supported on {sys.platform} — SIGCONT is Linux-only",
+            }
+
+        proc = self._processes.get(session_id)
+        if not proc:
+            return {"resumed": False, "supported": True, "reason": "no process found"}
+        if proc.poll() is not None:
+            return {"resumed": False, "supported": True, "reason": "process already terminated"}
+        if session_id not in self._paused_sessions:
+            return {"resumed": False, "supported": True, "reason": "session is not paused"}
+
+        try:
+            os.kill(proc.pid, signal.SIGCONT)
+            self._paused_sessions.discard(session_id)
+            persist_event(RuntimeEvent.create(
+                session_id=session_id,
+                event_type=RuntimeEventType.RUNTIME_STARTED,
+                message=f"SIGCONT sent, reason={reason or 'operator requested resume'}",
+            ))
+            return {"resumed": True, "supported": True, "pid": proc.pid, "reason": reason}
+        except (ProcessLookupError, PermissionError) as exc:
+            logger.warning("resume failed for session %s: %s", session_id, exc)
+            return {"resumed": False, "supported": True, "reason": f"SIGCONT failed: {exc}"}
+
     def status(self, session_id: str) -> dict[str, Any]:
         proc = self._processes.get(session_id)
         if not proc:
@@ -346,7 +407,12 @@ class ShellRuntimeAdapter(RuntimeAdapter):
         poll = proc.poll()
         if poll is None:
             elapsed = time.time() - self._start_times.get(session_id, 0)
-            return {"status": "running", "pid": proc.pid, "elapsed_seconds": round(elapsed, 1)}
+            paused = session_id in self._paused_sessions
+            return {
+                "status": "paused" if paused else "running",
+                "pid": proc.pid,
+                "elapsed_seconds": round(elapsed, 1),
+            }
         return {"status": "terminated", "exit_code": poll, "pid": proc.pid}
 
     def collect_output(self, session_id: str) -> str:
@@ -370,6 +436,7 @@ class ShellRuntimeAdapter(RuntimeAdapter):
         proc = self._processes.pop(session_id, None)
         self._outputs.pop(session_id, None)
         self._start_times.pop(session_id, None)
+        self._paused_sessions.discard(session_id)
         if proc and proc.poll() is None:
             proc.kill()
             proc.wait(timeout=3)
