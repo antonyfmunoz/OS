@@ -25,6 +25,7 @@ import {
   Hammer,
   Mic,
   Play,
+  FolderSearch,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -58,6 +59,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'intelligence', key: '5' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'intelligence', key: '6' },
   { id: 'skills', label: 'Skills', icon: Wrench, group: 'intelligence', key: 'k' },
+  { id: 'workspace', label: 'Workspace', icon: FolderSearch, group: 'intelligence', key: 'j' },
   { id: 'editor', label: 'IDE', icon: Code2, group: 'intelligence', key: '7' },
   { id: 'experiments', label: 'Experiments', icon: FlaskConical, group: 'intelligence', key: 'x' },
   { id: 'comms', label: 'Messages', icon: MessageSquare, group: 'system', key: 'm' },
