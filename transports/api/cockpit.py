@@ -2661,3 +2661,17 @@ def _mount_workstation_control_router() -> None:
 
 
 _mount_workstation_control_router()
+
+
+# ── Phase 14.11C: Workspace routes (file browser, diff, tests, logs, proof, health) ──
+
+
+def _mount_workspace_router() -> None:
+    from transports.api import cockpit_workspace_routes
+    cockpit_workspace_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_workspace_routes.workspace_router)
+
+
+_mount_workspace_router()
