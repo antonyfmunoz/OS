@@ -308,6 +308,7 @@ export function DashboardPanel() {
 
 function ResumeWidget() {
   const [resume, setResume] = useState<any>(null)
+  const [checkpoint, setCheckpoint] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   const fetchResume = useCallback(async () => {
@@ -316,6 +317,11 @@ function ResumeWidget() {
       const data = await res.json()
       if (data.ok) setResume(data)
     } catch { /* silent */ }
+    try {
+      const res = await fetch('/api/umh/workstation/checkpoint')
+      const data = await res.json()
+      if (data.ok && data.has_checkpoint) setCheckpoint(data.checkpoint)
+    } catch { /* silent */ }
     setLoading(false)
   }, [])
 
@@ -323,22 +329,53 @@ function ResumeWidget() {
 
   if (loading || !resume) return null
 
-  const posture = resume.mode_composite?.effective_posture ?? 'unknown'
+  const mc = resume.mode_composite ?? {}
+  const continuity = mc.continuity_state ?? 'active'
+  const lifecycle = mc.lifecycle_mode ?? 'day_cycle'
+  const profiles = mc.active_profile_modes ?? []
+  const posture = mc.effective_posture ?? 'unknown'
   const goals = resume.resume_state?.active_goals ?? []
   const nextActions = resume.resume_state?.suggested_next_actions ?? []
   const hasResume = resume.has_resume
 
   return (
     <section className="wv-card p-3">
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
         <h3 className="wv-label">Resume Brief</h3>
         <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-          posture === 'active' ? 'bg-ok/10 text-ok' :
-          posture === 'deep_work' ? 'bg-cyan/10 text-cyan' :
-          posture === 'remote' ? 'bg-warn/10 text-warn' :
+          continuity === 'active' ? 'bg-ok/10 text-ok' :
+          continuity === 'night_sleeping' ? 'bg-purple-500/10 text-purple-400' :
+          continuity === 'away' ? 'bg-warn/10 text-warn' :
+          continuity === 'remote' ? 'bg-cyan/10 text-cyan' :
           'bg-surface text-text-tertiary'
-        }`}>{posture.toUpperCase()}</span>
+        }`}>{continuity.replace(/_/g, ' ').toUpperCase()}</span>
+        {lifecycle !== 'day_cycle' && (
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-warn/10 text-warn">
+            {lifecycle.replace(/_/g, ' ').toUpperCase()}
+          </span>
+        )}
+        {profiles.length > 0 && (
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan/10 text-cyan">
+            {profiles.map((m: string) => m.toUpperCase()).join(' + ')}
+          </span>
+        )}
       </div>
+
+      {checkpoint && (
+        <div className="mb-2 p-2 rounded bg-surface-secondary border border-border">
+          <span className="text-[10px] text-text-tertiary">Last checkpoint: </span>
+          <span className="text-[10px] text-text-primary">
+            {checkpoint.previous_continuity_state} → {checkpoint.new_continuity_state}
+          </span>
+          {checkpoint.transition_reason && (
+            <p className="text-[10px] text-text-tertiary mt-0.5">{checkpoint.transition_reason}</p>
+          )}
+          {checkpoint.recommended_next_action && (
+            <p className="text-[10px] text-cyan mt-0.5">→ {checkpoint.recommended_next_action}</p>
+          )}
+        </div>
+      )}
+
       {!hasResume && <p className="text-xs text-text-tertiary">No resume state — fresh session</p>}
       {hasResume && (
         <div className="space-y-1.5">
