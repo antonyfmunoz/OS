@@ -102,3 +102,19 @@ class RuntimeAdapter(abc.ABC):
     @abc.abstractmethod
     def cleanup(self, session_id: str) -> dict[str, Any]:
         """Clean up runtime resources (processes, temp files)."""
+
+    def pause(self, session_id: str, reason: str = "") -> dict[str, Any]:
+        """Pause execution. Concrete default returns NOT_SUPPORTED."""
+        return {
+            "paused": False,
+            "supported": False,
+            "reason": f"{self.runtime_type} adapter does not support pause",
+        }
+
+    def resume(self, session_id: str, reason: str = "") -> dict[str, Any]:
+        """Resume paused execution. Concrete default returns NOT_SUPPORTED."""
+        return {
+            "resumed": False,
+            "supported": False,
+            "reason": f"{self.runtime_type} adapter does not support resume",
+        }

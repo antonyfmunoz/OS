@@ -2123,34 +2123,32 @@ async def execution_start(request: Request):
     }
 
 
-@router.post("/execution/stop", dependencies=[Depends(_require_operator_role)])
+@router.post("/execution/stop", dependencies=[Depends(_require_operator_role)], deprecated=True)
 async def execution_stop(request: Request):
-    """Stop execution of a work packet."""
+    """DEPRECATED — use POST /workstation/execution/stop instead."""
     body = await request.json()
     packet_id = body.get("packet_id", "")
     if not packet_id:
         return {"ok": False, "error": "packet_id is required"}
-
     from substrate.organism.work_packet_engine import WorkPacketEngine
     from substrate.organism.work_packet import PacketLifecycleStatus
     wpe = WorkPacketEngine()
     ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, "stopped by operator")
-    return {"ok": ok, "packet_id": packet_id}
+    return {"ok": ok, "packet_id": packet_id, "deprecated": "use POST /workstation/execution/stop"}
 
 
-@router.post("/execution/pause", dependencies=[Depends(_require_operator_role)])
+@router.post("/execution/pause", dependencies=[Depends(_require_operator_role)], deprecated=True)
 async def execution_pause(request: Request):
-    """Pause execution of a work packet."""
+    """DEPRECATED — use POST /workstation/execution/pause instead."""
     body = await request.json()
     packet_id = body.get("packet_id", "")
     if not packet_id:
         return {"ok": False, "error": "packet_id is required"}
-
     from substrate.organism.work_packet_engine import WorkPacketEngine
     from substrate.organism.work_packet import PacketLifecycleStatus
     wpe = WorkPacketEngine()
     ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, "paused by operator")
-    return {"ok": ok, "packet_id": packet_id}
+    return {"ok": ok, "packet_id": packet_id, "deprecated": "use POST /workstation/execution/pause"}
 
 
 @router.post("/execution/complete", dependencies=[Depends(_require_operator_role)])
@@ -2238,19 +2236,18 @@ async def execution_fail(request: Request):
     }
 
 
-@router.post("/execution/resume", dependencies=[Depends(_require_operator_role)])
+@router.post("/execution/resume", dependencies=[Depends(_require_operator_role)], deprecated=True)
 async def execution_resume(request: Request):
-    """Resume a blocked work packet back to classified for re-planning."""
+    """DEPRECATED — use POST /workstation/execution/resume instead."""
     body = await request.json()
     packet_id = body.get("packet_id", "")
     if not packet_id:
         return {"ok": False, "error": "packet_id is required"}
-
     from substrate.organism.work_packet_engine import WorkPacketEngine
     from substrate.organism.work_packet import PacketLifecycleStatus
     wpe = WorkPacketEngine()
     ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.CLASSIFIED, "resumed by operator")
-    return {"ok": ok, "packet_id": packet_id}
+    return {"ok": ok, "packet_id": packet_id, "deprecated": "use POST /workstation/execution/resume"}
 
 
 # ── Intent classification (WP-2.1) ────────────────────────────────────────────
@@ -2650,3 +2647,17 @@ def _mount_self_improvement_router() -> None:
 
 
 _mount_self_improvement_router()
+
+
+# ── Phase 14.11A: Workstation execution control routes ──────────────────────
+
+
+def _mount_workstation_control_router() -> None:
+    from transports.api import cockpit_workstation_control_routes
+    cockpit_workstation_control_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_workstation_control_routes.workstation_control_router)
+
+
+_mount_workstation_control_router()
