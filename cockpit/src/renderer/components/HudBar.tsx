@@ -52,13 +52,20 @@ export function HudBar() {
 
   const [posture, setPosture] = useState<string>('')
   const [nodeCount, setNodeCount] = useState<number>(0)
+  const [continuityState, setContinuityState] = useState<string>('')
+  const [lifecycleMode, setLifecycleMode] = useState<string>('')
+  const [profileModes, setProfileModes] = useState<string[]>([])
 
   const fetchWorkstationMode = useCallback(async () => {
     try {
       const res = await fetch('/api/umh/workstation/mode-composite')
       const data = await res.json()
       if (data.ok) {
-        setPosture(data.mode_composite?.effective_posture ?? '')
+        const mc = data.mode_composite ?? {}
+        setPosture(mc.effective_posture ?? '')
+        setContinuityState(mc.continuity_state ?? '')
+        setLifecycleMode(mc.lifecycle_mode ?? '')
+        setProfileModes(mc.active_profile_modes ?? [])
       }
     } catch { /* silent */ }
     try {
@@ -98,6 +105,34 @@ export function HudBar() {
           posture === 'overnight_autonomous' && 'bg-purple-500/10 text-purple-400',
           posture === 'inactive' && 'bg-surface text-text-tertiary',
         )}>{posture.toUpperCase()}</span>
+      )}
+
+      {/* Continuity state */}
+      {continuityState && (
+        <span className={clsx(
+          'text-[10px] font-mono px-1.5 py-0.5 rounded',
+          continuityState === 'active' && 'bg-ok/10 text-ok',
+          continuityState === 'idle' && 'bg-surface text-text-tertiary',
+          continuityState === 'away' && 'bg-warn/10 text-warn',
+          continuityState === 'remote' && 'bg-cyan/10 text-cyan',
+          continuityState === 'night_sleeping' && 'bg-purple-500/10 text-purple-400',
+          continuityState === 'returning' && 'bg-ok/10 text-ok',
+          continuityState === 'resume_brief' && 'bg-cyan/10 text-cyan',
+        )}>{continuityState.replace(/_/g, ' ').toUpperCase()}</span>
+      )}
+
+      {/* Lifecycle mode */}
+      {lifecycleMode && lifecycleMode !== 'day_cycle' && (
+        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-warn/10 text-warn">
+          {lifecycleMode.replace(/_/g, ' ').toUpperCase()}
+        </span>
+      )}
+
+      {/* Profile modes */}
+      {profileModes.length > 0 && (
+        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan/10 text-cyan">
+          {profileModes.map(m => m.toUpperCase()).join(' + ')}
+        </span>
       )}
 
       {/* Node count */}
