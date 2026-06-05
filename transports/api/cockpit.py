@@ -476,20 +476,66 @@ async def agents():
 
 
 @router.get("/memory")
-async def memory():
-    entries = _read_jsonl(MEMORY_STORE)
+async def memory(source: str = "all", limit: int = 50):
+    """Memory entries from typed ConversationMemory and AgentMemory classes,
+    with JSONL fallback for legacy ontology data."""
     result = []
-    for e in entries:
-        mem_type = e.get("memory_type", "TEXT_BLOB")
-        type_map = {
-            "canonical": "STRUCTURED",
-            "instance": "PARTIAL",
-            "domain_projection": "DOMAIN_PROJECTION",
-        }
-        mapped_type = type_map.get(mem_type, "TEXT_BLOB")
 
-        result.append(
-            {
+    if source in ("all", "conversation"):
+        try:
+            from substrate.state.memory.memory import ConversationMemory
+            from substrate.state.context.context import try_load_context_from_env
+            ctx = try_load_context_from_env()
+            if ctx:
+                conv = ConversationMemory(ctx)
+                recent = conv.get_recent(limit=limit)
+                for msg in recent:
+                    result.append({
+                        "id": getattr(msg, "id", ""),
+                        "label": (getattr(msg, "content", "") or "")[:80],
+                        "description": (getattr(msg, "content", "") or "")[:300],
+                        "memory_type": "CONVERSATION",
+                        "authority_tier": "T5",
+                        "source_document": "",
+                        "primitive_type": "state",
+                        "created_at": str(getattr(msg, "created_at", "")),
+                        "role": getattr(msg, "role", ""),
+                        "channel": getattr(msg, "channel", ""),
+                    })
+        except Exception as e:
+            logger.debug("conversation memory load: %s", e)
+
+    if source in ("all", "agent"):
+        try:
+            from substrate.state.memory.memory import AgentMemory
+            agent_mem = AgentMemory()
+            recent_interactions = agent_mem.get_recent(limit=limit)
+            for row in recent_interactions:
+                result.append({
+                    "id": str(row.get("id", "")),
+                    "label": (str(row.get("input_summary", "")) or "")[:80],
+                    "description": (str(row.get("output_summary", "")) or "")[:300],
+                    "memory_type": "AGENT",
+                    "authority_tier": "T5",
+                    "source_document": "",
+                    "primitive_type": "action",
+                    "created_at": str(row.get("created_at", "")),
+                    "agent": str(row.get("agent", "")),
+                })
+        except Exception as e:
+            logger.debug("agent memory load: %s", e)
+
+    if source in ("all", "ontology"):
+        entries = _read_jsonl(MEMORY_STORE)
+        for e in entries[:limit]:
+            mem_type = e.get("memory_type", "TEXT_BLOB")
+            type_map = {
+                "canonical": "STRUCTURED",
+                "instance": "PARTIAL",
+                "domain_projection": "DOMAIN_PROJECTION",
+            }
+            mapped_type = type_map.get(mem_type, "TEXT_BLOB")
+            result.append({
                 "id": e.get("memory_id", ""),
                 "label": (e.get("label") or "")[:80],
                 "description": (e.get("content") or "")[:300],
@@ -501,8 +547,8 @@ async def memory():
                 "domain_id": e.get("lineage", {}).get("domain_id")
                 if mapped_type == "DOMAIN_PROJECTION"
                 else None,
-            }
-        )
+            })
+
     return result
 
 
@@ -1901,92 +1947,188 @@ async def loop_delete(loop_name: str):
 
 @router.get("/execution/status")
 async def execution_status():
-    """Execution slot status across all compute layers."""
-    return {
-        "slots": [
-            {
-                "slot": 0,
-                "layer": "native",
-                "task": "",
-                "status": "idle",
-                "step_count": 0,
-                "authority_class": "operator",
-                "risk_class": "LOW",
-                "approval_status": "none",
+    """Execution status from live organism spine and work packet engine."""
+    try:
+        organism = _get_organism()
+        spine_status = {}
+        pending_count = 0
+        active_count = 0
+        completed_count = 0
+
+        if organism:
+            spine = getattr(organism, "spine", None)
+            if spine:
+                spine_status = {
+                    "mode": getattr(spine, "mode", "unknown"),
+                    "guard_mode": getattr(spine, "guard_mode", "unknown"),
+                }
+            pending = getattr(organism, "get_pending_envelopes", lambda: [])()
+            active = getattr(organism, "get_active_envelopes", lambda: [])()
+            completed_list = getattr(organism, "get_completed_envelopes", lambda: [])()
+            pending_count = len(pending) if pending else 0
+            active_count = len(active) if active else 0
+            completed_count = len(completed_list) if completed_list else 0
+
+        from substrate.organism.work_packet_engine import WorkPacketEngine
+        wpe = WorkPacketEngine()
+        packets = wpe.all_packets()
+        packet_summary = {}
+        for pkt in packets:
+            status_val = pkt.status.value if hasattr(pkt.status, "value") else str(pkt.status)
+            packet_summary[status_val] = packet_summary.get(status_val, 0) + 1
+
+        return {
+            "spine": spine_status,
+            "envelopes": {
+                "pending": pending_count,
+                "active": active_count,
+                "completed": completed_count,
             },
-            {
-                "slot": 1,
-                "layer": "container",
-                "task": "",
-                "status": "idle",
-                "step_count": 0,
-                "authority_class": "operator",
-                "risk_class": "LOW",
-                "approval_status": "none",
+            "work_packets": {
+                "total": len(packets),
+                "by_status": packet_summary,
             },
-            {
-                "slot": 2,
-                "layer": "wsl",
-                "task": "",
-                "status": "idle",
-                "step_count": 0,
-                "authority_class": "operator",
-                "risk_class": "LOW",
-                "approval_status": "none",
-            },
-            {
-                "slot": 3,
-                "layer": "vm",
-                "task": "",
-                "status": "idle",
-                "step_count": 0,
-                "authority_class": "operator",
-                "risk_class": "LOW",
-                "approval_status": "none",
-            },
-        ],
-    }
+        }
+    except Exception as e:
+        logger.debug("execution_status: %s", e)
+        return {
+            "spine": {},
+            "envelopes": {"pending": 0, "active": 0, "completed": 0},
+            "work_packets": {"total": 0, "by_status": {}},
+            "error": str(e),
+        }
 
 
 @router.get("/execution/log")
-async def execution_log(slot: int = 0):
-    """Action log for a specific execution slot."""
-    return {"slot": slot, "log": []}
+async def execution_log(limit: int = 20):
+    """Recent execution journal entries from spine."""
+    try:
+        organism = _get_organism()
+        if not organism:
+            return {"log": [], "count": 0}
+        journal = getattr(organism, "journal", None)
+        if not journal:
+            return {"log": [], "count": 0}
+        recent = getattr(journal, "recent", lambda n: [])(limit)
+        entries = []
+        for entry in recent:
+            entries.append({
+                "id": str(getattr(entry, "id", "")),
+                "event_type": str(getattr(entry, "event_type", "")),
+                "timestamp": str(getattr(entry, "timestamp", "")),
+                "envelope_id": str(getattr(entry, "envelope_id", "")),
+                "summary": str(getattr(entry, "summary", ""))[:200],
+            })
+        return {"log": entries, "count": len(entries)}
+    except Exception as e:
+        logger.debug("execution_log: %s", e)
+        return {"log": [], "count": 0, "error": str(e)}
 
 
 @router.get("/execution/authority")
 async def execution_authority(layer: str = "native"):
-    """Authority preview for a compute layer."""
-    return {
-        "layer": layer,
-        "authority_class": "operator",
-        "risk_class": "LOW",
-        "approval_requirement": "none",
-    }
+    """Authority preview using live governance engine."""
+    try:
+        from substrate.governance.policy_engine import PolicyEngine
+        engine = PolicyEngine()
+        return {
+            "layer": layer,
+            "authority_class": "operator",
+            "safe_roots": engine.safe_roots,
+            "risk_class": "LOW",
+            "approval_requirement": "none" if layer in ("native", "container") else "operator_review",
+        }
+    except Exception as e:
+        logger.debug("execution_authority: %s", e)
+        return {
+            "layer": layer,
+            "authority_class": "operator",
+            "risk_class": "LOW",
+            "approval_requirement": "none",
+        }
 
 
 @router.post("/execution/start", dependencies=[Depends(_require_operator_role)])
-async def execution_start(payload: dict):
-    """Start execution in a slot."""
-    return {"ok": True}
+async def execution_start(request: Request):
+    """Start execution of a work packet through the governed spine."""
+    body = await request.json()
+    packet_id = body.get("packet_id", "")
+    if not packet_id:
+        return {"ok": False, "error": "packet_id is required"}
+
+    from substrate.organism.work_packet_engine import WorkPacketEngine
+    from substrate.organism.work_packet import PacketLifecycleStatus
+    wpe = WorkPacketEngine()
+    pkt = wpe.get_packet(packet_id)
+    if not pkt:
+        return {"ok": False, "error": f"Work packet {packet_id} not found"}
+
+    if pkt.approval_gates and pkt.status != PacketLifecycleStatus.APPROVED:
+        return {
+            "ok": False,
+            "error": "Work packet requires approval before execution",
+            "status": pkt.status.value,
+            "approval_gates": pkt.approval_gates,
+        }
+
+    if pkt.status == PacketLifecycleStatus.APPROVED:
+        ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.DELEGATED, "delegated for execution")
+        if ok:
+            ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.EXECUTING, "execution started")
+    elif pkt.status == PacketLifecycleStatus.DELEGATED:
+        ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.EXECUTING, "execution started")
+    else:
+        return {
+            "ok": False,
+            "error": f"Cannot start execution from status '{pkt.status.value}'",
+            "valid_start_statuses": ["approved", "delegated"],
+        }
+    return {"ok": ok, "packet_id": packet_id, "status": "executing"}
 
 
 @router.post("/execution/stop", dependencies=[Depends(_require_operator_role)])
-async def execution_stop(payload: dict):
-    """Stop execution in a slot."""
-    return {"ok": True}
+async def execution_stop(request: Request):
+    """Stop execution of a work packet."""
+    body = await request.json()
+    packet_id = body.get("packet_id", "")
+    if not packet_id:
+        return {"ok": False, "error": "packet_id is required"}
+
+    from substrate.organism.work_packet_engine import WorkPacketEngine
+    from substrate.organism.work_packet import PacketLifecycleStatus
+    wpe = WorkPacketEngine()
+    ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, "stopped by operator")
+    return {"ok": ok, "packet_id": packet_id}
 
 
 @router.post("/execution/pause", dependencies=[Depends(_require_operator_role)])
-async def execution_pause(payload: dict):
-    """Pause execution in a slot."""
-    return {"ok": True}
+async def execution_pause(request: Request):
+    """Pause execution of a work packet."""
+    body = await request.json()
+    packet_id = body.get("packet_id", "")
+    if not packet_id:
+        return {"ok": False, "error": "packet_id is required"}
+
+    from substrate.organism.work_packet_engine import WorkPacketEngine
+    from substrate.organism.work_packet import PacketLifecycleStatus
+    wpe = WorkPacketEngine()
+    ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, "paused by operator")
+    return {"ok": ok, "packet_id": packet_id}
 
 
 @router.post("/execution/resume", dependencies=[Depends(_require_operator_role)])
-async def execution_resume(payload: dict):
-    """Resume execution in a slot."""
-    return {"ok": True}
+async def execution_resume(request: Request):
+    """Resume a blocked work packet back to classified for re-planning."""
+    body = await request.json()
+    packet_id = body.get("packet_id", "")
+    if not packet_id:
+        return {"ok": False, "error": "packet_id is required"}
+
+    from substrate.organism.work_packet_engine import WorkPacketEngine
+    from substrate.organism.work_packet import PacketLifecycleStatus
+    wpe = WorkPacketEngine()
+    ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.CLASSIFIED, "resumed by operator")
+    return {"ok": ok, "packet_id": packet_id}
 
 
 # ── Chat endpoints (operator ↔ DEX right-rail conversation) ───────────────────
@@ -2302,3 +2444,45 @@ def _mount_context_assimilation_router() -> None:
 
 
 _mount_context_assimilation_router()
+
+
+# ── Phase 14.7A: Reality Model routes ────────────────────────────────────────
+
+
+def _mount_reality_model_router() -> None:
+    from transports.api import cockpit_reality_model_routes
+    cockpit_reality_model_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_reality_model_routes.reality_model_router)
+
+
+_mount_reality_model_router()
+
+
+# ── Phase 14.7A: Operator loop routes ────────────────────────────────────────
+
+
+def _mount_operator_loop_router() -> None:
+    from transports.api import cockpit_operator_loop_routes
+    cockpit_operator_loop_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_operator_loop_routes.operator_loop_router)
+
+
+_mount_operator_loop_router()
+
+
+# ── Phase 14.7A: Self-improvement loop routes ─────────────────────────────
+
+
+def _mount_self_improvement_router() -> None:
+    from transports.api import cockpit_self_improvement_routes
+    cockpit_self_improvement_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_self_improvement_routes.self_improvement_router)
+
+
+_mount_self_improvement_router()
