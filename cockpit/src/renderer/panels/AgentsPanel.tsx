@@ -160,12 +160,12 @@ export function AgentsPanel() {
             <section className="mb-4">
               <h3 className="wv-label mb-2">Capabilities / Skills</h3>
               <div className="flex flex-wrap gap-1.5">
-                {detail.skills.map((skill) => (
+                {(detail.skills ?? []).map((skill) => (
                   <span key={skill} className="px-2 py-0.5 text-xs rounded bg-surface-raised text-text-secondary border border-border">
                     {skill}
                   </span>
                 ))}
-                {detail.skills.length === 0 && (
+                {(detail.skills ?? []).length === 0 && (
                   <span className="text-xs text-text-tertiary">No skills registered</span>
                 )}
               </div>
@@ -173,9 +173,9 @@ export function AgentsPanel() {
 
             {/* Proof of work */}
             <section>
-              <h3 className="wv-label mb-2">Proof of Work — {detail.deliverables.length} deliverables</h3>
+              <h3 className="wv-label mb-2">Proof of Work — {(detail.deliverables ?? []).length} deliverables</h3>
               <div className="space-y-2">
-                {detail.deliverables.map((d) => (
+                {(detail.deliverables ?? []).map((d) => (
                   <div key={d.id} className="wv-card px-3 py-2">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-sm text-text-primary">{d.description}</p>
@@ -188,7 +188,7 @@ export function AgentsPanel() {
                     </p>
                   </div>
                 ))}
-                {detail.deliverables.length === 0 && (
+                {(detail.deliverables ?? []).length === 0 && (
                   <p className="text-xs text-text-tertiary">No deliverables yet</p>
                 )}
               </div>
