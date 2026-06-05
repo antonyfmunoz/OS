@@ -551,6 +551,66 @@ class TestDestructiveOperations:
         assert decision.authority_class == AuthorityClass.DENY
 
 
+class TestDestructiveDataActions:
+    """Phase 14.9B — AC-6.3 governance hardening.
+
+    Destructive data actions must escalate to HIGH risk and require
+    operator approval, not fall through to the permissive LOW default.
+    """
+
+    def test_data_deletion_classified_high(self) -> None:
+        engine = _make_engine()
+        request = _make_request("data_deletion", "delete all user data from production database")
+        decision = engine.evaluate(request)
+        assert decision.risk_class == RiskClass.HIGH
+        assert decision.authority_class == AuthorityClass.APPROVE_EXECUTE
+
+    def test_data_wipe_classified_high(self) -> None:
+        engine = _make_engine()
+        request = _make_request("data_wipe", "wipe staging environment data")
+        decision = engine.evaluate(request)
+        assert decision.risk_class == RiskClass.HIGH
+
+    def test_bulk_delete_classified_high(self) -> None:
+        engine = _make_engine()
+        request = _make_request("bulk_delete", "bulk delete inactive user records")
+        decision = engine.evaluate(request)
+        assert decision.risk_class == RiskClass.HIGH
+
+    def test_schema_drop_classified_high(self) -> None:
+        engine = _make_engine()
+        request = _make_request("schema_drop", "drop the analytics schema")
+        decision = engine.evaluate(request)
+        assert decision.risk_class == RiskClass.HIGH
+
+    def test_table_truncate_classified_high(self) -> None:
+        engine = _make_engine()
+        request = _make_request("table_truncate", "truncate the sessions table")
+        decision = engine.evaluate(request)
+        assert decision.risk_class == RiskClass.HIGH
+
+    def test_record_purge_classified_high(self) -> None:
+        engine = _make_engine()
+        request = _make_request("record_purge", "purge records older than 30 days")
+        decision = engine.evaluate(request)
+        assert decision.risk_class == RiskClass.HIGH
+
+    def test_destructive_data_requires_founder_approval(self) -> None:
+        engine = _make_engine()
+        request = _make_request("data_deletion", "delete all user data")
+        decision = engine.evaluate(request)
+        assert decision.approval_requirement == ApprovalRequirement.FOUNDER_APPROVAL
+
+    def test_all_destructive_data_actions_are_high(self) -> None:
+        from substrate.governance.policy.execution_authority_engine_v1 import DESTRUCTIVE_DATA_ACTIONS
+        engine = _make_engine()
+        for action in DESTRUCTIVE_DATA_ACTIONS:
+            request = _make_request(action, f"test {action}")
+            decision = engine.evaluate(request)
+            assert decision.risk_class == RiskClass.HIGH, \
+                f"{action} classified as {decision.risk_class.value}, expected HIGH"
+
+
 class TestDataclassSerialization:
     def test_environment_authority_to_dict(self) -> None:
         env = EnvironmentAuthority(
