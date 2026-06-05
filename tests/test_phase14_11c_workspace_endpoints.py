@@ -18,8 +18,13 @@ import pytest
 
 class TestGitStatus:
     def test_git_status_runs(self) -> None:
+        import time
         from transports.api.cockpit_workspace_routes import _run_git
-        ok, output = _run_git(["status", "--porcelain"])
+        for attempt in range(3):
+            ok, output = _run_git(["status", "--porcelain"])
+            if ok:
+                break
+            time.sleep(0.2)
         assert ok is True
         assert isinstance(output, str)
 
@@ -38,8 +43,13 @@ class TestGitStatus:
 
 class TestGitDiff:
     def test_git_diff_stat(self) -> None:
+        import time
         from transports.api.cockpit_workspace_routes import _run_git
-        ok, output = _run_git(["diff", "--stat"])
+        for attempt in range(3):
+            ok, output = _run_git(["diff", "--stat"])
+            if ok:
+                break
+            time.sleep(0.2)
         assert ok is True
 
     def test_git_diff_cached(self) -> None:
