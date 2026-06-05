@@ -63,6 +63,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/universal-work/approval-required", _approval_required, methods=["GET"])
 
     r.add_api_route("/organism/universal-work/create", _create_packet, methods=["POST"], dependencies=auth)
+    r.add_api_route("/organism/universal-work/generate", _generate_from_intent, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/universal-work/packets/{packet_id}/status", _update_status, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/universal-work/packets/{packet_id}/link", _link_artifact, methods=["POST"], dependencies=auth)
 
@@ -139,6 +140,37 @@ async def _create_packet(request: Request):
         constraints=constraints,
     )
     return {"success": True, "packet": packet.to_safe_dict()}
+
+
+async def _generate_from_intent(request: Request):
+    """Generate a work packet from operator intent with capability detection.
+
+    Differs from _create_packet by also detecting the required capability
+    and returning it alongside the packet — the frontend uses this to show
+    routing intent before execution.
+    """
+    body = await request.json()
+    user_intent = body.get("user_intent", "")
+    if not user_intent:
+        return {"success": False, "error": "user_intent is required"}
+    desired_end_state = body.get("desired_end_state", "")
+    constraints = body.get("constraints", [])
+
+    queue = _get_queue()
+    packet = queue.ingest_user_intent(
+        user_intent=user_intent,
+        desired_end_state=desired_end_state,
+        constraints=constraints,
+    )
+
+    from substrate.execution.runtime.capability_router import detect_capability
+    capability = detect_capability(user_intent)
+
+    return {
+        "success": True,
+        "packet": packet.to_safe_dict(),
+        "detected_capability": capability.value,
+    }
 
 
 async def _update_status(packet_id: str, request: Request):

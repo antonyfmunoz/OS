@@ -2083,7 +2083,44 @@ async def execution_start(request: Request):
             "error": f"Cannot start execution from status '{pkt.status.value}'",
             "valid_start_statuses": ["approved", "delegated"],
         }
-    return {"ok": ok, "packet_id": packet_id, "status": "executing"}
+
+    from substrate.execution.runtime.capability_router import (
+        detect_capability,
+        route_capability,
+    )
+    cap = detect_capability(pkt.user_intent or pkt.title)
+    routing_result: dict[str, Any] = {
+        "capability": cap.value,
+        "routed": False,
+        "provider": None,
+        "error": None,
+    }
+    try:
+        result = route_capability(pkt.user_intent or pkt.title)
+        if result is not None:
+            routing_result["routed"] = True
+            routing_result["provider"] = result.provider_id
+        else:
+            from adapters.models.model_router import call_with_fallback
+            llm_result = call_with_fallback(
+                prompt=pkt.user_intent or pkt.title,
+                system="Execute this work packet concisely.",
+                task_type="command",
+            )
+            routing_result["routed"] = bool(llm_result)
+            routing_result["provider"] = "llm_fallback" if llm_result else None
+            if not llm_result:
+                routing_result["error"] = "UNAVAILABLE"
+    except Exception as exc:
+        logger.debug("execution routing failed: %s", exc)
+        routing_result["error"] = f"UNAVAILABLE: {exc}"
+
+    return {
+        "ok": ok,
+        "packet_id": packet_id,
+        "status": "executing",
+        "routing": routing_result,
+    }
 
 
 @router.post("/execution/stop", dependencies=[Depends(_require_operator_role)])
@@ -2129,6 +2166,48 @@ async def execution_resume(request: Request):
     wpe = WorkPacketEngine()
     ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.CLASSIFIED, "resumed by operator")
     return {"ok": ok, "packet_id": packet_id}
+
+
+# ── Intent classification (WP-2.1) ────────────────────────────────────────────
+
+@router.post("/intent/classify", dependencies=[Depends(_require_operator_role)])
+async def intent_classify(request: Request):
+    """Classify operator text through the spine's deterministic intent engine
+    and persist the event to ConversationMemory."""
+    body = await request.json()
+    text = (body.get("text") or "").strip()
+    if not text:
+        return {"ok": False, "error": "text is required"}
+
+    from substrate.execution.spine import _INTENT_PATTERNS
+    intent = "unknown"
+    for pattern, matched_intent in _INTENT_PATTERNS:
+        if pattern.search(text):
+            intent = matched_intent
+            break
+
+    event_id = ""
+    try:
+        from substrate.state.memory.memory import ConversationMemory
+        mem = ConversationMemory()
+        org_id = os.environ.get("UMH_ORG_ID") or os.environ.get("EOS_ORG_ID", "")
+        if org_id:
+            event_id = mem.log_event(
+                org_id=org_id,
+                event_type="intent_classified",
+                payload={"text": text[:500], "intent": intent},
+                handled_by="cockpit_intent_classify",
+            )
+    except Exception as exc:
+        logger.debug("intent_classify persistence failed: %s", exc)
+
+    return {
+        "ok": True,
+        "intent": intent,
+        "confidence": "deterministic",
+        "persisted": bool(event_id),
+        "event_id": event_id,
+    }
 
 
 # ── Chat endpoints (operator ↔ DEX right-rail conversation) ───────────────────
