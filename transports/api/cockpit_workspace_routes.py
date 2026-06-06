@@ -56,10 +56,10 @@ def _build_router(
     r.add_api_route("/workspace/proof-artifacts", _proof_artifacts, methods=["GET"], dependencies=read_auth)
     r.add_api_route("/workspace/health", _health_check, methods=["GET"], dependencies=read_auth)
     r.add_api_route("/workspace/trace-linkage", _trace_linkage, methods=["GET"], dependencies=read_auth)
-    r.add_api_route("/workspace/write-file", _write_file, methods=["POST"], dependencies=read_auth)
+    r.add_api_route("/workspace/write-file", _write_file, methods=["POST"], dependencies=auth)
     r.add_api_route("/workspace/remote-browse", _remote_browse, methods=["GET"], dependencies=read_auth)
     r.add_api_route("/workspace/remote-read-file", _remote_read_file, methods=["GET"], dependencies=read_auth)
-    r.add_api_route("/workspace/remote-write-file", _remote_write_file, methods=["POST"], dependencies=read_auth)
+    r.add_api_route("/workspace/remote-write-file", _remote_write_file, methods=["POST"], dependencies=auth)
     r.add_api_route("/workspace/mesh-nodes", _mesh_nodes_status, methods=["GET"], dependencies=read_auth)
 
     return r
@@ -582,24 +582,35 @@ async def _remote_write_file(request: Request) -> dict[str, Any]:
 
 
 async def _mesh_nodes_status(request: Request) -> dict[str, Any]:
+    registry_path = os.path.join(_REPO_ROOT, "infra", "device_registry.json")
     mesh_path = os.path.join(_DATA_ROOT, "runtime", "mesh_nodes.json")
+    registry: list[dict[str, Any]] = []
+    heartbeats: dict[str, dict[str, Any]] = {}
+    try:
+        with open(registry_path) as f:
+            registry = json.load(f)
+    except (json.JSONDecodeError, OSError, FileNotFoundError):
+        pass
+    try:
+        with open(mesh_path) as f:
+            for n in json.load(f):
+                heartbeats[n.get("id", "")] = n
+    except (json.JSONDecodeError, OSError, FileNotFoundError):
+        pass
     nodes = []
-    if os.path.exists(mesh_path):
-        try:
-            with open(mesh_path) as f:
-                raw = json.load(f)
-            if isinstance(raw, list):
-                for n in raw:
-                    nodes.append({
-                        "id": n.get("id", ""),
-                        "name": n.get("name", ""),
-                        "os": n.get("os", ""),
-                        "status": n.get("status", "unknown"),
-                        "ip": n.get("tailscale_ip", ""),
-                        "last_heartbeat": n.get("last_heartbeat", ""),
-                    })
-        except (json.JSONDecodeError, OSError):
-            pass
+    for dev in registry:
+        mesh_id = dev.get("mesh_node_id", "")
+        hb = heartbeats.get(mesh_id, {})
+        status = "online" if dev.get("always_online") else hb.get("status", "offline")
+        nodes.append({
+            "id": dev["id"],
+            "name": dev.get("display_name", dev.get("tailscale_name", dev["id"])),
+            "os": dev.get("os", ""),
+            "status": status,
+            "ip": dev.get("tailscale_ip", ""),
+            "device_type": dev.get("device_type", ""),
+            "last_heartbeat": hb.get("last_heartbeat", ""),
+        })
     return {"ok": True, "nodes": nodes}
 
 
