@@ -291,6 +291,8 @@ async def pulse():
                 "timestamp": snap.timestamp,
             }
     for rdev in registry:
+        if not rdev.get("compute"):
+            continue
         rid = rdev.get("id", "")
         if rid and rid not in node_metrics:
             mid = rdev.get("mesh_node_id", "")
@@ -350,6 +352,8 @@ async def mesh_metrics():
             }
 
     for dev in registry:
+        if not dev.get("compute"):
+            continue
         dev_id = dev.get("id", "")
         mesh_id = dev.get("mesh_node_id", "")
         if dev_id not in result and mesh_id not in result and dev_id != "vps":
@@ -1938,6 +1942,8 @@ async def cockpit_ws(ws: WebSocket):
                         "timestamp": nsnap.timestamp,
                     }
             for rdev in ws_registry:
+                if not rdev.get("compute"):
+                    continue
                 rid = rdev.get("id", "")
                 if rid and rid not in ws_node_metrics:
                     mid = rdev.get("mesh_node_id", "")
