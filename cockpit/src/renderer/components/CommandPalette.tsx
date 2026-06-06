@@ -13,12 +13,41 @@ export function CommandPalette() {
   const aiName = useConfigStore((s) => s.aiName)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [jarvisResponse, setJarvisResponse] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const setPanel = useCockpitStore((s) => s.setPanel)
   const toggleChat = useCockpitStore((s) => s.toggleChat)
   const setMode = useCockpitStore((s) => s.setMode)
 
   const setWindowMode = useCockpitStore((s) => s.setWindowMode)
+
+  const handleJarvisCommand = useCallback(async (text: string) => {
+    try {
+      const res = await fetch('/api/umh/presence/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, source: 'typed_command' }),
+      })
+      const data = await res.json()
+      if (!data.ok) return
+
+      if (data.panel_target) {
+        setPanel(data.panel_target as Panel)
+        setOpen(false)
+        return
+      }
+
+      if (data.mode_target && ['EXECUTE', 'PLAN', 'REVIEW'].includes(data.mode_target)) {
+        setMode(data.mode_target as 'EXECUTE' | 'PLAN' | 'REVIEW')
+        setOpen(false)
+        return
+      }
+
+      if (data.response_text) {
+        setJarvisResponse(data.response_text)
+      }
+    } catch { /* silent */ }
+  }, [setPanel, setMode])
 
   const commands: Command[] = [
     { id: 'dashboard', label: 'Go to Dashboard', shortcut: 'Ctrl+1', action: () => setPanel('dashboard') },
@@ -97,8 +126,12 @@ export function CommandPalette() {
             className="w-full bg-transparent text-sm outline-none"
             style={{ color: 'var(--color-text-primary)' }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && filtered.length > 0) {
-                execute(filtered[0])
+              if (e.key === 'Enter') {
+                if (filtered.length > 0) {
+                  execute(filtered[0])
+                } else if (query.length > 2) {
+                  handleJarvisCommand(query)
+                }
               }
             }}
           />
@@ -123,24 +156,17 @@ export function CommandPalette() {
             <button
               className="w-full text-left px-4 py-3 text-sm hover:bg-[var(--color-surface-raised)] transition-colors"
               style={{ color: 'var(--color-cyan)' }}
-              onClick={async () => {
-                try {
-                  const res = await fetch('/api/umh/intent/classify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: query }),
-                  })
-                  const data = await res.json()
-                  if (data.intent) {
-                    setQuery(`[${data.intent}] ${query}`)
-                  }
-                } catch { /* silent */ }
-              }}
+              onClick={() => handleJarvisCommand(query)}
             >
-              Classify intent: "{query}"
+              Ask Jarvis: "{query}"
             </button>
           )}
-          {filtered.length === 0 && query.length <= 2 && (
+          {jarvisResponse && (
+            <div className="px-4 py-3 text-sm" style={{ color: 'var(--color-text-secondary)', borderTop: '1px solid var(--color-border)' }}>
+              {jarvisResponse}
+            </div>
+          )}
+          {filtered.length === 0 && query.length <= 2 && !jarvisResponse && (
             <p className="px-4 py-3 text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
               No matching commands
             </p>
