@@ -7,10 +7,11 @@ export function LeftRail() {
   const activePanel = useCockpitStore((s) => s.activePanel)
   const railCollapsed = useCockpitStore((s) => s.railCollapsed)
   const wsStatus = useCockpitStore((s) => s.wsStatus)
+  const apiStatus = useCockpitStore((s) => s.apiStatus)
   const setPanel = useCockpitStore((s) => s.setPanel)
   const toggleRail = useCockpitStore((s) => s.toggleRail)
 
-  const wsConnected = wsStatus === 'connected'
+  const isOnline = wsStatus === 'connected' || apiStatus === 'connected'
 
   return (
     <nav
@@ -75,14 +76,11 @@ export function LeftRail() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className={clsx('w-2 h-2 rounded-full', wsConnected ? 'bg-ok wv-pulse' : 'bg-danger')} />
+          <div className="flex items-center gap-1">
+            <div className={clsx('w-2 h-2 rounded-full', isOnline ? 'bg-ok wv-pulse' : 'bg-danger')} />
             {!railCollapsed && (
-              <span className={clsx(
-                'text-[10px] font-mono uppercase tracking-wider',
-                wsConnected ? 'text-ok' : 'text-danger',
-              )}>
-                {wsConnected ? 'Online' : 'Offline'}
+              <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
+                {isOnline ? 'Online' : 'Offline'}
               </span>
             )}
           </div>

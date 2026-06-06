@@ -924,7 +924,7 @@ def _build_node_metrics() -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     for node_id, mdata in snapshot.items():
         dev = next((d for d in registry if d.get("mesh_node_id") == node_id or d.get("id") == node_id), {})
-        result[node_id] = {
+        entry: dict[str, Any] = {
             "name": dev.get("display_name", node_id),
             "cpu": mdata.get("cpu"),
             "memory": mdata.get("memory"),
@@ -933,6 +933,10 @@ def _build_node_metrics() -> dict[str, dict[str, Any]]:
             "status": "online",
             "timestamp": mdata.get("timestamp"),
         }
+        gpu = mdata.get("gpu")
+        if gpu is not None:
+            entry["gpu"] = gpu
+        result[node_id] = entry
     for dev in registry:
         if not dev.get("compute"):
             continue

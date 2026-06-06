@@ -297,6 +297,7 @@ class NodeMeshServer:
             disk=metrics.get("disk"),
             battery=metrics.get("battery"),
             network_io=metrics.get("network_io", {}),
+            gpu=metrics.get("gpu"),
         )
         self._metrics.record(snapshot)
         self._write_metrics_snapshot()
@@ -468,13 +469,16 @@ class NodeMeshServer:
             }
             # Remote node metrics from heartbeats
             for nid, snap in self._metrics.latest_all().items():
-                out[nid] = {
+                entry: dict[str, Any] = {
                     "cpu": snap.cpu,
                     "memory": snap.memory,
                     "disk": snap.disk,
                     "battery": snap.battery,
                     "timestamp": snap.timestamp,
                 }
+                if snap.gpu is not None:
+                    entry["gpu"] = snap.gpu
+                out[nid] = entry
             os.makedirs(os.path.dirname(self._METRICS_SNAPSHOT_PATH), exist_ok=True)
             tmp = self._METRICS_SNAPSHOT_PATH + ".tmp"
             with open(tmp, "w") as f:

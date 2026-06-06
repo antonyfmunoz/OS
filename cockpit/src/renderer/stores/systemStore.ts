@@ -1,6 +1,24 @@
 import { create } from 'zustand'
 import { fetchApi } from '../api/client'
 
+interface NodeGpuMetrics {
+  utilization: number
+  memory_percent: number
+  temperature: number
+  name: string
+}
+
+interface NodeMetricsEntry {
+  name: string
+  cpu: number | null
+  memory: number | null
+  disk: number | null
+  battery?: number | null
+  gpu?: NodeGpuMetrics
+  status: string
+  timestamp?: string
+}
+
 interface PulseData {
   cpu_percent: number
   memory_percent: number
@@ -10,6 +28,7 @@ interface PulseData {
   pending_tasks: number
   pending_approvals: number
   trace_rate: number
+  node_metrics?: Record<string, NodeMetricsEntry>
 }
 
 interface MeshNode {
@@ -110,8 +129,12 @@ export const useSystemStore = create<SystemState>((set) => ({
     try {
       const data = await fetchApi<PulseData>('/pulse')
       set({ pulse: data, error: null })
+      const { useCockpitStore } = await import('./cockpitStore')
+      useCockpitStore.getState().setApiStatus('connected')
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to fetch pulse' })
+      const { useCockpitStore } = await import('./cockpitStore')
+      useCockpitStore.getState().setApiStatus('disconnected')
     }
   },
 

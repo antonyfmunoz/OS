@@ -1,11 +1,19 @@
 import { create } from 'zustand'
 
+export interface NodeGpuMetrics {
+  utilization: number
+  memory_percent: number
+  temperature: number
+  name: string
+}
+
 export interface NodeMetrics {
   name: string
   cpu: number | null
   memory: number | null
   disk: number | null
   battery?: number | null
+  gpu?: NodeGpuMetrics
   status: string
   timestamp?: string
 }
