@@ -45,6 +45,7 @@ export function DashboardPanel() {
   const memoryPercent = useRealtimeStore((s) => s.memoryPercent)
   const diskPercent = useRealtimeStore((s) => s.diskPercent)
   const containers = useRealtimeStore((s) => s.containers)
+  const nodeMetrics = useRealtimeStore((s) => s.nodeMetrics)
 
   usePolling(async () => {
     try {
@@ -97,6 +98,20 @@ export function DashboardPanel() {
             <PulseMetric label="EVENTS" value={`${eventsPerMinute}/m`} severity={eventsPerMinute > 0 ? 'ok' : 'cyan'} />
             <PulseMetric label="RUNTIMES" value={`${runtimeGraph?.available ?? 0}/${runtimeGraph?.total_runtimes ?? 0}`} severity={runtimeGraph && runtimeGraph.available > 0 ? 'ok' : 'warn'} />
           </div>
+          {Object.keys(nodeMetrics).length > 0 && (
+            <div className="flex gap-4 mt-2">
+              {Object.entries(nodeMetrics).map(([id, m]) => (
+                <div key={id} className="flex items-center gap-2 text-[10px]">
+                  <span className={`w-1.5 h-1.5 rounded-full ${m.status === 'online' ? 'bg-ok' : 'bg-danger'}`} />
+                  <span className="text-text-tertiary font-mono">{m.name}</span>
+                  {m.cpu != null && <span className={m.cpu > 90 ? 'text-danger' : m.cpu > 70 ? 'text-warn' : 'text-ok'}>CPU {m.cpu.toFixed(0)}%</span>}
+                  {m.memory != null && <span className={m.memory > 90 ? 'text-danger' : m.memory > 70 ? 'text-warn' : 'text-ok'}>RAM {m.memory.toFixed(0)}%</span>}
+                  {m.disk != null && <span className={m.disk > 90 ? 'text-danger' : m.disk > 70 ? 'text-warn' : 'text-ok'}>DISK {m.disk.toFixed(0)}%</span>}
+                  {m.cpu == null && m.memory == null && <span className="text-text-tertiary">no metrics</span>}
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Organism status strip */}

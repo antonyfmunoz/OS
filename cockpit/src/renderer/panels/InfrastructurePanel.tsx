@@ -27,6 +27,7 @@ export function InfrastructurePanel() {
   const memoryPercent = useRealtimeStore((s) => s.memoryPercent)
   const diskPercent = useRealtimeStore((s) => s.diskPercent)
   const containers = useRealtimeStore((s) => s.containers)
+  const nodeMetrics = useRealtimeStore((s) => s.nodeMetrics)
 
   usePolling(() => { fetchInfra(); fetchMeshNodes(); fetchWorkloads(); fetchBottlenecks(); fetchOrganismStatus() },
     realtimeStatus === 'connected' ? 15000 : 10000)
@@ -64,6 +65,44 @@ export function InfrastructurePanel() {
 
         {/* Right: workloads + bottlenecks */}
         <div className="w-96 overflow-y-auto p-3 space-y-4 bg-canvas">
+          {/* Per-node metrics */}
+          {Object.keys(nodeMetrics).length > 0 && (
+            <section>
+              <h3 className="wv-label mb-3">Node Metrics</h3>
+              <div className="space-y-2">
+                {Object.entries(nodeMetrics).map(([id, m]) => (
+                  <div key={id} className="wv-card px-3 py-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-2 h-2 rounded-full ${m.status === 'online' ? 'bg-ok' : 'bg-danger'}`} />
+                      <span className="text-sm text-text-primary font-mono truncate">{m.name}</span>
+                    </div>
+                    {m.cpu != null || m.memory != null || m.disk != null ? (
+                      <div className="flex gap-3 text-[10px]">
+                        {m.cpu != null && (
+                          <span className={m.cpu > 90 ? 'text-danger' : m.cpu > 70 ? 'text-warn' : 'text-ok'}>
+                            CPU {m.cpu.toFixed(0)}%
+                          </span>
+                        )}
+                        {m.memory != null && (
+                          <span className={m.memory > 90 ? 'text-danger' : m.memory > 70 ? 'text-warn' : 'text-ok'}>
+                            RAM {m.memory.toFixed(0)}%
+                          </span>
+                        )}
+                        {m.disk != null && (
+                          <span className={m.disk > 90 ? 'text-danger' : m.disk > 70 ? 'text-warn' : 'text-ok'}>
+                            DISK {m.disk.toFixed(0)}%
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-text-tertiary">no metrics — daemon not reporting</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Live containers from WS */}
           {containers.length > 0 && (
             <section>

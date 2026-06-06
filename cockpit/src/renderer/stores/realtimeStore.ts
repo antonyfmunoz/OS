@@ -1,5 +1,15 @@
 import { create } from 'zustand'
 
+export interface NodeMetrics {
+  name: string
+  cpu: number | null
+  memory: number | null
+  disk: number | null
+  battery?: number | null
+  status: string
+  timestamp?: string
+}
+
 export interface OrganismEvent {
   event_id: string
   domain: string
@@ -50,6 +60,7 @@ interface RealtimeState {
   memoryPercent: number
   diskPercent: number
   containers: Array<{ name: string; status: string }>
+  nodeMetrics: Record<string, NodeMetrics>
 
   setStatus: (status: RealtimeStatus) => void
   pushEvents: (events: OrganismEvent[]) => void
@@ -58,6 +69,7 @@ interface RealtimeState {
     memory_percent: number
     disk_percent: number
     containers: Array<{ name: string; status: string }>
+    node_metrics?: Record<string, NodeMetrics>
   }) => void
   incrementReconnect: () => void
   setDomainFilter: (filter: EventDomainFilter) => void
@@ -79,6 +91,7 @@ export const useRealtimeStore = create<RealtimeState>((set, get) => ({
   memoryPercent: 0,
   diskPercent: 0,
   containers: [],
+  nodeMetrics: {},
 
   setStatus: (status) => set({ status }),
 
@@ -122,6 +135,7 @@ export const useRealtimeStore = create<RealtimeState>((set, get) => ({
       memoryPercent: pulse.memory_percent,
       diskPercent: pulse.disk_percent,
       containers: pulse.containers,
+      nodeMetrics: pulse.node_metrics ?? {},
       lastPulseTimestamp: Date.now(),
     })
   },
