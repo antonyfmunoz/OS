@@ -13,7 +13,7 @@ if str(_REPO_ROOT) not in sys.path:
 from dotenv import load_dotenv
 
 load_dotenv(_REPO_ROOT / "runtime" / ".env")
-load_dotenv(_REPO_ROOT / "services" / ".env", override=True)
+load_dotenv(_REPO_ROOT / "services" / ".env", override=False)
 
 logger = logging.getLogger(__name__)
 

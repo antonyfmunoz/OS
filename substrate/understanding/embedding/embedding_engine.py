@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 # services/.env first (operational keys), .env second (AI keys, wins on conflict).
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(_REPO_ROOT / 'services' / '.env')
-load_dotenv(_REPO_ROOT / '.env', override=True)
+load_dotenv(_REPO_ROOT / '.env', override=False)
 
 
 class EmbeddingEngine:

@@ -7,7 +7,9 @@
 #   - nice -n 15 + ionice -c 3 (lowest priority)
 #   - timeout 240s (kill before next cron fire)
 #   - CPU load gate (skip if system already overloaded)
+#   - 1Password secret injection (if OP_SERVICE_ACCOUNT_TOKEN is set)
 
+OP_SERVICE_ACCOUNT_TOKEN=PLACEHOLDER_SET_AFTER_1PASSWORD_SETUP
 CR=/opt/OS/scripts/cron-run
 
 # ── Every 5 minutes (staggered: one per minute) ──
@@ -36,3 +38,9 @@ CR=/opt/OS/scripts/cron-run
 0 3 * * * cd /opt/OS && $CR scripts/discord_daily_clear.py >> /opt/OS/logs/discord_clear.log 2>&1
 0 3 * * * cd /opt/OS && $CR scripts/emit_signal.py nightly_cycle >> /opt/OS/logs/cron_emit.log 2>&1
 0 4 * * * docker-compose run --rm os-scraper >> /opt/OS/logs/scraper.log 2>&1
+
+# ── Monthly secret rotation (1st of month, 5am) ──
+0 5 1 * * cd /opt/OS && op run --env-file=services/.env.tpl -- bash scripts/rotate_secrets.sh >> /opt/OS/logs/secret_rotation.log 2>&1
+
+# ── Weekly 1Password audit log review (Sundays 6am) ──
+0 6 * * 0 op audit events list --duration 7d >> /opt/OS/logs/1password_audit.log 2>&1
