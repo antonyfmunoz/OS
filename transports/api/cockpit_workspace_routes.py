@@ -458,29 +458,38 @@ async def _trace_linkage(request: Request) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 _WINDOWS_SSH = "antonys beast pc@100.74.199.102"
+_MESH_SSH_KEY = "/run/secrets/mesh_key"
 _SSH_TIMEOUT = 8
 _WINDOWS_ALLOWED_ROOT = r"C:\dev\dev"
-_PATH_REJECT = re.compile(r"[;`$|><\"&]")
+_SAFE_PATH_RE = re.compile(r"^[A-Za-z]:\\[A-Za-z0-9_.\- \\]+$")
 
 
 def _validate_windows_path(path: str) -> str | None:
-    """Validate and sanitize a Windows path. Returns error string or None if ok."""
+    """Validate a Windows path. Returns error string or None if ok."""
     if ".." in path:
         return "path traversal blocked"
-    if _PATH_REJECT.search(path):
-        return "invalid characters in path"
-    normalized = path.replace("/", "\\").rstrip("\\")
-    if not normalized.upper().startswith(_WINDOWS_ALLOWED_ROOT.upper()):
+    if not _SAFE_PATH_RE.match(path):
+        return "invalid path characters"
+    normalized = path.replace("/", "\\").rstrip("\\").upper()
+    allowed = _WINDOWS_ALLOWED_ROOT.rstrip("\\").upper()
+    if normalized != allowed and not normalized.startswith(allowed + "\\"):
         return f"path must be under {_WINDOWS_ALLOWED_ROOT}"
     return None
 
 
+_MESH_KNOWN_HOSTS = "/root/.ssh/known_hosts"
+
+
 def _ssh_cmd(cmd: str) -> tuple[bool, str]:
+    ssh_args = ["ssh", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=accept-new"]
+    if os.path.exists(_MESH_SSH_KEY):
+        ssh_args += ["-i", _MESH_SSH_KEY]
+    if os.path.exists(_MESH_KNOWN_HOSTS):
+        ssh_args += ["-o", f"UserKnownHostsFile={_MESH_KNOWN_HOSTS}"]
+    ssh_args += [_WINDOWS_SSH, cmd]
     try:
         result = subprocess.run(
-            ["ssh", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=accept-new",
-             _WINDOWS_SSH, cmd],
-            capture_output=True, text=True, timeout=_SSH_TIMEOUT,
+            ssh_args, capture_output=True, text=True, timeout=_SSH_TIMEOUT,
         )
         return result.returncode == 0, result.stdout
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
@@ -496,7 +505,12 @@ async def _remote_browse(request: Request) -> dict[str, Any]:
     if err:
         return {"ok": False, "error": err, "source_env": "windows", "path": path}
     safe_path = path.replace("'", "''")
-    ok, output = _ssh_cmd(f"powershell -Command \"Get-ChildItem -Path '{safe_path}' | ForEach-Object {{ $_.Name + '|' + $(if($_.PSIsContainer){{'directory'}}else{{'file'}}) + '|' + $_.Length }}\"")
+    ok, output = _ssh_cmd(
+        f"powershell -Command \"Get-ChildItem -LiteralPath '{safe_path}'"
+        " | ForEach-Object { $_.Name + '|'"
+        " + $(if($_.PSIsContainer){'directory'}else{'file'})"
+        " + '|' + $_.Length }\""
+    )
     if not ok:
         return {"ok": False, "error": output[:500], "source_env": "windows", "path": path}
     entries = []
@@ -522,7 +536,7 @@ async def _remote_read_file(request: Request) -> dict[str, Any]:
     if err:
         return {"ok": False, "error": err, "path": path}
     safe_path = path.replace("'", "''")
-    ok, output = _ssh_cmd(f"powershell -Command \"Get-Content -Path '{safe_path}' -Raw -ErrorAction Stop\"")
+    ok, output = _ssh_cmd(f"powershell -Command \"Get-Content -LiteralPath '{safe_path}' -Raw -ErrorAction Stop\"")
     if not ok:
         return {"ok": False, "error": output[:500], "path": path}
     return {"ok": True, "path": path, "content": output, "source_env": "windows"}
