@@ -290,6 +290,19 @@ async def pulse():
                 "status": "online",
                 "timestamp": snap.timestamp,
             }
+    for rdev in registry:
+        rid = rdev.get("id", "")
+        if rid and rid not in node_metrics:
+            mid = rdev.get("mesh_node_id", "")
+            if mid and mid in node_metrics:
+                continue
+            node_metrics[rid] = {
+                "name": rdev.get("display_name", rid),
+                "cpu": None,
+                "memory": None,
+                "disk": None,
+                "status": "offline",
+            }
 
     return {
         "uptime": uptime,
@@ -1923,6 +1936,19 @@ async def cockpit_ws(ws: WebSocket):
                         "battery": nsnap.battery,
                         "status": "online",
                         "timestamp": nsnap.timestamp,
+                    }
+            for rdev in ws_registry:
+                rid = rdev.get("id", "")
+                if rid and rid not in ws_node_metrics:
+                    mid = rdev.get("mesh_node_id", "")
+                    if mid and mid in ws_node_metrics:
+                        continue
+                    ws_node_metrics[rid] = {
+                        "name": rdev.get("display_name", rid),
+                        "cpu": None,
+                        "memory": None,
+                        "disk": None,
+                        "status": "offline",
                     }
 
             new_events = _pending_organism_events[event_cursor:]
