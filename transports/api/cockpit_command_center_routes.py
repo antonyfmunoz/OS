@@ -25,7 +25,7 @@ _JOURNAL_PATH = os.path.join(_DATA_ROOT, "organism", "execution_journal.jsonl")
 _APPROVALS_PATH = os.path.join(_DATA_ROOT, "organism", "approvals.jsonl")
 _TRACES_PATH = os.path.join(_DATA_ROOT, "traces", "traces.jsonl")
 
-command_center_router = APIRouter(prefix="/api/umh/command-center", tags=["command-center"])
+command_center_router = APIRouter(prefix="/command-center", tags=["command-center"])
 _require_operator: Callable | None = None
 
 
