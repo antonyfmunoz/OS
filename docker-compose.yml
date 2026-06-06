@@ -25,7 +25,6 @@ services:
       - PYTHONPATH=/app
       - UMH_ROOT=/app
       - TZ=America/Los_Angeles
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
     deploy:
       resources:
@@ -52,7 +51,6 @@ services:
       - PYTHONPATH=/app
       - UMH_ROOT=/app
       - TZ=America/Los_Angeles
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
     ports:
       - "8080:8080"
@@ -97,7 +95,6 @@ services:
       - UMH_ROOT=/app
       - TZ=America/Los_Angeles
       - PYTHONUNBUFFERED=1
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - OTEL_TRACES_EXPORTER=none
       - OTEL_METRICS_EXPORTER=none

@@ -46,3 +46,7 @@ CR=/opt/OS/scripts/cron-run
 
 # ── Weekly 1Password audit log review (Sundays 6am) ──
 0 6 * * 0 op audit events list --duration 7d >> /opt/OS/logs/1password_audit.log 2>&1
+
+# ── One-time: shred backup 48h after 1Password cutover (2026-06-08 ~14:00 UTC) ──
+# Remove this entry after it fires.
+0 14 8 6 * shred -u /root/.umh-env-backup/*.env && rmdir /root/.umh-env-backup && echo "[cron] Plaintext env backup shredded" >> /opt/OS/logs/secret_rotation.log 2>&1
