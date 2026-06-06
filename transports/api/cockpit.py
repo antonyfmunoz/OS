@@ -381,7 +381,7 @@ async def infra():
                 compute_nodes.append(
                     {
                         "id": f"n-ts-{ip or name}",
-                        "name": f"{name} ({os_name.capitalize()})",
+                        "name": name,
                         "type": "compute",
                         "status": "healthy" if online else "down",
                         "metrics": metrics,
@@ -802,11 +802,12 @@ async def settings():
 @router.get("/mesh/nodes")
 async def mesh_nodes():
     """Returns all network devices: Tailscale peers + UMH daemon nodes."""
-    _ROLE_MAP = {
-        "srv1500858": "orchestrator",
-        "desktop-lvguiq9": "gpu-workhorse",
-    }
     _registry = _load_device_registry()
+    _ROLE_MAP = {
+        dev["tailscale_name"]: dev["role"]
+        for dev in _registry
+        if "tailscale_name" in dev and "role" in dev
+    }
     _NAME_MAP = {
         dev["tailscale_name"]: dev["display_name"]
         for dev in _registry
