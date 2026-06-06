@@ -2675,3 +2675,17 @@ def _mount_workspace_router() -> None:
 
 
 _mount_workspace_router()
+
+
+# ── Phase 14.11D: Presence routes (activation, commands, capabilities) ──
+
+
+def _mount_presence_router() -> None:
+    from transports.api import cockpit_presence_routes
+    cockpit_presence_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_presence_routes.presence_router)
+
+
+_mount_presence_router()
