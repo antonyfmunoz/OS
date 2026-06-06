@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useAgentStore } from '../stores/agentStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { usePolling } from '../hooks/usePolling'
+import { RuntimeBadge } from '../components/RuntimeBadge'
+import { StatusBadge } from '../components/StatusBadge'
 
 const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   active: { color: 'bg-ok', label: 'Active' },
@@ -76,6 +78,7 @@ export function AgentsPanel() {
               <p className="text-sm text-text-primary truncate">{agent.name}</p>
               <div className="flex items-center gap-2">
                 <p className="text-xs text-text-tertiary truncate">{agent.role}</p>
+                {(agent as any).runtime_class && <RuntimeBadge runtime={(agent as any).runtime_class} />}
                 <span className={`text-[10px] font-mono ${STATUS_CONFIG[agent.status]?.color?.replace('bg-', 'text-') || 'text-text-tertiary'}`}>
                   {agent.status}
                 </span>
@@ -102,22 +105,18 @@ export function AgentsPanel() {
             <div className="flex items-center gap-3 mb-4">
               <StatusDot status={detail.status} />
               <h2 className="text-lg font-semibold">{detail.name}</h2>
-              <span className="wv-label">{detail.status}</span>
+              <StatusBadge status={detail.status} dot />
+              {(detail as any).runtime_class && <RuntimeBadge runtime={(detail as any).runtime_class} />}
               <span className="text-xs text-text-tertiary font-mono">{detail.role}</span>
             </div>
-            {detail?.capabilities && (
+            {(detail as any).capabilities && (
               <div className="flex flex-wrap gap-1 mt-1">
-                {(Array.isArray(detail.capabilities) ? detail.capabilities : []).map((cap: string) => (
+                {(Array.isArray((detail as any).capabilities) ? (detail as any).capabilities : []).map((cap: string) => (
                   <span key={cap} className="text-[8px] font-mono px-1 py-0.5 rounded bg-surface-raised text-text-secondary border border-border">
                     {cap}
                   </span>
                 ))}
               </div>
-            )}
-            {detail?.runtime_class && (
-              <span className="text-[9px] font-mono text-text-tertiary mt-1 inline-block">
-                runtime: {detail.runtime_class}
-              </span>
             )}
 
             {/* Primary controls */}

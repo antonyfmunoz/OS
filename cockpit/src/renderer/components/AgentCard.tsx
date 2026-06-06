@@ -1,8 +1,12 @@
+import { RuntimeBadge } from './RuntimeBadge'
+
 interface AgentCardProps {
   name: string
   status: string
   role: string
   skills: string[]
+  runtime?: string
+  node?: string
   lastAction?: string
   lastActive?: string
   selected?: boolean
@@ -22,6 +26,8 @@ export function AgentCard({
   status,
   role,
   skills,
+  runtime,
+  node,
   lastAction,
   lastActive,
   selected,
@@ -47,6 +53,7 @@ export function AgentCard({
         <span className="text-sm font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>
           {name}
         </span>
+        {runtime && <RuntimeBadge runtime={runtime} />}
         <span
           className="text-xs px-1.5 py-0.5 rounded ml-auto flex-shrink-0"
           style={{ color: 'var(--color-text-tertiary)', background: 'var(--color-surface-raised)' }}
@@ -57,6 +64,11 @@ export function AgentCard({
 
       <p className="text-xs mb-1" style={{ color: 'var(--color-text-secondary)' }}>
         {role}
+        {node && (
+          <span className="ml-2 text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
+            @ {node}
+          </span>
+        )}
       </p>
 
       {skills.length > 0 && (
