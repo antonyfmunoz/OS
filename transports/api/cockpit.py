@@ -682,16 +682,21 @@ async def comms(limit: int = 100):
     result = []
     for m in messages:
         direction: str = "internal"
-        if m.get("sender") == "advisor":
+        sender = m.get("sender", "unknown")
+        if sender == "operator":
             direction = "outbound"
-        elif m.get("intent") == "report":
+        elif m.get("intent") == "report" or m.get("recipient") == "operator":
             direction = "inbound"
         result.append(
             {
                 "id": m.get("id", ""),
-                "channel": f"organism/{m.get('recipient', 'unknown')}",
-                "from_agent": m.get("sender", "unknown"),
+                "sender": sender,
+                "recipient": m.get("recipient", "unknown"),
+                "intent": m.get("intent", ""),
                 "content": _summarize_message(m),
+                "payload": m.get("payload", {}),
+                "conversation_id": m.get("conversation_id", ""),
+                "parent_message_id": m.get("parent_message_id"),
                 "timestamp": m.get("created_at", ""),
                 "direction": direction,
             }
