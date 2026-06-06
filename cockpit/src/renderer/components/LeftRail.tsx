@@ -9,23 +9,43 @@ export function LeftRail() {
   const setPanel = useCockpitStore((s) => s.setPanel)
   const toggleRail = useCockpitStore((s) => s.toggleRail)
 
+  const allRoutes = ROUTE_GROUPS.flatMap((group) =>
+    ROUTES.filter((r) => r.group === group.key && (r.visibility === 'primary' || r.visibility === 'system')),
+  )
+
+  if (railCollapsed) {
+    return (
+      <nav className="flex flex-col items-center py-2 w-10 bg-surface border-r border-border select-none">
+        <button onClick={toggleRail} className="p-1 text-text-tertiary hover:text-cyan">
+          <ChevronRight size={14} />
+        </button>
+        {allRoutes.map((r) => {
+          const Icon = r.icon
+          return (
+            <button
+              key={r.id}
+              onClick={() => { toggleRail(); setPanel(r.id) }}
+              className={clsx('p-2 mt-1', activePanel === r.id ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary')}
+              title={r.label}
+            >
+              <Icon size={14} />
+            </button>
+          )
+        })}
+      </nav>
+    )
+  }
+
   return (
-    <nav
-      className={clsx(
-        'flex flex-col h-full bg-surface border-r border-border transition-all duration-200 select-none',
-        railCollapsed ? 'w-[var(--spacing-rail-collapsed)]' : 'w-[var(--spacing-rail)]',
-      )}
-    >
+    <nav className="flex flex-col h-full w-[var(--spacing-rail)] bg-surface border-r border-border select-none">
       {/* Header — matches RightRail h-9 style */}
       <div className="flex items-center border-b border-border px-2 h-9 shrink-0">
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <Compass size={12} className="text-cyan shrink-0" />
-          {!railCollapsed && (
-            <span className="text-[10px] font-mono text-cyan uppercase tracking-wider truncate">Navigation</span>
-          )}
+          <span className="text-[10px] font-mono text-cyan uppercase tracking-wider truncate">Navigation</span>
         </div>
         <button onClick={toggleRail} className="p-1 text-text-tertiary hover:text-cyan transition-colors shrink-0">
-          {railCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          <ChevronLeft size={14} />
         </button>
       </div>
 
@@ -37,9 +57,7 @@ export function LeftRail() {
           )
           return (
             <div key={group.key} className="mb-2">
-              {!railCollapsed && (
-                <div className="px-4 py-1 wv-label">{group.label}</div>
-              )}
+              <div className="px-4 py-1 wv-label">{group.label}</div>
               {groupRoutes.map((r) => {
                 const Icon = r.icon
                 const active = activePanel === r.id
@@ -53,12 +71,9 @@ export function LeftRail() {
                         ? 'text-cyan bg-cyan-glow border-r-2 border-cyan'
                         : 'text-text-secondary hover:text-text-primary hover:bg-surface-raised',
                     )}
-                    title={railCollapsed ? `${r.label} (Ctrl+${r.key})` : undefined}
                   >
                     <Icon size={16} className={active ? 'text-cyan' : ''} />
-                    {!railCollapsed && (
-                      <span className="text-[12px] font-mono truncate">{r.label}</span>
-                    )}
+                    <span className="text-[12px] font-mono truncate">{r.label}</span>
                   </button>
                 )
               })}
