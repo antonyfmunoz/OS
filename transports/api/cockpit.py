@@ -2689,3 +2689,17 @@ def _mount_presence_router() -> None:
 
 
 _mount_presence_router()
+
+
+# ── Phase 14.11E: Command center routes (agents, work packets, summary) ──
+
+
+def _mount_command_center_router() -> None:
+    from transports.api import cockpit_command_center_routes
+    cockpit_command_center_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_command_center_routes.command_center_router)
+
+
+_mount_command_center_router()
