@@ -267,6 +267,30 @@ async def pulse():
         active_agents = sum(1 for a in daemon.advisor.list_agents() if a.get("status") != "offline")
         pending_approvals = daemon.approval_store.pending_count()
 
+    node_metrics: dict[str, dict[str, Any]] = {}
+    registry = _load_device_registry()
+    vps_entry = next((d for d in registry if d.get("id") == "vps"), {})
+    node_metrics["vps"] = {
+        "name": vps_entry.get("display_name", "VPS"),
+        "cpu": cpu,
+        "memory": mem.percent,
+        "disk": disk.percent,
+        "status": "online",
+    }
+    server = _get_mesh_server()
+    if server is not None:
+        for node_id, snap in server.metrics_buffer.latest_all().items():
+            dev = next((d for d in registry if d.get("mesh_node_id") == node_id or d.get("id") == node_id), {})
+            node_metrics[node_id] = {
+                "name": dev.get("display_name", node_id),
+                "cpu": snap.cpu,
+                "memory": snap.memory,
+                "disk": snap.disk,
+                "battery": snap.battery,
+                "status": "online",
+                "timestamp": snap.timestamp,
+            }
+
     return {
         "uptime": uptime,
         "cpu_percent": cpu,
@@ -276,7 +300,55 @@ async def pulse():
         "pending_tasks": pending_traces,
         "pending_approvals": pending_approvals,
         "trace_rate": round(len(traces) / max(uptime / 3600, 1), 1),
+        "node_metrics": node_metrics,
     }
+
+
+@router.get("/mesh/metrics")
+async def mesh_metrics():
+    """Per-node metrics from the MetricsBuffer (populated by node heartbeats)."""
+    registry = _load_device_registry()
+    result: dict[str, Any] = {}
+
+    vps_entry = next((d for d in registry if d.get("id") == "vps"), {})
+    cpu = psutil.cpu_percent(interval=0)
+    mem = psutil.virtual_memory()
+    disk = psutil.disk_usage("/")
+    result["vps"] = {
+        "name": vps_entry.get("display_name", "VPS"),
+        "cpu": cpu,
+        "memory": mem.percent,
+        "disk": disk.percent,
+        "status": "online",
+    }
+
+    server = _get_mesh_server()
+    if server is not None:
+        for node_id, snap in server.metrics_buffer.latest_all().items():
+            dev = next((d for d in registry if d.get("mesh_node_id") == node_id or d.get("id") == node_id), {})
+            result[node_id] = {
+                "name": dev.get("display_name", node_id),
+                "cpu": snap.cpu,
+                "memory": snap.memory,
+                "disk": snap.disk,
+                "battery": snap.battery,
+                "status": "online",
+                "timestamp": snap.timestamp,
+            }
+
+    for dev in registry:
+        dev_id = dev.get("id", "")
+        mesh_id = dev.get("mesh_node_id", "")
+        if dev_id not in result and mesh_id not in result and dev_id != "vps":
+            result[dev_id] = {
+                "name": dev.get("display_name", dev_id),
+                "cpu": None,
+                "memory": None,
+                "disk": None,
+                "status": "offline",
+            }
+
+    return result
 
 
 @router.get("/models")
@@ -1829,6 +1901,30 @@ async def cockpit_ws(ws: WebSocket):
             recent_traces = traces[-10:] if traces else []
             containers = _get_docker_containers()
 
+            ws_node_metrics: dict[str, dict[str, Any]] = {}
+            ws_registry = _load_device_registry()
+            ws_vps = next((d for d in ws_registry if d.get("id") == "vps"), {})
+            ws_node_metrics["vps"] = {
+                "name": ws_vps.get("display_name", "VPS"),
+                "cpu": cpu,
+                "memory": mem.percent,
+                "disk": disk.percent,
+                "status": "online",
+            }
+            mesh_srv = _get_mesh_server()
+            if mesh_srv is not None:
+                for nid, nsnap in mesh_srv.metrics_buffer.latest_all().items():
+                    ndev = next((d for d in ws_registry if d.get("mesh_node_id") == nid or d.get("id") == nid), {})
+                    ws_node_metrics[nid] = {
+                        "name": ndev.get("display_name", nid),
+                        "cpu": nsnap.cpu,
+                        "memory": nsnap.memory,
+                        "disk": nsnap.disk,
+                        "battery": nsnap.battery,
+                        "status": "online",
+                        "timestamp": nsnap.timestamp,
+                    }
+
             new_events = _pending_organism_events[event_cursor:]
             event_cursor = len(_pending_organism_events)
 
@@ -1839,6 +1935,7 @@ async def cockpit_ws(ws: WebSocket):
                 "memory_percent": mem.percent,
                 "disk_percent": disk.percent,
                 "containers": containers,
+                "node_metrics": ws_node_metrics,
                 "recent_traces": [
                     {
                         "id": t.get("trace_id", ""),
