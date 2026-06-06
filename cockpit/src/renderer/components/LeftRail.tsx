@@ -67,23 +67,19 @@ export function LeftRail() {
 
       {/* Footer — fullscreen + connection status */}
       <div className="px-3 py-2 border-t border-border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Radio size={12} className="text-cyan wv-pulse" />
-            {!railCollapsed && (
+        <div className="flex items-center gap-3">
+          <Radio size={12} className="text-cyan wv-pulse" />
+          {!railCollapsed && (
+            <>
               <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
                 Full-Screen
               </span>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
-            <div className={clsx('w-2 h-2 rounded-full', isOnline ? 'bg-ok wv-pulse' : 'bg-danger')} />
-            {!railCollapsed && (
+              <div className={clsx('w-2 h-2 rounded-full', isOnline ? 'bg-ok wv-pulse' : 'bg-danger')} />
               <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
                 {isOnline ? 'Online' : 'Offline'}
               </span>
-            )}
-          </div>
+            </>
+          )}
         </div>
       </div>
     </nav>
