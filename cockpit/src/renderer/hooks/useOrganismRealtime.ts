@@ -127,6 +127,7 @@ export function useOrganismRealtime(): void {
         memory_percent: (msg.memory_percent as number) ?? 0,
         disk_percent: (msg.disk_percent as number) ?? 0,
         containers: (msg.containers as Array<{ name: string; status: string }>) ?? [],
+        node_metrics: msg.node_metrics as Record<string, { name: string; cpu: number | null; memory: number | null; disk: number | null; status: string }> | undefined,
       })
 
       useSystemStore.getState().setPulse({

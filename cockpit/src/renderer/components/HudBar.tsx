@@ -3,6 +3,7 @@ import { clsx } from 'clsx'
 import { useSystemStore } from '../stores/systemStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useVoiceStore } from '../stores/voiceStore'
+import { useRealtimeStore } from '../stores/realtimeStore'
 import { usePolling } from '../hooks/usePolling'
 
 function StatusDot({ status }: { status: 'connected' | 'connecting' | 'disconnected' }) {
@@ -34,6 +35,31 @@ function AudioMeter({ level }: { level: number }) {
         />
       ))}
     </span>
+  )
+}
+
+function NodeMetricsStrip() {
+  const nodeMetrics = useRealtimeStore((s) => s.nodeMetrics)
+  const entries = Object.entries(nodeMetrics)
+  if (entries.length === 0) {
+    return (
+      <>
+        <span className="wv-label">cpu <span className="text-cyan">—%</span></span>
+        <span className="wv-label">ram <span className="text-cyan">—%</span></span>
+      </>
+    )
+  }
+  return (
+    <>
+      {entries.map(([id, m]) => (
+        <span key={id} className="wv-label flex items-center gap-1" title={m.name}>
+          <span className={clsx('w-1.5 h-1.5 rounded-full', m.status === 'online' ? 'bg-ok' : 'bg-danger')} />
+          <span className="text-text-tertiary">{id}</span>
+          {m.cpu != null && <span className="text-cyan">{m.cpu.toFixed(0)}%</span>}
+          {m.memory != null && <span className="text-cyan">{m.memory.toFixed(0)}%</span>}
+        </span>
+      ))}
+    </>
   )
 }
 
@@ -182,13 +208,7 @@ export function HudBar() {
         <span className="text-cyan">{pulse?.active_agents ?? 0}</span> agents
       </span>
 
-      <span className="wv-label">
-        cpu <span className="text-cyan">{pulse?.cpu_percent?.toFixed(0) ?? '—'}%</span>
-      </span>
-
-      <span className="wv-label">
-        ram <span className="text-cyan">{pulse?.memory_percent?.toFixed(0) ?? '—'}%</span>
-      </span>
+      <NodeMetricsStrip />
 
       <span className="wv-label">
         mesh:<span className="text-cyan">{meshNodes.length}</span>
