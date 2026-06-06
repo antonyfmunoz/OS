@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 
@@ -31,15 +31,6 @@ interface SummaryData {
   node?: string
 }
 
-interface CommandResult {
-  ok: boolean
-  intent: string
-  governance: string
-  response_text: string
-  panel_target?: string
-  data?: Record<string, unknown>
-}
-
 const CONTINUITY_COLORS: Record<string, string> = {
   ACTIVE: 'text-green-400',
   IDLE: 'text-yellow-400',
@@ -69,10 +60,6 @@ export function CommandCenterPanel() {
   const [summary, setSummary] = useState<SummaryData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [commandText, setCommandText] = useState('')
-  const [commandResult, setCommandResult] = useState<CommandResult | null>(null)
-  const [commandLoading, setCommandLoading] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
 
   const [continuityState, setContinuityState] = useState('ACTIVE')
   const [riskCeiling, setRiskCeiling] = useState('HIGH')
@@ -142,26 +129,6 @@ export function CommandCenterPanel() {
     return () => clearInterval(id)
   }, [continuityState])
 
-  const sendCommand = useCallback(async () => {
-    if (!commandText.trim()) return
-    setCommandLoading(true)
-    try {
-      const res = await fetch('/api/umh/presence/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: commandText, source: 'commandcenter' }),
-      })
-      const data = await res.json()
-      setCommandResult(data)
-      setCommandText('')
-      fetchSummary()
-    } catch {
-      setCommandResult({ ok: false, intent: 'error', governance: '', response_text: 'Command failed' })
-    } finally {
-      setCommandLoading(false)
-    }
-  }, [commandText, fetchSummary])
-
   const handleApproval = useCallback(async (id: string, decision: 'approved' | 'denied') => {
     try {
       const res = await fetch(`/api/umh/command-center/approvals/${id}/decide`, {
@@ -187,39 +154,6 @@ export function CommandCenterPanel() {
         <h2 className="text-sm font-bold text-cyan-400">Command Center</h2>
         <span className="text-gray-500">{summary.source_env}:{summary.node}</span>
       </div>
-
-      {/* Jarvis Input Bar */}
-      <div className="flex gap-2">
-        <input
-          ref={inputRef}
-          type="text"
-          value={commandText}
-          onChange={(e) => setCommandText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendCommand()}
-          placeholder="Type a Jarvis command..."
-          disabled={commandLoading}
-          className="flex-1 px-3 py-1.5 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none"
-        />
-        <button
-          onClick={sendCommand}
-          disabled={commandLoading || !commandText.trim()}
-          className="px-3 py-1.5 bg-cyan-900 border border-cyan-700 rounded text-cyan-300 hover:bg-cyan-800 disabled:opacity-50"
-        >
-          {commandLoading ? '...' : 'Send'}
-        </button>
-      </div>
-
-      {/* Command Result */}
-      {commandResult && (
-        <div className={`p-2 rounded border ${commandResult.ok ? 'border-cyan-800 bg-cyan-950' : 'border-red-800 bg-red-950'}`}>
-          <div className="flex gap-3 text-[10px]">
-            <span className="text-gray-400">intent: <span className="text-white">{commandResult.intent}</span></span>
-            <span className="text-gray-400">governance: <span className={commandResult.governance === 'requires_governance' ? 'text-yellow-400' : 'text-green-400'}>{commandResult.governance}</span></span>
-            {commandResult.panel_target && <span className="text-gray-400">panel: <span className="text-white">{commandResult.panel_target}</span></span>}
-          </div>
-          <div className="mt-1 text-gray-300">{commandResult.response_text}</div>
-        </div>
-      )}
 
       {/* What Is Happening */}
       <Section title="What is happening?">
