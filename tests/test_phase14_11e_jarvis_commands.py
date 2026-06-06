@@ -168,7 +168,7 @@ class TestPresenceRouteIntegration:
         result = _run(_command(FakeReq(body={"text": "command center"})))
         assert result["ok"] is True
         assert result["intent"] == "command_center_query"
-        assert result["panel_target"] == "dashboard"
+        assert result["panel_target"] == "commandcenter"
         assert "agents" in result.get("data", {})
 
     def test_stop_packet_requires_governance(self) -> None:
