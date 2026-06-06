@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { fetchApi } from '../api/client'
 
 interface FileNode {
   name: string
@@ -116,8 +117,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   fetchFileTree: async (root = '/opt/OS') => {
     try {
       const res = await window.cockpit?.readDir?.(root)
-      if (res) set({ fileTree: res })
+      if (res) { set({ fileTree: res }); return }
     } catch { /* IPC not available in web mode */ }
+    try {
+      const data = await fetchApi<{ ok: boolean; entries: FileNode[] }>(`/workspace/browse?path=${encodeURIComponent(root)}`)
+      if (data.ok && data.entries) {
+        set({ fileTree: data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type })) })
+      }
+    } catch { /* API fallback failed — auth or network */ }
   },
 
   fetchFileContent: async (path: string) => {
@@ -126,8 +133,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       if (content !== undefined) {
         const name = path.split('/').pop() || path
         get().openFile({ path, name, content, language: detectLanguage(name), dirty: false })
+        return
       }
     } catch { /* IPC not available */ }
+    try {
+      const data = await fetchApi<{ ok: boolean; content: string }>(`/workspace/read-file?path=${encodeURIComponent(path)}`)
+      if (data.ok && data.content !== undefined) {
+        const name = path.split('/').pop() || path
+        get().openFile({ path, name, content: data.content, language: detectLanguage(name), dirty: false })
+      }
+    } catch { /* API fallback failed */ }
   },
 
   saveFile: async (path: string) => {

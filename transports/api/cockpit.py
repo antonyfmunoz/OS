@@ -2692,6 +2692,7 @@ def _mount_workspace_router() -> None:
     from transports.api import cockpit_workspace_routes
     cockpit_workspace_routes.configure(
         require_operator_dep=_require_operator_role,
+        require_api_key_dep=_require_api_key,
     )
     router.include_router(cockpit_workspace_routes.workspace_router)
 

@@ -28,26 +28,33 @@ _DATA_ROOT = os.path.join(_REPO_ROOT, "data")
 _UMH_DATA = os.path.join(_DATA_ROOT, "umh")
 
 
-def configure(require_operator_dep: Any) -> None:
+def configure(
+    require_operator_dep: Any,
+    require_api_key_dep: Callable | None = None,
+) -> None:
     global _configured, workspace_router
     _configured = True
-    workspace_router = _build_router(require_operator_dep)
+    workspace_router = _build_router(require_operator_dep, require_api_key_dep)
 
 
-def _build_router(require_operator_dep: Any) -> APIRouter:
+def _build_router(
+    require_operator_dep: Any,
+    require_api_key_dep: Callable | None = None,
+) -> APIRouter:
     r = APIRouter()
     auth = [Depends(require_operator_dep)]
+    read_auth = [Depends(require_api_key_dep)] if require_api_key_dep else auth
 
-    r.add_api_route("/workspace/browse", _browse_dir, methods=["GET"], dependencies=auth)
-    r.add_api_route("/workspace/read-file", _read_file, methods=["GET"], dependencies=auth)
-    r.add_api_route("/workspace/git-status", _git_status, methods=["GET"], dependencies=auth)
-    r.add_api_route("/workspace/git-diff", _git_diff, methods=["GET"], dependencies=auth)
-    r.add_api_route("/workspace/git-diff-file", _git_diff_file, methods=["GET"], dependencies=auth)
-    r.add_api_route("/workspace/test-results", _test_results, methods=["GET"], dependencies=auth)
-    r.add_api_route("/workspace/execution-logs", _execution_logs, methods=["GET"], dependencies=auth)
-    r.add_api_route("/workspace/proof-artifacts", _proof_artifacts, methods=["GET"], dependencies=auth)
-    r.add_api_route("/workspace/health", _health_check, methods=["GET"], dependencies=auth)
-    r.add_api_route("/workspace/trace-linkage", _trace_linkage, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workspace/browse", _browse_dir, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/read-file", _read_file, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/git-status", _git_status, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/git-diff", _git_diff, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/git-diff-file", _git_diff_file, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/test-results", _test_results, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/execution-logs", _execution_logs, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/proof-artifacts", _proof_artifacts, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/health", _health_check, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/trace-linkage", _trace_linkage, methods=["GET"], dependencies=read_auth)
 
     return r
 
