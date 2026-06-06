@@ -123,6 +123,8 @@ export function EditorPanel() {
   const [capturedOutput, setCapturedOutput] = useState('')
   const [meshNodes, setMeshNodes] = useState<MeshNode[]>([])
   const [windowsTree, setWindowsTree] = useState<{ name: string; path: string; type: 'file' | 'directory' }[]>([])
+  const [vpsExpanded, setVpsExpanded] = useState(true)
+  const [windowsExpanded, setWindowsExpanded] = useState(true)
 
   useEffect(() => {
     fetchFileTree()
@@ -139,7 +141,7 @@ export function EditorPanel() {
     }
     const fetchWin = async () => {
       try {
-        const data = await fetchApi<{ ok: boolean; entries: { name: string; path: string; type: 'file' | 'directory' }[] }>('/workspace/remote-browse?node=windows')
+        const data = await fetchApi<{ ok: boolean; entries: { name: string; path: string; type: 'file' | 'directory' }[] }>('/workspace/remote-browse?node=windows&path=C%3A%5C')
         if (data.ok && data.entries) setWindowsTree(data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type })))
       } catch { /* silent */ }
     }
@@ -209,27 +211,43 @@ export function EditorPanel() {
         <div className="flex-1 overflow-y-auto py-1">
           {sidebarTab === 'files' && (
             <>
-              <div className="px-2 pt-1 pb-0.5">
-                <p className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider">VPS · /opt/OS</p>
-              </div>
-              {fileTree.map((f) => (
-                <FileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={0} />
-              ))}
-              {fileTree.length === 0 && (
-                <p className="text-xs px-3 py-2 text-center text-text-tertiary">Loading...</p>
+              <button
+                onClick={() => setVpsExpanded(!vpsExpanded)}
+                className="w-full flex items-center gap-1.5 px-2 pt-1.5 pb-1 hover:bg-surface-raised transition-colors"
+              >
+                <span className="text-text-tertiary text-[9px]">{vpsExpanded ? '▾' : '▸'}</span>
+                <span className="text-ok text-[9px]">●</span>
+                <span className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider flex-1 text-left">VPS</span>
+              </button>
+              {vpsExpanded && (
+                <>
+                  {fileTree.map((f) => (
+                    <FileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} />
+                  ))}
+                  {fileTree.length === 0 && (
+                    <p className="text-xs px-3 py-2 text-center text-text-tertiary">Loading...</p>
+                  )}
+                </>
               )}
               {meshNodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online')) && (
                 <>
-                  <div className="px-2 pt-3 pb-0.5 border-t border-border mt-1">
-                    <p className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider">
-                      <span className="text-ok">●</span> Beast PC · C:\dev\dev
-                    </p>
-                  </div>
-                  {windowsTree.map((f) => (
-                    <FileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={0} node="windows" />
-                  ))}
-                  {windowsTree.length === 0 && (
-                    <p className="text-xs px-3 py-2 text-center text-text-tertiary">Loading Windows files...</p>
+                  <button
+                    onClick={() => setWindowsExpanded(!windowsExpanded)}
+                    className="w-full flex items-center gap-1.5 px-2 pt-1.5 pb-1 hover:bg-surface-raised transition-colors border-t border-border mt-1"
+                  >
+                    <span className="text-text-tertiary text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
+                    <span className="text-ok text-[9px]">●</span>
+                    <span className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider flex-1 text-left">Beast PC</span>
+                  </button>
+                  {windowsExpanded && (
+                    <>
+                      {windowsTree.map((f) => (
+                        <FileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" />
+                      ))}
+                      {windowsTree.length === 0 && (
+                        <p className="text-xs px-3 py-2 text-center text-text-tertiary">Loading Windows files...</p>
+                      )}
+                    </>
                   )}
                 </>
               )}
