@@ -891,14 +891,16 @@ async def mesh_nodes():
                 pass
 
     if not nodes:
+        _fb_registry = _load_device_registry()
+        _fb_vps = next((d for d in _fb_registry if d.get("id") == "vps"), {})
         nodes.append(
             {
                 "node_id": "vps-primary",
-                "hostname": os.uname().nodename,
-                "role": "orchestrator",
+                "hostname": _fb_vps.get("display_name", os.uname().nodename),
+                "role": _fb_vps.get("role", "orchestrator"),
                 "status": "online",
                 "os": "linux",
-                "ip": "",
+                "ip": _fb_vps.get("tailscale_ip", ""),
                 "last_seen": datetime.now(timezone.utc).isoformat(),
                 "daemon_version": None,
                 "capabilities": [],
