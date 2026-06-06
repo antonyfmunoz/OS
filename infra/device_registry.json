@@ -5,6 +5,7 @@
     "device_type": "vps",
     "display_name": "srv1500858 (VPS)",
     "os": "linux",
+    "role": "orchestrator",
     "tailscale_ip": "100.77.233.50",
     "always_online": true
   },
@@ -14,7 +15,24 @@
     "device_type": "pc",
     "display_name": "desktop-lvguiq9 (PC)",
     "os": "windows",
+    "role": "gpu-workhorse",
     "tailscale_ip": "100.74.199.102",
     "mesh_node_id": "windows-desktop"
+  },
+  {
+    "id": "ipad",
+    "tailscale_name": "ipad-pro-12-9-gen-5",
+    "device_type": "tablet",
+    "display_name": "ipad-pro-12-9-gen-5 (Tablet)",
+    "os": "ios",
+    "role": "mobile"
+  },
+  {
+    "id": "iphone",
+    "tailscale_name": "iphone-15-pro-max",
+    "device_type": "mobile",
+    "display_name": "iphone-15-pro-max (Mobile)",
+    "os": "ios",
+    "role": "mobile"
   }
 ]

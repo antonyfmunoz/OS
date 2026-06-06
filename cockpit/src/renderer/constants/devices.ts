@@ -13,7 +13,7 @@ export interface DeviceInfo {
   tailscaleName: string
   deviceType: string
   displayName: string
-  os: 'linux' | 'windows'
+  os: 'linux' | 'windows' | 'ios'
   nodeParam?: string
 }
 
@@ -32,6 +32,20 @@ export const DEVICES: Record<string, DeviceInfo> = {
     displayName: 'desktop-lvguiq9 (PC)',
     os: 'windows',
     nodeParam: 'windows',
+  },
+  ipad: {
+    id: 'ipad',
+    tailscaleName: 'ipad-pro-12-9-gen-5',
+    deviceType: 'tablet',
+    displayName: 'ipad-pro-12-9-gen-5 (Tablet)',
+    os: 'ios',
+  },
+  iphone: {
+    id: 'iphone',
+    tailscaleName: 'iphone-15-pro-max',
+    deviceType: 'mobile',
+    displayName: 'iphone-15-pro-max (Mobile)',
+    os: 'ios',
   },
 } as const
 
