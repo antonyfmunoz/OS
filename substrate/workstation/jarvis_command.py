@@ -179,7 +179,7 @@ _COMMAND_CENTER_SIGNALS = [
 
 _NAV_MAP: dict[str, str] = {
     "dashboard": "dashboard",
-    "command center": "dashboard",
+    "command center": "commandcenter",
     "agents": "agents",
     "tasks": "tasks",
     "approvals": "approvals",
