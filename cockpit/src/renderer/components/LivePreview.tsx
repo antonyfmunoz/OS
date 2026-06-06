@@ -38,12 +38,12 @@ export function LivePreview({ url, defaultUrl = 'http://localhost:5173' }: LiveP
   return (
     <div className="flex flex-col h-full">
       <div
-        className="flex items-center gap-2 px-2 py-1.5 flex-shrink-0"
+        className="flex items-center gap-2 px-2 py-2 flex-shrink-0"
         style={{ borderBottom: '1px solid var(--color-border)' }}
       >
         <button
           onClick={handleRefresh}
-          className="text-xs px-1.5 py-0.5 rounded"
+          className="text-xs px-2 py-1 rounded"
           style={{ color: 'var(--color-text-secondary)' }}
           title="Refresh"
         >
@@ -53,7 +53,7 @@ export function LivePreview({ url, defaultUrl = 'http://localhost:5173' }: LiveP
           <input
             value={inputUrl}
             onChange={(e) => setInputUrl(e.target.value)}
-            className="flex-1 px-2 py-0.5 rounded text-xs bg-transparent outline-none"
+            className="flex-1 px-2 py-1 rounded text-xs bg-transparent outline-none"
             style={{
               color: 'var(--color-text-primary)',
               border: '1px solid var(--color-border)',

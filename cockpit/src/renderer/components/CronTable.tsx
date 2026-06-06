@@ -81,7 +81,7 @@ export function CronTable({ jobs, loading }: CronTableProps) {
                 {job.onRun && (
                   <button
                     onClick={job.onRun}
-                    className="text-[9px] px-2 py-0.5 rounded uppercase tracking-wider"
+                    className="text-[9px] px-2 py-1 rounded uppercase tracking-wider"
                     style={{
                       color: 'var(--color-cyan)',
                       background: 'var(--color-cyan-glow)',

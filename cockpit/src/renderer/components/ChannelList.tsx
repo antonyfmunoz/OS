@@ -54,7 +54,7 @@ export function ConversationList({ conversations, selected, onSelect }: Conversa
           onClick={() => onSelect(conv.id)}
           className={`wv-channel-list-item ${selected === conv.id ? 'selected' : ''}`}
         >
-          <div className="flex items-center justify-between mb-0.5">
+          <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>
               {conv.participants.join(' ↔ ')}
             </span>
@@ -76,7 +76,7 @@ export function ConversationList({ conversations, selected, onSelect }: Conversa
             </span>
             {conv.count > 1 && (
               <span
-                className="text-[9px] px-1.5 rounded-full flex-shrink-0 font-mono"
+                className="text-[9px] px-2 rounded-full flex-shrink-0 font-mono"
                 style={{ background: 'var(--color-cyan-glow)', color: 'var(--color-cyan)' }}
               >
                 {conv.count}

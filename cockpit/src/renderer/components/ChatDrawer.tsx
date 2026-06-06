@@ -71,7 +71,7 @@ function ProvenanceBlock({ provenance }: { provenance: Provenance }) {
 
   return (
     <div
-      className="flex flex-wrap gap-x-1.5 gap-y-0.5 mt-1 mb-2 py-1 px-2 rounded text-[10px] font-mono"
+      className="flex flex-wrap gap-x-2 gap-y-1 mt-1 mb-2 py-1 px-2 rounded text-[10px] font-mono"
       style={{
         background: 'var(--color-surface-raised)',
         borderLeft: '2px solid var(--color-cyan)',
@@ -109,7 +109,7 @@ function AttachmentBlock({ attachment }: { attachment: Attachment }) {
     <button
       type="button"
       onClick={handleDownload}
-      className="flex items-center gap-2 mt-2 py-1.5 px-2 rounded text-xs font-mono transition-colors cursor-pointer w-full text-left"
+      className="flex items-center gap-2 mt-2 py-2 px-2 rounded text-xs font-mono transition-colors cursor-pointer w-full text-left"
       style={{
         background: 'var(--color-surface-raised)',
         border: '1px solid var(--color-border)',
@@ -234,7 +234,7 @@ export function ChatDrawer() {
             )}
             {messages.map((msg) => (
               <div key={msg.id} className="text-sm">
-                <div className="flex items-center gap-2 mb-0.5">
+                <div className="flex items-center gap-2 mb-1">
                   <span
                     className="font-mono text-xs uppercase"
                     style={{
@@ -277,7 +277,7 @@ export function ChatDrawer() {
 
           {/* Error */}
           {error && (
-            <div className="px-3 py-1.5 text-xs" style={{ color: 'var(--color-danger)', background: 'var(--color-surface-raised)' }}>
+            <div className="px-3 py-2 text-xs" style={{ color: 'var(--color-danger)', background: 'var(--color-surface-raised)' }}>
               {error}
             </div>
           )}

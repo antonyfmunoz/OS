@@ -1,4 +1,7 @@
 @theme {
+  /* ── Spacing base (3px scale rule) ── */
+  --spacing: 3px;
+
   /* ── Canvas ── */
   --color-canvas: #0A0A0A;
   --color-surface: #111111;
@@ -52,8 +55,8 @@
 
   /* ── Layout ── */
   --spacing-rail: 180px;
-  --spacing-rail-collapsed: 56px;
-  --spacing-hud-height: 32px;
+  --spacing-rail-collapsed: 54px;
+  --spacing-hud-height: 30px;
   --spacing-chat-width: 360px;
   --spacing-titlebar-height: 36px;
 }

@@ -101,7 +101,7 @@ function EnvelopeTimeline({ env }: { env: EnvelopeEntry }) {
       </div>
 
       {/* Stage progress bar */}
-      <div className="flex items-center gap-0.5 mb-2">
+      <div className="flex items-center gap-1 mb-2">
         {LIFECYCLE_STAGES.slice(0, 7).map((stage, i) => {
           const isActive = i === currentStage
           const isPast = i < currentStage
@@ -123,7 +123,7 @@ function EnvelopeTimeline({ env }: { env: EnvelopeEntry }) {
       </div>
 
       {/* Metadata */}
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px]">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
         <span className="text-text-tertiary">
           {env.envelope_id.slice(0, 8)}
         </span>
@@ -149,7 +149,7 @@ function EnvelopeTimeline({ env }: { env: EnvelopeEntry }) {
       </div>
 
       {env.result_output && isTerminal && (
-        <div className="mt-1.5 text-[10px] text-text-secondary truncate">{env.result_output}</div>
+        <div className="mt-2 text-[10px] text-text-secondary truncate">{env.result_output}</div>
       )}
     </div>
   )
@@ -187,10 +187,10 @@ export function ExecutionTimeline() {
 
       {journalRecent.length > 0 && (
         <div className="mt-3 border-t border-border pt-2">
-          <h4 className="wv-label mb-1.5">Journal Trail</h4>
-          <div className="space-y-0.5 max-h-32 overflow-y-auto">
+          <h4 className="wv-label mb-2">Journal Trail</h4>
+          <div className="space-y-1 max-h-32 overflow-y-auto">
             {journalRecent.slice(0, 15).map((entry, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-[10px]">
+              <div key={i} className="flex items-center gap-2 text-[10px]">
                 <span className="font-mono text-text-tertiary w-16 shrink-0 truncate">{entry.phase}</span>
                 <span className="text-text-primary truncate flex-1">{entry.envelope_id.slice(0, 8)}</span>
                 <span className="text-text-tertiary">{entry.source}</span>

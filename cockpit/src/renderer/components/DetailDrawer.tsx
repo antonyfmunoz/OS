@@ -72,7 +72,7 @@ export function DetailDrawer({
             </div>
             {subtitle && (
               <p
-                className="text-xs mt-0.5 truncate"
+                className="text-xs mt-1 truncate"
                 style={{ color: 'var(--color-text-tertiary)' }}
               >
                 {subtitle}
@@ -83,7 +83,7 @@ export function DetailDrawer({
             ref={closeRef}
             onClick={onClose}
             aria-label="Close drawer"
-            className="text-sm px-1.5 py-0.5 rounded"
+            className="text-sm px-2 py-1 rounded"
             style={{
               color: 'var(--color-text-tertiary)',
               background: 'transparent',

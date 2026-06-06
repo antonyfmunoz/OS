@@ -112,7 +112,7 @@ export function AgentsPanel() {
             {(detail as any).capabilities && (
               <div className="flex flex-wrap gap-1 mt-1">
                 {(Array.isArray((detail as any).capabilities) ? (detail as any).capabilities : []).map((cap: string) => (
-                  <span key={cap} className="text-[8px] font-mono px-1 py-0.5 rounded bg-surface-raised text-text-secondary border border-border">
+                  <span key={cap} className="text-[8px] font-mono px-1 py-1 rounded bg-surface-raised text-text-secondary border border-border">
                     {cap}
                   </span>
                 ))}
@@ -122,23 +122,23 @@ export function AgentsPanel() {
             {/* Primary controls */}
             <div className="flex gap-2 mb-4">
               <button onClick={() => controlAgent('start', detail.id)}
-                className="px-3 py-1.5 text-xs font-mono uppercase rounded bg-cyan-glow text-cyan border border-border">
+                className="px-3 py-2 text-xs font-mono uppercase rounded bg-cyan-glow text-cyan border border-border">
                 resume
               </button>
               <button onClick={() => controlAgent('pause', detail.id)}
-                className="px-3 py-1.5 text-xs font-mono uppercase rounded bg-surface-raised text-warn border border-border">
+                className="px-3 py-2 text-xs font-mono uppercase rounded bg-surface-raised text-warn border border-border">
                 pause
               </button>
               <button onClick={() => controlAgent('stop', detail.id)}
-                className="px-3 py-1.5 text-xs font-mono uppercase rounded bg-surface-raised text-danger border border-border">
+                className="px-3 py-2 text-xs font-mono uppercase rounded bg-surface-raised text-danger border border-border">
                 stop
               </button>
               <button onClick={() => controlAgent('restart', detail.id)}
-                className="px-3 py-1.5 text-xs font-mono uppercase rounded bg-surface-raised text-text-secondary border border-border">
+                className="px-3 py-2 text-xs font-mono uppercase rounded bg-surface-raised text-text-secondary border border-border">
                 restart
               </button>
               <button onClick={() => setShowHandoff(!showHandoff)}
-                className="px-3 py-1.5 text-xs font-mono uppercase rounded bg-surface-raised text-violet border border-border">
+                className="px-3 py-2 text-xs font-mono uppercase rounded bg-surface-raised text-violet border border-border">
                 handoff
               </button>
             </div>
@@ -147,11 +147,11 @@ export function AgentsPanel() {
             <div className="flex gap-2 mb-6">
               <input value={signalText} onChange={(e) => setSignalText(e.target.value)}
                 placeholder="Send signal/command to agent..."
-                className="flex-1 px-3 py-1.5 text-xs rounded bg-surface border border-border text-text-primary outline-none"
+                className="flex-1 px-3 py-2 text-xs rounded bg-surface border border-border text-text-primary outline-none"
                 onKeyDown={(e) => e.key === 'Enter' && sendSignal()}
               />
               <button onClick={sendSignal}
-                className="px-3 py-1.5 text-xs rounded bg-surface-raised text-cyan border border-border">
+                className="px-3 py-2 text-xs rounded bg-surface-raised text-cyan border border-border">
                 Send
               </button>
             </div>
@@ -178,9 +178,9 @@ export function AgentsPanel() {
             {/* Skills */}
             <section className="mb-4">
               <h3 className="wv-label mb-2">Capabilities / Skills</h3>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {(detail.skills ?? []).map((skill) => (
-                  <span key={skill} className="px-2 py-0.5 text-xs rounded bg-surface-raised text-text-secondary border border-border">
+                  <span key={skill} className="px-2 py-1 text-xs rounded bg-surface-raised text-text-secondary border border-border">
                     {skill}
                   </span>
                 ))}

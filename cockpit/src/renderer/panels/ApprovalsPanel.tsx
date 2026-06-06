@@ -54,7 +54,7 @@ export function ApprovalsPanel() {
       <div className="flex items-center px-4 py-3 flex-shrink-0 border-b border-border">
         <h2 className="text-lg font-semibold">Governance Gate</h2>
         {totalPending > 0 && (
-          <span className="ml-2 px-2 py-0.5 text-xs font-mono rounded bg-cyan-glow text-cyan">
+          <span className="ml-2 px-2 py-1 text-xs font-mono rounded bg-cyan-glow text-cyan">
             {totalPending} pending
           </span>
         )}
@@ -104,13 +104,13 @@ export function ApprovalsPanel() {
                       />
                       <button
                         onClick={() => approveEnvelope(env.envelope_id)}
-                        className="px-3 py-1.5 text-xs font-mono uppercase rounded bg-ok text-text-inverse transition-colors"
+                        className="px-3 py-2 text-xs font-mono uppercase rounded bg-ok text-text-inverse transition-colors"
                       >
                         approve
                       </button>
                       <button
                         onClick={() => rejectEnvelope(env.envelope_id, rejectReason[env.envelope_id] || undefined)}
-                        className="px-3 py-1.5 text-xs font-mono uppercase rounded bg-surface-overlay text-danger border border-border transition-colors"
+                        className="px-3 py-2 text-xs font-mono uppercase rounded bg-surface-overlay text-danger border border-border transition-colors"
                       >
                         reject
                       </button>
@@ -138,13 +138,13 @@ export function ApprovalsPanel() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => approve(item.id)}
-                        className="px-3 py-1.5 text-xs font-mono uppercase rounded bg-ok text-text-inverse"
+                        className="px-3 py-2 text-xs font-mono uppercase rounded bg-ok text-text-inverse"
                       >
                         approve
                       </button>
                       <button
                         onClick={() => deny(item.id)}
-                        className="px-3 py-1.5 text-xs font-mono uppercase rounded bg-surface-overlay text-danger border border-border"
+                        className="px-3 py-2 text-xs font-mono uppercase rounded bg-surface-overlay text-danger border border-border"
                       >
                         deny
                       </button>
@@ -196,7 +196,7 @@ export function ApprovalsPanel() {
             <div className="space-y-1">
               {gatewayDecisions.length === 0 && <p className="text-xs text-text-tertiary">No decisions recorded</p>}
               {gatewayDecisions.slice(0, 15).map((d, i) => (
-                <div key={i} className="flex items-center gap-2 py-0.5">
+                <div key={i} className="flex items-center gap-2 py-1">
                   <span className={`w-1.5 h-1.5 rounded-full ${
                     d.action === 'allowed' ? 'bg-ok' : d.action === 'blocked' ? 'bg-danger' : 'bg-warn'
                   }`} />
@@ -220,7 +220,7 @@ export function ApprovalsPanel() {
                 <div className="space-y-1">
                   {guard.recent_violations.length === 0 && <p className="text-xs text-text-tertiary">No violations</p>}
                   {guard.recent_violations.slice(0, 10).map((v, i) => (
-                    <div key={i} className="text-[10px] text-danger/80 truncate py-0.5">
+                    <div key={i} className="text-[10px] text-danger/80 truncate py-1">
                       {v.source}: {v.reason}
                     </div>
                   ))}
@@ -237,7 +237,7 @@ export function ApprovalsPanel() {
               <h3 className="wv-label mb-2">Legacy History</h3>
               <div className="space-y-1">
                 {history.slice(0, 10).map((item) => (
-                  <div key={item.id} className="flex items-center gap-2 py-0.5">
+                  <div key={item.id} className="flex items-center gap-2 py-1">
                     <span className={`w-1.5 h-1.5 rounded-full ${item.status === 'approved' ? 'bg-ok' : 'bg-danger'}`} />
                     <span className="text-[11px] text-text-primary truncate flex-1">{item.description}</span>
                     <span className="text-[10px] text-text-tertiary">{item.status}</span>

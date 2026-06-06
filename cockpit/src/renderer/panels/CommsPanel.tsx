@@ -169,7 +169,7 @@ export function CommsPanel() {
                 <select
                   value={sendRecipient}
                   onChange={(e) => setSendRecipient(e.target.value)}
-                  className="text-[10px] px-2 py-1.5 rounded border bg-transparent font-mono"
+                  className="text-[10px] px-2 py-2 rounded border bg-transparent font-mono"
                   style={{
                     borderColor: 'var(--color-border)',
                     color: 'var(--color-text-secondary)',
@@ -195,7 +195,7 @@ export function CommsPanel() {
                   onChange={(e) => setSendText(e.target.value)}
                   placeholder="Send a message..."
                   disabled={sending}
-                  className="flex-1 text-xs px-3 py-1.5 rounded border bg-transparent outline-none"
+                  className="flex-1 text-xs px-3 py-2 rounded border bg-transparent outline-none"
                   style={{
                     borderColor: 'var(--color-border)',
                     color: 'var(--color-text-primary)',
@@ -204,7 +204,7 @@ export function CommsPanel() {
                 <button
                   type="submit"
                   disabled={!sendText.trim() || sending}
-                  className="text-xs px-3 py-1.5 rounded font-medium"
+                  className="text-xs px-3 py-2 rounded font-medium"
                   style={{
                     background: sendText.trim() ? 'var(--color-cyan)' : 'var(--color-surface-raised)',
                     color: sendText.trim() ? 'var(--color-canvas)' : 'var(--color-text-tertiary)',

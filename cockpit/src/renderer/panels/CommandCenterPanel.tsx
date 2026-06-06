@@ -309,7 +309,7 @@ export function CommandCenterPanel() {
       {/* Checkpoint */}
       {cp && cp.last_checkpoint_id && (
         <Section title="Checkpoint">
-          <div className="text-[10px] space-y-0.5 text-gray-400">
+          <div className="text-[10px] space-y-1 text-gray-400">
             <div>id: {cp.last_checkpoint_id.slice(0, 16)}...</div>
             <div>state: {cp.continuity_state} | mode: {cp.lifecycle_mode || 'n/a'}</div>
             {cp.open_loops?.length > 0 && <div>open loops: {cp.open_loops.join(', ')}</div>}

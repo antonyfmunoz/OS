@@ -40,10 +40,10 @@ function TabBar() {
         >
           {t.label}
           {t.id === 'world' && status && (
-            <span className="ml-1.5 text-text-tertiary">{status.canonical.pattern_count}</span>
+            <span className="ml-2 text-text-tertiary">{status.canonical.pattern_count}</span>
           )}
           {t.id === 'outcomes' && status && (
-            <span className="ml-1.5 text-text-tertiary">{status.instance.observation_count}</span>
+            <span className="ml-2 text-text-tertiary">{status.instance.observation_count}</span>
           )}
         </button>
       ))}
@@ -86,7 +86,7 @@ function WorldTab() {
           <h3 className="wv-label mb-2">Layers</h3>
           <div className="flex gap-1">
             {status.layers.map((l) => (
-              <span key={l} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan/10 text-cyan">{l}</span>
+              <span key={l} className="text-[10px] font-mono px-2 py-1 rounded bg-cyan/10 text-cyan">{l}</span>
             ))}
           </div>
         </div>
@@ -94,7 +94,7 @@ function WorldTab() {
           <h3 className="wv-label mb-2">Domains</h3>
           <div className="flex flex-wrap gap-1">
             {canonicalDomains.map((d) => (
-              <span key={d.domain} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-overlay text-text-secondary">
+              <span key={d.domain} className="text-[10px] font-mono px-2 py-1 rounded bg-surface-overlay text-text-secondary">
                 {d.domain} <span className="text-text-tertiary">({d.pattern_count})</span>
               </span>
             ))}
@@ -156,14 +156,14 @@ function WorldTab() {
           {selectedPattern.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
               {selectedPattern.tags.map((t) => (
-                <span key={t} className="text-[10px] font-mono px-1 py-0.5 rounded bg-surface-overlay text-text-tertiary">{t}</span>
+                <span key={t} className="text-[10px] font-mono px-1 py-1 rounded bg-surface-overlay text-text-tertiary">{t}</span>
               ))}
             </div>
           )}
           {selectedPattern.relationships.length > 0 && (
             <div>
               <span className="text-[10px] text-text-tertiary">Relationships:</span>
-              <div className="space-y-0.5 mt-1">
+              <div className="space-y-1 mt-1">
                 {selectedPattern.relationships.map((r, i) => (
                   <div key={i} className="flex items-center gap-2 text-[10px] font-mono">
                     <span className="text-text-primary">{r.name}</span>
@@ -206,12 +206,12 @@ function GraphTab() {
 
       <section>
         <h3 className="wv-label mb-2">Select pattern to view relationships</h3>
-        <div className="max-h-40 overflow-y-auto space-y-0.5">
+        <div className="max-h-40 overflow-y-auto space-y-1">
           {patterns.map((p) => (
             <div
               key={p.id}
               onClick={() => handleSelect(p.name)}
-              className={`flex items-center gap-2 py-0.5 px-2 rounded cursor-pointer text-[11px] font-mono ${
+              className={`flex items-center gap-2 py-1 px-2 rounded cursor-pointer text-[11px] font-mono ${
                 selectedName === p.name
                   ? 'bg-cyan/20 text-cyan'
                   : 'text-text-primary hover:bg-surface-overlay'
@@ -233,7 +233,7 @@ function GraphTab() {
           {relationships.length > 0 ? (
             <div className="space-y-1">
               {relationships.map((r, i) => (
-                <div key={i} className="flex items-center gap-2 py-0.5 text-[11px] font-mono">
+                <div key={i} className="flex items-center gap-2 py-1 text-[11px] font-mono">
                   <span className="text-text-primary">{selectedName}</span>
                   <span className="text-text-tertiary">&rarr;</span>
                   <span className="text-text-primary">{r.name}</span>
@@ -273,12 +273,12 @@ function SearchTab() {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }}
           placeholder="Search canonical patterns..."
-          className="flex-1 px-3 py-1.5 text-xs font-mono bg-surface border border-border rounded text-text-primary placeholder-text-tertiary focus:border-cyan focus:outline-none"
+          className="flex-1 px-3 py-2 text-xs font-mono bg-surface border border-border rounded text-text-primary placeholder-text-tertiary focus:border-cyan focus:outline-none"
         />
         <button
           onClick={handleSearch}
           disabled={!query.trim()}
-          className="px-3 py-1.5 text-xs font-mono bg-cyan/20 text-cyan rounded hover:bg-cyan/30 disabled:opacity-50"
+          className="px-3 py-2 text-xs font-mono bg-cyan/20 text-cyan rounded hover:bg-cyan/30 disabled:opacity-50"
         >
           SEARCH
         </button>
@@ -311,7 +311,7 @@ function SearchTab() {
           <button
             onClick={() => simulate(`Analyze patterns related to: ${query}`)}
             disabled={composing}
-            className="px-3 py-1.5 text-xs font-mono bg-warn/20 text-warn rounded hover:bg-warn/30 disabled:opacity-50"
+            className="px-3 py-2 text-xs font-mono bg-warn/20 text-warn rounded hover:bg-warn/30 disabled:opacity-50"
           >
             {composing ? 'SIMULATING...' : 'SIMULATE'}
           </button>
@@ -341,12 +341,12 @@ function SimulateTab() {
           onChange={(e) => setHypothesis(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && hypothesis.trim()) simulate(hypothesis.trim()) }}
           placeholder="Enter hypothesis to simulate..."
-          className="flex-1 px-3 py-1.5 text-xs font-mono bg-surface border border-border rounded text-text-primary placeholder-text-tertiary focus:border-cyan focus:outline-none"
+          className="flex-1 px-3 py-2 text-xs font-mono bg-surface border border-border rounded text-text-primary placeholder-text-tertiary focus:border-cyan focus:outline-none"
         />
         <button
           onClick={() => hypothesis.trim() && simulate(hypothesis.trim())}
           disabled={composing || !hypothesis.trim()}
-          className="px-3 py-1.5 text-xs font-mono bg-cyan/20 text-cyan rounded hover:bg-cyan/30 disabled:opacity-50"
+          className="px-3 py-2 text-xs font-mono bg-cyan/20 text-cyan rounded hover:bg-cyan/30 disabled:opacity-50"
         >
           {composing ? 'SIMULATING...' : 'SIMULATE'}
         </button>
@@ -358,7 +358,7 @@ function SimulateTab() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-text-primary">{simulation.hypothesis}</span>
               <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                <span className={`text-[10px] font-mono px-2 py-1 rounded ${
                   simulation.safe_to_execute ? 'bg-ok/20 text-ok' : 'bg-danger/20 text-danger'
                 }`}>
                   {simulation.safe_to_execute ? 'SAFE' : 'RISKY'}
@@ -378,7 +378,7 @@ function SimulateTab() {
               <h3 className="wv-label mb-2 text-danger">Risk Factors</h3>
               <div className="space-y-1">
                 {simulation.risk_factors.map((rf, i) => (
-                  <div key={i} className="flex items-center gap-2 py-0.5">
+                  <div key={i} className="flex items-center gap-2 py-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-danger" />
                     <span className="text-xs text-danger/80">{rf}</span>
                   </div>
@@ -392,7 +392,7 @@ function SimulateTab() {
               <h3 className="wv-label mb-2">Matched Patterns</h3>
               <div className="flex flex-wrap gap-1">
                 {simulation.matched_patterns.map((p) => (
-                  <span key={p} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan/10 text-cyan">{p}</span>
+                  <span key={p} className="text-[10px] font-mono px-2 py-1 rounded bg-cyan/10 text-cyan">{p}</span>
                 ))}
               </div>
             </section>
@@ -404,7 +404,7 @@ function SimulateTab() {
               <div className="wv-card p-2">
                 {simulation.ai_risk_analysis.severity && (
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded ${
+                    <span className={`text-[10px] font-mono uppercase px-2 py-1 rounded ${
                       RISK_BADGE[simulation.ai_risk_analysis.severity as string] || 'bg-surface-overlay text-text-tertiary'
                     }`}>
                       {simulation.ai_risk_analysis.severity as string}
@@ -420,7 +420,7 @@ function SimulateTab() {
                   <p className="text-xs text-text-secondary">{simulation.ai_risk_analysis.reasoning as string}</p>
                 )}
                 {Array.isArray(simulation.ai_risk_analysis.mitigations) && (
-                  <div className="mt-1 space-y-0.5">
+                  <div className="mt-1 space-y-1">
                     {(simulation.ai_risk_analysis.mitigations as string[]).map((m, i) => (
                       <p key={i} className="text-[10px] text-text-tertiary">• {m}</p>
                     ))}
@@ -472,7 +472,7 @@ function ObservationsTab() {
           <h3 className="wv-label mb-2">Instance Domains</h3>
           <div className="flex flex-wrap gap-1">
             {instanceDomains.map((d) => (
-              <span key={d.domain} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-overlay text-text-secondary">
+              <span key={d.domain} className="text-[10px] font-mono px-2 py-1 rounded bg-surface-overlay text-text-secondary">
                 {d.domain} <span className="text-text-tertiary">({d.observation_count})</span>
               </span>
             ))}
@@ -486,7 +486,7 @@ function ObservationsTab() {
           <div className="space-y-1">
             {recentObservations.map((o) => (
               <div key={o.id} className="wv-card p-2">
-                <div className="flex items-center gap-2 mb-0.5">
+                <div className="flex items-center gap-2 mb-1">
                   <span className={`text-[10px] font-mono ${CONFIDENCE_COLORS(o.effective_confidence)}`}>
                     {(o.effective_confidence * 100).toFixed(0)}%
                   </span>
@@ -559,7 +559,7 @@ function InstanceTab() {
         <h3 className="wv-label mb-2">Instance Domains</h3>
         <div className="space-y-1">
           {instanceStats.domains.map((d) => (
-            <div key={d} className="flex items-center gap-2 py-0.5">
+            <div key={d} className="flex items-center gap-2 py-1">
               <span className="text-xs text-text-primary">{d}</span>
             </div>
           ))}
@@ -579,7 +579,7 @@ function InstanceTab() {
                 {status.canonical.pattern_count} patterns, {status.canonical.relationship_count} relationships
               </span>
             </div>
-            <p className="text-[10px] text-text-tertiary mt-0.5">
+            <p className="text-[10px] text-text-tertiary mt-1">
               Sacred, governance-protected. {(status.canonical.avg_confidence * 100).toFixed(0)}% avg confidence.
             </p>
           </div>
@@ -590,7 +590,7 @@ function InstanceTab() {
                 {instanceStats.observation_count} observations
               </span>
             </div>
-            <p className="text-[10px] text-text-tertiary mt-0.5">
+            <p className="text-[10px] text-text-tertiary mt-1">
               Ephemeral, high-volume. 14-day half-life decay. {(instanceStats.avg_effective_confidence * 100).toFixed(0)}% avg confidence.
             </p>
           </div>
@@ -599,7 +599,7 @@ function InstanceTab() {
               <span className="text-xs text-text-secondary font-mono">simulation</span>
               <span className="text-[10px] text-text-tertiary">non-mutating hypothesis testing</span>
             </div>
-            <p className="text-[10px] text-text-tertiary mt-0.5">
+            <p className="text-[10px] text-text-tertiary mt-1">
               Clones instance reality for dry-run predictions. Use the Simulate tab.
             </p>
           </div>
@@ -633,7 +633,7 @@ export function WorldModelPanel() {
 function Stat({ label, value, color }: { label: string; value: string | number; color?: string }) {
   const colorClass = color === 'ok' ? 'text-ok' : color === 'warn' ? 'text-warn' : color === 'danger' ? 'text-danger' : color === 'cyan' ? 'text-cyan' : 'text-text-primary'
   return (
-    <div className="wv-card px-2 py-1.5 text-center">
+    <div className="wv-card px-2 py-2 text-center">
       <div className="text-[8px] text-text-tertiary uppercase">{label}</div>
       <div className={`text-xs font-mono font-semibold ${colorClass}`}>{value}</div>
     </div>

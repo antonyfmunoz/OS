@@ -95,7 +95,7 @@ export function EventConsole({ maxHeight = '400px', compact = false }: EventCons
         )}
         <button
           onClick={() => setAutoscroll(!autoscroll)}
-          className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
+          className={`text-[9px] font-mono px-2 py-1 rounded border ${
             autoscroll ? 'border-ok/30 text-ok' : 'border-border text-text-tertiary'
           }`}
         >
@@ -109,7 +109,7 @@ export function EventConsole({ maxHeight = '400px', compact = false }: EventCons
           <button
             key={f.value}
             onClick={() => setDomainFilter(f.value)}
-            className={`text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
+            className={`text-[9px] font-mono px-2 py-1 rounded border transition-colors ${
               domainFilter === f.value
                 ? 'border-cyan/50 text-cyan bg-cyan/5'
                 : 'border-border text-text-tertiary hover:text-text-secondary'
@@ -134,7 +134,7 @@ export function EventConsole({ maxHeight = '400px', compact = false }: EventCons
         {filtered.slice(0, compact ? 20 : 100).map((ev) => (
           <div key={ev.event_id} className="group">
             <div
-              className="flex items-center gap-1.5 py-0.5 px-1 rounded cursor-pointer hover:bg-surface-overlay/30"
+              className="flex items-center gap-2 py-1 px-1 rounded cursor-pointer hover:bg-surface-overlay/30"
               onClick={() => setExpanded(expanded === ev.event_id ? null : ev.event_id)}
             >
               <span

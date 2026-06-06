@@ -59,7 +59,7 @@ function LoadingScreen() {
           fontFamily: '"JetBrains Mono", monospace',
           fontSize: 11,
           color: '#555',
-          marginTop: 8,
+          marginTop: 6,
         }}>initializing...</div>
       </div>
     </div>

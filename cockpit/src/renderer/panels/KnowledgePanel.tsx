@@ -207,7 +207,7 @@ export function KnowledgePanel() {
             <div>
               <p className="wv-label mb-1">Primitive</p>
               <span
-                className="font-mono text-xs uppercase px-1.5 py-0.5 rounded"
+                className="font-mono text-xs uppercase px-2 py-1 rounded"
                 style={{
                   color: PRIMITIVE_COLORS[selectedNode.primitive_type] || 'var(--color-text-tertiary)',
                   background: `${PRIMITIVE_COLORS[selectedNode.primitive_type] || 'var(--color-text-tertiary)'}15`,
@@ -319,7 +319,7 @@ function RealityModelTab({ searchQuery }: { searchQuery: string }) {
           </div>
           <p className="text-sm text-text-primary">{entry.label}</p>
           {selectedEntry?.id === entry.id && entry.details && (
-            <p className="text-xs text-text-secondary mt-1.5 whitespace-pre-wrap">{entry.details}</p>
+            <p className="text-xs text-text-secondary mt-2 whitespace-pre-wrap">{entry.details}</p>
           )}
           {entry.timestamp && (
             <p className="text-[10px] text-text-tertiary mt-1">

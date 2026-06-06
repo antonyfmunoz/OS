@@ -86,7 +86,7 @@ export function DashboardPanel() {
         {/* Pulse Panel — KPI strip with realtime data */}
         <section className="mb-5">
           <h3 className="wv-label mb-3">System Pulse</h3>
-          <div className="grid grid-cols-10 gap-1.5">
+          <div className="grid grid-cols-10 gap-2">
             <PulseMetric label="CPU" value={`${(realtimeStatus === 'connected' ? cpuPercent : pulse?.cpu_percent ?? 0).toFixed(0)}%`} severity={pulseSeverity(realtimeStatus === 'connected' ? cpuPercent : pulse?.cpu_percent)} />
             <PulseMetric label="RAM" value={`${(realtimeStatus === 'connected' ? memoryPercent : pulse?.memory_percent ?? 0).toFixed(0)}%`} severity={pulseSeverity(realtimeStatus === 'connected' ? memoryPercent : pulse?.memory_percent)} />
             <PulseMetric label="DISK" value={`${(realtimeStatus === 'connected' ? diskPercent : pulse?.disk_percent ?? 0).toFixed(0)}%`} severity={pulseSeverity(realtimeStatus === 'connected' ? diskPercent : pulse?.disk_percent)} />
@@ -117,7 +117,7 @@ export function DashboardPanel() {
         {/* Organism status strip */}
         {(spine || leverage) && (
           <section className="mb-5">
-            <div className="grid grid-cols-8 gap-1.5">
+            <div className="grid grid-cols-8 gap-2">
               <MiniStat label="Executed" value={`${spine?.total_executed ?? 0}`} />
               <MiniStat label="Succeeded" value={`${spine?.total_succeeded ?? 0}`} />
               <MiniStat label="Failed" value={`${spine?.total_failed ?? 0}`} />
@@ -167,7 +167,7 @@ export function DashboardPanel() {
               <div className="space-y-1">
                 {completed.length === 0 && <p className="text-xs text-text-tertiary">No executions recorded</p>}
                 {completed.slice(0, 8).map((e) => (
-                  <div key={e.envelope_id} className="flex items-center gap-2 py-0.5">
+                  <div key={e.envelope_id} className="flex items-center gap-2 py-1">
                     <span className={`w-1.5 h-1.5 rounded-full ${e.result_success ? 'bg-ok' : 'bg-danger'}`} />
                     <span className="text-[11px] text-text-primary truncate flex-1">{e.intent}</span>
                     <span className="text-[10px] text-text-tertiary">{e.source}</span>
@@ -187,7 +187,7 @@ export function DashboardPanel() {
                 <h3 className="wv-label mb-2">Bottlenecks — {bottleneckStatus!.active.length}</h3>
                 <div className="space-y-1.5">
                   {bottleneckStatus!.active.slice(0, 5).map((b, i) => (
-                    <div key={i} className="flex items-center gap-2 py-0.5">
+                    <div key={i} className="flex items-center gap-2 py-1">
                       <span className={`text-[10px] font-mono ${
                         b.severity === 'critical' || b.severity === 'high' ? 'text-danger' : 'text-warn'
                       }`}>
@@ -223,12 +223,12 @@ export function DashboardPanel() {
                       </span>
                       <p className="text-[11px] text-text-primary flex-1">{e.intent}</p>
                     </div>
-                    <div className="flex items-center mt-1.5 gap-2">
+                    <div className="flex items-center mt-2 gap-2">
                       <span className="text-[10px] text-text-tertiary flex-1">{e.source} · {e.action_type}</span>
-                      <button onClick={() => approveEnvelope(e.envelope_id)} className="px-2 py-0.5 text-[10px] font-mono rounded bg-ok/10 text-ok border border-ok/30">
+                      <button onClick={() => approveEnvelope(e.envelope_id)} className="px-2 py-1 text-[10px] font-mono rounded bg-ok/10 text-ok border border-ok/30">
                         approve
                       </button>
-                      <button onClick={() => rejectEnvelope(e.envelope_id)} className="px-2 py-0.5 text-[10px] font-mono rounded bg-danger/10 text-danger border border-danger/30">
+                      <button onClick={() => rejectEnvelope(e.envelope_id)} className="px-2 py-1 text-[10px] font-mono rounded bg-danger/10 text-danger border border-danger/30">
                         reject
                       </button>
                     </div>
@@ -243,12 +243,12 @@ export function DashboardPanel() {
                       </span>
                       <p className="text-[11px] text-text-primary flex-1">{a.description}</p>
                     </div>
-                    <div className="flex items-center mt-1.5 gap-2">
+                    <div className="flex items-center mt-2 gap-2">
                       <span className="text-[10px] text-text-tertiary flex-1">{a.agent} · {relativeTime(a.created_at)}</span>
-                      <button onClick={() => approve(a.id)} className="px-2 py-0.5 text-[10px] font-mono rounded bg-ok/10 text-ok border border-ok/30">
+                      <button onClick={() => approve(a.id)} className="px-2 py-1 text-[10px] font-mono rounded bg-ok/10 text-ok border border-ok/30">
                         approve
                       </button>
-                      <button onClick={() => deny(a.id)} className="px-2 py-0.5 text-[10px] font-mono rounded bg-danger/10 text-danger border border-danger/30">
+                      <button onClick={() => deny(a.id)} className="px-2 py-1 text-[10px] font-mono rounded bg-danger/10 text-danger border border-danger/30">
                         deny
                       </button>
                     </div>
@@ -305,7 +305,7 @@ export function DashboardPanel() {
                 </h3>
                 <div className="space-y-1">
                   {workloads.recent_outcomes.slice(0, 5).map((o, i) => (
-                    <div key={i} className="flex items-center gap-2 py-0.5">
+                    <div key={i} className="flex items-center gap-2 py-1">
                       <span className={`w-1.5 h-1.5 rounded-full ${o.success ? 'bg-ok' : 'bg-danger'}`} />
                       <span className="text-[11px] text-text-primary truncate flex-1">{o.workload_type}</span>
                       <span className="text-[10px] text-text-tertiary font-mono">{(o.duration_seconds ?? 0).toFixed(1)}s</span>
@@ -357,7 +357,7 @@ function ResumeWidget() {
     <section className="wv-card p-3">
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <h3 className="wv-label">Resume Brief</h3>
-        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+        <span className={`text-[10px] font-mono px-2 py-1 rounded ${
           continuity === 'active' ? 'bg-ok/10 text-ok' :
           continuity === 'night_sleeping' ? 'bg-purple-500/10 text-purple-400' :
           continuity === 'away' ? 'bg-warn/10 text-warn' :
@@ -365,12 +365,12 @@ function ResumeWidget() {
           'bg-surface text-text-tertiary'
         }`}>{continuity.replace(/_/g, ' ').toUpperCase()}</span>
         {lifecycle !== 'day_cycle' && (
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-warn/10 text-warn">
+          <span className="text-[10px] font-mono px-2 py-1 rounded bg-warn/10 text-warn">
             {lifecycle.replace(/_/g, ' ').toUpperCase()}
           </span>
         )}
         {profiles.length > 0 && (
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan/10 text-cyan">
+          <span className="text-[10px] font-mono px-2 py-1 rounded bg-cyan/10 text-cyan">
             {profiles.map((m: string) => m.toUpperCase()).join(' + ')}
           </span>
         )}
@@ -383,10 +383,10 @@ function ResumeWidget() {
             {checkpoint.previous_continuity_state} → {checkpoint.new_continuity_state}
           </span>
           {checkpoint.transition_reason && (
-            <p className="text-[10px] text-text-tertiary mt-0.5">{checkpoint.transition_reason}</p>
+            <p className="text-[10px] text-text-tertiary mt-1">{checkpoint.transition_reason}</p>
           )}
           {checkpoint.recommended_next_action && (
-            <p className="text-[10px] text-cyan mt-0.5">→ {checkpoint.recommended_next_action}</p>
+            <p className="text-[10px] text-cyan mt-1">→ {checkpoint.recommended_next_action}</p>
           )}
         </div>
       )}
@@ -458,7 +458,7 @@ function PulseMetric({ label, value, severity }: { label: string; value: string;
     : 'text-text-primary'
 
   return (
-    <div className="wv-card px-2 py-1.5 text-center">
+    <div className="wv-card px-2 py-2 text-center">
       <div className="text-[8px] text-text-tertiary uppercase">{label}</div>
       <div className={`text-xs font-mono font-semibold ${colorClass}`}>{value}</div>
     </div>
@@ -467,7 +467,7 @@ function PulseMetric({ label, value, severity }: { label: string; value: string;
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="wv-card px-2 py-1.5 text-center">
+    <div className="wv-card px-2 py-2 text-center">
       <div className="text-[9px] text-text-tertiary uppercase">{label}</div>
       <div className="text-xs font-mono text-text-primary">{value}</div>
     </div>

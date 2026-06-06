@@ -23,7 +23,7 @@ export function StatusBadge({ status, dot }: StatusBadgeProps) {
 
   return (
     <span
-      className="inline-flex items-center gap-1 text-[9px] font-mono uppercase px-1.5 py-0.5 rounded"
+      className="inline-flex items-center gap-1 text-[9px] font-mono uppercase px-2 py-1 rounded"
       style={{ color: style.color, background: style.bg, letterSpacing: '0.05em' }}
     >
       {dot && (

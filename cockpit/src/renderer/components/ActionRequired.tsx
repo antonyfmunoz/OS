@@ -52,7 +52,7 @@ export function ActionRequired({ items, loading }: ActionRequiredProps) {
             className="w-2 h-2 rounded-full flex-shrink-0"
             style={{ background: SEVERITY_COLOR[item.severity] }}
           />
-          <span className="text-xs font-mono" style={{ marginRight: 4 }}>
+          <span className="text-xs font-mono" style={{ marginRight: 3 }}>
             {TYPE_ICON[item.type] || '-'}
           </span>
           <span

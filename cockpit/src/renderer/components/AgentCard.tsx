@@ -55,7 +55,7 @@ export function AgentCard({
         </span>
         {runtime && <RuntimeBadge runtime={runtime} />}
         <span
-          className="text-xs px-1.5 py-0.5 rounded ml-auto flex-shrink-0"
+          className="text-xs px-2 py-1 rounded ml-auto flex-shrink-0"
           style={{ color: 'var(--color-text-tertiary)', background: 'var(--color-surface-raised)' }}
         >
           {status}
@@ -76,7 +76,7 @@ export function AgentCard({
           {skills.slice(0, 4).map((skill) => (
             <span
               key={skill}
-              className="text-xs px-1 py-0.5 rounded"
+              className="text-xs px-1 py-1 rounded"
               style={{
                 color: 'var(--color-cyan)',
                 background: 'var(--color-cyan-glow)',
@@ -101,7 +101,7 @@ export function AgentCard({
       )}
 
       {lastActive && (
-        <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-tertiary)', fontSize: 10 }}>
+        <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)', fontSize: 10 }}>
           {new Date(lastActive).toLocaleTimeString()}
         </p>
       )}

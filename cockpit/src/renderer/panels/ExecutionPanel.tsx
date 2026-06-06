@@ -147,7 +147,7 @@ function TraceTimeline() {
       <h3 className="wv-label mb-2">Runtime Trace</h3>
       <div className="space-y-1">
         {events.map((e: any) => (
-          <div key={e.session_id} className="flex items-center gap-2 py-0.5">
+          <div key={e.session_id} className="flex items-center gap-2 py-1">
             <span className={`w-1.5 h-1.5 rounded-full ${
               e.runtime_status === 'completed' ? 'bg-ok' :
               e.runtime_status === 'failed' ? 'bg-danger' :
@@ -169,7 +169,7 @@ function TraceTimeline() {
 
 function StatusChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-2">
       <span className="text-[10px] text-text-tertiary">{label}:</span>
       <span className="text-[10px] font-mono text-cyan">{value}</span>
     </div>

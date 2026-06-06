@@ -18,7 +18,7 @@ export function VoiceWaveform() {
       {levels.map((level, i) => (
         <div
           key={i}
-          className="w-0.5 rounded-full transition-all duration-75"
+          className="w-[3px] rounded-full transition-all duration-75"
           style={{
             height: `${Math.max(2, level * 12)}px`,
             background: micState === 'listening' ? 'var(--color-cyan)' : 'var(--color-warn)',

@@ -144,11 +144,13 @@ export function HudBar() {
     >
       {/* Status cluster — fullscreen indicator + online */}
       <div className="flex items-center gap-4">
-        <Radio size={12} className="text-cyan wv-pulse" />
-        <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Full-Screen</span>
-        <div className={clsx('w-2 h-2 rounded-full', isOnline ? 'bg-ok wv-pulse' : 'bg-danger')} />
-        <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
-          {isOnline ? 'Online' : 'Offline'}
+        <span className="flex items-center gap-1">
+          <Radio size={12} className="text-cyan wv-pulse" />
+          <span className="wv-label">Full-Screen</span>
+        </span>
+        <span className="flex items-center gap-1">
+          <div className={clsx('w-2 h-2 rounded-full', isOnline ? 'bg-ok wv-pulse' : 'bg-danger')} />
+          <span className="wv-label">{isOnline ? 'Online' : 'Offline'}</span>
         </span>
       </div>
 
@@ -166,7 +168,7 @@ export function HudBar() {
       {/* Workstation posture */}
       {posture && (
         <span className={clsx(
-          'text-[10px] font-mono px-1.5 py-0.5 rounded',
+          'text-[10px] font-mono px-2 py-1 rounded',
           posture === 'active' && 'bg-ok/10 text-ok',
           posture === 'deep_work' && 'bg-cyan/10 text-cyan',
           posture === 'remote' && 'bg-warn/10 text-warn',
@@ -178,7 +180,7 @@ export function HudBar() {
       {/* Continuity state */}
       {continuityState && (
         <span className={clsx(
-          'text-[10px] font-mono px-1.5 py-0.5 rounded',
+          'text-[10px] font-mono px-2 py-1 rounded',
           continuityState === 'active' && 'bg-ok/10 text-ok',
           continuityState === 'idle' && 'bg-surface text-text-tertiary',
           continuityState === 'away' && 'bg-warn/10 text-warn',
@@ -191,14 +193,14 @@ export function HudBar() {
 
       {/* Lifecycle mode */}
       {lifecycleMode && lifecycleMode !== 'day_cycle' && (
-        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-warn/10 text-warn">
+        <span className="text-[10px] font-mono px-2 py-1 rounded bg-warn/10 text-warn">
           {lifecycleMode.replace(/_/g, ' ').toUpperCase()}
         </span>
       )}
 
       {/* Profile modes */}
       {profileModes.length > 0 && (
-        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan/10 text-cyan">
+        <span className="text-[10px] font-mono px-2 py-1 rounded bg-cyan/10 text-cyan">
           {profileModes.map(m => m.toUpperCase()).join(' + ')}
         </span>
       )}
@@ -231,7 +233,7 @@ export function HudBar() {
       {micState === 'idle' && <div className="flex-1" />}
 
       {/* System metrics */}
-      <span className="wv-label flex items-center gap-1.5">
+      <span className="wv-label flex items-center gap-2">
         <StatusDot status={pulse && pulse.active_agents > 0 ? 'connected' : 'disconnected'} />
         <span className="text-cyan">{pulse?.active_agents ?? 0}</span> agents
       </span>

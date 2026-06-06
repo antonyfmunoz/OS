@@ -131,7 +131,7 @@ export function ControlPanel() {
       <div className="flex items-center gap-2 px-4 py-2 flex-wrap">
         {/* 1. Mode badge */}
         <span
-          className={`text-[10px] font-bold px-2 py-0.5 rounded border ${MODE_COLORS[mode] ?? MODE_COLORS.EXECUTE}`}
+          className={`text-[10px] font-bold px-2 py-1 rounded border ${MODE_COLORS[mode] ?? MODE_COLORS.EXECUTE}`}
         >
           {mode}
         </span>
@@ -162,7 +162,7 @@ export function ControlPanel() {
         {blockedCount > 0 && (
           <button
             onClick={() => useCockpitStore.getState().setPanel('work')}
-            className="text-[10px] text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded cursor-pointer"
+            className="text-[10px] text-red-400 bg-red-500/10 px-2 py-1 rounded cursor-pointer"
           >
             {blockedCount} blocked
           </button>
@@ -170,7 +170,7 @@ export function ControlPanel() {
 
         {/* 7. Resume */}
         {shouldResume && (
-          <span className="text-[10px] text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
+          <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-1 rounded">
             Resume
           </span>
         )}
@@ -179,7 +179,7 @@ export function ControlPanel() {
 
         {/* 8. Permission horizon */}
         <span
-          className={`text-[10px] font-bold px-2 py-0.5 rounded text-white ${CONTINUITY_COLORS[continuityState] ?? 'bg-gray-600'}`}
+          className={`text-[10px] font-bold px-2 py-1 rounded text-white ${CONTINUITY_COLORS[continuityState] ?? 'bg-gray-600'}`}
         >
           {continuityState.replace(/_/g, ' ')}
         </span>
@@ -215,20 +215,20 @@ export function ControlPanel() {
                 <p className="text-[11px] text-text-secondary">None pending</p>
               ) : (
                 pendingApprovals.slice(0, 3).map((a) => (
-                  <div key={a.id} className="mb-1.5">
+                  <div key={a.id} className="mb-2">
                     <p className="text-[11px] text-text-primary truncate" title={a.description}>
                       {a.description}
                     </p>
-                    <div className="flex gap-1 mt-0.5">
+                    <div className="flex gap-1 mt-1">
                       <button
                         onClick={() => useApprovalStore.getState().approve(a.id)}
-                        className="text-[10px] px-1.5 py-0.5 rounded bg-green-600/20 text-green-400 hover:bg-green-600/40 transition-colors"
+                        className="text-[10px] px-2 py-1 rounded bg-green-600/20 text-green-400 hover:bg-green-600/40 transition-colors"
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => useApprovalStore.getState().deny(a.id)}
-                        className="text-[10px] px-1.5 py-0.5 rounded bg-red-600/20 text-red-400 hover:bg-red-600/40 transition-colors"
+                        className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 hover:bg-red-600/40 transition-colors"
                       >
                         Deny
                       </button>
@@ -241,7 +241,7 @@ export function ControlPanel() {
             {/* Column 2: Overnight */}
             <div>
               <div className="wv-label mb-1">OVERNIGHT</div>
-              <div className="space-y-0.5 text-[11px] font-mono">
+              <div className="space-y-1 text-[11px] font-mono">
                 <p>
                   <span className="text-green-400">Safe:</span>{' '}
                   <span className="text-text-primary">{overnightStatus.safe}</span>
@@ -277,7 +277,7 @@ export function ControlPanel() {
             {/* Column 3: Resources */}
             <div>
               <div className="wv-label mb-1">RESOURCES</div>
-              <div className="space-y-0.5 text-[11px] text-text-secondary">
+              <div className="space-y-1 text-[11px] text-text-secondary">
                 <p className="flex items-center gap-1">
                   <Shield size={10} className="text-cyan" />
                   Concurrency: 4 (1 heavy)
