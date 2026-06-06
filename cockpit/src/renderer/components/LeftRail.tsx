@@ -72,7 +72,7 @@ export function LeftRail() {
                         : 'text-text-secondary hover:text-text-primary hover:bg-surface-raised',
                     )}
                   >
-                    <Icon size={16} className={active ? 'text-cyan' : ''} />
+                    <Icon size={14} className={active ? 'text-cyan' : ''} />
                     <span className="text-[12px] font-mono truncate">{r.label}</span>
                   </button>
                 )
