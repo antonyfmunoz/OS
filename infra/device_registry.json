@@ -25,7 +25,7 @@
     "device_type": "tablet",
     "display_name": "ipad-pro-12-9-gen-5 (Tablet)",
     "os": "ios",
-    "role": "remote-control"
+    "role": "controller"
   },
   {
     "id": "iphone",
@@ -33,6 +33,6 @@
     "device_type": "mobile",
     "display_name": "iphone-15-pro-max (Mobile)",
     "os": "ios",
-    "role": "remote-control"
+    "role": "controller"
   }
 ]
