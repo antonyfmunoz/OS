@@ -41,7 +41,7 @@ export function LeftRail() {
       {/* Header — matches RightRail h-9 style */}
       <div className="flex items-center border-b border-border px-2 h-9 shrink-0">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Compass size={12} className="text-cyan shrink-0" />
+          <Compass size={14} className="text-cyan shrink-0" />
           <span className="text-[10px] font-mono text-cyan uppercase tracking-wider truncate">Navigation</span>
         </div>
         <button onClick={toggleRail} className="p-1 text-text-tertiary hover:text-cyan transition-colors shrink-0">
@@ -73,7 +73,7 @@ export function LeftRail() {
                     )}
                   >
                     <Icon size={14} className={active ? 'text-cyan' : ''} />
-                    <span className="text-[12px] font-mono truncate">{r.label}</span>
+                    <span className="text-[10px] font-mono truncate">{r.label}</span>
                   </button>
                 )
               })}
