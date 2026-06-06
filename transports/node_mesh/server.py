@@ -115,6 +115,7 @@ class NodeMeshServer:
     async def _serve(self) -> None:
         assert self._loop is not None
         self._health_task = self._loop.create_task(self._health_check_loop())
+        self._vps_metrics_task = self._loop.create_task(self._vps_metrics_loop())
 
         async with websockets.serve(
             self._handle_connection,
@@ -132,6 +133,7 @@ class NodeMeshServer:
             await server.wait_closed()
 
         self._health_task.cancel()
+        self._vps_metrics_task.cancel()
 
     async def _handle_connection(self, ws: ServerConnection) -> None:
         """Handle a single node WebSocket connection."""
@@ -264,7 +266,7 @@ class NodeMeshServer:
                     "result": {
                         "accepted": True,
                         "server_version": "0.1.0",
-                        "heartbeat_interval_s": 30,
+                        "heartbeat_interval_s": self._config.heartbeat_interval_s,
                     },
                     "id": msg_id,
                 }
@@ -445,11 +447,27 @@ class NodeMeshServer:
     )
 
     def _write_metrics_snapshot(self) -> None:
-        """Persist latest metrics to disk so the cockpit container can read them."""
+        """Persist ALL node metrics (VPS + remote) to disk.
+
+        This file is the single source of truth for the cockpit.
+        VPS metrics come from psutil (collected by _vps_metrics_loop).
+        Remote node metrics come from heartbeats.
+        """
         try:
-            all_latest = self._metrics.latest_all()
+            import psutil
+            from datetime import datetime, timezone
+
             out: dict[str, Any] = {}
-            for nid, snap in all_latest.items():
+            # VPS self-metrics (always present — this IS the VPS)
+            out["vps"] = {
+                "cpu": psutil.cpu_percent(interval=0),
+                "memory": psutil.virtual_memory().percent,
+                "disk": psutil.disk_usage("/").percent,
+                "battery": None,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            # Remote node metrics from heartbeats
+            for nid, snap in self._metrics.latest_all().items():
                 out[nid] = {
                     "cpu": snap.cpu,
                     "memory": snap.memory,
@@ -457,14 +475,19 @@ class NodeMeshServer:
                     "battery": snap.battery,
                     "timestamp": snap.timestamp,
                 }
-            import os as _os
-            _os.makedirs(_os.path.dirname(self._METRICS_SNAPSHOT_PATH), exist_ok=True)
+            os.makedirs(os.path.dirname(self._METRICS_SNAPSHOT_PATH), exist_ok=True)
             tmp = self._METRICS_SNAPSHOT_PATH + ".tmp"
             with open(tmp, "w") as f:
                 json.dump(out, f)
-            _os.replace(tmp, self._METRICS_SNAPSHOT_PATH)
+            os.replace(tmp, self._METRICS_SNAPSHOT_PATH)
         except Exception as exc:
             logger.debug("metrics snapshot write failed: %s", exc)
+
+    async def _vps_metrics_loop(self) -> None:
+        """Collect VPS self-metrics on the same cadence as remote heartbeats."""
+        while True:
+            await asyncio.sleep(self._config.heartbeat_interval_s)
+            self._write_metrics_snapshot()
 
     async def _health_check_loop(self) -> None:
         """Periodically check for stale nodes."""
