@@ -38,6 +38,7 @@ export function OrganismPanel() {
   const eventCount = useRealtimeStore((s) => s.eventCount)
   const cpuPercent = useRealtimeStore((s) => s.cpuPercent)
   const memoryPercent = useRealtimeStore((s) => s.memoryPercent)
+  const nodeMetrics = useRealtimeStore((s) => s.nodeMetrics)
 
   const executionGraphPlan = useOrganismStore((s) => s.executionGraphPlan)
   const executingPlan = useOrganismStore((s) => s.executingPlan)
@@ -88,6 +89,18 @@ export function OrganismPanel() {
           <KPI label="CPU" value={`${cpuPercent.toFixed(0)}%`} color={cpuPercent > 90 ? 'danger' : cpuPercent > 70 ? 'warn' : 'ok'} />
           <KPI label="RAM" value={`${memoryPercent.toFixed(0)}%`} color={memoryPercent > 90 ? 'danger' : memoryPercent > 70 ? 'warn' : 'ok'} />
         </div>
+        {Object.keys(nodeMetrics).length > 1 && (
+          <div className="flex gap-4 mt-2">
+            {Object.entries(nodeMetrics).map(([id, m]) => (
+              <span key={id} className="flex items-center gap-1.5 text-[10px]">
+                <span className={`w-1.5 h-1.5 rounded-full ${m.status === 'online' ? 'bg-ok' : 'bg-danger'}`} />
+                <span className="text-text-tertiary font-mono">{m.name}</span>
+                {m.cpu != null && <span className={m.cpu > 90 ? 'text-danger' : m.cpu > 70 ? 'text-warn' : 'text-ok'}>{m.cpu.toFixed(0)}%</span>}
+                {m.memory != null && <span className={m.memory > 90 ? 'text-danger' : m.memory > 70 ? 'text-warn' : 'text-ok'}>{m.memory.toFixed(0)}%</span>}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Main 3-column layout */}
