@@ -143,7 +143,7 @@ export function HudBar() {
       style={{ height: 'var(--spacing-hud-height)' }}
     >
       {/* Status cluster — fullscreen indicator + online */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <Radio size={12} className="text-cyan wv-pulse" />
         <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Full-Screen</span>
         <div className={clsx('w-2 h-2 rounded-full', isOnline ? 'bg-ok wv-pulse' : 'bg-danger')} />
