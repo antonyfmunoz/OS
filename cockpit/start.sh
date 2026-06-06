@@ -24,8 +24,8 @@ sleep 2
 # Bridge localhost:8091 → VPS:8091 through Tailscale's userspace network.
 # socat binds a local TCP listener and pipes each connection through
 # "tailscale nc" which routes through the Tailscale tunnel.
-VPS_IP="100.77.233.50"
-VPS_PORT="8091"
+VPS_IP="${UMH_VPS_IP:-100.77.233.50}"
+VPS_PORT="${UMH_VPS_PORT:-8091}"
 socat TCP-LISTEN:8091,fork,reuseaddr EXEC:"tailscale nc ${VPS_IP} ${VPS_PORT}",nofork &
 
 # Keep container alive — wait on all background jobs
