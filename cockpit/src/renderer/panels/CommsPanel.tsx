@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, useCallback, type FormEvent } from 'react'
 import { fetchApi } from '../api/client'
+import { ChannelList, type Channel } from '../components/ChannelList'
+import { ChannelView } from '../components/ChannelView'
 
 interface CommsMessage {
   id: string
@@ -10,55 +12,12 @@ interface CommsMessage {
   direction: 'inbound' | 'outbound' | 'internal'
 }
 
-function DirectionBadge({ direction }: { direction: string }) {
-  const styles: Record<string, { color: string; bg: string; label: string }> = {
-    inbound: { color: '#4ade80', bg: 'rgba(74,222,128,0.12)', label: 'IN' },
-    outbound: { color: '#60a5fa', bg: 'rgba(96,165,250,0.12)', label: 'OUT' },
-    internal: { color: 'var(--color-text-tertiary)', bg: 'var(--color-surface-raised)', label: 'INT' },
-  }
-  const s = styles[direction] || styles.internal
-  return (
-    <span
-      className="text-[9px] font-mono px-1 rounded"
-      style={{ color: s.color, background: s.bg }}
-    >
-      {s.label}
-    </span>
-  )
-}
-
-function ChannelBadge({ channel }: { channel: string }) {
-  const short = channel.replace('organism/', '').slice(0, 12)
-  const isDiscord = channel.includes('discord')
-  return (
-    <span
-      className="text-[9px] font-mono px-1 rounded"
-      style={{
-        color: isDiscord ? '#7289da' : 'var(--color-text-tertiary)',
-        background: isDiscord ? 'rgba(114,137,218,0.12)' : 'var(--color-surface-raised)',
-      }}
-    >
-      {short}
-    </span>
-  )
-}
-
-function formatTime(ts: string): string {
-  if (!ts) return ''
-  try {
-    const d = new Date(ts)
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  } catch {
-    return ''
-  }
-}
-
 export function CommsPanel() {
   const [messages, setMessages] = useState<CommsMessage[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedChannel, setSelectedChannel] = useState<string | null>(null)
   const [sendText, setSendText] = useState('')
   const [sending, setSending] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -77,9 +36,38 @@ export function CommsPanel() {
     return () => clearInterval(interval)
   }, [fetchMessages])
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length])
+  const channelMap = useMemo(() => {
+    const map = new Map<string, CommsMessage[]>()
+    messages.forEach((m) => {
+      const ch = m.channel || 'general'
+      if (!map.has(ch)) map.set(ch, [])
+      map.get(ch)!.push(m)
+    })
+    return map
+  }, [messages])
+
+  const channels: Channel[] = useMemo(() => {
+    return Array.from(channelMap.entries())
+      .map(([name, msgs]) => {
+        const last = msgs[msgs.length - 1]
+        return {
+          name,
+          lastMessage: last?.content?.slice(0, 60) || '',
+          lastFrom: last?.from_agent || 'system',
+          lastTime: last?.timestamp || '',
+          count: msgs.length,
+        }
+      })
+      .sort((a, b) => {
+        if (!a.lastTime || !b.lastTime) return 0
+        return new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime()
+      })
+  }, [channelMap])
+
+  const channelMessages = useMemo(() => {
+    if (!selectedChannel) return []
+    return channelMap.get(selectedChannel) || []
+  }, [selectedChannel, channelMap])
 
   const handleSend = useCallback(async (e: FormEvent) => {
     e.preventDefault()
@@ -114,73 +102,69 @@ export function CommsPanel() {
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
-        {loading && (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>Loading...</p>
-          </div>
-        )}
-        {!loading && messages.length === 0 && (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>No messages</p>
-          </div>
-        )}
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className="flex items-start gap-2 py-1.5 px-2 rounded text-xs"
-            style={{ background: 'var(--color-surface-raised)' }}
-          >
-            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="font-mono font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-                  {m.from_agent}
-                </span>
-                <DirectionBadge direction={m.direction} />
-                <ChannelBadge channel={m.channel} />
-                <span className="ml-auto text-[10px] tabular-nums" style={{ color: 'var(--color-text-tertiary)' }}>
-                  {formatTime(m.timestamp)}
-                </span>
+      <div className="flex flex-1 min-h-0">
+        {/* Channel sidebar */}
+        <div className="w-60 shrink-0 border-r overflow-y-auto" style={{ borderColor: 'var(--color-border)' }}>
+          {loading ? (
+            <div className="px-3 py-4 text-xs text-center" style={{ color: 'var(--color-text-tertiary)' }}>
+              Loading...
+            </div>
+          ) : (
+            <ChannelList
+              channels={channels}
+              selected={selectedChannel}
+              onSelect={setSelectedChannel}
+            />
+          )}
+        </div>
+
+        {/* Message view */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {selectedChannel ? (
+            <>
+              <div className="flex-1 min-h-0">
+                <ChannelView channel={selectedChannel} messages={channelMessages} />
               </div>
-              <p className="text-xs leading-relaxed break-words" style={{ color: 'var(--color-text-primary)' }}>
-                {m.content}
+              <form
+                onSubmit={handleSend}
+                className="flex items-center gap-2 px-4 py-3 border-t"
+                style={{ borderColor: 'var(--color-border)' }}
+              >
+                <input
+                  type="text"
+                  value={sendText}
+                  onChange={(e) => setSendText(e.target.value)}
+                  placeholder="Send a message..."
+                  disabled={sending}
+                  className="flex-1 text-xs px-3 py-1.5 rounded border bg-transparent outline-none"
+                  style={{
+                    borderColor: 'var(--color-border)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!sendText.trim() || sending}
+                  className="text-xs px-3 py-1.5 rounded font-medium"
+                  style={{
+                    background: sendText.trim() ? 'var(--color-cyan)' : 'var(--color-surface-raised)',
+                    color: sendText.trim() ? 'var(--color-canvas)' : 'var(--color-text-tertiary)',
+                    cursor: sendText.trim() ? 'pointer' : 'default',
+                  }}
+                >
+                  Send
+                </button>
+              </form>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+                Select a channel
               </p>
             </div>
-          </div>
-        ))}
-        <div ref={bottomRef} />
+          )}
+        </div>
       </div>
-
-      <form
-        onSubmit={handleSend}
-        className="flex items-center gap-2 px-4 py-3 border-t"
-        style={{ borderColor: 'var(--color-border)' }}
-      >
-        <input
-          type="text"
-          value={sendText}
-          onChange={(e) => setSendText(e.target.value)}
-          placeholder="Send a message..."
-          disabled={sending}
-          className="flex-1 text-xs px-3 py-1.5 rounded border bg-transparent outline-none"
-          style={{
-            borderColor: 'var(--color-border)',
-            color: 'var(--color-text-primary)',
-          }}
-        />
-        <button
-          type="submit"
-          disabled={!sendText.trim() || sending}
-          className="text-xs px-3 py-1.5 rounded font-medium"
-          style={{
-            background: sendText.trim() ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-            color: sendText.trim() ? '#fff' : 'var(--color-text-tertiary)',
-            cursor: sendText.trim() ? 'pointer' : 'default',
-          }}
-        >
-          Send
-        </button>
-      </form>
     </div>
   )
 }

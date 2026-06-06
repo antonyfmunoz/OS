@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useViewContextStore } from '../stores/viewContextStore'
+import { CronTable, type CronJob } from '../components/CronTable'
+import { DetailDrawer } from '../components/DetailDrawer'
+import { StatusBadge } from '../components/StatusBadge'
 
 interface WorkPacket {
   packet_id: string
@@ -62,6 +65,13 @@ export function WorkPanel() {
     blocked: OvernightItem[]
   }>({ safe: [], pending: [], blocked: [] })
   const setViewContext = useViewContextStore((s) => s.setContext)
+  const openDrawer = useViewContextStore((s) => s.openDrawer)
+  const closeDrawer = useViewContextStore((s) => s.closeDrawer)
+  const drawerOpen = useViewContextStore((s) => s.drawerOpen)
+  const [drawerPacket, setDrawerPacket] = useState<WorkPacket | null>(null)
+
+  type DrawerTab = 'Details' | 'Dependencies' | 'History' | 'Proof' | 'Comms'
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>('Details')
 
   const fetchPackets = useCallback(async () => {
     try {
@@ -267,13 +277,11 @@ export function WorkPanel() {
                           packet={child}
                           overnightSafety={overnightSafety(child.risk_class)}
                           onControl={handleControl}
-                          onSelect={() =>
-                            setViewContext({
-                              selected_object_type: 'work_packet',
-                              selected_object_id: child.packet_id,
-                              risk_context: child.risk_class,
-                            })
-                          }
+                          onSelect={() => {
+                            setDrawerPacket(child)
+                            setDrawerTab('Details')
+                            openDrawer('work_packet', child.packet_id, child.title)
+                          }}
                           indent
                         />
                       ))}
@@ -290,13 +298,11 @@ export function WorkPanel() {
                 packet={p}
                 overnightSafety={overnightSafety(p.risk_class)}
                 onControl={handleControl}
-                onSelect={() =>
-                  setViewContext({
-                    selected_object_type: 'work_packet',
-                    selected_object_id: p.packet_id,
-                    risk_context: p.risk_class,
-                  })
-                }
+                onSelect={() => {
+                  setDrawerPacket(p)
+                  setDrawerTab('Details')
+                  openDrawer('work_packet', p.packet_id, p.title)
+                }}
               />
             ))}
 
@@ -317,10 +323,7 @@ export function WorkPanel() {
         )}
 
         {activeTab === 'workflows' && (
-          <div className="text-text-tertiary text-center py-8">
-            <p>Workflow orchestration view.</p>
-            <p className="mt-1">Active workflows surface here when executing.</p>
-          </div>
+          <CronTable jobs={[]} />
         )}
 
         {activeTab === 'overnight' && (
@@ -344,6 +347,102 @@ export function WorkPanel() {
           </div>
         )}
       </div>
+
+      {/* Work Packet DetailDrawer */}
+      <DetailDrawer
+        open={drawerOpen && drawerPacket !== null}
+        onClose={() => {
+          closeDrawer()
+          setDrawerPacket(null)
+        }}
+        title={drawerPacket?.title || ''}
+        subtitle={drawerPacket ? `${drawerPacket.domain} / ${drawerPacket.risk_class}` : ''}
+        badge={drawerPacket ? <StatusBadge status={drawerPacket.status} dot /> : undefined}
+        tabs={['Details', 'Dependencies', 'History', 'Proof', 'Comms']}
+        activeTab={drawerTab}
+        onTabChange={(t) => setDrawerTab(t as DrawerTab)}
+      >
+        {drawerPacket && drawerTab === 'Details' && (
+          <div className="space-y-3 text-xs">
+            <div>
+              <span className="wv-label">Status</span>
+              <div className="mt-1"><StatusBadge status={drawerPacket.status} dot /></div>
+            </div>
+            <div>
+              <span className="wv-label">Risk</span>
+              <p className="mt-1" style={{ color: 'var(--color-text-primary)' }}>{drawerPacket.risk_class}</p>
+            </div>
+            <div>
+              <span className="wv-label">Domain</span>
+              <p className="mt-1" style={{ color: 'var(--color-text-primary)' }}>{drawerPacket.domain}</p>
+            </div>
+            {drawerPacket.intent_summary && (
+              <div>
+                <span className="wv-label">Intent</span>
+                <p className="mt-1" style={{ color: 'var(--color-text-secondary)' }}>{drawerPacket.intent_summary}</p>
+              </div>
+            )}
+            <div className="flex gap-4">
+              <div>
+                <span className="wv-label">Priority</span>
+                <p className="mt-1" style={{ color: 'var(--color-text-primary)' }}>{drawerPacket.priority}</p>
+              </div>
+              <div>
+                <span className="wv-label">Leverage</span>
+                <p className="mt-1" style={{ color: 'var(--color-text-primary)' }}>{drawerPacket.leverage_score}</p>
+              </div>
+            </div>
+            {drawerPacket.parent_packet_id && (
+              <div>
+                <span className="wv-label">Parent</span>
+                <p className="mt-1 font-mono text-[10px]" style={{ color: 'var(--color-cyan)' }}>{drawerPacket.parent_packet_id}</p>
+              </div>
+            )}
+            {drawerPacket.child_packet_ids?.length > 0 && (
+              <div>
+                <span className="wv-label">Children ({drawerPacket.child_packet_ids.length})</span>
+                <div className="mt-1 space-y-0.5">
+                  {drawerPacket.child_packet_ids.map((id) => (
+                    <p key={id} className="font-mono text-[10px]" style={{ color: 'var(--color-text-secondary)' }}>{id}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {drawerPacket && drawerTab === 'Dependencies' && (
+          <div className="text-xs">
+            {drawerPacket.dependencies?.length > 0 ? (
+              <div className="space-y-1">
+                {drawerPacket.dependencies.map((dep) => (
+                  <p key={dep} className="font-mono text-[10px]" style={{ color: 'var(--color-text-secondary)' }}>{dep}</p>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: 'var(--color-text-tertiary)' }}>No dependencies</p>
+            )}
+          </div>
+        )}
+
+        {drawerPacket && drawerTab === 'History' && (
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+            No history available for this packet
+          </p>
+        )}
+
+        {drawerPacket && drawerTab === 'Proof' && (
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+            No proof attached yet
+          </p>
+        )}
+
+        {drawerPacket && drawerTab === 'Comms' && (
+          <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+            No comms thread linked yet
+          </p>
+        )}
+      </DetailDrawer>
     </div>
   )
 }

@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useCockpitStore } from '../stores/cockpitStore'
+import { ActionRequired, buildActionItems } from '../components/ActionRequired'
 
 interface SummaryData {
   ok: boolean
@@ -141,6 +142,14 @@ export function CommandCenterPanel() {
     } catch { /* swallow — refresh will show state */ }
   }, [fetchSummary])
 
+  const actionItems = useMemo(
+    () => buildActionItems(summary, {
+      onApprovalClick: () => setPanel('approvals'),
+      onBlockedClick: () => setPanel('work'),
+    }),
+    [summary, setPanel]
+  )
+
   if (loading) return <div className="p-4 text-xs font-mono text-gray-400">Loading command center...</div>
   if (error) return <div className="p-4 text-xs font-mono text-red-400">Error: {error}</div>
   if (!summary) return null
@@ -154,6 +163,9 @@ export function CommandCenterPanel() {
         <h2 className="text-sm font-bold text-cyan-400">Command Center</h2>
         <span className="text-gray-500">{summary.source_env}:{summary.node}</span>
       </div>
+
+      {/* Action Required */}
+      <ActionRequired items={actionItems} loading={loading} />
 
       {/* What Is Happening */}
       <Section title="What is happening?">
