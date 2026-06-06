@@ -460,8 +460,8 @@ async def _trace_linkage(request: Request) -> dict[str, Any]:
 _WINDOWS_SSH = "antonys beast pc@100.74.199.102"
 _MESH_SSH_KEY = "/run/secrets/mesh_key"
 _SSH_TIMEOUT = 8
-_WINDOWS_ALLOWED_ROOT = r"C:\dev\dev"
-_SAFE_PATH_RE = re.compile(r"^[A-Za-z]:\\[A-Za-z0-9_.\- \\]+$")
+_WINDOWS_ALLOWED_ROOT = "C:\\"
+_SAFE_PATH_RE = re.compile(r"^[A-Za-z]:\\([A-Za-z0-9_.\- \\]*)?$")
 
 
 def _validate_windows_path(path: str) -> str | None:
@@ -470,10 +470,6 @@ def _validate_windows_path(path: str) -> str | None:
         return "path traversal blocked"
     if not _SAFE_PATH_RE.match(path):
         return "invalid path characters"
-    normalized = path.replace("/", "\\").rstrip("\\").upper()
-    allowed = _WINDOWS_ALLOWED_ROOT.rstrip("\\").upper()
-    if normalized != allowed and not normalized.startswith(allowed + "\\"):
-        return f"path must be under {_WINDOWS_ALLOWED_ROOT}"
     return None
 
 
