@@ -2,12 +2,27 @@ import { useEffect, useRef, useState } from 'react'
 import { useEditorStore } from '../stores/editorStore'
 import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 import { useViewContextStore } from '../stores/viewContextStore'
+import { fetchApi } from '../api/client'
 
 interface FileNodeProps {
   name: string
   path: string
   type: 'file' | 'directory'
   depth: number
+}
+
+async function browseDir(path: string): Promise<{ name: string; path: string; type: 'file' | 'directory' }[]> {
+  try {
+    const res = await window.cockpit?.readDir?.(path)
+    if (res) return res
+  } catch { /* IPC unavailable */ }
+  try {
+    const data = await fetchApi<{ ok: boolean; entries: { name: string; path: string; type: 'file' | 'directory' }[] }>(
+      `/workspace/browse?path=${encodeURIComponent(path)}`,
+    )
+    if (data.ok && data.entries) return data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type }))
+  } catch { /* API fallback failed */ }
+  return []
 }
 
 function FileTreeNode({ name, path, type, depth }: FileNodeProps) {
@@ -18,10 +33,7 @@ function FileTreeNode({ name, path, type, depth }: FileNodeProps) {
   const handleClick = async () => {
     if (type === 'directory') {
       if (!expanded) {
-        try {
-          const items = await window.cockpit?.readDir?.(path)
-          if (items) setChildren(items)
-        } catch { /* noop */ }
+        setChildren(await browseDir(path))
       }
       setExpanded(!expanded)
     } else {
