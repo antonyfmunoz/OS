@@ -21,7 +21,7 @@ from dotenv import load_dotenv as _load_dotenv
 
 _ROOT = _Path(__file__).parent.parent
 _load_dotenv(_ROOT / "services" / ".env")
-_load_dotenv(_ROOT / "runtime" / ".env", override=True)
+_load_dotenv(_ROOT / "runtime" / ".env", override=False)
 
 # Circuit breaker: if the CLI times out, skip further calls for this long.
 # File-based so cron-spawned processes see each other's failures.
