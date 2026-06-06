@@ -9,7 +9,9 @@
 #   - CPU load gate (skip if system already overloaded)
 #   - 1Password secret injection (if OP_SERVICE_ACCOUNT_TOKEN is set)
 
-OP_SERVICE_ACCOUNT_TOKEN=PLACEHOLDER_SET_AFTER_1PASSWORD_SETUP
+# OP_SERVICE_ACCOUNT_TOKEN loaded from /root/.op-service-account-token at install time.
+# Install: scripts/install-crontab.sh
+OP_SERVICE_ACCOUNT_TOKEN=__OP_TOKEN__
 CR=/opt/OS/scripts/cron-run
 
 # ── Every 5 minutes (staggered: one per minute) ──
