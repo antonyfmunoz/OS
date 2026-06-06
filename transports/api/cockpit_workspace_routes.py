@@ -461,7 +461,7 @@ _WINDOWS_SSH = "antonys beast pc@100.74.199.102"
 _MESH_SSH_KEY = "/run/secrets/mesh_key"
 _SSH_TIMEOUT = 8
 _WINDOWS_ALLOWED_ROOT = "C:\\"
-_SAFE_PATH_RE = re.compile(r"^[A-Za-z]:\\([A-Za-z0-9_.\- \\]*)?$")
+_SAFE_PATH_RE = re.compile(r"^[Cc]:\\([A-Za-z0-9_.\- \\]*)?$")
 
 
 def _validate_windows_path(path: str) -> str | None:
