@@ -14,6 +14,7 @@ interface OpenFile {
   content: string
   language: string
   dirty: boolean
+  node?: string
 }
 
 interface SessionInfo {
