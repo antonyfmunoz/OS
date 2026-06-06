@@ -22,7 +22,8 @@ class NodeTokenEntry:
 @dataclass
 class MeshConfig:
     port: int = 8094
-    heartbeat_timeout_s: int = 90
+    heartbeat_interval_s: int = 5
+    heartbeat_timeout_s: int = 30
     max_nodes: int = 10
     buffer_size: int = 1000
     flush_interval_s: int = 300
@@ -55,6 +56,7 @@ def load_mesh_config(path: Path | None = None) -> MeshConfig:
 
     server = data.get("server", {})
     config.port = server.get("port", config.port)
+    config.heartbeat_interval_s = server.get("heartbeat_interval_s", config.heartbeat_interval_s)
     config.heartbeat_timeout_s = server.get("heartbeat_timeout_s", config.heartbeat_timeout_s)
     config.max_nodes = server.get("max_nodes", config.max_nodes)
 
