@@ -55,6 +55,9 @@ export function HudBar() {
   const [continuityState, setContinuityState] = useState<string>('')
   const [lifecycleMode, setLifecycleMode] = useState<string>('')
   const [profileModes, setProfileModes] = useState<string[]>([])
+  const [presenceSource, setPresenceSource] = useState<string>('')
+  const [sttAvailable, setSttAvailable] = useState<boolean>(false)
+  const [ttsAvailable, setTtsAvailable] = useState<boolean>(false)
 
   const fetchWorkstationMode = useCallback(async () => {
     try {
@@ -72,6 +75,14 @@ export function HudBar() {
       const res = await fetch('/api/umh/workstation/nodes')
       const data = await res.json()
       if (data.ok) setNodeCount(data.count ?? 0)
+    } catch { /* silent */ }
+    try {
+      const res = await fetch('/api/umh/presence/capabilities')
+      const data = await res.json()
+      if (data.ok) {
+        setSttAvailable(data.stt_available ?? false)
+        setTtsAvailable(data.tts_available ?? false)
+      }
     } catch { /* silent */ }
   }, [])
 
@@ -141,6 +152,14 @@ export function HudBar() {
           nodes:<span className="text-cyan">{nodeCount}</span>
         </span>
       )}
+
+      {/* Presence / voice capability */}
+      <span className="wv-label flex items-center gap-1">
+        stt <StatusDot status={sttAvailable ? 'connected' : 'disconnected'} />
+      </span>
+      <span className="wv-label flex items-center gap-1">
+        tts <StatusDot status={ttsAvailable ? 'connected' : 'disconnected'} />
+      </span>
 
       {/* Active route */}
       <span className="wv-label">{activePanel}</span>

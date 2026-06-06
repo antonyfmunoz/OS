@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, Tray, Menu, nativeImage, Notification } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, Tray, Menu, nativeImage, Notification, globalShortcut } from 'electron'
 import { join } from 'path'
 import { readdir, stat, readFile, writeFile } from 'fs/promises'
 import { is } from '@electron-toolkit/utils'
@@ -199,6 +199,27 @@ function updateTrayMenu(): void {
 app.whenReady().then(() => {
   createWindow()
   createTray()
+
+  const registered = globalShortcut.register('CommandOrControl+Alt+J', () => {
+    if (mainWindow) {
+      if (currentWindowMode === 'invisible') {
+        currentWindowMode = 'maximized'
+        mainWindow.setAlwaysOnTop(false)
+        mainWindow.setResizable(true)
+        mainWindow.setMinimumSize(1024, 600)
+        mainWindow.setSize(1440, 900, true)
+        mainWindow.center()
+        mainWindow.webContents.send('window:modeChanged', 'maximized')
+      }
+      mainWindow.show()
+      mainWindow.focus()
+      mainWindow.webContents.send('activation:hotkey')
+    }
+  })
+
+  if (!registered) {
+    console.warn('Global shortcut Ctrl+Alt+J registration failed — app-level only')
+  }
 })
 
 app.on('window-all-closed', () => {
@@ -208,6 +229,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  globalShortcut.unregisterAll()
   voiceServer?.kill()
   tray?.destroy()
 })
