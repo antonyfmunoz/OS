@@ -82,9 +82,6 @@ export function HudBar() {
   const meshNodes = useSystemStore((s) => s.meshNodes)
   const fetchPulse = useSystemStore((s) => s.fetchPulse)
   const fetchMeshNodes = useSystemStore((s) => s.fetchMeshNodes)
-  const mode = useCockpitStore((s) => s.mode)
-  const setMode = useCockpitStore((s) => s.setMode)
-  const activePanel = useCockpitStore((s) => s.activePanel)
   const apiStatus = useCockpitStore((s) => s.apiStatus)
   const wsStatus = useCockpitStore((s) => s.wsStatus)
   const voiceStatus = useCockpitStore((s) => s.voiceStatus)
@@ -133,8 +130,6 @@ export function HudBar() {
 
   usePolling(fetchWorkstationMode, 15000)
 
-  const modes = ['EXECUTE', 'PLAN', 'REVIEW'] as const
-
   const isOnline = apiStatus === 'connected' || wsStatus === 'connected'
 
   return (
@@ -153,17 +148,6 @@ export function HudBar() {
           <span className="wv-label">{isOnline ? 'Online' : 'Offline'}</span>
         </span>
       </div>
-
-      {/* Mode badge */}
-      <button
-        className="wv-badge wv-badge-cyan cursor-pointer"
-        onClick={() => {
-          const idx = modes.indexOf(mode)
-          setMode(modes[(idx + 1) % modes.length])
-        }}
-      >
-        {mode}
-      </button>
 
       {/* Workstation posture */}
       {posture && (
