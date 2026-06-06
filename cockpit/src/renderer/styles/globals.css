@@ -262,3 +262,83 @@
   margin: 0.5em 0;
   color: var(--color-text-tertiary);
 }
+
+/* ── Detail Drawer ── */
+
+.wv-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: calc(var(--drawer-z) - 1);
+}
+
+.wv-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--drawer-width);
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  z-index: var(--drawer-z);
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 200ms ease-out;
+}
+
+.wv-drawer.open {
+  transform: translateX(0);
+}
+
+@media (max-width: 640px) {
+  .wv-drawer {
+    width: 100vw;
+  }
+}
+
+/* ── Runtime Badge ── */
+
+.wv-runtime-badge {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* ── Comms Channel Bubbles ── */
+
+.wv-bubble-self {
+  background: var(--color-cyan);
+  color: var(--color-canvas);
+  border-radius: 12px 12px 4px 12px;
+  padding: 8px 12px;
+  max-width: 75%;
+  margin-left: auto;
+}
+
+.wv-bubble-other {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  border-radius: 12px 12px 12px 4px;
+  padding: 8px 12px;
+  max-width: 75%;
+}
+
+.wv-channel-list-item {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.wv-channel-list-item:hover {
+  background: var(--color-surface-raised);
+}
+
+.wv-channel-list-item.selected {
+  background: var(--color-surface-raised);
+  border-left: 2px solid var(--color-cyan);
+}
