@@ -23,6 +23,14 @@ declare global {
 }
 
 export function TitleBar() {
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {})
+    } else {
+      document.documentElement.requestFullscreen().catch(() => {})
+    }
+  }
+
   return (
     <header
       className="titlebar-drag relative flex items-center px-3 select-none bg-canvas border-b border-border"
@@ -37,6 +45,13 @@ export function TitleBar() {
       <div className="flex-1" />
 
       <div className="titlebar-no-drag relative flex items-center gap-1">
+        <button
+          onClick={toggleFullscreen}
+          className="w-8 h-6 flex items-center justify-center rounded text-xs text-text-secondary hover:bg-surface-raised transition-colors"
+          title="Toggle full-screen"
+        >
+          ⛶
+        </button>
         <button
           onClick={() => window.cockpit?.window.minimize()}
           className="w-8 h-6 flex items-center justify-center rounded text-xs text-text-secondary hover:bg-surface-raised transition-colors"

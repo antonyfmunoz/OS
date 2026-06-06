@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
-import { Maximize, Minimize } from 'lucide-react'
+import { Radio } from 'lucide-react'
 import { useSystemStore } from '../stores/systemStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useVoiceStore } from '../stores/voiceStore'
@@ -135,29 +135,22 @@ export function HudBar() {
 
   const modes = ['EXECUTE', 'PLAN', 'REVIEW'] as const
 
-  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement)
-
-  const toggleFullscreen = useCallback(() => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {})
-    } else {
-      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {})
-    }
-  }, [])
+  const isOnline = apiStatus === 'connected' || wsStatus === 'connected'
 
   return (
     <footer
       className="flex items-center gap-4 px-3 select-none bg-surface border-t border-border"
       style={{ height: 'var(--spacing-hud-height)' }}
     >
-      {/* Fullscreen toggle */}
-      <button
-        onClick={toggleFullscreen}
-        className="p-1 text-text-tertiary hover:text-cyan transition-colors"
-        title={isFullscreen ? 'Exit full-screen' : 'Enter full-screen'}
-      >
-        {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
-      </button>
+      {/* Status cluster — fullscreen indicator + online */}
+      <div className="flex items-center gap-3">
+        <Radio size={12} className="text-cyan wv-pulse" />
+        <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Full-Screen</span>
+        <div className={clsx('w-2 h-2 rounded-full', isOnline ? 'bg-ok wv-pulse' : 'bg-danger')} />
+        <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
+          {isOnline ? 'Online' : 'Offline'}
+        </span>
+      </div>
 
       {/* Mode badge */}
       <button
@@ -260,11 +253,6 @@ export function HudBar() {
         voice <StatusDot status={voiceStatus} />
       </span>
 
-      {/* Online/Offline */}
-      <span className="wv-label flex items-center gap-1">
-        <span className={clsx('w-2 h-2 rounded-full', (apiStatus === 'connected' || wsStatus === 'connected') ? 'bg-ok wv-pulse' : 'bg-danger')} />
-        {(apiStatus === 'connected' || wsStatus === 'connected') ? 'Online' : 'Offline'}
-      </span>
     </footer>
   )
 }
