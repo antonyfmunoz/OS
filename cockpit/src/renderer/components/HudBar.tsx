@@ -205,9 +205,6 @@ export function HudBar() {
         tts <StatusDot status={ttsAvailable ? 'connected' : 'disconnected'} />
       </span>
 
-      {/* Active route */}
-      <span className="wv-label">{activePanel}</span>
-
       {/* Voice transcript ticker */}
       {micState !== 'idle' && (
         <span className="flex items-center gap-2 flex-1 min-w-0">
@@ -241,6 +238,13 @@ export function HudBar() {
       </span>
       <span className="wv-label flex items-center gap-1">
         voice <StatusDot status={voiceStatus} />
+      </span>
+
+      {/* Full-Screen + Online */}
+      <span className="wv-label">Full-Screen</span>
+      <span className="wv-label flex items-center gap-1">
+        <span className={clsx('w-2 h-2 rounded-full', (apiStatus === 'connected' || wsStatus === 'connected') ? 'bg-ok wv-pulse' : 'bg-danger')} />
+        {(apiStatus === 'connected' || wsStatus === 'connected') ? 'Online' : 'Offline'}
       </span>
     </footer>
   )

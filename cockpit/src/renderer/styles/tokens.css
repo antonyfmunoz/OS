@@ -51,7 +51,7 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
   /* ── Layout ── */
-  --spacing-rail: 240px;
+  --spacing-rail: 180px;
   --spacing-rail-collapsed: 56px;
   --spacing-hud-height: 32px;
   --spacing-chat-width: 360px;
