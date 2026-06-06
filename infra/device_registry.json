@@ -5,7 +5,7 @@
     "device_type": "vps",
     "display_name": "srv1500858 (VPS)",
     "os": "linux",
-    "role": "orchestrator",
+    "role": "server",
     "tailscale_ip": "100.77.233.50",
     "always_online": true
   },
