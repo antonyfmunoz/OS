@@ -65,6 +65,8 @@ function OrganismMetrics() {
 export function HudBar() {
   const pulse = useSystemStore((s) => s.pulse)
   const meshNodes = useSystemStore((s) => s.meshNodes)
+  const fetchPulse = useSystemStore((s) => s.fetchPulse)
+  const fetchMeshNodes = useSystemStore((s) => s.fetchMeshNodes)
   const mode = useCockpitStore((s) => s.mode)
   const setMode = useCockpitStore((s) => s.setMode)
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -83,6 +85,9 @@ export function HudBar() {
   const [presenceSource, setPresenceSource] = useState<string>('')
   const [sttAvailable, setSttAvailable] = useState<boolean>(false)
   const [ttsAvailable, setTtsAvailable] = useState<boolean>(false)
+
+  usePolling(fetchPulse, 5000)
+  usePolling(fetchMeshNodes, 15000)
 
   const fetchWorkstationMode = useCallback(async () => {
     try {
