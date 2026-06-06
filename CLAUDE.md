@@ -360,6 +360,32 @@ initial build when UMH and EOS were conflated. The SaaS layer separation
 (2026-05-28) extracted 15 UMH infrastructure files from saas/ into
 transports/api/http/ and installed this gate.
 
+## Device Naming Protocol (NON-NEGOTIABLE)
+Every device in the UMH organism has exactly one canonical name.
+Format: `tailscale-hostname (device-type)` — e.g. `srv1500858 (VPS)`, `desktop-lvguiq9 (PC)`.
+
+Single source of truth: `infra/device_registry.json`
+
+NEVER hardcode device display names as raw strings. Not "VPS", not "Beast",
+not "Beast PC", not "Windows", not "Server", not "Workstation".
+
+What to use instead:
+- **Frontend (TypeScript)**: import from `cockpit/src/renderer/constants/devices.ts`
+  — `VPS.displayName`, `BEAST.displayName`, `getDeviceDisplayName(id)`
+- **Backend (Python)**: read from `infra/device_registry.json` via the
+  mesh-nodes API or direct JSON load
+- **API responses**: the `/workspace/mesh-nodes` endpoint returns `name`
+  (display_name) from the device registry merged with live heartbeat data
+
+When adding a new device to the organism:
+1. Add entry to `infra/device_registry.json`
+2. Add constant to `cockpit/src/renderer/constants/devices.ts`
+3. Every UI surface picks it up automatically
+
+This law exists because device names drifted across 6+ different labels
+("VPS", "Beast", "Beast PC", "Windows Beast", "Windows", "Server") in the
+cockpit UI during 2026-06-06. The naming protocol makes drift impossible.
+
 ## Protocol layers
 See PROTOCOLS.md for full 4-layer documentation (L0-L3).
 Git: commit directly to main (solo founder phase).
