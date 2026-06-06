@@ -19,19 +19,8 @@ export function LeftRail() {
         railCollapsed ? 'w-[var(--spacing-rail-collapsed)]' : 'w-[var(--spacing-rail)]',
       )}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-3 border-b border-border">
-        {!railCollapsed && (
-          <div className="flex items-center gap-2">
-            <div className={clsx('w-2 h-2 rounded-full', wsConnected ? 'bg-ok wv-pulse' : 'bg-danger')} />
-            <span className="text-[11px] font-mono text-text-secondary tracking-wider uppercase">
-              UMH
-            </span>
-          </div>
-        )}
-        {railCollapsed && (
-          <div className={clsx('w-2 h-2 rounded-full mx-auto', wsConnected ? 'bg-ok wv-pulse' : 'bg-danger')} />
-        )}
+      {/* Collapse toggle */}
+      <div className="flex items-center justify-end px-3 py-3 border-b border-border">
         <button onClick={toggleRail} className="p-1 text-text-tertiary hover:text-cyan transition-colors">
           {railCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
@@ -75,15 +64,28 @@ export function LeftRail() {
         })}
       </div>
 
-      {/* Presence indicator */}
+      {/* Footer — fullscreen + connection status */}
       <div className="px-3 py-2 border-t border-border">
-        <div className="flex items-center gap-2">
-          <Radio size={12} className="text-cyan wv-pulse" />
-          {!railCollapsed && (
-            <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
-              Full-Screen
-            </span>
-          )}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Radio size={12} className="text-cyan wv-pulse" />
+            {!railCollapsed && (
+              <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
+                Full-Screen
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className={clsx('w-2 h-2 rounded-full', wsConnected ? 'bg-ok wv-pulse' : 'bg-danger')} />
+            {!railCollapsed && (
+              <span className={clsx(
+                'text-[10px] font-mono uppercase tracking-wider',
+                wsConnected ? 'text-ok' : 'text-danger',
+              )}>
+                {wsConnected ? 'Online' : 'Offline'}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </nav>
