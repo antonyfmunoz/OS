@@ -55,6 +55,9 @@ def _build_router(
     r.add_api_route("/workspace/proof-artifacts", _proof_artifacts, methods=["GET"], dependencies=read_auth)
     r.add_api_route("/workspace/health", _health_check, methods=["GET"], dependencies=read_auth)
     r.add_api_route("/workspace/trace-linkage", _trace_linkage, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/remote-browse", _remote_browse, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/remote-read-file", _remote_read_file, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/mesh-nodes", _mesh_nodes_status, methods=["GET"], dependencies=read_auth)
 
     return r
 
@@ -447,6 +450,80 @@ async def _trace_linkage(request: Request) -> dict[str, Any]:
         links["resume_state"] = latest.to_dict()
 
     return {"ok": True, "links": links, "source_env": _detect_env()}
+
+
+# ---------------------------------------------------------------------------
+# Remote node file browsing (SSH proxy to mesh nodes)
+# ---------------------------------------------------------------------------
+
+_WINDOWS_SSH = "antonys beast pc@100.74.199.102"
+_SSH_TIMEOUT = 8
+
+
+def _ssh_cmd(cmd: str) -> tuple[bool, str]:
+    try:
+        result = subprocess.run(
+            ["ssh", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=no", _WINDOWS_SSH, cmd],
+            capture_output=True, text=True, timeout=_SSH_TIMEOUT,
+        )
+        return result.returncode == 0, result.stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+        return False, str(e)
+
+
+async def _remote_browse(request: Request) -> dict[str, Any]:
+    node = request.query_params.get("node", "windows")
+    path = request.query_params.get("path", r"C:\dev\dev")
+    if node != "windows":
+        return {"ok": False, "error": f"Unknown remote node: {node}"}
+    ok, output = _ssh_cmd(f'powershell -Command "Get-ChildItem -Path \'{path}\' | ForEach-Object {{ $_.Name + \'|\' + $(if($_.PSIsContainer){{\'directory\'}}else{{\'file\'}}) + \'|\' + $_.Length }}"')
+    if not ok:
+        return {"ok": False, "error": output[:500], "source_env": "windows", "path": path}
+    entries = []
+    for line in output.strip().splitlines():
+        parts = line.strip().split("|")
+        if len(parts) >= 2:
+            name = parts[0]
+            etype = parts[1]
+            size = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            child_path = path.rstrip("\\") + "\\" + name
+            entries.append({"name": name, "path": child_path, "type": etype, "size": size, "source_env": "windows"})
+    return {"ok": True, "path": path, "source_env": "windows", "entries": entries, "error": ""}
+
+
+async def _remote_read_file(request: Request) -> dict[str, Any]:
+    node = request.query_params.get("node", "windows")
+    path = request.query_params.get("path", "")
+    if not path:
+        return {"ok": False, "error": "path required"}
+    if node != "windows":
+        return {"ok": False, "error": f"Unknown remote node: {node}"}
+    ok, output = _ssh_cmd(f'powershell -Command "Get-Content -Path \'{path}\' -Raw -ErrorAction Stop"')
+    if not ok:
+        return {"ok": False, "error": output[:500], "path": path}
+    return {"ok": True, "path": path, "content": output, "source_env": "windows"}
+
+
+async def _mesh_nodes_status(request: Request) -> dict[str, Any]:
+    mesh_path = os.path.join(_DATA_ROOT, "runtime", "mesh_nodes.json")
+    nodes = []
+    if os.path.exists(mesh_path):
+        try:
+            with open(mesh_path) as f:
+                raw = json.load(f)
+            if isinstance(raw, list):
+                for n in raw:
+                    nodes.append({
+                        "id": n.get("id", ""),
+                        "name": n.get("name", ""),
+                        "os": n.get("os", ""),
+                        "status": n.get("status", "unknown"),
+                        "ip": n.get("tailscale_ip", ""),
+                        "last_heartbeat": n.get("last_heartbeat", ""),
+                    })
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {"ok": True, "nodes": nodes}
 
 
 # ---------------------------------------------------------------------------
