@@ -137,6 +137,7 @@ services:
     volumes:
       - ${UMH_ROOT:-/opt/OS}:/app
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /root/.ssh:/root/.ssh:ro
     env_file:
       - services/.env
       - infra/docker/umh.env
