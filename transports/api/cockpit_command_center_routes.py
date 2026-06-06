@@ -550,17 +550,40 @@ async def _summary(request: Request) -> dict[str, Any]:
     return summary
 
 
-# ── Mutation routes (governance-gated) ────────────────────────────────
+# ── Mutation routes (governance-gated, operator-authenticated) ─────────
+
+_VALID_SOURCE_TYPES = frozenset({
+    "jarvis_command", "cockpit_ui", "operator_manual", "cadence_auto",
+})
+
+_MAX_INTENT_LEN = 2000
+_MAX_END_STATE_LEN = 2000
+_MAX_CONSTRAINTS = 20
+
+
+def _get_operator_dep():
+    if _require_operator:
+        return Depends(_require_operator)
+    return None
+
+
+def _sanitize_text(text: str, max_len: int = 500) -> str:
+    """Strip control characters and cap length for journal safety."""
+    import re
+    cleaned = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", text)
+    return cleaned[:max_len]
 
 
 @command_center_router.post("/approvals/{approval_id}/decide")
 async def _approval_decide(request: Request, approval_id: str) -> dict[str, Any]:
-    """Approve or deny a pending approval. Governance-gated."""
+    """Approve or deny a pending approval. Operator-authenticated."""
+    if _require_operator:
+        await _require_operator(request)
     body = await request.json()
     decision = body.get("decision", "")
     if decision not in ("approved", "denied"):
         return {"ok": False, "error": "decision must be 'approved' or 'denied'"}
-    decided_by = body.get("decided_by", "operator")
+    decided_by = _sanitize_text(str(body.get("decided_by", "operator")), 100)
 
     try:
         from substrate.organism.approval_store import ApprovalStore
@@ -575,7 +598,7 @@ async def _approval_decide(request: Request, approval_id: str) -> dict[str, Any]
 
     _log_journal_entry({
         "event": "approval_decided",
-        "approval_id": approval_id,
+        "approval_id": _sanitize_text(approval_id, 100),
         "decision": decision,
         "decided_by": decided_by,
     })
@@ -585,16 +608,25 @@ async def _approval_decide(request: Request, approval_id: str) -> dict[str, Any]
 
 @command_center_router.post("/work-packets/create")
 async def _work_packet_create(request: Request) -> dict[str, Any]:
-    """Create a work packet from a Jarvis command draft. Governance-gated."""
+    """Create a work packet from a Jarvis command draft. Operator-authenticated."""
+    if _require_operator:
+        await _require_operator(request)
     body = await request.json()
     user_intent = body.get("user_intent", "")
     if not user_intent:
         return {"ok": False, "error": "user_intent is required"}
+    if len(user_intent) > _MAX_INTENT_LEN:
+        return {"ok": False, "error": f"user_intent exceeds {_MAX_INTENT_LEN} chars"}
 
-    desired_end_state = body.get("desired_end_state", "")
+    desired_end_state = str(body.get("desired_end_state", ""))[:_MAX_END_STATE_LEN]
     constraints = body.get("constraints", [])
+    if not isinstance(constraints, list):
+        constraints = []
+    constraints = constraints[:_MAX_CONSTRAINTS]
     source_type = body.get("source_type", "jarvis_command")
-    source_id = body.get("source_id", "")
+    if source_type not in _VALID_SOURCE_TYPES:
+        source_type = "jarvis_command"
+    source_id = _sanitize_text(str(body.get("source_id", "")), 200)
 
     try:
         from substrate.organism.work_packet_engine import WorkPacketEngine
@@ -617,10 +649,10 @@ async def _work_packet_create(request: Request) -> dict[str, Any]:
     _log_journal_entry({
         "event": "work_packet_created",
         "packet_id": packet.packet_id,
-        "title": packet.title,
+        "title": _sanitize_text(packet.title, 200),
         "risk_class": packet.risk_class,
         "source_type": source_type,
-        "user_intent": user_intent[:200],
+        "user_intent": _sanitize_text(user_intent, 200),
     })
 
     result = _label_environment(packet.to_safe_dict())
