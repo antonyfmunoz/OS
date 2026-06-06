@@ -236,72 +236,22 @@ async def build_info():
 
 @router.get("/pulse")
 async def pulse():
-    cpu = psutil.cpu_percent(interval=0.1)
-    mem = psutil.virtual_memory()
-    disk = psutil.disk_usage("/")
+    node_metrics = _build_node_metrics()
+    vps = node_metrics.get("vps", {})
     traces = _read_jsonl(TRACE_STORE)
     pending_traces = sum(1 for t in traces[-500:] if t.get("status") == "pending")
     uptime = int(time.time() - psutil.boot_time())
-
     daemon = _get_organism()
     active_agents = 0
     pending_approvals = 0
     if daemon is not None:
         active_agents = sum(1 for a in daemon.advisor.list_agents() if a.get("status") != "offline")
         pending_approvals = daemon.approval_store.pending_count()
-
-    node_metrics: dict[str, dict[str, Any]] = {}
-    registry = _load_device_registry()
-    vps_entry = next((d for d in registry if d.get("id") == "vps"), {})
-    node_metrics["vps"] = {
-        "name": vps_entry.get("display_name", "VPS"),
-        "cpu": cpu,
-        "memory": mem.percent,
-        "disk": disk.percent,
-        "status": "online",
-    }
-    server = _get_mesh_server()
-    remote_nodes: dict[str, dict[str, Any]] = {}
-    if server is not None:
-        for node_id, snap in server.metrics_buffer.latest_all().items():
-            remote_nodes[node_id] = {
-                "cpu": snap.cpu, "memory": snap.memory, "disk": snap.disk,
-                "battery": snap.battery, "timestamp": snap.timestamp,
-            }
-    if not remote_nodes:
-        remote_nodes = _read_mesh_metrics_file()
-    for node_id, mdata in remote_nodes.items():
-        dev = next((d for d in registry if d.get("mesh_node_id") == node_id or d.get("id") == node_id), {})
-        node_metrics[node_id] = {
-            "name": dev.get("display_name", node_id),
-            "cpu": mdata.get("cpu"),
-            "memory": mdata.get("memory"),
-            "disk": mdata.get("disk"),
-            "battery": mdata.get("battery"),
-            "status": "online",
-            "timestamp": mdata.get("timestamp"),
-        }
-    for rdev in registry:
-        if not rdev.get("compute"):
-            continue
-        rid = rdev.get("id", "")
-        if rid and rid not in node_metrics:
-            mid = rdev.get("mesh_node_id", "")
-            if mid and mid in node_metrics:
-                continue
-            node_metrics[rid] = {
-                "name": rdev.get("display_name", rid),
-                "cpu": None,
-                "memory": None,
-                "disk": None,
-                "status": "offline",
-            }
-
     return {
         "uptime": uptime,
-        "cpu_percent": cpu,
-        "memory_percent": mem.percent,
-        "disk_percent": disk.percent,
+        "cpu_percent": vps.get("cpu", 0),
+        "memory_percent": vps.get("memory", 0),
+        "disk_percent": vps.get("disk", 0),
         "active_agents": active_agents,
         "pending_tasks": pending_traces,
         "pending_approvals": pending_approvals,
@@ -311,59 +261,8 @@ async def pulse():
 
 @router.get("/mesh/metrics")
 async def mesh_metrics():
-    """Per-node metrics from the MetricsBuffer (populated by node heartbeats)."""
-    registry = _load_device_registry()
-    result: dict[str, Any] = {}
-
-    vps_entry = next((d for d in registry if d.get("id") == "vps"), {})
-    cpu = psutil.cpu_percent(interval=0)
-    mem = psutil.virtual_memory()
-    disk = psutil.disk_usage("/")
-    result["vps"] = {
-        "name": vps_entry.get("display_name", "VPS"),
-        "cpu": cpu,
-        "memory": mem.percent,
-        "disk": disk.percent,
-        "status": "online",
-    }
-
-    server = _get_mesh_server()
-    mesh_remote: dict[str, dict[str, Any]] = {}
-    if server is not None:
-        for node_id, snap in server.metrics_buffer.latest_all().items():
-            mesh_remote[node_id] = {
-                "cpu": snap.cpu, "memory": snap.memory, "disk": snap.disk,
-                "battery": snap.battery, "timestamp": snap.timestamp,
-            }
-    if not mesh_remote:
-        mesh_remote = _read_mesh_metrics_file()
-    for node_id, mdata in mesh_remote.items():
-        dev = next((d for d in registry if d.get("mesh_node_id") == node_id or d.get("id") == node_id), {})
-        result[node_id] = {
-            "name": dev.get("display_name", node_id),
-            "cpu": mdata.get("cpu"),
-            "memory": mdata.get("memory"),
-            "disk": mdata.get("disk"),
-            "battery": mdata.get("battery"),
-            "status": "online",
-            "timestamp": mdata.get("timestamp"),
-        }
-
-    for dev in registry:
-        if not dev.get("compute"):
-            continue
-        dev_id = dev.get("id", "")
-        mesh_id = dev.get("mesh_node_id", "")
-        if dev_id not in result and mesh_id not in result and dev_id != "vps":
-            result[dev_id] = {
-                "name": dev.get("display_name", dev_id),
-                "cpu": None,
-                "memory": None,
-                "disk": None,
-                "status": "offline",
-            }
-
-    return result
+    """Per-node metrics — reads from mesh server snapshot (single source of truth)."""
+    return _build_node_metrics()
 
 @router.get("/models")
 async def models():
@@ -1005,6 +904,42 @@ def _read_mesh_metrics_file() -> dict[str, dict[str, Any]]:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
+
+def _build_node_metrics() -> dict[str, dict[str, Any]]:
+    """Build complete node_metrics dict from the mesh snapshot file.
+
+    The mesh server is the single source of truth for all organism metrics.
+    It writes VPS self-metrics + remote node heartbeats to mesh_metrics.json
+    on a 5s cadence. This function reads that file and enriches with display
+    names from the device registry, adding offline entries for compute nodes
+    that aren't reporting.
+    """
+    registry = _load_device_registry()
+    snapshot = _read_mesh_metrics_file()
+    result: dict[str, dict[str, Any]] = {}
+    for node_id, mdata in snapshot.items():
+        dev = next((d for d in registry if d.get("mesh_node_id") == node_id or d.get("id") == node_id), {})
+        result[node_id] = {
+            "name": dev.get("display_name", node_id),
+            "cpu": mdata.get("cpu"),
+            "memory": mdata.get("memory"),
+            "disk": mdata.get("disk"),
+            "battery": mdata.get("battery"),
+            "status": "online",
+            "timestamp": mdata.get("timestamp"),
+        }
+    for dev in registry:
+        if not dev.get("compute"):
+            continue
+        did = dev.get("id", "")
+        mid = dev.get("mesh_node_id", "")
+        if did not in result and mid not in result:
+            result[did] = {
+                "name": dev.get("display_name", did),
+                "cpu": None, "memory": None, "disk": None,
+                "status": "offline",
+            }
+    return result
 
 def _get_organism():
     try:
@@ -1857,71 +1792,21 @@ async def cockpit_ws(ws: WebSocket):
     logger.info(f"cockpit ws connected ({len(_cockpit_clients)} clients)")
     try:
         while True:
-            cpu = psutil.cpu_percent(interval=0)
-            mem = psutil.virtual_memory()
-            disk = psutil.disk_usage("/")
+            node_metrics = _build_node_metrics()
+            vps = node_metrics.get("vps", {})
             traces = _read_jsonl(TRACE_STORE)
             recent_traces = traces[-10:] if traces else []
             containers = _get_docker_containers()
-
-            ws_node_metrics: dict[str, dict[str, Any]] = {}
-            ws_registry = _load_device_registry()
-            ws_vps = next((d for d in ws_registry if d.get("id") == "vps"), {})
-            ws_node_metrics["vps"] = {
-                "name": ws_vps.get("display_name", "VPS"),
-                "cpu": cpu,
-                "memory": mem.percent,
-                "disk": disk.percent,
-                "status": "online",
-            }
-            mesh_srv = _get_mesh_server()
-            ws_remote: dict[str, dict[str, Any]] = {}
-            if mesh_srv is not None:
-                for nid, nsnap in mesh_srv.metrics_buffer.latest_all().items():
-                    ws_remote[nid] = {
-                        "cpu": nsnap.cpu, "memory": nsnap.memory, "disk": nsnap.disk,
-                        "battery": nsnap.battery, "timestamp": nsnap.timestamp,
-                    }
-            if not ws_remote:
-                ws_remote = _read_mesh_metrics_file()
-            for nid, mdata in ws_remote.items():
-                ndev = next((d for d in ws_registry if d.get("mesh_node_id") == nid or d.get("id") == nid), {})
-                ws_node_metrics[nid] = {
-                    "name": ndev.get("display_name", nid),
-                    "cpu": mdata.get("cpu"),
-                    "memory": mdata.get("memory"),
-                    "disk": mdata.get("disk"),
-                    "battery": mdata.get("battery"),
-                    "status": "online",
-                    "timestamp": mdata.get("timestamp"),
-                }
-            for rdev in ws_registry:
-                if not rdev.get("compute"):
-                    continue
-                rid = rdev.get("id", "")
-                if rid and rid not in ws_node_metrics:
-                    mid = rdev.get("mesh_node_id", "")
-                    if mid and mid in ws_node_metrics:
-                        continue
-                    ws_node_metrics[rid] = {
-                        "name": rdev.get("display_name", rid),
-                        "cpu": None,
-                        "memory": None,
-                        "disk": None,
-                        "status": "offline",
-                    }
-
             new_events = _pending_organism_events[event_cursor:]
             event_cursor = len(_pending_organism_events)
-
             snapshot = {
                 "type": "pulse",
                 "ts": datetime.now(timezone.utc).isoformat(),
-                "cpu_percent": cpu,
-                "memory_percent": mem.percent,
-                "disk_percent": disk.percent,
+                "cpu_percent": vps.get("cpu", 0),
+                "memory_percent": vps.get("memory", 0),
+                "disk_percent": vps.get("disk", 0),
                 "containers": containers,
-                "node_metrics": ws_node_metrics,
+                "node_metrics": node_metrics,
                 "recent_traces": [
                     {
                         "id": t.get("trace_id", ""),
@@ -1935,7 +1820,6 @@ async def cockpit_ws(ws: WebSocket):
                 "organism_events": new_events,
             }
             await ws.send_json(snapshot)
-
             try:
                 msg = await asyncio.wait_for(ws.receive_text(), timeout=2.0)
                 data = json.loads(msg)

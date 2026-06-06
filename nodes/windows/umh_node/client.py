@@ -181,14 +181,20 @@ class NodeClient:
         }
         await self._ws.send(json.dumps(msg))
         resp = json.loads(await self._ws.recv())
-        if resp.get("result", {}).get("accepted"):
-            logger.info("node.hello accepted")
+        result = resp.get("result", {})
+        if result.get("accepted"):
+            server_interval = result.get("heartbeat_interval_s")
+            if server_interval and isinstance(server_interval, (int, float)):
+                self._heartbeat_interval = int(server_interval)
+            else:
+                self._heartbeat_interval = self._config.signals.metrics_interval_s
+            logger.info("node.hello accepted, heartbeat every %ds", self._heartbeat_interval)
         else:
             error = resp.get("error", {}).get("message", "unknown")
             raise ConnectionError(f"node.hello rejected: {error}")
 
     async def _heartbeat_loop(self) -> None:
-        interval = self._config.signals.metrics_interval_s
+        interval = getattr(self, "_heartbeat_interval", self._config.signals.metrics_interval_s)
         while True:
             await asyncio.sleep(interval)
             try:
