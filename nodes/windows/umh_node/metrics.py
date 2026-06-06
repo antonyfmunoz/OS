@@ -1,14 +1,51 @@
-"""System metrics collector — CPU, memory, disk, battery, network."""
+"""System metrics collector — CPU, memory, disk, battery, network, GPU."""
 
 from __future__ import annotations
 
 import logging
 import platform
+import subprocess
 from typing import Any
 
 import psutil
 
 logger = logging.getLogger(__name__)
+
+
+def _collect_gpu() -> dict[str, Any] | None:
+    """Query NVIDIA GPU via nvidia-smi. Returns None if no GPU or command fails."""
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu,name",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            return None
+        line = result.stdout.strip().split("\n")[0]
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) < 4:
+            return None
+        mem_used = float(parts[1])
+        mem_total = float(parts[2])
+        return {
+            "utilization": float(parts[0]),
+            "memory_used_mb": mem_used,
+            "memory_total_mb": mem_total,
+            "memory_percent": round(mem_used / mem_total * 100, 1) if mem_total > 0 else 0,
+            "temperature": float(parts[3]),
+            "name": parts[4] if len(parts) > 4 else "NVIDIA GPU",
+        }
+    except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
+        return None
+    except Exception as exc:
+        logger.debug("GPU metrics collection failed: %s", exc)
+        return None
 
 
 def collect_metrics() -> dict[str, Any]:
@@ -48,5 +85,9 @@ def collect_metrics() -> dict[str, Any]:
             }
     except Exception:
         pass
+
+    gpu = _collect_gpu()
+    if gpu is not None:
+        metrics["gpu"] = gpu
 
     return metrics

@@ -44,8 +44,12 @@ function OrganismMetrics() {
   const total = Object.keys(nodeMetrics).length
   const cpuValues = online.map((m) => m.cpu).filter((v): v is number => v != null)
   const memValues = online.map((m) => m.memory).filter((v): v is number => v != null)
+  const diskValues = online.map((m) => m.disk).filter((v): v is number => v != null)
   const avgCpu = cpuValues.length > 0 ? cpuValues.reduce((a, b) => a + b, 0) / cpuValues.length : null
   const avgMem = memValues.length > 0 ? memValues.reduce((a, b) => a + b, 0) / memValues.length : null
+  const avgDisk = diskValues.length > 0 ? diskValues.reduce((a, b) => a + b, 0) / diskValues.length : null
+  const gpuNode = online.find((m) => m.gpu != null)
+  const gpuUtil = gpuNode?.gpu?.utilization ?? null
 
   return (
     <>
@@ -55,6 +59,16 @@ function OrganismMetrics() {
       <span className="wv-label">
         ram <span className="text-cyan">{avgMem != null ? `${avgMem.toFixed(0)}%` : '—'}</span>
       </span>
+      <span className="wv-label">
+        disk <span className={clsx(
+          avgDisk != null && avgDisk > 90 ? 'text-danger' : avgDisk != null && avgDisk > 75 ? 'text-warn' : 'text-cyan'
+        )}>{avgDisk != null ? `${avgDisk.toFixed(0)}%` : '—'}</span>
+      </span>
+      {gpuUtil != null && (
+        <span className="wv-label">
+          gpu <span className="text-cyan">{gpuUtil.toFixed(0)}%</span>
+        </span>
+      )}
       <span className="wv-label">
         nodes <span className={clsx(online.length === total ? 'text-ok' : 'text-warn')}>{online.length}/{total}</span>
       </span>

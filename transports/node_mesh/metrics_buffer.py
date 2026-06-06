@@ -26,6 +26,7 @@ class MetricsSnapshot:
     disk: float | None = None
     battery: float | None = None
     network_io: dict[str, Any] = field(default_factory=dict)
+    gpu: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"node_id": self.node_id, "timestamp": self.timestamp}
@@ -39,6 +40,8 @@ class MetricsSnapshot:
             d["battery"] = self.battery
         if self.network_io:
             d["network_io"] = self.network_io
+        if self.gpu is not None:
+            d["gpu"] = self.gpu
         return d
 
 
