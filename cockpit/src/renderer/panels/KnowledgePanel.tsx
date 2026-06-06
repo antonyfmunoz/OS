@@ -310,7 +310,7 @@ function RealityModelTab({ searchQuery }: { searchQuery: string }) {
             <span className="font-mono text-xs text-cyan">{entry.category || 'general'}</span>
             {entry.confidence != null && (
               <span className={`text-[10px] font-mono ${entry.confidence >= 0.8 ? 'text-ok' : entry.confidence >= 0.5 ? 'text-warn' : 'text-danger'}`}>
-                {(entry.confidence * 100).toFixed(0)}%
+                {((entry.confidence ?? 0) * 100).toFixed(0)}%
               </span>
             )}
             {entry.source && (
