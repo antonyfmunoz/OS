@@ -56,8 +56,10 @@ def _build_router(
     r.add_api_route("/workspace/proof-artifacts", _proof_artifacts, methods=["GET"], dependencies=read_auth)
     r.add_api_route("/workspace/health", _health_check, methods=["GET"], dependencies=read_auth)
     r.add_api_route("/workspace/trace-linkage", _trace_linkage, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/write-file", _write_file, methods=["POST"], dependencies=read_auth)
     r.add_api_route("/workspace/remote-browse", _remote_browse, methods=["GET"], dependencies=read_auth)
     r.add_api_route("/workspace/remote-read-file", _remote_read_file, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/remote-write-file", _remote_write_file, methods=["POST"], dependencies=read_auth)
     r.add_api_route("/workspace/mesh-nodes", _mesh_nodes_status, methods=["GET"], dependencies=read_auth)
 
     return r
@@ -81,6 +83,23 @@ async def _read_file(request: Request) -> dict[str, Any]:
         return {"ok": False, "error": "path parameter required"}
     result = read_file(path)
     return result.to_dict()
+
+
+async def _write_file(request: Request) -> dict[str, Any]:
+    body = await request.json()
+    path: str = body.get("path", "")
+    content: str = body.get("content", "")
+    if not path:
+        return {"ok": False, "error": "path required"}
+    from substrate.workstation.file_browser import _is_path_allowed
+    if not _is_path_allowed(path):
+        return {"ok": False, "error": "path not in allowlist"}
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+        return {"ok": True, "path": path}
+    except OSError as e:
+        return {"ok": False, "error": str(e), "path": path}
 
 
 # ---------------------------------------------------------------------------
@@ -536,6 +555,30 @@ async def _remote_read_file(request: Request) -> dict[str, Any]:
     if not ok:
         return {"ok": False, "error": output[:500], "path": path}
     return {"ok": True, "path": path, "content": output, "source_env": "windows"}
+
+
+async def _remote_write_file(request: Request) -> dict[str, Any]:
+    body = await request.json()
+    node: str = body.get("node", "windows")
+    path: str = body.get("path", "")
+    content: str = body.get("content", "")
+    if not path:
+        return {"ok": False, "error": "path required"}
+    if node != "windows":
+        return {"ok": False, "error": f"Unknown remote node: {node}"}
+    err = _validate_windows_path(path)
+    if err:
+        return {"ok": False, "error": err, "path": path}
+    import base64
+    encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
+    safe_path = path.replace("'", "''")
+    ok, output = _ssh_cmd(
+        f"powershell -Command \"[System.IO.File]::WriteAllBytes("
+        f"'{safe_path}', [Convert]::FromBase64String('{encoded}'))\""
+    )
+    if not ok:
+        return {"ok": False, "error": output[:500], "path": path}
+    return {"ok": True, "path": path, "source_env": "windows"}
 
 
 async def _mesh_nodes_status(request: Request) -> dict[str, Any]:

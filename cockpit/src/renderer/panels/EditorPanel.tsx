@@ -69,6 +69,27 @@ async function readFileContent(path: string, node?: string): Promise<{ content: 
   return null
 }
 
+async function writeFileContent(path: string, content: string, node?: string): Promise<boolean> {
+  if (node === 'windows') {
+    try {
+      const data = await fetchApi<{ ok: boolean }>('/workspace/remote-write-file', {
+        method: 'POST', body: JSON.stringify({ node: 'windows', path, content }),
+      })
+      return data.ok === true
+    } catch { return false }
+  }
+  try {
+    await window.cockpit?.writeFile?.(path, content)
+    return true
+  } catch { /* IPC unavailable */ }
+  try {
+    const data = await fetchApi<{ ok: boolean }>('/workspace/write-file', {
+      method: 'POST', body: JSON.stringify({ path, content }),
+    })
+    return data.ok === true
+  } catch { return false }
+}
+
 interface MeshNode { id: string; name: string; os: string; status: string; ip: string }
 
 function FileTreeNode({ name, path, type, depth, node }: FileNodeProps) {
@@ -86,7 +107,7 @@ function FileTreeNode({ name, path, type, depth, node }: FileNodeProps) {
       if (result) {
         useEditorStore.getState().openFile({
           path, name: result.name, content: result.content,
-          language: detectLang(result.name), dirty: false,
+          language: detectLang(result.name), dirty: false, node,
         })
       }
     }
@@ -128,7 +149,6 @@ export function EditorPanel() {
   const setActiveFile = useEditorStore((s) => s.setActiveFile)
   const closeFile = useEditorStore((s) => s.closeFile)
   const updateContent = useEditorStore((s) => s.updateContent)
-  const saveFile = useEditorStore((s) => s.saveFile)
   const toggleTerminal = useEditorStore((s) => s.toggleTerminal)
   const togglePreview = useEditorStore((s) => s.togglePreview)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -186,10 +206,13 @@ export function EditorPanel() {
 
   const activeContent = openFiles.find((f) => f.path === activeFile)
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = async (e: React.KeyboardEvent) => {
     if (e.ctrlKey && e.key === 's' && activeFile) {
       e.preventDefault()
-      saveFile(activeFile)
+      const file = openFiles.find((f) => f.path === activeFile)
+      if (!file) return
+      const ok = await writeFileContent(file.path, file.content, file.node)
+      if (ok) useEditorStore.getState().markClean(file.path)
     }
   }
 
