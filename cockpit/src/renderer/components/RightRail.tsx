@@ -1,6 +1,6 @@
 import { clsx } from 'clsx'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send, Pencil, Check, Download } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send, Pencil, Check, Download, Mic, MicOff } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useSystemStore } from '../stores/systemStore'
@@ -9,6 +9,7 @@ import { usePolling } from '../hooks/usePolling'
 import { relativeTime } from '../lib/time'
 import { useConfigStore } from '../stores/configStore'
 import { useViewContextStore } from '../stores/viewContextStore'
+import { useVoiceStore } from '../stores/voiceStore'
 import { getApiKey } from '../api/client'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
@@ -220,6 +221,8 @@ function ChatSection() {
   const sendMessage = useChatStore((s) => s.sendMessage)
   const loadHistory = useChatStore((s) => s.loadHistory)
   const viewContext = useViewContextStore((s) => s.context)
+  const micState = useVoiceStore((s) => s.micState)
+  const setMicState = useVoiceStore((s) => s.setMicState)
   const scrollRef = useRef<HTMLDivElement>(null)
   const displayName = `${aiName} ASSISTANT`
   const [editingName, setEditingName] = useState(false)
@@ -298,6 +301,13 @@ function ChatSection() {
           className="flex-1 text-[11px] px-2 py-1.5 rounded bg-surface-raised text-text-primary border border-border outline-none placeholder:text-text-tertiary"
           disabled={sending}
         />
+        <button
+          onClick={() => setMicState(micState === 'listening' ? 'idle' : 'listening')}
+          className={clsx('p-1.5 rounded transition-colors', micState === 'listening' ? 'text-danger bg-danger/10' : 'text-text-tertiary hover:text-cyan')}
+          title={micState === 'listening' ? 'Stop listening' : 'Voice input'}
+        >
+          {micState === 'listening' ? <MicOff size={12} /> : <Mic size={12} />}
+        </button>
         <button onClick={handleSend} disabled={sending || !input.trim()} className="p-1.5 rounded text-cyan hover:bg-cyan-glow transition-colors disabled:opacity-30">
           <Send size={12} />
         </button>
