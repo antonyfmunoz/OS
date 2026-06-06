@@ -9,9 +9,19 @@ interface FileNodeProps {
   path: string
   type: 'file' | 'directory'
   depth: number
+  node?: string
 }
 
-async function browseDir(path: string): Promise<{ name: string; path: string; type: 'file' | 'directory' }[]> {
+async function browseDir(path: string, node?: string): Promise<{ name: string; path: string; type: 'file' | 'directory' }[]> {
+  if (node === 'windows') {
+    try {
+      const data = await fetchApi<{ ok: boolean; entries: { name: string; path: string; type: 'file' | 'directory' }[] }>(
+        `/workspace/remote-browse?node=windows&path=${encodeURIComponent(path)}`,
+      )
+      if (data.ok && data.entries) return data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type }))
+    } catch { /* remote browse failed */ }
+    return []
+  }
   try {
     const res = await window.cockpit?.readDir?.(path)
     if (res) return res
@@ -25,7 +35,9 @@ async function browseDir(path: string): Promise<{ name: string; path: string; ty
   return []
 }
 
-function FileTreeNode({ name, path, type, depth }: FileNodeProps) {
+interface MeshNode { id: string; name: string; os: string; status: string; ip: string }
+
+function FileTreeNode({ name, path, type, depth, node }: FileNodeProps) {
   const [expanded, setExpanded] = useState(false)
   const [children, setChildren] = useState<{ name: string; path: string; type: 'file' | 'directory' }[]>([])
   const fetchFileContent = useEditorStore((s) => s.fetchFileContent)
@@ -33,11 +45,21 @@ function FileTreeNode({ name, path, type, depth }: FileNodeProps) {
   const handleClick = async () => {
     if (type === 'directory') {
       if (!expanded) {
-        setChildren(await browseDir(path))
+        setChildren(await browseDir(path, node))
       }
       setExpanded(!expanded)
     } else {
-      fetchFileContent(path)
+      if (node === 'windows') {
+        try {
+          const data = await fetchApi<{ ok: boolean; content: string }>(`/workspace/remote-read-file?node=windows&path=${encodeURIComponent(path)}`)
+          if (data.ok) {
+            const fname = path.split('\\').pop() || path
+            useEditorStore.getState().openFile({ path, name: fname, content: data.content, language: 'plaintext', dirty: false })
+          }
+        } catch { /* remote read failed */ }
+      } else {
+        fetchFileContent(path)
+      }
     }
   }
 
@@ -62,6 +84,7 @@ function FileTreeNode({ name, path, type, depth }: FileNodeProps) {
           path={child.path}
           type={child.type}
           depth={depth + 1}
+          node={node}
         />
       ))}
     </>
@@ -98,6 +121,8 @@ export function EditorPanel() {
   const [ccPrompt, setCcPrompt] = useState('')
   const [ccTarget, setCcTarget] = useState('')
   const [capturedOutput, setCapturedOutput] = useState('')
+  const [meshNodes, setMeshNodes] = useState<MeshNode[]>([])
+  const [windowsTree, setWindowsTree] = useState<{ name: string; path: string; type: 'file' | 'directory' }[]>([])
 
   useEffect(() => {
     fetchFileTree()
@@ -106,7 +131,21 @@ export function EditorPanel() {
   useEffect(() => {
     fetchGitStatus()
     fetchSessions()
-    const id = setInterval(() => { fetchGitStatus(); fetchSessions() }, 15000)
+    const fetchMesh = async () => {
+      try {
+        const data = await fetchApi<{ ok: boolean; nodes: MeshNode[] }>('/workspace/mesh-nodes')
+        if (data.ok && data.nodes) setMeshNodes(data.nodes)
+      } catch { /* silent */ }
+    }
+    const fetchWin = async () => {
+      try {
+        const data = await fetchApi<{ ok: boolean; entries: { name: string; path: string; type: 'file' | 'directory' }[] }>('/workspace/remote-browse?node=windows')
+        if (data.ok && data.entries) setWindowsTree(data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type })))
+      } catch { /* silent */ }
+    }
+    fetchMesh()
+    fetchWin()
+    const id = setInterval(() => { fetchGitStatus(); fetchSessions(); fetchMesh() }, 15000)
     return () => clearInterval(id)
   }, [fetchGitStatus, fetchSessions])
 
@@ -143,8 +182,15 @@ export function EditorPanel() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1 text-[9px] font-mono text-text-tertiary">
+          <div className="flex items-center gap-1 text-[9px] font-mono text-text-tertiary flex-wrap">
             <span className="text-ok">●</span> VPS
+            {meshNodes.filter((n) => n.os === 'windows').map((n) => (
+              <span key={n.id} className="ml-1">
+                <span className="text-text-tertiary mx-0.5">·</span>
+                <span className={n.status === 'connected' || n.status === 'online' ? 'text-ok' : 'text-danger'}>●</span>
+                {' '}{n.name || 'Windows'}
+              </span>
+            ))}
           </div>
         </div>
         <div className="flex items-center border-b border-border">
@@ -163,11 +209,29 @@ export function EditorPanel() {
         <div className="flex-1 overflow-y-auto py-1">
           {sidebarTab === 'files' && (
             <>
-              {fileTree.map((node) => (
-                <FileTreeNode key={node.path} name={node.name} path={node.path} type={node.type} depth={0} />
+              <div className="px-2 pt-1 pb-0.5">
+                <p className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider">VPS · /opt/OS</p>
+              </div>
+              {fileTree.map((f) => (
+                <FileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={0} />
               ))}
               {fileTree.length === 0 && (
-                <p className="text-xs px-3 py-4 text-center text-text-tertiary">No file tree loaded</p>
+                <p className="text-xs px-3 py-2 text-center text-text-tertiary">Loading...</p>
+              )}
+              {meshNodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online')) && (
+                <>
+                  <div className="px-2 pt-3 pb-0.5 border-t border-border mt-1">
+                    <p className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider">
+                      <span className="text-ok">●</span> Beast PC · C:\dev\dev
+                    </p>
+                  </div>
+                  {windowsTree.map((f) => (
+                    <FileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={0} node="windows" />
+                  ))}
+                  {windowsTree.length === 0 && (
+                    <p className="text-xs px-3 py-2 text-center text-text-tertiary">Loading Windows files...</p>
+                  )}
+                </>
               )}
             </>
           )}
