@@ -36,8 +36,8 @@ if ! op whoami &>/dev/null; then
 fi
 
 echo "[dc-up] Resolving secrets from 1Password..."
-op inject -i "$SERVICES_TPL" -o "$SERVICES_ENV"
-op inject -i "$UMH_TPL" -o "$UMH_ENV"
+op inject -f -i "$SERVICES_TPL" -o "$SERVICES_ENV"
+op inject -f -i "$UMH_TPL" -o "$UMH_ENV"
 chmod 600 "$SERVICES_ENV" "$UMH_ENV"
 
 echo "[dc-up] Starting containers..."
