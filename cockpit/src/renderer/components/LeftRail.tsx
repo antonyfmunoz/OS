@@ -40,7 +40,7 @@ export function LeftRail() {
     <nav className="flex flex-col h-full w-[var(--spacing-rail)] bg-surface border-r border-border select-none">
       {/* Header — matches RightRail h-9 style */}
       <div className="flex items-center border-b border-border px-2 h-9 shrink-0">
-        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <Compass size={12} className="text-cyan shrink-0" />
           <span className="text-[10px] font-mono text-cyan uppercase tracking-wider truncate">Navigation</span>
         </div>
@@ -66,7 +66,7 @@ export function LeftRail() {
                     key={r.id}
                     onClick={() => setPanel(r.id)}
                     className={clsx(
-                      'flex items-center gap-3 w-full px-3 py-1.5 text-left transition-colors',
+                      'flex items-center gap-3 w-full px-3 py-2 text-left transition-colors',
                       active
                         ? 'text-cyan bg-cyan-glow border-r-2 border-cyan'
                         : 'text-text-secondary hover:text-text-primary hover:bg-surface-raised',

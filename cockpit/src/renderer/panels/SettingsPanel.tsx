@@ -63,7 +63,7 @@ export function SettingsPanel() {
                   <tr key={p.risk_class} className="border-b border-border">
                     <td className="py-2 font-mono text-xs">{p.risk_class}</td>
                     <td className="py-2">
-                      <span className={`font-mono text-xs px-1.5 py-0.5 rounded uppercase ${
+                      <span className={`font-mono text-xs px-2 py-1 rounded uppercase ${
                         p.risk_level === 'CRITICAL' ? 'text-danger bg-danger/10'
                           : p.risk_level === 'HIGH' ? 'text-warn bg-warn/10'
                           : 'text-text-secondary bg-surface-overlay'
@@ -95,7 +95,7 @@ export function SettingsPanel() {
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div className="wv-card px-3 py-2">
               <p className="wv-label mb-1">Safe Roots</p>
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {governance.safe_roots.map((r) => (
                   <p key={r} className="text-xs font-mono text-ok">{r}</p>
                 ))}
@@ -103,7 +103,7 @@ export function SettingsPanel() {
             </div>
             <div className="wv-card px-3 py-2">
               <p className="wv-label mb-1">Shell Prefixes</p>
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {governance.allowed_shell_prefixes.map((p) => (
                   <p key={p} className="text-xs font-mono text-cyan">{p}</p>
                 ))}

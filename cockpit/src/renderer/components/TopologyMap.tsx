@@ -171,12 +171,12 @@ export function TopologyMap() {
           if (!group || group.length === 0) return null
           return (
             <section key={type}>
-              <h4 className="text-[9px] text-text-tertiary uppercase tracking-wider mb-1.5">
+              <h4 className="text-[9px] text-text-tertiary uppercase tracking-wider mb-2">
                 {typeLabels[type] ?? type}
               </h4>
               <div className="grid grid-cols-1 gap-1">
                 {group.map((node) => (
-                  <div key={node.id} className="flex items-center gap-2 px-2 py-1.5 rounded bg-surface">
+                  <div key={node.id} className="flex items-center gap-2 px-2 py-2 rounded bg-surface">
                     <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[node.status] ?? 'bg-text-tertiary'}`} />
                     <span className="text-[11px] text-text-primary font-mono truncate flex-1">{node.label}</span>
                     {node.detail && (

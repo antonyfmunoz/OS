@@ -199,7 +199,7 @@ export function UniversalWorkPanel() {
           />
           <input value={desiredEndState} onChange={(e) => setDesiredEndState(e.target.value)}
             placeholder="Desired end state (optional)"
-            className="w-full px-3 py-1.5 text-xs rounded bg-surface border border-border text-text-secondary outline-none"
+            className="w-full px-3 py-2 text-xs rounded bg-surface border border-border text-text-secondary outline-none"
           />
           <div className="flex gap-2">
             <button onClick={handleCreate}
@@ -248,7 +248,7 @@ function KanbanView({ packets, onSelect, onApprove, onReject, onExecute, onCompl
         const colPackets = packets.filter((p) => col.statuses.includes(p.status))
         return (
           <div key={col.key} className="flex-shrink-0 w-56 flex flex-col">
-            <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
+            <div className="flex items-center gap-2 px-2 py-2 mb-1">
               <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">{col.label}</span>
               <span className="text-xs text-text-tertiary">{colPackets.length}</span>
             </div>
@@ -286,25 +286,25 @@ function KanbanCard({ packet, onClick, onApprove, onReject, onExecute, onComplet
       )}
 
       {/* Inline controls */}
-      <div className="flex gap-1 mt-1.5" onClick={(e) => e.stopPropagation()}>
+      <div className="flex gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
         {packet.status === 'approval_pending' && (
           <>
             <button onClick={() => onApprove(packet.packet_id)}
-              className="px-1.5 py-0.5 text-[10px] rounded bg-ok/10 text-ok border border-border">approve</button>
+              className="px-2 py-1 text-[10px] rounded bg-ok/10 text-ok border border-border">approve</button>
             <button onClick={() => onReject(packet.packet_id)}
-              className="px-1.5 py-0.5 text-[10px] rounded bg-danger/10 text-danger border border-border">reject</button>
+              className="px-2 py-1 text-[10px] rounded bg-danger/10 text-danger border border-border">reject</button>
           </>
         )}
         {(packet.status === 'approved' || (packet.status === 'classified' && packet.approval_gates.length === 0)) && (
           <button onClick={() => onExecute(packet.packet_id)}
-            className="px-1.5 py-0.5 text-[10px] rounded bg-cyan/10 text-cyan border border-border">execute</button>
+            className="px-2 py-1 text-[10px] rounded bg-cyan/10 text-cyan border border-border">execute</button>
         )}
         {packet.status === 'executing' && (
           <>
             <button onClick={() => onComplete(packet.packet_id, true)}
-              className="px-1.5 py-0.5 text-[10px] rounded bg-ok/10 text-ok border border-border">done</button>
+              className="px-2 py-1 text-[10px] rounded bg-ok/10 text-ok border border-border">done</button>
             <button onClick={() => onComplete(packet.packet_id, false)}
-              className="px-1.5 py-0.5 text-[10px] rounded bg-danger/10 text-danger border border-border">fail</button>
+              className="px-2 py-1 text-[10px] rounded bg-danger/10 text-danger border border-border">fail</button>
           </>
         )}
       </div>
@@ -326,44 +326,44 @@ function TableView({ packets, onSelect, onApprove, onReject, onExecute, onComple
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-surface-secondary text-text-secondary">
-              <th className="px-2 py-1.5 text-left">Status</th>
-              <th className="px-2 py-1.5 text-left">Title</th>
-              <th className="px-2 py-1.5 text-left">Domain</th>
-              <th className="px-2 py-1.5 text-right">Leverage</th>
-              <th className="px-2 py-1.5 text-left">Risk</th>
-              <th className="px-2 py-1.5 text-center">Actions</th>
+              <th className="px-2 py-2 text-left">Status</th>
+              <th className="px-2 py-2 text-left">Title</th>
+              <th className="px-2 py-2 text-left">Domain</th>
+              <th className="px-2 py-2 text-right">Leverage</th>
+              <th className="px-2 py-2 text-left">Risk</th>
+              <th className="px-2 py-2 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
             {packets.map((pkt) => (
               <tr key={pkt.packet_id} className="border-t border-border hover:bg-surface-secondary">
-                <td className={`px-2 py-1.5 cursor-pointer ${STATUS_COLOR[pkt.status]}`}
+                <td className={`px-2 py-2 cursor-pointer ${STATUS_COLOR[pkt.status]}`}
                     onClick={() => onSelect(pkt.packet_id)}>{pkt.status}</td>
-                <td className="px-2 py-1.5 text-text-primary truncate max-w-[200px] cursor-pointer"
+                <td className="px-2 py-2 text-text-primary truncate max-w-[200px] cursor-pointer"
                     onClick={() => onSelect(pkt.packet_id)}>{pkt.title}</td>
-                <td className="px-2 py-1.5 text-text-secondary">{pkt.domain}</td>
-                <td className="px-2 py-1.5 text-right text-cyan">{pkt.leverage_score.toFixed(2)}</td>
-                <td className={`px-2 py-1.5 ${RISK_COLOR[pkt.risk_class]}`}>{pkt.risk_class}</td>
-                <td className="px-2 py-1.5">
+                <td className="px-2 py-2 text-text-secondary">{pkt.domain}</td>
+                <td className="px-2 py-2 text-right text-cyan">{pkt.leverage_score.toFixed(2)}</td>
+                <td className={`px-2 py-2 ${RISK_COLOR[pkt.risk_class]}`}>{pkt.risk_class}</td>
+                <td className="px-2 py-2">
                   <div className="flex gap-1 justify-center">
                     {pkt.status === 'approval_pending' && (
                       <>
                         <button onClick={() => onApprove(pkt.packet_id)}
-                          className="px-1.5 py-0.5 text-[10px] rounded text-ok border border-border">✓</button>
+                          className="px-2 py-1 text-[10px] rounded text-ok border border-border">✓</button>
                         <button onClick={() => onReject(pkt.packet_id)}
-                          className="px-1.5 py-0.5 text-[10px] rounded text-danger border border-border">✗</button>
+                          className="px-2 py-1 text-[10px] rounded text-danger border border-border">✗</button>
                       </>
                     )}
                     {(pkt.status === 'approved' || (pkt.status === 'classified' && pkt.approval_gates.length === 0)) && (
                       <button onClick={() => onExecute(pkt.packet_id)}
-                        className="px-1.5 py-0.5 text-[10px] rounded text-cyan border border-border">▶</button>
+                        className="px-2 py-1 text-[10px] rounded text-cyan border border-border">▶</button>
                     )}
                     {pkt.status === 'executing' && (
                       <>
                         <button onClick={() => onComplete(pkt.packet_id, true)}
-                          className="px-1.5 py-0.5 text-[10px] rounded text-ok border border-border">✓</button>
+                          className="px-2 py-1 text-[10px] rounded text-ok border border-border">✓</button>
                         <button onClick={() => onComplete(pkt.packet_id, false)}
-                          className="px-1.5 py-0.5 text-[10px] rounded text-danger border border-border">✗</button>
+                          className="px-2 py-1 text-[10px] rounded text-danger border border-border">✗</button>
                       </>
                     )}
                   </div>
@@ -401,21 +401,21 @@ function DetailView({ packet, onBack, onApprove, onReject, onExecute, onComplete
         {status === 'approval_pending' && (
           <>
             <button onClick={() => onApprove(id)}
-              className="px-3 py-1.5 text-xs rounded bg-ok/10 text-ok border border-border">Approve</button>
+              className="px-3 py-2 text-xs rounded bg-ok/10 text-ok border border-border">Approve</button>
             <button onClick={() => onReject(id)}
-              className="px-3 py-1.5 text-xs rounded bg-danger/10 text-danger border border-border">Reject</button>
+              className="px-3 py-2 text-xs rounded bg-danger/10 text-danger border border-border">Reject</button>
           </>
         )}
         {(status === 'approved' || (status === 'classified' && !Array.isArray(packet.approval_gates) || (Array.isArray(packet.approval_gates) && packet.approval_gates.length === 0))) && (
           <button onClick={() => onExecute(id)}
-            className="px-3 py-1.5 text-xs rounded bg-cyan/10 text-cyan border border-border">Execute</button>
+            className="px-3 py-2 text-xs rounded bg-cyan/10 text-cyan border border-border">Execute</button>
         )}
         {status === 'executing' && (
           <>
             <button onClick={() => onComplete(id, true)}
-              className="px-3 py-1.5 text-xs rounded bg-ok/10 text-ok border border-border">Mark Done</button>
+              className="px-3 py-2 text-xs rounded bg-ok/10 text-ok border border-border">Mark Done</button>
             <button onClick={() => onComplete(id, false)}
-              className="px-3 py-1.5 text-xs rounded bg-danger/10 text-danger border border-border">Mark Failed</button>
+              className="px-3 py-2 text-xs rounded bg-danger/10 text-danger border border-border">Mark Failed</button>
           </>
         )}
       </div>

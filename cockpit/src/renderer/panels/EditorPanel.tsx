@@ -118,10 +118,10 @@ function FileTreeNode({ name, path, type, depth, node }: FileNodeProps) {
     <>
       <button
         onClick={handleClick}
-        className={`w-full text-left flex items-center gap-1 py-0.5 hover:bg-surface-raised transition-colors text-xs ${
+        className={`w-full text-left flex items-center gap-1 py-1 hover:bg-surface-raised transition-colors text-xs ${
           type === 'directory' ? 'text-text-primary' : 'text-text-secondary'
         }`}
-        style={{ paddingLeft: `${depth * 12 + 8}px` }}
+        style={{ paddingLeft: `${depth * 12 + 6}px` }}
       >
         <span className="text-text-tertiary w-3.5 text-center">
           {type === 'directory' ? (expanded ? '▾' : '▸') : '·'}
@@ -233,7 +233,7 @@ export function EditorPanel() {
           <div className="flex items-center gap-1 text-[9px] font-mono text-text-tertiary flex-wrap">
             {meshNodes.map((n, i) => (
               <span key={n.id} className={i > 0 ? 'ml-1' : ''}>
-                {i > 0 && <span className="text-text-tertiary mx-0.5">·</span>}
+                {i > 0 && <span className="text-text-tertiary mx-1">·</span>}
                 <span className={n.status === 'connected' || n.status === 'online' ? 'text-ok' : 'text-danger'}>●</span>
                 {' '}{n.name}
               </span>
@@ -258,7 +258,7 @@ export function EditorPanel() {
             <>
               <button
                 onClick={() => setVpsExpanded(!vpsExpanded)}
-                className="w-full flex items-center gap-1.5 px-2 pt-1.5 pb-1 hover:bg-surface-raised transition-colors"
+                className="w-full flex items-center gap-2 px-2 pt-1.5 pb-1 hover:bg-surface-raised transition-colors"
               >
                 <span className="text-text-tertiary text-[9px]">{vpsExpanded ? '▾' : '▸'}</span>
                 <span className="text-ok text-[9px]">●</span>
@@ -282,7 +282,7 @@ export function EditorPanel() {
                   <>
                     <button
                       onClick={() => setWindowsExpanded(!windowsExpanded)}
-                      className="w-full flex items-center gap-1.5 px-2 pt-1.5 pb-1 hover:bg-surface-raised transition-colors border-t border-border mt-1"
+                      className="w-full flex items-center gap-2 px-2 pt-1.5 pb-1 hover:bg-surface-raised transition-colors border-t border-border mt-1"
                     >
                       <span className="text-text-tertiary text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
                       <span className="text-ok text-[9px]">●</span>
@@ -331,7 +331,7 @@ export function EditorPanel() {
                 <select
                   value={ccTarget}
                   onChange={(e) => setCcTarget(e.target.value)}
-                  className="w-full mb-1 text-[10px] bg-surface-raised border border-border rounded px-1 py-0.5 text-text-primary"
+                  className="w-full mb-1 text-[10px] bg-surface-raised border border-border rounded px-1 py-1 text-text-primary"
                 >
                   <option value="">Select session...</option>
                   {sessions.map((s) => (
@@ -391,7 +391,7 @@ export function EditorPanel() {
             <button
               key={file.path}
               onClick={() => setActiveFile(file.path)}
-              className={`flex items-center gap-1.5 px-3 h-full text-xs shrink-0 border-r border-border transition-colors ${
+              className={`flex items-center gap-2 px-3 h-full text-xs shrink-0 border-r border-border transition-colors ${
                 activeFile === file.path ? 'text-text-primary bg-surface' : 'text-text-tertiary'
               }`}
             >
@@ -527,7 +527,7 @@ function TerminalSection() {
           <pre key={i} className={`whitespace-pre-wrap ${line.startsWith('$') ? 'text-cyan' : line.startsWith('err:') ? 'text-danger' : ''}`}>{line}</pre>
         ))}
       </div>
-      <div className="flex items-center gap-1 px-3 py-1.5 border-t border-border">
+      <div className="flex items-center gap-1 px-3 py-2 border-t border-border">
         <span className="text-cyan text-[10px] font-mono">$</span>
         <input
           value={cmd}
@@ -535,9 +535,9 @@ function TerminalSection() {
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
           placeholder="command..."
           disabled={sending}
-          className="flex-1 text-[10px] font-mono px-1.5 py-0.5 bg-surface-raised text-text-primary border border-border rounded outline-none placeholder:text-text-tertiary"
+          className="flex-1 text-[10px] font-mono px-2 py-1 bg-surface-raised text-text-primary border border-border rounded outline-none placeholder:text-text-tertiary"
         />
-        <button onClick={send} disabled={sending || !cmd.trim()} className="text-[10px] font-mono px-2 py-0.5 text-cyan border border-border rounded hover:bg-cyan/10 disabled:opacity-30">
+        <button onClick={send} disabled={sending || !cmd.trim()} className="text-[10px] font-mono px-2 py-1 text-cyan border border-border rounded hover:bg-cyan/10 disabled:opacity-30">
           {sending ? '...' : 'Run'}
         </button>
       </div>
@@ -610,14 +610,14 @@ function ProviderRegistrySurface() {
               <span className="text-[9px] font-mono text-text-tertiary">{p.type}</span>
               <span className="ml-auto text-[9px] font-mono text-text-tertiary">{badge.label}</span>
             </div>
-            <div className="flex flex-wrap gap-1 mb-1.5">
+            <div className="flex flex-wrap gap-1 mb-2">
               {p.capabilities.map((c) => (
-                <span key={c} className="px-1 py-0.5 text-[9px] rounded bg-surface-raised text-text-secondary">{c}</span>
+                <span key={c} className="px-1 py-1 text-[9px] rounded bg-surface-raised text-text-secondary">{c}</span>
               ))}
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => runSmoke(p.id)}
-                className="px-1.5 py-0.5 text-[10px] rounded text-cyan border border-border hover:bg-cyan/10">
+                className="px-2 py-1 text-[10px] rounded text-cyan border border-border hover:bg-cyan/10">
                 smoke test
               </button>
               {testResult[p.id] && (

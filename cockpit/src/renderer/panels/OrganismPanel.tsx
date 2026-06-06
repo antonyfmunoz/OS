@@ -77,7 +77,7 @@ export function OrganismPanel() {
           </div>
         </div>
 
-        <div className="grid grid-cols-10 gap-1.5">
+        <div className="grid grid-cols-10 gap-2">
           <KPI label="MODE" value={executionMode?.current_mode?.toUpperCase() ?? '—'} color="cyan" />
           <KPI label="GUARD" value={guard?.mode?.replace(/_/g, ' ')?.toUpperCase() ?? '—'} color="cyan" />
           <KPI label="GATEWAY" value={gateway?.policy?.toUpperCase() ?? '—'} color="cyan" />
@@ -92,7 +92,7 @@ export function OrganismPanel() {
         {Object.keys(nodeMetrics).length > 1 && (
           <div className="flex gap-4 mt-2">
             {Object.entries(nodeMetrics).map(([id, m]) => (
-              <span key={id} className="flex items-center gap-1.5 text-[10px]">
+              <span key={id} className="flex items-center gap-2 text-[10px]">
                 <span className={`w-1.5 h-1.5 rounded-full ${m.status === 'online' ? 'bg-ok' : 'bg-danger'}`} />
                 <span className="text-text-tertiary font-mono">{m.name}</span>
                 {m.cpu != null && <span className={m.cpu > 90 ? 'text-danger' : m.cpu > 70 ? 'text-warn' : 'text-ok'}>{m.cpu.toFixed(0)}%</span>}
@@ -115,7 +115,7 @@ export function OrganismPanel() {
             <div className="space-y-1">
               {mutationList.length === 0 && <p className="text-xs text-text-tertiary">No mutations registered</p>}
               {mutationList.slice(0, 12).map((m) => (
-                <div key={m.name} className="flex items-center gap-2 py-0.5">
+                <div key={m.name} className="flex items-center gap-2 py-1">
                   <span className={`text-[10px] font-mono ${SEVERITY_COLORS[m.risk_level] ?? 'text-text-tertiary'}`}>
                     {m.risk_level}
                   </span>
@@ -169,7 +169,7 @@ export function OrganismPanel() {
             <div className="space-y-1.5">
               {bottlenecks.length === 0 && <p className="text-xs text-text-tertiary">No bottlenecks detected</p>}
               {bottlenecks.slice(0, 8).map((b, i) => (
-                <div key={i} className="p-1.5 rounded bg-surface">
+                <div key={i} className="p-2 rounded bg-surface">
                   <div className="flex items-center gap-2">
                     <span className={`text-[10px] font-mono ${SEVERITY_COLORS[b.severity] ?? 'text-text-tertiary'}`}>
                       {b.severity.toUpperCase()}
@@ -178,7 +178,7 @@ export function OrganismPanel() {
                     <span className="text-[10px] text-text-tertiary">×{b.recurrence_count}</span>
                   </div>
                   {b.suggested_correction && (
-                    <p className="text-[10px] text-text-tertiary mt-0.5 truncate">fix: {b.suggested_correction}</p>
+                    <p className="text-[10px] text-text-tertiary mt-1 truncate">fix: {b.suggested_correction}</p>
                   )}
                 </div>
               ))}
@@ -193,7 +193,7 @@ export function OrganismPanel() {
               </h3>
               <div className="space-y-1">
                 {workloads.recent_outcomes.slice(0, 6).map((o, i) => (
-                  <div key={i} className="flex items-center gap-2 py-0.5">
+                  <div key={i} className="flex items-center gap-2 py-1">
                     <span className={`w-1.5 h-1.5 rounded-full ${o.success ? 'bg-ok' : 'bg-danger'}`} />
                     <span className="text-[11px] text-text-primary truncate flex-1">{o.workload_type}</span>
                     <span className="text-[10px] text-text-tertiary font-mono">{(o.duration_seconds ?? 0).toFixed(1)}s</span>
@@ -249,7 +249,7 @@ function ExecutePlanSection({
   return (
     <div className="mt-4">
       <h3 className="wv-label mb-2">Execute Plan</h3>
-      <div className="flex gap-1.5 mb-2">
+      <div className="flex gap-2 mb-2">
         <input
           type="text"
           value={planIntent}
@@ -280,9 +280,9 @@ function ExecutePlanSection({
               {executionGraphPlan.summary.overall_risk}
             </span>
           </div>
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             {executionGraphPlan.steps.map((step) => (
-              <div key={step.id} className="flex items-center gap-2 py-0.5">
+              <div key={step.id} className="flex items-center gap-2 py-1">
                 <span className={`w-1.5 h-1.5 rounded-full ${
                   step.status === 'completed' ? 'bg-ok'
                   : step.status === 'failed' || step.status === 'blocked_by_failure' ? 'bg-danger'
@@ -325,7 +325,7 @@ function KPI({ label, value, color }: { label: string; value: string; color: str
     : 'text-text-primary'
 
   return (
-    <div className="wv-card px-2 py-1.5 text-center">
+    <div className="wv-card px-2 py-2 text-center">
       <div className="text-[8px] text-text-tertiary uppercase">{label}</div>
       <div className={`text-xs font-mono font-semibold ${colorClass}`}>{value}</div>
     </div>

@@ -84,7 +84,7 @@ function StatusBadge({ status }: { status: string }) {
     expired: 'bg-gray-500',
   }
   return (
-    <span className={`px-2 py-0.5 rounded text-xs font-mono ${colors[status] || 'bg-gray-600'}`}>
+    <span className={`px-2 py-1 rounded text-xs font-mono ${colors[status] || 'bg-gray-600'}`}>
       {status}
     </span>
   )
@@ -272,7 +272,7 @@ export function RuntimePanel() {
             {handoff.what_will_happen.length > 0 && (
               <div className="mt-2">
                 <div className="text-white/50 text-xs mb-1">What will happen:</div>
-                <ul className="list-disc list-inside text-white/70 text-xs space-y-0.5">
+                <ul className="list-disc list-inside text-white/70 text-xs space-y-1">
                   {handoff.what_will_happen.map((s, i) => <li key={i}>{s}</li>)}
                 </ul>
               </div>
@@ -280,7 +280,7 @@ export function RuntimePanel() {
             {handoff.what_will_not_happen.length > 0 && (
               <div className="mt-2">
                 <div className="text-white/50 text-xs mb-1">What will NOT happen:</div>
-                <ul className="list-disc list-inside text-red-400/70 text-xs space-y-0.5">
+                <ul className="list-disc list-inside text-red-400/70 text-xs space-y-1">
                   {handoff.what_will_not_happen.map((s, i) => <li key={i}>{s}</li>)}
                 </ul>
               </div>
@@ -327,7 +327,7 @@ export function RuntimePanel() {
                       {['running', 'starting', 'waiting_for_input'].includes(s.runtime_status) && (
                         <button
                           onClick={(e) => { e.stopPropagation(); stopSession(s.session_id) }}
-                          className="px-2 py-0.5 bg-red-700 hover:bg-red-600 rounded text-xs"
+                          className="px-2 py-1 bg-red-700 hover:bg-red-600 rounded text-xs"
                         >
                           Stop
                         </button>

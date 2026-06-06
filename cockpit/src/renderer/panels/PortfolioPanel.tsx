@@ -137,7 +137,7 @@ export function PortfolioPanel() {
               <div key={p.product} className="wv-card p-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium text-text-primary">{p.product.toUpperCase()}</span>
-                  <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: statusColor(p.status), border: `1px solid ${statusColor(p.status)}` }}>
+                  <span className="text-xs px-2 py-1 rounded" style={{ color: statusColor(p.status), border: `1px solid ${statusColor(p.status)}` }}>
                     {p.status}
                   </span>
                 </div>
@@ -171,7 +171,7 @@ export function PortfolioPanel() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-text-primary">{dept.name}</span>
-                  <span className="text-xs px-1.5 py-0.5 rounded uppercase" style={{ color: tierColor(dept.permission_tier), border: `1px solid ${tierColor(dept.permission_tier)}` }}>
+                  <span className="text-xs px-2 py-1 rounded uppercase" style={{ color: tierColor(dept.permission_tier), border: `1px solid ${tierColor(dept.permission_tier)}` }}>
                     {dept.permission_tier}
                   </span>
                 </div>
@@ -181,10 +181,10 @@ export function PortfolioPanel() {
                 {dept.agent && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {dept.agent.skills.slice(0, 4).map(s => (
-                      <span key={s} className="text-xs px-1 py-0.5 rounded bg-surface-raised text-text-tertiary">{s}</span>
+                      <span key={s} className="text-xs px-1 py-1 rounded bg-surface-raised text-text-tertiary">{s}</span>
                     ))}
                     {dept.agent.skills.length > 4 && (
-                      <span className="text-xs px-1 py-0.5 text-text-tertiary">+{dept.agent.skills.length - 4}</span>
+                      <span className="text-xs px-1 py-1 text-text-tertiary">+{dept.agent.skills.length - 4}</span>
                     )}
                   </div>
                 )}
@@ -207,15 +207,15 @@ export function PortfolioPanel() {
                     <span className="text-xs text-text-tertiary">{role.department}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs px-1.5 py-0.5 rounded text-cyan border border-cyan">{role.operator}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded uppercase" style={{ color: tierColor(role.permission_tier), border: `1px solid ${tierColor(role.permission_tier)}` }}>
+                    <span className="text-xs px-2 py-1 rounded text-cyan border border-cyan">{role.operator}</span>
+                    <span className="text-xs px-2 py-1 rounded uppercase" style={{ color: tierColor(role.permission_tier), border: `1px solid ${tierColor(role.permission_tier)}` }}>
                       {role.permission_tier}
                     </span>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {role.responsibilities.map(r => (
-                    <span key={r} className="text-xs px-1 py-0.5 rounded bg-surface-raised text-text-secondary">{r}</span>
+                    <span key={r} className="text-xs px-1 py-1 rounded bg-surface-raised text-text-secondary">{r}</span>
                   ))}
                 </div>
               </div>

@@ -64,7 +64,7 @@ export function FabLarge() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => activeAgents.length > 0 ? handleExecutionClick() : undefined}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs"
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs"
             style={{
               color: activeAgents.length > 0 ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
               background: activeAgents.length > 0 ? 'var(--color-cyan-glow)' : 'transparent',
@@ -92,7 +92,7 @@ export function FabLarge() {
         </div>
       </div>
 
-      <form onSubmit={handleChatSubmit} className="flex gap-1.5">
+      <form onSubmit={handleChatSubmit} className="flex gap-2">
         <input
           value={chatInput}
           onChange={(e) => setDexInput(e.target.value)}
@@ -119,7 +119,7 @@ export function FabLarge() {
       <div className="flex items-center justify-between">
         <button
           onClick={() => cycleWindowMode('expand')}
-          className="text-xs px-1.5 py-0.5 rounded"
+          className="text-xs px-2 py-1 rounded"
           style={{ color: 'var(--color-text-tertiary)' }}
           title="Expand"
         >
@@ -127,7 +127,7 @@ export function FabLarge() {
         </button>
         <button
           onClick={() => cycleWindowMode('shrink')}
-          className="text-xs px-1.5 py-0.5 rounded"
+          className="text-xs px-2 py-1 rounded"
           style={{ color: 'var(--color-text-tertiary)' }}
           title="Shrink"
         >

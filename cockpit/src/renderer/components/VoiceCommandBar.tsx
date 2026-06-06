@@ -108,7 +108,7 @@ function MicIcon({ color }: { color: string }) {
 function ListeningBars({ level, color }: { level: number; color: string }) {
   const bars = 5
   return (
-    <div className="flex items-center gap-[2px]" style={{ height: 18 }}>
+    <div className="flex items-center gap-1" style={{ height: 18 }}>
       {Array.from({ length: bars }, (_, i) => {
         const offset = (i - 2) * 0.12
         const h = Math.max(3, (level + offset) * 16)
@@ -131,7 +131,7 @@ function ListeningBars({ level, color }: { level: number; color: string }) {
 
 function SpeakingBars({ color }: { color: string }) {
   return (
-    <div className="flex items-center gap-[2px]" style={{ height: 18 }}>
+    <div className="flex items-center gap-1" style={{ height: 18 }}>
       {[0, 0.2, 0.4, 0.2, 0].map((delay, i) => (
         <div
           key={i}
@@ -222,7 +222,7 @@ function TogglePill({ label, active, onClick, title }: {
     <button
       onClick={onClick}
       title={title}
-      className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full transition-all duration-150 cursor-pointer"
+      className="font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded-full transition-all duration-150 cursor-pointer"
       style={{
         color: active ? 'var(--accent-cyan)' : 'var(--text-tertiary)',
         background: active ? 'var(--glow-cyan)' : 'transparent',
@@ -366,7 +366,7 @@ export function VoiceCommandBar() {
           bottom: 'calc(var(--hud-height) + 16px)',
           left: '50%',
           transform: 'translateX(-50%)',
-          padding: isActive ? '8px 20px 8px 16px' : '6px 16px',
+          padding: isActive ? '6px 18px 6px 15px' : '6px 15px',
           background: isActive ? 'var(--surface-2)' : 'var(--surface-1)',
           border: `1px solid ${isActive ? 'var(--border-focus)' : 'var(--border)'}`,
           borderRadius: 28,

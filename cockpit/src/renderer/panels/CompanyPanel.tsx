@@ -123,7 +123,7 @@ export function CompanyPanel() {
           )}
           {selectedCompany && (
             <span
-              className="text-xs px-2 py-0.5 rounded-full font-medium"
+              className="text-xs px-2 py-1 rounded-full font-medium"
               style={{ color: stageColor(selectedCompany.stage), border: `1px solid ${stageColor(selectedCompany.stage)}` }}
             >
               Stage {selectedCompany.stage} — {selectedCompany.stage_name}
@@ -170,7 +170,7 @@ export function CompanyPanel() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-text-primary">{dept.name}</span>
-                  <span className="text-xs px-1.5 py-0.5 rounded uppercase" style={{ color: tierColor(dept.permission_tier), border: `1px solid ${tierColor(dept.permission_tier)}` }}>
+                  <span className="text-xs px-2 py-1 rounded uppercase" style={{ color: tierColor(dept.permission_tier), border: `1px solid ${tierColor(dept.permission_tier)}` }}>
                     {dept.permission_tier}
                   </span>
                 </div>
@@ -180,9 +180,9 @@ export function CompanyPanel() {
                 {dept.metrics.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {dept.metrics.slice(0, 3).map(m => (
-                      <span key={m} className="text-xs px-1 py-0.5 rounded bg-surface-raised text-text-tertiary">{m}</span>
+                      <span key={m} className="text-xs px-1 py-1 rounded bg-surface-raised text-text-tertiary">{m}</span>
                     ))}
-                    {dept.metrics.length > 3 && <span className="text-xs px-1 py-0.5 text-text-tertiary">+{dept.metrics.length - 3}</span>}
+                    {dept.metrics.length > 3 && <span className="text-xs px-1 py-1 text-text-tertiary">+{dept.metrics.length - 3}</span>}
                   </div>
                 )}
               </div>
@@ -204,15 +204,15 @@ export function CompanyPanel() {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium text-text-primary">{role.name}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs px-1.5 py-0.5 rounded text-cyan border border-cyan">{role.operator}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded uppercase" style={{ color: tierColor(role.permission_tier), border: `1px solid ${tierColor(role.permission_tier)}` }}>
+                    <span className="text-xs px-2 py-1 rounded text-cyan border border-cyan">{role.operator}</span>
+                    <span className="text-xs px-2 py-1 rounded uppercase" style={{ color: tierColor(role.permission_tier), border: `1px solid ${tierColor(role.permission_tier)}` }}>
                       {role.permission_tier}
                     </span>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {role.responsibilities.map(r => (
-                    <span key={r} className="text-xs px-1 py-0.5 rounded bg-surface-raised text-text-secondary">{r}</span>
+                    <span key={r} className="text-xs px-1 py-1 rounded bg-surface-raised text-text-secondary">{r}</span>
                   ))}
                 </div>
               </div>
@@ -251,8 +251,8 @@ export function CompanyPanel() {
                     <span className="text-xs text-text-tertiary">{wf.department}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs px-1.5 py-0.5 rounded text-cyan border border-cyan">{wf.trigger}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: statusColor(wf.status), border: `1px solid ${statusColor(wf.status)}` }}>
+                    <span className="text-xs px-2 py-1 rounded text-cyan border border-cyan">{wf.trigger}</span>
+                    <span className="text-xs px-2 py-1 rounded" style={{ color: statusColor(wf.status), border: `1px solid ${statusColor(wf.status)}` }}>
                       {wf.status}
                     </span>
                   </div>

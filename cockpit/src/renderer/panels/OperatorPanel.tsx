@@ -177,7 +177,7 @@ export function OperatorPanel() {
         </div>
 
         {/* Voice state indicator */}
-        <div className="mt-1.5 flex items-center gap-2 text-[10px] text-text-tertiary">
+        <div className="mt-2 flex items-center gap-2 text-[10px] text-text-tertiary">
           <span className={`w-1.5 h-1.5 rounded-full ${
             voiceState === 'listening' ? 'bg-danger animate-pulse'
               : voiceState === 'processing' ? 'bg-warn'
@@ -204,7 +204,7 @@ function CommandHeader({ sessionId, turnCount }: { sessionId: string | null; tur
         {sessionId && (
           <span className="text-text-tertiary">{sessionId} · {turnCount} turns</span>
         )}
-        <span className="px-1.5 py-0.5 bg-ok/10 text-ok rounded text-[9px] uppercase">
+        <span className="px-2 py-1 bg-ok/10 text-ok rounded text-[9px] uppercase">
           preview only
         </span>
       </div>
@@ -233,13 +233,13 @@ function SessionHistory({ turns }: { turns: SessionTurn[] }) {
         {visible.map((turn) => (
           <div key={turn.turn_id} className="wv-card p-2">
             <div className="flex items-start gap-2">
-              <span className="text-[9px] text-text-tertiary font-mono mt-0.5">
+              <span className="text-[9px] text-text-tertiary font-mono mt-1">
                 {turn.input_mode === 'voice' ? 'MIC' : 'TXT'}
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-text-primary truncate">{turn.input}</p>
                 {turn.response && (
-                  <p className="text-[11px] text-text-secondary mt-0.5 truncate">
+                  <p className="text-[11px] text-text-secondary mt-1 truncate">
                     → {turn.response.summary || turn.response.intent}
                   </p>
                 )}
@@ -335,9 +335,9 @@ function TopologySection({ topology }: { topology: TopologyPreview }) {
         {topology.advisor_branches.length > 0 && (
           <div className="pt-1">
             <span className="text-text-tertiary text-[10px]">Advisors</span>
-            <div className="mt-0.5 flex flex-wrap gap-1">
+            <div className="mt-1 flex flex-wrap gap-1">
               {topology.advisor_branches.map((a: string, i: number) => (
-                <span key={i} className="px-1.5 py-0.5 bg-surface-secondary text-text-secondary text-[10px] rounded font-mono">
+                <span key={i} className="px-2 py-1 bg-surface-secondary text-text-secondary text-[10px] rounded font-mono">
                   {a}
                 </span>
               ))}
@@ -359,7 +359,7 @@ function HumanActionsSection({ actions, gates }: { actions: HumanAction[]; gates
           <div className="mt-1 space-y-1">
             {actions.map((a: HumanAction, i: number) => (
               <div key={i} className="flex items-start gap-2 text-xs">
-                <span className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${a.blocking ? 'bg-danger' : 'bg-warn'}`} />
+                <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${a.blocking ? 'bg-danger' : 'bg-warn'}`} />
                 <div>
                   <span className="text-text-primary">{a.action}</span>
                   <span className="text-text-tertiary ml-1">— {a.reason}</span>
@@ -492,7 +492,7 @@ function Row({
   return (
     <div className={multiline ? '' : 'flex items-baseline gap-2'}>
       <span className="text-text-tertiary text-[10px] flex-shrink-0">{label}:</span>
-      <span className={`${color ?? 'text-text-primary'} ${mono ? 'font-mono' : ''} ${multiline ? 'block mt-0.5' : ''}`}>
+      <span className={`${color ?? 'text-text-primary'} ${mono ? 'font-mono' : ''} ${multiline ? 'block mt-1' : ''}`}>
         {value}
       </span>
     </div>

@@ -24,7 +24,7 @@ export function SkillsPanel() {
             <div key={skill.id} className="bg-bg-secondary rounded-lg p-3 border border-border-default">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-medium text-text-primary">{skill.name}</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                <span className={`text-xs px-2 py-1 rounded ${
                   skill.trigger === 'scheduled' ? 'bg-blue-500/20 text-blue-400' :
                   skill.trigger === 'conversational' ? 'bg-green-500/20 text-green-400' :
                   'bg-yellow-500/20 text-yellow-400'

@@ -55,7 +55,7 @@ function TemplateStatusBadge({ status }: { status: string }) {
     deprecated: 'bg-surface-overlay text-text-tertiary',
   }
   return (
-    <span className={`font-mono text-xs px-1.5 py-0.5 rounded uppercase ${colors[status] || 'bg-surface-overlay text-text-secondary'}`}>
+    <span className={`font-mono text-xs px-2 py-1 rounded uppercase ${colors[status] || 'bg-surface-overlay text-text-secondary'}`}>
       {status}
     </span>
   )
@@ -90,7 +90,7 @@ export function IntelligencePanel() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Operational Intelligence</h2>
         {readiness?.overall_status && (
-          <span className={`font-mono text-xs px-2 py-0.5 rounded uppercase ${STATUS_COLORS[readiness.overall_status] || 'text-text-secondary'}`}>
+          <span className={`font-mono text-xs px-2 py-1 rounded uppercase ${STATUS_COLORS[readiness.overall_status] || 'text-text-secondary'}`}>
             {readiness.overall_status} — {readiness.composite_score?.toFixed(0) ?? '?'}/100
           </span>
         )}
@@ -110,7 +110,7 @@ export function IntelligencePanel() {
                     score={dim.score}
                     weight={dim.weight}
                   />
-                  <p className="text-xs text-text-tertiary ml-[7.5rem] mt-0.5">{dim.explanation}</p>
+                  <p className="text-xs text-text-tertiary ml-[7.5rem] mt-1">{dim.explanation}</p>
                 </div>
               ))
           ) : (
@@ -145,7 +145,7 @@ export function IntelligencePanel() {
                     </div>
                     <p className="text-sm">{bn.description}</p>
                     {bn.evidence?.length > 0 && (
-                      <div className="mt-1.5 space-y-0.5">
+                      <div className="mt-2 space-y-1">
                         {bn.evidence.map((ev, i) => (
                           <p key={i} className="text-xs text-text-tertiary font-mono">
                             {ev.signal}: {ev.observed}{ev.expected ? ` (expected ${ev.expected})` : ''}
@@ -154,7 +154,7 @@ export function IntelligencePanel() {
                       </div>
                     )}
                     {bn.recommendation && (
-                      <p className="text-xs text-cyan mt-1.5">{bn.recommendation}</p>
+                      <p className="text-xs text-cyan mt-2">{bn.recommendation}</p>
                     )}
                   </div>
                 </div>
@@ -174,11 +174,11 @@ export function IntelligencePanel() {
             {leverage.top_opportunities.map((opp, idx) => (
               <div key={opp.opportunity_id} className="wv-card p-3">
                 <div className="flex items-start gap-2">
-                  <span className="font-mono text-xs text-cyan shrink-0 mt-0.5">#{idx + 1}</span>
+                  <span className="font-mono text-xs text-cyan shrink-0 mt-1">#{idx + 1}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{opp.action}</p>
-                    <p className="text-xs text-text-secondary mt-0.5">{opp.impact_description}</p>
-                    <div className="flex items-center gap-3 mt-1.5">
+                    <p className="text-xs text-text-secondary mt-1">{opp.impact_description}</p>
+                    <div className="flex items-center gap-3 mt-2">
                       <span className="font-mono text-xs text-text-tertiary">
                         Impact: {((opp.impact_score ?? 0) * 100).toFixed(0)}%
                       </span>
@@ -188,7 +188,7 @@ export function IntelligencePanel() {
                       </span>
                     </div>
                     {opp.evidence?.length > 0 && (
-                      <div className="mt-1.5">
+                      <div className="mt-2">
                         {opp.evidence.map((ev, i) => (
                           <p key={i} className="text-xs text-text-tertiary font-mono">
                             {ev.source}: {ev.detail}
@@ -216,12 +216,12 @@ export function IntelligencePanel() {
           <div className="space-y-1.5">
             {next_actions.actions.map((act) => (
               <div key={act.action_id} className="wv-card flex items-start gap-3 p-3">
-                <span className={`font-mono text-xs px-1.5 py-0.5 rounded uppercase shrink-0 ${PRIORITY_COLORS[act.priority]}`}>
+                <span className={`font-mono text-xs px-2 py-1 rounded uppercase shrink-0 ${PRIORITY_COLORS[act.priority]}`}>
                   {act.priority}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm">{act.action}</p>
-                  <p className="text-xs text-text-secondary mt-0.5">{act.reason}</p>
+                  <p className="text-xs text-text-secondary mt-1">{act.reason}</p>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="font-mono text-xs text-text-tertiary">{act.category}</span>
                     {act.estimated_effort && (
@@ -282,7 +282,7 @@ export function IntelligencePanel() {
                   <p className="text-xs text-text-tertiary mb-1">File locks:</p>
                   <div className="flex flex-wrap gap-1">
                     {Object.entries(coherence.prFactory.sandbox_manager.file_locks).map(([file, owner]) => (
-                      <span key={file} className="text-xs font-mono bg-warn/10 text-warn px-1.5 py-0.5 rounded" title={`Locked by ${owner}`}>
+                      <span key={file} className="text-xs font-mono bg-warn/10 text-warn px-2 py-1 rounded" title={`Locked by ${owner}`}>
                         {file.split('/').pop()}
                       </span>
                     ))}
@@ -295,7 +295,7 @@ export function IntelligencePanel() {
                 {coherence.prFactory.sandbox_manager.sandboxes.slice(-5).reverse().map((sb) => (
                   <div key={sb.sandbox_id} className="wv-card p-3">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`font-mono text-xs px-1.5 py-0.5 rounded uppercase ${
+                      <span className={`font-mono text-xs px-2 py-1 rounded uppercase ${
                         sb.status === 'pr_created' ? 'bg-ok/20 text-ok' :
                         sb.status === 'merged' ? 'bg-cyan/20 text-cyan' :
                         sb.status === 'executing' ? 'bg-warn/20 text-warn' :
@@ -313,7 +313,7 @@ export function IntelligencePanel() {
                     {sb.affected_files.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         {sb.affected_files.map((f) => (
-                          <span key={f} className="text-xs font-mono bg-surface-overlay px-1 py-0.5 rounded">
+                          <span key={f} className="text-xs font-mono bg-surface-overlay px-1 py-1 rounded">
                             {f.split('/').pop()}
                           </span>
                         ))}
@@ -344,7 +344,7 @@ export function IntelligencePanel() {
             <div className="wv-card p-3 space-y-1">
               <div className="flex items-center gap-3">
                 <span className="wv-label w-40">Mode</span>
-                <span className={`font-mono text-xs px-1.5 py-0.5 rounded uppercase ${
+                <span className={`font-mono text-xs px-2 py-1 rounded uppercase ${
                   coherence.cadence.mode === 'off' ? 'bg-surface-overlay text-text-secondary' :
                   coherence.cadence.mode === 'dry_run_only' ? 'bg-cyan/20 text-cyan' :
                   'bg-warn/20 text-warn'
@@ -465,7 +465,7 @@ export function IntelligencePanel() {
             {coherence.mergeVerifications.verifications.slice(-5).reverse().map((mv: Record<string, unknown>) => (
               <div key={mv.verification_id as string} className="wv-card p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className={`font-mono text-xs px-1.5 py-0.5 rounded uppercase ${
+                  <span className={`font-mono text-xs px-2 py-1 rounded uppercase ${
                     mv.status === 'production_verified' || mv.status === 'cleanup_ready' ? 'bg-ok/20 text-ok' :
                     mv.status === 'validation_failed' || mv.status === 'production_rejected' ? 'bg-danger/20 text-danger' :
                     'bg-surface-overlay text-text-secondary'
@@ -527,7 +527,7 @@ export function IntelligencePanel() {
           <div className="mt-2">
             <p className="text-xs text-text-tertiary mb-1">Promoted:</p>
             {coherence.templates.promoted.map((tpl) => (
-              <div key={tpl.template_id} className="flex items-center gap-2 py-0.5">
+              <div key={tpl.template_id} className="flex items-center gap-2 py-1">
                 <TemplateStatusBadge status="promoted" />
                 <span className="text-xs font-mono">{tpl.template_type.replace(/_/g, ' ')}</span>
                 <span className="text-xs text-ok font-mono">{((tpl.confidence ?? 0) * 100).toFixed(0)}%</span>
@@ -644,7 +644,7 @@ export function IntelligencePanel() {
             <p className="text-xs text-text-tertiary mb-1">Registered targets ({coherence.propagation.registered_targets.length}):</p>
             <div className="flex flex-wrap gap-1">
               {coherence.propagation.registered_targets.map((t) => (
-                <span key={t.name} className="text-xs font-mono bg-surface-overlay px-1.5 py-0.5 rounded">
+                <span key={t.name} className="text-xs font-mono bg-surface-overlay px-2 py-1 rounded">
                   W{t.wave}:{t.name}
                 </span>
               ))}

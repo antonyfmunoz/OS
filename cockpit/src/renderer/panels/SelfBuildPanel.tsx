@@ -264,13 +264,13 @@ function SelfImprovementSection() {
         {/* Safety indicators */}
         <div className="flex gap-2">
           {improvementStatus.safety.dry_run_only && (
-            <span className="px-1.5 py-0.5 text-[10px] font-mono bg-ok/10 text-ok rounded">DRY RUN</span>
+            <span className="px-2 py-1 text-[10px] font-mono bg-ok/10 text-ok rounded">DRY RUN</span>
           )}
           {improvementStatus.safety.no_auto_merge && (
-            <span className="px-1.5 py-0.5 text-[10px] font-mono bg-warn/10 text-warn rounded">NO AUTO MERGE</span>
+            <span className="px-2 py-1 text-[10px] font-mono bg-warn/10 text-warn rounded">NO AUTO MERGE</span>
           )}
           {improvementStatus.safety.operator_approval_required && (
-            <span className="px-1.5 py-0.5 text-[10px] font-mono bg-warn/10 text-warn rounded">APPROVAL REQ</span>
+            <span className="px-2 py-1 text-[10px] font-mono bg-warn/10 text-warn rounded">APPROVAL REQ</span>
           )}
         </div>
 

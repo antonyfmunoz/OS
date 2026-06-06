@@ -44,7 +44,7 @@ export function RingGauge({ value, max, label, unit = '', color = 'var(--color-c
         <span className="font-mono text-lg font-semibold" style={{ color }}>
           {typeof value === 'number' ? (value % 1 === 0 ? value : value.toFixed(1)) : value}
         </span>
-        {unit && <span className="text-xs ml-0.5" style={{ color: 'var(--color-text-tertiary)' }}>{unit}</span>}
+        {unit && <span className="text-xs ml-1" style={{ color: 'var(--color-text-tertiary)' }}>{unit}</span>}
       </div>
       <span className="wv-label text-center">{label}</span>
     </div>

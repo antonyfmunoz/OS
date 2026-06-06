@@ -86,12 +86,12 @@ export function ActivityPanel() {
         {filtered.map((event) => (
           <div
             key={event.id}
-            className="flex items-start gap-2 px-4 py-1.5 border-b border-border hover:bg-surface-raised transition-colors"
+            className="flex items-start gap-2 px-4 py-2 border-b border-border hover:bg-surface-raised transition-colors"
           >
             <span className="w-14 shrink-0 text-text-tertiary">
               {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
-            <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${SEVERITY_BG[event.severity] || 'bg-cyan'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${SEVERITY_BG[event.severity] || 'bg-cyan'}`} />
             <span className="w-16 shrink-0 truncate text-text-tertiary">{event.source}</span>
             <span className="flex-1 text-text-secondary">{event.summary}</span>
           </div>

@@ -128,7 +128,7 @@ function FileBrowserPane() {
             key={e.path}
             onClick={() => e.type === 'directory' ? browse(e.path) : readFile(e.path, e.name)}
             className={clsx(
-              'w-full text-left flex items-center gap-1.5 px-3 py-0.5 text-[11px] hover:bg-surface-raised transition-colors',
+              'w-full text-left flex items-center gap-2 px-3 py-1 text-[11px] hover:bg-surface-raised transition-colors',
               e.type === 'directory' ? 'text-text-primary' : 'text-text-secondary',
             )}
           >
@@ -149,7 +149,7 @@ function FileBrowserPane() {
       <div className="flex-1 flex flex-col min-w-0">
         {fileContent !== null ? (
           <>
-            <div className="px-3 py-1.5 border-b border-border bg-canvas flex items-center gap-2">
+            <div className="px-3 py-2 border-b border-border bg-canvas flex items-center gap-2">
               <span className="text-[11px] font-mono text-text-primary">{fileName}</span>
               <span className="text-[9px] font-mono text-text-tertiary">{fileLang}</span>
             </div>
@@ -218,7 +218,7 @@ function DiffPane() {
         </div>
         <button
           onClick={() => fetchDiff()}
-          className="w-full text-left px-3 py-1.5 text-[11px] text-cyan hover:bg-surface-raised border-b border-border"
+          className="w-full text-left px-3 py-2 text-[11px] text-cyan hover:bg-surface-raised border-b border-border"
         >
           Show full diff
         </button>
@@ -226,7 +226,7 @@ function DiffPane() {
           <button
             key={f.path}
             onClick={() => fetchDiff(f.path)}
-            className="w-full text-left flex items-center gap-2 px-3 py-0.5 text-[11px] hover:bg-surface-raised"
+            className="w-full text-left flex items-center gap-2 px-3 py-1 text-[11px] hover:bg-surface-raised"
           >
             <span className={clsx(
               'text-[10px] font-mono w-4 shrink-0',
@@ -289,7 +289,7 @@ function TestResultsPane() {
     <div className="p-4 space-y-3">
       <div className="flex items-center gap-3">
         <span className={clsx(
-          'px-2 py-0.5 rounded text-[11px] font-mono',
+          'px-2 py-1 rounded text-[11px] font-mono',
           results.status === 'pass' ? 'bg-ok/10 text-ok' : 'bg-danger/10 text-danger',
         )}>
           {results.status?.toUpperCase()}
@@ -353,10 +353,10 @@ function LogsPane() {
           {sourceEnv && <span className="text-[9px] font-mono text-text-tertiary">{sourceEnv}</span>}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-2 space-y-0.5 font-mono text-[11px]">
+      <div className="flex-1 overflow-y-auto p-2 space-y-1 font-mono text-[11px]">
         {logs.length === 0 && <p className="text-text-tertiary text-center py-4">No execution logs available</p>}
         {logs.map((log, i) => (
-          <div key={i} className="flex items-start gap-2 py-0.5 hover:bg-surface-raised rounded px-1">
+          <div key={i} className="flex items-start gap-2 py-1 hover:bg-surface-raised rounded px-1">
             <span className="text-text-tertiary shrink-0 w-36 text-[10px]">
               {log.timestamp || log.ts || '—'}
             </span>
@@ -438,7 +438,7 @@ function ProofPane() {
             {artifacts.map((a, i) => (
               <div key={i} className="bg-surface-secondary border border-border rounded p-2 flex items-center gap-3">
                 <span className={clsx(
-                  'text-[10px] font-mono px-1.5 py-0.5 rounded',
+                  'text-[10px] font-mono px-2 py-1 rounded',
                   a.type === 'screenshot' && 'bg-cyan/10 text-cyan',
                   a.type === 'metadata' && 'bg-warn/10 text-warn',
                   a.type === 'report' && 'bg-ok/10 text-ok',
@@ -483,7 +483,7 @@ function HealthPane() {
     <div className="p-4 space-y-4">
       <div className="flex items-center gap-3">
         <span className={clsx(
-          'px-2 py-0.5 rounded text-[11px] font-mono',
+          'px-2 py-1 rounded text-[11px] font-mono',
           health.overall === 'healthy' ? 'bg-ok/10 text-ok' : 'bg-warn/10 text-warn',
         )}>
           {health.overall?.toUpperCase()}
@@ -508,7 +508,7 @@ function HealthPane() {
             {c.error && <p className="text-[10px] text-danger mt-1">{c.error}</p>}
             {c.message && <p className="text-[10px] text-text-tertiary mt-1">{c.message}</p>}
             {c.containers && (
-              <div className="mt-1.5 space-y-0.5">
+              <div className="mt-2 space-y-1">
                 {c.containers.map((ct: any, j: number) => (
                   <div key={j} className="flex items-center gap-2 text-[10px]">
                     <span className={clsx(

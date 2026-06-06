@@ -228,12 +228,12 @@ export function WorkPanel() {
                 onChange={(e) => setDecomposeInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleDecompose()}
                 placeholder="Describe complex intent to decompose into batch..."
-                className="flex-1 px-3 py-1.5 bg-surface-raised border border-border rounded text-text-primary placeholder-text-tertiary text-[11px]"
+                className="flex-1 px-3 py-2 bg-surface-raised border border-border rounded text-text-primary placeholder-text-tertiary text-[11px]"
               />
               <button
                 onClick={handleDecompose}
                 disabled={decomposing || !decomposeInput.trim()}
-                className="px-3 py-1.5 bg-cyan-glow text-cyan border border-cyan/30 rounded text-[10px] uppercase tracking-wider hover:bg-cyan/20 disabled:opacity-30"
+                className="px-3 py-2 bg-cyan-glow text-cyan border border-cyan/30 rounded text-[10px] uppercase tracking-wider hover:bg-cyan/20 disabled:opacity-30"
               >
                 {decomposing ? '...' : 'Decompose'}
               </button>
@@ -401,7 +401,7 @@ export function WorkPanel() {
             {drawerPacket.child_packet_ids?.length > 0 && (
               <div>
                 <span className="wv-label">Children ({drawerPacket.child_packet_ids.length})</span>
-                <div className="mt-1 space-y-0.5">
+                <div className="mt-1 space-y-1">
                   {drawerPacket.child_packet_ids.map((id) => (
                     <p key={id} className="font-mono text-[10px]" style={{ color: 'var(--color-text-secondary)' }}>{id}</p>
                   ))}
@@ -481,7 +481,7 @@ function PacketCard({
           </span>
         </div>
         {packet.dependencies?.length > 0 && (
-          <div className="text-[9px] text-text-tertiary mt-0.5">
+          <div className="text-[9px] text-text-tertiary mt-1">
             depends on: {packet.dependencies.map((d) => d.slice(0, 12)).join(', ')}
           </div>
         )}
@@ -565,7 +565,7 @@ function OvernightSection({
           {onApprove && (
             <button
               onClick={() => onApprove(item.packet_id)}
-              className="px-2 py-0.5 bg-cyan-glow text-cyan border border-cyan/30 rounded text-[9px] hover:bg-cyan/20"
+              className="px-2 py-1 bg-cyan-glow text-cyan border border-cyan/30 rounded text-[9px] hover:bg-cyan/20"
             >
               Approve
             </button>

@@ -84,7 +84,7 @@ export function TmuxPanel() {
                 <span className={`w-1.5 h-1.5 rounded-full ${s.attached ? 'bg-ok' : 'bg-text-tertiary'}`} />
                 <span className="truncate">{s.name}</span>
               </div>
-              <div className="text-[10px] text-text-tertiary mt-0.5">
+              <div className="text-[10px] text-text-tertiary mt-1">
                 {s.windows} window{s.windows !== 1 ? 's' : ''}
               </div>
             </button>

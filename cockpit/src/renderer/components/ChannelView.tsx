@@ -53,7 +53,7 @@ export function ConversationView({ conversationId, messages, participants }: Con
             {participants.join(' ↔ ')}
           </span>
           <span
-            className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+            className="text-[9px] font-mono px-2 py-1 rounded"
             style={{ color: 'var(--color-text-tertiary)', background: 'var(--color-surface-raised)' }}
           >
             {conversationId.slice(0, 8)}
@@ -75,7 +75,7 @@ export function ConversationView({ conversationId, messages, participants }: Con
           const intentInfo = INTENT_LABEL[m.intent]
           return (
             <div key={m.id} className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
-              <div className="flex items-center gap-1.5 mb-0.5">
+              <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] font-mono" style={{ color: 'var(--color-text-secondary)' }}>
                   {m.sender}
                 </span>
@@ -99,7 +99,7 @@ export function ConversationView({ conversationId, messages, participants }: Con
                 <p className="text-xs leading-relaxed break-words">{m.content}</p>
               </div>
               {m.parent_message_id && (
-                <span className="text-[9px] mt-0.5 font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
+                <span className="text-[9px] mt-1 font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
                   reply to {m.parent_message_id.slice(0, 8)}
                 </span>
               )}

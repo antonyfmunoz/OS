@@ -75,7 +75,7 @@ export function RightRail() {
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className={clsx(
-                'flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors',
+                'flex items-center gap-2 px-2 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors',
                 activeTab === t.id ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary',
               )}
             >
@@ -112,7 +112,7 @@ function ProvenanceLine({ provenance }: { provenance: Provenance }) {
 
   return (
     <div
-      className="flex flex-wrap gap-x-1 gap-y-0.5 mt-1 mb-1.5 py-0.5 px-1.5 rounded text-[9px] font-mono"
+      className="flex flex-wrap gap-x-1 gap-y-1 mt-1 mb-2 py-1 px-2 rounded text-[9px] font-mono"
       style={{
         background: 'var(--color-surface)',
         borderLeft: '2px solid var(--color-cyan)',
@@ -150,7 +150,7 @@ function AttachmentLink({ attachment }: { attachment: Attachment }) {
     <button
       type="button"
       onClick={handleDownload}
-      className="flex items-center gap-1.5 mt-1.5 py-1 px-1.5 rounded text-[10px] font-mono transition-colors cursor-pointer w-full text-left"
+      className="flex items-center gap-2 mt-2 py-1 px-2 rounded text-[10px] font-mono transition-colors cursor-pointer w-full text-left"
       style={{
         background: 'var(--color-surface)',
         border: '1px solid var(--color-border)',
@@ -169,8 +169,8 @@ function AttachmentLink({ attachment }: { attachment: Attachment }) {
 function MessageBubble({ msg, aiName }: { msg: ChatMessage; aiName: string }) {
   if (msg.sender === 'operator') {
     return (
-      <div className="px-2 py-1.5 rounded text-[11px] bg-cyan-glow text-text-primary ml-4">
-        <div className="font-mono text-[9px] text-text-tertiary mb-0.5">YOU</div>
+      <div className="px-2 py-2 rounded text-[11px] bg-cyan-glow text-text-primary ml-4">
+        <div className="font-mono text-[9px] text-text-tertiary mb-1">YOU</div>
         <p className="whitespace-pre-wrap">{msg.content}</p>
       </div>
     )
@@ -179,8 +179,8 @@ function MessageBubble({ msg, aiName }: { msg: ChatMessage; aiName: string }) {
   const isReport = msg.intent === 'report'
 
   return (
-    <div className="px-2 py-1.5 rounded text-[11px] bg-surface-raised text-text-secondary mr-4">
-      <div className="flex items-center gap-1.5 mb-0.5">
+    <div className="px-2 py-2 rounded text-[11px] bg-surface-raised text-text-secondary mr-4">
+      <div className="flex items-center gap-2 mb-1">
         <span className="font-mono text-[9px] text-text-tertiary">{aiName}</span>
         {isReport && (
           <span
@@ -196,7 +196,7 @@ function MessageBubble({ msg, aiName }: { msg: ChatMessage; aiName: string }) {
       </div>
       {isReport && msg.title && (
         <div
-          className="font-mono text-[10px] tracking-wide uppercase mb-1 pb-0.5"
+          className="font-mono text-[10px] tracking-wide uppercase mb-1 pb-1"
           style={{ color: 'var(--color-cyan)', borderBottom: '1px solid var(--color-border)' }}
         >
           {msg.title}
@@ -252,7 +252,7 @@ function ChatSection() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-1.5 mb-2">
+      <div className="flex items-center gap-2 mb-2">
         {editingName ? (
           <>
             <input
@@ -264,21 +264,21 @@ function ChatSection() {
               className="wv-label bg-transparent border-b border-cyan outline-none flex-1 uppercase"
               style={{ fontSize: 'inherit', lineHeight: 'inherit' }}
             />
-            <button onClick={commitName} className="p-0.5 text-cyan hover:text-text-primary transition-colors">
+            <button onClick={commitName} className="p-1 text-cyan hover:text-text-primary transition-colors">
               <Check size={10} />
             </button>
           </>
         ) : (
           <>
             <span className="wv-label">{displayName}</span>
-            <button onClick={() => { setNameInput(aiName); setEditingName(true) }} className="p-0.5 text-text-tertiary hover:text-cyan transition-colors">
+            <button onClick={() => { setNameInput(aiName); setEditingName(true) }} className="p-1 text-text-tertiary hover:text-cyan transition-colors">
               <Pencil size={10} />
             </button>
           </>
         )}
       </div>
       {viewContext.selected_object_type && (
-        <div className="text-[9px] font-mono text-text-tertiary mb-1 px-1 py-0.5 bg-surface rounded border border-border truncate">
+        <div className="text-[9px] font-mono text-text-tertiary mb-1 px-1 py-1 bg-surface rounded border border-border truncate">
           Viewing: {viewContext.active_route}
           {viewContext.selected_object_type && ` > ${viewContext.selected_object_type}`}
           {viewContext.selected_object_summary && `: ${viewContext.selected_object_summary}`}
@@ -298,17 +298,17 @@ function ChatSection() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
           placeholder={`Message ${aiName}...`}
-          className="flex-1 text-[11px] px-2 py-1.5 rounded bg-surface-raised text-text-primary border border-border outline-none placeholder:text-text-tertiary"
+          className="flex-1 text-[11px] px-2 py-2 rounded bg-surface-raised text-text-primary border border-border outline-none placeholder:text-text-tertiary"
           disabled={sending}
         />
         <button
           onClick={() => setMicState(micState === 'listening' ? 'idle' : 'listening')}
-          className={clsx('p-1.5 rounded transition-colors', micState === 'listening' ? 'text-danger bg-danger/10' : 'text-text-tertiary hover:text-cyan')}
+          className={clsx('p-2 rounded transition-colors', micState === 'listening' ? 'text-danger bg-danger/10' : 'text-text-tertiary hover:text-cyan')}
           title={micState === 'listening' ? 'Stop listening' : 'Voice input'}
         >
           {micState === 'listening' ? <MicOff size={12} /> : <Mic size={12} />}
         </button>
-        <button onClick={handleSend} disabled={sending || !input.trim()} className="p-1.5 rounded text-cyan hover:bg-cyan-glow transition-colors disabled:opacity-30">
+        <button onClick={handleSend} disabled={sending || !input.trim()} className="p-2 rounded text-cyan hover:bg-cyan-glow transition-colors disabled:opacity-30">
           <Send size={12} />
         </button>
       </div>
@@ -350,7 +350,7 @@ function LogsSection({ traces }: { traces: Array<{ id: string; timestamp: string
       <div className="wv-label mb-2">EXECUTION LOGS</div>
       <div className="space-y-1 font-mono text-[10px]">
         {completed.slice(0, 50).map((t) => (
-          <div key={t.id} className={clsx('py-0.5', t.status === 'failed' ? 'text-danger' : 'text-text-secondary')}>
+          <div key={t.id} className={clsx('py-1', t.status === 'failed' ? 'text-danger' : 'text-text-secondary')}>
             [{t.status === 'completed' ? 'OK' : 'FAIL'}] {t.agent}: {t.action.slice(0, 60)}
           </div>
         ))}
