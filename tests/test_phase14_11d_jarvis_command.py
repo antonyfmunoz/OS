@@ -109,7 +109,7 @@ class TestResolveNavigationTarget:
 
     def test_command_center(self) -> None:
         from substrate.workstation.jarvis_command import resolve_navigation_target
-        assert resolve_navigation_target("show command center") == "dashboard"
+        assert resolve_navigation_target("show command center") == "commandcenter"
 
     def test_ide(self) -> None:
         from substrate.workstation.jarvis_command import resolve_navigation_target
