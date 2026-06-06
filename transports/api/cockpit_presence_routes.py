@@ -277,8 +277,32 @@ async def _command(request: Request) -> dict[str, Any]:
         result["governance"] = GovernanceRequirement.REQUIRES_GOVERNANCE.value
         result["data"] = {"draft_text": text, "status": "pending_governance"}
 
+    elif intent == CommandIntent.AGENT_QUERY:
+        agents_data = _load_agent_summary()
+        result["response_text"] = _build_agent_response(agents_data)
+        result["data"] = agents_data
+        result["panel_target"] = "agents"
+
+    elif intent == CommandIntent.BLOCKED_QUERY:
+        blocked_data = _load_blocked_summary()
+        result["response_text"] = _build_blocked_response(blocked_data)
+        result["data"] = blocked_data
+
+    elif intent == CommandIntent.PACKET_CONTROL:
+        from substrate.workstation.jarvis_command import resolve_packet_control_action
+        action = resolve_packet_control_action(text)
+        result["response_text"] = f"Packet {action} requires governance approval."
+        result["governance"] = GovernanceRequirement.REQUIRES_GOVERNANCE.value
+        result["data"] = {"action": action, "raw_text": text, "status": "pending_governance"}
+
+    elif intent == CommandIntent.COMMAND_CENTER_QUERY:
+        summary_data = _load_command_center_summary()
+        result["response_text"] = _build_command_center_response(summary_data)
+        result["data"] = summary_data
+        result["panel_target"] = "dashboard"
+
     else:
-        result["response_text"] = f"Command not recognized. Try: status, resume, approvals, mode switch, or navigation."
+        result["response_text"] = "Command not recognized. Try: status, agents, blocked, approvals, mode switch, or navigation."
 
     _log_presence_event({
         "event": "command",
@@ -369,3 +393,119 @@ def _build_approval_response(approvals: list[dict[str, Any]]) -> str:
         return "No pending approvals."
     descriptions = [a.get("description", a.get("id", "unknown")) for a in approvals[:5]]
     return f"{len(approvals)} pending: {'; '.join(descriptions)}."
+
+
+def _load_agent_summary() -> dict[str, Any]:
+    """Load workcell heartbeats as agent summary."""
+    workcell_dir = os.path.join(_DATA_ROOT, "organism", "workcells")
+    agents: list[dict[str, Any]] = []
+    if os.path.isdir(workcell_dir):
+        for entry in sorted(os.listdir(workcell_dir)):
+            hb_path = os.path.join(workcell_dir, entry, "heartbeat.json")
+            if os.path.exists(hb_path):
+                try:
+                    with open(hb_path) as f:
+                        data = json.load(f)
+                    agents.append({
+                        "agent_id": data.get("workcell_id", entry),
+                        "role": data.get("role", "unknown"),
+                        "status": data.get("status", "unknown"),
+                        "messages": data.get("messages_processed", 0),
+                        "inbox": data.get("inbox_depth", 0),
+                    })
+                except (json.JSONDecodeError, OSError):
+                    agents.append({"agent_id": entry, "role": "unknown", "status": "unavailable"})
+    return {
+        "agents": agents,
+        "total": len(agents),
+        "active": sum(1 for a in agents if a["status"] == "active"),
+        "idle": sum(1 for a in agents if a["status"] == "idle"),
+    }
+
+
+def _build_agent_response(data: dict[str, Any]) -> str:
+    agents = data.get("agents", [])
+    if not agents:
+        return "No agents registered."
+    lines = [f"{len(agents)} agents: {data.get('active', 0)} active, {data.get('idle', 0)} idle."]
+    for a in agents[:5]:
+        lines.append(f"  {a['role']}: {a['status']}")
+    return " ".join(lines)
+
+
+def _load_blocked_summary() -> dict[str, Any]:
+    """Load blocked work packets."""
+    wp_path = os.path.join(_DATA_ROOT, "universal_work", "work_packets.jsonl")
+    blocked: list[dict[str, Any]] = []
+    if os.path.exists(wp_path):
+        try:
+            with open(wp_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        pkt = json.loads(line)
+                        if pkt.get("status") == "blocked" or pkt.get("blockers"):
+                            blocked.append({
+                                "id": pkt.get("packet_id", ""),
+                                "title": pkt.get("title", ""),
+                                "blockers": pkt.get("blockers", []),
+                                "status": pkt.get("status", ""),
+                            })
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            pass
+    return {"blocked": blocked, "count": len(blocked)}
+
+
+def _build_blocked_response(data: dict[str, Any]) -> str:
+    blocked = data.get("blocked", [])
+    if not blocked:
+        return "Nothing is blocked."
+    lines = [f"{len(blocked)} blocked item(s):"]
+    for b in blocked[:5]:
+        blockers = ", ".join(b.get("blockers", [])) or "unknown blocker"
+        lines.append(f"  {b.get('title', b.get('id', 'unknown'))}: {blockers}")
+    return " ".join(lines)
+
+
+def _load_command_center_summary() -> dict[str, Any]:
+    """Load full command center summary."""
+    agents = _load_agent_summary()
+    blocked = _load_blocked_summary()
+    approvals = _load_pending_approvals()
+    checkpoint = _load_continuity_state()
+    resume = _load_resume_summary()
+    return {
+        "agents": agents,
+        "blocked": blocked,
+        "approvals": approvals,
+        "continuity_state": checkpoint.get("continuity_state", "active"),
+        "lifecycle_mode": checkpoint.get("lifecycle_mode", "default"),
+        "resume_summary": resume.get("resume_summary", ""),
+        "next_actions": resume.get("next_suggested_actions", []),
+    }
+
+
+def _build_command_center_response(data: dict[str, Any]) -> str:
+    parts: list[str] = []
+    agents = data.get("agents", {})
+    parts.append(f"Agents: {agents.get('active', 0)} active, {agents.get('idle', 0)} idle of {agents.get('total', 0)}.")
+    blocked = data.get("blocked", {})
+    if blocked.get("count", 0):
+        parts.append(f"Blocked: {blocked['count']} item(s).")
+    else:
+        parts.append("Nothing blocked.")
+    approvals = data.get("approvals", [])
+    if approvals:
+        parts.append(f"Approvals: {len(approvals)} pending.")
+    else:
+        parts.append("No pending approvals.")
+    state = data.get("continuity_state", "active")
+    parts.append(f"Continuity: {state}.")
+    summary = data.get("resume_summary", "")
+    if summary:
+        parts.append(summary)
+    return " ".join(parts)

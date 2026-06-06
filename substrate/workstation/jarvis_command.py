@@ -24,6 +24,10 @@ class CommandIntent(str, Enum):
     MODE_SWITCH = "mode_switch"
     WORK_PACKET_DRAFT = "work_packet_draft"
     COCKPIT_NAVIGATION = "cockpit_navigation"
+    AGENT_QUERY = "agent_query"
+    BLOCKED_QUERY = "blocked_query"
+    PACKET_CONTROL = "packet_control"
+    COMMAND_CENTER_QUERY = "command_center_query"
     UNKNOWN = "unknown"
 
 
@@ -121,6 +125,58 @@ _WORK_PACKET_SIGNALS = [
     "begin working on",
 ]
 
+_AGENT_SIGNALS = [
+    "show active agents",
+    "show agents",
+    "what are the agents doing",
+    "agent status",
+    "who is working",
+    "which agents are running",
+    "list agents",
+    "agent list",
+    "what agents exist",
+    "fleet status",
+]
+
+_BLOCKED_SIGNALS = [
+    "what is blocked",
+    "show blocked",
+    "blocked work",
+    "blocked tasks",
+    "blocked packets",
+    "what's stuck",
+    "whats stuck",
+    "show blockers",
+    "any blockers",
+]
+
+_PACKET_CONTROL_SIGNALS = [
+    "pause this work packet",
+    "pause the work packet",
+    "pause work packet",
+    "resume this work packet",
+    "resume the work packet",
+    "resume work packet",
+    "stop this work packet",
+    "stop the work packet",
+    "stop work packet",
+    "route this to",
+    "assign this to",
+    "delegate this to",
+]
+
+_COMMAND_CENTER_SIGNALS = [
+    "command center",
+    "full status",
+    "full report",
+    "everything report",
+    "system overview",
+    "operational summary",
+    "give me the full picture",
+    "what is the state of everything",
+    "overall status",
+]
+
 _NAV_MAP: dict[str, str] = {
     "dashboard": "dashboard",
     "command center": "dashboard",
@@ -206,6 +262,22 @@ def classify_intent(text: str) -> CommandIntent:
         if signal in t:
             return CommandIntent.WORK_PACKET_DRAFT
 
+    for signal in _AGENT_SIGNALS:
+        if signal in t:
+            return CommandIntent.AGENT_QUERY
+
+    for signal in _BLOCKED_SIGNALS:
+        if signal in t:
+            return CommandIntent.BLOCKED_QUERY
+
+    for signal in _PACKET_CONTROL_SIGNALS:
+        if signal in t:
+            return CommandIntent.PACKET_CONTROL
+
+    for signal in _COMMAND_CENTER_SIGNALS:
+        if signal in t:
+            return CommandIntent.COMMAND_CENTER_QUERY
+
     nav_prefix = ["show ", "go to ", "open ", "navigate to "]
     for prefix in nav_prefix:
         if t.startswith(prefix):
@@ -261,6 +333,20 @@ def resolve_mode_target(text: str) -> str:
     return ""
 
 
+def resolve_packet_control_action(text: str) -> str:
+    """Extract the control action from packet control text."""
+    t = text.lower().strip()
+    if any(s in t for s in ["pause this", "pause the", "pause work"]):
+        return "pause"
+    if any(s in t for s in ["resume this", "resume the", "resume work"]):
+        return "resume"
+    if any(s in t for s in ["stop this", "stop the", "stop work"]):
+        return "stop"
+    if any(s in t for s in ["route this", "assign this", "delegate this"]):
+        return "route"
+    return ""
+
+
 def governance_requirement(intent: CommandIntent) -> GovernanceRequirement:
     """Determine governance requirement for an intent."""
     if intent in (
@@ -268,6 +354,9 @@ def governance_requirement(intent: CommandIntent) -> GovernanceRequirement:
         CommandIntent.RESUME_QUERY,
         CommandIntent.APPROVAL_QUERY,
         CommandIntent.COCKPIT_NAVIGATION,
+        CommandIntent.AGENT_QUERY,
+        CommandIntent.BLOCKED_QUERY,
+        CommandIntent.COMMAND_CENTER_QUERY,
         CommandIntent.UNKNOWN,
     ):
         return GovernanceRequirement.INFORMATIONAL
@@ -276,6 +365,9 @@ def governance_requirement(intent: CommandIntent) -> GovernanceRequirement:
         return GovernanceRequirement.INFORMATIONAL
 
     if intent == CommandIntent.WORK_PACKET_DRAFT:
+        return GovernanceRequirement.REQUIRES_GOVERNANCE
+
+    if intent == CommandIntent.PACKET_CONTROL:
         return GovernanceRequirement.REQUIRES_GOVERNANCE
 
     return GovernanceRequirement.NONE
