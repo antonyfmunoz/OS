@@ -135,7 +135,7 @@ export function TopologyMap() {
   meshNodes.forEach((n) => {
     nodes.push({
       id: `mesh_${n.node_id}`,
-      label: n.hostname,
+      label: n.name || n.hostname,
       type: 'mesh',
       status: n.status === 'online' ? 'online' : 'offline',
       detail: `${n.role}${n.ip ? ` · ${n.ip}` : ''}`,
