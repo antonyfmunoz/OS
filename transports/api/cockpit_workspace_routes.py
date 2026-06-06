@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import platform
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -458,12 +459,27 @@ async def _trace_linkage(request: Request) -> dict[str, Any]:
 
 _WINDOWS_SSH = "antonys beast pc@100.74.199.102"
 _SSH_TIMEOUT = 8
+_WINDOWS_ALLOWED_ROOT = r"C:\dev\dev"
+_PATH_REJECT = re.compile(r"[;`$|><\"&]")
+
+
+def _validate_windows_path(path: str) -> str | None:
+    """Validate and sanitize a Windows path. Returns error string or None if ok."""
+    if ".." in path:
+        return "path traversal blocked"
+    if _PATH_REJECT.search(path):
+        return "invalid characters in path"
+    normalized = path.replace("/", "\\").rstrip("\\")
+    if not normalized.upper().startswith(_WINDOWS_ALLOWED_ROOT.upper()):
+        return f"path must be under {_WINDOWS_ALLOWED_ROOT}"
+    return None
 
 
 def _ssh_cmd(cmd: str) -> tuple[bool, str]:
     try:
         result = subprocess.run(
-            ["ssh", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=no", _WINDOWS_SSH, cmd],
+            ["ssh", "-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=accept-new",
+             _WINDOWS_SSH, cmd],
             capture_output=True, text=True, timeout=_SSH_TIMEOUT,
         )
         return result.returncode == 0, result.stdout
@@ -473,10 +489,14 @@ def _ssh_cmd(cmd: str) -> tuple[bool, str]:
 
 async def _remote_browse(request: Request) -> dict[str, Any]:
     node = request.query_params.get("node", "windows")
-    path = request.query_params.get("path", r"C:\dev\dev")
+    path = request.query_params.get("path", _WINDOWS_ALLOWED_ROOT)
     if node != "windows":
         return {"ok": False, "error": f"Unknown remote node: {node}"}
-    ok, output = _ssh_cmd(f'powershell -Command "Get-ChildItem -Path \'{path}\' | ForEach-Object {{ $_.Name + \'|\' + $(if($_.PSIsContainer){{\'directory\'}}else{{\'file\'}}) + \'|\' + $_.Length }}"')
+    err = _validate_windows_path(path)
+    if err:
+        return {"ok": False, "error": err, "source_env": "windows", "path": path}
+    safe_path = path.replace("'", "''")
+    ok, output = _ssh_cmd(f"powershell -Command \"Get-ChildItem -Path '{safe_path}' | ForEach-Object {{ $_.Name + '|' + $(if($_.PSIsContainer){{'directory'}}else{{'file'}}) + '|' + $_.Length }}\"")
     if not ok:
         return {"ok": False, "error": output[:500], "source_env": "windows", "path": path}
     entries = []
@@ -498,7 +518,11 @@ async def _remote_read_file(request: Request) -> dict[str, Any]:
         return {"ok": False, "error": "path required"}
     if node != "windows":
         return {"ok": False, "error": f"Unknown remote node: {node}"}
-    ok, output = _ssh_cmd(f'powershell -Command "Get-Content -Path \'{path}\' -Raw -ErrorAction Stop"')
+    err = _validate_windows_path(path)
+    if err:
+        return {"ok": False, "error": err, "path": path}
+    safe_path = path.replace("'", "''")
+    ok, output = _ssh_cmd(f"powershell -Command \"Get-Content -Path '{safe_path}' -Raw -ErrorAction Stop\"")
     if not ok:
         return {"ok": False, "error": output[:500], "path": path}
     return {"ok": True, "path": path, "content": output, "source_env": "windows"}
