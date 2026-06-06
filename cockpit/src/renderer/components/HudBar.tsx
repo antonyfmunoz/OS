@@ -55,8 +55,14 @@ function NodeMetricsStrip() {
         <span key={id} className="wv-label flex items-center gap-1" title={m.name}>
           <span className={clsx('w-1.5 h-1.5 rounded-full', m.status === 'online' ? 'bg-ok' : 'bg-danger')} />
           <span className="text-text-tertiary">{id}</span>
-          {m.cpu != null && <span className="text-cyan">{m.cpu.toFixed(0)}%</span>}
-          {m.memory != null && <span className="text-cyan">{m.memory.toFixed(0)}%</span>}
+          {m.status === 'online' ? (
+            <>
+              {m.cpu != null && <span className="text-cyan">{m.cpu.toFixed(0)}%</span>}
+              {m.memory != null && <span className="text-cyan">{m.memory.toFixed(0)}%</span>}
+            </>
+          ) : (
+            <span className="text-text-tertiary">--</span>
+          )}
         </span>
       ))}
     </>
