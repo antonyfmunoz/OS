@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Compass } from 'lucide-react'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { ROUTES, ROUTE_GROUPS } from '../types/routes'
 
@@ -16,9 +16,15 @@ export function LeftRail() {
         railCollapsed ? 'w-[var(--spacing-rail-collapsed)]' : 'w-[var(--spacing-rail)]',
       )}
     >
-      {/* Collapse toggle — matches RightRail h-9 */}
-      <div className="flex items-center justify-end px-2 h-9 shrink-0 border-b border-border">
-        <button onClick={toggleRail} className="p-1 text-text-tertiary hover:text-cyan transition-colors">
+      {/* Header — matches RightRail h-9 style */}
+      <div className="flex items-center border-b border-border px-2 h-9 shrink-0">
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <Compass size={12} className="text-cyan shrink-0" />
+          {!railCollapsed && (
+            <span className="text-[10px] font-mono text-cyan uppercase tracking-wider truncate">Navigation</span>
+          )}
+        </div>
+        <button onClick={toggleRail} className="p-1 text-text-tertiary hover:text-cyan transition-colors shrink-0">
           {railCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
       </div>
