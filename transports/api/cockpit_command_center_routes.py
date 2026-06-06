@@ -489,17 +489,31 @@ async def _summary(request: Request) -> dict[str, Any]:
         }
 
     checkpoint_path = os.path.join(_DATA_ROOT, "workstation_state", "latest_checkpoint.json")
+    checkpoint_detail: dict[str, Any] = {}
     continuity_state = "active"
     if os.path.exists(checkpoint_path):
         try:
             with open(checkpoint_path) as f:
-                cp = json.load(f)
-            continuity_state = cp.get("continuity_state", cp.get("new_continuity_state", "active"))
+                checkpoint_detail = json.load(f)
+            continuity_state = checkpoint_detail.get(
+                "continuity_state",
+                checkpoint_detail.get("new_continuity_state", "active"),
+            )
         except (json.JSONDecodeError, OSError):
             pass
 
     summary = {
         "ok": True,
+        "checkpoint": {
+            "last_checkpoint_id": checkpoint_detail.get("checkpoint_id", ""),
+            "continuity_state": continuity_state,
+            "lifecycle_mode": checkpoint_detail.get("lifecycle_mode", ""),
+            "active_node": checkpoint_detail.get("active_node", ""),
+            "active_environment": checkpoint_detail.get("active_environment", ""),
+            "open_loops": checkpoint_detail.get("open_loops", []),
+            "recommended_next_action": checkpoint_detail.get("recommended_next_action", ""),
+            "transition_reason": checkpoint_detail.get("transition_reason", ""),
+        },
         "what_is_happening": {
             "continuity_state": continuity_state,
             "active_agents": len(active_agents),
@@ -534,3 +548,92 @@ async def _summary(request: Request) -> dict[str, Any]:
         "node": os.uname().nodename,
     }
     return summary
+
+
+# ── Mutation routes (governance-gated) ────────────────────────────────
+
+
+@command_center_router.post("/approvals/{approval_id}/decide")
+async def _approval_decide(request: Request, approval_id: str) -> dict[str, Any]:
+    """Approve or deny a pending approval. Governance-gated."""
+    body = await request.json()
+    decision = body.get("decision", "")
+    if decision not in ("approved", "denied"):
+        return {"ok": False, "error": "decision must be 'approved' or 'denied'"}
+    decided_by = body.get("decided_by", "operator")
+
+    try:
+        from substrate.organism.approval_store import ApprovalStore
+        store = ApprovalStore()
+        result = store.decide(approval_id, decision, decided_by=decided_by)
+    except Exception as exc:
+        logger.warning("approval decide failed: %s", exc)
+        return {"ok": False, "error": str(exc)}
+
+    if result is None:
+        return {"ok": False, "error": f"approval {approval_id} not found"}
+
+    _log_journal_entry({
+        "event": "approval_decided",
+        "approval_id": approval_id,
+        "decision": decision,
+        "decided_by": decided_by,
+    })
+
+    return {"ok": True, "approval": result, "source_env": _detect_env()}
+
+
+@command_center_router.post("/work-packets/create")
+async def _work_packet_create(request: Request) -> dict[str, Any]:
+    """Create a work packet from a Jarvis command draft. Governance-gated."""
+    body = await request.json()
+    user_intent = body.get("user_intent", "")
+    if not user_intent:
+        return {"ok": False, "error": "user_intent is required"}
+
+    desired_end_state = body.get("desired_end_state", "")
+    constraints = body.get("constraints", [])
+    source_type = body.get("source_type", "jarvis_command")
+    source_id = body.get("source_id", "")
+
+    try:
+        from substrate.organism.work_packet_engine import WorkPacketEngine
+        from substrate.organism.work_packet import persist_packets, load_packets
+        engine = WorkPacketEngine()
+        packet = engine.create_packet_from_intent(
+            user_intent=user_intent,
+            desired_end_state=desired_end_state,
+            constraints=constraints,
+            source_type=source_type,
+            source_id=source_id,
+        )
+        all_packets = load_packets()
+        all_packets.append(packet)
+        persist_packets(all_packets)
+    except Exception as exc:
+        logger.warning("work packet create failed: %s", exc)
+        return {"ok": False, "error": str(exc)}
+
+    _log_journal_entry({
+        "event": "work_packet_created",
+        "packet_id": packet.packet_id,
+        "title": packet.title,
+        "risk_class": packet.risk_class,
+        "source_type": source_type,
+        "user_intent": user_intent[:200],
+    })
+
+    result = _label_environment(packet.to_safe_dict())
+    return {"ok": True, "packet": result, "source_env": _detect_env()}
+
+
+def _log_journal_entry(entry: dict[str, Any]) -> None:
+    """Append an entry to the execution journal."""
+    entry.setdefault("ts", datetime.now(timezone.utc).isoformat())
+    entry.setdefault("source", "command_center")
+    try:
+        os.makedirs(os.path.dirname(_JOURNAL_PATH), exist_ok=True)
+        with open(_JOURNAL_PATH, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+    except OSError as exc:
+        logger.warning("journal write failed: %s", exc)
