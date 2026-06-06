@@ -1,8 +1,24 @@
 import { Hono } from 'hono'
 import { execFileSync } from 'child_process'
+import { readFileSync } from 'fs'
 import os from 'os'
 import type { Env } from '../types.js'
 import { callOrganism } from '../lib/python_bridge.js'
+
+interface RegistryEntry {
+  tailscale_name: string
+  display_name: string
+  role?: string
+}
+
+function loadDeviceRegistry(): RegistryEntry[] {
+  const root = process.env.UMH_ROOT ?? '/opt/OS'
+  try {
+    return JSON.parse(readFileSync(`${root}/infra/device_registry.json`, 'utf-8'))
+  } catch {
+    return []
+  }
+}
 
 const router = new Hono<Env>()
 
@@ -72,30 +88,29 @@ router.get('/pulse', async (c) => {
 })
 
 router.get('/mesh/nodes', (c) => {
+  const registry = loadDeviceRegistry()
+  const nameMap: Record<string, string> = {}
+  const roleMap: Record<string, string> = {}
+  for (const dev of registry) {
+    if (dev.tailscale_name && dev.display_name) nameMap[dev.tailscale_name] = dev.display_name
+    if (dev.tailscale_name && dev.role) roleMap[dev.tailscale_name] = dev.role
+  }
+
   const raw = safeExecFile('tailscale', ['status', '--json'])
   if (!raw.startsWith('{')) {
+    const vps = registry.find(d => (d as Record<string, unknown>).id === 'vps') as Record<string, unknown> | undefined
     return c.json([{
       node_id: 'vps-primary',
-      hostname: os.hostname(),
-      role: 'orchestrator',
+      hostname: vps?.display_name ?? os.hostname(),
+      role: vps?.role ?? 'orchestrator',
       status: 'online',
       os: 'linux',
-      ip: '',
+      ip: vps?.tailscale_ip ?? '',
       last_seen: new Date().toISOString(),
     }])
   }
 
   const ts = JSON.parse(raw)
-
-  const roleMap: Record<string, string> = {
-    'srv1500858': 'orchestrator',
-    'desktop-lvguiq9': 'gpu-workhorse',
-  }
-  const nameMap: Record<string, string> = {
-    'desktop-lvguiq9': 'Beast PC',
-    'ipad-pro-12-9-gen-5': 'iPad Pro',
-    'iphone-15-pro-max': 'iPhone 15 Pro Max',
-  }
 
   interface TsNode {
     HostName: string
