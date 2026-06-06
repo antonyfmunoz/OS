@@ -259,7 +259,7 @@ export function DashboardPanel() {
                     {meshNodes.map((n) => (
                       <div key={n.node_id} className="flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full ${n.status === 'online' ? 'bg-ok' : 'bg-danger'}`} />
-                        <span className="text-xs text-text-primary font-mono truncate flex-1">{n.hostname}</span>
+                        <span className="text-xs text-text-primary font-mono truncate flex-1">{n.name || n.hostname}</span>
                         <span className="text-[10px] text-text-tertiary">{n.role}</span>
                       </div>
                     ))}

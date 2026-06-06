@@ -15,6 +15,7 @@ interface PulseData {
 interface MeshNode {
   node_id: string
   hostname: string
+  name: string
   role: string
   status: string
   os: string
@@ -117,15 +118,19 @@ export const useSystemStore = create<SystemState>((set) => ({
   fetchMeshNodes: async () => {
     try {
       const raw = await fetchApi<Array<Record<string, unknown>>>('/mesh/nodes')
-      const nodes: MeshNode[] = raw.map((n) => ({
-        node_id: (n.node_id ?? n.id ?? '') as string,
-        hostname: (n.hostname ?? n.name ?? '') as string,
-        role: (n.role ?? 'node') as string,
-        status: String(n.status) === 'connected' || String(n.status) === 'online' ? 'online' : String(n.status),
-        os: (n.os ?? '') as string,
-        ip: (n.ip ?? '') as string,
-        last_seen: (n.last_seen ?? n.last_heartbeat ?? '') as string,
-      }))
+      const nodes: MeshNode[] = raw.map((n) => {
+        const hostname = (n.hostname ?? n.name ?? '') as string
+        return {
+          node_id: (n.node_id ?? n.id ?? '') as string,
+          hostname,
+          name: (n.name ?? hostname) as string,
+          role: (n.role ?? 'node') as string,
+          status: String(n.status) === 'connected' || String(n.status) === 'online' ? 'online' : String(n.status),
+          os: (n.os ?? '') as string,
+          ip: (n.ip ?? '') as string,
+          last_seen: (n.last_seen ?? n.last_heartbeat ?? '') as string,
+        }
+      })
       set({ meshNodes: nodes, error: null })
     } catch {
       set({ meshNodes: [] })

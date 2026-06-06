@@ -151,6 +151,15 @@ AGENTS_DIR = _ROOT / "agents"
 
 
 _DOCKER_SOCK = "/var/run/docker.sock"
+_DEVICE_REGISTRY_PATH = _ROOT / "infra" / "device_registry.json"
+
+
+def _load_device_registry() -> list[dict[str, Any]]:
+    try:
+        with open(_DEVICE_REGISTRY_PATH) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError, FileNotFoundError):
+        return []
 
 
 def _get_docker_containers() -> list[dict]:
@@ -312,9 +321,12 @@ def _ping_latency(ip: str) -> float | None:
 
 def _device_name(peer: dict) -> str:
     dns = peer.get("DNSName", "")
-    if dns:
-        return dns.split(".")[0].replace("-", " ").title()
-    return peer.get("HostName", "unknown")
+    hostname = dns.split(".")[0] if dns else peer.get("HostName", "unknown")
+    registry = _load_device_registry()
+    for dev in registry:
+        if dev.get("tailscale_name", "") == hostname:
+            return dev.get("display_name", hostname)
+    return hostname
 
 
 @router.get("/infra")
@@ -327,10 +339,13 @@ async def infra():
     network_nodes: list[dict] = []
     service_nodes: list[dict] = []
 
+    registry = _load_device_registry()
+    vps_entry = next((d for d in registry if d.get("id") == "vps"), {})
+    vps_display = vps_entry.get("display_name", "srv1500858 (VPS)")
     compute_nodes.append(
         {
             "id": "n-vps",
-            "name": "VPS Primary (Linux)",
+            "name": vps_display,
             "type": "compute",
             "status": "healthy",
             "metrics": {"cpu": cpu, "memory": mem.percent, "disk": disk.percent, "cost": 24},
@@ -791,10 +806,11 @@ async def mesh_nodes():
         "srv1500858": "orchestrator",
         "desktop-lvguiq9": "gpu-workhorse",
     }
+    _registry = _load_device_registry()
     _NAME_MAP = {
-        "desktop-lvguiq9": "Beast PC",
-        "ipad-pro-12-9-gen-5": "iPad Pro",
-        "iphone-15-pro-max": "iPhone 15 Pro Max",
+        dev["tailscale_name"]: dev["display_name"]
+        for dev in _registry
+        if "tailscale_name" in dev and "display_name" in dev
     }
 
     daemon_nodes: dict[str, dict] = {}
