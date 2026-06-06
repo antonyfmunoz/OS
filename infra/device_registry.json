@@ -5,7 +5,7 @@
     "device_type": "vps",
     "display_name": "srv1500858 (VPS)",
     "os": "linux",
-    "role": "server",
+    "role": "orchestrator",
     "tailscale_ip": "100.77.233.50",
     "always_online": true
   },
@@ -15,7 +15,7 @@
     "device_type": "pc",
     "display_name": "desktop-lvguiq9 (PC)",
     "os": "windows",
-    "role": "compute",
+    "role": "executor",
     "tailscale_ip": "100.74.199.102",
     "mesh_node_id": "windows-desktop"
   },
