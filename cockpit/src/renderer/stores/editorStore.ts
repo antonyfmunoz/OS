@@ -120,7 +120,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       if (res) { set({ fileTree: res }); return }
     } catch { /* IPC not available in web mode */ }
     try {
-      const data = await fetchApi<{ ok: boolean; entries: FileNode[] }>(`/workspace/browse?path=${encodeURIComponent(root)}`)
+      const qs = root ? `?path=${encodeURIComponent(root)}` : ''
+      const data = await fetchApi<{ ok: boolean; entries: FileNode[] }>(`/workspace/browse${qs}`)
       if (data.ok && data.entries) {
         set({ fileTree: data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type })) })
       }
