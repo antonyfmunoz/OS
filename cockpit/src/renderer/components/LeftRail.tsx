@@ -16,8 +16,8 @@ export function LeftRail() {
         railCollapsed ? 'w-[var(--spacing-rail-collapsed)]' : 'w-[var(--spacing-rail)]',
       )}
     >
-      {/* Collapse toggle */}
-      <div className="flex items-center justify-end px-3 py-3 border-b border-border">
+      {/* Collapse toggle — matches RightRail h-9 */}
+      <div className="flex items-center justify-end px-2 h-9 shrink-0 border-b border-border">
         <button onClick={toggleRail} className="p-1 text-text-tertiary hover:text-cyan transition-colors">
           {railCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>

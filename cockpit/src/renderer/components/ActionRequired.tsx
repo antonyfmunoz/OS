@@ -30,20 +30,7 @@ export function ActionRequired({ items, loading }: ActionRequiredProps) {
   if (loading) return null
 
   if (items.length === 0) {
-    return (
-      <div
-        className="flex items-center gap-2 px-3 py-2 rounded-md"
-        style={{ background: 'rgba(0,255,136,0.06)', border: '1px solid rgba(0,255,136,0.15)' }}
-      >
-        <span
-          className="w-2 h-2 rounded-full"
-          style={{ background: 'var(--color-ok)' }}
-        />
-        <span className="text-xs font-mono" style={{ color: 'var(--color-ok)' }}>
-          All clear
-        </span>
-      </div>
-    )
+    return null
   }
 
   return (
