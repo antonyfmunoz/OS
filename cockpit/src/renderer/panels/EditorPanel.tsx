@@ -4,6 +4,8 @@ import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { fetchApi } from '../api/client'
 
+type FileEntry = { name: string; path: string; type: 'file' | 'directory' }
+
 interface FileNodeProps {
   name: string
   path: string
@@ -12,10 +14,10 @@ interface FileNodeProps {
   node?: string
 }
 
-async function browseDir(path: string, node?: string): Promise<{ name: string; path: string; type: 'file' | 'directory' }[]> {
+async function browseDir(path: string, node?: string): Promise<FileEntry[]> {
   if (node === 'windows') {
     try {
-      const data = await fetchApi<{ ok: boolean; entries: { name: string; path: string; type: 'file' | 'directory' }[] }>(
+      const data = await fetchApi<{ ok: boolean; entries: FileEntry[] }>(
         `/workspace/remote-browse?node=windows&path=${encodeURIComponent(path)}`,
       )
       if (data.ok && data.entries) return data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type }))
@@ -27,20 +29,51 @@ async function browseDir(path: string, node?: string): Promise<{ name: string; p
     if (res) return res
   } catch { /* IPC unavailable */ }
   try {
-    const data = await fetchApi<{ ok: boolean; entries: { name: string; path: string; type: 'file' | 'directory' }[] }>(
-      `/workspace/browse?path=${encodeURIComponent(path)}`,
-    )
+    const qs = path ? `?path=${encodeURIComponent(path)}` : ''
+    const data = await fetchApi<{ ok: boolean; entries: FileEntry[] }>(`/workspace/browse${qs}`)
     if (data.ok && data.entries) return data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type }))
   } catch { /* API fallback failed */ }
   return []
+}
+
+function detectLang(name: string): string {
+  const ext = name.split('.').pop()?.toLowerCase() || ''
+  const map: Record<string, string> = {
+    ts: 'typescript', tsx: 'typescriptreact', js: 'javascript', jsx: 'javascriptreact',
+    py: 'python', md: 'markdown', json: 'json', css: 'css', html: 'html',
+    yaml: 'yaml', yml: 'yaml', toml: 'toml', sql: 'sql', sh: 'shellscript',
+    rs: 'rust', go: 'go', rb: 'ruby', java: 'java', c: 'c', cpp: 'cpp',
+    ps1: 'powershell', bat: 'bat', cmd: 'bat', xml: 'xml', txt: 'plaintext',
+  }
+  return map[ext] || 'plaintext'
+}
+
+async function readFileContent(path: string, node?: string): Promise<{ content: string; name: string } | null> {
+  const sep = node === 'windows' ? '\\' : '/'
+  const fname = path.split(sep).pop() || path
+  if (node === 'windows') {
+    try {
+      const data = await fetchApi<{ ok: boolean; content: string }>(`/workspace/remote-read-file?node=windows&path=${encodeURIComponent(path)}`)
+      if (data.ok && data.content !== undefined) return { content: data.content, name: fname }
+    } catch { /* remote read failed */ }
+    return null
+  }
+  try {
+    const content = await window.cockpit?.readFile?.(path)
+    if (content !== undefined) return { content, name: fname }
+  } catch { /* IPC unavailable */ }
+  try {
+    const data = await fetchApi<{ ok: boolean; content: string }>(`/workspace/read-file?path=${encodeURIComponent(path)}`)
+    if (data.ok && data.content !== undefined) return { content: data.content, name: fname }
+  } catch { /* API fallback failed */ }
+  return null
 }
 
 interface MeshNode { id: string; name: string; os: string; status: string; ip: string }
 
 function FileTreeNode({ name, path, type, depth, node }: FileNodeProps) {
   const [expanded, setExpanded] = useState(false)
-  const [children, setChildren] = useState<{ name: string; path: string; type: 'file' | 'directory' }[]>([])
-  const fetchFileContent = useEditorStore((s) => s.fetchFileContent)
+  const [children, setChildren] = useState<FileEntry[]>([])
 
   const handleClick = async () => {
     if (type === 'directory') {
@@ -49,16 +82,12 @@ function FileTreeNode({ name, path, type, depth, node }: FileNodeProps) {
       }
       setExpanded(!expanded)
     } else {
-      if (node === 'windows') {
-        try {
-          const data = await fetchApi<{ ok: boolean; content: string }>(`/workspace/remote-read-file?node=windows&path=${encodeURIComponent(path)}`)
-          if (data.ok) {
-            const fname = path.split('\\').pop() || path
-            useEditorStore.getState().openFile({ path, name: fname, content: data.content, language: 'plaintext', dirty: false })
-          }
-        } catch { /* remote read failed */ }
-      } else {
-        fetchFileContent(path)
+      const result = await readFileContent(path, node)
+      if (result) {
+        useEditorStore.getState().openFile({
+          path, name: result.name, content: result.content,
+          language: detectLang(result.name), dirty: false,
+        })
       }
     }
   }
@@ -92,7 +121,6 @@ function FileTreeNode({ name, path, type, depth, node }: FileNodeProps) {
 }
 
 export function EditorPanel() {
-  const fileTree = useEditorStore((s) => s.fileTree)
   const openFiles = useEditorStore((s) => s.openFiles)
   const activeFile = useEditorStore((s) => s.activeFile)
   const showTerminal = useEditorStore((s) => s.showTerminal)
@@ -101,7 +129,6 @@ export function EditorPanel() {
   const closeFile = useEditorStore((s) => s.closeFile)
   const updateContent = useEditorStore((s) => s.updateContent)
   const saveFile = useEditorStore((s) => s.saveFile)
-  const fetchFileTree = useEditorStore((s) => s.fetchFileTree)
   const toggleTerminal = useEditorStore((s) => s.toggleTerminal)
   const togglePreview = useEditorStore((s) => s.togglePreview)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -122,13 +149,15 @@ export function EditorPanel() {
   const [ccTarget, setCcTarget] = useState('')
   const [capturedOutput, setCapturedOutput] = useState('')
   const [meshNodes, setMeshNodes] = useState<MeshNode[]>([])
-  const [windowsTree, setWindowsTree] = useState<{ name: string; path: string; type: 'file' | 'directory' }[]>([])
+  const [vpsTree, setVpsTree] = useState<FileEntry[]>([])
+  const [windowsTree, setWindowsTree] = useState<FileEntry[]>([])
   const [vpsExpanded, setVpsExpanded] = useState(true)
   const [windowsExpanded, setWindowsExpanded] = useState(true)
 
   useEffect(() => {
-    fetchFileTree()
-  }, [fetchFileTree])
+    browseDir('').then((entries) => { if (entries.length) setVpsTree(entries) })
+    browseDir('C:\\', 'windows').then((entries) => { if (entries.length) setWindowsTree(entries) })
+  }, [])
 
   useEffect(() => {
     fetchGitStatus()
@@ -139,14 +168,7 @@ export function EditorPanel() {
         if (data.ok && data.nodes) setMeshNodes(data.nodes)
       } catch { /* silent */ }
     }
-    const fetchWin = async () => {
-      try {
-        const data = await fetchApi<{ ok: boolean; entries: { name: string; path: string; type: 'file' | 'directory' }[] }>('/workspace/remote-browse?node=windows&path=C%3A%5C')
-        if (data.ok && data.entries) setWindowsTree(data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type })))
-      } catch { /* silent */ }
-    }
     fetchMesh()
-    fetchWin()
     const id = setInterval(() => { fetchGitStatus(); fetchSessions(); fetchMesh() }, 15000)
     return () => clearInterval(id)
   }, [fetchGitStatus, fetchSessions])
@@ -221,10 +243,10 @@ export function EditorPanel() {
               </button>
               {vpsExpanded && (
                 <>
-                  {fileTree.map((f) => (
+                  {vpsTree.map((f) => (
                     <FileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} />
                   ))}
-                  {fileTree.length === 0 && (
+                  {vpsTree.length === 0 && (
                     <p className="text-xs px-3 py-2 text-center text-text-tertiary">Loading...</p>
                   )}
                 </>
@@ -245,7 +267,7 @@ export function EditorPanel() {
                         <FileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" />
                       ))}
                       {windowsTree.length === 0 && (
-                        <p className="text-xs px-3 py-2 text-center text-text-tertiary">Loading Windows files...</p>
+                        <p className="text-xs px-3 py-2 text-center text-text-tertiary">Loading Beast PC files...</p>
                       )}
                     </>
                   )}
