@@ -30,6 +30,7 @@ export type Panel =
   | 'runtime'
   | 'tmux'
   | 'workspace'
+  | 'commandcenter'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

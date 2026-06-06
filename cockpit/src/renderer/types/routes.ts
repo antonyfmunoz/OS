@@ -39,7 +39,8 @@ export interface RouteEntry {
 
 export const ROUTES: RouteEntry[] = [
   { id: 'operator', label: 'Operator', icon: Mic, group: 'core', key: 'd' },
-  { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, group: 'core', key: '1' },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'core', key: '1' },
+  { id: 'commandcenter', label: 'Command Center', icon: Target, group: 'core', key: 'q' },
   { id: 'agents', label: 'Agents', icon: Bot, group: 'core', key: '2' },
   { id: 'tasks', label: 'Tasks', icon: ListChecks, group: 'core', key: '3' },
   { id: 'workflows', label: 'Workflows', icon: Workflow, group: 'core', key: 'w' },
