@@ -145,8 +145,6 @@ export function EditorPanel() {
           </div>
           <div className="flex items-center gap-1 text-[9px] font-mono text-text-tertiary">
             <span className="text-ok">●</span> VPS
-            <span className="text-text-tertiary mx-1">·</span>
-            <span className="text-text-tertiary">● Windows: disconnected</span>
           </div>
         </div>
         <div className="flex items-center border-b border-border">
@@ -329,19 +327,8 @@ export function EditorPanel() {
               </div>
             )}
 
-            {/* Terminal */}
-            {showTerminal && (
-              <div className="h-48 shrink-0 overflow-y-auto p-3 font-mono text-xs border-t border-border bg-canvas text-text-secondary">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="wv-label">Terminal</span>
-                  <span className="text-text-tertiary">·</span>
-                  <span className="text-ok">●</span>
-                  <span className="text-text-tertiary">bash</span>
-                </div>
-                <p className="text-text-tertiary">Terminal integration via xterm.js + node-pty coming in Phase 5.</p>
-                <p className="text-text-tertiary">$ <span className="text-cyan">_</span></p>
-              </div>
-            )}
+            {/* Terminal — tmux bridge */}
+            {showTerminal && <TerminalSection />}
           </div>
 
           {/* Right sidebar: Preview or Provider Registry */}
@@ -351,6 +338,74 @@ export function EditorPanel() {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function TerminalSection() {
+  const [cmd, setCmd] = useState('')
+  const [output, setOutput] = useState<string[]>([])
+  const [sending, setSending] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight) }, [output])
+
+  const send = async () => {
+    const text = cmd.trim()
+    if (!text) return
+    setOutput((p) => [...p, `$ ${text}`])
+    setCmd('')
+    setSending(true)
+    try {
+      const res = await fetchApi<{ ok?: boolean; output?: string; error?: string }>('/tmux/send', {
+        method: 'POST',
+        body: JSON.stringify({ session_name: 'main', text }),
+      })
+      if (res.error) {
+        setOutput((p) => [...p, `err: ${res.error}`])
+      } else {
+        await new Promise((r) => setTimeout(r, 1500))
+        try {
+          const cap = await fetchApi<{ output?: string; content?: string }>('/claude-session/capture', {
+            method: 'POST',
+            body: JSON.stringify({ session_name: 'main' }),
+          })
+          const out = cap.output || cap.content || '(no output captured)'
+          setOutput((p) => [...p, out])
+        } catch { setOutput((p) => [...p, '(capture failed)']) }
+      }
+    } catch (e) {
+      setOutput((p) => [...p, `err: ${e instanceof Error ? e.message : 'send failed'}`])
+    }
+    setSending(false)
+  }
+
+  return (
+    <div className="h-48 shrink-0 flex flex-col border-t border-border bg-canvas">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 font-mono text-[10px] text-text-secondary">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="wv-label">Terminal</span>
+          <span className="text-text-tertiary text-[9px]">tmux bridge</span>
+        </div>
+        {output.length === 0 && <p className="text-text-tertiary">Commands run via governed tmux bridge</p>}
+        {output.map((line, i) => (
+          <pre key={i} className={`whitespace-pre-wrap ${line.startsWith('$') ? 'text-cyan' : line.startsWith('err:') ? 'text-danger' : ''}`}>{line}</pre>
+        ))}
+      </div>
+      <div className="flex items-center gap-1 px-3 py-1.5 border-t border-border">
+        <span className="text-cyan text-[10px] font-mono">$</span>
+        <input
+          value={cmd}
+          onChange={(e) => setCmd(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+          placeholder="command..."
+          disabled={sending}
+          className="flex-1 text-[10px] font-mono px-1.5 py-0.5 bg-surface-raised text-text-primary border border-border rounded outline-none placeholder:text-text-tertiary"
+        />
+        <button onClick={send} disabled={sending || !cmd.trim()} className="text-[10px] font-mono px-2 py-0.5 text-cyan border border-border rounded hover:bg-cyan/10 disabled:opacity-30">
+          {sending ? '...' : 'Run'}
+        </button>
       </div>
     </div>
   )
