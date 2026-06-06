@@ -24,10 +24,13 @@ export interface ViewContext {
 
 interface ViewContextState {
   context: ViewContext
+  drawerOpen: boolean
   setContext: (ctx: Partial<ViewContext>) => void
   setRoute: (route: Panel) => void
   selectObject: (type: string, id: string, summary?: string) => void
   clearSelection: () => void
+  openDrawer: (type: string, id: string, summary?: string) => void
+  closeDrawer: () => void
 }
 
 export const useViewContextStore = create<ViewContextState>((set) => ({
@@ -35,6 +38,7 @@ export const useViewContextStore = create<ViewContextState>((set) => ({
     active_route: 'commandcenter',
     active_surface: 'main',
   },
+  drawerOpen: false,
   setContext: (ctx) =>
     set((s) => ({ context: { ...s.context, ...ctx } })),
   setRoute: (route) =>
@@ -64,5 +68,19 @@ export const useViewContextStore = create<ViewContextState>((set) => ({
         selected_object_id: undefined,
         selected_object_summary: undefined,
       },
+    })),
+  openDrawer: (type, id, summary) =>
+    set((s) => ({
+      drawerOpen: true,
+      context: {
+        ...s.context,
+        selected_object_type: type,
+        selected_object_id: id,
+        selected_object_summary: summary,
+      },
+    })),
+  closeDrawer: () =>
+    set(() => ({
+      drawerOpen: false,
     })),
 }))
