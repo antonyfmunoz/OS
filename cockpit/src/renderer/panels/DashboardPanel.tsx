@@ -144,7 +144,7 @@ export function DashboardPanel() {
                     <span className={`w-2 h-2 rounded-full ${r.status === 'available' ? 'bg-ok' : r.status === 'degraded' ? 'bg-warn' : 'bg-danger'}`} />
                     <span className="text-xs text-text-primary font-mono flex-1 truncate">{r.runtime_id}</span>
                     <span className="text-[10px] text-text-tertiary">{r.runtime_class}</span>
-                    <span className="text-[10px] text-text-secondary font-mono">{r.reliability.avg_latency_ms.toFixed(0)}ms</span>
+                    <span className="text-[10px] text-text-secondary font-mono">{(r.reliability?.avg_latency_ms ?? 0).toFixed(0)}ms</span>
                   </div>
                 )) : models.length > 0 ? models.map((m) => (
                   <div key={m.id} className="flex items-center gap-2">
@@ -308,7 +308,7 @@ export function DashboardPanel() {
                     <div key={i} className="flex items-center gap-2 py-0.5">
                       <span className={`w-1.5 h-1.5 rounded-full ${o.success ? 'bg-ok' : 'bg-danger'}`} />
                       <span className="text-[11px] text-text-primary truncate flex-1">{o.workload_type}</span>
-                      <span className="text-[10px] text-text-tertiary font-mono">{o.duration_seconds.toFixed(1)}s</span>
+                      <span className="text-[10px] text-text-tertiary font-mono">{(o.duration_seconds ?? 0).toFixed(1)}s</span>
                     </div>
                   ))}
                 </div>

@@ -101,8 +101,8 @@ export function TopologyMap() {
       id: 'execution_mode',
       label: 'Execution Mode',
       type: 'governance',
-      status: executionMode.reliability > 0.8 ? 'healthy' : 'degraded',
-      detail: `${executionMode.current_mode} · ${(executionMode.reliability * 100).toFixed(0)}% reliable`,
+      status: (executionMode.reliability ?? 0) > 0.8 ? 'healthy' : 'degraded',
+      detail: `${executionMode.current_mode ?? 'unknown'} · ${((executionMode.reliability ?? 0) * 100).toFixed(0)}% reliable`,
     })
   }
 
@@ -114,7 +114,7 @@ export function TopologyMap() {
         label: r.runtime_id,
         type: 'runtime',
         status: r.status,
-        detail: `${r.runtime_class} · ${(r.reliability.success_rate * 100).toFixed(0)}% · ${r.reliability.avg_latency_ms.toFixed(0)}ms`,
+        detail: `${r.runtime_class} · ${((r.reliability?.success_rate ?? 0) * 100).toFixed(0)}% · ${(r.reliability?.avg_latency_ms ?? 0).toFixed(0)}ms`,
       })
     })
   }

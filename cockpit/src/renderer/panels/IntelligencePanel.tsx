@@ -180,11 +180,11 @@ export function IntelligencePanel() {
                     <p className="text-xs text-text-secondary mt-0.5">{opp.impact_description}</p>
                     <div className="flex items-center gap-3 mt-1.5">
                       <span className="font-mono text-xs text-text-tertiary">
-                        Impact: {(opp.impact_score * 100).toFixed(0)}%
+                        Impact: {((opp.impact_score ?? 0) * 100).toFixed(0)}%
                       </span>
-                      <ConfidenceDot value={opp.confidence} />
+                      <ConfidenceDot value={opp.confidence ?? 0} />
                       <span className="font-mono text-xs text-text-tertiary">
-                        {(opp.confidence * 100).toFixed(0)}% confidence
+                        {((opp.confidence ?? 0) * 100).toFixed(0)}% confidence
                       </span>
                     </div>
                     {opp.evidence?.length > 0 && (
@@ -505,7 +505,7 @@ export function IntelligencePanel() {
                   <span className="text-sm font-mono">{tpl.template_type.replace(/_/g, ' ')}</span>
                 </div>
                 <ConfidenceDot value={tpl.confidence} />
-                <span className="font-mono text-xs text-text-tertiary">{(tpl.confidence * 100).toFixed(0)}%</span>
+                <span className="font-mono text-xs text-text-tertiary">{((tpl.confidence ?? 0) * 100).toFixed(0)}%</span>
                 <span className="font-mono text-xs text-text-tertiary">
                   {tpl.observed_success_count}✓ {tpl.observed_failure_count}✗
                 </span>
@@ -530,7 +530,7 @@ export function IntelligencePanel() {
               <div key={tpl.template_id} className="flex items-center gap-2 py-0.5">
                 <TemplateStatusBadge status="promoted" />
                 <span className="text-xs font-mono">{tpl.template_type.replace(/_/g, ' ')}</span>
-                <span className="text-xs text-ok font-mono">{(tpl.confidence * 100).toFixed(0)}%</span>
+                <span className="text-xs text-ok font-mono">{((tpl.confidence ?? 0) * 100).toFixed(0)}%</span>
               </div>
             ))}
           </div>
@@ -553,8 +553,8 @@ export function IntelligencePanel() {
               <div key={agentType} className="wv-card p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-mono">{agentType.replace(/_/g, ' ')}</span>
-                  <span className={`font-mono text-xs ${profile.overall_reliability >= 0.8 ? 'text-ok' : profile.overall_reliability >= 0.5 ? 'text-warn' : 'text-danger'}`}>
-                    {(profile.overall_reliability * 100).toFixed(0)}% reliable
+                  <span className={`font-mono text-xs ${(profile.overall_reliability ?? 0) >= 0.8 ? 'text-ok' : (profile.overall_reliability ?? 0) >= 0.5 ? 'text-warn' : 'text-danger'}`}>
+                    {((profile.overall_reliability ?? 0) * 100).toFixed(0)}% reliable
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-1">

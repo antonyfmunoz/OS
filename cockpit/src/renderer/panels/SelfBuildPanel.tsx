@@ -147,7 +147,7 @@ export function SelfBuildPanel() {
             <div className="border border-border rounded p-3 bg-surface-secondary">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-medium text-text-primary">{summary.next_best.title}</span>
-                <span className="text-xs text-cyan">{summary.next_best.weighted_score.toFixed(4)}</span>
+                <span className="text-xs text-cyan">{(summary.next_best.weighted_score ?? 0).toFixed(4)}</span>
               </div>
               <div className="flex gap-3 text-xs text-text-secondary">
                 <span>Phase {summary.next_best.roadmap_phase || '—'}</span>
@@ -179,7 +179,7 @@ export function SelfBuildPanel() {
                   <tr key={item.work_item_id} className="border-t border-border hover:bg-surface-secondary">
                     <td className={`px-2 py-1 ${STATUS_COLOR[item.status] || ''}`}>{item.status}</td>
                     <td className="px-2 py-1 text-text-primary truncate max-w-[200px]">{item.title}</td>
-                    <td className="px-2 py-1 text-right text-cyan">{item.weighted_score.toFixed(3)}</td>
+                    <td className="px-2 py-1 text-right text-cyan">{(item.weighted_score ?? 0).toFixed(3)}</td>
                     <td className={`px-2 py-1 ${RISK_COLOR[item.risk_class] || ''}`}>{item.risk_class}</td>
                     <td className="px-2 py-1 text-text-secondary">{item.source_type.replace(/_/g, ' ')}</td>
                     <td className="px-2 py-1 text-text-secondary">{item.roadmap_phase || '—'}</td>
