@@ -149,14 +149,14 @@ export function OrganismPanel() {
             <h3 className="wv-label mb-2">Leverage</h3>
             {leverage ? (
               <div className="grid grid-cols-2 gap-2">
-                <LeverageStat label="Tasks" value={`${leverage.totals.tasks}`} />
-                <LeverageStat label="Autonomous" value={`${leverage.totals.autonomous_resolutions}`} />
+                <LeverageStat label="Tasks" value={`${leverage.totals?.tasks ?? 0}`} />
+                <LeverageStat label="Autonomous" value={`${leverage.totals?.autonomous_resolutions ?? 0}`} />
                 <LeverageStat label="Time Saved" value={`${timeSaved.toFixed(1)}h`} />
                 <LeverageStat label="Composite" value={leverageRatio.toFixed(2)} />
-                <LeverageStat label="Reliability" value={`${(leverage.dimensions.operational_reliability * 100).toFixed(0)}%`} />
-                <LeverageStat label="Autonomy" value={`${(leverage.dimensions.execution_autonomy * 100).toFixed(0)}%`} />
-                <LeverageStat label="Cognitive" value={`${(leverage.dimensions.cognitive_compression * 100).toFixed(0)}%`} />
-                <LeverageStat label="Recovery" value={`${(leverage.dimensions.failure_recovery_speed * 100).toFixed(0)}%`} />
+                <LeverageStat label="Reliability" value={`${((leverage.dimensions?.operational_reliability ?? 0) * 100).toFixed(0)}%`} />
+                <LeverageStat label="Autonomy" value={`${((leverage.dimensions?.execution_autonomy ?? 0) * 100).toFixed(0)}%`} />
+                <LeverageStat label="Cognitive" value={`${((leverage.dimensions?.cognitive_compression ?? 0) * 100).toFixed(0)}%`} />
+                <LeverageStat label="Recovery" value={`${((leverage.dimensions?.failure_recovery_speed ?? 0) * 100).toFixed(0)}%`} />
               </div>
             ) : (
               <p className="text-xs text-text-tertiary">No leverage data</p>
@@ -196,7 +196,7 @@ export function OrganismPanel() {
                   <div key={i} className="flex items-center gap-2 py-0.5">
                     <span className={`w-1.5 h-1.5 rounded-full ${o.success ? 'bg-ok' : 'bg-danger'}`} />
                     <span className="text-[11px] text-text-primary truncate flex-1">{o.workload_type}</span>
-                    <span className="text-[10px] text-text-tertiary font-mono">{o.duration_seconds.toFixed(1)}s</span>
+                    <span className="text-[10px] text-text-tertiary font-mono">{(o.duration_seconds ?? 0).toFixed(1)}s</span>
                   </div>
                 ))}
               </div>

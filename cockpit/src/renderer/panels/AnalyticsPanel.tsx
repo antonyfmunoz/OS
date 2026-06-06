@@ -68,7 +68,7 @@ export function AnalyticsPanel() {
             value={data.error_rate * 100}
             max={100}
             size={80}
-            label={`${(data.error_rate * 100).toFixed(1)}%`}
+            label={`${((data.error_rate ?? 0) * 100).toFixed(1)}%`}
           />
         </div>
         <div className="wv-card px-4 py-3">
@@ -80,7 +80,7 @@ export function AnalyticsPanel() {
         </div>
         <div className="wv-card px-4 py-3">
           <p className="wv-label mb-2">30d Cost</p>
-          <p className="text-2xl font-mono text-ok">${data.total_cost_30d.toFixed(2)}</p>
+          <p className="text-2xl font-mono text-ok">${(data.total_cost_30d ?? 0).toFixed(2)}</p>
         </div>
         <div className="wv-card px-4 py-3">
           <p className="wv-label mb-2">Daily Traces</p>
@@ -110,8 +110,8 @@ export function AnalyticsPanel() {
             <div key={m.model} className="flex items-center gap-3 px-3 py-2 rounded bg-surface">
               <span className="text-sm flex-1">{m.model}</span>
               <span className="font-mono text-xs text-cyan">{m.calls} calls</span>
-              <span className="font-mono text-xs text-text-tertiary">{(m.tokens / 1000).toFixed(0)}k tokens</span>
-              <span className="font-mono text-xs text-ok">${m.cost.toFixed(2)}</span>
+              <span className="font-mono text-xs text-text-tertiary">{((m.tokens ?? 0) / 1000).toFixed(0)}k tokens</span>
+              <span className="font-mono text-xs text-ok">${(m.cost ?? 0).toFixed(2)}</span>
             </div>
           ))}
         </div>

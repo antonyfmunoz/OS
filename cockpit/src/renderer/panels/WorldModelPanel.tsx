@@ -76,8 +76,8 @@ function WorldTab() {
         <Stat label="Domains" value={status.canonical.domains.length} />
         <Stat
           label="Avg Confidence"
-          value={`${(status.canonical.avg_confidence * 100).toFixed(0)}%`}
-          color={status.canonical.avg_confidence >= 0.5 ? 'ok' : 'warn'}
+          value={`${((status.canonical?.avg_confidence ?? 0) * 100).toFixed(0)}%`}
+          color={(status.canonical?.avg_confidence ?? 0) >= 0.5 ? 'ok' : 'warn'}
         />
       </div>
 
@@ -117,8 +117,8 @@ function WorldTab() {
                   onClick={() => fetchPatternDetail(p.name)}
                   className="flex items-center gap-2 py-1 px-2 rounded hover:bg-surface-overlay cursor-pointer"
                 >
-                  <span className={`text-[10px] font-mono w-10 text-right ${CONFIDENCE_COLORS(p.effective_confidence)}`}>
-                    {(p.effective_confidence * 100).toFixed(0)}%
+                  <span className={`text-[10px] font-mono w-10 text-right ${CONFIDENCE_COLORS(p.effective_confidence ?? 0)}`}>
+                    {((p.effective_confidence ?? 0) * 100).toFixed(0)}%
                   </span>
                   <span className="text-xs text-text-primary flex-1 truncate">{p.name}</span>
                   <span className="text-[10px] text-text-tertiary">{p.evidence_count} ev</span>
@@ -142,8 +142,8 @@ function WorldTab() {
         <section className="wv-card p-3 border border-cyan/30">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-cyan">{selectedPattern.name}</span>
-            <span className={`text-[10px] font-mono ${CONFIDENCE_COLORS(selectedPattern.effective_confidence)}`}>
-              {(selectedPattern.effective_confidence * 100).toFixed(0)}% confidence
+            <span className={`text-[10px] font-mono ${CONFIDENCE_COLORS(selectedPattern.effective_confidence ?? 0)}`}>
+              {((selectedPattern.effective_confidence ?? 0) * 100).toFixed(0)}% confidence
             </span>
           </div>
           <p className="text-xs text-text-secondary mb-2">{selectedPattern.description}</p>
@@ -168,7 +168,7 @@ function WorldTab() {
                   <div key={i} className="flex items-center gap-2 text-[10px] font-mono">
                     <span className="text-text-primary">{r.name}</span>
                     <span className="text-text-tertiary">{r.type}</span>
-                    <span className="text-cyan">{(r.strength * 100).toFixed(0)}%</span>
+                    <span className="text-cyan">{((r.strength ?? 0) * 100).toFixed(0)}%</span>
                   </div>
                 ))}
               </div>
@@ -201,7 +201,7 @@ function GraphTab() {
       <div className="grid grid-cols-3 gap-2">
         <Stat label="Patterns" value={status.canonical.pattern_count} />
         <Stat label="Relationships" value={status.canonical.relationship_count} />
-        <Stat label="Avg Evidence" value={status.canonical.avg_evidence_count.toFixed(1)} />
+        <Stat label="Avg Evidence" value={(status.canonical?.avg_evidence_count ?? 0).toFixed(1)} />
       </div>
 
       <section>
@@ -238,8 +238,8 @@ function GraphTab() {
                   <span className="text-text-tertiary">&rarr;</span>
                   <span className="text-text-primary">{r.name}</span>
                   <span className="text-text-tertiary ml-auto">{r.type}</span>
-                  <span className={`text-[9px] ${r.strength >= 0.7 ? 'text-cyan' : 'text-text-tertiary'}`}>
-                    {(r.strength * 100).toFixed(0)}%
+                  <span className={`text-[9px] ${(r.strength ?? 0) >= 0.7 ? 'text-cyan' : 'text-text-tertiary'}`}>
+                    {((r.strength ?? 0) * 100).toFixed(0)}%
                   </span>
                 </div>
               ))}
@@ -291,8 +291,8 @@ function SearchTab() {
             {searchResults.map((r) => (
               <div key={r.id} className="wv-card p-2">
                 <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-mono ${CONFIDENCE_COLORS(r.effective_confidence)}`}>
-                    {(r.effective_confidence * 100).toFixed(0)}%
+                  <span className={`text-[10px] font-mono ${CONFIDENCE_COLORS(r.effective_confidence ?? 0)}`}>
+                    {((r.effective_confidence ?? 0) * 100).toFixed(0)}%
                   </span>
                   <span className="text-xs text-text-primary flex-1">{r.name || r.content}</span>
                   <span className="text-[10px] text-text-tertiary">{r.domain}</span>
@@ -367,8 +367,8 @@ function SimulateTab() {
             </div>
             <div className="grid grid-cols-4 gap-2 text-[10px] text-text-tertiary">
               <span>{simulation.step_count} steps</span>
-              <span>{(simulation.overall_confidence * 100).toFixed(0)}% confidence</span>
-              <span>{simulation.duration_ms.toFixed(0)}ms</span>
+              <span>{((simulation.overall_confidence ?? 0) * 100).toFixed(0)}% confidence</span>
+              <span>{(simulation.duration_ms ?? 0).toFixed(0)}ms</span>
               <span>{simulation.predicted_outcome}</span>
             </div>
           </div>
@@ -411,7 +411,7 @@ function SimulateTab() {
                     </span>
                     {simulation.ai_risk_analysis.confidence != null && (
                       <span className="text-[10px] text-text-tertiary">
-                        {((simulation.ai_risk_analysis.confidence as number) * 100).toFixed(0)}% conf
+                        {(((simulation.ai_risk_analysis.confidence as number) ?? 0) * 100).toFixed(0)}% conf
                       </span>
                     )}
                   </div>
