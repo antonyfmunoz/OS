@@ -43,7 +43,6 @@ import ipaddress as _ipaddress
 
 _TAILSCALE_CGNAT = _ipaddress.ip_network("100.64.0.0/10")
 
-
 def _is_private_ip(ip: str) -> bool:
     if not ip:
         return False
@@ -53,12 +52,10 @@ def _is_private_ip(ip: str) -> bool:
     except ValueError:
         return False
 
-
 _TRUSTED_PROXIES = {"127.0.0.1", "::1"}
 _docker_bridge = os.environ.get("UMH_DOCKER_BRIDGE_IP", "172.20.0.1")
 if _docker_bridge:
     _TRUSTED_PROXIES.add(_docker_bridge)
-
 
 def _real_client_ip(request: Request) -> str:
     """Return the real client IP, accounting for trusted reverse proxies.
@@ -74,13 +71,11 @@ def _real_client_ip(request: Request) -> str:
             return forwarded.split(",")[0].strip()
     return tcp_ip
 
-
 def _dev_bypass_allowed(request: Request) -> bool:
     """Allow token-free access from private IPs when UMH_DEV_BYPASS=true."""
     if not _DEV_BYPASS:
         return False
     return _is_private_ip(_real_client_ip(request))
-
 
 _RATE_LIMITS: dict[str, dict[str, float]] = {}
 _RATE_WINDOWS: dict[str, float] = {
@@ -88,7 +83,6 @@ _RATE_WINDOWS: dict[str, float] = {
     "execute": 30.0,
     "approve": 30.0,
 }
-
 
 def _check_rate_limit(action: str, client_id: str) -> None:
     window = _RATE_WINDOWS.get(action, 60.0)
@@ -99,7 +93,6 @@ def _check_rate_limit(action: str, client_id: str) -> None:
         remaining = int(window - (now - last))
         raise HTTPException(status_code=429, detail=f"Rate limited — retry in {remaining}s")
     bucket[client_id] = now
-
 
 async def _require_api_key(
     request: Request,
@@ -114,7 +107,6 @@ async def _require_api_key(
             return "dev-bypass"
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return key
-
 
 async def _require_operator_role(
     request: Request,
@@ -139,7 +131,6 @@ async def _require_operator_role(
 
     return "operator"
 
-
 router = APIRouter(prefix="/api/umh", dependencies=[Depends(_require_api_key)])
 ws_router = APIRouter(prefix="/api/umh")
 
@@ -149,10 +140,8 @@ TRACE_STORE = _ROOT / "data" / "umh" / "traces" / "traces.jsonl"
 SKILLS_DIR = _ROOT / "skills"
 AGENTS_DIR = _ROOT / "agents"
 
-
 _DOCKER_SOCK = "/var/run/docker.sock"
 _DEVICE_REGISTRY_PATH = _ROOT / "infra" / "device_registry.json"
-
 
 def _load_device_registry() -> list[dict[str, Any]]:
     try:
@@ -160,7 +149,6 @@ def _load_device_registry() -> list[dict[str, Any]]:
             return json.load(f)
     except (json.JSONDecodeError, OSError, FileNotFoundError):
         return []
-
 
 def _get_docker_containers() -> list[dict]:
     """Query Docker Engine API via unix socket for running containers."""
@@ -195,7 +183,6 @@ def _get_docker_containers() -> list[dict]:
     except Exception:
         return []
 
-
 def _read_jsonl(path: Path, limit: int | None = None) -> list[dict[str, Any]]:
     if not path.exists():
         return []
@@ -208,7 +195,6 @@ def _read_jsonl(path: Path, limit: int | None = None) -> list[dict[str, Any]]:
     if limit:
         return entries[-limit:]
     return entries
-
 
 def _compute_build_info() -> dict[str, Any]:
     info: dict[str, Any] = {"backend_start": datetime.now(timezone.utc).isoformat()}
@@ -242,14 +228,11 @@ def _compute_build_info() -> dict[str, Any]:
             info["css_hash"] = css_match.group(1)
     return info
 
-
 _BUILD_INFO = _compute_build_info()
-
 
 @router.get("/build")
 async def build_info():
     return _BUILD_INFO
-
 
 @router.get("/pulse")
 async def pulse():
@@ -278,18 +261,26 @@ async def pulse():
         "status": "online",
     }
     server = _get_mesh_server()
+    remote_nodes: dict[str, dict[str, Any]] = {}
     if server is not None:
         for node_id, snap in server.metrics_buffer.latest_all().items():
-            dev = next((d for d in registry if d.get("mesh_node_id") == node_id or d.get("id") == node_id), {})
-            node_metrics[node_id] = {
-                "name": dev.get("display_name", node_id),
-                "cpu": snap.cpu,
-                "memory": snap.memory,
-                "disk": snap.disk,
-                "battery": snap.battery,
-                "status": "online",
-                "timestamp": snap.timestamp,
+            remote_nodes[node_id] = {
+                "cpu": snap.cpu, "memory": snap.memory, "disk": snap.disk,
+                "battery": snap.battery, "timestamp": snap.timestamp,
             }
+    if not remote_nodes:
+        remote_nodes = _read_mesh_metrics_file()
+    for node_id, mdata in remote_nodes.items():
+        dev = next((d for d in registry if d.get("mesh_node_id") == node_id or d.get("id") == node_id), {})
+        node_metrics[node_id] = {
+            "name": dev.get("display_name", node_id),
+            "cpu": mdata.get("cpu"),
+            "memory": mdata.get("memory"),
+            "disk": mdata.get("disk"),
+            "battery": mdata.get("battery"),
+            "status": "online",
+            "timestamp": mdata.get("timestamp"),
+        }
     for rdev in registry:
         if not rdev.get("compute"):
             continue
@@ -318,7 +309,6 @@ async def pulse():
         "node_metrics": node_metrics,
     }
 
-
 @router.get("/mesh/metrics")
 async def mesh_metrics():
     """Per-node metrics from the MetricsBuffer (populated by node heartbeats)."""
@@ -338,18 +328,26 @@ async def mesh_metrics():
     }
 
     server = _get_mesh_server()
+    mesh_remote: dict[str, dict[str, Any]] = {}
     if server is not None:
         for node_id, snap in server.metrics_buffer.latest_all().items():
-            dev = next((d for d in registry if d.get("mesh_node_id") == node_id or d.get("id") == node_id), {})
-            result[node_id] = {
-                "name": dev.get("display_name", node_id),
-                "cpu": snap.cpu,
-                "memory": snap.memory,
-                "disk": snap.disk,
-                "battery": snap.battery,
-                "status": "online",
-                "timestamp": snap.timestamp,
+            mesh_remote[node_id] = {
+                "cpu": snap.cpu, "memory": snap.memory, "disk": snap.disk,
+                "battery": snap.battery, "timestamp": snap.timestamp,
             }
+    if not mesh_remote:
+        mesh_remote = _read_mesh_metrics_file()
+    for node_id, mdata in mesh_remote.items():
+        dev = next((d for d in registry if d.get("mesh_node_id") == node_id or d.get("id") == node_id), {})
+        result[node_id] = {
+            "name": dev.get("display_name", node_id),
+            "cpu": mdata.get("cpu"),
+            "memory": mdata.get("memory"),
+            "disk": mdata.get("disk"),
+            "battery": mdata.get("battery"),
+            "status": "online",
+            "timestamp": mdata.get("timestamp"),
+        }
 
     for dev in registry:
         if not dev.get("compute"):
@@ -366,7 +364,6 @@ async def mesh_metrics():
             }
 
     return result
-
 
 @router.get("/models")
 async def models():
@@ -391,7 +388,6 @@ async def models():
         result = []
     return result
 
-
 def _ping_latency(ip: str) -> float | None:
     try:
         out = subprocess.run(
@@ -407,7 +403,6 @@ def _ping_latency(ip: str) -> float | None:
         pass
     return None
 
-
 def _device_name(peer: dict) -> str:
     dns = peer.get("DNSName", "")
     hostname = dns.split(".")[0] if dns else peer.get("HostName", "unknown")
@@ -416,7 +411,6 @@ def _device_name(peer: dict) -> str:
         if dev.get("tailscale_name", "") == hostname:
             return dev.get("display_name", hostname)
     return hostname
-
 
 @router.get("/infra")
 async def infra():
@@ -503,14 +497,12 @@ async def infra():
 
     return compute_nodes + network_nodes + service_nodes
 
-
 @router.get("/approvals")
 async def approvals():
     daemon = _get_organism()
     if daemon is None:
         return []
     return daemon.approval_store.list_approvals()
-
 
 @router.post("/approvals/{approval_id}/approve", dependencies=[Depends(_require_operator_role)])
 async def approve_item(approval_id: str):
@@ -522,7 +514,6 @@ async def approve_item(approval_id: str):
         return {"ok": False, "error": "approval not found"}
     return {"ok": True}
 
-
 @router.post("/approvals/{approval_id}/deny", dependencies=[Depends(_require_operator_role)])
 async def deny_item(approval_id: str, payload: dict | None = None):
     daemon = _get_organism()
@@ -532,7 +523,6 @@ async def deny_item(approval_id: str, payload: dict | None = None):
     if result is None:
         return {"ok": False, "error": "approval not found"}
     return {"ok": True}
-
 
 @router.get("/agents")
 async def agents():
@@ -577,7 +567,6 @@ async def agents():
                 }
             )
     return result
-
 
 @router.get("/memory")
 async def memory(source: str = "all", limit: int = 50):
@@ -655,7 +644,6 @@ async def memory(source: str = "all", limit: int = 50):
 
     return result
 
-
 @router.get("/skills")
 async def skills():
     result = []
@@ -690,7 +678,6 @@ async def skills():
             )
     return result
 
-
 @router.get("/observations")
 async def observations():
     entries = _read_jsonl(MEMORY_STORE)
@@ -710,7 +697,6 @@ async def observations():
             }
         )
     return result
-
 
 @router.get("/workflows")
 async def workflows():
@@ -760,7 +746,6 @@ async def workflows():
         )
     return result
 
-
 @router.get("/tasks")
 async def tasks():
     traces = _read_jsonl(TRACE_STORE)
@@ -789,7 +774,6 @@ async def tasks():
     result.reverse()
     return result
 
-
 @router.get("/comms")
 async def comms(limit: int = 100):
     daemon = _get_organism()
@@ -816,7 +800,6 @@ async def comms(limit: int = 100):
     result.reverse()
     return result
 
-
 def _summarize_message(m: dict) -> str:
     payload = m.get("payload", {})
     task = payload.get("task", "")
@@ -824,7 +807,6 @@ def _summarize_message(m: dict) -> str:
         return task[:300]
     intent = m.get("intent", "")
     return f"[{intent}] {str(payload)[:250]}" if intent else str(payload)[:300]
-
 
 @router.get("/tracking")
 async def tracking():
@@ -846,7 +828,6 @@ async def tracking():
         if ts > docs[doc_id]["last_changed"]:
             docs[doc_id]["last_changed"] = ts
     return list(docs.values())
-
 
 @router.get("/analytics")
 async def analytics():
@@ -873,7 +854,6 @@ async def analytics():
         "total_cost_30d": 0,
     }
 
-
 @router.get("/settings")
 async def settings():
     return {
@@ -886,7 +866,6 @@ async def settings():
         "governance": {"auto_approve_low": True, "critical_block": True},
         "notifications": {"discord": True, "file": True},
     }
-
 
 @router.get("/mesh/nodes")
 async def mesh_nodes():
@@ -998,7 +977,6 @@ async def mesh_nodes():
 
     return nodes
 
-
 def _get_mesh_server():
     """Lazy import to avoid circular dependency at module load."""
     try:
@@ -1015,7 +993,18 @@ def _get_mesh_server():
     except (ImportError, AttributeError):
         return None
 
+_MESH_METRICS_FILE = os.path.join(
+    os.environ.get("UMH_ROOT", "/opt/OS"),
+    "data", "umh", "organism", "mesh_metrics.json",
+)
 
+def _read_mesh_metrics_file() -> dict[str, dict[str, Any]]:
+    """Read node metrics written by the standalone mesh server process."""
+    try:
+        with open(_MESH_METRICS_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
 
 def _get_organism():
     try:
@@ -1031,7 +1020,6 @@ def _get_organism():
         return _organism_daemon
     except (ImportError, AttributeError):
         return None
-
 
 @router.post("/pipeline/submit", dependencies=[Depends(_require_operator_role)])
 async def pipeline_submit(payload: dict):
@@ -1079,7 +1067,6 @@ async def pipeline_submit(payload: dict):
         "outcome_type": result.outcome_type,
     }
 
-
 @router.post("/comms/send", dependencies=[Depends(_require_operator_role)])
 async def comms_send(payload: dict):
     """Send a message to an organism agent."""
@@ -1102,7 +1089,6 @@ async def comms_send(payload: dict):
     )
     daemon.store.save_message(msg)
     return {"ok": True, "message_id": str(msg.id)}
-
 
 @router.post("/workflows/{workflow_id}/trigger", dependencies=[Depends(_require_operator_role)])
 async def workflow_trigger(workflow_id: str, payload: dict | None = None):
@@ -1139,12 +1125,10 @@ async def workflow_trigger(workflow_id: str, payload: dict | None = None):
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
 
-
 @router.patch("/settings", dependencies=[Depends(_require_operator_role)])
 async def update_settings(patch: dict):
     """Update cockpit settings (runtime-only, not persisted across restarts)."""
     return {"ok": True, "applied": list(patch.keys())}
-
 
 @router.post("/organism/control", dependencies=[Depends(_require_operator_role)])
 async def organism_control(payload: dict):
@@ -1167,7 +1151,6 @@ async def organism_control(payload: dict):
     else:
         return {"error": f"unknown action: {action}"}
 
-
 @router.post("/agents/{agent_id}/signal")
 async def agent_signal(agent_id: str, payload: dict):
     """Send a signal to a specific organism agent."""
@@ -1178,7 +1161,6 @@ async def agent_signal(agent_id: str, payload: dict):
     if not content:
         return {"error": "content required"}
     return daemon.advisor.handle_signal(content)
-
 
 @router.get("/profile")
 async def profile():
@@ -1191,9 +1173,7 @@ async def profile():
         "continuity_score": 0.92,
     }
 
-
 # ── Unified Activity Stream ─────────────────────────────────────────
-
 
 @router.get("/activity/stream")
 async def activity_stream(limit: int = 200, source: str | None = None):
@@ -1285,9 +1265,7 @@ async def activity_stream(limit: int = 200, source: str | None = None):
     events.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
     return events[:limit]
 
-
 # ── Governance Controls ──────────────────────────────────────────────
-
 
 def _get_policy_engine():
     """Access the pipeline's PolicyEngine instance."""
@@ -1297,7 +1275,6 @@ def _get_policy_engine():
         return _pipeline._policy
     except (ImportError, AttributeError):
         return None
-
 
 @router.get("/governance")
 async def governance_policy():
@@ -1331,7 +1308,6 @@ async def governance_policy():
         "allowed_shell_prefixes": engine.allowed_shell_prefixes,
     }
 
-
 @router.patch("/governance", dependencies=[Depends(_require_operator_role)])
 async def update_governance(payload: dict):
     """Update governance policy at runtime.
@@ -1357,7 +1333,6 @@ async def update_governance(payload: dict):
 
     return {"ok": True, "applied": applied}
 
-
 @router.get("/governance/tiers")
 async def permission_tiers():
     """Return the 4-tier permission model with action mappings."""
@@ -1373,7 +1348,6 @@ async def permission_tiers():
             }
         )
     return {"tiers": tiers}
-
 
 @router.get("/governance/tier-check")
 async def tier_check(action: str, tier: str = "execute"):
@@ -1394,9 +1368,7 @@ async def tier_check(action: str, tier: str = "execute"):
         "permitted": permitted,
     }
 
-
 # ── DEX Channel ──────────────────────────────────────────────────────
-
 
 @router.post("/dex/converse")
 async def dex_converse(payload: dict):
@@ -1463,7 +1435,6 @@ async def dex_converse(payload: dict):
         "response": result,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
-
 
 @router.get("/dex/history")
 async def dex_history(limit: int = 50):
@@ -1545,9 +1516,7 @@ async def dex_history(limit: int = 50):
     exchanges.sort(key=lambda x: x.get("timestamp", ""))
     return exchanges[-limit:]
 
-
 # ─── EOS Projection Endpoints ─────────────────────────────────────────────
-
 
 @router.get("/eos/pipeline")
 async def eos_pipeline():
@@ -1568,7 +1537,6 @@ async def eos_pipeline():
         }
     except Exception as e:
         return {"error": str(e), "stages": []}
-
 
 @router.get("/eos/kpis")
 async def eos_kpis():
@@ -1595,7 +1563,6 @@ async def eos_kpis():
     except Exception as e:
         return {"error": str(e), "cards": []}
 
-
 @router.get("/eos/activity")
 async def eos_activity(limit: int = 30):
     """Activity feed — recent system events in chronological order."""
@@ -1620,7 +1587,6 @@ async def eos_activity(limit: int = 30):
     except Exception as e:
         return {"error": str(e), "entries": []}
 
-
 @router.get("/eos/accountability")
 async def eos_accountability():
     """Accountability stats — commitment tracking, streaks, fulfillment rate."""
@@ -1634,7 +1600,6 @@ async def eos_accountability():
     except Exception as e:
         return {"error": str(e)}
 
-
 @router.get("/eos/intelligence")
 async def eos_intelligence():
     """Intelligence layer health — pattern/decision stats."""
@@ -1645,7 +1610,6 @@ async def eos_intelligence():
         return intel.health()
     except Exception as e:
         return {"error": str(e)}
-
 
 @router.post("/organism/handoff", dependencies=[Depends(_require_operator_role)])
 async def organism_handoff(payload: dict):
@@ -1660,7 +1624,6 @@ async def organism_handoff(payload: dict):
         context=payload.get("context", ""),
     )
 
-
 @router.post("/organism/parallel", dependencies=[Depends(_require_operator_role)])
 async def organism_parallel(payload: dict):
     """Execute multiple agent tasks in parallel."""
@@ -1669,7 +1632,6 @@ async def organism_parallel(payload: dict):
         return {"error": "organism not running"}
     return daemon.execute_parallel(payload.get("tasks", []))
 
-
 @router.get("/organism/delegations")
 async def organism_delegations():
     """Check for overdue delegations and follow-ups."""
@@ -1677,7 +1639,6 @@ async def organism_delegations():
     if daemon is None:
         return {"error": "organism not running", "followups": []}
     return {"followups": daemon.check_delegations()}
-
 
 def _get_org_id() -> str:
     """Get org_id from context for projection queries."""
@@ -1689,9 +1650,7 @@ def _get_org_id() -> str:
     except Exception:
         return ""
 
-
 # ── Notifications ────────────────────────────────────────────────────────────
-
 
 @router.get("/notifications")
 async def notification_history(limit: int = 50):
@@ -1708,9 +1667,7 @@ async def notification_history(limit: int = 50):
     except Exception as e:
         return {"error": str(e), "history": []}
 
-
 # ── RLHF Feedback ──────────────────────────────────────────────────────────
-
 
 @router.post("/feedback")
 async def record_feedback(payload: dict):
@@ -1753,7 +1710,6 @@ async def record_feedback(payload: dict):
     success = loop.record_feedback(entry)
     return {"ok": success}
 
-
 @router.get("/feedback/stats")
 async def feedback_stats(agent: str = ""):
     """Aggregate RLHF feedback statistics, optionally filtered by agent."""
@@ -1761,7 +1717,6 @@ async def feedback_stats(agent: str = ""):
 
     loop = get_feedback_loop()
     return loop.get_feedback_stats(agent=agent)
-
 
 @router.get("/feedback/skills")
 async def feedback_skill_effectiveness(
@@ -1781,7 +1736,6 @@ async def feedback_skill_effectiveness(
     loop = get_feedback_loop()
     return loop.skill_effectiveness(agent=agent, skill=skill, window_days=window_days)
 
-
 @router.get("/feedback/recommendations")
 async def feedback_recommendations():
     """Routing adjustment recommendations based on RLHF feedback patterns."""
@@ -1789,7 +1743,6 @@ async def feedback_recommendations():
 
     loop = get_feedback_loop()
     return {"recommendations": loop.recommend_routing_adjustment()}
-
 
 @router.post("/notifications/send", dependencies=[Depends(_require_operator_role)])
 async def send_notification(payload: dict):
@@ -1828,19 +1781,16 @@ async def send_notification(payload: dict):
     except Exception as e:
         return {"error": str(e), "sent": False}
 
-
 # ─── WebSocket: live cockpit data stream ──────────────────────────────────────
 
 _cockpit_clients: set[WebSocket] = set()
 _pending_organism_events: list[dict] = []
-
 
 def push_organism_event(event_dict: dict) -> None:
     """Called by the organism daemon to push events to WebSocket clients."""
     _pending_organism_events.append(event_dict)
     if len(_pending_organism_events) > 200:
         _pending_organism_events[:] = _pending_organism_events[-100:]
-
 
 def push_chat_message(message: dict) -> None:
     """Queue a chat message for delivery to connected cockpit WS clients.
@@ -1854,7 +1804,6 @@ def push_chat_message(message: dict) -> None:
     if len(_pending_organism_events) > 200:
         _pending_organism_events[:] = _pending_organism_events[-100:]
 
-
 def _extract_ws_token(ws: WebSocket) -> str:
     """Extract auth token from Sec-WebSocket-Protocol header or query param.
 
@@ -1867,7 +1816,6 @@ def _extract_ws_token(ws: WebSocket) -> str:
             return proto[7:]
     return ws.query_params.get("token", "")
 
-
 def _real_ws_client_ip(ws: WebSocket) -> str:
     """Real client IP for WebSocket, same trusted-proxy logic as HTTP."""
     tcp_ip = ws.client.host if ws.client else ""
@@ -1876,7 +1824,6 @@ def _real_ws_client_ip(ws: WebSocket) -> str:
         if forwarded:
             return forwarded.split(",")[0].strip()
     return tcp_ip
-
 
 def _validate_ws_token(ws: WebSocket) -> bool:
     """Validate WS connection auth."""
@@ -1890,7 +1837,6 @@ def _validate_ws_token(ws: WebSocket) -> bool:
     if _DEV_BYPASS and _is_private_ip(client_ip):
         return True
     return False
-
 
 @ws_router.websocket("/ws")
 async def cockpit_ws(ws: WebSocket):
@@ -1929,18 +1875,26 @@ async def cockpit_ws(ws: WebSocket):
                 "status": "online",
             }
             mesh_srv = _get_mesh_server()
+            ws_remote: dict[str, dict[str, Any]] = {}
             if mesh_srv is not None:
                 for nid, nsnap in mesh_srv.metrics_buffer.latest_all().items():
-                    ndev = next((d for d in ws_registry if d.get("mesh_node_id") == nid or d.get("id") == nid), {})
-                    ws_node_metrics[nid] = {
-                        "name": ndev.get("display_name", nid),
-                        "cpu": nsnap.cpu,
-                        "memory": nsnap.memory,
-                        "disk": nsnap.disk,
-                        "battery": nsnap.battery,
-                        "status": "online",
-                        "timestamp": nsnap.timestamp,
+                    ws_remote[nid] = {
+                        "cpu": nsnap.cpu, "memory": nsnap.memory, "disk": nsnap.disk,
+                        "battery": nsnap.battery, "timestamp": nsnap.timestamp,
                     }
+            if not ws_remote:
+                ws_remote = _read_mesh_metrics_file()
+            for nid, mdata in ws_remote.items():
+                ndev = next((d for d in ws_registry if d.get("mesh_node_id") == nid or d.get("id") == nid), {})
+                ws_node_metrics[nid] = {
+                    "name": ndev.get("display_name", nid),
+                    "cpu": mdata.get("cpu"),
+                    "memory": mdata.get("memory"),
+                    "disk": mdata.get("disk"),
+                    "battery": mdata.get("battery"),
+                    "status": "online",
+                    "timestamp": mdata.get("timestamp"),
+                }
             for rdev in ws_registry:
                 if not rdev.get("compute"):
                     continue
@@ -1997,9 +1951,7 @@ async def cockpit_ws(ws: WebSocket):
         _cockpit_clients.discard(ws)
         logger.info(f"cockpit ws disconnected ({len(_cockpit_clients)} clients)")
 
-
 # ─── Persistent Loops ────────────────────────────────────────────────────────
-
 
 def _get_loop_registry():
     from substrate.execution.loop import get_registry
@@ -2009,7 +1961,6 @@ def _get_loop_registry():
         registry.load_definitions()
     return registry
 
-
 @router.get("/loops")
 async def loop_status():
     """Status of all persistent loops."""
@@ -2017,7 +1968,6 @@ async def loop_status():
         return _get_loop_registry().status()
     except Exception as e:
         return {"error": str(e)}
-
 
 @router.get("/loops/stages")
 async def loop_stages():
@@ -2032,7 +1982,6 @@ async def loop_stages():
     except Exception as e:
         return {"error": str(e)}
 
-
 @router.post("/loops/{loop_name}/start", dependencies=[Depends(_require_operator_role)])
 async def loop_start(loop_name: str):
     """Start a persistent loop."""
@@ -2042,7 +1991,6 @@ async def loop_start(loop_name: str):
     except Exception as e:
         return {"error": str(e)}
 
-
 @router.post("/loops/{loop_name}/stop", dependencies=[Depends(_require_operator_role)])
 async def loop_stop(loop_name: str):
     """Stop a persistent loop."""
@@ -2051,7 +1999,6 @@ async def loop_stop(loop_name: str):
         return {"stopped": ok, "loop": loop_name}
     except Exception as e:
         return {"error": str(e)}
-
 
 @router.post("/loops/{loop_name}/run-once", dependencies=[Depends(_require_operator_role)])
 async def loop_run_once(loop_name: str):
@@ -2065,7 +2012,6 @@ async def loop_run_once(loop_name: str):
         return report.to_dict()
     except Exception as e:
         return {"error": str(e)}
-
 
 @router.post("/loops/create", dependencies=[Depends(_require_operator_role)])
 async def loop_create(payload: dict):
@@ -2097,7 +2043,6 @@ async def loop_create(payload: dict):
     except Exception as e:
         return {"error": str(e)}
 
-
 @router.delete("/loops/{loop_name}", dependencies=[Depends(_require_operator_role)])
 async def loop_delete(loop_name: str):
     """Remove a loop definition."""
@@ -2110,10 +2055,7 @@ async def loop_delete(loop_name: str):
     except Exception as e:
         return {"error": str(e)}
 
-
-
 # ── Execution Substrate endpoints ────────────────────────────────────────────
-
 
 @router.get("/execution/status")
 async def execution_status():
@@ -2168,7 +2110,6 @@ async def execution_status():
             "error": str(e),
         }
 
-
 @router.get("/execution/log")
 async def execution_log(limit: int = 20):
     """Recent execution journal entries from spine."""
@@ -2194,7 +2135,6 @@ async def execution_log(limit: int = 20):
         logger.debug("execution_log: %s", e)
         return {"log": [], "count": 0, "error": str(e)}
 
-
 @router.get("/execution/authority")
 async def execution_authority(layer: str = "native"):
     """Authority preview using live governance engine."""
@@ -2216,7 +2156,6 @@ async def execution_authority(layer: str = "native"):
             "risk_class": "LOW",
             "approval_requirement": "none",
         }
-
 
 @router.post("/execution/start", dependencies=[Depends(_require_operator_role)])
 async def execution_start(request: Request):
@@ -2292,7 +2231,6 @@ async def execution_start(request: Request):
         "routing": routing_result,
     }
 
-
 @router.post("/execution/stop", dependencies=[Depends(_require_operator_role)], deprecated=True)
 async def execution_stop(request: Request):
     """DEPRECATED — use POST /workstation/execution/stop instead."""
@@ -2306,7 +2244,6 @@ async def execution_stop(request: Request):
     ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, "stopped by operator")
     return {"ok": ok, "packet_id": packet_id, "deprecated": "use POST /workstation/execution/stop"}
 
-
 @router.post("/execution/pause", dependencies=[Depends(_require_operator_role)], deprecated=True)
 async def execution_pause(request: Request):
     """DEPRECATED — use POST /workstation/execution/pause instead."""
@@ -2319,7 +2256,6 @@ async def execution_pause(request: Request):
     wpe = WorkPacketEngine()
     ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, "paused by operator")
     return {"ok": ok, "packet_id": packet_id, "deprecated": "use POST /workstation/execution/pause"}
-
 
 @router.post("/execution/complete", dependencies=[Depends(_require_operator_role)])
 async def execution_complete(request: Request):
@@ -2369,7 +2305,6 @@ async def execution_complete(request: Request):
         "verification_passed": pkt.verification_passed if pkt else None,
     }
 
-
 @router.post("/execution/fail", dependencies=[Depends(_require_operator_role)])
 async def execution_fail(request: Request):
     """Mark a work packet as failed, triggering failure outcome recording."""
@@ -2405,7 +2340,6 @@ async def execution_fail(request: Request):
         "outcome_observation_id": pkt.outcome_observation_id if pkt else "",
     }
 
-
 @router.post("/execution/resume", dependencies=[Depends(_require_operator_role)], deprecated=True)
 async def execution_resume(request: Request):
     """DEPRECATED — use POST /workstation/execution/resume instead."""
@@ -2418,7 +2352,6 @@ async def execution_resume(request: Request):
     wpe = WorkPacketEngine()
     ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.CLASSIFIED, "resumed by operator")
     return {"ok": ok, "packet_id": packet_id, "deprecated": "use POST /workstation/execution/resume"}
-
 
 # ── Intent classification (WP-2.1) ────────────────────────────────────────────
 
@@ -2460,7 +2393,6 @@ async def intent_classify(request: Request):
         "persisted": bool(event_id),
         "event_id": event_id,
     }
-
 
 # ── Chat endpoints (operator ↔ DEX right-rail conversation) ───────────────────
 
@@ -2528,7 +2460,6 @@ async def chat_history():
         logger.error("chat_history failed: %s", e)
         return []
 
-
 @router.post("/chat/converse", dependencies=[Depends(_require_operator_role)])
 async def chat_converse(request: Request):
     """Route operator message through organism conversation pipeline."""
@@ -2557,7 +2488,6 @@ async def chat_converse(request: Request):
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-
 @router.post("/chat/send", dependencies=[Depends(_require_operator_role)])
 async def chat_send(request: Request):
     """Send a message — writes to organism store + pushes to cockpit WS."""
@@ -2583,14 +2513,12 @@ async def chat_send(request: Request):
         logger.error("chat_send failed: %s", e)
         return JSONResponse({"error": "internal error"}, status_code=500)
 
-
 @router.post("/chat/push")
 async def chat_push(request: Request):
     """Push a chat message to connected cockpit WS clients."""
     body = await request.json()
     push_chat_message(body)
     return {"ok": True}
-
 
 @router.get("/chat/attachment")
 async def chat_attachment(path: str):
@@ -2615,9 +2543,7 @@ async def chat_attachment(path: str):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(str(resolved), filename=resolved.name, media_type="application/octet-stream")
 
-
 # ── Config endpoints ──────────────────────────────────────────────────────────
-
 
 @router.get("/config")
 async def config_get():
@@ -2628,7 +2554,6 @@ async def config_get():
     except Exception as e:
         logger.error("config_get failed: %s", e)
         return {}
-
 
 @router.patch("/config", dependencies=[Depends(_require_operator_role)])
 async def config_patch(request: Request):
@@ -2653,9 +2578,7 @@ async def config_patch(request: Request):
         logger.error("config_patch failed: %s", e)
         return JSONResponse({"error": str(e)}, status_code=500)
 
-
 # ── Phase 6.1→6.2: Spine routes extracted to cockpit_spine_router.py ─────────
-
 
 def _mount_spine_router() -> None:
     from transports.api import cockpit_spine_router
@@ -2666,12 +2589,9 @@ def _mount_spine_router() -> None:
     )
     router.include_router(cockpit_spine_router.spine_router)
 
-
 _mount_spine_router()
 
-
 # ── Phase 10.0: Organism core routes extracted to cockpit_organism_routes.py ──
-
 
 def _mount_organism_router() -> None:
     from transports.api import cockpit_organism_routes
@@ -2682,9 +2602,7 @@ def _mount_organism_router() -> None:
     )
     router.include_router(cockpit_organism_routes.organism_router)
 
-
 _mount_organism_router()
-
 
 def _mount_entity_router() -> None:
     from transports.api import cockpit_entity_routes
@@ -2694,9 +2612,7 @@ def _mount_entity_router() -> None:
     )
     router.include_router(cockpit_entity_routes.entity_router)
 
-
 _mount_entity_router()
-
 
 def _mount_economy_router() -> None:
     from transports.api import cockpit_economy_routes
@@ -2706,7 +2622,6 @@ def _mount_economy_router() -> None:
     )
     router.include_router(cockpit_economy_routes.economy_router)
 
-
 def _mount_autonomous_router() -> None:
     from transports.api import cockpit_autonomous_routes
     cockpit_autonomous_routes.configure(
@@ -2714,7 +2629,6 @@ def _mount_autonomous_router() -> None:
         require_operator_dep=_require_operator_role,
     )
     router.include_router(cockpit_autonomous_routes.autonomous_router)
-
 
 def _mount_self_build_router() -> None:
     from transports.api import cockpit_self_build_routes
@@ -2724,14 +2638,12 @@ def _mount_self_build_router() -> None:
     )
     router.include_router(cockpit_self_build_routes.self_build_router)
 
-
 def _mount_universal_work_router() -> None:
     from transports.api import cockpit_universal_work_routes
     cockpit_universal_work_routes.configure(
         require_operator_dep=_require_operator_role,
     )
     router.include_router(cockpit_universal_work_routes.universal_work_router)
-
 
 def _mount_propagation_graph_router() -> None:
     from transports.api import cockpit_propagation_graph_routes
@@ -2740,7 +2652,6 @@ def _mount_propagation_graph_router() -> None:
     )
     router.include_router(cockpit_propagation_graph_routes.propagation_graph_router)
 
-
 def _mount_operator_experience_router() -> None:
     from transports.api import cockpit_operator_experience_routes
     cockpit_operator_experience_routes.configure(
@@ -2748,14 +2659,12 @@ def _mount_operator_experience_router() -> None:
     )
     router.include_router(cockpit_operator_experience_routes.operator_experience_router)
 
-
 def _mount_runtime_surface_router() -> None:
     from transports.api import cockpit_runtime_surface_routes
     cockpit_runtime_surface_routes.configure(
         require_operator_dep=_require_operator_role,
     )
     router.include_router(cockpit_runtime_surface_routes.runtime_surface_router)
-
 
 _mount_economy_router()
 _mount_autonomous_router()
@@ -2765,7 +2674,6 @@ _mount_propagation_graph_router()
 _mount_operator_experience_router()
 _mount_runtime_surface_router()
 
-
 def _mount_context_assimilation_router() -> None:
     from transports.api import cockpit_context_assimilation_routes
     cockpit_context_assimilation_routes.configure(
@@ -2773,12 +2681,9 @@ def _mount_context_assimilation_router() -> None:
     )
     router.include_router(cockpit_context_assimilation_routes.context_assimilation_router)
 
-
 _mount_context_assimilation_router()
 
-
 # ── Phase 14.7A: Reality Model routes ────────────────────────────────────────
-
 
 def _mount_reality_model_router() -> None:
     from transports.api import cockpit_reality_model_routes
@@ -2787,12 +2692,9 @@ def _mount_reality_model_router() -> None:
     )
     router.include_router(cockpit_reality_model_routes.reality_model_router)
 
-
 _mount_reality_model_router()
 
-
 # ── Phase 14.7A: Operator loop routes ────────────────────────────────────────
-
 
 def _mount_operator_loop_router() -> None:
     from transports.api import cockpit_operator_loop_routes
@@ -2801,12 +2703,9 @@ def _mount_operator_loop_router() -> None:
     )
     router.include_router(cockpit_operator_loop_routes.operator_loop_router)
 
-
 _mount_operator_loop_router()
 
-
 # ── Phase 14.7A: Self-improvement loop routes ─────────────────────────────
-
 
 def _mount_self_improvement_router() -> None:
     from transports.api import cockpit_self_improvement_routes
@@ -2815,12 +2714,9 @@ def _mount_self_improvement_router() -> None:
     )
     router.include_router(cockpit_self_improvement_routes.self_improvement_router)
 
-
 _mount_self_improvement_router()
 
-
 # ── Phase 14.11A: Workstation execution control routes ──────────────────────
-
 
 def _mount_workstation_control_router() -> None:
     from transports.api import cockpit_workstation_control_routes
@@ -2829,12 +2725,9 @@ def _mount_workstation_control_router() -> None:
     )
     router.include_router(cockpit_workstation_control_routes.workstation_control_router)
 
-
 _mount_workstation_control_router()
 
-
 # ── Phase 14.11C: Workspace routes (file browser, diff, tests, logs, proof, health) ──
-
 
 def _mount_workspace_router() -> None:
     from transports.api import cockpit_workspace_routes
@@ -2844,12 +2737,9 @@ def _mount_workspace_router() -> None:
     )
     router.include_router(cockpit_workspace_routes.workspace_router)
 
-
 _mount_workspace_router()
 
-
 # ── Phase 14.11D: Presence routes (activation, commands, capabilities) ──
-
 
 def _mount_presence_router() -> None:
     from transports.api import cockpit_presence_routes
@@ -2858,12 +2748,9 @@ def _mount_presence_router() -> None:
     )
     router.include_router(cockpit_presence_routes.presence_router)
 
-
 _mount_presence_router()
 
-
 # ── Phase 14.11E: Command center routes (agents, work packets, summary) ──
-
 
 def _mount_command_center_router() -> None:
     from transports.api import cockpit_command_center_routes
@@ -2872,12 +2759,9 @@ def _mount_command_center_router() -> None:
     )
     router.include_router(cockpit_command_center_routes.command_center_router)
 
-
 _mount_command_center_router()
 
-
 # ── Claude Code Session Bridge ────────────────────────────────────────
-
 
 def _log_cc_trace(session: str, text: str, packet_id: str, action: str) -> None:
     """Log Claude Code bridge action to execution journal."""
@@ -2902,12 +2786,10 @@ def _log_cc_trace(session: str, text: str, packet_id: str, action: str) -> None:
     except Exception:
         pass
 
-
 _RISKY_KEYWORDS = [
     "delete", "drop", "rm -rf", "force push", "reset --hard",
     "truncate", "--no-verify", "destroy",
 ]
-
 
 @router.post("/claude-session/send")
 async def claude_session_send(payload: dict) -> dict:  # type: ignore[type-arg]
@@ -2939,7 +2821,6 @@ async def claude_session_send(payload: dict) -> dict:  # type: ignore[type-arg]
     base: dict = send_result if isinstance(send_result, dict) else {"ok": True}  # type: ignore[assignment]
     return {**base, "work_packet_id": work_packet_id, "traced": True}
 
-
 @router.post("/claude-session/capture")
 async def claude_session_capture(payload: dict) -> dict:  # type: ignore[type-arg]
     """Capture output from a Claude Code session."""
@@ -2955,14 +2836,12 @@ async def claude_session_capture(payload: dict) -> dict:  # type: ignore[type-ar
     base: dict = result if isinstance(result, dict) else {"output": str(result)}  # type: ignore[assignment]
     return {**base, "work_packet_id": work_packet_id}
 
-
 @router.get("/claude-session/list")
 async def claude_session_list() -> dict:  # type: ignore[type-arg]
     """List active Claude Code sessions."""
     from substrate.execution.bridge.claude_session_bridge import list_sessions
 
     return list_sessions()  # type: ignore[return-value]
-
 
 @router.post("/tmux/send")
 async def tmux_send(payload: dict) -> dict:  # type: ignore[type-arg]
@@ -2983,7 +2862,6 @@ async def tmux_send(payload: dict) -> dict:  # type: ignore[type-arg]
         return result if isinstance(result, dict) else {"ok": True}
     except Exception as exc:
         return {"error": str(exc)}
-
 
 @router.post("/council/review")
 async def council_review(payload: dict) -> dict:  # type: ignore[type-arg]

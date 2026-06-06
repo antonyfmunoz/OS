@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import threading
 import time
 from typing import Any, Callable
@@ -296,6 +297,7 @@ class NodeMeshServer:
             network_io=metrics.get("network_io", {}),
         )
         self._metrics.record(snapshot)
+        self._write_metrics_snapshot()
 
         self._check_anomalies(node_id, metrics)
 
@@ -436,6 +438,33 @@ class NodeMeshServer:
             node.status = "disconnected"
             self._emit_mesh_event("mesh.node_disconnected", node)
         logger.info("node fully unregistered: %s", node_id)
+
+    _METRICS_SNAPSHOT_PATH = os.path.join(
+        os.environ.get("UMH_ROOT", "/opt/OS"),
+        "data", "umh", "organism", "mesh_metrics.json",
+    )
+
+    def _write_metrics_snapshot(self) -> None:
+        """Persist latest metrics to disk so the cockpit container can read them."""
+        try:
+            all_latest = self._metrics.latest_all()
+            out: dict[str, Any] = {}
+            for nid, snap in all_latest.items():
+                out[nid] = {
+                    "cpu": snap.cpu,
+                    "memory": snap.memory,
+                    "disk": snap.disk,
+                    "battery": snap.battery,
+                    "timestamp": snap.timestamp,
+                }
+            import os as _os
+            _os.makedirs(_os.path.dirname(self._METRICS_SNAPSHOT_PATH), exist_ok=True)
+            tmp = self._METRICS_SNAPSHOT_PATH + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(out, f)
+            _os.replace(tmp, self._METRICS_SNAPSHOT_PATH)
+        except Exception as exc:
+            logger.debug("metrics snapshot write failed: %s", exc)
 
     async def _health_check_loop(self) -> None:
         """Periodically check for stale nodes."""
