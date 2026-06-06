@@ -33,18 +33,16 @@ export function TitleBar() {
 
   return (
     <header
-      className="titlebar-drag relative flex items-center px-3 select-none bg-surface border-b border-border"
+      className="titlebar-drag flex items-center px-3 select-none bg-surface border-b border-border"
       style={{ height: 'var(--spacing-titlebar-height)' }}
     >
-      <div className="wv-scanline absolute inset-0" />
-
-      <span className="relative font-mono text-xs tracking-widest uppercase text-cyan">
+      <span className="font-mono text-xs tracking-widest uppercase text-cyan">
         UMH
       </span>
 
       <div className="flex-1" />
 
-      <div className="titlebar-no-drag relative flex items-center gap-1">
+      <div className="titlebar-no-drag flex items-center gap-1">
         <button
           onClick={toggleFullscreen}
           className="w-8 h-6 flex items-center justify-center rounded text-xs text-text-secondary hover:bg-surface-raised transition-colors"
