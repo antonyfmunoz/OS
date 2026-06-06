@@ -33,7 +33,7 @@ export function TitleBar() {
 
   return (
     <header
-      className="titlebar-drag relative flex items-center px-3 select-none bg-canvas border-b border-border"
+      className="titlebar-drag relative flex items-center px-3 select-none bg-surface border-b border-border"
       style={{ height: 'var(--spacing-titlebar-height)' }}
     >
       <div className="wv-scanline absolute inset-0" />

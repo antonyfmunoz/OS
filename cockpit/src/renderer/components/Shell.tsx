@@ -143,7 +143,7 @@ export function Shell() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-canvas">
+    <div className="flex flex-col h-screen bg-surface">
       <TitleBar />
 
       <div className="flex flex-1 overflow-hidden">
