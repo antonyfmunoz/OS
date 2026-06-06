@@ -12,7 +12,7 @@ export function useWebSocket() {
   const setConnectionStatus = useCockpitStore((s) => s.setConnectionStatus)
 
   useEffect(() => {
-    const wsUrl = import.meta.env.VITE_WS_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
+    const wsUrl = import.meta.env.VITE_WS_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/umh/ws`
     const token = getWsToken()
     const protocols = token ? [`bearer.${token}`] : undefined
     const client = new WsClient(wsUrl, protocols)
