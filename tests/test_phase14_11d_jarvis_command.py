@@ -72,7 +72,10 @@ class TestClassifyIntent:
 
     def test_navigation_show(self) -> None:
         from substrate.workstation.jarvis_command import CommandIntent, classify_intent
-        assert classify_intent("show agents") == CommandIntent.COCKPIT_NAVIGATION
+        # "show agents" now resolves to AGENT_QUERY (14.11E) — more specific than navigation
+        assert classify_intent("show agents") == CommandIntent.AGENT_QUERY
+        # "show dashboard" remains navigation
+        assert classify_intent("show dashboard") == CommandIntent.COCKPIT_NAVIGATION
 
     def test_navigation_go_to(self) -> None:
         from substrate.workstation.jarvis_command import CommandIntent, classify_intent
