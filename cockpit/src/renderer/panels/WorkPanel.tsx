@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useViewContextStore } from '../stores/viewContextStore'
+import { CronTable, type CronJob } from '../components/CronTable'
 
 interface WorkPacket {
   packet_id: string
@@ -317,10 +318,7 @@ export function WorkPanel() {
         )}
 
         {activeTab === 'workflows' && (
-          <div className="text-text-tertiary text-center py-8">
-            <p>Workflow orchestration view.</p>
-            <p className="mt-1">Active workflows surface here when executing.</p>
-          </div>
+          <CronTable jobs={[]} />
         )}
 
         {activeTab === 'overnight' && (
