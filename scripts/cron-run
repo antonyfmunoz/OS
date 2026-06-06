@@ -3,11 +3,15 @@
 #
 # Usage: cron-run <script.py> [args...]
 #
-# Provides three layers of protection:
+# Provides four layers of protection:
 #   1. flock — prevents overlapping runs of the same script
 #   2. nice/ionice — lowest scheduling priority
 #   3. timeout — kills if running longer than 4 minutes (cron fires every 5)
 #   4. CPU load gate — skips entirely if system is already overloaded
+#
+# Secret injection: if 1Password CLI is available and authenticated,
+# secrets are injected via `op run`. Otherwise falls back to env vars
+# already in the shell (e.g. from sourced .env files).
 #
 # Lock files live in /run/umh-cron/ (root-only tmpfs, not world-writable /tmp).
 
@@ -32,8 +36,17 @@ if [ "$(echo "$LOAD > $THRESHOLD" | bc 2>/dev/null || echo 0)" -eq 1 ]; then
     exit 0
 fi
 
+# Build the command pipeline
+CMD=(python3 "$SCRIPT" "$@")
+
+# If 1Password CLI is available, wrap with op run for secret injection
+UMH_ROOT="${UMH_ROOT:-/opt/OS}"
+if command -v op &>/dev/null && [ -n "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
+    CMD=(op run --env-file="$UMH_ROOT/services/.env.tpl" -- "${CMD[@]}")
+fi
+
 # flock -n = non-blocking; exits immediately if another instance holds the lock
 exec flock -n "$LOCK_FILE" \
     nice -n 15 ionice -c 3 \
     timeout 240 \
-    python3 "$SCRIPT" "$@"
+    "${CMD[@]}"

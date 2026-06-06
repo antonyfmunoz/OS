@@ -51,4 +51,15 @@ fi
 
 export CLAUDE_CONFIG_DIR="$SESSION_DIR"
 echo "CC session '$SESSION_NAME' using CLAUDE_CONFIG_DIR=$SESSION_DIR"
-exec claude "$@"
+
+_UMH_ROOT="${UMH_ROOT:-/opt/OS}"
+if command -v op &>/dev/null && op whoami &>/dev/null 2>&1; then
+    echo "Injecting secrets from 1Password..."
+    exec op run \
+        --env-file="$_UMH_ROOT/services/.env.tpl" \
+        --env-file="$_UMH_ROOT/.env.sessions.tpl" \
+        -- claude "$@"
+else
+    echo "WARNING: 1Password CLI not available — falling back to .env files"
+    exec claude "$@"
+fi

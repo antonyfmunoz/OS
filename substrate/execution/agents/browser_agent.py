@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 
 _ROOT = Path(__file__).parent.parent
 load_dotenv(_ROOT / 'services' / '.env')
-load_dotenv(_ROOT / 'runtime' / '.env', override=True)
+load_dotenv(_ROOT / 'runtime' / '.env', override=False)
 
 
 class BrowserAgent:
