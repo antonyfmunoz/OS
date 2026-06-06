@@ -160,6 +160,16 @@ Before any deploy:
   Use deploy-service skill decision tree
   Never restart all services simultaneously
 
+## Cockpit Deploy Gate (NON-NEGOTIABLE)
+NEVER run `flyctl deploy` directly for the cockpit.
+ALWAYS use `bash cockpit/deploy.sh` instead.
+The gate verifies nginx.conf.template, Dockerfile, and start.sh match main
+before deploying. This prevents worktree/branch deploys from shipping stale
+auth config. The gate also blocks if the old `nginx.conf` exists (replaced
+by `nginx.conf.template` + envsubst in commit 1680083f).
+This rule exists because a worktree deploy shipped without API key injection,
+causing 401 Unauthorized on every cockpit API call (2026-06-06).
+
 ## System
 VPS: 100.77.233.50 | Dir: /opt/OS
 Services: os-discord, os-operator, os-webhook, os-scraper
