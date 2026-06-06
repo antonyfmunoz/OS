@@ -79,7 +79,7 @@ export function RightRail() {
                 activeTab === t.id ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary',
               )}
             >
-              <Icon size={12} />
+              <Icon size={14} />
               {t.label}
             </button>
           )

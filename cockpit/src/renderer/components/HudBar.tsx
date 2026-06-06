@@ -214,10 +214,10 @@ export function HudBar() {
 
       {/* Presence / voice capability */}
       <span className="wv-label flex items-center gap-1">
-        stt <StatusDot status={sttAvailable ? 'connected' : 'disconnected'} />
+        <StatusDot status={sttAvailable ? 'connected' : 'disconnected'} /> stt
       </span>
       <span className="wv-label flex items-center gap-1">
-        tts <StatusDot status={ttsAvailable ? 'connected' : 'disconnected'} />
+        <StatusDot status={ttsAvailable ? 'connected' : 'disconnected'} /> tts
       </span>
 
       {/* Voice transcript ticker */}
@@ -246,13 +246,13 @@ export function HudBar() {
 
       {/* Connection indicators */}
       <span className="wv-label flex items-center gap-1">
-        api <StatusDot status={apiStatus} />
+        <StatusDot status={apiStatus} /> api
       </span>
       <span className="wv-label flex items-center gap-1">
-        ws <StatusDot status={wsStatus} />
+        <StatusDot status={wsStatus} /> ws
       </span>
       <span className="wv-label flex items-center gap-1">
-        voice <StatusDot status={voiceStatus} />
+        <StatusDot status={voiceStatus} /> voice
       </span>
 
     </footer>
