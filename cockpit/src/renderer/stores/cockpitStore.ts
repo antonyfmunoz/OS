@@ -31,6 +31,7 @@ export type Panel =
   | 'tmux'
   | 'workspace'
   | 'commandcenter'
+  | 'work'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
@@ -68,7 +69,7 @@ interface CockpitState {
 }
 
 export const useCockpitStore = create<CockpitState>((set) => ({
-  activePanel: 'dashboard',
+  activePanel: 'commandcenter',
   chatOpen: false,
   splitPanel: null,
   mode: 'EXECUTE',
@@ -80,7 +81,18 @@ export const useCockpitStore = create<CockpitState>((set) => ({
   wsStatus: 'disconnected',
   voiceStatus: 'disconnected',
 
-  setPanel: (panel) => set({ activePanel: panel }),
+  setPanel: (panel) => {
+    const redirects: Partial<Record<Panel, Panel>> = {
+      dashboard: 'commandcenter',
+      tasks: 'work',
+      workflows: 'work',
+      universalwork: 'work',
+      runtime: 'execution',
+      skills: 'knowledge',
+      workspace: 'editor',
+    }
+    set({ activePanel: redirects[panel] ?? panel })
+  },
   toggleChat: () => set((s) => ({ chatOpen: !s.chatOpen })),
   setChatOpen: (open) => set({ chatOpen: open }),
   setSplitPanel: (panel) => set({ splitPanel: panel }),

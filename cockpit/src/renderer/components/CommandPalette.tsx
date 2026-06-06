@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useCockpitStore, type Panel } from '../stores/cockpitStore'
 import { useConfigStore } from '../stores/configStore'
+import { ROUTES } from '../types/routes'
 
 interface Command {
   id: string
@@ -49,19 +50,20 @@ export function CommandPalette() {
     } catch { /* silent */ }
   }, [setPanel, setMode])
 
+  const routeCommands: Command[] = ROUTES
+    .filter((r) => r.visibility !== 'stub')
+    .map((r) => {
+      const badge = r.visibility === 'dev' ? ' [DEV]' : r.visibility === 'planned' ? ' [PLANNED]' : ''
+      return {
+        id: r.id,
+        label: `Go to ${r.label}${badge}`,
+        shortcut: r.visibility === 'primary' || r.visibility === 'system' ? `Ctrl+${r.key}` : undefined,
+        action: () => setPanel(r.id),
+      }
+    })
+
   const commands: Command[] = [
-    { id: 'dashboard', label: 'Go to Dashboard', shortcut: 'Ctrl+1', action: () => setPanel('dashboard') },
-    { id: 'agents', label: 'Go to Agents', shortcut: 'Ctrl+2', action: () => setPanel('agents') },
-    { id: 'tasks', label: 'Go to Tasks', shortcut: 'Ctrl+3', action: () => setPanel('tasks') },
-    { id: 'approvals', label: 'Go to Approvals', shortcut: 'Ctrl+4', action: () => setPanel('approvals') },
-    { id: 'knowledge', label: 'Go to Knowledge', shortcut: 'Ctrl+5', action: () => setPanel('knowledge') },
-    { id: 'analytics', label: 'Go to Analytics', shortcut: 'Ctrl+6', action: () => setPanel('analytics') },
-    { id: 'editor', label: 'Go to IDE', shortcut: 'Ctrl+7', action: () => setPanel('editor') },
-    { id: 'settings', label: 'Go to Settings', shortcut: 'Ctrl+8', action: () => setPanel('settings') },
-    { id: 'activity', label: 'Go to Activity', shortcut: 'Ctrl+9', action: () => setPanel('activity') },
-    { id: 'execution', label: 'Go to Execution', shortcut: 'Ctrl+0', action: () => setPanel('execution') },
-    { id: 'portfolio', label: 'Go to Portfolio', shortcut: 'Ctrl+P', action: () => setPanel('portfolio') },
-    { id: 'company', label: 'Go to Company', shortcut: 'Ctrl+C', action: () => setPanel('company') },
+    ...routeCommands,
     { id: 'chat', label: `Toggle ${aiName} Chat`, shortcut: 'Ctrl+/', action: toggleChat },
     { id: 'mode-execute', label: 'Switch to EXECUTE mode', action: () => setMode('EXECUTE') },
     { id: 'mode-plan', label: 'Switch to PLAN mode', action: () => setMode('PLAN') },
@@ -71,7 +73,6 @@ export function CommandPalette() {
     { id: 'win-medium-fab', label: 'Window: Medium FAB', action: () => setWindowMode('medium-fab') },
     { id: 'win-small-fab', label: 'Window: Small FAB', action: () => setWindowMode('small-fab') },
     { id: 'win-invisible', label: 'Window: Invisible', action: () => setWindowMode('invisible') },
-    { id: 'tmux', label: 'Go to Tmux Sessions', action: () => setPanel('tmux') },
   ]
 
   useEffect(() => {

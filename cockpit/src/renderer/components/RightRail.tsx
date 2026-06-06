@@ -8,6 +8,7 @@ import { useChatStore, type ChatMessage, type Provenance, type Attachment } from
 import { usePolling } from '../hooks/usePolling'
 import { relativeTime } from '../lib/time'
 import { useConfigStore } from '../stores/configStore'
+import { useViewContextStore } from '../stores/viewContextStore'
 import { getApiKey } from '../api/client'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
@@ -218,6 +219,7 @@ function ChatSection() {
   const setInput = useChatStore((s) => s.setInput)
   const sendMessage = useChatStore((s) => s.sendMessage)
   const loadHistory = useChatStore((s) => s.loadHistory)
+  const viewContext = useViewContextStore((s) => s.context)
   const scrollRef = useRef<HTMLDivElement>(null)
   const displayName = `${aiName} ASSISTANT`
   const [editingName, setEditingName] = useState(false)
@@ -229,7 +231,12 @@ function ChatSection() {
   useEffect(() => { if (editingName) nameRef.current?.focus() }, [editingName])
   useEffect(() => { setNameInput(aiName) }, [aiName])
 
-  const handleSend = () => { if (input.trim()) sendMessage(input) }
+  const handleSend = () => {
+    if (input.trim()) {
+      const ctx: Record<string, unknown> = { ...viewContext }
+      sendMessage(input, 'text', ctx)
+    }
+  }
 
   const commitName = () => {
     const trimmed = nameInput.trim()
@@ -267,6 +274,13 @@ function ChatSection() {
           </>
         )}
       </div>
+      {viewContext.selected_object_type && (
+        <div className="text-[9px] font-mono text-text-tertiary mb-1 px-1 py-0.5 bg-surface rounded border border-border truncate">
+          Viewing: {viewContext.active_route}
+          {viewContext.selected_object_type && ` > ${viewContext.selected_object_type}`}
+          {viewContext.selected_object_summary && `: ${viewContext.selected_object_summary}`}
+        </div>
+      )}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 mb-2">
         {messages.map((m) => (
           <MessageBubble key={m.id} msg={m} aiName={aiName} />

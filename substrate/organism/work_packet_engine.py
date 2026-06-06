@@ -135,6 +135,278 @@ class WorkPacketEngine:
 
         return packet
 
+    def decompose_intent_to_batch(
+        self,
+        user_intent: str,
+        desired_end_state: str = "",
+        constraints: list[str] | None = None,
+        idempotency_key: str = "",
+    ) -> dict[str, Any]:
+        """Decompose high-level intent into a batch of linked work packets.
+
+        Returns persistent, dependency-ordered, overnight-classified batch.
+        Idempotent: same idempotency_key returns existing batch.
+        """
+        import hashlib
+        from substrate.organism.dependency_graph import (
+            DependencyGraph, DependencyNode, DependencyEdge,
+            DependencyType, DependencyStrength,
+        )
+
+        if not idempotency_key:
+            idempotency_key = hashlib.sha256(
+                f"{user_intent}|{desired_end_state}".encode()
+            ).hexdigest()[:16]
+
+        # Check idempotency — return existing batch if found
+        for pkt in self._packets:
+            if pkt.source_id == idempotency_key and pkt.child_packet_ids:
+                children = [
+                    p for p in self._packets
+                    if p.packet_id in pkt.child_packet_ids
+                ]
+                return {
+                    "batch_id": pkt.packet_id,
+                    "idempotency_key": idempotency_key,
+                    "parent_packet": pkt.to_safe_dict(),
+                    "child_packets": [c.to_safe_dict() for c in children],
+                    "dependency_edges": [],
+                    "overnight_classification": {
+                        c.packet_id: self._classify_overnight_safety(c)
+                        for c in children
+                    },
+                    "created_count": len(children),
+                    "already_existed": True,
+                    "ok": True,
+                }
+
+        classification = self.classify_intent(user_intent)
+
+        # Detect multi-step intent even when classifier says "simple"
+        # Multiple work-type keywords indicate batch-worthy work
+        _multi_step_signals = [
+            "and deploy", "and test", "with tests", "with documentation",
+            "then deploy", "then test", "then verify", "build and",
+            "implement and", "create and", "and monitor",
+        ]
+        intent_lower = user_intent.lower()
+        multi_step_count = sum(1 for s in _multi_step_signals if s in intent_lower)
+        needs_decomposition = (
+            classification.complexity in ("complex", "strategic")
+            or multi_step_count >= 1
+            or (classification.risk_class in ("medium", "high") and len(user_intent) > 80)
+        )
+
+        # Simple intent → single packet, no decomposition
+        if not needs_decomposition:
+            packet = self.create_packet_from_intent(
+                user_intent=user_intent,
+                desired_end_state=desired_end_state,
+                constraints=constraints,
+                source_id=idempotency_key,
+            )
+            return {
+                "batch_id": packet.packet_id,
+                "idempotency_key": idempotency_key,
+                "parent_packet": packet.to_safe_dict(),
+                "child_packets": [],
+                "dependency_edges": [],
+                "overnight_classification": {
+                    packet.packet_id: self._classify_overnight_safety(packet),
+                },
+                "created_count": 1,
+                "already_existed": False,
+                "ok": True,
+            }
+
+        # Complex/strategic → batch decomposition
+        # 1. Create + persist parent packet first
+        parent = WorkPacket(
+            title=f"Batch: {self._generate_title(user_intent, classification)}",
+            user_intent=user_intent,
+            desired_end_state=desired_end_state or classification.desired_output,
+            intent_summary=f"batch:{classification.work_type} in {classification.domain}",
+            domain=classification.domain,
+            source_type="batch_decomposition",
+            source_id=idempotency_key,
+            constraints=constraints or [],
+            risk_class=classification.risk_class,
+            status=PacketLifecycleStatus.PLANNED,
+        )
+        self._packets.append(parent)
+        self.persist_packet()
+
+        # 2. Determine child steps by work type
+        steps = self._decomposition_steps(classification.work_type)
+
+        # 3. Create child packets — persist each immediately
+        children: list[WorkPacket] = []
+        created_ids: list[str] = []
+        try:
+            for i, (step_type, step_label) in enumerate(steps):
+                child = WorkPacket(
+                    title=f"{step_label}: {parent.title.replace('Batch: ', '')}",
+                    user_intent=f"{step_label} for: {user_intent}",
+                    desired_end_state=f"{step_label} complete",
+                    intent_summary=f"{step_type} in {classification.domain}",
+                    domain=classification.domain,
+                    source_type="batch_child",
+                    source_id=idempotency_key,
+                    constraints=constraints or [],
+                    risk_class=self._child_risk_class(step_type, classification),
+                    parent_packet_id=parent.packet_id,
+                    status=PacketLifecycleStatus.PLANNED,
+                    priority=50 + (len(steps) - i),
+                )
+                self._packets.append(child)
+                children.append(child)
+                created_ids.append(child.packet_id)
+                self.persist_packet()
+        except Exception as exc:
+            logger.warning("batch decomposition partial failure at child %d: %s", len(created_ids), exc)
+            parent.child_packet_ids = created_ids
+            self.persist_packet()
+            return {
+                "batch_id": parent.packet_id,
+                "idempotency_key": idempotency_key,
+                "parent_packet": parent.to_safe_dict(),
+                "child_packets": [c.to_safe_dict() for c in children],
+                "dependency_edges": [],
+                "overnight_classification": {
+                    c.packet_id: self._classify_overnight_safety(c)
+                    for c in children
+                },
+                "created_count": len(created_ids),
+                "ok": False,
+                "partial": True,
+                "error": str(exc),
+            }
+
+        # 4. Update parent with child IDs
+        parent.child_packet_ids = created_ids
+        self.persist_packet()
+
+        # 5. Build dependency graph (sequential edges)
+        dep_graph = DependencyGraph()
+        for child in children:
+            dep_graph.add_node(DependencyNode(
+                id=child.packet_id,
+                name=child.title,
+                category=child.domain,
+            ))
+        edges_serialized: list[dict[str, Any]] = []
+        for i in range(len(children) - 1):
+            edge = DependencyEdge(
+                source=children[i + 1].packet_id,
+                target=children[i].packet_id,
+                dep_type=DependencyType.EXECUTION,
+                strength=DependencyStrength.HARD,
+                evidence=f"{children[i].title} must complete before {children[i + 1].title}",
+            )
+            dep_graph.add_edge(edge)
+            edges_serialized.append(edge.to_dict())
+            # Also set dependencies field on child packets
+            children[i + 1].dependencies = [children[i].packet_id]
+
+        self.persist_packet()
+
+        # 6. Overnight classification
+        overnight = {
+            c.packet_id: self._classify_overnight_safety(c)
+            for c in children
+        }
+
+        return {
+            "batch_id": parent.packet_id,
+            "idempotency_key": idempotency_key,
+            "parent_packet": parent.to_safe_dict(),
+            "child_packets": [c.to_safe_dict() for c in children],
+            "dependency_edges": edges_serialized,
+            "overnight_classification": overnight,
+            "created_count": len(children),
+            "already_existed": False,
+            "ok": True,
+        }
+
+    @staticmethod
+    def _decomposition_steps(work_type: str) -> list[tuple[str, str]]:
+        """Return (step_work_type, step_label) tuples for decomposition."""
+        templates: dict[str, list[tuple[str, str]]] = {
+            "implementation": [
+                ("research", "Research"),
+                ("planning", "Plan"),
+                ("implementation", "Implement"),
+                ("testing", "Test"),
+                ("verification", "Verify"),
+            ],
+            "analysis": [
+                ("research", "Research"),
+                ("analysis", "Analyze"),
+                ("planning", "Synthesize"),
+                ("verification", "Recommend"),
+            ],
+            "deployment": [
+                ("planning", "Prepare"),
+                ("verification", "Validate"),
+                ("deployment", "Deploy"),
+                ("verification", "Verify"),
+            ],
+            "content_creation": [
+                ("research", "Research"),
+                ("content_creation", "Draft"),
+                ("audit", "Review"),
+                ("deployment", "Publish"),
+            ],
+        }
+        return templates.get(work_type, [
+            ("planning", "Plan"),
+            ("implementation", "Execute"),
+            ("verification", "Verify"),
+        ])
+
+    @staticmethod
+    def _child_risk_class(step_type: str, classification: IntentClassification) -> str:
+        """Derive child risk class from step type and parent classification."""
+        low_risk_steps = {"research", "analysis", "audit", "verification", "monitoring"}
+        if step_type in low_risk_steps:
+            return "low"
+        if step_type in ("testing", "configuration", "cleanup", "planning"):
+            return min(classification.risk_class, "medium", key=["low", "medium", "high"].index)
+        return classification.risk_class
+
+    @staticmethod
+    def _classify_overnight_safety(packet: WorkPacket) -> str:
+        """Classify overnight safety: 'safe', 'approval_needed', or 'blocked'.
+
+        Amendment 8.3: action-type-aware, not just risk_class.
+        Only read-only and proof/test/report work is automatically safe.
+        All mutating work requires approval or is blocked.
+        """
+        work_type = ""
+        if packet.intent_summary and " in " in packet.intent_summary:
+            work_type = packet.intent_summary.split(" in ")[0].strip()
+            if work_type.startswith("batch:"):
+                work_type = work_type[6:]
+
+        safe_types = {"research", "analysis", "audit", "verification", "monitoring"}
+        approval_types = {"testing", "configuration", "cleanup"}
+        blocked_types = {"implementation", "deployment", "content_creation", "coordination"}
+
+        if packet.risk_class in ("high", "critical"):
+            return "blocked"
+
+        if work_type in safe_types and packet.risk_class == "low":
+            return "safe"
+
+        if work_type in approval_types and packet.risk_class in ("low", "medium"):
+            return "approval_needed"
+
+        if work_type in blocked_types:
+            return "blocked"
+
+        # Conservative fallback
+        return "approval_needed"
+
     def classify_intent(self, user_intent: str) -> IntentClassification:
         return self._classifier.classify(user_intent)
 

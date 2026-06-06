@@ -104,10 +104,10 @@ export function CommsPanel() {
     <div className="flex flex-col h-full">
       <div className="flex items-center px-4 py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
         <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-          Messages
+          Comms
         </h2>
         <span className="ml-2 text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-          cross-channel communications
+          Internal agent &amp; team communication
         </span>
         <span className="ml-auto text-xs tabular-nums" style={{ color: 'var(--color-text-tertiary)' }}>
           {messages.length}

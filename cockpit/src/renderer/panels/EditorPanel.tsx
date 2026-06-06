@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useEditorStore } from '../stores/editorStore'
 import { useProviderRegistryStore } from '../stores/providerRegistryStore'
+import { useViewContextStore } from '../stores/viewContextStore'
 
 interface FileNodeProps {
   name: string
@@ -70,9 +71,43 @@ export function EditorPanel() {
   const togglePreview = useEditorStore((s) => s.togglePreview)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  const gitBranch = useEditorStore((s) => s.gitBranch)
+  const gitChangedCount = useEditorStore((s) => s.gitChangedCount)
+  const sessions = useEditorStore((s) => s.sessions)
+  const activeNode = useEditorStore((s) => s.activeNode)
+  const ccDelegating = useEditorStore((s) => s.ccDelegating)
+  const fetchGitStatus = useEditorStore((s) => s.fetchGitStatus)
+  const fetchSessions = useEditorStore((s) => s.fetchSessions)
+  const delegateToClaudeCode = useEditorStore((s) => s.delegateToClaudeCode)
+  const captureSession = useEditorStore((s) => s.captureSession)
+  const setViewContext = useViewContextStore((s) => s.setContext)
+
+  const [sidebarTab, setSidebarTab] = useState<'files' | 'sessions' | 'proof' | 'recent'>('files')
+  const [ccPrompt, setCcPrompt] = useState('')
+  const [ccTarget, setCcTarget] = useState('')
+  const [capturedOutput, setCapturedOutput] = useState('')
+
   useEffect(() => {
     fetchFileTree()
   }, [fetchFileTree])
+
+  useEffect(() => {
+    fetchGitStatus()
+    fetchSessions()
+    const id = setInterval(() => { fetchGitStatus(); fetchSessions() }, 15000)
+    return () => clearInterval(id)
+  }, [fetchGitStatus, fetchSessions])
+
+  useEffect(() => {
+    if (activeFile) {
+      setViewContext({
+        selected_object_type: 'file',
+        selected_path: activeFile,
+        selected_node: activeNode,
+        selected_branch: gitBranch,
+      })
+    }
+  }, [activeFile, activeNode, gitBranch, setViewContext])
 
   const activeContent = openFiles.find((f) => f.path === activeFile)
 
@@ -85,17 +120,121 @@ export function EditorPanel() {
 
   return (
     <div className="flex h-full" onKeyDown={handleKeyDown}>
-      {/* File tree */}
-      <div className="w-56 shrink-0 overflow-y-auto border-r border-border bg-canvas">
+      {/* Left sidebar — topology */}
+      <div className="w-56 shrink-0 flex flex-col overflow-hidden border-r border-border bg-canvas">
         <div className="px-3 py-2 border-b border-border">
-          <p className="wv-label">Explorer</p>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="wv-label flex-1">META IDE</p>
+            {gitBranch && (
+              <span className="text-[9px] font-mono text-cyan">
+                {gitBranch}{gitChangedCount > 0 ? ` +${gitChangedCount}` : ''}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-[9px] font-mono text-text-tertiary">
+            <span className="text-ok">●</span> VPS
+            <span className="text-text-tertiary mx-1">·</span>
+            <span className="text-text-tertiary">● Windows: disconnected</span>
+          </div>
         </div>
-        <div className="py-1">
-          {fileTree.map((node) => (
-            <FileTreeNode key={node.path} name={node.name} path={node.path} type={node.type} depth={0} />
+        <div className="flex items-center border-b border-border">
+          {(['files', 'sessions', 'proof', 'recent'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setSidebarTab(tab)}
+              className={`flex-1 py-1 text-[9px] font-mono uppercase tracking-wider transition-colors ${
+                sidebarTab === tab ? 'text-cyan border-b border-cyan' : 'text-text-tertiary'
+              }`}
+            >
+              {tab}
+            </button>
           ))}
-          {fileTree.length === 0 && (
-            <p className="text-xs px-3 py-4 text-center text-text-tertiary">No file tree loaded</p>
+        </div>
+        <div className="flex-1 overflow-y-auto py-1">
+          {sidebarTab === 'files' && (
+            <>
+              {fileTree.map((node) => (
+                <FileTreeNode key={node.path} name={node.name} path={node.path} type={node.type} depth={0} />
+              ))}
+              {fileTree.length === 0 && (
+                <p className="text-xs px-3 py-4 text-center text-text-tertiary">No file tree loaded</p>
+              )}
+            </>
+          )}
+          {sidebarTab === 'sessions' && (
+            <div className="px-2 py-1 space-y-1">
+              {sessions.length === 0 && <p className="text-xs text-text-tertiary text-center py-4">No active sessions</p>}
+              {sessions.map((s) => (
+                <div key={s.name} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-surface-raised text-xs">
+                  <span className={`w-2 h-2 rounded-full ${s.status === 'active' ? 'bg-ok' : 'bg-text-tertiary'}`} />
+                  <span className="text-text-primary flex-1 truncate font-mono text-[10px]">{s.name}</span>
+                  <span className="text-[8px] text-text-tertiary uppercase">{s.type}</span>
+                  <button
+                    onClick={async () => {
+                      const output = await captureSession(s.name)
+                      setCapturedOutput(output)
+                      setViewContext({ selected_object_type: 'session', selected_session_id: s.name })
+                    }}
+                    className="text-[8px] text-cyan hover:underline"
+                  >
+                    capture
+                  </button>
+                </div>
+              ))}
+              {/* Claude Code delegation section */}
+              <div className="mt-3 pt-2 border-t border-border">
+                <p className="wv-label mb-1">DELEGATE TO CC</p>
+                <select
+                  value={ccTarget}
+                  onChange={(e) => setCcTarget(e.target.value)}
+                  className="w-full mb-1 text-[10px] bg-surface-raised border border-border rounded px-1 py-0.5 text-text-primary"
+                >
+                  <option value="">Select session...</option>
+                  {sessions.map((s) => (
+                    <option key={s.name} value={s.name}>{s.name}</option>
+                  ))}
+                </select>
+                <textarea
+                  value={ccPrompt}
+                  onChange={(e) => setCcPrompt(e.target.value)}
+                  placeholder="Enter prompt for Claude Code..."
+                  className="w-full text-[10px] bg-surface-raised border border-border rounded px-2 py-1 text-text-primary placeholder-text-tertiary resize-none h-16"
+                />
+                <button
+                  onClick={async () => {
+                    if (ccTarget && ccPrompt.trim()) {
+                      await delegateToClaudeCode(ccTarget, ccPrompt)
+                      setCcPrompt('')
+                    }
+                  }}
+                  disabled={!ccTarget || !ccPrompt.trim() || ccDelegating}
+                  className="mt-1 w-full text-[10px] px-2 py-1 bg-cyan-glow text-cyan border border-cyan/30 rounded hover:bg-cyan/20 disabled:opacity-30 font-mono uppercase tracking-wider"
+                >
+                  {ccDelegating ? 'Sending...' : 'Send Prompt'}
+                </button>
+              </div>
+              {/* Captured output display */}
+              {capturedOutput && (
+                <div className="mt-2 pt-2 border-t border-border">
+                  <p className="wv-label mb-1">CAPTURED OUTPUT</p>
+                  <pre className="text-[9px] font-mono text-text-secondary bg-canvas p-2 rounded max-h-32 overflow-y-auto whitespace-pre-wrap">
+                    {capturedOutput}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+          {sidebarTab === 'proof' && (
+            <p className="text-xs px-3 py-4 text-center text-text-tertiary">Proof artifacts coming soon</p>
+          )}
+          {sidebarTab === 'recent' && (
+            <div className="px-2 py-1">
+              {gitChangedCount > 0 ? (
+                <p className="text-xs text-text-secondary">{gitChangedCount} file(s) changed on {gitBranch}</p>
+              ) : (
+                <p className="text-xs text-text-tertiary text-center py-4">No recent changes</p>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -168,9 +307,12 @@ export function EditorPanel() {
             ) : (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
-                  <p className="font-mono text-lg mb-2 text-cyan">UMH IDE</p>
-                  <p className="text-xs text-text-tertiary">Open a file from the explorer to begin editing</p>
-                  <p className="text-xs mt-1 text-text-tertiary">Ctrl+S to save · Ctrl+K for command palette</p>
+                  <p className="font-mono text-lg mb-2 text-cyan">META IDE</p>
+                  <p className="text-xs text-text-tertiary">Open a file, session, or proof artifact</p>
+                  <p className="text-xs mt-1 text-text-tertiary">
+                    Ctrl+S to save · Ctrl+K for command palette
+                    {gitBranch && ` · ${gitBranch}`}
+                  </p>
                 </div>
               </div>
             )}
@@ -203,20 +345,20 @@ export function EditorPanel() {
 }
 
 function RightSidebar() {
-  const [tab, setTab] = useState<'preview' | 'providers'>('providers')
+  const [tab, setTab] = useState<'preview' | 'runtimes'>('runtimes')
   return (
     <>
       <div className="flex items-center h-8 px-3 shrink-0 border-b border-border bg-canvas gap-2">
-        <button onClick={() => setTab('providers')}
-          className={`wv-label text-[10px] ${tab === 'providers' ? 'text-cyan' : 'text-text-tertiary'}`}>
-          Providers
+        <button onClick={() => setTab('runtimes')}
+          className={`wv-label text-[10px] ${tab === 'runtimes' ? 'text-cyan' : 'text-text-tertiary'}`}>
+          Runtimes
         </button>
         <button onClick={() => setTab('preview')}
           className={`wv-label text-[10px] ${tab === 'preview' ? 'text-cyan' : 'text-text-tertiary'}`}>
           Preview
         </button>
       </div>
-      {tab === 'providers' ? <ProviderRegistrySurface /> : (
+      {tab === 'runtimes' ? <ProviderRegistrySurface /> : (
         <div className="flex-1 flex items-center justify-center bg-surface-raised">
           <div className="text-center">
             <p className="text-xs text-text-tertiary">Live preview server integration coming in Phase 5.</p>

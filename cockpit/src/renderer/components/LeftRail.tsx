@@ -1,8 +1,6 @@
 import { clsx } from 'clsx'
-import { ChevronLeft, ChevronRight, Radio, Mic, MicOff } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Radio } from 'lucide-react'
 import { useCockpitStore } from '../stores/cockpitStore'
-import { useVoiceStore } from '../stores/voiceStore'
-import { startVoice, stopVoice } from '../api/voice-controller'
 import { ROUTES, ROUTE_GROUPS } from '../types/routes'
 
 export function LeftRail() {
@@ -11,7 +9,6 @@ export function LeftRail() {
   const wsStatus = useCockpitStore((s) => s.wsStatus)
   const setPanel = useCockpitStore((s) => s.setPanel)
   const toggleRail = useCockpitStore((s) => s.toggleRail)
-  const micState = useVoiceStore((s) => s.micState)
 
   const wsConnected = wsStatus === 'connected'
 
@@ -43,7 +40,9 @@ export function LeftRail() {
       {/* Route groups */}
       <div className="flex-1 overflow-y-auto py-2">
         {ROUTE_GROUPS.map((group) => {
-          const groupRoutes = ROUTES.filter((r) => r.group === group.key)
+          const groupRoutes = ROUTES.filter(
+            (r) => r.group === group.key && (r.visibility === 'primary' || r.visibility === 'system'),
+          )
           return (
             <div key={group.key} className="mb-2">
               {!railCollapsed && (
@@ -75,35 +74,6 @@ export function LeftRail() {
           )
         })}
       </div>
-
-      {/* Voice status */}
-      <div className="px-3 py-2 border-t border-border">
-        <button
-          onClick={() => {
-            if (micState === 'idle') startVoice()
-            else stopVoice()
-          }}
-          className={clsx(
-            'flex items-center gap-2 w-full rounded px-2 py-1.5 transition-colors',
-            micState !== 'idle'
-              ? 'bg-cyan-glow text-cyan'
-              : 'text-text-tertiary hover:text-text-secondary',
-          )}
-          title={micState === 'idle' ? 'Start voice (V)' : 'Stop voice (V)'}
-        >
-          {micState !== 'idle' ? (
-            <Mic size={14} className="text-cyan shrink-0" />
-          ) : (
-            <MicOff size={14} className="shrink-0" />
-          )}
-          {!railCollapsed && (
-            <span className="text-[11px] font-mono uppercase tracking-wider truncate">
-              {micState === 'idle' ? 'Voice' : micState === 'listening' ? 'Listening...' : 'Processing...'}
-            </span>
-          )}
-        </button>
-      </div>
-
 
       {/* Presence indicator */}
       <div className="px-3 py-2 border-t border-border">

@@ -44,7 +44,7 @@ interface ChatState {
 
   setInput: (input: string) => void
   setTargetChannel: (channel: string) => void
-  sendMessage: (content: string, source?: 'text' | 'voice') => Promise<void>
+  sendMessage: (content: string, source?: 'text' | 'voice', viewContext?: Record<string, unknown>) => Promise<void>
   loadHistory: () => Promise<void>
   startPolling: () => void
   stopPolling: () => void
@@ -63,7 +63,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setInput: (input) => set({ input }),
   setTargetChannel: (channel) => set({ targetChannel: channel }),
 
-  sendMessage: async (content, source = 'text') => {
+  sendMessage: async (content, source = 'text', viewContext?: Record<string, unknown>) => {
     if (!content.trim()) return
 
     const { targetChannel } = get()
@@ -88,7 +88,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (targetChannel === 'cockpit') {
         const res = await fetchApi<ChatResponse>('/dex/converse', {
           method: 'POST',
-          body: JSON.stringify({ content: content.trim() }),
+          body: JSON.stringify({ content: content.trim(), view_context: viewContext }),
         })
 
         const aiMsg: ChatMessage = {

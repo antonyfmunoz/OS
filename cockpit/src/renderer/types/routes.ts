@@ -15,7 +15,6 @@ import {
   MessageSquare,
   Workflow,
   Target,
-  Wrench,
   FlaskConical,
   Server,
   User,
@@ -25,7 +24,7 @@ import {
   Hammer,
   Mic,
   Play,
-  FolderSearch,
+  Terminal,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -33,44 +32,51 @@ export interface RouteEntry {
   id: Panel
   label: string
   icon: LucideIcon
-  group: 'core' | 'operations' | 'intelligence' | 'system'
+  group: 'primary' | 'system'
+  visibility: 'primary' | 'system' | 'dev' | 'planned' | 'stub'
   key: string
 }
 
 export const ROUTES: RouteEntry[] = [
-  { id: 'operator', label: 'Operator', icon: Mic, group: 'core', key: 'd' },
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'core', key: '1' },
-  { id: 'commandcenter', label: 'Command Center', icon: Target, group: 'core', key: 'q' },
-  { id: 'agents', label: 'Agents', icon: Bot, group: 'core', key: '2' },
-  { id: 'tasks', label: 'Tasks', icon: ListChecks, group: 'core', key: '3' },
-  { id: 'workflows', label: 'Workflows', icon: Workflow, group: 'core', key: 'w' },
-  { id: 'activity', label: 'Activity', icon: Activity, group: 'core', key: '9' },
-  { id: 'approvals', label: 'Approvals', icon: ShieldCheck, group: 'operations', key: '4' },
-  { id: 'organism', label: 'Organism', icon: Brain, group: 'operations', key: 'o' },
-  { id: 'runtime', label: 'Runtime', icon: Play, group: 'operations', key: 'r' },
-  { id: 'execution', label: 'Execution', icon: Layers, group: 'operations', key: '0' },
-  { id: 'tracking', label: 'Tracking', icon: Target, group: 'operations', key: 't' },
-  { id: 'infrastructure', label: 'Infrastructure', icon: Server, group: 'operations', key: 'i' },
-  { id: 'portfolio', label: 'Portfolio', icon: Briefcase, group: 'operations', key: 'p' },
-  { id: 'company', label: 'Company', icon: Building2, group: 'operations', key: 'c' },
-  { id: 'worldmodel', label: 'World Model', icon: Globe, group: 'operations', key: 'g' },
-  { id: 'selfbuild', label: 'Self-Build', icon: Hammer, group: 'operations', key: 'b' },
-  { id: 'universalwork', label: 'Universal Work', icon: Layers, group: 'operations', key: 'w' },
-  { id: 'intelligence', label: 'Intelligence', icon: Lightbulb, group: 'intelligence', key: 'n' },
-  { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'intelligence', key: '5' },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'intelligence', key: '6' },
-  { id: 'skills', label: 'Skills', icon: Wrench, group: 'intelligence', key: 'k' },
-  { id: 'workspace', label: 'Workspace', icon: FolderSearch, group: 'intelligence', key: 'j' },
-  { id: 'editor', label: 'IDE', icon: Code2, group: 'intelligence', key: '7' },
-  { id: 'experiments', label: 'Experiments', icon: FlaskConical, group: 'intelligence', key: 'x' },
-  { id: 'comms', label: 'Messages', icon: MessageSquare, group: 'system', key: 'm' },
-  { id: 'profile', label: 'Profile', icon: User, group: 'system', key: 'u' },
-  { id: 'settings', label: 'Settings', icon: Settings, group: 'system', key: '8' },
+  // Primary (10)
+  { id: 'commandcenter', label: 'Command Center', icon: Target, group: 'primary', visibility: 'primary', key: 'q' },
+  { id: 'work', label: 'Work', icon: ListChecks, group: 'primary', visibility: 'primary', key: '3' },
+  { id: 'agents', label: 'Agents', icon: Bot, group: 'primary', visibility: 'primary', key: '2' },
+  { id: 'approvals', label: 'Approvals', icon: ShieldCheck, group: 'primary', visibility: 'primary', key: '4' },
+  { id: 'activity', label: 'Activity', icon: Activity, group: 'primary', visibility: 'primary', key: '9' },
+  { id: 'editor', label: 'Meta IDE', icon: Code2, group: 'primary', visibility: 'primary', key: '7' },
+  { id: 'execution', label: 'Execution', icon: Layers, group: 'primary', visibility: 'primary', key: '0' },
+  { id: 'infrastructure', label: 'Infrastructure', icon: Server, group: 'primary', visibility: 'primary', key: 'i' },
+  { id: 'comms', label: 'Comms', icon: MessageSquare, group: 'primary', visibility: 'primary', key: 'm' },
+  { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'primary', visibility: 'primary', key: '5' },
+
+  // System (1)
+  { id: 'settings', label: 'Settings', icon: Settings, group: 'system', visibility: 'system', key: '8' },
+
+  // Dev (searchable with [DEV] badge)
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'primary', visibility: 'dev', key: '1' },
+  { id: 'organism', label: 'Organism', icon: Brain, group: 'primary', visibility: 'dev', key: 'o' },
+  { id: 'intelligence', label: 'Intelligence', icon: Lightbulb, group: 'primary', visibility: 'dev', key: 'n' },
+  { id: 'propagation', label: 'Propagation', icon: Workflow, group: 'primary', visibility: 'dev', key: 'g' },
+  { id: 'operator', label: 'Operator', icon: Mic, group: 'primary', visibility: 'dev', key: 'd' },
+  { id: 'tmux', label: 'Tmux', icon: Terminal, group: 'primary', visibility: 'dev', key: 't' },
+  { id: 'runtime', label: 'Runtime', icon: Play, group: 'primary', visibility: 'dev', key: 'r' },
+  { id: 'selfbuild', label: 'Self-Build', icon: Hammer, group: 'primary', visibility: 'dev', key: 'b' },
+  { id: 'universalwork', label: 'Universal Work', icon: Layers, group: 'primary', visibility: 'dev', key: 'w' },
+  { id: 'worldmodel', label: 'World Model', icon: Globe, group: 'primary', visibility: 'dev', key: 'g' },
+  { id: 'portfolio', label: 'Portfolio', icon: Briefcase, group: 'primary', visibility: 'dev', key: 'p' },
+  { id: 'company', label: 'Company', icon: Building2, group: 'primary', visibility: 'dev', key: 'c' },
+
+  // Planned (searchable with [PLANNED] badge)
+  { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'primary', visibility: 'planned', key: '6' },
+
+  // Stub (NOT searchable)
+  { id: 'tracking', label: 'Tracking', icon: Target, group: 'primary', visibility: 'stub', key: 't' },
+  { id: 'experiments', label: 'Experiments', icon: FlaskConical, group: 'primary', visibility: 'stub', key: 'x' },
+  { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'stub', key: 'u' },
 ]
 
 export const ROUTE_GROUPS = [
-  { key: 'core' as const, label: 'CORE' },
-  { key: 'operations' as const, label: 'OPERATIONS' },
-  { key: 'intelligence' as const, label: 'INTELLIGENCE' },
+  { key: 'primary' as const, label: 'PRIMARY' },
   { key: 'system' as const, label: 'SYSTEM' },
 ]
