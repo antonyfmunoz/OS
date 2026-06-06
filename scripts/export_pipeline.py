@@ -32,7 +32,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 from dotenv import load_dotenv
 
 load_dotenv("/opt/OS/.env")
-load_dotenv("/opt/OS/services/.env", override=True)
+load_dotenv("/opt/OS/services/.env", override=False)
 
 logging.basicConfig(
     level=logging.INFO,

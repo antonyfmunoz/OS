@@ -14,7 +14,7 @@ from pathlib import Path
 from dotenv import load_dotenv as _load_dotenv
 _ROOT = Path(__file__).parent.parent
 _load_dotenv(_ROOT / 'services' / '.env')
-_load_dotenv(_ROOT / 'runtime' / '.env', override=True)
+_load_dotenv(_ROOT / 'runtime' / '.env', override=False)
 
 try:
     import google.genai as genai
