@@ -276,6 +276,7 @@ async def _command(request: Request) -> dict[str, Any]:
         result["response_text"] = "Work packet draft requires governance approval."
         result["governance"] = GovernanceRequirement.REQUIRES_GOVERNANCE.value
         result["data"] = {"draft_text": text, "status": "pending_governance"}
+        result["panel_target"] = "commandcenter"
 
     elif intent == CommandIntent.AGENT_QUERY:
         agents_data = _load_agent_summary()
@@ -299,7 +300,7 @@ async def _command(request: Request) -> dict[str, Any]:
         summary_data = _load_command_center_summary()
         result["response_text"] = _build_command_center_response(summary_data)
         result["data"] = summary_data
-        result["panel_target"] = "dashboard"
+        result["panel_target"] = "commandcenter"
 
     else:
         result["response_text"] = "Command not recognized. Try: status, agents, blocked, approvals, mode switch, or navigation."
