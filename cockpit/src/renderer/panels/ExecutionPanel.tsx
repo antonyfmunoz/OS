@@ -74,12 +74,12 @@ export function ExecutionPanel() {
             <div className="p-3 border-b border-border">
               <h3 className="wv-label mb-2">Leverage</h3>
               <div className="grid grid-cols-2 gap-y-1.5 gap-x-3">
-                <StatRow label="Composite" value={leverage.dimensions.composite.toFixed(2)} />
-                <StatRow label="Time Saved" value={`${(leverage.totals.operator_seconds_saved / 3600).toFixed(1)}h`} />
-                <StatRow label="Autonomous" value={`${leverage.totals.autonomous_resolutions}`} />
-                <StatRow label="Autonomy" value={`${(leverage.dimensions.execution_autonomy * 100).toFixed(0)}%`} />
-                <StatRow label="Reliability" value={`${(leverage.dimensions.operational_reliability * 100).toFixed(0)}%`} />
-                <StatRow label="Tasks" value={`${leverage.totals.tasks}`} />
+                <StatRow label="Composite" value={(leverage.dimensions?.composite ?? 0).toFixed(2)} />
+                <StatRow label="Time Saved" value={`${((leverage.totals?.operator_seconds_saved ?? 0) / 3600).toFixed(1)}h`} />
+                <StatRow label="Autonomous" value={`${leverage.totals?.autonomous_resolutions ?? 0}`} />
+                <StatRow label="Autonomy" value={`${((leverage.dimensions?.execution_autonomy ?? 0) * 100).toFixed(0)}%`} />
+                <StatRow label="Reliability" value={`${((leverage.dimensions?.operational_reliability ?? 0) * 100).toFixed(0)}%`} />
+                <StatRow label="Tasks" value={`${leverage.totals?.tasks ?? 0}`} />
               </div>
             </div>
           )}
