@@ -1,17 +1,13 @@
 import { clsx } from 'clsx'
-import { ChevronLeft, ChevronRight, Radio } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { ROUTES, ROUTE_GROUPS } from '../types/routes'
 
 export function LeftRail() {
   const activePanel = useCockpitStore((s) => s.activePanel)
   const railCollapsed = useCockpitStore((s) => s.railCollapsed)
-  const wsStatus = useCockpitStore((s) => s.wsStatus)
-  const apiStatus = useCockpitStore((s) => s.apiStatus)
   const setPanel = useCockpitStore((s) => s.setPanel)
   const toggleRail = useCockpitStore((s) => s.toggleRail)
-
-  const isOnline = wsStatus === 'connected' || apiStatus === 'connected'
 
   return (
     <nav
@@ -63,24 +59,6 @@ export function LeftRail() {
             </div>
           )
         })}
-      </div>
-
-      {/* Footer — fullscreen + connection status */}
-      <div className="px-3 py-2 border-t border-border">
-        <div className="flex items-center gap-3">
-          <Radio size={12} className="text-cyan wv-pulse" />
-          {!railCollapsed && (
-            <>
-              <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
-                Full-Screen
-              </span>
-              <div className={clsx('w-2 h-2 rounded-full', isOnline ? 'bg-ok wv-pulse' : 'bg-danger')} />
-              <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
-                {isOnline ? 'Online' : 'Offline'}
-              </span>
-            </>
-          )}
-        </div>
       </div>
     </nav>
   )
