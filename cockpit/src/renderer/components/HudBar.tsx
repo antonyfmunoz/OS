@@ -38,33 +38,26 @@ function AudioMeter({ level }: { level: number }) {
   )
 }
 
-function NodeMetricsStrip() {
+function OrganismMetrics() {
   const nodeMetrics = useRealtimeStore((s) => s.nodeMetrics)
-  const entries = Object.entries(nodeMetrics)
-  if (entries.length === 0) {
-    return (
-      <>
-        <span className="wv-label">cpu <span className="text-cyan">—%</span></span>
-        <span className="wv-label">ram <span className="text-cyan">—%</span></span>
-      </>
-    )
-  }
+  const online = Object.values(nodeMetrics).filter((m) => m.status === 'online')
+  const total = Object.keys(nodeMetrics).length
+  const cpuValues = online.map((m) => m.cpu).filter((v): v is number => v != null)
+  const memValues = online.map((m) => m.memory).filter((v): v is number => v != null)
+  const avgCpu = cpuValues.length > 0 ? cpuValues.reduce((a, b) => a + b, 0) / cpuValues.length : null
+  const avgMem = memValues.length > 0 ? memValues.reduce((a, b) => a + b, 0) / memValues.length : null
+
   return (
     <>
-      {entries.map(([id, m]) => (
-        <span key={id} className="wv-label flex items-center gap-1" title={m.name}>
-          <span className={clsx('w-1.5 h-1.5 rounded-full', m.status === 'online' ? 'bg-ok' : 'bg-danger')} />
-          <span className="text-text-tertiary">{id}</span>
-          {m.status === 'online' ? (
-            <>
-              {m.cpu != null && <span className="text-cyan">{m.cpu.toFixed(0)}%</span>}
-              {m.memory != null && <span className="text-cyan">{m.memory.toFixed(0)}%</span>}
-            </>
-          ) : (
-            <span className="text-text-tertiary">--</span>
-          )}
-        </span>
-      ))}
+      <span className="wv-label">
+        cpu <span className="text-cyan">{avgCpu != null ? `${avgCpu.toFixed(0)}%` : '—'}</span>
+      </span>
+      <span className="wv-label">
+        ram <span className="text-cyan">{avgMem != null ? `${avgMem.toFixed(0)}%` : '—'}</span>
+      </span>
+      <span className="wv-label">
+        nodes <span className={clsx(online.length === total ? 'text-ok' : 'text-warn')}>{online.length}/{total}</span>
+      </span>
     </>
   )
 }
@@ -214,7 +207,7 @@ export function HudBar() {
         <span className="text-cyan">{pulse?.active_agents ?? 0}</span> agents
       </span>
 
-      <NodeMetricsStrip />
+      <OrganismMetrics />
 
       <span className="wv-label">
         mesh:<span className="text-cyan">{meshNodes.length}</span>
