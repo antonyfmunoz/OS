@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApprovalStore } from '../stores/approvalStore'
 import { useOrganismStore } from '../stores/organismStore'
 import { useRealtimeStore } from '../stores/realtimeStore'
+import { useViewContextStore } from '../stores/viewContextStore'
 import { usePolling } from '../hooks/usePolling'
 import { ConnectionBanner } from '../components/ConnectionBanner'
 import { relativeTime } from '../lib/time'
@@ -35,6 +36,7 @@ export function ApprovalsPanel() {
   const rejectEnvelope = useOrganismStore((s) => s.rejectEnvelope)
 
   const realtimeStatus = useRealtimeStore((s) => s.status)
+  const setViewContext = useViewContextStore((s) => s.setContext)
 
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({})
 
@@ -82,7 +84,7 @@ export function ApprovalsPanel() {
               <h3 className="wv-label mb-3">Spine Pending — {spineEnvelopes.length}</h3>
               <div className="space-y-2">
                 {spineEnvelopes.map((env) => (
-                  <div key={env.envelope_id} className="wv-card px-4 py-3">
+                  <div key={env.envelope_id} className="wv-card px-4 py-3 cursor-pointer" onClick={() => setViewContext({ selected_object_type: 'approval', selected_object_id: env.envelope_id, risk_context: env.risk_level })}>
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`wv-badge ${RISK_BADGE[env.risk_level] ?? 'wv-badge-ok'}`}>
                         {env.risk_level.toUpperCase()}
@@ -125,7 +127,7 @@ export function ApprovalsPanel() {
               <h3 className="wv-label mb-3">Legacy Pending — {pending.length}</h3>
               <div className="space-y-2">
                 {pending.map((item) => (
-                  <div key={item.id} className="wv-card px-4 py-3">
+                  <div key={item.id} className="wv-card px-4 py-3 cursor-pointer" onClick={() => setViewContext({ selected_object_type: 'approval', selected_object_id: item.id, risk_context: item.risk_level })}>
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`wv-badge ${RISK_BADGE[item.risk_level?.toLowerCase()] ?? 'wv-badge-ok'}`}>
                         {item.risk_level}

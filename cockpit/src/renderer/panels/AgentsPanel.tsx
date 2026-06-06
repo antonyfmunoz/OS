@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAgentStore } from '../stores/agentStore'
+import { useViewContextStore } from '../stores/viewContextStore'
 import { usePolling } from '../hooks/usePolling'
 
 const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
@@ -25,6 +26,8 @@ export function AgentsPanel() {
   const selectAgent = useAgentStore((s) => s.selectAgent)
   const controlAgent = useAgentStore((s) => s.controlAgent)
   const handoff = useAgentStore((s) => s.handoff)
+
+  const setViewContext = useViewContextStore((s) => s.setContext)
 
   const [signalText, setSignalText] = useState('')
   const [handoffTarget, setHandoffTarget] = useState('')
@@ -58,7 +61,10 @@ export function AgentsPanel() {
         {agents.map((agent) => (
           <button
             key={agent.id}
-            onClick={() => selectAgent(agent.id)}
+            onClick={() => {
+              selectAgent(agent.id)
+              setViewContext({ selected_object_type: 'agent', selected_object_id: agent.id, selected_object_summary: agent.role || agent.name })
+            }}
             className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors"
             style={{
               background: selectedId === agent.id ? 'var(--color-surface-raised)' : 'transparent',
@@ -99,6 +105,20 @@ export function AgentsPanel() {
               <span className="wv-label">{detail.status}</span>
               <span className="text-xs text-text-tertiary font-mono">{detail.role}</span>
             </div>
+            {detail?.capabilities && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {(Array.isArray(detail.capabilities) ? detail.capabilities : []).map((cap: string) => (
+                  <span key={cap} className="text-[8px] font-mono px-1 py-0.5 rounded bg-surface-raised text-text-secondary border border-border">
+                    {cap}
+                  </span>
+                ))}
+              </div>
+            )}
+            {detail?.runtime_class && (
+              <span className="text-[9px] font-mono text-text-tertiary mt-1 inline-block">
+                runtime: {detail.runtime_class}
+              </span>
+            )}
 
             {/* Primary controls */}
             <div className="flex gap-2 mb-4">

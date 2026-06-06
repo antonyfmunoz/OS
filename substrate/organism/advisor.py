@@ -279,7 +279,7 @@ class Advisor:
             },
         )
 
-        return {
+        result = {
             "signal": content,
             "execution": "agent_dispatch",
             "delegated_to": agent_id,
@@ -290,6 +290,18 @@ class Advisor:
             else None,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+
+        # Auto-convene council for write-capable signals
+        if risk_class == "REVERSIBLE_WRITE":
+            try:
+                result["council_review"] = self.convene_council(
+                    context=content[:500],
+                    plan=f"Signal routing: {capability.value} via {agent_id}",
+                )
+            except Exception as exc:
+                logger.debug("council auto-review failed: %s", exc)
+
+        return result
 
     def _try_runtime_execution(
         self, content: str, capability: RuntimeCapability
@@ -648,6 +660,30 @@ class Advisor:
             }
             for fu in followups
         ]
+
+    # ─── Council review ────────────────────────────────────────────
+
+    def convene_council(
+        self,
+        context: str,
+        plan: str,
+        artifacts: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Convene council review for high-leverage decisions."""
+        from substrate.organism.council import Council
+
+        council = Council()
+        review = council.review(context, plan, artifacts)
+        self._emit_event(
+            "organism.council_convened",
+            {
+                "context": context[:200],
+                "consensus": review.consensus,
+                "role_count": len(review.roles),
+                "dissenting_count": len(review.dissenting_points),
+            },
+        )
+        return review.to_dict()
 
     # ─── Objective execution ────────────────────────────────────────
 

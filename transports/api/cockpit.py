@@ -1305,17 +1305,39 @@ async def dex_converse(payload: dict):
     if not content:
         return {"error": "content required"}
 
+    view_context = payload.get("view_context")
+    context_summary = ""
+    if isinstance(view_context, dict):
+        import json as _json
+        raw = _json.dumps(view_context)
+        if len(raw) > 2048:
+            view_context = {"error": "context_too_large", "active_route": view_context.get("active_route", "")}
+        parts = []
+        if view_context.get("active_route"):
+            parts.append(view_context["active_route"])
+        if view_context.get("selected_object_type"):
+            obj_desc = view_context["selected_object_type"]
+            if view_context.get("selected_object_summary"):
+                obj_desc += f": {view_context['selected_object_summary']}"
+            elif view_context.get("selected_object_id"):
+                obj_desc += f": {view_context['selected_object_id']}"
+            parts.append(obj_desc)
+        if parts:
+            context_summary = f"[Context: viewing {' > '.join(parts)}]"
+
     from substrate.organism.protocols import AgentMessage
+
+    enriched_content = f"{context_summary} {content}".strip() if context_summary else content
 
     operator_msg = AgentMessage(
         sender="operator",
         recipient="dex",
         intent="operator_command",
-        payload={"content": content, "source": "cockpit_dex_channel"},
+        payload={"content": content, "source": "cockpit_dex_channel", "view_context": view_context},
     )
     daemon.store.save_message(operator_msg)
 
-    result = daemon.advisor.handle_signal(content)
+    result = daemon.advisor.handle_signal(enriched_content)
 
     dex_reply = AgentMessage(
         sender="dex",
@@ -2703,3 +2725,126 @@ def _mount_command_center_router() -> None:
 
 
 _mount_command_center_router()
+
+
+# ── Claude Code Session Bridge ────────────────────────────────────────
+
+
+def _log_cc_trace(session: str, text: str, packet_id: str, action: str) -> None:
+    """Log Claude Code bridge action to execution journal."""
+    import json as _json
+
+    entry = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "source": "cc_bridge",
+        "action": action,
+        "session": session,
+        "packet_id": packet_id,
+        "text_preview": text[:100] if text else "",
+    }
+    journal = os.path.join(
+        os.environ.get("UMH_ROOT", "/opt/OS"),
+        "data", "umh", "organism", "execution_journal.jsonl",
+    )
+    try:
+        os.makedirs(os.path.dirname(journal), exist_ok=True)
+        with open(journal, "a") as f:
+            f.write(_json.dumps(entry) + "\n")
+    except Exception:
+        pass
+
+
+_RISKY_KEYWORDS = [
+    "delete", "drop", "rm -rf", "force push", "reset --hard",
+    "truncate", "--no-verify", "destroy",
+]
+
+
+@router.post("/claude-session/send")
+async def claude_session_send(payload: dict) -> dict:  # type: ignore[type-arg]
+    """Send a prompt to a Claude Code session via tmux bridge. Governed."""
+    from substrate.execution.bridge.claude_session_bridge import (
+        ensure_session,
+        send_message,
+    )
+
+    session_name = payload.get("session_name", "")
+    text = payload.get("text", "")
+    target = payload.get("target", "local")
+    work_packet_id = payload.get("work_packet_id", "")
+    if not session_name or not text:
+        return {"error": "session_name and text required"}
+    text_lower = text.lower()
+    blocked = [kw for kw in _RISKY_KEYWORDS if kw in text_lower]
+    if blocked:
+        return {
+            "error": "risky_prompt_blocked",
+            "reason": "Prompt contains risky keywords.",
+            "blocked_keywords": blocked,
+        }
+    ensure_result = ensure_session(target, session_name)
+    if not ensure_result.get("ok"):
+        return {"error": "session not available: %s" % ensure_result.get("reason", "unknown")}
+    send_result = send_message(target, session_name, text)
+    _log_cc_trace(session_name, text, work_packet_id, "send")
+    base: dict = send_result if isinstance(send_result, dict) else {"ok": True}  # type: ignore[assignment]
+    return {**base, "work_packet_id": work_packet_id, "traced": True}
+
+
+@router.post("/claude-session/capture")
+async def claude_session_capture(payload: dict) -> dict:  # type: ignore[type-arg]
+    """Capture output from a Claude Code session."""
+    from substrate.execution.bridge.claude_session_bridge import capture_output
+
+    session_name = payload.get("session_name", "")
+    target = payload.get("target", "local")
+    work_packet_id = payload.get("work_packet_id", "")
+    if not session_name:
+        return {"error": "session_name required"}
+    result = capture_output(target, session_name)
+    _log_cc_trace(session_name, "", work_packet_id, "capture")
+    base: dict = result if isinstance(result, dict) else {"output": str(result)}  # type: ignore[assignment]
+    return {**base, "work_packet_id": work_packet_id}
+
+
+@router.get("/claude-session/list")
+async def claude_session_list() -> dict:  # type: ignore[type-arg]
+    """List active Claude Code sessions."""
+    from substrate.execution.bridge.claude_session_bridge import list_sessions
+
+    return list_sessions()  # type: ignore[return-value]
+
+
+@router.post("/tmux/send")
+async def tmux_send(payload: dict) -> dict:  # type: ignore[type-arg]
+    """Send keys to a tmux session (governed via TmuxOperationalAdapter)."""
+    session_name = payload.get("session_name", "")
+    text = payload.get("text", "")
+    if not session_name or not text:
+        return {"error": "session_name and text required"}
+    try:
+        from substrate.execution.workers.workstation.tmux_operational_adapter_v1 import (
+            TmuxOperationalAdapter,
+        )
+
+        adapter = TmuxOperationalAdapter()
+        result = adapter.send_approved_command(session_name, text)
+        if hasattr(result, "to_dict"):
+            return result.to_dict()  # type: ignore[union-attr]
+        return result if isinstance(result, dict) else {"ok": True}
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+@router.post("/council/review")
+async def council_review(payload: dict) -> dict:  # type: ignore[type-arg]
+    """Trigger council review for a decision."""
+    from substrate.organism.council import Council
+
+    council = Council()
+    review = council.review(
+        decision_context=payload.get("context", ""),
+        proposed_plan=payload.get("plan", ""),
+        artifacts=payload.get("artifacts"),
+    )
+    return {"ok": True, "review": review.to_dict()}

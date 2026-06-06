@@ -38,6 +38,7 @@ import { OperatorPanel } from '../panels/OperatorPanel'
 import { RuntimePanel } from '../panels/RuntimePanel'
 import { TmuxPanel } from '../panels/TmuxPanel'
 import { WorkspacePanel } from '../panels/WorkspacePanel'
+import { WorkPanel } from '../panels/WorkPanel'
 import { CommandCenterPanel } from '../panels/CommandCenterPanel'
 
 function ActivePanel() {
@@ -100,6 +101,8 @@ function ActivePanel() {
       return <RuntimePanel />
     case 'tmux':
       return <TmuxPanel />
+    case 'work':
+      return <WorkPanel />
     case 'workspace':
       return <WorkspacePanel />
     case 'commandcenter':

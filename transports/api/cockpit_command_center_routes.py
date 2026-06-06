@@ -659,6 +659,48 @@ async def _work_packet_create(request: Request) -> dict[str, Any]:
     return {"ok": True, "packet": result, "source_env": _detect_env()}
 
 
+@command_center_router.post("/work-packets/decompose")
+async def _work_packet_decompose(request: Request) -> dict[str, Any]:
+    """Decompose a complex intent into a batch of linked work packets."""
+    if _require_operator:
+        await _require_operator(request)
+    body = await request.json()
+    user_intent = body.get("user_intent", "")
+    if not user_intent:
+        return {"ok": False, "error": "user_intent is required"}
+    if len(user_intent) > _MAX_INTENT_LEN:
+        return {"ok": False, "error": f"user_intent exceeds {_MAX_INTENT_LEN} chars"}
+
+    desired_end_state = str(body.get("desired_end_state", ""))[:_MAX_END_STATE_LEN]
+    constraints = body.get("constraints", [])
+    if not isinstance(constraints, list):
+        constraints = []
+    constraints = constraints[:_MAX_CONSTRAINTS]
+    idempotency_key = _sanitize_text(str(body.get("idempotency_key", "")), 100)
+
+    try:
+        from substrate.organism.work_packet_engine import WorkPacketEngine
+        engine = WorkPacketEngine()
+        result = engine.decompose_intent_to_batch(
+            user_intent=user_intent,
+            desired_end_state=desired_end_state,
+            constraints=constraints,
+            idempotency_key=idempotency_key,
+        )
+    except Exception as exc:
+        logger.warning("work packet decompose failed: %s", exc)
+        return {"ok": False, "error": str(exc)}
+
+    _log_journal_entry({
+        "event": "work_packet_decomposed",
+        "batch_id": result.get("batch_id", ""),
+        "created_count": result.get("created_count", 0),
+        "user_intent": _sanitize_text(user_intent, 200),
+    })
+
+    return {**result, "source_env": _detect_env()}
+
+
 def _log_journal_entry(entry: dict[str, Any]) -> None:
     """Append an entry to the execution journal."""
     entry.setdefault("ts", datetime.now(timezone.utc).isoformat())

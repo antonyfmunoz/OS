@@ -1,21 +1,17 @@
 import { useEffect } from 'react'
 import { useCockpitStore, type Panel } from '../stores/cockpitStore'
-import { useVoiceStore } from '../stores/voiceStore'
-import { startVoice, stopVoice } from '../api/voice-controller'
 
 const PANEL_KEYS: Record<string, Panel> = {
-  '1': 'dashboard',
+  'q': 'commandcenter',
+  '1': 'commandcenter',
   '2': 'agents',
-  '3': 'tasks',
+  '3': 'work',
   '4': 'approvals',
   '5': 'knowledge',
-  '6': 'analytics',
   '7': 'editor',
   '8': 'settings',
   '9': 'activity',
   '0': 'execution',
-  'p': 'portfolio',
-  'c': 'company',
 }
 
 export function useKeyboard(): void {
@@ -29,14 +25,6 @@ export function useKeyboard(): void {
       if (e.ctrlKey && e.shiftKey && e.key === 'M') {
         e.preventDefault()
         cycleWindowMode('shrink')
-        return
-      }
-
-      if (e.ctrlKey && e.shiftKey && e.key === 'V') {
-        e.preventDefault()
-        const mic = useVoiceStore.getState().micState
-        if (mic === 'idle') startVoice()
-        else stopVoice()
         return
       }
 

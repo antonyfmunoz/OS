@@ -15,12 +15,23 @@ interface OpenFile {
   dirty: boolean
 }
 
+interface SessionInfo {
+  name: string
+  type: 'tmux' | 'claude-code'
+  status: string
+}
+
 interface EditorState {
   fileTree: FileNode[]
   openFiles: OpenFile[]
   activeFile: string | null
   showPreview: boolean
   showTerminal: boolean
+  gitBranch: string
+  gitChangedCount: number
+  activeNode: string
+  sessions: SessionInfo[]
+  ccDelegating: boolean
   setFileTree: (tree: FileNode[]) => void
   openFile: (file: OpenFile) => void
   closeFile: (path: string) => void
@@ -32,6 +43,10 @@ interface EditorState {
   fetchFileTree: (root?: string) => Promise<void>
   fetchFileContent: (path: string) => Promise<void>
   saveFile: (path: string) => Promise<void>
+  fetchGitStatus: () => Promise<void>
+  fetchSessions: () => Promise<void>
+  delegateToClaudeCode: (sessionName: string, prompt: string) => Promise<{ ok: boolean; error?: string }>
+  captureSession: (sessionName: string) => Promise<string>
 }
 
 function detectLanguage(name: string): string {
@@ -51,6 +66,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activeFile: null,
   showPreview: false,
   showTerminal: true,
+  gitBranch: '',
+  gitChangedCount: 0,
+  activeNode: 'vps',
+  sessions: [],
+  ccDelegating: false,
 
   setFileTree: (tree) => set({ fileTree: tree }),
 
@@ -117,5 +137,59 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       await window.cockpit?.writeFile?.(path, file.content)
       get().markClean(path)
     } catch { /* IPC not available */ }
+  },
+
+  fetchGitStatus: async () => {
+    try {
+      const res = await fetch('/api/umh/workspace/git-status')
+      if (res.ok) {
+        const data = await res.json()
+        set({ gitBranch: data.branch || '', gitChangedCount: data.changed_count || 0 })
+      }
+    } catch { /* silent */ }
+  },
+
+  fetchSessions: async () => {
+    try {
+      const res = await fetch('/api/umh/claude-session/list')
+      if (res.ok) {
+        const data = await res.json()
+        const sessions = (data.sessions || []).map((s: Record<string, unknown>) => ({
+          name: (s.name as string) || (s.session_name as string) || '',
+          type: ((s.type as string) || 'tmux') as 'tmux' | 'claude-code',
+          status: (s.status as string) || 'unknown',
+        }))
+        set({ sessions })
+      }
+    } catch { /* silent */ }
+  },
+
+  delegateToClaudeCode: async (sessionName, prompt) => {
+    set({ ccDelegating: true })
+    try {
+      const res = await fetch('/api/umh/claude-session/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_name: sessionName, text: prompt }),
+      })
+      const data = await res.json()
+      set({ ccDelegating: false })
+      return data as { ok: boolean; error?: string }
+    } catch (e) {
+      set({ ccDelegating: false })
+      return { ok: false, error: e instanceof Error ? e.message : 'failed' }
+    }
+  },
+
+  captureSession: async (sessionName) => {
+    try {
+      const res = await fetch('/api/umh/claude-session/capture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_name: sessionName }),
+      })
+      const data = await res.json() as Record<string, string>
+      return data.output || data.content || ''
+    } catch { return '' }
   },
 }))

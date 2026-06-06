@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useOrganismStore } from '../stores/organismStore'
+import { useViewContextStore } from '../stores/viewContextStore'
 import { useRealtimeStore } from '../stores/realtimeStore'
 import { usePolling } from '../hooks/usePolling'
 import { formatDuration, relativeTime } from '../lib/time'
@@ -22,7 +23,12 @@ export function ExecutionPanel() {
   const leverage = useOrganismStore((s) => s.leverage)
   const journal = useOrganismStore((s) => s.journal)
 
+  const setViewContext = useViewContextStore((s) => s.setContext)
   const realtimeStatus = useRealtimeStore((s) => s.status)
+
+  useEffect(() => {
+    setViewContext({ active_route: 'execution', visible_context_summary: 'Governed Execution Spine' })
+  }, [setViewContext])
   const fetchAll = useOrganismStore((s) => s.fetchAll)
   const fetchPending = useOrganismStore((s) => s.fetchPending)
   const fetchCompleted = useOrganismStore((s) => s.fetchCompleted)
