@@ -90,7 +90,7 @@ async function writeFileContent(path: string, content: string, node?: string): P
   } catch { return false }
 }
 
-interface MeshNode { id: string; name: string; os: string; status: string; ip: string }
+interface MeshNode { id: string; name: string; os: string; status: string; ip: string; device_type: string }
 
 function FileTreeNode({ name, path, type, depth, node }: FileNodeProps) {
   const [expanded, setExpanded] = useState(false)
@@ -230,12 +230,11 @@ export function EditorPanel() {
             )}
           </div>
           <div className="flex items-center gap-1 text-[9px] font-mono text-text-tertiary flex-wrap">
-            <span className="text-ok">●</span> VPS
-            {meshNodes.filter((n) => n.os === 'windows').map((n) => (
-              <span key={n.id} className="ml-1">
-                <span className="text-text-tertiary mx-0.5">·</span>
+            {meshNodes.map((n, i) => (
+              <span key={n.id} className={i > 0 ? 'ml-1' : ''}>
+                {i > 0 && <span className="text-text-tertiary mx-0.5">·</span>}
                 <span className={n.status === 'connected' || n.status === 'online' ? 'text-ok' : 'text-danger'}>●</span>
-                {' '}{n.name || 'Windows'}
+                {' '}{n.name}
               </span>
             ))}
           </div>
@@ -262,7 +261,9 @@ export function EditorPanel() {
               >
                 <span className="text-text-tertiary text-[9px]">{vpsExpanded ? '▾' : '▸'}</span>
                 <span className="text-ok text-[9px]">●</span>
-                <span className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider flex-1 text-left">VPS</span>
+                <span className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider flex-1 text-left">
+                  {meshNodes.find((n) => n.id === 'vps')?.name || 'srv1500858 (VPS)'}
+                </span>
               </button>
               {vpsExpanded && (
                 <>
@@ -274,28 +275,33 @@ export function EditorPanel() {
                   )}
                 </>
               )}
-              {meshNodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online')) && (
-                <>
-                  <button
-                    onClick={() => setWindowsExpanded(!windowsExpanded)}
-                    className="w-full flex items-center gap-1.5 px-2 pt-1.5 pb-1 hover:bg-surface-raised transition-colors border-t border-border mt-1"
-                  >
-                    <span className="text-text-tertiary text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
-                    <span className="text-ok text-[9px]">●</span>
-                    <span className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider flex-1 text-left">Beast PC</span>
-                  </button>
-                  {windowsExpanded && (
-                    <>
-                      {windowsTree.map((f) => (
-                        <FileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" />
-                      ))}
-                      {windowsTree.length === 0 && (
-                        <p className="text-xs px-3 py-2 text-center text-text-tertiary">Loading Beast PC files...</p>
-                      )}
-                    </>
-                  )}
-                </>
-              )}
+              {meshNodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online')) && (() => {
+                const pcNode = meshNodes.find((n) => n.os === 'windows')
+                return (
+                  <>
+                    <button
+                      onClick={() => setWindowsExpanded(!windowsExpanded)}
+                      className="w-full flex items-center gap-1.5 px-2 pt-1.5 pb-1 hover:bg-surface-raised transition-colors border-t border-border mt-1"
+                    >
+                      <span className="text-text-tertiary text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
+                      <span className="text-ok text-[9px]">●</span>
+                      <span className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider flex-1 text-left">
+                        {pcNode?.name || 'desktop-lvguiq9 (PC)'}
+                      </span>
+                    </button>
+                    {windowsExpanded && (
+                      <>
+                        {windowsTree.map((f) => (
+                          <FileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" />
+                        ))}
+                        {windowsTree.length === 0 && (
+                          <p className="text-xs px-3 py-2 text-center text-text-tertiary">Loading files...</p>
+                        )}
+                      </>
+                    )}
+                  </>
+                )
+              })()}
             </>
           )}
           {sidebarTab === 'sessions' && (

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "vps",
+    "tailscale_name": "srv1500858",
+    "device_type": "vps",
+    "display_name": "srv1500858 (VPS)",
+    "os": "linux",
+    "tailscale_ip": "100.77.233.50",
+    "always_online": true
+  },
+  {
+    "id": "beast",
+    "tailscale_name": "desktop-lvguiq9",
+    "device_type": "pc",
+    "display_name": "desktop-lvguiq9 (PC)",
+    "os": "windows",
+    "tailscale_ip": "100.74.199.102",
+    "mesh_node_id": "windows-desktop"
+  }
+]
