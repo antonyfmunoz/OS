@@ -15,7 +15,7 @@
     "device_type": "pc",
     "display_name": "desktop-lvguiq9 (PC)",
     "os": "windows",
-    "role": "gpu-workhorse",
+    "role": "compute",
     "tailscale_ip": "100.74.199.102",
     "mesh_node_id": "windows-desktop"
   },
