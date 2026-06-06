@@ -3,6 +3,7 @@ import { useEditorStore } from '../stores/editorStore'
 import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { fetchApi } from '../api/client'
+import { VPS, BEAST, isWindows } from '../constants/devices'
 
 type FileEntry = { name: string; path: string; type: 'file' | 'directory' }
 
@@ -262,7 +263,7 @@ export function EditorPanel() {
                 <span className="text-text-tertiary text-[9px]">{vpsExpanded ? '▾' : '▸'}</span>
                 <span className="text-ok text-[9px]">●</span>
                 <span className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider flex-1 text-left">
-                  {meshNodes.find((n) => n.id === 'vps')?.name || 'srv1500858 (VPS)'}
+                  {meshNodes.find((n) => n.id === 'vps')?.name || VPS.displayName}
                 </span>
               </button>
               {vpsExpanded && (
@@ -286,7 +287,7 @@ export function EditorPanel() {
                       <span className="text-text-tertiary text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
                       <span className="text-ok text-[9px]">●</span>
                       <span className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider flex-1 text-left">
-                        {pcNode?.name || 'desktop-lvguiq9 (PC)'}
+                        {pcNode?.name || BEAST.displayName}
                       </span>
                     </button>
                     {windowsExpanded && (
