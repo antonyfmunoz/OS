@@ -137,7 +137,8 @@ services:
     volumes:
       - ${UMH_ROOT:-/opt/OS}:/app
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /root/.ssh:/root/.ssh:ro
+      - /root/.ssh/id_ed25519:/run/secrets/mesh_key:ro
+      - /root/.ssh/known_hosts:/root/.ssh/known_hosts:ro
     env_file:
       - services/.env
       - infra/docker/umh.env
