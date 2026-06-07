@@ -36,7 +36,7 @@ export function TitleBar() {
       className="titlebar-drag flex items-center px-3 select-none bg-surface border-b border-border"
       style={{ height: 'var(--spacing-titlebar-height)' }}
     >
-      <span className="font-mono text-xs tracking-widest uppercase text-cyan">
+      <span className="font-mono text-[10px] tracking-widest uppercase text-cyan">
         UMH
       </span>
 
