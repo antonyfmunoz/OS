@@ -72,26 +72,27 @@ export function RightRail() {
     <div className="flex flex-col w-[320px] bg-surface border-l border-border">
       {/* Tab bar */}
       <div className="flex items-center border-b border-border px-2 h-9 shrink-0">
-        {tabs.map((t) => {
-          const Icon = t.icon
-          return (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={clsx(
-                'flex items-center gap-2 px-2 py-1 text-[10px] font-mono uppercase tracking-wider leading-none transition-colors',
-                activeTab === t.id ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary',
-              )}
-            >
-              <Icon size={14} />
-              {t.label}
-            </button>
-          )
-        })}
-        <div className="flex-1" />
-        <button onClick={() => setCollapsed(true)} className="p-1 text-text-tertiary hover:text-cyan">
+        <button onClick={() => setCollapsed(true)} className="p-1 text-text-tertiary hover:text-cyan transition-colors shrink-0">
           <ChevronRight size={14} />
         </button>
+        <div className="flex items-center flex-1 min-w-0">
+          {tabs.map((t) => {
+            const Icon = t.icon
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={clsx(
+                  'flex items-center gap-2 px-2 py-1 text-[10px] font-mono uppercase tracking-wider leading-none transition-colors',
+                  activeTab === t.id ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary',
+                )}
+              >
+                <Icon size={14} />
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Content */}
