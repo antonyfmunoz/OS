@@ -146,17 +146,7 @@ export function ControlPanel() {
           RISK: {riskCeiling}
         </span>
 
-        {/* 4. Blocked */}
-        {blockedCount > 0 && (
-          <button
-            onClick={() => useCockpitStore.getState().setPanel('work')}
-            className="text-[10px] text-red-400 bg-red-500/10 px-2 py-1 rounded cursor-pointer"
-          >
-            {blockedCount} blocked
-          </button>
-        )}
-
-        {/* 5. Resume */}
+        {/* 4. Resume */}
         {shouldResume && (
           <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-1 rounded">
             Resume
@@ -180,7 +170,12 @@ export function ControlPanel() {
           APPROVALS <span className="text-red-400">{pendingApprovals.length}</span>
         </span>
 
-        {/* 9. Expand/collapse — far right */}
+        {/* 9. Blocked */}
+        <span className="text-[10px] font-mono uppercase text-text-tertiary">
+          BLOCKED <span className="text-red-400">{blockedCount}</span>
+        </span>
+
+        {/* 10. Expand/collapse — far right */}
         <button
           onClick={() => setExpanded(!expanded)}
           className="p-1 text-text-tertiary hover:text-cyan transition-colors"
