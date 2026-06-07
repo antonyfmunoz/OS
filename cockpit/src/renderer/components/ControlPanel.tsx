@@ -181,20 +181,20 @@ export function ControlPanel() {
           <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[wsStatus] ?? STATUS_DOT.disconnected}`} />
         </div>
 
-        {/* 11. Expand/collapse */}
+        {/* 11. Mode badge */}
+        <span
+          className={`text-[10px] font-bold px-2 py-1 rounded border ${MODE_COLORS[mode] ?? MODE_COLORS.EXECUTE}`}
+        >
+          {mode}
+        </span>
+
+        {/* 12. Expand/collapse — far right */}
         <button
           onClick={() => setExpanded(!expanded)}
           className="p-1 text-text-tertiary hover:text-cyan transition-colors"
         >
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
-
-        {/* 12. Mode badge — far right */}
-        <span
-          className={`text-[10px] font-bold px-2 py-1 rounded border ${MODE_COLORS[mode] ?? MODE_COLORS.EXECUTE}`}
-        >
-          {mode}
-        </span>
       </div>
 
       {/* ── Expanded: detail grid ── */}
