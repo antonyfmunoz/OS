@@ -11,7 +11,7 @@ function StatusDot({ status }: { status: 'connected' | 'connecting' | 'disconnec
   return (
     <span
       className={clsx(
-        'inline-block w-[6px] h-[6px] rounded-full shrink-0 align-middle',
+        'block w-[6px] h-[6px] rounded-full shrink-0',
         status === 'connected' && 'bg-ok',
         status === 'connecting' && 'bg-warn',
         status === 'disconnected' && 'bg-danger',
@@ -141,11 +141,11 @@ export function HudBar() {
       <div className="flex items-center gap-4">
         <span className="flex items-center gap-1">
           <Radio size={12} className="text-cyan wv-pulse shrink-0" />
-          <span className="wv-label">Full-Screen</span>
+          <span className="wv-label leading-none">Full-Screen</span>
         </span>
         <span className="flex items-center gap-1">
           <div className={clsx('w-2 h-2 rounded-full shrink-0', isOnline ? 'bg-ok wv-pulse' : 'bg-danger')} />
-          <span className="wv-label">{isOnline ? 'Online' : 'Offline'}</span>
+          <span className="wv-label leading-none">{isOnline ? 'Online' : 'Offline'}</span>
         </span>
       </div>
 
@@ -197,10 +197,10 @@ export function HudBar() {
       )}
 
       {/* Presence / voice capability */}
-      <span className="wv-label flex items-center gap-1">
+      <span className="wv-label flex items-center gap-1 leading-none">
         <StatusDot status={sttAvailable ? 'connected' : 'disconnected'} /> stt
       </span>
-      <span className="wv-label flex items-center gap-1">
+      <span className="wv-label flex items-center gap-1 leading-none">
         <StatusDot status={ttsAvailable ? 'connected' : 'disconnected'} /> tts
       </span>
 
@@ -217,7 +217,7 @@ export function HudBar() {
       {micState === 'idle' && <div className="flex-1" />}
 
       {/* System metrics */}
-      <span className="wv-label flex items-center gap-2">
+      <span className="wv-label flex items-center gap-2 leading-none">
         <StatusDot status={pulse && pulse.active_agents > 0 ? 'connected' : 'disconnected'} />
         <span className="text-cyan">{pulse?.active_agents ?? 0}</span> agents
       </span>
@@ -229,13 +229,13 @@ export function HudBar() {
       </span>
 
       {/* Connection indicators */}
-      <span className="wv-label flex items-center gap-1">
+      <span className="wv-label flex items-center gap-1 leading-none">
         <StatusDot status={apiStatus} /> api
       </span>
-      <span className="wv-label flex items-center gap-1">
+      <span className="wv-label flex items-center gap-1 leading-none">
         <StatusDot status={wsStatus} /> ws
       </span>
-      <span className="wv-label flex items-center gap-1">
+      <span className="wv-label flex items-center gap-1 leading-none">
         <StatusDot status={voiceStatus} /> voice
       </span>
 
