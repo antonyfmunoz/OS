@@ -146,18 +146,7 @@ export function ControlPanel() {
           RISK: {riskCeiling}
         </span>
 
-        {/* 4. Pending approvals */}
-        {pendingApprovals.length > 0 && (
-          <button
-            onClick={() => useCockpitStore.getState().setPanel('approvals')}
-            className="wv-badge wv-badge-warn cursor-pointer"
-          >
-            <AlertTriangle size={10} />
-            {pendingApprovals.length} approval{pendingApprovals.length > 1 ? 's' : ''}
-          </button>
-        )}
-
-        {/* 5. Blocked */}
+        {/* 4. Blocked */}
         {blockedCount > 0 && (
           <button
             onClick={() => useCockpitStore.getState().setPanel('work')}
@@ -167,7 +156,7 @@ export function ControlPanel() {
           </button>
         )}
 
-        {/* 6. Resume */}
+        {/* 5. Resume */}
         {shouldResume && (
           <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-1 rounded">
             Resume
@@ -175,6 +164,11 @@ export function ControlPanel() {
         )}
 
         <div className="flex-1" />
+
+        {/* 6. Approvals */}
+        <span className="text-[10px] font-mono uppercase text-text-tertiary">
+          <span className="text-red-400">{pendingApprovals.length}</span> APPROVALS
+        </span>
 
         {/* 7. Agent count */}
         <span className="text-[10px] font-mono uppercase text-text-tertiary">
