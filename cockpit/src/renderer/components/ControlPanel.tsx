@@ -175,15 +175,17 @@ export function ControlPanel() {
         <div className="flex-1" />
 
         {/* 7. Agent count */}
-        <span className="wv-label text-[10px]">{pulse?.active_agents ?? 0} agents</span>
+        <span className="text-[10px] font-mono uppercase text-text-tertiary">
+          <span className="text-cyan">{pulse?.active_agents ?? 0}</span> AGENTS
+        </span>
 
         {/* 8. Executing packets */}
-        <span className="text-[10px] text-cyan font-mono">
-          {executingPackets} pkt{executingPackets !== 1 ? 's' : ''}
+        <span className="text-[10px] font-mono uppercase text-text-tertiary">
+          <span className="text-cyan">{executingPackets}</span> PACKETS
         </span>
 
         {/* 9. Risk ceiling */}
-        <span className={`text-[10px] font-mono ${RISK_COLORS[riskCeiling] ?? 'text-text-secondary'}`}>
+        <span className={`text-[10px] font-mono uppercase ${RISK_COLORS[riskCeiling] ?? 'text-text-secondary'}`}>
           Risk: {riskCeiling}
         </span>
 
