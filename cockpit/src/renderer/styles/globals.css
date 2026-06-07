@@ -105,6 +105,7 @@
 
   .wv-label {
     font-size: 10px;
+    line-height: 1;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--color-text-tertiary);

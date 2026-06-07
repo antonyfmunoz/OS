@@ -11,7 +11,7 @@ function StatusDot({ status }: { status: 'connected' | 'connecting' | 'disconnec
   return (
     <span
       className={clsx(
-        'inline-block w-[6px] h-[6px] rounded-full',
+        'inline-block w-[6px] h-[6px] rounded-full shrink-0 align-middle',
         status === 'connected' && 'bg-ok',
         status === 'connecting' && 'bg-warn',
         status === 'disconnected' && 'bg-danger',
@@ -140,11 +140,11 @@ export function HudBar() {
       {/* Status cluster — fullscreen indicator + online */}
       <div className="flex items-center gap-4">
         <span className="flex items-center gap-1">
-          <Radio size={12} className="text-cyan wv-pulse" />
+          <Radio size={12} className="text-cyan wv-pulse shrink-0" />
           <span className="wv-label">Full-Screen</span>
         </span>
         <span className="flex items-center gap-1">
-          <div className={clsx('w-2 h-2 rounded-full', isOnline ? 'bg-ok wv-pulse' : 'bg-danger')} />
+          <div className={clsx('w-2 h-2 rounded-full shrink-0', isOnline ? 'bg-ok wv-pulse' : 'bg-danger')} />
           <span className="wv-label">{isOnline ? 'Online' : 'Offline'}</span>
         </span>
       </div>
