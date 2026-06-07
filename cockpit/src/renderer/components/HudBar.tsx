@@ -217,11 +217,6 @@ export function HudBar() {
       {micState === 'idle' && <div className="flex-1" />}
 
       {/* System metrics */}
-      <span className="wv-label flex items-center gap-2 leading-none">
-        <StatusDot status={pulse && pulse.active_agents > 0 ? 'connected' : 'disconnected'} />
-        <span className="text-cyan">{pulse?.active_agents ?? 0}</span> agents
-      </span>
-
       <OrganismMetrics />
 
       <span className="wv-label">
