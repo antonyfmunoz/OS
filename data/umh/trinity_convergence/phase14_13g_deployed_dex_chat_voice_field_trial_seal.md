@@ -1,13 +1,13 @@
 # Phase 14.13G — Deployed DEX Chat + Voice Field Trial Seal
 
 **Date**: 2026-06-07
-**Commit**: 63fde2dc (deployed to Fly.io + os-operator Docker)
+**Commits**: 63fde2dc (routing fix), 4f554aea (CC bridge error message fix)
 **Endpoint**: localhost:8091/api/umh/dex/converse
-**Verdict**: PARTIAL DEPLOYED READY
+**Verdict**: DEPLOYED DAILY-DRIVER READY WITH TRUTHFUL LIMITATIONS
 
 ---
 
-## Test Results: 13/14 PASS
+## Test Results: 14/14 PASS
 
 ### Routing Fix (Primary Objective) — PASS
 | Test | Input | Expected Intent | Actual Intent | Result |
@@ -28,13 +28,17 @@
 
 All explicit action intents route correctly and produce substantive responses.
 
-### Claude Code Bridge — PARTIAL
+### Claude Code Bridge — PASS (Truthful Limitations)
 | Test | Input | Expected | Actual | Result |
 |------|-------|----------|--------|--------|
-| T5 | "send to claude code: check the routing tests" | cc_send + truthful blocker | cc_send + "Claude Code send failed: unknown" | FAIL |
+| T5 | "send to claude code: check the routing tests" | cc_send + truthful blocker | cc_send + specific error + suggested actions | PASS |
 | T6 | "what did claude do" | cc_capture + truthful state | cc_capture + truthful | PASS |
 
-**T5 detail**: Intent classification is correct (cc_send). The handler correctly detects no active CC session and reports failure. The failure message "Claude Code send failed: unknown" is generic — it should specify "No active Claude Code session connected" with recovery guidance. This is a handler quality issue, not a routing bug. Not fixing per "no new features" constraint.
+**T5 verified behavior**: Intent classification is correct (cc_send). Two failure paths, both specific:
+- **No sessions exist**: "No active Claude Code sessions found. Start a session first." + `[Check sessions]`
+- **Sessions exist but send fails**: "Claude Code send failed: No active Claude Code session accepted the message. Check that a session is running and attached." + `[Check sessions, Retry]`
+
+No raw "unknown" appears in either path. Claude Code delegation is NOT operational — no active session receives the message. The bridge reports the exact blocker truthfully.
 
 ### Informational Queries — PASS
 | Test | Input | Expected Intent | Actual Intent | Result |
@@ -46,7 +50,7 @@ All explicit action intents route correctly and produce substantive responses.
 ### Conversation Infrastructure — PASS
 | Test | Description | Result |
 |------|-------------|--------|
-| T9 | History endpoint returns conversation entries | PASS (10 entries) |
+| T9 | History endpoint returns conversation entries | PASS (10+ entries) |
 | T10 | Suggested actions well-formed (label + action + payload) | PASS (2 actions) |
 | Persistence | Multiple messages to same conversation_id stored and retrievable | PASS |
 | Response shape | Keys: text, intent, suggested_actions, metadata, conversation_id, message_id, timestamp | PASS |
@@ -54,9 +58,9 @@ All explicit action intents route correctly and produce substantive responses.
 ### Voice — NOT INTEGRATED (Truthful State)
 - Voice subsystem exists at `/api/umh/voice/` (transports/api/voice.py) and `/api/voice/tts` (operator_api.py)
 - Voice is NOT under the DEX conversation layer (`/dex/voice/` returns 404)
-- Voice is a separate subsystem with its own session management
-- This is architectural — voice routes through VoiceSession, not DexConversation
-- **Verdict**: Truthful unavailable state. Voice is not DEX-integrated.
+- Voice is a separate subsystem with its own session management (VoiceSession, not DexConversation)
+- This is architectural, not a routing failure
+- **Not proven integrated. Not claimed integrated.**
 
 ### Browser-Side Rendering — VERIFIED (Structural)
 - Response shape matches frontend contract in chatStore.ts
@@ -77,12 +81,12 @@ All explicit action intents route correctly and produce substantive responses.
 | Work packet creation | DEPLOYED | Explicit commands only, no advisory phrase leakage |
 | Decompose command | DEPLOYED | Routes correctly |
 | Council review | DEPLOYED | Routes correctly, returns substantive text |
-| CC bridge send | PARTIAL | Intent routes correctly, error message is generic |
+| CC bridge send | TRUTHFUL BLOCKER | Intent routes correctly, specific error when no active session, suggested actions for recovery |
 | CC bridge capture | DEPLOYED | Truthful state when no session |
 | Status/resume/nav | DEPLOYED | All informational intents work |
 | Conversation history | DEPLOYED | Persisted, retrievable, correct shape |
 | Suggested actions | DEPLOYED | Non-mutating, well-formed for frontend |
-| Voice via DEX | NOT INTEGRATED | Separate subsystem, not routing failure |
+| Voice via DEX | NOT INTEGRATED | Separate subsystem, not proven integrated |
 | Browser rendering | STRUCTURAL PASS | Shape verified, no headless auth test |
 
 ---
@@ -95,22 +99,23 @@ All explicit action intents route correctly and produce substantive responses.
 4. **Reordered classify_intent()** — explicit actions first, view-context after, UNKNOWN last
 5. **Added _handle_explain_view()** — view-context-aware conversational response via fast model
 6. **Improved _handle_advisor_signal()** — detects empty/generic responses, gives recovery guidance
-7. **16 new tests** — 60 total jarvis_command tests pass, 42 related tests pass (102 total)
+7. **Fixed CC bridge error messages** — both no-session and send-failure paths return specific, actionable messages with suggested actions. No raw "unknown" errors.
+8. **16 new tests** — 60 total jarvis_command tests pass, 42 related tests pass (102 total)
 
-## Known Gaps (Not Bugs — Feature Work)
+## Truthful Limitations
 
-1. CC bridge error messages need specificity (T5) — handler quality, not routing
-2. Voice not DEX-integrated — architectural decision, separate subsystem
-3. Browser rendering not headless-tested — would need auth cookie injection
+1. **Claude Code delegation is not operational.** The bridge correctly identifies and reports when no active session exists or when a session cannot accept messages. It does not fake success.
+2. **Voice is a separate subsystem.** Voice routes through VoiceSession at `/api/umh/voice/`, not through DexConversation at `/dex/voice/`. Unless explicitly proven integrated, it is not claimed as such.
+3. **Browser rendering is structurally verified, not visually confirmed.** Response shape matches the frontend contract but no headless browser test was run due to auth requirements.
 
 ---
 
 ## Final Verdict
 
-### PARTIAL DEPLOYED READY
+### DEPLOYED DAILY-DRIVER READY WITH TRUTHFUL LIMITATIONS
 
-**Justification**: The primary routing bug is fully resolved. 13/14 test cases pass. All intent classifications work correctly. Conversation infrastructure (history, persistence, suggested actions, response shape) is production-ready. The single failure (T5) is a handler error message quality issue, not a routing or classification bug — the intent routes correctly to cc_send. Voice is architecturally separate from DEX and correctly returns 404 for DEX-prefixed voice endpoints.
+**Reason**: DEX deployed chat, routing, view context, council, work packet flow, persistence, and field-trial behavior are production-usable. Claude Code bridge now reports the exact blocker when no active session exists. Voice remains a separate subsystem unless explicitly proven integrated. No fake success, no generic bridge failure, no execution-spine misrouting.
 
-**Daily-driver readiness**: An operator can use DEX chat for conversational advisory, view-context questions, status queries, work packet commands, and council reviews without misrouting. The CC bridge gap is cosmetic (generic error vs specific error) and voice is a separate subsystem.
+**What works daily**: An operator can use DEX chat for conversational advisory, view-context questions, status queries, work packet commands, council reviews, and conversation history without misrouting. Every failure state reports the specific blocker with recovery actions.
 
-**What would make this DEPLOYED DAILY-DRIVER READY**: Fix T5's error message to be specific ("No active Claude Code session"), which is a one-line string change in the CC bridge handler.
+**What does not work**: Claude Code message delegation (no active session to receive). Voice via DEX (separate subsystem). Browser visual confirmation (auth-gated).
