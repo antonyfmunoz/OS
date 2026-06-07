@@ -143,7 +143,7 @@ export function ControlPanel() {
         <span className="wv-label text-[10px]">{pulse?.active_agents ?? 0} agents</span>
 
         {/* 3. Executing packets */}
-        <span className="text-[10px] text-text-secondary font-mono">
+        <span className="text-[10px] text-cyan font-mono">
           {executingPackets} pkt{executingPackets !== 1 ? 's' : ''}
         </span>
 
@@ -181,12 +181,6 @@ export function ControlPanel() {
         <span className={`text-[10px] font-mono ${RISK_COLORS[riskCeiling] ?? 'text-text-secondary'}`}>
           Risk: {riskCeiling}
         </span>
-
-        {/* 10. Connection dots */}
-        <div className="flex items-center gap-1" title={`API: ${apiStatus} · WS: ${wsStatus}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[apiStatus] ?? STATUS_DOT.disconnected}`} />
-          <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[wsStatus] ?? STATUS_DOT.disconnected}`} />
-        </div>
 
         {/* 11. Mode badge */}
         <span
