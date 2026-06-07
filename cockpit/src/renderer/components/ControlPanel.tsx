@@ -141,10 +141,7 @@ export function ControlPanel() {
           {mode}
         </span>
 
-        {/* 3. Health dot */}
-        <span className={`w-2 h-2 rounded-full ${healthDot}`} title="System health" />
-
-        {/* 4. Pending approvals */}
+        {/* 3. Pending approvals */}
         {pendingApprovals.length > 0 && (
           <button
             onClick={() => useCockpitStore.getState().setPanel('approvals')}
