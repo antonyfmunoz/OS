@@ -73,7 +73,7 @@ export function LeftRail() {
                     )}
                   >
                     <Icon size={14} className={active ? 'text-cyan' : ''} />
-                    <span className="text-[10px] font-mono leading-none truncate">{r.label}</span>
+                    <span className="text-[10px] font-mono uppercase leading-none truncate">{r.label}</span>
                   </button>
                 )
               })}
