@@ -62,10 +62,10 @@ class CCSDKAdapter:
         if result is None:
             return None
         return RuntimeResult(
-            output=result,
+            output=result.output,
             runtime_id=self.runtime_id,
-            latency_ms=0,
-            metadata={"provider": "cc_sdk"},
+            latency_ms=result.latency_ms,
+            metadata={"provider": "cc_sdk", "session_id": result.session_id, "model": result.model},
         )
 
 
