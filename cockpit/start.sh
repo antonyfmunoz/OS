@@ -39,13 +39,22 @@ if [ ! -f "$KEY_FILE" ]; then
   exit 1
 fi
 
+KNOWN_HOSTS="/tmp/known_hosts"
+if [ -n "$VPS_HOST_KEY" ]; then
+  printf '%s\n' "$VPS_HOST_KEY" > "$KNOWN_HOSTS"
+  chmod 600 "$KNOWN_HOSTS"
+  HOST_CHECK_OPTS="-o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KNOWN_HOSTS"
+else
+  echo "[tunnel] WARNING: VPS_HOST_KEY not set — falling back to no host verification"
+  HOST_CHECK_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+fi
+
 tunnel_loop() {
   delay=1
   while true; do
     echo "[tunnel] connecting to ${VPS_IP}:22 via tailscale nc..."
     ssh -o ProxyCommand="tailscale nc %h %p" \
-        -o StrictHostKeyChecking=no \
-        -o UserKnownHostsFile=/dev/null \
+        $HOST_CHECK_OPTS \
         -o ServerAliveInterval=15 \
         -o ServerAliveCountMax=3 \
         -o ExitOnForwardFailure=yes \
