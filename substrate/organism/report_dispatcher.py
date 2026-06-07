@@ -77,7 +77,11 @@ class ReportDispatcher:
         self._reports_path.parent.mkdir(parents=True, exist_ok=True)
 
         self._discord_token = discord_token or self._load_env("DISCORD_BOT_TOKEN")
-        self._discord_channel_id = discord_channel_id or self._load_env("DISCORD_FOUNDERS_OFFICE")
+        self._discord_channel_id = (
+            discord_channel_id
+            or self._load_env("DISCORD_FOUNDERS_OFFICE")
+            or "1485765456739696714"
+        )
 
     @staticmethod
     def _load_env(key: str) -> str:
