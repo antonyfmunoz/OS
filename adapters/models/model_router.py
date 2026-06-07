@@ -181,6 +181,7 @@ def _track_provider_result(provider_name: str, success: bool) -> None:
 # Canonical types — owned by substrate, re-exported here for backward compat
 from substrate.contracts.agent_types import (  # noqa: E402
     ModelProvider,
+    ProviderRole,
     RoutingResult,
     TaskType,
 )
@@ -222,6 +223,95 @@ class ModelConfig:
     cost_per_1k: float  # USD per 1k tokens
     available: bool = False
     base_url: str = ""
+    status_reason: str = (
+        ""  # "healthy", "auth_failed", "rate_limited", "quota_exhausted", "disabled"
+    )
+
+
+# ─── Role-Based Provider Routing ────────────────────────────────────────────
+# Each provider fills exactly one ROLE. Purpose selects the role.
+
+ROLE_SLOTS: dict[ProviderRole, str] = {
+    ProviderRole.STRATEGIC_BRAIN: "claude_cli",
+    ProviderRole.FAST_RESPONDER: "groq-llama",
+    ProviderRole.CODE_BUILDER: "cc_sdk",
+    ProviderRole.RESEARCH_ENGINE: "perplexity-sonar",
+    ProviderRole.LOCAL_POWERHOUSE: "beast-ollama",
+    ProviderRole.EMERGENCY_FALLBACK: "ollama-qwen",
+}
+
+ROLE_FAILOVER: dict[ProviderRole, str | None] = {
+    ProviderRole.STRATEGIC_BRAIN: "cc_sdk",
+    ProviderRole.FAST_RESPONDER: "beast-ollama",
+    ProviderRole.CODE_BUILDER: "beast-ollama",
+    ProviderRole.RESEARCH_ENGINE: "groq-llama",
+    ProviderRole.LOCAL_POWERHOUSE: "ollama-qwen",
+    ProviderRole.EMERGENCY_FALLBACK: None,
+}
+
+PURPOSE_ROUTING: dict[str, list[ProviderRole]] = {
+    "advise_founder": [
+        ProviderRole.STRATEGIC_BRAIN,
+        ProviderRole.CODE_BUILDER,
+        ProviderRole.FAST_RESPONDER,
+    ],
+    "build_code": [
+        ProviderRole.CODE_BUILDER,
+        ProviderRole.LOCAL_POWERHOUSE,
+        ProviderRole.FAST_RESPONDER,
+    ],
+    "quick_triage": [
+        ProviderRole.FAST_RESPONDER,
+        ProviderRole.LOCAL_POWERHOUSE,
+        ProviderRole.EMERGENCY_FALLBACK,
+    ],
+    "research_grounding": [ProviderRole.RESEARCH_ENGINE, ProviderRole.FAST_RESPONDER],
+    "plan_architecture": [ProviderRole.STRATEGIC_BRAIN, ProviderRole.CODE_BUILDER],
+    "classify_intent": [
+        ProviderRole.FAST_RESPONDER,
+        ProviderRole.LOCAL_POWERHOUSE,
+        ProviderRole.EMERGENCY_FALLBACK,
+    ],
+    "score_quality": [ProviderRole.FAST_RESPONDER, ProviderRole.LOCAL_POWERHOUSE],
+    "summarize": [
+        ProviderRole.FAST_RESPONDER,
+        ProviderRole.LOCAL_POWERHOUSE,
+        ProviderRole.CODE_BUILDER,
+    ],
+    "autonomous_execution": [ProviderRole.CODE_BUILDER, ProviderRole.LOCAL_POWERHOUSE],
+    "status_report": [
+        ProviderRole.FAST_RESPONDER,
+        ProviderRole.LOCAL_POWERHOUSE,
+        ProviderRole.EMERGENCY_FALLBACK,
+    ],
+    "decompose_goal": [
+        ProviderRole.STRATEGIC_BRAIN,
+        ProviderRole.CODE_BUILDER,
+        ProviderRole.FAST_RESPONDER,
+    ],
+}
+
+_LEGACY_PURPOSE_MAP: dict[str, str] = {
+    "conversation": "advise_founder",
+    "analysis": "plan_architecture",
+    "code": "build_code",
+    "fast_response": "quick_triage",
+    "web_search": "research_grounding",
+    "market_intel": "research_grounding",
+    "strategic": "advise_founder",
+    "classify": "classify_intent",
+    "score": "score_quality",
+    "summarize": "summarize",
+    "plan": "plan_architecture",
+    "coordinate": "advise_founder",
+    "self_improve": "build_code",
+    "research": "research_grounding",
+    "generate": "advise_founder",
+    "analyze": "plan_architecture",
+    "autonomous": "autonomous_execution",
+    "multimodal": "advise_founder",
+    "long_context": "plan_architecture",
+}
 
 
 # Provider priority for fallback ordering (lower = preferred)
@@ -343,12 +433,27 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         cost_per_1k=0.00059,
         base_url="https://api.groq.com/openai/v1",
     ),
-    # OLLAMA: Local emergency fallback only.
+    # BEAST OLLAMA: Local GPU inference on Beast Windows (GTX 1080 Ti, 11GB VRAM).
+    # Role: LOCAL_POWERHOUSE — zero cost, no rate limits, GPU-accelerated.
+    # qwen2.5-coder:14b Q4_K_M fits in ~8.5GB VRAM with headroom.
+    # Accessed via Tailscale from VPS. Falls back to VPS Ollama if Beast offline.
+    "beast-ollama": ModelConfig(
+        provider=ModelProvider.OLLAMA,
+        model_id="qwen2.5-coder:14b-instruct-q4_K_M",
+        api_key_env="",
+        strengths=[
+            TaskType.CODE,
+            TaskType.CONVERSATION,
+            TaskType.ANALYSIS,
+            TaskType.FAST_RESPONSE,
+        ],
+        cost_per_1k=0.0,
+        base_url=os.getenv("BEAST_OLLAMA_URL", "http://100.74.199.102:11434"),
+    ),
+    # VPS OLLAMA: Emergency last-resort fallback.
     # Hardware reality: 2 vCPU / 8 GB VPS with no GPU.
     # qwen2.5:0.5b (~400 MB) is the only model that loads fast enough to be useful.
-    # Larger models (1.5b/3b/4b/7b) are too slow on CPU-only — multi-minute responses
-    # defeat the purpose of a "fallback that responds when clouds are down".
-    # Strengths intentionally minimal — Ollama is last-resort, not primary.
+    # Role: EMERGENCY_FALLBACK — always on, zero external dependency.
     # base_url from env so Docker containers can reach host Ollama via gateway IP.
     "ollama-qwen": ModelConfig(
         provider=ModelProvider.OLLAMA,
@@ -459,7 +564,7 @@ def _should_escalate(output: str, provider: str) -> bool:
 
 
 def _ollama_available() -> bool:
-    """Returns True only if Ollama HTTP endpoint responds within 2s."""
+    """Returns True only if VPS Ollama HTTP endpoint responds within 2s."""
     try:
         import requests as _req
 
@@ -468,6 +573,17 @@ def _ollama_available() -> bool:
             f"{base}/api/tags",
             timeout=2,
         )
+        return resp.status_code == 200
+    except Exception:
+        return False
+
+
+def _remote_ollama_available(url: str) -> bool:
+    """Returns True if a remote Ollama (e.g. Beast) responds within 3s."""
+    try:
+        import requests as _req
+
+        resp = _req.get(f"{url}/api/tags", timeout=3)
         return resp.status_code == 200
     except Exception:
         return False
@@ -489,21 +605,39 @@ class ModelRouter:
         from adapters.models.opencode_cli import is_available as _opencode_avail
 
         _cli_checks = {
-            ModelProvider.OLLAMA: _ollama_available,
             ModelProvider.CODEX: _codex_avail,
             ModelProvider.HERMES: _hermes_avail,
             ModelProvider.OPENCODE: _opencode_avail,
         }
 
-        for config in MODEL_REGISTRY.values():
-            if config.provider in _cli_checks:
+        for key, config in MODEL_REGISTRY.items():
+            if key == "beast-ollama":
+                config.available = _remote_ollama_available(config.base_url)
+                config.status_reason = "healthy" if config.available else "unreachable"
+            elif config.provider == ModelProvider.OLLAMA:
+                config.available = _ollama_available()
+                config.status_reason = "healthy" if config.available else "unreachable"
+            elif config.provider in _cli_checks:
                 config.available = _cli_checks[config.provider]()
+                config.status_reason = "healthy" if config.available else "not_installed"
             elif not config.api_key_env:
                 config.available = False
+                config.status_reason = "disabled"
             elif os.getenv(config.api_key_env):
                 config.available = True
+                config.status_reason = "healthy"
             else:
                 config.available = False
+                config.status_reason = "no_api_key"
+
+        # Pre-register provider state so health endpoint has data immediately
+        try:
+            state = get_system_state()
+            for key, config in MODEL_REGISTRY.items():
+                if config.available:
+                    state.record_provider_success(config.provider.value)
+        except Exception:
+            pass
 
     def route(
         self,
@@ -902,6 +1036,34 @@ def get_router(ctx=None) -> ModelRouter:
 _CEO_AGENT_KEYWORDS = ("_ceo", "portfolio_advisor", "strategic")
 
 
+def _resolve_purpose(task_type_str: str, agent_type: str | None, is_ceo: bool) -> str:
+    """Map task_type (or agent_type hints) to a routing purpose."""
+    if is_ceo:
+        return "advise_founder"
+    return _LEGACY_PURPOSE_MAP.get(task_type_str, "quick_triage")
+
+
+def _providers_for_purpose(purpose: str) -> list[str]:
+    """Return ordered list of MODEL_REGISTRY keys for a purpose, with failover."""
+    roles = PURPOSE_ROUTING.get(
+        purpose, [ProviderRole.FAST_RESPONDER, ProviderRole.EMERGENCY_FALLBACK]
+    )
+    provider_keys: list[str] = []
+    seen: set[str] = set()
+
+    for role in roles:
+        primary = ROLE_SLOTS.get(role)
+        if primary and primary not in seen:
+            provider_keys.append(primary)
+            seen.add(primary)
+        failover = ROLE_FAILOVER.get(role)
+        if failover and failover not in seen:
+            provider_keys.append(failover)
+            seen.add(failover)
+
+    return provider_keys
+
+
 def _claude_cli_backend_enabled() -> bool:
     """Whether to attempt the Claude CLI tmux session as backend #0.
 
@@ -978,43 +1140,17 @@ def call_with_fallback(
     if images:
         task_type_str = TaskType.MULTIMODAL.value
 
-    # Determine if this is a fast-path task
-    is_fast = task_type_str in _FAST_TASK_TYPES and not is_ceo
-
     logger.info(
-        "[Router] task=%s agent=%s trigger=%s fast=%s",
+        "[Router] task=%s agent=%s trigger=%s ceo=%s",
         task_type_str,
         agent_type,
         trigger_source,
-        is_fast,
+        is_ceo,
     )
 
     router = get_router()
     # Re-check availability on each call (handles credit restoration)
     router._check_availability()
-
-    # ── Map extended task types to router's strength categories ──
-    _TASK_MAP: dict[str, str] = {
-        "strategic": "analysis",
-        "code": "analysis",
-        "research": "web_search",
-        "self_improve": "analysis",
-        "plan": "analysis",
-        "coordinate": "conversation",
-        "score": "fast_response",
-        "classify": "fast_response",
-        "analyze": "analysis",
-        "generate": "conversation",
-        "summarize": "fast_response",
-    }
-    router_task_str = _TASK_MAP.get(task_type_str, task_type_str)
-    try:
-        router_task = TaskType(router_task_str)
-    except ValueError:
-        router_task = TaskType.FAST_RESPONSE
-
-    # ── Select priority table based on task type ──
-    priority = PROVIDER_PRIORITY_FAST if is_fast else PROVIDER_PRIORITY
 
     start = time.time()
 
@@ -1066,10 +1202,9 @@ def call_with_fallback(
     # Never raises — respond_via_claude_session is a safe-degrade adapter.
     cli_enabled = _claude_cli_backend_enabled()
     logger.info(
-        "[Router] claude_cli backend gate: enabled=%s priority_index=%s path=%s",
+        "[Router] claude_cli backend gate: enabled=%s task=%s",
         cli_enabled,
-        priority.get(ModelProvider.CLAUDE_CLI, "missing"),
-        "fast" if is_fast else "heavy",
+        task_type_str,
     )
     if cli_enabled:
         try:
@@ -1167,204 +1302,122 @@ def call_with_fallback(
     else:
         logger.info("[Router] claude_cli backend disabled via env — skipping")
 
-    if is_fast:
-        # ── FAST PATH: Haiku first, escalate to cc_sdk if quality low ──
+    # ── PURPOSE-BASED ROUTING: resolve purpose → roles → providers ──
+    purpose = _resolve_purpose(task_type_str, agent_type, is_ceo)
+    provider_keys = _providers_for_purpose(purpose)
+    logger.info("[Router] purpose=%s providers=%s", purpose, provider_keys)
 
-        # 1. Try Anthropic (Haiku) first
-        haiku_cap = _HAIKU_TOKEN_CAPS.get(task_type_str, 800)
-        candidates = [
-            c
-            for c in MODEL_REGISTRY.values()
-            if c.provider == ModelProvider.ANTHROPIC and c.available
-        ]
-        # Prefer Haiku (cheapest Anthropic model)
-        candidates.sort(key=lambda x: x.cost_per_1k)
+    _tried_keys: set[str] = set()
+    _blockers: dict[str, str] = {}
 
-        for config in candidates:
-            output = router.call(config, prompt, system or "", haiku_cap, images)
-            if output:
-                # Check quality — escalate if too low
-                if _should_escalate(output, config.provider.value):
-                    break  # fall through to cc_sdk escalation
-                latency_ms = int((time.time() - start) * 1000)
-                logger.info(
-                    "[Router] %s/%s responded (%dms, fast path)",
-                    config.provider.value,
-                    config.model_id,
-                    latency_ms,
-                )
-                _stamp_trace(config.provider.value, config.model_id, latency_ms, "ok")
-                return RoutingResult(
-                    output=output,
-                    provider=config.provider.value,
-                    model=config.model_id,
+    for pkey in provider_keys:
+        if pkey in _tried_keys:
+            continue
+        _tried_keys.add(pkey)
+
+        # cc_sdk is called via query_cc_sync, not the ModelRouter.call() path
+        if pkey == "cc_sdk":
+            if router._cc_sdk_available and get_system_state().allow_execution():
+                cc_result = query_cc_sync(
+                    prompt=prompt,
+                    system=system or "",
                     task_type=task_type_str,
-                    input_tokens=router._last_input_tokens,
-                    output_tokens=router._last_output_tokens,
-                    tokens_used=router._last_input_tokens + router._last_output_tokens,
-                    latency_ms=latency_ms,
+                    agent_id=agent_type or "eos_default",
+                    max_budget_usd=0.10,
                 )
+                if cc_result and cc_result.output:
+                    latency_ms = int((time.time() - start) * 1000)
+                    logger.info(
+                        "[Router] cc_sdk/%s responded (%dms, purpose=%s)",
+                        cc_result.model,
+                        latency_ms,
+                        purpose,
+                    )
+                    _stamp_trace("cc_sdk", cc_result.model, latency_ms, "ok")
+                    return RoutingResult(
+                        output=cc_result.output,
+                        provider="cc_sdk",
+                        model=cc_result.model,
+                        task_type=task_type_str,
+                        latency_ms=latency_ms,
+                    )
+                logger.info("[Router] cc_sdk failed for purpose=%s, trying next role", purpose)
+                _blockers["cc_sdk"] = "no_response"
+            else:
+                _blockers["cc_sdk"] = "unavailable"
+            continue
 
-        # 2. Escalate to cc_sdk (Opus — no token cap on escalation)
-        if router._cc_sdk_available and get_system_state().allow_execution():
-            cc_result = query_cc_sync(
-                prompt=prompt,
-                system=system or "",
-                task_type=task_type_str,
-                agent_id=agent_type or "eos_default",
-                max_budget_usd=0.10,
-            )
-            if cc_result and cc_result.output:
-                latency_ms = int((time.time() - start) * 1000)
-                logger.info(
-                    "[Router] cc_sdk/%s responded (%dms, escalated)",
-                    cc_result.model,
-                    latency_ms,
-                )
-                _stamp_trace("cc_sdk", cc_result.model, latency_ms, "ok_escalated")
-                return RoutingResult(
-                    output=cc_result.output,
-                    provider="cc_sdk",
-                    model=cc_result.model,
-                    task_type=task_type_str,
-                    latency_ms=latency_ms,
-                )
+        # claude_cli already attempted as backend #0 above — skip
+        if pkey == "claude_cli":
+            continue
 
-        # 3. Fall through to remaining providers (gemini, ollama)
-        remaining = [
-            c
-            for c in MODEL_REGISTRY.values()
-            if c.available and c.provider not in (ModelProvider.ANTHROPIC, ModelProvider.CC_SDK)
-        ]
-        remaining.sort(key=lambda x: priority.get(x.provider, 99))
+        # Registry-based provider
+        config = MODEL_REGISTRY.get(pkey)
+        if not config or not config.available:
+            reason = config.status_reason if config else "not_registered"
+            _blockers[pkey] = reason or "unavailable"
+            continue
 
-        for config in remaining:
-            output = router.call(config, prompt, system or "", 2000, images)
-            if output:
-                latency_ms = int((time.time() - start) * 1000)
-                logger.info(
-                    "[Router] %s/%s responded (%dms, fast fallback)",
-                    config.provider.value,
-                    config.model_id,
-                    latency_ms,
-                )
-                _stamp_trace(
-                    config.provider.value,
-                    config.model_id,
-                    latency_ms,
-                    "ok_fast_fallback",
-                )
-                return RoutingResult(
-                    output=output,
-                    provider=config.provider.value,
-                    model=config.model_id,
-                    task_type=task_type_str,
-                    input_tokens=router._last_input_tokens,
-                    output_tokens=router._last_output_tokens,
-                    tokens_used=router._last_input_tokens + router._last_output_tokens,
-                    latency_ms=latency_ms,
-                )
-
-    else:
-        # ── HEAVY PATH: cc_sdk (Opus) first, then registry fallback ──
-
-        # 1. Try cc_sdk first (Opus 4.6 via Agent SDK — free via Max)
-        if router._cc_sdk_available and get_system_state().allow_execution():
-            cc_result = query_cc_sync(
-                prompt=prompt,
-                system=system or "",
-                task_type=task_type_str,
-                agent_id=agent_type or "eos_default",
-                max_budget_usd=0.10,
-            )
-            if cc_result and cc_result.output:
-                latency_ms = int((time.time() - start) * 1000)
-                logger.info(
-                    "[Router] cc_sdk/%s responded (%dms)",
-                    cc_result.model,
-                    latency_ms,
-                )
-                _stamp_trace("cc_sdk", cc_result.model, latency_ms, "ok")
-                return RoutingResult(
-                    output=cc_result.output,
-                    provider="cc_sdk",
-                    model=cc_result.model,
-                    task_type=task_type_str,
-                    latency_ms=latency_ms,
-                )
-            logger.info("[Router] cc_sdk failed, falling back to registry providers")
-
-        # 2. Registry-based fallback — strength-matched first, then any available
-        strength_matched = [
-            c for c in MODEL_REGISTRY.values() if router_task in c.strengths and c.available
-        ]
-        strength_matched.sort(key=lambda x: priority.get(x.provider, 99))
-        _tried_providers: set = set()
-
-        for config in strength_matched:
-            if not config.available:
+        max_tok = 2000
+        output = router.call(config, prompt, system or "", max_tok, images)
+        if output:
+            if _should_escalate(output, config.provider.value):
+                logger.info("[Router] %s quality too low, trying next role", pkey)
+                _blockers[pkey] = "quality_too_low"
                 continue
-            _tried_providers.add(config.provider)
-            output = router.call(config, prompt, system or "", 2000, images)
-            if output:
-                latency_ms = int((time.time() - start) * 1000)
-                logger.info(
-                    "[Router] %s/%s responded (%dms)",
-                    config.provider.value,
-                    config.model_id,
-                    latency_ms,
-                )
-                _stamp_trace(
-                    config.provider.value,
-                    config.model_id,
-                    latency_ms,
-                    "ok_heavy_fallback",
-                )
-                return RoutingResult(
-                    output=output,
-                    provider=config.provider.value,
-                    model=config.model_id,
-                    task_type=task_type_str,
-                    input_tokens=router._last_input_tokens,
-                    output_tokens=router._last_output_tokens,
-                    tokens_used=router._last_input_tokens + router._last_output_tokens,
-                    latency_ms=latency_ms,
-                )
+            latency_ms = int((time.time() - start) * 1000)
+            logger.info(
+                "[Router] %s/%s responded (%dms, purpose=%s)",
+                config.provider.value,
+                config.model_id,
+                latency_ms,
+                purpose,
+            )
+            _stamp_trace(config.provider.value, config.model_id, latency_ms, f"ok_{purpose}")
+            return RoutingResult(
+                output=output,
+                provider=config.provider.value,
+                model=config.model_id,
+                task_type=task_type_str,
+                input_tokens=router._last_input_tokens,
+                output_tokens=router._last_output_tokens,
+                tokens_used=router._last_input_tokens + router._last_output_tokens,
+                latency_ms=latency_ms,
+            )
+        else:
+            _blockers[pkey] = "empty_response"
 
-        # 3. All strength-matched failed — try remaining available providers
-        remaining = [
-            c for c in MODEL_REGISTRY.values() if c.available and c.provider not in _tried_providers
-        ]
-        remaining.sort(key=lambda x: priority.get(x.provider, 99))
+    # ── LAST RESORT: try any remaining available provider not yet tried ──
+    remaining = [
+        (k, c)
+        for k, c in MODEL_REGISTRY.items()
+        if c.available and k not in _tried_keys and k != "claude_cli"
+    ]
+    remaining.sort(key=lambda x: PROVIDER_PRIORITY.get(x[1].provider, 99))
 
-        for config in remaining:
-            if not config.available:
-                continue
-            output = router.call(config, prompt, system or "", 2000, images)
-            if output:
-                latency_ms = int((time.time() - start) * 1000)
-                logger.info(
-                    "[Router] %s/%s responded (%dms, heavy remaining)",
-                    config.provider.value,
-                    config.model_id,
-                    latency_ms,
-                )
-                _stamp_trace(
-                    config.provider.value,
-                    config.model_id,
-                    latency_ms,
-                    "ok_heavy_remaining",
-                )
-                return RoutingResult(
-                    output=output,
-                    provider=config.provider.value,
-                    model=config.model_id,
-                    task_type=task_type_str,
-                    input_tokens=router._last_input_tokens,
-                    output_tokens=router._last_output_tokens,
-                    tokens_used=router._last_input_tokens + router._last_output_tokens,
-                    latency_ms=latency_ms,
-                )
+    for rkey, config in remaining:
+        output = router.call(config, prompt, system or "", 2000, images)
+        if output:
+            latency_ms = int((time.time() - start) * 1000)
+            logger.info(
+                "[Router] %s/%s responded (%dms, last-resort)",
+                config.provider.value,
+                config.model_id,
+                latency_ms,
+            )
+            _stamp_trace(config.provider.value, config.model_id, latency_ms, "ok_last_resort")
+            return RoutingResult(
+                output=output,
+                provider=config.provider.value,
+                model=config.model_id,
+                task_type=task_type_str,
+                input_tokens=router._last_input_tokens,
+                output_tokens=router._last_output_tokens,
+                tokens_used=router._last_input_tokens + router._last_output_tokens,
+                latency_ms=latency_ms,
+            )
+        else:
+            _blockers[rkey] = "empty_response"
 
     latency_ms = int((time.time() - start) * 1000)
     _circuit_record_failure()
@@ -1379,6 +1432,7 @@ def call_with_fallback(
         model="fallback",
         task_type=task_type_str,
         latency_ms=latency_ms,
+        metadata={"blockers": _blockers, "purpose": purpose},
     )
 
 

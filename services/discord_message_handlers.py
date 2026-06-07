@@ -69,6 +69,7 @@ def _persist_and_push(
     """
     try:
         from substrate.organism.store import OrganismStore
+
         store = OrganismStore()
         ai_name = _ai_name() if _ctx else "system"
         store.save_conversation_turn(
@@ -83,10 +84,20 @@ def _persist_and_push(
     now = _dt.now(_tz.utc).isoformat()
     try:
         for msg in [
-            {"id": f"discord-{int(_time.time() * 1000)}", "sender": "operator",
-             "content": content, "timestamp": now, "origin_channel": "discord"},
-            {"id": f"discord-resp-{int(_time.time() * 1000)}", "sender": "assistant",
-             "content": response, "timestamp": now, "origin_channel": "discord"},
+            {
+                "id": f"discord-{int(_time.time() * 1000)}",
+                "sender": "operator",
+                "content": content,
+                "timestamp": now,
+                "origin_channel": "discord",
+            },
+            {
+                "id": f"discord-resp-{int(_time.time() * 1000)}",
+                "sender": "assistant",
+                "content": response,
+                "timestamp": now,
+                "origin_channel": "discord",
+            },
         ]:
             req = urllib.request.Request(
                 f"{_OPERATOR_API_BASE}/api/umh/chat/push",
@@ -162,6 +173,7 @@ def get_pending_events() -> dict:
 
 
 # ─── Accessor shortcuts ─────────────────────────────────────────────────────
+
 
 def _bot():
     return _ctx["bot"]
@@ -259,11 +271,10 @@ async def _handle_audio_attachment(message: discord.Message) -> bool:
                     if message.guild and message.guild.voice_client:
                         vc = message.guild.voice_client
                         if vc.is_connected() and not vc.is_playing():
-                            audio_out = await loop.run_in_executor(
-                                None, ve.speak, response[:300]
-                            )
+                            audio_out = await loop.run_in_executor(None, ve.speak, response[:300])
                             if audio_out and os.path.exists(audio_out):
                                 import discord as _disc
+
                                 vc.play(_disc.FFmpegPCMAudio(audio_out))
                 else:
                     await message.reply("Could not transcribe that audio.")
@@ -531,8 +542,7 @@ async def _handle_onboarding(
             print(f"[Onboarding] Provisioning error: {_pe}")
             await _send_reply(
                 message.channel,
-                f"⚠️ Provisioning encountered an issue: {_pe}\n"
-                "Run `!onboard` again to retry.",
+                f"⚠️ Provisioning encountered an issue: {_pe}\nRun `!onboard` again to retry.",
             )
     await _memory_gateway(text, channel_name, username, message)
     return True
@@ -839,9 +849,7 @@ async def _handle_pending_capture(
 
     _ventures_list = _json.loads(os.getenv("VENTURES_JSON", "[]"))
     _venture_map = {str(i + 1): v["id"] for i, v in enumerate(_ventures_list)}
-    _venture_id = _venture_map.get(
-        text.strip().replace("️⃣", ""), default_venture_id
-    )
+    _venture_id = _venture_map.get(text.strip().replace("️⃣", ""), default_venture_id)
     try:
         from substrate.understanding.signals.founder_capture import capture
 
@@ -931,11 +939,10 @@ async def _handle_founder_capture(
                     for i, v in enumerate(_ventures_list)
                     if i < len(_num_emojis)
                 )
-                _icon = '\U0001f4a1' if _ctype == 'idea' else '\u2705'
+                _icon = "\U0001f4a1" if _ctype == "idea" else "\u2705"
                 await _send_reply(
                     message.channel,
-                    f"{_icon} Got it. Which venture is this for?\n"
-                    f"{_choices}",
+                    f"{_icon} Got it. Which venture is this for?\n{_choices}",
                 )
                 _pending_captures[_channel_id] = {"text": text, "type": _ctype}
                 await _memory_gateway(text, channel_name, username, message)
@@ -974,10 +981,7 @@ async def _handle_multipart(
     ch_key = channel_name
 
     # Initialise or reset buffer if this is a new series
-    if (
-        ch_key not in _multipart_buffers
-        or _multipart_buffers[ch_key].get("total") != total_parts
-    ):
+    if ch_key not in _multipart_buffers or _multipart_buffers[ch_key].get("total") != total_parts:
         _multipart_buffers[ch_key] = {
             "parts": {},
             "total": total_parts,
@@ -1013,9 +1017,7 @@ async def _handle_multipart(
                 ev_loop = asyncio.get_event_loop()
                 out = await ev_loop.run_in_executor(
                     None,
-                    lambda: _run_gw(
-                        combined, cname, uname, guild_id=_fl_gid, channel_id=_fl_cid
-                    ),
+                    lambda: _run_gw(combined, cname, uname, guild_id=_fl_gid, channel_id=_fl_cid),
                 )
             if out:
                 await _send_resp(orig_message, out)
@@ -1118,7 +1120,11 @@ async def _handle_organism_command(
 
         try:
             await asyncio.get_event_loop().run_in_executor(
-                None, _persist_and_push, text, reply_text, str(message.author),
+                None,
+                _persist_and_push,
+                text,
+                reply_text,
+                str(message.author),
             )
         except Exception as _pp_err:
             _record_error("discord_gov_persist_push", _pp_err)
@@ -1128,6 +1134,99 @@ async def _handle_organism_command(
         logger.error("organism command %s failed: %s", cmd, e)
         await _send_reply(message, f"**{cmd.upper()}** error: {e}")
         return True
+
+
+# ── DexConversation handler (Founder's Office parity with cockpit) ───────────
+
+_FOUNDERS_OFFICE_ID = os.environ.get("DISCORD_FOUNDERS_OFFICE", "")
+
+
+async def _handle_dex_conversation(
+    message: discord.Message,
+    text: str,
+    channel_name: str,
+    username: str,
+) -> bool:
+    """Route message through DexConversation — same pipeline as cockpit right rail.
+
+    Returns True if handled (Founder's Office channel), False otherwise.
+    """
+    channel_id = str(message.channel.id)
+    if not _FOUNDERS_OFFICE_ID or channel_id != _FOUNDERS_OFFICE_ID:
+        return False
+
+    loop = asyncio.get_event_loop()
+    send_resp = _ctx["send_response"]
+
+    async with message.channel.typing():
+        try:
+            response = await loop.run_in_executor(None, _call_dex_converse, text)
+        except Exception as exc:
+            _record_error("dex_conversation_discord", exc)
+            logger.warning("[DexDiscord] converse failed: %s", exc)
+            return False
+
+    if not response:
+        return False
+
+    response_text = response.get("text", "")
+    if not response_text:
+        return False
+
+    await send_resp(message, response_text)
+
+    # Push to cockpit for bidirectional visibility
+    try:
+        await loop.run_in_executor(
+            None,
+            _persist_and_push,
+            text,
+            response_text,
+            username,
+        )
+    except Exception as _pp_err:
+        _record_error("dex_discord_persist_push", _pp_err)
+
+    return True
+
+
+def _call_dex_converse(content: str) -> dict | None:
+    """Call DexConversation.converse() synchronously (run in executor)."""
+    try:
+        from substrate.organism.dex_conversation import DexConversation
+
+        daemon = None
+        try:
+            from transports.api.app import _organism
+
+            daemon = _organism
+        except (ImportError, AttributeError):
+            pass
+        if daemon is None:
+            try:
+                from services.operator_api import _organism_daemon
+
+                daemon = _organism_daemon
+            except (ImportError, AttributeError):
+                pass
+
+        if daemon is None:
+            return None
+
+        conv = DexConversation(advisor=daemon.advisor, store=daemon.store)
+        resp = conv.converse(
+            content=content,
+            conversation_id="discord-founders-office",
+            source="discord",
+        )
+        return {
+            "text": resp.text,
+            "intent": resp.intent,
+            "metadata": resp.metadata,
+        }
+    except Exception as exc:
+        logger.warning("[DexDiscord] _call_dex_converse error: %s", exc)
+        return None
 
 
 # ── Gateway dispatch handler ─────────────────────────────────────────────────
@@ -1174,7 +1273,11 @@ async def _handle_gateway_dispatch(
         # Persist to organism store + push to cockpit
         try:
             await asyncio.get_event_loop().run_in_executor(
-                None, _persist_and_push, text, output, username,
+                None,
+                _persist_and_push,
+                text,
+                output,
+                username,
             )
         except Exception as _pp_err:
             _record_error("discord_persist_push", _pp_err)
@@ -1183,6 +1286,7 @@ async def _handle_gateway_dispatch(
             # Also speak via TTS in voice channel
             try:
                 import discord as _disc
+
                 vc = message.guild.voice_client
                 if not vc or not vc.is_connected():
                     vc = await founder_member.voice.channel.connect(

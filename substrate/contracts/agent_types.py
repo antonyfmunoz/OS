@@ -54,6 +54,21 @@ class ModelProvider(Enum):
     MANUS = "manus"
 
 
+class ProviderRole(str, Enum):
+    """Named role slots in the UMH runtime portfolio.
+
+    Each role exists because no other provider serves that purpose as well.
+    Roles define slots; purpose selects the slot.
+    """
+
+    STRATEGIC_BRAIN = "strategic_brain"
+    FAST_RESPONDER = "fast_responder"
+    CODE_BUILDER = "code_builder"
+    RESEARCH_ENGINE = "research_engine"
+    LOCAL_POWERHOUSE = "local_powerhouse"
+    EMERGENCY_FALLBACK = "emergency_fallback"
+
+
 @dataclass
 class AgentResult:
     """Result of an agent execution."""
@@ -81,6 +96,7 @@ class RoutingResult:
     output_tokens: int = 0
     cost_usd: float = 0.0
     latency_ms: int = 0
+    metadata: dict | None = None
 
 
 COST_PER_MILLION_TOKENS: dict[str, dict[str, float]] = {
