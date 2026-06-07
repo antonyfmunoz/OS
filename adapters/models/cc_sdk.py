@@ -52,6 +52,8 @@ _ERROR_SIGNATURES: tuple[str, ...] = (
     "invalid_request_error",
     "credit balance",
     "invalid x-api-key",
+    "not logged in",
+    "please run /login",
 )
 
 

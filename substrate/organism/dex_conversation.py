@@ -160,7 +160,9 @@ class DexConversation:
                 agent_type="ceo",
             )
             response_text = ""
-            if result and hasattr(result, "content"):
+            if result and hasattr(result, "output"):
+                response_text = result.output or ""
+            elif result and hasattr(result, "content"):
                 response_text = result.content or ""
             elif isinstance(result, str):
                 response_text = result
