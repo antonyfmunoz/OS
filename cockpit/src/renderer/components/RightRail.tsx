@@ -75,7 +75,7 @@ export function RightRail() {
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className={clsx(
-                'flex items-center gap-2 px-2 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors',
+                'flex items-center gap-2 px-2 py-1 text-[10px] font-mono uppercase tracking-wider leading-none transition-colors',
                 activeTab === t.id ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary',
               )}
             >
