@@ -132,7 +132,10 @@ export function ControlPanel() {
         {/* 1. Health dot */}
         <span className={`w-2 h-2 rounded-full ${healthDot}`} title="System health" />
 
-        {/* 2. Executing packets */}
+        {/* 2. Active agents */}
+        <span className="wv-label text-[10px]">{pulse?.active_agents ?? 0} active</span>
+
+        {/* 3. Executing packets */}
         <span className="text-[10px] text-text-secondary font-mono">
           {executingPackets} pkt{executingPackets !== 1 ? 's' : ''}
         </span>
@@ -166,13 +169,6 @@ export function ControlPanel() {
         )}
 
         <div className="flex-1" />
-
-        {/* 8. Permission horizon */}
-        <span
-          className={`text-[10px] font-bold px-2 py-1 rounded text-white ${CONTINUITY_COLORS[continuityState] ?? 'bg-gray-600'}`}
-        >
-          {continuityState.replace(/_/g, ' ')}
-        </span>
 
         {/* 9. Risk ceiling */}
         <span className={`text-[10px] font-mono ${RISK_COLORS[riskCeiling] ?? 'text-text-secondary'}`}>
