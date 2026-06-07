@@ -200,7 +200,17 @@ function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: st
             {msg.intent}
           </span>
         )}
-        <span className="text-[9px] text-text-tertiary ml-auto">
+        <span className="text-[9px] text-text-tertiary ml-auto flex items-center gap-1">
+          {msg.metadata?.model_tier && msg.metadata.model_tier !== 'deterministic' && (
+            <span className="text-[8px] font-mono px-1 rounded bg-violet/10 text-violet/70">
+              via {String(msg.metadata.model_tier)}
+            </span>
+          )}
+          {msg.metadata?.model_tier === 'deterministic' && (
+            <span className="text-[8px] font-mono px-1 rounded bg-warn/10 text-warn/70">
+              offline
+            </span>
+          )}
           {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
       </div>

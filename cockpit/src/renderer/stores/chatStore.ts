@@ -33,6 +33,7 @@ export interface ChatMessage {
   provenance?: Provenance
   attachment?: Attachment
   suggested_actions?: SuggestedAction[]
+  metadata?: Record<string, unknown>
 }
 
 interface ChatResponse {
@@ -120,6 +121,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           origin_channel: 'cockpit',
           intent: res.intent,
           suggested_actions: res.suggested_actions,
+          metadata: res.metadata,
         }
 
         set((s) => ({
