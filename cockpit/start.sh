@@ -6,8 +6,14 @@ envsubst '${UMH_OPERATOR_API_KEY} ${UMH_WS_TOKEN}' \
   > /etc/nginx/conf.d/default.conf
 
 # Start nginx first so Fly health checks pass immediately.
-# API proxy returns 502 until Tailscale bridge is up.
+# API proxy returns 502 until the SSH tunnel is up.
 nginx -g 'daemon on;'
+
+# Write SSH key from Fly secret to file if not already present.
+if [ -n "$MESH_KEY" ] && [ ! -f /tmp/mesh_key ]; then
+  printf '%s\n' "$MESH_KEY" > /tmp/mesh_key
+  chmod 600 /tmp/mesh_key
+fi
 
 # Start tailscaled in userspace networking mode (no TUN needed in container)
 tailscaled --state=/var/lib/tailscale/tailscaled.state \
@@ -21,12 +27,40 @@ tailscale up --authkey="${TAILSCALE_AUTHKEY}" --hostname=umh-cockpit --accept-ro
 
 sleep 2
 
-# Bridge localhost:8091 → VPS:8091 through Tailscale's userspace network.
-# socat binds a local TCP listener and pipes each connection through
-# "tailscale nc" which routes through the Tailscale tunnel.
+# Persistent SSH tunnel replaces per-request socat+tailscale nc.
+# SSH multiplexes all TCP connections over a single tailscale nc pipe.
+# ProxyCommand routes through Tailscale's userspace network.
 VPS_IP="${UMH_VPS_IP:-100.77.233.50}"
-VPS_PORT="${UMH_VPS_PORT:-8091}"
-socat TCP-LISTEN:8091,fork,reuseaddr EXEC:"tailscale nc ${VPS_IP} ${VPS_PORT}",nofork &
+KEY_FILE="/tmp/mesh_key"
+
+if [ ! -f "$KEY_FILE" ]; then
+  echo "[tunnel] MESH_KEY not set — no SSH tunnel, API will 502"
+  wait
+  exit 1
+fi
+
+tunnel_loop() {
+  delay=1
+  while true; do
+    echo "[tunnel] connecting to ${VPS_IP}:22 via tailscale nc..."
+    ssh -o ProxyCommand="tailscale nc %h %p" \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        -o ServerAliveInterval=15 \
+        -o ServerAliveCountMax=3 \
+        -o ExitOnForwardFailure=yes \
+        -i "$KEY_FILE" \
+        -N -L 8091:127.0.0.1:8091 \
+        "root@${VPS_IP}"
+    echo "[tunnel] SSH exited ($?), reconnecting in ${delay}s..."
+    sleep "$delay"
+    if [ "$delay" -lt 30 ]; then
+      delay=$((delay * 2))
+    fi
+  done
+}
+
+tunnel_loop &
 
 # Keep container alive — wait on all background jobs
 wait

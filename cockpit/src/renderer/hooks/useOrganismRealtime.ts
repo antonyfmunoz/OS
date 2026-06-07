@@ -3,6 +3,10 @@ import { useRealtimeStore, OrganismEvent } from '../stores/realtimeStore'
 import { useOrganismStore } from '../stores/organismStore'
 import { useSystemStore } from '../stores/systemStore'
 import { useCockpitStore } from '../stores/cockpitStore'
+import { useActivityStore } from '../stores/activityStore'
+import { useConfigStore } from '../stores/configStore'
+import { useChatStore } from '../stores/chatStore'
+import { useBootstrapStore } from '../stores/bootstrapStore'
 import { getWsToken } from '../api/client'
 
 const RECONNECT_BASE_MS = 1000
@@ -72,7 +76,9 @@ export function useOrganismRealtime(): void {
         useCockpitStore.getState().setConnectionStatus('ws', 'connected')
         stopFallbackPolling()
 
-        useOrganismStore.getState().fetchAll()
+        if (useBootstrapStore.getState().loaded) {
+          useOrganismStore.getState().fetchAll()
+        }
 
         heartbeatTimer.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
@@ -164,6 +170,30 @@ export function useOrganismRealtime(): void {
           useOrganismStore.getState().fetchCompleted()
         }
       }
+    } else if (type === 'activity' || type === 'event') {
+      const d = (msg.data as Record<string, unknown>) || msg
+      useActivityStore.getState().addEvent({
+        id: (d.id as string) || crypto.randomUUID(),
+        timestamp: (d.timestamp as string) || new Date().toISOString(),
+        source: (d.source as string) || 'system',
+        type: (d.type as string) || 'info',
+        severity: (d.severity as 'info' | 'warning' | 'error') || 'info',
+        summary: (d.summary as string) || '',
+      })
+    } else if (type === 'config_changed') {
+      const key = msg.key as string
+      const value = msg.value
+      if (key && value !== undefined) {
+        useConfigStore.getState().applyRemoteUpdate(key, value)
+      }
+    } else if (type === 'chat_message') {
+      useChatStore.getState().pushExternalMessage({
+        id: (msg.id as string) || `ext-${Date.now()}`,
+        sender: (msg.sender as 'operator' | 'assistant' | 'system') || 'system',
+        content: (msg.content as string) || '',
+        timestamp: (msg.timestamp as string) || new Date().toISOString(),
+        origin_channel: (msg.origin_channel as string) || 'unknown',
+      })
     } else if (type === 'pong') {
       // heartbeat ack
     }

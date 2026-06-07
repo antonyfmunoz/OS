@@ -2,10 +2,9 @@ import { useEffect } from 'react'
 import { SignedIn, SignedOut, SignIn, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react'
 import { Shell } from './components/Shell'
 import { useKeyboard } from './hooks/useKeyboard'
-import { useWebSocket } from './hooks/useWebSocket'
 import { useOrganismRealtime } from './hooks/useOrganismRealtime'
+import { useBootstrapStore } from './stores/bootstrapStore'
 import { useChatStore } from './stores/chatStore'
-import { useConfigStore } from './stores/configStore'
 import { setTokenGetter } from './api/client'
 
 const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
@@ -20,20 +19,20 @@ function ClerkTokenBridge() {
 
 function AuthenticatedApp() {
   useKeyboard()
-  useWebSocket()
   useOrganismRealtime()
 
+  const boot = useBootstrapStore((s) => s.boot)
   const loadHistory = useChatStore((s) => s.loadHistory)
   const startPolling = useChatStore((s) => s.startPolling)
   const stopPolling = useChatStore((s) => s.stopPolling)
-  const loadConfig = useConfigStore((s) => s.loadConfig)
 
   useEffect(() => {
-    loadConfig()
-    loadHistory()
-    startPolling()
+    boot().then(() => {
+      loadHistory()
+      startPolling()
+    })
     return () => { stopPolling() }
-  }, [loadConfig, loadHistory, startPolling, stopPolling])
+  }, [boot, loadHistory, startPolling, stopPolling])
 
   return <Shell />
 }
