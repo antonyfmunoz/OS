@@ -33,6 +33,10 @@ export interface ChatMessage {
   provenance?: Provenance
   attachment?: Attachment
   suggested_actions?: SuggestedAction[]
+  role?: string
+  kind?: string
+  routing?: Record<string, unknown>
+  metadata?: Record<string, unknown>
 }
 
 interface ChatResponse {
@@ -44,6 +48,9 @@ interface ChatResponse {
   suggested_actions: SuggestedAction[]
   metadata: Record<string, unknown>
   timestamp: string
+  role?: string
+  kind?: string
+  routing?: Record<string, unknown>
 }
 
 interface ChatState {
@@ -120,6 +127,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
           origin_channel: 'cockpit',
           intent: res.intent,
           suggested_actions: res.suggested_actions,
+          role: res.role,
+          kind: res.kind,
+          routing: res.routing,
+          metadata: res.metadata,
         }
 
         set((s) => ({
@@ -154,6 +165,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         title?: string
         provenance?: Provenance
         attachment?: Attachment
+        role?: string
+        kind?: string
       }>>('/chat/history')
 
       const serverMsgs: ChatMessage[] = history.map((m) => ({
@@ -166,6 +179,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         title: m.title,
         provenance: m.provenance,
         attachment: m.attachment,
+        role: m.role,
+        kind: m.kind,
       }))
 
       set((s) => {

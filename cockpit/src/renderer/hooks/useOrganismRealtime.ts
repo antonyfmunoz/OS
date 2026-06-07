@@ -193,6 +193,10 @@ export function useOrganismRealtime(): void {
         content: (msg.content as string) || '',
         timestamp: (msg.timestamp as string) || new Date().toISOString(),
         origin_channel: (msg.origin_channel as string) || 'unknown',
+        role: (msg.role as string) || undefined,
+        kind: (msg.kind as string) || undefined,
+        intent: (msg.intent as string) || undefined,
+        title: (msg.title as string) || undefined,
       })
     } else if (type === 'pong') {
       // heartbeat ack
