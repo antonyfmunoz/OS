@@ -274,8 +274,21 @@ class DexConversation:
                         {"label": "Open Meta IDE", "action": "navigate", "payload": {"panel": "editor"}},
                     ],
                 )
+            error_detail = result.get("error", "")
+            if not error_detail:
+                error_detail = "No active Claude Code session accepted the message. Check that a session is running and attached."
             return DexResponse(
-                text=f"Claude Code send failed: {result.get('error', 'unknown')}",
+                text=f"Claude Code send failed: {error_detail}",
+                conversation_id="",
+                intent="cc_send",
+                suggested_actions=[
+                    {"label": "Check sessions", "action": "query", "payload": {"content": "show claude code sessions"}},
+                    {"label": "Retry", "action": "query", "payload": {"content": content}},
+                ],
+            )
+        except ImportError:
+            return DexResponse(
+                text="Claude Code bridge is not installed on this node. The session bridge module is required to send messages to Claude Code.",
                 conversation_id="",
                 intent="cc_send",
             )
@@ -284,6 +297,9 @@ class DexConversation:
                 text=f"Claude Code bridge unavailable: {exc}",
                 conversation_id="",
                 intent="cc_send",
+                suggested_actions=[
+                    {"label": "Check sessions", "action": "query", "payload": {"content": "show claude code sessions"}},
+                ],
             )
 
     def _handle_cc_capture(self, view_context: dict[str, Any] | None) -> DexResponse:
