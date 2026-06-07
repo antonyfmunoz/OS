@@ -1305,70 +1305,47 @@ async def tier_check(action: str, tier: str = "execute"):
 
 # ── DEX Channel ──────────────────────────────────────────────────────
 
-@router.post("/dex/converse")
-async def dex_converse(payload: dict):
-    """Send a message to DEX and get structured response.
+_dex_conversation = None
 
-    Returns the DEX response with delegation info and deliverable preview.
-    Also persists the exchange in the organism message store.
-    """
+def _get_dex_conversation():
+    global _dex_conversation
+    if _dex_conversation is not None:
+        return _dex_conversation
     daemon = _get_organism()
     if daemon is None:
+        return None
+    from substrate.organism.dex_conversation import DexConversation
+    _dex_conversation = DexConversation(advisor=daemon.advisor, store=daemon.store)
+    return _dex_conversation
+
+
+@router.post("/dex/converse")
+async def dex_converse(payload: dict):
+    """Multi-turn conversational endpoint for the DEX right rail."""
+    conv = _get_dex_conversation()
+    if conv is None:
         return {"error": "organism not running"}
 
     content = payload.get("content", "")
     if not content:
         return {"error": "content required"}
 
-    view_context = payload.get("view_context")
-    context_summary = ""
-    if isinstance(view_context, dict):
-        import json as _json
-        raw = _json.dumps(view_context)
-        if len(raw) > 2048:
-            view_context = {"error": "context_too_large", "active_route": view_context.get("active_route", "")}
-        parts = []
-        if view_context.get("active_route"):
-            parts.append(view_context["active_route"])
-        if view_context.get("selected_object_type"):
-            obj_desc = view_context["selected_object_type"]
-            if view_context.get("selected_object_summary"):
-                obj_desc += f": {view_context['selected_object_summary']}"
-            elif view_context.get("selected_object_id"):
-                obj_desc += f": {view_context['selected_object_id']}"
-            parts.append(obj_desc)
-        if parts:
-            context_summary = f"[Context: viewing {' > '.join(parts)}]"
-
-    from substrate.organism.protocols import AgentMessage
-
-    enriched_content = f"{context_summary} {content}".strip() if context_summary else content
-
-    operator_msg = AgentMessage(
-        sender="operator",
-        recipient="dex",
-        intent="operator_command",
-        payload={"content": content, "source": "cockpit_dex_channel", "view_context": view_context},
+    response = conv.converse(
+        content=content,
+        conversation_id=payload.get("conversation_id", ""),
+        view_context=payload.get("view_context"),
+        source=payload.get("source", "text"),
     )
-    daemon.store.save_message(operator_msg)
-
-    result = daemon.advisor.handle_signal(enriched_content)
-
-    dex_reply = AgentMessage(
-        sender="dex",
-        recipient="operator",
-        intent="dex_response",
-        payload={
-            "response": result,
-            "source": "cockpit_dex_channel",
-        },
-    )
-    daemon.store.save_message(dex_reply)
 
     return {
-        "message_id": str(operator_msg.id),
-        "response": result,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "message_id": f"dex-{response.timestamp}",
+        "text": response.text,
+        "response": response.text,
+        "conversation_id": response.conversation_id,
+        "intent": response.intent,
+        "suggested_actions": response.suggested_actions,
+        "metadata": response.metadata,
+        "timestamp": response.timestamp,
     }
 
 @router.get("/dex/history")
