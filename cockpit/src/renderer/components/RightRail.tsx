@@ -1,33 +1,20 @@
 import { clsx } from 'clsx'
-import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send, Pencil, Check, Download, Mic, MicOff } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send, Pencil, Check, Mic, MicOff } from 'lucide-react'
 import { useSystemStore } from '../stores/systemStore'
-import { useChatStore, type ChatMessage, type Provenance, type Attachment } from '../stores/chatStore'
+import { useChatStore } from '../stores/chatStore'
+import { useApprovalStore } from '../stores/approvalStore'
 import { usePolling } from '../hooks/usePolling'
 import { relativeTime } from '../lib/time'
 import { useConfigStore } from '../stores/configStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useVoiceStore } from '../stores/voiceStore'
 import { startVoice, stopVoice } from '../api/voice-controller'
-import { getApiKey } from '../api/client'
 import { fetchApi } from '../api/client'
-import type { SuggestedAction } from '../stores/chatStore'
 import { useCockpitStore } from '../stores/cockpitStore'
-
-const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
-
-function safeUrl(url: string): string {
-  return /^https?:\/\//i.test(url) ? url : ''
-}
-
-const markdownComponents = {
-  a: ({ href, children, ...rest }: React.ComponentPropsWithoutRef<'a'>) => (
-    <a href={href ?? ''} target="_blank" rel="noopener noreferrer nofollow" {...rest}>{children}</a>
-  ),
-  img: () => null,
-}
+import { normalizeLegacyMessage } from '../lib/rrip-normalize'
+import { RRIPRenderer } from './cards/RRIPRenderer'
+import type { RRIPSuggestedAction, RRIPMessage } from '../types/rrip'
 
 type RightTab = 'chat' | 'activity' | 'logs'
 
@@ -105,135 +92,6 @@ export function RightRail() {
   )
 }
 
-function ProvenanceLine({ provenance }: { provenance: Provenance }) {
-  const parts: string[] = []
-  if (provenance.node) parts.push(provenance.node)
-  if (provenance.harness) parts.push(provenance.harness)
-  if (provenance.session) parts.push(`session ${provenance.session}`)
-  if (provenance.phase) parts.push(`Phase ${provenance.phase}`)
-  if (provenance.pr) parts.push(`PR #${provenance.pr}`)
-  if (provenance.task) parts.push(provenance.task)
-  if (parts.length === 0) return null
-
-  return (
-    <div
-      className="flex flex-wrap gap-x-1 gap-y-1 mt-1 mb-2 py-1 px-2 rounded text-[9px] font-mono"
-      style={{
-        background: 'var(--color-surface)',
-        borderLeft: '2px solid var(--color-cyan)',
-        color: 'var(--color-text-tertiary)',
-      }}
-    >
-      {parts.map((p, i) => (
-        <span key={i}>
-          {i > 0 && <span style={{ opacity: 0.4 }}> · </span>}
-          {p}
-        </span>
-      ))}
-    </div>
-  )
-}
-
-function AttachmentLink({ attachment }: { attachment: Attachment }) {
-  const handleDownload = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault()
-    const url = `${API_URL}/chat/attachment?path=${encodeURIComponent(attachment.path)}`
-    const headers: Record<string, string> = {}
-    const key = getApiKey()
-    if (key) headers['X-API-Key'] = key
-    const res = await fetch(url, { headers })
-    if (!res.ok) return
-    const blob = await res.blob()
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = attachment.filename
-    a.click()
-    URL.revokeObjectURL(a.href)
-  }, [attachment])
-
-  return (
-    <button
-      type="button"
-      onClick={handleDownload}
-      className="flex items-center gap-2 mt-2 py-1 px-2 rounded text-[10px] font-mono transition-colors cursor-pointer w-full text-left"
-      style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        color: 'var(--color-cyan)',
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-cyan)' }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
-    >
-      <Download size={10} />
-      <span className="truncate flex-1">{attachment.filename}</span>
-      <span style={{ color: 'var(--color-text-tertiary)' }}>DOWNLOAD</span>
-    </button>
-  )
-}
-
-function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: string; onAction?: (a: SuggestedAction) => void }) {
-  if (msg.sender === 'operator') {
-    return (
-      <div className="px-2 py-2 rounded text-[11px] bg-cyan-glow text-text-primary ml-4">
-        <div className="font-mono text-[9px] text-text-tertiary mb-1">YOU</div>
-        <p className="whitespace-pre-wrap">{msg.content}</p>
-      </div>
-    )
-  }
-
-  const isReport = msg.intent === 'report'
-
-  return (
-    <div className="px-2 py-2 rounded text-[11px] bg-surface-raised text-text-secondary mr-4">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="font-mono text-[9px] text-text-tertiary">{aiName}</span>
-        {isReport && (
-          <span
-            className="text-[8px] font-mono px-1 rounded uppercase"
-            style={{ color: 'var(--color-ok)', background: 'rgba(0,255,136,0.08)' }}
-          >
-            report
-          </span>
-        )}
-        {msg.intent && msg.intent !== 'report' && msg.intent !== 'dex_response' && (
-          <span className="text-[8px] font-mono px-1 rounded uppercase text-text-tertiary bg-surface">
-            {msg.intent}
-          </span>
-        )}
-        <span className="text-[9px] text-text-tertiary ml-auto">
-          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </span>
-      </div>
-      {isReport && msg.title && (
-        <div
-          className="font-mono text-[10px] tracking-wide uppercase mb-1 pb-1"
-          style={{ color: 'var(--color-cyan)', borderBottom: '1px solid var(--color-border)' }}
-        >
-          {msg.title}
-        </div>
-      )}
-      {msg.provenance && <ProvenanceLine provenance={msg.provenance} />}
-      <div className="chat-markdown leading-relaxed" style={{ color: 'var(--color-violet)' }}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={safeUrl} components={markdownComponents}>{msg.content}</ReactMarkdown>
-      </div>
-      {msg.attachment && <AttachmentLink attachment={msg.attachment} />}
-      {msg.suggested_actions && msg.suggested_actions.length > 0 && onAction && (
-        <div className="flex flex-wrap gap-1 mt-1.5 pt-1.5 border-t border-border/50">
-          {msg.suggested_actions.map((action, i) => (
-            <button
-              key={i}
-              onClick={() => onAction(action)}
-              className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-cyan/30 text-cyan hover:bg-cyan-glow transition-colors"
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 function ChatSection() {
   const aiName = useConfigStore((s) => s.aiName)
   const setConfigValue = useConfigStore((s) => s.setConfigValue)
@@ -247,6 +105,9 @@ function ChatSection() {
   const setPanel = useCockpitStore((s) => s.setPanel)
   const micState = useVoiceStore((s) => s.micState)
   const ttsState = useVoiceStore((s) => s.ttsState)
+  const approvals = useApprovalStore((s) => s.approvals)
+  const approveAction = useApprovalStore((s) => s.approve)
+  const denyAction = useApprovalStore((s) => s.deny)
   const scrollRef = useRef<HTMLDivElement>(null)
   const displayName = `${aiName} ASSISTANT`
   const [editingName, setEditingName] = useState(false)
@@ -254,7 +115,31 @@ function ChatSection() {
   const nameRef = useRef<HTMLInputElement>(null)
   const [voiceAvailable, setVoiceAvailable] = useState(true)
 
-  useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight) }, [messages])
+  const rripMessages = useMemo(() => {
+    const normalized = messages.map(normalizeLegacyMessage)
+    const pendingApprovals: RRIPMessage[] = approvals
+      .filter((a) => a.status === 'pending')
+      .map((a) => ({
+        id: `approval-${a.id}`,
+        role: 'system' as const,
+        kind: 'approval_request' as const,
+        content: a.description,
+        timestamp: a.created_at,
+        approval_data: {
+          approval_id: a.id,
+          description: a.description,
+          risk_level: a.risk_level,
+          agent: a.agent,
+          status: a.status,
+          created_at: a.created_at,
+        },
+      }))
+    return [...normalized, ...pendingApprovals].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    )
+  }, [messages, approvals])
+
+  useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight) }, [rripMessages])
   useEffect(() => { if (editingName) nameRef.current?.focus() }, [editingName])
   useEffect(() => { setNameInput(aiName) }, [aiName])
 
@@ -279,7 +164,7 @@ function ChatSection() {
     }
   }, [micState])
 
-  const handleSuggestedAction = useCallback((action: SuggestedAction) => {
+  const handleSuggestedAction = useCallback((action: RRIPSuggestedAction) => {
     switch (action.action) {
       case 'query':
         sendMessage(action.payload.content as string, 'text', { ...viewContext })
@@ -315,6 +200,14 @@ function ChatSection() {
         break
     }
   }, [sendMessage, viewContext, setPanel])
+
+  const handleApprove = useCallback((approvalId: string) => {
+    approveAction(approvalId)
+  }, [approveAction])
+
+  const handleDeny = useCallback((approvalId: string) => {
+    denyAction(approvalId)
+  }, [denyAction])
 
   const commitName = () => {
     const trimmed = nameInput.trim()
@@ -370,15 +263,22 @@ function ChatSection() {
         </div>
       )}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 mb-2">
-        {messages.map((m) => (
-          <MessageBubble key={m.id} msg={m} aiName={aiName} onAction={handleSuggestedAction} />
+        {rripMessages.map((m) => (
+          <RRIPRenderer
+            key={m.id}
+            message={m}
+            aiName={aiName}
+            onAction={handleSuggestedAction}
+            onApprove={handleApprove}
+            onDeny={handleDeny}
+          />
         ))}
         {sending && (
           <div className="px-2 py-1.5 rounded text-[11px] bg-surface-raised text-text-tertiary mr-4 animate-pulse">
             {aiName} is thinking...
           </div>
         )}
-        {messages.length === 0 && !sending && (
+        {rripMessages.length === 0 && !sending && (
           <p className="text-[11px] text-text-tertiary text-center py-4">Ask {aiName} anything</p>
         )}
       </div>
@@ -412,7 +312,6 @@ function ChatSection() {
             <Send size={12} />
           </button>
         </div>
-
       </div>
     </div>
   )

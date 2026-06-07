@@ -1312,6 +1312,64 @@ async def tier_check(action: str, tier: str = "execute"):
         "permitted": permitted,
     }
 
+# ── RRIP v1 Mapping ──────────────────────────────────────────────────
+
+_INTENT_KIND_MAP: dict[str, str] = {
+    "chat": "conversation",
+    "dex_response": "conversation",
+    "explain_current_view": "conversation",
+    "unknown": "conversation",
+    "status_query": "command_result",
+    "command_center_query": "command_result",
+    "council": "command_result",
+    "cc_send": "command_result",
+    "cc_capture": "command_result",
+    "decompose_intent": "command_result",
+    "cockpit_navigation": "command_result",
+    "resume_query": "command_result",
+    "action": "command_result",
+    "work_packet_draft": "command_result",
+    "packet_control": "command_result",
+    "mode_switch": "command_result",
+    "blocked_query": "command_result",
+    "agent_query": "command_result",
+    "report": "work_report",
+}
+
+_INTENT_COGNITIVE_MAP: dict[str, str] = {
+    "council": "council",
+    "cc_send": "delegation",
+    "cc_capture": "delegation",
+    "decompose_intent": "command",
+    "work_packet_draft": "command",
+    "status_query": "command",
+    "resume_query": "command",
+    "command_center_query": "command",
+    "report": "reporting",
+    "explain_current_view": "fast",
+}
+
+
+def _intent_to_kind(intent: str) -> str:
+    return _INTENT_KIND_MAP.get(intent, "conversation")
+
+
+def _intent_to_cognitive_mode(intent: str) -> str:
+    return _INTENT_COGNITIVE_MAP.get(intent, "fast")
+
+
+def _sender_to_role(sender: str, intent: str) -> str:
+    if sender == "operator":
+        return "operator"
+    if intent == "report":
+        return "system"
+    if sender == "system":
+        return "system"
+    if sender in ("advisor", "researcher", "builder", "evaluator"):
+        return "agent"
+    return "dex"
+
+
 # ── DEX Channel ──────────────────────────────────────────────────────
 
 _dex_conversation = None
@@ -1355,6 +1413,13 @@ async def dex_converse(payload: dict):
         "suggested_actions": response.suggested_actions,
         "metadata": response.metadata,
         "timestamp": response.timestamp,
+        "role": "dex",
+        "kind": _intent_to_kind(response.intent),
+        "routing": {
+            "cognitive_mode": _intent_to_cognitive_mode(response.intent),
+            "runtime": response.metadata.get("model_tier", "dex"),
+            "routed_by": "classify_intent",
+        },
     }
 
 @router.get("/dex/history")
@@ -1721,6 +1786,11 @@ def push_chat_message(message: dict) -> None:
     to push cross-channel messages to the cockpit in near-real-time.
     """
     event = {"type": "chat_message", **message}
+    if "role" not in event:
+        event["role"] = _sender_to_role(
+            message.get("sender", "system"), message.get("intent", "")
+        )
+        event["kind"] = _intent_to_kind(message.get("intent", ""))
     _pending_organism_events.append(event)
     if len(_pending_organism_events) > 200:
         _pending_organism_events[:] = _pending_organism_events[-100:]
@@ -2313,12 +2383,15 @@ async def chat_history():
             entry: dict[str, Any] = {
                 "id": m.get("id", ""),
                 "sender": sender,
+                "role": _sender_to_role(raw_sender, intent),
+                "kind": _intent_to_kind(intent),
                 "content": content,
                 "timestamp": m.get("created_at", ""),
                 "origin_channel": m.get("origin_channel"),
             }
+            if intent:
+                entry["intent"] = intent
             if intent == "report":
-                entry["intent"] = "report"
                 entry["title"] = title
                 if provenance:
                     entry["provenance"] = {k: v for k, v in provenance.items() if v}
