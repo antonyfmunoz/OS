@@ -20,7 +20,15 @@ export function getWsToken(): string {
   return ''
 }
 
+const _inflight = new Map<string, Promise<unknown>>()
+
 export async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
+  const method = (options?.method ?? 'GET').toUpperCase()
+  if (method === 'GET') {
+    const existing = _inflight.get(path) as Promise<T> | undefined
+    if (existing) return existing
+  }
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
@@ -31,9 +39,15 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
     if (token) headers['Authorization'] = `Bearer ${token}`
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
-  if (!res.ok) {
-    throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`)
+  const promise = fetch(`${API_BASE}${path}`, { ...options, headers }).then(res => {
+    if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`)
+    return res.json() as Promise<T>
+  })
+
+  if (method === 'GET') {
+    _inflight.set(path, promise)
+    promise.finally(() => _inflight.delete(path))
   }
-  return res.json() as Promise<T>
+
+  return promise
 }

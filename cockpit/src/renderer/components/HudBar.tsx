@@ -128,7 +128,7 @@ export function HudBar() {
     } catch { /* silent */ }
   }, [])
 
-  usePolling(fetchWorkstationMode, 15000)
+  usePolling(fetchWorkstationMode, 15000, true, 1000)
 
   const isOnline = apiStatus === 'connected' || wsStatus === 'connected'
 

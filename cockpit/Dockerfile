@@ -14,7 +14,7 @@ ENV VITE_AI_NAME=$VITE_AI_NAME
 RUN npx vite build --config vite.web.config.ts
 
 FROM nginx:alpine
-RUN apk add --no-cache tailscale socat
+RUN apk add --no-cache tailscale openssh-client
 
 COPY --from=build /app/dist-web /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/conf.d/default.conf.template
