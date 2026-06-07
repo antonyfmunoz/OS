@@ -70,12 +70,12 @@ export function RightRail() {
 
   return (
     <div className="flex flex-col w-[320px] bg-surface border-l border-border">
-      {/* Tab bar */}
+      {/* Tab bar — mirrored from LeftRail: collapse on inner edge, tabs on outer (right) edge */}
       <div className="flex items-center border-b border-border px-2 h-9 shrink-0">
         <button onClick={() => setCollapsed(true)} className="p-1 text-text-tertiary hover:text-cyan transition-colors shrink-0">
           <ChevronRight size={14} />
         </button>
-        <div className="flex items-center flex-1 min-w-0">
+        <div className="flex items-center justify-end flex-1 min-w-0">
           {tabs.map((t) => {
             const Icon = t.icon
             return (
