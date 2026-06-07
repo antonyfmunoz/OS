@@ -129,25 +129,22 @@ export function ControlPanel() {
     <div className="wv-card mx-4 mt-2 mb-1">
       {/* ── Collapsed: instrument strip ── */}
       <div className="flex items-center gap-2 px-4 py-2 flex-wrap">
-        {/* 1. Permission horizon */}
-        <span
-          className={`text-[10px] font-bold px-2 py-1 rounded text-white ${CONTINUITY_COLORS[continuityState] ?? 'bg-gray-600'}`}
-        >
+        {/* 1. Permission horizon — pill style matching mode badge */}
+        <span className="text-[10px] font-bold px-2 py-1 rounded border bg-green-600/20 text-green-400 border-green-600/30">
           {continuityState.replace(/_/g, ' ')}
         </span>
 
-        {/* 2. Health dot */}
-        <span className={`w-2 h-2 rounded-full ${healthDot}`} title="System health" />
-
-        {/* 3. Agent count */}
-        <span className="wv-label text-[10px]">{pulse?.active_agents ?? 0} agents</span>
-
-        {/* 3. Executing packets */}
-        <span className="text-[10px] text-cyan font-mono">
-          {executingPackets} pkt{executingPackets !== 1 ? 's' : ''}
+        {/* 2. Mode badge */}
+        <span
+          className={`text-[10px] font-bold px-2 py-1 rounded border ${MODE_COLORS[mode] ?? MODE_COLORS.EXECUTE}`}
+        >
+          {mode}
         </span>
 
-        {/* 5. Pending approvals */}
+        {/* 3. Health dot */}
+        <span className={`w-2 h-2 rounded-full ${healthDot}`} title="System health" />
+
+        {/* 4. Pending approvals */}
         {pendingApprovals.length > 0 && (
           <button
             onClick={() => useCockpitStore.getState().setPanel('approvals')}
@@ -158,7 +155,7 @@ export function ControlPanel() {
           </button>
         )}
 
-        {/* 6. Blocked */}
+        {/* 5. Blocked */}
         {blockedCount > 0 && (
           <button
             onClick={() => useCockpitStore.getState().setPanel('work')}
@@ -168,7 +165,7 @@ export function ControlPanel() {
           </button>
         )}
 
-        {/* 7. Resume */}
+        {/* 6. Resume */}
         {shouldResume && (
           <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-1 rounded">
             Resume
@@ -177,16 +174,17 @@ export function ControlPanel() {
 
         <div className="flex-1" />
 
+        {/* 7. Agent count */}
+        <span className="wv-label text-[10px]">{pulse?.active_agents ?? 0} agents</span>
+
+        {/* 8. Executing packets */}
+        <span className="text-[10px] text-cyan font-mono">
+          {executingPackets} pkt{executingPackets !== 1 ? 's' : ''}
+        </span>
+
         {/* 9. Risk ceiling */}
         <span className={`text-[10px] font-mono ${RISK_COLORS[riskCeiling] ?? 'text-text-secondary'}`}>
           Risk: {riskCeiling}
-        </span>
-
-        {/* 11. Mode badge */}
-        <span
-          className={`text-[10px] font-bold px-2 py-1 rounded border ${MODE_COLORS[mode] ?? MODE_COLORS.EXECUTE}`}
-        >
-          {mode}
         </span>
 
         {/* 12. Expand/collapse — far right */}
