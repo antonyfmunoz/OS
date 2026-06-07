@@ -54,10 +54,10 @@ export function DashboardPanel() {
     } catch {
       setApiStatus('disconnected')
     }
-  }, realtimeStatus === 'connected' ? 15000 : 3000)
+  }, realtimeStatus === 'connected' ? 15000 : 3000, true, 1500)
 
-  usePolling(() => { fetchMeshNodes(); fetchModels(); fetchInfra() }, 10000)
-  usePolling(() => { fetchApprovals(); fetchAll() }, realtimeStatus === 'connected' ? 15000 : 5000)
+  usePolling(() => { fetchMeshNodes(); fetchModels(); fetchInfra() }, 10000, true, 2000)
+  usePolling(() => { fetchApprovals(); fetchAll() }, realtimeStatus === 'connected' ? 15000 : 5000, true, 2500)
 
   const pendingApprovals = approvals.filter((a) => a.status === 'pending')
   const totalPending = pendingApprovals.length + pending.length
