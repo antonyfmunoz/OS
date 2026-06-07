@@ -20,7 +20,10 @@ logger = logging.getLogger(__name__)
 
 _CONVERSATIONS_PATH = os.path.join(
     os.environ.get("UMH_ROOT", "/opt/OS"),
-    "data", "umh", "operator_experience", "dex_conversations.jsonl",
+    "data",
+    "umh",
+    "operator_experience",
+    "dex_conversations.jsonl",
 )
 
 
@@ -78,7 +81,11 @@ class DexConversation:
 
         if intent == CommandIntent.UNKNOWN:
             response = self._handle_conversation(
-                content, conversation_id, history, view_context, context_summary,
+                content,
+                conversation_id,
+                history,
+                view_context,
+                context_summary,
             )
         elif intent == CommandIntent.COUNCIL_REVIEW:
             response = self._handle_council(content, view_context, context_summary)
@@ -99,7 +106,11 @@ class DexConversation:
             response = self._handle_navigation(content)
         elif intent == CommandIntent.EXPLAIN_CURRENT_VIEW:
             response = self._handle_explain_view(
-                content, conversation_id, history, view_context, context_summary,
+                content,
+                conversation_id,
+                history,
+                view_context,
+                context_summary,
             )
         else:
             response = self._handle_advisor_signal(content, context_summary)
@@ -109,7 +120,10 @@ class DexConversation:
 
         self._save_turn(conversation_id, "operator", content, view_context)
         self._save_turn(
-            conversation_id, "assistant", response.text, view_context,
+            conversation_id,
+            "assistant",
+            response.text,
+            view_context,
             intent=intent.value,
             suggested_actions=response.suggested_actions,
         )
@@ -188,11 +202,20 @@ class DexConversation:
 
             suggestions = self._infer_suggestions(content, response_text, view_context)
 
+            metadata: dict[str, Any] = {}
+            if result and hasattr(result, "provider"):
+                metadata["model_tier"] = result.provider
+            if result and hasattr(result, "model"):
+                metadata["model"] = result.model
+            if result and getattr(result, "metadata", None):
+                metadata.update(result.metadata)
+
             return DexResponse(
                 text=response_text.strip(),
                 conversation_id=conversation_id,
                 intent="chat",
                 suggested_actions=suggestions,
+                metadata=metadata,
             )
         except Exception as exc:
             logger.error("Conversation LLM call failed: %s", exc)
@@ -250,15 +273,26 @@ class DexConversation:
                     text="No active Claude Code sessions found. Start a session first.",
                     conversation_id="",
                     intent="cc_send",
-                    suggested_actions=[{
-                        "label": "Check sessions",
-                        "action": "query",
-                        "payload": {"content": "show claude code sessions"},
-                    }],
+                    suggested_actions=[
+                        {
+                            "label": "Check sessions",
+                            "action": "query",
+                            "payload": {"content": "show claude code sessions"},
+                        }
+                    ],
                 )
 
-            target_session = session_list[0] if isinstance(session_list[0], str) else session_list[0].get("name", "")
-            prompt_text = content.replace("send to claude code", "").replace("send this to cc", "").replace("delegate to claude", "").strip()
+            target_session = (
+                session_list[0]
+                if isinstance(session_list[0], str)
+                else session_list[0].get("name", "")
+            )
+            prompt_text = (
+                content.replace("send to claude code", "")
+                .replace("send this to cc", "")
+                .replace("delegate to claude", "")
+                .strip()
+            )
             if not prompt_text:
                 prompt_text = content
 
@@ -270,8 +304,16 @@ class DexConversation:
                     intent="cc_send",
                     metadata={"cc_result": result},
                     suggested_actions=[
-                        {"label": "Capture Output", "action": "query", "payload": {"content": "capture claude output"}},
-                        {"label": "Open Meta IDE", "action": "navigate", "payload": {"panel": "editor"}},
+                        {
+                            "label": "Capture Output",
+                            "action": "query",
+                            "payload": {"content": "capture claude output"},
+                        },
+                        {
+                            "label": "Open Meta IDE",
+                            "action": "navigate",
+                            "payload": {"panel": "editor"},
+                        },
                     ],
                 )
             error_detail = result.get("error", "")
@@ -282,7 +324,11 @@ class DexConversation:
                 conversation_id="",
                 intent="cc_send",
                 suggested_actions=[
-                    {"label": "Check sessions", "action": "query", "payload": {"content": "show claude code sessions"}},
+                    {
+                        "label": "Check sessions",
+                        "action": "query",
+                        "payload": {"content": "show claude code sessions"},
+                    },
                     {"label": "Retry", "action": "query", "payload": {"content": content}},
                 ],
             )
@@ -298,7 +344,11 @@ class DexConversation:
                 conversation_id="",
                 intent="cc_send",
                 suggested_actions=[
-                    {"label": "Check sessions", "action": "query", "payload": {"content": "show claude code sessions"}},
+                    {
+                        "label": "Check sessions",
+                        "action": "query",
+                        "payload": {"content": "show claude code sessions"},
+                    },
                 ],
             )
 
@@ -318,7 +368,11 @@ class DexConversation:
                     intent="cc_capture",
                 )
 
-            target = session_list[0] if isinstance(session_list[0], str) else session_list[0].get("name", "")
+            target = (
+                session_list[0]
+                if isinstance(session_list[0], str)
+                else session_list[0].get("name", "")
+            )
             result = capture_output("local", target)
             output = result.get("output", "")
             if output:
@@ -330,7 +384,11 @@ class DexConversation:
                     conversation_id="",
                     intent="cc_capture",
                     suggested_actions=[
-                        {"label": "Create Work Packet", "action": "query", "payload": {"content": "turn this into work packets"}},
+                        {
+                            "label": "Create Work Packet",
+                            "action": "query",
+                            "payload": {"content": "turn this into work packets"},
+                        },
                     ],
                 )
             return DexResponse(
@@ -354,9 +412,7 @@ class DexConversation:
             from substrate.organism.work_packet_engine import WorkPacketEngine
 
             engine = WorkPacketEngine()
-            recent_context = " ".join(
-                t["content"] for t in history[-6:] if t["role"] == "operator"
-            )
+            recent_context = " ".join(t["content"] for t in history[-6:] if t["role"] == "operator")
             intent_text = recent_context + " " + content if recent_context else content
 
             result = engine.decompose_intent_to_batch(
@@ -390,7 +446,11 @@ class DexConversation:
                 metadata={"decompose_result": result},
                 suggested_actions=[
                     {"label": "Open Work", "action": "navigate", "payload": {"panel": "work"}},
-                    {"label": "Run Council Review", "action": "query", "payload": {"content": "run council review on the latest batch"}},
+                    {
+                        "label": "Run Council Review",
+                        "action": "query",
+                        "payload": {"content": "run council review on the latest batch"},
+                    },
                 ],
             )
         except Exception as exc:
@@ -409,8 +469,16 @@ class DexConversation:
                 conversation_id="",
                 intent="resume_query",
                 suggested_actions=[
-                    {"label": "Open Command Center", "action": "navigate", "payload": {"panel": "commandcenter"}},
-                    {"label": "Show Blocked", "action": "query", "payload": {"content": "what is blocked"}},
+                    {
+                        "label": "Open Command Center",
+                        "action": "navigate",
+                        "payload": {"panel": "commandcenter"},
+                    },
+                    {
+                        "label": "Show Blocked",
+                        "action": "query",
+                        "payload": {"content": "what is blocked"},
+                    },
                 ],
             )
         except Exception as exc:
@@ -424,21 +492,87 @@ class DexConversation:
         try:
             result = self._advisor.handle_signal(content)
             text = self._format_advisor_result(result)
-            return DexResponse(
-                text=text,
-                conversation_id="",
-                intent="status_query",
-                suggested_actions=[
-                    {"label": "Open Command Center", "action": "navigate", "payload": {"panel": "commandcenter"}},
-                    {"label": "What's Next?", "action": "query", "payload": {"content": "what should we do next"}},
-                ],
-            )
+            if text and text not in ("Signal processed.", "No response from advisor.", ""):
+                return DexResponse(
+                    text=text,
+                    conversation_id="",
+                    intent="status_query",
+                    suggested_actions=[
+                        {
+                            "label": "Open Command Center",
+                            "action": "navigate",
+                            "payload": {"panel": "commandcenter"},
+                        },
+                        {
+                            "label": "What's Next?",
+                            "action": "query",
+                            "payload": {"content": "what should we do next"},
+                        },
+                    ],
+                )
         except Exception as exc:
-            return DexResponse(
-                text=f"Status query failed: {exc}",
-                conversation_id="",
-                intent="status_query",
-            )
+            logger.debug("Advisor status failed, using deterministic: %s", exc)
+
+        text = self._deterministic_status()
+        return DexResponse(
+            text=text,
+            conversation_id="",
+            intent="status_query",
+            metadata={"model_tier": "deterministic", "model": "fallback"},
+            suggested_actions=[
+                {
+                    "label": "Open Command Center",
+                    "action": "navigate",
+                    "payload": {"panel": "commandcenter"},
+                },
+            ],
+        )
+
+    def _deterministic_status(self) -> str:
+        """Read organism state directly without LLM — always works."""
+        import json
+        from pathlib import Path
+
+        repo = os.environ.get("UMH_ROOT", "/opt/OS")
+        lines = []
+
+        # Provider health
+        try:
+            from adapters.models.model_router import MODEL_REGISTRY, ROLE_SLOTS
+
+            healthy = [k for k, c in MODEL_REGISTRY.items() if c.available]
+            lines.append(f"**Providers:** {len(healthy)} healthy — {', '.join(healthy) or 'none'}")
+        except Exception:
+            lines.append("**Providers:** status unavailable")
+
+        # Work packets
+        try:
+            wp_path = Path(repo) / "data" / "umh" / "universal_work" / "work_packets.jsonl"
+            if wp_path.exists():
+                active = 0
+                with open(wp_path) as f:
+                    for line in f:
+                        if '"active"' in line or '"in_progress"' in line:
+                            active += 1
+                lines.append(f"**Work packets:** {active} active")
+        except Exception:
+            pass
+
+        # Workcell heartbeats
+        try:
+            wc_dir = Path(repo) / "data" / "umh" / "organism" / "workcells"
+            if wc_dir.exists():
+                alive = []
+                for hb in wc_dir.glob("*/heartbeat.json"):
+                    alive.append(hb.parent.name)
+                if alive:
+                    lines.append(f"**Workcells:** {', '.join(alive)}")
+        except Exception:
+            pass
+
+        if not lines:
+            return "System operational. Use the command center for detailed status."
+        return "\n".join(lines)
 
     def _handle_navigation(self, content: str) -> DexResponse:
         from substrate.workstation.jarvis_command import resolve_navigation_target
@@ -450,7 +584,9 @@ class DexConversation:
             intent="cockpit_navigation",
             suggested_actions=[
                 {"label": f"Open {panel}", "action": "navigate", "payload": {"panel": panel}},
-            ] if panel else [],
+            ]
+            if panel
+            else [],
         )
 
     def _handle_explain_view(
@@ -470,8 +606,7 @@ class DexConversation:
             if view_context and view_context.get("active_route"):
                 route = view_context["active_route"]
             fallback = (
-                f"I can see you're in {route}." if route
-                else "I can see you're in the cockpit."
+                f"I can see you're in {route}." if route else "I can see you're in the cockpit."
             )
             fallback += (
                 " I don't have details about what's currently selected. "
@@ -482,8 +617,16 @@ class DexConversation:
                 conversation_id=conversation_id,
                 intent="explain_current_view",
                 suggested_actions=[
-                    {"label": "Status", "action": "query", "payload": {"content": "current status"}},
-                    {"label": "Open Command Center", "action": "navigate", "payload": {"panel": "commandcenter"}},
+                    {
+                        "label": "Status",
+                        "action": "query",
+                        "payload": {"content": "current status"},
+                    },
+                    {
+                        "label": "Open Command Center",
+                        "action": "navigate",
+                        "payload": {"panel": "commandcenter"},
+                    },
                 ],
             )
 
@@ -545,8 +688,7 @@ class DexConversation:
             logger.error("Explain view LLM call failed: %s", exc)
             return DexResponse(
                 text=(
-                    f"You're viewing: {context_summary}. "
-                    f"(Detail unavailable: {type(exc).__name__})"
+                    f"You're viewing: {context_summary}. (Detail unavailable: {type(exc).__name__})"
                 ),
                 conversation_id=conversation_id,
                 intent="explain_current_view",
@@ -574,8 +716,16 @@ class DexConversation:
                     intent="action",
                     metadata={"advisor_result": result},
                     suggested_actions=[
-                        {"label": "Check Status", "action": "query", "payload": {"content": "current status"}},
-                        {"label": "Open Command Center", "action": "navigate", "payload": {"panel": "commandcenter"}},
+                        {
+                            "label": "Check Status",
+                            "action": "query",
+                            "payload": {"content": "current status"},
+                        },
+                        {
+                            "label": "Open Command Center",
+                            "action": "navigate",
+                            "payload": {"panel": "commandcenter"},
+                        },
                     ],
                 )
 
@@ -589,14 +739,21 @@ class DexConversation:
             logger.error("Advisor signal failed: %s", exc)
             return DexResponse(
                 text=(
-                    f"I couldn't complete that action: {exc}. "
-                    "Your conversation is still intact."
+                    f"I couldn't complete that action: {exc}. Your conversation is still intact."
                 ),
                 conversation_id="",
                 intent="action",
                 suggested_actions=[
-                    {"label": "Check Status", "action": "query", "payload": {"content": "current status"}},
-                    {"label": "Open Command Center", "action": "navigate", "payload": {"panel": "commandcenter"}},
+                    {
+                        "label": "Check Status",
+                        "action": "query",
+                        "payload": {"content": "current status"},
+                    },
+                    {
+                        "label": "Open Command Center",
+                        "action": "navigate",
+                        "payload": {"panel": "commandcenter"},
+                    },
                 ],
             )
 
@@ -686,25 +843,31 @@ class DexConversation:
         combined = (user_content + " " + response_text).lower()
 
         if any(kw in combined for kw in ["plan", "implement", "build", "create", "design"]):
-            suggestions.append({
-                "label": "Create Work Packets",
-                "action": "query",
-                "payload": {"content": "turn this into work packets"},
-            })
+            suggestions.append(
+                {
+                    "label": "Create Work Packets",
+                    "action": "query",
+                    "payload": {"content": "turn this into work packets"},
+                }
+            )
 
         if any(kw in combined for kw in ["review", "evaluate", "assess", "good enough"]):
-            suggestions.append({
-                "label": "Run Council Review",
-                "action": "query",
-                "payload": {"content": "run council review"},
-            })
+            suggestions.append(
+                {
+                    "label": "Run Council Review",
+                    "action": "query",
+                    "payload": {"content": "run council review"},
+                }
+            )
 
         if any(kw in combined for kw in ["code", "implement", "fix", "build", "write"]):
-            suggestions.append({
-                "label": "Send to Claude Code",
-                "action": "query",
-                "payload": {"content": "send to claude code"},
-            })
+            suggestions.append(
+                {
+                    "label": "Send to Claude Code",
+                    "action": "query",
+                    "payload": {"content": "send to claude code"},
+                }
+            )
 
         if not suggestions:
             suggestions = self._default_suggestions()
@@ -713,7 +876,11 @@ class DexConversation:
 
     def _default_suggestions(self) -> list[dict[str, Any]]:
         return [
-            {"label": "What's next?", "action": "query", "payload": {"content": "what should we do next"}},
+            {
+                "label": "What's next?",
+                "action": "query",
+                "payload": {"content": "what should we do next"},
+            },
             {"label": "Status", "action": "query", "payload": {"content": "current status"}},
         ]
 
@@ -776,10 +943,12 @@ class DexConversation:
                         continue
                     entry = json.loads(line)
                     if entry.get("conversation_id") == conversation_id:
-                        turns.append({
-                            "role": entry.get("role", "operator"),
-                            "content": entry.get("content", ""),
-                        })
+                        turns.append(
+                            {
+                                "role": entry.get("role", "operator"),
+                                "content": entry.get("content", ""),
+                            }
+                        )
         except Exception as exc:
             logger.debug("Failed to load conversation history: %s", exc)
         return turns[-self._MAX_TURNS * 2 :]
