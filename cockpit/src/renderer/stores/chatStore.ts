@@ -170,8 +170,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       set((s) => {
         const serverIds = new Set(serverMsgs.map((m) => m.id))
-        const optimistic = s.messages.filter((m) => m.id.startsWith('op-') && !serverIds.has(m.id))
-        return { messages: [...serverMsgs, ...optimistic] }
+        const local = s.messages.filter(
+          (m) => !m.id.startsWith('h-') && !serverIds.has(m.id),
+        )
+        return { messages: [...serverMsgs, ...local] }
       })
     } catch {
       // History load failure is non-critical
