@@ -129,16 +129,16 @@ export function ControlPanel() {
     <div className="wv-card mx-4 mt-2 mb-1">
       {/* ── Collapsed: instrument strip ── */}
       <div className="flex items-center gap-2 px-4 py-2 flex-wrap">
-        {/* 1. Permission horizon — pill style matching mode badge */}
+        {/* 1. Status badge */}
         <span className="text-[10px] font-bold px-2 py-1 rounded border bg-green-600/20 text-green-400 border-green-600/30">
-          {continuityState.replace(/_/g, ' ')}
+          STATUS: {continuityState.replace(/_/g, ' ')}
         </span>
 
         {/* 2. Mode badge */}
         <span
           className={`text-[10px] font-bold px-2 py-1 rounded border ${MODE_COLORS[mode] ?? MODE_COLORS.EXECUTE}`}
         >
-          {mode}
+          MODE: {mode}
         </span>
 
         {/* 3. Risk ceiling */}
@@ -165,19 +165,19 @@ export function ControlPanel() {
 
         <div className="flex-1" />
 
-        {/* 6. Approvals */}
+        {/* 6. Agent count */}
         <span className="text-[10px] font-mono uppercase text-text-tertiary">
-          <span className="text-red-400">{pendingApprovals.length}</span> APPROVALS
+          AGENTS <span className="text-cyan">{pulse?.active_agents ?? 0}</span>
         </span>
 
-        {/* 7. Agent count */}
+        {/* 7. Executing packets */}
         <span className="text-[10px] font-mono uppercase text-text-tertiary">
-          <span className="text-cyan">{pulse?.active_agents ?? 0}</span> AGENTS
+          PACKETS <span className="text-cyan">{executingPackets}</span>
         </span>
 
-        {/* 8. Executing packets */}
+        {/* 8. Approvals */}
         <span className="text-[10px] font-mono uppercase text-text-tertiary">
-          <span className="text-cyan">{executingPackets}</span> PACKETS
+          APPROVALS <span className="text-red-400">{pendingApprovals.length}</span>
         </span>
 
         {/* 9. Expand/collapse — far right */}
