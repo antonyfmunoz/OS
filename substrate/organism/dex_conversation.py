@@ -97,6 +97,10 @@ class DexConversation:
             response = self._handle_status(content)
         elif intent == CommandIntent.COCKPIT_NAVIGATION:
             response = self._handle_navigation(content)
+        elif intent == CommandIntent.EXPLAIN_CURRENT_VIEW:
+            response = self._handle_explain_view(
+                content, conversation_id, history, view_context, context_summary,
+            )
         else:
             response = self._handle_advisor_signal(content, context_summary)
 
@@ -433,6 +437,106 @@ class DexConversation:
             ] if panel else [],
         )
 
+    def _handle_explain_view(
+        self,
+        content: str,
+        conversation_id: str,
+        history: list[dict[str, Any]],
+        view_context: dict[str, Any] | None,
+        context_summary: str,
+    ) -> DexResponse:
+        from substrate.state.business.business_instance import get_ai_name
+
+        ai_name = get_ai_name() or "Assistant"
+
+        if not view_context or not context_summary:
+            route = ""
+            if view_context and view_context.get("active_route"):
+                route = view_context["active_route"]
+            fallback = (
+                f"I can see you're in {route}." if route
+                else "I can see you're in the cockpit."
+            )
+            fallback += (
+                " I don't have details about what's currently selected. "
+                "Try selecting an item or tell me what you're looking at."
+            )
+            return DexResponse(
+                text=fallback,
+                conversation_id=conversation_id,
+                intent="explain_current_view",
+                suggested_actions=[
+                    {"label": "Status", "action": "query", "payload": {"content": "current status"}},
+                    {"label": "Open Command Center", "action": "navigate", "payload": {"panel": "commandcenter"}},
+                ],
+            )
+
+        prompt_parts = [
+            f"You are {ai_name}, a strategic advisor. The operator is asking about "
+            f"what they're currently viewing in the cockpit. Describe what they're "
+            f"looking at, explain its significance, and suggest the highest-leverage "
+            f"next action. Be concise and actionable.",
+            f"\nCurrent context: {context_summary}",
+        ]
+
+        if view_context.get("visible_context_summary"):
+            prompt_parts.append(f"Visible: {view_context['visible_context_summary']}")
+        if view_context.get("available_actions"):
+            prompt_parts.append(
+                f"Available actions: {', '.join(view_context['available_actions'])}"
+            )
+
+        if history:
+            prompt_parts.append("\nRecent conversation:")
+            for turn in history[-6:]:
+                role_label = "Operator" if turn["role"] == "operator" else ai_name
+                prompt_parts.append(f"{role_label}: {turn['content'][:300]}")
+
+        prompt_parts.append(f"\nOperator: {content}")
+        prompt_parts.append(f"\n{ai_name}:")
+
+        prompt = "\n".join(prompt_parts)
+
+        try:
+            from adapters.models.model_router import call_with_fallback
+
+            result = call_with_fallback(prompt, task_type="conversation")
+            response_text = ""
+            if result and hasattr(result, "output"):
+                response_text = result.output or ""
+            elif result and hasattr(result, "content"):
+                response_text = result.content or ""
+            elif isinstance(result, str):
+                response_text = result
+            elif isinstance(result, dict):
+                response_text = result.get("content", "") or result.get("text", "")
+
+            if not response_text:
+                response_text = (
+                    f"You're viewing: {context_summary}. "
+                    "I couldn't generate a detailed explanation right now."
+                )
+
+            suggestions = self._infer_suggestions(content, response_text, view_context)
+            return DexResponse(
+                text=response_text.strip(),
+                conversation_id=conversation_id,
+                intent="explain_current_view",
+                suggested_actions=suggestions,
+                metadata={"model_tier": "fast"},
+            )
+        except Exception as exc:
+            logger.error("Explain view LLM call failed: %s", exc)
+            return DexResponse(
+                text=(
+                    f"You're viewing: {context_summary}. "
+                    f"(Detail unavailable: {type(exc).__name__})"
+                ),
+                conversation_id=conversation_id,
+                intent="explain_current_view",
+                suggested_actions=self._default_suggestions(),
+            )
+
     def _handle_advisor_signal(
         self,
         content: str,
@@ -442,6 +546,23 @@ class DexConversation:
         try:
             result = self._advisor.handle_signal(enriched)
             text = self._format_advisor_result(result)
+
+            if text in ("Signal processed.", "No response from advisor.", ""):
+                text = (
+                    "I processed that command but didn't get a substantive result. "
+                    "The action may have completed silently or there was nothing to act on."
+                )
+                return DexResponse(
+                    text=text,
+                    conversation_id="",
+                    intent="action",
+                    metadata={"advisor_result": result},
+                    suggested_actions=[
+                        {"label": "Check Status", "action": "query", "payload": {"content": "current status"}},
+                        {"label": "Open Command Center", "action": "navigate", "payload": {"panel": "commandcenter"}},
+                    ],
+                )
+
             return DexResponse(
                 text=text,
                 conversation_id="",
@@ -449,10 +570,18 @@ class DexConversation:
                 metadata={"advisor_result": result},
             )
         except Exception as exc:
+            logger.error("Advisor signal failed: %s", exc)
             return DexResponse(
-                text=f"Action failed: {exc}",
+                text=(
+                    f"I couldn't complete that action: {exc}. "
+                    "Your conversation is still intact."
+                ),
                 conversation_id="",
                 intent="action",
+                suggested_actions=[
+                    {"label": "Check Status", "action": "query", "payload": {"content": "current status"}},
+                    {"label": "Open Command Center", "action": "navigate", "payload": {"panel": "commandcenter"}},
+                ],
             )
 
     # ── Formatting ────────────────────────────────────────────────────
