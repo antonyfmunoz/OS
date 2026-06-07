@@ -15,6 +15,12 @@ export interface Attachment {
   filename: string
 }
 
+export interface SuggestedAction {
+  label: string
+  action: string
+  payload: Record<string, unknown>
+}
+
 export interface ChatMessage {
   id: string
   sender: 'operator' | 'assistant' | 'system'
@@ -26,11 +32,17 @@ export interface ChatMessage {
   title?: string
   provenance?: Provenance
   attachment?: Attachment
+  suggested_actions?: SuggestedAction[]
 }
 
 interface ChatResponse {
   message_id: string
-  response: string
+  text: string
+  response?: string
+  conversation_id: string
+  intent: string
+  suggested_actions: SuggestedAction[]
+  metadata: Record<string, unknown>
   timestamp: string
 }
 
@@ -40,6 +52,7 @@ interface ChatState {
   sending: boolean
   error: string | null
   targetChannel: string
+  conversationId: string
   _pollTimer: ReturnType<typeof setInterval> | null
 
   setInput: (input: string) => void
@@ -58,6 +71,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sending: false,
   error: null,
   targetChannel: 'cockpit',
+  conversationId: '',
   _pollTimer: null,
 
   setInput: (input) => set({ input }),
@@ -66,7 +80,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sendMessage: async (content, source = 'text', viewContext?: Record<string, unknown>) => {
     if (!content.trim()) return
 
-    const { targetChannel } = get()
+    const { targetChannel, conversationId } = get()
 
     const operatorMsg: ChatMessage = {
       id: `op-${Date.now()}`,
@@ -88,20 +102,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (targetChannel === 'cockpit') {
         const res = await fetchApi<ChatResponse>('/dex/converse', {
           method: 'POST',
-          body: JSON.stringify({ content: content.trim(), view_context: viewContext }),
+          body: JSON.stringify({
+            content: content.trim(),
+            view_context: viewContext,
+            conversation_id: conversationId,
+            source,
+          }),
         })
 
+        const responseText = res.text || (typeof res.response === 'string' ? res.response : '')
+
         const aiMsg: ChatMessage = {
-          id: res.message_id,
+          id: res.message_id || `ai-${Date.now()}`,
           sender: 'assistant',
-          content: typeof res.response === 'string' ? res.response : JSON.stringify(res.response),
+          content: responseText,
           timestamp: res.timestamp,
           origin_channel: 'cockpit',
+          intent: res.intent,
+          suggested_actions: res.suggested_actions,
         }
 
         set((s) => ({
           messages: [...s.messages, aiMsg],
           sending: false,
+          conversationId: res.conversation_id || s.conversationId,
         }))
       } else {
         await fetchApi('/chat/send', {
@@ -132,7 +156,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         attachment?: Attachment
       }>>('/chat/history')
 
-      const messages: ChatMessage[] = history.map((m) => ({
+      const serverMsgs: ChatMessage[] = history.map((m) => ({
         id: `h-${m.id}`,
         sender: (m.sender === 'operator' ? 'operator' : 'assistant') as ChatMessage['sender'],
         content: m.content,
@@ -143,7 +167,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         provenance: m.provenance,
         attachment: m.attachment,
       }))
-      set({ messages })
+
+      set((s) => {
+        const serverIds = new Set(serverMsgs.map((m) => m.id))
+        const optimistic = s.messages.filter((m) => m.id.startsWith('op-') && !serverIds.has(m.id))
+        return { messages: [...serverMsgs, ...optimistic] }
+      })
     } catch {
       // History load failure is non-critical
     }
@@ -165,7 +194,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   addVoiceTranscript: (text) => {
-    get().sendMessage(text, 'voice')
+    try {
+      const { useViewContextStore } = require('../stores/viewContextStore')
+      const viewContext = useViewContextStore.getState().context
+      get().sendMessage(text, 'voice', viewContext as Record<string, unknown>)
+    } catch {
+      get().sendMessage(text, 'voice')
+    }
   },
 
   pushExternalMessage: (msg) => {

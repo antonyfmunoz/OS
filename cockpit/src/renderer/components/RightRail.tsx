@@ -10,7 +10,11 @@ import { relativeTime } from '../lib/time'
 import { useConfigStore } from '../stores/configStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useVoiceStore } from '../stores/voiceStore'
+import { startVoice, stopVoice } from '../api/voice-controller'
 import { getApiKey } from '../api/client'
+import { fetchApi } from '../api/client'
+import type { SuggestedAction } from '../stores/chatStore'
+import { useCockpitStore } from '../stores/cockpitStore'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
 
@@ -166,7 +170,7 @@ function AttachmentLink({ attachment }: { attachment: Attachment }) {
   )
 }
 
-function MessageBubble({ msg, aiName }: { msg: ChatMessage; aiName: string }) {
+function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: string; onAction?: (a: SuggestedAction) => void }) {
   if (msg.sender === 'operator') {
     return (
       <div className="px-2 py-1.5 rounded text-[11px] bg-cyan-glow text-text-primary ml-4">
@@ -190,6 +194,11 @@ function MessageBubble({ msg, aiName }: { msg: ChatMessage; aiName: string }) {
             report
           </span>
         )}
+        {msg.intent && msg.intent !== 'report' && msg.intent !== 'dex_response' && (
+          <span className="text-[8px] font-mono px-1 rounded uppercase text-text-tertiary bg-surface">
+            {msg.intent}
+          </span>
+        )}
         <span className="text-[9px] text-text-tertiary ml-auto">
           {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
@@ -207,6 +216,19 @@ function MessageBubble({ msg, aiName }: { msg: ChatMessage; aiName: string }) {
         <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={safeUrl} components={markdownComponents}>{msg.content}</ReactMarkdown>
       </div>
       {msg.attachment && <AttachmentLink attachment={msg.attachment} />}
+      {msg.suggested_actions && msg.suggested_actions.length > 0 && onAction && (
+        <div className="flex flex-wrap gap-1 mt-1.5 pt-1.5 border-t border-border/50">
+          {msg.suggested_actions.map((action, i) => (
+            <button
+              key={i}
+              onClick={() => onAction(action)}
+              className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-cyan/30 text-cyan hover:bg-cyan-glow transition-colors"
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -217,22 +239,31 @@ function ChatSection() {
   const messages = useChatStore((s) => s.messages)
   const input = useChatStore((s) => s.input)
   const sending = useChatStore((s) => s.sending)
+  const error = useChatStore((s) => s.error)
   const setInput = useChatStore((s) => s.setInput)
   const sendMessage = useChatStore((s) => s.sendMessage)
   const loadHistory = useChatStore((s) => s.loadHistory)
   const viewContext = useViewContextStore((s) => s.context)
+  const setPanel = useCockpitStore((s) => s.setPanel)
   const micState = useVoiceStore((s) => s.micState)
-  const setMicState = useVoiceStore((s) => s.setMicState)
+  const ttsState = useVoiceStore((s) => s.ttsState)
   const scrollRef = useRef<HTMLDivElement>(null)
   const displayName = `${aiName} ASSISTANT`
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(aiName)
   const nameRef = useRef<HTMLInputElement>(null)
+  const [voiceAvailable, setVoiceAvailable] = useState(true)
 
   useEffect(() => { loadHistory() }, [loadHistory])
   useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight) }, [messages])
   useEffect(() => { if (editingName) nameRef.current?.focus() }, [editingName])
   useEffect(() => { setNameInput(aiName) }, [aiName])
+
+  useEffect(() => {
+    if (typeof navigator.mediaDevices === 'undefined') {
+      setVoiceAvailable(false)
+    }
+  }, [])
 
   const handleSend = () => {
     if (input.trim()) {
@@ -240,6 +271,51 @@ function ChatSection() {
       sendMessage(input, 'text', ctx)
     }
   }
+
+  const handleMicToggle = useCallback(() => {
+    if (micState === 'idle') {
+      startVoice().catch(() => setVoiceAvailable(false))
+    } else {
+      stopVoice()
+    }
+  }, [micState])
+
+  const handleSuggestedAction = useCallback((action: SuggestedAction) => {
+    switch (action.action) {
+      case 'query':
+        sendMessage(action.payload.content as string, 'text', { ...viewContext })
+        break
+      case 'navigate':
+        if (action.payload.panel) setPanel(action.payload.panel as string)
+        break
+      case 'cc_send':
+        fetchApi('/claude-session/send', {
+          method: 'POST',
+          body: JSON.stringify(action.payload),
+        }).then((res) => {
+          const r = res as Record<string, unknown>
+          const msg = r.ok ? 'Sent to Claude Code session.' : `Claude Code: ${r.error || 'unavailable'}`
+          sendMessage(msg, 'text')
+        }).catch(() => sendMessage('Claude Code bridge unavailable.', 'text'))
+        break
+      case 'council':
+        fetchApi('/council/review', {
+          method: 'POST',
+          body: JSON.stringify(action.payload),
+        }).then(() => sendMessage('Council review submitted.', 'text'))
+          .catch(() => sendMessage('Council review failed.', 'text'))
+        break
+      case 'decompose':
+        fetchApi('/command-center/work-packets/decompose', {
+          method: 'POST',
+          body: JSON.stringify(action.payload),
+        }).then(() => sendMessage('Intent decomposed into work packets.', 'text'))
+          .catch(() => sendMessage('Decomposition failed.', 'text'))
+        break
+      default:
+        break
+    }
+  }, [sendMessage, viewContext, setPanel])
 
   const commitName = () => {
     const trimmed = nameInput.trim()
@@ -249,6 +325,11 @@ function ChatSection() {
     if (!trimmed) setNameInput(aiName)
     setEditingName(false)
   }
+
+  const voiceLabel = micState === 'listening' ? 'Listening...'
+    : micState === 'processing' ? 'Transcribing...'
+    : ttsState === 'speaking' ? 'Speaking...'
+    : null
 
   return (
     <div className="flex flex-col h-full">
@@ -277,40 +358,61 @@ function ChatSection() {
           </>
         )}
       </div>
-      {viewContext.selected_object_type && (
+      {(viewContext.active_route || viewContext.selected_object_type) && (
         <div className="text-[9px] font-mono text-text-tertiary mb-1 px-1 py-0.5 bg-surface rounded border border-border truncate">
           Viewing: {viewContext.active_route}
           {viewContext.selected_object_type && ` > ${viewContext.selected_object_type}`}
           {viewContext.selected_object_summary && `: ${viewContext.selected_object_summary}`}
         </div>
       )}
+      {error && (
+        <div className="text-[9px] font-mono text-danger mb-1 px-1.5 py-1 bg-danger/10 rounded border border-danger/30">
+          {error}
+        </div>
+      )}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 mb-2">
         {messages.map((m) => (
-          <MessageBubble key={m.id} msg={m} aiName={aiName} />
+          <MessageBubble key={m.id} msg={m} aiName={aiName} onAction={handleSuggestedAction} />
         ))}
-        {messages.length === 0 && (
+        {sending && (
+          <div className="px-2 py-1.5 rounded text-[11px] bg-surface-raised text-text-tertiary mr-4 animate-pulse">
+            {aiName} is thinking...
+          </div>
+        )}
+        {messages.length === 0 && !sending && (
           <p className="text-[11px] text-text-tertiary text-center py-4">Ask {aiName} anything</p>
         )}
       </div>
-      <div className="flex items-center gap-1 border-t border-border pt-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-          placeholder={`Message ${aiName}...`}
-          className="flex-1 text-[11px] px-2 py-1.5 rounded bg-surface-raised text-text-primary border border-border outline-none placeholder:text-text-tertiary"
-          disabled={sending}
-        />
-        <button
-          onClick={() => setMicState(micState === 'listening' ? 'idle' : 'listening')}
-          className={clsx('p-1.5 rounded transition-colors', micState === 'listening' ? 'text-danger bg-danger/10' : 'text-text-tertiary hover:text-cyan')}
-          title={micState === 'listening' ? 'Stop listening' : 'Voice input'}
-        >
-          {micState === 'listening' ? <MicOff size={12} /> : <Mic size={12} />}
-        </button>
-        <button onClick={handleSend} disabled={sending || !input.trim()} className="p-1.5 rounded text-cyan hover:bg-cyan-glow transition-colors disabled:opacity-30">
-          <Send size={12} />
-        </button>
+      <div className="flex flex-col gap-1 border-t border-border pt-2">
+        {voiceLabel && (
+          <div className="text-[9px] font-mono text-cyan animate-pulse px-1">{voiceLabel}</div>
+        )}
+        <div className="flex items-center gap-1">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+            placeholder={`Message ${aiName}...`}
+            className="flex-1 text-[11px] px-2 py-1.5 rounded bg-surface-raised text-text-primary border border-border outline-none placeholder:text-text-tertiary"
+            disabled={sending}
+          />
+          <button
+            onClick={handleMicToggle}
+            disabled={!voiceAvailable}
+            className={clsx(
+              'p-1.5 rounded transition-colors',
+              !voiceAvailable ? 'text-text-tertiary opacity-30 cursor-not-allowed' :
+              micState === 'listening' ? 'text-danger bg-danger/10' :
+              'text-text-tertiary hover:text-cyan',
+            )}
+            title={!voiceAvailable ? 'Voice requires desktop app or HTTPS' : micState === 'listening' ? 'Stop listening' : 'Voice input'}
+          >
+            {micState === 'listening' ? <MicOff size={12} /> : <Mic size={12} />}
+          </button>
+          <button onClick={handleSend} disabled={sending || !input.trim()} className="p-1.5 rounded text-cyan hover:bg-cyan-glow transition-colors disabled:opacity-30">
+            <Send size={12} />
+          </button>
+        </div>
       </div>
     </div>
   )
