@@ -58,6 +58,9 @@ function OrganismMetrics() {
         cpu <span className="text-cyan">{avgCpu != null ? `${avgCpu.toFixed(0)}%` : '—'}</span>
       </span>
       <span className="wv-label">
+        gpu <span className="text-cyan">{gpuUtil != null ? `${gpuUtil.toFixed(0)}%` : '—'}</span>
+      </span>
+      <span className="wv-label">
         ram <span className="text-cyan">{avgMem != null ? `${avgMem.toFixed(0)}%` : '—'}</span>
       </span>
       <span className="wv-label">
@@ -65,11 +68,6 @@ function OrganismMetrics() {
           avgDisk != null && avgDisk > 90 ? 'text-danger' : avgDisk != null && avgDisk > 75 ? 'text-warn' : 'text-cyan'
         )}>{avgDisk != null ? `${avgDisk.toFixed(0)}%` : '—'}</span>
       </span>
-      {gpuUtil != null && (
-        <span className="wv-label">
-          gpu <span className="text-cyan">{gpuUtil.toFixed(0)}%</span>
-        </span>
-      )}
       <span className="wv-label">
         nodes <span className={clsx(online.length === total ? 'text-ok' : 'text-warn')}>{online.length}/{total}</span>
       </span>
