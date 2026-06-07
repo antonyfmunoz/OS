@@ -129,11 +129,18 @@ export function ControlPanel() {
     <div className="wv-card mx-4 mt-2 mb-1">
       {/* ── Collapsed: instrument strip ── */}
       <div className="flex items-center gap-2 px-4 py-2 flex-wrap">
-        {/* 1. Health dot */}
+        {/* 1. Permission horizon */}
+        <span
+          className={`text-[10px] font-bold px-2 py-1 rounded text-white ${CONTINUITY_COLORS[continuityState] ?? 'bg-gray-600'}`}
+        >
+          {continuityState.replace(/_/g, ' ')}
+        </span>
+
+        {/* 2. Health dot */}
         <span className={`w-2 h-2 rounded-full ${healthDot}`} title="System health" />
 
-        {/* 2. Active agents */}
-        <span className="wv-label text-[10px]">{pulse?.active_agents ?? 0} active</span>
+        {/* 3. Agent count */}
+        <span className="wv-label text-[10px]">{pulse?.active_agents ?? 0} agents</span>
 
         {/* 3. Executing packets */}
         <span className="text-[10px] text-text-secondary font-mono">
