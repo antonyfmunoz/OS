@@ -167,7 +167,7 @@ export function ControlPanel() {
 
         {/* 8. Approvals */}
         <span className="text-[10px] font-mono uppercase text-text-tertiary">
-          APPROVALS <span className="text-red-400">{pendingApprovals.length}</span>
+          APPROVALS <span className="text-yellow-400">{pendingApprovals.length}</span>
         </span>
 
         {/* 9. Blocked */}
