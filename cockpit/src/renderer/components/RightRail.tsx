@@ -69,7 +69,7 @@ export function RightRail() {
   }
 
   return (
-    <div className="flex flex-col w-[320px] bg-surface border-l border-border">
+    <div className="flex flex-col w-[260px] bg-surface border-l border-border">
       {/* Tab bar — mirrored from LeftRail: collapse on inner edge, tabs on outer (right) edge */}
       <div className="flex items-center border-b border-border px-2 h-9 shrink-0">
         <button onClick={() => setCollapsed(true)} className="p-1 text-text-tertiary hover:text-cyan transition-colors shrink-0">
