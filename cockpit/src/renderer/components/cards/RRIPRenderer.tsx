@@ -17,7 +17,7 @@ interface RRIPRendererProps {
 export function RRIPRenderer({ message, aiName, onAction, onApprove, onDeny }: RRIPRendererProps) {
   switch (message.kind) {
     case 'conversation':
-      return <ConversationBubble message={message} aiName={aiName} onAction={onAction} />
+      return <ConversationBubble message={message} aiName={aiName} />
     case 'work_report':
     case 'audit_report':
       return <ReportCard message={message} />
@@ -30,6 +30,6 @@ export function RRIPRenderer({ message, aiName, onAction, onApprove, onDeny }: R
     case 'error':
       return <ErrorCard message={message} onAction={onAction} />
     default:
-      return <ConversationBubble message={message} aiName={aiName} onAction={onAction} />
+      return <ConversationBubble message={message} aiName={aiName} />
   }
 }

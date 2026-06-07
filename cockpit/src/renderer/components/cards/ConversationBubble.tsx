@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { RRIPMessage, RRIPSuggestedAction } from '../../types/rrip'
+import type { RRIPMessage } from '../../types/rrip'
 
 function safeUrl(url: string): string {
   return /^https?:\/\//i.test(url) ? url : ''
@@ -17,7 +17,6 @@ const markdownComponents = {
 interface ConversationBubbleProps {
   message: RRIPMessage
   aiName: string
-  onAction?: (a: RRIPSuggestedAction) => void
 }
 
 function bubbleWidth(text: string): string {
@@ -28,7 +27,7 @@ function bubbleWidth(text: string): string {
   return 'max-w-full'
 }
 
-export function ConversationBubble({ message, aiName, onAction }: ConversationBubbleProps) {
+export function ConversationBubble({ message, aiName }: ConversationBubbleProps) {
   if (message.role === 'operator') {
     const w = bubbleWidth(message.content)
     return (
@@ -60,19 +59,6 @@ export function ConversationBubble({ message, aiName, onAction }: ConversationBu
             {message.content}
           </ReactMarkdown>
         </div>
-        {message.suggested_actions && message.suggested_actions.length > 0 && onAction && (
-          <div className="flex flex-wrap gap-1 mt-1.5 pt-1.5 border-t border-border/50">
-            {message.suggested_actions.map((action, i) => (
-              <button
-                key={i}
-                onClick={() => onAction(action)}
-                className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-cyan/30 text-cyan hover:bg-cyan-glow transition-colors"
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
-        )}
         {message.routing && (
           <div className="text-[8px] font-mono text-text-tertiary mt-1 opacity-50">
             {message.routing.cognitive_mode && message.routing.cognitive_mode}
