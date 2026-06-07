@@ -28,6 +28,10 @@ class CommandIntent(str, Enum):
     BLOCKED_QUERY = "blocked_query"
     PACKET_CONTROL = "packet_control"
     COMMAND_CENTER_QUERY = "command_center_query"
+    COUNCIL_REVIEW = "council_review"
+    CC_SEND = "cc_send"
+    CC_CAPTURE = "cc_capture"
+    DECOMPOSE_INTENT = "decompose_intent"
     UNKNOWN = "unknown"
 
 
@@ -177,6 +181,52 @@ _COMMAND_CENTER_SIGNALS = [
     "overall status",
 ]
 
+_COUNCIL_REVIEW_SIGNALS = [
+    "run council review",
+    "council review",
+    "council this",
+    "review this like an expert",
+    "review this like a world-class expert",
+    "is this good enough",
+    "give me the final verdict",
+    "final verdict",
+    "what would the council say",
+    "expert review",
+    "multi-perspective review",
+]
+
+_CC_SEND_SIGNALS = [
+    "send to claude code",
+    "send this to claude code",
+    "send this to cc",
+    "delegate to claude",
+    "have claude work on this",
+    "send to claude",
+    "delegate to cc",
+    "claude code this",
+]
+
+_CC_CAPTURE_SIGNALS = [
+    "capture output",
+    "capture claude output",
+    "what did claude do",
+    "show claude output",
+    "capture claude session",
+    "get claude output",
+    "what did cc do",
+]
+
+_DECOMPOSE_SIGNALS = [
+    "turn this into work packets",
+    "break this into packets",
+    "decompose this",
+    "make work packets from this",
+    "create work packets",
+    "decompose into packets",
+    "split into tasks",
+    "break this down",
+]
+
 _NAV_MAP: dict[str, str] = {
     "dashboard": "dashboard",
     "command center": "commandcenter",
@@ -278,6 +328,22 @@ def classify_intent(text: str) -> CommandIntent:
         if signal in t:
             return CommandIntent.COMMAND_CENTER_QUERY
 
+    for signal in _COUNCIL_REVIEW_SIGNALS:
+        if signal in t:
+            return CommandIntent.COUNCIL_REVIEW
+
+    for signal in _CC_SEND_SIGNALS:
+        if signal in t:
+            return CommandIntent.CC_SEND
+
+    for signal in _CC_CAPTURE_SIGNALS:
+        if signal in t:
+            return CommandIntent.CC_CAPTURE
+
+    for signal in _DECOMPOSE_SIGNALS:
+        if signal in t:
+            return CommandIntent.DECOMPOSE_INTENT
+
     nav_prefix = ["show ", "go to ", "open ", "navigate to "]
     for prefix in nav_prefix:
         if t.startswith(prefix):
@@ -364,10 +430,18 @@ def governance_requirement(intent: CommandIntent) -> GovernanceRequirement:
     if intent == CommandIntent.MODE_SWITCH:
         return GovernanceRequirement.INFORMATIONAL
 
-    if intent == CommandIntent.WORK_PACKET_DRAFT:
+    if intent in (
+        CommandIntent.WORK_PACKET_DRAFT,
+        CommandIntent.PACKET_CONTROL,
+        CommandIntent.CC_SEND,
+        CommandIntent.DECOMPOSE_INTENT,
+    ):
         return GovernanceRequirement.REQUIRES_GOVERNANCE
 
-    if intent == CommandIntent.PACKET_CONTROL:
-        return GovernanceRequirement.REQUIRES_GOVERNANCE
+    if intent in (
+        CommandIntent.COUNCIL_REVIEW,
+        CommandIntent.CC_CAPTURE,
+    ):
+        return GovernanceRequirement.INFORMATIONAL
 
     return GovernanceRequirement.NONE
