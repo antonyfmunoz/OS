@@ -18,9 +18,9 @@ const CONTINUITY_COLORS: Record<string, string> = {
 }
 
 const RISK_COLORS: Record<string, string> = {
-  LOW: 'text-green-400',
-  MEDIUM: 'text-yellow-400',
-  HIGH: 'text-red-400',
+  LOW: 'bg-green-600/20 text-green-400 border-green-600/30',
+  MEDIUM: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  HIGH: 'bg-red-500/20 text-red-400 border-red-500/30',
 }
 
 const MODE_COLORS: Record<string, string> = {
@@ -141,7 +141,12 @@ export function ControlPanel() {
           {mode}
         </span>
 
-        {/* 3. Pending approvals */}
+        {/* 3. Risk ceiling */}
+        <span className={`text-[10px] font-bold px-2 py-1 rounded border ${RISK_COLORS[riskCeiling] ?? RISK_COLORS.HIGH}`}>
+          RISK: {riskCeiling}
+        </span>
+
+        {/* 4. Pending approvals */}
         {pendingApprovals.length > 0 && (
           <button
             onClick={() => useCockpitStore.getState().setPanel('approvals')}
@@ -181,12 +186,7 @@ export function ControlPanel() {
           <span className="text-cyan">{executingPackets}</span> PACKETS
         </span>
 
-        {/* 9. Risk ceiling */}
-        <span className={`text-[10px] font-mono uppercase ${RISK_COLORS[riskCeiling] ?? 'text-text-secondary'}`}>
-          Risk: {riskCeiling}
-        </span>
-
-        {/* 12. Expand/collapse — far right */}
+        {/* 9. Expand/collapse — far right */}
         <button
           onClick={() => setExpanded(!expanded)}
           className="p-1 text-text-tertiary hover:text-cyan transition-colors"
