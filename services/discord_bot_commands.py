@@ -1240,14 +1240,7 @@ Subject: [subject]
             "→ Whisper transcribes → smart routing (Qwen local or Claude) → speaks back",
             "",
             "**Channels**",
-            "`#general` — freeform conversation with DEX",
-            "`#morning-brief` — daily brief (auto-posted at 6am)",
-            "`#decisions` — decision evaluation",
-            "`#wins` — win announcements",
-            "`#agent-activity` — EOS agent log",
-            "`#empyrean-strategy/pipeline/outreach` — Empyrean Creative",
-            "`#lyfe-strategy/pipeline/outreach` — Lyfe Institute",
-            "`#brand-strategy` / `#content-ideas` — Personal Brand",
+            "Founder's Office — voice channel for DEX interaction",
         ]
         await ctx.reply("\n".join(lines))
 
