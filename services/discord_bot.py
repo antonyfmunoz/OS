@@ -5,24 +5,9 @@ Auto-joins founder's voice channel. Routes text through EOS gateway.
 Smart routing: simple → local Qwen (free) → Claude via EOS.
 AI name is user-configurable via BIS or AI_NAME env var.
 
-Channel map (create these in your server):
-  🧠 EOS:
-    #general           — freeform conversation with DEX
-    #morning-brief     — daily brief (auto-posted at 6am)
-    #decisions         — decisions queue
-    #wins              — closed deals and wins
-    #agent-activity    — EOS agent log
-  ⚡ Empyrean Creative:
-    #empyrean-strategy — strategy
-    #empyrean-pipeline — sales pipeline
-    #empyrean-outreach — outreach tracking
-  🏢 Lyfe Institute:
-    #lyfe-strategy     — strategy
-    #lyfe-pipeline     — Initiate Arena pipeline
-    #lyfe-outreach     — Instagram DM tracking
-  👤 Personal Brand:
-    #brand-strategy    — brand strategy
-    #content-ideas     — content ideas and calendar
+Channel map:
+  🎙️ Voice:
+    Founder's Office   — voice channel for DEX interaction
 
 Setup:
   1. discord.com/developers/applications → New Application
@@ -289,38 +274,9 @@ def transcribe_with_groq(audio_path: str) -> str:
 
 
 # ─── Channel IDs ──────────────────────────────────────────────────────────────
-CHANNEL_IDS: dict[str, int] = {
-    "morning-brief": 1485765524766982234,
-    "general": 1486289444830056540,
-    "decisions": 1485765720775200808,
-    "wins": 1485765745312010260,
-    "agent-activity": 1486267275857235999,
-    "empyrean-strategy": 1486267278239731823,
-    "empyrean-pipeline": 1486267279028129863,
-    "empyrean-outreach": 1486267280311586896,
-    "lyfe-strategy": 1486267281901092976,
-    "lyfe-pipeline": 1486267283373293568,
-    "lyfe-outreach": 1486267284681920546,
-    "brand-strategy": 1486267286309441566,
-    "content-ideas": 1486267286913417278,
-}
+CHANNEL_IDS: dict[str, int] = {}
 
-# Channel name → intent routing hint
-CHANNEL_MAP: dict[str, str | None] = {
-    "morning-brief": "BRIEF",
-    "general": None,
-    "decisions": "DECISION",
-    "wins": None,
-    "agent-activity": None,
-    "empyrean-strategy": "STRATEGY",
-    "empyrean-pipeline": "OUTREACH",
-    "empyrean-outreach": "OUTREACH",
-    "lyfe-strategy": "STRATEGY",
-    "lyfe-pipeline": "OUTREACH",
-    "lyfe-outreach": "OUTREACH",
-    "brand-strategy": "STRATEGY",
-    "content-ideas": "CONTENT",
-}
+CHANNEL_MAP: dict[str, str | None] = {}
 
 # ─── Day ritual helpers ───────────────────────────────────────────────────────
 
@@ -1750,27 +1706,6 @@ class DiscordServerManager:
         print("[Discord] Setting up EOS structure...")
 
         structure: dict[str, list[tuple[str, str, str]]] = {
-            "🧠 EOS": [
-                ("general", "text", "Main conversation with DEX"),
-                ("morning-brief", "text", "Daily intelligence from DEX"),
-                ("decisions", "text", "Logged decisions"),
-                ("wins", "text", "Closed deals and wins"),
-                ("agent-activity", "text", "EOS agent activity log"),
-            ],
-            "⚡ Empyrean Creative": [
-                ("empyrean-strategy", "text", "Empyrean Creative strategic decisions"),
-                ("empyrean-pipeline", "text", "Empyrean Creative sales pipeline"),
-                ("empyrean-outreach", "text", "Empyrean Creative outreach tracking"),
-            ],
-            "🏢 Lyfe Institute": [
-                ("lyfe-strategy", "text", "Lyfe Institute strategy"),
-                ("lyfe-pipeline", "text", "Initiate Arena pipeline"),
-                ("lyfe-outreach", "text", "Instagram DM tracking"),
-            ],
-            "👤 Personal Brand": [
-                ("brand-strategy", "text", "Personal brand strategy"),
-                ("content-ideas", "text", "Content ideas and calendar"),
-            ],
             "🎙️ Voice": [
                 ("Founder's Office", "voice", ""),
             ],
@@ -1798,55 +1733,9 @@ class DiscordServerManager:
         return created
 
     async def align_structure(self) -> None:
-        """
-        Enforce the canonical EOS channel layout.
-        Moves uncategorized channels into 🧠 EOS.
-        Removes redundant generic channels.
-        Safe to call on every startup.
-        """
+        """Ensure Founder's Office voice channel exists. No text channels managed."""
         print("[Discord] Aligning structure...")
-
-        # Get or create 🧠 EOS category
-        eos_cat = discord.utils.get(self.guild.categories, name="🧠 EOS")
-        if not eos_cat:
-            eos_cat = await self.guild.create_category("🧠 EOS")
-            print("[Discord] Created 🧠 EOS category")
-
-        # Recreate #general if deleted, or move if uncategorized
-        general = discord.utils.get(self.guild.text_channels, name="general")
-        if not general:
-            general = await self.guild.create_text_channel(
-                name="general",
-                topic="Primary conversation with DEX",
-                category=eos_cat,
-            )
-            print("[Discord] Recreated #general")
-        elif general.category != eos_cat:
-            await general.edit(category=eos_cat)
-            print("[Discord] Moved #general → 🧠 EOS")
-
-        # Move these channels into 🧠 EOS if not already there
-        move_to_eos = ["morning-brief", "decisions", "wins", "agent-activity"]
-        for ch_name in move_to_eos:
-            ch = discord.utils.get(self.guild.text_channels, name=ch_name)
-            if ch and ch.category != eos_cat:
-                await ch.edit(category=eos_cat)
-                print(f"[Discord] Moved #{ch_name} → 🧠 EOS")
-
-        # Remove redundant generic channels — company-specific equivalents exist
-        for ch_name in ("strategy", "outreach", "content"):
-            ch = discord.utils.get(self.guild.text_channels, name=ch_name)
-            if ch:
-                await ch.delete(reason="Redundant — company-specific channels exist")
-                print(f"[Discord] Removed #{ch_name}")
-
-        # War Room guard — belt-and-suspenders
-        war_room = discord.utils.get(self.guild.voice_channels, name="War Room")
-        if war_room:
-            await war_room.delete(reason="One voice channel only")
-            print("[Discord] Removed War Room voice")
-
-        print("[Discord] Structure aligned ✅")
+        print("[Discord] Structure aligned")
 
     async def update_for_stage_change(
         self,
