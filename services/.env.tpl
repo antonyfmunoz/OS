@@ -20,6 +20,7 @@ EOS_DATABASE_URL=op://UMH-Production/Database-Neon/url
 DISCORD_BOT_TOKEN=op://UMH-Production/Discord-Bot/token
 DISCORD_BRIEF_WEBHOOK=op://UMH-Production/Discord-Bot/brief_webhook
 DISCORD_OUTREACH_WEBHOOK=op://UMH-Production/Discord-Bot/outreach_webhook
+DISCORD_FOUNDERS_OFFICE=op://UMH-Production/Discord-Bot/founders_office_channel
 
 # ── Telegram ─────────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN=op://UMH-Production/Telegram-Bot/token

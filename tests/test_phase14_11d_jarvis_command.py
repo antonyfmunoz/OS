@@ -66,9 +66,9 @@ class TestClassifyIntent:
         from substrate.workstation.jarvis_command import CommandIntent, classify_intent
         assert classify_intent("prepare the next safe step") == CommandIntent.WORK_PACKET_DRAFT
 
-    def test_work_packet_whats_next(self) -> None:
+    def test_whats_next_is_explain_view(self) -> None:
         from substrate.workstation.jarvis_command import CommandIntent, classify_intent
-        assert classify_intent("what's next?") == CommandIntent.WORK_PACKET_DRAFT
+        assert classify_intent("what's next?") == CommandIntent.EXPLAIN_CURRENT_VIEW
 
     def test_navigation_show(self) -> None:
         from substrate.workstation.jarvis_command import CommandIntent, classify_intent
@@ -92,6 +92,82 @@ class TestClassifyIntent:
     def test_case_insensitive(self) -> None:
         from substrate.workstation.jarvis_command import CommandIntent, classify_intent
         assert classify_intent("WHAT IS HAPPENING?") == CommandIntent.STATUS_QUERY
+
+    # ── EXPLAIN_CURRENT_VIEW routing ─────────────────────────────────
+
+    def test_explain_view_what_am_i_looking_at(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("what am I looking at") == CommandIntent.EXPLAIN_CURRENT_VIEW
+
+    def test_explain_view_what_should_i_do_next(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("what should I do next") == CommandIntent.EXPLAIN_CURRENT_VIEW
+
+    def test_explain_view_what_should_we_do_next(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("what should we do next") == CommandIntent.EXPLAIN_CURRENT_VIEW
+
+    def test_explain_view_what_is_this(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("what is this") == CommandIntent.EXPLAIN_CURRENT_VIEW
+
+    def test_explain_view_with_context(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("what am I looking at, and what should I do next?") == CommandIntent.EXPLAIN_CURRENT_VIEW
+
+    # ── Explicit work packet commands ────────────────────────────────
+
+    def test_work_packet_explicit_draft(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("draft a work packet") == CommandIntent.WORK_PACKET_DRAFT
+
+    def test_work_packet_create_for_this(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("create a work packet for this") == CommandIntent.WORK_PACKET_DRAFT
+
+    def test_work_packet_create_task(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("create a task to fix auth") == CommandIntent.WORK_PACKET_DRAFT
+
+    def test_work_packet_start_this_task(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("start this task") == CommandIntent.WORK_PACKET_DRAFT
+
+    # ── Decompose stays decompose ────────────────────────────────────
+
+    def test_decompose_turn_into_packets(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("turn this into work packets") == CommandIntent.DECOMPOSE_INTENT
+
+    # ── Resume distinction ───────────────────────────────────────────
+
+    def test_resume_what_should_resume(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("what happened while i was gone?") == CommandIntent.RESUME_QUERY
+
+    # ── Council only on explicit command ──────────────────────────────
+
+    def test_council_explicit(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("run council review") == CommandIntent.COUNCIL_REVIEW
+
+    def test_is_this_good_enough_is_conversational(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("is this good enough") == CommandIntent.UNKNOWN
+
+    # ── Advisory phrases stay conversational ─────────────────────────
+
+    def test_start_thinking_is_conversational(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("start thinking through this") == CommandIntent.UNKNOWN
+
+    def test_help_me_understand_is_conversational(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("help me understand this") == CommandIntent.UNKNOWN
+
+    def test_lets_think_through_is_conversational(self) -> None:
+        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        assert classify_intent("let's think through this") == CommandIntent.UNKNOWN
 
 
 class TestResolveNavigationTarget:
@@ -187,6 +263,12 @@ class TestGovernanceRequirement:
         )
         assert governance_requirement(CommandIntent.WORK_PACKET_DRAFT) == GovernanceRequirement.REQUIRES_GOVERNANCE
 
+    def test_explain_view_informational(self) -> None:
+        from substrate.workstation.jarvis_command import (
+            CommandIntent, GovernanceRequirement, governance_requirement,
+        )
+        assert governance_requirement(CommandIntent.EXPLAIN_CURRENT_VIEW) == GovernanceRequirement.INFORMATIONAL
+
     def test_informational_does_not_require_approval(self) -> None:
         from substrate.workstation.jarvis_command import (
             CommandIntent, GovernanceRequirement, governance_requirement,
@@ -196,6 +278,7 @@ class TestGovernanceRequirement:
             CommandIntent.RESUME_QUERY,
             CommandIntent.APPROVAL_QUERY,
             CommandIntent.COCKPIT_NAVIGATION,
+            CommandIntent.EXPLAIN_CURRENT_VIEW,
         ]:
             gov = governance_requirement(intent)
             assert gov != GovernanceRequirement.REQUIRES_GOVERNANCE, f"{intent} should not require governance"

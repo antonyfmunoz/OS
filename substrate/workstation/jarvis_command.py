@@ -32,6 +32,7 @@ class CommandIntent(str, Enum):
     CC_SEND = "cc_send"
     CC_CAPTURE = "cc_capture"
     DECOMPOSE_INTENT = "decompose_intent"
+    EXPLAIN_CURRENT_VIEW = "explain_current_view"
     UNKNOWN = "unknown"
 
 
@@ -113,20 +114,15 @@ _MODE_SWITCH_SIGNALS = [
 ]
 
 _WORK_PACKET_SIGNALS = [
-    "prepare the next",
-    "next safe step",
     "draft a work packet",
+    "create a work packet",
     "create a task",
-    "inspect the repo",
-    "what should we do next",
-    "what should i do next",
-    "suggest next step",
-    "next action",
-    "plan next",
-    "what's next",
-    "whats next",
+    "prepare the next work packet",
+    "prepare the next safe step",
     "start working on",
     "begin working on",
+    "start this task",
+    "begin this task",
 ]
 
 _AGENT_SIGNALS = [
@@ -187,7 +183,6 @@ _COUNCIL_REVIEW_SIGNALS = [
     "council this",
     "review this like an expert",
     "review this like a world-class expert",
-    "is this good enough",
     "give me the final verdict",
     "final verdict",
     "what would the council say",
@@ -225,6 +220,22 @@ _DECOMPOSE_SIGNALS = [
     "decompose into packets",
     "split into tasks",
     "break this down",
+]
+
+_EXPLAIN_VIEW_SIGNALS = [
+    "what am i looking at",
+    "what is this",
+    "explain this",
+    "what should i do next",
+    "what should we do next",
+    "what does this page mean",
+    "what is selected",
+    "what can you see",
+    "look at this",
+    "analyze this page",
+    "review this screen",
+    "what's next",
+    "whats next",
 ]
 
 _NAV_MAP: dict[str, str] = {
@@ -289,9 +300,39 @@ class JarvisCommandResult:
 
 
 def classify_intent(text: str) -> CommandIntent:
-    """Classify natural text into a command intent. Deterministic, no LLM."""
+    """Classify natural text into a command intent. Deterministic, no LLM.
+
+    Order matters — first match wins. Explicit action commands scan before
+    informational queries, which scan before advisory/view-context phrases.
+    """
     t = text.lower().strip()
 
+    # ── Explicit action commands (mutating / high-specificity) ────────
+    for signal in _CC_SEND_SIGNALS:
+        if signal in t:
+            return CommandIntent.CC_SEND
+
+    for signal in _CC_CAPTURE_SIGNALS:
+        if signal in t:
+            return CommandIntent.CC_CAPTURE
+
+    for signal in _DECOMPOSE_SIGNALS:
+        if signal in t:
+            return CommandIntent.DECOMPOSE_INTENT
+
+    for signal in _WORK_PACKET_SIGNALS:
+        if signal in t:
+            return CommandIntent.WORK_PACKET_DRAFT
+
+    for signal in _COUNCIL_REVIEW_SIGNALS:
+        if signal in t:
+            return CommandIntent.COUNCIL_REVIEW
+
+    for signal in _PACKET_CONTROL_SIGNALS:
+        if signal in t:
+            return CommandIntent.PACKET_CONTROL
+
+    # ── Informational queries (read-only, specific) ──────────────────
     for signal in _RESUME_SIGNALS:
         if signal in t:
             return CommandIntent.RESUME_QUERY
@@ -308,9 +349,9 @@ def classify_intent(text: str) -> CommandIntent:
         if signal in t:
             return CommandIntent.MODE_SWITCH
 
-    for signal in _WORK_PACKET_SIGNALS:
+    for signal in _COMMAND_CENTER_SIGNALS:
         if signal in t:
-            return CommandIntent.WORK_PACKET_DRAFT
+            return CommandIntent.COMMAND_CENTER_QUERY
 
     for signal in _AGENT_SIGNALS:
         if signal in t:
@@ -320,30 +361,12 @@ def classify_intent(text: str) -> CommandIntent:
         if signal in t:
             return CommandIntent.BLOCKED_QUERY
 
-    for signal in _PACKET_CONTROL_SIGNALS:
+    # ── View-context / advisory (broad phrases, conversational) ──────
+    for signal in _EXPLAIN_VIEW_SIGNALS:
         if signal in t:
-            return CommandIntent.PACKET_CONTROL
+            return CommandIntent.EXPLAIN_CURRENT_VIEW
 
-    for signal in _COMMAND_CENTER_SIGNALS:
-        if signal in t:
-            return CommandIntent.COMMAND_CENTER_QUERY
-
-    for signal in _COUNCIL_REVIEW_SIGNALS:
-        if signal in t:
-            return CommandIntent.COUNCIL_REVIEW
-
-    for signal in _CC_SEND_SIGNALS:
-        if signal in t:
-            return CommandIntent.CC_SEND
-
-    for signal in _CC_CAPTURE_SIGNALS:
-        if signal in t:
-            return CommandIntent.CC_CAPTURE
-
-    for signal in _DECOMPOSE_SIGNALS:
-        if signal in t:
-            return CommandIntent.DECOMPOSE_INTENT
-
+    # ── Navigation ───────────────────────────────────────────────────
     nav_prefix = ["show ", "go to ", "open ", "navigate to "]
     for prefix in nav_prefix:
         if t.startswith(prefix):
@@ -423,6 +446,7 @@ def governance_requirement(intent: CommandIntent) -> GovernanceRequirement:
         CommandIntent.AGENT_QUERY,
         CommandIntent.BLOCKED_QUERY,
         CommandIntent.COMMAND_CENTER_QUERY,
+        CommandIntent.EXPLAIN_CURRENT_VIEW,
         CommandIntent.UNKNOWN,
     ):
         return GovernanceRequirement.INFORMATIONAL
