@@ -111,7 +111,7 @@ export function HudBar() {
     } catch { /* silent */ }
   }, [])
 
-  usePolling(fetchWorkstationMode, 15000)
+  usePolling(fetchWorkstationMode, 15000, true, 1000)
 
   const modes = ['EXECUTE', 'PLAN', 'REVIEW'] as const
 

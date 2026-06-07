@@ -2404,6 +2404,138 @@ async def chat_attachment(path: str):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(str(resolved), filename=resolved.name, media_type="application/octet-stream")
 
+# ── Bootstrap (single-request boot) ──────────────────────────────────────────
+
+@router.get("/bootstrap")
+async def bootstrap():
+    """Aggregate boot-critical data in one response.
+
+    Replaces ~15 parallel GET requests the cockpit fires on page load.
+    Each source is independently faulted — partial data is fine.
+    """
+    errors: list[str] = []
+    result: dict[str, Any] = {"ok": True, "ts": ""}
+
+    import datetime as _dt
+    result["ts"] = _dt.datetime.now(_dt.timezone.utc).isoformat()
+
+    # config
+    try:
+        from substrate.sockets.config_port import get_all_config
+        result["config"] = get_all_config()
+    except Exception as e:
+        errors.append(f"config: {e}")
+        result["config"] = {}
+
+    # pulse
+    try:
+        node_metrics = _build_node_metrics()
+        vps = node_metrics.get("vps", {})
+        traces = _read_jsonl(TRACE_STORE)
+        pending_traces = sum(1 for t in traces[-500:] if t.get("status") == "pending")
+        uptime = int(time.time() - psutil.boot_time())
+        daemon = _get_organism()
+        active_agents = 0
+        pending_approvals = 0
+        if daemon is not None:
+            active_agents = sum(1 for a in daemon.advisor.list_agents() if a.get("status") != "offline")
+            pending_approvals = daemon.approval_store.pending_count()
+        result["pulse"] = {
+            "uptime": uptime,
+            "cpu_percent": vps.get("cpu", 0),
+            "memory_percent": vps.get("memory", 0),
+            "disk_percent": vps.get("disk", 0),
+            "active_agents": active_agents,
+            "pending_tasks": pending_traces,
+            "pending_approvals": pending_approvals,
+            "trace_rate": round(len(traces) / max(uptime / 3600, 1), 1),
+            "node_metrics": node_metrics,
+        }
+    except Exception as e:
+        errors.append(f"pulse: {e}")
+        result["pulse"] = {}
+
+    # organism status
+    try:
+        daemon = _get_organism()
+        if daemon is not None:
+            result["organism"] = {
+                "running": True,
+                "agent_count": len(daemon.advisor.list_agents()),
+                "workcell_count": len(getattr(daemon, "workcells", [])),
+            }
+        else:
+            result["organism"] = {"running": False}
+    except Exception as e:
+        errors.append(f"organism: {e}")
+        result["organism"] = {"running": False}
+
+    # mode-composite
+    try:
+        from substrate.workstation.mode_resolver import resolve_composite_mode
+        result["mode_composite"] = resolve_composite_mode()
+    except Exception as e:
+        errors.append(f"mode_composite: {e}")
+        result["mode_composite"] = {}
+
+    # continuity
+    try:
+        from transports.api.cockpit_workstation_control_routes import _get_continuity_machine
+        machine = _get_continuity_machine()
+        result["continuity"] = {
+            "current_state": machine.current_state.value,
+            "valid_transitions": [s.value for s in machine.valid_transitions()],
+        }
+    except Exception as e:
+        errors.append(f"continuity: {e}")
+        result["continuity"] = {}
+
+    # command-center summary (lightweight subset)
+    try:
+        from transports.api.cockpit_command_center_routes import _load_workcell_heartbeats, _load_approvals
+        heartbeats = _load_workcell_heartbeats()
+        pending = _load_approvals(status_filter="pending")
+        result["command_center"] = {
+            "active_workcells": sum(1 for h in heartbeats if h.get("status") == "active"),
+            "idle_workcells": sum(1 for h in heartbeats if h.get("status") == "idle"),
+            "pending_approvals": len(pending),
+        }
+    except Exception as e:
+        errors.append(f"command_center: {e}")
+        result["command_center"] = {}
+
+    # overnight
+    try:
+        from substrate.workstation.overnight_queue import OvernightQueue
+        queue = OvernightQueue()
+        result["overnight"] = queue.morning_summary()
+    except Exception as e:
+        errors.append(f"overnight: {e}")
+        result["overnight"] = {}
+
+    # mesh node count
+    try:
+        nm = result.get("pulse", {}).get("node_metrics") or _build_node_metrics()
+        result["mesh"] = {"node_count": len(nm)}
+    except Exception as e:
+        errors.append(f"mesh: {e}")
+        result["mesh"] = {"node_count": 0}
+
+    # chat / dex availability
+    try:
+        conv = _get_dex_conversation()
+        result["dex_available"] = conv is not None
+        result["chat_available"] = conv is not None
+    except Exception:
+        result["dex_available"] = False
+        result["chat_available"] = False
+
+    result["_errors"] = errors
+    if errors:
+        result["ok"] = False
+    return result
+
+
 # ── Config endpoints ──────────────────────────────────────────────────────────
 
 @router.get("/config")

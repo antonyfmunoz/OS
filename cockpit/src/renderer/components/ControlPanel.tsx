@@ -54,7 +54,7 @@ export function ControlPanel() {
   const apiStatus = useCockpitStore((s) => s.apiStatus)
   const wsStatus = useCockpitStore((s) => s.wsStatus)
 
-  usePolling(fetchApprovals, 5000)
+  usePolling(fetchApprovals, 5000, true, 500)
 
   const pendingApprovals = approvals.filter((a) => a.status === 'pending')
 
