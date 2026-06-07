@@ -37,7 +37,7 @@ export function RightRail() {
   const traces = useSystemStore((s) => s.traces)
   const fetchTraces = useSystemStore((s) => s.fetchTraces)
 
-  usePolling(fetchTraces, 5000)
+  usePolling(fetchTraces, 5000, true, 750)
 
   const tabs: Array<{ id: RightTab; icon: typeof MessageSquare; label: string }> = [
     { id: 'chat', icon: MessageSquare, label: 'Chat' },
@@ -243,7 +243,6 @@ function ChatSection() {
   const error = useChatStore((s) => s.error)
   const setInput = useChatStore((s) => s.setInput)
   const sendMessage = useChatStore((s) => s.sendMessage)
-  const loadHistory = useChatStore((s) => s.loadHistory)
   const viewContext = useViewContextStore((s) => s.context)
   const setPanel = useCockpitStore((s) => s.setPanel)
   const micState = useVoiceStore((s) => s.micState)
@@ -255,7 +254,6 @@ function ChatSection() {
   const nameRef = useRef<HTMLInputElement>(null)
   const [voiceAvailable, setVoiceAvailable] = useState(true)
 
-  useEffect(() => { loadHistory() }, [loadHistory])
   useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight) }, [messages])
   useEffect(() => { if (editingName) nameRef.current?.focus() }, [editingName])
   useEffect(() => { setNameInput(aiName) }, [aiName])
