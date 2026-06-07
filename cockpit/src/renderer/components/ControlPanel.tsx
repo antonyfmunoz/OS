@@ -129,20 +129,10 @@ export function ControlPanel() {
     <div className="wv-card mx-4 mt-2 mb-1">
       {/* ── Collapsed: instrument strip ── */}
       <div className="flex items-center gap-2 px-4 py-2 flex-wrap">
-        {/* 1. Mode badge */}
-        <span
-          className={`text-[10px] font-bold px-2 py-1 rounded border ${MODE_COLORS[mode] ?? MODE_COLORS.EXECUTE}`}
-        >
-          {mode}
-        </span>
-
-        {/* 2. Health dot */}
+        {/* 1. Health dot */}
         <span className={`w-2 h-2 rounded-full ${healthDot}`} title="System health" />
 
-        {/* 3. Active agents */}
-        <span className="wv-label text-[10px]">{pulse?.active_agents ?? 0} active</span>
-
-        {/* 4. Executing packets */}
+        {/* 2. Executing packets */}
         <span className="text-[10px] text-text-secondary font-mono">
           {executingPackets} pkt{executingPackets !== 1 ? 's' : ''}
         </span>
@@ -202,6 +192,13 @@ export function ControlPanel() {
         >
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
+
+        {/* 12. Mode badge — far right */}
+        <span
+          className={`text-[10px] font-bold px-2 py-1 rounded border ${MODE_COLORS[mode] ?? MODE_COLORS.EXECUTE}`}
+        >
+          {mode}
+        </span>
       </div>
 
       {/* ── Expanded: detail grid ── */}
