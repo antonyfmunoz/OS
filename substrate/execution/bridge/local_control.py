@@ -22,6 +22,7 @@ from the registry and execute each one recursively.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import shutil
 import subprocess
@@ -606,7 +607,7 @@ def _dispatch_subprocess_open_app(req: LocalControlRequest) -> LocalControlReque
         req.updated_at = _utcnow()
         return req
     try:
-        proc = subprocess.run(
+        proc = gated_subprocess_run(
             [xdg, app_id],
             capture_output=True,
             text=True,
@@ -634,7 +635,7 @@ def _dispatch_subprocess_focus_app(req: LocalControlRequest) -> LocalControlRequ
     wmctrl = shutil.which("wmctrl")
     if wmctrl:
         try:
-            proc = subprocess.run(
+            proc = gated_subprocess_run(
                 [wmctrl, "-a", app_name],
                 capture_output=True,
                 text=True,
@@ -651,7 +652,7 @@ def _dispatch_subprocess_focus_app(req: LocalControlRequest) -> LocalControlRequ
     xdotool = shutil.which("xdotool")
     if xdotool:
         try:
-            proc = subprocess.run(
+            proc = gated_subprocess_run(
                 [xdotool, "search", "--name", app_name, "windowactivate"],
                 capture_output=True,
                 text=True,
@@ -684,7 +685,7 @@ def _dispatch_subprocess_list_windows(req: LocalControlRequest) -> LocalControlR
     wmctrl = shutil.which("wmctrl")
     if wmctrl:
         try:
-            proc = subprocess.run(
+            proc = gated_subprocess_run(
                 [wmctrl, "-l"],
                 capture_output=True,
                 text=True,
@@ -701,7 +702,7 @@ def _dispatch_subprocess_list_windows(req: LocalControlRequest) -> LocalControlR
     xdotool = shutil.which("xdotool")
     if xdotool:
         try:
-            proc = subprocess.run(
+            proc = gated_subprocess_run(
                 [xdotool, "search", "--name", ""],
                 capture_output=True,
                 text=True,
@@ -740,7 +741,7 @@ def _dispatch_move_mouse(req: LocalControlRequest) -> LocalControlRequest:
         req.updated_at = _utcnow()
         return req
     try:
-        proc = subprocess.run(
+        proc = gated_subprocess_run(
             [xdotool, "mousemove", str(x), str(y)],
             capture_output=True,
             text=True,

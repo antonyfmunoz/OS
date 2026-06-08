@@ -20,6 +20,7 @@ UMH substrate subsystem.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import shlex
 import subprocess
@@ -311,7 +312,7 @@ class GovernedShellAdapter:
         raw_result: subprocess.CompletedProcess | None = None
         error: Exception | None = None
         try:
-            raw_result = subprocess.run(
+            raw_result = gated_subprocess_run(
                 canonical_request.command,
                 shell=True,
                 capture_output=True,

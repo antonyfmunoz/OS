@@ -15,6 +15,7 @@ UMH substrate subsystem. Instance-agnostic.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import logging
 import os
@@ -32,7 +33,7 @@ _PROBE_TIMEOUT = 10
 
 def _run(cmd: list[str], timeout: int = _PROBE_TIMEOUT) -> str:
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             cmd,
             capture_output=True,
             text=True,

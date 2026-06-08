@@ -9,6 +9,7 @@ Default model: gpt-5.5 (via ChatGPT subscription).
 
 Usage:
     from adapters.models.codex_cli import query_codex_sync
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
     result = query_codex_sync("Review this code for bugs")
     if result:
@@ -132,7 +133,7 @@ def query_codex_sync(
     start_ms = time.monotonic_ns() // 1_000_000
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             cmd,
             capture_output=True,
             text=True,
@@ -234,7 +235,7 @@ def review_codex_sync(
     start_ms = time.monotonic_ns() // 1_000_000
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             cmd,
             capture_output=True,
             text=True,

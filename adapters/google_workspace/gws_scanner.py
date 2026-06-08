@@ -13,6 +13,7 @@ Features:
 Usage:
     from substrate.state.context.context import load_context_from_env
     from adapters.google_workspace.gws_scanner import GWSDocumentScanner
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
     ctx = load_context_from_env()
     scanner = GWSDocumentScanner(ctx)
@@ -69,7 +70,7 @@ class GWSDocumentScanner:
         if params:
             cmd += ['--params', json.dumps(params)]
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 cmd, capture_output=True, text=True, timeout=60
             )
             output = result.stdout
@@ -112,7 +113,7 @@ class GWSDocumentScanner:
         import shutil
         tmp_dir = tempfile.mkdtemp()
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 [
                     'npx', '@googleworkspace/cli', 'drive', 'files', 'export',
                     '--params',

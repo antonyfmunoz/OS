@@ -7,6 +7,7 @@ import datetime
 import requests
 import os
 from dotenv import load_dotenv
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
@@ -139,7 +140,7 @@ def run_scraper(ignore_cache=False):
     env = os.environ.copy()
     if ignore_cache:
         env["SCRAPER_IGNORE_CACHE"] = "1"
-    result = subprocess.run(
+    result = gated_subprocess_run(
         [sys.executable, os.path.join(VAULT, "services/apify_scraper.py")],
         cwd=VAULT, capture_output=False, env=env
     )
@@ -147,7 +148,7 @@ def run_scraper(ignore_cache=False):
 
 
 def run_scorer():
-    result = subprocess.run(
+    result = gated_subprocess_run(
         [sys.executable, os.path.join(VAULT, "services/icp_scorer.py")],
         cwd=VAULT, capture_output=False
     )

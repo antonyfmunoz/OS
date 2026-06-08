@@ -24,6 +24,7 @@ UMH substrate subsystem. Instance-agnostic.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import logging
@@ -291,7 +292,7 @@ class AutonomousPRResult:
 def _run_cmd(
     cmd: list[str], cwd: str | None = None, timeout: int = 60
 ) -> subprocess.CompletedProcess:
-    return subprocess.run(
+    return gated_subprocess_run(
         cmd,
         cwd=cwd or _REPO_ROOT,
         capture_output=True,

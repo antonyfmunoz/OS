@@ -9,6 +9,7 @@ Configure provider: `hermes model` (interactive) or `hermes config set`.
 
 Usage:
     from adapters.models.hermes_cli import query_hermes_sync
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
     result = query_hermes_sync("Analyze this codebase structure")
     if result:
@@ -136,7 +137,7 @@ def query_hermes_sync(
     start_ms = time.monotonic_ns() // 1_000_000
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             cmd,
             capture_output=True,
             text=True,

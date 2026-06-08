@@ -55,7 +55,7 @@ _PROBE_TIMEOUT = 30
 
 def _run(cmd: list[str], timeout: int = _PROBE_TIMEOUT) -> tuple[str, int]:
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             cmd,
             capture_output=True,
             text=True,

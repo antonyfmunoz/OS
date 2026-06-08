@@ -7,6 +7,7 @@ Phase 13.2. Substrate layer. Instance-agnostic.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import logging
 import os
@@ -204,7 +205,7 @@ class ShellRuntimeAdapter(RuntimeAdapter):
         ))
 
         try:
-            proc = subprocess.Popen(
+            proc = gated_popen(
                 request.command,
                 shell=True,
                 stdout=subprocess.PIPE,

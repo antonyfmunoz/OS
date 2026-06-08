@@ -16,6 +16,7 @@ UMH substrate subsystem. Instance-agnostic.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import logging
 import os
@@ -323,7 +324,7 @@ def _rotate_logs(repo_root: str, params: dict[str, Any]) -> tuple[str, bool]:
     rotated: list[str] = []
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["find", repo_root, "-name", "*.log", "-size", f"+{threshold_mb}M",
              "-not", "-path", "*/.git/*"],
             capture_output=True, text=True, timeout=_ACTION_TIMEOUT,
@@ -371,7 +372,7 @@ def _restart_container(repo_root: str, params: dict[str, Any]) -> tuple[str, boo
         return f"Container not in restartable allowlist: {container}", False
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["docker", "restart", "--", container],
             capture_output=True, text=True, timeout=_ACTION_TIMEOUT,
         )
@@ -385,7 +386,7 @@ def _restart_container(repo_root: str, params: dict[str, Any]) -> tuple[str, boo
 def _refresh_runtime(repo_root: str, params: dict[str, Any]) -> tuple[str, bool]:
     """Refresh runtime availability check."""
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["docker", "ps", "--format", "{{.Names}}"],
             capture_output=True, text=True, timeout=_ACTION_TIMEOUT,
         )
@@ -409,7 +410,7 @@ def _run_tests(repo_root: str, params: dict[str, Any]) -> tuple[str, bool]:
     if requested and requested in _ALLOWED_TEST_PATHS:
         test_path = requested
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["python3", "-m", "pytest", "-x", "-q", "--tb=line", "--", test_path],
             capture_output=True, text=True, timeout=120,
             cwd=repo_root,
@@ -428,7 +429,7 @@ def _rebuild_graph(repo_root: str, params: dict[str, Any]) -> tuple[str, bool]:
         return "scripts/update-graph not found", False
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             [script],
             capture_output=True, text=True, timeout=300,
             cwd=repo_root,
@@ -441,13 +442,13 @@ def _rebuild_graph(repo_root: str, params: dict[str, Any]) -> tuple[str, bool]:
 def _cleanup_branches(repo_root: str, params: dict[str, Any]) -> tuple[str, bool]:
     """Delete merged branches (not main, not current)."""
     try:
-        current = subprocess.run(
+        current = gated_subprocess_run(
             ["git", "-C", repo_root, "branch", "--show-current"],
             capture_output=True, text=True, timeout=10,
         )
         current_branch = current.stdout.strip()
 
-        merged = subprocess.run(
+        merged = gated_subprocess_run(
             ["git", "-C", repo_root, "branch", "--merged", "main", "--format", "%(refname:short)"],
             capture_output=True, text=True, timeout=10,
         )
@@ -456,7 +457,7 @@ def _cleanup_branches(repo_root: str, params: dict[str, Any]) -> tuple[str, bool
             branch = branch.strip()
             if branch in ("main", current_branch, ""):
                 continue
-            subprocess.run(
+            gated_subprocess_run(
                 ["git", "-C", repo_root, "branch", "-d", branch],
                 capture_output=True, text=True, timeout=10,
             )
@@ -472,7 +473,7 @@ def _cleanup_disk(repo_root: str, params: dict[str, Any]) -> tuple[str, bool]:
     cleaned: list[str] = []
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["find", repo_root, "-type", "d", "-name", "__pycache__",
              "-not", "-path", "*/.git/*", "-not", "-path", "*/node_modules/*"],
             capture_output=True, text=True, timeout=_ACTION_TIMEOUT,
@@ -480,7 +481,7 @@ def _cleanup_disk(repo_root: str, params: dict[str, Any]) -> tuple[str, bool]:
         for d in result.stdout.strip().splitlines():
             d = d.strip()
             if d:
-                subprocess.run(["rm", "-rf", d], capture_output=True, timeout=10)
+                gated_subprocess_run(["rm", "-rf", d], capture_output=True, timeout=10)
                 cleaned.append(d)
     except Exception as exc:
         return str(exc), False

@@ -22,6 +22,7 @@ Usage (on Windows WSL):
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import asyncio
 import json
@@ -53,7 +54,7 @@ INBOX_DIR.mkdir(parents=True, exist_ok=True)
 def _tmux_has_session(session_name: str) -> bool:
     """Check if a tmux session exists."""
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["tmux", "has-session", "-t", session_name],
             capture_output=True,
             timeout=TMUX_INJECT_TIMEOUT_S,
@@ -70,7 +71,7 @@ def _tmux_send(session_name: str, text: str) -> bool:
         text = " ".join(text.splitlines())
 
         # Send literal text
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["tmux", "send-keys", "-t", session_name, "-l", text],
             capture_output=True,
             timeout=TMUX_INJECT_TIMEOUT_S,
@@ -85,7 +86,7 @@ def _tmux_send(session_name: str, text: str) -> bool:
         # Brief pause for CC to register paste, then send Enter
         time.sleep(0.1)
 
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["tmux", "send-keys", "-t", session_name, "Enter"],
             capture_output=True,
             timeout=TMUX_INJECT_TIMEOUT_S,
@@ -197,7 +198,7 @@ async def handle_status(_request: web.Request) -> web.Response:
     """Status endpoint showing active tmux sessions and inbox state."""
     sessions = []
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["tmux", "list-sessions", "-F", "#{session_name}"],
             capture_output=True,
             text=True,
