@@ -972,6 +972,7 @@ class ModelRouter:
             cfg = genai_types.GenerateContentConfig(
                 max_output_tokens=max_tokens,
                 system_instruction=system or None,
+                thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
             )
             response = client.models.generate_content(
                 model=config.model_id,
