@@ -2,7 +2,19 @@ import { WsClient } from './websocket'
 
 function getVoiceUrl(): string {
   if (import.meta.env.VITE_VOICE_URL) return import.meta.env.VITE_VOICE_URL as string
-  return 'ws://localhost:8096/voice'
+
+  const isLocalhost =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
+  const isElectron = Boolean((window as Record<string, unknown>).cockpit)
+  const isTailscale = /^100\.\d+\.\d+\.\d+$/.test(window.location.hostname)
+
+  if (isElectron || isLocalhost || isTailscale) {
+    return 'ws://localhost:8096/voice'
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}/api/umh/voice/ws`
 }
 const VOICE_URL = getVoiceUrl()
 const TARGET_SAMPLE_RATE = 16000
@@ -10,6 +22,8 @@ const CHUNK_SIZE = 4096
 
 const log = (stage: string, ...args: unknown[]) =>
   console.log(`[VoicePipeline] ${stage}`, ...args)
+
+log('voice_ws_url_resolved', VOICE_URL)
 
 export type VoiceEvent =
   | { type: 'transcript'; text: string; final: boolean }
