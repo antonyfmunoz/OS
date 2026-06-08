@@ -145,6 +145,7 @@ services:
       - TZ=America/Los_Angeles
       - PYTHONUNBUFFERED=1
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - VOICE_WS_UPSTREAM=ws://host.docker.internal:8096/voice
     ports:
       - "8091:8091"
     deploy:

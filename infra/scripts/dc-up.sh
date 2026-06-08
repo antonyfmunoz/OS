@@ -40,6 +40,17 @@ op inject -f -i "$SERVICES_TPL" -o "$SERVICES_ENV"
 op inject -f -i "$UMH_TPL" -o "$UMH_ENV"
 chmod 600 "$SERVICES_ENV" "$UMH_ENV"
 
+# Allow Docker bridge traffic to reach voice server on host port 8096.
+# os-operator proxies voice WS via host.docker.internal — blocked by UFW without this.
+VOICE_BRIDGE=$(docker network inspect os_eos_network -f '{{index .Options "com.docker.network.bridge.name"}}' 2>/dev/null || true)
+if [ -z "$VOICE_BRIDGE" ]; then
+    VOICE_BRIDGE=$(ip -o link show type bridge | grep -o 'br-[a-f0-9]*' | head -1)
+fi
+if [ -n "$VOICE_BRIDGE" ] && ! iptables -C INPUT -i "$VOICE_BRIDGE" -p tcp --dport 8096 -j ACCEPT 2>/dev/null; then
+    iptables -I INPUT -i "$VOICE_BRIDGE" -p tcp --dport 8096 -j ACCEPT -m comment --comment "voice-server-from-docker"
+    echo "[dc-up] Added iptables rule: Docker bridge → voice server :8096"
+fi
+
 echo "[dc-up] Starting containers..."
 docker compose up -d "$@"
 
