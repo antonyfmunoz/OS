@@ -13,7 +13,6 @@ Features:
 Usage:
     from substrate.state.context.context import load_context_from_env
     from adapters.google_workspace.gws_scanner import GWSDocumentScanner
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
     ctx = load_context_from_env()
     scanner = GWSDocumentScanner(ctx)
@@ -28,6 +27,7 @@ import re
 import subprocess
 import time
 from dataclasses import dataclass, field
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 from datetime import datetime
 from pathlib import Path
 
