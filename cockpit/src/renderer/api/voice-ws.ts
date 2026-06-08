@@ -8,6 +8,9 @@ const VOICE_URL = getVoiceUrl()
 const TARGET_SAMPLE_RATE = 16000
 const CHUNK_SIZE = 4096
 
+const log = (stage: string, ...args: unknown[]) =>
+  console.log(`[VoicePipeline] ${stage}`, ...args)
+
 export type VoiceEvent =
   | { type: 'transcript'; text: string; final: boolean }
   | { type: 'vad_status'; active: boolean }
@@ -16,6 +19,7 @@ export type VoiceEvent =
   | { type: 'audio_level'; level: number }
   | { type: 'connected' }
   | { type: 'disconnected' }
+  | { type: 'error'; code: string; message: string }
 
 export class VoiceWsClient {
   private ws: WsClient
@@ -26,55 +30,105 @@ export class VoiceWsClient {
   private _audioQueue: ArrayBuffer[] = []
   private _playing = false
   private _currentAudio: HTMLAudioElement | null = null
+  private _chunkCount = 0
 
   constructor() {
     this.ws = new WsClient(VOICE_URL)
     this.ws.onBinary((buf) => this._queueAudio(buf))
   }
 
-  connect(): void {
-    this.ws.connect()
+  connect(): Promise<void> {
+    log('ws_connect', VOICE_URL)
+    return new Promise<void>((resolve, reject) => {
+      const onConnected = this.ws.on('connected', () => {
+        log('ws_connected')
+        onConnected()
+        clearTimeout(timer)
+        resolve()
+      })
+      const onDisconnected = this.ws.on('disconnected', () => {
+        log('ws_connect_failed', 'disconnected during connect')
+        onDisconnected()
+        clearTimeout(timer)
+        reject(new Error('Voice server disconnected during connect'))
+      })
+      const timer = setTimeout(() => {
+        onConnected()
+        onDisconnected()
+        log('ws_connect_timeout', '5s elapsed')
+        reject(new Error('Voice server connection timed out'))
+      }, 5000)
+      this.ws.connect()
+    })
   }
 
   disconnect(): void {
+    log('disconnect')
     this.stopMic()
     this.ws.disconnect()
   }
 
-  async startMic(): Promise<void> {
-    try {
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: TARGET_SAMPLE_RATE,
-        },
-      })
+  async startMic(): Promise<{ stream: MediaStream; trackState: string }> {
+    log('mic_permission_request')
 
-      this.audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE })
-      this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream)
-      this.processorNode = this.audioContext.createScriptProcessor(CHUNK_SIZE, 1, 1)
-
-      this.processorNode.onaudioprocess = (e: AudioProcessingEvent) => {
-        const float32 = e.inputBuffer.getChannelData(0)
-        const pcm16 = new Int16Array(float32.length)
-        for (let i = 0; i < float32.length; i++) {
-          const s = Math.max(-1, Math.min(1, float32[i]))
-          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff
-        }
-        this.ws.sendBinary(pcm16.buffer)
-      }
-
-      this.sourceNode.connect(this.processorNode)
-      this.processorNode.connect(this.audioContext.destination)
-
-      this.ws.send('mic_start')
-    } catch (err) {
-      console.error('[VoiceWS] Mic access failed:', err)
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw Object.assign(new Error('Browser does not support microphone capture'), { name: 'NotSupportedError' })
     }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: TARGET_SAMPLE_RATE,
+      },
+    })
+
+    const tracks = stream.getAudioTracks()
+    log('mic_stream_acquired', `tracks=${tracks.length}`)
+
+    if (tracks.length === 0) {
+      stream.getTracks().forEach(t => t.stop())
+      throw Object.assign(new Error('No audio track in stream'), { name: 'NotFoundError' })
+    }
+
+    const track = tracks[0]
+    log('mic_track_state', track.readyState, track.label)
+
+    if (track.readyState !== 'live') {
+      stream.getTracks().forEach(t => t.stop())
+      throw Object.assign(new Error(`Audio track not live: ${track.readyState}`), { name: 'NotFoundError' })
+    }
+
+    this.mediaStream = stream
+    this.audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE })
+    this.sourceNode = this.audioContext.createMediaStreamSource(stream)
+    this.processorNode = this.audioContext.createScriptProcessor(CHUNK_SIZE, 1, 1)
+    this._chunkCount = 0
+
+    this.processorNode.onaudioprocess = (e: AudioProcessingEvent) => {
+      const float32 = e.inputBuffer.getChannelData(0)
+      const pcm16 = new Int16Array(float32.length)
+      for (let i = 0; i < float32.length; i++) {
+        const s = Math.max(-1, Math.min(1, float32[i]))
+        pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff
+      }
+      this.ws.sendBinary(pcm16.buffer)
+      this._chunkCount++
+      if (this._chunkCount === 1) log('first_audio_chunk_sent')
+      if (this._chunkCount % 100 === 0) log('audio_chunks_sent', this._chunkCount)
+    }
+
+    this.sourceNode.connect(this.processorNode)
+    this.processorNode.connect(this.audioContext.destination)
+
+    this.ws.send('mic_start')
+    log('mic_start_sent')
+
+    return { stream, trackState: track.readyState }
   }
 
   stopMic(): void {
+    log('mic_stop', `chunks_sent=${this._chunkCount}`)
     this.ws.send('mic_stop')
 
     this.processorNode?.disconnect()
@@ -91,6 +145,10 @@ export class VoiceWsClient {
     this.mediaStream = null
   }
 
+  get chunksSent(): number {
+    return this._chunkCount
+  }
+
   on(type: string, handler: (data: Record<string, unknown>) => void): () => void {
     return this.ws.on(type, handler)
   }
@@ -100,6 +158,7 @@ export class VoiceWsClient {
   }
 
   requestTts(text: string): void {
+    log('tts_request', text.slice(0, 60))
     this.ws.send('tts_request', { text })
   }
 
@@ -111,6 +170,7 @@ export class VoiceWsClient {
     }
     this._playing = false
     this.ws.send('tts_cancel')
+    log('tts_cancelled')
   }
 
   private _queueAudio(buf: ArrayBuffer): void {

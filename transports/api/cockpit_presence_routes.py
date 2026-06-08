@@ -359,12 +359,15 @@ async def _voice_health() -> dict[str, Any]:
     stt_status = "available" if stt_provider == "browser_native" else "configured"
     tts_status = "available" if tts_reachable else "unreachable"
 
+    voice_ws_reachable = _check_voice_ws_reachable(int(ws_port))
+
     return {
-        "ok": True,
+        "ok": voice_ws_reachable,
+        "voice_server": "reachable" if voice_ws_reachable else "unreachable",
         "stt": {
             "provider": stt_provider,
             "status": stt_status,
-            "note": "Browser-native WebSpeech API — requires HTTPS or localhost" if stt_provider == "browser_native" else "",
+            "note": "Server-side Groq Whisper with local fallback" if stt_provider == "browser_native" else "",
         },
         "tts": {
             "provider": tts_provider,
@@ -376,8 +379,23 @@ async def _voice_health() -> dict[str, Any]:
             "port": ws_port,
             "url": f"ws://localhost:{ws_port}/voice",
         },
+        "supported_input_modes": ["tap_to_toggle"],
+        "tts_cancel_supported": True,
         "source_env": _detect_env(),
     }
+
+
+def _check_voice_ws_reachable(port: int) -> bool:
+    """Check if the voice WebSocket server is listening."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1)
+        s.connect(("127.0.0.1", port))
+        s.close()
+        return True
+    except Exception:
+        return False
 
 
 def _check_tts_available() -> bool:
