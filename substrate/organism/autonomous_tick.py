@@ -132,7 +132,9 @@ class AutonomousTick:
         self._killed = True
         self._stop_event.set()
         self._spine.emit(
-            EventDomain.GOVERNANCE, "tick_killed", "autonomous_tick",
+            EventDomain.GOVERNANCE,
+            "tick_killed",
+            "autonomous_tick",
             {"cycle": self._cycle_count},
             priority=EventPriority.CRITICAL,
         )
@@ -140,14 +142,18 @@ class AutonomousTick:
     def pause(self) -> None:
         self._paused = True
         self._spine.emit(
-            EventDomain.GOVERNANCE, "tick_paused", "autonomous_tick",
+            EventDomain.GOVERNANCE,
+            "tick_paused",
+            "autonomous_tick",
             {"cycle": self._cycle_count},
         )
 
     def resume(self) -> None:
         self._paused = False
         self._spine.emit(
-            EventDomain.GOVERNANCE, "tick_resumed", "autonomous_tick",
+            EventDomain.GOVERNANCE,
+            "tick_resumed",
+            "autonomous_tick",
             {"cycle": self._cycle_count},
         )
 
@@ -163,6 +169,13 @@ class AutonomousTick:
             report.skipped_reason = "paused"
             return report
 
+        from substrate.execution.cpu_gate import cpu_gate_check
+
+        gate = cpu_gate_check("autonomous_tick")
+        if not gate.allowed:
+            report.skipped_reason = f"cpu_overloaded ({gate.reason})"
+            return report
+
         start = time.monotonic_ns()
         had_work = False
 
@@ -173,18 +186,24 @@ class AutonomousTick:
                 is_work = result is not None and result is not False
                 if is_work:
                     had_work = True
-                report.stage_details.append({
-                    "stage": stage.name, "success": True,
-                    "had_work": is_work,
-                })
+                report.stage_details.append(
+                    {
+                        "stage": stage.name,
+                        "success": True,
+                        "had_work": is_work,
+                    }
+                )
             except Exception as exc:
                 report.stages_executed += 1
                 report.stages_failed += 1
                 logger.warning("tick stage '%s' failed: %s", stage.name, exc)
-                report.stage_details.append({
-                    "stage": stage.name, "success": False,
-                    "error": str(exc)[:200],
-                })
+                report.stage_details.append(
+                    {
+                        "stage": stage.name,
+                        "success": False,
+                        "error": str(exc)[:200],
+                    }
+                )
 
         elapsed_ms = (time.monotonic_ns() - start) / 1_000_000
         report.elapsed_ms = elapsed_ms
@@ -204,7 +223,9 @@ class AutonomousTick:
             self._adapt_cadence(had_work)
 
         self._spine.emit(
-            EventDomain.EXECUTION, "tick_completed", "autonomous_tick",
+            EventDomain.EXECUTION,
+            "tick_completed",
+            "autonomous_tick",
             {
                 "cycle": self._cycle_count,
                 "stages_executed": report.stages_executed,

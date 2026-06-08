@@ -1121,6 +1121,19 @@ def call_with_fallback(
     else:
         task_type_str = task_type
 
+    # CPU gate: block LLM calls when system is overloaded
+    from substrate.execution.cpu_gate import cpu_gate_check
+
+    _cpu_gate = cpu_gate_check("model_router")
+    if not _cpu_gate.allowed:
+        return RoutingResult(
+            output=_deterministic_router_response(prompt),
+            provider="deterministic",
+            model="cpu_gated",
+            task_type=task_type_str,
+            metadata={"cpu_blocked": True, "load_per_core": _cpu_gate.load_per_core},
+        )
+
     # Circuit breaker: short-circuit when all providers are known-down
     breaker_msg = _circuit_check()
     if breaker_msg:

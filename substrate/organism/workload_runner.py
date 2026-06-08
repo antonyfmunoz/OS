@@ -40,7 +40,11 @@ from substrate.organism.action_envelope import (
     ReversibilityClass,
 )
 from substrate.organism.event_spine import EventDomain, EventPriority, EventSpine
-from substrate.organism.execution_modes import ExecutionDecision, ExecutionMode, ExecutionModeManager
+from substrate.organism.execution_modes import (
+    ExecutionDecision,
+    ExecutionMode,
+    ExecutionModeManager,
+)
 from substrate.organism.leverage_metrics import LeverageMetrics, TaskRecord
 from substrate.organism.operator_compression import OperatorCompression
 
@@ -225,9 +229,13 @@ class WorkloadRunner:
             workload_type=workload_type,
             success=success,
             duration_seconds=max(result_envelope.completed_at - result_envelope.started_at, 0)
-            if result_envelope.started_at > 0 else 0.0,
+            if result_envelope.started_at > 0
+            else 0.0,
             findings=[result_envelope.result_output[:500]] if result_envelope.result_output else [],
-            metrics={"envelope_id": result_envelope.envelope_id, "status": result_envelope.status.value},
+            metrics={
+                "envelope_id": result_envelope.envelope_id,
+                "status": result_envelope.status.value,
+            },
         )
 
     def run_workload(
@@ -236,6 +244,19 @@ class WorkloadRunner:
         force: bool = False,
     ) -> WorkloadOutcome:
         """Execute a single workload through the governance pipeline."""
+        if not force:
+            from substrate.execution.cpu_gate import cpu_gate_check
+
+            gate = cpu_gate_check(f"workload_runner:{workload_type.value}")
+            if not gate.allowed:
+                return WorkloadOutcome(
+                    workload_type=workload_type,
+                    success=False,
+                    duration_seconds=0.0,
+                    findings=[f"CPU gate blocked: {gate.reason}"],
+                    metrics={"cpu_blocked": True, "load_per_core": gate.load_per_core},
+                )
+
         self._total_runs += 1
         risk = _WORKLOAD_RISK.get(workload_type, WorkloadRisk.LOW)
 
@@ -314,16 +335,18 @@ class WorkloadRunner:
             result="; ".join(outcome.findings[:3]),
         )
 
-        self._leverage.record_task(TaskRecord(
-            task_id=decision.task_id,
-            started_at=time.time() - outcome.duration_seconds,
-            completed_at=time.time(),
-            autonomous=decision.approved,
-            required_approval=(not decision.approved and risk != WorkloadRisk.LOW),
-            success=outcome.success,
-            estimated_manual_seconds=_ESTIMATED_MANUAL_SECONDS.get(workload_type, 60.0),
-            actual_seconds=outcome.duration_seconds,
-        ))
+        self._leverage.record_task(
+            TaskRecord(
+                task_id=decision.task_id,
+                started_at=time.time() - outcome.duration_seconds,
+                completed_at=time.time(),
+                autonomous=decision.approved,
+                required_approval=(not decision.approved and risk != WorkloadRisk.LOW),
+                success=outcome.success,
+                estimated_manual_seconds=_ESTIMATED_MANUAL_SECONDS.get(workload_type, 60.0),
+                actual_seconds=outcome.duration_seconds,
+            )
+        )
 
         self._compression.record_autonomous()
 
@@ -342,7 +365,7 @@ class WorkloadRunner:
         )
 
         if len(self._outcomes) >= _MAX_OUTCOMES:
-            self._outcomes = self._outcomes[-(_MAX_OUTCOMES // 2):]
+            self._outcomes = self._outcomes[-(_MAX_OUTCOMES // 2) :]
         self._outcomes.append(outcome)
 
         return outcome
@@ -370,9 +393,7 @@ class WorkloadRunner:
             "total_runs": self._total_runs,
             "total_successes": self._total_successes,
             "total_failures": self._total_failures,
-            "success_rate": round(
-                self._total_successes / max(self._total_runs, 1), 4
-            ),
+            "success_rate": round(self._total_successes / max(self._total_runs, 1), 4),
             "recent_outcomes": self.recent_outcomes(5),
         }
 
@@ -418,7 +439,9 @@ def _scan_stale_branches(repo_root: str) -> WorkloadOutcome:
     metrics: dict[str, Any] = {}
 
     branches_raw, _ = _run(["git", "-C", repo_root, "branch", "--format", "%(refname:short)"])
-    all_branches = [b.strip() for b in branches_raw.splitlines() if b.strip()] if branches_raw else []
+    all_branches = (
+        [b.strip() for b in branches_raw.splitlines() if b.strip()] if branches_raw else []
+    )
     current, _ = _run(["git", "-C", repo_root, "branch", "--show-current"])
 
     stale = [b for b in all_branches if b not in ("main", current.strip())]
@@ -512,9 +535,9 @@ def _scan_disk_pressure(repo_root: str) -> WorkloadOutcome:
 
     try:
         usage = shutil.disk_usage(repo_root)
-        total_gb = usage.total / (1024 ** 3)
-        used_gb = usage.used / (1024 ** 3)
-        free_gb = usage.free / (1024 ** 3)
+        total_gb = usage.total / (1024**3)
+        used_gb = usage.used / (1024**3)
+        free_gb = usage.free / (1024**3)
         pct = (usage.used / usage.total) * 100 if usage.total > 0 else 0
 
         metrics["total_gb"] = round(total_gb, 2)
@@ -542,10 +565,19 @@ def _scan_disk_pressure(repo_root: str) -> WorkloadOutcome:
             error=str(exc),
         )
 
-    large_logs_out, _ = _run([
-        "find", repo_root, "-name", "*.log", "-size", "+10M",
-        "-not", "-path", "*/.git/*",
-    ])
+    large_logs_out, _ = _run(
+        [
+            "find",
+            repo_root,
+            "-name",
+            "*.log",
+            "-size",
+            "+10M",
+            "-not",
+            "-path",
+            "*/.git/*",
+        ]
+    )
     if large_logs_out:
         large_logs = large_logs_out.splitlines()
         metrics["large_logs"] = large_logs[:10]
@@ -608,7 +640,9 @@ def _scan_memory_pressure(repo_root: str) -> WorkloadOutcome:
         metrics["available_mb"] = round(avail_mb, 1)
         metrics["usage_percent"] = round(pct, 1)
         metrics["pressure"] = pressure
-        findings.append(f"Memory: {avail_mb:.0f}/{total_mb:.0f} MB available ({pct:.1f}% used), pressure={pressure}")
+        findings.append(
+            f"Memory: {avail_mb:.0f}/{total_mb:.0f} MB available ({pct:.1f}% used), pressure={pressure}"
+        )
 
     except OSError as exc:
         return WorkloadOutcome(
@@ -632,17 +666,32 @@ def _scan_log_rotation(repo_root: str) -> WorkloadOutcome:
     recommendations: list[str] = []
     metrics: dict[str, Any] = {}
 
-    large_files_out, _ = _run([
-        "find", repo_root, "-type", "f",
-        "(",
-        "-name", "*.log", "-o",
-        "-name", "*.jsonl", "-o",
-        "-name", "*.jsonl.old",
-        ")",
-        "-size", "+5M",
-        "-not", "-path", "*/.git/*",
-        "-not", "-path", "*/node_modules/*",
-    ])
+    large_files_out, _ = _run(
+        [
+            "find",
+            repo_root,
+            "-type",
+            "f",
+            "(",
+            "-name",
+            "*.log",
+            "-o",
+            "-name",
+            "*.jsonl",
+            "-o",
+            "-name",
+            "*.jsonl.old",
+            ")",
+            "-size",
+            "+5M",
+            "-not",
+            "-path",
+            "*/.git/*",
+            "-not",
+            "-path",
+            "*/node_modules/*",
+        ]
+    )
 
     large_files: list[dict[str, Any]] = []
     if large_files_out:
@@ -652,10 +701,12 @@ def _scan_log_rotation(repo_root: str) -> WorkloadOutcome:
                 continue
             try:
                 size = Path(f).stat().st_size
-                large_files.append({
-                    "path": f.replace(repo_root, ""),
-                    "size_mb": round(size / (1024 * 1024), 2),
-                })
+                large_files.append(
+                    {
+                        "path": f.replace(repo_root, ""),
+                        "size_mb": round(size / (1024 * 1024), 2),
+                    }
+                )
             except OSError:
                 pass
 
