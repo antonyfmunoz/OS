@@ -391,10 +391,15 @@ async def _voice_health() -> dict[str, Any]:
 def _check_voice_ws_reachable(port: int) -> bool:
     """Check if the voice WebSocket server is listening."""
     import socket
+    upstream = os.environ.get("VOICE_WS_UPSTREAM", "")
+    if "host.docker.internal" in upstream:
+        host = "host.docker.internal"
+    else:
+        host = "127.0.0.1"
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(1)
-        s.connect(("127.0.0.1", port))
+        s.settimeout(2)
+        s.connect((host, port))
         s.close()
         return True
     except Exception:

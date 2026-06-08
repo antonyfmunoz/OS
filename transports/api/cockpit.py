@@ -2021,7 +2021,7 @@ async def cockpit_ws(ws: WebSocket):
 
 # ─── Voice WebSocket Proxy ────────────────────────────────────────────────────
 
-_VOICE_WS_UPSTREAM = os.environ.get("VOICE_WS_UPSTREAM", "ws://127.0.0.1:8096/voice")
+_VOICE_WS_UPSTREAM = os.environ.get("VOICE_WS_UPSTREAM", "ws://host.docker.internal:8096/voice")
 _VOICE_PROXY_MAX_MSG = 2 ** 22  # 4 MiB
 
 
