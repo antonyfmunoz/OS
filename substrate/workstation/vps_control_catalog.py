@@ -606,7 +606,7 @@ def _execute_voice_health(entry: CatalogEntry) -> VpsCommandResult:
     else:
         status_parts.append("TTS server: not configured (KOKORO_TTS_HOST unset)")
 
-    ws_port = os.environ.get("UMH_VOICE_WS_PORT", "8095")
+    ws_port = os.environ.get("UMH_VOICE_WS_PORT", "8096")
     status_parts.append(f"Voice WebSocket port: {ws_port}")
 
     return VpsCommandResult(
