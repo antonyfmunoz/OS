@@ -9,7 +9,6 @@ Default model: gpt-5.5 (via ChatGPT subscription).
 
 Usage:
     from adapters.models.codex_cli import query_codex_sync
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
     result = query_codex_sync("Review this code for bugs")
     if result:
@@ -23,6 +22,7 @@ import shutil
 import subprocess
 import time
 from dataclasses import dataclass
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,6 @@ Configure: opencode.json in project root or ~/.config/opencode/opencode.json.
 
 Usage:
     from adapters.models.opencode_cli import query_opencode_sync
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
     result = query_opencode_sync("Explain this codebase")
     if result:
@@ -23,6 +22,7 @@ import shutil
 import subprocess
 import time
 from dataclasses import dataclass
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 logger = logging.getLogger(__name__)
 
