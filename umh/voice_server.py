@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-"""Cockpit Voice Server — real-time voice bridge for DEX conversations.
+"""Cockpit Voice Server — pure STT + TTS bridge for DEX conversations.
 
 Listens on ws://0.0.0.0:8095/voice.
 
-Features:
-  - Groq Whisper STT with faster-whisper fallback
-  - Kokoro TTS on Beast (GPU) with espeak fallback
-  - Rolling 10-exchange conversation memory per session
-  - Instant ack phrases to eliminate dead air
+This server handles ONLY audio I/O:
+  - STT: Groq Whisper with faster-whisper fallback
+  - TTS: Kokoro on Beast (GPU) with espeak fallback
   - Always-on listening with silence-based turn detection
+
+All intelligence (intent classification, conversation routing, governance)
+flows through DEXConversation via the browser's POST /dex/converse endpoint.
+The browser sends transcripts to DEX, receives RRIP responses, then requests
+TTS playback via the tts_request message.
 
 Protocol:
   Browser -> Server (JSON):
-    {"type": "mic_start"}              start always-on voice session
-    {"type": "mic_stop"}               stop session
+    {"type": "mic_start"}                           start voice session
+    {"type": "mic_stop"}                            stop session
+    {"type": "tts_request", "text": "..."}          generate and stream TTS
+    {"type": "tts_cancel"}                          cancel current TTS
   Browser -> Server (binary):
     raw PCM16 audio chunks at 16kHz
   Server -> Browser (JSON):
@@ -21,7 +26,7 @@ Protocol:
     {"type": "audio_level", "level": float}
     {"type": "transcript", "text": str, "final": bool}
     {"type": "tts_status", "speaking": bool}
-    {"type": "voice_response", "text": str, "spoken_text": str, "classification": str}
+    {"type": "tts_error", "error": str}
   Server -> Browser (binary):
     WAV/audio bytes for TTS playback
 """
@@ -33,14 +38,12 @@ import json
 import logging
 import math
 import os
-import random
 import struct
 import subprocess
 import sys
 import tempfile
 import time
 import wave
-from collections import deque
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -70,28 +73,11 @@ PORT = int(os.getenv("VOICE_SERVER_PORT", "8095"))
 SAMPLE_RATE = 16000
 MIN_AUDIO_BYTES = int(SAMPLE_RATE * 2 * 0.3)
 
-# Always-on listening thresholds
-SILENCE_END_UTTERANCE_S = 1.8   # silence = user finished talking
-SILENCE_RESET_CONTEXT_S = 8.0   # long silence = topic change
-SPEECH_LEVEL_THRESHOLD = 0.02   # below this = silence
+SILENCE_END_UTTERANCE_S = 1.8
+SPEECH_LEVEL_THRESHOLD = 0.02
 
-# Kokoro TTS on Beast via Tailscale
 KOKORO_URL = os.getenv("KOKORO_TTS_URL", "http://100.74.199.102:8880")
 KOKORO_VOICE = os.getenv("KOKORO_VOICE", "am_adam")
-
-# Ack phrases — spoken instantly while LLM generates
-_ACK_PHRASES = [
-    "On it.",
-    "Let me check.",
-    "One sec.",
-    "Looking into it.",
-    "Got it.",
-    "Checking.",
-]
-_NO_ACK_PATTERNS = {
-    "hey", "hi", "hello", "yo", "sup", "morning",
-    "yes", "no", "yeah", "nah", "ok", "thanks", "bye",
-}
 
 
 # --- STT ---
@@ -133,83 +119,9 @@ def transcribe(audio_path: str) -> str:
     return _transcribe_local(audio_path)
 
 
-# --- Classification ---
-
-def classify(text: str) -> tuple:
-    try:
-        from substrate.execution.voice.voice_engine import VoiceEngine
-        engine = VoiceEngine()
-        return engine.should_respond(text)
-    except Exception:
-        return True, "conversation"
-
-
-# --- Conversation memory ---
-
-class ConversationMemory:
-    """Rolling conversation context for voice sessions."""
-
-    def __init__(self, max_exchanges: int = 10):
-        self.exchanges = deque(maxlen=max_exchanges)
-        self.last_activity = time.time()
-
-    def add(self, role: str, text: str) -> None:
-        self.exchanges.append({"role": role, "text": text, "ts": time.time()})
-        self.last_activity = time.time()
-
-    def check_reset(self) -> None:
-        elapsed = time.time() - self.last_activity
-        if elapsed > SILENCE_RESET_CONTEXT_S and self.exchanges:
-            log.info("Context reset after %.0fs silence", elapsed)
-            self.exchanges.clear()
-
-    def build_prompt(self, new_utterance: str) -> str:
-        from substrate.execution.bridge.voice_first import VOICE_SYSTEM_SUFFIX
-
-        parts = []
-        for ex in self.exchanges:
-            prefix = "User" if ex["role"] == "user" else "DEX"
-            parts.append("%s: %s" % (prefix, ex["text"]))
-        parts.append("User: %s" % new_utterance)
-
-        conversation = "\n".join(parts)
-        return conversation + VOICE_SYSTEM_SUFFIX
-
-
-# --- LLM response ---
-
-def get_response(prompt: str) -> tuple:
-    """Returns (raw_response, spoken_text)."""
-    from substrate.execution.bridge.voice_first import prepare_voice_response
-
-    raw = ""
-    try:
-        from adapters.models.model_router import call_with_fallback
-        result = call_with_fallback(prompt=prompt, task_type="conversation")
-        if result:
-            raw = str(result) if not isinstance(result, str) else result
-    except Exception as e:
-        log.warning("model_router failed: %s", e)
-
-    if not raw:
-        try:
-            from substrate.execution.voice.voice_engine import VoiceEngine
-            engine = VoiceEngine()
-            raw = engine.query_local(prompt)
-        except Exception as e:
-            log.warning("Local LLM fallback failed: %s", e)
-
-    if not raw:
-        raw = "I couldn't process that right now."
-
-    spoken = prepare_voice_response(raw)
-    return raw, spoken
-
-
 # --- TTS: Kokoro (Beast GPU) with espeak fallback ---
 
 def _tts_kokoro(text: str) -> bytes:
-    """Call Kokoro-FastAPI on Beast. Returns audio bytes or empty."""
     try:
         import urllib.request
         url = "%s/v1/audio/speech" % KOKORO_URL
@@ -234,7 +146,6 @@ def _tts_kokoro(text: str) -> bytes:
 
 
 def _tts_espeak(text: str) -> bytes:
-    """Fallback TTS via espeak."""
     try:
         fd, path = tempfile.mkstemp(suffix=".wav", prefix="voice_tts_")
         os.close(fd)
@@ -259,15 +170,12 @@ def generate_tts(text: str) -> bytes:
     return _tts_espeak(text)
 
 
-def generate_ack() -> bytes:
-    """Generate a quick ack phrase audio."""
-    phrase = random.choice(_ACK_PHRASES)
-    return generate_tts(phrase)
-
-
-def needs_ack(text: str) -> bool:
-    """Short greetings and confirmations don't need an ack."""
-    return text.lower().strip().rstrip(".!?") not in _NO_ACK_PATTERNS
+def prepare_for_speech(text: str) -> str:
+    try:
+        from substrate.execution.bridge.voice_first import prepare_voice_response
+        return prepare_voice_response(text)
+    except Exception:
+        return text[:400]
 
 
 # --- Audio helpers ---
@@ -297,9 +205,9 @@ async def handle_voice(ws):
     audio_buffer = bytearray()
     mic_active = False
     session_id = "voice-%d" % int(time.time())
-    memory = ConversationMemory()
     last_speech_time = 0.0
     has_speech_in_buffer = False
+    tts_cancelled = False
 
     async def send_json(data: dict):
         try:
@@ -331,58 +239,7 @@ async def handle_voice(ws):
                 return
 
             await send_json({"type": "transcript", "text": text, "final": True})
-
-            should_respond, classification = await loop.run_in_executor(
-                None, classify, text
-            )
-
-            if not should_respond:
-                log.info("Skipping (class=%s): %s", classification, text[:50])
-                return
-
-            # Send ack immediately to kill dead air
-            if needs_ack(text):
-                ack_task = loop.run_in_executor(None, generate_ack)
-            else:
-                ack_task = None
-
-            # Build prompt with conversation history
-            memory.check_reset()
-            prompt = memory.build_prompt(text)
-            memory.add("user", text)
-
-            # Fire ack while LLM generates
-            if ack_task:
-                ack_data = await ack_task
-                if ack_data:
-                    await send_json({"type": "tts_status", "speaking": True})
-                    await ws.send(ack_data)
-                    await send_json({"type": "tts_status", "speaking": False})
-
-            # Get LLM response
-            raw_text, spoken_text = await loop.run_in_executor(
-                None, get_response, prompt
-            )
-            memory.add("dex", spoken_text)
-
-            response_msg = {
-                "type": "voice_response",
-                "text": raw_text,
-                "spoken_text": spoken_text,
-                "classification": classification,
-                "has_audio": False,
-            }
-
-            tts_data = await loop.run_in_executor(None, generate_tts, spoken_text)
-
-            if tts_data:
-                response_msg["has_audio"] = True
-                await send_json(response_msg)
-                await send_json({"type": "tts_status", "speaking": True})
-                await ws.send(tts_data)
-                await send_json({"type": "tts_status", "speaking": False})
-            else:
-                await send_json(response_msg)
+            log.info("Transcript delivered to browser: %s", text[:80])
 
         except Exception as e:
             log.error("Utterance processing error: %s", e)
@@ -391,6 +248,31 @@ async def handle_voice(ws):
                 os.unlink(wav_path)
             except Exception:
                 pass
+
+    async def handle_tts_request(text: str):
+        nonlocal tts_cancelled
+        tts_cancelled = False
+
+        if not text:
+            return
+
+        loop = asyncio.get_event_loop()
+        spoken = await loop.run_in_executor(None, prepare_for_speech, text)
+
+        if tts_cancelled:
+            return
+
+        tts_data = await loop.run_in_executor(None, generate_tts, spoken)
+
+        if tts_cancelled:
+            return
+
+        if tts_data:
+            await send_json({"type": "tts_status", "speaking": True})
+            await ws.send(tts_data)
+            await send_json({"type": "tts_status", "speaking": False})
+        else:
+            await send_json({"type": "tts_error", "error": "TTS generation failed — Kokoro and espeak both unavailable"})
 
     try:
         async for message in ws:
@@ -407,7 +289,7 @@ async def handle_voice(ws):
                     audio_buffer = bytearray()
                     has_speech_in_buffer = False
                     last_speech_time = time.time()
-                    log.info("Mic started — always-on (session=%s)", session_id)
+                    log.info("Mic started (session=%s)", session_id)
                     await send_json({"type": "vad_status", "active": True})
 
                 elif msg_type == "mic_stop":
@@ -420,6 +302,13 @@ async def handle_voice(ws):
                         pcm = bytes(audio_buffer)
                         audio_buffer = bytearray()
                         await process_utterance(pcm)
+
+                elif msg_type == "tts_request":
+                    await handle_tts_request(msg.get("text", ""))
+
+                elif msg_type == "tts_cancel":
+                    tts_cancelled = True
+                    log.info("TTS cancelled by client")
 
             elif isinstance(message, bytes) and mic_active:
                 level = compute_audio_level(message)
@@ -450,7 +339,7 @@ async def main():
         handle_voice, HOST, PORT,
         ping_interval=20, ping_timeout=20, max_size=2**22,
     ):
-        log.info("Voice server ready — always-on mode")
+        log.info("Voice server ready — STT + TTS bridge mode")
         await asyncio.Future()
 
 

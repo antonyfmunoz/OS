@@ -44,7 +44,7 @@ class OperatorAcceptanceRun:
     status: AcceptanceRunStatus = AcceptanceRunStatus.DRAFTED
     started_at: str = ""
     completed_at: str = ""
-    dex_intent_id: str = ""
+    intent_id: str = ""
     work_packet_id: str = ""
     reconciliation_session_id: str = ""
     diagnostic_report_id: str = ""
@@ -77,7 +77,7 @@ class OperatorAcceptanceRun:
             "status": self.status.value,
             "started_at": self.started_at,
             "completed_at": self.completed_at,
-            "dex_intent_id": self.dex_intent_id,
+            "intent_id": self.intent_id,
             "work_packet_id": self.work_packet_id,
             "reconciliation_session_id": self.reconciliation_session_id,
             "diagnostic_report_id": self.diagnostic_report_id,
