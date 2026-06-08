@@ -9,7 +9,6 @@ Configure provider: `hermes model` (interactive) or `hermes config set`.
 
 Usage:
     from adapters.models.hermes_cli import query_hermes_sync
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
     result = query_hermes_sync("Analyze this codebase structure")
     if result:
@@ -22,6 +21,7 @@ import shutil
 import subprocess
 import time
 from dataclasses import dataclass
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 logger = logging.getLogger(__name__)
 
