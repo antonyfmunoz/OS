@@ -22,7 +22,7 @@ _UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 _DATA_ROOT = os.path.join(_UMH_ROOT, "data", "umh")
 _PRESENCE_LOG = os.path.join(_DATA_ROOT, "workstation_state", "presence_events.jsonl")
 
-presence_router = APIRouter(prefix="/api/umh", tags=["presence"])
+presence_router = APIRouter(tags=["presence"])
 _require_operator: Callable | None = None
 
 
