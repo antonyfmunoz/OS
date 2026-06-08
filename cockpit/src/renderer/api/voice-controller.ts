@@ -6,14 +6,43 @@ let client: VoiceWsClient | null = null
 let cleanups: (() => void)[] = []
 let chatUnsub: (() => void) | null = null
 let pendingTimeout: ReturnType<typeof setTimeout> | null = null
-const PENDING_RESPONSE_TIMEOUT_MS = 30_000
+let noSpeechTimeout: ReturnType<typeof setTimeout> | null = null
+let maxRecordingTimeout: ReturnType<typeof setTimeout> | null = null
 
-function getClient(): VoiceWsClient {
-  if (!client) {
-    client = new VoiceWsClient()
-    wireEvents()
-    client.connect()
+const PENDING_RESPONSE_TIMEOUT_MS = 30_000
+const NO_TRANSCRIPT_TIMEOUT_MS = 10_000
+const MAX_RECORDING_MS = 30_000
+
+const log = (stage: string, ...args: unknown[]) =>
+  console.log(`[VoicePipeline] ${stage}`, ...args)
+
+function clearAllTimers(): void {
+  if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
+  if (noSpeechTimeout) { clearTimeout(noSpeechTimeout); noSpeechTimeout = null }
+  if (maxRecordingTimeout) { clearTimeout(maxRecordingTimeout); maxRecordingTimeout = null }
+}
+
+async function ensureClient(): Promise<VoiceWsClient> {
+  if (client?.connected) return client
+
+  const vs = useVoiceStore.getState()
+  vs.setMicState('connecting_voice_ws')
+  log('connecting_voice_ws')
+
+  client = new VoiceWsClient()
+  wireEvents()
+
+  try {
+    await client.connect()
+  } catch (err) {
+    log('voice_ws_unavailable', err)
+    vs.setError('Voice server unavailable — check connection')
+    vs.setLastOutcome('VOICE_WS_UNAVAILABLE')
+    vs.setMicState('idle')
+    client = null
+    throw err
   }
+
   return client
 }
 
@@ -22,15 +51,17 @@ function wireEvents(): void {
 
   cleanups.push(
     client.on('connected', () => {
-      console.log('[Voice] Connected to voice server')
+      log('voice_ws_connected')
     })
   )
 
   cleanups.push(
     client.on('disconnected', () => {
+      log('voice_ws_disconnected')
       useVoiceStore.getState().setMicState('idle')
       useVoiceStore.getState().setTtsState('idle')
       useVoiceStore.getState().setAudioLevel(0)
+      clearAllTimers()
     })
   )
 
@@ -44,16 +75,22 @@ function wireEvents(): void {
         client?.cancelTts()
         voiceStore.setTtsState('idle')
         voiceStore.setMicState('interrupted')
-        setTimeout(() => useVoiceStore.getState().setMicState('listening'), 200)
-      } else {
-        voiceStore.setMicState(active ? 'listening' : 'idle')
+        setTimeout(() => useVoiceStore.getState().setMicState('recording'), 200)
       }
     })
   )
 
   cleanups.push(
     client.on('audio_level', (data) => {
-      useVoiceStore.getState().setAudioLevel(data.level as number)
+      const level = data.level as number
+      useVoiceStore.getState().setAudioLevel(level)
+      if (level > 0.02) {
+        const vs = useVoiceStore.getState()
+        if (vs.micState === 'listening') {
+          vs.setMicState('recording')
+          log('speech_detected', `level=${level}`)
+        }
+      }
     })
   )
 
@@ -61,38 +98,72 @@ function wireEvents(): void {
     client.on('transcript', (data) => {
       const text = data.text as string
       const isFinal = data.final as boolean
-      useVoiceStore.getState().setLastTranscript(text)
+      log('transcript_received', `final=${isFinal}`, text?.slice(0, 80))
+
+      clearAllTimers()
+      const vs = useVoiceStore.getState()
+      vs.setLastTranscript(text)
+
       if (isFinal) {
         if (!text.trim()) {
-          useVoiceStore.getState().setError('No speech detected — try again')
-          useVoiceStore.getState().setMicState('listening')
+          log('no_speech_in_transcript')
+          vs.setError('No speech detected — try again')
+          vs.setLastOutcome('NO_SPEECH_DETECTED')
+          vs.setMicState('idle')
           return
         }
-        useVoiceStore.getState().setMicState('processing')
-        useVoiceStore.getState().setPendingVoiceResponse(true)
-        useVoiceStore.getState().setError(null)
-        useChatStore.getState().addVoiceTranscript(text)
-        if (pendingTimeout) clearTimeout(pendingTimeout)
-        pendingTimeout = setTimeout(() => {
-          const vs = useVoiceStore.getState()
-          if (vs.pendingVoiceResponse) {
-            vs.setPendingVoiceResponse(false)
-            vs.setMicState('listening')
-            vs.setError('Response timed out — try again')
-          }
-        }, PENDING_RESPONSE_TIMEOUT_MS)
+
+        vs.setMicState('transcribing')
+        log('transcript_dispatching', text.slice(0, 80))
+
+        setTimeout(() => {
+          const vs2 = useVoiceStore.getState()
+          vs2.setMicState('processing')
+          vs2.setPendingVoiceResponse(true)
+          vs2.setError(null)
+          vs2.setLastOutcome('TRANSCRIPT_RECEIVED')
+          useChatStore.getState().addVoiceTranscript(text)
+          log('transcript_dispatched_to_chat')
+
+          pendingTimeout = setTimeout(() => {
+            const v = useVoiceStore.getState()
+            if (v.pendingVoiceResponse) {
+              v.setPendingVoiceResponse(false)
+              v.setMicState('idle')
+              v.setError('Response timed out — try again')
+              v.setLastOutcome('TIMEOUT')
+              log('response_timeout')
+            }
+          }, PENDING_RESPONSE_TIMEOUT_MS)
+        }, 100)
       }
     })
   )
 
   cleanups.push(
+    client.on('error', (data) => {
+      const code = data.code as string
+      const message = data.message as string
+      log('server_error', code, message)
+      const vs = useVoiceStore.getState()
+      vs.setError(message || 'Voice server error')
+      vs.setLastOutcome('STT_FAILED')
+      vs.setMicState('idle')
+      clearAllTimers()
+    })
+  )
+
+  cleanups.push(
     client.on('tts_status', (data) => {
-      useVoiceStore.getState().setTtsState((data.speaking as boolean) ? 'speaking' : 'idle')
+      const speaking = data.speaking as boolean
+      log('tts_status', speaking ? 'speaking' : 'idle')
+      useVoiceStore.getState().setTtsState(speaking ? 'speaking' : 'idle')
     })
   )
 
   cleanups.push(
     client.on('tts_error', (data) => {
+      log('tts_error', data.error)
       useVoiceStore.getState().setError(data.error as string)
       useVoiceStore.getState().setTtsState('idle')
     })
@@ -113,9 +184,10 @@ function wireEvents(): void {
     const last = msgs[msgs.length - 1]
     if (last?.sender !== 'assistant') return
 
+    log('dex_response_received', last.content?.slice(0, 60))
     if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
     voiceState.setPendingVoiceResponse(false)
-    voiceState.setMicState('listening')
+    voiceState.setMicState('idle')
     if (client && last.content) {
       client.requestTts(last.content)
     }
@@ -123,25 +195,107 @@ function wireEvents(): void {
 }
 
 export async function startVoice(): Promise<void> {
-  const c = getClient()
-  useVoiceStore.getState().setMicState('listening')
-  useVoiceStore.getState().setError(null)
-  await c.startMic()
+  const vs = useVoiceStore.getState()
+  vs.setError(null)
+  vs.setLastOutcome(null)
+  vs.setChunksSent(0)
+  clearAllTimers()
+
+  log('mic_clicked')
+
+  vs.setMicState('requesting_permission')
+
+  let c: VoiceWsClient
+  try {
+    c = await ensureClient()
+  } catch {
+    return
+  }
+
+  log('permission_requesting')
+
+  try {
+    const { trackState } = await c.startMic()
+    log('mic_stream_live', `trackState=${trackState}`)
+  } catch (err: unknown) {
+    const error = err as Error & { name?: string }
+    log('mic_failed', error.name, error.message)
+
+    if (error.name === 'NotAllowedError') {
+      vs.setError('Microphone permission denied — check browser settings')
+      vs.setLastOutcome('MIC_PERMISSION_DENIED')
+    } else if (error.name === 'NotFoundError') {
+      vs.setError('No microphone found')
+      vs.setLastOutcome('MIC_DEVICE_UNAVAILABLE')
+    } else if (error.name === 'NotSupportedError') {
+      vs.setError('Browser does not support microphone capture')
+      vs.setLastOutcome('MIC_DEVICE_UNAVAILABLE')
+    } else {
+      vs.setError(`Mic error: ${error.message || 'unknown'}`)
+      vs.setLastOutcome('MIC_DEVICE_UNAVAILABLE')
+    }
+
+    vs.setMicState('idle')
+    return
+  }
+
+  vs.setMicState('listening')
+  log('state=listening', 'tap mic again to send')
+
+  maxRecordingTimeout = setTimeout(() => {
+    log('max_recording_timeout', `${MAX_RECORDING_MS}ms`)
+    const v = useVoiceStore.getState()
+    if (v.micState === 'listening' || v.micState === 'recording') {
+      v.setError('Recording stopped — 30 second limit reached')
+      finalizeMic()
+    }
+  }, MAX_RECORDING_MS)
+}
+
+function finalizeMic(): void {
+  if (!client) return
+  log('mic_finalizing', `chunks=${client.chunksSent}`)
+
+  const vs = useVoiceStore.getState()
+  vs.setMicState('transcribing')
+
+  client.stopMic()
+
+  if (maxRecordingTimeout) { clearTimeout(maxRecordingTimeout); maxRecordingTimeout = null }
+
+  noSpeechTimeout = setTimeout(() => {
+    const v = useVoiceStore.getState()
+    if (v.micState === 'transcribing') {
+      log('no_transcript_timeout')
+      v.setError('No speech detected — try again')
+      v.setLastOutcome('NO_SPEECH_DETECTED')
+      v.setMicState('idle')
+    }
+  }, NO_TRANSCRIPT_TIMEOUT_MS)
 }
 
 export function stopVoice(): void {
+  log('stop_voice')
+  const vs = useVoiceStore.getState()
+  const currentState = vs.micState
+
+  if (currentState === 'listening' || currentState === 'recording') {
+    finalizeMic()
+    return
+  }
+
   if (client) {
     client.stopMic()
   }
-  const store = useVoiceStore.getState()
-  store.setMicState('idle')
-  store.setAudioLevel(0)
-  store.setVadActive(false)
+  clearAllTimers()
+  vs.setMicState('idle')
+  vs.setAudioLevel(0)
+  vs.setVadActive(false)
 }
 
 export function speakResponse(text: string): void {
-  const c = getClient()
-  c.requestTts(text)
+  if (!client) return
+  client.requestTts(text)
 }
 
 export function stopTts(): void {
@@ -152,6 +306,7 @@ export function stopTts(): void {
 }
 
 export function destroyVoice(): void {
+  clearAllTimers()
   cleanups.forEach(fn => fn())
   cleanups = []
   if (chatUnsub) {

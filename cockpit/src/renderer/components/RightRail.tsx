@@ -305,16 +305,9 @@ function ChatSection() {
   }
 
   const handleMicToggle = useCallback(() => {
-    useVoiceStore.getState().setError(null)
     if (micState === 'idle') {
       setVoiceAvailable(true)
-      startVoice().catch((err) => {
-        const msg = err?.name === 'NotAllowedError'
-          ? 'Microphone permission denied — check browser settings'
-          : err?.name === 'NotFoundError'
-            ? 'No microphone found'
-            : 'Voice unavailable'
-        useVoiceStore.getState().setError(msg)
+      startVoice().catch(() => {
         setVoiceAvailable(false)
       })
     } else {
@@ -368,11 +361,15 @@ function ChatSection() {
     setEditingName(false)
   }
 
-  const voiceLabel = micState === 'listening' ? 'Listening...'
+  const voiceLabel = micState === 'requesting_permission' ? 'Requesting mic...'
+    : micState === 'connecting_voice_ws' ? 'Connecting...'
+    : micState === 'listening' ? 'Listening — tap to send'
+    : micState === 'recording' ? 'Recording — tap to send'
+    : micState === 'transcribing' ? 'Transcribing...'
     : micState === 'processing' ? 'Thinking...'
-    : micState === 'interrupted' ? 'Listening...'
+    : micState === 'interrupted' ? 'Listening — tap to send'
     : ttsState === 'speaking' ? 'Speaking...'
-    : voiceError ? 'Voice error'
+    : voiceError ? voiceError
     : null
 
   return (
@@ -429,10 +426,15 @@ function ChatSection() {
       </div>
       <div className="flex flex-col gap-1 border-t border-border pt-2">
         {voiceLabel && (
-          <div className={clsx('text-[9px] font-mono px-1', voiceError ? 'text-danger' : 'text-cyan animate-pulse')}>{voiceLabel}</div>
+          <div className={clsx(
+            'text-[9px] font-mono px-1',
+            voiceError ? 'text-danger' :
+            (micState === 'recording') ? 'text-cyan font-bold' :
+            'text-cyan animate-pulse',
+          )}>{voiceLabel}</div>
         )}
-        {voiceError && !voiceLabel?.includes('error') && (
-          <div className="text-[9px] font-mono text-danger/70 px-1">{voiceError}</div>
+        {voiceError && micState === 'idle' && (
+          <button onClick={handleMicToggle} className="text-[9px] font-mono text-cyan/70 px-1 hover:text-cyan cursor-pointer">Try again</button>
         )}
         <div className="flex items-center gap-1">
           <input
@@ -445,16 +447,17 @@ function ChatSection() {
           />
           <button
             onClick={handleMicToggle}
-            disabled={!voiceAvailable}
+            disabled={!voiceAvailable || micState === 'requesting_permission' || micState === 'connecting_voice_ws' || micState === 'transcribing' || micState === 'processing'}
             className={clsx(
               'p-1.5 rounded transition-colors',
               !voiceAvailable ? 'text-text-tertiary opacity-30 cursor-not-allowed' :
-              micState === 'listening' ? 'text-danger bg-danger/10' :
+              (micState === 'listening' || micState === 'recording') ? 'text-danger bg-danger/10' :
+              (micState === 'requesting_permission' || micState === 'connecting_voice_ws' || micState === 'transcribing') ? 'text-amber opacity-60' :
               'text-text-tertiary hover:text-cyan',
             )}
-            title={!voiceAvailable ? (voiceError || 'Voice requires desktop app or HTTPS') : micState === 'listening' ? 'Stop listening' : 'Voice input'}
+            title={!voiceAvailable ? (voiceError || 'Voice requires desktop app or HTTPS') : (micState === 'listening' || micState === 'recording') ? 'Tap to send' : 'Voice input'}
           >
-            {micState === 'listening' ? <MicOff size={12} /> : <Mic size={12} />}
+            {(micState === 'listening' || micState === 'recording') ? <MicOff size={12} /> : <Mic size={12} />}
           </button>
           <button onClick={handleSend} disabled={sending || !input.trim()} className="p-1.5 rounded text-cyan hover:bg-cyan-glow transition-colors disabled:opacity-30">
             <Send size={12} />

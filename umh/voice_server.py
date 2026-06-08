@@ -208,6 +208,7 @@ async def handle_voice(ws):
     last_speech_time = 0.0
     has_speech_in_buffer = False
     tts_cancelled = False
+    chunk_count = 0
 
     async def send_json(data: dict):
         try:
@@ -222,7 +223,11 @@ async def handle_voice(ws):
         has_speech_in_buffer = False
 
         if len(pcm_data) < MIN_AUDIO_BYTES:
+            log.info("Audio too short (%d bytes < %d) — skipping STT", len(pcm_data), MIN_AUDIO_BYTES)
+            await send_json({"type": "transcript", "text": "", "final": True})
             return
+
+        log.info("Processing utterance: %d bytes (%.1fs audio)", len(pcm_data), len(pcm_data) / (SAMPLE_RATE * 2))
 
         fd, wav_path = tempfile.mkstemp(suffix=".wav", prefix="voice_utt_")
         os.close(fd)
@@ -235,14 +240,16 @@ async def handle_voice(ws):
             text = await loop.run_in_executor(None, transcribe, wav_path)
 
             if not text or len(text.strip()) < 2:
+                log.info("STT returned empty/short text")
                 await send_json({"type": "transcript", "text": "", "final": True})
                 return
 
             await send_json({"type": "transcript", "text": text, "final": True})
-            log.info("Transcript delivered to browser: %s", text[:80])
+            log.info("Transcript delivered: %s", text[:80])
 
         except Exception as e:
             log.error("Utterance processing error: %s", e)
+            await send_json({"type": "error", "code": "stt_failed", "message": "Speech recognition failed — %s" % str(e)[:100]})
         finally:
             try:
                 os.unlink(wav_path)
@@ -288,6 +295,7 @@ async def handle_voice(ws):
                     mic_active = True
                     audio_buffer = bytearray()
                     has_speech_in_buffer = False
+                    chunk_count = 0
                     last_speech_time = time.time()
                     log.info("Mic started (session=%s)", session_id)
                     await send_json({"type": "vad_status", "active": True})
@@ -296,12 +304,18 @@ async def handle_voice(ws):
                     mic_active = False
                     await send_json({"type": "vad_status", "active": False})
                     await send_json({"type": "audio_level", "level": 0})
-                    log.info("Mic stopped (session=%s)", session_id)
+                    log.info(
+                        "Mic stopped (session=%s chunks=%d buf=%d speech=%s)",
+                        session_id, chunk_count, len(audio_buffer), has_speech_in_buffer,
+                    )
 
                     if audio_buffer and has_speech_in_buffer:
                         pcm = bytes(audio_buffer)
                         audio_buffer = bytearray()
                         await process_utterance(pcm)
+                    else:
+                        log.info("No speech in buffer — sending empty transcript")
+                        await send_json({"type": "transcript", "text": "", "final": True})
 
                 elif msg_type == "tts_request":
                     await handle_tts_request(msg.get("text", ""))
@@ -311,6 +325,7 @@ async def handle_voice(ws):
                     log.info("TTS cancelled by client")
 
             elif isinstance(message, bytes) and mic_active:
+                chunk_count += 1
                 level = compute_audio_level(message)
                 await send_json({"type": "audio_level", "level": level})
 
