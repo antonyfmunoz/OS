@@ -19,7 +19,14 @@
     "role": "executor",
     "tailscale_ip": "100.74.199.102",
     "mesh_node_id": "windows-desktop",
-    "compute": true
+    "compute": true,
+    "gpu": "NVIDIA GeForce GTX 1080 Ti",
+    "vram_mb": 11264,
+    "ram_mb": 16235,
+    "services": {
+      "ollama": {"port": 11434, "model": "qwen2.5-coder:14b", "auto_start": true},
+      "kokoro_tts": {"port": 8880, "auto_start": true}
+    }
   },
   {
     "id": "ipad",
