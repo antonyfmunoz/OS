@@ -257,6 +257,7 @@ function ChatSection() {
   const setPanel = useCockpitStore((s) => s.setPanel)
   const micState = useVoiceStore((s) => s.micState)
   const ttsState = useVoiceStore((s) => s.ttsState)
+  const voiceError = useVoiceStore((s) => s.error)
   const scrollRef = useRef<HTMLDivElement>(null)
   const displayName = `${aiName} ASSISTANT`
   const [editingName, setEditingName] = useState(false)
@@ -282,6 +283,7 @@ function ChatSection() {
   }
 
   const handleMicToggle = useCallback(() => {
+    useVoiceStore.getState().setError(null)
     if (micState === 'idle') {
       startVoice().catch(() => setVoiceAvailable(false))
     } else {
@@ -336,8 +338,10 @@ function ChatSection() {
   }
 
   const voiceLabel = micState === 'listening' ? 'Listening...'
-    : micState === 'processing' ? 'Transcribing...'
+    : micState === 'processing' ? 'Thinking...'
+    : micState === 'interrupted' ? 'Listening...'
     : ttsState === 'speaking' ? 'Speaking...'
+    : voiceError ? 'Voice error'
     : null
 
   return (

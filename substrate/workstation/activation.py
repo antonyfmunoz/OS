@@ -1,4 +1,4 @@
-"""Activation signal and presence session for Jarvis workstation.
+"""Activation signal and presence session for workstation control.
 
 Defines the typed ActivationSignal contract and PresenceSession model.
 Activation sources include manual, hotkey, typed command, push-to-talk,
@@ -35,7 +35,7 @@ class ActivationCapabilityStatus(str, Enum):
 
 @dataclass
 class ActivationSignal:
-    """Typed activation event for Jarvis workstation."""
+    """Typed activation event for workstation control."""
 
     source: str
     activation_id: str = ""
@@ -177,7 +177,7 @@ def _detect_stt_blocker() -> str:
 
 @dataclass
 class PresenceSession:
-    """Active presence session representing a Jarvis activation."""
+    """Active presence session representing a workstation activation."""
 
     session_id: str = ""
     activation: ActivationSignal | None = None

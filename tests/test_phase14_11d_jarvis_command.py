@@ -50,13 +50,13 @@ class TestClassifyIntent:
         from substrate.workstation.jarvis_command import CommandIntent, classify_intent
         assert classify_intent("switch to developer mode") == CommandIntent.MODE_SWITCH
 
-    def test_mode_switch_night(self) -> None:
+    def test_continuity_night(self) -> None:
         from substrate.workstation.jarvis_command import CommandIntent, classify_intent
-        assert classify_intent("start night cycle") == CommandIntent.MODE_SWITCH
+        assert classify_intent("start night cycle") == CommandIntent.CONTINUITY_TRANSITION
 
-    def test_mode_switch_away(self) -> None:
+    def test_continuity_away(self) -> None:
         from substrate.workstation.jarvis_command import CommandIntent, classify_intent
-        assert classify_intent("stepping away") == CommandIntent.MODE_SWITCH
+        assert classify_intent("stepping away") == CommandIntent.CONTINUITY_TRANSITION
 
     def test_mode_switch_review(self) -> None:
         from substrate.workstation.jarvis_command import CommandIntent, classify_intent
@@ -286,17 +286,17 @@ class TestGovernanceRequirement:
 
 class TestJarvisCommandResult:
     def test_auto_id(self) -> None:
-        from substrate.workstation.jarvis_command import JarvisCommandResult
+        from substrate.workstation.command_router import CommandResult as JarvisCommandResult
         r = JarvisCommandResult(intent="status_query", raw_text="sitrep")
         assert r.command_id.startswith("jcmd_")
 
     def test_auto_timestamp(self) -> None:
-        from substrate.workstation.jarvis_command import JarvisCommandResult
+        from substrate.workstation.command_router import CommandResult as JarvisCommandResult
         r = JarvisCommandResult(intent="status_query", raw_text="sitrep")
         assert r.timestamp != ""
 
     def test_to_dict(self) -> None:
-        from substrate.workstation.jarvis_command import JarvisCommandResult
+        from substrate.workstation.command_router import CommandResult as JarvisCommandResult
         r = JarvisCommandResult(
             intent="cockpit_navigation",
             raw_text="show agents",

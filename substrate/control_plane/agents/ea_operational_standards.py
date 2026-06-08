@@ -135,8 +135,7 @@ def get_meeting_rules() -> str:
     return MEETING_RULES
 
 
-# Backward compat alias
-DEX_OPERATING_STANDARDS = _AI_OPERATING_STANDARDS
+AI_OPERATING_STANDARDS = _AI_OPERATING_STANDARDS
 
 
 def get_all_standards() -> str:
