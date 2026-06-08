@@ -244,7 +244,7 @@ class TestNamingCanonicalization:
 
     def test_env_var_naming_debt_documented(self):
         content = self._naming_content()
-        assert "UMH_ROUTER" in content or "EOS_ROUTER" in content or "EOS_ORG" in content
+        assert "UMH_ROUTER" in content or "UMH_ORG" in content or "EOS_ORG" in content
 
 
 # ── Ecosystem doctrine tests ─────────────────────────────────────────
@@ -1056,7 +1056,7 @@ class TestArtifactContentQuality:
         p = ARTIFACT_DIR / "umh_naming_canonicalization.md"
         if p.exists():
             content = p.read_text()
-            assert "EOS_ROUTER" in content or "UMH_ROUTER" in content
+            assert "UMH_ROUTER" in content
 
     def test_layer_map_has_substrate_section(self):
         p = ARTIFACT_DIR / "umh_coherent_system_layer_map.md"
