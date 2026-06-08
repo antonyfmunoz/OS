@@ -175,7 +175,14 @@ function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: st
   if (msg.sender === 'operator') {
     return (
       <div className="px-2 py-2 rounded text-[11px] bg-cyan-glow text-text-primary ml-4">
-        <div className="font-mono text-[9px] text-text-tertiary mb-1">YOU</div>
+        <div className="flex items-center gap-1 font-mono text-[9px] text-text-tertiary mb-1">
+          <span>YOU</span>
+          {msg.source === 'voice' && (
+            <span className="text-[8px] px-1 rounded bg-violet/10 text-violet/70">
+              <Mic size={8} className="inline" /> voice
+            </span>
+          )}
+        </div>
         <p className="whitespace-pre-wrap">{msg.content}</p>
       </div>
     )
@@ -198,6 +205,21 @@ function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: st
         {msg.intent && msg.intent !== 'report' && msg.intent !== 'dex_response' && (
           <span className="text-[8px] font-mono px-1 rounded uppercase text-text-tertiary bg-surface">
             {msg.intent}
+          </span>
+        )}
+        {msg.metadata?.target_node && (
+          <span
+            className="text-[8px] font-mono px-1 rounded uppercase"
+            style={{
+              color: msg.metadata.target_node === 'vps' ? 'var(--color-warn)'
+                : msg.metadata.target_node === 'beast_windows' ? 'var(--color-cyan)'
+                : 'var(--color-ok)',
+              background: msg.metadata.target_node === 'vps' ? 'rgba(255,204,0,0.08)'
+                : msg.metadata.target_node === 'beast_windows' ? 'rgba(0,255,255,0.08)'
+                : 'rgba(0,255,136,0.08)',
+            }}
+          >
+            {msg.metadata.target_node === 'beast_windows' ? 'beast' : String(msg.metadata.target_node)}
           </span>
         )}
         <span className="text-[9px] text-text-tertiary ml-auto flex items-center gap-1">

@@ -34,6 +34,7 @@ class CommandIntent(str, Enum):
     DECOMPOSE_INTENT = "decompose_intent"
     EXPLAIN_CURRENT_VIEW = "explain_current_view"
     WORKSTATION_CONTROL = "workstation_control"
+    VPS_CONTROL = "vps_control"
     CONTINUITY_TRANSITION = "continuity_transition"
     STARTUP_SEQUENCE = "startup_sequence"
     UNKNOWN = "unknown"
@@ -233,6 +234,62 @@ _EXPLAIN_VIEW_SIGNALS = [
     "whats next",
 ]
 
+_VPS_CONTROL_SIGNALS = [
+    "vps status",
+    "server status",
+    "show vps",
+    "docker containers",
+    "show containers",
+    "docker ps",
+    "list containers",
+    "running containers",
+    "provider health",
+    "check provider",
+    "provider status",
+    "llm health",
+    "model health",
+    "operator logs",
+    "discord logs",
+    "restart operator",
+    "restart discord",
+    "restart the operator",
+    "restart the bot",
+    "git status",
+    "show git",
+    "tmux sessions",
+    "tmux list",
+    "capture tmux",
+    "capture the claude",
+    "capture session",
+    "capture the session",
+    "capture claude code",
+    "service status",
+    "show services",
+    "cockpit build",
+    "build cockpit",
+    "cockpit typecheck",
+    "type check",
+    "python compile",
+    "compile check",
+    "cpu usage",
+    "cpu load",
+    "memory usage",
+    "ram usage",
+    "disk usage",
+    "disk space",
+    "show disk",
+    "show cpu",
+    "show memory",
+    "show ram",
+    "voice health",
+    "voice status",
+    "stt status",
+    "tts status",
+    "run the test suite",
+    "run tests",
+    "deploy the cockpit",
+]
+
 _WORKSTATION_CONTROL_SIGNALS = [
     "play music",
     "pause music",
@@ -409,6 +466,16 @@ def classify_intent(text: str) -> CommandIntent:
     for signal in _CONTINUITY_TRANSITION_SIGNALS:
         if signal in t:
             return CommandIntent.CONTINUITY_TRANSITION
+
+    # ── VPS control (server/infrastructure commands) ────────────────
+    for signal in _VPS_CONTROL_SIGNALS:
+        if signal in t:
+            return CommandIntent.VPS_CONTROL
+
+    # ── VPS blocked patterns (secrets, destructive) ───────────────
+    from substrate.workstation.vps_control_catalog import check_blocked
+    if check_blocked(t):
+        return CommandIntent.VPS_CONTROL
 
     # ── Workstation control (app/desktop commands) ──────────────────
     for signal in _WORKSTATION_CONTROL_SIGNALS:
@@ -668,6 +735,7 @@ def governance_requirement(intent: CommandIntent) -> GovernanceRequirement:
         CommandIntent.CC_SEND,
         CommandIntent.DECOMPOSE_INTENT,
         CommandIntent.WORKSTATION_CONTROL,
+        CommandIntent.VPS_CONTROL,
     ):
         return GovernanceRequirement.REQUIRES_GOVERNANCE
 
