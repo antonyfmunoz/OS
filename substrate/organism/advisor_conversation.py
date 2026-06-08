@@ -800,8 +800,9 @@ class AdvisorConversation:
             )
 
         if requires_approval or risk == "high":
+            desc = f"{action} {app}".strip() if app else "this"
             return AdvisorResponse(
-                text=f"That requires approval — {action} {app} is a high-risk external action.",
+                text=f"That requires approval — {desc} is a high-risk external action.",
                 conversation_id="",
                 intent="workstation_control",
                 metadata={"action": action, "target": target, "blocked": True},
@@ -949,26 +950,32 @@ class AdvisorConversation:
         intent: str,
     ) -> AdvisorResponse:
         """Send a command to the workstation node via the mesh."""
+        import json as _json
+        from pathlib import Path
+
+        desktop_node = None
+        mesh_file = Path(
+            os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "runtime", "mesh_nodes.json",
+        )
         try:
-            from pathlib import Path
-            workcells_dir = Path(
-                os.environ.get("UMH_ROOT", "/opt/OS"),
-                "data", "umh", "organism", "workcells",
-            )
-            desktop_node = None
-            if workcells_dir.exists():
-                for hb in workcells_dir.glob("*/heartbeat.json"):
-                    desktop_node = hb.parent.name
-                    break
-            if not desktop_node:
-                return AdvisorResponse(
-                    text=f"No workstation node online — can't execute {capability}.",
-                    conversation_id="",
-                    intent=intent,
-                    metadata={"blocked": True, "reason": "workstation_offline"},
-                )
+            if mesh_file.exists():
+                nodes = _json.loads(mesh_file.read_text())
+                for node in nodes:
+                    if "desktop" in node.get("capabilities", []):
+                        if node.get("status") == "connected":
+                            desktop_node = node.get("id", node.get("name", "unknown"))
+                            break
         except Exception:
-            desktop_node = "unknown"
+            pass
+
+        if not desktop_node:
+            return AdvisorResponse(
+                text=f"No workstation node online — can't execute {capability}.",
+                conversation_id="",
+                intent=intent,
+                metadata={"blocked": True, "reason": "workstation_offline"},
+            )
 
         return AdvisorResponse(
             text=success_text,
