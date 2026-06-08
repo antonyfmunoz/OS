@@ -345,6 +345,41 @@ async def _capabilities(request: Request) -> dict[str, Any]:
     }
 
 
+@presence_router.get("/voice/health")
+async def _voice_health() -> dict[str, Any]:
+    """Voice subsystem health — STT/TTS provider status."""
+    stt_provider = os.environ.get("UMH_STT_PROVIDER", "browser_native")
+    tts_provider = os.environ.get("UMH_TTS_PROVIDER", "kokoro")
+    tts_host = os.environ.get("KOKORO_TTS_HOST", "")
+    kokoro_url = os.environ.get("KOKORO_TTS_URL", "http://100.74.199.102:8880")
+    ws_port = os.environ.get("UMH_VOICE_WS_PORT", "8095")
+
+    tts_reachable = _check_tts_available()
+
+    stt_status = "available" if stt_provider == "browser_native" else "configured"
+    tts_status = "available" if tts_reachable else "unreachable"
+
+    return {
+        "ok": True,
+        "stt": {
+            "provider": stt_provider,
+            "status": stt_status,
+            "note": "Browser-native WebSpeech API — requires HTTPS or localhost" if stt_provider == "browser_native" else "",
+        },
+        "tts": {
+            "provider": tts_provider,
+            "status": tts_status,
+            "host": tts_host or kokoro_url,
+            "reachable": tts_reachable,
+        },
+        "websocket": {
+            "port": ws_port,
+            "url": f"ws://localhost:{ws_port}/voice",
+        },
+        "source_env": _detect_env(),
+    }
+
+
 def _check_tts_available() -> bool:
     """Check if Kokoro TTS on Beast is reachable."""
     try:
