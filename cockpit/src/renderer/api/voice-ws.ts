@@ -1,6 +1,10 @@
 import { WsClient } from './websocket'
 
-const VOICE_URL = import.meta.env.VITE_VOICE_URL as string || 'ws://localhost:8096/voice'
+function getVoiceUrl(): string {
+  if (import.meta.env.VITE_VOICE_URL) return import.meta.env.VITE_VOICE_URL as string
+  return 'ws://localhost:8096/voice'
+}
+const VOICE_URL = getVoiceUrl()
 const TARGET_SAMPLE_RATE = 16000
 const CHUNK_SIZE = 4096
 
