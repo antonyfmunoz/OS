@@ -2497,12 +2497,15 @@ async def providers_health():
     # Count healthy roles
     healthy_roles = sum(1 for p in slotted if p["available"])
 
+    from substrate.execution.cpu_gate import cpu_gate_status
+
     return {
         "portfolio": slotted,
         "unslotted": unslotted,
         "purpose_routing": {k: [r.value for r in v] for k, v in PURPOSE_ROUTING.items()},
         "healthy_roles": healthy_roles,
         "total_roles": len(ROLE_SLOTS),
+        "cpu_gate": cpu_gate_status(),
         "system_status": "operational"
         if healthy_roles >= 2
         else "degraded"
