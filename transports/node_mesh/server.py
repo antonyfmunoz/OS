@@ -178,6 +178,8 @@ class NodeMeshServer:
                     await self._handle_capabilities_changed(node_id, params, ws)
                 elif method == "signal.emit" and node_id:
                     await self._handle_signal(node_id, params, msg_id, ws)
+                elif not method and ("result" in msg or "error" in msg):
+                    self._resolve_pending_dispatch(msg)
                 else:
                     if msg_id is not None:
                         await ws.send(
@@ -200,6 +202,19 @@ class NodeMeshServer:
         finally:
             if node_id:
                 self._unregister_node(node_id)
+
+    def _resolve_pending_dispatch(self, msg: dict[str, Any]) -> None:
+        """Route JSON-RPC responses back to pending HTTP dispatch futures."""
+        msg_id = str(msg.get("id", ""))
+        if not msg_id:
+            return
+        pending = getattr(self, "_pending_http", {})
+        future = pending.pop(msg_id, None)
+        if future is None:
+            return
+        result = msg.get("result", msg.get("error", {}))
+        if not future.done():
+            future.set_result(result)
 
     def _extract_token(self, ws: ServerConnection) -> str:
         path = ws.request.path if ws.request else ""
@@ -605,9 +620,8 @@ class NodeMeshServer:
         return [n.to_api_dict() for n in self._registry.all_nodes()]
 
     async def _http_dispatch(self, body: dict[str, Any]) -> dict[str, Any]:
-        """Dispatch a capability.execute to a connected node and return result."""
+        """Dispatch a capability.execute to a connected node via WS and wait for response."""
         from uuid import uuid4
-        from substrate.sockets.envelopes import CapabilityRequest
 
         node_id = body.get("node_id", "")
         capability = body.get("capability", "")
@@ -623,33 +637,41 @@ class NodeMeshServer:
         if node.ws is None:
             return {"ok": False, "error": f"node {node_id} has no WS connection"}
 
-        request = CapabilityRequest(
-            request_id=uuid4(),
-            capability_name=capability,
-            integration_id=f"node-{node_id}",
-            params=params,
-            governance_verdict_id=uuid4(),
-            trace_id=uuid4(),
-            timeout_seconds=timeout,
-        )
+        req_id = uuid4().hex
+        rpc_msg = json.dumps({
+            "jsonrpc": "2.0",
+            "method": "capability.execute",
+            "params": {
+                "request_id": req_id,
+                "capability_name": capability,
+                "params": params,
+                "timeout_seconds": timeout,
+            },
+            "id": req_id,
+        })
 
-        from transports.node_mesh.integration.handlers import NodeCapabilityHandler
-        handler = NodeCapabilityHandler(node)
+        response_future: asyncio.Future[dict[str, Any]] = asyncio.get_event_loop().create_future()
+        if not hasattr(self, "_pending_http"):
+            self._pending_http: dict[str, asyncio.Future[dict[str, Any]]] = {}
+        self._pending_http[req_id] = response_future
 
-        loop = asyncio.get_event_loop()
         try:
-            response = await loop.run_in_executor(
-                None, handler.handle_capability, request,
-            )
-        except TimeoutError:
-            return {"ok": False, "error": f"timeout after {timeout}s", "status": "timeout"}
+            await node.ws.send(rpc_msg)
         except Exception as exc:
-            return {"ok": False, "error": str(exc), "status": "error"}
+            self._pending_http.pop(req_id, None)
+            return {"ok": False, "error": f"failed to send to node: {exc}", "status": "send_error"}
 
+        try:
+            result = await asyncio.wait_for(response_future, timeout=timeout)
+        except asyncio.TimeoutError:
+            self._pending_http.pop(req_id, None)
+            return {"ok": False, "error": f"timeout after {timeout}s", "status": "timeout"}
+
+        success = result.get("success", False)
         return {
-            "ok": response.success,
-            "status": "executed" if response.success else "failed",
-            "result_data": response.result_data,
-            "error": response.error,
-            "latency_ms": response.latency_ms,
+            "ok": success,
+            "status": "executed" if success else "failed",
+            "result_data": result.get("result_data", {}),
+            "error": result.get("error"),
+            "latency_ms": result.get("latency_ms", 0),
         }
