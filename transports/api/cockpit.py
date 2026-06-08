@@ -2499,6 +2499,26 @@ async def providers_health():
 
     from substrate.execution.cpu_gate import cpu_gate_status
 
+    # Beast GPU status (best-effort, non-blocking)
+    beast_gpu = None
+    beast_cfg = MODEL_REGISTRY.get("beast-ollama")
+    if beast_cfg and beast_cfg.available:
+        try:
+            import requests as _req
+
+            ps_resp = _req.get(f"{beast_cfg.base_url}/api/ps", timeout=2)
+            if ps_resp.status_code == 200:
+                ps_data = ps_resp.json()
+                beast_gpu = {
+                    "node": "beast",
+                    "gpu": "GTX 1080 Ti",
+                    "vram_total_mb": 11264,
+                    "models_loaded": len(ps_data.get("models", [])),
+                    "status": "active" if ps_data.get("models") else "idle",
+                }
+        except Exception:
+            pass
+
     return {
         "portfolio": slotted,
         "unslotted": unslotted,
@@ -2506,6 +2526,7 @@ async def providers_health():
         "healthy_roles": healthy_roles,
         "total_roles": len(ROLE_SLOTS),
         "cpu_gate": cpu_gate_status(),
+        "beast_gpu": beast_gpu,
         "system_status": "operational"
         if healthy_roles >= 2
         else "degraded"

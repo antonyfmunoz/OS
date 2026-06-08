@@ -439,7 +439,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     # Accessed via Tailscale from VPS. Falls back to VPS Ollama if Beast offline.
     "beast-ollama": ModelConfig(
         provider=ModelProvider.OLLAMA,
-        model_id="qwen2.5-coder:14b-instruct-q4_K_M",
+        model_id="qwen2.5-coder:14b",
         api_key_env="",
         strengths=[
             TaskType.CODE,
@@ -578,13 +578,25 @@ def _ollama_available() -> bool:
         return False
 
 
-def _remote_ollama_available(url: str) -> bool:
-    """Returns True if a remote Ollama (e.g. Beast) responds within 3s."""
+def _remote_ollama_available(url: str, model_id: str = "") -> bool:
+    """Returns True if a remote Ollama (e.g. Beast) responds within 3s.
+
+    If model_id is provided, also verifies the model is pulled and ready.
+    """
     try:
         import requests as _req
 
         resp = _req.get(f"{url}/api/tags", timeout=3)
-        return resp.status_code == 200
+        if resp.status_code != 200:
+            return False
+        if not model_id:
+            return True
+        data = resp.json()
+        model_base = model_id.split("-instruct")[0].split("-q4")[0]
+        return any(
+            model_base in m.get("name", "")
+            for m in data.get("models", [])
+        )
     except Exception:
         return False
 
@@ -612,8 +624,12 @@ class ModelRouter:
 
         for key, config in MODEL_REGISTRY.items():
             if key == "beast-ollama":
-                config.available = _remote_ollama_available(config.base_url)
-                config.status_reason = "healthy" if config.available else "unreachable"
+                config.available = _remote_ollama_available(
+                    config.base_url, config.model_id
+                )
+                config.status_reason = (
+                    "healthy" if config.available else "model_not_ready"
+                )
             elif config.provider == ModelProvider.OLLAMA:
                 config.available = _ollama_available()
                 config.status_reason = "healthy" if config.available else "unreachable"
@@ -877,13 +893,20 @@ class ModelRouter:
         try:
             import requests
 
-            # qwen2.5:0.5b on 2-vCPU CPU: keep prompts small, cap output tokens.
-            # Anything larger than ~2k input takes >60s on this hardware.
-            _sys = system[:1500] if system else ""
-            _max_tokens = min(max_tokens, 256)
+            is_beast = "100.74.199.102" in (config.base_url or "")
+            if is_beast:
+                _sys = system[:8000] if system else ""
+                _max_tokens = min(max_tokens, 4096)
+                _prompt = prompt[:16000]
+                _timeout = 120
+            else:
+                _sys = system[:1500] if system else ""
+                _max_tokens = min(max_tokens, 256)
+                _prompt = prompt[:2000]
+                _timeout = 60
             payload: dict = {
                 "model": config.model_id,
-                "prompt": prompt[:2000],
+                "prompt": _prompt,
                 "stream": False,
                 "options": {"num_predict": _max_tokens},
             }
@@ -893,7 +916,7 @@ class ModelRouter:
             resp = requests.post(
                 f"{config.base_url}/api/generate",
                 json=payload,
-                timeout=60,
+                timeout=_timeout,
             )
             elapsed = time.time() - start
             if elapsed > 60:
