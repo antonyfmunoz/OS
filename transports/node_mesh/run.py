@@ -28,6 +28,30 @@ logging.basicConfig(
 logger = logging.getLogger("node_mesh")
 
 
+def _ensure_docker_relay_access(http_port: int) -> None:
+    """Add iptables rule so Docker containers can reach the HTTP relay."""
+    if os.geteuid() != 0:
+        return
+    import subprocess
+    from substrate.execution.cpu_gate import gated_subprocess_run
+    check = gated_subprocess_run(
+        ["iptables", "-C", "INPUT", "-s", "172.18.0.0/16", "-p", "tcp",
+         "--dport", str(http_port), "-j", "ACCEPT"],
+        caller="mesh_relay_iptables_check",
+    )
+    if check is not None and check.returncode == 0:
+        return
+    result = gated_subprocess_run(
+        ["iptables", "-I", "INPUT", "1", "-s", "172.18.0.0/16", "-p", "tcp",
+         "--dport", str(http_port), "-j", "ACCEPT"],
+        caller="mesh_relay_iptables_add",
+    )
+    if result is not None and result.returncode == 0:
+        logger.info("added iptables INPUT rule for Docker → port %d", http_port)
+    else:
+        logger.warning("failed to add iptables rule for port %d", http_port)
+
+
 def main() -> None:
     config = load_mesh_config()
     logger.info(
@@ -54,6 +78,8 @@ def main() -> None:
 
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
+
+    _ensure_docker_relay_access(config.port + 1)
 
     thread = server.start()
     logger.info("node mesh server running on port %d — waiting for connections", config.port)
