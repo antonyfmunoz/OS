@@ -599,7 +599,8 @@ class NodeMeshServer:
 
         try:
             logger.info("starting http command relay on port %d...", http_port)
-            srv = await asyncio.start_server(handle_request, "0.0.0.0", http_port)
+            bind_host = os.environ.get("UMH_MESH_RELAY_BIND", "0.0.0.0")
+            srv = await asyncio.start_server(handle_request, bind_host, http_port)
             logger.info("http command relay listening on :%d", http_port)
             async with srv:
                 await srv.serve_forever()
@@ -626,7 +627,9 @@ class NodeMeshServer:
         node_id = body.get("node_id", "")
         capability = body.get("capability", "")
         params = body.get("params", {})
-        timeout = body.get("timeout", 15)
+        _MAX_DISPATCH_TIMEOUT = 60
+        raw_timeout = body.get("timeout", 15)
+        timeout = max(1, min(int(raw_timeout) if isinstance(raw_timeout, (int, float)) else 15, _MAX_DISPATCH_TIMEOUT))
 
         if not node_id or not capability:
             return {"ok": False, "error": "node_id and capability required"}
@@ -664,8 +667,9 @@ class NodeMeshServer:
         try:
             result = await asyncio.wait_for(response_future, timeout=timeout)
         except asyncio.TimeoutError:
-            self._pending_http.pop(req_id, None)
             return {"ok": False, "error": f"timeout after {timeout}s", "status": "timeout"}
+        finally:
+            self._pending_http.pop(req_id, None)
 
         success = result.get("success", False)
         return {
