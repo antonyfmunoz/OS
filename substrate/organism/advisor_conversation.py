@@ -120,6 +120,8 @@ class AdvisorConversation:
             response = self._handle_continuity_transition(content)
         elif intent == CommandIntent.STARTUP_SEQUENCE:
             response = self._handle_startup_sequence()
+        elif intent == CommandIntent.MODE_SWITCH:
+            response = self._handle_mode_switch(content)
         else:
             response = self._handle_advisor_signal(content, context_summary)
 
@@ -845,14 +847,29 @@ class AdvisorConversation:
             )
 
         if action.startswith("media_"):
+            _KEYBD_EVENT_PREAMBLE = (
+                "$sig = '[DllImport(\"user32.dll\")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);';"
+                " $kb = Add-Type -MemberDefinition $sig -Name KB -Namespace W32 -PassThru;"
+            )
+            media_cmds = {
+                "media_play": f"{_KEYBD_EVENT_PREAMBLE} $kb::keybd_event(0xB3,0,0,[UIntPtr]::Zero); $kb::keybd_event(0xB3,0,2,[UIntPtr]::Zero)",
+                "media_pause": f"{_KEYBD_EVENT_PREAMBLE} $kb::keybd_event(0xB3,0,0,[UIntPtr]::Zero); $kb::keybd_event(0xB3,0,2,[UIntPtr]::Zero)",
+                "media_next": f"{_KEYBD_EVENT_PREAMBLE} $kb::keybd_event(0xB0,0,0,[UIntPtr]::Zero); $kb::keybd_event(0xB0,0,2,[UIntPtr]::Zero)",
+                "media_previous": f"{_KEYBD_EVENT_PREAMBLE} $kb::keybd_event(0xB1,0,0,[UIntPtr]::Zero); $kb::keybd_event(0xB1,0,2,[UIntPtr]::Zero)",
+            }
+            ps_cmd = media_cmds.get(action)
+            if ps_cmd:
+                label = action.replace("media_", "").capitalize()
+                return self._execute_workstation_command(
+                    "shell.powershell", {"command": ps_cmd},
+                    f"{label} — sent media key.",
+                    "workstation_control",
+                )
             return AdvisorResponse(
-                text=f"Media control: {action.replace('media_', '')}.",
+                text=f"Unknown media action: {action}.",
                 conversation_id="",
                 intent="workstation_control",
                 metadata={"action": action, "target": target},
-                suggested_actions=[
-                    {"label": "List Windows", "action": "query", "payload": {"content": "list windows"}},
-                ],
             )
 
         if requires_approval or risk == "high":
@@ -1006,6 +1023,45 @@ class AdvisorConversation:
             ],
         )
 
+    def _handle_mode_switch(self, content: str) -> AdvisorResponse:
+        from substrate.workstation.command_router import resolve_mode_target
+
+        target = resolve_mode_target(content)
+        if not target:
+            return AdvisorResponse(
+                text="I couldn't determine which mode you want.",
+                conversation_id="",
+                intent="mode_switch",
+            )
+
+        continuity_modes = {"night_sleeping", "away", "returning", "active"}
+        if target in continuity_modes:
+            return self._handle_continuity_transition(content)
+
+        try:
+            from substrate.workstation.profile_modes import ProfileMode
+            profile_values = {m.value for m in ProfileMode}
+        except ImportError:
+            profile_values = set()
+
+        if target in profile_values:
+            return AdvisorResponse(
+                text=f"Switching to {target} mode.",
+                conversation_id="",
+                intent="mode_switch",
+                metadata={"profile_mode": target},
+                suggested_actions=[
+                    {"label": "Status", "action": "query", "payload": {"content": "current status"}},
+                ],
+            )
+
+        return AdvisorResponse(
+            text=f"Mode '{target}' recognized but not yet mapped to a profile.",
+            conversation_id="",
+            intent="mode_switch",
+            metadata={"raw_target": target},
+        )
+
     def _execute_workstation_command(
         self,
         capability: str,
@@ -1118,7 +1174,12 @@ class AdvisorConversation:
                 ],
             )
         else:
-            error_msg = result.get("error", "unknown error")
+            error_msg = result.get("error") or ""
+            result_data = result.get("result_data", {})
+            if not error_msg and result_data.get("stderr"):
+                error_msg = result_data["stderr"][:200]
+            if not error_msg:
+                error_msg = "unknown error"
             status = result.get("status", "failed")
             return AdvisorResponse(
                 text=f"Command failed on {node_id}: {error_msg}",
