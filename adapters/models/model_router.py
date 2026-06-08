@@ -252,8 +252,8 @@ ROLE_FAILOVER: dict[ProviderRole, str | None] = {
 PURPOSE_ROUTING: dict[str, list[ProviderRole]] = {
     "advise_founder": [
         ProviderRole.STRATEGIC_BRAIN,
-        ProviderRole.CODE_BUILDER,
         ProviderRole.FAST_RESPONDER,
+        ProviderRole.CODE_BUILDER,
     ],
     "build_code": [
         ProviderRole.CODE_BUILDER,
@@ -408,13 +408,13 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     # Already used for STT via groq_whisper
     "groq-llama": ModelConfig(
         provider=ModelProvider.GROQ,
-        model_id="llama-3.3-70b-versatile",
+        model_id="llama-3.1-8b-instant",
         api_key_env="GROQ_API_KEY",
         strengths=[
             TaskType.FAST_RESPONSE,
             TaskType.CONVERSATION,
         ],
-        cost_per_1k=0.00059,
+        cost_per_1k=0.00005,
         base_url="https://api.groq.com/openai/v1",
     ),
     # BEAST OLLAMA: Local GPU inference on Beast Windows (GTX 1080 Ti, 11GB VRAM).
