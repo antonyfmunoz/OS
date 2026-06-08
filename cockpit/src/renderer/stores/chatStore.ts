@@ -101,7 +101,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     try {
       if (targetChannel === 'cockpit') {
-        const res = await fetchApi<ChatResponse>('/dex/converse', {
+        const res = await fetchApi<ChatResponse>('/advisor/converse', {
           method: 'POST',
           body: JSON.stringify({
             content: content.trim(),
