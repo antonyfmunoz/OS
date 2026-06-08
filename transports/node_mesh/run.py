@@ -28,28 +28,79 @@ logging.basicConfig(
 logger = logging.getLogger("node_mesh")
 
 
-def _ensure_docker_relay_access(http_port: int) -> None:
-    """Add iptables rule so Docker containers can reach the HTTP relay."""
+_RELAY_CHAIN = "UMH_MESH_RELAY"
+_DOCKER_CIDR = "172.18.0.0/16"
+
+
+def _validate_relay_port(port: object) -> int:
+    """Validate relay port is an integer in the unprivileged range."""
+    try:
+        value = int(port)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        raise ValueError(f"invalid relay port: {port!r}")
+    if value < 1024 or value > 65535:
+        raise ValueError(f"relay port out of allowed range: {value}")
+    return value
+
+
+def _ensure_docker_relay_access(http_port: object) -> None:
+    """Create a dedicated iptables chain for Docker→relay access.
+
+    Uses a dedicated UMH_MESH_RELAY chain jumped to from INPUT.
+    Idempotent — safe to call on every startup.
+    """
     if os.geteuid() != 0:
+        logger.info("not root — skipping iptables setup for relay port")
         return
-    import subprocess
+
+    port = _validate_relay_port(http_port)
     from substrate.execution.cpu_gate import gated_subprocess_run
-    check = gated_subprocess_run(
-        ["iptables", "-C", "INPUT", "-s", "172.18.0.0/16", "-p", "tcp",
-         "--dport", str(http_port), "-j", "ACCEPT"],
-        caller="mesh_relay_iptables_check",
+
+    def _ipt(*args: str, caller: str = "mesh_relay_fw") -> int:
+        r = gated_subprocess_run(["iptables", *args], caller=caller)
+        return r.returncode if r is not None else 1
+
+    # 1. Create dedicated chain if it doesn't exist
+    if _ipt("-N", _RELAY_CHAIN) == 0:
+        logger.info("created iptables chain %s", _RELAY_CHAIN)
+
+    # 2. Flush the chain to ensure exactly one rule (idempotent on restart)
+    _ipt("-F", _RELAY_CHAIN)
+
+    # 3. Add the scoped ACCEPT rule inside the dedicated chain
+    rc = _ipt(
+        "-A", _RELAY_CHAIN,
+        "-s", _DOCKER_CIDR, "-p", "tcp", "--dport", str(port),
+        "-j", "ACCEPT",
     )
-    if check is not None and check.returncode == 0:
+    if rc != 0:
+        logger.warning("failed to add ACCEPT rule in %s for port %d", _RELAY_CHAIN, port)
         return
-    result = gated_subprocess_run(
-        ["iptables", "-I", "INPUT", "1", "-s", "172.18.0.0/16", "-p", "tcp",
-         "--dport", str(http_port), "-j", "ACCEPT"],
-        caller="mesh_relay_iptables_add",
-    )
-    if result is not None and result.returncode == 0:
-        logger.info("added iptables INPUT rule for Docker → port %d", http_port)
+
+    # 4. Add RETURN at end of chain (explicit — traffic not matching falls back to INPUT)
+    _ipt("-A", _RELAY_CHAIN, "-j", "RETURN")
+
+    # 5. Ensure INPUT jumps to our chain (skip if already present)
+    jump_check = _ipt("-C", "INPUT", "-j", _RELAY_CHAIN)
+    if jump_check != 0:
+        _ipt("-A", "INPUT", "-j", _RELAY_CHAIN)
+        logger.info("added INPUT → %s jump for Docker relay port %d", _RELAY_CHAIN, port)
     else:
-        logger.warning("failed to add iptables rule for port %d", http_port)
+        logger.info("iptables %s chain already active for port %d", _RELAY_CHAIN, port)
+
+    # 6. Clean up any legacy top-of-chain rule from 14.13N
+    legacy_check = _ipt(
+        "-C", "INPUT",
+        "-s", _DOCKER_CIDR, "-p", "tcp", "--dport", str(port),
+        "-j", "ACCEPT",
+    )
+    if legacy_check == 0:
+        _ipt(
+            "-D", "INPUT",
+            "-s", _DOCKER_CIDR, "-p", "tcp", "--dport", str(port),
+            "-j", "ACCEPT",
+        )
+        logger.info("removed legacy top-of-chain INPUT rule for port %d", port)
 
 
 def main() -> None:
