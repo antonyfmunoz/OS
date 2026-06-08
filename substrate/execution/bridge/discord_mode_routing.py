@@ -239,7 +239,7 @@ def resolve_mode_session(
 # model_router's Claude CLI backend picks up WITHOUT changing call_with_fallback's
 # signature. Scoped to the calling thread; cleared on exit of the context
 # manager. If nothing is set, the router falls back to its existing env-var
-# behavior (EOS_ROUTER_CLAUDE_CLI_TARGET / EOS_ROUTER_CLAUDE_CLI_SESSION).
+# behavior (UMH_ROUTER_CLAUDE_CLI_TARGET / UMH_ROUTER_CLAUDE_CLI_SESSION).
 
 _tls = threading.local()
 

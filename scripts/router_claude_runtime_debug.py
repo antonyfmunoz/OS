@@ -5,7 +5,7 @@ sees for the Claude CLI backend.
 Run inside the target environment (host OR `docker exec os-discord python3
 scripts/router_claude_runtime_debug.py`) to prove:
   - PROVIDER_PRIORITY table and CLI-eligible purposes
-  - env gating state (EOS_ROUTER_CLAUDE_CLI_*)
+  - env gating state (UMH_ROUTER_CLAUDE_CLI_*)
   - tmux + claude CLI availability from THIS process's filesystem
   - what target/session the router would pass to the bridge
   - a live dry-run of respond_via_claude_session (no prompt side effects
@@ -31,9 +31,9 @@ def main() -> int:
 
     out: dict = {
         "env": {
-            "EOS_ROUTER_CLAUDE_CLI_ENABLED": os.getenv("EOS_ROUTER_CLAUDE_CLI_ENABLED"),
-            "EOS_ROUTER_CLAUDE_CLI_TARGET": os.getenv("EOS_ROUTER_CLAUDE_CLI_TARGET"),
-            "EOS_ROUTER_CLAUDE_CLI_SESSION": os.getenv("EOS_ROUTER_CLAUDE_CLI_SESSION"),
+            "UMH_ROUTER_CLAUDE_CLI_ENABLED": os.getenv("UMH_ROUTER_CLAUDE_CLI_ENABLED"),
+            "UMH_ROUTER_CLAUDE_CLI_TARGET": os.getenv("UMH_ROUTER_CLAUDE_CLI_TARGET"),
+            "UMH_ROUTER_CLAUDE_CLI_SESSION": os.getenv("UMH_ROUTER_CLAUDE_CLI_SESSION"),
             "TMUX_TMPDIR": os.getenv("TMUX_TMPDIR"),
         },
         "backend_enabled": mr._claude_cli_backend_enabled(),
@@ -49,10 +49,10 @@ def main() -> int:
 
     # Dry probe: does the bridge actually see the session?
     target = (
-        os.getenv("EOS_ROUTER_CLAUDE_CLI_TARGET") or cr.DEFAULT_TARGET
+        os.getenv("UMH_ROUTER_CLAUDE_CLI_TARGET") or cr.DEFAULT_TARGET
     ).strip().lower() or cr.DEFAULT_TARGET
     session = (
-        os.getenv("EOS_ROUTER_CLAUDE_CLI_SESSION") or cr.DEFAULT_SESSION_NAME
+        os.getenv("UMH_ROUTER_CLAUDE_CLI_SESSION") or cr.DEFAULT_SESSION_NAME
     ).strip() or cr.DEFAULT_SESSION_NAME
     out["probe_target"] = target
     out["probe_session"] = session

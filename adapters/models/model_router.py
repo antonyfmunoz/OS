@@ -1086,11 +1086,15 @@ def _providers_for_purpose(purpose: str) -> list[str]:
 def _claude_cli_backend_enabled() -> bool:
     """Whether to attempt the Claude CLI tmux session as backend #0.
 
-    Default ON. Set EOS_ROUTER_CLAUDE_CLI_ENABLED=0 to disable (e.g. on
+    Default ON. Set UMH_ROUTER_CLAUDE_CLI_ENABLED=0 to disable (e.g. on
     machines without tmux/claude CLI, or when running unit tests that
     should exercise only the provider chain).
     """
-    raw = (os.getenv("EOS_ROUTER_CLAUDE_CLI_ENABLED") or "").strip().lower()
+    raw = (
+        os.getenv("UMH_ROUTER_CLAUDE_CLI_ENABLED")
+        or os.getenv("EOS_ROUTER_CLAUDE_CLI_ENABLED")
+        or ""
+    ).strip().lower()
     if raw in ("0", "false", "no", "off"):
         return False
     return True
@@ -1254,10 +1258,14 @@ def call_with_fallback(
             )
 
             cli_target = (
-                os.getenv("EOS_ROUTER_CLAUDE_CLI_TARGET") or DEFAULT_TARGET
+                os.getenv("UMH_ROUTER_CLAUDE_CLI_TARGET")
+                or os.getenv("EOS_ROUTER_CLAUDE_CLI_TARGET")
+                or DEFAULT_TARGET
             ).strip().lower() or DEFAULT_TARGET
             cli_session = (
-                os.getenv("EOS_ROUTER_CLAUDE_CLI_SESSION") or DEFAULT_SESSION_NAME
+                os.getenv("UMH_ROUTER_CLAUDE_CLI_SESSION")
+                or os.getenv("EOS_ROUTER_CLAUDE_CLI_SESSION")
+                or DEFAULT_SESSION_NAME
             ).strip() or DEFAULT_SESSION_NAME
 
             # ── Discord Channel Mode Routing v1 override ──
