@@ -4,8 +4,7 @@ sees for the Claude CLI backend.
 
 Run inside the target environment (host OR `docker exec os-discord python3
 scripts/router_claude_runtime_debug.py`) to prove:
-  - PROVIDER_PRIORITY / PROVIDER_PRIORITY_FAST tables
-  - CLAUDE_CLI is registered and at index 0
+  - PROVIDER_PRIORITY table and CLI-eligible purposes
   - env gating state (EOS_ROUTER_CLAUDE_CLI_*)
   - tmux + claude CLI availability from THIS process's filesystem
   - what target/session the router would pass to the bridge
@@ -39,12 +38,9 @@ def main() -> int:
         },
         "backend_enabled": mr._claude_cli_backend_enabled(),
         "PROVIDER_PRIORITY": k(mr.PROVIDER_PRIORITY),
-        "PROVIDER_PRIORITY_FAST": k(mr.PROVIDER_PRIORITY_FAST),
+        "CLI_ELIGIBLE_PURPOSES": sorted(mr._CLI_ELIGIBLE_PURPOSES),
         "claude_cli_in_priority": mr.ModelProvider.CLAUDE_CLI in mr.PROVIDER_PRIORITY,
-        "claude_cli_index_heavy": mr.PROVIDER_PRIORITY.get(mr.ModelProvider.CLAUDE_CLI),
-        "claude_cli_index_fast": mr.PROVIDER_PRIORITY_FAST.get(
-            mr.ModelProvider.CLAUDE_CLI
-        ),
+        "claude_cli_priority_index": mr.PROVIDER_PRIORITY.get(mr.ModelProvider.CLAUDE_CLI),
         "tmux_available": csb.detect_tmux_available(),
         "claude_cli_available": csb.detect_claude_cli_available(),
         "default_target": cr.DEFAULT_TARGET,
