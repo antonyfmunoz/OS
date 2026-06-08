@@ -1471,9 +1471,9 @@ def _get_dex_conversation():
     return _dex_conversation
 
 
-@router.post("/dex/converse")
-async def dex_converse(payload: dict):
-    """Multi-turn conversational endpoint for the DEX right rail."""
+@router.post("/advisor/converse")
+async def advisor_converse(payload: dict):
+    """Multi-turn conversational endpoint for the advisor right rail."""
     conv = _get_dex_conversation()
     if conv is None:
         return {"error": "organism not running"}
@@ -1495,7 +1495,7 @@ async def dex_converse(payload: dict):
         _mirror_to_discord_founders_office(response.text)
 
     return {
-        "message_id": f"dex-{response.timestamp}",
+        "message_id": f"advisor-{response.timestamp}",
         "text": response.text,
         "response": response.text,
         "conversation_id": response.conversation_id,
@@ -1506,9 +1506,15 @@ async def dex_converse(payload: dict):
     }
 
 
-@router.get("/dex/history")
-async def dex_history(limit: int = 50):
-    """Recent DEX channel exchanges and system reports for the right-rail chat."""
+@router.post("/dex/converse")
+async def dex_converse_compat(payload: dict):
+    """Backward-compat shim — canonical route is /advisor/converse."""
+    return await advisor_converse(payload)
+
+
+@router.get("/advisor/history")
+async def advisor_history(limit: int = 50):
+    """Recent advisor channel exchanges and system reports for the right-rail chat."""
     daemon = _get_organism()
     if daemon is None:
         return []
@@ -1589,6 +1595,12 @@ async def dex_history(limit: int = 50):
 
     exchanges.sort(key=lambda x: x.get("timestamp", ""))
     return exchanges[-limit:]
+
+
+@router.get("/dex/history")
+async def dex_history_compat(limit: int = 50):
+    """Backward-compat shim — canonical route is /advisor/history."""
+    return await advisor_history(limit)
 
 
 # ─── EOS Projection Endpoints ─────────────────────────────────────────────
