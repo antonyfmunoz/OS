@@ -242,8 +242,8 @@ ROLE_SLOTS: dict[ProviderRole, str] = {
 
 ROLE_FAILOVER: dict[ProviderRole, str | None] = {
     ProviderRole.STRATEGIC_BRAIN: "cc_sdk",
-    ProviderRole.FAST_RESPONDER: "beast-ollama",
-    ProviderRole.CODE_BUILDER: "beast-ollama",
+    ProviderRole.FAST_RESPONDER: "gemini-pro",
+    ProviderRole.CODE_BUILDER: "gemini-pro",
     ProviderRole.RESEARCH_ENGINE: "groq-llama",
     ProviderRole.LOCAL_POWERHOUSE: "ollama-qwen",
     ProviderRole.EMERGENCY_FALLBACK: None,
