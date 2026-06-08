@@ -352,7 +352,7 @@ async def _voice_health() -> dict[str, Any]:
     tts_provider = os.environ.get("UMH_TTS_PROVIDER", "kokoro")
     tts_host = os.environ.get("KOKORO_TTS_HOST", "")
     kokoro_url = os.environ.get("KOKORO_TTS_URL", "http://100.74.199.102:8880")
-    ws_port = os.environ.get("UMH_VOICE_WS_PORT", "8095")
+    ws_port = os.environ.get("UMH_VOICE_WS_PORT", "8096")
 
     tts_reachable = _check_tts_available()
 

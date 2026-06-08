@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Cockpit Voice Server — pure STT + TTS bridge for DEX conversations.
 
-Listens on ws://0.0.0.0:8095/voice.
+Listens on ws://0.0.0.0:8096/voice.
 
 This server handles ONLY audio I/O:
   - STT: Groq Whisper with faster-whisper fallback
@@ -69,7 +69,7 @@ logging.basicConfig(
 log = logging.getLogger("voice_server")
 
 HOST = os.getenv("VOICE_SERVER_HOST", "0.0.0.0")
-PORT = int(os.getenv("VOICE_SERVER_PORT", "8095"))
+PORT = int(os.getenv("VOICE_SERVER_PORT", "8096"))
 SAMPLE_RATE = 16000
 MIN_AUDIO_BYTES = int(SAMPLE_RATE * 2 * 0.3)
 
