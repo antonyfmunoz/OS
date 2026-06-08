@@ -107,6 +107,14 @@ class NodeMeshServer:
         except Exception as exc:
             logger.debug("mesh event broadcast failed: %s", exc)
 
+    @staticmethod
+    def _task_done_cb(task: asyncio.Task[None]) -> None:
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc:
+            logger.error("background task %s failed: %s", task.get_name(), exc, exc_info=exc)
+
     def _run_loop(self) -> None:
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
@@ -116,6 +124,8 @@ class NodeMeshServer:
         assert self._loop is not None
         self._health_task = self._loop.create_task(self._health_check_loop())
         self._vps_metrics_task = self._loop.create_task(self._vps_metrics_loop())
+        self._http_task = self._loop.create_task(self._run_http_relay())
+        self._http_task.add_done_callback(self._task_done_cb)
 
         async with websockets.serve(
             self._handle_connection,
@@ -134,6 +144,7 @@ class NodeMeshServer:
 
         self._health_task.cancel()
         self._vps_metrics_task.cancel()
+        self._http_task.cancel()
 
     async def _handle_connection(self, ws: ServerConnection) -> None:
         """Handle a single node WebSocket connection."""
@@ -510,3 +521,135 @@ class NodeMeshServer:
                             await node.ws.close(4002, "heartbeat timeout")
                         except Exception:
                             pass
+
+    # ── HTTP Command Relay ─────────────────────────────────────────────
+
+    async def _run_http_relay(self) -> None:
+        """Lightweight HTTP server for command dispatch from Docker containers."""
+        logger.info("_run_http_relay task started")
+        http_port = self._config.port + 1
+
+        async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+            try:
+                request_line = await asyncio.wait_for(reader.readline(), timeout=5)
+                headers: dict[str, str] = {}
+                while True:
+                    line = await asyncio.wait_for(reader.readline(), timeout=5)
+                    if line in (b"\r\n", b"\n", b""):
+                        break
+                    if b":" in line:
+                        k, v = line.decode().split(":", 1)
+                        headers[k.strip().lower()] = v.strip()
+
+                method, path, _ = request_line.decode().split(" ", 2)
+                content_length = int(headers.get("content-length", "0"))
+                body = b""
+                if content_length > 0:
+                    body = await asyncio.wait_for(reader.readexactly(content_length), timeout=10)
+
+                if method == "GET" and path.rstrip("/") == "/health":
+                    resp = self._http_health()
+                elif method == "POST" and path.rstrip("/") == "/dispatch":
+                    resp = await self._http_dispatch(json.loads(body))
+                elif method == "GET" and path.rstrip("/") == "/nodes":
+                    resp = self._http_nodes()
+                else:
+                    resp = {"error": "not found"}
+
+                resp_body = json.dumps(resp).encode()
+                writer.write(
+                    b"HTTP/1.1 200 OK\r\n"
+                    b"Content-Type: application/json\r\n"
+                    b"Content-Length: " + str(len(resp_body)).encode() + b"\r\n"
+                    b"Connection: close\r\n\r\n"
+                    + resp_body
+                )
+                await writer.drain()
+            except Exception as exc:
+                logger.debug("http relay request error: %s", exc)
+                try:
+                    err = json.dumps({"error": str(exc)}).encode()
+                    writer.write(
+                        b"HTTP/1.1 500 Internal Server Error\r\n"
+                        b"Content-Type: application/json\r\n"
+                        b"Content-Length: " + str(len(err)).encode() + b"\r\n"
+                        b"Connection: close\r\n\r\n"
+                        + err
+                    )
+                    await writer.drain()
+                except Exception:
+                    pass
+            finally:
+                writer.close()
+
+        try:
+            logger.info("starting http command relay on port %d...", http_port)
+            srv = await asyncio.start_server(handle_request, "0.0.0.0", http_port)
+            logger.info("http command relay listening on :%d", http_port)
+            async with srv:
+                await srv.serve_forever()
+        except asyncio.CancelledError:
+            logger.info("http relay shutting down")
+        except Exception as exc:
+            logger.error("http relay failed to start: %s", exc, exc_info=True)
+
+    def _http_health(self) -> dict[str, Any]:
+        nodes = self._registry.all_nodes()
+        return {
+            "status": "healthy",
+            "connected_nodes": len(nodes),
+            "node_ids": [n.node_id for n in nodes],
+        }
+
+    def _http_nodes(self) -> list[dict[str, Any]]:
+        return [n.to_api_dict() for n in self._registry.all_nodes()]
+
+    async def _http_dispatch(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Dispatch a capability.execute to a connected node and return result."""
+        from uuid import uuid4
+        from substrate.sockets.envelopes import CapabilityRequest
+
+        node_id = body.get("node_id", "")
+        capability = body.get("capability", "")
+        params = body.get("params", {})
+        timeout = body.get("timeout", 15)
+
+        if not node_id or not capability:
+            return {"ok": False, "error": "node_id and capability required"}
+
+        node = self._registry.get(node_id)
+        if node is None:
+            return {"ok": False, "error": f"node {node_id} not connected"}
+        if node.ws is None:
+            return {"ok": False, "error": f"node {node_id} has no WS connection"}
+
+        request = CapabilityRequest(
+            request_id=uuid4(),
+            capability_name=capability,
+            integration_id=f"node-{node_id}",
+            params=params,
+            governance_verdict_id=uuid4(),
+            trace_id=uuid4(),
+            timeout_seconds=timeout,
+        )
+
+        from transports.node_mesh.integration.handlers import NodeCapabilityHandler
+        handler = NodeCapabilityHandler(node)
+
+        loop = asyncio.get_event_loop()
+        try:
+            response = await loop.run_in_executor(
+                None, handler.handle_capability, request,
+            )
+        except TimeoutError:
+            return {"ok": False, "error": f"timeout after {timeout}s", "status": "timeout"}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc), "status": "error"}
+
+        return {
+            "ok": response.success,
+            "status": "executed" if response.success else "failed",
+            "result_data": response.result_data,
+            "error": response.error,
+            "latency_ms": response.latency_ms,
+        }
