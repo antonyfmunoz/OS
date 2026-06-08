@@ -170,7 +170,7 @@ class OperatorLoopCoordinator:
         kernel = OrchestratorKernel()
         response = kernel.receive_operator_input(run.input_text)
 
-        run.dex_intent_id = response.intent_type or ""
+        run.intent_id = response.intent_type or ""
         run.metadata["intent_classification"] = {
             "intent_type": response.intent_type,
             "response_id": response.response_id,
@@ -545,7 +545,7 @@ class OperatorLoopCoordinator:
             "selected_runtime": run.selected_runtime,
             "selected_device": run.selected_device,
             "input_text": run.input_text[:200],
-            "intent": run.dex_intent_id,
+            "intent": run.intent_id,
             "work_packet_id": run.work_packet_id,
             "runtime_session_id": run.runtime_session_id,
             "artifacts": run.artifact_paths,
@@ -700,7 +700,7 @@ def _build_implementation_report(
         "## What the Orchestrator Understood",
         "",
         f"**Operator input:** {run.input_text}",
-        f"**Classified intent:** {run.dex_intent_id}",
+        f"**Classified intent:** {run.intent_id}",
         f"**Work Packet:** {run.work_packet_id}",
         "",
         "## Current Known Context",

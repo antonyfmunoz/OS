@@ -176,7 +176,7 @@ class ReportDispatcher:
                     "summary": report.summary,
                     "file_path": report.file_path,
                     "metadata": report.metadata,
-                    "source": "cockpit_dex_channel",
+                    "source": "cockpit_advisor_channel",
                 },
                 "conversation_id": str(uuid4()),
                 "parent_message_id": None,

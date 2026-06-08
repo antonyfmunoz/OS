@@ -1517,7 +1517,7 @@ async def dex_history(limit: int = 50):
 
     exchanges: list[dict[str, Any]] = []
 
-    dex_msgs = [m for m in messages if m.get("payload", {}).get("source") == "cockpit_dex_channel"]
+    dex_msgs = [m for m in messages if m.get("payload", {}).get("source") == "cockpit_advisor_channel"]
     i = 0
     while i < len(dex_msgs):
         msg = dex_msgs[i]

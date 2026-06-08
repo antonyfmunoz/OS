@@ -8,8 +8,8 @@ export type VoiceEvent =
   | { type: 'transcript'; text: string; final: boolean }
   | { type: 'vad_status'; active: boolean }
   | { type: 'tts_status'; speaking: boolean }
+  | { type: 'tts_error'; error: string }
   | { type: 'audio_level'; level: number }
-  | { type: 'voice_response'; text: string; spoken_text: string; classification: string; has_audio: boolean }
   | { type: 'connected' }
   | { type: 'disconnected' }
 
@@ -21,6 +21,7 @@ export class VoiceWsClient {
   private processorNode: ScriptProcessorNode | null = null
   private _audioQueue: ArrayBuffer[] = []
   private _playing = false
+  private _currentAudio: HTMLAudioElement | null = null
 
   constructor() {
     this.ws = new WsClient(VOICE_URL)
@@ -94,6 +95,20 @@ export class VoiceWsClient {
     return this.ws.connected
   }
 
+  requestTts(text: string): void {
+    this.ws.send('tts_request', { text })
+  }
+
+  cancelTts(): void {
+    this._audioQueue = []
+    if (this._currentAudio) {
+      this._currentAudio.pause()
+      this._currentAudio = null
+    }
+    this._playing = false
+    this.ws.send('tts_cancel')
+  }
+
   private _queueAudio(buf: ArrayBuffer): void {
     this._audioQueue.push(buf)
     if (!this._playing) this._playNext()
@@ -103,6 +118,7 @@ export class VoiceWsClient {
     const buf = this._audioQueue.shift()
     if (!buf) {
       this._playing = false
+      this._currentAudio = null
       return
     }
     this._playing = true
@@ -110,6 +126,7 @@ export class VoiceWsClient {
       const blob = new Blob([buf], { type: 'audio/wav' })
       const url = URL.createObjectURL(blob)
       const audio = new Audio(url)
+      this._currentAudio = audio
       audio.onended = () => { URL.revokeObjectURL(url); this._playNext() }
       audio.onerror = () => { URL.revokeObjectURL(url); this._playNext() }
       audio.play().catch(() => this._playNext())

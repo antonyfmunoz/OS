@@ -210,7 +210,7 @@ async def _current(request: Request) -> dict[str, Any]:
 
 @presence_router.post("/presence/command")
 async def _command(request: Request) -> dict[str, Any]:
-    from substrate.workstation.jarvis_command import (
+    from substrate.workstation.command_router import (
         CommandIntent,
         GovernanceRequirement,
         classify_intent,
@@ -290,7 +290,7 @@ async def _command(request: Request) -> dict[str, Any]:
         result["data"] = blocked_data
 
     elif intent == CommandIntent.PACKET_CONTROL:
-        from substrate.workstation.jarvis_command import resolve_packet_control_action
+        from substrate.workstation.command_router import resolve_packet_control_action
         action = resolve_packet_control_action(text)
         result["response_text"] = f"Packet {action} requires governance approval."
         result["governance"] = GovernanceRequirement.REQUIRES_GOVERNANCE.value
