@@ -314,55 +314,38 @@ _LEGACY_PURPOSE_MAP: dict[str, str] = {
 }
 
 
-# Provider priority for fallback ordering (lower = preferred)
-# Default priority — used for analyze/generate/code/strategic tasks
-# Claude CLI (persistent tmux session) first for conversational continuity →
-# CC SDK (Opus) for quality → Gemini (cheap, fast) → Groq (fast inference)
-# → Anthropic (401 until credits restored) → Perplexity (search tasks)
-# → Ollama (free local catch-all)
+# Provider priority for last-resort fallback sweep and ModelRouter class methods.
+# Purpose-based routing (ROLE_SLOTS + PURPOSE_ROUTING) handles primary routing;
+# this ordering is only hit when purpose-routing exhausts all role slots.
 PROVIDER_PRIORITY: dict = {
-    ModelProvider.CLAUDE_CLI: 0,
-    ModelProvider.CC_SDK: 1,
+    ModelProvider.GROQ: 0,
+    ModelProvider.OLLAMA: 1,
     ModelProvider.GEMINI: 2,
-    ModelProvider.GROQ: 3,
-    ModelProvider.ANTHROPIC: 4,
-    ModelProvider.PERPLEXITY: 5,
-    ModelProvider.OLLAMA: 6,
+    ModelProvider.CC_SDK: 3,
+    ModelProvider.CLAUDE_CLI: 4,
+    ModelProvider.ANTHROPIC: 5,
+    ModelProvider.PERPLEXITY: 6,
     ModelProvider.CODEX: 7,
     ModelProvider.HERMES: 8,
     ModelProvider.OPENCODE: 9,
     ModelProvider.MANUS: 10,
 }
 
-# Fast-path priority — used for fast_response/conversation tasks
-# Claude CLI session first so Discord/pseudo-live keeps a single stateful
-# brain → Gemini Flash (fast + cheap) → Groq (ultra-fast) → Anthropic (Haiku)
-# → CC SDK reserved for escalation only → Ollama local catch-all
-PROVIDER_PRIORITY_FAST: dict = {
-    ModelProvider.CLAUDE_CLI: 0,
-    ModelProvider.GEMINI: 1,
-    ModelProvider.GROQ: 2,
-    ModelProvider.ANTHROPIC: 3,
-    ModelProvider.CC_SDK: 4,
-    ModelProvider.PERPLEXITY: 5,
-    ModelProvider.OLLAMA: 6,
-    ModelProvider.CODEX: 7,
-    ModelProvider.HERMES: 8,
-    ModelProvider.OPENCODE: 9,
-    ModelProvider.MANUS: 10,
-}
 
 # Task types that use the fast-path priority
 _FAST_TASK_TYPES = frozenset({"fast_response", "conversation", "score", "classify", "summarize"})
 
-# Token caps for Haiku on cheap tasks (protect $5 budget)
-_HAIKU_TOKEN_CAPS: dict[str, int] = {
-    "fast_response": 500,
-    "conversation": 800,
-    "score": 500,
-    "classify": 500,
-    "summarize": 800,
-}
+# Purposes that should route to Claude CLI as Backend #0.
+# All other purposes skip CLI entirely and go straight to purpose-based routing.
+# This prevents fast/local tasks from waiting on CLI timeout before reaching Groq/Beast.
+_CLI_ELIGIBLE_PURPOSES = frozenset({
+    "advise_founder",
+    "plan_architecture",
+    "build_code",
+    "autonomous_execution",
+    "decompose_goal",
+})
+
 
 # Escalation threshold — if quality_score below this, retry with cc_sdk
 # Lowered from 0.65: Haiku is a fast/cheap model, not a reasoning model.
@@ -377,7 +360,8 @@ PROVIDER_QUALITY: dict = {
     "gemini": 0.65,  # Gemini 2.5 Flash
     "groq": 0.55,  # Llama 3.3 70B
     "perplexity": 0.60,  # Sonar (search-augmented)
-    "ollama": 0.35,  # Local qwen2.5:0.5b — emergency fallback only, low quality
+    "ollama": 0.35,  # VPS qwen2.5:0.5b — emergency fallback only, low quality
+    "beast-ollama": 0.55,  # Beast qwen2.5-coder:14b — competitive with Groq for code tasks
     "codex": 0.80,  # GPT-5.5 via Codex CLI — strong coding, adversarial review
     "hermes": 0.70,  # Model-agnostic via Hermes Agent — depends on configured provider
     "opencode": 0.75,  # Multi-provider via OpenCode — depends on configured model
@@ -519,24 +503,28 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
 }
 
 
-def _estimate_quality_score(output: str, provider: str) -> float:
+def _estimate_quality_score(output: str, provider_key: str, skip_length_penalty: bool = False) -> float:
     """
     Heuristic quality score for a model response.
 
     Uses response length, structure, and provider baseline to estimate
     whether the output is worth returning or should escalate.
+
+    provider_key: registry key (e.g. "beast-ollama") OR provider enum value
+    (e.g. "ollama"). Registry key checked first for per-model granularity.
+    skip_length_penalty: True for fast tasks where short answers are expected.
     """
     if not output or not output.strip():
         return 0.0
 
-    base = PROVIDER_QUALITY.get(provider, 0.5)
+    base = PROVIDER_QUALITY.get(provider_key, PROVIDER_QUALITY.get(provider_key.split("-")[0], 0.5))
     length = len(output.strip())
 
-    # Very short responses from weak providers are suspect
-    if length < 20:
-        return min(base, 0.3)
-    if length < 50:
-        return min(base, 0.5)
+    if not skip_length_penalty:
+        if length < 20:
+            return min(base, 0.3)
+        if length < 50:
+            return min(base, 0.5)
 
     # Refusal / error patterns
     _refusal = any(
@@ -549,15 +537,22 @@ def _estimate_quality_score(output: str, provider: str) -> float:
     return base
 
 
-def _should_escalate(output: str, provider: str) -> bool:
-    """Return True if the response quality is below escalation threshold."""
-    score = _estimate_quality_score(output, provider)
+def _should_escalate(output: str, provider_key: str, purpose: str = "") -> bool:
+    """Return True if the response quality is below escalation threshold.
+
+    For fast purposes (quick_triage, classify_intent, score_quality), short
+    answers are expected and acceptable — skip length-based penalty.
+    """
+    skip_length_penalty = purpose in (
+        "quick_triage", "classify_intent", "score_quality", "status_report"
+    )
+    score = _estimate_quality_score(output, provider_key, skip_length_penalty=skip_length_penalty)
     if score < _ESCALATION_QUALITY_THRESHOLD:
         logger.warning(
-            "[Router] Quality %.2f < %.2f from %s — escalating to cc_sdk",
+            "[Router] Quality %.2f < %.2f from %s — escalating",
             score,
             _ESCALATION_QUALITY_THRESHOLD,
-            provider,
+            provider_key,
         )
         return True
     return False
@@ -1231,16 +1226,17 @@ def call_with_fallback(
         logger.debug("[Router] capability_router skipped: %s", _cap_exc)
 
     # ── Backend #0: Claude CLI persistent tmux session ──
-    # Shared first backend for all routed calls (fast + heavy paths). This is
-    # the router's single seam for "Claude Code CLI first"; if it returns any
-    # bounded failure (tmux missing, cli missing, session missing, empty reply,
-    # ask exception) we fall through to the existing provider chain unchanged.
-    # Never raises — respond_via_claude_session is a safe-degrade adapter.
-    cli_enabled = _claude_cli_backend_enabled()
+    # Only attempted for strategic/heavy purposes (advise_founder, plan_architecture,
+    # build_code, autonomous_execution, decompose_goal). Fast tasks (quick_triage,
+    # classify_intent, score_quality, summarize, status_report) skip directly to
+    # purpose-based routing where Groq/Beast are first in line.
+    purpose = _resolve_purpose(task_type_str, agent_type, is_ceo)
+    cli_enabled = _claude_cli_backend_enabled() and purpose in _CLI_ELIGIBLE_PURPOSES
     logger.info(
-        "[Router] claude_cli backend gate: enabled=%s task=%s",
+        "[Router] claude_cli backend gate: enabled=%s task=%s purpose=%s",
         cli_enabled,
         task_type_str,
+        purpose,
     )
     if cli_enabled:
         try:
@@ -1336,10 +1332,14 @@ def call_with_fallback(
             )
             logger.warning("[Router] claude_cli backend error: %s", exc)
     else:
-        logger.info("[Router] claude_cli backend disabled via env — skipping")
+        logger.info(
+            "[Router] claude_cli skipped (env_enabled=%s purpose=%s)",
+            _claude_cli_backend_enabled(),
+            purpose,
+        )
 
     # ── PURPOSE-BASED ROUTING: resolve purpose → roles → providers ──
-    purpose = _resolve_purpose(task_type_str, agent_type, is_ceo)
+    # (purpose already resolved above for CLI gate decision)
     provider_keys = _providers_for_purpose(purpose)
     logger.info("[Router] purpose=%s providers=%s", purpose, provider_keys)
 
@@ -1397,7 +1397,7 @@ def call_with_fallback(
         max_tok = 2000
         output = router.call(config, prompt, system or "", max_tok, images)
         if output:
-            if _should_escalate(output, config.provider.value):
+            if _should_escalate(output, pkey, purpose=purpose):
                 logger.info("[Router] %s quality too low, trying next role", pkey)
                 _blockers[pkey] = "quality_too_low"
                 continue
