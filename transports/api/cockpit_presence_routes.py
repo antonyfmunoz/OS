@@ -376,11 +376,14 @@ async def _voice_health() -> dict[str, Any]:
             "reachable": tts_reachable,
         },
         "websocket": {
-            "port": ws_port,
-            "url": f"ws://localhost:{ws_port}/voice",
+            "local_ws": f"ws://localhost:{ws_port}/voice",
+            "public_ws": "/api/umh/voice/ws",
         },
+        "deployed_browser_supported": True,
+        "local_electron_supported": True,
         "supported_input_modes": ["tap_to_toggle"],
         "tts_cancel_supported": True,
+        "note": "Browser mic availability is client-side only — server cannot verify",
         "source_env": _detect_env(),
     }
 
