@@ -1,5 +1,5 @@
 """
-cc_sdk — Claude Code Agent SDK wrapper for EOS.
+cc_sdk — Claude Code Agent SDK wrapper for UMH.
 
 New provider for model_router. Uses claude-agent-sdk to run queries
 through Claude Code's subprocess transport (local CLI).
@@ -251,6 +251,9 @@ async def query_cc(
     """
     if timeout is None:
         timeout = _resolve_timeout()
+    if os.path.exists("/.dockerenv") or os.environ.get("container"):
+        logger.info("[cc_sdk] running inside container — no CLI auth available, skipping")
+        return None
     if _is_nested_cc_session():
         logger.info("[CC SDK] Nested session detected, skipping")
         return None

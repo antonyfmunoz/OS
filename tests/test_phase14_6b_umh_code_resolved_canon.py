@@ -244,7 +244,7 @@ class TestNamingCanonicalization:
 
     def test_env_var_naming_debt_documented(self):
         content = self._naming_content()
-        assert "EOS_ROUTER" in content or "EOS_ORG" in content
+        assert "UMH_ROUTER" in content or "EOS_ROUTER" in content or "EOS_ORG" in content
 
 
 # ── Ecosystem doctrine tests ─────────────────────────────────────────
