@@ -1912,16 +1912,24 @@ def push_chat_message(message: dict) -> None:
         _pending_organism_events[:] = _pending_organism_events[-100:]
 
 
+def _extract_ws_subprotocol(ws: WebSocket) -> str | None:
+    """Return the bearer subprotocol string if the client sent one, else None."""
+    for proto in (ws.headers.get("sec-websocket-protocol") or "").split(","):
+        proto = proto.strip()
+        if proto.startswith("bearer."):
+            return proto
+    return None
+
+
 def _extract_ws_token(ws: WebSocket) -> str:
     """Extract auth token from Sec-WebSocket-Protocol header or query param.
 
     Preferred: client sends subprotocol 'bearer.<token>' — avoids token in URL/logs.
     Fallback: ?token= query param for clients that cannot set subprotocols.
     """
-    for proto in (ws.headers.get("sec-websocket-protocol") or "").split(","):
-        proto = proto.strip()
-        if proto.startswith("bearer."):
-            return proto[7:]
+    sub = _extract_ws_subprotocol(ws)
+    if sub:
+        return sub[7:]
     return ws.query_params.get("token", "")
 
 
@@ -1960,8 +1968,7 @@ async def cockpit_ws(ws: WebSocket):
         await ws.close(code=4001, reason="Authentication required")
         logger.warning("WS auth rejected from %s", ws.client.host if ws.client else "unknown")
         return
-    token = _extract_ws_token(ws)
-    subprotocol = f"bearer.{token}" if token else None
+    subprotocol = _extract_ws_subprotocol(ws)
     await ws.accept(subprotocol=subprotocol)
     _cockpit_clients.add(ws)
     event_cursor = len(_pending_organism_events)
