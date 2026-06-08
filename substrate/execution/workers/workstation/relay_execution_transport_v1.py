@@ -12,6 +12,7 @@ UMH substrate subsystem.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import os
 import json
@@ -56,7 +57,7 @@ def _ssh_cmd(remote_command: str, timeout: int = SSH_TIMEOUT) -> str:
 def _run_ssh(remote_command: str, timeout: int = 30) -> tuple[bool, str, str]:
     cmd = _ssh_cmd(remote_command, timeout=SSH_TIMEOUT)
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             cmd,
             shell=True,
             capture_output=True,
@@ -155,7 +156,7 @@ def write_request_via_scp(
         f"'{SSH_USER}'@{SSH_HOST}:eos_advisor_messages/windows_desktop_relay/inbox/{filename}"
     )
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             scp_cmd,
             shell=True,
             capture_output=True,

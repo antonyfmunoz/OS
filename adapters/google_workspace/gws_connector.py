@@ -10,6 +10,7 @@ Usage:
     events = gws.get_today_events()
     tasks  = gws.get_tasks()
 """
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import os
@@ -79,7 +80,7 @@ class GWSConnector:
             cmd += ["--json", json.dumps(body)]
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=_GWS_TIMEOUT)
+            result = gated_subprocess_run(cmd, capture_output=True, text=True, timeout=_GWS_TIMEOUT)
         except subprocess.TimeoutExpired:
             _trip_cooldown()
             print(
@@ -549,7 +550,7 @@ class GWSConnector:
     def read_document(self, file_id: str) -> str:
         """Export a Google Doc as plain text (first 5000 chars)."""
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 [
                     "npx",
                     "@googleworkspace/cli",

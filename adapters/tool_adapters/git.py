@@ -1,6 +1,7 @@
 """Git adapter — governed git operations. Read-only by default."""
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import re
 import subprocess
@@ -109,7 +110,7 @@ class GitAdapter(BaseAdapter):
         raise ValueError(f"unknown git operation: {operation}")
 
     def _run_git(self, args: list[str]) -> dict[str, Any]:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             args,
             capture_output=True,
             text=True,

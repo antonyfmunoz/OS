@@ -22,6 +22,7 @@ UMH substrate subsystem.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import subprocess
 import time
@@ -250,7 +251,7 @@ class VisibleGUIAdapter:
     def _check_display(self) -> bool:
         """Check if a display server is available."""
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["xdpyinfo"],
                 capture_output=True,
                 text=True,
@@ -263,7 +264,7 @@ class VisibleGUIAdapter:
     def _get_visible_windows(self) -> list[str]:
         """Get list of visible window titles."""
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["wmctrl", "-l"],
                 capture_output=True,
                 text=True,

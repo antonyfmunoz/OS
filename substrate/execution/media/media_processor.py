@@ -15,6 +15,7 @@ from dotenv import load_dotenv as _load_dotenv
 _ROOT = Path(__file__).parent.parent
 _load_dotenv(_ROOT / 'services' / '.env')
 _load_dotenv(_ROOT / 'runtime' / '.env', override=False)
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 try:
     import google.genai as genai
@@ -307,7 +308,7 @@ class MediaProcessor:
 
         # fallback: espeak directly via subprocess
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ['espeak', '-w', output_path, '-s', '150', clean],
                 capture_output=True,
                 timeout=30,

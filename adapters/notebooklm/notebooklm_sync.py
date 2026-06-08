@@ -11,6 +11,7 @@ Notebook IDs are stored in .env after manual creation:
 Usage:
     from substrate.state.context.context import load_context_from_env
     from adapters.notebooklm.notebooklm_sync import NotebookLMSync
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
     ctx = load_context_from_env()
     nls = NotebookLMSync(ctx)
@@ -57,7 +58,7 @@ class NotebookLMSync:
     def _nlm_source_add(self, notebook_id: str, file_path: str) -> bool:
         """Run nlm source add and return success."""
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ['nlm', 'source', 'add', notebook_id, '--file', file_path],
                 capture_output=True,
                 text=True,
@@ -208,7 +209,7 @@ class NotebookLMSync:
             return ''
 
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ['nlm', 'notebook', 'query', notebook_id, '--question', question],
                 capture_output=True,
                 text=True,

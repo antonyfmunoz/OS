@@ -15,6 +15,7 @@ Architecture:
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import asyncio
 import json
@@ -40,7 +41,7 @@ def _get_powershell_path() -> str:
     """Find PowerShell executable (pwsh preferred over powershell.exe)."""
     for candidate in ["pwsh", "powershell.exe", "pwsh.exe"]:
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["which", candidate],
                 capture_output=True,
                 timeout=5,

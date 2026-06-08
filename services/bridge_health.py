@@ -19,6 +19,7 @@ Usage:
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import logging
 import os
@@ -96,7 +97,7 @@ def _check_ssh() -> dict[str, Any]:
     """Verify OpenSSH connectivity to Windows via Tailscale interface."""
     try:
         cmd = _ssh_cmd(["powershell", "-c", "echo ok"])
-        result = subprocess.run(
+        result = gated_subprocess_run(
             cmd,
             capture_output=True,
             text=True,
@@ -125,7 +126,7 @@ def _start_bridge_via_ssh() -> dict[str, Any]:
     """
     try:
         cmd = _ssh_cmd(["powershell", "-c", "schtasks /run /tn 'EOS-Bridge'"])
-        result = subprocess.run(
+        result = gated_subprocess_run(
             cmd,
             capture_output=True,
             text=True,
@@ -161,7 +162,7 @@ def _kill_bridge_via_ssh() -> dict[str, Any]:
     )
     try:
         cmd = _ssh_cmd(["powershell", "-c", ps_kill])
-        result = subprocess.run(
+        result = gated_subprocess_run(
             cmd,
             capture_output=True,
             text=True,

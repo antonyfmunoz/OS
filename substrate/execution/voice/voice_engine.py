@@ -23,6 +23,7 @@ import wave
 from collections import deque
 from datetime import datetime
 from pathlib import Path
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 
 # ─── Speech classification constants ──────────────────────────────────────────
@@ -524,7 +525,7 @@ class VoiceEngine:
 
         # Fallback: espeak
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ['espeak', '-w', output_path, text],
                 capture_output=True,
                 timeout=15,

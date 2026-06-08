@@ -6,6 +6,7 @@ can log them uniformly.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import os
 import subprocess
@@ -16,7 +17,7 @@ from .actions import Action
 
 def _run_shell(command: str, timeout: int = 60) -> dict[str, Any]:
     try:
-        proc = subprocess.run(
+        proc = gated_subprocess_run(
             command,
             shell=True,
             capture_output=True,

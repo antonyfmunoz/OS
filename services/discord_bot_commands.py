@@ -6,6 +6,7 @@ Registered at import time via register_commands(bot, ...).
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import asyncio
 import os
@@ -207,7 +208,7 @@ def register_commands(
     @bot.command(name="portfolio")
     async def cmd_portfolio(ctx: commands.Context):
         """Trigger the weekly portfolio brief on demand."""
-        subprocess.Popen(["python3", str(_REPO_ROOT / "scripts" / "portfolio_brief.py")])
+        gated_popen(["python3", str(_REPO_ROOT / "scripts" / "portfolio_brief.py")])
         await ctx.reply("📊 Portfolio brief generating...")
 
     @bot.command(name="join")
@@ -292,7 +293,7 @@ def register_commands(
     @bot.command(name="eod")
     async def cmd_eod(ctx: commands.Context):
         """Trigger EOD sync manually."""
-        subprocess.Popen(["python3", str(_REPO_ROOT / "scripts" / "eod_sync.py")])
+        gated_popen(["python3", str(_REPO_ROOT / "scripts" / "eod_sync.py")])
         await ctx.reply("📊 EOD sync running...")
 
     @bot.command(name="openday")

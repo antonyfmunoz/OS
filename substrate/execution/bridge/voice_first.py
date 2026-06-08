@@ -15,6 +15,7 @@ Design rules
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import asyncio
 import os
@@ -108,7 +109,7 @@ def _ensure_ack_dir() -> str:
 def _generate_ack_wav(phrase: str, output_path: str) -> bool:
     """Generate a WAV file from a short phrase using espeak."""
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["espeak", "-s", "160", "-w", output_path, phrase],
             capture_output=True,
             timeout=10,

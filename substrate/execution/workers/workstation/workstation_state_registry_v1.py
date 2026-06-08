@@ -11,6 +11,7 @@ UMH substrate subsystem.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import os
@@ -147,7 +148,7 @@ class WorkstationStateRegistry:
 
     def _get_tmux_sessions(self) -> list[str]:
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["tmux", "list-sessions", "-F", "#{session_name}"],
                 capture_output=True,
                 text=True,
@@ -161,7 +162,7 @@ class WorkstationStateRegistry:
 
     def _get_docker_services(self) -> list[str]:
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["docker", "ps", "--format", "{{.Names}}"],
                 capture_output=True,
                 text=True,
@@ -175,13 +176,13 @@ class WorkstationStateRegistry:
 
     def _get_git_info(self) -> tuple[str, str]:
         try:
-            repo = subprocess.run(
+            repo = gated_subprocess_run(
                 ["git", "rev-parse", "--show-toplevel"],
                 capture_output=True,
                 text=True,
                 timeout=5,
             )
-            branch = subprocess.run(
+            branch = gated_subprocess_run(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 capture_output=True,
                 text=True,
@@ -201,7 +202,7 @@ class WorkstationStateRegistry:
         tools = []
         for tool in ["python3", "git", "docker", "tmux", "ruff", "pytest", "ssh", "curl"]:
             try:
-                result = subprocess.run(
+                result = gated_subprocess_run(
                     ["which", tool], capture_output=True, text=True, timeout=3
                 )
                 if result.returncode == 0:
