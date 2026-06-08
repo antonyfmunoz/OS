@@ -5,6 +5,8 @@ import { useChatStore } from '../stores/chatStore'
 let client: VoiceWsClient | null = null
 let cleanups: (() => void)[] = []
 let chatUnsub: (() => void) | null = null
+let pendingTimeout: ReturnType<typeof setTimeout> | null = null
+const PENDING_RESPONSE_TIMEOUT_MS = 30_000
 
 function getClient(): VoiceWsClient {
   if (!client) {
@@ -41,7 +43,8 @@ function wireEvents(): void {
       if (active && voiceStore.ttsState === 'speaking') {
         client?.cancelTts()
         voiceStore.setTtsState('idle')
-        voiceStore.setMicState('listening')
+        voiceStore.setMicState('interrupted')
+        setTimeout(() => useVoiceStore.getState().setMicState('listening'), 200)
       } else {
         voiceStore.setMicState(active ? 'listening' : 'idle')
       }
@@ -59,10 +62,25 @@ function wireEvents(): void {
       const text = data.text as string
       const isFinal = data.final as boolean
       useVoiceStore.getState().setLastTranscript(text)
-      if (isFinal && text) {
+      if (isFinal) {
+        if (!text.trim()) {
+          useVoiceStore.getState().setError('No speech detected — try again')
+          useVoiceStore.getState().setMicState('listening')
+          return
+        }
         useVoiceStore.getState().setMicState('processing')
         useVoiceStore.getState().setPendingVoiceResponse(true)
+        useVoiceStore.getState().setError(null)
         useChatStore.getState().addVoiceTranscript(text)
+        if (pendingTimeout) clearTimeout(pendingTimeout)
+        pendingTimeout = setTimeout(() => {
+          const vs = useVoiceStore.getState()
+          if (vs.pendingVoiceResponse) {
+            vs.setPendingVoiceResponse(false)
+            vs.setMicState('listening')
+            vs.setError('Response timed out — try again')
+          }
+        }, PENDING_RESPONSE_TIMEOUT_MS)
       }
     })
   )
@@ -95,6 +113,7 @@ function wireEvents(): void {
     const last = msgs[msgs.length - 1]
     if (last?.sender !== 'assistant') return
 
+    if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
     voiceState.setPendingVoiceResponse(false)
     voiceState.setMicState('listening')
     if (client && last.content) {

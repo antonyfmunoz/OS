@@ -285,7 +285,16 @@ function ChatSection() {
   const handleMicToggle = useCallback(() => {
     useVoiceStore.getState().setError(null)
     if (micState === 'idle') {
-      startVoice().catch(() => setVoiceAvailable(false))
+      setVoiceAvailable(true)
+      startVoice().catch((err) => {
+        const msg = err?.name === 'NotAllowedError'
+          ? 'Microphone permission denied — check browser settings'
+          : err?.name === 'NotFoundError'
+            ? 'No microphone found'
+            : 'Voice unavailable'
+        useVoiceStore.getState().setError(msg)
+        setVoiceAvailable(false)
+      })
     } else {
       stopVoice()
     }
@@ -398,7 +407,10 @@ function ChatSection() {
       </div>
       <div className="flex flex-col gap-1 border-t border-border pt-2">
         {voiceLabel && (
-          <div className="text-[9px] font-mono text-cyan animate-pulse px-1">{voiceLabel}</div>
+          <div className={clsx('text-[9px] font-mono px-1', voiceError ? 'text-danger' : 'text-cyan animate-pulse')}>{voiceLabel}</div>
+        )}
+        {voiceError && !voiceLabel?.includes('error') && (
+          <div className="text-[9px] font-mono text-danger/70 px-1">{voiceError}</div>
         )}
         <div className="flex items-center gap-1">
           <input
@@ -418,7 +430,7 @@ function ChatSection() {
               micState === 'listening' ? 'text-danger bg-danger/10' :
               'text-text-tertiary hover:text-cyan',
             )}
-            title={!voiceAvailable ? 'Voice requires desktop app or HTTPS' : micState === 'listening' ? 'Stop listening' : 'Voice input'}
+            title={!voiceAvailable ? (voiceError || 'Voice requires desktop app or HTTPS') : micState === 'listening' ? 'Stop listening' : 'Voice input'}
           >
             {micState === 'listening' ? <MicOff size={12} /> : <Mic size={12} />}
           </button>
