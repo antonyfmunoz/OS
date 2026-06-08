@@ -42,11 +42,14 @@ from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
+
 def _root() -> Path:
     return Path(os.getenv("UMH_ROOT", "/opt/OS"))
 
+
 def _heartbeat_dir() -> Path:
     return _root() / "data" / "runtime" / "loop_heartbeats"
+
 
 def _definitions_path() -> Path:
     return _root() / "data" / "config" / "loop_definitions.jsonl"
@@ -130,9 +133,11 @@ def register_stage(name: str, func: StageFunc) -> None:
 
 def stage(name: str) -> Callable[[StageFunc], StageFunc]:
     """Decorator to register a stage function."""
+
     def decorator(func: StageFunc) -> StageFunc:
         STAGE_REGISTRY[name] = func
         return func
+
     return decorator
 
 
@@ -209,24 +214,43 @@ class PersistentLoop:
             started_at=t0.isoformat(),
             finished_at="",
         )
+
+        from substrate.execution.cpu_gate import cpu_gate_check
+
+        gate = cpu_gate_check(f"persistent_loop:{self.name}")
+        if not gate.allowed:
+            report.finished_at = datetime.now(timezone.utc).isoformat()
+            report.details.append(
+                {
+                    "stage": "_cpu_gate",
+                    "error": f"skipped cycle — {gate.reason}",
+                }
+            )
+            self._last_report = report
+            return report
+
         try:
             for stage_name in self.definition.stages:
                 func = STAGE_REGISTRY.get(stage_name)
                 if func is None:
                     report.errors += 1
-                    report.details.append({
-                        "stage": stage_name,
-                        "error": f"unknown stage: {stage_name}",
-                    })
+                    report.details.append(
+                        {
+                            "stage": stage_name,
+                            "error": f"unknown stage: {stage_name}",
+                        }
+                    )
                     continue
                 try:
                     func(self, report)
                 except Exception as e:
                     report.errors += 1
-                    report.details.append({
-                        "stage": stage_name,
-                        "error": str(e),
-                    })
+                    report.details.append(
+                        {
+                            "stage": stage_name,
+                            "error": str(e),
+                        }
+                    )
                     logger.warning(f"[{self.name}] stage '{stage_name}' failed: {e}")
             self._error_count = 0
         except Exception as e:
@@ -264,6 +288,7 @@ class PersistentLoop:
     def _publish_event(self, report: CycleReport) -> None:
         try:
             from substrate.control_plane.events.event_bus import get_bus
+
             get_bus().publish(f"loop_cycle_{self.name}", report.to_dict())
         except Exception:
             pass
