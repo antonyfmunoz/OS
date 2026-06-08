@@ -465,8 +465,14 @@ def classify_intent(text: str) -> CommandIntent:
     for prefix in _WORKSTATION_VERB_PREFIXES:
         if t.startswith(prefix):
             remainder = t[len(prefix):]
-            if remainder and _is_workstation_app_target(remainder):
+            if remainder:
                 return CommandIntent.WORKSTATION_CONTROL
+
+    # ── External communication intent → workstation control (governed) ─
+    _EXTERNAL_ACTION_VERBS = ["message ", "dm ", "send ", "post ", "comment ", "like ", "follow "]
+    for verb in _EXTERNAL_ACTION_VERBS:
+        if verb in t:
+            return CommandIntent.WORKSTATION_CONTROL
 
     return CommandIntent.UNKNOWN
 
@@ -588,6 +594,8 @@ def resolve_workstation_target(text: str) -> dict[str, Any]:
                     result["target_url"] = f"https://{app_info['domain']}"
                 return result
             result["target_app"] = remainder
+            if remainder.isalpha() and len(remainder) <= 30:
+                result["target_url"] = f"https://{remainder}.com"
             return result
 
     if any(s in t for s in ["message", "dm", "send", "post", "comment", "like", "follow"]):
