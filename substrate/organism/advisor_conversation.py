@@ -112,6 +112,8 @@ class AdvisorConversation:
                 view_context,
                 context_summary,
             )
+        elif intent == CommandIntent.APPROVAL_QUERY:
+            response = self._handle_approval_query()
         elif intent == CommandIntent.WORKSTATION_CONTROL:
             response = self._handle_workstation_control(content)
         elif intent == CommandIntent.CONTINUITY_TRANSITION:
@@ -763,6 +765,60 @@ class AdvisorConversation:
                 ],
             )
 
+    # ── Approval Query (deterministic) ───────────────────────────────
+
+    def _handle_approval_query(self) -> AdvisorResponse:
+        """Deterministic approval queue reader — no LLM."""
+        from pathlib import Path
+
+        repo = os.environ.get("UMH_ROOT", "/opt/OS")
+        approvals: list[dict[str, Any]] = []
+
+        approval_dir = Path(repo) / "data" / "umh" / "governance" / "pending_approvals"
+        try:
+            if approval_dir.exists():
+                for f in sorted(approval_dir.glob("*.json")):
+                    try:
+                        entry = json.loads(f.read_text())
+                        approvals.append({
+                            "id": entry.get("id", f.stem),
+                            "title": entry.get("title", entry.get("command", f.stem)),
+                            "risk": entry.get("risk", "unknown"),
+                            "created_at": entry.get("created_at", ""),
+                        })
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        if not approvals:
+            return AdvisorResponse(
+                text="No pending approvals.",
+                conversation_id="",
+                intent="approval_query",
+                metadata={"model_tier": "deterministic", "count": 0},
+                suggested_actions=[
+                    {"label": "Status", "action": "query", "payload": {"content": "current status"}},
+                ],
+            )
+
+        lines = [f"**{len(approvals)} pending approval(s):**\n"]
+        for a in approvals[:10]:
+            risk_tag = f" [{a['risk']}]" if a.get("risk") else ""
+            lines.append(f"- **{a['title']}**{risk_tag}")
+            if a.get("created_at"):
+                lines.append(f"  Created: {a['created_at']}")
+
+        return AdvisorResponse(
+            text="\n".join(lines),
+            conversation_id="",
+            intent="approval_query",
+            metadata={"model_tier": "deterministic", "count": len(approvals), "approvals": approvals},
+            suggested_actions=[
+                {"label": "Open Approvals", "action": "navigate", "payload": {"panel": "approvals"}},
+            ],
+        )
+
     # ── Workstation / Continuity / Startup ─────────────────────────────
 
     def _handle_workstation_control(self, content: str) -> AdvisorResponse:
@@ -901,7 +957,11 @@ class AdvisorConversation:
         lines = ["**Starting up.**\n"]
 
         try:
-            from adapters.models.model_router import MODEL_REGISTRY
+            from adapters.models.model_router import MODEL_REGISTRY, refresh_provider_health
+            try:
+                refresh_provider_health()
+            except Exception:
+                pass
             healthy = [k for k, c in MODEL_REGISTRY.items() if c.available]
             lines.append(f"**Providers:** {len(healthy)} healthy — {', '.join(healthy) or 'none'}")
         except Exception:
@@ -909,11 +969,15 @@ class AdvisorConversation:
 
         try:
             import urllib.request
-            req = urllib.request.Request("http://localhost:8091/health", method="GET")
+            health_host = os.environ.get("UMH_API_HOST", "localhost")
+            health_port = os.environ.get("UMH_API_PORT", "8091")
+            req = urllib.request.Request(
+                f"http://{health_host}:{health_port}/health", method="GET",
+            )
             with urllib.request.urlopen(req, timeout=3) as resp:
                 lines.append("**VPS API:** healthy")
         except Exception:
-            lines.append("**VPS API:** unreachable")
+            lines.append("**VPS API:** unreachable (may be inside container)")
 
         try:
             from substrate.workstation.continuity import ContinuityState
@@ -949,11 +1013,12 @@ class AdvisorConversation:
         success_text: str,
         intent: str,
     ) -> AdvisorResponse:
-        """Send a command to the workstation node via the mesh."""
+        """Send a command to the workstation node via the mesh server."""
         import json as _json
         from pathlib import Path
+        from uuid import uuid4
 
-        desktop_node = None
+        desktop_node_id = None
         mesh_file = Path(
             os.environ.get("UMH_ROOT", "/opt/OS"),
             "data", "runtime", "mesh_nodes.json",
@@ -964,28 +1029,110 @@ class AdvisorConversation:
                 for node in nodes:
                     if "desktop" in node.get("capabilities", []):
                         if node.get("status") == "connected":
-                            desktop_node = node.get("id", node.get("name", "unknown"))
+                            desktop_node_id = node.get("id", node.get("name", "unknown"))
                             break
         except Exception:
             pass
 
-        if not desktop_node:
+        if not desktop_node_id:
             return AdvisorResponse(
                 text=f"No workstation node online — can't execute {capability}.",
                 conversation_id="",
                 intent=intent,
-                metadata={"blocked": True, "reason": "workstation_offline"},
+                metadata={"ok": False, "status": "blocked", "reason": "workstation_offline"},
             )
 
-        return AdvisorResponse(
-            text=success_text,
-            conversation_id="",
-            intent=intent,
-            metadata={"capability": capability, "params": params, "routed_to": desktop_node},
-            suggested_actions=[
-                {"label": "List Windows", "action": "query", "payload": {"content": "list windows"}},
-            ],
+        return self._dispatch_via_http_relay(
+            desktop_node_id, capability, params, success_text, intent,
         )
+
+    def _dispatch_via_http_relay(
+        self,
+        node_id: str,
+        capability: str,
+        params: dict[str, Any],
+        success_text: str,
+        intent: str,
+    ) -> AdvisorResponse:
+        """Dispatch a command to a node via the mesh server's HTTP relay."""
+        import urllib.request
+
+        relay_host = os.environ.get("UMH_MESH_RELAY_HOST", "172.18.0.1")
+        relay_port = os.environ.get("UMH_MESH_RELAY_PORT", "8095")
+        url = f"http://{relay_host}:{relay_port}/dispatch"
+
+        payload = json.dumps({
+            "node_id": node_id,
+            "capability": capability,
+            "params": params,
+            "timeout": 15,
+        }).encode()
+
+        try:
+            req = urllib.request.Request(
+                url, data=payload, method="POST",
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                result = json.loads(resp.read())
+        except Exception as exc:
+            logger.error("Mesh HTTP relay dispatch failed: %s", exc)
+            return AdvisorResponse(
+                text=f"Mesh relay unreachable — can't dispatch {capability} to {node_id}. ({exc})",
+                conversation_id="",
+                intent=intent,
+                metadata={"ok": False, "status": "relay_unreachable", "error": str(exc)},
+            )
+
+        if result.get("ok"):
+            result_data = result.get("result_data", {})
+            proof: dict[str, Any] = {}
+            if "stdout" in result_data:
+                proof["stdout"] = result_data["stdout"][:500]
+            if "window" in result_data:
+                proof["active_window"] = result_data["window"]
+            if "windows" in result_data:
+                proof["window_count"] = len(result_data["windows"])
+                proof["windows"] = [w.get("title", "") for w in result_data["windows"][:10]]
+            if "image_base64" in result_data:
+                proof["screenshot_available"] = True
+
+            return AdvisorResponse(
+                text=success_text,
+                conversation_id="",
+                intent=intent,
+                metadata={
+                    "ok": True,
+                    "status": "executed",
+                    "capability": capability,
+                    "params": params,
+                    "routed_to": node_id,
+                    "proof": proof,
+                    "latency_ms": result.get("latency_ms", 0),
+                },
+                suggested_actions=[
+                    {"label": "List Windows", "action": "query",
+                     "payload": {"content": "list windows"}},
+                    {"label": "Screenshot", "action": "query",
+                     "payload": {"content": "take a screenshot"}},
+                ],
+            )
+        else:
+            error_msg = result.get("error", "unknown error")
+            status = result.get("status", "failed")
+            return AdvisorResponse(
+                text=f"Command failed on {node_id}: {error_msg}",
+                conversation_id="",
+                intent=intent,
+                metadata={
+                    "ok": False,
+                    "status": status,
+                    "capability": capability,
+                    "params": params,
+                    "routed_to": node_id,
+                    "error": error_msg,
+                },
+            )
 
     # ── Formatting ────────────────────────────────────────────────────
 
