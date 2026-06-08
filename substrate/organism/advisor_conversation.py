@@ -116,6 +116,8 @@ class AdvisorConversation:
             response = self._handle_approval_query()
         elif intent == CommandIntent.WORKSTATION_CONTROL:
             response = self._handle_workstation_control(content)
+        elif intent == CommandIntent.VPS_CONTROL:
+            response = self._handle_vps_control(content)
         elif intent == CommandIntent.CONTINUITY_TRANSITION:
             response = self._handle_continuity_transition(content)
         elif intent == CommandIntent.STARTUP_SEQUENCE:
@@ -592,6 +594,7 @@ class AdvisorConversation:
             text=f"Opening {panel}." if panel else "Could not resolve navigation target.",
             conversation_id="",
             intent="cockpit_navigation",
+            metadata={"target_node": "cockpit", "panel": panel} if panel else {},
             suggested_actions=[
                 {"label": f"Open {panel}", "action": "navigate", "payload": {"panel": panel}},
             ]
@@ -878,7 +881,7 @@ class AdvisorConversation:
                 text=f"That requires approval — {desc} is a high-risk external action.",
                 conversation_id="",
                 intent="workstation_control",
-                metadata={"action": action, "target": target, "blocked": True},
+                metadata={"action": action, "target": target, "blocked": True, "target_node": "beast_windows"},
                 suggested_actions=[
                     {"label": "Approve", "action": "approve", "payload": {"command": content}},
                 ],
@@ -918,6 +921,115 @@ class AdvisorConversation:
             intent="workstation_control",
             suggested_actions=[
                 {"label": "List Windows", "action": "query", "payload": {"content": "what windows are open"}},
+            ],
+        )
+
+    def _handle_vps_control(self, content: str) -> AdvisorResponse:
+        """Handle VPS control commands through the governed catalog."""
+        from substrate.workstation.vps_control_catalog import (
+            check_blocked,
+            execute_catalog_action,
+            resolve_vps_action,
+        )
+
+        blocked_reason = check_blocked(content)
+        if blocked_reason:
+            return AdvisorResponse(
+                text=f"**Blocked.** {blocked_reason}",
+                conversation_id="",
+                intent="vps_control",
+                metadata={
+                    "ok": False,
+                    "status": "blocked",
+                    "target_node": "vps",
+                    "blocked_reason": blocked_reason,
+                },
+            )
+
+        action = resolve_vps_action(content)
+        if not action:
+            return AdvisorResponse(
+                text=(
+                    "I couldn't map that to a known VPS command. "
+                    "Try: show docker containers, vps status, provider health, "
+                    "git status, capture tmux, operator logs, or service status."
+                ),
+                conversation_id="",
+                intent="vps_control",
+                metadata={
+                    "ok": False,
+                    "status": "unsupported",
+                    "target_node": "vps",
+                },
+                suggested_actions=[
+                    {"label": "VPS Status", "action": "query", "payload": {"content": "show vps status"}},
+                    {"label": "Docker Containers", "action": "query", "payload": {"content": "show docker containers"}},
+                    {"label": "Provider Health", "action": "query", "payload": {"content": "check provider health"}},
+                ],
+            )
+
+        result = execute_catalog_action(action)
+
+        if result.status == "needs_approval":
+            return AdvisorResponse(
+                text=f"**{result.display_name}** requires approval (risk: {result.risk}).",
+                conversation_id="",
+                intent="vps_control",
+                metadata={
+                    "ok": False,
+                    "status": "needs_approval",
+                    "target_node": "vps",
+                    "action": result.action,
+                    "risk": result.risk,
+                    "requires_approval": True,
+                },
+                suggested_actions=[
+                    {"label": f"Approve {result.display_name}", "action": "approve",
+                     "payload": {"command": content, "vps_action": result.action}},
+                ],
+            )
+
+        if result.status == "blocked":
+            return AdvisorResponse(
+                text=f"**{result.display_name}** blocked: {result.blocked_reason}",
+                conversation_id="",
+                intent="vps_control",
+                metadata={
+                    "ok": False,
+                    "status": "blocked",
+                    "target_node": "vps",
+                    "blocked_reason": result.blocked_reason,
+                },
+            )
+
+        if result.status == "error":
+            return AdvisorResponse(
+                text=f"**{result.display_name}** failed: {result.error}",
+                conversation_id="",
+                intent="vps_control",
+                metadata={
+                    "ok": False,
+                    "status": "error",
+                    "target_node": "vps",
+                    "error": result.error,
+                },
+            )
+
+        output_text = result.output or "(no output)"
+        return AdvisorResponse(
+            text=f"**{result.display_name}**\n\n```\n{output_text}\n```",
+            conversation_id="",
+            intent="vps_control",
+            metadata={
+                "ok": True,
+                "status": "executed",
+                "target_node": "vps",
+                "action": result.action,
+                "risk": result.risk,
+            },
+            suggested_actions=[
+                {"label": "VPS Status", "action": "query", "payload": {"content": "show vps status"}},
+                {"label": "Docker Containers", "action": "query", "payload": {"content": "show docker containers"}},
             ],
         )
 
@@ -972,6 +1084,7 @@ class AdvisorConversation:
 
     def _handle_startup_sequence(self) -> AdvisorResponse:
         lines = ["**Starting up.**\n"]
+        node_status: dict[str, str] = {}
 
         try:
             from adapters.models.model_router import MODEL_REGISTRY, refresh_provider_health
@@ -993,8 +1106,32 @@ class AdvisorConversation:
             )
             with urllib.request.urlopen(req, timeout=3) as resp:
                 lines.append("**VPS API:** healthy")
+                node_status["vps"] = "healthy"
         except Exception:
             lines.append("**VPS API:** unreachable (may be inside container)")
+            node_status["vps"] = "unreachable"
+
+        try:
+            import json as _json
+            from pathlib import Path
+            mesh_file = Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "runtime" / "mesh_nodes.json"
+            if mesh_file.exists():
+                nodes = _json.loads(mesh_file.read_text())
+                for node in nodes:
+                    if "desktop" in node.get("capabilities", []):
+                        status = node.get("status", "unknown")
+                        lines.append(f"**Beast:** {status}")
+                        node_status["beast_windows"] = status
+                        break
+                else:
+                    lines.append("**Beast:** no desktop node registered")
+                    node_status["beast_windows"] = "not_registered"
+            else:
+                lines.append("**Beast:** mesh data unavailable")
+                node_status["beast_windows"] = "no_mesh_data"
+        except Exception:
+            lines.append("**Beast:** status check failed")
+            node_status["beast_windows"] = "error"
 
         try:
             from substrate.workstation.continuity import ContinuityState
@@ -1017,6 +1154,7 @@ class AdvisorConversation:
             text="\n".join(lines),
             conversation_id="",
             intent="startup_sequence",
+            metadata={"node_status": node_status},
             suggested_actions=[
                 {"label": "Full Status", "action": "query", "payload": {"content": "full status"}},
                 {"label": "What's Next?", "action": "query", "payload": {"content": "what should we do next"}},
@@ -1160,6 +1298,7 @@ class AdvisorConversation:
                 metadata={
                     "ok": True,
                     "status": "executed",
+                    "target_node": "beast_windows",
                     "capability": capability,
                     "params": params,
                     "routed_to": node_id,
