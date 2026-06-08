@@ -14,6 +14,7 @@ UMH substrate subsystem.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import subprocess
 import time
@@ -69,7 +70,7 @@ class TmuxGovernanceDecision:
 def _run_tmux(args: list[str], timeout: int = 5) -> tuple[str, str, int]:
     """Run a tmux command and return (stdout, stderr, returncode)."""
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["tmux"] + args,
             capture_output=True,
             text=True,

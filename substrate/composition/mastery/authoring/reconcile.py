@@ -18,6 +18,7 @@ Four scenarios:
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import subprocess
 from dataclasses import dataclass
@@ -130,7 +131,7 @@ def run_scaffold(tool_slug: str) -> tuple[bool, str]:
     if not SCAFFOLD_SCRIPT.is_file():
         return False, f"scaffold script missing at {SCAFFOLD_SCRIPT}"
     try:
-        proc = subprocess.run(
+        proc = gated_subprocess_run(
             ["python3", str(SCAFFOLD_SCRIPT), tool_slug],
             capture_output=True,
             text=True,

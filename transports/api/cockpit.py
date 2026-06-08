@@ -228,7 +228,7 @@ def _read_jsonl(path: Path, limit: int | None = None) -> list[dict[str, Any]]:
 def _compute_build_info() -> dict[str, Any]:
     info: dict[str, Any] = {"backend_start": datetime.now(timezone.utc).isoformat()}
     try:
-        sha = subprocess.run(
+        sha = gated_subprocess_run(
             ["git", "rev-parse", "HEAD"],
             capture_output=True,
             text=True,
@@ -240,7 +240,7 @@ def _compute_build_info() -> dict[str, Any]:
     except Exception:
         pass
     try:
-        ts = subprocess.run(
+        ts = gated_subprocess_run(
             ["git", "log", "-1", "--format=%cI"],
             capture_output=True,
             text=True,
@@ -331,7 +331,7 @@ async def models():
 
 def _ping_latency(ip: str) -> float | None:
     try:
-        out = subprocess.run(
+        out = gated_subprocess_run(
             ["ping", "-c", "1", "-W", "2", ip],
             capture_output=True,
             text=True,
@@ -379,7 +379,7 @@ async def infra():
     )
 
     try:
-        out = subprocess.run(
+        out = gated_subprocess_run(
             ["tailscale", "status", "--json"],
             capture_output=True,
             text=True,
@@ -910,7 +910,7 @@ async def mesh_nodes():
 
     # Try CLI first (works on host), then fall back to snapshot file (works in Docker)
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["tailscale", "status", "--json"],
             capture_output=True,
             text=True,

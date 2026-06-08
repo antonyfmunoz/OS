@@ -37,6 +37,7 @@ SPEAK_TEXT seam. No freeform spoken-command parsing happens here.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import os
 import shutil
@@ -208,7 +209,7 @@ def _render_tts_to_wav(text: str) -> Optional[str]:
         if shutil.which("espeak") is None:
             return None
         out_path = tempfile.mktemp(suffix=".wav")
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["espeak", "-w", out_path, clean],
             capture_output=True,
             timeout=15,

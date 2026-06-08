@@ -15,6 +15,7 @@ UMH substrate subsystem. Instance-agnostic.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import logging
 import time
@@ -186,7 +187,7 @@ class ProductionTruthDelta:
         if not repo_root or not self.base_commit or not self.merge_commit:
             return
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["git", "diff", "--stat", f"{self.base_commit}..{self.merge_commit}"],
                 cwd=repo_root,
                 capture_output=True,

@@ -19,6 +19,7 @@ UMH substrate subsystem.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import hashlib
 import json
@@ -283,7 +284,7 @@ def compute_file_hash(file_path: Path) -> str:
 def get_git_head_commit(repo_path: Path) -> str:
     """Get the HEAD commit hash for a git repo."""
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["git", "rev-parse", "HEAD"],
             capture_output=True,
             text=True,
@@ -298,7 +299,7 @@ def get_git_head_commit(repo_path: Path) -> str:
 def check_git_dirty(repo_path: Path) -> bool:
     """Check if repo has uncommitted changes."""
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["git", "status", "--porcelain"],
             capture_output=True,
             text=True,
@@ -315,7 +316,7 @@ def count_commits_behind_ahead(
 ) -> tuple[int, int]:
     """Count commits behind and ahead between local and remote."""
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["git", "rev-list", "--left-right", "--count", f"{remote_ref}...{local_ref}"],
             capture_output=True,
             text=True,
@@ -447,7 +448,7 @@ class NodeSyncGate:
             return []
         actions: list[str] = []
         try:
-            fetch = subprocess.run(
+            fetch = gated_subprocess_run(
                 ["git", "fetch", "origin"],
                 capture_output=True,
                 text=True,
@@ -457,7 +458,7 @@ class NodeSyncGate:
             if fetch.returncode == 0:
                 actions.append("git_fetch_origin")
 
-            pull = subprocess.run(
+            pull = gated_subprocess_run(
                 ["git", "pull", "--ff-only", "origin", "main"],
                 capture_output=True,
                 text=True,

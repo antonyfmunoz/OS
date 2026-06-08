@@ -9,6 +9,7 @@ Phase 11.1. UMH substrate subsystem. Instance-agnostic.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import logging
@@ -749,7 +750,7 @@ class WorkPacketEngine:
                 continue
             try:
                 import subprocess
-                proc = subprocess.run(
+                proc = gated_subprocess_run(
                     ["python3", script_path, "--all"],
                     capture_output=True,
                     text=True,

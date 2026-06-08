@@ -21,6 +21,7 @@ everything and returns a structured failure dict instead of raising.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import subprocess
 from typing import Any
@@ -37,7 +38,7 @@ def query_relevant_skills(term: str, *, timeout: int = 10) -> dict:
     Never raises — TME is advisory, not load-bearing for Control Plane v1.
     """
     try:
-        proc = subprocess.run(
+        proc = gated_subprocess_run(
             ["python3", QUERY_SKILLS_CLI, "search", term],
             capture_output=True,
             text=True,

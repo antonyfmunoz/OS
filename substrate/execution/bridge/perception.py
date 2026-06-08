@@ -16,6 +16,7 @@ Design rules (mirror substrate conventions):
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import hashlib
 import os
@@ -629,7 +630,7 @@ def collect_git_perception() -> list[PerceptionRecord]:
     records: list[PerceptionRecord] = []
     try:
         # Uncommitted changes
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["git", "status", "--porcelain"],
             capture_output=True,
             text=True,
@@ -650,7 +651,7 @@ def collect_git_perception() -> list[PerceptionRecord]:
                 )
 
         # Unpushed commits
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["git", "log", "@{u}..HEAD", "--oneline"],
             capture_output=True,
             text=True,

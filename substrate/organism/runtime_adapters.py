@@ -9,6 +9,7 @@ UMH substrate subsystem.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import logging
 import os
@@ -378,7 +379,7 @@ class DockerAdapter:
         import subprocess
 
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["docker", "inspect", "-f", "{{.State.Running}}", self._container],
                 capture_output=True,
                 text=True,
@@ -395,7 +396,7 @@ class DockerAdapter:
         cmd = kwargs.get("command", prompt)
         start_ms = time.monotonic_ns() // 1_000_000
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["docker", "exec", self._container, "bash", "-c", cmd],
                 capture_output=True,
                 text=True,
@@ -453,7 +454,7 @@ class TmuxAdapter:
         import subprocess
 
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["tmux", "has-session", "-t", self._session],
                 capture_output=True,
                 timeout=3,
@@ -469,7 +470,7 @@ class TmuxAdapter:
         cmd = kwargs.get("command", prompt)
         start_ms = time.monotonic_ns() // 1_000_000
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["tmux", "send-keys", "-t", self._session, cmd, "Enter"],
                 capture_output=True,
                 text=True,
@@ -521,7 +522,7 @@ class BeastNodeAdapter:
         import subprocess
 
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 [
                     "ssh",
                     "-o",
@@ -546,7 +547,7 @@ class BeastNodeAdapter:
         cmd = kwargs.get("command", prompt)
         start_ms = time.monotonic_ns() // 1_000_000
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 [
                     "ssh",
                     "-o",
@@ -619,7 +620,7 @@ def _discover_docker_containers() -> list[DockerAdapter]:
     import subprocess
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["docker", "ps", "--format", "{{.Names}}"],
             capture_output=True,
             text=True,
@@ -641,7 +642,7 @@ def _discover_tmux_sessions() -> list[TmuxAdapter]:
     import subprocess
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["tmux", "list-sessions", "-F", "#{session_name}"],
             capture_output=True,
             text=True,

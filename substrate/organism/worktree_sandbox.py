@@ -15,6 +15,7 @@ UMH substrate subsystem. Instance-agnostic.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import logging
@@ -139,7 +140,7 @@ def make_branch_name(candidate_slug: str, short_id: str) -> str:
 
 
 def _run_git(args: list[str], cwd: str | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(
+    return gated_subprocess_run(
         ["git"] + args,
         cwd=cwd or _REPO_ROOT,
         capture_output=True,

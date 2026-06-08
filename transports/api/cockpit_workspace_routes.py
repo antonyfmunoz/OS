@@ -5,6 +5,7 @@ Phase 14.11C. UMH transport layer. Instance-agnostic.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import logging
@@ -108,7 +109,7 @@ async def _write_file(request: Request) -> dict[str, Any]:
 
 def _run_git(args: list[str], cwd: str | None = None) -> tuple[bool, str]:
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["git"] + args,
             cwd=cwd or _REPO_ROOT,
             capture_output=True,
@@ -358,7 +359,7 @@ async def _health_check(request: Request) -> dict[str, Any]:
 
     docker_ok = False
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}"],
             capture_output=True, text=True, timeout=5,
         )
@@ -503,7 +504,7 @@ def _ssh_cmd(cmd: str) -> tuple[bool, str]:
         ssh_args += ["-o", f"UserKnownHostsFile={_MESH_KNOWN_HOSTS}"]
     ssh_args += [_WINDOWS_SSH, cmd]
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ssh_args, capture_output=True, text=True, timeout=_SSH_TIMEOUT,
         )
         return result.returncode == 0, result.stdout

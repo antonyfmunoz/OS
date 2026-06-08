@@ -8,6 +8,7 @@ Phase 13.2. Substrate layer. Instance-agnostic.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import logging
 import os
@@ -123,7 +124,7 @@ class RuntimeManager:
 
         try:
             os.makedirs(worktree_base, exist_ok=True)
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["git", "worktree", "add", "-b", f"worktree-{worktree_name}", worktree_path, "HEAD"],
                 cwd=_REPO_ROOT,
                 capture_output=True,

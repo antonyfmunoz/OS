@@ -8,6 +8,19 @@ This exists because Hostinger throttles the VPS for a week if CPU is abused.
 The same principle applies to any node UMH operates on — never saturate
 a shared resource.
 
+USAGE:
+  from substrate.execution.cpu_gate import cpu_gate_check, gated_subprocess_run
+
+  # Before any heavy work:
+  gate = cpu_gate_check("my_subsystem")
+  if not gate.allowed:
+      return  # skip or defer
+
+  # Instead of subprocess.run():
+  result = gated_subprocess_run(["git", "status"], caller="my_subsystem")
+  if result is None:
+      return  # CPU was too hot, command skipped
+
 Layers of defense (from innermost to outermost):
   1. This gate — checked by substrate code before any LLM call or heavy work
   2. Docker CPU caps — hard per-container limits (docker-compose.yml)
@@ -22,8 +35,10 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
 import time
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -142,3 +157,50 @@ def cpu_gate_status() -> dict:
             else "ok"
         ),
     }
+
+
+# ─── Gated subprocess wrappers ────────────────────────────────────────────────
+
+
+def gated_subprocess_run(
+    cmd: list[str] | str,
+    *,
+    caller: str = "",
+    timeout: float = 30.0,
+    **kwargs: Any,
+) -> subprocess.CompletedProcess | None:
+    """Run a subprocess only if CPU gate allows it.
+
+    Returns None if CPU is overloaded (command was skipped).
+    Otherwise returns the CompletedProcess result.
+
+    All subprocess.run() kwargs are passed through.
+    Timeout defaults to 30s to prevent runaway processes.
+    """
+    gate = cpu_gate_check(caller or "subprocess")
+    if not gate.allowed:
+        return None
+
+    kwargs.setdefault("capture_output", True)
+    kwargs.setdefault("text", True)
+    kwargs.setdefault("timeout", timeout)
+
+    return subprocess.run(cmd, **kwargs)
+
+
+def gated_popen(
+    cmd: list[str] | str,
+    *,
+    caller: str = "",
+    **kwargs: Any,
+) -> subprocess.Popen | None:
+    """Open a subprocess only if CPU gate allows it.
+
+    Returns None if CPU is overloaded (process was not started).
+    Otherwise returns the Popen object.
+    """
+    gate = cpu_gate_check(caller or "popen")
+    if not gate.allowed:
+        return None
+
+    return subprocess.Popen(cmd, **kwargs)

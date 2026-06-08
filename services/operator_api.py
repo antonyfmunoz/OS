@@ -3,6 +3,7 @@
 
 import os
 import sys
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
@@ -279,7 +280,7 @@ async def system_costs() -> dict[str, Any]:
 async def system_containers() -> dict[str, Any]:
     """List running Docker containers."""
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["docker", "ps", "--format", "{{json .}}"],
             capture_output=True,
             text=True,
@@ -385,7 +386,7 @@ def _generate_tts(text: str) -> str | None:
     try:
         fd, path = tempfile.mkstemp(suffix=".wav", prefix="cockpit_tts_")
         os.close(fd)
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["espeak", "-s", "150", "-w", path, text[:500]],
             capture_output=True,
             timeout=15,
