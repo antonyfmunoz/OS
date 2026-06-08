@@ -1103,6 +1103,12 @@ def _is_ceo_agent(agent_type: str | None) -> bool:
     return any(kw in agent_lower for kw in _CEO_AGENT_KEYWORDS)
 
 
+def refresh_provider_health() -> dict[str, bool]:
+    """Re-check all provider availability and return {key: available} map."""
+    router = ModelRouter()
+    return {k: c.available for k, c in MODEL_REGISTRY.items()}
+
+
 def call_with_fallback(
     prompt: str,
     system: str | None = None,
