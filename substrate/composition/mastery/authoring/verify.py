@@ -6,6 +6,7 @@ word — the verifier is the ground truth for READY status.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import subprocess
@@ -32,7 +33,7 @@ def verify_skill(tool_slug: str) -> VerifyReport:
             error=f"verify script missing at {VERIFY_SCRIPT}",
         )
     try:
-        proc = subprocess.run(
+        proc = gated_subprocess_run(
             ["python3", str(VERIFY_SCRIPT), "--skill", tool_slug, "--json"],
             capture_output=True,
             text=True,

@@ -31,6 +31,7 @@ Library entrypoint:
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import argparse
 import asyncio
@@ -358,7 +359,7 @@ class StationDaemon:
             )
 
         try:
-            subprocess.run(
+            gated_subprocess_run(
                 [player, path],
                 check=True,
                 stdout=subprocess.DEVNULL,
@@ -409,13 +410,13 @@ class StationDaemon:
 
         try:
             if tts == "say":
-                subprocess.run(["say", text], check=True, timeout=60)
+                gated_subprocess_run(["say", text], check=True, timeout=60)
             elif tts == "espeak":
-                subprocess.run(
+                gated_subprocess_run(
                     ["espeak", text], check=True, timeout=60, stderr=subprocess.DEVNULL
                 )
             elif tts == "spd-say":
-                subprocess.run(["spd-say", "--wait", text], check=True, timeout=60)
+                gated_subprocess_run(["spd-say", "--wait", text], check=True, timeout=60)
             else:
                 return _HandlerOutcome(
                     status=ActionStatus.FAILED,
@@ -567,7 +568,7 @@ class StationDaemon:
 
         argv = [binary, *app.default_args, *extra_args]
         try:
-            subprocess.Popen(  # noqa: S603 — argv list, shell=False
+            gated_popen(  # noqa: S603 — argv list, shell=False
                 argv,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -705,7 +706,7 @@ class StationDaemon:
             for candidate in app.candidates:
                 script = f'tell application "{candidate}" to activate'
                 try:
-                    subprocess.run(  # noqa: S603 — argv list, shell=False
+                    gated_subprocess_run(  # noqa: S603 — argv list, shell=False
                         ["osascript", "-e", script],
                         check=True,
                         stdout=subprocess.DEVNULL,
@@ -725,7 +726,7 @@ class StationDaemon:
         if wmctrl:
             for candidate in (*app.candidates, app_id):
                 try:
-                    subprocess.run(  # noqa: S603 — argv list, shell=False
+                    gated_subprocess_run(  # noqa: S603 — argv list, shell=False
                         [wmctrl, "-x", "-a", candidate],
                         check=True,
                         stdout=subprocess.DEVNULL,

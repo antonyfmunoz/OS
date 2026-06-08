@@ -10,6 +10,7 @@ UMH substrate subsystem. Instance-agnostic.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import logging
@@ -206,7 +207,7 @@ def collect_snapshot(repo_root: str | None = None) -> OperationalTruthSnapshot:
     snap = OperationalTruthSnapshot()
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             [
                 "find", str(root), "-type", "f",
                 "-not", "-path", "*/.git/*",
@@ -223,7 +224,7 @@ def collect_snapshot(repo_root: str | None = None) -> OperationalTruthSnapshot:
         logger.warning("file count failed: %s", exc)
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["find", str(root), "-name", "*.py", "-not", "-path", "*/__pycache__/*",
              "-not", "-path", "*/.git/*", "-not", "-path", "*/node_modules/*"],
             capture_output=True, text=True, timeout=30,
@@ -233,7 +234,7 @@ def collect_snapshot(repo_root: str | None = None) -> OperationalTruthSnapshot:
         pass
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["find", str(root), "-name", "*.ts", "-o", "-name", "*.tsx",
              "-not", "-path", "*/.git/*", "-not", "-path", "*/node_modules/*"],
             capture_output=True, text=True, timeout=30,
@@ -258,7 +259,7 @@ def collect_snapshot(repo_root: str | None = None) -> OperationalTruthSnapshot:
         pass
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["docker", "ps", "--format", "{{.Names}}|{{.Status}}|{{.Ports}}"],
             capture_output=True, text=True, timeout=10,
         )

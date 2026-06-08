@@ -1,6 +1,7 @@
 """Tmux adapter — governed session inspection. No killing by default."""
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import re
 import subprocess
@@ -114,7 +115,7 @@ class TmuxAdapter(BaseAdapter):
 
     def _run_tmux(self, args: list[str]) -> dict[str, Any]:
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 args,
                 capture_output=True,
                 text=True,

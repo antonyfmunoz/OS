@@ -5,6 +5,7 @@ relevant file, filtered by extension and directory exclusions.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import hashlib
 import logging
@@ -164,7 +165,7 @@ class GitHubRepoWalker:
         if git_dir.is_dir():
             # Pull latest
             logger.info("Pulling latest for %s in %s", self._repo, self._clone_dir)
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["git", "-C", str(self._clone_dir), "pull", "--ff-only"],
                 capture_output=True,
                 text=True,
@@ -176,7 +177,7 @@ class GitHubRepoWalker:
         else:
             # Fresh clone
             logger.info("Cloning %s into %s", self._repo, self._clone_dir)
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 [
                     "git",
                     "clone",
@@ -193,7 +194,7 @@ class GitHubRepoWalker:
                 raise RuntimeError(f"git clone failed for {self._repo}: {result.stderr}")
 
         # Get HEAD sha
-        sha_result = subprocess.run(
+        sha_result = gated_subprocess_run(
             ["git", "-C", str(self._clone_dir), "rev-parse", "HEAD"],
             capture_output=True,
             text=True,
@@ -244,7 +245,7 @@ class GitHubRepoWalker:
         if self._commit_sha is None:
             raise RuntimeError("Call clone_or_pull() before changed_since()")
 
-        result = subprocess.run(
+        result = gated_subprocess_run(
             [
                 "git",
                 "-C",

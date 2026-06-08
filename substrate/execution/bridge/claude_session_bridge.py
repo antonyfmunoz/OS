@@ -44,6 +44,7 @@ can distinguish which brain they were talking to.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import os
 import re
@@ -150,7 +151,7 @@ def detect_tmux_available() -> dict[str, Any]:
     if not path:
         return {"available": False, "path": None, "version": None}
     try:
-        proc = subprocess.run(
+        proc = gated_subprocess_run(
             [path, "-V"],
             capture_output=True,
             text=True,
@@ -350,7 +351,7 @@ def _run_tmux(args: list[str]) -> dict[str, Any]:
     if not path:
         return {"ok": False, "reason": "tmux_not_available", "stdout": "", "stderr": ""}
     try:
-        proc = subprocess.run(
+        proc = gated_subprocess_run(
             [path, *args],
             capture_output=True,
             text=True,

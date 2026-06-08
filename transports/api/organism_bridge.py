@@ -47,6 +47,7 @@ UMH substrate bridge — no instance context.
 
 import sys
 import json
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 _stdout = sys.stdout
 sys.stdout = sys.stderr
@@ -356,7 +357,7 @@ def _tmux_sessions(_payload: dict) -> dict:
     import subprocess
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             [
                 "tmux",
                 "list-sessions",
@@ -390,7 +391,7 @@ def _docker_containers(_payload: dict) -> dict:
     import subprocess
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             [
                 "docker",
                 "ps",
@@ -426,7 +427,7 @@ def _mesh_nodes(_payload: dict) -> dict:
     import subprocess
 
     try:
-        result = subprocess.run(
+        result = gated_subprocess_run(
             ["tailscale", "status", "--json"], capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0:

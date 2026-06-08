@@ -24,6 +24,7 @@ Manager treats it as already-queued.
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import subprocess
 import sys
@@ -53,7 +54,7 @@ def _scaffold(slug: str) -> tuple[bool, str]:
     if not SCAFFOLD_SCRIPT.is_file():
         return False, f"scaffold script not found at {SCAFFOLD_SCRIPT}"
     try:
-        proc = subprocess.run(
+        proc = gated_subprocess_run(
             ["python3", str(SCAFFOLD_SCRIPT), slug],
             capture_output=True,
             text=True,

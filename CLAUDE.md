@@ -170,6 +170,39 @@ by `nginx.conf.template` + envsubst in commit 1680083f).
 This rule exists because a worktree deploy shipped without API key injection,
 causing 401 Unauthorized on every cockpit API call (2026-06-06).
 
+## CPU Gate Law (NON-NEGOTIABLE — ENFORCED BY PRE-COMMIT)
+UMH must NEVER saturate CPU on any host. Hostinger throttles VPS for a week
+on abuse. The same principle applies to Beast and any future node.
+
+Single choke point: `substrate/execution/cpu_gate.py`
+- `cpu_gate_check(caller)` → CpuGateResult — call before heavy work
+- `gated_subprocess_run(cmd, caller=...)` → CompletedProcess | None
+- `gated_popen(cmd, caller=...)` → Popen | None
+
+Rules:
+1. NEVER use raw `subprocess.run/Popen/call/check_output/check_call` in
+   substrate/, adapters/, transports/, or services/
+2. ALWAYS use `gated_subprocess_run()` or `gated_popen()` instead
+3. The gated wrappers return None when CPU is overloaded — handle gracefully
+4. Before any LLM call or heavy computation: call `cpu_gate_check()`
+5. Exempt: `cpu_gate.py` itself, `cc_sdk.py` (has own gate), test files, scripts/
+
+6-layer defense stack (innermost → outermost):
+  1. substrate cpu_gate (1.8/core ceiling)
+  2. cc_sdk gate (1.5/core for CLI subprocess)
+  3. Docker CPU caps (cpus: 0.25-0.35 per container)
+  4. cron-run wrapper (2.0/core load check + nice + flock)
+  5. watch_graph (4.0 absolute threshold)
+  6. systemd watchdog (3.0 SIGSTOP, 4.0 SIGKILL)
+
+Pre-commit hook Gate 5 (`scripts/check_cpu_gate.py`) blocks any NEW raw
+subprocess call in gated directories. All 120 legacy violations migrated
+2026-06-07. Zero violations remain.
+
+This law exists because Hostinger blocked VPS CPU for a full week after
+a runaway process saturated it. The gate makes repeat incidents mechanically
+impossible across all code paths, all devices, current and future.
+
 ## System
 VPS: 100.77.233.50 | Dir: /opt/OS
 Services: os-discord, os-operator, os-webhook, os-scraper

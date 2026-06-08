@@ -14,6 +14,7 @@ Designed for:
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import logging
@@ -385,7 +386,7 @@ SYSTEM You are UMH's proprietary intelligence engine. You process signals, make 
             prompt = (
                 f"### Instruction:\n{instruction}\n\n### Input:\n{input_text}\n\n### Response:\n"
             )
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 ["ollama", "run", f"umh-{self._base_model.replace(':', '-')}", prompt],
                 capture_output=True,
                 text=True,

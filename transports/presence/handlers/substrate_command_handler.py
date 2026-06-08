@@ -12,6 +12,7 @@ spine infrastructure (runtime/interfaces/discord_interface_adapter_v1.py).
 """
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import asyncio
 import hashlib
@@ -93,7 +94,7 @@ def _get_vps_commit_hash(short: bool = True) -> str:
         if short:
             cmd.append("--short")
         cmd.append("HEAD")
-        result = subprocess.run(
+        result = gated_subprocess_run(
             cmd,
             capture_output=True,
             text=True,
@@ -111,7 +112,7 @@ def _get_origin_commit_hash(short: bool = True) -> str:
         if short:
             cmd.append("--short")
         cmd.append("origin/main")
-        result = subprocess.run(
+        result = gated_subprocess_run(
             cmd,
             capture_output=True,
             text=True,

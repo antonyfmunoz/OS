@@ -1,6 +1,7 @@
 """Shell adapter — governed command execution with destructive-command blocking."""
 
 from __future__ import annotations
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import re
 import subprocess
@@ -129,7 +130,7 @@ class ShellAdapter(BaseAdapter):
         cwd = params.get("cwd")
 
         try:
-            result = subprocess.run(
+            result = gated_subprocess_run(
                 command,
                 shell=True,
                 capture_output=True,
