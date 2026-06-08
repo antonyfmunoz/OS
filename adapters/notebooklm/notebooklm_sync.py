@@ -11,7 +11,6 @@ Notebook IDs are stored in .env after manual creation:
 Usage:
     from substrate.state.context.context import load_context_from_env
     from adapters.notebooklm.notebooklm_sync import NotebookLMSync
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
     ctx = load_context_from_env()
     nls = NotebookLMSync(ctx)
@@ -24,6 +23,7 @@ import subprocess
 import tempfile
 import uuid
 from dataclasses import dataclass, field
+from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 from datetime import datetime
 from pathlib import Path
 
