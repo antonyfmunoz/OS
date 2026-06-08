@@ -98,7 +98,7 @@ VPS_CATALOG: dict[str, CatalogEntry] = {
     "docker_ps": CatalogEntry(
         action="docker_ps",
         display_name="Docker Containers",
-        command_template='docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"',
+        command_template="__internal_docker_ps__",
         risk=VpsRisk.LOW,
         requires_approval=False,
         read_only=True,
@@ -106,7 +106,7 @@ VPS_CATALOG: dict[str, CatalogEntry] = {
     "docker_logs_operator": CatalogEntry(
         action="docker_logs_operator",
         display_name="Operator Logs",
-        command_template="docker logs os-operator --tail 50 2>&1",
+        command_template="__internal_docker_logs_operator__",
         risk=VpsRisk.LOW,
         requires_approval=False,
         read_only=True,
@@ -115,7 +115,7 @@ VPS_CATALOG: dict[str, CatalogEntry] = {
     "docker_logs_discord": CatalogEntry(
         action="docker_logs_discord",
         display_name="Discord Bot Logs",
-        command_template="docker logs os-discord --tail 50 2>&1",
+        command_template="__internal_docker_logs_discord__",
         risk=VpsRisk.LOW,
         requires_approval=False,
         read_only=True,
@@ -124,7 +124,7 @@ VPS_CATALOG: dict[str, CatalogEntry] = {
     "docker_restart_operator": CatalogEntry(
         action="docker_restart_operator",
         display_name="Restart Operator",
-        command_template="docker restart os-operator",
+        command_template="__internal_docker_restart_operator__",
         risk=VpsRisk.MEDIUM,
         requires_approval=True,
         read_only=False,
@@ -132,7 +132,7 @@ VPS_CATALOG: dict[str, CatalogEntry] = {
     "docker_restart_discord": CatalogEntry(
         action="docker_restart_discord",
         display_name="Restart Discord Bot",
-        command_template="docker restart os-discord",
+        command_template="__internal_docker_restart_discord__",
         risk=VpsRisk.MEDIUM,
         requires_approval=True,
         read_only=False,
@@ -183,7 +183,7 @@ VPS_CATALOG: dict[str, CatalogEntry] = {
     "service_status": CatalogEntry(
         action="service_status",
         display_name="Service Status",
-        command_template='docker ps --format "{{.Names}}: {{.Status}}" 2>&1',
+        command_template="__internal_docker_ps__",
         risk=VpsRisk.LOW,
         requires_approval=False,
         read_only=True,
@@ -370,6 +370,9 @@ def execute_catalog_action(
     if entry.command_template == "__internal_voice_health__":
         return _execute_voice_health(entry)
 
+    if entry.command_template.startswith("__internal_docker_"):
+        return _execute_docker_command(entry)
+
     return _execute_shell_command(entry)
 
 
@@ -418,6 +421,130 @@ def _execute_shell_command(entry: CatalogEntry) -> VpsCommandResult:
         risk=entry.risk.value,
         output=output.strip(),
     )
+
+
+
+def _execute_docker_command(entry: CatalogEntry) -> VpsCommandResult:
+    """Execute Docker commands via the socket API (no CLI needed)."""
+    import http.client
+    import json as _json
+    import urllib.parse
+
+    sock_path = "/var/run/docker.sock"
+    if not os.path.exists(sock_path):
+        return VpsCommandResult(
+            action=entry.action,
+            display_name=entry.display_name,
+            status="error",
+            risk=entry.risk.value,
+            error="Docker socket not available.",
+        )
+
+    try:
+        conn = http.client.HTTPConnection("localhost")
+        conn.sock = _docker_socket_connect(sock_path)
+
+        template = entry.command_template
+
+        if template == "__internal_docker_ps__":
+            conn.request("GET", "/containers/json?all=false")
+            resp = conn.getresponse()
+            data = _json.loads(resp.read())
+            lines = [f"{'NAMES':20s} {'STATUS':20s} PORTS"]
+            for c in data:
+                name = c["Names"][0].lstrip("/")
+                status = c.get("Status", c.get("State", ""))
+                ports = ", ".join(
+                    f"{p.get('IP','0.0.0.0')}:{p['PublicPort']}->{p['PrivatePort']}/{p['Type']}"
+                    for p in c.get("Ports", []) if p.get("PublicPort")
+                )
+                lines.append(f"{name:20s} {status:20s} {ports}")
+            return VpsCommandResult(
+                action=entry.action,
+                display_name=entry.display_name,
+                status="executed",
+                risk=entry.risk.value,
+                output="\n".join(lines),
+            )
+
+        if template in ("__internal_docker_logs_operator__", "__internal_docker_logs_discord__"):
+            container = "os-operator" if "operator" in template else "os-discord"
+            conn.request("GET", f"/containers/{container}/logs?stdout=true&stderr=true&tail=50")
+            resp = conn.getresponse()
+            raw = resp.read()
+            log_lines = _strip_docker_log_prefix(raw)
+            return VpsCommandResult(
+                action=entry.action,
+                display_name=entry.display_name,
+                status="executed",
+                risk=entry.risk.value,
+                output="\n".join(log_lines[-50:])[:entry.max_output_bytes],
+            )
+
+        if template in ("__internal_docker_restart_operator__", "__internal_docker_restart_discord__"):
+            container = "os-operator" if "operator" in template else "os-discord"
+            conn.request("POST", f"/containers/{container}/restart?t=10")
+            resp = conn.getresponse()
+            resp.read()
+            if resp.status in (200, 204):
+                return VpsCommandResult(
+                    action=entry.action,
+                    display_name=entry.display_name,
+                    status="executed",
+                    risk=entry.risk.value,
+                    output=f"Container {container} restarted.",
+                )
+            return VpsCommandResult(
+                action=entry.action,
+                display_name=entry.display_name,
+                status="error",
+                risk=entry.risk.value,
+                error=f"Restart failed: HTTP {resp.status}",
+            )
+
+        return VpsCommandResult(
+            action=entry.action,
+            display_name=entry.display_name,
+            status="error",
+            risk=entry.risk.value,
+            error=f"Unknown internal docker handler: {template}",
+        )
+    except Exception as exc:
+        logger.exception("Docker command failed: %s", entry.action)
+        return VpsCommandResult(
+            action=entry.action,
+            display_name=entry.display_name,
+            status="error",
+            risk=entry.risk.value,
+            error=f"Docker command failed: {exc}",
+        )
+
+
+def _docker_socket_connect(sock_path: str):
+    """Create a Unix socket connection for Docker API."""
+    import socket
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.connect(sock_path)
+    s.settimeout(10)
+    return s
+
+
+def _strip_docker_log_prefix(raw: bytes) -> list[str]:
+    """Strip Docker log stream 8-byte header prefix from each frame."""
+    lines: list[str] = []
+    pos = 0
+    while pos + 8 <= len(raw):
+        size = int.from_bytes(raw[pos + 4:pos + 8], "big")
+        frame = raw[pos + 8:pos + 8 + size]
+        for line in frame.decode("utf-8", errors="replace").splitlines():
+            if line.strip():
+                lines.append(line)
+        pos += 8 + size
+    if pos < len(raw):
+        for line in raw[pos:].decode("utf-8", errors="replace").splitlines():
+            if line.strip():
+                lines.append(line)
+    return lines
 
 
 def _execute_provider_health(entry: CatalogEntry) -> VpsCommandResult:
