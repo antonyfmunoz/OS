@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { TitleBar } from './TitleBar'
 import { LeftRail } from './LeftRail'
 import { HudBar } from './HudBar'
@@ -9,6 +10,7 @@ import { FabMedium } from './FabMedium'
 import { FabSmall } from './FabSmall'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useVoiceDetection } from '../hooks/useVoiceDetection'
+import { useDeviceSessionStore } from '../stores/deviceSessionStore'
 import { DashboardPanel } from '../panels/DashboardPanel'
 import { AgentsPanel } from '../panels/AgentsPanel'
 import { TasksPanel } from '../panels/TasksPanel'
@@ -114,7 +116,14 @@ function ActivePanel() {
 
 export function Shell() {
   const windowMode = useCockpitStore((s) => s.windowMode)
+  const initializeDeviceSession = useDeviceSessionStore((s) => s.initialize)
+  const teardownDeviceSession = useDeviceSessionStore((s) => s.teardown)
   useVoiceDetection()
+
+  useEffect(() => {
+    initializeDeviceSession()
+    return () => teardownDeviceSession()
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   if (windowMode === 'invisible') return null
 
