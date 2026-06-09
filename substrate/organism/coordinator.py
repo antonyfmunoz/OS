@@ -72,6 +72,18 @@ _TYPE_TO_CAPABILITY: dict[WorkUnitType, RuntimeCapability] = {
 }
 
 
+def _get_workload_type(unit_type: WorkUnitType) -> str:
+    """Map WorkUnitType to WorkloadType value for placement policy."""
+    _MAP = {
+        WorkUnitType.RESEARCH: "ai_reasoning",
+        WorkUnitType.BUILD: "heavy_code_execution",
+        WorkUnitType.REVIEW: "code_review",
+        WorkUnitType.EXECUTE: "heavy_code_execution",
+        WorkUnitType.COORDINATE: "coordination",
+    }
+    return _MAP.get(unit_type, "ai_reasoning")
+
+
 @dataclass
 class WorkUnit:
     """A single unit of work in a decomposed objective."""
@@ -330,7 +342,12 @@ class OrganismCoordinator:
                 wu.status = WorkUnitStatus.BLOCKED
 
     def assign_runtimes(self, objective_id: str) -> dict[str, str]:
-        """Assign the best available runtime to each work unit."""
+        """Assign the best available runtime to each work unit.
+
+        Consults WorkloadPlacementPolicy to determine preferred device,
+        then passes device_preference to RuntimeGraph.select() for
+        soft-boosted scoring.
+        """
         obj = self._objectives.get(objective_id)
         if not obj:
             return {}
@@ -341,10 +358,13 @@ class OrganismCoordinator:
                 continue
 
             cap = wu.required_capability or RuntimeCapability.REASON
-            candidates = self._graph.select(cap)
+            device_pref = self._get_device_preference(wu)
+            candidates = self._graph.select(cap, device_preference=device_pref)
 
             if candidates:
                 wu.assigned_runtime = candidates[0].runtime_id
+                if device_pref:
+                    wu.metadata["target_device"] = device_pref[0]
                 assignments[wu.id] = wu.assigned_runtime
             else:
                 logger.warning(
@@ -354,6 +374,39 @@ class OrganismCoordinator:
                 )
 
         return assignments
+
+    def _get_device_preference(self, wu: WorkUnit) -> list[str] | None:
+        """Consult WorkloadPlacementPolicy for the preferred device."""
+        try:
+            from substrate.organism.workload_placement_policy import (
+                WorkloadType,
+                select_placement,
+            )
+
+            wl_value = _get_workload_type(wu.unit_type)
+            workload_type = WorkloadType(wl_value)
+
+            available_devices = (
+                list(
+                    {
+                        n.metadata.get("device_id", "vps")
+                        for n in self._graph.all_nodes()
+                        if n.is_available and n.metadata.get("device_id")
+                    }
+                )
+                or None
+            )
+
+            placement = select_placement(
+                work_packet_id=wu.id,
+                workload_type=workload_type,
+                risk_class=wu.metadata.get("risk_class", "low"),
+                available_devices=available_devices,
+            )
+            return [placement.selected_device]
+        except Exception as exc:
+            logger.debug("placement policy lookup failed: %s", exc)
+            return None
 
     def execute_ready(self, objective_id: str) -> list[dict[str, Any]]:
         """Execute all ready (unblocked) work units for an objective."""

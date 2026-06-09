@@ -191,6 +191,7 @@ class RuntimeGraph:
         if self._event_spine is None:
             return
         from substrate.organism.event_spine import EventDomain
+
         self._event_spine.emit(EventDomain.RUNTIME, event_type, "runtime_graph", data)
 
     def register(
@@ -231,7 +232,9 @@ class RuntimeGraph:
         if node:
             node.status = status
             node.last_heartbeat = time.time()
-            self._emit("runtime_status_changed", {"runtime_id": runtime_id, "new_status": status.value})
+            self._emit(
+                "runtime_status_changed", {"runtime_id": runtime_id, "new_status": status.value}
+            )
 
     def record_success(self, runtime_id: str, latency_ms: int) -> None:
         node = self._nodes.get(runtime_id)
@@ -239,7 +242,9 @@ class RuntimeGraph:
             node.reliability.record_success(latency_ms)
             node.status = AvailabilityStatus.AVAILABLE
             node.last_heartbeat = time.time()
-            self._emit("runtime_success_recorded", {"runtime_id": runtime_id, "latency_ms": latency_ms})
+            self._emit(
+                "runtime_success_recorded", {"runtime_id": runtime_id, "latency_ms": latency_ms}
+            )
 
     def record_failure(self, runtime_id: str) -> None:
         node = self._nodes.get(runtime_id)
@@ -278,11 +283,16 @@ class RuntimeGraph:
         required: RuntimeCapability,
         prefer_class: RuntimeClass | None = None,
         exclude: set[str] | None = None,
+        device_preference: list[str] | None = None,
     ) -> list[RuntimeNode]:
         """Select runtimes capable of the required capability, ranked by score.
 
         Returns a ranked list (best first). Caller walks the list as a
         fallback chain: try the first, if it fails try the next.
+
+        device_preference: soft scoring boost for nodes on preferred devices.
+        First device gets 2x boost, second gets 1.5x. Nodes on non-preferred
+        devices are still returned — just ranked lower.
         """
         exclude = exclude or set()
         candidates = [
@@ -298,9 +308,21 @@ class RuntimeGraph:
             others = [n for n in candidates if n.runtime_class != prefer_class]
             preferred.sort(key=lambda n: n.score(), reverse=True)
             others.sort(key=lambda n: n.score(), reverse=True)
-            return preferred + others
+            candidates = preferred + others
+            if device_preference is None:
+                return candidates
 
-        candidates.sort(key=lambda n: n.score(), reverse=True)
+        def _device_boosted_score(node: RuntimeNode) -> float:
+            base = node.score()
+            if device_preference:
+                dev = node.metadata.get("device_id", "")
+                if dev and dev in device_preference:
+                    rank = device_preference.index(dev)
+                    boost = 2.0 if rank == 0 else 1.5 if rank == 1 else 1.2
+                    return base * boost
+            return base
+
+        candidates.sort(key=_device_boosted_score, reverse=True)
         return candidates
 
     def route_and_execute(

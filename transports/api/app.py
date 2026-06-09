@@ -202,32 +202,6 @@ def _register_eos_integration() -> None:
         logger.warning("eos integration not loaded: %s", exc)
 
 
-def _register_node_mesh() -> None:
-    """Start the node mesh WebSocket server for remote device connections."""
-    global _mesh_server
-    try:
-        from transports.node_mesh.config import load_mesh_config
-        from transports.node_mesh.server import NodeMeshServer
-        from substrate.sockets.capability_socket import CapabilitySocket
-        from substrate.sockets.outcome_socket import OutcomeSocket
-        from substrate.sockets.signal_socket import SignalSocket
-
-        config = load_mesh_config()
-        _mesh_server = NodeMeshServer(
-            config=config,
-            executor=_executor,
-            signal_socket=SignalSocket(),
-            capability_socket=CapabilitySocket(),
-            outcome_socket=OutcomeSocket(),
-            view_socket=_view_socket,
-            pipeline_submit_fn=_pipeline.submit_signal,
-        )
-        _mesh_server.start()
-        logger.info("node mesh server started on port %d", config.port)
-    except Exception as exc:
-        logger.warning("node mesh not started: %s", exc)
-
-
 def _register_organism() -> None:
     """Start the organism daemon with the shared pipeline and view socket."""
     global _organism
@@ -247,6 +221,110 @@ def _register_organism() -> None:
         logger.warning("organism daemon not started: %s", exc)
 
 
+def _build_runtime_graph_hook() -> "Callable[[str, list[str], str], None] | None":
+    """Build a closure that bridges mesh node lifecycle → RuntimeGraph + Supervisor."""
+    if _organism is None or _organism.graph is None:
+        return None
+
+    graph = _organism.graph
+    supervisor = _organism.supervisor
+
+    def _hook(node_id: str, cap_names: list[str], action: str) -> None:
+        from substrate.organism.runtime_adapters import MeshNodeRuntimeAdapter
+        from substrate.organism.runtime_graph import (
+            AvailabilityStatus,
+            CostProfile,
+            RuntimeClass,
+        )
+
+        rid = f"mesh:{node_id}"
+
+        if action == "connect":
+            if graph.get(rid) is not None:
+                graph.update_status(rid, AvailabilityStatus.AVAILABLE)
+            else:
+                adapter = MeshNodeRuntimeAdapter(node_id, cap_names)
+                device_id = _resolve_device_id(node_id)
+                graph.register(
+                    rid,
+                    RuntimeClass.REMOTE_NODE,
+                    adapter.capabilities,
+                    cost=CostProfile(is_subscription=False, cost_per_1k_input=0.0),
+                    adapter=adapter,
+                    metadata={"device_id": device_id},
+                )
+                graph.update_status(rid, AvailabilityStatus.AVAILABLE)
+            if supervisor is not None:
+                supervisor.heartbeat(rid)
+            logger.info("mesh node %s registered in runtime graph", rid)
+
+        elif action == "disconnect":
+            graph.update_status(rid, AvailabilityStatus.UNAVAILABLE)
+            logger.info("mesh node %s marked unavailable in runtime graph", rid)
+
+        elif action == "heartbeat":
+            node = graph.get(rid)
+            if node is not None:
+                node.last_heartbeat = __import__("time").time()
+                if node.status != AvailabilityStatus.AVAILABLE:
+                    graph.update_status(rid, AvailabilityStatus.AVAILABLE)
+            if supervisor is not None:
+                supervisor.heartbeat(rid)
+
+    return _hook
+
+
+def _resolve_device_id(node_id: str) -> str:
+    """Map a mesh node_id to its device registry id."""
+    import json
+
+    registry_path = os.path.join(
+        os.environ.get("UMH_ROOT", "/opt/OS"), "infra", "device_registry.json"
+    )
+    try:
+        with open(registry_path) as f:
+            devices = json.load(f)
+        for dev in devices:
+            if dev.get("mesh_node_id") == node_id or dev.get("id") == node_id:
+                return dev["id"]
+    except Exception:
+        pass
+    return node_id
+
+
+def _register_node_mesh() -> None:
+    """Start the node mesh WebSocket server for remote device connections."""
+    global _mesh_server
+    try:
+        from transports.node_mesh.config import load_mesh_config
+        from transports.node_mesh.server import NodeMeshServer
+        from substrate.sockets.capability_socket import CapabilitySocket
+        from substrate.sockets.outcome_socket import OutcomeSocket
+        from substrate.sockets.signal_socket import SignalSocket
+
+        config = load_mesh_config()
+        graph_hook = _build_runtime_graph_hook()
+
+        _mesh_server = NodeMeshServer(
+            config=config,
+            executor=_executor,
+            signal_socket=SignalSocket(),
+            capability_socket=CapabilitySocket(),
+            outcome_socket=OutcomeSocket(),
+            view_socket=_view_socket,
+            pipeline_submit_fn=_pipeline.submit_signal,
+            runtime_graph_hook=graph_hook,
+        )
+        _mesh_server.start()
+        logger.info(
+            "node mesh server started on port %d (graph_hook=%s)",
+            config.port,
+            "wired" if graph_hook is not None else "none",
+        )
+    except Exception as exc:
+        logger.warning("node mesh not started: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _broadcaster, _notion_poller_thread, _eos_poller_thread
@@ -256,8 +334,8 @@ async def lifespan(app: FastAPI):
 
     _register_notion_integration()
     _register_eos_integration()
-    _register_node_mesh()
     _register_organism()
+    _register_node_mesh()
     _start_persistent_loops()
 
     if _notion_poller is not None:

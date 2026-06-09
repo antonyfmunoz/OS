@@ -44,9 +44,11 @@ class NodeMeshServer:
         outcome_socket: OutcomeSocket,
         view_socket: ViewSocket,
         pipeline_submit_fn: Callable[..., Any] | None = None,
+        runtime_graph_hook: Callable[[str, list[str], str], None] | None = None,
     ) -> None:
         self._config = config
         self._executor = executor
+        self._runtime_graph_hook = runtime_graph_hook
         self._registry = NodeRegistry(heartbeat_timeout_s=config.heartbeat_timeout_s)
         self._metrics = MetricsBuffer(
             buffer_size=config.buffer_size,
@@ -285,6 +287,13 @@ class NodeMeshServer:
         self._registry.add(node)
         self._register_integration(node)
 
+        if self._runtime_graph_hook is not None:
+            cap_names = [c.name for c in caps]
+            try:
+                self._runtime_graph_hook(node_id, cap_names, "connect")
+            except Exception as exc:
+                logger.warning("runtime graph hook (connect) failed: %s", exc)
+
         await ws.send(
             json.dumps(
                 {
@@ -312,6 +321,12 @@ class NodeMeshServer:
     ) -> None:
         metrics = params.get("metrics", {})
         self._registry.update_heartbeat(node_id, metrics)
+
+        if self._runtime_graph_hook is not None:
+            try:
+                self._runtime_graph_hook(node_id, [], "heartbeat")
+            except Exception as exc:
+                logger.debug("runtime graph hook (heartbeat) failed: %s", exc)
 
         from datetime import datetime, timezone
 
@@ -461,6 +476,13 @@ class NodeMeshServer:
 
     def _unregister_node(self, node_id: str) -> None:
         node = self._registry.get(node_id)
+
+        if self._runtime_graph_hook is not None:
+            try:
+                self._runtime_graph_hook(node_id, [], "disconnect")
+            except Exception as exc:
+                logger.warning("runtime graph hook (disconnect) failed: %s", exc)
+
         self._unregister_integration(node_id)
         self._registry.remove(node_id)
         if node:
@@ -470,7 +492,10 @@ class NodeMeshServer:
 
     _METRICS_SNAPSHOT_PATH = os.path.join(
         os.environ.get("UMH_ROOT", "/opt/OS"),
-        "data", "umh", "organism", "mesh_metrics.json",
+        "data",
+        "umh",
+        "organism",
+        "mesh_metrics.json",
     )
 
     def _write_metrics_snapshot(self) -> None:
@@ -544,7 +569,9 @@ class NodeMeshServer:
         logger.info("_run_http_relay task started")
         http_port = self._config.port + 1
 
-        async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        async def handle_request(
+            reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+        ) -> None:
             try:
                 request_line = await asyncio.wait_for(reader.readline(), timeout=5)
                 headers: dict[str, str] = {}
@@ -576,8 +603,7 @@ class NodeMeshServer:
                     b"HTTP/1.1 200 OK\r\n"
                     b"Content-Type: application/json\r\n"
                     b"Content-Length: " + str(len(resp_body)).encode() + b"\r\n"
-                    b"Connection: close\r\n\r\n"
-                    + resp_body
+                    b"Connection: close\r\n\r\n" + resp_body
                 )
                 await writer.drain()
             except Exception as exc:
@@ -588,8 +614,7 @@ class NodeMeshServer:
                         b"HTTP/1.1 500 Internal Server Error\r\n"
                         b"Content-Type: application/json\r\n"
                         b"Content-Length: " + str(len(err)).encode() + b"\r\n"
-                        b"Connection: close\r\n\r\n"
-                        + err
+                        b"Connection: close\r\n\r\n" + err
                     )
                     await writer.drain()
                 except Exception:
@@ -629,7 +654,13 @@ class NodeMeshServer:
         params = body.get("params", {})
         _MAX_DISPATCH_TIMEOUT = 60
         raw_timeout = body.get("timeout", 15)
-        timeout = max(1, min(int(raw_timeout) if isinstance(raw_timeout, (int, float)) else 15, _MAX_DISPATCH_TIMEOUT))
+        timeout = max(
+            1,
+            min(
+                int(raw_timeout) if isinstance(raw_timeout, (int, float)) else 15,
+                _MAX_DISPATCH_TIMEOUT,
+            ),
+        )
 
         if not node_id or not capability:
             return {"ok": False, "error": "node_id and capability required"}
@@ -641,17 +672,19 @@ class NodeMeshServer:
             return {"ok": False, "error": f"node {node_id} has no WS connection"}
 
         req_id = uuid4().hex
-        rpc_msg = json.dumps({
-            "jsonrpc": "2.0",
-            "method": "capability.execute",
-            "params": {
-                "request_id": req_id,
-                "capability_name": capability,
-                "params": params,
-                "timeout_seconds": timeout,
-            },
-            "id": req_id,
-        })
+        rpc_msg = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "capability.execute",
+                "params": {
+                    "request_id": req_id,
+                    "capability_name": capability,
+                    "params": params,
+                    "timeout_seconds": timeout,
+                },
+                "id": req_id,
+            }
+        )
 
         response_future: asyncio.Future[dict[str, Any]] = asyncio.get_event_loop().create_future()
         if not hasattr(self, "_pending_http"):
