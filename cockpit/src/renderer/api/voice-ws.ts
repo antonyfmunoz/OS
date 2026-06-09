@@ -1,4 +1,9 @@
 import { WsClient } from './websocket'
+import {
+  playTtsAudio,
+  cancelPlayback,
+  setPlaybackCallbacks,
+} from './tts-playback-controller'
 
 function getVoiceUrl(): string {
   if (import.meta.env.VITE_VOICE_URL) return import.meta.env.VITE_VOICE_URL as string
@@ -183,11 +188,13 @@ export class VoiceWsClient {
       this._currentAudio = null
     }
     this._playing = false
+    cancelPlayback()
     this.ws.send('tts_cancel')
     log('tts_cancelled')
   }
 
   private _queueAudio(buf: ArrayBuffer): void {
+    log('[TTSPlayback] audio_chunk_received', `bytes=${buf.byteLength}`)
     this._audioQueue.push(buf)
     if (!this._playing) this._playNext()
   }
@@ -197,19 +204,16 @@ export class VoiceWsClient {
     if (!buf) {
       this._playing = false
       this._currentAudio = null
+      log('[TTSPlayback] queue_empty')
       return
     }
     this._playing = true
-    try {
-      const blob = new Blob([buf], { type: 'audio/wav' })
-      const url = URL.createObjectURL(blob)
-      const audio = new Audio(url)
-      this._currentAudio = audio
-      audio.onended = () => { URL.revokeObjectURL(url); this._playNext() }
-      audio.onerror = () => { URL.revokeObjectURL(url); this._playNext() }
-      audio.play().catch(() => this._playNext())
-    } catch {
-      this._playNext()
-    }
+    log('[TTSPlayback] playing_chunk', `bytes=${buf.byteLength}`)
+    playTtsAudio(buf)
+    // The tts-playback-controller handles sequential playback internally.
+    // We mark ourselves as done after queueing since the controller owns
+    // the actual Audio element lifecycle.
+    this._playing = false
+    this._playNext()
   }
 }

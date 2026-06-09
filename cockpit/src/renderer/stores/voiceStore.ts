@@ -13,6 +13,28 @@ export type MicState =
 export type TtsState = 'idle' | 'generating_tts' | 'ready_to_speak' | 'speaking' | 'tts_failed'
 export type ActivationMode = 'manual' | 'wake_word' | 'clap' | 'always_on'
 
+/** Presentation lifecycle for organism response commit. */
+export type PresentationStatus =
+  | 'idle'
+  | 'thinking'
+  | 'preparing_response'
+  | 'preparing_voice'
+  | 'ready_to_commit'
+  | 'committing'
+  | 'presenting'
+  | 'complete'
+
+/** Envelope that holds a DEX response until text+audio are ready to commit together. */
+export interface OrganismResponseEnvelope {
+  messageId: string
+  content: string
+  spokenText: string
+  metadata: Record<string, unknown>
+  ttsReady: boolean
+  ttsError: string | null
+  voiceTurnId: string
+}
+
 export type VoiceOutcome =
   | 'TRANSCRIPT_RECEIVED'
   | 'NO_SPEECH_DETECTED'
@@ -37,6 +59,9 @@ interface VoiceState {
   pendingVoiceResponse: boolean
   lastOutcome: VoiceOutcome | null
   chunksSent: number
+  voicePresentationStatus: PresentationStatus
+  activeTtsJobId: string | null
+  heldEnvelope: OrganismResponseEnvelope | null
 
   setMicState: (state: MicState) => void
   setTtsState: (state: TtsState) => void
@@ -52,6 +77,9 @@ interface VoiceState {
   setLastOutcome: (outcome: VoiceOutcome | null) => void
   setChunksSent: (n: number) => void
   incrementChunksSent: () => void
+  setVoicePresentationStatus: (status: PresentationStatus) => void
+  setActiveTtsJobId: (id: string | null) => void
+  setHeldEnvelope: (envelope: OrganismResponseEnvelope | null) => void
   reset: () => void
 }
 
@@ -69,6 +97,9 @@ export const useVoiceStore = create<VoiceState>((set) => ({
   pendingVoiceResponse: false,
   lastOutcome: null,
   chunksSent: 0,
+  voicePresentationStatus: 'idle',
+  activeTtsJobId: null,
+  heldEnvelope: null,
 
   setMicState: (micState) => set({ micState }),
   setTtsState: (ttsState) => set({ ttsState }),
@@ -84,6 +115,9 @@ export const useVoiceStore = create<VoiceState>((set) => ({
   setLastOutcome: (lastOutcome) => set({ lastOutcome }),
   setChunksSent: (chunksSent) => set({ chunksSent }),
   incrementChunksSent: () => set((s) => ({ chunksSent: s.chunksSent + 1 })),
+  setVoicePresentationStatus: (voicePresentationStatus) => set({ voicePresentationStatus }),
+  setActiveTtsJobId: (activeTtsJobId) => set({ activeTtsJobId }),
+  setHeldEnvelope: (heldEnvelope) => set({ heldEnvelope }),
   reset: () => set({
     micState: 'idle',
     ttsState: 'idle',
@@ -93,5 +127,8 @@ export const useVoiceStore = create<VoiceState>((set) => ({
     pendingVoiceResponse: false,
     lastOutcome: null,
     chunksSent: 0,
+    voicePresentationStatus: 'idle',
+    activeTtsJobId: null,
+    heldEnvelope: null,
   }),
 }))
