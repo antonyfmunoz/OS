@@ -350,13 +350,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from transports.api.cockpit import router as cockpit_router
+from transports.api.cockpit import router as cockpit_router, ws_router as cockpit_ws_router
 from transports.api.computer_use import router as execution_router
 from transports.api.distribution import router as distribution_router, wire_pipeline
 from transports.api.voice import router as voice_router, wire_pipeline as wire_voice_pipeline
 from transports.api.workstation import router as workstation_router
 
 app.include_router(cockpit_router)
+app.include_router(cockpit_ws_router)
 app.include_router(execution_router)
 app.include_router(distribution_router)
 app.include_router(voice_router)
