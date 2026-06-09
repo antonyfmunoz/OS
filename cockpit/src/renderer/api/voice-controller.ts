@@ -108,6 +108,7 @@ async function ensureClient(): Promise<VoiceWsClient> {
 
 function releaseHeldMessage(): void {
   if (!heldVoiceMessage) return
+  log('[VoiceTurn] message_released', heldVoiceMessage.id)
   const cs = useChatStore.getState()
   const existing = cs.messages.find(m => m.id === heldVoiceMessage!.id)
   if (!existing) {
@@ -120,6 +121,7 @@ function releaseHeldMessage(): void {
     })
   }
   heldVoiceMessage = null
+  useVoiceStore.getState().setVoicePresentationStatus('idle')
 }
 
 function wireEvents(): void {
@@ -313,7 +315,6 @@ function wireEvents(): void {
     if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
     voiceState.setPendingVoiceResponse(false)
     voiceState.setMicState('idle')
-    voiceState.setVoicePresentationStatus('preparing_response')
 
     // Update voice route in device session store if routing metadata is present
     if (last.metadata?.routing) {
@@ -335,9 +336,14 @@ function wireEvents(): void {
     }
 
     if (client && last.content) {
+      // Hold the text message — remove from chat until TTS audio arrives.
+      // Text + audio reveal together (organism response commit).
+      heldVoiceMessage = { id: last.id, content: last.content }
+      useChatStore.getState().removeMessage(last.id)
+      log('[VoiceTurn] message_held', last.id)
+
       voiceState.setTtsState('generating_tts')
       voiceState.setVoicePresentationStatus('preparing_voice')
-      heldVoiceMessage = null
 
       const ttsTimeout = setTimeout(() => {
         const v = useVoiceStore.getState()
