@@ -1490,6 +1490,20 @@ async def advisor_converse(payload: dict):
         source=source,
     )
 
+    # Persist both sides to OrganismStore so /chat/history survives refresh
+    try:
+        from substrate.organism.store import OrganismStore
+
+        store = OrganismStore()
+        store.save_conversation_turn(
+            content=content,
+            response=response.text,
+            origin_channel="cockpit",
+            responder="dex",
+        )
+    except Exception as exc:
+        logger.debug("Failed to persist conversation to OrganismStore: %s", exc)
+
     # Mirror to Discord Founder's Office (only for cockpit-originated messages)
     if source != "discord" and response.text:
         _mirror_to_discord_founders_office(response.text)
