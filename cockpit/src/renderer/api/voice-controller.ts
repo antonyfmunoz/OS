@@ -208,6 +208,7 @@ function wireEvents(): void {
       // Final transcript segment
       if (!text.trim()) {
         // Empty final — only end turn if no segments collected
+        if (noSpeechTimeout) { clearTimeout(noSpeechTimeout); noSpeechTimeout = null }
         const turn = getCurrentTurn()
         if (!turn || turn.finalSegments.length === 0) {
           log('no_speech_in_transcript')
@@ -235,10 +236,20 @@ function wireEvents(): void {
         })
       }
 
-      // Start/restart silence timer — when it fires, the turn commits
-      startSilenceTimer((committed) => {
-        _dispatchCommittedTurn(committed)
-      })
+      // If mic already stopped (tap-to-stop), commit immediately — no more
+      // segments will arrive. Otherwise wait for silence grace window.
+      if (vs.micState === 'transcribing') {
+        if (noSpeechTimeout) { clearTimeout(noSpeechTimeout); noSpeechTimeout = null }
+        const committed = commitTurn()
+        if (committed && committed.assembledText) {
+          log('[VoiceTurn] post_stop_commit', committed.voiceTurnId)
+          _dispatchCommittedTurn(committed)
+        }
+      } else {
+        startSilenceTimer((committed) => {
+          _dispatchCommittedTurn(committed)
+        })
+      }
     })
   )
 
@@ -473,16 +484,22 @@ export function stopVoice(): void {
   const currentState = vs.micState
 
   if (currentState === 'listening' || currentState === 'recording') {
-    // Tap-to-stop: immediately commit accumulated segments
+    // Tap-to-stop with segments already collected: commit + dispatch immediately
     if (hasTurnActive()) {
-      const committed = commitTurn()
-      if (committed && committed.assembledText) {
-        log('[VoiceTurn] tap_to_stop_commit', committed.voiceTurnId)
-        finalizeMic()
-        _dispatchCommittedTurn(committed)
-        return
+      const turn = getCurrentTurn()
+      if (turn && turn.finalSegments.length > 0) {
+        const committed = commitTurn()
+        if (committed && committed.assembledText) {
+          log('[VoiceTurn] tap_to_stop_commit', committed.voiceTurnId)
+          finalizeMic()
+          _dispatchCommittedTurn(committed)
+          return
+        }
       }
     }
+    // No segments yet — server STT still pending. Send mic_stop and wait
+    // for the transcript to arrive. The turn stays active so the transcript
+    // handler can append the segment and dispatch via silence timer.
     finalizeMic()
     return
   }
