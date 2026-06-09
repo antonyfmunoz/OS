@@ -224,6 +224,8 @@ async def handle_voice(ws):
     log.info("Client connected: %s", ws.remote_address)
     audio_buffer = bytearray()
     mic_active = False
+    # session_id can be overridden by a "session_id" JSON field in mic_start or a
+    # dedicated "register_session" message sent by the frontend before mic_start.
     session_id = "voice-%d" % int(time.time())
     last_speech_time = 0.0
     has_speech_in_buffer = False
@@ -236,7 +238,7 @@ async def handle_voice(ws):
         except Exception:
             pass
 
-    await send_json({"type": "connected"})
+    await send_json({"type": "connected", "server_session_id": session_id})
 
     async def process_utterance(pcm_data: bytes):
         nonlocal has_speech_in_buffer
@@ -264,8 +266,8 @@ async def handle_voice(ws):
                 await send_json({"type": "transcript", "text": "", "final": True})
                 return
 
-            await send_json({"type": "transcript", "text": text, "final": True})
-            log.info("Transcript delivered: %s", text[:80])
+            await send_json({"type": "transcript", "text": text, "final": True, "session_id": session_id})
+            log.info("Transcript delivered (session=%s): %s", session_id, text[:80])
 
         except Exception as e:
             log.error("Utterance processing error: %s", e)
@@ -320,6 +322,10 @@ async def handle_voice(ws):
                 msg_type = msg.get("type", "")
 
                 if msg_type == "mic_start":
+                    # Allow frontend to pass its session_id for device routing
+                    client_session = msg.get("session_id", "")
+                    if client_session:
+                        session_id = client_session
                     mic_active = True
                     audio_buffer = bytearray()
                     has_speech_in_buffer = False

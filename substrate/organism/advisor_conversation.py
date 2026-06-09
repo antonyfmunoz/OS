@@ -35,13 +35,25 @@ class AdvisorResponse:
     suggested_actions: list[dict[str, Any]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: str = ""
+    spoken_text: str = ""  # Concise TTS-friendly version; empty means use text
+    routing: dict[str, Any] = field(default_factory=dict)  # Voice route metadata
 
     def __post_init__(self) -> None:
         if not self.timestamp:
             self.timestamp = datetime.now(timezone.utc).isoformat()
 
+    @property
+    def display_text(self) -> str:
+        """Alias for text — the full display version."""
+        return self.text
+
     def to_api_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        if not self.spoken_text:
+            d.pop("spoken_text", None)
+        if not self.routing:
+            d.pop("routing", None)
+        return d
 
 
 class AdvisorConversation:
@@ -62,6 +74,7 @@ class AdvisorConversation:
         conversation_id: str = "",
         view_context: dict[str, Any] | None = None,
         source: str = "text",
+        routing: dict[str, Any] | None = None,
     ) -> AdvisorResponse:
         if not conversation_id:
             conversation_id = f"conv-{uuid.uuid4().hex[:12]}"
@@ -162,7 +175,18 @@ class AdvisorConversation:
         response.conversation_id = conversation_id
         response.intent = intent.value
 
-        self._save_turn(conversation_id, "operator", content, view_context)
+        # Voice-sourced responses: generate a concise spoken_text for TTS
+        if source == "voice" and response.text:
+            response.spoken_text = self._build_spoken_text(response.text)
+
+        # Routing metadata: resolve if caller provided routing context
+        if routing:
+            response.routing = self._resolve_routing(content, routing)
+
+        self._save_turn(
+            conversation_id, "operator", content, view_context,
+            routing=routing,
+        )
         self._save_turn(
             conversation_id,
             "assistant",
@@ -178,6 +202,46 @@ class AdvisorConversation:
             self._histories[conversation_id] = history[-self._MAX_TURNS * 2 :]
 
         return response
+
+    def _build_spoken_text(self, text: str) -> str:
+        """Convert display text to a TTS-friendly spoken form.
+
+        Strips markdown, code blocks, metadata lines, and truncates to ~400 chars
+        so TTS latency stays low.
+        """
+        try:
+            from substrate.execution.bridge.voice_first import prepare_voice_response
+            return prepare_voice_response(text)
+        except Exception as exc:
+            logger.debug("voice_first.prepare_voice_response unavailable: %s", exc)
+
+        import re
+        # Strip code blocks
+        cleaned = re.sub(r"```[\s\S]*?```", "", text)
+        # Strip markdown formatting
+        cleaned = re.sub(r"\*\*(.+?)\*\*", r"\1", cleaned)
+        cleaned = re.sub(r"\*(.+?)\*", r"\1", cleaned)
+        cleaned = re.sub(r"`(.+?)`", r"\1", cleaned)
+        # Strip metadata-looking lines (key: value patterns at line start)
+        cleaned = re.sub(r"^[\w_]+:\s+\S.*$", "", cleaned, flags=re.MULTILINE)
+        cleaned = cleaned.strip()
+        return cleaned[:400]
+
+    def _resolve_routing(self, content: str, routing: dict[str, Any]) -> dict[str, Any]:
+        """Run the voice route resolver and return routing dict for the response."""
+        try:
+            from substrate.workstation.voice_route_resolver import resolve_voice_route
+            source_session_id = routing.get("source_session_id", "")
+            requested_target = routing.get("execution_target")
+            route = resolve_voice_route(
+                transcript=content,
+                source_session_id=source_session_id,
+                requested_target_node=requested_target,
+            )
+            return route.to_dict()
+        except Exception as exc:
+            logger.debug("Voice route resolution failed: %s", exc)
+            return {}
 
     def _handle_conversation(
         self,
@@ -1526,8 +1590,9 @@ class AdvisorConversation:
         view_context: dict[str, Any] | None = None,
         intent: str = "",
         suggested_actions: list[dict[str, Any]] | None = None,
+        routing: dict[str, Any] | None = None,
     ) -> None:
-        entry = {
+        entry: dict[str, Any] = {
             "conversation_id": conversation_id,
             "message_id": f"conv-{uuid.uuid4().hex[:12]}",
             "role": role,
@@ -1537,6 +1602,13 @@ class AdvisorConversation:
             "suggested_actions": suggested_actions or [],
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+        # Persist device/session routing metadata when present
+        if routing:
+            entry["source"] = "voice"
+            entry["device_id"] = routing.get("source_device_id", "")
+            entry["session_id"] = routing.get("source_session_id", "")
+            entry["execution_target"] = routing.get("execution_target", "")
+            entry["audio_output_session"] = routing.get("audio_output_session", "")
         try:
             with open(_CONVERSATIONS_PATH, "a") as f:
                 f.write(json.dumps(entry, default=str, separators=(",", ":")) + "\n")

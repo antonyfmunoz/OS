@@ -1483,11 +1483,14 @@ async def advisor_converse(payload: dict):
         return {"error": "content required"}
 
     source = payload.get("source", "text")
+    routing = payload.get("routing")  # Optional voice routing metadata
+
     response = conv.converse(
         content=content,
         conversation_id=payload.get("conversation_id", ""),
         view_context=payload.get("view_context"),
         source=source,
+        routing=routing,
     )
 
     # Persist both sides to OrganismStore so /chat/history survives refresh
@@ -1508,7 +1511,7 @@ async def advisor_converse(payload: dict):
     if source != "discord" and response.text:
         _mirror_to_discord_founders_office(response.text)
 
-    return {
+    result: dict = {
         "message_id": f"advisor-{response.timestamp}",
         "text": response.text,
         "response": response.text,
@@ -1518,6 +1521,11 @@ async def advisor_converse(payload: dict):
         "metadata": response.metadata,
         "timestamp": response.timestamp,
     }
+    if response.spoken_text:
+        result["spoken_text"] = response.spoken_text
+    if response.routing:
+        result["routing"] = response.routing
+    return result
 
 
 @router.post("/dex/converse")
@@ -3413,3 +3421,70 @@ async def council_review(payload: dict) -> dict:  # type: ignore[type-arg]
         artifacts=payload.get("artifacts"),
     )
     return {"ok": True, "review": review.to_dict()}
+
+
+# ─── Device Presence Registry ─────────────────────────────────────────────────
+
+@router.post("/device/register")
+async def device_register(payload: dict) -> dict:
+    """Register a device session with the presence registry."""
+    from substrate.workstation.device_presence import DeviceSession, get_registry
+
+    session_id = payload.get("session_id", "")
+    device_id = payload.get("device_id", "")
+    if not session_id or not device_id:
+        raise HTTPException(status_code=400, detail="session_id and device_id required")
+
+    session = DeviceSession(
+        device_id=device_id,
+        session_id=session_id,
+        operator_id=payload.get("operator_id", "default"),
+        client_type=payload.get("client_type", "desktop_browser"),
+        device_label=payload.get("device_label", ""),
+        control_surface=payload.get("control_surface", "fly_cockpit"),
+        current_panel=payload.get("current_panel", ""),
+        can_capture_audio=bool(payload.get("can_capture_audio", True)),
+        can_play_audio=bool(payload.get("can_play_audio", True)),
+        reachable_nodes=payload.get("reachable_nodes", ["cockpit", "vps"]),
+    )
+    get_registry().register_session(session)
+    return {"ok": True, "session_id": session_id}
+
+
+@router.post("/device/heartbeat")
+async def device_heartbeat(payload: dict) -> dict:
+    """Heartbeat — refresh session last_seen and apply optional field updates."""
+    from substrate.workstation.device_presence import get_registry
+
+    session_id = payload.get("session_id", "")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id required")
+
+    updates = {k: v for k, v in payload.items() if k != "session_id"}
+    found = get_registry().heartbeat(session_id, updates=updates or None)
+    if not found:
+        return {"ok": False, "reason": "session not found"}
+    return {"ok": True}
+
+
+@router.get("/device/sessions")
+async def device_sessions() -> dict:
+    """List all active device sessions."""
+    from substrate.workstation.device_presence import get_registry
+
+    sessions = get_registry().get_active_sessions()
+    return {"sessions": [s.to_dict() for s in sessions]}
+
+
+@router.post("/device/disconnect")
+async def device_disconnect(payload: dict) -> dict:
+    """Mark a session as disconnected."""
+    from substrate.workstation.device_presence import get_registry
+
+    session_id = payload.get("session_id", "")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id required")
+
+    get_registry().mark_disconnected(session_id)
+    return {"ok": True}
+
