@@ -78,7 +78,7 @@ SILENCE_END_UTTERANCE_S = 1.8
 SPEECH_LEVEL_THRESHOLD = 0.02
 
 KOKORO_URL = os.getenv("KOKORO_TTS_URL", "http://100.74.199.102:8880")
-KOKORO_VOICE = os.getenv("KOKORO_VOICE", "am_michael")
+KOKORO_VOICE = os.getenv("KOKORO_VOICE", "bf_emma")
 KOKORO_SPEED = float(os.getenv("KOKORO_SPEED", "1.0"))
 
 
