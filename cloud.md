@@ -10,7 +10,7 @@ It is loaded first. It is not optional.
 
 ## What this system is
 
-UMH (Universal Mastery Hierarchy) is a governed intelligence substrate.
+UMH (Universal Meta Harness) is a governed intelligence substrate.
 Applications like EntrepreneurOS (EOS), CreatorOS, and LyfeOS are
 projections built on top of UMH — they consume the substrate,
 they do not own intelligence.

@@ -10,7 +10,7 @@ export type MicState =
   | 'processing'
   | 'interrupted'
 
-export type TtsState = 'idle' | 'speaking'
+export type TtsState = 'idle' | 'generating_tts' | 'ready_to_speak' | 'speaking' | 'tts_failed'
 export type ActivationMode = 'manual' | 'wake_word' | 'clap' | 'always_on'
 
 export type VoiceOutcome =

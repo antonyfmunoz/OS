@@ -204,13 +204,76 @@ def strip_markdown(text: str) -> str:
     return text.strip()
 
 
+def normalize_for_speech(text: str) -> str:
+    """Expand acronyms and normalize text for natural TTS."""
+    import re
+
+    _SPOKEN_ACRONYMS = {
+        "UMH": "Universal Meta Harness",
+        "VPS": "V P S",
+        "TTS": "T T S",
+        "STT": "S T T",
+        "API": "A P I",
+        "CLI": "C L I",
+        "CPU": "C P U",
+        "GPU": "G P U",
+        "RAM": "ram",
+        "SSH": "S S H",
+        "WSL": "W S L",
+        "IDE": "I D E",
+        "PR": "P R",
+        "CI": "C I",
+        "LLM": "L L M",
+        "WS": "websocket",
+        "WAV": "wave",
+        "PCM": "P C M",
+    }
+
+    # JSON/metadata blocks — summarize instead of reading
+    text = re.sub(
+        r'\{[^{}]*"target_node"[^{}]*\}',
+        "command executed on the target node.",
+        text,
+    )
+    text = re.sub(
+        r'\{[^{}]*"status"[^{}]*\}',
+        "action completed.",
+        text,
+    )
+
+    # Key-value metadata lines
+    text = re.sub(r"^\s*\w+_\w+\s*[:=]\s*.+$", "", text, flags=re.MULTILINE)
+
+    # Expand acronyms (whole-word only, case-sensitive)
+    for acronym, expansion in _SPOKEN_ACRONYMS.items():
+        text = re.sub(rf"\b{acronym}\b", expansion, text)
+
+    try:
+        from substrate.organism.system_identity import _get_ai_name
+        ai = _get_ai_name()
+        if ai.isupper() and len(ai) <= 5:
+            text = re.sub(rf"\b{re.escape(ai)}\b", ai.capitalize(), text)
+    except Exception:
+        pass
+
+    # Numbers: $10,000 → ten thousand dollars
+    text = re.sub(r"\$(\d{1,3}),(\d{3})\b", r"\1\2 dollars", text)
+
+    # Clean up double spaces/periods from removals
+    text = re.sub(r"\.\s*\.", ".", text)
+    text = re.sub(r" {2,}", " ", text)
+
+    return text.strip()
+
+
 def prepare_voice_response(raw_response: str) -> str:
-    """Full pipeline: sanitize → strip markdown → truncate for voice."""
+    """Full pipeline: sanitize → strip markdown → normalize → truncate."""
     from substrate.execution.bridge.tts_sanitize import sanitize_tts_reply
 
     sanitized = sanitize_tts_reply(raw_response, max_chars=VOICE_MAX_CHARS + 200)
     cleaned = strip_markdown(sanitized)
-    return truncate_for_voice(cleaned)
+    normalized = normalize_for_speech(cleaned)
+    return truncate_for_voice(normalized)
 
 
 # ─── Voice-first response orchestrator ──────────────────────────────────────

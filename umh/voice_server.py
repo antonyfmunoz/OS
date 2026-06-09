@@ -45,6 +45,7 @@ import tempfile
 import time
 import wave
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -77,7 +78,8 @@ SILENCE_END_UTTERANCE_S = 1.8
 SPEECH_LEVEL_THRESHOLD = 0.02
 
 KOKORO_URL = os.getenv("KOKORO_TTS_URL", "http://100.74.199.102:8880")
-KOKORO_VOICE = os.getenv("KOKORO_VOICE", "am_adam")
+KOKORO_VOICE = os.getenv("KOKORO_VOICE", "am_michael")
+KOKORO_SPEED = float(os.getenv("KOKORO_SPEED", "1.0"))
 
 
 # --- STT ---
@@ -121,53 +123,71 @@ def transcribe(audio_path: str) -> str:
 
 # --- TTS: Kokoro (Beast GPU) with espeak fallback ---
 
-def _tts_kokoro(text: str) -> bytes:
+def _tts_kokoro(text: str) -> tuple[bytes, dict[str, Any]]:
+    meta: dict[str, Any] = {"provider": "kokoro", "voice": KOKORO_VOICE, "speed": KOKORO_SPEED}
     try:
         import urllib.request
         url = "%s/v1/audio/speech" % KOKORO_URL
+        t0 = time.monotonic()
         payload = json.dumps({
             "model": "kokoro",
             "input": text[:500],
             "voice": KOKORO_VOICE,
+            "speed": KOKORO_SPEED,
             "response_format": "wav",
         }).encode()
         req = urllib.request.Request(
             url, data=payload,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:
             data = resp.read()
+            latency_ms = int((time.monotonic() - t0) * 1000)
+            meta["latency_ms"] = latency_ms
+            meta["audio_format"] = "wav"
+            meta["audio_bytes"] = len(data)
             if len(data) > 100:
-                log.info("TTS (kokoro): %d bytes", len(data))
-                return data
+                log.info("TTS (kokoro/%s): %d bytes, %dms", KOKORO_VOICE, len(data), latency_ms)
+                return data, meta
     except Exception as e:
         log.warning("Kokoro TTS failed: %s", e)
-    return b""
+        meta["error"] = str(e)
+    return b"", meta
 
 
-def _tts_espeak(text: str) -> bytes:
+def _tts_espeak(text: str) -> tuple[bytes, dict[str, Any]]:
+    meta: dict[str, Any] = {"provider": "espeak", "voice": "default"}
     try:
         fd, path = tempfile.mkstemp(suffix=".wav", prefix="voice_tts_")
         os.close(fd)
+        t0 = time.monotonic()
         result = subprocess.run(
             ["espeak", "-s", "160", "-p", "40", "-w", path, text[:500]],
             capture_output=True, timeout=15,
         )
+        latency_ms = int((time.monotonic() - t0) * 1000)
+        meta["latency_ms"] = latency_ms
+        meta["audio_format"] = "wav"
         if result.returncode == 0 and os.path.exists(path):
             with open(path, "rb") as f:
                 data = f.read()
             os.unlink(path)
-            return data
+            meta["audio_bytes"] = len(data)
+            return data, meta
     except Exception as e:
         log.warning("espeak TTS failed: %s", e)
-    return b""
+        meta["error"] = str(e)
+    return b"", meta
 
 
-def generate_tts(text: str) -> bytes:
-    data = _tts_kokoro(text)
+def generate_tts(text: str) -> tuple[bytes, dict[str, Any]]:
+    data, meta = _tts_kokoro(text)
     if data:
-        return data
-    return _tts_espeak(text)
+        return data, meta
+    data, meta = _tts_espeak(text)
+    if data:
+        return data, meta
+    return b"", {"provider": "none", "error": "all TTS providers failed"}
 
 
 def prepare_for_speech(text: str) -> str:
@@ -269,17 +289,25 @@ async def handle_voice(ws):
         if tts_cancelled:
             return
 
-        tts_data = await loop.run_in_executor(None, generate_tts, spoken)
+        tts_data, tts_meta = await loop.run_in_executor(None, generate_tts, spoken)
 
         if tts_cancelled:
             return
 
         if tts_data:
-            await send_json({"type": "tts_status", "speaking": True})
+            await send_json({
+                "type": "tts_status",
+                "speaking": True,
+                "tts_provider": tts_meta.get("provider", "unknown"),
+                "voice": tts_meta.get("voice", ""),
+                "latency_ms": tts_meta.get("latency_ms", 0),
+                "audio_format": tts_meta.get("audio_format", "wav"),
+            })
             await ws.send(tts_data)
             await send_json({"type": "tts_status", "speaking": False})
         else:
-            await send_json({"type": "tts_error", "error": "TTS generation failed — Kokoro and espeak both unavailable"})
+            error_msg = tts_meta.get("error", "all TTS providers failed")
+            await send_json({"type": "tts_error", "error": f"TTS generation failed: {error_msg}"})
 
     try:
         async for message in ws:

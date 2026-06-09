@@ -158,9 +158,15 @@ function TranscriptDisplay() {
   let text = ''
   let color = 'var(--text-secondary)'
 
-  if (ttsState === 'speaking') {
+  if (ttsState === 'generating_tts') {
+    text = `${aiName} is preparing voice...`
+    color = 'var(--accent-amber)'
+  } else if (ttsState === 'speaking') {
     text = `${aiName} is speaking...`
     color = 'var(--accent-purple)'
+  } else if (ttsState === 'tts_failed') {
+    text = 'Voice unavailable — showing text'
+    color = 'var(--accent-danger)'
   } else if (micState === 'processing') {
     text = 'thinking...'
     color = 'var(--accent-amber)'

@@ -74,8 +74,8 @@ class CanonicalSelf:
     """What UMH is, universally, regardless of who runs it."""
 
     system_name: str = "UMH"
-    system_full_name: str = "Universal Mastery Hierarchy"
-    purpose: str = "Intelligence substrate that compounds capability through every interaction"
+    system_full_name: str = "Universal Meta Harness"
+    purpose: str = "Governed meta-harness and workstation operating layer for operator-AI orchestration"
 
     architecture_layers: tuple[str, ...] = (
         "substrate — universal mechanisms, types, execution engine",
