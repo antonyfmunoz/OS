@@ -55,15 +55,23 @@ interface ChatState {
   targetChannel: string
   conversationId: string
   _pollTimer: ReturnType<typeof setInterval> | null
+  /** Draft message shown during voice recording (live updating "YOU is speaking...") */
+  draftMessage: ChatMessage | null
+  /** Placeholder message for "DEX is thinking..." during voice flow */
+  placeholderMessage: ChatMessage | null
 
   setInput: (input: string) => void
   setTargetChannel: (channel: string) => void
-  sendMessage: (content: string, source?: 'text' | 'voice', viewContext?: Record<string, unknown>) => Promise<void>
+  sendMessage: (content: string, source?: 'text' | 'voice', viewContext?: Record<string, unknown>, voiceTurnId?: string) => Promise<void>
   loadHistory: () => Promise<void>
   startPolling: () => void
   stopPolling: () => void
-  addVoiceTranscript: (text: string) => void
+  addVoiceTranscript: (text: string, voiceTurnId?: string) => void
   pushExternalMessage: (msg: ChatMessage) => void
+  setDraftMessage: (msg: ChatMessage | null) => void
+  commitDraftMessage: () => void
+  setPlaceholderMessage: (msg: ChatMessage | null) => void
+  clearPlaceholderMessage: () => void
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -74,11 +82,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   targetChannel: 'cockpit',
   conversationId: '',
   _pollTimer: null,
+  draftMessage: null,
+  placeholderMessage: null,
 
   setInput: (input) => set({ input }),
   setTargetChannel: (channel) => set({ targetChannel: channel }),
 
-  sendMessage: async (content, source = 'text', viewContext?: Record<string, unknown>) => {
+  sendMessage: async (content, source = 'text', viewContext?: Record<string, unknown>, voiceTurnId?: string) => {
     if (!content.trim()) return
 
     const { targetChannel, conversationId } = get()
@@ -121,6 +131,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             conversation_id: conversationId,
             source,
             ...(routing ? { routing } : {}),
+            ...(voiceTurnId ? { voice_turn_id: voiceTurnId } : {}),
           }),
         })
 
@@ -210,13 +221,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  addVoiceTranscript: (text) => {
+  addVoiceTranscript: (text, voiceTurnId) => {
     try {
       const { useViewContextStore } = require('../stores/viewContextStore')
       const viewContext = useViewContextStore.getState().context
-      get().sendMessage(text, 'voice', viewContext as Record<string, unknown>)
+      get().sendMessage(text, 'voice', viewContext as Record<string, unknown>, voiceTurnId)
     } catch {
-      get().sendMessage(text, 'voice')
+      get().sendMessage(text, 'voice', undefined, voiceTurnId)
     }
   },
 
@@ -226,4 +237,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return { messages: [...s.messages, msg] }
     })
   },
+
+  setDraftMessage: (msg) => set({ draftMessage: msg }),
+
+  commitDraftMessage: () => {
+    const { draftMessage } = get()
+    if (!draftMessage) return
+    set((s) => {
+      if (s.messages.some((m) => m.id === draftMessage.id)) {
+        return { draftMessage: null }
+      }
+      return {
+        messages: [...s.messages, draftMessage],
+        draftMessage: null,
+      }
+    })
+  },
+
+  setPlaceholderMessage: (msg) => set({ placeholderMessage: msg }),
+
+  clearPlaceholderMessage: () => set({ placeholderMessage: null }),
 }))
