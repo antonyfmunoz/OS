@@ -281,6 +281,9 @@ function ChatSection() {
   const micState = useVoiceStore((s) => s.micState)
   const ttsState = useVoiceStore((s) => s.ttsState)
   const voiceError = useVoiceStore((s) => s.error)
+  const voicePresentationStatus = useVoiceStore((s) => s.voicePresentationStatus)
+  const draftMessage = useChatStore((s) => s.draftMessage)
+  const placeholderMessage = useChatStore((s) => s.placeholderMessage)
   const scrollRef = useRef<HTMLDivElement>(null)
   const displayName = `${aiName} ASSISTANT`
   const [editingName, setEditingName] = useState(false)
@@ -419,12 +422,43 @@ function ChatSection() {
         {messages.map((m) => (
           <MessageBubble key={m.id} msg={m} aiName={aiName} onAction={handleSuggestedAction} />
         ))}
-        {sending && (
+        {draftMessage && (
+          <div className="px-2 py-2 rounded text-[11px] bg-cyan-glow text-text-primary ml-4 opacity-70">
+            <div className="flex items-center gap-1 font-mono text-[9px] text-text-tertiary mb-1">
+              <span>YOU</span>
+              <span className="text-[8px] px-1 rounded bg-violet/10 text-violet/70">
+                <Mic size={8} className="inline" /> speaking...
+              </span>
+            </div>
+            <p className="whitespace-pre-wrap">{draftMessage.content || '...'}</p>
+          </div>
+        )}
+        {(sending || voicePresentationStatus === 'thinking' || voicePresentationStatus === 'preparing_response') && (
           <div className="px-2 py-1.5 rounded text-[11px] bg-surface-raised text-text-tertiary mr-4 animate-pulse">
             {aiName} is thinking...
           </div>
         )}
-        {messages.length === 0 && !sending && (
+        {(voicePresentationStatus === 'preparing_voice' || voicePresentationStatus === 'ready_to_commit') && (
+          <div className="px-2 py-1.5 rounded text-[11px] bg-surface-raised text-text-tertiary mr-4 animate-pulse">
+            {aiName} is preparing voice...
+          </div>
+        )}
+        {placeholderMessage && voicePresentationStatus === 'idle' && (
+          <div className="px-2 py-1.5 rounded text-[11px] bg-surface-raised text-text-tertiary mr-4 animate-pulse">
+            {placeholderMessage.content}
+          </div>
+        )}
+        {ttsState === 'tts_failed' && voiceError && voiceError.startsWith('Tap to play') && (
+          <button
+            onClick={() => {
+              startVoice().catch(() => { /* ignore */ })
+            }}
+            className="px-2 py-1.5 rounded text-[10px] font-mono text-cyan border border-cyan/30 hover:bg-cyan-glow transition-colors cursor-pointer"
+          >
+            Tap to play audio
+          </button>
+        )}
+        {messages.length === 0 && !sending && !draftMessage && (
           <p className="text-[11px] text-text-tertiary text-center py-4">Ask {aiName} anything</p>
         )}
       </div>
