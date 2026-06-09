@@ -182,6 +182,7 @@ class MeshReconciler:
                 existing.last_heartbeat = time.time()
 
             if self._supervisor is not None:
+                self._supervisor.supervise(rid)
                 self._supervisor.heartbeat(rid)
                 report.heartbeats_sent += 1
 
