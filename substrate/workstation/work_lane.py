@@ -222,20 +222,15 @@ def route_to_lane(text: str, session_id: str) -> WorkLane:
     """Route operator text to the appropriate work lane.
 
     Deterministic routing — no LLM.  Order:
-    1. Check if target is a native app -> native_app lane
-    2. Check for screenshot/list_windows/focus -> foreground lane
-    3. Check for browser/search/website -> background_browser lane
-    4. Check for shell/command -> background_shell lane
-    5. Default: foreground (safe default, operator sees what happens)
-
-    Args:
-        text: Operator's natural language command.
-        session_id: Session that originated the command.
-
-    Returns:
-        WorkLane with routing decision.
+    1. Native app -> native_app lane
+    2. GUI interaction (click/type/drag) -> foreground (before browser check)
+    3. Screenshot/list_windows/focus -> foreground lane
+    4. Browser/search/website patterns -> background_browser lane
+    5. Unknown apps with "open" prefix that resolve as web -> background_browser
+    6. Shell/command patterns -> background_shell lane
+    7. Default: foreground (safe default, operator sees what happens)
     """
-    from substrate.workstation.app_resolver import classify_app_vs_website
+    from substrate.workstation.app_resolver import classify_app_vs_website, resolve_app_target
 
     t = text.lower().strip()
 
@@ -248,7 +243,15 @@ def route_to_lane(text: str, session_id: str) -> WorkLane:
             task_description=t,
         )
 
-    # 2. Foreground patterns
+    # 2. GUI interaction routes to foreground BEFORE browser pattern check
+    if any(action in t for action in _FOREGROUND_GUI_ACTIONS):
+        return WorkLane(
+            lane_type=LaneType.foreground,
+            session_id=session_id,
+            task_description=t,
+        )
+
+    # 3. Foreground patterns (screenshot, list windows, focus)
     if any(pat in t for pat in _FOREGROUND_PATTERNS):
         return WorkLane(
             lane_type=LaneType.foreground,
@@ -256,7 +259,7 @@ def route_to_lane(text: str, session_id: str) -> WorkLane:
             task_description=t,
         )
 
-    # 3. Browser/web patterns
+    # 4. Browser/web patterns
     if any(pat in t for pat in _BROWSER_PATTERNS):
         return WorkLane(
             lane_type=LaneType.background_browser,
@@ -264,7 +267,6 @@ def route_to_lane(text: str, session_id: str) -> WorkLane:
             task_description=t,
         )
 
-    # Also classify "website" results as background_browser
     if classification == "website":
         return WorkLane(
             lane_type=LaneType.background_browser,
@@ -272,7 +274,22 @@ def route_to_lane(text: str, session_id: str) -> WorkLane:
             task_description=t,
         )
 
-    # 4. Shell patterns
+    # 5. Unknown apps with "open/launch" prefix — check if they resolve as web
+    if classification == "unknown":
+        for prefix in _OPERATOR_REQUEST_PREFIXES:
+            if t.startswith(prefix):
+                remainder = t[len(prefix) :].strip()
+                if remainder:
+                    target = resolve_app_target(remainder)
+                    if not target.is_native and target.open_url:
+                        return WorkLane(
+                            lane_type=LaneType.background_browser,
+                            session_id=session_id,
+                            task_description=t,
+                        )
+                break
+
+    # 6. Shell patterns
     if any(pat in t for pat in _SHELL_PATTERNS):
         return WorkLane(
             lane_type=LaneType.background_shell,
@@ -280,7 +297,7 @@ def route_to_lane(text: str, session_id: str) -> WorkLane:
             task_description=t,
         )
 
-    # 5. Default: foreground
+    # 7. Default: foreground
     return WorkLane(
         lane_type=LaneType.foreground,
         session_id=session_id,
