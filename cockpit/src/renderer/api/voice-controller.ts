@@ -1,6 +1,7 @@
 import { VoiceWsClient } from './voice-ws'
 import { useVoiceStore } from '../stores/voiceStore'
 import { useChatStore } from '../stores/chatStore'
+import { unlockAudioForIOS, setPlaybackCallbacks, cancelPlayback, resetPlayback } from './tts-playback-controller'
 
 let client: VoiceWsClient | null = null
 let cleanups: (() => void)[] = []
@@ -273,6 +274,33 @@ export async function startVoice(): Promise<void> {
 
   log('mic_clicked')
 
+  // Unlock audio on user gesture (iOS requires this before any Audio.play())
+  unlockAudioForIOS().then((ok) => {
+    log('ios_audio_unlock', ok ? 'success' : 'failed')
+  }).catch(() => {
+    log('ios_audio_unlock', 'error')
+  })
+
+  // Wire playback callbacks for TTS state management
+  setPlaybackCallbacks(
+    () => {
+      // Playback done — release held message and reset TTS state
+      const vs2 = useVoiceStore.getState()
+      if (vs2.ttsState === 'speaking') {
+        vs2.setTtsState('idle')
+      }
+      releaseHeldMessage()
+    },
+    (reason: string) => {
+      // Playback rejected (iOS autoplay block) — show tap-to-play
+      log('tts_play_rejected', reason)
+      const vs2 = useVoiceStore.getState()
+      vs2.setTtsState('tts_failed')
+      vs2.setError(`Tap to play audio (${reason})`)
+      releaseHeldMessage()
+    },
+  )
+
   vs.setMicState('requesting_permission')
 
   let c: VoiceWsClient
@@ -372,6 +400,7 @@ export function stopTts(): void {
   if (client) {
     client.cancelTts()
   }
+  cancelPlayback()
   useVoiceStore.getState().setTtsState('idle')
   releaseHeldMessage()
 }
@@ -385,6 +414,7 @@ export function destroyVoice(): void {
     chatUnsub = null
   }
   releaseHeldMessage()
+  resetPlayback()
   if (client) {
     client.disconnect()
     client = null
