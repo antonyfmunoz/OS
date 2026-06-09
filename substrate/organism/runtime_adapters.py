@@ -511,7 +511,10 @@ class MeshNodeRuntimeAdapter:
         relay_port: int = 8095,
     ) -> None:
         self._node_id = node_id
-        self._relay_url = f"http://localhost:{relay_port}"
+        host = os.environ.get("UMH_MESH_RELAY_HOST") or (
+            "host.docker.internal" if os.path.exists("/.dockerenv") else "localhost"
+        )
+        self._relay_url = f"http://{host}:{relay_port}"
         caps: set[RuntimeCapability] = set()
         for cap_name in node_capabilities:
             caps.update(_NODE_CAP_TO_RUNTIME_CAP.get(cap_name, set()))

@@ -34,6 +34,7 @@ from substrate.organism.bottleneck_engine import BottleneckEngine
 from substrate.organism.coordinator import OrganismCoordinator
 from substrate.organism.environment_graph import EnvironmentGraph
 from substrate.organism.environment_reconciler import EnvironmentReconciler
+from substrate.organism.mesh_reconciler import MeshReconciler
 from substrate.organism.event_spine import EventDomain, EventSpine
 from substrate.organism.execution_economy import ExecutionEconomy
 from substrate.organism.execution_modes import ExecutionModeManager
@@ -184,6 +185,14 @@ class OrganismDaemon:
             )
         else:
             self._reconciler = None
+
+        if self._graph is not None:
+            self._mesh_reconciler: MeshReconciler | None = MeshReconciler(
+                graph=self._graph,
+                supervisor=self._supervisor,
+            )
+        else:
+            self._mesh_reconciler = None
 
         self._environment_graph = EnvironmentGraph()
 
@@ -400,6 +409,11 @@ class OrganismDaemon:
             self._autonomous_tick.register_stage(
                 "environment_reconcile",
                 self._reconciler.reconcile_tick,
+            )
+        if self._mesh_reconciler is not None:
+            self._autonomous_tick.register_stage(
+                "mesh_reconcile",
+                self._mesh_reconciler.reconcile_tick,
             )
         self._autonomous_tick.register_stage(
             "leverage_measurement",
@@ -643,6 +657,10 @@ class OrganismDaemon:
     @property
     def reconciler(self) -> EnvironmentReconciler | None:
         return self._reconciler
+
+    @property
+    def mesh_reconciler(self) -> MeshReconciler | None:
+        return self._mesh_reconciler
 
     @property
     def environment_graph(self) -> EnvironmentGraph:
@@ -945,6 +963,8 @@ class OrganismDaemon:
             result["runtimes"] = self._graph.to_dict()
         if self._reconciler is not None:
             result["reconciler"] = self._reconciler.to_dict()
+        if self._mesh_reconciler is not None:
+            result["mesh_reconciler"] = self._mesh_reconciler.to_dict()
         return result
 
     def _get_active_sandbox_count(self) -> int:
