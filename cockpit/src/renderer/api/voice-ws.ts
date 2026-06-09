@@ -12,9 +12,8 @@ function getVoiceUrl(): string {
     window.location.hostname === 'localhost' ||
     window.location.hostname === '127.0.0.1'
   const isElectron = Boolean((window as Record<string, unknown>).cockpit)
-  const isTailscale = /^100\.\d+\.\d+\.\d+$/.test(window.location.hostname)
 
-  if (isElectron || isLocalhost || isTailscale) {
+  if (isElectron || isLocalhost) {
     return 'ws://localhost:8096/voice'
   }
 
