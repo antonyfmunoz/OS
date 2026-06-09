@@ -1484,6 +1484,7 @@ async def advisor_converse(payload: dict):
 
     source = payload.get("source", "text")
     routing = payload.get("routing")  # Optional voice routing metadata
+    voice_turn_id = payload.get("voice_turn_id", "")  # Idempotency key for voice turns
 
     response = conv.converse(
         content=content,
@@ -1491,6 +1492,7 @@ async def advisor_converse(payload: dict):
         view_context=payload.get("view_context"),
         source=source,
         routing=routing,
+        voice_turn_id=voice_turn_id,
     )
 
     # Persist both sides to OrganismStore so /chat/history survives refresh
