@@ -1,22 +1,22 @@
 # Phase 14.13T-2 Seal: Voice WebSocket Transport Proxy
 
-**Date:** 2026-06-08
+**Date:** 2026-06-08 (initial), 2026-06-09 (final fix)
 **Phase:** 14.13T-2 — Voice WS Transport for Deployed Cockpit
 **Status:** SEALED
-**Verdict:** PASS — deployed browser voice pipeline operational
+**Verdict:** PASS — deployed browser voice pipeline operational, verified end-to-end
 
 ---
 
 ## Problem
 
-Deployed cockpit browser at `universalmetaharness.tech` dialed `ws://localhost:8096/voice` for voice WebSocket. From the browser, `localhost` resolves to the user's device, not the VPS where the voice server runs. Voice pipeline dead from deployed cockpit.
+Deployed cockpit browser at `universalmetaharness.tech` could not reach the voice server. Multiple layers were broken.
 
 ## Root Cause Chain
 
-1. **URL mismatch**: Browser voice client hardcoded `ws://localhost:8096/voice` regardless of deployment context
-2. **No proxy path**: No same-origin voice WS endpoint existed for deployed browsers
-3. **Docker network isolation**: Voice server runs on VPS host port 8096; os-operator container can't reach host ports through `127.0.0.1`
-4. **UFW firewall**: INPUT policy DROP silently blocks Docker bridge traffic to host, even through `host.docker.internal`
+1. **ws_router never mounted** (CRITICAL): `cockpit.py` defines a separate `ws_router` APIRouter for WebSocket endpoints (`/api/umh/ws` and `/api/umh/voice/ws`), but `app.py` only imported and included `router` (the HTTP router). The WebSocket endpoints existed in code but returned 404 at runtime.
+2. **Missing Sec-WebSocket-Protocol forwarding**: nginx voice WS proxy block was missing the `Sec-WebSocket-Protocol` header forwarding that the main cockpit WS block had. Without it, subprotocol-based auth tokens would be silently dropped.
+3. **URL mismatch** (fixed in prior session): Browser voice client had been hardcoded to `ws://localhost:8096/voice`
+4. **Docker network isolation** (fixed in prior session): iptables rule needed for Docker→host traffic
 
 ## Fix Architecture
 
@@ -72,23 +72,39 @@ Browser mic → PCM16 chunks
 - Direct WebSocket test from Playwright: `CONNECTED — voice WS proxy works from deployed browser`
 - Cockpit deployed to Fly, health checks pass, WS proxy operational
 
-## Files Changed
+## Files Changed (2026-06-09 final fix)
 
+| File | Change |
+|------|--------|
+| `transports/api/app.py` | Import and include `ws_router` from cockpit.py — the actual root cause |
+| `cockpit/nginx.conf.template` | Add `Sec-WebSocket-Protocol` header forwarding to voice WS block |
+| `transports/api/cockpit_presence_routes.py` | Flatten health response to match spec |
+
+### Previously changed (2026-06-08 partial fix)
 | File | Change |
 |------|--------|
 | `docker-compose.yml` | `VOICE_WS_UPSTREAM` env var for os-operator |
 | `infra/scripts/dc-up.sh` | Idempotent iptables rule for Docker→host voice traffic |
-| `transports/api/cockpit.py` | Default upstream changed to `host.docker.internal` |
-| `transports/api/cockpit_presence_routes.py` | Health check uses correct host based on env |
+| `transports/api/cockpit.py` | Voice WS proxy handler + URL resolver |
+| `cockpit/src/renderer/api/voice-ws.ts` | Environment-aware URL resolver |
+
+## End-to-End Verification (2026-06-09)
+
+1. **VPS direct**: `ws://127.0.0.1:8091/api/umh/voice/ws?token=...` → `{"type": "connected"}` ✅
+2. **Deployed cockpit**: `wss://universalmetaharness.tech/api/umh/voice/ws` → `{"type": "connected"}` ✅
+3. **Console log**: `[VoicePipeline] voice_ws_url_resolved wss://universalmetaharness.tech/api/umh/voice/ws` ✅
+4. **Health endpoint**: `"ok": true, "voice_server": "reachable"` ✅
+5. **Docker logs**: `[VoiceProxy] client_connected`, `upstream_connected`, `session_ended` ✅
+6. **Cockpit WS also fixed**: `/api/umh/ws` now returns system metrics (was also broken by same ws_router issue) ✅
 
 ## Remaining Work
 
-- **Workcell F**: Real hardware mic trial (requires human operator with browser mic)
-- **Workcell G**: Voice command routing trial (transcript → DEX → response → TTS)
-- **Workcell H**: TTS cancel/interruption trial (requires Kokoro on Beast)
-- Kokoro TTS on Beast shows unreachable — Beast may be powered off
+- **Real hardware mic trial**: Requires human operator with browser mic on deployed cockpit
+- **Voice command routing**: transcript → DEX → response → TTS
+- **TTS playback**: Kokoro on Beast must be reachable
 
 ## Commits
 
 - `96cd0d4a` fix: voice WS proxy Docker-to-host networking — iptables + host.docker.internal
 - `18232831` feat: voice WebSocket transport proxy — deployed cockpit can reach voice server
+- `4bbe4055` fix: mount ws_router so voice/cockpit WebSocket endpoints are reachable
