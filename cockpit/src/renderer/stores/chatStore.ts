@@ -68,6 +68,7 @@ interface ChatState {
   stopPolling: () => void
   addVoiceTranscript: (text: string, voiceTurnId?: string) => void
   pushExternalMessage: (msg: ChatMessage) => void
+  removeMessage: (id: string) => void
   setDraftMessage: (msg: ChatMessage | null) => void
   commitDraftMessage: () => void
   setPlaceholderMessage: (msg: ChatMessage | null) => void
@@ -236,6 +237,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (s.messages.some((m) => m.id === msg.id)) return s
       return { messages: [...s.messages, msg] }
     })
+  },
+
+  removeMessage: (id) => {
+    set((s) => ({ messages: s.messages.filter((m) => m.id !== id) }))
   },
 
   setDraftMessage: (msg) => set({ draftMessage: msg }),

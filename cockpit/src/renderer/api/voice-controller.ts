@@ -108,6 +108,7 @@ async function ensureClient(): Promise<VoiceWsClient> {
 
 function releaseHeldMessage(): void {
   if (!heldVoiceMessage) return
+  log('[VoiceTurn] message_released', heldVoiceMessage.id)
   const cs = useChatStore.getState()
   const existing = cs.messages.find(m => m.id === heldVoiceMessage!.id)
   if (!existing) {
@@ -120,6 +121,7 @@ function releaseHeldMessage(): void {
     })
   }
   heldVoiceMessage = null
+  useVoiceStore.getState().setVoicePresentationStatus('idle')
 }
 
 function wireEvents(): void {
@@ -208,6 +210,7 @@ function wireEvents(): void {
       // Final transcript segment
       if (!text.trim()) {
         // Empty final — only end turn if no segments collected
+        if (noSpeechTimeout) { clearTimeout(noSpeechTimeout); noSpeechTimeout = null }
         const turn = getCurrentTurn()
         if (!turn || turn.finalSegments.length === 0) {
           log('no_speech_in_transcript')
@@ -235,10 +238,20 @@ function wireEvents(): void {
         })
       }
 
-      // Start/restart silence timer — when it fires, the turn commits
-      startSilenceTimer((committed) => {
-        _dispatchCommittedTurn(committed)
-      })
+      // If mic already stopped (tap-to-stop), commit immediately — no more
+      // segments will arrive. Otherwise wait for silence grace window.
+      if (vs.micState === 'transcribing') {
+        if (noSpeechTimeout) { clearTimeout(noSpeechTimeout); noSpeechTimeout = null }
+        const committed = commitTurn()
+        if (committed && committed.assembledText) {
+          log('[VoiceTurn] post_stop_commit', committed.voiceTurnId)
+          _dispatchCommittedTurn(committed)
+        }
+      } else {
+        startSilenceTimer((committed) => {
+          _dispatchCommittedTurn(committed)
+        })
+      }
     })
   )
 
@@ -302,7 +315,6 @@ function wireEvents(): void {
     if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
     voiceState.setPendingVoiceResponse(false)
     voiceState.setMicState('idle')
-    voiceState.setVoicePresentationStatus('preparing_response')
 
     // Update voice route in device session store if routing metadata is present
     if (last.metadata?.routing) {
@@ -324,9 +336,14 @@ function wireEvents(): void {
     }
 
     if (client && last.content) {
+      // Hold the text message — remove from chat until TTS audio arrives.
+      // Text + audio reveal together (organism response commit).
+      heldVoiceMessage = { id: last.id, content: last.content }
+      useChatStore.getState().removeMessage(last.id)
+      log('[VoiceTurn] message_held', last.id)
+
       voiceState.setTtsState('generating_tts')
       voiceState.setVoicePresentationStatus('preparing_voice')
-      heldVoiceMessage = null
 
       const ttsTimeout = setTimeout(() => {
         const v = useVoiceStore.getState()
@@ -473,16 +490,22 @@ export function stopVoice(): void {
   const currentState = vs.micState
 
   if (currentState === 'listening' || currentState === 'recording') {
-    // Tap-to-stop: immediately commit accumulated segments
+    // Tap-to-stop with segments already collected: commit + dispatch immediately
     if (hasTurnActive()) {
-      const committed = commitTurn()
-      if (committed && committed.assembledText) {
-        log('[VoiceTurn] tap_to_stop_commit', committed.voiceTurnId)
-        finalizeMic()
-        _dispatchCommittedTurn(committed)
-        return
+      const turn = getCurrentTurn()
+      if (turn && turn.finalSegments.length > 0) {
+        const committed = commitTurn()
+        if (committed && committed.assembledText) {
+          log('[VoiceTurn] tap_to_stop_commit', committed.voiceTurnId)
+          finalizeMic()
+          _dispatchCommittedTurn(committed)
+          return
+        }
       }
     }
+    // No segments yet — server STT still pending. Send mic_stop and wait
+    // for the transcript to arrive. The turn stays active so the transcript
+    // handler can append the segment and dispatch via silence timer.
     finalizeMic()
     return
   }
