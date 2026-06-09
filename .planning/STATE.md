@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-29)
 Phase: 4
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-06-09 - Completed Phase 14.13U — Device Presence + Voice Session Routing + Spoken Response Contract
+Last activity: 2026-06-09 - Completed Phase 14.13V — Voice UX Seal: Organism Response Commit + iPhone TTS Playback + Voice Turn Assembly
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -98,9 +98,10 @@ None yet.
 | Phase 13.1R — Production Truth Promotion | 2026-05-31 | f44d465b | PTD ptd-639760df, POC poc-637ff93. 10 proof artifacts, 395 tests (0 new failures), 9 live API endpoints verified (all HTTP 200, auth-gated), text command proof (create_work → wp-437343aa328b), voice limitation documented truthfully (headless VPS), tsc clean, all 4 gates clean for Phase 13.1. |
 | Phase 13.2 — Native Agent Runtime | 2026-05-31 | 88c6b252..2dfb31a2 | RuntimeSession model (11-state FSM, 6 types, 17 event types), ShellRuntimeAdapter (19 blocked commands, secret redaction, env stripping, process group isolation, 3 rounds security hardening), ClaudeCodeRuntimeAdapter skeleton (truthful degradation), RuntimeManager (policy enforcement, worktree sandbox, lifecycle orchestration), RuntimeHandoffPreview (what_will/won't_happen), 10 auth-gated API routes, RuntimePanel cockpit panel, 36/36 proofs (lifecycle + stop/cancel + policy blocks), cortextOS comparison audit. 11 commits, 18 files, +2969 lines, 0 gate violations. |
 | Phase 14.13U — Device Presence + Voice Session Routing + Spoken Response Contract | 2026-06-09 | 2d61940d..0cc9a4f0 | DevicePresenceRegistry (thread-safe in-memory, heartbeat expiry), VoiceRoute + resolve_voice_route() (deterministic, no LLM), AdvisorResponse.spoken_text + .routing fields, deviceSessionStore (Zustand, 20s heartbeat), VoiceRouteHud, 4 device REST endpoints, 75 tests pass, TypeScript clean. |
+| Phase 14.13V — Voice UX Seal | 2026-06-09 | e45f9f9e..660226ab | TTS playback controller (iOS audio unlock on mic gesture, reusable Audio element, sequential queue), voice turn assembler (segment collection, dedup, silence grace 1600/2200ms, tap-to-stop immediate commit), organism response presentation state machine, live draft bubble, backend idempotency guard (voice_turn_id → cached response, 10min TTL), barge-in creates new turn, [TTSPlayback] + [VoiceTurn] instrumentation, tap-to-play fallback for iOS, 117 tests pass, TypeScript clean. |
 
 ## Session Continuity
 
 Last session: 2026-06-09
-Stopped at: Phase 14.13U complete — device presence + voice session routing + spoken response contract (0cc9a4f0)
+Stopped at: Phase 14.13V complete — voice UX seal (660226ab)
 Resume file: None
