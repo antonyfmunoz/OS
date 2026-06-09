@@ -1,4 +1,4 @@
-# UMH — Universal Mastery Hierarchy
+# UMH — Universal Meta Harness
 
 Governed intelligence substrate for autonomous business operations.
 

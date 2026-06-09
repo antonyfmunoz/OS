@@ -368,7 +368,9 @@ function ChatSection() {
     : micState === 'transcribing' ? 'Transcribing...'
     : micState === 'processing' ? 'Thinking...'
     : micState === 'interrupted' ? 'Listening — tap to send'
+    : ttsState === 'generating_tts' ? 'Preparing voice...'
     : ttsState === 'speaking' ? 'Speaking...'
+    : ttsState === 'tts_failed' ? 'Voice unavailable — showing text'
     : voiceError ? voiceError
     : null
 

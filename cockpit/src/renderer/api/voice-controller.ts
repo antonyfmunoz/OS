@@ -8,10 +8,12 @@ let chatUnsub: (() => void) | null = null
 let pendingTimeout: ReturnType<typeof setTimeout> | null = null
 let noSpeechTimeout: ReturnType<typeof setTimeout> | null = null
 let maxRecordingTimeout: ReturnType<typeof setTimeout> | null = null
+let heldVoiceMessage: { id: string; content: string } | null = null
 
 const PENDING_RESPONSE_TIMEOUT_MS = 30_000
 const NO_TRANSCRIPT_TIMEOUT_MS = 10_000
 const MAX_RECORDING_MS = 30_000
+const TTS_GENERATE_TIMEOUT_MS = 15_000
 
 const log = (stage: string, ...args: unknown[]) =>
   console.log(`[VoicePipeline] ${stage}`, ...args)
@@ -46,6 +48,22 @@ async function ensureClient(): Promise<VoiceWsClient> {
   return client
 }
 
+function releaseHeldMessage(): void {
+  if (!heldVoiceMessage) return
+  const cs = useChatStore.getState()
+  const existing = cs.messages.find(m => m.id === heldVoiceMessage!.id)
+  if (!existing) {
+    cs.pushExternalMessage({
+      id: heldVoiceMessage.id,
+      sender: 'assistant',
+      content: heldVoiceMessage.content,
+      timestamp: new Date().toISOString(),
+      origin_channel: 'cockpit',
+    })
+  }
+  heldVoiceMessage = null
+}
+
 function wireEvents(): void {
   if (!client) return
 
@@ -61,6 +79,7 @@ function wireEvents(): void {
       useVoiceStore.getState().setMicState('idle')
       useVoiceStore.getState().setTtsState('idle')
       useVoiceStore.getState().setAudioLevel(0)
+      releaseHeldMessage()
       clearAllTimers()
     })
   )
@@ -132,6 +151,7 @@ function wireEvents(): void {
               v.setMicState('idle')
               v.setError('Response timed out — try again')
               v.setLastOutcome('TIMEOUT')
+              releaseHeldMessage()
               log('response_timeout')
             }
           }, PENDING_RESPONSE_TIMEOUT_MS)
@@ -149,6 +169,7 @@ function wireEvents(): void {
       vs.setError(message || 'Voice server error')
       vs.setLastOutcome('STT_FAILED')
       vs.setMicState('idle')
+      releaseHeldMessage()
       clearAllTimers()
     })
   )
@@ -156,16 +177,27 @@ function wireEvents(): void {
   cleanups.push(
     client.on('tts_status', (data) => {
       const speaking = data.speaking as boolean
-      log('tts_status', speaking ? 'speaking' : 'idle')
-      useVoiceStore.getState().setTtsState(speaking ? 'speaking' : 'idle')
+      log('tts_status', speaking ? 'speaking' : 'done')
+      const vs = useVoiceStore.getState()
+      if (speaking) {
+        vs.setTtsState('speaking')
+        releaseHeldMessage()
+      } else {
+        vs.setTtsState('idle')
+      }
     })
   )
 
   cleanups.push(
     client.on('tts_error', (data) => {
       log('tts_error', data.error)
-      useVoiceStore.getState().setError(data.error as string)
-      useVoiceStore.getState().setTtsState('idle')
+      const vs = useVoiceStore.getState()
+      vs.setError(`Voice unavailable: ${data.error}`)
+      vs.setTtsState('tts_failed')
+      releaseHeldMessage()
+      setTimeout(() => {
+        useVoiceStore.getState().setTtsState('idle')
+      }, 3000)
     })
   )
 
@@ -188,8 +220,25 @@ function wireEvents(): void {
     if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
     voiceState.setPendingVoiceResponse(false)
     voiceState.setMicState('idle')
+
     if (client && last.content) {
+      voiceState.setTtsState('generating_tts')
+      heldVoiceMessage = null
+
+      const ttsTimeout = setTimeout(() => {
+        const v = useVoiceStore.getState()
+        if (v.ttsState === 'generating_tts') {
+          log('tts_generate_timeout')
+          v.setTtsState('tts_failed')
+          v.setError('Voice generation timed out — showing text')
+          releaseHeldMessage()
+          setTimeout(() => useVoiceStore.getState().setTtsState('idle'), 3000)
+        }
+      }, TTS_GENERATE_TIMEOUT_MS)
+
       client.requestTts(last.content)
+
+      cleanups.push(() => clearTimeout(ttsTimeout))
     }
   })
 }
@@ -303,6 +352,7 @@ export function stopTts(): void {
     client.cancelTts()
   }
   useVoiceStore.getState().setTtsState('idle')
+  releaseHeldMessage()
 }
 
 export function destroyVoice(): void {
@@ -313,6 +363,7 @@ export function destroyVoice(): void {
     chatUnsub()
     chatUnsub = null
   }
+  releaseHeldMessage()
   if (client) {
     client.disconnect()
     client = null

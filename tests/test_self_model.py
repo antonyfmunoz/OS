@@ -33,7 +33,7 @@ class TestCanonicalSelf:
 
     def test_universal_values(self):
         assert CANONICAL.system_name == "UMH"
-        assert CANONICAL.system_full_name == "Universal Mastery Hierarchy"
+        assert CANONICAL.system_full_name == "Universal Meta Harness"
         assert len(CANONICAL.architecture_layers) == 4
         assert len(CANONICAL.core_principles) == 4
 

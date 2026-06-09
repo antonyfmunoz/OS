@@ -153,7 +153,7 @@ class Council:
 
         return (
             "You are a council of 7 advisory roles reviewing a decision "
-            "for UMH (Universal Mastery Hierarchy).\n\n"
+            "for UMH (Universal Meta Harness).\n\n"
             f"Decision context:\n{context[:2000]}\n\n"
             f"Proposed plan:\n{plan[:3000]}\n"
             f"{artifact_text}\n\n"

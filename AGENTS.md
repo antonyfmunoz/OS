@@ -3,7 +3,7 @@
 Read by all AI coding tools.
 
 ## Project
-UMH (Universal Mastery Hierarchy) — AI intelligence substrate
+UMH (Universal Meta Harness) — AI intelligence substrate
 VPS: 100.77.233.50 | Dir: /opt/OS
 
 ## Rules for all agents

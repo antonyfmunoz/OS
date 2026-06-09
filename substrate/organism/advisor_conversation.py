@@ -76,6 +76,38 @@ class AdvisorConversation:
             classify_intent,
         )
 
+        # Deterministic identity handler — never let the LLM hallucinate system name
+        from substrate.organism.system_identity import (
+            get_identity_answer,
+            is_identity_question,
+        )
+
+        if is_identity_question(content):
+            identity_answer = get_identity_answer(
+                content, voice=(source == "voice"),
+            )
+            if identity_answer:
+                response = AdvisorResponse(
+                    text=identity_answer,
+                    conversation_id=conversation_id,
+                    intent="identity",
+                )
+                response.conversation_id = conversation_id
+                response.intent = "identity"
+                self._save_turn(conversation_id, "operator", content, view_context)
+                self._save_turn(
+                    conversation_id,
+                    "assistant",
+                    response.text,
+                    view_context,
+                    intent="identity",
+                )
+                history.append({"role": "operator", "content": content})
+                history.append({"role": "assistant", "content": response.text})
+                if len(history) > self._MAX_TURNS * 2:
+                    self._histories[conversation_id] = history[-self._MAX_TURNS * 2 :]
+                return response
+
         intent = classify_intent(content)
         context_summary = self._build_context_summary(view_context)
 
@@ -158,13 +190,16 @@ class AdvisorConversation:
         from substrate.state.business.business_instance import get_ai_name
 
         ai_name = get_ai_name() or "Assistant"
+
+        from substrate.organism.system_identity import get_prompt_grounding
+
         prompt_parts = [
             f"You are {ai_name}, a strategic advisor and executive assistant for UMH "
-            f"(Universal Mastery Hierarchy). You are the operator's primary conversational "
+            f"(Universal Meta Harness). You are the operator's primary conversational "
             f"partner — a co-founder-level thinker who brainstorms, plans, reviews, and "
             f"helps make decisions. Be direct, insightful, and actionable. Do not hedge. "
             f"You have access to the UMH cockpit, work packets, agents, and Claude Code "
-            f"sessions.",
+            f"sessions.\n\n" + get_prompt_grounding(ai_name),
         ]
 
         if context_summary:
