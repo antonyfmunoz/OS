@@ -265,3 +265,44 @@ class TestCommandRouterIntegration:
         result = resolve_workstation_target("search for react docs")
         assert result.get("browser") == "chrome"
         assert "google.com/search" in result.get("target_url", "")
+
+
+# ---------------------------------------------------------------------------
+# 9. Field Trial Regression Tests (4 tests)
+# ---------------------------------------------------------------------------
+
+
+class TestFieldTrialRegressions:
+    """Bugs found during Phase 14.13X Beast field trial."""
+
+    def test_open_instagram_routes_to_background_browser(self) -> None:
+        """Instagram is not in PLATFORM_PROCESS_MAP but 'open instagram'
+        should resolve as a website via app_resolver fallback."""
+        from substrate.workstation.work_lane import LaneType, route_to_lane
+
+        lane = route_to_lane("open instagram", "sess-1")
+        assert lane.lane_type == LaneType.background_browser
+
+    def test_click_on_browser_tab_routes_to_foreground(self) -> None:
+        """GUI interaction patterns must be checked before browser patterns
+        so 'click on the browser tab' doesn't route to background_browser."""
+        from substrate.workstation.work_lane import LaneType, route_to_lane
+
+        lane = route_to_lane("click on the browser tab", "sess-1")
+        assert lane.lane_type == LaneType.foreground
+
+    def test_click_foreground_requires_approval(self) -> None:
+        """GUI click actions should require approval when routed to foreground."""
+        from substrate.workstation.work_lane import ForegroundGuard, route_to_lane
+
+        lane = route_to_lane("click on the browser tab", "sess-1")
+        result = ForegroundGuard().check("click on the browser tab", lane)
+        assert result.requires_approval is True
+        assert result.approved is False
+
+    def test_open_reddit_routes_to_background_browser(self) -> None:
+        """Unknown web apps with 'open' prefix should route to background_browser."""
+        from substrate.workstation.work_lane import LaneType, route_to_lane
+
+        lane = route_to_lane("open reddit", "sess-1")
+        assert lane.lane_type == LaneType.background_browser
