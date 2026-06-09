@@ -492,6 +492,105 @@ class TmuxAdapter:
             return None
 
 
+_NODE_CAP_TO_RUNTIME_CAP: dict[str, set[RuntimeCapability]] = {
+    "shell": {RuntimeCapability.SHELL, RuntimeCapability.CODE_EXECUTE},
+    "filesystem": {RuntimeCapability.FILE_OPS},
+    "desktop": {RuntimeCapability.BROWSER},
+    "clipboard": {RuntimeCapability.FILE_OPS},
+    "gpu": {RuntimeCapability.GPU_COMPUTE},
+}
+
+
+class MeshNodeRuntimeAdapter:
+    """Mesh-connected node — proxies execution via the HTTP relay on :8095."""
+
+    def __init__(
+        self,
+        node_id: str,
+        node_capabilities: list[str],
+        relay_port: int = 8095,
+    ) -> None:
+        self._node_id = node_id
+        self._relay_url = f"http://localhost:{relay_port}"
+        caps: set[RuntimeCapability] = set()
+        for cap_name in node_capabilities:
+            caps.update(_NODE_CAP_TO_RUNTIME_CAP.get(cap_name, set()))
+        if not caps:
+            caps.add(RuntimeCapability.SHELL)
+        self._capabilities = frozenset(caps)
+
+    @property
+    def runtime_id(self) -> str:
+        return f"mesh:{self._node_id}"
+
+    @property
+    def runtime_class(self) -> RuntimeClass:
+        return RuntimeClass.REMOTE_NODE
+
+    @property
+    def capabilities(self) -> frozenset[RuntimeCapability]:
+        return self._capabilities
+
+    def check_available(self) -> bool:
+        try:
+            import json
+            import urllib.request
+
+            req = urllib.request.Request(f"{self._relay_url}/nodes", method="GET")
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                nodes = json.loads(resp.read().decode())
+            return any(n.get("id") == self._node_id for n in nodes)
+        except Exception:
+            return False
+
+    def execute(self, prompt: str, **kwargs: Any) -> RuntimeResult | None:
+        import json
+        import time
+        import urllib.request
+
+        cap_name = kwargs.get("capability_name", "shell")
+        params = kwargs.get("params", {"command": prompt})
+        if isinstance(params, str):
+            params = {"command": params}
+
+        payload = json.dumps(
+            {
+                "node_id": self._node_id,
+                "capability": f"{cap_name}.execute",
+                "params": params,
+                "timeout": kwargs.get("timeout", 30),
+            }
+        ).encode()
+
+        req = urllib.request.Request(
+            f"{self._relay_url}/dispatch",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        start_ms = time.monotonic_ns() // 1_000_000
+        try:
+            with urllib.request.urlopen(req, timeout=kwargs.get("timeout", 35)) as resp:
+                data = json.loads(resp.read().decode())
+        except Exception as exc:
+            logger.warning("mesh dispatch to %s failed: %s", self._node_id, exc)
+            return None
+
+        elapsed = (time.monotonic_ns() // 1_000_000) - start_ms
+
+        if data.get("ok") or data.get("success"):
+            result_data = data.get("result_data", data.get("result", {}))
+            output = result_data if isinstance(result_data, str) else json.dumps(result_data)
+            return RuntimeResult(
+                output=output,
+                runtime_id=self.runtime_id,
+                latency_ms=elapsed,
+                metadata={"provider": "mesh", "node_id": self._node_id},
+            )
+        return None
+
+
 class BeastNodeAdapter:
     """Beast GPU node — remote execution via Tailscale SSH."""
 
@@ -670,7 +769,7 @@ def build_default_graph() -> "RuntimeGraph":
 
     graph = RuntimeGraph()
 
-    # ── AI CLI runtimes ──
+    # ── AI CLI runtimes (VPS-local) ──
     cc = CCSDKAdapter()
     graph.register(
         cc.runtime_id,
@@ -678,6 +777,7 @@ def build_default_graph() -> "RuntimeGraph":
         cc.capabilities,
         cost=CostProfile(is_subscription=True),
         adapter=cc,
+        metadata={"device_id": "vps"},
     )
 
     codex = CodexAdapter()
@@ -687,6 +787,7 @@ def build_default_graph() -> "RuntimeGraph":
         codex.capabilities,
         cost=CostProfile(is_subscription=True),
         adapter=codex,
+        metadata={"device_id": "vps"},
     )
 
     hermes = HermesAdapter()
@@ -696,6 +797,7 @@ def build_default_graph() -> "RuntimeGraph":
         hermes.capabilities,
         cost=CostProfile(cost_per_1k_input=0.001, cost_per_1k_output=0.002),
         adapter=hermes,
+        metadata={"device_id": "vps"},
     )
 
     opencode = OpenCodeAdapter()
@@ -705,9 +807,10 @@ def build_default_graph() -> "RuntimeGraph":
         opencode.capabilities,
         cost=CostProfile(cost_per_1k_input=0.003, cost_per_1k_output=0.015),
         adapter=opencode,
+        metadata={"device_id": "vps"},
     )
 
-    # ── AI API runtimes ──
+    # ── AI API runtimes (VPS-local) ──
     gemini = GeminiAdapter()
     graph.register(
         gemini.runtime_id,
@@ -715,9 +818,10 @@ def build_default_graph() -> "RuntimeGraph":
         gemini.capabilities,
         cost=CostProfile(cost_per_1k_input=0.0005, cost_per_1k_output=0.001),
         adapter=gemini,
+        metadata={"device_id": "vps"},
     )
 
-    # ── Local model runtimes ──
+    # ── Local model runtimes (VPS-local) ──
     ollama = OllamaAdapter()
     graph.register(
         ollama.runtime_id,
@@ -725,9 +829,10 @@ def build_default_graph() -> "RuntimeGraph":
         ollama.capabilities,
         cost=CostProfile(is_subscription=False, cost_per_1k_input=0.0),
         adapter=ollama,
+        metadata={"device_id": "vps"},
     )
 
-    # ── Remote nodes ──
+    # ── Remote nodes (Beast via SSH fallback) ──
     beast = BeastNodeAdapter()
     graph.register(
         beast.runtime_id,
@@ -735,9 +840,10 @@ def build_default_graph() -> "RuntimeGraph":
         beast.capabilities,
         cost=CostProfile(is_subscription=False, cost_per_1k_input=0.0),
         adapter=beast,
+        metadata={"device_id": "windows_beast"},
     )
 
-    # ── Operator API (self) ──
+    # ── Operator API (self, VPS-local) ──
     op = OperatorAPIAdapter()
     graph.register(
         op.runtime_id,
@@ -745,6 +851,7 @@ def build_default_graph() -> "RuntimeGraph":
         op.capabilities,
         cost=CostProfile(),
         adapter=op,
+        metadata={"device_id": "vps"},
     )
 
     # ── Dynamic discovery: Docker containers ──

@@ -134,6 +134,7 @@ class RuntimeSupervisor:
         if self._event_spine is None:
             return
         from substrate.organism.event_spine import EventDomain
+
         self._event_spine.emit(EventDomain.SUPERVISOR, event_type, "runtime_supervisor", data)
 
     def supervise(self, runtime_id: str) -> SupervisedRuntime:
@@ -177,7 +178,11 @@ class RuntimeSupervisor:
             self._graph.update_status(runtime_id, AvailabilityStatus.AVAILABLE)
 
     def check_health(self, runtime_id: str) -> SupervisedHealth:
-        """Evaluate a runtime's health based on heartbeat freshness."""
+        """Evaluate a runtime's health based on heartbeat freshness.
+
+        If the heartbeat is stale but the adapter reports available,
+        recover the runtime instead of declaring it dead.
+        """
         sr = self._supervised.get(runtime_id)
         if not sr:
             return SupervisedHealth.STOPPED
@@ -190,6 +195,17 @@ class RuntimeSupervisor:
 
         now = time.time()
         age = now - sr.last_heartbeat if sr.last_heartbeat > 0 else float("inf")
+
+        if age > _HEARTBEAT_DEGRADED_S:
+            node = self._graph.get(runtime_id)
+            if node and node.adapter:
+                try:
+                    if node.adapter.check_available():
+                        sr.last_heartbeat = now
+                        age = 0.0
+                        logger.debug("runtime %s recovered via adapter probe", runtime_id)
+                except Exception:
+                    pass
 
         if age > _HEARTBEAT_TIMEOUT_S:
             if sr.health != SupervisedHealth.DEAD:
