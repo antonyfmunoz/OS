@@ -364,10 +364,14 @@ async def _voice_health() -> dict[str, Any]:
     return {
         "ok": voice_ws_reachable,
         "voice_server": "reachable" if voice_ws_reachable else "unreachable",
+        "local_ws": f"ws://127.0.0.1:{ws_port}/voice",
+        "public_ws": "/api/umh/voice/ws",
+        "deployed_browser_supported": True,
+        "tap_to_toggle_supported": True,
+        "tts_cancel_supported": True,
         "stt": {
             "provider": stt_provider,
             "status": stt_status,
-            "note": "Server-side Groq Whisper with local fallback" if stt_provider == "browser_native" else "",
         },
         "tts": {
             "provider": tts_provider,
@@ -375,14 +379,6 @@ async def _voice_health() -> dict[str, Any]:
             "host": tts_host or kokoro_url,
             "reachable": tts_reachable,
         },
-        "websocket": {
-            "local_ws": f"ws://localhost:{ws_port}/voice",
-            "public_ws": "/api/umh/voice/ws",
-        },
-        "deployed_browser_supported": True,
-        "local_electron_supported": True,
-        "supported_input_modes": ["tap_to_toggle"],
-        "tts_cancel_supported": True,
         "note": "Browser mic availability is client-side only — server cannot verify",
         "source_env": _detect_env(),
     }
