@@ -285,7 +285,7 @@ function ChatSection() {
   const draftMessage = useChatStore((s) => s.draftMessage)
   const placeholderMessage = useChatStore((s) => s.placeholderMessage)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const displayName = `${aiName} ASSISTANT`
+  const displayName = aiName
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(aiName)
   const nameRef = useRef<HTMLInputElement>(null)
