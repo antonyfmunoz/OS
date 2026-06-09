@@ -15,6 +15,7 @@ import { getApiKey } from '../api/client'
 import { fetchApi } from '../api/client'
 import type { SuggestedAction } from '../stores/chatStore'
 import { useCockpitStore } from '../stores/cockpitStore'
+import { VoiceRouteHud } from './VoiceRouteHud'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
 
@@ -401,6 +402,7 @@ function ChatSection() {
           </>
         )}
       </div>
+      <VoiceRouteHud />
       {(viewContext.active_route || viewContext.selected_object_type) && (
         <div className="text-[9px] font-mono text-text-tertiary mb-1 px-1 py-0.5 bg-surface rounded border border-border truncate">
           Viewing: {viewContext.active_route}

@@ -101,6 +101,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     try {
       if (targetChannel === 'cockpit') {
+        // Build routing metadata for voice requests
+        let routing: Record<string, string> | undefined
+        if (source === 'voice') {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const { useDeviceSessionStore } = require('../stores/deviceSessionStore')
+            routing = useDeviceSessionStore.getState().getRoutingMetadata() as Record<string, string>
+          } catch {
+            // routing is optional — degrade gracefully
+          }
+        }
+
         const res = await fetchApi<ChatResponse>('/advisor/converse', {
           method: 'POST',
           body: JSON.stringify({
@@ -108,6 +120,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             view_context: viewContext,
             conversation_id: conversationId,
             source,
+            ...(routing ? { routing } : {}),
           }),
         })
 

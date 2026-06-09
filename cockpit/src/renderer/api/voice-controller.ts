@@ -221,6 +221,25 @@ function wireEvents(): void {
     voiceState.setPendingVoiceResponse(false)
     voiceState.setMicState('idle')
 
+    // Update voice route in device session store if routing metadata is present
+    if (last.metadata?.routing) {
+      try {
+        const { useDeviceSessionStore } = require('../stores/deviceSessionStore')
+        const r = last.metadata.routing as Record<string, string>
+        useDeviceSessionStore.getState().setVoiceRoute({
+          inputDevice: r.input_device ?? '',
+          controlSurface: r.control_surface ?? '',
+          executionTarget: r.execution_target ?? '',
+          audioOutputDevice: r.audio_output_device ?? '',
+          audioOutputSession: r.audio_output_session ?? '',
+          handoffMode: r.handoff_mode ?? 'conversation',
+          routeReason: r.route_reason ?? '',
+        })
+      } catch {
+        // non-critical
+      }
+    }
+
     if (client && last.content) {
       voiceState.setTtsState('generating_tts')
       heldVoiceMessage = null
@@ -236,7 +255,9 @@ function wireEvents(): void {
         }
       }, TTS_GENERATE_TIMEOUT_MS)
 
-      client.requestTts(last.content)
+      // Use spoken_text if available (concise TTS-friendly version)
+      const ttsText = (last.metadata?.spoken_text as string | undefined) || last.content
+      client.requestTts(ttsText)
 
       cleanups.push(() => clearTimeout(ttsTimeout))
     }
