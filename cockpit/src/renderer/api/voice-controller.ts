@@ -2,6 +2,17 @@ import { VoiceWsClient } from './voice-ws'
 import { useVoiceStore } from '../stores/voiceStore'
 import { useChatStore } from '../stores/chatStore'
 import { unlockAudioForIOS, setPlaybackCallbacks, cancelPlayback, resetPlayback } from './tts-playback-controller'
+import {
+  createTurn,
+  appendSegment,
+  updatePartial,
+  commitTurn,
+  cancelTurn,
+  getCurrentTurn,
+  hasTurnActive,
+  startSilenceTimer,
+} from './voice-turn-assembler'
+import type { VoiceTurnState } from './voice-turn-assembler'
 
 let client: VoiceWsClient | null = null
 let cleanups: (() => void)[] = []
@@ -10,6 +21,8 @@ let pendingTimeout: ReturnType<typeof setTimeout> | null = null
 let noSpeechTimeout: ReturnType<typeof setTimeout> | null = null
 let maxRecordingTimeout: ReturnType<typeof setTimeout> | null = null
 let heldVoiceMessage: { id: string; content: string } | null = null
+/** The voice turn ID for the currently pending voice response. */
+let _pendingVoiceTurnId: string | null = null
 
 const PENDING_RESPONSE_TIMEOUT_MS = 30_000
 const NO_TRANSCRIPT_TIMEOUT_MS = 10_000
@@ -23,6 +36,50 @@ function clearAllTimers(): void {
   if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
   if (noSpeechTimeout) { clearTimeout(noSpeechTimeout); noSpeechTimeout = null }
   if (maxRecordingTimeout) { clearTimeout(maxRecordingTimeout); maxRecordingTimeout = null }
+}
+
+/**
+ * Dispatch a committed voice turn as a single message to the advisor.
+ * Clears the draft bubble and sets up response timeout.
+ */
+function _dispatchCommittedTurn(turn: VoiceTurnState): void {
+  const text = turn.assembledText
+  if (!text) {
+    log('[VoiceTurn] dispatch_empty_turn')
+    useChatStore.getState().setDraftMessage(null)
+    useVoiceStore.getState().setMicState('idle')
+    return
+  }
+
+  log('[VoiceTurn] dispatching', turn.voiceTurnId, text.slice(0, 80))
+  _pendingVoiceTurnId = turn.voiceTurnId
+
+  // Clear draft and show final operator message via normal chat flow
+  useChatStore.getState().setDraftMessage(null)
+
+  const vs = useVoiceStore.getState()
+  vs.setMicState('processing')
+  vs.setPendingVoiceResponse(true)
+  vs.setVoicePresentationStatus('thinking')
+  vs.setError(null)
+  vs.setLastOutcome('TRANSCRIPT_RECEIVED')
+
+  useChatStore.getState().addVoiceTranscript(text, turn.voiceTurnId)
+  log('[VoiceTurn] transcript_dispatched', turn.voiceTurnId)
+
+  pendingTimeout = setTimeout(() => {
+    const v = useVoiceStore.getState()
+    if (v.pendingVoiceResponse) {
+      v.setPendingVoiceResponse(false)
+      v.setMicState('idle')
+      v.setVoicePresentationStatus('idle')
+      v.setError('Response timed out — try again')
+      v.setLastOutcome('TIMEOUT')
+      releaseHeldMessage()
+      _pendingVoiceTurnId = null
+      log('response_timeout')
+    }
+  }, PENDING_RESPONSE_TIMEOUT_MS)
 }
 
 async function ensureClient(): Promise<VoiceWsClient> {
@@ -92,9 +149,15 @@ function wireEvents(): void {
       voiceStore.setVadActive(active)
 
       if (active && voiceStore.ttsState === 'speaking') {
+        // Barge-in: user speaks while DEX is talking — cancel TTS, start new turn
+        log('[VoiceTurn] barge_in')
         client?.cancelTts()
+        cancelPlayback()
         voiceStore.setTtsState('idle')
+        voiceStore.setVoicePresentationStatus('idle')
         voiceStore.setMicState('interrupted')
+        // Create a fresh turn for the barge-in speech
+        createTurn()
         setTimeout(() => useVoiceStore.getState().setMicState('recording'), 200)
       }
     })
@@ -120,44 +183,62 @@ function wireEvents(): void {
       const isFinal = data.final as boolean
       log('transcript_received', `final=${isFinal}`, text?.slice(0, 80))
 
-      clearAllTimers()
       const vs = useVoiceStore.getState()
       vs.setLastTranscript(text)
 
-      if (isFinal) {
-        if (!text.trim()) {
+      if (!isFinal) {
+        // Live partial — update draft bubble
+        updatePartial(text)
+        if (hasTurnActive()) {
+          const turn = getCurrentTurn()
+          const draftText = turn
+            ? [...turn.finalSegments.map(s => s.text), text].join(' ')
+            : text
+          useChatStore.getState().setDraftMessage({
+            id: `draft-voice-${Date.now()}`,
+            sender: 'operator',
+            content: draftText,
+            timestamp: new Date().toISOString(),
+            source: 'voice',
+          })
+        }
+        return
+      }
+
+      // Final transcript segment
+      if (!text.trim()) {
+        // Empty final — only end turn if no segments collected
+        const turn = getCurrentTurn()
+        if (!turn || turn.finalSegments.length === 0) {
           log('no_speech_in_transcript')
           vs.setError('No speech detected — try again')
           vs.setLastOutcome('NO_SPEECH_DETECTED')
           vs.setMicState('idle')
-          return
+          useChatStore.getState().setDraftMessage(null)
+          cancelTurn()
         }
-
-        vs.setMicState('transcribing')
-        log('transcript_dispatching', text.slice(0, 80))
-
-        setTimeout(() => {
-          const vs2 = useVoiceStore.getState()
-          vs2.setMicState('processing')
-          vs2.setPendingVoiceResponse(true)
-          vs2.setError(null)
-          vs2.setLastOutcome('TRANSCRIPT_RECEIVED')
-          useChatStore.getState().addVoiceTranscript(text)
-          log('transcript_dispatched_to_chat')
-
-          pendingTimeout = setTimeout(() => {
-            const v = useVoiceStore.getState()
-            if (v.pendingVoiceResponse) {
-              v.setPendingVoiceResponse(false)
-              v.setMicState('idle')
-              v.setError('Response timed out — try again')
-              v.setLastOutcome('TIMEOUT')
-              releaseHeldMessage()
-              log('response_timeout')
-            }
-          }, PENDING_RESPONSE_TIMEOUT_MS)
-        }, 100)
+        return
       }
+
+      // Append segment to current turn (don't dispatch yet)
+      appendSegment(text)
+
+      // Update draft bubble with all segments so far
+      const turn = getCurrentTurn()
+      if (turn) {
+        useChatStore.getState().setDraftMessage({
+          id: `draft-voice-${turn.voiceTurnId}`,
+          sender: 'operator',
+          content: turn.finalSegments.map(s => s.text).join(' '),
+          timestamp: new Date().toISOString(),
+          source: 'voice',
+        })
+      }
+
+      // Start/restart silence timer — when it fires, the turn commits
+      startSilenceTimer((committed) => {
+        _dispatchCommittedTurn(committed)
+      })
     })
   )
 
@@ -221,6 +302,7 @@ function wireEvents(): void {
     if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
     voiceState.setPendingVoiceResponse(false)
     voiceState.setMicState('idle')
+    voiceState.setVoicePresentationStatus('preparing_response')
 
     // Update voice route in device session store if routing metadata is present
     if (last.metadata?.routing) {
@@ -243,6 +325,7 @@ function wireEvents(): void {
 
     if (client && last.content) {
       voiceState.setTtsState('generating_tts')
+      voiceState.setVoicePresentationStatus('preparing_voice')
       heldVoiceMessage = null
 
       const ttsTimeout = setTimeout(() => {
@@ -250,9 +333,13 @@ function wireEvents(): void {
         if (v.ttsState === 'generating_tts') {
           log('tts_generate_timeout')
           v.setTtsState('tts_failed')
+          v.setVoicePresentationStatus('complete')
           v.setError('Voice generation timed out — showing text')
           releaseHeldMessage()
-          setTimeout(() => useVoiceStore.getState().setTtsState('idle'), 3000)
+          setTimeout(() => {
+            useVoiceStore.getState().setTtsState('idle')
+            useVoiceStore.getState().setVoicePresentationStatus('idle')
+          }, 3000)
         }
       }, TTS_GENERATE_TIMEOUT_MS)
 
@@ -261,7 +348,11 @@ function wireEvents(): void {
       client.requestTts(ttsText)
 
       cleanups.push(() => clearTimeout(ttsTimeout))
+    } else {
+      voiceState.setVoicePresentationStatus('complete')
+      setTimeout(() => useVoiceStore.getState().setVoicePresentationStatus('idle'), 500)
     }
+    _pendingVoiceTurnId = null
   })
 }
 
@@ -337,6 +428,10 @@ export async function startVoice(): Promise<void> {
     return
   }
 
+  // Create a new voice turn for this recording session
+  createTurn()
+  log('[VoiceTurn] turn_started_on_mic_start')
+
   vs.setMicState('listening')
   log('state=listening', 'tap mic again to send')
 
@@ -378,6 +473,16 @@ export function stopVoice(): void {
   const currentState = vs.micState
 
   if (currentState === 'listening' || currentState === 'recording') {
+    // Tap-to-stop: immediately commit accumulated segments
+    if (hasTurnActive()) {
+      const committed = commitTurn()
+      if (committed && committed.assembledText) {
+        log('[VoiceTurn] tap_to_stop_commit', committed.voiceTurnId)
+        finalizeMic()
+        _dispatchCommittedTurn(committed)
+        return
+      }
+    }
     finalizeMic()
     return
   }
@@ -385,6 +490,8 @@ export function stopVoice(): void {
   if (client) {
     client.stopMic()
   }
+  cancelTurn()
+  useChatStore.getState().setDraftMessage(null)
   clearAllTimers()
   vs.setMicState('idle')
   vs.setAudioLevel(0)
@@ -407,6 +514,8 @@ export function stopTts(): void {
 
 export function destroyVoice(): void {
   clearAllTimers()
+  cancelTurn()
+  useChatStore.getState().setDraftMessage(null)
   cleanups.forEach(fn => fn())
   cleanups = []
   if (chatUnsub) {
@@ -415,6 +524,7 @@ export function destroyVoice(): void {
   }
   releaseHeldMessage()
   resetPlayback()
+  _pendingVoiceTurnId = null
   if (client) {
     client.disconnect()
     client = null

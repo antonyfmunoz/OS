@@ -61,11 +61,14 @@ class AdvisorConversation:
 
     _MAX_TURNS = 20
     _MAX_CONTEXT_CHARS = 2048
+    _VOICE_TURN_CACHE_TTL_S = 600  # 10 minutes
 
     def __init__(self, advisor: Any, store: Any | None = None) -> None:
         self._advisor = advisor
         self._store = store
         self._histories: dict[str, list[dict[str, Any]]] = {}
+        # voice_turn_id → (AdvisorResponse, timestamp) for idempotency
+        self._voice_turn_cache: dict[str, tuple[AdvisorResponse, float]] = {}
         os.makedirs(os.path.dirname(_CONVERSATIONS_PATH), exist_ok=True)
 
     def converse(
@@ -75,7 +78,19 @@ class AdvisorConversation:
         view_context: dict[str, Any] | None = None,
         source: str = "text",
         routing: dict[str, Any] | None = None,
+        voice_turn_id: str = "",
     ) -> AdvisorResponse:
+        # Idempotency guard: return cached response for duplicate voice turn IDs
+        if voice_turn_id:
+            self._clean_voice_turn_cache()
+            cached = self._voice_turn_cache.get(voice_turn_id)
+            if cached is not None:
+                logger.info(
+                    "Voice turn cache hit: %s — returning cached response",
+                    voice_turn_id,
+                )
+                return cached[0]
+
         if not conversation_id:
             conversation_id = f"conv-{uuid.uuid4().hex[:12]}"
 
@@ -201,7 +216,23 @@ class AdvisorConversation:
         if len(history) > self._MAX_TURNS * 2:
             self._histories[conversation_id] = history[-self._MAX_TURNS * 2 :]
 
+        # Cache response for voice turn idempotency
+        if voice_turn_id:
+            import time as _time
+            self._voice_turn_cache[voice_turn_id] = (response, _time.time())
+
         return response
+
+    def _clean_voice_turn_cache(self) -> None:
+        """Remove expired entries from the voice turn cache."""
+        import time as _time
+        now = _time.time()
+        expired = [
+            k for k, (_, ts) in self._voice_turn_cache.items()
+            if now - ts > self._VOICE_TURN_CACHE_TTL_S
+        ]
+        for k in expired:
+            del self._voice_turn_cache[k]
 
     def _build_spoken_text(self, text: str) -> str:
         """Convert display text to a TTS-friendly spoken form.
