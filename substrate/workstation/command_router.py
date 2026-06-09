@@ -350,6 +350,7 @@ def _get_known_app_keys() -> set[str]:
         from substrate.execution.workers.workstation.environment_mapping_engine_v1 import (
             PLATFORM_PROCESS_MAP,
         )
+
         keys = set(PLATFORM_PROCESS_MAP.keys())
         for entry in PLATFORM_PROCESS_MAP.values():
             keys.add(entry.get("name", "").lower())
@@ -362,6 +363,7 @@ def _is_workstation_app_target(text: str) -> bool:
     """Check if text names a known app (from environment mapping engine)."""
     known = _get_known_app_keys()
     return text in known
+
 
 _NAV_MAP: dict[str, str] = {
     "dashboard": "dashboard",
@@ -474,6 +476,7 @@ def classify_intent(text: str) -> CommandIntent:
 
     # ── VPS blocked patterns (secrets, destructive) ───────────────
     from substrate.workstation.vps_control_catalog import check_blocked
+
     if check_blocked(t):
         return CommandIntent.VPS_CONTROL
 
@@ -520,7 +523,7 @@ def classify_intent(text: str) -> CommandIntent:
     nav_prefix = ["show ", "go to ", "open ", "navigate to "]
     for prefix in nav_prefix:
         if t.startswith(prefix):
-            remainder = t[len(prefix):]
+            remainder = t[len(prefix) :]
             if remainder in _NAV_MAP:
                 return CommandIntent.COCKPIT_NAVIGATION
 
@@ -531,7 +534,7 @@ def classify_intent(text: str) -> CommandIntent:
     # ── Fallback: "verb [target]" not in NAV_MAP → workstation control ─
     for prefix in _WORKSTATION_VERB_PREFIXES:
         if t.startswith(prefix):
-            remainder = t[len(prefix):]
+            remainder = t[len(prefix) :]
             if remainder:
                 return CommandIntent.WORKSTATION_CONTROL
 
@@ -549,7 +552,7 @@ def resolve_navigation_target(text: str) -> str:
     t = text.lower().strip()
     for prefix in ["show ", "go to ", "open ", "navigate to "]:
         if t.startswith(prefix):
-            remainder = t[len(prefix):]
+            remainder = t[len(prefix) :]
             if remainder in _NAV_MAP:
                 return _NAV_MAP[remainder]
 
@@ -610,11 +613,60 @@ def _lookup_app(name: str) -> dict[str, str]:
     return {}
 
 
+def _enrich_with_lane_info(result: dict[str, Any], text: str) -> dict[str, Any]:
+    """Enrich a workstation target result with lane routing and app resolution.
+
+    Adds is_native, launch_cmd, browser, lane_type, lane_metadata, and
+    foreground guard approval.  Mutates and returns the result dict.
+    """
+    from substrate.workstation.app_resolver import (
+        resolve_app_target,
+        resolve_search_url,
+    )
+    from substrate.workstation.work_lane import (
+        ForegroundGuard,
+        lane_hud_metadata,
+        route_to_lane,
+    )
+
+    # App resolution: if target_app is set, resolve it
+    if result.get("target_app"):
+        app_target = resolve_app_target(result["target_app"])
+        result["is_native"] = app_target.is_native
+        result["launch_cmd"] = app_target.launch_cmd
+        result["browser"] = app_target.browser
+        if app_target.is_native:
+            # Native apps: clear target_url (don't open website)
+            result["target_url"] = ""
+        elif app_target.open_url and not result.get("target_url"):
+            result["target_url"] = app_target.open_url
+
+    # Search URL override
+    search_url = resolve_search_url(text)
+    if search_url:
+        result["target_url"] = search_url
+        result["browser"] = "chrome"
+
+    # Lane routing
+    lane = route_to_lane(text, "command_router")
+    result["lane_type"] = lane.lane_type.value
+    result["lane_metadata"] = lane_hud_metadata(lane)
+
+    # Foreground guard (merge with existing requires_approval via OR)
+    guard_result = ForegroundGuard().check(text, lane)
+    result["requires_approval"] = (
+        result.get("requires_approval", False) or guard_result.requires_approval
+    )
+
+    return result
+
+
 def resolve_workstation_target(text: str) -> dict[str, Any]:
     """Extract app target, action type, and risk from workstation control text.
 
     Uses runtime app registry from environment_mapping_engine_v1 — no hardcoded
-    app names, URLs, or process names.
+    app names, URLs, or process names.  Enriched with work lane routing, native
+    app resolution, and foreground guard.
     """
     t = text.lower().strip()
     result: dict[str, Any] = {
@@ -628,13 +680,15 @@ def resolve_workstation_target(text: str) -> dict[str, Any]:
 
     if any(s in t for s in ["screenshot", "take a screenshot"]):
         result["action"] = "screenshot"
-        return result
+        return _enrich_with_lane_info(result, text)
 
     if any(s in t for s in ["list windows", "what windows are open", "show windows"]):
         result["action"] = "list_windows"
-        return result
+        return _enrich_with_lane_info(result, text)
 
-    if any(s in t for s in ["play music", "pause music", "next song", "previous song", "skip song"]):
+    if any(
+        s in t for s in ["play music", "pause music", "next song", "previous song", "skip song"]
+    ):
         if "pause" in t:
             result["action"] = "media_pause"
         elif "next" in t or "skip" in t:
@@ -644,11 +698,11 @@ def resolve_workstation_target(text: str) -> dict[str, Any]:
         else:
             result["action"] = "media_play"
         result["risk"] = "low"
-        return result
+        return _enrich_with_lane_info(result, text)
 
     for prefix in _WORKSTATION_VERB_PREFIXES:
         if t.startswith(prefix):
-            remainder = t[len(prefix):]
+            remainder = t[len(prefix) :]
             if not remainder:
                 continue
             if prefix.strip() in ("focus", "switch to"):
@@ -659,17 +713,17 @@ def resolve_workstation_target(text: str) -> dict[str, Any]:
                 result["process_name"] = app_info.get("process", "")
                 if app_info.get("domain"):
                     result["target_url"] = f"https://{app_info['domain']}"
-                return result
+                return _enrich_with_lane_info(result, text)
             result["target_app"] = remainder
             if remainder.isalpha() and len(remainder) <= 30:
                 result["target_url"] = f"https://{remainder}.com"
-            return result
+            return _enrich_with_lane_info(result, text)
 
     if any(s in t for s in ["message", "dm", "send", "post", "comment", "like", "follow"]):
         result["risk"] = "high"
         result["requires_approval"] = True
 
-    return result
+    return _enrich_with_lane_info(result, text)
 
 
 def resolve_continuity_target(text: str) -> str:
@@ -678,7 +732,10 @@ def resolve_continuity_target(text: str) -> str:
 
     if any(s in t for s in ["day cycle", "start my day", "begin day"]):
         return "active"
-    if any(s in t for s in ["night cycle", "night mode", "shut down for the night", "wrap up for the night"]):
+    if any(
+        s in t
+        for s in ["night cycle", "night mode", "shut down for the night", "wrap up for the night"]
+    ):
         return "night_sleeping"
     if any(s in t for s in ["stepping away", "step out", "i'll be away", "i need to step"]):
         return "away"
