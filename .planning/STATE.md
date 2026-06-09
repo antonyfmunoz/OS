@@ -99,9 +99,10 @@ None yet.
 | Phase 13.2 — Native Agent Runtime | 2026-05-31 | 88c6b252..2dfb31a2 | RuntimeSession model (11-state FSM, 6 types, 17 event types), ShellRuntimeAdapter (19 blocked commands, secret redaction, env stripping, process group isolation, 3 rounds security hardening), ClaudeCodeRuntimeAdapter skeleton (truthful degradation), RuntimeManager (policy enforcement, worktree sandbox, lifecycle orchestration), RuntimeHandoffPreview (what_will/won't_happen), 10 auth-gated API routes, RuntimePanel cockpit panel, 36/36 proofs (lifecycle + stop/cancel + policy blocks), cortextOS comparison audit. 11 commits, 18 files, +2969 lines, 0 gate violations. |
 | Phase 14.13U — Device Presence + Voice Session Routing + Spoken Response Contract | 2026-06-09 | 2d61940d..0cc9a4f0 | DevicePresenceRegistry (thread-safe in-memory, heartbeat expiry), VoiceRoute + resolve_voice_route() (deterministic, no LLM), AdvisorResponse.spoken_text + .routing fields, deviceSessionStore (Zustand, 20s heartbeat), VoiceRouteHud, 4 device REST endpoints, 75 tests pass, TypeScript clean. |
 | Phase 14.13V — Voice UX Seal | 2026-06-09 | e45f9f9e..660226ab | TTS playback controller (iOS audio unlock on mic gesture, reusable Audio element, sequential queue), voice turn assembler (segment collection, dedup, silence grace 1600/2200ms, tap-to-stop immediate commit), organism response presentation state machine, live draft bubble, backend idempotency guard (voice_turn_id → cached response, 10min TTL), barge-in creates new turn, [TTSPlayback] + [VoiceTurn] instrumentation, tap-to-play fallback for iOS, 117 tests pass, TypeScript clean. |
+| Phase 14.13W — Beast Multi-Session Work Lanes | 2026-06-09 | c8949354..3f36f0a5 | WorkLane model (4 lane types), AppTarget with Chrome-first browser policy, classify_app_vs_website from PLATFORM_PROCESS_MAP, ForegroundGuard (approval for GUI interactions), LoopContract + EndStateVerifier (deterministic 5-strategy), command_router enhanced with lane_type/is_native/launch_cmd/browser, 22 tests pass, 3 new modules (826 lines). |
 
 ## Session Continuity
 
 Last session: 2026-06-09
-Stopped at: Phase 14.13V complete — voice UX seal (660226ab)
+Stopped at: Phase 14.13W complete — Beast multi-session work lanes (3f36f0a5)
 Resume file: None
