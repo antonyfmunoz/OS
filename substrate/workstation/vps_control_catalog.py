@@ -221,6 +221,32 @@ VPS_CATALOG: dict[str, CatalogEntry] = {
         requires_approval=False,
         read_only=True,
     ),
+    "docker_logs_webhook": CatalogEntry(
+        action="docker_logs_webhook",
+        display_name="Webhook Logs",
+        command_template="__internal_docker_logs_webhook__",
+        risk=VpsRisk.LOW,
+        requires_approval=False,
+        read_only=True,
+        max_output_bytes=16384,
+    ),
+    "docker_restart_webhook": CatalogEntry(
+        action="docker_restart_webhook",
+        display_name="Restart Webhook",
+        command_template="__internal_docker_restart_webhook__",
+        risk=VpsRisk.MEDIUM,
+        requires_approval=True,
+        read_only=False,
+    ),
+    "system_health": CatalogEntry(
+        action="system_health",
+        display_name="System Health",
+        command_template="uptime && free -h | head -3 && df -h / | tail -1",
+        risk=VpsRisk.LOW,
+        requires_approval=False,
+        read_only=True,
+        description="Combined CPU, memory, and disk health",
+    ),
 }
 
 _BLOCKED_PATTERNS = [
@@ -270,17 +296,21 @@ _VPS_KEYWORD_MAP: list[tuple[list[str], str]] = [
     (["cpu usage", "cpu load", "show cpu", "how is the cpu"], "cpu_usage"),
     (["memory usage", "ram usage", "show memory", "how much memory", "show ram"], "memory_usage"),
     (["disk usage", "disk space", "show disk", "how much disk", "storage"], "disk_usage"),
-    (["docker containers", "show containers", "list containers", "docker ps", "running containers", "container status", "docker status"], "docker_ps"),
+    (["docker containers", "show containers", "list containers", "docker ps", "running containers", "container status", "docker status", "container health"], "docker_ps"),
     (["operator logs", "show operator logs", "operator log", "latest operator"], "docker_logs_operator"),
     (["discord logs", "show discord logs", "discord log", "discord bot logs"], "docker_logs_discord"),
+    (["webhook logs", "show webhook logs", "webhook log"], "docker_logs_webhook"),
     (["restart operator", "restart the operator", "restart os-operator"], "docker_restart_operator"),
     (["restart discord", "restart the discord", "restart os-discord", "restart the bot"], "docker_restart_discord"),
+    (["restart webhook", "restart the webhook", "restart os-webhook"], "docker_restart_webhook"),
+    (["restart services", "restart all services", "restart everything"], "docker_restart_operator"),
     (["provider health", "check provider", "provider status", "llm health", "model health"], "provider_health"),
     (["voice health", "voice status", "stt status", "tts status"], "voice_health"),
     (["git status", "show git", "what branch", "git log"], "git_status"),
     (["tmux sessions", "tmux list", "list tmux", "show tmux"], "tmux_list"),
     (["capture tmux", "tmux capture", "capture the claude", "capture session", "capture the session", "capture claude code"], "tmux_capture"),
-    (["service status", "show services", "what services", "running services"], "service_status"),
+    (["service status", "show services", "what services", "running services", "service health"], "service_status"),
+    (["system health", "show system health", "overall health", "server health"], "system_health"),
     (["cockpit typecheck", "typecheck cockpit", "type check", "tsc"], "cockpit_typecheck"),
     (["cockpit build", "build cockpit", "run the cockpit build", "build the cockpit", "npm build"], "cockpit_build"),
     (["python compile", "compile check", "py_compile", "compile core"], "python_compile_core"),
@@ -467,8 +497,8 @@ def _execute_docker_command(entry: CatalogEntry) -> VpsCommandResult:
                 output="\n".join(lines),
             )
 
-        if template in ("__internal_docker_logs_operator__", "__internal_docker_logs_discord__"):
-            container = "os-operator" if "operator" in template else "os-discord"
+        if template in ("__internal_docker_logs_operator__", "__internal_docker_logs_discord__", "__internal_docker_logs_webhook__"):
+            container = "os-operator" if "operator" in template else ("os-webhook" if "webhook" in template else "os-discord")
             conn.request("GET", f"/containers/{container}/logs?stdout=true&stderr=true&tail=50")
             resp = conn.getresponse()
             raw = resp.read()
@@ -481,8 +511,8 @@ def _execute_docker_command(entry: CatalogEntry) -> VpsCommandResult:
                 output="\n".join(log_lines[-50:])[:entry.max_output_bytes],
             )
 
-        if template in ("__internal_docker_restart_operator__", "__internal_docker_restart_discord__"):
-            container = "os-operator" if "operator" in template else "os-discord"
+        if template in ("__internal_docker_restart_operator__", "__internal_docker_restart_discord__", "__internal_docker_restart_webhook__"):
+            container = "os-operator" if "operator" in template else ("os-webhook" if "webhook" in template else "os-discord")
             conn.request("POST", f"/containers/{container}/restart?t=10")
             resp = conn.getresponse()
             resp.read()

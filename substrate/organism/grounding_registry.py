@@ -293,6 +293,115 @@ def _collect_recent_reports() -> tuple[dict[str, Any], str]:
     return data, summary
 
 
+def _collect_approvals() -> tuple[dict[str, Any], str]:
+    wp_path = Path(_REPO) / "data" / "umh" / "universal_work" / "work_packets.jsonl"
+    if not wp_path.exists():
+        raise FileNotFoundError("work_packets.jsonl not found")
+
+    pending: list[dict[str, Any]] = []
+    with open(wp_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            if '"needs_approval"' in line or '"pending_approval"' in line or '"awaiting_approval"' in line:
+                try:
+                    pkt = json.loads(line)
+                    pending.append({
+                        "id": pkt.get("id", "?"),
+                        "title": pkt.get("title", pkt.get("description", ""))[:80],
+                        "risk": pkt.get("risk", "unknown"),
+                    })
+                except json.JSONDecodeError:
+                    pass
+
+    data = {"pending_approvals": pending}
+    if not pending:
+        summary = "No items awaiting approval"
+    else:
+        summary = f"{len(pending)} items awaiting approval: " + ", ".join(
+            a["title"] or a["id"] for a in pending[:5]
+        )
+    return data, summary
+
+
+def _collect_recent_deployments() -> tuple[dict[str, Any], str]:
+    from substrate.execution.cpu_gate import gated_subprocess_run
+
+    result = gated_subprocess_run(
+        ["git", "-C", _REPO, "log", "--oneline", "-10", "--format=%h %s (%cr)"],
+        caller="grounding:deployments",
+    )
+    if result is None:
+        raise RuntimeError("CPU gate blocked — cannot read git log")
+
+    stdout = result.stdout or b""
+    if isinstance(stdout, bytes):
+        stdout = stdout.decode("utf-8", errors="replace")
+    lines = stdout.strip().split("\n")
+
+    commits = [l.strip() for l in lines if l.strip()]
+    data = {"recent_commits": commits[:10]}
+    if not commits:
+        summary = "No recent commits found"
+    else:
+        summary = f"{len(commits)} recent commits, latest: {commits[0]}"
+    return data, summary
+
+
+def _collect_hermes_status() -> tuple[dict[str, Any], str]:
+    data: dict[str, Any] = {"configured": False, "verified": False, "available": False}
+
+    try:
+        import adapters.models.hermes_cli as hcli
+
+        data["configured"] = True
+        data["available"] = hcli.is_available()
+        data["verified"] = hcli.is_verified()
+
+        if data["verified"]:
+            summary = "Hermes: verified and callable"
+        elif data["available"]:
+            summary = "Hermes: reachable but not yet verified by a real call"
+        else:
+            summary = "Hermes: configured but not reachable"
+    except ImportError:
+        summary = "Hermes: adapter not installed"
+    except Exception as exc:
+        summary = f"Hermes: check failed ({exc})"
+
+    return data, summary
+
+
+def _collect_webhook_health() -> tuple[dict[str, Any], str]:
+    sock_path = "/var/run/docker.sock"
+    if not os.path.exists(sock_path):
+        raise FileNotFoundError("Docker socket not available")
+
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.connect(sock_path)
+    s.settimeout(10)
+    conn = http.client.HTTPConnection("localhost")
+    conn.sock = s
+    conn.request("GET", "/containers/json?all=true")
+    resp = conn.getresponse()
+    containers = json.loads(resp.read())
+
+    webhook = None
+    for c in containers:
+        name = c["Names"][0].lstrip("/")
+        if "webhook" in name.lower():
+            webhook = {"name": name, "status": c.get("Status", c.get("State", "")), "state": c.get("State", "")}
+            break
+
+    if webhook is None:
+        raise ValueError("os-webhook container not found")
+
+    data = {"webhook": webhook}
+    summary = f"Webhook: {webhook['status']}"
+    return data, summary
+
+
 # ── Collector registry ────────────────────────────────────────────────────────
 
 _COLLECTORS: dict[str, Callable[[], tuple[dict[str, Any], str]]] = {
@@ -305,6 +414,10 @@ _COLLECTORS: dict[str, Callable[[], tuple[dict[str, Any], str]]] = {
     "workcells": _collect_workcell_heartbeats,
     "beast": _collect_beast_health,
     "reports": _collect_recent_reports,
+    "approvals": _collect_approvals,
+    "deployments": _collect_recent_deployments,
+    "hermes": _collect_hermes_status,
+    "webhook": _collect_webhook_health,
 }
 
 # Which collectors are needed for each query type
@@ -318,6 +431,11 @@ _QUERY_SOURCES: dict[str, list[str]] = {
     "blocked_packets": ["blocked_packets"],
     "agent_status": ["workcells"],
     "recent_reports": ["reports"],
+    "approval_status": ["approvals"],
+    "recent_deployments": ["deployments"],
+    "hermes_status": ["hermes"],
+    "webhook_health": ["webhook"],
+    "visual_query": ["vision"],
     "system_status": [
         "docker",
         "providers",
@@ -327,6 +445,14 @@ _QUERY_SOURCES: dict[str, list[str]] = {
         "vision",
         "beast",
     ],
+    "composite_blockers": [
+        "blocked_packets",
+        "providers",
+        "beast",
+        "docker",
+        "vision",
+        "voice",
+    ],
 }
 
 # Which sources are required (missing = blocker) vs optional (missing = partial)
@@ -334,6 +460,8 @@ _REQUIRED_SOURCES: dict[str, set[str]] = {
     "docker_status": {"docker"},
     "provider_health": {"providers"},
     "beast_health": {"beast"},
+    "webhook_health": {"webhook"},
+    "visual_query": {"vision"},
 }
 
 
@@ -390,35 +518,84 @@ def collect_grounding(query_type: str) -> GroundedResult:
 # ── Status-seeking detection for conversation mode ────────────────────────────
 
 _STATUS_SEEKING_PATTERNS: list[tuple[str, str]] = [
+    # Docker
     ("docker", "docker_status"),
     ("container", "docker_status"),
     ("containers running", "docker_status"),
+    # Providers
     ("provider", "provider_health"),
     ("providers online", "provider_health"),
     ("providers healthy", "provider_health"),
     ("model health", "provider_health"),
     ("llm status", "provider_health"),
+    # Voice
     ("voice health", "voice_health"),
+    ("voice status", "voice_health"),
+    ("voice service", "voice_health"),
     ("tts status", "voice_health"),
+    ("stt status", "voice_health"),
+    # Vision / Camera
     ("camera status", "vision_status"),
     ("vision status", "vision_status"),
+    ("vision service", "vision_status"),
     ("camera stream", "vision_status"),
+    ("camera active", "vision_status"),
+    ("camera is", "vision_status"),
+    # Visual queries — require a real frame
+    ("what do you see", "visual_query"),
+    ("what can you see", "visual_query"),
+    ("describe what", "visual_query"),
+    ("look at the screen", "visual_query"),
+    ("what's on screen", "visual_query"),
+    ("whats on screen", "visual_query"),
+    ("what is on the screen", "visual_query"),
+    # Beast
     ("beast status", "beast_health"),
     ("beast health", "beast_health"),
     ("beast daemon", "beast_health"),
     ("beast online", "beast_health"),
+    # Work packets
     ("work packet", "work_packets"),
     ("active packets", "work_packets"),
+    # Blockers
     ("blocked packet", "blocked_packets"),
     ("what is blocked", "blocked_packets"),
     ("what's blocked", "blocked_packets"),
     ("whats blocked", "blocked_packets"),
+    # Reports
     ("recent reports", "recent_reports"),
     ("latest reports", "recent_reports"),
+    ("reports created", "recent_reports"),
+    ("reports today", "recent_reports"),
+    # Approvals
+    ("needs approval", "approval_status"),
+    ("what needs approval", "approval_status"),
+    ("pending approval", "approval_status"),
+    ("approval queue", "approval_status"),
+    ("awaiting approval", "approval_status"),
+    # Deployments
+    ("what did we deploy", "recent_deployments"),
+    ("recent deploy", "recent_deployments"),
+    ("latest deploy", "recent_deployments"),
+    ("what did we ship", "recent_deployments"),
+    ("what shipped", "recent_deployments"),
+    ("deploy last", "recent_deployments"),
+    ("last deploy", "recent_deployments"),
+    # Hermes
+    ("hermes status", "hermes_status"),
+    ("hermes available", "hermes_status"),
+    ("hermes health", "hermes_status"),
+    ("is hermes", "hermes_status"),
+    # Webhook
+    ("webhook status", "webhook_health"),
+    ("webhook health", "webhook_health"),
+    # System composite
     ("system status", "system_status"),
     ("overall status", "system_status"),
     ("how is everything", "system_status"),
     ("how are things", "system_status"),
+    ("current system state", "system_status"),
+    ("summarize the current system", "system_status"),
 ]
 
 
