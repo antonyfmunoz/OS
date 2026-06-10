@@ -60,7 +60,6 @@ _ALLOWED_ORIGINS = {
     "http://localhost:5173",
     "http://localhost:5174",
     "http://127.0.0.1:5173",
-    "file://",
     "https://universalmetaharness.tech",
 }
 
@@ -81,23 +80,28 @@ async def send_json(ws: Any, data: dict[str, Any]) -> None:
         pass
 
 
-async def _check_auth(ws: Any) -> bool:
-    """Validate auth token from query string if token is configured."""
+def _check_auth(ws: Any) -> bool:
+    """Validate auth token via Sec-WebSocket-Protocol subprotocol header."""
+    import hmac
+
     if not _AUTH_TOKEN:
         return True
-    path = getattr(ws, "request", None)
-    if path is None:
-        return True
-    qs = getattr(path, "path", "")
-    if "?" in qs:
-        params = dict(p.split("=", 1) for p in qs.split("?", 1)[1].split("&") if "=" in p)
-        if params.get("token") == _AUTH_TOKEN:
-            return True
+    try:
+        protocols = ws.request.headers.get_all("Sec-WebSocket-Protocol")
+        for proto in protocols:
+            for part in proto.split(","):
+                candidate = part.strip()
+                if candidate.startswith("auth."):
+                    token = candidate[5:]
+                    if hmac.compare_digest(token, _AUTH_TOKEN):
+                        return True
+    except Exception:
+        pass
     return False
 
 
 async def handle_vision(ws: Any) -> None:
-    if not await _check_auth(ws):
+    if not _check_auth(ws):
         log.warning("viewer rejected: invalid auth token from %s", ws.remote_address)
         await send_json(ws, {"type": "vision_error", "error": "authentication required"})
         await ws.close(4001, "authentication required")
@@ -310,6 +314,12 @@ async def _health_server() -> None:
 async def main() -> None:
     global _event_loop
     _event_loop = asyncio.get_event_loop()
+
+    if not _AUTH_TOKEN:
+        log.warning(
+            "VISION_RELAY_TOKEN is not set — authentication DISABLED. "
+            "Set VISION_RELAY_TOKEN env var to enable auth."
+        )
 
     log.info("Vision relay starting on ws://%s:%d/vision", HOST, PORT)
     asyncio.create_task(_health_server())
