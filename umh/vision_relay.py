@@ -97,6 +97,10 @@ _stream_fps = 2
 _stream_width = 640
 _stream_height = 480
 _stream_quality = 60
+_last_frame_at: float = 0.0
+_frame_count: int = 0
+_last_overlay_at: float = 0.0
+_overlay_count: int = 0
 _mesh_dispatch_url = os.getenv(
     "MESH_DISPATCH_URL",
     "http://localhost:8095/dispatch",
@@ -199,7 +203,11 @@ async def handle_vision(ws: Any) -> None:
 
             msg_type = msg.get("type", "")
 
-            if msg_type == "vision_subscribe":
+            if msg_type == "ping":
+                await send_json(ws, {"type": "pong"})
+                continue
+
+            elif msg_type == "vision_subscribe":
                 subscribed = True
                 log.info("viewer subscribed: fps=%s q=%s", msg.get("fps"), msg.get("quality"))
                 await send_json(ws, {
@@ -474,6 +482,10 @@ async def handle_vision(ws: Any) -> None:
                 result = _security_state()
                 await send_json(ws, {"type": "vision_security_state", **result})
 
+            elif msg_type == "vision_health":
+                health = _build_health()
+                await send_json(ws, {"type": "vision_health", **health})
+
     except websockets.exceptions.ConnectionClosed:
         log.info("viewer disconnected: %s", ws.remote_address)
     except Exception as e:
@@ -520,6 +532,7 @@ async def _stop_stream() -> None:
 async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
     """Called by mesh frame callback — fan out to all subscribed viewers."""
     global _latest_frame, _latest_frame_meta, _stream_active
+    global _last_frame_at, _frame_count, _last_overlay_at, _overlay_count
 
     if len(jpeg_bytes) > MAX_FRAME_BYTES:
         log.warning("frame too large: %d bytes, dropping", len(jpeg_bytes))
@@ -528,6 +541,12 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
     _latest_frame = jpeg_bytes
     _latest_frame_meta = meta
     _stream_active = True
+    _last_frame_at = time.time()
+    _frame_count += 1
+
+    if meta.get("overlays"):
+        _last_overlay_at = time.time()
+        _overlay_count += 1
 
     dead = set()
     for ws in _clients:
@@ -535,11 +554,18 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
             await ws.send(jpeg_bytes)
         except Exception:
             dead.add(ws)
+    if dead:
+        log.info("cleaned %d stale viewer(s), %d remaining", len(dead), len(_clients) - len(dead))
     _clients.difference_update(dead)
 
 
+_JPEG_SOI = b'\xff\xd8'
+
 def receive_mesh_frame(frame_data: dict[str, Any]) -> None:
     """Sync entry point for node mesh callback — decodes base64 and broadcasts."""
+    if not isinstance(frame_data, dict):
+        log.warning("malformed frame data: expected dict, got %s", type(frame_data).__name__)
+        return
     b64 = frame_data.get("image_base64", "")
     if not b64:
         return
@@ -547,6 +573,10 @@ def receive_mesh_frame(frame_data: dict[str, Any]) -> None:
         jpeg_bytes = base64.b64decode(b64)
     except Exception as exc:
         log.warning("invalid base64 frame: %s", exc)
+        return
+
+    if len(jpeg_bytes) < 2 or jpeg_bytes[:2] != _JPEG_SOI:
+        log.warning("frame rejected: not a valid JPEG (header=%s, size=%d)", jpeg_bytes[:2].hex() if jpeg_bytes else "empty", len(jpeg_bytes))
         return
 
     meta = {k: v for k, v in frame_data.items() if k != "image_base64"}
@@ -952,6 +982,125 @@ async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str
         return None
 
 
+def _build_health() -> dict[str, Any]:
+    """Build comprehensive vision chain health report."""
+    now = time.time()
+    frame_age_ms = int((now - _last_frame_at) * 1000) if _last_frame_at else -1
+    overlay_age_ms = int((now - _last_overlay_at) * 1000) if _last_overlay_at else -1
+
+    stale_frame_threshold_ms = 15000
+    stale_overlay_threshold_ms = 30000
+
+    frame_stale = frame_age_ms > stale_frame_threshold_ms if _last_frame_at else True
+
+    # Beast connectivity: check mesh
+    beast_connected = False
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            _mesh_dispatch_url.replace("/dispatch", "/health"),
+            method="GET",
+        )
+        with urllib.request.urlopen(req, timeout=2) as resp:
+            mesh_data = json.loads(resp.read())
+            beast_connected = any(
+                n.get("node_id", "").startswith("windows")
+                or n.get("node_id", "") == "beast_windows"
+                for n in mesh_data.get("nodes", [])
+            )
+    except Exception:
+        pass
+
+    # Tracker state
+    tracker_mgr = None
+    try:
+        tracker_mgr = _get_tracker_manager()
+    except Exception:
+        pass
+    tracker_available = tracker_mgr is not None
+    active_trackers = []
+    if tracker_mgr:
+        active_trackers = [t.category for t in tracker_mgr.get_enabled_trackers()]
+
+    # Chain state
+    chain_mgr = None
+    try:
+        chain_mgr = _get_chain_manager()
+    except Exception:
+        pass
+    chain_available = chain_mgr is not None
+    active_chains = []
+    if chain_mgr:
+        active_chains = [c.label for c in chain_mgr.list_chains() if c.enabled]
+
+    # Security state
+    sec_mgr = None
+    try:
+        sec_mgr = _get_security_manager()
+    except Exception:
+        pass
+    security_active = sec_mgr.is_active if sec_mgr else False
+
+    # Camera status from last frame metadata
+    camera_available = _latest_frame is not None
+    camera_streaming = _stream_active and not frame_stale
+
+    # Derive overall status
+    blockers: list[str] = []
+    recovery_action = ""
+
+    if not beast_connected:
+        blockers.append("Beast daemon not connected to mesh")
+        recovery_action = "check Beast daemon and network"
+    elif not camera_available and not _stream_active:
+        blockers.append("no frames received from Beast camera")
+        recovery_action = "start camera stream or check camera hardware"
+    elif frame_stale:
+        blockers.append(f"last frame is {frame_age_ms}ms old (stale)")
+        recovery_action = "restart camera stream on Beast"
+
+    if len(_clients) == 0:
+        blockers.append("no cockpit viewers connected")
+
+    if _stream_active and not frame_stale and len(_clients) > 0:
+        status = "healthy"
+    elif _stream_active and frame_stale:
+        status = "stream_stale"
+    elif beast_connected and not _stream_active:
+        status = "connected_no_frames"
+    elif not beast_connected:
+        status = "beast_offline"
+    elif len(_clients) == 0:
+        status = "relay_idle"
+    else:
+        status = "degraded"
+
+    return {
+        "status": status,
+        "relay_running": True,
+        "cockpit_connected": len(_clients) > 0,
+        "websocket_authenticated": True,
+        "viewer_count": len(_clients),
+        "beast_connected": beast_connected,
+        "camera_available": camera_available,
+        "camera_streaming": camera_streaming,
+        "last_frame_at": _last_frame_at,
+        "last_frame_age_ms": frame_age_ms,
+        "frame_count": _frame_count,
+        "frame_fps": _stream_fps if camera_streaming else 0,
+        "tracker_runtime_available": tracker_available,
+        "active_trackers": active_trackers,
+        "last_overlay_at": _last_overlay_at,
+        "last_overlay_age_ms": overlay_age_ms,
+        "overlay_count": _overlay_count,
+        "trigger_chain_engine_available": chain_available,
+        "active_chains": active_chains,
+        "security_mode": "security_harden" if security_active else "normal",
+        "blockers": blockers,
+        "recovery_action": recovery_action,
+    }
+
+
 async def _health_server() -> None:
     """HTTP server on PORT+1: health check + frame ingestion from mesh."""
     from http.server import BaseHTTPRequestHandler
@@ -962,11 +1111,7 @@ async def _health_server() -> None:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             if self.path == "/health":
-                body = json.dumps({
-                    "status": "ok",
-                    "viewers": len(_clients),
-                    "streaming": _stream_active,
-                }).encode()
+                body = json.dumps(_build_health()).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
