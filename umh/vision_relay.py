@@ -56,6 +56,7 @@ HOST = os.getenv("VISION_RELAY_HOST", "0.0.0.0")
 PORT = int(os.getenv("VISION_RELAY_PORT", "8097"))
 MAX_FRAME_BYTES = 2 * 1024 * 1024
 _AUTH_TOKEN = os.getenv("VISION_RELAY_TOKEN", "")
+_FRAME_INGEST_TOKEN = os.getenv("VISION_FRAME_TOKEN", "")
 _ALLOWED_ORIGINS = {
     "http://localhost:5173",
     "http://localhost:5174",
@@ -374,6 +375,13 @@ async def _health_server() -> None:
 
         def do_POST(self) -> None:
             if self.path == "/frame":
+                if _FRAME_INGEST_TOKEN:
+                    import hmac
+                    provided = self.headers.get("X-Frame-Token", "")
+                    if not hmac.compare_digest(provided, _FRAME_INGEST_TOKEN):
+                        self.send_response(403)
+                        self.end_headers()
+                        return
                 length = int(self.headers.get("Content-Length", 0))
                 if length == 0 or length > MAX_FRAME_BYTES * 2:
                     self.send_response(400)
