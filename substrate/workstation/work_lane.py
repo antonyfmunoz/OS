@@ -24,8 +24,26 @@ class LaneType(str, Enum):
 
     foreground = "foreground"
     background_browser = "background_browser"
+    background_browser_profile = "background_browser_profile"
     background_shell = "background_shell"
     native_app = "native_app"
+    headless_browser = "headless_browser"
+
+
+class IsolationLevel(str, Enum):
+    """How strongly a lane is isolated from the operator session."""
+
+    session_isolated = "session_isolated"
+    profile_isolated = "profile_isolated"
+    headless = "headless"
+    none = "none"
+
+
+class TransportType(str, Enum):
+    """How commands reach the target node."""
+
+    mesh_relay = "mesh_relay"
+    ssh = "ssh"
 
 
 @dataclass
@@ -50,25 +68,35 @@ class WorkLane:
     created_at: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    isolation_level: str = IsolationLevel.none.value
+    chrome_profile: str = ""
+
     def __post_init__(self) -> None:
         if not self.lane_id:
             self.lane_id = f"lane-{uuid.uuid4().hex[:12]}"
         if not self.created_at:
             self.created_at = datetime.now(timezone.utc).isoformat()
-        # foreground and native_app operate in the operator's view
         if self.lane_type in (LaneType.foreground,):
             self.is_operator_foreground = True
+        if self.lane_type == LaneType.background_browser_profile:
+            self.isolation_level = IsolationLevel.profile_isolated.value
+        elif self.lane_type == LaneType.headless_browser:
+            self.isolation_level = IsolationLevel.headless.value
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "lane_id": self.lane_id,
             "lane_type": self.lane_type.value,
             "session_id": self.session_id,
             "task_description": self.task_description,
             "is_operator_foreground": self.is_operator_foreground,
+            "isolation_level": self.isolation_level,
             "created_at": self.created_at,
             "metadata": self.metadata,
         }
+        if self.chrome_profile:
+            d["chrome_profile"] = self.chrome_profile
+        return d
 
 
 # Patterns that indicate foreground interaction
@@ -170,7 +198,12 @@ class ForegroundGuard:
         t = text.lower().strip()
 
         # Background lanes are always approved — no foreground disruption
-        if lane.lane_type in (LaneType.background_browser, LaneType.background_shell):
+        if lane.lane_type in (
+            LaneType.background_browser,
+            LaneType.background_browser_profile,
+            LaneType.background_shell,
+            LaneType.headless_browser,
+        ):
             return ForegroundCheckResult(
                 approved=True,
                 requires_approval=False,
@@ -312,20 +345,163 @@ def lane_hud_metadata(lane: WorkLane) -> dict[str, Any]:
         lane: The resolved work lane.
 
     Returns:
-        Dict with lane_type, is_background, disruption_risk for Workcell J.
+        Dict with lane_type, is_background, disruption_risk, isolation_level.
     """
     is_background = lane.lane_type in (
         LaneType.background_browser,
+        LaneType.background_browser_profile,
         LaneType.background_shell,
+        LaneType.headless_browser,
     )
     disruption_risk = "none" if is_background else "low"
     if lane.lane_type == LaneType.foreground:
         disruption_risk = "medium"
+    if lane.lane_type == LaneType.background_browser_profile:
+        disruption_risk = "low"
 
-    return {
+    hud: dict[str, Any] = {
         "lane_type": lane.lane_type.value,
         "is_background": is_background,
         "disruption_risk": disruption_risk,
+        "isolation_level": lane.isolation_level,
         "session_id": lane.session_id,
         "lane_id": lane.lane_id,
     }
+    if lane.chrome_profile:
+        hud["chrome_profile"] = lane.chrome_profile
+    return hud
+
+
+# ── SSH Transport Guard ──────────────────────────────────────────────────
+
+_GUI_CAPABILITIES: frozenset[str] = frozenset({
+    "desktop.click",
+    "desktop.type",
+    "desktop.screenshot",
+    "desktop.focus_window",
+    "desktop.list_windows",
+})
+
+_GUI_SHELL_PATTERNS: list[str] = [
+    "start ",
+    "start-process ",
+    "invoke-item ",
+    "explorer ",
+    "chrome ",
+    "spotify ",
+    "discord ",
+]
+
+
+@dataclass
+class TransportCheckResult:
+    """Result of a transport guard check."""
+
+    allowed: bool
+    reason: str
+
+
+def check_transport_allowed(
+    capability: str,
+    command: str,
+    transport: str,
+) -> TransportCheckResult:
+    """Block GUI actions through SSH — they land in Session 0.
+
+    SSH is allowed for: file operations, process listing, health checks, logs.
+    Mesh relay is required for: app launches, Chrome, screenshots, GUI actions.
+    """
+    if transport != "ssh":
+        return TransportCheckResult(allowed=True, reason="mesh relay transport approved")
+
+    if capability in _GUI_CAPABILITIES:
+        return TransportCheckResult(
+            allowed=False,
+            reason=f"GUI action '{capability}' must route through Beast mesh relay; SSH lands in Session 0.",
+        )
+
+    cmd_lower = command.lower().strip()
+    if any(cmd_lower.startswith(p) for p in _GUI_SHELL_PATTERNS):
+        return TransportCheckResult(
+            allowed=False,
+            reason=f"GUI shell command must route through Beast mesh relay; SSH lands in Session 0.",
+        )
+
+    return TransportCheckResult(allowed=True, reason="non-GUI action allowed via SSH")
+
+
+# ── Lane Inventory ───────────────────────────────────────────────────────
+
+_DEFAULT_WORKER_PROFILE = "UMH_Worker_01"
+_WORKER_PROFILE_DIR = r"C:\UMH\chrome-worker"
+
+
+def get_lane_inventory(
+    has_worker_profile: bool = False,
+    has_headless: bool = False,
+) -> list[dict[str, Any]]:
+    """Return the truthful lane inventory for Beast.
+
+    Does NOT fake Session 2+. Reports only lanes that actually exist.
+    """
+    lanes: list[dict[str, Any]] = [
+        {
+            "lane_id": "beast_service_session_0",
+            "lane_type": "service",
+            "windows_session_id": 0,
+            "gui_capable": False,
+            "description": "daemon/service only — no GUI automation",
+        },
+        {
+            "lane_id": "beast_operator_foreground",
+            "lane_type": LaneType.foreground.value,
+            "windows_session_id": 1,
+            "gui_capable": True,
+            "visible_to_operator": True,
+            "isolation_level": IsolationLevel.none.value,
+            "description": "operator's visible desktop session",
+        },
+    ]
+
+    if has_worker_profile:
+        lanes.append({
+            "lane_id": "beast_background_browser_01",
+            "lane_type": LaneType.background_browser_profile.value,
+            "windows_session_id": 1,
+            "gui_capable": True,
+            "visible_to_operator": "potentially",
+            "isolation_level": IsolationLevel.profile_isolated.value,
+            "browser": "chrome",
+            "chrome_profile": _DEFAULT_WORKER_PROFILE,
+            "profile_dir": _WORKER_PROFILE_DIR,
+            "description": "Chrome worker profile — profile-isolated, not session-isolated",
+        })
+
+    if has_headless:
+        lanes.append({
+            "lane_id": "beast_headless_browser_01",
+            "lane_type": LaneType.headless_browser.value,
+            "windows_session_id": 1,
+            "gui_capable": False,
+            "visible_to_operator": False,
+            "isolation_level": IsolationLevel.headless.value,
+            "browser": "chromium",
+            "best_for": ["research", "scraping", "page checks", "docs lookup"],
+            "not_for": ["logged-in account workflows unless explicitly authorized"],
+            "description": "headless browser — zero foreground disruption",
+        })
+
+    return lanes
+
+
+def build_worker_chrome_launch_cmd(url: str = "") -> str:
+    """Build the Chrome launch command for the UMH worker profile."""
+    parts = [
+        "start chrome",
+        f'--user-data-dir="{_WORKER_PROFILE_DIR}"',
+        "--profile-directory=Default",
+        "--new-window",
+    ]
+    if url:
+        parts.append(url)
+    return " ".join(parts)

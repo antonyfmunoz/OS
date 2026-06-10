@@ -149,7 +149,7 @@ class NodeClient:
         url = self._config.ws_url
         logger.info("connecting to %s", url.split("?")[0])
 
-        async with websockets.connect(url, ping_interval=30, ping_timeout=10) as ws:
+        async with websockets.connect(url, ping_interval=30, ping_timeout=10, max_size=4 * 1024 * 1024) as ws:
             self._ws = ws
             await self._send_hello()
             self._connected = True
