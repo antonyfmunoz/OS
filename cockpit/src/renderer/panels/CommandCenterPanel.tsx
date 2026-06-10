@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import { Camera } from 'lucide-react'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useCockpitStore } from '../stores/cockpitStore'
+import { useVisionStore } from '../stores/visionStore'
 import { ActionRequired, buildActionItems } from '../components/ActionRequired'
 
 interface SummaryData {
@@ -68,6 +70,10 @@ export function CommandCenterPanel() {
   const [overnightStatus, setOvernightStatus] = useState<{ safe: number; pending: number; blocked: number }>({ safe: 0, pending: 0, blocked: 0 })
   const [returnBrief, setReturnBrief] = useState<ReturnBrief | null>(null)
   const [activeBatchCount, setActiveBatchCount] = useState(0)
+
+  const cameraStatus = useVisionStore((s) => s.cameraStatus)
+  const cameraPreset = useVisionStore((s) => s.activePreset)
+  const cameraConnected = useVisionStore((s) => s.connected)
 
   const setViewContext = useViewContextStore((s) => s.setContext)
   const setPanel = useCockpitStore((s) => s.setPanel)
@@ -181,6 +187,26 @@ export function CommandCenterPanel() {
             {cp.recommended_next_action && <> | next: {cp.recommended_next_action}</>}
           </div>
         )}
+      </Section>
+
+      {/* Vision */}
+      <Section title="Vision">
+        <button
+          onClick={() => setPanel('vision')}
+          className="w-full flex items-center gap-3 text-left hover:bg-gray-800/50 rounded p-1 -m-1 transition-colors"
+        >
+          <Camera size={16} className={cameraStatus === 'live' ? 'text-red-400' : cameraStatus === 'connecting' ? 'text-yellow-400' : 'text-gray-600'} />
+          <div className="flex-1">
+            <div className="text-[10px] text-gray-300">
+              {cameraStatus === 'live' ? 'Camera active' : cameraStatus === 'connecting' ? 'Connecting...' : 'Camera off'}
+              {cameraPreset && <span className="text-cyan-400 ml-1">({cameraPreset})</span>}
+            </div>
+            <div className="text-[10px] text-gray-500">
+              {cameraConnected ? 'Vision relay connected' : 'Vision relay disconnected'}
+            </div>
+          </div>
+          <span className="text-[10px] text-cyan-400 hover:underline">Open →</span>
+        </button>
       </Section>
 
       {/* Who Is Working */}
