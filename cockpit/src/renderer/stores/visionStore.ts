@@ -2,6 +2,64 @@ import { create } from 'zustand'
 
 export type CameraStatus = 'off' | 'connecting' | 'live' | 'analyzing' | 'error'
 
+// ── Default-on policy ────────────────────────────────────────────
+
+export type ProfileMode =
+  | 'active_day' | 'deep_work' | 'creative_build'
+  | 'admin_ops' | 'away' | 'night_cycle' | 'shutdown'
+
+export interface CameraDefaultOnPolicy {
+  enabled: boolean
+  profileMode: ProfileMode
+  operatorOverride: boolean
+}
+
+const DEFAULT_ON_BY_PROFILE: Record<ProfileMode, boolean> = {
+  active_day: true,
+  deep_work: false,
+  creative_build: true,
+  admin_ops: false,
+  away: false,
+  night_cycle: false,
+  shutdown: false,
+}
+
+export function shouldAutoStartCamera(policy: CameraDefaultOnPolicy): boolean {
+  if (!policy.enabled) return false
+  if (policy.operatorOverride) return true
+  return DEFAULT_ON_BY_PROFILE[policy.profileMode] ?? false
+}
+
+// ── Realtime PTZ motion state ────────────────────────────────────
+
+export type MotionState =
+  | 'idle' | 'moving' | 'stopping' | 'blocked' | 'disconnected'
+
+export interface PtzMotionState {
+  state: MotionState
+  motionId: string
+  panVelocity: number
+  tiltVelocity: number
+  zoomVelocity: number
+  speed: number
+  startedAt: number
+}
+
+// ── Control latency metrics ──────────────────────────────────────
+
+export interface ControlMetrics {
+  commandSendRate: number
+  beastReceiveRate: number
+  ptzLoopCadenceHz: number
+  stopLatencyMs: number
+  droppedCommands: number
+  coalescedCommands: number
+  guardTimeouts: number
+  lastCommandSentAt: number
+  lastStopSentAt: number
+  lastStopAckedAt: number
+}
+
 export interface CameraPreset {
   label: string
   pan?: number
@@ -271,6 +329,24 @@ interface VisionState {
   // Security mode setters
   setSecurityMode: (mode: Partial<SecurityModeInfo>) => void
 
+  // Default-on policy
+  defaultOnPolicy: CameraDefaultOnPolicy
+  setDefaultOnPolicy: (policy: Partial<CameraDefaultOnPolicy>) => void
+
+  // Realtime PTZ motion state
+  ptzMotion: PtzMotionState
+  setPtzMotion: (motion: Partial<PtzMotionState>) => void
+
+  // Control latency metrics
+  controlMetrics: ControlMetrics
+  updateControlMetrics: (partial: Partial<ControlMetrics>) => void
+
+  // Session management
+  viewerCount: number
+  cameraSessionActive: boolean
+  setViewerCount: (count: number) => void
+  setCameraSessionActive: (active: boolean) => void
+
   reset: () => void
 }
 
@@ -286,6 +362,32 @@ const INITIAL_METRICS: StreamMetrics = {
 const INITIAL_FOLLOW: FollowModeState = { active: false, target: '', track_id: '' }
 const INITIAL_TRACKER_STACK: TrackerStackState = { active_stack_id: '', enabled_trackers: [], total_cost: { cpu: 0, gpu: 0 } }
 const INITIAL_SECURITY: SecurityModeInfo = { active: false, mode: 'normal', risk: 'low', triggered_by: '', started_at: 0, actions_taken: [], requires_review: false }
+const INITIAL_DEFAULT_ON: CameraDefaultOnPolicy = {
+  enabled: true,
+  profileMode: 'active_day',
+  operatorOverride: false,
+}
+const INITIAL_PTZ_MOTION: PtzMotionState = {
+  state: 'idle',
+  motionId: '',
+  panVelocity: 0,
+  tiltVelocity: 0,
+  zoomVelocity: 0,
+  speed: 1,
+  startedAt: 0,
+}
+const INITIAL_CONTROL_METRICS: ControlMetrics = {
+  commandSendRate: 0,
+  beastReceiveRate: 0,
+  ptzLoopCadenceHz: 0,
+  stopLatencyMs: 0,
+  droppedCommands: 0,
+  coalescedCommands: 0,
+  guardTimeouts: 0,
+  lastCommandSentAt: 0,
+  lastStopSentAt: 0,
+  lastStopAckedAt: 0,
+}
 const INITIAL_HEALTH: VisionHealthState = {
   status: 'relay_offline',
   relayRunning: false,
@@ -421,6 +523,30 @@ export const useVisionStore = create<VisionState>((set) => ({
     securityMode: { ...s.securityMode, ...partial },
   })),
 
+  // Default-on policy
+  defaultOnPolicy: { ...INITIAL_DEFAULT_ON },
+  setDefaultOnPolicy: (partial) => set((s) => ({
+    defaultOnPolicy: { ...s.defaultOnPolicy, ...partial },
+  })),
+
+  // Realtime PTZ motion state
+  ptzMotion: { ...INITIAL_PTZ_MOTION },
+  setPtzMotion: (partial) => set((s) => ({
+    ptzMotion: { ...s.ptzMotion, ...partial },
+  })),
+
+  // Control latency metrics
+  controlMetrics: { ...INITIAL_CONTROL_METRICS },
+  updateControlMetrics: (partial) => set((s) => ({
+    controlMetrics: { ...s.controlMetrics, ...partial },
+  })),
+
+  // Session management
+  viewerCount: 0,
+  cameraSessionActive: false,
+  setViewerCount: (viewerCount) => set({ viewerCount }),
+  setCameraSessionActive: (cameraSessionActive) => set({ cameraSessionActive }),
+
   reset: () => set({
     connected: false,
     streaming: false,
@@ -454,5 +580,10 @@ export const useVisionStore = create<VisionState>((set) => ({
     recentFires: [],
     lastChainExplanation: '',
     securityMode: { ...INITIAL_SECURITY },
+    defaultOnPolicy: { ...INITIAL_DEFAULT_ON },
+    ptzMotion: { ...INITIAL_PTZ_MOTION },
+    controlMetrics: { ...INITIAL_CONTROL_METRICS },
+    viewerCount: 0,
+    cameraSessionActive: false,
   }),
 }))
