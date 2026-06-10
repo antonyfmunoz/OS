@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
-import { Camera } from 'lucide-react'
+import { Camera, PictureInPicture2 } from 'lucide-react'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useVisionStore } from '../stores/visionStore'
+import { useVisionPopout } from '../components/VisionPopout'
 import { ActionRequired, buildActionItems } from '../components/ActionRequired'
 
 interface SummaryData {
@@ -74,6 +75,9 @@ export function CommandCenterPanel() {
   const cameraStatus = useVisionStore((s) => s.cameraStatus)
   const cameraPreset = useVisionStore((s) => s.activePreset)
   const cameraConnected = useVisionStore((s) => s.connected)
+  const latestFrameUrl = useVisionStore((s) => s.latestFrameUrl)
+  const streaming = useVisionStore((s) => s.streaming)
+  const { openPopout } = useVisionPopout()
 
   const setViewContext = useViewContextStore((s) => s.setContext)
   const setPanel = useCockpitStore((s) => s.setPanel)
@@ -191,22 +195,61 @@ export function CommandCenterPanel() {
 
       {/* Vision */}
       <Section title="Vision">
-        <button
-          onClick={() => setPanel('vision')}
-          className="w-full flex items-center gap-3 text-left hover:bg-gray-800/50 rounded p-1 -m-1 transition-colors"
-        >
-          <Camera size={16} className={cameraStatus === 'live' ? 'text-red-400' : cameraStatus === 'connecting' ? 'text-yellow-400' : 'text-gray-600'} />
-          <div className="flex-1">
-            <div className="text-[10px] text-gray-300">
-              {cameraStatus === 'live' ? 'Camera active' : cameraStatus === 'connecting' ? 'Connecting...' : 'Camera off'}
-              {cameraPreset && <span className="text-cyan-400 ml-1">({cameraPreset})</span>}
+        <div className="flex gap-3">
+          {/* Inline camera thumbnail */}
+          <button
+            onClick={() => setPanel('vision')}
+            className="relative w-32 h-20 rounded border overflow-hidden bg-black flex-shrink-0 group"
+            style={{ borderColor: streaming ? 'rgba(255,61,61,0.3)' : '#2A2A2A' }}
+            title="Open Vision panel"
+          >
+            {latestFrameUrl ? (
+              <img src={latestFrameUrl} alt="Camera" className="w-full h-full object-cover" />
+            ) : (
+              <div className="flex items-center justify-center w-full h-full">
+                <Camera size={16} className="text-gray-600 opacity-30" />
+              </div>
+            )}
+            {streaming && (
+              <div className="absolute top-0.5 left-0.5 flex items-center gap-1 px-1 py-0.5 rounded bg-red-500/20 text-[8px] text-red-400 uppercase tracking-wider">
+                <span className="w-1 h-1 rounded-full bg-red-400 animate-pulse" />
+                live
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+              <span className="text-[9px] text-white uppercase tracking-wider">Open</span>
             </div>
-            <div className="text-[10px] text-gray-500">
-              {cameraConnected ? 'Vision relay connected' : 'Vision relay disconnected'}
+          </button>
+
+          {/* Status + controls */}
+          <div className="flex-1 flex flex-col justify-between">
+            <div>
+              <div className="text-[10px] text-gray-300">
+                {cameraStatus === 'live' ? 'Camera active' : cameraStatus === 'connecting' ? 'Connecting...' : 'Camera off'}
+                {cameraPreset && <span className="text-cyan-400 ml-1">({cameraPreset})</span>}
+              </div>
+              <div className="text-[10px] text-gray-500">
+                {cameraConnected ? 'Vision relay connected' : 'Vision relay disconnected'}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <button
+                onClick={() => setPanel('vision')}
+                className="text-[9px] text-cyan-400 hover:underline uppercase tracking-wider"
+              >
+                Full view
+              </button>
+              <button
+                onClick={openPopout}
+                className="flex items-center gap-1 text-[9px] text-gray-400 hover:text-white uppercase tracking-wider transition-colors"
+                title="Pop out into separate window"
+              >
+                <PictureInPicture2 size={10} />
+                Pop out
+              </button>
             </div>
           </div>
-          <span className="text-[10px] text-cyan-400 hover:underline">Open →</span>
-        </button>
+        </div>
       </Section>
 
       {/* Who Is Working */}
