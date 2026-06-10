@@ -53,6 +53,20 @@ _AUDIO_HERE_PATTERNS = [
     r"\bplay\s+(?:audio|sound|voice)\s+here\b",
 ]
 
+_CAMERA_TARGET_PATTERNS = [
+    r"\blook\s+at\s+(?:me|my\s+keyboard|the\s+desk|my\s+desk|the\s+room)\b",
+    r"\bwatch\s+the\s+room\b",
+    r"\bcamera\s+(?:on|off|start|stop|status|preset|snapshot)\b",
+    r"\bturn\s+(?:on|off)\s+(?:the\s+)?camera\b",
+    r"\bwhat\s+(?:do|can)\s+you\s+see\b",
+    r"\bdescribe\s+what\s+you\s+see\b",
+    r"\banalyze\s+this\s+frame\b",
+    r"\bsave\s+this\s+(?:camera\s+)?(?:position|preset)\b",
+    r"\bam\s+i\s+at\s+my\s+desk\b",
+    r"\bis\s+my\s+posture\b",
+    r"\btake\s+a\s+snapshot\b",
+]
+
 
 def parse_target_node(transcript: str) -> str:
     """Deterministically extract execution target from transcript.
@@ -60,6 +74,11 @@ def parse_target_node(transcript: str) -> str:
     Returns: 'beast_windows', 'vps', or '' (empty = stay on cockpit/conversation).
     """
     lower = transcript.lower()
+
+    # Camera commands always route to Beast (that's where the hardware is)
+    for pattern in _CAMERA_TARGET_PATTERNS:
+        if re.search(pattern, lower):
+            return "beast_windows"
 
     for pattern in _BEAST_PATTERNS:
         if re.search(pattern, lower):
