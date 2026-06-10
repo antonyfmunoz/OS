@@ -5,6 +5,7 @@ Usage: python3 -m transports.node_mesh.run
 
 from __future__ import annotations
 
+import json
 import logging
 import signal
 import os
@@ -132,14 +133,26 @@ def main() -> None:
 
     _ensure_docker_relay_access(config.port + 1)
 
-    try:
-        from umh.vision_relay import receive_mesh_frame
-        server.register_frame_callback(
-            lambda node_id, b64: receive_mesh_frame({"node_id": node_id, "image_base64": b64})
-        )
-        logger.info("vision relay frame callback registered")
-    except ImportError:
-        logger.info("vision relay not available — camera frame forwarding disabled")
+    vision_relay_url = os.getenv("VISION_RELAY_FRAME_URL", "http://127.0.0.1:8098/frame")
+
+    def _forward_frame_to_relay(node_id: str, b64: str) -> None:
+        try:
+            import urllib.request
+            payload = json.dumps({"node_id": node_id, "image_base64": b64}).encode()
+            req = urllib.request.Request(
+                vision_relay_url, data=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            urllib.request.urlopen(req, timeout=2)
+        except Exception as exc:
+            if not hasattr(_forward_frame_to_relay, "_err_count"):
+                _forward_frame_to_relay._err_count = 0  # type: ignore[attr-defined]
+            _forward_frame_to_relay._err_count += 1  # type: ignore[attr-defined]
+            if _forward_frame_to_relay._err_count <= 3:  # type: ignore[attr-defined]
+                logger.warning("vision relay frame forward failed: %s", exc)
+
+    server.register_frame_callback(_forward_frame_to_relay)
+    logger.info("vision relay frame callback registered → %s", vision_relay_url)
 
     thread = server.start()
     logger.info("node mesh server running on port %d — waiting for connections", config.port)
