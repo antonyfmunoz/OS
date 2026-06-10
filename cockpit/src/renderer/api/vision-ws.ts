@@ -143,6 +143,7 @@ export type VisionEvent =
   | { type: 'vision_chain_state'; chains?: Record<string, TriggerChainState>; chain_count?: number; enabled_count?: number; recent_fires?: ChainFireState[] }
   | { type: 'vision_security_result'; success: boolean; mode?: string; active?: boolean; error?: string; [key: string]: unknown }
   | { type: 'vision_security_state'; active?: boolean; mode?: string; risk?: string; triggered_by?: string; [key: string]: unknown }
+  | { type: 'vision_health'; status: string; blockers?: string[]; recovery_action?: string; [key: string]: unknown }
 
 function getVisionProtocols(): string[] {
   const token = import.meta.env.VITE_VISION_TOKEN as string | undefined
@@ -197,6 +198,36 @@ export class VisionWsClient {
     log('disconnect')
     this._revokeFrame()
     this.ws.disconnect()
+  }
+
+  reconnect(): void {
+    log('reconnect')
+    this.ws.disconnect()
+    setTimeout(() => {
+      this.ws = new WsClient(VISION_URL, getVisionProtocols())
+      this.ws.onBinary((buf) => this._handleFrame(buf))
+      this.ws.connect()
+    }, 500)
+  }
+
+  restartCamera(opts: { fps?: number; width?: number; height?: number; quality?: number } = {}): void {
+    log('restart_camera', opts)
+    this.ws.send('camera_stop')
+    setTimeout(() => {
+      this.ws.send('camera_start', {
+        fps: opts.fps ?? 15,
+        width: opts.width ?? 640,
+        height: opts.height ?? 480,
+        quality: opts.quality ?? 65,
+      })
+      this.ws.send('vision_subscribe', { fps: opts.fps ?? 15, quality: opts.quality ?? 65 })
+    }, 1000)
+  }
+
+  refreshCapabilities(): void {
+    log('refresh_capabilities')
+    this.ws.send('vision_tracker_state')
+    this.ws.send('vision_health')
   }
 
   get connected(): boolean {
@@ -282,6 +313,10 @@ export class VisionWsClient {
 
   requestStatus(): void {
     this.ws.send('camera_status')
+  }
+
+  requestHealth(): void {
+    this.ws.send('vision_health')
   }
 
   // ── PTZ control ─────────────────────────────────────────────────

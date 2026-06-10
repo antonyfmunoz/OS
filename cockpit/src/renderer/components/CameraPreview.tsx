@@ -4,11 +4,12 @@ import { Camera, CameraOff, Aperture, Eye, ChevronDown, Maximize2, Minimize2, Pi
 import { useVisionStore } from '../stores/visionStore'
 import { getVisionClient } from '../hooks/useVisionConnection'
 import { useVisionPopout } from './VisionPopout'
+import { VisionConnectionStatus } from './vision/VisionConnectionStatus'
 
 export function CameraPreview() {
   const {
     connected, streaming, cameraStatus, activePreset, latestFrameUrl,
-    error, presets, analysisStatus, frameCount,
+    error, presets, frameCount,
     setCameraStatus, setActivePreset, setStreaming,
   } = useVisionStore()
 
@@ -177,17 +178,8 @@ export function CameraPreview() {
         </div>
       </div>
 
-      {/* Connection status */}
-      <div className="flex items-center gap-2 text-[10px] font-mono text-text-tertiary">
-        <span className={clsx(
-          'w-1.5 h-1.5 rounded-full',
-          connected ? 'bg-ok' : 'bg-danger',
-        )} />
-        {connected ? 'vision relay connected' : 'vision relay disconnected'}
-        {analysisStatus !== 'idle' && (
-          <span className="text-cyan ml-auto">{analysisStatus}</span>
-        )}
-      </div>
+      {/* Connection health chain */}
+      <VisionConnectionStatus />
 
       {/* Error display */}
       {error && (

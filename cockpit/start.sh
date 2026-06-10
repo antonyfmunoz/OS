@@ -59,7 +59,10 @@ tunnel_loop() {
         -o ServerAliveCountMax=3 \
         -o ExitOnForwardFailure=yes \
         -i "$KEY_FILE" \
-        -N -L 8091:127.0.0.1:8091 \
+        -N \
+        -L 8091:127.0.0.1:8091 \
+        -L 8096:127.0.0.1:8096 \
+        -L 8097:127.0.0.1:8097 \
         "root@${VPS_IP}"
     echo "[tunnel] SSH exited ($?), reconnecting in ${delay}s..."
     sleep "$delay"

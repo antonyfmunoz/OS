@@ -201,13 +201,13 @@ class VisionRuntime:
 
     def stop_tracker(self, category: str) -> bool:
         proc = self._trackers.get(category)
-        if not proc or not proc.running:
+        if not proc:
             return False
         proc._stop_event.set()
         proc.running = False
         if proc._thread and proc._thread.is_alive():
             proc._thread.join(timeout=2.0)
-        logger.info("tracker stopped: %s (%d frames)", category, proc.frame_count)
+        logger.info("tracker stopped: %s (%d frames, last_error=%s)", category, proc.frame_count, proc.last_error or "none")
         return True
 
     def stop_all(self) -> None:
@@ -225,18 +225,36 @@ class VisionRuntime:
         }
 
     def _tracker_loop(self, proc: TrackerProcess) -> None:
-        """Placeholder tracker loop — emits dummy overlay metadata at target FPS."""
+        """Placeholder tracker loop — emits dummy overlay metadata at target FPS.
+
+        Crash-isolated: exceptions are caught per-iteration so one bad frame
+        doesn't kill the tracker. After 5 consecutive errors, the tracker
+        stops itself and sets last_error.
+        """
         interval = 1.0 / max(proc.target_fps, 1)
+        consecutive_errors = 0
+        max_consecutive_errors = 5
+
         while not proc._stop_event.is_set():
             start = time.monotonic()
-            proc.frame_count += 1
+            try:
+                proc.frame_count += 1
 
-            if self._emit_fn:
-                self._emit_fn("tracker_overlay", {
-                    "category": proc.category,
-                    "frame_number": proc.frame_count,
-                    "overlays": [],
-                })
+                if self._emit_fn:
+                    self._emit_fn("tracker_overlay", {
+                        "category": proc.category,
+                        "frame_number": proc.frame_count,
+                        "overlays": [],
+                    })
+                consecutive_errors = 0
+            except Exception as exc:
+                consecutive_errors += 1
+                proc.last_error = f"{type(exc).__name__}: {exc}"
+                logger.warning("tracker %s error (%d/%d): %s", proc.category, consecutive_errors, max_consecutive_errors, exc)
+                if consecutive_errors >= max_consecutive_errors:
+                    logger.error("tracker %s: %d consecutive errors, stopping", proc.category, consecutive_errors)
+                    proc.running = False
+                    return
 
             elapsed = time.monotonic() - start
             sleep_time = interval - elapsed

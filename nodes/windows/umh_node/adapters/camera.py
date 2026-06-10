@@ -115,8 +115,12 @@ class CameraAdapter:
     # ── Streaming ────────────────────────────────────────────────────
 
     def _stream_start(self, params: dict[str, Any]) -> dict[str, Any]:
-        if self._stream_active:
-            return {"success": True, "message": "stream already active"}
+        with self._stream_lock:
+            if self._stream_active and self._stream_thread and self._stream_thread.is_alive():
+                return {"success": True, "message": "stream already active"}
+            self._stream_active = False
+            if self._stream_thread and self._stream_thread.is_alive():
+                self._stream_thread.join(timeout=3.0)
 
         fps = min(params.get("fps", 2), 30)
         width = params.get("width", 640)
@@ -149,14 +153,29 @@ class CameraAdapter:
         import cv2
 
         interval = 1.0 / max(fps, 1)
-        cap = cv2.VideoCapture(device, cv2.CAP_DSHOW)
-        if not cap.isOpened():
+        consecutive_failures = 0
+        max_reconnect_attempts = 5
+        cap = None
+
+        def open_camera():
+            nonlocal cap
+            if cap is not None:
+                try:
+                    cap.release()
+                except Exception:
+                    pass
+            cap = cv2.VideoCapture(device, cv2.CAP_DSHOW)
+            if cap.isOpened():
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+                return True
+            return False
+
+        if not open_camera():
             logger.error("camera stream: device %d unavailable", device)
             self._stream_active = False
             return
 
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         encode_params = [cv2.IMWRITE_JPEG_QUALITY, quality]
 
         try:
@@ -164,9 +183,22 @@ class CameraAdapter:
                 t0 = time.monotonic()
                 ret, frame = cap.read()
                 if not ret:
+                    consecutive_failures += 1
+                    if consecutive_failures >= 10:
+                        logger.warning("camera: %d consecutive read failures, reconnecting (attempt %d/%d)", consecutive_failures, min(consecutive_failures // 10, max_reconnect_attempts), max_reconnect_attempts)
+                        if consecutive_failures // 10 > max_reconnect_attempts:
+                            logger.error("camera: max reconnect attempts exceeded, stopping stream")
+                            break
+                        backoff = min(2.0 ** (consecutive_failures // 10 - 1), 10.0)
+                        time.sleep(backoff)
+                        if open_camera():
+                            logger.info("camera: reconnected to device %d", device)
+                            consecutive_failures = 0
+                        continue
                     time.sleep(0.1)
                     continue
 
+                consecutive_failures = 0
                 success, buf = cv2.imencode(".jpg", frame, encode_params)
                 if success and self._frame_callback:
                     encoded = base64.b64encode(buf.tobytes()).decode("ascii")
@@ -187,7 +219,11 @@ class CameraAdapter:
         except Exception as exc:
             logger.error("camera stream error: %s", exc)
         finally:
-            cap.release()
+            if cap is not None:
+                try:
+                    cap.release()
+                except Exception:
+                    pass
             self._stream_active = False
 
     # ── PTZ control (OpenCV UVC properties, duvc-ctl optional) ─────

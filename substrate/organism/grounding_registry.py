@@ -147,12 +147,25 @@ def _collect_vision() -> tuple[dict[str, Any], str]:
         with urllib.request.urlopen(req, timeout=3) as resp:
             health = json.loads(resp.read())
             data.update(health)
-            viewers = health.get("viewers", 0)
-            streaming = health.get("streaming", False)
-            summary = f"Vision relay: {'streaming' if streaming else 'idle'}, {viewers} viewer(s)"
+            status = health.get("status", "unknown")
+            viewers = health.get("viewer_count", 0)
+            beast = "connected" if health.get("beast_connected") else "offline"
+            cam = "streaming" if health.get("camera_streaming") else "off"
+            fps = health.get("frame_fps", 0)
+            blockers = health.get("blockers", [])
+            recovery = health.get("recovery_action", "")
+            parts = [f"Vision: {status}", f"beast={beast}", f"camera={cam}"]
+            if fps:
+                parts.append(f"{fps}fps")
+            parts.append(f"{viewers} viewer(s)")
+            if blockers:
+                parts.append(f"blockers: {'; '.join(blockers)}")
+            if recovery:
+                parts.append(f"recovery: {recovery}")
+            summary = ", ".join(parts)
     except Exception:
         data["relay_reachable"] = False
-        summary = "Vision relay: unreachable"
+        summary = "Vision relay: unreachable (health endpoint not responding)"
 
     return data, summary
 
