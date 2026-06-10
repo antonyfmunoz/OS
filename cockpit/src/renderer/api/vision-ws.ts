@@ -36,6 +36,44 @@ export type PtzDirection =
   | 'up' | 'down' | 'left' | 'right'
   | 'up_left' | 'up_right' | 'down_left' | 'down_right'
 
+export interface TrackedObject {
+  track_id: string
+  label: string
+  description: string
+  confidence: number
+  status: 'visible' | 'likely_visible' | 'lost' | 'occluded' | 'moved' | 'stationary' | 'unknown'
+  last_seen: number
+  source: string
+  operator_confirmed: boolean
+}
+
+export interface WatchItem {
+  watch_id: string
+  target_label: string
+  condition: string
+  active: boolean
+  expires_at: number
+}
+
+export interface FollowModeState {
+  active: boolean
+  target: string
+  track_id: string
+}
+
+export interface SceneState {
+  scene_id: string
+  timestamp: number
+  objects: TrackedObject[]
+  summary: string
+  vlm_analyzed: boolean
+  scene_expired: boolean
+  tracked_objects: TrackedObject[]
+  labeled_items: TrackedObject[]
+  active_watches: WatchItem[]
+  follow_mode: FollowModeState
+}
+
 export type VisionEvent =
   | { type: 'connected' }
   | { type: 'disconnected' }
@@ -47,6 +85,13 @@ export type VisionEvent =
   | { type: 'camera_control_result'; request_id: string; operation: string; ok: boolean; data: Record<string, unknown> }
   | { type: 'vision_error'; error: string }
   | { type: 'preset_saved'; preset: string }
+  | { type: 'vision_scene_state'; [key: string]: unknown }
+  | { type: 'vision_analysis_result'; answer: string; confidence: string; source: string }
+  | { type: 'vision_track_result'; success: boolean; track_id?: string; label?: string; status?: string }
+  | { type: 'vision_label_result'; success: boolean; track_id?: string; label?: string }
+  | { type: 'vision_watch_result'; success: boolean; watch_id?: string; target?: string }
+  | { type: 'vision_follow_result'; success: boolean; target?: string }
+  | { type: 'vision_query_result'; answer: string; confidence: string; status?: string }
 
 function getVisionProtocols(): string[] {
   const token = import.meta.env.VITE_VISION_TOKEN as string | undefined
@@ -243,6 +288,57 @@ export class VisionWsClient {
     this.stopCamera()
     this.startCamera(mode)
     this.subscribe(mode.fps, mode.quality)
+  }
+
+  // ── Scene / Tracking / Watch / Follow ──────────────────────────
+
+  requestSceneState(): void {
+    this.ws.send('vision_scene_state')
+  }
+
+  analyzeFrame(transcript = ''): void {
+    log('analyze_frame', { transcript })
+    this.ws.send('vision_analyze', { transcript })
+  }
+
+  trackStart(label: string, hint = ''): void {
+    log('track_start', { label, hint })
+    this.ws.send('vision_track_start', { label, hint })
+  }
+
+  trackStop(label: string): void {
+    log('track_stop', { label })
+    this.ws.send('vision_track_stop', { label })
+  }
+
+  labelItem(label: string, frameId = ''): void {
+    log('label_item', { label, frameId })
+    this.ws.send('vision_label_item', { label, frame_id: frameId })
+  }
+
+  watchStart(target: string, condition = 'moved'): void {
+    log('watch_start', { target, condition })
+    this.ws.send('vision_watch_start', { target, condition })
+  }
+
+  watchStop(target: string): void {
+    log('watch_stop', { target })
+    this.ws.send('vision_watch_stop', { target })
+  }
+
+  followStart(target = 'operator'): void {
+    log('follow_start', { target })
+    this.ws.send('vision_follow_start', { target })
+  }
+
+  followStop(): void {
+    log('follow_stop')
+    this.ws.send('vision_follow_stop')
+  }
+
+  queryVisual(target: string): void {
+    log('query_visual', { target })
+    this.ws.send('vision_query', { target })
   }
 
   // ── Events ──────────────────────────────────────────────────────

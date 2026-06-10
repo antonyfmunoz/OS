@@ -45,6 +45,35 @@ export interface StreamMetrics {
   lastFrameAge: number
 }
 
+// ── Tracking types ────────────────────────────────────────────────
+
+export type TrackingStatus = 'visible' | 'likely_visible' | 'lost' | 'occluded' | 'moved' | 'stationary' | 'unknown'
+
+export interface TrackedObjectState {
+  track_id: string
+  label: string
+  description: string
+  confidence: number
+  status: TrackingStatus
+  last_seen: number
+  source: string
+  operator_confirmed: boolean
+}
+
+export interface WatchItemState {
+  watch_id: string
+  target_label: string
+  condition: string
+  active: boolean
+  expires_at: number
+}
+
+export interface FollowModeState {
+  active: boolean
+  target: string
+  track_id: string
+}
+
 interface VisionState {
   connected: boolean
   streaming: boolean
@@ -71,6 +100,16 @@ interface VisionState {
   hasPtzHardware: boolean
   streamMetrics: StreamMetrics
 
+  // Tracking state
+  detectedObjects: TrackedObjectState[]
+  trackedObjects: TrackedObjectState[]
+  labeledItems: TrackedObjectState[]
+  activeWatches: WatchItemState[]
+  followMode: FollowModeState
+  sceneSummary: string
+  sceneTimestamp: number
+  sceneExpired: boolean
+
   setConnected: (connected: boolean) => void
   setStreaming: (streaming: boolean) => void
   setCameraStatus: (status: CameraStatus) => void
@@ -90,6 +129,17 @@ interface VisionState {
   setHasPtzHardware: (has: boolean) => void
   updateStreamMetrics: (partial: Partial<StreamMetrics>) => void
 
+  // Tracking setters
+  setDetectedObjects: (objects: TrackedObjectState[]) => void
+  setTrackedObjects: (objects: TrackedObjectState[]) => void
+  setLabeledItems: (items: TrackedObjectState[]) => void
+  setActiveWatches: (watches: WatchItemState[]) => void
+  setFollowMode: (follow: FollowModeState) => void
+  setSceneSummary: (summary: string) => void
+  setSceneTimestamp: (ts: number) => void
+  setSceneExpired: (expired: boolean) => void
+  updateSceneState: (state: Record<string, unknown>) => void
+
   reset: () => void
 }
 
@@ -101,6 +151,8 @@ const INITIAL_METRICS: StreamMetrics = {
   droppedFrames: 0,
   lastFrameAge: 0,
 }
+
+const INITIAL_FOLLOW: FollowModeState = { active: false, target: '', track_id: '' }
 
 export const useVisionStore = create<VisionState>((set) => ({
   connected: false,
@@ -128,6 +180,16 @@ export const useVisionStore = create<VisionState>((set) => ({
   hasPtzHardware: true,
   streamMetrics: { ...INITIAL_METRICS },
 
+  // Tracking initial state
+  detectedObjects: [],
+  trackedObjects: [],
+  labeledItems: [],
+  activeWatches: [],
+  followMode: { ...INITIAL_FOLLOW },
+  sceneSummary: '',
+  sceneTimestamp: 0,
+  sceneExpired: true,
+
   setConnected: (connected) => set({ connected }),
   setStreaming: (streaming) => set({ streaming }),
   setCameraStatus: (cameraStatus) => set({ cameraStatus }),
@@ -149,6 +211,26 @@ export const useVisionStore = create<VisionState>((set) => ({
     streamMetrics: { ...s.streamMetrics, ...partial },
   })),
 
+  // Tracking setters
+  setDetectedObjects: (detectedObjects) => set({ detectedObjects }),
+  setTrackedObjects: (trackedObjects) => set({ trackedObjects }),
+  setLabeledItems: (labeledItems) => set({ labeledItems }),
+  setActiveWatches: (activeWatches) => set({ activeWatches }),
+  setFollowMode: (followMode) => set({ followMode }),
+  setSceneSummary: (sceneSummary) => set({ sceneSummary }),
+  setSceneTimestamp: (sceneTimestamp) => set({ sceneTimestamp }),
+  setSceneExpired: (sceneExpired) => set({ sceneExpired }),
+  updateSceneState: (state) => set({
+    trackedObjects: (state.tracked_objects as TrackedObjectState[]) || [],
+    labeledItems: (state.labeled_items as TrackedObjectState[]) || [],
+    activeWatches: (state.active_watches as WatchItemState[]) || [],
+    followMode: (state.follow_mode as FollowModeState) || { ...INITIAL_FOLLOW },
+    sceneExpired: (state.scene_expired as boolean) ?? true,
+    sceneTimestamp: (state.scene as Record<string, unknown>)?.timestamp as number || 0,
+    sceneSummary: (state.scene as Record<string, unknown>)?.summary as string || '',
+    detectedObjects: ((state.scene as Record<string, unknown>)?.objects as TrackedObjectState[]) || [],
+  }),
+
   reset: () => set({
     connected: false,
     streaming: false,
@@ -166,5 +248,13 @@ export const useVisionStore = create<VisionState>((set) => ({
     ptzPosition: { pan: 0, tilt: 0, zoom: 100 },
     ptzMoving: false,
     streamMetrics: { ...INITIAL_METRICS },
+    detectedObjects: [],
+    trackedObjects: [],
+    labeledItems: [],
+    activeWatches: [],
+    followMode: { ...INITIAL_FOLLOW },
+    sceneSummary: '',
+    sceneTimestamp: 0,
+    sceneExpired: true,
   }),
 }))

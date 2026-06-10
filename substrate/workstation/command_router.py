@@ -334,6 +334,7 @@ _CONTINUITY_TRANSITION_SIGNALS = [
 ]
 
 _CAMERA_CONTROL_SIGNALS = [
+    # Start/stop
     "turn on camera",
     "turn off camera",
     "camera on",
@@ -343,12 +344,16 @@ _CAMERA_CONTROL_SIGNALS = [
     "show camera",
     "open camera",
     "open camera tab",
+    # Presets
     "look at me",
     "look at my keyboard",
     "look at the desk",
     "look at my desk",
     "look at the room",
+    "look at my hands",
+    "look at the monitor",
     "watch the room",
+    # Snapshot / analysis
     "take a snapshot",
     "what do you see",
     "what can you see",
@@ -356,10 +361,55 @@ _CAMERA_CONTROL_SIGNALS = [
     "analyze this frame",
     "am i at my desk",
     "is my posture good",
+    "what is on my desk",
+    "what changed",
+    # PTZ movement
+    "move camera",
+    "move the camera",
+    "pan left",
+    "pan right",
+    "tilt up",
+    "tilt down",
+    "center the camera",
+    "stop moving",
+    # Zoom
+    "zoom in",
+    "zoom out",
+    # Quality
+    "switch to smooth",
+    "switch to sharp",
+    "switch to balanced",
+    "switch to analysis",
+    "make the camera clearer",
+    "make the camera smoother",
+    # Presets save
     "save this camera position",
     "save this preset",
+    "save this as",
+    "update the",
+    "what preset am i on",
+    "show my camera presets",
     "where is the camera looking",
     "camera status",
+    # Tracking / scene
+    "track my",
+    "track this",
+    "this is my",
+    "remember this as",
+    "where is my",
+    "keep an eye on",
+    "stop tracking",
+    "watch my",
+    "tell me if",
+    "did the item move",
+    "what items",
+    "detected items",
+    # Follow mode
+    "follow me",
+    "keep me centered",
+    "track my hands",
+    "follow the",
+    "stop following",
 ]
 
 _STARTUP_SEQUENCE_SIGNALS = [
