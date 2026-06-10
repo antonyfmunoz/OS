@@ -112,7 +112,8 @@ class AdvisorConversation:
 
         if is_identity_question(content):
             identity_answer = get_identity_answer(
-                content, voice=(source == "voice"),
+                content,
+                voice=(source == "voice"),
             )
             if identity_answer:
                 response = AdvisorResponse(
@@ -172,6 +173,14 @@ class AdvisorConversation:
                 view_context,
                 context_summary,
             )
+        elif intent == CommandIntent.AGENT_QUERY:
+            from substrate.organism.grounded_handlers import handle_grounded_agents
+
+            response = handle_grounded_agents(content)
+        elif intent == CommandIntent.BLOCKED_QUERY:
+            from substrate.organism.grounded_handlers import handle_grounded_blocked
+
+            response = handle_grounded_blocked(content)
         elif intent == CommandIntent.APPROVAL_QUERY:
             response = self._handle_approval_query()
         elif intent == CommandIntent.WORKSTATION_CONTROL:
@@ -199,7 +208,10 @@ class AdvisorConversation:
             response.routing = self._resolve_routing(content, routing)
 
         self._save_turn(
-            conversation_id, "operator", content, view_context,
+            conversation_id,
+            "operator",
+            content,
+            view_context,
             routing=routing,
         )
         self._save_turn(
@@ -219,6 +231,7 @@ class AdvisorConversation:
         # Cache response for voice turn idempotency
         if voice_turn_id:
             import time as _time
+
             self._voice_turn_cache[voice_turn_id] = (response, _time.time())
 
         return response
@@ -226,9 +239,11 @@ class AdvisorConversation:
     def _clean_voice_turn_cache(self) -> None:
         """Remove expired entries from the voice turn cache."""
         import time as _time
+
         now = _time.time()
         expired = [
-            k for k, (_, ts) in self._voice_turn_cache.items()
+            k
+            for k, (_, ts) in self._voice_turn_cache.items()
             if now - ts > self._VOICE_TURN_CACHE_TTL_S
         ]
         for k in expired:
@@ -242,11 +257,13 @@ class AdvisorConversation:
         """
         try:
             from substrate.execution.bridge.voice_first import prepare_voice_response
+
             return prepare_voice_response(text)
         except Exception as exc:
             logger.debug("voice_first.prepare_voice_response unavailable: %s", exc)
 
         import re
+
         # Strip code blocks
         cleaned = re.sub(r"```[\s\S]*?```", "", text)
         # Strip markdown formatting
@@ -262,6 +279,7 @@ class AdvisorConversation:
         """Run the voice route resolver and return routing dict for the response."""
         try:
             from substrate.workstation.voice_route_resolver import resolve_voice_route
+
             source_session_id = routing.get("source_session_id", "")
             requested_target = routing.get("execution_target")
             route = resolve_voice_route(
@@ -282,6 +300,15 @@ class AdvisorConversation:
         view_context: dict[str, Any] | None,
         context_summary: str,
     ) -> AdvisorResponse:
+        # Grounding guard: catch status-seeking queries that classify_intent missed
+        from substrate.organism.grounding_registry import detect_status_seeking
+
+        status_type = detect_status_seeking(content)
+        if status_type:
+            from substrate.organism.grounded_handlers import handle_grounded_status
+
+            return handle_grounded_status(content)
+
         from substrate.state.business.business_instance import get_ai_name
 
         ai_name = get_ai_name() or "Assistant"
@@ -603,72 +630,16 @@ class AdvisorConversation:
             )
 
     def _handle_resume(self) -> AdvisorResponse:
-        try:
-            result = self._advisor.handle_signal("what should resume next")
-            text = self._format_advisor_result(result)
-            return AdvisorResponse(
-                text=text,
-                conversation_id="",
-                intent="resume_query",
-                suggested_actions=[
-                    {
-                        "label": "Open Command Center",
-                        "action": "navigate",
-                        "payload": {"panel": "commandcenter"},
-                    },
-                    {
-                        "label": "Show Blocked",
-                        "action": "query",
-                        "payload": {"content": "what is blocked"},
-                    },
-                ],
-            )
-        except Exception as exc:
-            return AdvisorResponse(
-                text=f"Resume query failed: {exc}",
-                conversation_id="",
-                intent="resume_query",
-            )
+        # Deterministic-first: real event/state data, no LLM fabrication
+        from substrate.organism.grounded_handlers import handle_grounded_resume
+
+        return handle_grounded_resume()
 
     def _handle_status(self, content: str) -> AdvisorResponse:
-        try:
-            result = self._advisor.handle_signal(content)
-            text = self._format_advisor_result(result)
-            if text and text not in ("Signal processed.", "No response from advisor.", ""):
-                return AdvisorResponse(
-                    text=text,
-                    conversation_id="",
-                    intent="status_query",
-                    suggested_actions=[
-                        {
-                            "label": "Open Command Center",
-                            "action": "navigate",
-                            "payload": {"panel": "commandcenter"},
-                        },
-                        {
-                            "label": "What's Next?",
-                            "action": "query",
-                            "payload": {"content": "what should we do next"},
-                        },
-                    ],
-                )
-        except Exception as exc:
-            logger.debug("Advisor status failed, using deterministic: %s", exc)
+        # Deterministic-first: real data only, no LLM fabrication
+        from substrate.organism.grounded_handlers import handle_grounded_status
 
-        text = self._deterministic_status()
-        return AdvisorResponse(
-            text=text,
-            conversation_id="",
-            intent="status_query",
-            metadata={"model_tier": "deterministic", "model": "fallback"},
-            suggested_actions=[
-                {
-                    "label": "Open Command Center",
-                    "action": "navigate",
-                    "payload": {"panel": "commandcenter"},
-                },
-            ],
-        )
+        return handle_grounded_status(content)
 
     def _deterministic_status(self) -> str:
         """Read organism state directly without LLM — always works."""
@@ -843,6 +814,15 @@ class AdvisorConversation:
         content: str,
         context_summary: str,
     ) -> AdvisorResponse:
+        # Grounding guard: prevent status fabrication through the advisor path
+        from substrate.organism.grounding_registry import detect_status_seeking
+
+        status_type = detect_status_seeking(content)
+        if status_type:
+            from substrate.organism.grounded_handlers import handle_grounded_status
+
+            return handle_grounded_status(content)
+
         enriched = f"{context_summary} {content}".strip() if context_summary else content
         try:
             result = self._advisor.handle_signal(enriched)
@@ -915,12 +895,14 @@ class AdvisorConversation:
                 for f in sorted(approval_dir.glob("*.json")):
                     try:
                         entry = json.loads(f.read_text())
-                        approvals.append({
-                            "id": entry.get("id", f.stem),
-                            "title": entry.get("title", entry.get("command", f.stem)),
-                            "risk": entry.get("risk", "unknown"),
-                            "created_at": entry.get("created_at", ""),
-                        })
+                        approvals.append(
+                            {
+                                "id": entry.get("id", f.stem),
+                                "title": entry.get("title", entry.get("command", f.stem)),
+                                "risk": entry.get("risk", "unknown"),
+                                "created_at": entry.get("created_at", ""),
+                            }
+                        )
                     except Exception:
                         pass
         except Exception:
@@ -933,7 +915,11 @@ class AdvisorConversation:
                 intent="approval_query",
                 metadata={"model_tier": "deterministic", "count": 0},
                 suggested_actions=[
-                    {"label": "Status", "action": "query", "payload": {"content": "current status"}},
+                    {
+                        "label": "Status",
+                        "action": "query",
+                        "payload": {"content": "current status"},
+                    },
                 ],
             )
 
@@ -948,9 +934,17 @@ class AdvisorConversation:
             text="\n".join(lines),
             conversation_id="",
             intent="approval_query",
-            metadata={"model_tier": "deterministic", "count": len(approvals), "approvals": approvals},
+            metadata={
+                "model_tier": "deterministic",
+                "count": len(approvals),
+                "approvals": approvals,
+            },
             suggested_actions=[
-                {"label": "Open Approvals", "action": "navigate", "payload": {"panel": "approvals"}},
+                {
+                    "label": "Open Approvals",
+                    "action": "navigate",
+                    "payload": {"panel": "approvals"},
+                },
             ],
         )
 
@@ -967,14 +961,16 @@ class AdvisorConversation:
 
         if action == "screenshot":
             return self._execute_workstation_command(
-                "desktop.screenshot", {},
+                "desktop.screenshot",
+                {},
                 "Taking a screenshot.",
                 "workstation_control",
             )
 
         if action == "list_windows":
             return self._execute_workstation_command(
-                "desktop.list_windows", {},
+                "desktop.list_windows",
+                {},
                 "Listing open windows.",
                 "workstation_control",
             )
@@ -994,7 +990,8 @@ class AdvisorConversation:
             if ps_cmd:
                 label = action.replace("media_", "").capitalize()
                 return self._execute_workstation_command(
-                    "shell.powershell", {"command": ps_cmd},
+                    "shell.powershell",
+                    {"command": ps_cmd},
                     f"{label} — sent media key.",
                     "workstation_control",
                 )
@@ -1011,7 +1008,12 @@ class AdvisorConversation:
                 text=f"That requires approval — {desc} is a high-risk external action.",
                 conversation_id="",
                 intent="workstation_control",
-                metadata={"action": action, "target": target, "blocked": True, "target_node": "beast_windows"},
+                metadata={
+                    "action": action,
+                    "target": target,
+                    "blocked": True,
+                    "target_node": "beast_windows",
+                },
                 suggested_actions=[
                     {"label": "Approve", "action": "approve", "payload": {"command": content}},
                 ],
@@ -1022,19 +1024,22 @@ class AdvisorConversation:
             url = target.get("target_url", "")
             if action == "focus" and process:
                 return self._execute_workstation_command(
-                    "desktop.focus_window", {"process": process},
+                    "desktop.focus_window",
+                    {"process": process},
                     f"Focusing {app}.",
                     "workstation_control",
                 )
             if url:
                 return self._execute_workstation_command(
-                    "shell.powershell", {"command": f'Start-Process "{url}"'},
+                    "shell.powershell",
+                    {"command": f'Start-Process "{url}"'},
                     f"Opening {app}.",
                     "workstation_control",
                 )
             if process:
                 return self._execute_workstation_command(
-                    "shell.powershell", {"command": f'Start-Process "{process}"'},
+                    "shell.powershell",
+                    {"command": f'Start-Process "{process}"'},
                     f"Opening {app}.",
                     "workstation_control",
                 )
@@ -1050,7 +1055,11 @@ class AdvisorConversation:
             conversation_id="",
             intent="workstation_control",
             suggested_actions=[
-                {"label": "List Windows", "action": "query", "payload": {"content": "what windows are open"}},
+                {
+                    "label": "List Windows",
+                    "action": "query",
+                    "payload": {"content": "what windows are open"},
+                },
             ],
         )
 
@@ -1092,9 +1101,21 @@ class AdvisorConversation:
                     "target_node": "vps",
                 },
                 suggested_actions=[
-                    {"label": "VPS Status", "action": "query", "payload": {"content": "show vps status"}},
-                    {"label": "Docker Containers", "action": "query", "payload": {"content": "show docker containers"}},
-                    {"label": "Provider Health", "action": "query", "payload": {"content": "check provider health"}},
+                    {
+                        "label": "VPS Status",
+                        "action": "query",
+                        "payload": {"content": "show vps status"},
+                    },
+                    {
+                        "label": "Docker Containers",
+                        "action": "query",
+                        "payload": {"content": "show docker containers"},
+                    },
+                    {
+                        "label": "Provider Health",
+                        "action": "query",
+                        "payload": {"content": "check provider health"},
+                    },
                 ],
             )
 
@@ -1114,8 +1135,11 @@ class AdvisorConversation:
                     "requires_approval": True,
                 },
                 suggested_actions=[
-                    {"label": f"Approve {result.display_name}", "action": "approve",
-                     "payload": {"command": content, "vps_action": result.action}},
+                    {
+                        "label": f"Approve {result.display_name}",
+                        "action": "approve",
+                        "payload": {"command": content, "vps_action": result.action},
+                    },
                 ],
             )
 
@@ -1158,8 +1182,16 @@ class AdvisorConversation:
                 "risk": result.risk,
             },
             suggested_actions=[
-                {"label": "VPS Status", "action": "query", "payload": {"content": "show vps status"}},
-                {"label": "Docker Containers", "action": "query", "payload": {"content": "show docker containers"}},
+                {
+                    "label": "VPS Status",
+                    "action": "query",
+                    "payload": {"content": "show vps status"},
+                },
+                {
+                    "label": "Docker Containers",
+                    "action": "query",
+                    "payload": {"content": "show docker containers"},
+                },
             ],
         )
 
@@ -1176,6 +1208,7 @@ class AdvisorConversation:
 
         try:
             from substrate.workstation.continuity import ContinuityState
+
             valid_states = {s.value for s in ContinuityState}
             if target_state not in valid_states:
                 return AdvisorResponse(
@@ -1189,6 +1222,7 @@ class AdvisorConversation:
         risk_info = ""
         try:
             from substrate.workstation.lifecycle_modes import LifecycleMode
+
             mode_map = {
                 "active": LifecycleMode.DAY_CYCLE,
                 "night_sleeping": LifecycleMode.NIGHT_CYCLE,
@@ -1218,6 +1252,7 @@ class AdvisorConversation:
 
         try:
             from adapters.models.model_router import MODEL_REGISTRY, refresh_provider_health
+
             try:
                 refresh_provider_health()
             except Exception:
@@ -1229,10 +1264,12 @@ class AdvisorConversation:
 
         try:
             import urllib.request
+
             health_host = os.environ.get("UMH_API_HOST", "localhost")
             health_port = os.environ.get("UMH_API_PORT", "8091")
             req = urllib.request.Request(
-                f"http://{health_host}:{health_port}/health", method="GET",
+                f"http://{health_host}:{health_port}/health",
+                method="GET",
             )
             with urllib.request.urlopen(req, timeout=3) as resp:
                 lines.append("**VPS API:** healthy")
@@ -1244,7 +1281,10 @@ class AdvisorConversation:
         try:
             import json as _json
             from pathlib import Path
-            mesh_file = Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "runtime" / "mesh_nodes.json"
+
+            mesh_file = (
+                Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "runtime" / "mesh_nodes.json"
+            )
             if mesh_file.exists():
                 nodes = _json.loads(mesh_file.read_text())
                 for node in nodes:
@@ -1265,12 +1305,14 @@ class AdvisorConversation:
 
         try:
             from substrate.workstation.continuity import ContinuityState
+
             lines.append(f"**Continuity:** transitioning to {ContinuityState.ACTIVE.value}")
         except ImportError:
             pass
 
         try:
             from substrate.workstation.resume_brief import ReturnBriefGenerator
+
             gen = ReturnBriefGenerator()
             brief = gen.generate_brief()
             if brief:
@@ -1287,7 +1329,11 @@ class AdvisorConversation:
             metadata={"node_status": node_status},
             suggested_actions=[
                 {"label": "Full Status", "action": "query", "payload": {"content": "full status"}},
-                {"label": "What's Next?", "action": "query", "payload": {"content": "what should we do next"}},
+                {
+                    "label": "What's Next?",
+                    "action": "query",
+                    "payload": {"content": "what should we do next"},
+                },
             ],
         )
 
@@ -1308,6 +1354,7 @@ class AdvisorConversation:
 
         try:
             from substrate.workstation.profile_modes import ProfileMode
+
             profile_values = {m.value for m in ProfileMode}
         except ImportError:
             profile_values = set()
@@ -1319,7 +1366,11 @@ class AdvisorConversation:
                 intent="mode_switch",
                 metadata={"profile_mode": target},
                 suggested_actions=[
-                    {"label": "Status", "action": "query", "payload": {"content": "current status"}},
+                    {
+                        "label": "Status",
+                        "action": "query",
+                        "payload": {"content": "current status"},
+                    },
                 ],
             )
 
@@ -1345,7 +1396,9 @@ class AdvisorConversation:
         desktop_node_id = None
         mesh_file = Path(
             os.environ.get("UMH_ROOT", "/opt/OS"),
-            "data", "runtime", "mesh_nodes.json",
+            "data",
+            "runtime",
+            "mesh_nodes.json",
         )
         try:
             if mesh_file.exists():
@@ -1367,7 +1420,11 @@ class AdvisorConversation:
             )
 
         return self._dispatch_via_http_relay(
-            desktop_node_id, capability, params, success_text, intent,
+            desktop_node_id,
+            capability,
+            params,
+            success_text,
+            intent,
         )
 
     def _dispatch_via_http_relay(
@@ -1385,16 +1442,20 @@ class AdvisorConversation:
         relay_port = os.environ.get("UMH_MESH_RELAY_PORT", "8095")
         url = f"http://{relay_host}:{relay_port}/dispatch"
 
-        payload = json.dumps({
-            "node_id": node_id,
-            "capability": capability,
-            "params": params,
-            "timeout": 15,
-        }).encode()
+        payload = json.dumps(
+            {
+                "node_id": node_id,
+                "capability": capability,
+                "params": params,
+                "timeout": 15,
+            }
+        ).encode()
 
         try:
             req = urllib.request.Request(
-                url, data=payload, method="POST",
+                url,
+                data=payload,
+                method="POST",
                 headers={"Content-Type": "application/json"},
             )
             with urllib.request.urlopen(req, timeout=20) as resp:
@@ -1436,10 +1497,16 @@ class AdvisorConversation:
                     "latency_ms": result.get("latency_ms", 0),
                 },
                 suggested_actions=[
-                    {"label": "List Windows", "action": "query",
-                     "payload": {"content": "list windows"}},
-                    {"label": "Screenshot", "action": "query",
-                     "payload": {"content": "take a screenshot"}},
+                    {
+                        "label": "List Windows",
+                        "action": "query",
+                        "payload": {"content": "list windows"},
+                    },
+                    {
+                        "label": "Screenshot",
+                        "action": "query",
+                        "payload": {"content": "take a screenshot"},
+                    },
                 ],
             )
         else:
