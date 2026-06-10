@@ -106,6 +106,11 @@ _mesh_dispatch_url = os.getenv(
     "http://localhost:8095/dispatch",
 )
 
+# ── Diagnostic overlay state ─────────────────────────────────────
+
+_diagnostic_overlay_active = False
+_diagnostic_overlay_task: asyncio.Task | None = None
+
 # ── Realtime PTZ motion loop state ────────────────────────────────
 
 _motion_active = False
@@ -152,25 +157,24 @@ async def _motion_loop() -> None:
                 await _broadcast_motion_state("idle")
                 break
 
+            pan_delta = 0
+            tilt_delta = 0
+            zoom_delta = 0
+
             if abs(_motion_pan_velocity) > 0.01 or abs(_motion_tilt_velocity) > 0.01:
-                step_scale = _motion_speed * 3
-                pan_delta = int(_motion_pan_velocity * step_scale)
-                tilt_delta = int(_motion_tilt_velocity * step_scale)
-                if pan_delta != 0 or tilt_delta != 0:
-                    await _dispatch_to_beast("camera.set_position_relative", {
-                        "pan_delta": pan_delta,
-                        "tilt_delta": tilt_delta,
-                        "zoom_delta": 0,
-                    })
+                step_scale = _motion_speed * 8
+                pan_delta = round(_motion_pan_velocity * step_scale)
+                tilt_delta = round(_motion_tilt_velocity * step_scale)
 
             if abs(_motion_zoom_velocity) > 0.01:
-                zoom_step = int(_motion_zoom_velocity * _motion_speed * 5)
-                if zoom_step != 0:
-                    await _dispatch_to_beast("camera.set_position_relative", {
-                        "pan_delta": 0,
-                        "tilt_delta": 0,
-                        "zoom_delta": zoom_step,
-                    })
+                zoom_delta = round(_motion_zoom_velocity * _motion_speed * 10)
+
+            if pan_delta != 0 or tilt_delta != 0 or zoom_delta != 0:
+                await _dispatch_to_beast("camera.set_position_relative", {
+                    "pan_delta": pan_delta,
+                    "tilt_delta": tilt_delta,
+                    "zoom_delta": zoom_delta,
+                })
 
             loop_count += 1
             elapsed_total = time.time() - loop_start
@@ -200,7 +204,7 @@ async def _start_motion(
     tilt_velocity: float,
     zoom_velocity: float = 0.0,
     speed: float = 1.0,
-    guard_ms: int = 500,
+    guard_ms: int = 2000,
 ) -> None:
     """Start or replace the active motion loop."""
     global _motion_active, _motion_id, _motion_pan_velocity, _motion_tilt_velocity
@@ -273,8 +277,10 @@ async def _stop_motion(motion_id: str = "") -> None:
 
 
 async def _dispatch_motion_stop() -> None:
-    """Send immediate stop to Beast hardware."""
-    pass
+    """Send immediate stop to Beast hardware — zero-delta command."""
+    await _dispatch_to_beast("camera.set_position_relative", {
+        "pan_delta": 0, "tilt_delta": 0, "zoom_delta": 0,
+    })
 
 
 async def _broadcast_motion_state(state: str) -> None:
@@ -827,6 +833,10 @@ async def handle_vision(ws: Any) -> None:
                 result = _security_state()
                 await send_json(ws, {"type": "vision_security_state", **result})
 
+            elif msg_type == "vision_diagnostic_overlay":
+                enabled = bool(msg.get("enabled", False))
+                await _toggle_diagnostic_overlay(enabled)
+
             elif msg_type == "vision_health":
                 health = _build_health()
                 await send_json(ws, {"type": "vision_health", **health})
@@ -841,6 +851,94 @@ async def handle_vision(ws: Any) -> None:
             log.warning("last viewer disconnected while motion active, stopping motion")
             await _stop_motion()
         await _broadcast_session_state()
+
+
+def _build_diagnostic_overlays() -> list[dict[str, Any]]:
+    """Generate synthetic overlay data for render chain calibration."""
+    t = time.time()
+    phase = (t % 4.0) / 4.0  # 0..1 over 4 seconds
+    return [
+        {
+            "type": "object",
+            "track_id": "diag_center",
+            "label": "DIAG: center",
+            "confidence": 0.99,
+            "bbox": {"x": 0.35, "y": 0.3, "w": 0.3, "h": 0.4},
+            "color": "#facc15",
+        },
+        {
+            "type": "object",
+            "track_id": "diag_tl",
+            "label": "DIAG: top-left",
+            "confidence": 0.80,
+            "bbox": {"x": 0.02, "y": 0.02, "w": 0.12, "h": 0.1},
+            "color": "#f97316",
+        },
+        {
+            "type": "object",
+            "track_id": "diag_br",
+            "label": "DIAG: bottom-right",
+            "confidence": 0.80,
+            "bbox": {"x": 0.86, "y": 0.88, "w": 0.12, "h": 0.1},
+            "color": "#f97316",
+        },
+        {
+            "type": "object",
+            "track_id": "diag_moving",
+            "label": f"DIAG: sweep ({phase:.0%})",
+            "confidence": 0.95,
+            "bbox": {"x": 0.05 + phase * 0.7, "y": 0.45, "w": 0.1, "h": 0.1},
+            "color": "#22d3ee",
+        },
+    ]
+
+
+async def _diagnostic_overlay_loop() -> None:
+    """Broadcast synthetic overlays at 4Hz while diagnostic mode is active."""
+    global _diagnostic_overlay_active
+    log.info("diagnostic overlay loop started")
+    try:
+        while _diagnostic_overlay_active:
+            overlays = _build_diagnostic_overlays()
+            payload = json.dumps({"type": "vision_overlay", "overlays": overlays})
+            dead: set[Any] = set()
+            for ws in _clients:
+                try:
+                    await ws.send(payload)
+                except Exception:
+                    dead.add(ws)
+            _clients.difference_update(dead)
+            await asyncio.sleep(0.25)
+    except asyncio.CancelledError:
+        pass
+    finally:
+        log.info("diagnostic overlay loop stopped")
+
+
+async def _toggle_diagnostic_overlay(enabled: bool) -> None:
+    """Start or stop the diagnostic overlay broadcast loop."""
+    global _diagnostic_overlay_active, _diagnostic_overlay_task
+    if enabled and not _diagnostic_overlay_active:
+        _diagnostic_overlay_active = True
+        _diagnostic_overlay_task = asyncio.ensure_future(_diagnostic_overlay_loop())
+        log.info("diagnostic overlay enabled")
+    elif not enabled and _diagnostic_overlay_active:
+        _diagnostic_overlay_active = False
+        if _diagnostic_overlay_task and not _diagnostic_overlay_task.done():
+            _diagnostic_overlay_task.cancel()
+            try:
+                await _diagnostic_overlay_task
+            except asyncio.CancelledError:
+                pass
+        _diagnostic_overlay_task = None
+        # Send empty overlays to clear the display
+        payload = json.dumps({"type": "vision_overlay", "overlays": []})
+        for ws in list(_clients):
+            try:
+                await ws.send(payload)
+            except Exception:
+                pass
+        log.info("diagnostic overlay disabled")
 
 
 async def _start_stream(
@@ -893,7 +991,8 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
     _last_frame_at = time.time()
     _frame_count += 1
 
-    if meta.get("overlays"):
+    overlays = meta.get("overlays")
+    if overlays:
         _last_overlay_at = time.time()
         _overlay_count += 1
 
@@ -901,6 +1000,11 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
     for ws in _clients:
         try:
             await ws.send(jpeg_bytes)
+            if overlays:
+                await ws.send(json.dumps({
+                    "type": "vision_overlay",
+                    "overlays": overlays,
+                }))
         except Exception:
             dead.add(ws)
     if dead:
@@ -1307,8 +1411,8 @@ async def _analyze_current_frame(transcript: str = "") -> dict:
     return {"answer": analysis, "confidence": "grounded", "source": "vlm_analysis"}
 
 
-async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str, Any] | None:
-    """Dispatch a camera command to Beast via the mesh HTTP relay."""
+def _dispatch_to_beast_sync(operation: str, params: dict[str, Any]) -> dict[str, Any] | None:
+    """Blocking mesh dispatch — runs in thread pool via _dispatch_to_beast."""
     try:
         import urllib.request
 
@@ -1329,6 +1433,12 @@ async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str
     except Exception as exc:
         log.warning("mesh dispatch failed (%s): %s", operation, exc)
         return None
+
+
+async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str, Any] | None:
+    """Non-blocking mesh dispatch — offloads to thread pool."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _dispatch_to_beast_sync, operation, params)
 
 
 def _build_health() -> dict[str, Any]:
