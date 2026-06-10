@@ -77,6 +77,8 @@ def _track_result(success: bool) -> None:
 
 _HERMES_NODE_ID = os.environ.get("HERMES_NODE_ID", "windows-desktop")
 _hermes_on_path: bool | None = None
+_hermes_path_checked_at: float = 0
+_HERMES_PATH_TTL: float = 300
 
 
 def _mesh_dispatch(capability: str, params: dict, timeout: float | None = None) -> dict | None:
@@ -140,18 +142,22 @@ def _beast_connected() -> bool:
 
 def is_available() -> bool:
     """Check if Beast is connected and hermes binary is on PATH."""
-    global _hermes_on_path
+    global _hermes_on_path, _hermes_path_checked_at
 
     if not _beast_connected():
+        _hermes_on_path = None
         return False
 
-    if _hermes_on_path is not None:
+    if _hermes_on_path is not None and (time.time() - _hermes_path_checked_at) < _HERMES_PATH_TTL:
         return _hermes_on_path
 
     result = _hermes_shell("hermes --version", timeout=10)
-    if result and result.get("success") and "hermes" in result.get("stdout", "").lower():
-        _hermes_on_path = True
-        return True
+    _hermes_path_checked_at = time.time()
+    if result and result.get("success"):
+        stdout = result.get("stdout", "")
+        if "hermes" in stdout.lower() and ("agent" in stdout.lower() or "v0." in stdout.lower()):
+            _hermes_on_path = True
+            return True
 
     _hermes_on_path = False
     return False
@@ -206,9 +212,22 @@ def query_hermes_sync(
 
     start_ms = time.monotonic_ns() // 1_000_000
 
-    safe_prompt = prompt.replace("'", "''")
-    cmd = f"hermes -z '{safe_prompt}'"
-    result = _hermes_shell(cmd, timeout=timeout)
+    import base64
+
+    clean = prompt.replace("\x00", "").replace("\r", " ").replace("\n", " ")
+    if len(clean) > 4000:
+        clean = clean[:4000]
+    b64 = base64.b64encode(clean.encode("utf-8")).decode("ascii")
+    cmd = (
+        f"$p = [System.Text.Encoding]::UTF8.GetString("
+        f"[Convert]::FromBase64String('{b64}')); "
+        f"hermes -z $p"
+    )
+    result = _mesh_dispatch(
+        "shell.powershell",
+        {"command": cmd, "timeout": int(timeout)},
+        timeout=timeout,
+    )
 
     elapsed_ms = (time.monotonic_ns() // 1_000_000) - start_ms
 

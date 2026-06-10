@@ -638,7 +638,7 @@ class NodeMeshServer:
 
         try:
             logger.info("starting http command relay on port %d...", http_port)
-            bind_host = os.environ.get("UMH_MESH_RELAY_BIND", "0.0.0.0")
+            bind_host = os.environ.get("UMH_MESH_RELAY_BIND", "127.0.0.1")
             srv = await asyncio.start_server(handle_request, bind_host, http_port)
             logger.info("http command relay listening on :%d", http_port)
             async with srv:
