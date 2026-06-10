@@ -1,6 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { VisionWsClient } from '../api/vision-ws'
-import { useVisionStore, type CameraPreset } from '../stores/visionStore'
+import {
+  useVisionStore,
+  QUALITY_PROFILES,
+  type CameraPreset,
+} from '../stores/visionStore'
 
 let _client: VisionWsClient | null = null
 
@@ -16,19 +20,33 @@ export function useVisionConnection(): void {
   const setError = useVisionStore((s) => s.setError)
   const setPresets = useVisionStore((s) => s.setPresets)
   const incrementFrameCount = useVisionStore((s) => s.incrementFrameCount)
+  const setPtzPosition = useVisionStore((s) => s.setPtzPosition)
+  const setPtzMoving = useVisionStore((s) => s.setPtzMoving)
+  const setHasPtzHardware = useVisionStore((s) => s.setHasPtzHardware)
+  const updateStreamMetrics = useVisionStore((s) => s.updateStreamMetrics)
   const reset = useVisionStore((s) => s.reset)
+
+  const metricsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (!_client) _client = new VisionWsClient()
     const client = _client
+
+    const profile = QUALITY_PROFILES[useVisionStore.getState().qualityMode]
 
     const unsubs = [
       client.on('connected', () => {
         setConnected(true)
         client.requestPresets()
         client.requestStatus()
-        client.startCamera({ fps: 15, width: 640, height: 480, quality: 65 })
-        client.subscribe(15, 65)
+        client.requestPosition()
+        client.startCamera({
+          fps: profile.fps,
+          width: profile.width,
+          height: profile.height,
+          quality: profile.quality,
+        })
+        client.subscribe(profile.fps, profile.quality)
       }),
       client.on('disconnected', () => {
         setConnected(false)
@@ -46,6 +64,32 @@ export function useVisionConnection(): void {
       }),
       client.on('camera_presets', (d) => {
         setPresets(d.presets as Record<string, CameraPreset>)
+      }),
+      client.on('camera_position', (d) => {
+        setPtzPosition({
+          pan: d.pan as number,
+          tilt: d.tilt as number,
+          zoom: d.zoom as number,
+        })
+        if (d.has_ptz_hardware !== undefined) {
+          setHasPtzHardware(d.has_ptz_hardware as boolean)
+        }
+        setPtzMoving(false)
+      }),
+      client.on('camera_control_result', (d) => {
+        const ok = d.ok as boolean
+        if (!ok) {
+          setError(d.error as string || 'PTZ command failed')
+          setTimeout(() => setError(null), 3000)
+        }
+        setPtzMoving(false)
+        if (d.pan !== undefined) {
+          setPtzPosition({
+            pan: d.pan as number,
+            tilt: d.tilt as number,
+            zoom: d.zoom as number,
+          })
+        }
       }),
       client.on('vision_snapshot', (d) => {
         const b64 = d.image_base64 as string
@@ -68,12 +112,24 @@ export function useVisionConnection(): void {
       }),
     ]
 
+    metricsInterval.current = setInterval(() => {
+      if (!client.connected) return
+      const lastFrame = useVisionStore.getState().latestFrameAt
+      updateStreamMetrics({
+        actualFps: client.measuredFps,
+        targetFps: QUALITY_PROFILES[useVisionStore.getState().qualityMode].fps,
+        avgFrameSize: client.avgFrameSize,
+        lastFrameAge: lastFrame ? Date.now() - lastFrame : 0,
+      })
+    }, 1000)
+
     client.connect().catch((err) => {
       setError(`Vision relay: ${err.message}`)
     })
 
     return () => {
       unsubs.forEach((fn) => fn())
+      if (metricsInterval.current) clearInterval(metricsInterval.current)
       client.unsubscribe()
       client.disconnect()
       _client = null
