@@ -4,6 +4,9 @@ import {
   useVisionStore,
   QUALITY_PROFILES,
   type CameraPreset,
+  type TrackedObjectState,
+  type WatchItemState,
+  type FollowModeState,
 } from '../stores/visionStore'
 
 let _client: VisionWsClient | null = null
@@ -24,9 +27,15 @@ export function useVisionConnection(): void {
   const setPtzMoving = useVisionStore((s) => s.setPtzMoving)
   const setHasPtzHardware = useVisionStore((s) => s.setHasPtzHardware)
   const updateStreamMetrics = useVisionStore((s) => s.updateStreamMetrics)
+  const setAnalysisResult = useVisionStore((s) => s.setAnalysisResult)
+  const setAnalysisStatus = useVisionStore((s) => s.setAnalysisStatus)
+  const updateSceneState = useVisionStore((s) => s.updateSceneState)
+  const setTrackedObjects = useVisionStore((s) => s.setTrackedObjects)
+  const setFollowMode = useVisionStore((s) => s.setFollowMode)
   const reset = useVisionStore((s) => s.reset)
 
   const metricsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const sceneInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (!_client) _client = new VisionWsClient()
@@ -47,6 +56,7 @@ export function useVisionConnection(): void {
           quality: profile.quality,
         })
         client.subscribe(profile.fps, profile.quality)
+        client.requestSceneState()
       }),
       client.on('disconnected', () => {
         setConnected(false)
@@ -110,8 +120,43 @@ export function useVisionConnection(): void {
       client.on('preset_saved', () => {
         client.requestPresets()
       }),
+
+      // Scene / tracking events
+      client.on('vision_scene_state', (d) => {
+        updateSceneState(d)
+      }),
+      client.on('vision_analysis_result', (d) => {
+        setAnalysisResult(d.answer as string)
+        setAnalysisStatus(d.confidence === 'none' ? 'error' : 'complete')
+        setTimeout(() => setAnalysisStatus('idle'), 10000)
+      }),
+      client.on('vision_track_result', (d) => {
+        if (d.success) client.requestSceneState()
+      }),
+      client.on('vision_label_result', (d) => {
+        if (d.success) client.requestSceneState()
+      }),
+      client.on('vision_watch_result', (d) => {
+        if (d.success) client.requestSceneState()
+      }),
+      client.on('vision_follow_result', (d) => {
+        if (d.success) {
+          setFollowMode({
+            active: true,
+            target: d.target as string || 'operator',
+            track_id: '',
+          })
+        }
+        client.requestSceneState()
+      }),
+      client.on('vision_query_result', (d) => {
+        setAnalysisResult(d.answer as string)
+        setAnalysisStatus('complete')
+        setTimeout(() => setAnalysisStatus('idle'), 10000)
+      }),
     ]
 
+    // Metrics polling — 1s
     metricsInterval.current = setInterval(() => {
       if (!client.connected) return
       const lastFrame = useVisionStore.getState().latestFrameAt
@@ -123,6 +168,12 @@ export function useVisionConnection(): void {
       })
     }, 1000)
 
+    // Scene state polling — 5s
+    sceneInterval.current = setInterval(() => {
+      if (!client.connected) return
+      client.requestSceneState()
+    }, 5000)
+
     client.connect().catch((err) => {
       setError(`Vision relay: ${err.message}`)
     })
@@ -130,6 +181,7 @@ export function useVisionConnection(): void {
     return () => {
       unsubs.forEach((fn) => fn())
       if (metricsInterval.current) clearInterval(metricsInterval.current)
+      if (sceneInterval.current) clearInterval(sceneInterval.current)
       client.unsubscribe()
       client.disconnect()
       _client = null

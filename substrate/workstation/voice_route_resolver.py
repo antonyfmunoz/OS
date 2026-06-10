@@ -54,7 +54,7 @@ _AUDIO_HERE_PATTERNS = [
 ]
 
 _CAMERA_TARGET_PATTERNS = [
-    r"\blook\s+at\s+(?:me|my\s+keyboard|the\s+desk|my\s+desk|the\s+room)\b",
+    r"\blook\s+at\s+(?:me|my\s+keyboard|the\s+desk|my\s+desk|the\s+room|my\s+hands|the\s+monitor)\b",
     r"\bwatch\s+the\s+room\b",
     r"\bcamera\s+(?:on|off|start|stop|status|preset|snapshot)\b",
     r"\bturn\s+(?:on|off)\s+(?:the\s+)?camera\b",
@@ -65,6 +65,33 @@ _CAMERA_TARGET_PATTERNS = [
     r"\bam\s+i\s+at\s+my\s+desk\b",
     r"\bis\s+my\s+posture\b",
     r"\btake\s+a\s+snapshot\b",
+    # PTZ movement
+    r"\bmove\s+(?:the\s+)?camera\s+(?:left|right|up|down)\b",
+    r"\bpan\s+(?:left|right)\b",
+    r"\btilt\s+(?:up|down)\b",
+    r"\bcenter\s+the\s+camera\b",
+    r"\bstop\s+moving\b",
+    r"\bzoom\s+(?:in|out)\b",
+    # Quality
+    r"\bswitch\s+to\s+(?:smooth|sharp|balanced|analysis)\b",
+    r"\bmake\s+the\s+camera\s+(?:clearer|smoother)\b",
+    # Tracking / scene queries
+    r"\btrack\s+(?:my|this|the)\b",
+    r"\bthis\s+is\s+my\b",
+    r"\bremember\s+this\s+as\b",
+    r"\bwhere\s+is\s+my\b",
+    r"\bkeep\s+an?\s+eye\s+on\b",
+    r"\bstop\s+tracking\b",
+    r"\bwatch\s+my\b",
+    r"\btell\s+me\s+if\b",
+    r"\bwhat\s+is\s+on\s+my\s+desk\b",
+    r"\bwhat\s+changed\b",
+    r"\bdetected\s+items\b",
+    # Follow mode
+    r"\bfollow\s+me\b",
+    r"\bkeep\s+me\s+centered\b",
+    r"\bfollow\s+the\b",
+    r"\bstop\s+following\b",
 ]
 
 

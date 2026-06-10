@@ -14,6 +14,7 @@ import {
 import { getVisionClient } from '../hooks/useVisionConnection'
 import type { PtzDirection } from '../api/vision-ws'
 import { useVisionPopout } from './VisionPopout'
+import { TrackingPanel } from './TrackingPanel'
 
 const QUALITY_LABELS: Record<QualityMode, string> = {
   smooth: 'Smooth',
@@ -336,6 +337,11 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             <span>Frames: {frameCount}</span>
             <span>Dropped: {streamMetrics.droppedFrames}</span>
             <span>Quality: {QUALITY_DESCRIPTIONS[qualityMode]}</span>
+          </div>
+
+          {/* Tracking / Scene Intelligence */}
+          <div className="border-t border-border pt-3">
+            <TrackingPanel />
           </div>
         </>
       )}
