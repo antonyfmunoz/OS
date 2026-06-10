@@ -36,6 +36,7 @@ export function CameraPreview() {
         setConnected(true)
         client.requestPresets()
         client.requestStatus()
+        client.requestSnapshot({ width: 640, height: 480, quality: 50 })
       }),
       client.on('disconnected', () => {
         setConnected(false)
@@ -55,6 +56,18 @@ export function CameraPreview() {
       }),
       client.on('camera_presets', (d) => {
         setPresets(d.presets as Record<string, CameraPreset>)
+      }),
+      client.on('vision_snapshot', (d) => {
+        const b64 = d.image_base64 as string
+        if (b64) {
+          const binary = atob(b64)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+          const blob = new Blob([bytes], { type: 'image/jpeg' })
+          const url = URL.createObjectURL(blob)
+          setLatestFrame(url, Date.now())
+          incrementFrameCount()
+        }
       }),
       client.on('vision_error', (d) => {
         setError(d.error as string)
