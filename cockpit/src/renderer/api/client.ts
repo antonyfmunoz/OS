@@ -20,6 +20,11 @@ export function getWsToken(): string {
   return ''
 }
 
+export async function getClerkToken(): Promise<string | null> {
+  if (!_getToken) return null
+  return _getToken()
+}
+
 const _inflight = new Map<string, Promise<unknown>>()
 
 export async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {

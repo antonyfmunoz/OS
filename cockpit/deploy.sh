@@ -65,11 +65,18 @@ else
   echo -e "${GREEN}OK: start.sh has envsubst${NC}"
 fi
 
-if ! grep -q "X-API-Key" "$COCKPIT_DIR/nginx.conf.template"; then
-  echo -e "${RED}BLOCKED: nginx.conf.template missing X-API-Key header injection${NC}"
+if grep -q "X-API-Key" "$COCKPIT_DIR/nginx.conf.template"; then
+  echo -e "${RED}BLOCKED: nginx.conf.template still injects X-API-Key — security hole${NC}"
   errors=$((errors + 1))
 else
-  echo -e "${GREEN}OK: nginx.conf.template injects X-API-Key${NC}"
+  echo -e "${GREEN}OK: nginx.conf.template does not inject X-API-Key (Clerk JWT auth)${NC}"
+fi
+
+if [ ! -f "$REPO_ROOT/transports/api/cockpit_auth.py" ]; then
+  echo -e "${RED}BLOCKED: transports/api/cockpit_auth.py missing — no server-side auth${NC}"
+  errors=$((errors + 1))
+else
+  echo -e "${GREEN}OK: cockpit_auth.py exists${NC}"
 fi
 
 if [ $errors -gt 0 ]; then

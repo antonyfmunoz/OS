@@ -51,6 +51,34 @@ if [ -n "$VOICE_BRIDGE" ] && ! iptables -C INPUT -i "$VOICE_BRIDGE" -p tcp --dpo
     echo "[dc-up] Added iptables rule: Docker bridge → voice server :8096"
 fi
 
+# ── Security hardening: close permissive iptables rules ─────────────────
+# Remove any 0.0.0.0/0 ACCEPT rules for Ollama and voice server.
+# Only Docker bridge, localhost, and Tailscale should reach these ports.
+for PORT in 11434 8096; do
+    # Remove broad rules (may not exist — ignore errors)
+    iptables -D INPUT -p tcp --dport "$PORT" -j ACCEPT 2>/dev/null || true
+    # Add restrictive rules if not present
+    for SRC in 172.16.0.0/12 127.0.0.0/8 100.64.0.0/10; do
+        iptables -C INPUT -s "$SRC" -p tcp --dport "$PORT" -j ACCEPT 2>/dev/null || \
+            iptables -I INPUT -s "$SRC" -p tcp --dport "$PORT" -j ACCEPT \
+                -m comment --comment "port-${PORT}-from-${SRC}"
+    done
+done
+
+# Defense-in-depth: restrict Docker-published ports via DOCKER-USER chain.
+# Even with 127.0.0.1 binding, this blocks if Docker config reverts.
+for PORT in 8080 8091 8765; do
+    iptables -C DOCKER-USER -p tcp --dport "$PORT" -j DROP 2>/dev/null || \
+        iptables -A DOCKER-USER -p tcp --dport "$PORT" -j DROP \
+            -m comment --comment "block-external-${PORT}"
+    for SRC in 127.0.0.0/8 172.16.0.0/12 100.64.0.0/10; do
+        iptables -C DOCKER-USER -s "$SRC" -p tcp --dport "$PORT" -j ACCEPT 2>/dev/null || \
+            iptables -I DOCKER-USER -s "$SRC" -p tcp --dport "$PORT" -j ACCEPT \
+                -m comment --comment "allow-${SRC}-to-${PORT}"
+    done
+done
+echo "[dc-up] Firewall hardening applied"
+
 echo "[dc-up] Starting containers..."
 docker compose up -d "$@"
 
