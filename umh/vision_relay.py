@@ -63,6 +63,30 @@ _ALLOWED_ORIGINS = {
     "https://universalmetaharness.tech",
 }
 
+def _check_origin(connection: Any, request: Any) -> None:
+    """Reject cross-origin WebSocket connections (CSWSH defense).
+
+    Allows: connections with no Origin header (server-to-server proxy),
+    and connections from allowed origins. Rejects all others.
+    """
+    from http import HTTPStatus
+
+    origin = None
+    try:
+        origin = request.headers.get("Origin")
+    except Exception:
+        pass
+
+    if origin is None:
+        return
+
+    if origin in _ALLOWED_ORIGINS:
+        return
+
+    log.warning("origin rejected: %s", origin)
+    raise websockets.exceptions.InvalidOrigin(origin)
+
+
 _clients: set[Any] = set()
 _latest_frame: bytes | None = None
 _latest_frame_meta: dict[str, Any] = {}
@@ -332,6 +356,7 @@ async def main() -> None:
     async with websockets.serve(
         handle_vision, HOST, PORT,
         ping_interval=20, ping_timeout=20, max_size=MAX_FRAME_BYTES + 1024,
+        process_request=_check_origin,
     ):
         log.info("Vision relay ready — frame fan-out mode")
         await asyncio.Future()
