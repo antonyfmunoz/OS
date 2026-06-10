@@ -244,100 +244,36 @@ async def handle_vision(ws: Any) -> None:
 async def _start_stream(
     fps: int = 2, width: int = 640, height: int = 480, quality: int = 60,
 ) -> None:
-    global _stream_task, _stream_active, _stream_fps, _stream_width, _stream_height, _stream_quality
-    _stream_fps = min(fps, 10)
+    global _stream_active, _stream_fps, _stream_width, _stream_height, _stream_quality
+    _stream_fps = min(fps, 30)
     _stream_width = width
     _stream_height = height
     _stream_quality = quality
-    if _stream_task and not _stream_task.done():
+    if _stream_active:
         log.info("stream already active, updating params")
         return
     _stream_active = True
-    _stream_task = asyncio.create_task(_poll_loop())
-    log.info("stream started: %dx%d @%dfps q%d", width, height, _stream_fps, quality)
+    result = await _dispatch_to_beast("camera.stream_start", {
+        "fps": _stream_fps,
+        "width": _stream_width,
+        "height": _stream_height,
+        "quality": _stream_quality,
+    })
+    if result and result.get("success"):
+        log.info("Beast stream started: %dx%d @%dfps q%d", width, height, _stream_fps, quality)
+    else:
+        log.warning("Beast stream_start failed: %s", result)
     for ws in list(_clients):
         await send_json(ws, {"type": "vision_status", "streaming": True, "fps": _stream_fps})
 
 
 async def _stop_stream() -> None:
-    global _stream_task, _stream_active
+    global _stream_active
     _stream_active = False
-    if _stream_task and not _stream_task.done():
-        _stream_task.cancel()
-        try:
-            await _stream_task
-        except asyncio.CancelledError:
-            pass
-    _stream_task = None
+    await _dispatch_to_beast("camera.stream_stop", {})
     log.info("stream stopped")
     for ws in list(_clients):
         await send_json(ws, {"type": "vision_status", "streaming": False})
-
-
-async def _poll_loop() -> None:
-    """Poll Beast for snapshots at the requested FPS and broadcast to viewers."""
-    global _stream_active
-    interval = 1.0 / max(_stream_fps, 1)
-    consecutive_failures = 0
-    log.info("poll loop started, interval=%.2fs", interval)
-
-    try:
-        while _stream_active and _clients:
-            t0 = time.monotonic()
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, _snapshot_sync, _stream_width, _stream_height, _stream_quality)
-            if result and result.get("success"):
-                consecutive_failures = 0
-                b64 = result.get("image_base64", "")
-                if b64:
-                    try:
-                        jpeg_bytes = base64.b64decode(b64)
-                    except Exception:
-                        jpeg_bytes = None
-                    if jpeg_bytes:
-                        await broadcast_frame(jpeg_bytes, {
-                            "width": result.get("width"),
-                            "height": result.get("height"),
-                            "node_id": _BEAST_NODE_ID,
-                        })
-            else:
-                consecutive_failures += 1
-                if consecutive_failures >= 5:
-                    log.error("5 consecutive snapshot failures, stopping stream")
-                    break
-
-            elapsed = time.monotonic() - t0
-            sleep_time = interval - elapsed
-            if sleep_time > 0:
-                await asyncio.sleep(sleep_time)
-    except asyncio.CancelledError:
-        pass
-    finally:
-        _stream_active = False
-        log.info("poll loop ended")
-
-
-def _snapshot_sync(width: int, height: int, quality: int) -> dict[str, Any] | None:
-    """Blocking snapshot dispatch — runs in executor."""
-    import urllib.request
-    try:
-        payload = json.dumps({
-            "node_id": _BEAST_NODE_ID,
-            "capability": "camera.snapshot",
-            "params": {"width": width, "height": height, "quality": quality},
-            "timeout": 10,
-        }).encode()
-        req = urllib.request.Request(
-            _mesh_dispatch_url,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=12) as resp:
-            data = json.loads(resp.read())
-            return data.get("result_data", data)
-    except Exception as exc:
-        log.debug("poll snapshot failed: %s", exc)
-        return None
 
 
 async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:

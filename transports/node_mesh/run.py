@@ -132,6 +132,15 @@ def main() -> None:
 
     _ensure_docker_relay_access(config.port + 1)
 
+    try:
+        from umh.vision_relay import receive_mesh_frame
+        server.register_frame_callback(
+            lambda node_id, b64: receive_mesh_frame({"node_id": node_id, "image_base64": b64})
+        )
+        logger.info("vision relay frame callback registered")
+    except ImportError:
+        logger.info("vision relay not available — camera frame forwarding disabled")
+
     thread = server.start()
     logger.info("node mesh server running on port %d — waiting for connections", config.port)
 
