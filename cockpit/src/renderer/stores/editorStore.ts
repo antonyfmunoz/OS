@@ -158,40 +158,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   fetchGitStatus: async () => {
     try {
-      const res = await fetch('/api/umh/workspace/git-status')
-      if (res.ok) {
-        const data = await res.json()
-        set({ gitBranch: data.branch || '', gitChangedCount: data.changed_count || 0 })
-      }
+      const data = await fetchApi<{ branch?: string; changed_count?: number }>('/workspace/git-status')
+      set({ gitBranch: data.branch || '', gitChangedCount: data.changed_count || 0 })
     } catch { /* silent */ }
   },
 
   fetchSessions: async () => {
     try {
-      const res = await fetch('/api/umh/claude-session/list')
-      if (res.ok) {
-        const data = await res.json()
-        const sessions = (data.sessions || []).map((s: Record<string, unknown>) => ({
-          name: (s.name as string) || (s.session_name as string) || '',
-          type: ((s.type as string) || 'tmux') as 'tmux' | 'claude-code',
-          status: (s.status as string) || 'unknown',
-        }))
-        set({ sessions })
-      }
+      const data = await fetchApi<{ sessions?: Record<string, unknown>[] }>('/claude-session/list')
+      const sessions = (data.sessions || []).map((s: Record<string, unknown>) => ({
+        name: (s.name as string) || (s.session_name as string) || '',
+        type: ((s.type as string) || 'tmux') as 'tmux' | 'claude-code',
+        status: (s.status as string) || 'unknown',
+      }))
+      set({ sessions })
     } catch { /* silent */ }
   },
 
   delegateToClaudeCode: async (sessionName, prompt) => {
     set({ ccDelegating: true })
     try {
-      const res = await fetch('/api/umh/claude-session/send', {
+      const data = await fetchApi<{ ok: boolean; error?: string }>('/claude-session/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_name: sessionName, text: prompt }),
       })
-      const data = await res.json()
       set({ ccDelegating: false })
-      return data as { ok: boolean; error?: string }
+      return data
     } catch (e) {
       set({ ccDelegating: false })
       return { ok: false, error: e instanceof Error ? e.message : 'failed' }
@@ -200,12 +192,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   captureSession: async (sessionName) => {
     try {
-      const res = await fetch('/api/umh/claude-session/capture', {
+      const data = await fetchApi<Record<string, string>>('/claude-session/capture', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_name: sessionName }),
       })
-      const data = await res.json() as Record<string, string>
       return data.output || data.content || ''
     } catch { return '' }
   },
