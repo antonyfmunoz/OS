@@ -69,6 +69,7 @@ export function useVisionConnection(): void {
       client.on('connected', () => {
         setConnected(true)
         setCameraSessionActive(true)
+        setError(null)
         client.requestPresets()
         client.requestStatus()
         client.requestPosition()
@@ -348,9 +349,7 @@ export function useVisionConnection(): void {
       client.requestHealth()
     }, 5000)
 
-    client.connect().catch((err) => {
-      setError(`Vision relay: ${err.message}`)
-    })
+    client.connect()
 
     return () => {
       unsubs.forEach((fn) => fn())

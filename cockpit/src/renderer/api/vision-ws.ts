@@ -175,25 +175,18 @@ export class VisionWsClient {
 
   connect(): Promise<void> {
     log('ws_connect', VISION_URL)
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<void>((resolve) => {
       const onConnected = this.ws.on('connected', () => {
         log('ws_connected')
         onConnected()
         clearTimeout(timer)
         resolve()
       })
-      const onDisconnected = this.ws.on('disconnected', () => {
-        log('ws_connect_failed', 'disconnected during connect')
-        onDisconnected()
-        clearTimeout(timer)
-        reject(new Error('Vision relay disconnected during connect'))
-      })
       const timer = setTimeout(() => {
         onConnected()
-        onDisconnected()
-        log('ws_connect_timeout', '5s elapsed')
-        reject(new Error('Vision relay connection timed out'))
-      }, 5000)
+        log('ws_connect_timeout', '10s elapsed — WsClient continues reconnecting')
+        resolve()
+      }, 10000)
       this.ws.connect()
     })
   }
