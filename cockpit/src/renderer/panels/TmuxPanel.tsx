@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { usePolling } from '../hooks/usePolling'
 import { ConnectionBanner } from '../components/ConnectionBanner'
+import { fetchApi } from '../api/client'
 
 interface TmuxSession {
   name: string
@@ -17,8 +18,7 @@ export function TmuxPanel() {
 
   const fetchSessions = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/tmux/sessions')
-      const data = await res.json()
+      const data = await fetchApi<{ ok: boolean; sessions: TmuxSession[]; error?: string }>('/tmux/sessions')
       if (data.ok) {
         setSessions(data.sessions)
         setError('')
@@ -36,8 +36,7 @@ export function TmuxPanel() {
     setLoading(true)
     setPaneOutput('')
     try {
-      const res = await fetch(`/api/umh/tmux/capture/${sessionName}/${paneId}`)
-      const data = await res.json()
+      const data = await fetchApi<{ ok: boolean; output: string; error?: string }>(`/tmux/capture/${sessionName}/${paneId}`)
       if (data.ok) {
         setPaneOutput(data.output)
         setError('')

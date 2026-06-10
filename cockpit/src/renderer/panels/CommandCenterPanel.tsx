@@ -5,6 +5,7 @@ import { useCockpitStore } from '../stores/cockpitStore'
 import { useVisionStore } from '../stores/visionStore'
 import { useVisionPopout } from '../components/VisionPopout'
 import { ActionRequired, buildActionItems } from '../components/ActionRequired'
+import { fetchApi } from '../api/client'
 
 interface SummaryData {
   ok: boolean
@@ -84,9 +85,7 @@ export function CommandCenterPanel() {
 
   const fetchSummary = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/command-center/summary')
-      if (!res.ok) throw new Error(`${res.status}`)
-      const data = await res.json()
+      const data = await fetchApi<SummaryData>('/command-center/summary')
       setSummary(data)
       setError('')
     } catch (e: unknown) {
@@ -109,30 +108,27 @@ export function CommandCenterPanel() {
   useEffect(() => {
     const fetchExtras = async () => {
       try {
-        const cRes = await fetch('/api/umh/workstation/continuity')
-        if (cRes.ok) { const d = await cRes.json(); setContinuityState(d.state || 'ACTIVE') }
+        const d = await fetchApi<{ state?: string }>('/workstation/continuity')
+        setContinuityState(d.state || 'ACTIVE')
       } catch { /* silent */ }
       try {
-        const mRes = await fetch('/api/umh/workstation/mode-composite')
-        if (mRes.ok) { const d = await mRes.json(); setRiskCeiling(d.risk_ceiling || 'HIGH'); setLifecycleMode(d.lifecycle_mode || 'DAY_CYCLE') }
+        const d = await fetchApi<{ risk_ceiling?: string; lifecycle_mode?: string }>('/workstation/mode-composite')
+        setRiskCeiling(d.risk_ceiling || 'HIGH'); setLifecycleMode(d.lifecycle_mode || 'DAY_CYCLE')
       } catch { /* silent */ }
       try {
-        const oRes = await fetch('/api/umh/workstation/overnight/status')
-        if (oRes.ok) { const d = await oRes.json(); setOvernightStatus({ safe: d.safe_count || 0, pending: d.pending_count || 0, blocked: d.blocked_count || 0 }) }
+        const d = await fetchApi<{ safe_count?: number; pending_count?: number; blocked_count?: number }>('/workstation/overnight/status')
+        setOvernightStatus({ safe: d.safe_count || 0, pending: d.pending_count || 0, blocked: d.blocked_count || 0 })
       } catch { /* silent */ }
       try {
         if (continuityState === 'RETURNING' || continuityState === 'RESUME_BRIEF') {
-          const rRes = await fetch('/api/umh/workstation/return-brief')
-          if (rRes.ok) { const d = await rRes.json(); setReturnBrief(d) }
+          const d = await fetchApi<ReturnBrief>('/workstation/return-brief')
+          setReturnBrief(d)
         } else { setReturnBrief(null) }
       } catch { /* silent */ }
       try {
-        const pRes = await fetch('/api/umh/command-center/work-packets?limit=200')
-        if (pRes.ok) {
-          const d = await pRes.json()
-          const batches = (d.packets || []).filter((p: any) => p.child_packet_ids?.length > 0)
-          setActiveBatchCount(batches.length)
-        }
+        const d = await fetchApi<{ packets?: any[] }>('/command-center/work-packets?limit=200')
+        const batches = (d.packets || []).filter((p: any) => p.child_packet_ids?.length > 0)
+        setActiveBatchCount(batches.length)
       } catch { /* silent */ }
     }
     fetchExtras()
@@ -142,12 +138,10 @@ export function CommandCenterPanel() {
 
   const handleApproval = useCallback(async (id: string, decision: 'approved' | 'denied') => {
     try {
-      const res = await fetch(`/api/umh/command-center/approvals/${id}/decide`, {
+      await fetchApi(`/command-center/approvals/${id}/decide`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision, decided_by: 'operator' }),
       })
-      await res.json()
       fetchSummary()
     } catch { /* swallow — refresh will show state */ }
   }, [fetchSummary])

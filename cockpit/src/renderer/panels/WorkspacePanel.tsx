@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { usePolling } from '../hooks/usePolling'
+import { fetchApi } from '../api/client'
 
 type Tab = 'files' | 'diff' | 'tests' | 'logs' | 'proof' | 'health'
 
@@ -79,8 +80,7 @@ function FileBrowserPane() {
 
   const browse = useCallback(async (path: string) => {
     try {
-      const res = await fetch(`/api/umh/workspace/browse?path=${encodeURIComponent(path)}`)
-      const data = await res.json()
+      const data = await fetchApi<any>(`/workspace/browse?path=${encodeURIComponent(path)}`)
       if (data.ok) {
         setEntries(data.entries)
         setCurrentPath(data.path)
@@ -96,8 +96,7 @@ function FileBrowserPane() {
 
   const readFile = async (path: string, name: string) => {
     try {
-      const res = await fetch(`/api/umh/workspace/read-file?path=${encodeURIComponent(path)}`)
-      const data = await res.json()
+      const data = await fetchApi<any>(`/workspace/read-file?path=${encodeURIComponent(path)}`)
       if (data.ok) {
         setFileContent(data.content)
         setFileLang(data.language)
@@ -178,8 +177,7 @@ function DiffPane() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/workspace/git-status')
-      const data = await res.json()
+      const data = await fetchApi<any>('/workspace/git-status')
       if (data.ok) {
         setStatus({ branch: data.branch, commit: data.commit, changed_files: data.changed_files })
         setSourceEnv(data.source_env)
@@ -191,11 +189,10 @@ function DiffPane() {
 
   const fetchDiff = async (path?: string) => {
     try {
-      const url = path
-        ? `/api/umh/workspace/git-diff-file?path=${encodeURIComponent(path)}`
-        : '/api/umh/workspace/git-diff'
-      const res = await fetch(url)
-      const data = await res.json()
+      const apiPath = path
+        ? `/workspace/git-diff-file?path=${encodeURIComponent(path)}`
+        : '/workspace/git-diff'
+      const data = await fetchApi<any>(apiPath)
       if (data.ok) setDiff(data.diff || data.stat || 'No changes')
     } catch { /* noop */ }
   }
@@ -260,8 +257,7 @@ function TestResultsPane() {
 
   const fetchResults = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/workspace/test-results')
-      const data = await res.json()
+      const data = await fetchApi<any>('/workspace/test-results')
       if (data.ok) setResults(data)
     } catch { /* noop */ }
   }, [])
@@ -333,8 +329,7 @@ function LogsPane() {
 
   const fetchLogs = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/workspace/execution-logs?limit=50')
-      const data = await res.json()
+      const data = await fetchApi<any>('/workspace/execution-logs?limit=50')
       if (data.ok) {
         setLogs(data.logs)
         setSourceEnv(data.source_env)
@@ -390,8 +385,7 @@ function ProofPane() {
 
   const fetchProof = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/workspace/proof-artifacts')
-      const data = await res.json()
+      const data = await fetchApi<any>('/workspace/proof-artifacts')
       if (data.ok) {
         setArtifacts(data.artifacts)
         setPlaywrightAvailable(data.playwright_available)
@@ -467,8 +461,7 @@ function HealthPane() {
 
   const fetchHealth = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/workspace/health')
-      const data = await res.json()
+      const data = await fetchApi<any>('/workspace/health')
       if (data.ok) setHealth(data)
     } catch { /* noop */ }
   }, [])
