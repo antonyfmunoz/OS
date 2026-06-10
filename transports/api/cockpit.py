@@ -1971,12 +1971,16 @@ def _real_ws_client_ip(ws: WebSocket) -> str:
 def _validate_ws_token(ws: WebSocket) -> bool:
     """Validate WS connection auth.
 
-    Tries Clerk JWT first (via cockpit_auth), then falls back to
-    WS token comparison and dev-bypass.
+    Tries Clerk JWT first (via cockpit_auth). If a Clerk credential is
+    presented but invalid, rejects immediately (no fall-through).
+    Falls back to WS token / dev-bypass only when no Clerk credential present.
     """
-    clerk_user = validate_ws_clerk_token(ws)
-    if clerk_user is not None:
-        return True
+    try:
+        clerk_user = validate_ws_clerk_token(ws)
+        if clerk_user is not None:
+            return True
+    except HTTPException:
+        return False
     if _WS_TOKEN:
         token = _extract_ws_token(ws)
         if token and _hmac.compare_digest(token, _WS_TOKEN):

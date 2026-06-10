@@ -60,12 +60,15 @@ for PORT in 11434 8096; do
         RULE_NUM=$(iptables -L INPUT -n --line-numbers 2>/dev/null | grep "0\.0\.0\.0/0.*0\.0\.0\.0/0.*tcp dpt:${PORT}" | tail -1 | awk '{print $1}')
         [ -n "$RULE_NUM" ] && iptables -D INPUT "$RULE_NUM" 2>/dev/null || break
     done
-    # Add restrictive rules if not present
+    # Add restrictive ACCEPT rules if not present
     for SRC in 172.16.0.0/12 127.0.0.0/8 100.64.0.0/10; do
         iptables -C INPUT -s "$SRC" -p tcp --dport "$PORT" -j ACCEPT 2>/dev/null || \
             iptables -I INPUT -s "$SRC" -p tcp --dport "$PORT" -j ACCEPT \
                 -m comment --comment "port-${PORT}-from-${SRC}"
     done
+    # Explicit DROP after ACCEPT rules — catches traffic even if UFW default policy leaks
+    iptables -C INPUT -p tcp --dport "$PORT" -j DROP -m comment --comment "block-${PORT}-public" 2>/dev/null || \
+        iptables -A INPUT -p tcp --dport "$PORT" -j DROP -m comment --comment "block-${PORT}-public"
 done
 
 # Defense-in-depth: restrict Docker-published ports via DOCKER-USER chain.
