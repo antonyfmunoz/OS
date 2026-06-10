@@ -239,8 +239,10 @@ _VPS_CONTROL_SIGNALS = [
     "server status",
     "show vps",
     "docker containers",
+    "container status",
     "show containers",
     "docker ps",
+    "docker status",
     "list containers",
     "running containers",
     "provider health",
@@ -304,6 +306,25 @@ _WORKSTATION_CONTROL_SIGNALS = [
 ]
 
 _WORKSTATION_VERB_PREFIXES = ["open ", "pull up ", "launch ", "focus ", "switch to "]
+
+_NODE_QUALIFIERS = [
+    " on beast", " on the beast", " on vps", " on the vps",
+    " on server", " on the server", " on windows", " on my pc",
+    " in chrome", " in browser", " in the browser",
+]
+
+
+def _strip_node_qualifier(text: str) -> str:
+    """Strip 'on Beast', 'in Chrome', etc. from app names (iterative)."""
+    changed = True
+    while changed:
+        changed = False
+        for q in _NODE_QUALIFIERS:
+            if text.endswith(q):
+                text = text[: -len(q)].strip()
+                changed = True
+                break
+    return text
 
 _CONTINUITY_TRANSITION_SIGNALS = [
     "start day cycle",
@@ -707,16 +728,17 @@ def resolve_workstation_target(text: str) -> dict[str, Any]:
                 continue
             if prefix.strip() in ("focus", "switch to"):
                 result["action"] = "focus"
-            app_info = _lookup_app(remainder)
+            app_name = _strip_node_qualifier(remainder)
+            app_info = _lookup_app(app_name)
             if app_info:
-                result["target_app"] = remainder
+                result["target_app"] = app_name
                 result["process_name"] = app_info.get("process", "")
                 if app_info.get("domain"):
                     result["target_url"] = f"https://{app_info['domain']}"
                 return _enrich_with_lane_info(result, text)
-            result["target_app"] = remainder
-            if remainder.isalpha() and len(remainder) <= 30:
-                result["target_url"] = f"https://{remainder}.com"
+            result["target_app"] = app_name
+            if app_name.isalpha() and len(app_name) <= 30:
+                result["target_url"] = f"https://{app_name}.com"
             return _enrich_with_lane_info(result, text)
 
     if any(s in t for s in ["message", "dm", "send", "post", "comment", "like", "follow"]):
