@@ -167,10 +167,12 @@ export class VisionWsClient {
   private _frameCount = 0
   private _frameSizes: number[] = []
   private _fpsWindow: number[] = []
+  private _pendingFrame: ArrayBuffer | null = null
+  private _rafId: number | null = null
 
   constructor() {
     this.ws = new WsClient(VISION_URL, getVisionProtocols())
-    this.ws.onBinary((buf) => this._handleFrame(buf))
+    this.ws.onBinary((buf) => this._enqueueFrame(buf))
   }
 
   connect(): Promise<void> {
@@ -202,7 +204,7 @@ export class VisionWsClient {
     this.ws.disconnect()
     setTimeout(() => {
       this.ws = new WsClient(VISION_URL, getVisionProtocols())
-      this.ws.onBinary((buf) => this._handleFrame(buf))
+      this.ws.onBinary((buf) => this._enqueueFrame(buf))
       this.ws.connect()
     }, 500)
   }
@@ -627,27 +629,50 @@ export class VisionWsClient {
 
   // ── Internal ────────────────────────────────────────────────────
 
-  private _handleFrame(buf: ArrayBuffer): void {
-    this._revokeFrame()
-    const blob = new Blob([buf], { type: 'image/jpeg' })
-    this._latestFrameUrl = URL.createObjectURL(blob)
-    this._prevBlobUrl = this._latestFrameUrl
-    this._frameCount++
-
-    this._fpsWindow.push(Date.now())
+  private _enqueueFrame(buf: ArrayBuffer): void {
     this._frameSizes.push(buf.byteLength)
     if (this._frameSizes.length > 30) this._frameSizes.shift()
+    this._fpsWindow.push(Date.now())
+
+    this._pendingFrame = buf
+    if (this._rafId === null) {
+      this._rafId = requestAnimationFrame(() => this._flushFrame())
+    }
+  }
+
+  private _flushFrame(): void {
+    this._rafId = null
+    const buf = this._pendingFrame
+    if (!buf) return
+    this._pendingFrame = null
+
+    const blob = new Blob([buf], { type: 'image/jpeg' })
+    const newUrl = URL.createObjectURL(blob)
+
+    const oldUrl = this._prevBlobUrl
+    this._latestFrameUrl = newUrl
+    this._prevBlobUrl = newUrl
+    this._frameCount++
 
     if (this._frameCount === 1) log('first_frame_received', `bytes=${buf.byteLength}`)
     if (this._frameCount % 100 === 0) log('frames_received', this._frameCount)
 
     const handlers = (this.ws as unknown as { handlers: Map<string, ((d: Record<string, unknown>) => void)[]> }).handlers?.get('vision_frame') || []
     for (const h of handlers) {
-      h({ type: 'vision_frame', url: this._latestFrameUrl, timestamp: Date.now(), byteLength: buf.byteLength })
+      h({ type: 'vision_frame', url: newUrl, timestamp: Date.now(), byteLength: buf.byteLength })
+    }
+
+    if (oldUrl) {
+      setTimeout(() => URL.revokeObjectURL(oldUrl), 100)
     }
   }
 
   private _revokeFrame(): void {
+    if (this._rafId !== null) {
+      cancelAnimationFrame(this._rafId)
+      this._rafId = null
+    }
+    this._pendingFrame = null
     if (this._prevBlobUrl) {
       URL.revokeObjectURL(this._prevBlobUrl)
       this._prevBlobUrl = null

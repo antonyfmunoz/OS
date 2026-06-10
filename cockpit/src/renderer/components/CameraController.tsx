@@ -378,6 +378,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             <img
               src={latestFrameUrl}
               alt="Camera preview"
+              decoding="async"
               className="w-full h-full object-contain"
             />
             <VisionOverlay
