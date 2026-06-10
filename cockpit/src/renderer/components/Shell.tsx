@@ -42,6 +42,7 @@ import { TmuxPanel } from '../panels/TmuxPanel'
 import { WorkspacePanel } from '../panels/WorkspacePanel'
 import { WorkPanel } from '../panels/WorkPanel'
 import { CommandCenterPanel } from '../panels/CommandCenterPanel'
+import { VisionPanel } from '../panels/VisionPanel'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -109,6 +110,8 @@ function ActivePanel() {
       return <WorkspacePanel />
     case 'commandcenter':
       return <CommandCenterPanel />
+    case 'vision':
+      return <VisionPanel />
     default:
       return <DashboardPanel />
   }
