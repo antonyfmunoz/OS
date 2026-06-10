@@ -11,6 +11,7 @@ import {
   type VisionPresetInfo,
   type TriggerChainInfo,
   type ChainFireInfo,
+  type VisionChainStatus,
 } from '../stores/visionStore'
 
 let _client: VisionWsClient | null = null
@@ -43,10 +44,13 @@ export function useVisionConnection(): void {
   const setRecentFires = useVisionStore((s) => s.setRecentFires)
   const setLastChainExplanation = useVisionStore((s) => s.setLastChainExplanation)
   const setSecurityMode = useVisionStore((s) => s.setSecurityMode)
+  const updateChainHealth = useVisionStore((s) => s.updateChainHealth)
+  const setDetectedObjects = useVisionStore((s) => s.setDetectedObjects)
   const reset = useVisionStore((s) => s.reset)
 
   const metricsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const sceneInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const healthInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (!_client) _client = new VisionWsClient()
@@ -60,6 +64,7 @@ export function useVisionConnection(): void {
         client.requestPresets()
         client.requestStatus()
         client.requestPosition()
+        client.requestHealth()
         client.startCamera({
           fps: profile.fps,
           width: profile.width,
@@ -73,6 +78,7 @@ export function useVisionConnection(): void {
         setConnected(false)
         setCameraStatus('off')
         setStreaming(false)
+        updateChainHealth({ status: 'relay_offline', relayRunning: false, cockpitConnected: false, blockers: ['WebSocket disconnected from vision relay'], recoveryAction: 'reconnecting automatically' })
       }),
       client.on('vision_frame', (d) => {
         setLatestFrame(d.url as string, d.timestamp as number)
@@ -221,24 +227,67 @@ export function useVisionConnection(): void {
           triggered_by: d.triggered_by as string || '',
         })
       }),
+
+      // Health chain events
+      client.on('vision_health', (d) => {
+        updateChainHealth({
+          status: (d.status as VisionChainStatus) || 'degraded',
+          relayRunning: d.relay_running as boolean ?? true,
+          cockpitConnected: d.cockpit_connected as boolean ?? false,
+          beastConnected: d.beast_connected as boolean ?? false,
+          cameraAvailable: d.camera_available as boolean ?? false,
+          cameraStreaming: d.camera_streaming as boolean ?? false,
+          lastFrameAt: d.last_frame_at as number ?? 0,
+          lastFrameAgeMs: d.last_frame_age_ms as number ?? -1,
+          frameFps: d.frame_fps as number ?? 0,
+          trackerRuntimeAvailable: d.tracker_runtime_available as boolean ?? false,
+          activeTrackers: (d.active_trackers as string[]) ?? [],
+          lastOverlayAt: d.last_overlay_at as number ?? 0,
+          lastOverlayAgeMs: d.last_overlay_age_ms as number ?? -1,
+          triggerChainEngineAvailable: d.trigger_chain_engine_available as boolean ?? false,
+          activeChains: (d.active_chains as string[]) ?? [],
+          securityMode: d.security_mode as string ?? 'normal',
+          blockers: (d.blockers as string[]) ?? [],
+          recoveryAction: d.recovery_action as string ?? '',
+        })
+      }),
     ]
 
-    // Metrics polling — 1s
+    // Metrics polling + stale detection — 1s
+    const STALE_FRAME_MS = 15000
+    const STALE_OVERLAY_MS = 5000
     metricsInterval.current = setInterval(() => {
       if (!client.connected) return
-      const lastFrame = useVisionStore.getState().latestFrameAt
+      const state = useVisionStore.getState()
+      const lastFrame = state.latestFrameAt
+      const frameAge = lastFrame ? Date.now() - lastFrame : 0
       updateStreamMetrics({
         actualFps: client.measuredFps,
-        targetFps: QUALITY_PROFILES[useVisionStore.getState().qualityMode].fps,
+        targetFps: QUALITY_PROFILES[state.qualityMode].fps,
         avgFrameSize: client.avgFrameSize,
-        lastFrameAge: lastFrame ? Date.now() - lastFrame : 0,
+        lastFrameAge: frameAge,
       })
+      if (lastFrame && frameAge > STALE_FRAME_MS && state.streaming) {
+        setStreaming(false)
+        setCameraStatus('error')
+        setError('stream stale — no frames received')
+      }
+      const overlayAge = state.chainHealth.lastOverlayAgeMs
+      if (overlayAge > STALE_OVERLAY_MS && state.detectedObjects.length > 0) {
+        setDetectedObjects([])
+      }
     }, 1000)
 
     // Scene state polling — 5s
     sceneInterval.current = setInterval(() => {
       if (!client.connected) return
       client.requestSceneState()
+    }, 5000)
+
+    // Health chain polling — 5s
+    healthInterval.current = setInterval(() => {
+      if (!client.connected) return
+      client.requestHealth()
     }, 5000)
 
     client.connect().catch((err) => {
@@ -249,6 +298,7 @@ export function useVisionConnection(): void {
       unsubs.forEach((fn) => fn())
       if (metricsInterval.current) clearInterval(metricsInterval.current)
       if (sceneInterval.current) clearInterval(sceneInterval.current)
+      if (healthInterval.current) clearInterval(healthInterval.current)
       client.unsubscribe()
       client.disconnect()
       _client = null

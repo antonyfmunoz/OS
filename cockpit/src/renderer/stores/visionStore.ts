@@ -140,6 +140,41 @@ export interface SecurityModeInfo {
   requires_review: boolean
 }
 
+// ── Connection health types ──────────────────────────────────────
+
+export type VisionChainStatus =
+  | 'relay_offline'
+  | 'authenticating'
+  | 'connected_no_frames'
+  | 'beast_offline'
+  | 'camera_unavailable'
+  | 'stream_stale'
+  | 'healthy'
+  | 'degraded'
+  | 'relay_idle'
+
+export interface VisionHealthState {
+  status: VisionChainStatus
+  relayRunning: boolean
+  cockpitConnected: boolean
+  beastConnected: boolean
+  cameraAvailable: boolean
+  cameraStreaming: boolean
+  lastFrameAt: number
+  lastFrameAgeMs: number
+  frameFps: number
+  trackerRuntimeAvailable: boolean
+  activeTrackers: string[]
+  lastOverlayAt: number
+  lastOverlayAgeMs: number
+  triggerChainEngineAvailable: boolean
+  activeChains: string[]
+  securityMode: string
+  blockers: string[]
+  recoveryAction: string
+  lastCheckedAt: number
+}
+
 interface VisionState {
   connected: boolean
   streaming: boolean
@@ -165,6 +200,9 @@ interface VisionState {
   ptzMoving: boolean
   hasPtzHardware: boolean
   streamMetrics: StreamMetrics
+
+  // Connection health
+  chainHealth: VisionHealthState
 
   // Tracking state
   detectedObjects: TrackedObjectState[]
@@ -207,6 +245,9 @@ interface VisionState {
   setHasPtzHardware: (has: boolean) => void
   updateStreamMetrics: (partial: Partial<StreamMetrics>) => void
 
+  // Connection health setters
+  updateChainHealth: (health: Partial<VisionHealthState>) => void
+
   // Tracking setters
   setDetectedObjects: (objects: TrackedObjectState[]) => void
   setTrackedObjects: (objects: TrackedObjectState[]) => void
@@ -245,6 +286,27 @@ const INITIAL_METRICS: StreamMetrics = {
 const INITIAL_FOLLOW: FollowModeState = { active: false, target: '', track_id: '' }
 const INITIAL_TRACKER_STACK: TrackerStackState = { active_stack_id: '', enabled_trackers: [], total_cost: { cpu: 0, gpu: 0 } }
 const INITIAL_SECURITY: SecurityModeInfo = { active: false, mode: 'normal', risk: 'low', triggered_by: '', started_at: 0, actions_taken: [], requires_review: false }
+const INITIAL_HEALTH: VisionHealthState = {
+  status: 'relay_offline',
+  relayRunning: false,
+  cockpitConnected: false,
+  beastConnected: false,
+  cameraAvailable: false,
+  cameraStreaming: false,
+  lastFrameAt: 0,
+  lastFrameAgeMs: -1,
+  frameFps: 0,
+  trackerRuntimeAvailable: false,
+  activeTrackers: [],
+  lastOverlayAt: 0,
+  lastOverlayAgeMs: -1,
+  triggerChainEngineAvailable: false,
+  activeChains: [],
+  securityMode: 'normal',
+  blockers: [],
+  recoveryAction: '',
+  lastCheckedAt: 0,
+}
 
 export const useVisionStore = create<VisionState>((set) => ({
   connected: false,
@@ -271,6 +333,9 @@ export const useVisionStore = create<VisionState>((set) => ({
   ptzMoving: false,
   hasPtzHardware: true,
   streamMetrics: { ...INITIAL_METRICS },
+
+  // Connection health initial state
+  chainHealth: { ...INITIAL_HEALTH },
 
   // Tracking initial state
   detectedObjects: [],
@@ -313,6 +378,11 @@ export const useVisionStore = create<VisionState>((set) => ({
   setHasPtzHardware: (hasPtzHardware) => set({ hasPtzHardware }),
   updateStreamMetrics: (partial) => set((s) => ({
     streamMetrics: { ...s.streamMetrics, ...partial },
+  })),
+
+  // Connection health setter
+  updateChainHealth: (partial) => set((s) => ({
+    chainHealth: { ...s.chainHealth, ...partial, lastCheckedAt: Date.now() },
   })),
 
   // Tracking setters
@@ -368,6 +438,7 @@ export const useVisionStore = create<VisionState>((set) => ({
     ptzPosition: { pan: 0, tilt: 0, zoom: 100 },
     ptzMoving: false,
     streamMetrics: { ...INITIAL_METRICS },
+    chainHealth: { ...INITIAL_HEALTH },
     detectedObjects: [],
     trackedObjects: [],
     labeledItems: [],
