@@ -325,3 +325,292 @@ class TestProviderMetadata:
         assert len(keys) >= 2
         # Role-based providers should come before supplemental
         assert keys[0] != "hermes-agent"
+
+
+# ── Category 8: Expanded grounding coverage ──────────────────────────────────
+
+
+class TestApprovalGrounding:
+    def test_approval_requires_real_data(self, tmp_path):
+        from substrate.organism.grounding_registry import collect_grounding
+
+        with patch("substrate.organism.grounding_registry._REPO", str(tmp_path)):
+            result = collect_grounding("approval_status")
+        assert "approvals" in result.missing
+
+    def test_approval_status_seeking_detected(self):
+        from substrate.organism.grounding_registry import detect_status_seeking
+
+        assert detect_status_seeking("what needs approval") == "approval_status"
+        assert detect_status_seeking("show the approval queue") == "approval_status"
+
+    def test_approval_handler_returns_deterministic(self):
+        from substrate.organism.grounded_handlers import handle_grounded_approvals
+
+        response = handle_grounded_approvals("what needs approval")
+        assert response.metadata.get("model_tier") == "deterministic"
+        assert response.intent == "approval_query"
+
+
+class TestDeploymentGrounding:
+    def test_deployment_requires_real_data(self):
+        from substrate.organism.grounding_registry import collect_grounding
+
+        result = collect_grounding("recent_deployments")
+        # Should succeed (git log always works) or fail gracefully
+        assert result.confidence in ("deterministic", "partial", "blocked")
+
+    def test_deployment_seeking_detected(self):
+        from substrate.organism.grounding_registry import detect_status_seeking
+
+        assert detect_status_seeking("what did we deploy last") == "recent_deployments"
+        assert detect_status_seeking("what did we ship") == "recent_deployments"
+
+    def test_deployment_handler_returns_deterministic(self):
+        from substrate.organism.grounded_handlers import handle_grounded_deployments
+
+        response = handle_grounded_deployments("what did we deploy")
+        assert response.metadata.get("model_tier") == "deterministic"
+
+
+class TestReportGrounding:
+    def test_report_requires_real_file(self, tmp_path):
+        from substrate.organism.grounding_registry import collect_grounding
+
+        with patch("substrate.organism.grounding_registry._REPO", str(tmp_path)):
+            result = collect_grounding("recent_reports")
+        assert "reports" in result.missing
+
+    def test_report_created_only_if_file_exists(self, tmp_path):
+        from substrate.organism.grounding_registry import collect_grounding
+
+        rpt_dir = tmp_path / "data" / "umh" / "organism"
+        rpt_dir.mkdir(parents=True)
+        rpt_file = rpt_dir / "reports.jsonl"
+        rpt_file.write_text(
+            '{"type": "phase_report", "title": "Test Report"}\n'
+        )
+
+        with patch("substrate.organism.grounding_registry._REPO", str(tmp_path)):
+            result = collect_grounding("recent_reports")
+        assert result.confidence == "deterministic"
+        assert result.data["reports"]["total"] == 1
+
+    def test_report_dispatch_not_claimed_without_result(self):
+        from substrate.organism.grounded_handlers import handle_grounded_reports
+
+        response = handle_grounded_reports("what reports exist")
+        assert response.metadata.get("model_tier") == "deterministic"
+        # Response text comes from real data, not LLM
+        assert "grounding" in response.metadata
+
+
+class TestVisualQueryGrounding:
+    def test_visual_claim_requires_frame(self):
+        from substrate.organism import grounding_registry
+
+        original = grounding_registry._COLLECTORS["vision"]
+        grounding_registry._COLLECTORS["vision"] = lambda: (_ for _ in ()).throw(
+            ConnectionRefusedError("relay offline")
+        )
+        try:
+            result = grounding_registry.collect_grounding("visual_query")
+            assert "vision" in result.missing
+            assert result.confidence == "blocked"
+        finally:
+            grounding_registry._COLLECTORS["vision"] = original
+
+    def test_what_do_you_see_detected(self):
+        from substrate.organism.grounding_registry import detect_status_seeking
+
+        assert detect_status_seeking("what do you see?") == "visual_query"
+        assert detect_status_seeking("describe what's on screen") == "visual_query"
+        assert detect_status_seeking("what can you see right now") == "visual_query"
+
+    def test_visual_handler_blocked_without_frame(self):
+        from substrate.organism import grounding_registry
+        from substrate.organism.grounded_handlers import handle_grounded_visual
+
+        original = grounding_registry._COLLECTORS["vision"]
+        grounding_registry._COLLECTORS["vision"] = lambda: (_ for _ in ()).throw(
+            ConnectionRefusedError("relay offline")
+        )
+        try:
+            response = handle_grounded_visual("what do you see")
+            assert "frame" in response.text.lower() or "camera" in response.text.lower()
+            assert response.metadata.get("model_tier") == "deterministic"
+        finally:
+            grounding_registry._COLLECTORS["vision"] = original
+
+
+class TestLLMCannotFabricate:
+    def test_status_query_never_uses_llm(self):
+        from substrate.organism.advisor_conversation import AdvisorConversation
+
+        mock_advisor = MagicMock()
+        conv = AdvisorConversation(advisor=mock_advisor)
+
+        with patch("adapters.models.model_router.call_with_fallback") as mock_cwf:
+            response = conv._handle_status("show me the system status")
+            mock_cwf.assert_not_called()
+
+        assert response.metadata.get("model_tier") == "deterministic"
+
+    def test_blocked_query_never_uses_llm(self):
+        from substrate.organism.grounded_handlers import handle_grounded_blocked
+
+        with patch("adapters.models.model_router.call_with_fallback") as mock_cwf:
+            response = handle_grounded_blocked("what is blocked")
+            mock_cwf.assert_not_called()
+
+        assert response.metadata.get("model_tier") == "deterministic"
+
+    def test_conversation_with_status_reroutes(self):
+        from substrate.organism.advisor_conversation import AdvisorConversation
+
+        mock_advisor = MagicMock()
+        conv = AdvisorConversation(advisor=mock_advisor)
+
+        with patch("adapters.models.model_router.call_with_fallback") as mock_cwf:
+            response = conv._handle_conversation(
+                "what providers are online right now?",
+                "conv-test",
+                [],
+                None,
+                "",
+            )
+            mock_cwf.assert_not_called()
+
+        assert response.metadata.get("model_tier") == "deterministic"
+
+
+class TestCompositeBlockers:
+    def test_composite_blocker_includes_multiple_sources(self, tmp_path):
+        from substrate.organism.grounding_registry import collect_grounding
+
+        # Create blocked work packet
+        wp_dir = tmp_path / "data" / "umh" / "universal_work"
+        wp_dir.mkdir(parents=True)
+        wp_file = wp_dir / "work_packets.jsonl"
+        wp_file.write_text('{"id": "wp-1", "status": "blocked", "title": "Test blocker"}\n')
+
+        with patch("substrate.organism.grounding_registry._REPO", str(tmp_path)):
+            with patch("substrate.organism.grounding_registry.os.path.exists", return_value=False):
+                with patch(
+                    "substrate.organism.grounding_registry._collect_providers",
+                    side_effect=ImportError("no router"),
+                ):
+                    result = collect_grounding("composite_blockers")
+
+        # Should have some data and some missing
+        assert result.confidence in ("partial", "blocked")
+
+    def test_composite_blocker_handler_structured(self):
+        from substrate.organism.grounded_handlers import handle_grounded_composite_blockers
+
+        response = handle_grounded_composite_blockers("what is blocked")
+        assert response.metadata.get("model_tier") == "deterministic"
+        assert response.intent == "blocked_query"
+
+
+class TestWebhookGrounding:
+    def test_webhook_health_seeking_detected(self):
+        from substrate.organism.grounding_registry import detect_status_seeking
+
+        assert detect_status_seeking("webhook status") == "webhook_health"
+
+    def test_webhook_handler_returns_deterministic(self):
+        from substrate.organism.grounded_handlers import handle_grounded_webhook
+
+        response = handle_grounded_webhook("webhook health")
+        assert response.metadata.get("model_tier") == "deterministic"
+
+
+class TestHermesGrounding:
+    def test_hermes_seeking_detected(self):
+        from substrate.organism.grounding_registry import detect_status_seeking
+
+        assert detect_status_seeking("is hermes available") == "hermes_status"
+        assert detect_status_seeking("hermes status") == "hermes_status"
+
+    def test_hermes_handler_returns_deterministic(self):
+        from substrate.organism.grounded_handlers import handle_grounded_hermes
+
+        response = handle_grounded_hermes("hermes status")
+        assert response.metadata.get("model_tier") == "deterministic"
+
+
+class TestVPSCatalogExpansion:
+    def test_restart_services_routes_to_vps(self):
+        from substrate.workstation.command_router import CommandIntent, classify_intent
+
+        assert classify_intent("restart services") == CommandIntent.VPS_CONTROL
+
+    def test_system_health_routes_to_vps(self):
+        from substrate.workstation.command_router import CommandIntent, classify_intent
+
+        assert classify_intent("show system health") == CommandIntent.VPS_CONTROL
+
+    def test_webhook_logs_routes_to_vps(self):
+        from substrate.workstation.command_router import CommandIntent, classify_intent
+
+        assert classify_intent("show webhook logs") == CommandIntent.VPS_CONTROL
+
+    def test_container_health_resolves_to_docker_ps(self):
+        from substrate.workstation.vps_control_catalog import resolve_vps_action
+
+        assert resolve_vps_action("container health") == "docker_ps"
+
+    def test_system_health_resolves(self):
+        from substrate.workstation.vps_control_catalog import resolve_vps_action
+
+        assert resolve_vps_action("system health") == "system_health"
+
+    def test_webhook_logs_resolves(self):
+        from substrate.workstation.vps_control_catalog import resolve_vps_action
+
+        assert resolve_vps_action("webhook logs") == "docker_logs_webhook"
+
+    def test_restart_services_resolves(self):
+        from substrate.workstation.vps_control_catalog import resolve_vps_action
+
+        assert resolve_vps_action("restart services") == "docker_restart_operator"
+
+
+class TestGroundedResponseContract:
+    def test_grounded_result_partial(self, tmp_path):
+        from substrate.organism.grounding_registry import collect_grounding
+
+        with patch("substrate.organism.grounding_registry._REPO", str(tmp_path)):
+            result = collect_grounding("system_status")
+        d = result.to_dict()
+        assert d["confidence"] in ("partial", "blocked")
+        assert len(d["missing"]) > 0
+
+    def test_grounded_result_blocked_when_required_missing(self):
+        from substrate.organism.grounding_registry import collect_grounding
+
+        with patch("substrate.organism.grounding_registry.os.path.exists", return_value=False):
+            result = collect_grounding("docker_status")
+        assert result.confidence == "blocked"
+
+    def test_metadata_visible_not_spoken(self):
+        from substrate.organism.grounded_handlers import handle_grounded_status
+
+        response = handle_grounded_status("system status")
+        # Metadata should carry grounding data
+        assert "grounding" in response.metadata
+        grounding = response.metadata["grounding"]
+        assert "confidence" in grounding
+        assert "missing" in grounding
+
+
+class TestAllPatternsValid:
+    def test_all_status_patterns_map_to_known_query_types(self):
+        from substrate.organism.grounding_registry import (
+            _QUERY_SOURCES,
+            _STATUS_SEEKING_PATTERNS,
+        )
+
+        for _pattern, qtype in _STATUS_SEEKING_PATTERNS:
+            assert qtype in _QUERY_SOURCES, f"Pattern maps to unknown query type: {qtype}"
