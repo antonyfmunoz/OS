@@ -75,20 +75,26 @@ def _track_result(success: bool) -> None:
         pass
 
 
-def _mesh_dispatch(operation: str, params: dict) -> dict | None:
+_HERMES_NODE_ID = os.environ.get("HERMES_NODE_ID", "windows-desktop")
+_hermes_on_path: bool | None = None
+
+
+def _mesh_dispatch(capability: str, params: dict, timeout: float | None = None) -> dict | None:
     """Dispatch a capability request to Beast via the mesh relay HTTP endpoint."""
     import urllib.request
+
+    if timeout is None:
+        timeout = _resolve_timeout()
 
     url = f"http://127.0.0.1:{_MESH_RELAY_PORT}/dispatch"
     body = json.dumps(
         {
-            "node_id": os.environ.get("HERMES_NODE_ID", "beast"),
-            "capability": operation,
+            "node_id": _HERMES_NODE_ID,
+            "capability": capability,
             "params": params,
+            "timeout": int(timeout),
         }
     ).encode()
-
-    timeout = params.get("timeout", _resolve_timeout()) + 5
 
     try:
         req = urllib.request.Request(
@@ -97,35 +103,58 @@ def _mesh_dispatch(operation: str, params: dict) -> dict | None:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read())
+        with urllib.request.urlopen(req, timeout=timeout + 10) as resp:
+            data = json.loads(resp.read())
+            if data.get("ok") and data.get("result_data"):
+                return data["result_data"]
+            if data.get("error"):
+                logger.debug("[hermes] dispatch error: %s", data["error"])
+            return data
     except Exception as exc:
         logger.debug("[hermes] mesh dispatch failed: %s", exc)
         return None
 
 
-def is_available() -> bool:
-    """Check if Beast mesh relay is reachable and has hermes capability."""
+def _hermes_shell(command: str, timeout: float = 15) -> dict | None:
+    """Execute a hermes CLI command on Beast via shell dispatch."""
+    return _mesh_dispatch(
+        "shell.powershell",
+        {"command": command, "timeout": int(timeout)},
+        timeout=timeout,
+    )
+
+
+def _beast_connected() -> bool:
+    """Check if Beast node is connected to the mesh."""
     try:
         import urllib.request
 
-        url = f"http://127.0.0.1:{_MESH_RELAY_PORT}/health"
+        url = f"http://127.0.0.1:{_MESH_RELAY_PORT}/nodes"
         req = urllib.request.Request(url, method="GET")
         with urllib.request.urlopen(req, timeout=3) as resp:
-            data = json.loads(resp.read())
-            nodes = data.get("nodes", [])
-            for node in nodes:
-                caps = node.get("capabilities", [])
-                if isinstance(caps, list):
-                    for cap in caps:
-                        cap_name = cap if isinstance(cap, str) else cap.get("name", "")
-                        if "hermes" in cap_name:
-                            return True
-                elif isinstance(caps, dict) and "hermes" in caps:
-                    return True
-            return False
+            nodes = json.loads(resp.read())
+            return any(n.get("id") == _HERMES_NODE_ID for n in nodes)
     except Exception:
         return False
+
+
+def is_available() -> bool:
+    """Check if Beast is connected and hermes binary is on PATH."""
+    global _hermes_on_path
+
+    if not _beast_connected():
+        return False
+
+    if _hermes_on_path is not None:
+        return _hermes_on_path
+
+    result = _hermes_shell("hermes --version", timeout=10)
+    if result and result.get("success") and "hermes" in result.get("stdout", "").lower():
+        _hermes_on_path = True
+        return True
+
+    _hermes_on_path = False
+    return False
 
 
 def is_verified() -> bool:
@@ -137,11 +166,8 @@ def is_configured() -> bool:
     """Check if Hermes is reachable and configured with a provider."""
     if not is_available():
         return False
-    result = _mesh_dispatch("hermes.info", {})
-    if result and result.get("success"):
-        provider = result.get("provider", "unknown")
-        return provider not in ("unknown", "none", "")
-    return False
+    result = _hermes_shell("hermes config path", timeout=10)
+    return result is not None and result.get("success", False)
 
 
 def query_hermes_sync(
@@ -150,7 +176,7 @@ def query_hermes_sync(
     timeout: float | None = None,
 ) -> HermesResult | None:
     """
-    Run Hermes agent on Beast via mesh dispatch.
+    Run Hermes agent on Beast via mesh shell dispatch.
 
     Args:
         prompt: The task prompt.
@@ -166,7 +192,7 @@ def query_hermes_sync(
         timeout = _resolve_timeout()
 
     if not is_available():
-        logger.warning("[hermes] Beast mesh not reachable or hermes capability not registered")
+        logger.warning("[hermes] Beast not connected or hermes not on PATH")
         return None
 
     try:
@@ -180,7 +206,9 @@ def query_hermes_sync(
 
     start_ms = time.monotonic_ns() // 1_000_000
 
-    result = _mesh_dispatch("hermes.generate", {"prompt": prompt, "timeout": int(timeout)})
+    safe_prompt = prompt.replace("'", "''")
+    cmd = f"hermes -z '{safe_prompt}'"
+    result = _hermes_shell(cmd, timeout=timeout)
 
     elapsed_ms = (time.monotonic_ns() // 1_000_000) - start_ms
 
@@ -190,12 +218,12 @@ def query_hermes_sync(
         return None
 
     if not result.get("success"):
-        error = result.get("error", "unknown error")
-        logger.warning("[hermes] call failed: %s", error)
+        error = result.get("error", result.get("stderr", "unknown error"))
+        logger.warning("[hermes] call failed: %s", str(error)[:200])
         _track_result(False)
         return None
 
-    output = result.get("output", "").strip()
+    output = result.get("stdout", "").strip()
     if not output:
         logger.warning("[hermes] empty response from Beast")
         _track_result(False)
