@@ -332,7 +332,6 @@ async def main() -> None:
     async with websockets.serve(
         handle_vision, HOST, PORT,
         ping_interval=20, ping_timeout=20, max_size=MAX_FRAME_BYTES + 1024,
-        origins=list(_ALLOWED_ORIGINS) if _ALLOWED_ORIGINS else None,
     ):
         log.info("Vision relay ready — frame fan-out mode")
         await asyncio.Future()
