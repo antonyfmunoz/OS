@@ -55,8 +55,11 @@ fi
 # Remove any 0.0.0.0/0 ACCEPT rules for Ollama and voice server.
 # Only Docker bridge, localhost, and Tailscale should reach these ports.
 for PORT in 11434 8096; do
-    # Remove broad rules (may not exist — ignore errors)
-    iptables -D INPUT -p tcp --dport "$PORT" -j ACCEPT 2>/dev/null || true
+    # Remove ALL broad 0.0.0.0/0 ACCEPT rules for this port (loop until none remain)
+    while iptables -L INPUT -n 2>/dev/null | grep -q "0\.0\.0\.0/0.*0\.0\.0\.0/0.*tcp dpt:${PORT}"; do
+        RULE_NUM=$(iptables -L INPUT -n --line-numbers 2>/dev/null | grep "0\.0\.0\.0/0.*0\.0\.0\.0/0.*tcp dpt:${PORT}" | tail -1 | awk '{print $1}')
+        [ -n "$RULE_NUM" ] && iptables -D INPUT "$RULE_NUM" 2>/dev/null || break
+    done
     # Add restrictive rules if not present
     for SRC in 172.16.0.0/12 127.0.0.0/8 100.64.0.0/10; do
         iptables -C INPUT -s "$SRC" -p tcp --dport "$PORT" -j ACCEPT 2>/dev/null || \
