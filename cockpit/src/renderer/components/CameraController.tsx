@@ -15,6 +15,7 @@ import {
 import { getVisionClient } from '../hooks/useVisionConnection'
 import { useVisionPopout } from './VisionPopout'
 import { TrackingPanel } from './TrackingPanel'
+import { VisionOverlay } from './vision'
 
 const QUALITY_LABELS: Record<QualityMode, string> = {
   smooth: 'Smooth',
@@ -45,6 +46,13 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     hasPtzHardware, qualityMode, streamMetrics, error, frameCount,
     ptzMotion, controlMetrics,
   } = useVisionStore()
+  const overlays = useVisionStore((s) => s.overlays)
+  const overlayVisible = useVisionStore((s) => s.overlayVisible)
+  const setOverlayVisible = useVisionStore((s) => s.setOverlayVisible)
+  const diagnosticOverlay = useVisionStore((s) => s.diagnosticOverlay)
+  const setDiagnosticOverlay = useVisionStore((s) => s.setDiagnosticOverlay)
+  const width = useVisionStore((s) => s.width)
+  const height = useVisionStore((s) => s.height)
   const setQualityMode = useVisionStore((s) => s.setQualityMode)
   const setCameraStatus = useVisionStore((s) => s.setCameraStatus)
   const setStreaming = useVisionStore((s) => s.setStreaming)
@@ -133,27 +141,49 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
 
   // ── Realtime PTZ motion — press-and-hold D-pad ─────────────────
 
+  const ensureUpdateTimer = useCallback(() => {
+    if (motionUpdateTimerRef.current) return
+    motionUpdateTimerRef.current = setInterval(() => {
+      const client = getVisionClient()
+      const mid = activeMotionIdRef.current
+      if (!client?.connected || !mid) return
+      const v = joystickVelocity.current
+      client.ptzUpdateMotion({
+        motionId: mid,
+        panVelocity: v.pan,
+        tiltVelocity: v.tilt,
+        speed,
+      })
+    }, MOTION_UPDATE_INTERVAL_MS)
+  }, [speed])
+
   const startDirectionMotion = useCallback((panV: number, tiltV: number) => {
     const client = getVisionClient()
     if (!client?.connected) return
 
     if (activeMotionIdRef.current) {
       client.ptzStopMotion(activeMotionIdRef.current)
+      if (motionUpdateTimerRef.current) {
+        clearInterval(motionUpdateTimerRef.current)
+        motionUpdateTimerRef.current = null
+      }
     }
 
     const motionId = nextMotionId()
     activeMotionIdRef.current = motionId
+    joystickVelocity.current = { pan: panV, tilt: tiltV }
     client.ptzStartMotion({
       motionId,
       panVelocity: panV,
       tiltVelocity: tiltV,
       speed,
-      durationGuardMs: 500,
+      durationGuardMs: 2000,
     })
     setPtzMotion({ state: 'moving', motionId, panVelocity: panV, tiltVelocity: tiltV, zoomVelocity: 0, speed })
     setPtzMoving(true)
     updateControlMetrics({ lastCommandSentAt: Date.now() })
-  }, [speed, setPtzMotion, setPtzMoving, updateControlMetrics])
+    ensureUpdateTimer()
+  }, [speed, setPtzMotion, setPtzMoving, updateControlMetrics, ensureUpdateTimer])
 
   const stopDirectionMotion = useCallback(() => {
     const client = getVisionClient()
@@ -179,14 +209,27 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
 
     if (activeMotionIdRef.current) {
       client.ptzStopMotion(activeMotionIdRef.current)
+      if (motionUpdateTimerRef.current) {
+        clearInterval(motionUpdateTimerRef.current)
+        motionUpdateTimerRef.current = null
+      }
     }
 
     const motionId = nextMotionId()
     activeMotionIdRef.current = motionId
+    joystickVelocity.current = { pan: 0, tilt: 0 }
     client.zoomStartMotion(motionId, zoomV, speed)
     setPtzMotion({ state: 'moving', motionId, panVelocity: 0, tiltVelocity: 0, zoomVelocity: zoomV, speed })
     setPtzMoving(true)
     updateControlMetrics({ lastCommandSentAt: Date.now() })
+    if (!motionUpdateTimerRef.current) {
+      motionUpdateTimerRef.current = setInterval(() => {
+        const c = getVisionClient()
+        const mid = activeMotionIdRef.current
+        if (!c?.connected || !mid) return
+        c.zoomUpdateMotion(mid, zoomV, speed)
+      }, MOTION_UPDATE_INTERVAL_MS)
+    }
   }, [speed, setPtzMotion, setPtzMoving, updateControlMetrics])
 
   const stopZoomMotion = useCallback(() => {
@@ -199,6 +242,10 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     activeMotionIdRef.current = ''
     setPtzMotion({ state: 'idle', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
     setPtzMoving(false)
+    if (motionUpdateTimerRef.current) {
+      clearInterval(motionUpdateTimerRef.current)
+      motionUpdateTimerRef.current = null
+    }
   }, [setPtzMotion, setPtzMoving, updateControlMetrics])
 
   // ── Joystick drag ──────────────────────────────────────────────
@@ -221,22 +268,8 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
 
     if (Math.abs(panV) > 0 || Math.abs(tiltV) > 0) {
       startDirectionMotion(panV, tiltV)
-
-      if (motionUpdateTimerRef.current) clearInterval(motionUpdateTimerRef.current)
-      motionUpdateTimerRef.current = setInterval(() => {
-        const client = getVisionClient()
-        const mid = activeMotionIdRef.current
-        if (!client?.connected || !mid) return
-        const v = joystickVelocity.current
-        client.ptzUpdateMotion({
-          motionId: mid,
-          panVelocity: v.pan,
-          tiltVelocity: v.tilt,
-          speed,
-        })
-      }, MOTION_UPDATE_INTERVAL_MS)
     }
-  }, [startDirectionMotion, speed])
+  }, [startDirectionMotion])
 
   const handleJoystickPointerMove = useCallback((e: React.PointerEvent) => {
     if (!joystickDragging.current) return
@@ -341,11 +374,19 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         isActive ? 'border-danger/30' : 'border-border',
       )}>
         {latestFrameUrl ? (
-          <img
-            src={latestFrameUrl}
-            alt="Camera preview"
-            className="w-full h-full object-contain"
-          />
+          <>
+            <img
+              src={latestFrameUrl}
+              alt="Camera preview"
+              className="w-full h-full object-contain"
+            />
+            <VisionOverlay
+              overlays={overlays}
+              width={width || 1280}
+              height={height || 720}
+              visible={overlayVisible}
+            />
+          </>
         ) : (
           <div className="flex items-center justify-center w-full h-full text-text-tertiary">
             <Camera size={24} className="opacity-30" />
@@ -372,6 +413,34 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             title="Pop out"
           >
             <PictureInPicture2 size={12} />
+          </button>
+          <button
+            onClick={() => setOverlayVisible(!overlayVisible)}
+            className={clsx(
+              'px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider',
+              overlayVisible
+                ? 'bg-ok/30 text-ok'
+                : 'bg-black/60 text-text-tertiary hover:text-white',
+            )}
+            title={overlayVisible ? 'Hide overlays' : 'Show overlays'}
+          >
+            OVR
+          </button>
+          <button
+            onClick={() => {
+              const next = !diagnosticOverlay
+              setDiagnosticOverlay(next)
+              getVisionClient()?.setDiagnosticOverlay(next)
+            }}
+            className={clsx(
+              'px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider',
+              diagnosticOverlay
+                ? 'bg-warning/30 text-warning'
+                : 'bg-black/60 text-text-tertiary hover:text-white',
+            )}
+            title={diagnosticOverlay ? 'Disable diagnostic overlay' : 'Enable diagnostic overlay'}
+          >
+            DIAG
           </button>
         </div>
       </div>
@@ -577,6 +646,31 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
               <span className="text-warning">Guards: {controlMetrics.guardTimeouts}</span>
             )}
           </div>
+
+          {/* Controller diagnostics */}
+          {ptzMotion.state !== 'idle' && (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-border/50 rounded p-2">
+              <span>motion_id: {ptzMotion.motionId || '—'}</span>
+              <span>state: <span className={clsx(
+                ptzMotion.state === 'moving' && 'text-warning',
+                ptzMotion.state === 'blocked' && 'text-danger',
+              )}>{ptzMotion.state}</span></span>
+              <span>pan_v: {ptzMotion.panVelocity.toFixed(2)}</span>
+              <span>tilt_v: {ptzMotion.tiltVelocity.toFixed(2)}</span>
+              <span>zoom_v: {ptzMotion.zoomVelocity.toFixed(2)}</span>
+              <span>speed: {speed.toFixed(1)}x</span>
+              <span>update: {MOTION_UPDATE_INTERVAL_MS}ms interval</span>
+              <span>joystick: {joystickDragging.current ? 'dragging' : 'idle'}</span>
+              {controlMetrics.lastCommandSentAt > 0 && (
+                <span>last_cmd: {Date.now() - controlMetrics.lastCommandSentAt < 2000
+                  ? `${Date.now() - controlMetrics.lastCommandSentAt}ms ago`
+                  : 'stale'}</span>
+              )}
+              {controlMetrics.guardTimeouts > 0 && (
+                <span className="text-danger">guard_kills: {controlMetrics.guardTimeouts}</span>
+              )}
+            </div>
+          )}
 
           {/* Tracking / Scene Intelligence */}
           <div className="border-t border-border pt-3">

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { OverlayMetadata } from '../components/vision/VisionOverlay'
 
 export type CameraStatus = 'off' | 'connecting' | 'live' | 'analyzing' | 'error'
 
@@ -329,6 +330,14 @@ interface VisionState {
   // Security mode setters
   setSecurityMode: (mode: Partial<SecurityModeInfo>) => void
 
+  // Overlay data (from vision_overlay WS events)
+  overlays: OverlayMetadata[]
+  setOverlays: (overlays: OverlayMetadata[]) => void
+  diagnosticOverlay: boolean
+  setDiagnosticOverlay: (enabled: boolean) => void
+  overlayVisible: boolean
+  setOverlayVisible: (visible: boolean) => void
+
   // Default-on policy
   defaultOnPolicy: CameraDefaultOnPolicy
   setDefaultOnPolicy: (policy: Partial<CameraDefaultOnPolicy>) => void
@@ -523,6 +532,14 @@ export const useVisionStore = create<VisionState>((set) => ({
     securityMode: { ...s.securityMode, ...partial },
   })),
 
+  // Overlay data
+  overlays: [],
+  setOverlays: (overlays) => set({ overlays }),
+  diagnosticOverlay: false,
+  setDiagnosticOverlay: (diagnosticOverlay) => set({ diagnosticOverlay }),
+  overlayVisible: true,
+  setOverlayVisible: (overlayVisible) => set({ overlayVisible }),
+
   // Default-on policy
   defaultOnPolicy: { ...INITIAL_DEFAULT_ON },
   setDefaultOnPolicy: (partial) => set((s) => ({
@@ -580,6 +597,9 @@ export const useVisionStore = create<VisionState>((set) => ({
     recentFires: [],
     lastChainExplanation: '',
     securityMode: { ...INITIAL_SECURITY },
+    overlays: [],
+    diagnosticOverlay: false,
+    overlayVisible: true,
     defaultOnPolicy: { ...INITIAL_DEFAULT_ON },
     ptzMotion: { ...INITIAL_PTZ_MOTION },
     controlMetrics: { ...INITIAL_CONTROL_METRICS },

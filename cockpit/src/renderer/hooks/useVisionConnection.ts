@@ -48,6 +48,7 @@ export function useVisionConnection(): void {
   const setSecurityMode = useVisionStore((s) => s.setSecurityMode)
   const updateChainHealth = useVisionStore((s) => s.updateChainHealth)
   const setDetectedObjects = useVisionStore((s) => s.setDetectedObjects)
+  const setOverlays = useVisionStore((s) => s.setOverlays)
   const setPtzMotion = useVisionStore((s) => s.setPtzMotion)
   const updateControlMetrics = useVisionStore((s) => s.updateControlMetrics)
   const setViewerCount = useVisionStore((s) => s.setViewerCount)
@@ -276,6 +277,13 @@ export function useVisionConnection(): void {
       client.on('camera_session_state', (d) => {
         setCameraSessionActive(d.active as boolean || false)
         setViewerCount(d.viewer_count as number || 0)
+      }),
+
+      // Overlay events
+      client.on('vision_overlay', (d) => {
+        const overlays = (d.overlays as import('../components/vision/VisionOverlay').OverlayMetadata[]) || []
+        setOverlays(overlays)
+        updateChainHealth({ lastOverlayAt: Date.now(), lastOverlayAgeMs: 0 })
       }),
 
       // Health chain events
