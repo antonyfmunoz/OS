@@ -489,3 +489,60 @@ class TestHeadlessBrowserLane:
         assert hud["is_background"] is True
         assert hud["disruption_risk"] == "none"
         assert hud["isolation_level"] == "headless"
+
+
+# ---------------------------------------------------------------------------
+# 14. Node Qualifier Stripping (4 tests) — Phase 14.14A daily-driver fixes
+# ---------------------------------------------------------------------------
+
+
+class TestNodeQualifierStripping:
+    """Phase 14.14A: 'Open Spotify on Beast' must resolve correctly."""
+
+    def test_open_spotify_on_beast(self) -> None:
+        from substrate.workstation.command_router import resolve_workstation_target
+
+        result = resolve_workstation_target("Open Spotify on Beast")
+        assert result.get("is_native") is True
+        assert result.get("target_app") == "spotify"
+        assert result.get("process_name") == "Spotify"
+
+    def test_open_instagram_in_chrome_on_beast(self) -> None:
+        from substrate.workstation.command_router import resolve_workstation_target
+
+        result = resolve_workstation_target("Open Instagram in Chrome on Beast")
+        assert result.get("target_app") == "instagram"
+        assert "instagram.com" in result.get("target_url", "")
+
+    def test_launch_discord_on_the_beast(self) -> None:
+        from substrate.workstation.command_router import resolve_workstation_target
+
+        result = resolve_workstation_target("launch discord on the beast")
+        assert result.get("is_native") is True
+        assert result.get("target_app") == "discord"
+
+    def test_no_qualifier_still_works(self) -> None:
+        from substrate.workstation.command_router import resolve_workstation_target
+
+        result = resolve_workstation_target("Open Spotify")
+        assert result.get("is_native") is True
+        assert result.get("target_app") == "spotify"
+
+
+# ---------------------------------------------------------------------------
+# 15. VPS Classification Expansion (2 tests) — Phase 14.14A daily-driver fixes
+# ---------------------------------------------------------------------------
+
+
+class TestVPSClassificationExpansion:
+    """Phase 14.14A: Natural VPS queries must classify correctly."""
+
+    def test_docker_container_status_on_vps(self) -> None:
+        from substrate.workstation.command_router import CommandIntent, classify_intent
+
+        assert classify_intent("Show me the Docker container status on VPS") == CommandIntent.VPS_CONTROL
+
+    def test_docker_status(self) -> None:
+        from substrate.workstation.command_router import CommandIntent, classify_intent
+
+        assert classify_intent("what is the docker status") == CommandIntent.VPS_CONTROL
