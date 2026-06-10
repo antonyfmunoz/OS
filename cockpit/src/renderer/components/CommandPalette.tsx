@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useCockpitStore, type Panel } from '../stores/cockpitStore'
 import { useConfigStore } from '../stores/configStore'
+import { fetchApi } from '../api/client'
 import { ROUTES } from '../types/routes'
 
 interface Command {
@@ -24,12 +25,10 @@ export function CommandPalette() {
 
   const handleJarvisCommand = useCallback(async (text: string) => {
     try {
-      const res = await fetch('/api/umh/presence/command', {
+      const data = await fetchApi<{ ok?: boolean; panel_target?: string; mode_target?: string; response_text?: string }>('/presence/command', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, source: 'typed_command' }),
       })
-      const data = await res.json()
       if (!data.ok) return
 
       if (data.panel_target) {

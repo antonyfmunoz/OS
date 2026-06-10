@@ -3,6 +3,7 @@ import { useOrganismStore } from '../stores/organismStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useRealtimeStore } from '../stores/realtimeStore'
 import { usePolling } from '../hooks/usePolling'
+import { fetchApi } from '../api/client'
 import { formatDuration, relativeTime } from '../lib/time'
 import { ExecutionTimeline } from '../components/ExecutionTimeline'
 import { EventConsole } from '../components/EventConsole'
@@ -126,8 +127,7 @@ function TraceTimeline() {
 
   const fetchEvents = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/organism/runtime-surface/sessions')
-      const data = await res.json()
+      const data = await fetchApi<any>('/organism/runtime-surface/sessions')
       if (data.sessions) {
         const recent = data.sessions
           .filter((s: any) => s.runtime_status !== 'drafted')

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '../api/client'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { CronTable, type CronJob } from '../components/CronTable'
 import { DetailDrawer } from '../components/DetailDrawer'
@@ -75,9 +76,7 @@ export function WorkPanel() {
 
   const fetchPackets = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/command-center/work-packets?limit=100')
-      if (!res.ok) throw new Error(`${res.status}`)
-      const data = await res.json()
+      const data = await fetchApi<{ packets?: WorkPacket[] }>('/command-center/work-packets?limit=100')
       setPackets(data.packets || [])
       setError('')
     } catch (e) {
@@ -89,15 +88,12 @@ export function WorkPanel() {
 
   const fetchOvernight = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/workstation/overnight/status')
-      if (res.ok) {
-        const data = await res.json()
-        setOvernightStatus({
-          safe: data.safe_items || [],
-          pending: data.pending_items || [],
-          blocked: data.blocked_items || [],
-        })
-      }
+      const data = await fetchApi<{ safe_items?: OvernightItem[]; pending_items?: OvernightItem[]; blocked_items?: OvernightItem[] }>('/workstation/overnight/status')
+      setOvernightStatus({
+        safe: data.safe_items || [],
+        pending: data.pending_items || [],
+        blocked: data.blocked_items || [],
+      })
     } catch {
       /* silent */
     }
@@ -117,12 +113,10 @@ export function WorkPanel() {
     if (!decomposeInput.trim()) return
     setDecomposing(true)
     try {
-      const res = await fetch('/api/umh/command-center/work-packets/decompose', {
+      await fetchApi('/command-center/work-packets/decompose', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_intent: decomposeInput }),
       })
-      await res.json()
       setDecomposeInput('')
       fetchPackets()
     } catch {
@@ -134,9 +128,8 @@ export function WorkPanel() {
   const handleControl = useCallback(
     async (packetId: string, action: 'pause' | 'resume' | 'stop') => {
       try {
-        await fetch(`/api/umh/workstation/execution/${action}`, {
+        await fetchApi(`/workstation/execution/${action}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ reason: `operator_${action}`, packet_id: packetId }),
         })
         fetchPackets()
@@ -150,9 +143,8 @@ export function WorkPanel() {
   const handleOvernightApprove = useCallback(
     async (packetId: string) => {
       try {
-        await fetch('/api/umh/workstation/overnight/approve', {
+        await fetchApi('/workstation/overnight/approve', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ packet_id: packetId }),
         })
         fetchOvernight()

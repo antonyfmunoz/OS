@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { Radio } from 'lucide-react'
+import { fetchApi } from '../api/client'
 import { useSystemStore } from '../stores/systemStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useVoiceStore } from '../stores/voiceStore'
@@ -104,24 +105,21 @@ export function HudBar() {
 
   const fetchWorkstationMode = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/workstation/mode-composite')
-      const data = await res.json()
+      const data = await fetchApi<{ ok?: boolean; mode_composite?: Record<string, unknown> }>('/workstation/mode-composite')
       if (data.ok) {
         const mc = data.mode_composite ?? {}
-        setPosture(mc.effective_posture ?? '')
-        setContinuityState(mc.continuity_state ?? '')
-        setLifecycleMode(mc.lifecycle_mode ?? '')
-        setProfileModes(mc.active_profile_modes ?? [])
+        setPosture((mc.effective_posture as string) ?? '')
+        setContinuityState((mc.continuity_state as string) ?? '')
+        setLifecycleMode((mc.lifecycle_mode as string) ?? '')
+        setProfileModes((mc.active_profile_modes as string[]) ?? [])
       }
     } catch { /* silent */ }
     try {
-      const res = await fetch('/api/umh/workstation/nodes')
-      const data = await res.json()
+      const data = await fetchApi<{ ok?: boolean; count?: number }>('/workstation/nodes')
       if (data.ok) setNodeCount(data.count ?? 0)
     } catch { /* silent */ }
     try {
-      const res = await fetch('/api/umh/presence/capabilities')
-      const data = await res.json()
+      const data = await fetchApi<{ ok?: boolean; stt_available?: boolean; tts_available?: boolean }>('/presence/capabilities')
       if (data.ok) {
         setSttAvailable(data.stt_available ?? false)
         setTtsAvailable(data.tts_available ?? false)
