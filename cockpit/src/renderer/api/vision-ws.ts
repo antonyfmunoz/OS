@@ -28,17 +28,23 @@ export interface CameraPreset {
   pan?: number
   tilt?: number
   zoom?: number
+  mode?: 'physical_ptz' | 'digital_roi'
   analysis_hint?: string
 }
+
+export type PtzDirection =
+  | 'up' | 'down' | 'left' | 'right'
+  | 'up_left' | 'up_right' | 'down_left' | 'down_right'
 
 export type VisionEvent =
   | { type: 'connected' }
   | { type: 'disconnected' }
   | { type: 'vision_status'; streaming: boolean; source: string }
-  | { type: 'vision_frame'; url: string; timestamp: number }
+  | { type: 'vision_frame'; url: string; timestamp: number; byteLength: number }
   | { type: 'vision_snapshot'; image_base64: string; width: number; height: number }
   | { type: 'camera_presets'; presets: Record<string, CameraPreset> }
-  | { type: 'camera_position'; pan: number; tilt: number; zoom: number }
+  | { type: 'camera_position'; pan: number; tilt: number; zoom: number; has_ptz_hardware: boolean }
+  | { type: 'camera_control_result'; request_id: string; operation: string; ok: boolean; data: Record<string, unknown> }
   | { type: 'vision_error'; error: string }
   | { type: 'preset_saved'; preset: string }
 
@@ -48,11 +54,18 @@ function getVisionProtocols(): string[] {
   return []
 }
 
+let _requestId = 0
+function nextRequestId(): string {
+  return `vr_${++_requestId}_${Date.now()}`
+}
+
 export class VisionWsClient {
   private ws: WsClient
   private _prevBlobUrl: string | null = null
   private _latestFrameUrl: string | null = null
   private _frameCount = 0
+  private _frameSizes: number[] = []
+  private _fpsWindow: number[] = []
 
   constructor() {
     this.ws = new WsClient(VISION_URL, getVisionProtocols())
@@ -102,6 +115,20 @@ export class VisionWsClient {
     return this._frameCount
   }
 
+  get measuredFps(): number {
+    const now = Date.now()
+    const window = this._fpsWindow.filter((t) => now - t < 2000)
+    this._fpsWindow = window
+    if (window.length < 2) return 0
+    return Math.round((window.length / 2) * 10) / 10
+  }
+
+  get avgFrameSize(): number {
+    if (this._frameSizes.length === 0) return 0
+    const sum = this._frameSizes.reduce((a, b) => a + b, 0)
+    return Math.round(sum / this._frameSizes.length)
+  }
+
   // ── Camera control ──────────────────────────────────────────────
 
   startCamera(opts: { fps?: number; width?: number; height?: number; quality?: number } = {}): void {
@@ -131,12 +158,12 @@ export class VisionWsClient {
 
   setPreset(preset: string): void {
     log('camera_preset', preset)
-    this.ws.send('camera_preset', { preset })
+    this.ws.send('camera_preset', { preset, request_id: nextRequestId() })
   }
 
   savePreset(preset: string, label: string, analysisHint = ''): void {
     log('camera_save_preset', { preset, label })
-    this.ws.send('camera_save_preset', { preset, label, analysis_hint: analysisHint })
+    this.ws.send('camera_save_preset', { preset, label, analysis_hint: analysisHint, request_id: nextRequestId() })
   }
 
   requestSnapshot(opts: { width?: number; height?: number; quality?: number } = {}): void {
@@ -145,6 +172,7 @@ export class VisionWsClient {
       width: opts.width ?? 1280,
       height: opts.height ?? 720,
       quality: opts.quality ?? 75,
+      request_id: nextRequestId(),
     })
   }
 
@@ -153,11 +181,68 @@ export class VisionWsClient {
   }
 
   requestPosition(): void {
-    this.ws.send('camera_get_position')
+    this.ws.send('camera_get_position', { request_id: nextRequestId() })
   }
 
   requestStatus(): void {
     this.ws.send('camera_status')
+  }
+
+  // ── PTZ control ─────────────────────────────────────────────────
+
+  ptzMove(direction: PtzDirection, speed = 1, durationMs = 150): void {
+    log('ptz_move', { direction, speed, durationMs })
+    this.ws.send('camera_ptz_move', {
+      direction,
+      speed,
+      duration_ms: durationMs,
+      request_id: nextRequestId(),
+    })
+  }
+
+  ptzSetPosition(pan: number, tilt: number, zoom: number): void {
+    log('ptz_set_position', { pan, tilt, zoom })
+    this.ws.send('camera_ptz_set_position', {
+      pan, tilt, zoom,
+      request_id: nextRequestId(),
+    })
+  }
+
+  ptzRelative(panDelta: number, tiltDelta: number, zoomDelta: number): void {
+    log('ptz_relative', { panDelta, tiltDelta, zoomDelta })
+    this.ws.send('camera_ptz_relative', {
+      pan_delta: panDelta,
+      tilt_delta: tiltDelta,
+      zoom_delta: zoomDelta,
+      request_id: nextRequestId(),
+    })
+  }
+
+  ptzStop(): void {
+    log('ptz_stop')
+    this.ws.send('camera_ptz_stop', { request_id: nextRequestId() })
+  }
+
+  ptzHome(): void {
+    log('ptz_home')
+    this.ptzSetPosition(0, 0, 100)
+  }
+
+  zoomIn(step = 10): void {
+    this.ptzRelative(0, 0, step)
+  }
+
+  zoomOut(step = 10): void {
+    this.ptzRelative(0, 0, -step)
+  }
+
+  // ── Quality mode ────────────────────────────────────────────────
+
+  switchQuality(mode: { fps: number; width: number; height: number; quality: number }): void {
+    log('switch_quality', mode)
+    this.stopCamera()
+    this.startCamera(mode)
+    this.subscribe(mode.fps, mode.quality)
   }
 
   // ── Events ──────────────────────────────────────────────────────
@@ -175,12 +260,16 @@ export class VisionWsClient {
     this._prevBlobUrl = this._latestFrameUrl
     this._frameCount++
 
+    this._fpsWindow.push(Date.now())
+    this._frameSizes.push(buf.byteLength)
+    if (this._frameSizes.length > 30) this._frameSizes.shift()
+
     if (this._frameCount === 1) log('first_frame_received', `bytes=${buf.byteLength}`)
     if (this._frameCount % 100 === 0) log('frames_received', this._frameCount)
 
     const handlers = (this.ws as unknown as { handlers: Map<string, ((d: Record<string, unknown>) => void)[]> }).handlers?.get('vision_frame') || []
     for (const h of handlers) {
-      h({ type: 'vision_frame', url: this._latestFrameUrl, timestamp: Date.now() })
+      h({ type: 'vision_frame', url: this._latestFrameUrl, timestamp: Date.now(), byteLength: buf.byteLength })
     }
   }
 

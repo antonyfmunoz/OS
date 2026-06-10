@@ -2,11 +2,11 @@ import { useEffect } from 'react'
 import { Camera } from 'lucide-react'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useVisionStore } from '../stores/visionStore'
-import { CameraPreview } from '../components/CameraPreview'
+import { CameraController } from '../components/CameraController'
 
 export function VisionPanel() {
   const setViewContext = useViewContextStore((s) => s.setContext)
-  const { cameraStatus, activePreset, streaming, connected, frameCount } = useVisionStore()
+  const { cameraStatus, activePreset, streaming, connected, frameCount, qualityMode, hasPtzHardware } = useVisionStore()
 
   useEffect(() => {
     setViewContext({ active_route: 'vision', visible_context_summary: 'Vision — camera feed and controls' })
@@ -22,6 +22,7 @@ export function VisionPanel() {
         <div className="flex items-center gap-3 text-[10px] text-gray-500">
           {streaming && <span className="text-green-400">{frameCount} frames</span>}
           {activePreset && <span>preset: <span className="text-cyan-400">{activePreset}</span></span>}
+          <span className="text-gray-500">{qualityMode}</span>
           <span className={connected ? 'text-green-400' : 'text-red-400'}>
             {connected ? 'connected' : 'disconnected'}
           </span>
@@ -29,7 +30,7 @@ export function VisionPanel() {
       </div>
 
       <div className="max-w-3xl">
-        <CameraPreview />
+        <CameraController />
       </div>
 
       {/* Privacy rules */}
@@ -65,8 +66,16 @@ export function VisionPanel() {
           <span className="text-gray-500">AI snapshot analysis</span>
           <span className="text-gray-300">"take a snapshot"</span>
           <span className="text-gray-500">capture frame</span>
-          <span className="text-gray-300">"save this position as X"</span>
+          <span className="text-gray-300">"move camera left/right/up/down"</span>
+          <span className="text-gray-500">manual PTZ</span>
+          <span className="text-gray-300">"zoom in / zoom out"</span>
+          <span className="text-gray-500">zoom control</span>
+          <span className="text-gray-300">"center the camera"</span>
+          <span className="text-gray-500">home position</span>
+          <span className="text-gray-300">"save this as my keyboard preset"</span>
           <span className="text-gray-500">save PTZ preset</span>
+          <span className="text-gray-300">"switch to smooth / sharp mode"</span>
+          <span className="text-gray-500">quality mode</span>
         </div>
       </div>
     </div>
