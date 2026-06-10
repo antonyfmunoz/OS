@@ -23,8 +23,8 @@ class CameraMode(Enum):
 
 
 PRIVACY_RULES = [
-    "Camera is OFF by default. Must be explicitly activated by operator.",
-    "Camera status must be visibly indicated whenever active (UI red banner).",
+    "Camera auto-starts for authenticated operator per profile policy. Unauthenticated viewers see only login.",
+    "Camera status must be visibly indicated whenever active (CAMERA LIVE banner).",
     "No persistent frame storage beyond the latest-frame buffer.",
     "No face recognition or identity matching. Presence detection only (occupied/empty).",
     "No audio capture through the camera pathway. Audio uses voice subsystem only.",
@@ -85,6 +85,38 @@ FORBIDDEN_SECURITY_ACTIONS = [
     "identity_recognition_of_strangers",
     "biometric_enrollment_without_consent",
 ]
+
+
+DEFAULT_ON_BY_PROFILE = {
+    "active_day": True,
+    "deep_work": False,
+    "creative_build": True,
+    "admin_ops": False,
+    "away": False,
+    "night_cycle": False,
+    "shutdown": False,
+}
+
+
+def validate_default_on_activation(
+    operator_session_id: str,
+    profile_mode: str = "active_day",
+    operator_override: bool = False,
+) -> tuple[bool, str]:
+    """Gate check: should camera auto-start on cockpit open?
+
+    Requires authenticated operator. Profile policy determines default.
+    Operator can override (enable default-on for deep_work, etc).
+    Camera does not auto-record. Visible CAMERA LIVE indicator required.
+    """
+    if not operator_session_id:
+        return False, "no operator session — default-on requires authenticated operator"
+    if operator_override:
+        return True, "operator override: default-on enabled"
+    allowed = DEFAULT_ON_BY_PROFILE.get(profile_mode, False)
+    if allowed:
+        return True, f"profile '{profile_mode}' permits default-on camera"
+    return False, f"profile '{profile_mode}' does not permit default-on camera"
 
 
 def validate_camera_activation(operator_session_id: str) -> tuple[bool, str]:

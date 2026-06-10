@@ -47,7 +47,7 @@ export function VisionPanel() {
       <div className="border border-gray-800 rounded p-3 max-w-3xl">
         <div className="text-[10px] text-gray-400 mb-2 uppercase tracking-wider">Privacy Governance</div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-gray-500">
-          <span>Camera off by default</span>
+          <span>Camera on by default (auth required)</span>
           <span>No face recognition</span>
           <span>No persistent storage</span>
           <span>No hidden recording</span>
@@ -81,6 +81,16 @@ export function VisionPanel() {
           <span className="text-gray-500">zoom control</span>
           <span className="text-gray-300">"center the camera"</span>
           <span className="text-gray-500">home position</span>
+          <span className="text-gray-300">"keep moving left"</span>
+          <span className="text-gray-500">continuous PTZ</span>
+          <span className="text-gray-300">"stop moving"</span>
+          <span className="text-gray-500">stop all motion</span>
+          <span className="text-gray-300">"keep camera on by default"</span>
+          <span className="text-gray-500">default-on preference</span>
+          <span className="text-gray-300">"keep zooming in"</span>
+          <span className="text-gray-500">continuous zoom</span>
+          <span className="text-gray-300">"stop zoom"</span>
+          <span className="text-gray-500">stop zoom motion</span>
 
           <span className="text-gray-600 col-span-2 uppercase tracking-wider mt-2">Presets & Quality</span>
           <span className="text-gray-300">"look at me"</span>

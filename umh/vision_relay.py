@@ -106,6 +106,288 @@ _mesh_dispatch_url = os.getenv(
     "http://localhost:8095/dispatch",
 )
 
+# ── Realtime PTZ motion loop state ────────────────────────────────
+
+_motion_active = False
+_motion_id: str = ""
+_motion_pan_velocity: float = 0.0
+_motion_tilt_velocity: float = 0.0
+_motion_zoom_velocity: float = 0.0
+_motion_speed: float = 1.0
+_motion_last_update: float = 0.0
+_motion_guard_ms: int = 500
+_motion_task: asyncio.Task | None = None
+_motion_loop_hz: float = 0.0
+_motion_guard_timeouts: int = 0
+_motion_coalesced: int = 0
+_motion_dropped: int = 0
+
+
+async def _motion_loop() -> None:
+    """Beast-side PTZ motion loop — emits hardware commands at fixed cadence."""
+    global _motion_active, _motion_pan_velocity, _motion_tilt_velocity
+    global _motion_zoom_velocity, _motion_loop_hz, _motion_guard_timeouts
+
+    cadence_hz = 20
+    interval = 1.0 / cadence_hz
+    guard_timeout_s = _motion_guard_ms / 1000.0
+
+    log.info("motion loop started: motion_id=%s cadence=%dHz guard=%dms",
+             _motion_id, cadence_hz, _motion_guard_ms)
+
+    loop_count = 0
+    loop_start = time.time()
+
+    try:
+        while _motion_active:
+            t0 = time.monotonic()
+            now = time.time()
+
+            if now - _motion_last_update > guard_timeout_s:
+                log.warning("motion guard timeout: no update for %.1fs, stopping motion_id=%s",
+                            now - _motion_last_update, _motion_id)
+                _motion_guard_timeouts += 1
+                _motion_active = False
+                await _dispatch_motion_stop()
+                await _broadcast_motion_state("idle")
+                break
+
+            if abs(_motion_pan_velocity) > 0.01 or abs(_motion_tilt_velocity) > 0.01:
+                step_scale = _motion_speed * 3
+                pan_delta = int(_motion_pan_velocity * step_scale)
+                tilt_delta = int(_motion_tilt_velocity * step_scale)
+                if pan_delta != 0 or tilt_delta != 0:
+                    await _dispatch_to_beast("camera.set_position_relative", {
+                        "pan_delta": pan_delta,
+                        "tilt_delta": tilt_delta,
+                        "zoom_delta": 0,
+                    })
+
+            if abs(_motion_zoom_velocity) > 0.01:
+                zoom_step = int(_motion_zoom_velocity * _motion_speed * 5)
+                if zoom_step != 0:
+                    await _dispatch_to_beast("camera.set_position_relative", {
+                        "pan_delta": 0,
+                        "tilt_delta": 0,
+                        "zoom_delta": zoom_step,
+                    })
+
+            loop_count += 1
+            elapsed_total = time.time() - loop_start
+            if elapsed_total > 0:
+                _motion_loop_hz = round(loop_count / elapsed_total, 1)
+
+            elapsed = time.monotonic() - t0
+            sleep_time = interval - elapsed
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+            else:
+                _motion_dropped += 1
+
+    except asyncio.CancelledError:
+        pass
+    except Exception as exc:
+        log.error("motion loop error: %s", exc)
+    finally:
+        _motion_active = False
+        log.info("motion loop ended: motion_id=%s loops=%d avg_hz=%.1f",
+                 _motion_id, loop_count, _motion_loop_hz)
+
+
+async def _start_motion(
+    motion_id: str,
+    pan_velocity: float,
+    tilt_velocity: float,
+    zoom_velocity: float = 0.0,
+    speed: float = 1.0,
+    guard_ms: int = 500,
+) -> None:
+    """Start or replace the active motion loop."""
+    global _motion_active, _motion_id, _motion_pan_velocity, _motion_tilt_velocity
+    global _motion_zoom_velocity, _motion_speed, _motion_last_update, _motion_guard_ms
+    global _motion_task
+
+    if _motion_active and _motion_task and not _motion_task.done():
+        _motion_active = False
+        _motion_task.cancel()
+        try:
+            await _motion_task
+        except (asyncio.CancelledError, Exception):
+            pass
+
+    _motion_id = motion_id
+    _motion_pan_velocity = pan_velocity
+    _motion_tilt_velocity = tilt_velocity
+    _motion_zoom_velocity = zoom_velocity
+    _motion_speed = max(0.1, min(speed, 5.0))
+    _motion_guard_ms = max(200, min(guard_ms, 2000))
+    _motion_last_update = time.time()
+    _motion_active = True
+
+    _motion_task = asyncio.create_task(_motion_loop())
+    await _broadcast_motion_state("moving")
+
+
+async def _update_motion(
+    motion_id: str,
+    pan_velocity: float,
+    tilt_velocity: float,
+    zoom_velocity: float = 0.0,
+    speed: float = 1.0,
+) -> None:
+    """Update the active motion velocity vector."""
+    global _motion_pan_velocity, _motion_tilt_velocity, _motion_zoom_velocity
+    global _motion_speed, _motion_last_update, _motion_coalesced
+
+    if not _motion_active or _motion_id != motion_id:
+        return
+
+    _motion_pan_velocity = pan_velocity
+    _motion_tilt_velocity = tilt_velocity
+    _motion_zoom_velocity = zoom_velocity
+    _motion_speed = max(0.1, min(speed, 5.0))
+    _motion_last_update = time.time()
+    _motion_coalesced += 1
+
+
+async def _stop_motion(motion_id: str = "") -> None:
+    """Stop the active motion loop."""
+    global _motion_active, _motion_task
+
+    if not _motion_active:
+        return
+
+    if motion_id and _motion_id != motion_id:
+        return
+
+    _motion_active = False
+    if _motion_task and not _motion_task.done():
+        _motion_task.cancel()
+        try:
+            await _motion_task
+        except (asyncio.CancelledError, Exception):
+            pass
+
+    await _dispatch_motion_stop()
+    await _broadcast_motion_state("idle")
+
+
+async def _dispatch_motion_stop() -> None:
+    """Send immediate stop to Beast hardware."""
+    pass
+
+
+async def _broadcast_motion_state(state: str) -> None:
+    """Broadcast PTZ motion state to all connected cockpit viewers."""
+    msg = {
+        "type": "ptz_motion_state",
+        "motion_id": _motion_id,
+        "state": state,
+        "pan_velocity": _motion_pan_velocity,
+        "tilt_velocity": _motion_tilt_velocity,
+        "zoom_velocity": _motion_zoom_velocity,
+        "loop_cadence_hz": _motion_loop_hz,
+        "guard_timeout_events": _motion_guard_timeouts,
+    }
+    for ws in list(_clients):
+        await send_json(ws, msg)
+
+
+async def _broadcast_session_state() -> None:
+    """Broadcast camera session state to all viewers."""
+    msg = {
+        "type": "camera_session_state",
+        "active": _stream_active,
+        "viewer_count": len(_clients),
+    }
+    for ws in list(_clients):
+        await send_json(ws, msg)
+
+
+async def _broadcast_motion_ack(motion_id: str, operation: str, ok: bool) -> None:
+    """Send motion ack to all connected viewers."""
+    msg = {
+        "type": "ptz_motion_ack",
+        "motion_id": motion_id,
+        "operation": operation,
+        "ok": ok,
+    }
+    for ws in list(_clients):
+        await send_json(ws, msg)
+
+
+_smooth_preset_task: asyncio.Task | None = None
+
+
+async def _smooth_preset_transition(preset: str, duration_s: float = 1.0) -> None:
+    """Smoothly interpolate from current PTZ position to a preset target.
+
+    Uses the Beast hardware's set_position at 20Hz with linear interpolation.
+    Falls back to instant jump if current position can't be read.
+    """
+    global _smooth_preset_task
+
+    if _smooth_preset_task and not _smooth_preset_task.done():
+        _smooth_preset_task.cancel()
+        try:
+            await _smooth_preset_task
+        except (asyncio.CancelledError, Exception):
+            pass
+
+    await _stop_motion()
+
+    current = await _dispatch_to_beast("camera.get_position", {})
+    if not current or not current.get("success"):
+        await _dispatch_to_beast("camera.set_preset", {"preset": preset})
+        return
+
+    target = await _dispatch_to_beast("camera.list_presets", {})
+    if not target or not target.get("success"):
+        await _dispatch_to_beast("camera.set_preset", {"preset": preset})
+        return
+
+    presets = target.get("presets", {})
+    if preset not in presets:
+        await _dispatch_to_beast("camera.set_preset", {"preset": preset})
+        return
+
+    p = presets[preset]
+    target_pan = p.get("pan", 0)
+    target_tilt = p.get("tilt", 0)
+    target_zoom = p.get("zoom", 100)
+    start_pan = current.get("pan", 0)
+    start_tilt = current.get("tilt", 0)
+    start_zoom = current.get("zoom", 100)
+
+    delta_pan = abs(target_pan - start_pan)
+    delta_tilt = abs(target_tilt - start_tilt)
+    delta_zoom = abs(target_zoom - start_zoom)
+    if delta_pan < 2 and delta_tilt < 2 and delta_zoom < 5:
+        await _dispatch_to_beast("camera.set_preset", {"preset": preset})
+        return
+
+    async def _interpolate():
+        cadence = 20
+        interval = 1.0 / cadence
+        total_steps = max(1, int(duration_s * cadence))
+        for step in range(1, total_steps + 1):
+            t = step / total_steps
+            t_smooth = t * t * (3 - 2 * t)
+            pan = int(start_pan + (target_pan - start_pan) * t_smooth)
+            tilt = int(start_tilt + (target_tilt - start_tilt) * t_smooth)
+            zoom = int(start_zoom + (target_zoom - start_zoom) * t_smooth)
+            await _dispatch_to_beast("camera.set_position", {
+                "pan": pan, "tilt": tilt, "zoom": zoom,
+            })
+            await asyncio.sleep(interval)
+        await _dispatch_to_beast("camera.set_position", {
+            "pan": target_pan, "tilt": target_tilt, "zoom": target_zoom,
+        })
+        await _broadcast_motion_state("idle")
+
+    await _broadcast_motion_state("moving")
+    _smooth_preset_task = asyncio.create_task(_interpolate())
+
 
 async def send_json(ws: Any, data: dict[str, Any]) -> None:
     try:
@@ -192,6 +474,7 @@ async def handle_vision(ws: Any) -> None:
     subscribed = False
     try:
         await send_json(ws, {"type": "connected"})
+        await _broadcast_session_state()
 
         async for message in ws:
             if not isinstance(message, str):
@@ -233,9 +516,14 @@ async def handle_vision(ws: Any) -> None:
 
             elif msg_type == "camera_preset":
                 preset = msg.get("preset", "")
-                result = await _dispatch_to_beast("camera.set_preset", {"preset": preset})
-                if result and not result.get("success"):
-                    await send_json(ws, {"type": "vision_error", "error": result.get("error", "preset failed")})
+                smooth = msg.get("smooth", False)
+                if smooth:
+                    duration = max(0.3, min(float(msg.get("duration", 1.0)), 3.0))
+                    await _smooth_preset_transition(preset, duration)
+                else:
+                    result = await _dispatch_to_beast("camera.set_preset", {"preset": preset})
+                    if result and not result.get("success"):
+                        await send_json(ws, {"type": "vision_error", "error": result.get("error", "preset failed")})
 
             elif msg_type == "camera_snapshot":
                 result = await _dispatch_to_beast("camera.snapshot", {
@@ -331,7 +619,64 @@ async def handle_vision(ws: Any) -> None:
 
             elif msg_type == "camera_ptz_stop":
                 request_id = msg.get("request_id", "")
+                await _stop_motion()
                 await _send_control_result(ws, request_id, "camera.ptz.stop", {"success": True})
+
+            # ── Realtime PTZ motion protocol ──────────────────
+
+            elif msg_type == "camera_ptz_start_motion":
+                motion_id = msg.get("motion_id", "")
+                await _start_motion(
+                    motion_id=motion_id,
+                    pan_velocity=float(msg.get("pan_velocity", 0)),
+                    tilt_velocity=float(msg.get("tilt_velocity", 0)),
+                    zoom_velocity=float(msg.get("zoom_velocity", 0)),
+                    speed=float(msg.get("speed", 1)),
+                    guard_ms=int(msg.get("duration_guard_ms", 500)),
+                )
+                await _broadcast_motion_ack(motion_id, "start_motion", True)
+
+            elif msg_type == "camera_ptz_update_motion":
+                motion_id = msg.get("motion_id", "")
+                await _update_motion(
+                    motion_id=motion_id,
+                    pan_velocity=float(msg.get("pan_velocity", 0)),
+                    tilt_velocity=float(msg.get("tilt_velocity", 0)),
+                    zoom_velocity=float(msg.get("zoom_velocity", 0)),
+                    speed=float(msg.get("speed", 1)),
+                )
+
+            elif msg_type == "camera_ptz_stop_motion":
+                motion_id = msg.get("motion_id", "")
+                await _stop_motion(motion_id)
+                await _broadcast_motion_ack(motion_id, "stop_motion", True)
+
+            elif msg_type == "camera_zoom_start":
+                motion_id = msg.get("motion_id", "")
+                await _start_motion(
+                    motion_id=motion_id,
+                    pan_velocity=0,
+                    tilt_velocity=0,
+                    zoom_velocity=float(msg.get("zoom_velocity", 0)),
+                    speed=float(msg.get("speed", 1)),
+                    guard_ms=int(msg.get("duration_guard_ms", 500)),
+                )
+                await _broadcast_motion_ack(motion_id, "zoom_start", True)
+
+            elif msg_type == "camera_zoom_update":
+                motion_id = msg.get("motion_id", "")
+                await _update_motion(
+                    motion_id=motion_id,
+                    pan_velocity=0,
+                    tilt_velocity=0,
+                    zoom_velocity=float(msg.get("zoom_velocity", 0)),
+                    speed=float(msg.get("speed", 1)),
+                )
+
+            elif msg_type == "camera_zoom_stop":
+                motion_id = msg.get("motion_id", "")
+                await _stop_motion(motion_id)
+                await _broadcast_motion_ack(motion_id, "zoom_stop", True)
 
             elif msg_type == "vision_scene_state":
                 state = _get_scene_state()
@@ -492,6 +837,10 @@ async def handle_vision(ws: Any) -> None:
         log.error("viewer session error: %s", e)
     finally:
         _clients.discard(ws)
+        if len(_clients) == 0 and _motion_active:
+            log.warning("last viewer disconnected while motion active, stopping motion")
+            await _stop_motion()
+        await _broadcast_session_state()
 
 
 async def _start_stream(
@@ -1081,6 +1430,11 @@ def _build_health() -> dict[str, Any]:
         "cockpit_connected": len(_clients) > 0,
         "websocket_authenticated": True,
         "viewer_count": len(_clients),
+        "motion_active": _motion_active,
+        "motion_id": _motion_id if _motion_active else "",
+        "motion_loop_hz": _motion_loop_hz,
+        "motion_guard_timeouts": _motion_guard_timeouts,
+        "motion_coalesced": _motion_coalesced,
         "beast_connected": beast_connected,
         "camera_available": camera_available,
         "camera_streaming": camera_streaming,

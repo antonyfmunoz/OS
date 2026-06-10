@@ -57,6 +57,7 @@ class CameraAdapter:
             "camera.list_presets": self._list_presets,
             "camera.get_position": self._get_position,
             "camera.set_position": self._set_position,
+            "camera.set_position_relative": self._set_position_relative,
             "camera.status": self._status,
         }
         handler = ops.get(operation)
@@ -291,6 +292,16 @@ class CameraAdapter:
             }
         finally:
             cap.release()
+
+    def _set_position_relative(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Apply relative pan/tilt/zoom deltas to current position."""
+        pos = self._get_position({})
+        if not pos["success"]:
+            return pos
+        new_pan = pos["pan"] + params.get("pan_delta", 0)
+        new_tilt = pos["tilt"] + params.get("tilt_delta", 0)
+        new_zoom = max(100, pos["zoom"] + params.get("zoom_delta", 0))
+        return self._set_position({"pan": new_pan, "tilt": new_tilt, "zoom": new_zoom})
 
     # ── Presets (stored PTZ positions) ───────────────────────────────
 
