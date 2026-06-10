@@ -115,23 +115,64 @@
 - `autonomous_execution`: too high stakes for unverified provider
 - `classify_intent` / `score_quality`: Groq/Beast fast enough
 
+### 7. Vision Analysis Handler — SHIPPED (2026-06-09)
+
+- `CAMERA_CONTROL` intent wired in advisor_conversation.py dispatch
+- `handle_camera_control()` sub-classifies deterministically via `classify_camera_command()`
+- Analysis operations ("what do you see") → `handle_vision_analysis()`:
+  - Fetches real frame from relay GET `/latest-frame` endpoint
+  - No frame → "No camera frame available" (never fabricates)
+  - Frame available → sends to vision-capable model via `analyze_snapshot()`
+  - Model unavailable → "frame exists but no vision model" (deterministic fallback)
+- Control operations (start/stop/preset) → appropriate deterministic response
+- Status operations → `handle_grounded_vision()` (real relay data)
+- `handle_grounded_visual()` now delegates to `handle_vision_analysis()` for real frame+model analysis
+
+### 8. Provider Health UI — SHIPPED (2026-06-09)
+
+- Hermes entry added to `/operational-truth/provider-health` via `organism_bridge.py`
+- Fields: `provider`, `bridge_type` (mesh_dispatch), `bridge_node` (beast_windows), `available`, `verified`, `bridge_status`, `benchmark_result`
+- Status values: `healthy` (available+verified), `unverified` (available but no successful call), `beast_offline`
+- Benchmark results included when `hermes_benchmark.json` exists
+
+### 9. Tests — 64/64 PASS
+
+| Category | Tests | Status |
+|---|---|---|
+| No data = no fabrication | 5 | PASS |
+| Firewall prevents LLM | 6 | PASS |
+| Real data = grounded | 3 | PASS |
+| Hermes integration | 4 | PASS |
+| Vision grounding | 2 | PASS |
+| Response format | 3 | PASS |
+| Provider metadata | 2 | PASS |
+| Composite blockers | 2 | PASS |
+| Webhook grounding | 2 | PASS |
+| Hermes grounding | 2 | PASS |
+| VPS catalog expansion | 7 | PASS |
+| Grounded response contract | 3 | PASS |
+| Vision analysis | 3 | PASS |
+| Camera control | 4 | PASS |
+| Pattern validity | 1 | PASS |
+| **Total** | **64** | **PASS** |
+
 ## Remaining Work
 
 1. **Beast daemon connection**: Hermes integration depends on Beast daemon running and connected to mesh. Until then, Hermes shows as `beast_offline`.
 2. **Hermes benchmark execution**: Must run `probe_hermes()` after Beast connects to verify quality and assign final roles.
-3. **Vision analysis handler**: Camera frames reach cockpit, but "what do you see?" needs a backend handler to bridge frame → vision-capable model → response. The grounding registry has vision_status, but the analysis dispatch is not yet wired.
-4. **Combined daily-driver trial**: Requires all subsystems operational simultaneously for the full trial protocol.
+3. **Combined daily-driver trial**: Requires all subsystems operational simultaneously for the full trial protocol.
 
-## Verdict: PARTIAL
+## Verdict: PARTIAL → near-SHIPPED
 
-**PARTIAL because**:
+**Status by workcell:**
 - Grounding firewall: **SHIPPED** — status queries are deterministic-first, no LLM fabrication
 - Hermes registration: **SHIPPED** — infrastructure complete, safety gates installed
 - Hermes bridge: **PENDING** — Beast daemon must connect for real round-trip verification
 - Hermes benchmark: **PENDING** — requires bridge working first
 - Provider routing: **SHIPPED** — purpose-based with supplemental providers gated on verification
 - Vision grounding: **SHIPPED** — vision status queries grounded in real relay data
-- Vision analysis: **PENDING** — frame→model dispatch not wired
-- Daily-driver trial: **PENDING** — requires all subsystems operational
+- Vision analysis: **SHIPPED** — frame→model dispatch wired, grounded (no frame = no claim)
+- Provider health UI: **SHIPPED** — Hermes diagnostic in cockpit
+- Daily-driver trial: **PENDING** — requires Beast daemon connected
 
-**The grounding firewall alone resolves the primary 14.14A failure pattern.** DEX can no longer fabricate Docker status, provider health, work packet state, or system summaries. When data is missing, the response says exactly what's missing and why. This is the highest-value deliverable and it's fully operational.
+**The only remaining items are Beast-dependent.** All VPS-side code is complete. The grounding firewall resolves the primary 14.14A failure pattern. Vision analysis is grounded (no frame = no claim). Provider health shows Hermes status with exact blocker reason. 64/64 tests pass.
