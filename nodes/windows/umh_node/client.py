@@ -20,6 +20,7 @@ from nodes.windows.umh_node.adapters.camera import CameraAdapter
 from nodes.windows.umh_node.adapters.clipboard import ClipboardAdapter
 from nodes.windows.umh_node.adapters.desktop import DesktopAdapter
 from nodes.windows.umh_node.adapters.filesystem import FilesystemAdapter
+from nodes.windows.umh_node.adapters.hermes import HermesAdapter
 from nodes.windows.umh_node.adapters.shell import ShellAdapter
 from nodes.windows.umh_node.config import NodeConfig
 from nodes.windows.umh_node.governance import validate_request
@@ -63,6 +64,10 @@ class NodeClient:
             cam = CameraAdapter()
             cam.set_frame_callback(self._on_camera_frame)
             self._adapters["camera"] = cam
+        # Hermes: always register if binary exists, no config gate needed
+        hermes = HermesAdapter()
+        if hermes._available:
+            self._adapters["hermes"] = hermes
 
     def _on_camera_frame(self, frame_data: dict[str, Any]) -> None:
         """Called from camera stream thread — pushes frame to VPS via mesh."""
@@ -184,7 +189,9 @@ class NodeClient:
         url = self._config.ws_url
         logger.info("connecting to %s", url.split("?")[0])
 
-        async with websockets.connect(url, ping_interval=30, ping_timeout=10, max_size=4 * 1024 * 1024) as ws:
+        async with websockets.connect(
+            url, ping_interval=30, ping_timeout=10, max_size=4 * 1024 * 1024
+        ) as ws:
             self._ws = ws
             await self._send_hello()
             self._connected = True
