@@ -62,6 +62,7 @@ class NodeMeshServer:
         )
         self._view_socket = view_socket
         self._pipeline_submit_fn = pipeline_submit_fn
+        self._frame_callback: Callable[[str, str], None] | None = None
         self._server: Any = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
@@ -75,6 +76,10 @@ class NodeMeshServer:
     @property
     def metrics_buffer(self) -> MetricsBuffer:
         return self._metrics
+
+    def register_frame_callback(self, callback: Callable[[str, str], None]) -> None:
+        """Register a callback for camera frames: callback(node_id, base64_jpeg)."""
+        self._frame_callback = callback
 
     def start(self) -> threading.Thread:
         """Start the mesh server in a background thread."""
@@ -407,6 +412,14 @@ class NodeMeshServer:
                 battery=params.get("payload", {}).get("battery"),
             )
             self._metrics.record(snapshot)
+        elif signal_class == "camera_frame":
+            if self._frame_callback is not None:
+                frame_b64 = params.get("payload", {}).get("image_base64", "")
+                if frame_b64:
+                    try:
+                        self._frame_callback(node_id, frame_b64)
+                    except Exception as exc:
+                        logger.warning("frame callback failed: %s", exc)
         elif self._pipeline_submit_fn is not None:
             content = params.get("content_type", "node.signal")
             payload = params.get("payload", {})

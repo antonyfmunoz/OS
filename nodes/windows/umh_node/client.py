@@ -16,6 +16,7 @@ from typing import Any, Callable
 
 import websockets
 
+from nodes.windows.umh_node.adapters.camera import CameraAdapter
 from nodes.windows.umh_node.adapters.clipboard import ClipboardAdapter
 from nodes.windows.umh_node.adapters.desktop import DesktopAdapter
 from nodes.windows.umh_node.adapters.filesystem import FilesystemAdapter
@@ -57,6 +58,8 @@ class NodeClient:
             self._adapters["desktop"] = DesktopAdapter()
         if cap_cfg.get("clipboard") and cap_cfg["clipboard"].enabled:
             self._adapters["clipboard"] = ClipboardAdapter()
+        if cap_cfg.get("camera") and cap_cfg["camera"].enabled:
+            self._adapters["camera"] = CameraAdapter()
 
     def _next_id(self) -> int:
         self._msg_id += 1
@@ -109,6 +112,17 @@ class NodeClient:
                     "category": "compute",
                     "risk_class": "read_only",
                     "max_risk_class": cfg.max_risk_class if cfg else "safe_write",
+                }
+            )
+
+        if "camera" in self._adapters:
+            cfg = cap_cfg.get("camera")
+            caps.append(
+                {
+                    "name": "camera",
+                    "category": "media",
+                    "risk_class": "read_only",
+                    "max_risk_class": cfg.max_risk_class if cfg else "read_only",
                 }
             )
 
