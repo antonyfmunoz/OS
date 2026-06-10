@@ -407,6 +407,14 @@ class TestBackgroundBrowserProfile:
         assert "--profile-directory=Default" in cmd
         assert "https://example.com" in cmd
 
+    def test_worker_chrome_rejects_shell_injection(self) -> None:
+        from substrate.workstation.work_lane import build_worker_chrome_launch_cmd
+
+        with pytest.raises(ValueError, match="shell-unsafe"):
+            build_worker_chrome_launch_cmd("https://example.com&calc.exe")
+        with pytest.raises(ValueError, match="http"):
+            build_worker_chrome_launch_cmd("file:///etc/passwd")
+
 
 # ---------------------------------------------------------------------------
 # 12. Lane Inventory (3 tests)
