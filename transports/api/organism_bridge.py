@@ -1780,24 +1780,18 @@ def _operational_truth_provider_health(payload: dict) -> dict:
 
         try:
             from adapters.models.hermes_cli import (
-                get_benchmark_result,
-                is_available,
-                is_verified,
+                diagnostics as hermes_diagnostics,
+                health as hermes_health,
             )
 
-            hermes_entry = {
-                "provider": "hermes-agent",
-                "bridge_type": "mesh_dispatch",
-                "bridge_node": "beast_windows",
-                "available": is_available(),
-                "verified": is_verified(),
-                "bridge_status": "healthy" if is_available() and is_verified() else (
-                    "unverified" if is_available() else "beast_offline"
-                ),
+            hermes_entry = hermes_health()
+            diag = hermes_diagnostics()
+            hermes_entry["benchmark_result"] = diag.get("benchmark")
+            hermes_entry["diagnostics"] = {
+                "checks": diag.get("checks", {}),
+                "blockers": diag.get("blockers", []),
+                "sessions": diag.get("sessions", {}),
             }
-            benchmark = get_benchmark_result()
-            if benchmark:
-                hermes_entry["benchmark_result"] = benchmark
             if isinstance(data.get("providers"), list):
                 data["providers"].append(hermes_entry)
             else:

@@ -292,11 +292,30 @@ PURPOSE_ROUTING: dict[str, list[ProviderRole]] = {
 }
 
 # Supplemental providers appended AFTER role-based resolution, before last-resort.
-# Only active when the provider passes is_verified(). Never for status/code/autonomous.
+# Only active when the provider passes is_verified(). Roles assigned by benchmark.
 SUPPLEMENTAL_PROVIDERS: dict[str, list[str]] = {
     "quick_triage": ["hermes-agent"],
     "advise_founder": ["hermes-agent"],
+    "summarize": ["hermes-agent"],
 }
+
+
+def _hermes_allowed_for_purpose(purpose: str) -> bool:
+    """Check if Hermes benchmark allows it for this purpose."""
+    try:
+        from adapters.models.hermes_cli import get_assigned_roles
+        assigned = get_assigned_roles()
+        purpose_to_role = {
+            "quick_triage": "quick_triage",
+            "advise_founder": "conversation",
+            "summarize": "summarization",
+            "plan_architecture": "planning",
+            "research_grounding": "research",
+        }
+        required_role = purpose_to_role.get(purpose)
+        return required_role in assigned if required_role else False
+    except Exception:
+        return False
 
 _LEGACY_PURPOSE_MAP: dict[str, str] = {
     "conversation": "advise_founder",
@@ -1028,6 +1047,8 @@ class ModelRouter:
         full_prompt = f"{system}\n\n{prompt}" if system else prompt
         result = query_hermes_sync(full_prompt)
         if result:
+            self._last_input_tokens = result.estimated_input_tokens
+            self._last_output_tokens = result.estimated_output_tokens
             return result.output
         return ""
 
@@ -1098,11 +1119,14 @@ def _providers_for_purpose(purpose: str) -> list[str]:
             seen.add(failover)
 
     # Append verified supplemental providers (e.g. Hermes after benchmark)
+    # Hermes is role-gated: only appended if benchmark assigns the required role
     supplemental = SUPPLEMENTAL_PROVIDERS.get(purpose, [])
     for key in supplemental:
         if key not in seen:
             config = MODEL_REGISTRY.get(key)
             if config and config.available:
+                if key == "hermes-agent" and not _hermes_allowed_for_purpose(purpose):
+                    continue
                 provider_keys.append(key)
                 seen.add(key)
 
