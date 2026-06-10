@@ -58,11 +58,11 @@ else
   echo -e "${GREEN}OK: Dockerfile references nginx.conf.template${NC}"
 fi
 
-if ! grep -q "envsubst" "$COCKPIT_DIR/start.sh"; then
-  echo -e "${RED}BLOCKED: start.sh missing envsubst — secrets won't be injected${NC}"
+if grep -q "UMH_WS_TOKEN\|UMH_OPERATOR_API_KEY" "$COCKPIT_DIR/nginx.conf.template"; then
+  echo -e "${RED}BLOCKED: nginx.conf.template still injects secrets — use Clerk JWT auth${NC}"
   errors=$((errors + 1))
 else
-  echo -e "${GREEN}OK: start.sh has envsubst${NC}"
+  echo -e "${GREEN}OK: nginx.conf.template has no injected secrets${NC}"
 fi
 
 if grep -q "X-API-Key" "$COCKPIT_DIR/nginx.conf.template"; then
