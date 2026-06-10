@@ -325,6 +325,54 @@ async def handle_vision(ws: Any) -> None:
                 request_id = msg.get("request_id", "")
                 await _send_control_result(ws, request_id, "camera.ptz.stop", {"success": True})
 
+            elif msg_type == "vision_scene_state":
+                state = _get_scene_state()
+                await send_json(ws, {"type": "vision_scene_state", **state})
+
+            elif msg_type == "vision_analyze":
+                result = await _analyze_current_frame(msg.get("transcript", ""))
+                await send_json(ws, {"type": "vision_analysis_result", **result})
+
+            elif msg_type == "vision_track_start":
+                label = msg.get("label", "")
+                result = _track_start(label, msg.get("hint", ""))
+                await send_json(ws, {"type": "vision_track_result", **result})
+
+            elif msg_type == "vision_track_stop":
+                label = msg.get("label", "")
+                result = _track_stop(label)
+                await send_json(ws, {"type": "vision_track_result", **result})
+
+            elif msg_type == "vision_label_item":
+                label = msg.get("label", "")
+                result = _label_item(label, msg.get("frame_id", ""))
+                await send_json(ws, {"type": "vision_label_result", **result})
+
+            elif msg_type == "vision_watch_start":
+                target = msg.get("target", "")
+                condition = msg.get("condition", "moved")
+                result = _watch_start(target, condition)
+                await send_json(ws, {"type": "vision_watch_result", **result})
+
+            elif msg_type == "vision_watch_stop":
+                target = msg.get("target", "")
+                result = _watch_stop(target)
+                await send_json(ws, {"type": "vision_watch_result", **result})
+
+            elif msg_type == "vision_follow_start":
+                target = msg.get("target", "operator")
+                result = _follow_start(target)
+                await send_json(ws, {"type": "vision_follow_result", **result})
+
+            elif msg_type == "vision_follow_stop":
+                result = _follow_stop()
+                await send_json(ws, {"type": "vision_follow_result", **result})
+
+            elif msg_type == "vision_query":
+                target = msg.get("target", "")
+                result = _visual_query(target)
+                await send_json(ws, {"type": "vision_query_result", **result})
+
     except websockets.exceptions.ConnectionClosed:
         log.info("viewer disconnected: %s", ws.remote_address)
     except Exception as e:
@@ -415,6 +463,127 @@ def _get_loop() -> asyncio.AbstractEventLoop | None:
 
 
 _BEAST_NODE_ID = os.getenv("VISION_BEAST_NODE_ID", "windows-desktop")
+
+
+# ── Scene manager integration ───────────────────────────────────────
+
+def _get_scene_manager():
+    """Lazy-import scene manager to avoid circular deps at module load."""
+    try:
+        from substrate.workstation.vision_scene import get_scene_manager
+        return get_scene_manager()
+    except Exception as exc:
+        log.warning("scene manager unavailable: %s", exc)
+        return None
+
+
+def _get_scene_state() -> dict:
+    mgr = _get_scene_manager()
+    if not mgr:
+        return {"error": "scene manager unavailable"}
+    return mgr.get_state_summary()
+
+
+def _track_start(label: str, hint: str = "") -> dict:
+    mgr = _get_scene_manager()
+    if not mgr:
+        return {"success": False, "error": "scene manager unavailable"}
+    obj = mgr.start_tracking(label, track_hint=hint)
+    if obj:
+        return {"success": True, "track_id": obj.track_id, "label": obj.label, "status": obj.status}
+    return {"success": False, "error": f"could not start tracking '{label}'"}
+
+
+def _track_stop(label: str) -> dict:
+    mgr = _get_scene_manager()
+    if not mgr:
+        return {"success": False, "error": "scene manager unavailable"}
+    stopped = mgr.stop_tracking(label)
+    return {"success": stopped, "label": label}
+
+
+def _label_item(label: str, frame_id: str = "") -> dict:
+    mgr = _get_scene_manager()
+    if not mgr:
+        return {"success": False, "error": "scene manager unavailable"}
+    obj = mgr.label_item(label, frame_id=frame_id)
+    return {"success": True, "track_id": obj.track_id, "label": obj.label}
+
+
+def _watch_start(target: str, condition: str = "moved") -> dict:
+    mgr = _get_scene_manager()
+    if not mgr:
+        return {"success": False, "error": "scene manager unavailable"}
+    watch = mgr.start_watch(target, condition=condition)
+    if watch:
+        return {"success": True, "watch_id": watch.watch_id, "target": target, "condition": condition}
+    return {"success": False, "error": "max watches reached"}
+
+
+def _watch_stop(target: str) -> dict:
+    mgr = _get_scene_manager()
+    if not mgr:
+        return {"success": False, "error": "scene manager unavailable"}
+    stopped = mgr.stop_watch(target)
+    return {"success": stopped, "target": target}
+
+
+def _follow_start(target: str = "operator") -> dict:
+    mgr = _get_scene_manager()
+    if not mgr:
+        return {"success": False, "error": "scene manager unavailable"}
+    follow = mgr.start_follow(target)
+    return {"success": True, "target": target, "follow": follow.to_dict()}
+
+
+def _follow_stop() -> dict:
+    mgr = _get_scene_manager()
+    if not mgr:
+        return {"success": False, "error": "scene manager unavailable"}
+    mgr.stop_follow()
+    return {"success": True}
+
+
+def _visual_query(target: str) -> dict:
+    mgr = _get_scene_manager()
+    if not mgr:
+        return {"answer": "Scene manager unavailable.", "confidence": "none"}
+    return mgr.query_visual(target)
+
+
+async def _analyze_current_frame(transcript: str = "") -> dict:
+    """Analyze the latest frame with VLM if available."""
+    global _latest_frame
+    if _latest_frame is None:
+        return {"answer": "No frame available. Camera may be off.", "confidence": "none", "source": "no_frame"}
+
+    import base64
+    b64 = base64.b64encode(_latest_frame).decode()
+
+    try:
+        from substrate.workstation.camera_commands import analyze_snapshot
+        analysis = analyze_snapshot(image_base64=b64, transcript=transcript)
+    except Exception as exc:
+        log.warning("VLM analysis failed: %s", exc)
+        return {
+            "answer": "Frame captured but analysis unavailable right now.",
+            "confidence": "low",
+            "source": "vlm_failed",
+        }
+
+    mgr = _get_scene_manager()
+    if mgr:
+        import time as _time
+        from substrate.workstation.vision_query import _extract_objects_from_vlm
+        detected = _extract_objects_from_vlm(analysis)
+        mgr.update_scene_from_frame(
+            frame_id=f"frame_{int(_time.time() * 1000)}",
+            detected_objects=detected,
+            summary=analysis,
+            vlm_analyzed=True,
+        )
+
+    return {"answer": analysis, "confidence": "grounded", "source": "vlm_analysis"}
 
 
 async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str, Any] | None:
