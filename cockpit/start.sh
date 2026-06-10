@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Template nginx config — inject only UMH secrets from env, leave nginx vars intact.
-envsubst '${UMH_OPERATOR_API_KEY} ${UMH_WS_TOKEN}' \
+envsubst '${UMH_WS_TOKEN}' \
   < /etc/nginx/conf.d/default.conf.template \
   > /etc/nginx/conf.d/default.conf
 

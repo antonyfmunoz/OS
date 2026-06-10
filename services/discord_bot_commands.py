@@ -72,6 +72,13 @@ def register_commands(
     _DEFAULT_VENTURE_ID = default_venture_id
     DiscordServerManager = discord_server_manager_cls
 
+    # ── Founder-only global gate — all commands restricted ───────────────
+    @bot.check
+    async def _global_founder_check(ctx: commands.Context) -> bool:
+        if FOUNDER_ID and ctx.author.id != FOUNDER_ID:
+            return False
+        return True
+
     # ─── Session watcher commands ────────────────────────────────────────
 
     @bot.command(name="answer")

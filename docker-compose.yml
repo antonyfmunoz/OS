@@ -53,7 +53,7 @@ services:
       - TZ=America/Los_Angeles
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     deploy:
       resources:
         limits:
@@ -74,7 +74,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "0.0.0.0:8765:8765"
+      - "127.0.0.1:8765:8765"
     volumes:
       - ${UMH_ROOT:-/opt/OS}:/app
       - ${UMH_ROOT:-/opt/OS}/logs:${UMH_ROOT:-/opt/OS}/logs
@@ -113,7 +113,7 @@ services:
       - EOS_DISCORD_TEXT_REPLY_TTS_ENABLED=1
       - EOS_DISCORD_TEXT_ALLOWED_GUILDS=*
       - EOS_DISCORD_TEXT_ALLOWED_CHANNELS=*
-      - EOS_DISCORD_TEXT_ALLOWED_USERS=*
+      - EOS_DISCORD_TEXT_ALLOWED_USERS=${FOUNDER_DISCORD_ID:-*}
     command: python3 services/discord_bot.py
     deploy:
       resources:
@@ -148,7 +148,7 @@ services:
       - VOICE_WS_UPSTREAM=ws://host.docker.internal:8096/voice
       - UMH_ROUTER_CLAUDE_CLI_ENABLED=0
     ports:
-      - "8091:8091"
+      - "127.0.0.1:8091:8091"
     deploy:
       resources:
         limits:

@@ -7,7 +7,7 @@ import { useActivityStore } from '../stores/activityStore'
 import { useConfigStore } from '../stores/configStore'
 import { useChatStore } from '../stores/chatStore'
 import { useBootstrapStore } from '../stores/bootstrapStore'
-import { getWsToken } from '../api/client'
+import { getWsToken, getClerkToken } from '../api/client'
 
 const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30000
@@ -19,9 +19,11 @@ function buildWsUrl(): string {
   return envUrl || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/umh/ws`
 }
 
-function getWsProtocols(): string[] | undefined {
-  const token = getWsToken()
-  return token ? [`bearer.${token}`] : undefined
+async function getWsProtocols(): Promise<string[] | undefined> {
+  const clerkToken = await getClerkToken()
+  if (clerkToken) return [`bearer.${clerkToken}`]
+  const wsToken = getWsToken()
+  return wsToken ? [`bearer.${wsToken}`] : undefined
 }
 
 export function useOrganismRealtime(): void {
@@ -58,13 +60,13 @@ export function useOrganismRealtime(): void {
     }
   }, [])
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
     if (wsRef.current?.readyState === WebSocket.CONNECTING) return
 
     setStatus('connecting')
     const url = buildWsUrl()
-    const protocols = getWsProtocols()
+    const protocols = await getWsProtocols()
 
     try {
       const ws = protocols ? new WebSocket(url, protocols) : new WebSocket(url)

@@ -1489,6 +1489,10 @@ async def on_message(message: discord.Message):
     if message.author == bot.user or message.author.bot:
         return
 
+    # ── Founder-only gate — ignore all non-founder messages silently ──
+    if FOUNDER_ID and message.author.id != FOUNDER_ID:
+        return
+
     # Wake idle system — a real user message is a work signal
     try:
         from substrate.state.work.work_state import record_signal, reset_idle_counter

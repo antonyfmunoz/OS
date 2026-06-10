@@ -35,6 +35,7 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
+from transports.api.cockpit_auth import require_clerk_auth, validate_ws_clerk_token
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +157,7 @@ async def _require_operator_role(
     return "operator"
 
 
-router = APIRouter(prefix="/api/umh", dependencies=[Depends(_require_api_key)])
+router = APIRouter(prefix="/api/umh", dependencies=[Depends(require_clerk_auth)])
 ws_router = APIRouter(prefix="/api/umh")
 
 _ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
@@ -1968,13 +1969,18 @@ def _real_ws_client_ip(ws: WebSocket) -> str:
 
 
 def _validate_ws_token(ws: WebSocket) -> bool:
-    """Validate WS connection auth."""
-    if not _WS_TOKEN:
-        client_ip = _real_ws_client_ip(ws)
-        return _DEV_BYPASS and _is_private_ip(client_ip)
-    token = _extract_ws_token(ws)
-    if token and _hmac.compare_digest(token, _WS_TOKEN):
+    """Validate WS connection auth.
+
+    Tries Clerk JWT first (via cockpit_auth), then falls back to
+    WS token comparison and dev-bypass.
+    """
+    clerk_user = validate_ws_clerk_token(ws)
+    if clerk_user is not None:
         return True
+    if _WS_TOKEN:
+        token = _extract_ws_token(ws)
+        if token and _hmac.compare_digest(token, _WS_TOKEN):
+            return True
     client_ip = _real_ws_client_ip(ws)
     if _DEV_BYPASS and _is_private_ip(client_ip):
         return True
