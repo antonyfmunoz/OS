@@ -120,6 +120,79 @@ _VISUAL_QUERY_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Overlay control patterns
+_OVERLAY_SHOW_PATTERN = re.compile(
+    r"\b(?:show\s+(?:the\s+)?tracking\s+overlay|show\s+overlays?|overlays?\s+on)\b",
+    re.IGNORECASE,
+)
+_OVERLAY_HIDE_PATTERN = re.compile(
+    r"\b(?:hide\s+(?:the\s+)?tracking\s+overlay|hide\s+overlays?|overlays?\s+off)\b",
+    re.IGNORECASE,
+)
+
+# Tracker stack patterns
+_TRACKER_ENABLE_PATTERN = re.compile(
+    r"\b(?:turn\s+on|enable|start)\s+(?:the\s+)?"
+    r"(object|item|person|face|hand|pose|motion|region|scene|operator|unknown\s+person)\s+track(?:er|ing)\b",
+    re.IGNORECASE,
+)
+_TRACKER_DISABLE_PATTERN = re.compile(
+    r"\b(?:turn\s+off|disable|stop)\s+(?:the\s+)?"
+    r"(object|item|person|face|hand|pose|motion|region|scene|operator|unknown\s+person)\s+track(?:er|ing)\b",
+    re.IGNORECASE,
+)
+_TRACKER_STACK_PATTERN = re.compile(
+    r"\bstack\s+(.+?)(?:\s+tracking)?\b",
+    re.IGNORECASE,
+)
+_WHAT_TRACKING_PATTERN = re.compile(
+    r"\b(?:what\s+(?:are\s+you|is\s+being)\s+track(?:ed|ing)|show\s+tracking\s+status)\b",
+    re.IGNORECASE,
+)
+_STOP_ALL_TRACKING_PATTERN = re.compile(
+    r"\bstop\s+all\s+tracking\b",
+    re.IGNORECASE,
+)
+
+# Preset CRUD patterns
+_PRESET_CREATE_PATTERN = re.compile(
+    r"\bcreate\s+(?:a\s+)?(?:new\s+)?(?:(.+?)\s+)?preset\b",
+    re.IGNORECASE,
+)
+_PRESET_DELETE_PATTERN = re.compile(
+    r"\bdelete\s+(?:this\s+|the\s+)?(?:(.+?)\s+)?preset\b",
+    re.IGNORECASE,
+)
+_PRESET_RENAME_PATTERN = re.compile(
+    r"\brename\s+(?:this\s+)?preset\s+to\s+(.+)\b",
+    re.IGNORECASE,
+)
+
+# Trigger chain patterns
+_CHAIN_CREATE_PATTERN = re.compile(
+    r"\bwhen\s+(?:i\s+leave|an?\s+unknown|someone|i\s+return)(?:.*?)"
+    r"(?:switch|go|watch|track|harden|restore)\b",
+    re.IGNORECASE,
+)
+_CHAIN_DISABLE_PATTERN = re.compile(
+    r"\b(?:turn\s+off|disable)\s+(?:the\s+)?(?:security\s+)?chain\b",
+    re.IGNORECASE,
+)
+_CHAIN_EXPLAIN_PATTERN = re.compile(
+    r"\bwhy\s+did\s+(?:that|the)\s+trigger\s+fire\b",
+    re.IGNORECASE,
+)
+
+# Security mode patterns
+_SECURITY_HARDEN_PATTERN = re.compile(
+    r"\b(?:go|enter|activate)\s+security\s+harden\b",
+    re.IGNORECASE,
+)
+_SECURITY_NORMAL_PATTERN = re.compile(
+    r"\b(?:exit|leave|deactivate|stop)\s+security\s+(?:harden|mode)\b",
+    re.IGNORECASE,
+)
+
 _PHRASE_TO_PRESET = {
     "me": "operator",
     "keyboard": "keyboard",
@@ -157,8 +230,97 @@ class CameraCommand:
     source: str = "voice"
 
 
+_TRACKER_NAME_MAP: dict[str, str] = {
+    "object": "object_detector",
+    "item": "item_tracker",
+    "person": "person_tracker",
+    "face": "face_tracker",
+    "hand": "hand_tracker",
+    "pose": "pose_tracker",
+    "motion": "motion_tracker",
+    "region": "region_tracker",
+    "scene": "scene_change_tracker",
+    "operator": "operator_presence_tracker",
+    "unknown person": "unknown_person_tracker",
+}
+
+
 def classify_camera_command(transcript: str) -> CameraCommand:
     """Deterministically classify a camera intent into a specific operation."""
+
+    # Security mode (highest priority — safety-critical)
+    if _SECURITY_NORMAL_PATTERN.search(transcript):
+        return CameraCommand(operation="security_deactivate")
+    if _SECURITY_HARDEN_PATTERN.search(transcript):
+        return CameraCommand(operation="security_activate")
+
+    # Chain explain (before chain create to avoid false match)
+    if _CHAIN_EXPLAIN_PATTERN.search(transcript):
+        return CameraCommand(operation="chain_explain")
+
+    # Chain disable
+    if _CHAIN_DISABLE_PATTERN.search(transcript):
+        return CameraCommand(operation="chain_disable")
+
+    # Stop all tracking
+    if _STOP_ALL_TRACKING_PATTERN.search(transcript):
+        return CameraCommand(operation="stop_all_tracking")
+
+    # Overlay show/hide
+    if _OVERLAY_HIDE_PATTERN.search(transcript):
+        return CameraCommand(operation="overlay_hide")
+    if _OVERLAY_SHOW_PATTERN.search(transcript):
+        return CameraCommand(operation="overlay_show")
+
+    # What are you tracking?
+    if _WHAT_TRACKING_PATTERN.search(transcript):
+        return CameraCommand(operation="tracking_status")
+
+    # Tracker enable/disable
+    m = _TRACKER_DISABLE_PATTERN.search(transcript)
+    if m:
+        name = m.group(1).lower().strip()
+        category = _TRACKER_NAME_MAP.get(name, f"{name}_tracker")
+        return CameraCommand(operation="tracker_disable", params={"category": category})
+
+    m = _TRACKER_ENABLE_PATTERN.search(transcript)
+    if m:
+        name = m.group(1).lower().strip()
+        category = _TRACKER_NAME_MAP.get(name, f"{name}_tracker")
+        return CameraCommand(operation="tracker_enable", params={"category": category})
+
+    # Tracker stack ("stack hand and item tracking")
+    m = _TRACKER_STACK_PATTERN.search(transcript)
+    if m:
+        raw = m.group(1).lower()
+        parts = re.split(r"\s+and\s+|\s*,\s*|\s*\+\s*", raw)
+        categories = []
+        for p in parts:
+            p = p.strip()
+            cat = _TRACKER_NAME_MAP.get(p, f"{p}_tracker")
+            categories.append(cat)
+        return CameraCommand(operation="tracker_stack", params={"categories": categories})
+
+    # Preset CRUD (before legacy preset pattern)
+    m = _PRESET_RENAME_PATTERN.search(transcript)
+    if m:
+        new_name = m.group(1).strip()
+        return CameraCommand(operation="preset_rename", params={"new_label": new_name})
+
+    if _PRESET_DELETE_PATTERN.search(transcript):
+        m2 = _PRESET_DELETE_PATTERN.search(transcript)
+        name = (m2.group(1) or "").strip().lower() if m2 else ""
+        return CameraCommand(operation="preset_delete", params={"preset_id": name})
+
+    m = _PRESET_CREATE_PATTERN.search(transcript)
+    if m:
+        name = (m.group(1) or "new").strip().lower().replace(" ", "_")
+        return CameraCommand(operation="preset_create", params={"preset_id": name, "label": m.group(1) or name})
+
+    # Chain create (voice trigger chain — natural language)
+    if _CHAIN_CREATE_PATTERN.search(transcript):
+        return CameraCommand(operation="chain_create_voice", params={"transcript": transcript})
+
     # Follow mode (check before tracking to avoid false matches)
     if _FOLLOW_STOP_PATTERN.search(transcript):
         return CameraCommand(operation="follow_stop")
@@ -340,7 +502,13 @@ def dispatch_camera_command(
     if cmd.operation in ("track_start", "track_stop", "label_item",
                          "watch_start", "watch_stop",
                          "follow_start", "follow_stop",
-                         "visual_query"):
+                         "visual_query",
+                         "overlay_show", "overlay_hide",
+                         "tracker_enable", "tracker_disable", "tracker_stack",
+                         "tracking_status", "stop_all_tracking",
+                         "preset_create", "preset_rename", "preset_delete",
+                         "chain_create_voice", "chain_disable", "chain_explain",
+                         "security_activate", "security_deactivate"):
         return {"success": True, "operation": cmd.operation, "params": cmd.params}
 
     return {"success": False, "error": f"unknown camera operation: {cmd.operation}"}

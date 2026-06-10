@@ -50,6 +50,17 @@ TRACKING_PRIVACY_RULES = [
     "Lost objects reported as 'lost', never guessed at.",
 ]
 
+OVERLAY_PRIVACY_RULES = [
+    "Overlay data is ephemeral — no persistent overlay recording.",
+    "Face tracking shows bounding box only — no identity labels by default.",
+    "Operator enrollment is local-only and explicit.",
+    "Unknown persons are labeled 'unknown_person', never identified.",
+    "Gesture control requires explicit opt-in and visible HUD indicator.",
+    "Trigger chains are auditable — every fire has event, confidence, frame_id.",
+    "Security harden mode may NOT trigger physical harm or doxxing.",
+    "Continuous video recording is forbidden in all modes.",
+]
+
 STREAM_AUTO_TIMEOUT_S = 30 * 60
 WATCH_DEFAULT_EXPIRY_M = 60
 SCENE_EXPIRY_S = 300
@@ -62,6 +73,17 @@ FORBIDDEN_CLAIMS = [
     "gender_classification",
     "ethnicity_classification",
     "biometric_storage",
+]
+
+FORBIDDEN_SECURITY_ACTIONS = [
+    "weapon_targeting",
+    "physical_defense",
+    "doxxing",
+    "public_posting",
+    "external_messaging_without_approval",
+    "continuous_video_recording",
+    "identity_recognition_of_strangers",
+    "biometric_enrollment_without_consent",
 ]
 
 
@@ -140,6 +162,37 @@ def validate_visual_claim(claim_type: str) -> tuple[bool, str]:
     if claim_type in FORBIDDEN_CLAIMS:
         return False, f"visual claim type '{claim_type}' is forbidden"
     return True, f"visual claim type '{claim_type}' is allowed"
+
+
+def validate_operator_enrollment(
+    is_explicit: bool,
+    storage_local_only: bool = True,
+) -> tuple[bool, str]:
+    """Gate check: is operator face enrollment allowed?"""
+    if not is_explicit:
+        return False, "operator enrollment requires explicit opt-in"
+    if not storage_local_only:
+        return False, "enrollment data must be local-only (never uploaded)"
+    return True, "explicit local-only enrollment allowed"
+
+
+def validate_gesture_control(
+    is_explicit: bool,
+    risk_level: str = "low",
+) -> tuple[bool, str]:
+    """Gate check: is gesture-based control allowed?"""
+    if not is_explicit:
+        return False, "gesture control requires explicit opt-in"
+    if risk_level == "high":
+        return False, "high-risk actions cannot be approved by gesture"
+    return True, f"gesture control allowed for {risk_level}-risk actions"
+
+
+def validate_trigger_chain_action(action_type: str) -> tuple[bool, str]:
+    """Gate check: is this trigger chain action type allowed?"""
+    if action_type in FORBIDDEN_SECURITY_ACTIONS:
+        return False, f"action '{action_type}' is forbidden"
+    return True, f"action '{action_type}' is allowed"
 
 
 def get_active_mode() -> CameraMode:
