@@ -34,6 +34,7 @@ class DeviceSession:
     current_panel: str = ""
     can_capture_audio: bool = True
     can_play_audio: bool = True
+    can_capture_video: bool = False
     reachable_nodes: list[str] = field(default_factory=lambda: ["cockpit", "vps"])
     last_seen: str = ""
     status: str = "active"  # active | idle | disconnected

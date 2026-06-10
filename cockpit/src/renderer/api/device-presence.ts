@@ -9,6 +9,7 @@ export interface DeviceRegistration {
   control_surface?: string
   can_capture_audio?: boolean
   can_play_audio?: boolean
+  can_capture_video?: boolean
   reachable_nodes?: string[]
 }
 
@@ -22,6 +23,7 @@ export interface DeviceSession {
   current_panel: string
   can_capture_audio: boolean
   can_play_audio: boolean
+  can_capture_video: boolean
   reachable_nodes: string[]
   last_seen: string
   status: string
