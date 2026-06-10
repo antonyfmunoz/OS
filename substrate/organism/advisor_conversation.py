@@ -191,6 +191,10 @@ class AdvisorConversation:
             response = self._handle_continuity_transition(content)
         elif intent == CommandIntent.STARTUP_SEQUENCE:
             response = self._handle_startup_sequence()
+        elif intent == CommandIntent.SHUTDOWN_SEQUENCE:
+            response = self._handle_shutdown_sequence()
+        elif intent == CommandIntent.INTENT_CAPTURE:
+            response = self._handle_intent_capture(content)
         elif intent == CommandIntent.MODE_SWITCH:
             response = self._handle_mode_switch(content)
         else:
@@ -1269,95 +1273,202 @@ class AdvisorConversation:
         )
 
     def _handle_startup_sequence(self) -> AdvisorResponse:
-        lines = ["**Starting up.**\n"]
-        node_status: dict[str, str] = {}
-
         try:
-            from adapters.models.model_router import MODEL_REGISTRY, refresh_provider_health
+            from substrate.workstation.continuity_engine import ContinuityEngine
 
-            try:
-                refresh_provider_health()
-            except Exception:
-                pass
-            healthy = [k for k, c in MODEL_REGISTRY.items() if c.available]
-            lines.append(f"**Providers:** {len(healthy)} healthy — {', '.join(healthy) or 'none'}")
-        except Exception:
-            lines.append("**Providers:** status unavailable")
+            engine = ContinuityEngine()
+            result = engine.startup_sequence()
 
-        try:
-            import urllib.request
+            lines = ["**Starting up.**\n"]
 
-            health_host = os.environ.get("UMH_API_HOST", "localhost")
-            health_port = os.environ.get("UMH_API_PORT", "8091")
-            req = urllib.request.Request(
-                f"http://{health_host}:{health_port}/health",
-                method="GET",
-            )
-            with urllib.request.urlopen(req, timeout=3) as resp:
-                lines.append("**VPS API:** healthy")
-                node_status["vps"] = "healthy"
-        except Exception:
-            lines.append("**VPS API:** unreachable (may be inside container)")
-            node_status["vps"] = "unreachable"
-
-        try:
-            import json as _json
-            from pathlib import Path
-
-            mesh_file = (
-                Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "runtime" / "mesh_nodes.json"
-            )
-            if mesh_file.exists():
-                nodes = _json.loads(mesh_file.read_text())
-                for node in nodes:
-                    if "desktop" in node.get("capabilities", []):
-                        status = node.get("status", "unknown")
-                        lines.append(f"**Beast:** {status}")
-                        node_status["beast_windows"] = status
-                        break
-                else:
-                    lines.append("**Beast:** no desktop node registered")
-                    node_status["beast_windows"] = "not_registered"
+            # Provider status
+            prov = result.provider_status
+            if "error" in prov:
+                lines.append(f"**Providers:** {prov['error']}")
+            elif prov.get("healthy"):
+                lines.append(
+                    f"**Providers:** {len(prov['healthy'])} healthy — "
+                    f"{', '.join(prov['healthy'])}"
+                )
             else:
-                lines.append("**Beast:** mesh data unavailable")
-                node_status["beast_windows"] = "no_mesh_data"
-        except Exception:
-            lines.append("**Beast:** status check failed")
-            node_status["beast_windows"] = "error"
+                lines.append("**Providers:** status unavailable")
 
-        try:
-            from substrate.workstation.continuity import ContinuityState
+            # Node status
+            nodes = result.node_status
+            lines.append(f"**VPS:** {nodes.get('vps', 'unknown')}")
+            lines.append(f"**Beast:** {nodes.get('beast', 'unknown')}")
 
-            lines.append(f"**Continuity:** transitioning to {ContinuityState.ACTIVE.value}")
-        except ImportError:
-            pass
+            # Continuity
+            lines.append(f"**Continuity:** {result.continuity_state}")
+            lines.append(f"**Profile:** {result.profile_mode}")
 
-        try:
-            from substrate.workstation.resume_brief import ReturnBriefGenerator
+            # Active loops
+            if result.active_loops:
+                lines.append(
+                    f"**Active loops:** {len(result.active_loops)} — "
+                    + ", ".join(l["intent"][:40] for l in result.active_loops[:3])
+                )
 
-            gen = ReturnBriefGenerator()
-            brief = gen.generate_brief()
-            if brief:
-                brief_text = brief if isinstance(brief, str) else str(brief)
-                if brief_text and brief_text != "None":
-                    lines.append(f"\n**Resume brief:**\n{brief_text[:500]}")
-        except Exception:
-            pass
+            # Blockers
+            if result.open_blockers:
+                lines.append(f"**Blockers:** {len(result.open_blockers)}")
 
-        return AdvisorResponse(
-            text="\n".join(lines),
-            conversation_id="",
-            intent="startup_sequence",
-            metadata={"node_status": node_status},
-            suggested_actions=[
-                {"label": "Full Status", "action": "query", "payload": {"content": "full status"}},
-                {
-                    "label": "What's Next?",
-                    "action": "query",
-                    "payload": {"content": "what should we do next"},
+            # Approvals
+            if result.pending_approvals:
+                lines.append(f"**Pending approvals:** {len(result.pending_approvals)}")
+
+            # Resume summary
+            if result.resume_summary:
+                lines.append(f"\n**While you were away:** {result.resume_summary}")
+
+            # Next action
+            if result.recommended_next:
+                lines.append(f"\n**Next:** {result.recommended_next}")
+
+            # Errors
+            if result.errors:
+                lines.append(f"\n**Warnings:** {'; '.join(result.errors)}")
+
+            return AdvisorResponse(
+                text="\n".join(lines),
+                conversation_id="",
+                intent="startup_sequence",
+                metadata={
+                    "node_status": result.node_status,
+                    "continuity_state": result.continuity_state,
+                    "profile_mode": result.profile_mode,
+                    "active_loops": len(result.active_loops),
+                    "open_blockers": len(result.open_blockers),
+                    "pending_approvals": len(result.pending_approvals),
                 },
-            ],
-        )
+                suggested_actions=[
+                    {"label": "Full Status", "action": "query", "payload": {"content": "full status"}},
+                    {
+                        "label": "What's Next?",
+                        "action": "query",
+                        "payload": {"content": "what should we do next"},
+                    },
+                ],
+            )
+        except Exception as exc:
+            logger.error("Startup sequence failed: %s", exc)
+            return AdvisorResponse(
+                text=f"Startup sequence failed: {exc}",
+                conversation_id="",
+                intent="startup_sequence",
+            )
+
+    def _handle_shutdown_sequence(self) -> AdvisorResponse:
+        """End-of-day seal — summarize work, save resume point, create report."""
+        try:
+            from substrate.workstation.continuity_engine import ContinuityEngine
+
+            engine = ContinuityEngine()
+            result = engine.shutdown_sequence()
+
+            lines = ["**Shutting down for the day.**\n"]
+
+            if result.completed_work:
+                lines.append(
+                    f"**Completed:** {', '.join(result.completed_work[:5])}"
+                )
+
+            if result.open_loops:
+                lines.append(
+                    f"**Open loops:** {len(result.open_loops)} — "
+                    + ", ".join(l[:40] for l in result.open_loops[:3])
+                )
+
+            if result.open_blockers:
+                lines.append(f"**Blockers:** {len(result.open_blockers)}")
+
+            if result.pending_approvals:
+                lines.append(f"**Pending approvals:** {len(result.pending_approvals)}")
+
+            lines.append(f"\n**Resume point:** {result.resume_point}")
+
+            if result.report_path:
+                lines.append(f"**Session report:** {result.report_path}")
+
+            if result.errors:
+                lines.append(f"\n**Warnings:** {'; '.join(result.errors)}")
+
+            return AdvisorResponse(
+                text="\n".join(lines),
+                conversation_id="",
+                intent="shutdown_sequence",
+                metadata={
+                    "resume_point": result.resume_point,
+                    "report_path": result.report_path,
+                    "open_loops": len(result.open_loops),
+                },
+                suggested_actions=[
+                    {
+                        "label": "Review Report",
+                        "action": "query",
+                        "payload": {"content": "show today's session report"},
+                    },
+                ],
+            )
+        except Exception as exc:
+            logger.error("Shutdown sequence failed: %s", exc)
+            return AdvisorResponse(
+                text=f"Shutdown sequence failed: {exc}",
+                conversation_id="",
+                intent="shutdown_sequence",
+            )
+
+    def _handle_intent_capture(self, content: str) -> AdvisorResponse:
+        """Convert high-level operator intent into an IntentContract."""
+        try:
+            from substrate.workstation.intent_contract import (
+                IntentContractManager,
+                create_contract_from_intent,
+            )
+
+            contract = create_contract_from_intent(operator_intent=content)
+            mgr = IntentContractManager()
+            mgr.save(contract)
+
+            lines = [
+                f"**Intent captured.**\n",
+                f"**Intent:** {contract.operator_intent}",
+                f"**End state:** {contract.desired_end_state}",
+                f"**Risk:** {contract.risk_level}",
+                f"**Autonomy:** {contract.allowed_autonomy}",
+                f"**Max iterations:** {contract.max_iterations}",
+                f"**Contract ID:** `{contract.intent_id}`",
+            ]
+
+            return AdvisorResponse(
+                text="\n".join(lines),
+                conversation_id="",
+                intent="intent_capture",
+                metadata={
+                    "intent_id": contract.intent_id,
+                    "risk_level": contract.risk_level,
+                    "status": contract.status,
+                },
+                suggested_actions=[
+                    {
+                        "label": "Start Executing",
+                        "action": "query",
+                        "payload": {"content": f"execute intent {contract.intent_id}"},
+                    },
+                    {
+                        "label": "Refine Contract",
+                        "action": "query",
+                        "payload": {"content": f"refine intent {contract.intent_id}"},
+                    },
+                ],
+            )
+        except Exception as exc:
+            logger.error("Intent capture failed: %s", exc)
+            return AdvisorResponse(
+                text=f"Intent capture failed: {exc}",
+                conversation_id="",
+                intent="intent_capture",
+            )
 
     def _handle_mode_switch(self, content: str) -> AdvisorResponse:
         from substrate.workstation.command_router import resolve_mode_target
@@ -1382,8 +1493,21 @@ class AdvisorConversation:
             profile_values = set()
 
         if target in profile_values:
+            try:
+                from substrate.workstation.profile_behavior import get_behavior
+
+                behavior = get_behavior(target)
+                behavior_info = (
+                    f" Voice: {behavior.voice_behavior}."
+                    f" Notifications: {behavior.notification_policy}."
+                    f" Camera: {behavior.camera_policy}."
+                    f" Execution: {behavior.default_execution_mode}."
+                )
+            except Exception:
+                behavior_info = ""
+
             return AdvisorResponse(
-                text=f"Switching to {target} mode.",
+                text=f"Switching to **{target}** mode.{behavior_info}",
                 conversation_id="",
                 intent="mode_switch",
                 metadata={"profile_mode": target},

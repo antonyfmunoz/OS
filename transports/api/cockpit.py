@@ -3044,18 +3044,26 @@ async def bootstrap():
         errors.append(f"mode_composite: {e}")
         result["mode_composite"] = {}
 
-    # continuity
+    # continuity — full composite state
     try:
-        from transports.api.cockpit_workstation_control_routes import _get_continuity_machine
+        from substrate.workstation.continuity_engine import ContinuityEngine
 
-        machine = _get_continuity_machine()
-        result["continuity"] = {
-            "current_state": machine.current_state.value,
-            "valid_transitions": [s.value for s in machine.valid_transitions()],
-        }
+        engine = ContinuityEngine()
+        composite = engine.get_composite_state()
+        result["continuity"] = composite.to_dict()
     except Exception as e:
-        errors.append(f"continuity: {e}")
-        result["continuity"] = {}
+        # Fallback to basic state machine if engine fails
+        try:
+            from transports.api.cockpit_workstation_control_routes import _get_continuity_machine
+
+            machine = _get_continuity_machine()
+            result["continuity"] = {
+                "current_state": machine.current_state.value,
+                "valid_transitions": [s.value for s in machine.valid_transitions()],
+            }
+        except Exception:
+            errors.append(f"continuity: {e}")
+            result["continuity"] = {}
 
     # command-center summary (lightweight subset)
     try:
