@@ -350,7 +350,7 @@ async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str
 
 
 async def _health_server() -> None:
-    """Minimal HTTP health endpoint on PORT+1."""
+    """HTTP server on PORT+1: health check + frame ingestion from mesh."""
     from http.server import BaseHTTPRequestHandler
     import socketserver
 
@@ -368,6 +368,27 @@ async def _health_server() -> None:
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(body)
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def do_POST(self) -> None:
+            if self.path == "/frame":
+                length = int(self.headers.get("Content-Length", 0))
+                if length == 0 or length > MAX_FRAME_BYTES * 2:
+                    self.send_response(400)
+                    self.end_headers()
+                    return
+                body = self.rfile.read(length)
+                try:
+                    data = json.loads(body)
+                except Exception:
+                    self.send_response(400)
+                    self.end_headers()
+                    return
+                receive_mesh_frame(data)
+                self.send_response(204)
+                self.end_headers()
             else:
                 self.send_response(404)
                 self.end_headers()
