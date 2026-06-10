@@ -666,7 +666,7 @@ class NodeMeshServer:
         node_id = body.get("node_id", "")
         capability = body.get("capability", "")
         params = body.get("params", {})
-        _MAX_DISPATCH_TIMEOUT = 60
+        _MAX_DISPATCH_TIMEOUT = 180
         raw_timeout = body.get("timeout", 15)
         timeout = max(
             1,
