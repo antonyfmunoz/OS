@@ -548,9 +548,13 @@ def _expire_stale_sessions() -> None:
 
 
 def get_assigned_roles() -> list[str]:
-    """Return roles Hermes is allowed based on benchmark results."""
+    """Return roles Hermes is allowed based on benchmark results.
+
+    Each role is independently gated by its required test — overall_pass
+    is not a gate. Grounding failure blocks status_report but not conversation.
+    """
     bench = get_benchmark_result()
-    if not bench or not bench.get("overall_pass"):
+    if not bench:
         return []
 
     tests = bench.get("tests", {})
@@ -701,7 +705,7 @@ def cancel() -> dict:
 
 def probe_hermes() -> dict:
     """Run benchmark suite against Hermes. Returns scored results with role assignment."""
-    global _benchmark_result
+    global _benchmark_result, _first_call_succeeded
 
     results: dict = {
         "provider": "hermes",
@@ -728,6 +732,9 @@ def probe_hermes() -> dict:
         "pass": liveness_pass,
         "latency_ms": liveness_latency,
     }
+
+    if liveness_pass:
+        _first_call_succeeded = True
 
     if not liveness_pass:
         for name in ("grounding", "summarization", "conversation", "code_review", "code_patch", "identity", "no_data_refusal", "supplied_data"):
