@@ -52,7 +52,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("vision_relay")
 
-HOST = os.getenv("VISION_RELAY_HOST", "127.0.0.1")
+HOST = os.getenv("VISION_RELAY_HOST", "0.0.0.0")
 PORT = int(os.getenv("VISION_RELAY_PORT", "8097"))
 MAX_FRAME_BYTES = 2 * 1024 * 1024
 _AUTH_TOKEN = os.getenv("VISION_RELAY_TOKEN", "")
