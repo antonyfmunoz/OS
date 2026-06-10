@@ -291,6 +291,13 @@ PURPOSE_ROUTING: dict[str, list[ProviderRole]] = {
     ],
 }
 
+# Supplemental providers appended AFTER role-based resolution, before last-resort.
+# Only active when the provider passes is_verified(). Never for status/code/autonomous.
+SUPPLEMENTAL_PROVIDERS: dict[str, list[str]] = {
+    "quick_triage": ["hermes-agent"],
+    "advise_founder": ["hermes-agent"],
+}
+
 _LEGACY_PURPOSE_MAP: dict[str, str] = {
     "conversation": "advise_founder",
     "analysis": "plan_architecture",
@@ -338,13 +345,15 @@ _FAST_TASK_TYPES = frozenset({"fast_response", "conversation", "score", "classif
 # Purposes that should route to Claude CLI as Backend #0.
 # All other purposes skip CLI entirely and go straight to purpose-based routing.
 # This prevents fast/local tasks from waiting on CLI timeout before reaching Groq/Beast.
-_CLI_ELIGIBLE_PURPOSES = frozenset({
-    "advise_founder",
-    "plan_architecture",
-    "build_code",
-    "autonomous_execution",
-    "decompose_goal",
-})
+_CLI_ELIGIBLE_PURPOSES = frozenset(
+    {
+        "advise_founder",
+        "plan_architecture",
+        "build_code",
+        "autonomous_execution",
+        "decompose_goal",
+    }
+)
 
 
 # Escalation threshold — if quality_score below this, retry with cc_sdk
@@ -478,7 +487,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         provider=ModelProvider.HERMES,
         model_id="hermes-default",
         api_key_env="",
-        strengths=[TaskType.CODE, TaskType.AUTONOMOUS],
+        strengths=[TaskType.CONVERSATION, TaskType.ANALYSIS],
         cost_per_1k=0.0,
     ),
     "opencode-agent": ModelConfig(
@@ -503,7 +512,9 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
 }
 
 
-def _estimate_quality_score(output: str, provider_key: str, skip_length_penalty: bool = False) -> float:
+def _estimate_quality_score(
+    output: str, provider_key: str, skip_length_penalty: bool = False
+) -> float:
     """
     Heuristic quality score for a model response.
 
@@ -544,7 +555,10 @@ def _should_escalate(output: str, provider_key: str, purpose: str = "") -> bool:
     answers are expected and acceptable — skip length-based penalty.
     """
     skip_length_penalty = purpose in (
-        "quick_triage", "classify_intent", "score_quality", "status_report"
+        "quick_triage",
+        "classify_intent",
+        "score_quality",
+        "status_report",
     )
     score = _estimate_quality_score(output, provider_key, skip_length_penalty=skip_length_penalty)
     if score < _ESCALATION_QUALITY_THRESHOLD:
@@ -588,10 +602,7 @@ def _remote_ollama_available(url: str, model_id: str = "") -> bool:
             return True
         data = resp.json()
         model_base = model_id.split("-instruct")[0].split("-q4")[0]
-        return any(
-            model_base in m.get("name", "")
-            for m in data.get("models", [])
-        )
+        return any(model_base in m.get("name", "") for m in data.get("models", []))
     except Exception:
         return False
 
@@ -609,25 +620,31 @@ class ModelRouter:
 
         from adapters.models.codex_cli import is_available as _codex_avail
         from adapters.models.hermes_cli import is_available as _hermes_avail
+        from adapters.models.hermes_cli import is_verified as _hermes_verified
         from adapters.models.opencode_cli import is_available as _opencode_avail
 
         _cli_checks = {
             ModelProvider.CODEX: _codex_avail,
-            ModelProvider.HERMES: _hermes_avail,
             ModelProvider.OPENCODE: _opencode_avail,
         }
 
         for key, config in MODEL_REGISTRY.items():
             if key == "beast-ollama":
-                config.available = _remote_ollama_available(
-                    config.base_url, config.model_id
-                )
-                config.status_reason = (
-                    "healthy" if config.available else "model_not_ready"
-                )
+                config.available = _remote_ollama_available(config.base_url, config.model_id)
+                config.status_reason = "healthy" if config.available else "model_not_ready"
             elif config.provider == ModelProvider.OLLAMA:
                 config.available = _ollama_available()
                 config.status_reason = "healthy" if config.available else "unreachable"
+            elif config.provider == ModelProvider.HERMES:
+                mesh_up = _hermes_avail()
+                verified = _hermes_verified()
+                config.available = mesh_up and verified
+                if not mesh_up:
+                    config.status_reason = "beast_offline"
+                elif not verified:
+                    config.status_reason = "unverified"
+                else:
+                    config.status_reason = "healthy"
             elif config.provider in _cli_checks:
                 config.available = _cli_checks[config.provider]()
                 config.status_reason = "healthy" if config.available else "not_installed"
@@ -1080,6 +1097,15 @@ def _providers_for_purpose(purpose: str) -> list[str]:
             provider_keys.append(failover)
             seen.add(failover)
 
+    # Append verified supplemental providers (e.g. Hermes after benchmark)
+    supplemental = SUPPLEMENTAL_PROVIDERS.get(purpose, [])
+    for key in supplemental:
+        if key not in seen:
+            config = MODEL_REGISTRY.get(key)
+            if config and config.available:
+                provider_keys.append(key)
+                seen.add(key)
+
     return provider_keys
 
 
@@ -1426,6 +1452,10 @@ def call_with_fallback(
                 output_tokens=router._last_output_tokens,
                 tokens_used=router._last_input_tokens + router._last_output_tokens,
                 latency_ms=latency_ms,
+                metadata={
+                    "routing_reason": f"purpose={purpose}, provider={pkey}",
+                    "blockers": {k: v for k, v in _blockers.items()} if _blockers else {},
+                },
             )
         else:
             _blockers[pkey] = "empty_response"
@@ -1458,6 +1488,10 @@ def call_with_fallback(
                 output_tokens=router._last_output_tokens,
                 tokens_used=router._last_input_tokens + router._last_output_tokens,
                 latency_ms=latency_ms,
+                metadata={
+                    "routing_reason": f"last_resort, provider={rkey}",
+                    "blockers": {k: v for k, v in _blockers.items()} if _blockers else {},
+                },
             )
         else:
             _blockers[rkey] = "empty_response"
