@@ -37,6 +37,8 @@ class CommandIntent(str, Enum):
     VPS_CONTROL = "vps_control"
     CONTINUITY_TRANSITION = "continuity_transition"
     STARTUP_SEQUENCE = "startup_sequence"
+    SHUTDOWN_SEQUENCE = "shutdown_sequence"
+    INTENT_CAPTURE = "intent_capture"
     CAMERA_CONTROL = "camera_control"
     UNKNOWN = "unknown"
 
@@ -79,6 +81,11 @@ _RESUME_SIGNALS = [
     "im back",
     "good morning",
     "i just got back",
+    "what changed while i was away",
+    "what changed while i was gone",
+    "what changed since i left",
+    "what have you been doing",
+    "what were you working on",
 ]
 
 _APPROVAL_SIGNALS = [
@@ -108,6 +115,30 @@ _MODE_SWITCH_SIGNALS = [
     "plan mode",
     "back to work",
     "be right back",
+    "enter deep work",
+    "deep work mode",
+    "start deep work",
+    "switch to creative",
+    "switch to creative mode",
+    "creative mode",
+    "start creative mode",
+    "start admin mode",
+    "admin mode",
+    "switch to admin",
+    "switch to research",
+    "research mode",
+    "start research mode",
+    "switch to content",
+    "content mode",
+    "switch to finance",
+    "finance mode",
+    "switch to learning",
+    "learning mode",
+    "switch to music",
+    "music mode",
+    "start music mode",
+    "switch to command center",
+    "command center mode",
 ]
 
 _WORK_PACKET_SIGNALS = [
@@ -357,12 +388,48 @@ _CONTINUITY_TRANSITION_SIGNALS = [
     "i'm going remote",
     "im going remote",
     "working remote today",
+    "pause everything",
+    "resume where we left off",
+    "resume where i left off",
+    "only notify me if blocked",
+    "run this autonomously",
+    "keep going until it is done",
+    "keep going until it's done",
+    "keep going until done",
+]
+
+_SHUTDOWN_SEQUENCE_SIGNALS = [
     "end my day",
     "end of day",
     "closing out",
     "wrap up for the night",
     "shut down for the night",
     "prepare overnight work",
+    "seal the session",
+    "seal session",
+    "close out my day",
+    "good night",
+    "shut it down",
+]
+
+_INTENT_CAPTURE_SIGNALS = [
+    "build this",
+    "fix this",
+    "ship this",
+    "deploy this",
+    "research this",
+    "investigate this",
+    "set up",
+    "finish the",
+    "finish this",
+    "get this shipped",
+    "get this done",
+    "make this",
+    "make it",
+    "get it done",
+    "get it shipped",
+    "make this daily-driver ready",
+    "make this production ready",
 ]
 
 _CAMERA_CONTROL_SIGNALS = [
@@ -403,6 +470,11 @@ _STARTUP_SEQUENCE_SIGNALS = [
     "wake everything up",
     "initialize workstation",
     "begin day cycle",
+    "start work mode",
+    "begin startup sequence",
+    "start startup sequence",
+    "start the day",
+    "begin my day",
 ]
 
 
@@ -522,10 +594,18 @@ def classify_intent(text: str) -> CommandIntent:
         if signal in t:
             return CommandIntent.PACKET_CONTROL
 
-    # ── Startup / continuity (high-specificity lifecycle commands) ───
+    # ── Startup / shutdown / continuity (lifecycle commands) ─────────
     for signal in _STARTUP_SEQUENCE_SIGNALS:
         if signal in t:
             return CommandIntent.STARTUP_SEQUENCE
+
+    for signal in _SHUTDOWN_SEQUENCE_SIGNALS:
+        if signal in t:
+            return CommandIntent.SHUTDOWN_SEQUENCE
+
+    for signal in _INTENT_CAPTURE_SIGNALS:
+        if signal in t:
+            return CommandIntent.INTENT_CAPTURE
 
     for signal in _CONTINUITY_TRANSITION_SIGNALS:
         if signal in t:
@@ -644,8 +724,24 @@ def resolve_mode_target(text: str) -> str:
         return "away"
     if any(s in t for s in ["i'm back", "im back", "back to work"]):
         return "returning"
-    if any(s in t for s in ["focused mode", "focus mode"]):
-        return "focused"
+    if any(s in t for s in ["focused mode", "focus mode", "deep work", "enter deep work"]):
+        return "developer"
+    if any(s in t for s in ["creative mode", "switch to creative", "start creative"]):
+        return "design"
+    if any(s in t for s in ["admin mode", "start admin", "switch to admin"]):
+        return "command_center"
+    if any(s in t for s in ["research mode", "switch to research", "start research"]):
+        return "research"
+    if any(s in t for s in ["content mode", "switch to content"]):
+        return "content"
+    if any(s in t for s in ["finance mode", "switch to finance"]):
+        return "finance"
+    if any(s in t for s in ["learning mode", "switch to learning"]):
+        return "learning"
+    if any(s in t for s in ["music mode", "switch to music", "start music"]):
+        return "music"
+    if any(s in t for s in ["command center mode", "switch to command center"]):
+        return "command_center"
     if any(s in t for s in ["switch to review", "review mode"]):
         return "REVIEW"
     if any(s in t for s in ["switch to execute", "execute mode"]):
@@ -851,9 +947,13 @@ def governance_requirement(intent: CommandIntent) -> GovernanceRequirement:
         CommandIntent.MODE_SWITCH,
         CommandIntent.CONTINUITY_TRANSITION,
         CommandIntent.STARTUP_SEQUENCE,
+        CommandIntent.SHUTDOWN_SEQUENCE,
         CommandIntent.CAMERA_CONTROL,
     ):
         return GovernanceRequirement.INFORMATIONAL
+
+    if intent == CommandIntent.INTENT_CAPTURE:
+        return GovernanceRequirement.REQUIRES_GOVERNANCE
 
     if intent in (
         CommandIntent.WORK_PACKET_DRAFT,
