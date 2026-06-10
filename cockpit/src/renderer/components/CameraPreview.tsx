@@ -36,7 +36,8 @@ export function CameraPreview() {
         setConnected(true)
         client.requestPresets()
         client.requestStatus()
-        client.requestSnapshot({ width: 640, height: 480, quality: 50 })
+        client.startCamera({ fps: 2, width: 640, height: 480, quality: 60 })
+        client.subscribe(2, 60)
       }),
       client.on('disconnected', () => {
         setConnected(false)

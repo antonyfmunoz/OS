@@ -190,36 +190,39 @@ class CameraAdapter:
             cap.release()
             self._stream_active = False
 
-    # ── PTZ control (duvc-ctl) ───────────────────────────────────────
+    # ── PTZ control (OpenCV UVC properties, duvc-ctl optional) ─────
 
     def _get_position(self, params: dict[str, Any]) -> dict[str, Any]:
         try:
             import duvc_ctl as duvc
-        except ImportError:
-            return {"success": False, "error": "duvc-ctl not installed (pip install duvc-ctl)"}
-
-        try:
             with duvc.CameraController() as cam:
-                return {
-                    "success": True,
-                    "pan": cam.pan,
-                    "tilt": cam.tilt,
-                    "zoom": cam.zoom,
-                }
+                return {"success": True, "pan": cam.pan, "tilt": cam.tilt, "zoom": cam.zoom}
+        except ImportError:
+            pass
         except Exception as exc:
-            return {"success": False, "error": f"PTZ read failed: {exc}"}
+            logger.debug("duvc-ctl get_position failed: %s, falling back to OpenCV", exc)
+
+        import cv2
+        cap = cv2.VideoCapture(self._device_index, cv2.CAP_DSHOW)
+        if not cap.isOpened():
+            return {"success": False, "error": "camera unavailable"}
+        try:
+            return {
+                "success": True,
+                "pan": int(cap.get(cv2.CAP_PROP_PAN)),
+                "tilt": int(cap.get(cv2.CAP_PROP_TILT)),
+                "zoom": int(cap.get(cv2.CAP_PROP_ZOOM)),
+            }
+        finally:
+            cap.release()
 
     def _set_position(self, params: dict[str, Any]) -> dict[str, Any]:
-        try:
-            import duvc_ctl as duvc
-        except ImportError:
-            return {"success": False, "error": "duvc-ctl not installed (pip install duvc-ctl)"}
-
         pan = params.get("pan")
         tilt = params.get("tilt")
         zoom = params.get("zoom")
 
         try:
+            import duvc_ctl as duvc
             with duvc.CameraController() as cam:
                 if pan is not None:
                     cam.pan = int(pan)
@@ -227,14 +230,31 @@ class CameraAdapter:
                     cam.tilt = int(tilt)
                 if zoom is not None:
                     cam.zoom = int(zoom)
-                return {
-                    "success": True,
-                    "pan": cam.pan,
-                    "tilt": cam.tilt,
-                    "zoom": cam.zoom,
-                }
+                return {"success": True, "pan": cam.pan, "tilt": cam.tilt, "zoom": cam.zoom}
+        except ImportError:
+            pass
         except Exception as exc:
-            return {"success": False, "error": f"PTZ set failed: {exc}"}
+            logger.debug("duvc-ctl set_position failed: %s, falling back to OpenCV", exc)
+
+        import cv2
+        cap = cv2.VideoCapture(self._device_index, cv2.CAP_DSHOW)
+        if not cap.isOpened():
+            return {"success": False, "error": "camera unavailable"}
+        try:
+            if pan is not None:
+                cap.set(cv2.CAP_PROP_PAN, int(pan))
+            if tilt is not None:
+                cap.set(cv2.CAP_PROP_TILT, int(tilt))
+            if zoom is not None:
+                cap.set(cv2.CAP_PROP_ZOOM, int(zoom))
+            return {
+                "success": True,
+                "pan": int(cap.get(cv2.CAP_PROP_PAN)),
+                "tilt": int(cap.get(cv2.CAP_PROP_TILT)),
+                "zoom": int(cap.get(cv2.CAP_PROP_ZOOM)),
+            }
+        finally:
+            cap.release()
 
     # ── Presets (stored PTZ positions) ───────────────────────────────
 
