@@ -147,6 +147,7 @@ export type VisionEvent =
   | { type: 'ptz_motion_state'; motion_id: string; state: string; pan_velocity: number; tilt_velocity: number; zoom_velocity: number; loop_cadence_hz?: number; guard_timeout_events?: number }
   | { type: 'ptz_motion_ack'; motion_id: string; operation: string; ok: boolean }
   | { type: 'camera_session_state'; active: boolean; viewer_count: number }
+  | { type: 'vision_overlay'; overlays: Array<{ type: string; track_id: string; label: string; confidence: number; bbox: { x: number; y: number; w: number; h: number }; landmarks?: Array<{ x: number; y: number; label?: string }>; connections?: Array<[number, number]>; color?: string }> }
 
 function getVisionProtocols(): string[] {
   const token = import.meta.env.VITE_VISION_TOKEN as string | undefined
@@ -616,6 +617,13 @@ export class VisionWsClient {
 
   requestSecurityState(): void {
     this.ws.send('vision_security_state')
+  }
+
+  // ── Diagnostic overlay ─────────────────────────────────────────
+
+  setDiagnosticOverlay(enabled: boolean): void {
+    log('diagnostic_overlay', { enabled })
+    this.ws.send('vision_diagnostic_overlay', { enabled })
   }
 
   // ── Events ──────────────────────────────────────────────────────

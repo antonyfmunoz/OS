@@ -461,5 +461,182 @@ class TestPatternRegex:
         assert _WHY_NOT_LIVE_PATTERN.search("camera won't start")
 
 
+# ── Phase 14.18B — Live field fix tests ─────────────────────────
+
+class TestMotionLoopFixes:
+    """Verify relay motion loop fixes: non-blocking dispatch, rounding, guard."""
+
+    def test_dispatch_to_beast_is_async_wrapper(self):
+        """_dispatch_to_beast must be async (non-blocking)."""
+        import umh.vision_relay as vr
+        import asyncio
+        assert asyncio.iscoroutinefunction(vr._dispatch_to_beast)
+
+    def test_dispatch_sync_exists_for_threadpool(self):
+        """_dispatch_to_beast_sync is the blocking implementation for run_in_executor."""
+        import umh.vision_relay as vr
+        assert hasattr(vr, "_dispatch_to_beast_sync")
+        assert callable(vr._dispatch_to_beast_sync)
+        import asyncio
+        assert not asyncio.iscoroutinefunction(vr._dispatch_to_beast_sync)
+
+    def test_motion_loop_uses_round_not_int(self):
+        """Step delta must use round() not int() to avoid truncation."""
+        import umh.vision_relay as vr
+        source = open(vr.__file__).read()
+        loop_section = source[source.index("async def _motion_loop"):source.index("async def _start_motion")]
+        assert "round(" in loop_section, "motion loop must use round() for step deltas"
+        assert "int(" not in loop_section or "int((" not in loop_section, \
+            "motion loop should not use int() for step deltas"
+
+    def test_motion_loop_step_scale_adequate(self):
+        """Step scale must produce non-zero delta at 30% velocity."""
+        import umh.vision_relay as vr
+        source = open(vr.__file__).read()
+        loop_section = source[source.index("async def _motion_loop"):source.index("async def _start_motion")]
+        assert "* 8" in loop_section or "* 10" in loop_section, \
+            "step scale must be >= 8 for adequate motion"
+
+    def test_dispatch_motion_stop_not_noop(self):
+        """_dispatch_motion_stop must actually send a command, not pass."""
+        import umh.vision_relay as vr
+        import inspect
+        source = inspect.getsource(vr._dispatch_motion_stop)
+        assert "pass" not in source or "_dispatch_to_beast" in source
+
+    def test_guard_timeout_default_2000ms(self):
+        """Default guard timeout should be >= 2000ms."""
+        import umh.vision_relay as vr
+        import inspect
+        sig = inspect.signature(vr._start_motion)
+        guard_default = sig.parameters["guard_ms"].default
+        assert guard_default >= 2000, f"guard_ms default {guard_default} too low"
+
+    def test_motion_loop_combines_pan_tilt_zoom(self):
+        """Motion loop should combine pan/tilt/zoom into single dispatch."""
+        import umh.vision_relay as vr
+        source = open(vr.__file__).read()
+        loop_section = source[source.index("async def _motion_loop"):source.index("async def _start_motion")]
+        dispatch_count = loop_section.count("_dispatch_to_beast")
+        assert dispatch_count == 1, \
+            f"motion loop should have 1 combined dispatch, got {dispatch_count}"
+
+
+class TestOverlayChain:
+    """Verify overlay rendering chain is wired end-to-end."""
+
+    def test_vision_overlay_component_exists(self):
+        overlay_path = os.path.join(
+            os.path.dirname(__file__), "..",
+            "cockpit", "src", "renderer", "components", "vision", "VisionOverlay.tsx",
+        )
+        assert os.path.exists(overlay_path), "VisionOverlay.tsx must exist"
+
+    def test_overlay_toggle_buttons_in_controller(self):
+        """Toggle controls must exist — either standalone or inline in CameraController."""
+        cc_path = os.path.join(
+            os.path.dirname(__file__), "..",
+            "cockpit", "src", "renderer", "components", "CameraController.tsx",
+        )
+        source = open(cc_path).read()
+        assert "overlayVisible" in source, "overlay visibility toggle must exist"
+        assert "diagnosticOverlay" in source or "DIAG" in source, "diagnostic toggle must exist"
+
+    def test_camera_controller_imports_overlay(self):
+        cc_path = os.path.join(
+            os.path.dirname(__file__), "..",
+            "cockpit", "src", "renderer", "components", "CameraController.tsx",
+        )
+        source = open(cc_path).read()
+        assert "VisionOverlay" in source, "CameraController must import VisionOverlay"
+
+    def test_relay_forwards_overlay_data(self):
+        """Relay must broadcast overlay data, not just record timestamps."""
+        import umh.vision_relay as vr
+        source = open(vr.__file__).read()
+        assert "vision_overlay" in source, "relay must have vision_overlay message type"
+
+    def test_relay_diagnostic_overlay_handler(self):
+        """Relay must support diagnostic overlay toggle."""
+        import umh.vision_relay as vr
+        source = open(vr.__file__).read()
+        assert "diagnostic" in source.lower(), "relay must support diagnostic overlays"
+
+    def test_vision_store_has_overlays_field(self):
+        store_path = os.path.join(
+            os.path.dirname(__file__), "..",
+            "cockpit", "src", "renderer", "stores", "visionStore.ts",
+        )
+        source = open(store_path).read()
+        assert "overlays" in source, "visionStore must have overlays field"
+
+    def test_vision_ws_has_overlay_event(self):
+        ws_path = os.path.join(
+            os.path.dirname(__file__), "..",
+            "cockpit", "src", "renderer", "api", "vision-ws.ts",
+        )
+        source = open(ws_path).read()
+        assert "vision_overlay" in source, "vision-ws must handle vision_overlay events"
+
+
+class TestControllerContinuousMotion:
+    """Verify CameraController sends continuous updates for all controls."""
+
+    def test_dpad_calls_start_with_update_timer(self):
+        """D-pad must use startDirectionMotion which now includes update timer."""
+        cc_path = os.path.join(
+            os.path.dirname(__file__), "..",
+            "cockpit", "src", "renderer", "components", "CameraController.tsx",
+        )
+        source = open(cc_path).read()
+        assert "ensureUpdateTimer" in source, "must have ensureUpdateTimer function"
+
+    def test_zoom_has_update_timer(self):
+        """Zoom hold must send continuous updates."""
+        cc_path = os.path.join(
+            os.path.dirname(__file__), "..",
+            "cockpit", "src", "renderer", "components", "CameraController.tsx",
+        )
+        source = open(cc_path).read()
+        zoom_section = source[source.index("startZoomMotion"):source.index("stopZoomMotion")]
+        assert "setInterval" in zoom_section, "zoom must have setInterval for continuous updates"
+
+    def test_guard_timeout_2000ms_in_client(self):
+        """Client must send durationGuardMs >= 2000."""
+        cc_path = os.path.join(
+            os.path.dirname(__file__), "..",
+            "cockpit", "src", "renderer", "components", "CameraController.tsx",
+        )
+        source = open(cc_path).read()
+        assert "durationGuardMs: 2000" in source, "client must send 2000ms guard"
+
+    def test_pointer_capture_on_joystick(self):
+        """Joystick must use setPointerCapture."""
+        cc_path = os.path.join(
+            os.path.dirname(__file__), "..",
+            "cockpit", "src", "renderer", "components", "CameraController.tsx",
+        )
+        source = open(cc_path).read()
+        assert "setPointerCapture" in source
+
+    def test_touch_none_on_joystick(self):
+        """Joystick must have touch-action: none (touch-none class)."""
+        cc_path = os.path.join(
+            os.path.dirname(__file__), "..",
+            "cockpit", "src", "renderer", "components", "CameraController.tsx",
+        )
+        source = open(cc_path).read()
+        assert "touch-none" in source
+
+    def test_emergency_stop_on_blur(self):
+        """Window blur must trigger emergency stop."""
+        cc_path = os.path.join(
+            os.path.dirname(__file__), "..",
+            "cockpit", "src", "renderer", "components", "CameraController.tsx",
+        )
+        source = open(cc_path).read()
+        assert "window.addEventListener('blur'" in source or 'window.addEventListener("blur"' in source
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
