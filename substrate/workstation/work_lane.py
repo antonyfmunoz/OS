@@ -494,6 +494,9 @@ def get_lane_inventory(
     return lanes
 
 
+_SHELL_UNSAFE = frozenset('&|^<>%`"\r\n')
+
+
 def build_worker_chrome_launch_cmd(url: str = "") -> str:
     """Build the Chrome launch command for the UMH worker profile."""
     parts = [
@@ -503,5 +506,9 @@ def build_worker_chrome_launch_cmd(url: str = "") -> str:
         "--new-window",
     ]
     if url:
+        if not url.startswith(("http://", "https://")):
+            raise ValueError("only http/https URLs allowed")
+        if any(c in url for c in _SHELL_UNSAFE):
+            raise ValueError("URL contains shell-unsafe characters")
         parts.append(url)
     return " ".join(parts)
