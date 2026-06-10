@@ -139,7 +139,7 @@ class NodeMeshServer:
             "0.0.0.0",
             self._config.port,
             ping_interval=120,
-            ping_timeout=60,
+            ping_timeout=180,
             max_size=4 * 1024 * 1024,
         ) as server:
             self._server = server
