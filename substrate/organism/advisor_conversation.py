@@ -305,9 +305,7 @@ class AdvisorConversation:
 
         status_type = detect_status_seeking(content)
         if status_type:
-            from substrate.organism.grounded_handlers import handle_grounded_status
-
-            return handle_grounded_status(content)
+            return self._route_grounded_query(status_type, content)
 
         from substrate.state.business.business_instance import get_ai_name
 
@@ -641,6 +639,32 @@ class AdvisorConversation:
 
         return handle_grounded_status(content)
 
+    def _route_grounded_query(self, query_type: str, content: str) -> AdvisorResponse:
+        """Route a detected status-seeking query to its specific grounded handler."""
+        from substrate.organism import grounded_handlers as gh
+
+        _GROUNDED_ROUTER: dict[str, Any] = {
+            "docker_status": gh.handle_grounded_docker,
+            "provider_health": gh.handle_grounded_providers,
+            "voice_health": gh.handle_grounded_voice,
+            "vision_status": gh.handle_grounded_vision,
+            "visual_query": gh.handle_grounded_visual,
+            "beast_health": gh.handle_grounded_beast,
+            "work_packets": gh.handle_grounded_status,
+            "blocked_packets": gh.handle_grounded_blocked,
+            "composite_blockers": gh.handle_grounded_composite_blockers,
+            "agent_status": gh.handle_grounded_agents,
+            "recent_reports": gh.handle_grounded_reports,
+            "approval_status": gh.handle_grounded_approvals,
+            "recent_deployments": gh.handle_grounded_deployments,
+            "hermes_status": gh.handle_grounded_hermes,
+            "webhook_health": gh.handle_grounded_webhook,
+            "system_status": gh.handle_grounded_status,
+        }
+
+        handler = _GROUNDED_ROUTER.get(query_type, gh.handle_grounded_status)
+        return handler(content)
+
     def _deterministic_status(self) -> str:
         """Read organism state directly without LLM — always works."""
         import json
@@ -819,9 +843,7 @@ class AdvisorConversation:
 
         status_type = detect_status_seeking(content)
         if status_type:
-            from substrate.organism.grounded_handlers import handle_grounded_status
-
-            return handle_grounded_status(content)
+            return self._route_grounded_query(status_type, content)
 
         enriched = f"{context_summary} {content}".strip() if context_summary else content
         try:
