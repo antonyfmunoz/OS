@@ -52,9 +52,17 @@ logging.basicConfig(
 )
 log = logging.getLogger("vision_relay")
 
-HOST = os.getenv("VISION_RELAY_HOST", "0.0.0.0")
+HOST = os.getenv("VISION_RELAY_HOST", "127.0.0.1")
 PORT = int(os.getenv("VISION_RELAY_PORT", "8097"))
 MAX_FRAME_BYTES = 2 * 1024 * 1024
+_AUTH_TOKEN = os.getenv("VISION_RELAY_TOKEN", "")
+_ALLOWED_ORIGINS = {
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5173",
+    "file://",
+    "https://universalmetaharness.tech",
+}
 
 _clients: set[Any] = set()
 _latest_frame: bytes | None = None
@@ -73,7 +81,28 @@ async def send_json(ws: Any, data: dict[str, Any]) -> None:
         pass
 
 
+async def _check_auth(ws: Any) -> bool:
+    """Validate auth token from query string if token is configured."""
+    if not _AUTH_TOKEN:
+        return True
+    path = getattr(ws, "request", None)
+    if path is None:
+        return True
+    qs = getattr(path, "path", "")
+    if "?" in qs:
+        params = dict(p.split("=", 1) for p in qs.split("?", 1)[1].split("&") if "=" in p)
+        if params.get("token") == _AUTH_TOKEN:
+            return True
+    return False
+
+
 async def handle_vision(ws: Any) -> None:
+    if not await _check_auth(ws):
+        log.warning("viewer rejected: invalid auth token from %s", ws.remote_address)
+        await send_json(ws, {"type": "vision_error", "error": "authentication required"})
+        await ws.close(4001, "authentication required")
+        return
+
     log.info("viewer connected: %s", ws.remote_address)
     _clients.add(ws)
     subscribed = False
@@ -266,15 +295,6 @@ async def _health_server() -> None:
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(body)
-            elif self.path == "/latest":
-                if _latest_frame:
-                    self.send_response(200)
-                    self.send_header("Content-Type", "image/jpeg")
-                    self.end_headers()
-                    self.wfile.write(_latest_frame)
-                else:
-                    self.send_response(204)
-                    self.end_headers()
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -282,7 +302,7 @@ async def _health_server() -> None:
         def log_message(self, format: str, *args: Any) -> None:
             pass
 
-    server = socketserver.TCPServer(("0.0.0.0", health_port), Handler)
+    server = socketserver.TCPServer(("127.0.0.1", health_port), Handler)
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, server.serve_forever)
 
@@ -297,6 +317,7 @@ async def main() -> None:
     async with websockets.serve(
         handle_vision, HOST, PORT,
         ping_interval=20, ping_timeout=20, max_size=MAX_FRAME_BYTES + 1024,
+        origins=list(_ALLOWED_ORIGINS) if _ALLOWED_ORIGINS else None,
     ):
         log.info("Vision relay ready — frame fan-out mode")
         await asyncio.Future()
