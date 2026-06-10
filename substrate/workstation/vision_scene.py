@@ -19,6 +19,8 @@ SCENE_EXPIRY_S = 300
 OBJECT_LOST_THRESHOLD_S = 30
 MAX_TRACKED_OBJECTS = 50
 MAX_WATCH_ITEMS = 10
+MAX_LABELED_ITEMS = 50
+MAX_LABEL_LENGTH = 64
 
 
 @dataclass
@@ -306,8 +308,12 @@ class VisionSceneManager:
 
     def label_item(
         self, label: str, frame_id: str = "", bbox: list[float] | None = None,
-    ) -> DetectedObject:
+    ) -> DetectedObject | None:
         """Operator labels a visible item. Requires confirmation (operator_confirmed=True)."""
+        if len(label) > MAX_LABEL_LENGTH:
+            logger.warning("label too long (%d > %d): %s…", len(label), MAX_LABEL_LENGTH, label[:20])
+            return None
+
         now = time.time()
         existing = self._labeled_items.get(label.lower())
         if existing:
@@ -316,6 +322,10 @@ class VisionSceneManager:
             if bbox:
                 existing.bbox = bbox
             return existing
+
+        if len(self._labeled_items) >= MAX_LABELED_ITEMS:
+            logger.warning("max labeled items reached (%d)", MAX_LABELED_ITEMS)
+            return None
 
         obj = DetectedObject(
             track_id=f"obj_{uuid.uuid4().hex[:6]}",
@@ -360,13 +370,13 @@ class VisionSceneManager:
         return watch
 
     def stop_watch(self, target_or_id: str) -> bool:
-        """Stop a watch by target label or watch_id."""
+        """Stop and remove a watch by target label or watch_id."""
         if target_or_id in self._watches:
-            self._watches[target_or_id].active = False
+            del self._watches[target_or_id]
             return True
-        for wid, watch in self._watches.items():
+        for wid, watch in list(self._watches.items()):
             if watch.target_label.lower() == target_or_id.lower():
-                watch.active = False
+                del self._watches[wid]
                 return True
         return False
 
@@ -499,10 +509,13 @@ class VisionSceneManager:
                 )
 
     def _expire_watches(self, now: float) -> None:
-        for watch in self._watches.values():
-            if watch.active and watch.expires_at and now > watch.expires_at:
-                watch.active = False
-                logger.info("watch expired: %s", watch.watch_id)
+        expired = [
+            wid for wid, w in self._watches.items()
+            if w.active and w.expires_at and now > w.expires_at
+        ]
+        for wid in expired:
+            logger.info("watch expired: %s", wid)
+            del self._watches[wid]
 
 
 _manager: VisionSceneManager | None = None

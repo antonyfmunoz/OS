@@ -547,7 +547,7 @@ class TestVisionPrivacy14E:
         assert watch is not None
         watch.expires_at = time.time() - 10
         mgr._expire_watches(time.time())
-        assert watch.active is False
+        assert watch.watch_id not in mgr._watches
 
 
 # ── Workcell M: Voice + Tracking Commands ────────────────────────────
