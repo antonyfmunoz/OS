@@ -373,6 +373,107 @@ async def handle_vision(ws: Any) -> None:
                 result = _visual_query(target)
                 await send_json(ws, {"type": "vision_query_result", **result})
 
+            # ── Tracker stack ──────────────────────────────────────
+            elif msg_type == "vision_tracker_enable":
+                category = msg.get("category", "")
+                result = _tracker_enable(category)
+                await send_json(ws, {"type": "vision_tracker_result", **result})
+
+            elif msg_type == "vision_tracker_disable":
+                category = msg.get("category", "")
+                result = _tracker_disable(category)
+                await send_json(ws, {"type": "vision_tracker_result", **result})
+
+            elif msg_type == "vision_tracker_stack":
+                categories = msg.get("categories", [])
+                result = _tracker_stack_set(categories)
+                await send_json(ws, {"type": "vision_tracker_result", **result})
+
+            elif msg_type == "vision_tracker_state":
+                result = _tracker_state()
+                await send_json(ws, {"type": "vision_tracker_state", **result})
+
+            elif msg_type == "vision_stop_all_tracking":
+                result = _stop_all_tracking()
+                await send_json(ws, {"type": "vision_tracker_result", **result})
+
+            # ── Preset CRUD ────────────────────────────────────────
+            elif msg_type == "vision_preset_create":
+                result = _preset_create(
+                    msg.get("preset_id", ""),
+                    msg.get("label", ""),
+                    msg.get("description", ""),
+                    msg.get("ptz"),
+                )
+                await send_json(ws, {"type": "vision_preset_result", **result})
+
+            elif msg_type == "vision_preset_rename":
+                result = _preset_rename(msg.get("preset_id", ""), msg.get("new_label", ""))
+                await send_json(ws, {"type": "vision_preset_result", **result})
+
+            elif msg_type == "vision_preset_delete":
+                result = _preset_delete(msg.get("preset_id", ""))
+                await send_json(ws, {"type": "vision_preset_result", **result})
+
+            elif msg_type == "vision_preset_activate":
+                result = _preset_activate(msg.get("preset_id", ""))
+                await send_json(ws, {"type": "vision_preset_result", **result})
+
+            elif msg_type == "vision_preset_update_ptz":
+                result = _preset_update_ptz(msg.get("preset_id", ""), msg.get("ptz", {}))
+                await send_json(ws, {"type": "vision_preset_result", **result})
+
+            elif msg_type == "vision_preset_nudge":
+                result = _preset_nudge(
+                    msg.get("preset_id", ""),
+                    msg.get("pan_delta", 0),
+                    msg.get("tilt_delta", 0),
+                    msg.get("zoom_delta", 0),
+                )
+                await send_json(ws, {"type": "vision_preset_result", **result})
+
+            elif msg_type == "vision_preset_state":
+                result = _preset_state()
+                await send_json(ws, {"type": "vision_preset_state", **result})
+
+            # ── Trigger chains ─────────────────────────────────────
+            elif msg_type == "vision_chain_create":
+                result = _chain_create(msg)
+                await send_json(ws, {"type": "vision_chain_result", **result})
+
+            elif msg_type == "vision_chain_delete":
+                result = _chain_delete(msg.get("chain_id", ""))
+                await send_json(ws, {"type": "vision_chain_result", **result})
+
+            elif msg_type == "vision_chain_enable":
+                result = _chain_enable(msg.get("chain_id", ""))
+                await send_json(ws, {"type": "vision_chain_result", **result})
+
+            elif msg_type == "vision_chain_disable":
+                result = _chain_disable(msg.get("chain_id", ""))
+                await send_json(ws, {"type": "vision_chain_result", **result})
+
+            elif msg_type == "vision_chain_explain":
+                result = _chain_explain(msg.get("chain_id", ""))
+                await send_json(ws, {"type": "vision_chain_explain", **result})
+
+            elif msg_type == "vision_chain_state":
+                result = _chain_state()
+                await send_json(ws, {"type": "vision_chain_state", **result})
+
+            # ── Security mode ──────────────────────────────────────
+            elif msg_type == "vision_security_activate":
+                result = _security_activate(msg.get("triggered_by", "operator_command"))
+                await send_json(ws, {"type": "vision_security_result", **result})
+
+            elif msg_type == "vision_security_deactivate":
+                result = _security_deactivate()
+                await send_json(ws, {"type": "vision_security_result", **result})
+
+            elif msg_type == "vision_security_state":
+                result = _security_state()
+                await send_json(ws, {"type": "vision_security_state", **result})
+
     except websockets.exceptions.ConnectionClosed:
         log.info("viewer disconnected: %s", ws.remote_address)
     except Exception as e:
@@ -549,6 +650,247 @@ def _visual_query(target: str) -> dict:
     if not mgr:
         return {"answer": "Scene manager unavailable.", "confidence": "none"}
     return mgr.query_visual(target)
+
+
+# ── Tracker stack handlers ────────────────────────────────────────
+
+def _get_tracker_manager():
+    try:
+        from substrate.workstation.tracker_stack import get_tracker_manager
+        mgr = get_tracker_manager()
+        if not mgr.active_stack:
+            mgr.create_stack("default", "Default Stack")
+            mgr.activate_stack("default")
+        return mgr
+    except Exception as exc:
+        log.warning("tracker manager unavailable: %s", exc)
+        return None
+
+
+def _tracker_enable(category: str) -> dict:
+    mgr = _get_tracker_manager()
+    if not mgr:
+        return {"success": False, "error": "tracker manager unavailable"}
+    ok = mgr.enable_tracker(category)
+    return {"success": ok, "category": category, "operation": "enable"}
+
+
+def _tracker_disable(category: str) -> dict:
+    mgr = _get_tracker_manager()
+    if not mgr:
+        return {"success": False, "error": "tracker manager unavailable"}
+    ok = mgr.disable_tracker(category)
+    return {"success": ok, "category": category, "operation": "disable"}
+
+
+def _tracker_stack_set(categories: list[str]) -> dict:
+    mgr = _get_tracker_manager()
+    if not mgr:
+        return {"success": False, "error": "tracker manager unavailable"}
+    stack = mgr.active_stack
+    if not stack:
+        return {"success": False, "error": "no active stack"}
+    for cat in stack.trackers:
+        if cat in categories:
+            mgr.enable_tracker(cat)
+        else:
+            mgr.disable_tracker(cat)
+    enabled = [t.category for t in mgr.get_enabled_trackers()]
+    return {"success": True, "enabled": enabled}
+
+
+def _stop_all_tracking() -> dict:
+    mgr = _get_tracker_manager()
+    if not mgr:
+        return {"success": False, "error": "tracker manager unavailable"}
+    stack = mgr.active_stack
+    if stack:
+        for cat in stack.trackers:
+            mgr.disable_tracker(cat)
+    return {"success": True, "operation": "stop_all"}
+
+
+def _tracker_state() -> dict:
+    mgr = _get_tracker_manager()
+    if not mgr:
+        return {"error": "tracker manager unavailable"}
+    return mgr.get_state_summary()
+
+
+# ── Preset CRUD handlers ─────────────────────────────────────────
+
+def _get_preset_manager():
+    try:
+        from substrate.workstation.vision_presets import get_preset_manager
+        return get_preset_manager()
+    except Exception as exc:
+        log.warning("preset manager unavailable: %s", exc)
+        return None
+
+
+def _preset_create(preset_id: str, label: str, description: str = "", ptz: dict | None = None) -> dict:
+    mgr = _get_preset_manager()
+    if not mgr:
+        return {"success": False, "error": "preset manager unavailable"}
+    p = mgr.create(preset_id, label or preset_id, description, ptz)
+    if p:
+        return {"success": True, "preset_id": p.preset_id, "label": p.label}
+    return {"success": False, "error": "could not create preset"}
+
+
+def _preset_rename(preset_id: str, new_label: str) -> dict:
+    mgr = _get_preset_manager()
+    if not mgr:
+        return {"success": False, "error": "preset manager unavailable"}
+    ok = mgr.rename(preset_id, new_label)
+    return {"success": ok, "preset_id": preset_id, "new_label": new_label}
+
+
+def _preset_delete(preset_id: str) -> dict:
+    mgr = _get_preset_manager()
+    if not mgr:
+        return {"success": False, "error": "preset manager unavailable"}
+    ok, affected = mgr.delete(preset_id)
+    return {"success": ok, "preset_id": preset_id, "affected_chains": affected}
+
+
+def _preset_activate(preset_id: str) -> dict:
+    mgr = _get_preset_manager()
+    if not mgr:
+        return {"success": False, "error": "preset manager unavailable"}
+    ok = mgr.activate(preset_id)
+    return {"success": ok, "preset_id": preset_id}
+
+
+def _preset_update_ptz(preset_id: str, ptz: dict) -> dict:
+    mgr = _get_preset_manager()
+    if not mgr:
+        return {"success": False, "error": "preset manager unavailable"}
+    ok = mgr.update_ptz(preset_id, ptz)
+    return {"success": ok, "preset_id": preset_id}
+
+
+def _preset_nudge(preset_id: str, pan_delta: int, tilt_delta: int, zoom_delta: int) -> dict:
+    mgr = _get_preset_manager()
+    if not mgr:
+        return {"success": False, "error": "preset manager unavailable"}
+    ok = mgr.nudge_ptz(preset_id, pan_delta, tilt_delta, zoom_delta)
+    return {"success": ok, "preset_id": preset_id}
+
+
+def _preset_state() -> dict:
+    mgr = _get_preset_manager()
+    if not mgr:
+        return {"error": "preset manager unavailable"}
+    return mgr.get_state_summary()
+
+
+# ── Trigger chain handlers ────────────────────────────────────────
+
+def _get_chain_manager():
+    try:
+        from substrate.workstation.trigger_chains import get_chain_manager
+        return get_chain_manager()
+    except Exception as exc:
+        log.warning("chain manager unavailable: %s", exc)
+        return None
+
+
+def _chain_create(msg: dict) -> dict:
+    mgr = _get_chain_manager()
+    if not mgr:
+        return {"success": False, "error": "chain manager unavailable"}
+    chain = mgr.create_chain(
+        label=msg.get("label", ""),
+        trigger_event=msg.get("trigger_event", ""),
+        actions=msg.get("actions", []),
+        conditions=msg.get("conditions"),
+        trigger_zone=msg.get("trigger_zone", ""),
+        confidence_min=msg.get("confidence_min", 0.5),
+        debounce_seconds=msg.get("debounce_seconds", 3.0),
+        governance=msg.get("governance"),
+    )
+    if chain:
+        return {"success": True, "chain_id": chain.chain_id, "label": chain.label}
+    return {"success": False, "error": "could not create chain"}
+
+
+def _chain_delete(chain_id: str) -> dict:
+    mgr = _get_chain_manager()
+    if not mgr:
+        return {"success": False, "error": "chain manager unavailable"}
+    ok = mgr.delete_chain(chain_id)
+    return {"success": ok, "chain_id": chain_id}
+
+
+def _chain_enable(chain_id: str) -> dict:
+    mgr = _get_chain_manager()
+    if not mgr:
+        return {"success": False, "error": "chain manager unavailable"}
+    ok = mgr.enable_chain(chain_id)
+    return {"success": ok, "chain_id": chain_id}
+
+
+def _chain_disable(chain_id: str) -> dict:
+    mgr = _get_chain_manager()
+    if not mgr:
+        return {"success": False, "error": "chain manager unavailable"}
+    if chain_id:
+        ok = mgr.disable_chain(chain_id)
+        return {"success": ok, "chain_id": chain_id}
+    for chain in mgr.list_chains():
+        if chain.enabled:
+            mgr.disable_chain(chain.chain_id)
+    return {"success": True, "operation": "disable_all"}
+
+
+def _chain_explain(chain_id: str = "") -> dict:
+    mgr = _get_chain_manager()
+    if not mgr:
+        return {"explanation": "Chain manager unavailable."}
+    explanation = mgr.explain_last_fire(chain_id)
+    return {"explanation": explanation}
+
+
+def _chain_state() -> dict:
+    mgr = _get_chain_manager()
+    if not mgr:
+        return {"error": "chain manager unavailable"}
+    return mgr.get_state_summary()
+
+
+# ── Security mode handlers ────────────────────────────────────────
+
+def _get_security_manager():
+    try:
+        from substrate.workstation.security_mode import get_security_manager
+        return get_security_manager()
+    except Exception as exc:
+        log.warning("security manager unavailable: %s", exc)
+        return None
+
+
+def _security_activate(triggered_by: str = "operator_command") -> dict:
+    mgr = _get_security_manager()
+    if not mgr:
+        return {"success": False, "error": "security manager unavailable"}
+    state = mgr.activate(triggered_by=triggered_by)
+    return {"success": True, "mode": "security_harden", **state.to_dict()}
+
+
+def _security_deactivate() -> dict:
+    mgr = _get_security_manager()
+    if not mgr:
+        return {"success": False, "error": "security manager unavailable"}
+    result = mgr.deactivate(resolved_by="operator")
+    return result
+
+
+def _security_state() -> dict:
+    mgr = _get_security_manager()
+    if not mgr:
+        return {"error": "security manager unavailable"}
+    return mgr.get_state_summary()
 
 
 async def _analyze_current_frame(transcript: str = "") -> dict:
