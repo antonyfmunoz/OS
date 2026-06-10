@@ -306,3 +306,172 @@ class TestFieldTrialRegressions:
 
         lane = route_to_lane("open reddit", "sess-1")
         assert lane.lane_type == LaneType.background_browser
+
+
+# ---------------------------------------------------------------------------
+# 10. SSH Transport Guard (4 tests)
+# ---------------------------------------------------------------------------
+
+
+class TestSSHTransportGuard:
+    """Phase 14.13Y: GUI actions must not route through SSH (Session 0)."""
+
+    def test_gui_capability_blocked_via_ssh(self) -> None:
+        from substrate.workstation.work_lane import check_transport_allowed
+
+        result = check_transport_allowed("desktop.screenshot", "", "ssh")
+        assert result.allowed is False
+        assert "Session 0" in result.reason
+
+    def test_gui_shell_command_blocked_via_ssh(self) -> None:
+        from substrate.workstation.work_lane import check_transport_allowed
+
+        result = check_transport_allowed("shell", "start Spotify", "ssh")
+        assert result.allowed is False
+        assert "mesh relay" in result.reason
+
+    def test_non_gui_allowed_via_ssh(self) -> None:
+        from substrate.workstation.work_lane import check_transport_allowed
+
+        result = check_transport_allowed("shell", "tasklist /FI \"IMAGENAME eq python*\"", "ssh")
+        assert result.allowed is True
+
+    def test_mesh_relay_always_allowed(self) -> None:
+        from substrate.workstation.work_lane import check_transport_allowed
+
+        result = check_transport_allowed("desktop.screenshot", "", "mesh_relay")
+        assert result.allowed is True
+
+
+# ---------------------------------------------------------------------------
+# 11. Background Browser Profile Lane (4 tests)
+# ---------------------------------------------------------------------------
+
+
+class TestBackgroundBrowserProfile:
+    """Phase 14.13Y: Chrome worker profile background lane."""
+
+    def test_worker_profile_lane_type(self) -> None:
+        from substrate.workstation.work_lane import (
+            IsolationLevel,
+            LaneType,
+            WorkLane,
+        )
+
+        lane = WorkLane(
+            lane_type=LaneType.background_browser_profile,
+            session_id="sess-1",
+            chrome_profile="UMH_Worker_01",
+        )
+        assert lane.isolation_level == IsolationLevel.profile_isolated.value
+        assert lane.is_operator_foreground is False
+
+    def test_worker_profile_foreground_guard_approved(self) -> None:
+        from substrate.workstation.work_lane import (
+            ForegroundGuard,
+            LaneType,
+            WorkLane,
+        )
+
+        lane = WorkLane(
+            lane_type=LaneType.background_browser_profile,
+            session_id="sess-1",
+        )
+        result = ForegroundGuard().check("research TTS options", lane)
+        assert result.approved is True
+        assert result.requires_approval is False
+
+    def test_worker_profile_hud_metadata(self) -> None:
+        from substrate.workstation.work_lane import (
+            LaneType,
+            WorkLane,
+            lane_hud_metadata,
+        )
+
+        lane = WorkLane(
+            lane_type=LaneType.background_browser_profile,
+            session_id="sess-1",
+            chrome_profile="UMH_Worker_01",
+        )
+        hud = lane_hud_metadata(lane)
+        assert hud["is_background"] is True
+        assert hud["disruption_risk"] == "low"
+        assert hud["isolation_level"] == "profile_isolated"
+        assert hud["chrome_profile"] == "UMH_Worker_01"
+
+    def test_worker_chrome_launch_cmd(self) -> None:
+        from substrate.workstation.work_lane import build_worker_chrome_launch_cmd
+
+        cmd = build_worker_chrome_launch_cmd("https://example.com")
+        assert "--user-data-dir=" in cmd
+        assert "--profile-directory=Default" in cmd
+        assert "https://example.com" in cmd
+
+
+# ---------------------------------------------------------------------------
+# 12. Lane Inventory (3 tests)
+# ---------------------------------------------------------------------------
+
+
+class TestLaneInventory:
+    """Phase 14.13Y: Truthful lane inventory — no fake sessions."""
+
+    def test_base_inventory_has_two_lanes(self) -> None:
+        from substrate.workstation.work_lane import get_lane_inventory
+
+        lanes = get_lane_inventory()
+        assert len(lanes) == 2
+        assert lanes[0]["lane_id"] == "beast_service_session_0"
+        assert lanes[1]["lane_id"] == "beast_operator_foreground"
+
+    def test_worker_profile_adds_third_lane(self) -> None:
+        from substrate.workstation.work_lane import get_lane_inventory
+
+        lanes = get_lane_inventory(has_worker_profile=True)
+        assert len(lanes) == 3
+        worker = lanes[2]
+        assert worker["lane_id"] == "beast_background_browser_01"
+        assert worker["isolation_level"] == "profile_isolated"
+        assert worker["chrome_profile"] == "UMH_Worker_01"
+
+    def test_headless_adds_lane(self) -> None:
+        from substrate.workstation.work_lane import get_lane_inventory
+
+        lanes = get_lane_inventory(has_headless=True)
+        assert len(lanes) == 3
+        headless = lanes[2]
+        assert headless["lane_id"] == "beast_headless_browser_01"
+        assert headless["visible_to_operator"] is False
+
+
+# ---------------------------------------------------------------------------
+# 13. Headless Browser Lane (2 tests)
+# ---------------------------------------------------------------------------
+
+
+class TestHeadlessBrowserLane:
+    """Phase 14.13Y: Headless browser for zero-disruption research."""
+
+    def test_headless_lane_isolation(self) -> None:
+        from substrate.workstation.work_lane import (
+            IsolationLevel,
+            LaneType,
+            WorkLane,
+        )
+
+        lane = WorkLane(lane_type=LaneType.headless_browser, session_id="sess-1")
+        assert lane.isolation_level == IsolationLevel.headless.value
+        assert lane.is_operator_foreground is False
+
+    def test_headless_hud_metadata(self) -> None:
+        from substrate.workstation.work_lane import (
+            LaneType,
+            WorkLane,
+            lane_hud_metadata,
+        )
+
+        lane = WorkLane(lane_type=LaneType.headless_browser, session_id="sess-1")
+        hud = lane_hud_metadata(lane)
+        assert hud["is_background"] is True
+        assert hud["disruption_risk"] == "none"
+        assert hud["isolation_level"] == "headless"

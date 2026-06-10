@@ -135,6 +135,7 @@ class NodeMeshServer:
             self._config.port,
             ping_interval=30,
             ping_timeout=10,
+            max_size=4 * 1024 * 1024,
         ) as server:
             self._server = server
             logger.info("node mesh server listening on :%d", self._config.port)
