@@ -37,6 +37,7 @@ class CommandIntent(str, Enum):
     VPS_CONTROL = "vps_control"
     CONTINUITY_TRANSITION = "continuity_transition"
     STARTUP_SEQUENCE = "startup_sequence"
+    CAMERA_CONTROL = "camera_control"
     UNKNOWN = "unknown"
 
 
@@ -353,6 +354,35 @@ _CONTINUITY_TRANSITION_SIGNALS = [
     "prepare overnight work",
 ]
 
+_CAMERA_CONTROL_SIGNALS = [
+    "turn on camera",
+    "turn off camera",
+    "camera on",
+    "camera off",
+    "start camera",
+    "stop camera",
+    "show camera",
+    "open camera",
+    "open camera tab",
+    "look at me",
+    "look at my keyboard",
+    "look at the desk",
+    "look at my desk",
+    "look at the room",
+    "watch the room",
+    "take a snapshot",
+    "what do you see",
+    "what can you see",
+    "describe what you see",
+    "analyze this frame",
+    "am i at my desk",
+    "is my posture good",
+    "save this camera position",
+    "save this preset",
+    "where is the camera looking",
+    "camera status",
+]
+
 _STARTUP_SEQUENCE_SIGNALS = [
     "start my workday",
     "start my day",
@@ -500,6 +530,11 @@ def classify_intent(text: str) -> CommandIntent:
 
     if check_blocked(t):
         return CommandIntent.VPS_CONTROL
+
+    # ── Camera control (PTZ / vision commands) ───────────────────────
+    for signal in _CAMERA_CONTROL_SIGNALS:
+        if signal in t:
+            return CommandIntent.CAMERA_CONTROL
 
     # ── Workstation control (app/desktop commands) ──────────────────
     for signal in _WORKSTATION_CONTROL_SIGNALS:
@@ -805,6 +840,7 @@ def governance_requirement(intent: CommandIntent) -> GovernanceRequirement:
         CommandIntent.MODE_SWITCH,
         CommandIntent.CONTINUITY_TRANSITION,
         CommandIntent.STARTUP_SEQUENCE,
+        CommandIntent.CAMERA_CONTROL,
     ):
         return GovernanceRequirement.INFORMATIONAL
 

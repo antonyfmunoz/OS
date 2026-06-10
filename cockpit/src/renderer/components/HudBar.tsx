@@ -4,6 +4,7 @@ import { Radio } from 'lucide-react'
 import { useSystemStore } from '../stores/systemStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useVoiceStore } from '../stores/voiceStore'
+import { useVisionStore } from '../stores/visionStore'
 import { useRealtimeStore } from '../stores/realtimeStore'
 import { usePolling } from '../hooks/usePolling'
 
@@ -86,6 +87,8 @@ export function HudBar() {
   const micState = useVoiceStore((s) => s.micState)
   const audioLevel = useVoiceStore((s) => s.audioLevel)
   const lastTranscript = useVoiceStore((s) => s.lastTranscript)
+  const cameraStatus = useVisionStore((s) => s.cameraStatus)
+  const cameraPreset = useVisionStore((s) => s.activePreset)
 
   const [posture, setPosture] = useState<string>('')
   const [nodeCount, setNodeCount] = useState<number>(0)
@@ -200,6 +203,16 @@ export function HudBar() {
       </span>
       <span className="wv-label flex items-center gap-1 leading-none">
         <StatusDot status={ttsAvailable ? 'connected' : 'disconnected'} /> tts
+      </span>
+
+      {/* Camera status */}
+      <span className={clsx(
+        'wv-label flex items-center gap-1 leading-none',
+        cameraStatus === 'live' && 'text-danger',
+        cameraStatus === 'analyzing' && 'text-cyan',
+      )}>
+        <StatusDot status={cameraStatus === 'live' || cameraStatus === 'analyzing' ? 'connected' : cameraStatus === 'connecting' ? 'connecting' : 'disconnected'} />
+        cam{cameraPreset ? `:${cameraPreset}` : ''}
       </span>
 
       {/* Voice transcript ticker */}
