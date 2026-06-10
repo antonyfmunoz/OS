@@ -42,6 +42,12 @@ export type VisionEvent =
   | { type: 'vision_error'; error: string }
   | { type: 'preset_saved'; preset: string }
 
+function getVisionProtocols(): string[] {
+  const token = import.meta.env.VITE_VISION_TOKEN as string | undefined
+  if (token) return [`auth.${token}`]
+  return []
+}
+
 export class VisionWsClient {
   private ws: WsClient
   private _prevBlobUrl: string | null = null
@@ -49,7 +55,7 @@ export class VisionWsClient {
   private _frameCount = 0
 
   constructor() {
-    this.ws = new WsClient(VISION_URL)
+    this.ws = new WsClient(VISION_URL, getVisionProtocols())
     this.ws.onBinary((buf) => this._handleFrame(buf))
   }
 
