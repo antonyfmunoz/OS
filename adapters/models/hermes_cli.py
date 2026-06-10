@@ -221,7 +221,7 @@ def query_hermes_sync(
     cmd = (
         f"$p = [System.Text.Encoding]::UTF8.GetString("
         f"[Convert]::FromBase64String('{b64}')); "
-        f"hermes -z $p"
+        f'hermes -z "$p"'
     )
     result = _mesh_dispatch(
         "shell.powershell",
