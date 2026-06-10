@@ -3,6 +3,7 @@ import { SignedIn, SignedOut, SignIn, useAuth, ClerkLoaded, ClerkLoading } from 
 import { Shell } from './components/Shell'
 import { useKeyboard } from './hooks/useKeyboard'
 import { useOrganismRealtime } from './hooks/useOrganismRealtime'
+import { useVisionConnection } from './hooks/useVisionConnection'
 import { useBootstrapStore } from './stores/bootstrapStore'
 import { useChatStore } from './stores/chatStore'
 import { setTokenGetter } from './api/client'
@@ -20,6 +21,7 @@ function ClerkTokenBridge() {
 function AuthenticatedApp() {
   useKeyboard()
   useOrganismRealtime()
+  useVisionConnection()
 
   const boot = useBootstrapStore((s) => s.boot)
   const loadHistory = useChatStore((s) => s.loadHistory)

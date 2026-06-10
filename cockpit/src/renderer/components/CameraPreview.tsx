@@ -1,23 +1,15 @@
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useRef, useCallback, useState } from 'react'
 import { clsx } from 'clsx'
-import { Camera, CameraOff, Aperture, Eye, EyeOff, ChevronDown, Maximize2, Minimize2, PictureInPicture2 } from 'lucide-react'
-import { useVisionStore, type CameraPreset } from '../stores/visionStore'
-import { VisionWsClient } from '../api/vision-ws'
+import { Camera, CameraOff, Aperture, Eye, ChevronDown, Maximize2, Minimize2, PictureInPicture2 } from 'lucide-react'
+import { useVisionStore } from '../stores/visionStore'
+import { getVisionClient } from '../hooks/useVisionConnection'
 import { useVisionPopout } from './VisionPopout'
-
-let visionClient: VisionWsClient | null = null
-
-function getClient(): VisionWsClient {
-  if (!visionClient) visionClient = new VisionWsClient()
-  return visionClient
-}
 
 export function CameraPreview() {
   const {
     connected, streaming, cameraStatus, activePreset, latestFrameUrl,
     error, presets, analysisStatus, frameCount,
-    setConnected, setStreaming, setCameraStatus, setActivePreset,
-    setLatestFrame, setError, setPresets, incrementFrameCount, reset,
+    setCameraStatus, setActivePreset, setStreaming,
   } = useVisionStore()
 
   const poppedOut = useVisionStore((s) => s.poppedOut)
@@ -25,69 +17,17 @@ export function CameraPreview() {
   const [expanded, setExpanded] = useState(false)
   const [presetOpen, setPresetOpen] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
-  const clientRef = useRef<VisionWsClient | null>(null)
-
-  useEffect(() => {
-    const client = getClient()
-    clientRef.current = client
-
-    const unsubs = [
-      client.on('connected', () => {
-        setConnected(true)
-        client.requestPresets()
-        client.requestStatus()
-      }),
-      client.on('disconnected', () => {
-        setConnected(false)
-        setCameraStatus('off')
-        setStreaming(false)
-      }),
-      client.on('vision_frame', (d) => {
-        const url = d.url as string
-        const ts = d.timestamp as number
-        setLatestFrame(url, ts)
-        incrementFrameCount()
-      }),
-      client.on('vision_status', (d) => {
-        const isStreaming = d.streaming as boolean
-        setStreaming(isStreaming)
-        setCameraStatus(isStreaming ? 'live' : 'off')
-      }),
-      client.on('camera_presets', (d) => {
-        setPresets(d.presets as Record<string, CameraPreset>)
-      }),
-      client.on('vision_error', (d) => {
-        setError(d.error as string)
-        setTimeout(() => setError(null), 5000)
-      }),
-      client.on('preset_saved', (d) => {
-        client.requestPresets()
-      }),
-    ]
-
-    client.connect().catch((err) => {
-      setError(`Vision relay: ${err.message}`)
-    })
-
-    return () => {
-      unsubs.forEach((fn) => fn())
-      client.unsubscribe()
-      client.disconnect()
-      reset()
-      clientRef.current = null
-    }
-  }, [])
 
   const handleStart = useCallback(() => {
-    const client = clientRef.current
+    const client = getVisionClient()
     if (!client?.connected) return
     setCameraStatus('connecting')
-    client.startCamera({ fps: 2, width: 640, height: 480, quality: 60 })
-    client.subscribe(2, 60)
+    client.startCamera({ fps: 15, width: 640, height: 480, quality: 65 })
+    client.subscribe(15, 65)
   }, [])
 
   const handleStop = useCallback(() => {
-    const client = clientRef.current
+    const client = getVisionClient()
     if (!client?.connected) return
     client.stopCamera()
     client.unsubscribe()
@@ -96,11 +36,11 @@ export function CameraPreview() {
   }, [])
 
   const handleSnapshot = useCallback(() => {
-    clientRef.current?.requestSnapshot()
+    getVisionClient()?.requestSnapshot()
   }, [])
 
   const handlePreset = useCallback((name: string) => {
-    clientRef.current?.setPreset(name)
+    getVisionClient()?.setPreset(name)
     setActivePreset(name)
     setPresetOpen(false)
   }, [])
@@ -164,7 +104,6 @@ export function CameraPreview() {
 
       {/* Controls */}
       <div className="flex items-center gap-1.5">
-        {/* Start / Stop */}
         {!isActive ? (
           <button
             onClick={handleStart}
@@ -189,7 +128,6 @@ export function CameraPreview() {
           </button>
         )}
 
-        {/* Snapshot */}
         <button
           onClick={handleSnapshot}
           disabled={!connected}
@@ -204,7 +142,6 @@ export function CameraPreview() {
           Snap
         </button>
 
-        {/* Preset selector */}
         <div className="relative">
           <button
             onClick={() => setPresetOpen(!presetOpen)}
