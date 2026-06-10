@@ -67,11 +67,9 @@ class NodeClient:
     def _on_camera_frame(self, frame_data: dict[str, Any]) -> None:
         """Called from camera stream thread — pushes frame to VPS via mesh."""
         if not self._connected or self._ws is None or self._loop is None:
-            logger.debug("frame skipped: connected=%s ws=%s loop=%s",
-                         self._connected, self._ws is not None, self._loop is not None)
             return
         try:
-            future = asyncio.run_coroutine_threadsafe(
+            asyncio.run_coroutine_threadsafe(
                 self.emit_signal(
                     content_type="camera.frame",
                     payload=frame_data,
@@ -80,14 +78,8 @@ class NodeClient:
                 ),
                 self._loop,
             )
-            if not hasattr(self, '_frame_log_count'):
-                self._frame_log_count = 0
-            self._frame_log_count += 1
-            if self._frame_log_count <= 3 or self._frame_log_count % 100 == 0:
-                logger.info("camera frame %d queued (payload %d bytes)",
-                            self._frame_log_count, len(frame_data.get("image_base64", "")))
         except Exception as exc:
-            logger.warning("frame emit failed: %s", exc)
+            logger.debug("frame emit failed: %s", exc)
 
     def _next_id(self) -> int:
         self._msg_id += 1

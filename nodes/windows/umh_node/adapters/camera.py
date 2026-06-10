@@ -118,7 +118,7 @@ class CameraAdapter:
         if self._stream_active:
             return {"success": True, "message": "stream already active"}
 
-        fps = min(params.get("fps", 2), 10)
+        fps = min(params.get("fps", 2), 30)
         width = params.get("width", 640)
         height = params.get("height", 480)
         quality = params.get("quality", 60)
