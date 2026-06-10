@@ -193,6 +193,10 @@ class AdvisorConversation:
             response = self._handle_startup_sequence()
         elif intent == CommandIntent.MODE_SWITCH:
             response = self._handle_mode_switch(content)
+        elif intent == CommandIntent.CAMERA_CONTROL:
+            from substrate.organism.grounded_handlers import handle_camera_control
+
+            response = handle_camera_control(content)
         else:
             response = self._handle_advisor_signal(content, context_summary)
 
