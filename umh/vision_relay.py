@@ -258,12 +258,16 @@ def _get_loop() -> asyncio.AbstractEventLoop | None:
     return _event_loop
 
 
+_BEAST_NODE_ID = os.getenv("VISION_BEAST_NODE_ID", "windows-desktop")
+
+
 async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str, Any] | None:
     """Dispatch a camera command to Beast via the mesh HTTP relay."""
     try:
         import urllib.request
 
         payload = json.dumps({
+            "node_id": _BEAST_NODE_ID,
             "capability": operation,
             "params": params,
             "timeout": 10,
@@ -274,7 +278,8 @@ async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=12) as resp:
-            return json.loads(resp.read())
+            data = json.loads(resp.read())
+            return data.get("result_data", data)
     except Exception as exc:
         log.warning("mesh dispatch failed (%s): %s", operation, exc)
         return None
