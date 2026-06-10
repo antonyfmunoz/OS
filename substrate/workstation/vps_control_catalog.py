@@ -270,7 +270,7 @@ _VPS_KEYWORD_MAP: list[tuple[list[str], str]] = [
     (["cpu usage", "cpu load", "show cpu", "how is the cpu"], "cpu_usage"),
     (["memory usage", "ram usage", "show memory", "how much memory", "show ram"], "memory_usage"),
     (["disk usage", "disk space", "show disk", "how much disk", "storage"], "disk_usage"),
-    (["docker containers", "show containers", "list containers", "docker ps", "running containers"], "docker_ps"),
+    (["docker containers", "show containers", "list containers", "docker ps", "running containers", "container status", "docker status"], "docker_ps"),
     (["operator logs", "show operator logs", "operator log", "latest operator"], "docker_logs_operator"),
     (["discord logs", "show discord logs", "discord log", "discord bot logs"], "docker_logs_discord"),
     (["restart operator", "restart the operator", "restart os-operator"], "docker_restart_operator"),
