@@ -130,6 +130,52 @@ def _check_auth(ws: Any) -> bool:
     return False
 
 
+def _direction_to_delta(direction: str, speed: int = 1) -> dict[str, int]:
+    """Convert a PTZ direction string into pan/tilt deltas."""
+    step = 5 * speed
+    deltas: dict[str, dict[str, int]] = {
+        "up":         {"tilt": step},
+        "down":       {"tilt": -step},
+        "left":       {"pan": -step},
+        "right":      {"pan": step},
+        "up_left":    {"pan": -step, "tilt": step},
+        "up_right":   {"pan": step, "tilt": step},
+        "down_left":  {"pan": -step, "tilt": -step},
+        "down_right": {"pan": step, "tilt": -step},
+    }
+    d = deltas.get(direction, {})
+    return {"pan": d.get("pan", 0), "tilt": d.get("tilt", 0)}
+
+
+async def _send_control_result(
+    ws: Any, request_id: str, operation: str, result: dict[str, Any] | None,
+) -> None:
+    """Send a structured control result back to the cockpit."""
+    if result is None:
+        await send_json(ws, {
+            "type": "camera_control_result",
+            "request_id": request_id,
+            "operation": operation,
+            "ok": False,
+            "error": "dispatch failed",
+        })
+        return
+    ok = result.get("success", False)
+    payload: dict[str, Any] = {
+        "type": "camera_control_result",
+        "request_id": request_id,
+        "operation": operation,
+        "ok": ok,
+    }
+    if ok:
+        for k in ("pan", "tilt", "zoom", "preset", "label"):
+            if k in result:
+                payload[k] = result[k]
+    else:
+        payload["error"] = result.get("error", "unknown error")
+    await send_json(ws, payload)
+
+
 async def handle_vision(ws: Any) -> None:
     if not _check_auth(ws):
         log.warning("viewer rejected: invalid auth token from %s", ws.remote_address)
@@ -225,14 +271,59 @@ async def handle_vision(ws: Any) -> None:
                     })
 
             elif msg_type == "camera_get_position":
+                request_id = msg.get("request_id", "")
                 result = await _dispatch_to_beast("camera.get_position", {})
                 if result:
+                    result["has_ptz_hardware"] = result.get("success", False)
                     await send_json(ws, {"type": "camera_position", **result})
 
             elif msg_type == "camera_status":
                 result = await _dispatch_to_beast("camera.status", {})
                 if result:
                     await send_json(ws, {"type": "vision_status", **result})
+
+            elif msg_type == "camera_ptz_move":
+                request_id = msg.get("request_id", "")
+                delta = _direction_to_delta(msg.get("direction", ""), msg.get("speed", 1))
+                pos_result = await _dispatch_to_beast("camera.get_position", {})
+                if pos_result and pos_result.get("success"):
+                    result = await _dispatch_to_beast("camera.set_position", {
+                        "pan": pos_result["pan"] + delta.get("pan", 0),
+                        "tilt": pos_result["tilt"] + delta.get("tilt", 0),
+                        "zoom": pos_result.get("zoom", 100),
+                    })
+                else:
+                    result = pos_result
+                await _send_control_result(ws, request_id, "camera.ptz.move", result)
+
+            elif msg_type == "camera_ptz_set_position":
+                request_id = msg.get("request_id", "")
+                result = await _dispatch_to_beast("camera.set_position", {
+                    "pan": msg.get("pan", 0),
+                    "tilt": msg.get("tilt", 0),
+                    "zoom": msg.get("zoom", 100),
+                })
+                await _send_control_result(ws, request_id, "camera.ptz.set_position", result)
+
+            elif msg_type == "camera_ptz_relative":
+                request_id = msg.get("request_id", "")
+                pos_result = await _dispatch_to_beast("camera.get_position", {})
+                if pos_result and pos_result.get("success"):
+                    new_pan = pos_result["pan"] + msg.get("pan_delta", 0)
+                    new_tilt = pos_result["tilt"] + msg.get("tilt_delta", 0)
+                    new_zoom = max(100, pos_result["zoom"] + msg.get("zoom_delta", 0))
+                    result = await _dispatch_to_beast("camera.set_position", {
+                        "pan": new_pan,
+                        "tilt": new_tilt,
+                        "zoom": new_zoom,
+                    })
+                else:
+                    result = pos_result
+                await _send_control_result(ws, request_id, "camera.ptz.relative", result)
+
+            elif msg_type == "camera_ptz_stop":
+                request_id = msg.get("request_id", "")
+                await _send_control_result(ws, request_id, "camera.ptz.stop", {"success": True})
 
     except websockets.exceptions.ConnectionClosed:
         log.info("viewer disconnected: %s", ws.remote_address)
