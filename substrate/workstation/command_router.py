@@ -291,6 +291,17 @@ _VPS_CONTROL_SIGNALS = [
     "run the test suite",
     "run tests",
     "deploy the cockpit",
+    "webhook logs",
+    "show webhook logs",
+    "restart webhook",
+    "restart the webhook",
+    "restart services",
+    "restart all services",
+    "container health",
+    "system health",
+    "server health",
+    "service health",
+    "show system health",
 ]
 
 _WORKSTATION_CONTROL_SIGNALS = [
