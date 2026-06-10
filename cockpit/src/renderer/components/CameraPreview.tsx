@@ -1,8 +1,9 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { clsx } from 'clsx'
-import { Camera, CameraOff, Aperture, Eye, EyeOff, ChevronDown, Maximize2, Minimize2 } from 'lucide-react'
+import { Camera, CameraOff, Aperture, Eye, EyeOff, ChevronDown, Maximize2, Minimize2, PictureInPicture2 } from 'lucide-react'
 import { useVisionStore, type CameraPreset } from '../stores/visionStore'
 import { VisionWsClient } from '../api/vision-ws'
+import { useVisionPopout } from './VisionPopout'
 
 let visionClient: VisionWsClient | null = null
 
@@ -19,6 +20,8 @@ export function CameraPreview() {
     setLatestFrame, setError, setPresets, incrementFrameCount, reset,
   } = useVisionStore()
 
+  const poppedOut = useVisionStore((s) => s.poppedOut)
+  const { openPopout } = useVisionPopout()
   const [expanded, setExpanded] = useState(false)
   const [presetOpen, setPresetOpen] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
@@ -140,13 +143,23 @@ export function CameraPreview() {
           </div>
         )}
 
-        {/* Expand/collapse */}
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="absolute top-1 left-1 p-1 rounded bg-black/60 text-text-secondary hover:text-white"
-        >
-          {expanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-        </button>
+        {/* Expand/collapse + Pop-out */}
+        <div className="absolute top-1 left-1 flex items-center gap-1">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="p-1 rounded bg-black/60 text-text-secondary hover:text-white"
+            title={expanded ? 'Collapse' : 'Expand'}
+          >
+            {expanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+          </button>
+          <button
+            onClick={openPopout}
+            className="p-1 rounded bg-black/60 text-text-secondary hover:text-white"
+            title="Pop out"
+          >
+            <PictureInPicture2 size={12} />
+          </button>
+        </div>
       </div>
 
       {/* Controls */}
