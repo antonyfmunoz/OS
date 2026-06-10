@@ -1,9 +1,7 @@
 #!/bin/sh
 
-# Template nginx config — inject only UMH secrets from env, leave nginx vars intact.
-envsubst '${UMH_WS_TOKEN}' \
-  < /etc/nginx/conf.d/default.conf.template \
-  > /etc/nginx/conf.d/default.conf
+# Copy nginx template — no secrets to inject (Clerk JWT auth handled by backend).
+cp /etc/nginx/conf.d/default.conf.template /etc/nginx/conf.d/default.conf
 
 # Start nginx first so Fly health checks pass immediately.
 # API proxy returns 502 until the SSH tunnel is up.
