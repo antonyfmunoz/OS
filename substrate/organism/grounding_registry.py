@@ -567,6 +567,9 @@ _STATUS_SEEKING_PATTERNS: list[tuple[str, str]] = [
     ("latest reports", "recent_reports"),
     ("reports created", "recent_reports"),
     ("reports today", "recent_reports"),
+    ("what reports", "recent_reports"),
+    ("show reports", "recent_reports"),
+    ("list reports", "recent_reports"),
     # Approvals
     ("needs approval", "approval_status"),
     ("what needs approval", "approval_status"),
