@@ -190,7 +190,7 @@ class NodeClient:
         logger.info("connecting to %s", url.split("?")[0])
 
         async with websockets.connect(
-            url, ping_interval=30, ping_timeout=10, max_size=4 * 1024 * 1024
+            url, ping_interval=120, ping_timeout=60, max_size=4 * 1024 * 1024
         ) as ws:
             self._ws = ws
             await self._send_hello()

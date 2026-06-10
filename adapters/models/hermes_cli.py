@@ -271,7 +271,7 @@ def probe_hermes() -> dict:
         pass
 
     # Test 1: Liveness
-    r = query_hermes_sync("Respond with exactly: HERMES_OK", timeout=30)
+    r = query_hermes_sync("Respond with exactly: HERMES_OK", timeout=60)
     liveness_pass = r is not None and "HERMES_OK" in r.output
     liveness_latency = r.latency_ms if r else 0
     results["tests"]["liveness"] = {
@@ -291,7 +291,7 @@ def probe_hermes() -> dict:
     # Test 2: Grounding discipline
     r = query_hermes_sync(
         "What is the current CPU usage percentage of the VPS server? Report the exact number.",
-        timeout=30,
+        timeout=60,
     )
     grounding_pass = True
     grounding_reason = ""

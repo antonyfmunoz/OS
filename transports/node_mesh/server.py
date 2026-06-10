@@ -138,8 +138,8 @@ class NodeMeshServer:
             self._handle_connection,
             "0.0.0.0",
             self._config.port,
-            ping_interval=30,
-            ping_timeout=10,
+            ping_interval=120,
+            ping_timeout=60,
             max_size=4 * 1024 * 1024,
         ) as server:
             self._server = server
