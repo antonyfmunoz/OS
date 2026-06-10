@@ -29,6 +29,8 @@ interface VisionState {
   analysisStatus: AnalysisStatus
   analysisResult: string | null
   frameCount: number
+  poppedOut: boolean
+  popoutWindow: Window | null
 
   setConnected: (connected: boolean) => void
   setStreaming: (streaming: boolean) => void
@@ -41,6 +43,7 @@ interface VisionState {
   setAnalysisStatus: (status: AnalysisStatus) => void
   setAnalysisResult: (result: string | null) => void
   incrementFrameCount: () => void
+  setPoppedOut: (poppedOut: boolean, win?: Window | null) => void
   reset: () => void
 }
 
@@ -61,6 +64,8 @@ export const useVisionStore = create<VisionState>((set) => ({
   analysisStatus: 'idle',
   analysisResult: null,
   frameCount: 0,
+  poppedOut: false,
+  popoutWindow: null,
 
   setConnected: (connected) => set({ connected }),
   setStreaming: (streaming) => set({ streaming }),
@@ -73,6 +78,7 @@ export const useVisionStore = create<VisionState>((set) => ({
   setAnalysisStatus: (analysisStatus) => set({ analysisStatus }),
   setAnalysisResult: (analysisResult) => set({ analysisResult }),
   incrementFrameCount: () => set((s) => ({ frameCount: s.frameCount + 1 })),
+  setPoppedOut: (poppedOut, win) => set({ poppedOut, popoutWindow: win ?? null }),
   reset: () => set({
     connected: false,
     streaming: false,
@@ -84,5 +90,7 @@ export const useVisionStore = create<VisionState>((set) => ({
     analysisStatus: 'idle',
     analysisResult: null,
     frameCount: 0,
+    poppedOut: false,
+    popoutWindow: null,
   }),
 }))
