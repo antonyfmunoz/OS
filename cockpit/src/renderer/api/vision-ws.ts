@@ -74,6 +74,48 @@ export interface SceneState {
   follow_mode: FollowModeState
 }
 
+export interface TrackerConfigState {
+  tracker_id: string
+  category: string
+  enabled: boolean
+  fps: number
+  overlay: boolean
+  cpu_cost: number
+  gpu_cost: number
+  status: string
+  available: boolean
+}
+
+export interface VisionPresetState {
+  preset_id: string
+  label: string
+  description: string
+  ptz: { pan: number; tilt: number; zoom: number }
+  tracker_stack_id: string
+  quality_mode: string
+  zones: Array<{ zone_id: string; label: string; polygon: number[][]; zone_type: string }>
+  trigger_chain_ids: string[]
+}
+
+export interface TriggerChainState {
+  chain_id: string
+  label: string
+  enabled: boolean
+  trigger: { event: string; zone: string; confidence_min: number; debounce_seconds: number }
+  actions: Array<{ type: string; [key: string]: unknown }>
+  governance: { risk: string; requires_approval: boolean; audit: boolean }
+  fire_count: number
+}
+
+export interface ChainFireState {
+  chain_id: string
+  fired_at: number
+  event: string
+  confidence: number
+  actions_taken: string[]
+  explanation: string
+}
+
 export type VisionEvent =
   | { type: 'connected' }
   | { type: 'disconnected' }
@@ -92,6 +134,15 @@ export type VisionEvent =
   | { type: 'vision_watch_result'; success: boolean; watch_id?: string; target?: string }
   | { type: 'vision_follow_result'; success: boolean; target?: string }
   | { type: 'vision_query_result'; answer: string; confidence: string; status?: string }
+  | { type: 'vision_tracker_result'; success: boolean; category?: string; operation?: string; enabled?: string[]; error?: string }
+  | { type: 'vision_tracker_state'; active_stack_id?: string; enabled_trackers?: TrackerConfigState[]; total_cost?: { cpu: number; gpu: number }; [key: string]: unknown }
+  | { type: 'vision_preset_result'; success: boolean; preset_id?: string; label?: string; error?: string; affected_chains?: string[] }
+  | { type: 'vision_preset_state'; active_preset_id?: string; presets?: Record<string, VisionPresetState>; count?: number }
+  | { type: 'vision_chain_result'; success: boolean; chain_id?: string; label?: string; error?: string }
+  | { type: 'vision_chain_explain'; explanation: string }
+  | { type: 'vision_chain_state'; chains?: Record<string, TriggerChainState>; chain_count?: number; enabled_count?: number; recent_fires?: ChainFireState[] }
+  | { type: 'vision_security_result'; success: boolean; mode?: string; active?: boolean; error?: string; [key: string]: unknown }
+  | { type: 'vision_security_state'; active?: boolean; mode?: string; risk?: string; triggered_by?: string; [key: string]: unknown }
 
 function getVisionProtocols(): string[] {
   const token = import.meta.env.VITE_VISION_TOKEN as string | undefined
@@ -339,6 +390,115 @@ export class VisionWsClient {
   queryVisual(target: string): void {
     log('query_visual', { target })
     this.ws.send('vision_query', { target })
+  }
+
+  // ── Tracker stack ──────────────────────────────────────────────
+
+  enableTracker(category: string): void {
+    log('tracker_enable', { category })
+    this.ws.send('vision_tracker_enable', { category })
+  }
+
+  disableTracker(category: string): void {
+    log('tracker_disable', { category })
+    this.ws.send('vision_tracker_disable', { category })
+  }
+
+  setTrackerStack(categories: string[]): void {
+    log('tracker_stack', { categories })
+    this.ws.send('vision_tracker_stack', { categories })
+  }
+
+  stopAllTracking(): void {
+    log('stop_all_tracking')
+    this.ws.send('vision_stop_all_tracking')
+  }
+
+  requestTrackerState(): void {
+    this.ws.send('vision_tracker_state')
+  }
+
+  // ── Preset CRUD ────────────────────────────────────────────────
+
+  createPreset(presetId: string, label: string, description = '', ptz?: { pan: number; tilt: number; zoom: number }): void {
+    log('preset_create', { presetId, label })
+    this.ws.send('vision_preset_create', { preset_id: presetId, label, description, ptz })
+  }
+
+  renamePreset(presetId: string, newLabel: string): void {
+    log('preset_rename', { presetId, newLabel })
+    this.ws.send('vision_preset_rename', { preset_id: presetId, new_label: newLabel })
+  }
+
+  deletePreset(presetId: string): void {
+    log('preset_delete', { presetId })
+    this.ws.send('vision_preset_delete', { preset_id: presetId })
+  }
+
+  activatePreset(presetId: string): void {
+    log('preset_activate', { presetId })
+    this.ws.send('vision_preset_activate', { preset_id: presetId })
+  }
+
+  updatePresetPtz(presetId: string, ptz: { pan: number; tilt: number; zoom: number }): void {
+    log('preset_update_ptz', { presetId, ptz })
+    this.ws.send('vision_preset_update_ptz', { preset_id: presetId, ptz })
+  }
+
+  nudgePreset(presetId: string, panDelta: number, tiltDelta: number, zoomDelta: number): void {
+    log('preset_nudge', { presetId, panDelta, tiltDelta, zoomDelta })
+    this.ws.send('vision_preset_nudge', { preset_id: presetId, pan_delta: panDelta, tilt_delta: tiltDelta, zoom_delta: zoomDelta })
+  }
+
+  requestPresetState(): void {
+    this.ws.send('vision_preset_state')
+  }
+
+  // ── Trigger chains ─────────────────────────────────────────────
+
+  createChain(opts: { label: string; trigger_event: string; actions: Array<{ type: string; [key: string]: unknown }>; conditions?: Array<{ field: string; op: string; value: unknown }>; trigger_zone?: string; confidence_min?: number; debounce_seconds?: number }): void {
+    log('chain_create', opts)
+    this.ws.send('vision_chain_create', opts)
+  }
+
+  deleteChain(chainId: string): void {
+    log('chain_delete', { chainId })
+    this.ws.send('vision_chain_delete', { chain_id: chainId })
+  }
+
+  enableChain(chainId: string): void {
+    log('chain_enable', { chainId })
+    this.ws.send('vision_chain_enable', { chain_id: chainId })
+  }
+
+  disableChain(chainId: string): void {
+    log('chain_disable', { chainId })
+    this.ws.send('vision_chain_disable', { chain_id: chainId })
+  }
+
+  explainChain(chainId = ''): void {
+    log('chain_explain', { chainId })
+    this.ws.send('vision_chain_explain', { chain_id: chainId })
+  }
+
+  requestChainState(): void {
+    this.ws.send('vision_chain_state')
+  }
+
+  // ── Security mode ──────────────────────────────────────────────
+
+  activateSecurityMode(triggeredBy = 'operator_command'): void {
+    log('security_activate', { triggeredBy })
+    this.ws.send('vision_security_activate', { triggered_by: triggeredBy })
+  }
+
+  deactivateSecurityMode(): void {
+    log('security_deactivate')
+    this.ws.send('vision_security_deactivate')
+  }
+
+  requestSecurityState(): void {
+    this.ws.send('vision_security_state')
   }
 
   // ── Events ──────────────────────────────────────────────────────
