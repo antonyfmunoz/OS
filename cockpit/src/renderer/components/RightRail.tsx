@@ -1,6 +1,6 @@
 import { clsx } from 'clsx'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Camera, Send, Pencil, Check, Download, Mic, MicOff } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send, Pencil, Check, Download, Mic, MicOff } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useSystemStore } from '../stores/systemStore'
@@ -16,7 +16,6 @@ import { fetchApi } from '../api/client'
 import type { SuggestedAction } from '../stores/chatStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { VoiceRouteHud } from './VoiceRouteHud'
-import { CameraPreview } from './CameraPreview'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
 
@@ -31,7 +30,7 @@ const markdownComponents = {
   img: () => null,
 }
 
-type RightTab = 'chat' | 'camera' | 'activity' | 'logs'
+type RightTab = 'chat' | 'activity' | 'logs'
 
 export function RightRail() {
   const [collapsed, setCollapsed] = useState(false)
@@ -43,7 +42,6 @@ export function RightRail() {
 
   const tabs: Array<{ id: RightTab; icon: typeof MessageSquare; label: string }> = [
     { id: 'chat', icon: MessageSquare, label: 'Chat' },
-    { id: 'camera', icon: Camera, label: 'Camera' },
     { id: 'activity', icon: Activity, label: 'Activity' },
     { id: 'logs', icon: Terminal, label: 'Logs' },
   ]
@@ -101,7 +99,6 @@ export function RightRail() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3">
         {activeTab === 'chat' && <ChatSection />}
-        {activeTab === 'camera' && <CameraPreview />}
         {activeTab === 'activity' && <ActivitySection traces={traces} />}
         {activeTab === 'logs' && <LogsSection traces={traces} />}
       </div>

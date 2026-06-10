@@ -32,6 +32,7 @@ export type Panel =
   | 'workspace'
   | 'commandcenter'
   | 'work'
+  | 'vision'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

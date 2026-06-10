@@ -25,6 +25,7 @@ import {
   Mic,
   Play,
   Terminal,
+  Camera,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -48,6 +49,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'execution', label: 'Execution', icon: Layers, group: 'primary', visibility: 'primary', key: '0' },
   { id: 'infrastructure', label: 'Infrastructure', icon: Server, group: 'primary', visibility: 'primary', key: 'i' },
   { id: 'comms', label: 'Comms', icon: MessageSquare, group: 'primary', visibility: 'primary', key: 'm' },
+  { id: 'vision', label: 'Vision', icon: Camera, group: 'primary', visibility: 'primary', key: 'v' },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'primary', visibility: 'primary', key: '5' },
 
   // System (1)
