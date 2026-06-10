@@ -41,6 +41,7 @@ class NodeClient:
         self._adapters: dict[str, Any] = {}
         self._init_adapters()
 
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._on_workspace_change: Callable[[dict[str, Any]], None] | None = None
 
     @property
@@ -65,22 +66,20 @@ class NodeClient:
 
     def _on_camera_frame(self, frame_data: dict[str, Any]) -> None:
         """Called from camera stream thread — pushes frame to VPS via mesh."""
-        if not self._connected or self._ws is None:
+        if not self._connected or self._ws is None or self._loop is None:
             return
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.run_coroutine_threadsafe(
-                    self.emit_signal(
-                        content_type="camera.frame",
-                        payload=frame_data,
-                        signal_class="camera_frame",
-                        urgency="LOW",
-                    ),
-                    loop,
-                )
-        except Exception:
-            pass
+            asyncio.run_coroutine_threadsafe(
+                self.emit_signal(
+                    content_type="camera.frame",
+                    payload=frame_data,
+                    signal_class="camera_frame",
+                    urgency="LOW",
+                ),
+                self._loop,
+            )
+        except Exception as exc:
+            logger.debug("frame emit failed: %s", exc)
 
     def _next_id(self) -> int:
         self._msg_id += 1
@@ -151,6 +150,7 @@ class NodeClient:
 
     async def run(self) -> None:
         """Main loop — connect with exponential backoff, handle messages."""
+        self._loop = asyncio.get_event_loop()
         backoff = 1.0
         max_backoff = self._config.reconnect_max_backoff_s
 
