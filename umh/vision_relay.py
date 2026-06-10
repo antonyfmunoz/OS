@@ -460,6 +460,23 @@ async def _health_server() -> None:
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(body)
+            elif self.path == "/latest-frame":
+                if _latest_frame is None:
+                    self.send_response(404)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(b'{"error": "no frame available"}')
+                    return
+                body = json.dumps({
+                    "image_base64": base64.b64encode(_latest_frame).decode(),
+                    "mime_type": "image/jpeg",
+                    "meta": _latest_frame_meta,
+                    "timestamp": _latest_frame_meta.get("timestamp", ""),
+                }).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(body)
             else:
                 self.send_response(404)
                 self.end_headers()

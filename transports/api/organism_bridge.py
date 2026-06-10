@@ -1775,8 +1775,37 @@ def _operational_truth_provider_health(payload: dict) -> dict:
         diag_path = Path(_os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "operational_truth" / "phase13_3s_llm_provider_diagnostic.json"
         if diag_path.exists():
             data = _json.loads(diag_path.read_text())
-            return {"success": True, "data": data}
-        return {"success": True, "data": {"providers": [], "note": "no diagnostic available"}}
+        else:
+            data = {"providers": [], "note": "no diagnostic available"}
+
+        try:
+            from adapters.models.hermes_cli import (
+                get_benchmark_result,
+                is_available,
+                is_verified,
+            )
+
+            hermes_entry = {
+                "provider": "hermes-agent",
+                "bridge_type": "mesh_dispatch",
+                "bridge_node": "beast_windows",
+                "available": is_available(),
+                "verified": is_verified(),
+                "bridge_status": "healthy" if is_available() and is_verified() else (
+                    "unverified" if is_available() else "beast_offline"
+                ),
+            }
+            benchmark = get_benchmark_result()
+            if benchmark:
+                hermes_entry["benchmark_result"] = benchmark
+            if isinstance(data.get("providers"), list):
+                data["providers"].append(hermes_entry)
+            else:
+                data["hermes"] = hermes_entry
+        except Exception:
+            pass
+
+        return {"success": True, "data": data}
     except Exception:
         logger.exception("organism.operational_truth.provider_health failed")
         return {"success": False, "error": "internal_error"}

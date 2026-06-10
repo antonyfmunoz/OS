@@ -605,6 +605,81 @@ class TestGroundedResponseContract:
         assert "missing" in grounding
 
 
+class TestVisionAnalysis:
+    def test_no_frame_returns_no_camera_message(self):
+        from substrate.organism.grounded_handlers import handle_vision_analysis
+
+        with patch("substrate.organism.grounded_handlers._fetch_latest_frame", return_value=None):
+            response = handle_vision_analysis("what do you see")
+        assert "no camera frame" in response.text.lower()
+        assert response.metadata["grounding"]["frame_available"] is False
+
+    def test_frame_available_but_model_fails(self):
+        from substrate.organism.grounded_handlers import handle_vision_analysis
+
+        fake_frame = {
+            "image_base64": "dGVzdA==",
+            "meta": {"timestamp": "2026-06-09T12:00:00"},
+        }
+        with patch("substrate.organism.grounded_handlers._fetch_latest_frame", return_value=fake_frame):
+            with patch(
+                "adapters.models.model_router.call_with_fallback",
+                return_value=MagicMock(output=None),
+            ):
+                response = handle_vision_analysis("what do you see")
+        assert "no vision-capable model" in response.text.lower()
+        assert response.metadata["grounding"]["frame_available"] is True
+
+    def test_frame_and_model_returns_analysis(self):
+        from substrate.organism.grounded_handlers import handle_vision_analysis
+
+        fake_frame = {
+            "image_base64": "dGVzdA==",
+            "meta": {"timestamp": "2026-06-09T12:00:00"},
+        }
+        mock_result = MagicMock(output="A desk with a keyboard and monitor visible.")
+        with patch("substrate.organism.grounded_handlers._fetch_latest_frame", return_value=fake_frame):
+            with patch(
+                "adapters.models.model_router.call_with_fallback",
+                return_value=mock_result,
+            ):
+                response = handle_vision_analysis("what do you see")
+        assert "camera analysis" in response.text.lower()
+        assert "desk" in response.text.lower()
+        assert response.metadata["grounding"]["model_tier"] == "ai_enhanced"
+
+
+class TestCameraControl:
+    def test_analyze_routes_to_vision_analysis(self):
+        from substrate.organism.grounded_handlers import handle_camera_control
+
+        with patch("substrate.organism.grounded_handlers.handle_vision_analysis") as mock_va:
+            mock_va.return_value = MagicMock(text="analysis result")
+            handle_camera_control("what do you see")
+            mock_va.assert_called_once_with("what do you see")
+
+    def test_status_routes_to_grounded_vision(self):
+        from substrate.organism.grounded_handlers import handle_camera_control
+
+        with patch("substrate.organism.grounded_handlers.handle_grounded_vision") as mock_gv:
+            mock_gv.return_value = MagicMock(text="vision status")
+            handle_camera_control("camera status")
+            mock_gv.assert_called_once()
+
+    def test_start_returns_control_response(self):
+        from substrate.organism.grounded_handlers import handle_camera_control
+
+        response = handle_camera_control("turn on camera")
+        assert "start" in response.text.lower()
+        assert response.metadata["grounding"]["operation"] == "start"
+
+    def test_camera_control_intent_wired_in_dispatch(self):
+        from substrate.workstation.command_router import CommandIntent, classify_intent
+
+        intent = classify_intent("what do you see")
+        assert intent == CommandIntent.CAMERA_CONTROL
+
+
 class TestAllPatternsValid:
     def test_all_status_patterns_map_to_known_query_types(self):
         from substrate.organism.grounding_registry import (

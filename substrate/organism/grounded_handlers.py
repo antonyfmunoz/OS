@@ -9,6 +9,7 @@ UMH substrate subsystem. Instance-agnostic.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -260,6 +261,143 @@ def handle_grounded_beast(content: str) -> Any:
     return _make_response(text=text, intent="status_query", grounding=result.to_dict())
 
 
+def _fetch_latest_frame() -> dict[str, Any] | None:
+    """Fetch latest camera frame from vision relay. Returns None if unavailable."""
+    import os
+    import urllib.request
+
+    relay_port = int(os.environ.get("VISION_RELAY_PORT", "8097"))
+    health_port = relay_port + 1
+    try:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{health_port}/latest-frame", method="GET"
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+            if data.get("image_base64"):
+                return data
+    except Exception:
+        pass
+    return None
+
+
+def handle_vision_analysis(content: str) -> Any:
+    """Vision analysis — real frame + vision-capable model.
+
+    Grounded: refuses to describe what it "sees" unless a real frame exists.
+    Reuses analyze_snapshot() from camera_commands.py for the LLM call.
+    """
+    frame_data = _fetch_latest_frame()
+
+    if not frame_data:
+        return _make_response(
+            text="No camera frame available. The camera may be off or no frames have been received yet.",
+            intent="camera_control",
+            grounding={"frame_available": False, "source": "vision_relay"},
+            suggested_actions=[
+                {
+                    "label": "Turn On Camera",
+                    "action": "query",
+                    "payload": {"content": "turn on camera"},
+                },
+            ],
+        )
+
+    frame_meta = frame_data.get("meta", {})
+
+    try:
+        from substrate.workstation.camera_commands import analyze_snapshot
+
+        analysis = analyze_snapshot(
+            image_base64=frame_data["image_base64"],
+            transcript=content,
+        )
+    except Exception as exc:
+        logger.warning("vision analysis failed: %s", exc)
+        analysis = None
+
+    if analysis and "couldn't analyze" not in analysis.lower():
+        text = f"**Camera Analysis**\n\n{analysis}"
+        grounding = {
+            "frame_available": True,
+            "frame_timestamp": frame_meta.get("timestamp", ""),
+            "source": "vision_relay + vision_model",
+            "model_tier": "ai_enhanced",
+        }
+    else:
+        text = (
+            "I have a camera frame but no vision-capable model is available right now. "
+            "The camera is active and streaming."
+        )
+        grounding = {
+            "frame_available": True,
+            "frame_timestamp": frame_meta.get("timestamp", ""),
+            "source": "vision_relay",
+            "model_tier": "deterministic",
+            "vision_model_available": False,
+        }
+
+    return _make_response(
+        text=text,
+        intent="camera_control",
+        grounding=grounding,
+        suggested_actions=[
+            {
+                "label": "Take Snapshot",
+                "action": "query",
+                "payload": {"content": "take a snapshot"},
+            },
+            {
+                "label": "Camera Status",
+                "action": "query",
+                "payload": {"content": "camera status"},
+            },
+        ],
+    )
+
+
+def handle_camera_control(content: str) -> Any:
+    """Route CAMERA_CONTROL intent — deterministic sub-classification.
+
+    Analysis operations (what do you see, analyze frame) go through grounded
+    vision analysis. Control operations (start/stop/preset/status) go through
+    the camera command dispatcher or grounded status handler.
+    """
+    from substrate.workstation.camera_commands import classify_camera_command
+
+    cmd = classify_camera_command(content)
+
+    if cmd.operation == "analyze" or cmd.needs_ai:
+        return handle_vision_analysis(content)
+
+    if cmd.operation == "status":
+        return handle_grounded_vision(content)
+
+    # Control operations (start, stop, preset, snapshot, save_preset)
+    # return guidance — actual dispatch happens through cockpit WebSocket
+    action_map = {
+        "start": "Starting camera stream...",
+        "stop": "Stopping camera stream...",
+        "preset": f"Moving camera to preset: {cmd.preset_name}",
+        "save_preset": f"Saving current position as preset: {cmd.save_name}",
+        "snapshot": "Capturing snapshot...",
+    }
+    text = action_map.get(cmd.operation, f"Camera command: {cmd.operation}")
+
+    return _make_response(
+        text=text,
+        intent="camera_control",
+        grounding={"operation": cmd.operation, "source": "deterministic"},
+        suggested_actions=[
+            {
+                "label": "Camera Status",
+                "action": "query",
+                "payload": {"content": "camera status"},
+            },
+        ],
+    )
+
+
 def handle_grounded_voice(content: str) -> Any:
     """Voice subsystem health — real provider/endpoint data only."""
     from substrate.organism.grounding_registry import collect_grounding
@@ -336,39 +474,8 @@ def handle_grounded_webhook(content: str) -> Any:
 
 
 def handle_grounded_visual(content: str) -> Any:
-    """Visual query — requires a real camera frame. No frame = no visual claim."""
-    from substrate.organism.grounding_registry import collect_grounding
-
-    result = collect_grounding("visual_query")
-
-    if result.confidence == "blocked":
-        text = "I don't have a current camera frame. I cannot describe what's on screen without a live frame."
-    elif "vision" in result.data:
-        vision_data = result.data["vision"]
-        streaming = vision_data.get("streaming", False)
-        if not streaming:
-            text = (
-                "The camera is not currently streaming. "
-                "I need an active camera feed to see anything. "
-                "Would you like me to check the camera status?"
-            )
-        else:
-            text = _format_response_with_missing(result)
-    else:
-        text = "No vision data available. I need a live camera frame to see anything."
-
-    return _make_response(
-        text=text,
-        intent="visual_query",
-        grounding=result.to_dict(),
-        suggested_actions=[
-            {
-                "label": "Check Camera Status",
-                "action": "query",
-                "payload": {"content": "camera status"},
-            },
-        ],
-    )
+    """Visual query — delegates to handle_vision_analysis for real frame + model."""
+    return handle_vision_analysis(content)
 
 
 def handle_grounded_composite_blockers(content: str) -> Any:
