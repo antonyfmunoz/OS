@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { fetchApi } from '../api/client'
 import { useSystemStore } from '../stores/systemStore'
 import { useApprovalStore } from '../stores/approvalStore'
 import { useOrganismStore } from '../stores/organismStore'
@@ -328,13 +329,11 @@ function ResumeWidget() {
 
   const fetchResume = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/workstation/resume')
-      const data = await res.json()
+      const data = await fetchApi<any>('/workstation/resume')
       if (data.ok) setResume(data)
     } catch { /* silent */ }
     try {
-      const res = await fetch('/api/umh/workstation/checkpoint')
-      const data = await res.json()
+      const data = await fetchApi<any>('/workstation/checkpoint')
       if (data.ok && data.has_checkpoint) setCheckpoint(data.checkpoint)
     } catch { /* silent */ }
     setLoading(false)
@@ -422,8 +421,7 @@ function CrossDeviceWorkspaceWidget() {
 
   const fetchNodes = useCallback(async () => {
     try {
-      const res = await fetch('/api/umh/workstation/nodes')
-      const data = await res.json()
+      const data = await fetchApi<any>('/workstation/nodes')
       if (data.ok) setNodes(data.nodes ?? [])
     } catch { /* silent */ }
     setLoading(false)
