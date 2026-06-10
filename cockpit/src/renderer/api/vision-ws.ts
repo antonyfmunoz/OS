@@ -144,6 +144,9 @@ export type VisionEvent =
   | { type: 'vision_security_result'; success: boolean; mode?: string; active?: boolean; error?: string; [key: string]: unknown }
   | { type: 'vision_security_state'; active?: boolean; mode?: string; risk?: string; triggered_by?: string; [key: string]: unknown }
   | { type: 'vision_health'; status: string; blockers?: string[]; recovery_action?: string; [key: string]: unknown }
+  | { type: 'ptz_motion_state'; motion_id: string; state: string; pan_velocity: number; tilt_velocity: number; zoom_velocity: number; loop_cadence_hz?: number; guard_timeout_events?: number }
+  | { type: 'ptz_motion_ack'; motion_id: string; operation: string; ok: boolean }
+  | { type: 'camera_session_state'; active: boolean; viewer_count: number }
 
 function getVisionProtocols(): string[] {
   const token = import.meta.env.VITE_VISION_TOKEN as string | undefined
@@ -283,9 +286,9 @@ export class VisionWsClient {
     this.ws.send('vision_unsubscribe')
   }
 
-  setPreset(preset: string): void {
-    log('camera_preset', preset)
-    this.ws.send('camera_preset', { preset, request_id: nextRequestId() })
+  setPreset(preset: string, smooth = false, duration = 1.0): void {
+    log('camera_preset', { preset, smooth })
+    this.ws.send('camera_preset', { preset, smooth, duration, request_id: nextRequestId() })
   }
 
   savePreset(preset: string, label: string, analysisHint = ''): void {
@@ -352,6 +355,85 @@ export class VisionWsClient {
   ptzStop(): void {
     log('ptz_stop')
     this.ws.send('camera_ptz_stop', { request_id: nextRequestId() })
+  }
+
+  // ── Realtime PTZ motion protocol ──────────────────────────────
+
+  ptzStartMotion(opts: {
+    motionId: string
+    panVelocity: number
+    tiltVelocity: number
+    zoomVelocity?: number
+    speed?: number
+    durationGuardMs?: number
+  }): void {
+    log('ptz_start_motion', opts)
+    this.ws.send('camera_ptz_start_motion', {
+      motion_id: opts.motionId,
+      pan_velocity: opts.panVelocity,
+      tilt_velocity: opts.tiltVelocity,
+      zoom_velocity: opts.zoomVelocity ?? 0,
+      speed: opts.speed ?? 1,
+      duration_guard_ms: opts.durationGuardMs ?? 500,
+      timestamp: Date.now(),
+      request_id: nextRequestId(),
+    })
+  }
+
+  ptzUpdateMotion(opts: {
+    motionId: string
+    panVelocity: number
+    tiltVelocity: number
+    zoomVelocity?: number
+    speed?: number
+  }): void {
+    this.ws.send('camera_ptz_update_motion', {
+      motion_id: opts.motionId,
+      pan_velocity: opts.panVelocity,
+      tilt_velocity: opts.tiltVelocity,
+      zoom_velocity: opts.zoomVelocity ?? 0,
+      speed: opts.speed ?? 1,
+      timestamp: Date.now(),
+    })
+  }
+
+  ptzStopMotion(motionId: string): void {
+    log('ptz_stop_motion', { motionId })
+    this.ws.send('camera_ptz_stop_motion', {
+      motion_id: motionId,
+      timestamp: Date.now(),
+      request_id: nextRequestId(),
+    })
+  }
+
+  zoomStartMotion(motionId: string, zoomVelocity: number, speed = 1): void {
+    log('zoom_start_motion', { motionId, zoomVelocity })
+    this.ws.send('camera_zoom_start', {
+      motion_id: motionId,
+      zoom_velocity: zoomVelocity,
+      speed,
+      duration_guard_ms: 500,
+      timestamp: Date.now(),
+      request_id: nextRequestId(),
+    })
+  }
+
+  zoomUpdateMotion(motionId: string, zoomVelocity: number, speed = 1): void {
+    this.ws.send('camera_zoom_update', {
+      motion_id: motionId,
+      zoom_velocity: zoomVelocity,
+      speed,
+      timestamp: Date.now(),
+    })
+  }
+
+  zoomStopMotion(motionId: string): void {
+    log('zoom_stop_motion', { motionId })
+    this.ws.send('camera_zoom_stop', {
+      motion_id: motionId,
+      timestamp: Date.now(),
+      request_id: nextRequestId(),
+    })
   }
 
   ptzHome(): void {

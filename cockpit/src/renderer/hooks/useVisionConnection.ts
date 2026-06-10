@@ -3,6 +3,7 @@ import { VisionWsClient } from '../api/vision-ws'
 import {
   useVisionStore,
   QUALITY_PROFILES,
+  shouldAutoStartCamera,
   type CameraPreset,
   type TrackedObjectState,
   type WatchItemState,
@@ -12,6 +13,7 @@ import {
   type TriggerChainInfo,
   type ChainFireInfo,
   type VisionChainStatus,
+  type MotionState,
 } from '../stores/visionStore'
 
 let _client: VisionWsClient | null = null
@@ -46,6 +48,10 @@ export function useVisionConnection(): void {
   const setSecurityMode = useVisionStore((s) => s.setSecurityMode)
   const updateChainHealth = useVisionStore((s) => s.updateChainHealth)
   const setDetectedObjects = useVisionStore((s) => s.setDetectedObjects)
+  const setPtzMotion = useVisionStore((s) => s.setPtzMotion)
+  const updateControlMetrics = useVisionStore((s) => s.updateControlMetrics)
+  const setViewerCount = useVisionStore((s) => s.setViewerCount)
+  const setCameraSessionActive = useVisionStore((s) => s.setCameraSessionActive)
   const reset = useVisionStore((s) => s.reset)
 
   const metricsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -61,23 +67,31 @@ export function useVisionConnection(): void {
     const unsubs = [
       client.on('connected', () => {
         setConnected(true)
+        setCameraSessionActive(true)
         client.requestPresets()
         client.requestStatus()
         client.requestPosition()
         client.requestHealth()
-        client.startCamera({
-          fps: profile.fps,
-          width: profile.width,
-          height: profile.height,
-          quality: profile.quality,
-        })
-        client.subscribe(profile.fps, profile.quality)
+
+        const policy = useVisionStore.getState().defaultOnPolicy
+        if (shouldAutoStartCamera(policy)) {
+          client.startCamera({
+            fps: profile.fps,
+            width: profile.width,
+            height: profile.height,
+            quality: profile.quality,
+          })
+          client.subscribe(profile.fps, profile.quality)
+        }
         client.requestSceneState()
+        setPtzMotion({ state: 'idle', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
       }),
       client.on('disconnected', () => {
         setConnected(false)
         setCameraStatus('off')
         setStreaming(false)
+        setCameraSessionActive(false)
+        setPtzMotion({ state: 'disconnected', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
         updateChainHealth({ status: 'relay_offline', relayRunning: false, cockpitConnected: false, blockers: ['WebSocket disconnected from vision relay'], recoveryAction: 'reconnecting automatically' })
       }),
       client.on('vision_frame', (d) => {
@@ -226,6 +240,42 @@ export function useVisionConnection(): void {
           risk: d.risk as string || 'low',
           triggered_by: d.triggered_by as string || '',
         })
+      }),
+
+      // Realtime PTZ motion events
+      client.on('ptz_motion_state', (d) => {
+        setPtzMotion({
+          state: (d.state as MotionState) || 'idle',
+          motionId: d.motion_id as string || '',
+          panVelocity: d.pan_velocity as number || 0,
+          tiltVelocity: d.tilt_velocity as number || 0,
+          zoomVelocity: d.zoom_velocity as number || 0,
+        })
+        if (d.loop_cadence_hz !== undefined) {
+          updateControlMetrics({ ptzLoopCadenceHz: d.loop_cadence_hz as number })
+        }
+        if (d.guard_timeout_events !== undefined) {
+          updateControlMetrics({ guardTimeouts: d.guard_timeout_events as number })
+        }
+        const motionActive = d.state === 'moving'
+        setPtzMoving(motionActive)
+      }),
+      client.on('ptz_motion_ack', (d) => {
+        const op = d.operation as string
+        if (op === 'stop_motion' || op === 'zoom_stop') {
+          const sentAt = useVisionStore.getState().controlMetrics.lastStopSentAt
+          if (sentAt > 0) {
+            updateControlMetrics({ lastStopAckedAt: Date.now(), stopLatencyMs: Date.now() - sentAt })
+          }
+          setPtzMotion({ state: 'idle', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
+          setPtzMoving(false)
+        }
+      }),
+
+      // Camera session state
+      client.on('camera_session_state', (d) => {
+        setCameraSessionActive(d.active as boolean || false)
+        setViewerCount(d.viewer_count as number || 0)
       }),
 
       // Health chain events

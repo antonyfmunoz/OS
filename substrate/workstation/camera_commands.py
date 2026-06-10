@@ -193,6 +193,53 @@ _SECURITY_NORMAL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Continuous motion patterns
+_CONTINUOUS_MOTION_PATTERN = re.compile(
+    r"\b(?:keep\s+(?:moving|panning|tilting)\s+(left|right|up|down)"
+    r"|continuous(?:ly)?\s+(?:move|pan|tilt)\s+(left|right|up|down))\b",
+    re.IGNORECASE,
+)
+_CONTINUOUS_ZOOM_PATTERN = re.compile(
+    r"\b(?:keep\s+zoom(?:ing)?\s+(in|out)"
+    r"|continuous(?:ly)?\s+zoom(?:ing)?\s+(in|out))\b",
+    re.IGNORECASE,
+)
+_STOP_MOTION_PATTERN = re.compile(
+    r"\b(?:stop\s+(?:all\s+)?mov(?:ing|ement)|stop\s+(?:camera\s+)?motion|stop\s+panning|halt\s+(?:the\s+)?motion|halt\s+mov(?:ing|ement))\b",
+    re.IGNORECASE,
+)
+_STOP_ZOOM_PATTERN = re.compile(
+    r"\b(?:stop\s+zoom(?:ing)?|halt\s+zoom(?:ing)?)\b",
+    re.IGNORECASE,
+)
+
+# Default-on preference patterns
+_DEFAULT_ON_ENABLE_PATTERN = re.compile(
+    r"\b(?:keep\s+(?:the\s+)?camera\s+on\s+by\s+default"
+    r"|enable\s+(?:the\s+)?camera\s+default[- ]?on"
+    r"|auto[- ]?start\s+(?:the\s+)?camera)\b",
+    re.IGNORECASE,
+)
+_DEFAULT_ON_DISABLE_PATTERN = re.compile(
+    r"\b(?:disable\s+(?:the\s+)?camera\s+default[- ]?on"
+    r"|turn\s+off\s+(?:the\s+)?camera\s+default"
+    r"|(?:don'?t|do\s+not)\s+(?:auto[- ]?start|start)\s+(?:the\s+)?camera\s+(?:by\s+default|auto))\b",
+    re.IGNORECASE,
+)
+
+# Camera choppy / status explanation
+_WHY_CHOPPY_PATTERN = re.compile(
+    r"\b(?:why\s+is\s+(?:the\s+)?camera\s+(?:control\s+)?(?:choppy|laggy|stuttering|jerky)"
+    r"|camera\s+(?:is\s+)?(?:choppy|laggy|stuttering|jerky))\b",
+    re.IGNORECASE,
+)
+_WHY_NOT_LIVE_PATTERN = re.compile(
+    r"\b(?:why\s+isn'?t\s+(?:the\s+)?camera\s+(?:live|on|working|starting)"
+    r"|why\s+is\s+(?:the\s+)?camera\s+not\s+(?:live|on|working|starting)"
+    r"|camera\s+(?:not|won'?t)\s+(?:on|start|live|working))\b",
+    re.IGNORECASE,
+)
+
 _PHRASE_TO_PRESET = {
     "me": "operator",
     "keyboard": "keyboard",
@@ -253,6 +300,43 @@ def classify_camera_command(transcript: str) -> CameraCommand:
         return CameraCommand(operation="security_deactivate")
     if _SECURITY_HARDEN_PATTERN.search(transcript):
         return CameraCommand(operation="security_activate")
+
+    # Emergency stop motion (highest priority after security)
+    if _STOP_MOTION_PATTERN.search(transcript):
+        return CameraCommand(operation="ptz_stop_motion")
+    if _STOP_ZOOM_PATTERN.search(transcript):
+        return CameraCommand(operation="zoom_stop_motion")
+
+    # Default-on preference
+    if _DEFAULT_ON_ENABLE_PATTERN.search(transcript):
+        return CameraCommand(operation="default_on_enable")
+    if _DEFAULT_ON_DISABLE_PATTERN.search(transcript):
+        return CameraCommand(operation="default_on_disable")
+
+    # Camera status explanations
+    if _WHY_CHOPPY_PATTERN.search(transcript):
+        return CameraCommand(operation="explain_choppy", needs_ai=False)
+    if _WHY_NOT_LIVE_PATTERN.search(transcript):
+        return CameraCommand(operation="explain_not_live", needs_ai=False)
+
+    # Continuous motion
+    m = _CONTINUOUS_MOTION_PATTERN.search(transcript)
+    if m:
+        direction = (m.group(1) or m.group(2)).lower()
+        velocity_map = {
+            "left": {"pan_velocity": -1.0, "tilt_velocity": 0.0},
+            "right": {"pan_velocity": 1.0, "tilt_velocity": 0.0},
+            "up": {"pan_velocity": 0.0, "tilt_velocity": 1.0},
+            "down": {"pan_velocity": 0.0, "tilt_velocity": -1.0},
+        }
+        return CameraCommand(operation="ptz_start_motion", params=velocity_map.get(direction, {}))
+
+    # Continuous zoom
+    m = _CONTINUOUS_ZOOM_PATTERN.search(transcript)
+    if m:
+        direction = (m.group(1) or m.group(2)).lower()
+        zoom_v = 1.0 if direction == "in" else -1.0
+        return CameraCommand(operation="zoom_start_motion", params={"zoom_velocity": zoom_v})
 
     # Chain explain (before chain create to avoid false match)
     if _CHAIN_EXPLAIN_PATTERN.search(transcript):
