@@ -52,7 +52,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("vision_relay")
 
-HOST = os.getenv("VISION_RELAY_HOST", "127.0.0.1")
+HOST = os.getenv("VISION_RELAY_HOST", "0.0.0.0")
 PORT = int(os.getenv("VISION_RELAY_PORT", "8097"))
 MAX_FRAME_BYTES = 2 * 1024 * 1024
 _AUTH_TOKEN = os.getenv("VISION_RELAY_TOKEN", "")
@@ -91,6 +91,11 @@ _clients: set[Any] = set()
 _latest_frame: bytes | None = None
 _latest_frame_meta: dict[str, Any] = {}
 _stream_active = False
+_stream_task: asyncio.Task[None] | None = None
+_stream_fps = 2
+_stream_width = 640
+_stream_height = 480
+_stream_quality = 60
 _mesh_dispatch_url = os.getenv(
     "MESH_DISPATCH_URL",
     "http://localhost:8095/dispatch",
@@ -161,15 +166,15 @@ async def handle_vision(ws: Any) -> None:
                 log.info("viewer unsubscribed")
 
             elif msg_type == "camera_start":
-                await _dispatch_to_beast("camera.stream_start", {
-                    "fps": msg.get("fps", 2),
-                    "width": msg.get("width", 640),
-                    "height": msg.get("height", 480),
-                    "quality": msg.get("quality", 60),
-                })
+                await _start_stream(
+                    fps=msg.get("fps", 2),
+                    width=msg.get("width", 640),
+                    height=msg.get("height", 480),
+                    quality=msg.get("quality", 60),
+                )
 
             elif msg_type == "camera_stop":
-                await _dispatch_to_beast("camera.stream_stop", {})
+                await _stop_stream()
 
             elif msg_type == "camera_preset":
                 preset = msg.get("preset", "")
@@ -234,6 +239,41 @@ async def handle_vision(ws: Any) -> None:
         log.error("viewer session error: %s", e)
     finally:
         _clients.discard(ws)
+
+
+async def _start_stream(
+    fps: int = 2, width: int = 640, height: int = 480, quality: int = 60,
+) -> None:
+    global _stream_active, _stream_fps, _stream_width, _stream_height, _stream_quality
+    _stream_fps = min(fps, 30)
+    _stream_width = width
+    _stream_height = height
+    _stream_quality = quality
+    if _stream_active:
+        log.info("stream already active, updating params")
+        return
+    _stream_active = True
+    result = await _dispatch_to_beast("camera.stream_start", {
+        "fps": _stream_fps,
+        "width": _stream_width,
+        "height": _stream_height,
+        "quality": _stream_quality,
+    })
+    if result and result.get("success"):
+        log.info("Beast stream started: %dx%d @%dfps q%d", width, height, _stream_fps, quality)
+    else:
+        log.warning("Beast stream_start failed: %s", result)
+    for ws in list(_clients):
+        await send_json(ws, {"type": "vision_status", "streaming": True, "fps": _stream_fps})
+
+
+async def _stop_stream() -> None:
+    global _stream_active
+    _stream_active = False
+    await _dispatch_to_beast("camera.stream_stop", {})
+    log.info("stream stopped")
+    for ws in list(_clients):
+        await send_json(ws, {"type": "vision_status", "streaming": False})
 
 
 async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:

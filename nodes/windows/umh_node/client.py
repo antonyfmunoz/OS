@@ -59,7 +59,28 @@ class NodeClient:
         if cap_cfg.get("clipboard") and cap_cfg["clipboard"].enabled:
             self._adapters["clipboard"] = ClipboardAdapter()
         if cap_cfg.get("camera") and cap_cfg["camera"].enabled:
-            self._adapters["camera"] = CameraAdapter()
+            cam = CameraAdapter()
+            cam.set_frame_callback(self._on_camera_frame)
+            self._adapters["camera"] = cam
+
+    def _on_camera_frame(self, frame_data: dict[str, Any]) -> None:
+        """Called from camera stream thread — pushes frame to VPS via mesh."""
+        if not self._connected or self._ws is None:
+            return
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.run_coroutine_threadsafe(
+                    self.emit_signal(
+                        content_type="camera.frame",
+                        payload=frame_data,
+                        signal_class="camera_frame",
+                        urgency="LOW",
+                    ),
+                    loop,
+                )
+        except Exception:
+            pass
 
     def _next_id(self) -> int:
         self._msg_id += 1
