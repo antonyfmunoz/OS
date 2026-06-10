@@ -2132,6 +2132,91 @@ async def voice_ws_proxy(ws: WebSocket):
         logger.info("[VoiceProxy] session_ended")
 
 
+# ─── Vision WebSocket Proxy ───────────────────────────────────────────────────
+
+_VISION_WS_UPSTREAM = os.environ.get("VISION_WS_UPSTREAM", "ws://host.docker.internal:8097/vision")
+_VISION_PROXY_MAX_MSG = 2 ** 22  # 4 MiB
+
+
+@ws_router.websocket("/vision/ws")
+async def vision_ws_proxy(ws: WebSocket):
+    """Proxy browser vision WebSocket to the internal vision relay."""
+    if not _validate_ws_token(ws):
+        await ws.close(code=4001, reason="Authentication required")
+        logger.warning("[VisionProxy] auth rejected from %s", ws.client.host if ws.client else "unknown")
+        return
+
+    subprotocol = _extract_ws_subprotocol(ws)
+    await ws.accept(subprotocol=subprotocol)
+    logger.info("[VisionProxy] client_connected from %s", ws.client.host if ws.client else "unknown")
+
+    upstream = None
+    try:
+        import websockets.client
+        upstream = await asyncio.wait_for(
+            websockets.client.connect(
+                _VISION_WS_UPSTREAM,
+                max_size=_VISION_PROXY_MAX_MSG,
+                ping_interval=20,
+                ping_timeout=20,
+            ),
+            timeout=5.0,
+        )
+        logger.info("[VisionProxy] upstream_connected %s", _VISION_WS_UPSTREAM)
+    except Exception as e:
+        logger.error("[VisionProxy] upstream_connect_failed: %s", e)
+        await ws.send_json({"type": "error", "code": "vision_relay_unavailable", "message": "Vision relay unreachable"})
+        await ws.close(code=1011, reason="Vision relay unreachable")
+        return
+
+    async def client_to_upstream():
+        try:
+            while True:
+                msg = await ws.receive()
+                if msg.get("type") == "websocket.disconnect":
+                    break
+                if "bytes" in msg and msg["bytes"]:
+                    await upstream.send(msg["bytes"])
+                elif "text" in msg and msg["text"]:
+                    await upstream.send(msg["text"])
+        except WebSocketDisconnect:
+            pass
+        except Exception as e:
+            logger.debug("[VisionProxy] client_to_upstream error: %s", e)
+        finally:
+            logger.info("[VisionProxy] client_closed")
+
+    async def upstream_to_client():
+        try:
+            async for message in upstream:
+                if isinstance(message, bytes):
+                    await ws.send_bytes(message)
+                else:
+                    await ws.send_text(message)
+        except Exception as e:
+            logger.debug("[VisionProxy] upstream_to_client error: %s", e)
+        finally:
+            logger.info("[VisionProxy] upstream_closed")
+
+    try:
+        done, pending = await asyncio.wait(
+            [asyncio.ensure_future(client_to_upstream()), asyncio.ensure_future(upstream_to_client())],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
+    except Exception as e:
+        logger.error("[VisionProxy] error: %s", e)
+    finally:
+        if upstream:
+            await upstream.close()
+        try:
+            await ws.close()
+        except Exception:
+            pass
+        logger.info("[VisionProxy] session_ended")
+
+
 # ─── Persistent Loops ────────────────────────────────────────────────────────
 
 
