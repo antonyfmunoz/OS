@@ -7,6 +7,10 @@ import {
   type TrackedObjectState,
   type WatchItemState,
   type FollowModeState,
+  type TrackerConfigState,
+  type VisionPresetInfo,
+  type TriggerChainInfo,
+  type ChainFireInfo,
 } from '../stores/visionStore'
 
 let _client: VisionWsClient | null = null
@@ -32,6 +36,13 @@ export function useVisionConnection(): void {
   const updateSceneState = useVisionStore((s) => s.updateSceneState)
   const setTrackedObjects = useVisionStore((s) => s.setTrackedObjects)
   const setFollowMode = useVisionStore((s) => s.setFollowMode)
+  const updateTrackerStack = useVisionStore((s) => s.updateTrackerStack)
+  const setVisionPresets = useVisionStore((s) => s.setVisionPresets)
+  const setActiveVisionPresetId = useVisionStore((s) => s.setActiveVisionPresetId)
+  const setTriggerChains = useVisionStore((s) => s.setTriggerChains)
+  const setRecentFires = useVisionStore((s) => s.setRecentFires)
+  const setLastChainExplanation = useVisionStore((s) => s.setLastChainExplanation)
+  const setSecurityMode = useVisionStore((s) => s.setSecurityMode)
   const reset = useVisionStore((s) => s.reset)
 
   const metricsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -153,6 +164,62 @@ export function useVisionConnection(): void {
         setAnalysisResult(d.answer as string)
         setAnalysisStatus('complete')
         setTimeout(() => setAnalysisStatus('idle'), 10000)
+      }),
+
+      // Tracker stack events
+      client.on('vision_tracker_result', () => {
+        client.requestTrackerState()
+      }),
+      client.on('vision_tracker_state', (d) => {
+        updateTrackerStack({
+          active_stack_id: d.active_stack_id as string || '',
+          enabled_trackers: (d.enabled_trackers as TrackerConfigState[]) || [],
+          total_cost: (d.total_cost as { cpu: number; gpu: number }) || { cpu: 0, gpu: 0 },
+        })
+      }),
+
+      // Vision preset events
+      client.on('vision_preset_result', (d) => {
+        if (d.success) client.requestPresetState()
+      }),
+      client.on('vision_preset_state', (d) => {
+        setVisionPresets((d.presets as Record<string, VisionPresetInfo>) || {})
+        setActiveVisionPresetId(d.active_preset_id as string || '')
+      }),
+
+      // Trigger chain events
+      client.on('vision_chain_result', (d) => {
+        if (d.success) client.requestChainState()
+      }),
+      client.on('vision_chain_explain', (d) => {
+        setLastChainExplanation(d.explanation as string || '')
+      }),
+      client.on('vision_chain_state', (d) => {
+        setTriggerChains((d.chains as Record<string, TriggerChainInfo>) || {})
+        setRecentFires((d.recent_fires as ChainFireInfo[]) || [])
+      }),
+
+      // Security mode events
+      client.on('vision_security_result', (d) => {
+        if (d.active !== undefined) {
+          setSecurityMode({
+            active: d.active as boolean,
+            mode: d.mode as string || 'normal',
+            risk: d.risk as string || 'low',
+            triggered_by: d.triggered_by as string || '',
+            actions_taken: (d.actions_taken as string[]) || [],
+            requires_review: d.requires_review as boolean || false,
+          })
+        }
+        client.requestSecurityState()
+      }),
+      client.on('vision_security_state', (d) => {
+        setSecurityMode({
+          active: d.active as boolean || false,
+          mode: d.mode as string || 'normal',
+          risk: d.risk as string || 'low',
+          triggered_by: d.triggered_by as string || '',
+        })
       }),
     ]
 

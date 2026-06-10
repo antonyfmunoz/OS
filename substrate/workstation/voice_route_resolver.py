@@ -92,6 +92,31 @@ _CAMERA_TARGET_PATTERNS = [
     r"\bkeep\s+me\s+centered\b",
     r"\bfollow\s+the\b",
     r"\bstop\s+following\b",
+    # Overlay control
+    r"\bshow\s+(?:the\s+)?tracking\s+overlay\b",
+    r"\bhide\s+(?:the\s+)?tracking\s+overlay\b",
+    r"\bshow\s+overlays?\b",
+    r"\bhide\s+overlays?\b",
+    r"\boverlays?\s+(?:on|off)\b",
+    # Tracker stack
+    r"\b(?:turn\s+on|enable|start)\s+(?:\w+\s+)?track(?:er|ing)\b",
+    r"\b(?:turn\s+off|disable)\s+(?:\w+\s+)?track(?:er|ing)\b",
+    r"\bstack\s+.+\s+tracking\b",
+    r"\bstop\s+all\s+tracking\b",
+    r"\bwhat\s+(?:are\s+you|is\s+being)\s+track\b",
+    r"\bshow\s+tracking\s+status\b",
+    # Preset CRUD
+    r"\bcreate\s+(?:a\s+)?(?:new\s+)?(?:\w+\s+)?preset\b",
+    r"\bdelete\s+(?:this\s+|the\s+)?(?:\w+\s+)?preset\b",
+    r"\brename\s+(?:this\s+)?preset\b",
+    # Trigger chains
+    r"\bwhen\s+(?:i\s+leave|an?\s+unknown|someone)\b",
+    r"\bif\s+(?:someone|an?\s+unknown)\s+(?:enters?|person)\b",
+    r"\b(?:turn\s+off|disable)\s+(?:the\s+)?(?:security\s+)?chain\b",
+    r"\bwhy\s+did\s+(?:that|the)\s+trigger\s+fire\b",
+    # Security mode
+    r"\b(?:go|enter|activate)\s+security\s+harden\b",
+    r"\b(?:exit|leave|deactivate|stop)\s+security\s+(?:harden|mode)\b",
 ]
 
 

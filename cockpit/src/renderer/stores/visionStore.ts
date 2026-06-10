@@ -74,6 +74,72 @@ export interface FollowModeState {
   track_id: string
 }
 
+// ── Tracker stack types ──────────────────────────────────────────
+
+export interface TrackerConfigState {
+  tracker_id: string
+  category: string
+  enabled: boolean
+  fps: number
+  overlay: boolean
+  cpu_cost: number
+  gpu_cost: number
+  status: string
+  available: boolean
+}
+
+export interface TrackerStackState {
+  active_stack_id: string
+  enabled_trackers: TrackerConfigState[]
+  total_cost: { cpu: number; gpu: number }
+}
+
+// ── Vision preset types ──────────────────────────────────────────
+
+export interface VisionPresetInfo {
+  preset_id: string
+  label: string
+  description: string
+  ptz: { pan: number; tilt: number; zoom: number }
+  tracker_stack_id: string
+  quality_mode: string
+  zones: Array<{ zone_id: string; label: string; polygon: number[][]; zone_type: string }>
+  trigger_chain_ids: string[]
+}
+
+// ── Trigger chain types ──────────────────────────────────────────
+
+export interface TriggerChainInfo {
+  chain_id: string
+  label: string
+  enabled: boolean
+  trigger: { event: string; zone: string; confidence_min: number; debounce_seconds: number }
+  actions: Array<{ type: string; [key: string]: unknown }>
+  governance: { risk: string; requires_approval: boolean; audit: boolean }
+  fire_count: number
+}
+
+export interface ChainFireInfo {
+  chain_id: string
+  fired_at: number
+  event: string
+  confidence: number
+  actions_taken: string[]
+  explanation: string
+}
+
+// ── Security mode types ──────────────────────────────────────────
+
+export interface SecurityModeInfo {
+  active: boolean
+  mode: string
+  risk: string
+  triggered_by: string
+  started_at: number
+  actions_taken: string[]
+  requires_review: boolean
+}
+
 interface VisionState {
   connected: boolean
   streaming: boolean
@@ -110,6 +176,18 @@ interface VisionState {
   sceneTimestamp: number
   sceneExpired: boolean
 
+  // Tracker stack state
+  trackerStack: TrackerStackState
+  // Vision presets (CRUD presets, not camera presets)
+  visionPresets: Record<string, VisionPresetInfo>
+  activeVisionPresetId: string
+  // Trigger chains
+  triggerChains: Record<string, TriggerChainInfo>
+  recentFires: ChainFireInfo[]
+  lastChainExplanation: string
+  // Security mode
+  securityMode: SecurityModeInfo
+
   setConnected: (connected: boolean) => void
   setStreaming: (streaming: boolean) => void
   setCameraStatus: (status: CameraStatus) => void
@@ -140,6 +218,18 @@ interface VisionState {
   setSceneExpired: (expired: boolean) => void
   updateSceneState: (state: Record<string, unknown>) => void
 
+  // Tracker stack setters
+  updateTrackerStack: (state: Partial<TrackerStackState>) => void
+  // Preset setters
+  setVisionPresets: (presets: Record<string, VisionPresetInfo>) => void
+  setActiveVisionPresetId: (id: string) => void
+  // Chain setters
+  setTriggerChains: (chains: Record<string, TriggerChainInfo>) => void
+  setRecentFires: (fires: ChainFireInfo[]) => void
+  setLastChainExplanation: (explanation: string) => void
+  // Security mode setters
+  setSecurityMode: (mode: Partial<SecurityModeInfo>) => void
+
   reset: () => void
 }
 
@@ -153,6 +243,8 @@ const INITIAL_METRICS: StreamMetrics = {
 }
 
 const INITIAL_FOLLOW: FollowModeState = { active: false, target: '', track_id: '' }
+const INITIAL_TRACKER_STACK: TrackerStackState = { active_stack_id: '', enabled_trackers: [], total_cost: { cpu: 0, gpu: 0 } }
+const INITIAL_SECURITY: SecurityModeInfo = { active: false, mode: 'normal', risk: 'low', triggered_by: '', started_at: 0, actions_taken: [], requires_review: false }
 
 export const useVisionStore = create<VisionState>((set) => ({
   connected: false,
@@ -189,6 +281,18 @@ export const useVisionStore = create<VisionState>((set) => ({
   sceneSummary: '',
   sceneTimestamp: 0,
   sceneExpired: true,
+
+  // Tracker stack initial state
+  trackerStack: { ...INITIAL_TRACKER_STACK },
+  // Vision presets initial state
+  visionPresets: {},
+  activeVisionPresetId: '',
+  // Trigger chains initial state
+  triggerChains: {},
+  recentFires: [],
+  lastChainExplanation: '',
+  // Security mode initial state
+  securityMode: { ...INITIAL_SECURITY },
 
   setConnected: (connected) => set({ connected }),
   setStreaming: (streaming) => set({ streaming }),
@@ -231,6 +335,22 @@ export const useVisionStore = create<VisionState>((set) => ({
     detectedObjects: ((state.scene as Record<string, unknown>)?.objects as TrackedObjectState[]) || [],
   }),
 
+  // Tracker stack setters
+  updateTrackerStack: (partial) => set((s) => ({
+    trackerStack: { ...s.trackerStack, ...partial },
+  })),
+  // Preset setters
+  setVisionPresets: (visionPresets) => set({ visionPresets }),
+  setActiveVisionPresetId: (activeVisionPresetId) => set({ activeVisionPresetId }),
+  // Chain setters
+  setTriggerChains: (triggerChains) => set({ triggerChains }),
+  setRecentFires: (recentFires) => set({ recentFires }),
+  setLastChainExplanation: (lastChainExplanation) => set({ lastChainExplanation }),
+  // Security mode setters
+  setSecurityMode: (partial) => set((s) => ({
+    securityMode: { ...s.securityMode, ...partial },
+  })),
+
   reset: () => set({
     connected: false,
     streaming: false,
@@ -256,5 +376,12 @@ export const useVisionStore = create<VisionState>((set) => ({
     sceneSummary: '',
     sceneTimestamp: 0,
     sceneExpired: true,
+    trackerStack: { ...INITIAL_TRACKER_STACK },
+    visionPresets: {},
+    activeVisionPresetId: '',
+    triggerChains: {},
+    recentFires: [],
+    lastChainExplanation: '',
+    securityMode: { ...INITIAL_SECURITY },
   }),
 }))
