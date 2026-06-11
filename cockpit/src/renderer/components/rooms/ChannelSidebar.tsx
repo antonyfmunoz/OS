@@ -13,7 +13,6 @@ import {
   Bot,
   Shield,
   Plus,
-  Settings,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useRoomsStore } from '../../stores/roomsStore'
@@ -37,12 +36,18 @@ const CHANNEL_ICONS: Record<ChannelType, typeof Hash> = {
 interface CategoryGroupProps {
   category: ServerCategory
   channels: RoomChannel[]
+  onSelect?: () => void
 }
 
-function CategoryGroup({ category, channels }: CategoryGroupProps) {
+function CategoryGroup({ category, channels, onSelect }: CategoryGroupProps) {
   const [collapsed, setCollapsed] = useState(category.collapsed)
   const activeChannelId = useRoomsStore((s) => s.activeChannelId)
   const setActiveChannel = useRoomsStore((s) => s.setActiveChannel)
+
+  const handleSelect = (id: string) => {
+    setActiveChannel(id)
+    onSelect?.()
+  }
 
   return (
     <div className="mb-1">
@@ -70,7 +75,7 @@ function CategoryGroup({ category, channels }: CategoryGroupProps) {
               return (
                 <button
                   key={ch.id}
-                  onClick={() => setActiveChannel(ch.id)}
+                  onClick={() => handleSelect(ch.id)}
                   className={clsx(
                     'flex items-center gap-2 w-full px-3 py-1.5 text-left transition-colors',
                     active
@@ -110,7 +115,11 @@ function CategoryGroup({ category, channels }: CategoryGroupProps) {
   )
 }
 
-export function ChannelSidebar() {
+interface ChannelSidebarProps {
+  onChannelSelect?: () => void
+}
+
+export function ChannelSidebar({ onChannelSelect }: ChannelSidebarProps) {
   const activeServerId = useRoomsStore((s) => s.activeServerId)
   const servers = useRoomsStore((s) => s.servers)
   const categories = useRoomsStore((s) => s.categories)
@@ -133,9 +142,14 @@ export function ChannelSidebar() {
 
   const uncategorized = channelsByCategory.get(null) || []
 
+  const handleSelect = (id: string) => {
+    setActiveChannel(id)
+    onChannelSelect?.()
+  }
+
   return (
     <div
-      className="w-56 shrink-0 flex flex-col border-r overflow-hidden"
+      className="w-52 shrink-0 flex flex-col border-r overflow-hidden"
       style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
     >
       <div
@@ -168,7 +182,7 @@ export function ChannelSidebar() {
                 return (
                   <button
                     key={ch.id}
-                    onClick={() => setActiveChannel(ch.id)}
+                    onClick={() => handleSelect(ch.id)}
                     className={clsx(
                       'flex items-center gap-2 w-full px-3 py-1.5 text-left transition-colors',
                       active ? 'bg-cyan-glow' : 'hover:bg-surface-raised',
@@ -192,6 +206,7 @@ export function ChannelSidebar() {
               key={cat.id}
               category={cat}
               channels={channelsByCategory.get(cat.id) || []}
+              onSelect={onChannelSelect}
             />
           ))}
       </div>
