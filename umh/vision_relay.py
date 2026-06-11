@@ -1666,6 +1666,7 @@ async def _health_server() -> None:
         def log_message(self, format: str, *args: Any) -> None:
             pass
 
+    socketserver.TCPServer.allow_reuse_address = True
     server = socketserver.TCPServer(("127.0.0.1", health_port), Handler)
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, server.serve_forever)
