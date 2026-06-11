@@ -49,6 +49,8 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     ptzMotion, controlMetrics,
   } = useVisionStore()
   const overlays = useVisionStore((s) => s.overlays)
+  const chainHealth = useVisionStore((s) => s.chainHealth)
+  const controlsEnabled = connected && chainHealth.beastConnected
   const overlayVisible = useVisionStore((s) => s.overlayVisible)
   const setOverlayVisible = useVisionStore((s) => s.setOverlayVisible)
   const diagnosticOverlay = useVisionStore((s) => s.diagnosticOverlay)
@@ -163,6 +165,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const startDirectionMotion = useCallback((panV: number, tiltV: number) => {
     const client = getVisionClient()
     if (!client?.connected) return
+    if (!useVisionStore.getState().chainHealth.beastConnected) return
 
     if (activeMotionIdRef.current) {
       client.ptzStopMotion(activeMotionIdRef.current)
@@ -209,6 +212,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const startZoomMotion = useCallback((zoomV: number) => {
     const client = getVisionClient()
     if (!client?.connected) return
+    if (!useVisionStore.getState().chainHealth.beastConnected) return
 
     if (activeMotionIdRef.current) {
       client.ptzStopMotion(activeMotionIdRef.current)
@@ -539,13 +543,13 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
               </span>
               <div className="grid grid-cols-3 gap-0.5 w-fit">
                 <div />
-                <DpadBtn direction="up" onStart={() => startDirectionMotion(0, 1)} onStop={stopDirectionMotion} connected={connected} />
+                <DpadBtn direction="up" onStart={() => startDirectionMotion(0, 1)} onStop={stopDirectionMotion} connected={controlsEnabled} />
                 <div />
-                <DpadBtn direction="left" onStart={() => startDirectionMotion(-1, 0)} onStop={stopDirectionMotion} connected={connected} />
-                <DpadBtn direction="stop" onStart={handleEmergencyStop} onStop={() => {}} connected={connected} isStop />
-                <DpadBtn direction="right" onStart={() => startDirectionMotion(1, 0)} onStop={stopDirectionMotion} connected={connected} />
+                <DpadBtn direction="left" onStart={() => startDirectionMotion(-1, 0)} onStop={stopDirectionMotion} connected={controlsEnabled} />
+                <DpadBtn direction="stop" onStart={handleEmergencyStop} onStop={() => {}} connected={controlsEnabled} isStop />
+                <DpadBtn direction="right" onStart={() => startDirectionMotion(1, 0)} onStop={stopDirectionMotion} connected={controlsEnabled} />
                 <div />
-                <DpadBtn direction="down" onStart={() => startDirectionMotion(0, -1)} onStop={stopDirectionMotion} connected={connected} />
+                <DpadBtn direction="down" onStart={() => startDirectionMotion(0, -1)} onStop={stopDirectionMotion} connected={controlsEnabled} />
                 <div />
               </div>
               <div className="flex gap-1 mt-1">
@@ -603,8 +607,8 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             <div className="flex flex-col items-center gap-1">
               <span className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider">Zoom</span>
               <div className="flex flex-col gap-0.5">
-                <ZoomBtn icon={<ZoomIn size={12} />} onStart={() => startZoomMotion(1)} onStop={stopZoomMotion} connected={connected} title="Zoom in" />
-                <ZoomBtn icon={<ZoomOut size={12} />} onStart={() => startZoomMotion(-1)} onStop={stopZoomMotion} connected={connected} title="Zoom out" />
+                <ZoomBtn icon={<ZoomIn size={12} />} onStart={() => startZoomMotion(1)} onStop={stopZoomMotion} connected={controlsEnabled} title="Zoom in" />
+                <ZoomBtn icon={<ZoomOut size={12} />} onStart={() => startZoomMotion(-1)} onStop={stopZoomMotion} connected={controlsEnabled} title="Zoom out" />
               </div>
             </div>
 
@@ -1037,15 +1041,25 @@ function VisionHud({
   error: string | null
 }) {
   const chainHealth = useVisionStore((s) => s.chainHealth)
+  const [, setTick] = useState(0)
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
 
   const wsColor = connected ? '#22c55e' : '#ef4444'
+  const beastOk = chainHealth.beastConnected
+  const beastColor = beastOk ? '#22c55e' : '#ef4444'
+  const camStreaming = chainHealth.cameraStreaming
   const frameAge = streamMetrics.lastFrameAge
   const frameAgeStr = frameAge <= 0
-    ? 'no frames'
+    ? '—'
     : frameAge < 1000
     ? `${frameAge}ms`
     : `${(frameAge / 1000).toFixed(1)}s`
-  const frameAgeColor = frameAge > 5000 ? '#ef4444' : frameAge > 2000 ? '#f59e0b' : '#22c55e'
+  const frameFresh = frameAge > 0 && frameAge < 3000
+  const frameAgeColor = !streaming ? '#888' : frameFresh ? '#22c55e' : frameAge > 5000 ? '#ef4444' : '#f59e0b'
 
   const lastCmdAgo = controlMetrics.lastCommandSentAt > 0
     ? Date.now() - controlMetrics.lastCommandSentAt
@@ -1058,6 +1072,7 @@ function VisionHud({
         position: 'absolute',
         bottom: 6,
         left: 6,
+        right: 6,
         zIndex: 20,
         pointerEvents: 'none',
         fontFamily: '"JetBrains Mono", "Fira Mono", monospace',
@@ -1067,42 +1082,66 @@ function VisionHud({
       }}
     >
       <div style={{
-        background: 'rgba(0,0,0,0.72)',
+        background: 'rgba(0,0,0,0.82)',
         borderRadius: 4,
-        padding: '4px 7px',
+        padding: '5px 8px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 1,
-        minWidth: 160,
+        gap: 2,
       }}>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <span style={{ color: wsColor }}>● {connected ? 'WS' : 'WS DISCONNECTED'}</span>
-          {connected && (
-            <span style={{ color: '#888' }}>
-              {chainHealth.status.replace('_', ' ')}
-            </span>
+        {/* Row 1: connection chain */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ color: wsColor }}>● {connected ? 'relay' : 'RELAY DOWN'}</span>
+          <span style={{ color: beastColor }}>● {beastOk ? 'beast' : 'BEAST OFFLINE'}</span>
+          <span style={{ color: camStreaming ? '#22c55e' : '#888' }}>● {camStreaming ? 'camera' : 'cam off'}</span>
+          {streaming && frameFresh && (
+            <span style={{ color: '#22c55e' }}>● stream</span>
+          )}
+          {streaming && !frameFresh && (
+            <span style={{ color: '#ef4444' }}>● STALE</span>
           )}
         </div>
-        <div style={{ color: frameAgeColor }}>
-          frame: {streaming ? frameAgeStr : 'not streaming'}
+
+        {/* Row 2: frame metrics */}
+        <div style={{ display: 'flex', gap: 8, color: '#888' }}>
+          <span style={{ color: frameAgeColor }}>age: {streaming ? frameAgeStr : '—'}</span>
+          <span>fps: <span style={{ color: streamMetrics.actualFps > 0 ? '#22c55e' : '#888' }}>{streaming ? streamMetrics.actualFps.toFixed(1) : '—'}</span>/{streamMetrics.targetFps}</span>
+          <span style={{ color: overlayCount > 0 ? '#22c55e' : '#555' }}>{overlayCount} ovr</span>
         </div>
-        <div style={{ color: '#888' }}>
-          fps: <span style={{ color: streamMetrics.actualFps > 0 ? '#22c55e' : '#888' }}>
-            {streaming ? streamMetrics.actualFps.toFixed(1) : '0'}
-          </span>
-          {' / '}
-          <span style={{ color: overlayCount > 0 ? '#22c55e' : '#555' }}>
-            {overlayCount} ovr
-          </span>
-        </div>
+
+        {/* PTZ motion state */}
         {ptzMotion.state !== 'idle' && ptzMotion.state !== 'disconnected' && (
-          <div style={{ color: '#f59e0b' }}>ptz: {ptzMotion.state}</div>
+          <div style={{ color: '#f59e0b' }}>ptz: {ptzMotion.state} [{ptzMotion.motionId.slice(-6)}]</div>
         )}
+
+        {/* Last command */}
         {controlMetrics.lastCommandSentAt > 0 && (
-          <div style={{ color: '#555' }}>cmd: {lastCmdStr}</div>
+          <div style={{ color: '#555' }}>
+            cmd: {lastCmdStr}
+            {controlMetrics.stopLatencyMs > 0 && ` | ack: ${controlMetrics.stopLatencyMs}ms`}
+          </div>
         )}
+
+        {/* Blocker — most important: why things aren't working */}
+        {!beastOk && connected && (
+          <div style={{ color: '#ef4444', fontSize: 10 }}>
+            ▸ Beast PC not on mesh — camera/PTZ/detection unavailable
+          </div>
+        )}
+        {beastOk && !camStreaming && connected && (
+          <div style={{ color: '#f59e0b' }}>
+            ▸ Camera not streaming — press START
+          </div>
+        )}
+        {streaming && !frameFresh && frameAge > 5000 && beastOk && (
+          <div style={{ color: '#ef4444' }}>
+            ▸ Frames stale ({frameAgeStr}) — Beast may have stopped sending
+          </div>
+        )}
+
+        {/* Error */}
         {error && (
-          <div style={{ color: '#ef4444', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ color: '#ef4444', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             ! {error}
           </div>
         )}
