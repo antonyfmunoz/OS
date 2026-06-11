@@ -5,6 +5,7 @@ import { useVisionStore } from '../stores/visionStore'
 import { getVisionClient } from '../hooks/useVisionConnection'
 import { useVisionPopout } from './VisionPopout'
 import { VisionConnectionStatus } from './vision/VisionConnectionStatus'
+import { VisionOverlay } from './vision'
 
 export function CameraPreview() {
   const {
@@ -13,6 +14,10 @@ export function CameraPreview() {
     setCameraStatus, setActivePreset, setStreaming,
   } = useVisionStore()
 
+  const overlays = useVisionStore((s) => s.overlays)
+  const overlayVisible = useVisionStore((s) => s.overlayVisible)
+  const width = useVisionStore((s) => s.width)
+  const height = useVisionStore((s) => s.height)
   const poppedOut = useVisionStore((s) => s.poppedOut)
   const { openPopout } = useVisionPopout()
   const [expanded, setExpanded] = useState(false)
@@ -65,13 +70,21 @@ export function CameraPreview() {
         isActive ? 'border-danger/30' : 'border-border',
       )}>
         {latestFrameUrl ? (
-          <img
-            ref={imgRef}
-            src={latestFrameUrl}
-            alt="Camera preview"
-            decoding="async"
-            className="w-full h-full object-contain"
-          />
+          <>
+            <img
+              ref={imgRef}
+              src={latestFrameUrl}
+              alt="Camera preview"
+              decoding="async"
+              className="w-full h-full object-contain"
+            />
+            <VisionOverlay
+              overlays={overlays}
+              width={width || 1280}
+              height={height || 720}
+              visible={overlayVisible}
+            />
+          </>
         ) : (
           <div className="flex items-center justify-center w-full h-full text-text-tertiary">
             <Camera size={24} className="opacity-30" />

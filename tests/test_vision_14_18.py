@@ -608,7 +608,7 @@ class TestControllerContinuousMotion:
             "cockpit", "src", "renderer", "components", "CameraController.tsx",
         )
         source = open(cc_path).read()
-        assert "durationGuardMs: 2000" in source, "client must send 2000ms guard"
+        assert "durationGuardMs: 3000" in source, "client must send 3000ms guard (increased for mobile reliability)"
 
     def test_pointer_capture_on_joystick(self):
         """Joystick must use setPointerCapture."""

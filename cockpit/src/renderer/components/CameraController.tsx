@@ -74,6 +74,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const joystickRef = useRef<HTMLDivElement>(null)
   const joystickDragging = useRef(false)
   const joystickVelocity = useRef({ pan: 0, tilt: 0 })
+  const [thumbPos, setThumbPos] = useState({ x: 0, y: 0 })
 
   const isActive = cameraStatus === 'live' || cameraStatus === 'connecting'
 
@@ -177,7 +178,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
       panVelocity: panV,
       tiltVelocity: tiltV,
       speed,
-      durationGuardMs: 2000,
+      durationGuardMs: 3000,
     })
     setPtzMotion({ state: 'moving', motionId, panVelocity: panV, tiltVelocity: tiltV, zoomVelocity: 0, speed })
     setPtzMoving(true)
@@ -250,50 +251,59 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
 
   // ── Joystick drag ──────────────────────────────────────────────
 
+  const computeJoystickVector = useCallback((e: React.PointerEvent) => {
+    const el = joystickRef.current
+    if (!el) return { dx: 0, dy: 0, panV: 0, tiltV: 0 }
+    const rect = el.getBoundingClientRect()
+    const radius = rect.width / 2
+    const cx = rect.left + radius
+    const cy = rect.top + radius
+    let dx = (e.clientX - cx) / radius
+    let dy = -(e.clientY - cy) / radius
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (dist > 1) { dx /= dist; dy /= dist }
+    const panV = Math.abs(dx) > JOYSTICK_DEADZONE ? dx : 0
+    const tiltV = Math.abs(dy) > JOYSTICK_DEADZONE ? dy : 0
+    return { dx, dy, panV, tiltV }
+  }, [])
+
   const handleJoystickPointerDown = useCallback((e: React.PointerEvent) => {
     const el = joystickRef.current
     if (!el) return
+    e.preventDefault()
     el.setPointerCapture(e.pointerId)
     joystickDragging.current = true
 
-    const rect = el.getBoundingClientRect()
-    const cx = rect.left + rect.width / 2
-    const cy = rect.top + rect.height / 2
-    const dx = (e.clientX - cx) / (rect.width / 2)
-    const dy = -(e.clientY - cy) / (rect.height / 2)
-    const panV = Math.abs(dx) > JOYSTICK_DEADZONE ? Math.max(-1, Math.min(1, dx)) : 0
-    const tiltV = Math.abs(dy) > JOYSTICK_DEADZONE ? Math.max(-1, Math.min(1, dy)) : 0
-
+    const { dx, dy, panV, tiltV } = computeJoystickVector(e)
+    setThumbPos({ x: dx, y: -dy })
     joystickVelocity.current = { pan: panV, tilt: tiltV }
 
     if (Math.abs(panV) > 0 || Math.abs(tiltV) > 0) {
       startDirectionMotion(panV, tiltV)
     }
-  }, [startDirectionMotion])
+  }, [startDirectionMotion, computeJoystickVector])
 
   const handleJoystickPointerMove = useCallback((e: React.PointerEvent) => {
     if (!joystickDragging.current) return
-    const el = joystickRef.current
-    if (!el) return
+    e.preventDefault()
 
-    const rect = el.getBoundingClientRect()
-    const cx = rect.left + rect.width / 2
-    const cy = rect.top + rect.height / 2
-    const dx = (e.clientX - cx) / (rect.width / 2)
-    const dy = -(e.clientY - cy) / (rect.height / 2)
-    const panV = Math.abs(dx) > JOYSTICK_DEADZONE ? Math.max(-1, Math.min(1, dx)) : 0
-    const tiltV = Math.abs(dy) > JOYSTICK_DEADZONE ? Math.max(-1, Math.min(1, dy)) : 0
-
+    const { dx, dy, panV, tiltV } = computeJoystickVector(e)
+    setThumbPos({ x: dx, y: -dy })
     joystickVelocity.current = { pan: panV, tilt: tiltV }
 
     if (!activeMotionIdRef.current && (Math.abs(panV) > 0 || Math.abs(tiltV) > 0)) {
       startDirectionMotion(panV, tiltV)
     }
-  }, [startDirectionMotion])
+  }, [startDirectionMotion, computeJoystickVector])
 
-  const handleJoystickPointerUp = useCallback(() => {
+  const handleJoystickPointerUp = useCallback((e: React.PointerEvent) => {
+    const el = joystickRef.current
+    if (el) {
+      try { el.releasePointerCapture(e.pointerId) } catch { /* already released */ }
+    }
     joystickDragging.current = false
     joystickVelocity.current = { pan: 0, tilt: 0 }
+    setThumbPos({ x: 0, y: 0 })
     stopDirectionMotion()
   }, [stopDirectionMotion])
 
@@ -482,7 +492,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
               </div>
             </div>
 
-            {/* Joystick area */}
+            {/* Joystick area — true draggable thumbstick */}
             <div className="flex flex-col items-center gap-1">
               <span className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider">Joystick</span>
               <div
@@ -491,22 +501,37 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                 onPointerMove={handleJoystickPointerMove}
                 onPointerUp={handleJoystickPointerUp}
                 onPointerCancel={handleJoystickPointerUp}
-                className="w-16 h-16 rounded-full border border-border bg-surface-hover relative cursor-crosshair touch-none select-none"
+                onPointerLeave={handleJoystickPointerUp}
+                className="w-20 h-20 rounded-full border-2 border-border bg-surface-hover relative cursor-crosshair select-none"
+                style={{ touchAction: 'none' }}
               >
+                {/* Crosshair guides */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Circle size={8} className="text-text-quaternary" />
+                  <div className="absolute w-px h-full bg-border/30" />
+                  <div className="absolute h-px w-full bg-border/30" />
+                  <Circle size={6} className="text-text-quaternary" />
                 </div>
-                {ptzMotion.state === 'moving' && (
-                  <div
-                    className="absolute w-2 h-2 rounded-full bg-cyan"
-                    style={{
-                      left: `${50 + ptzMotion.panVelocity * 40}%`,
-                      top: `${50 - ptzMotion.tiltVelocity * 40}%`,
-                      transform: 'translate(-50%, -50%)',
-                    }}
-                  />
-                )}
+                {/* Draggable thumbstick */}
+                <div
+                  className={clsx(
+                    'absolute w-5 h-5 rounded-full border-2 transition-colors',
+                    joystickDragging.current || ptzMotion.state === 'moving'
+                      ? 'bg-cyan/80 border-cyan shadow-[0_0_8px_rgba(34,211,238,0.5)]'
+                      : 'bg-text-quaternary/40 border-text-quaternary/60',
+                  )}
+                  style={{
+                    left: `calc(50% + ${thumbPos.x * 35}%)`,
+                    top: `calc(50% + ${thumbPos.y * 35}%)`,
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'none',
+                  }}
+                />
               </div>
+              {(joystickDragging.current || ptzMotion.state === 'moving') && (
+                <span className="text-[8px] font-mono text-cyan">
+                  {joystickVelocity.current.pan.toFixed(2)}, {joystickVelocity.current.tilt.toFixed(2)}
+                </span>
+              )}
             </div>
 
             {/* Zoom (press-and-hold) */}
@@ -673,6 +698,19 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             </div>
           )}
 
+          {/* PTZ + Overlay Diagnostics Panel */}
+          <PtzDiagnosticsPanel
+            ptzMotion={ptzMotion}
+            controlMetrics={controlMetrics}
+            joystickDragging={joystickDragging.current}
+            joystickVelocity={joystickVelocity.current}
+            speed={speed}
+            overlays={overlays}
+            overlayVisible={overlayVisible}
+            diagnosticOverlay={diagnosticOverlay}
+            connected={connected}
+          />
+
           {/* Tracking / Scene Intelligence */}
           <div className="border-t border-border pt-3">
             <TrackingPanel />
@@ -802,6 +840,94 @@ function PtzBtn({
     >
       {icon}
     </button>
+  )
+}
+
+function PtzDiagnosticsPanel({
+  ptzMotion, controlMetrics, joystickDragging, joystickVelocity,
+  speed, overlays, overlayVisible, diagnosticOverlay, connected,
+}: {
+  ptzMotion: { state: MotionState; motionId: string; panVelocity: number; tiltVelocity: number; zoomVelocity: number }
+  controlMetrics: { ptzLoopCadenceHz: number; stopLatencyMs: number; guardTimeouts: number; lastCommandSentAt: number; coalescedCommands: number }
+  joystickDragging: boolean
+  joystickVelocity: { pan: number; tilt: number }
+  speed: number
+  overlays: unknown[]
+  overlayVisible: boolean
+  diagnosticOverlay: boolean
+  connected: boolean
+}) {
+  const chainHealth = useVisionStore((s) => s.chainHealth)
+  const trackerStack = useVisionStore((s) => s.trackerStack)
+  const [expanded, setExpanded] = useState(false)
+
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        className="text-[9px] font-mono text-text-quaternary hover:text-text-secondary uppercase tracking-wider border-t border-border pt-2"
+      >
+        PTZ + Overlay Diagnostics {ptzMotion.state !== 'idle' ? `[${ptzMotion.state}]` : ''} {overlays.length > 0 ? `[${overlays.length} ovr]` : ''}
+      </button>
+    )
+  }
+
+  const enabledTrackers = trackerStack.enabled_trackers.filter((t) => t.enabled)
+
+  return (
+    <div className="border-t border-border pt-2 flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider">PTZ + Overlay Diagnostics</span>
+        <button onClick={() => setExpanded(false)} className="text-[9px] font-mono text-text-quaternary hover:text-text-secondary">hide</button>
+      </div>
+
+      {/* PTZ state */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-border/50 rounded p-2">
+        <span>joystick: <span className={joystickDragging ? 'text-cyan' : ''}>{joystickDragging ? 'DRAGGING' : 'idle'}</span></span>
+        <span>pointer_captured: {joystickDragging ? 'yes' : 'no'}</span>
+        <span>vector: {joystickVelocity.pan.toFixed(2)}, {joystickVelocity.tilt.toFixed(2)}</span>
+        <span>speed: {speed.toFixed(1)}x</span>
+        <span>motion_id: {ptzMotion.motionId || '—'}</span>
+        <span>state: <span className={clsx(
+          ptzMotion.state === 'moving' && 'text-warning',
+          ptzMotion.state === 'blocked' && 'text-danger',
+          ptzMotion.state === 'idle' && 'text-ok',
+        )}>{ptzMotion.state}</span></span>
+        <span>relay_loop: {controlMetrics.ptzLoopCadenceHz > 0 ? `${controlMetrics.ptzLoopCadenceHz}Hz` : 'off'}</span>
+        <span>stop_latency: {controlMetrics.stopLatencyMs > 0 ? `${controlMetrics.stopLatencyMs}ms` : '—'}</span>
+        <span>guard_kills: <span className={controlMetrics.guardTimeouts > 0 ? 'text-danger' : ''}>{controlMetrics.guardTimeouts}</span></span>
+        <span>coalesced: {controlMetrics.coalescedCommands}</span>
+        <span>ws: {connected ? 'connected' : 'DISCONNECTED'}</span>
+        <span>update_rate: 50ms</span>
+      </div>
+
+      {/* Overlay state */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-warning/30 rounded p-2">
+        <span>overlay_visible: <span className={overlayVisible ? 'text-ok' : 'text-danger'}>{overlayVisible ? 'ON' : 'OFF'}</span></span>
+        <span>diagnostic_mode: <span className={diagnosticOverlay ? 'text-warning' : ''}>{diagnosticOverlay ? 'ON' : 'off'}</span></span>
+        <span>overlay_count: <span className={overlays.length > 0 ? 'text-ok' : 'text-text-quaternary'}>{overlays.length}</span></span>
+        <span>last_overlay: {chainHealth.lastOverlayAt > 0 ? `${Math.round((Date.now() - chainHealth.lastOverlayAt) / 1000)}s ago` : 'never'}</span>
+        <span>tracker_runtime: <span className={chainHealth.trackerRuntimeAvailable ? 'text-ok' : 'text-danger'}>{chainHealth.trackerRuntimeAvailable ? 'available' : 'UNAVAILABLE'}</span></span>
+        <span>enabled_trackers: {enabledTrackers.length > 0 ? enabledTrackers.map((t) => t.category).join(', ') : 'none'}</span>
+        <span>beast: <span className={chainHealth.beastConnected ? 'text-ok' : 'text-danger'}>{chainHealth.beastConnected ? 'connected' : 'OFFLINE'}</span></span>
+        <span>camera: <span className={chainHealth.cameraStreaming ? 'text-ok' : 'text-danger'}>{chainHealth.cameraStreaming ? 'streaming' : chainHealth.cameraAvailable ? 'available' : 'UNAVAILABLE'}</span></span>
+      </div>
+
+      {/* Overlay blocker explanation */}
+      {overlays.length === 0 && (
+        <div className="text-[9px] font-mono text-warning/80 bg-warning/5 rounded p-1.5">
+          {!overlayVisible
+            ? 'Overlays disabled — click OVR to enable'
+            : !diagnosticOverlay && !chainHealth.trackerRuntimeAvailable
+            ? 'No tracker runtime available on Beast. Enable DIAG overlay to test rendering, or install CV dependencies on Beast node.'
+            : !diagnosticOverlay && enabledTrackers.length === 0
+            ? 'No trackers enabled. Enable DIAG overlay to test rendering, or enable trackers in Tracking panel below.'
+            : diagnosticOverlay
+            ? 'DIAG mode ON but no overlays received — check relay WebSocket connection'
+            : 'Trackers enabled but no detections yet. Waiting for tracker output...'}
+        </div>
+      )}
+    </div>
   )
 }
 

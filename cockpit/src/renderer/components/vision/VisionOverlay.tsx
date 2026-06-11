@@ -25,6 +25,7 @@ interface VisionOverlayProps {
 export function VisionOverlay({ overlays = [], width, height, visible = true }: VisionOverlayProps) {
   const trackerStack = useVisionStore((s) => s.trackerStack)
   const securityMode = useVisionStore((s) => s.securityMode)
+  const diagnosticOverlay = useVisionStore((s) => s.diagnosticOverlay)
 
   if (!visible || overlays.length === 0) return null
 
@@ -33,6 +34,7 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
       .filter((t) => t.enabled)
       .map((t) => t.category)
   )
+  const hasTrackerFilters = enabledCategories.size > 0
 
   return (
     <svg
@@ -50,6 +52,9 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
       )}
 
       {overlays.map((overlay) => {
+        const isDiagnostic = overlay.track_id?.startsWith('diag_')
+        if (isDiagnostic && !diagnosticOverlay) return null
+
         const typeToCategory: Record<string, string> = {
           object: 'object_detector',
           face: 'face_tracker',
@@ -58,7 +63,7 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
           motion: 'motion_tracker',
         }
         const cat = typeToCategory[overlay.type]
-        if (cat && !enabledCategories.has(cat)) return null
+        if (!isDiagnostic && hasTrackerFilters && cat && !enabledCategories.has(cat)) return null
 
         const px = overlay.bbox.x * width
         const py = overlay.bbox.y * height
