@@ -248,8 +248,10 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
   },
 
   setActiveServer: (id) => {
-    set({ activeServerId: id, activeChannelId: null, messages: [], threads: [], forumPosts: [] })
-    saveLastActive(id, null)
+    const saved = loadLastActive()
+    const keepChannel = id && saved.serverId === id ? saved.channelId : null
+    set({ activeServerId: id, activeChannelId: keepChannel, messages: [], threads: [], forumPosts: [] })
+    saveLastActive(id, keepChannel)
     if (id) {
       get().fetchCategories(id)
       get().fetchChannels(id)
@@ -322,9 +324,14 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
         get().fetchThreads(activeChannelId)
         get().fetchDexSettings(activeChannelId)
         get().fetchArtifacts(activeChannelId)
-      } else if (activeChannelId) {
-        set({ activeChannelId: null })
-        saveLastActive(serverId, null)
+      } else {
+        const fallback = activeChannelId ? null : channels.sort((a, b) => a.sort_order - b.sort_order)[0]
+        if (fallback) {
+          get().setActiveChannel(fallback.id)
+        } else if (activeChannelId) {
+          set({ activeChannelId: null })
+          saveLastActive(serverId, null)
+        }
       }
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to fetch channels' })
