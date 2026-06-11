@@ -43,6 +43,29 @@ class CameraAdapter:
         self._stream_lock = threading.Lock()
         self._frame_callback: Callable[[dict[str, Any]], None] | None = None
 
+        self._detector = None
+        self._detect_every_n = 3
+        self._detection_enabled = True
+        self._init_detector()
+
+    def _init_detector(self) -> None:
+        try:
+            from nodes.windows.umh_node.adapters.object_detector import ObjectDetector
+            self._detector = ObjectDetector(confidence_threshold=0.35)
+            loaded = self._detector.load_model()
+            if loaded:
+                logger.info("object detector ready (YOLOv8n)")
+            else:
+                logger.warning("object detector not loaded: %s", self._detector.load_error)
+        except Exception as exc:
+            logger.warning("object detector init failed: %s", exc)
+            self._detector = None
+
+    def get_detector_status(self) -> dict[str, Any]:
+        if self._detector is None:
+            return {"loaded": False, "model": "none", "load_error": "detector not initialized"}
+        return self._detector.get_status()
+
     def set_frame_callback(self, cb: Callable[[dict[str, Any]], None]) -> None:
         self._frame_callback = cb
 
@@ -59,6 +82,7 @@ class CameraAdapter:
             "camera.set_position": self._set_position,
             "camera.set_position_relative": self._set_position_relative,
             "camera.status": self._status,
+            "camera.detector_status": self._detector_status,
         }
         handler = ops.get(operation)
         if handler is None:
@@ -178,10 +202,12 @@ class CameraAdapter:
             return
 
         encode_params = [cv2.IMWRITE_JPEG_QUALITY, quality]
+        frame_n = 0
 
         try:
             while self._stream_active:
                 t0 = time.monotonic()
+                frame_n += 1
                 ret, frame = cap.read()
                 if not ret:
                     consecutive_failures += 1
@@ -203,7 +229,7 @@ class CameraAdapter:
                 success, buf = cv2.imencode(".jpg", frame, encode_params)
                 if success and self._frame_callback:
                     encoded = base64.b64encode(buf.tobytes()).decode("ascii")
-                    self._frame_callback({
+                    payload: dict[str, Any] = {
                         "type": "camera_frame",
                         "image_base64": encoded,
                         "width": frame.shape[1],
@@ -211,7 +237,36 @@ class CameraAdapter:
                         "quality": quality,
                         "timestamp": time.time(),
                         "size_bytes": len(buf),
-                    })
+                    }
+
+                    if (self._detection_enabled
+                            and self._detector is not None
+                            and self._detector.loaded
+                            and frame_n % self._detect_every_n == 0):
+                        try:
+                            detections = self._detector.detect(frame)
+                            if frame_n % 45 == 0:
+                                logger.info("detection frame %d: %d objects found", frame_n, len(detections))
+                            if detections:
+                                payload["overlays"] = [
+                                    {
+                                        "track_id": d["id"],
+                                        "label": d["label"],
+                                        "confidence": d["confidence"],
+                                        "x": d["bbox"]["x"],
+                                        "y": d["bbox"]["y"],
+                                        "w": d["bbox"]["w"],
+                                        "h": d["bbox"]["h"],
+                                        "source": "real",
+                                        "model": d.get("model", "yolov8n"),
+                                    }
+                                    for d in detections
+                                ]
+                        except Exception as exc:
+                            if frame_n % 45 == 0:
+                                logger.warning("detection error frame %d: %s", frame_n, exc)
+
+                    self._frame_callback(payload)
 
                 elapsed = time.monotonic() - t0
                 sleep_time = interval - elapsed
@@ -410,7 +465,11 @@ class CameraAdapter:
             "streaming": self._stream_active,
             "device_index": self._device_index,
             "presets_loaded": len(self._presets),
+            "detector": self.get_detector_status(),
         }
+
+    def _detector_status(self, params: dict[str, Any]) -> dict[str, Any]:
+        return {"success": True, **self.get_detector_status()}
 
 
 def _default_presets() -> dict[str, dict[str, Any]]:
