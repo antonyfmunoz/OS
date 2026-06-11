@@ -32,8 +32,23 @@ const markdownComponents = {
 
 type RightTab = 'chat' | 'activity' | 'logs'
 
+const RIGHT_RAIL_KEY = 'cockpit:rightRailCollapsed'
+
 export function RightRail() {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const v = localStorage.getItem(RIGHT_RAIL_KEY)
+      if (v === null) return true
+      return v === 'true'
+    } catch { return true }
+  })
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((v) => {
+      const next = !v
+      try { localStorage.setItem(RIGHT_RAIL_KEY, String(next)) } catch {}
+      return next
+    })
+  }, [])
   const [activeTab, setActiveTab] = useState<RightTab>('chat')
   const traces = useSystemStore((s) => s.traces)
   const fetchTraces = useSystemStore((s) => s.fetchTraces)
@@ -49,7 +64,7 @@ export function RightRail() {
   if (collapsed) {
     return (
       <div className="flex flex-col items-center py-2 w-10 bg-surface border-l border-border">
-        <button onClick={() => setCollapsed(false)} className="p-1 text-text-tertiary hover:text-cyan">
+        <button onClick={toggleCollapsed} className="p-1 text-text-tertiary hover:text-cyan">
           <ChevronLeft size={14} />
         </button>
         {tabs.map((t) => {
@@ -57,7 +72,7 @@ export function RightRail() {
           return (
             <button
               key={t.id}
-              onClick={() => { setCollapsed(false); setActiveTab(t.id) }}
+              onClick={() => { toggleCollapsed(); setActiveTab(t.id) }}
               className={clsx('p-2 mt-1', activeTab === t.id ? 'text-cyan' : 'text-text-tertiary')}
               title={t.label}
             >
@@ -73,7 +88,7 @@ export function RightRail() {
     <div className="flex flex-col w-[280px] bg-surface border-l border-border">
       {/* Tab bar — mirrored from LeftRail: collapse on inner edge, tabs on outer (right) edge */}
       <div className="flex items-center border-b border-border px-2 h-9 shrink-0">
-        <button onClick={() => setCollapsed(true)} className="p-1 text-text-tertiary hover:text-cyan transition-colors shrink-0">
+        <button onClick={toggleCollapsed} className="p-1 text-text-tertiary hover:text-cyan transition-colors shrink-0">
           <ChevronRight size={14} />
         </button>
         <div className="flex items-center justify-end flex-1 min-w-0">
