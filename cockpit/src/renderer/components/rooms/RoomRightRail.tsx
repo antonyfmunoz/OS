@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Users, Bot, MessageSquare, Shield, Link2 } from 'lucide-react'
+import { Users, Bot, MessageSquare, Shield, Link2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
 import { MemberListPanel } from './MemberListPanel'
 import { RoomDexPanel } from './RoomDexPanel'
@@ -37,7 +37,7 @@ export function RoomRightRail({ collapsed, onToggleCollapse }: Props) {
           style={{ color: 'var(--color-text-tertiary)' }}
           title="Show details"
         >
-          <Users size={14} />
+          <ChevronLeft size={14} />
         </button>
       </div>
     )
@@ -73,7 +73,7 @@ export function RoomRightRail({ collapsed, onToggleCollapse }: Props) {
           style={{ color: 'var(--color-text-tertiary)' }}
           title="Hide details"
         >
-          <Users size={12} />
+          <ChevronRight size={12} />
         </button>
       </div>
 
