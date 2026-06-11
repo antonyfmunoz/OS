@@ -181,6 +181,9 @@ async def _motion_loop() -> None:
             if elapsed_total > 0:
                 _motion_loop_hz = round(loop_count / elapsed_total, 1)
 
+            if loop_count % 20 == 0:
+                await _broadcast_motion_state("moving")
+
             elapsed = time.monotonic() - t0
             sleep_time = interval - elapsed
             if sleep_time > 0:
@@ -224,7 +227,7 @@ async def _start_motion(
     _motion_tilt_velocity = tilt_velocity
     _motion_zoom_velocity = zoom_velocity
     _motion_speed = max(0.1, min(speed, 5.0))
-    _motion_guard_ms = max(200, min(guard_ms, 2000))
+    _motion_guard_ms = max(500, min(guard_ms, 5000))
     _motion_last_update = time.time()
     _motion_active = True
 
@@ -294,6 +297,7 @@ async def _broadcast_motion_state(state: str) -> None:
         "zoom_velocity": _motion_zoom_velocity,
         "loop_cadence_hz": _motion_loop_hz,
         "guard_timeout_events": _motion_guard_timeouts,
+        "coalesced_commands": _motion_coalesced,
     }
     for ws in list(_clients):
         await send_json(ws, msg)
@@ -1572,6 +1576,7 @@ def _build_health() -> dict[str, Any]:
         "trigger_chain_engine_available": chain_available,
         "active_chains": active_chains,
         "security_mode": "security_harden" if security_active else "normal",
+        "diagnostic_overlay_active": _diagnostic_overlay_active,
         "blockers": blockers,
         "recovery_action": recovery_action,
     }

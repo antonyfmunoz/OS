@@ -259,6 +259,9 @@ export function useVisionConnection(): void {
         if (d.guard_timeout_events !== undefined) {
           updateControlMetrics({ guardTimeouts: d.guard_timeout_events as number })
         }
+        if (d.coalesced_commands !== undefined) {
+          updateControlMetrics({ coalescedCommands: d.coalesced_commands as number })
+        }
         const motionActive = d.state === 'moving'
         setPtzMoving(motionActive)
       }),
