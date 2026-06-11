@@ -44,6 +44,9 @@ class CameraAdapter:
         self._frame_callback: Callable[[dict[str, Any]], None] | None = None
         self._active_cap: Any = None
         self._cap_lock = threading.Lock()
+        self._ptz_pause = threading.Event()
+        self._ptz_done = threading.Event()
+        self._ptz_done.set()
 
         self._detector = None
         self._detect_every_n = 3
@@ -211,6 +214,9 @@ class CameraAdapter:
 
         try:
             while self._stream_active:
+                if self._ptz_pause.is_set():
+                    self._ptz_done.wait(timeout=5.0)
+                    continue
                 t0 = time.monotonic()
                 frame_n += 1
                 ret, frame = cap.read()
@@ -353,6 +359,10 @@ class CameraAdapter:
         cap, owned = self._get_ptz_cap()
         if cap is None:
             return {"success": False, "error": "camera unavailable"}
+        if not owned:
+            self._ptz_pause.set()
+            self._ptz_done.clear()
+            time.sleep(0.15)
         try:
             if pan is not None:
                 cap.set(cv2.CAP_PROP_PAN, int(pan))
@@ -367,7 +377,10 @@ class CameraAdapter:
                 "zoom": int(cap.get(cv2.CAP_PROP_ZOOM)),
             }
         finally:
-            if owned:
+            if not owned:
+                self._ptz_pause.clear()
+                self._ptz_done.set()
+            else:
                 cap.release()
 
     def _set_position_relative(self, params: dict[str, Any]) -> dict[str, Any]:
