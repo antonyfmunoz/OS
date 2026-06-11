@@ -15,9 +15,6 @@ export interface OverlayMetadata {
   color?: string
 }
 
-// Client-side synthetic diagnostic overlays rendered immediately when DIAG mode is on,
-// even if the relay has not returned any vision_overlay events yet.
-// These confirm the overlay render pipeline works end-to-end without needing Beast.
 const SYNTHETIC_DIAG_OVERLAYS: OverlayMetadata[] = [
   {
     type: 'object',
@@ -73,14 +70,20 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
   const securityMode = useVisionStore((s) => s.securityMode)
   const diagnosticOverlay = useVisionStore((s) => s.diagnosticOverlay)
 
-  if (!visible) return null
+  if (!visible && !diagnosticOverlay) return null
 
-  // When DIAG mode is on and no server overlays have arrived yet, render synthetic
-  // client-side test boxes so the operator can verify the overlay pipeline renders
-  // correctly on their device without needing the relay to respond.
-  const effectiveOverlays = diagnosticOverlay && overlays.filter(o => o.track_id?.startsWith('diag_')).length === 0
-    ? [...overlays, ...SYNTHETIC_DIAG_OVERLAYS]
-    : overlays
+  const realOverlays = overlays.filter(o => !o.track_id?.startsWith('diag_'))
+  const diagOverlays = diagnosticOverlay ? SYNTHETIC_DIAG_OVERLAYS : []
+
+  const effectiveOverlays: OverlayMetadata[] = []
+
+  if (visible) {
+    effectiveOverlays.push(...realOverlays)
+  }
+
+  if (diagnosticOverlay) {
+    effectiveOverlays.push(...diagOverlays)
+  }
 
   if (effectiveOverlays.length === 0) return null
 
@@ -108,7 +111,6 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
 
       {effectiveOverlays.map((overlay) => {
         const isDiagnostic = overlay.track_id?.startsWith('diag_')
-        if (isDiagnostic && !diagnosticOverlay) return null
 
         const typeToCategory: Record<string, string> = {
           object: 'object_detector',
