@@ -187,12 +187,16 @@ class CameraAdapter:
                 pan = ptz_params.get("pan")
                 tilt = ptz_params.get("tilt")
                 zoom = ptz_params.get("zoom")
+                props = []
                 if pan is not None:
-                    cap.set(cv2.CAP_PROP_PAN, int(pan))
+                    props.append((cv2.CAP_PROP_PAN, int(pan)))
                 if tilt is not None:
-                    cap.set(cv2.CAP_PROP_TILT, int(tilt))
+                    props.append((cv2.CAP_PROP_TILT, int(tilt)))
                 if zoom is not None:
-                    cap.set(cv2.CAP_PROP_ZOOM, int(zoom))
+                    props.append((cv2.CAP_PROP_ZOOM, int(zoom)))
+                for prop_id, val in props:
+                    cap.set(prop_id, val)
+                    cap.read()
                 result_slot.append({
                     "success": True,
                     "pan": int(cap.get(cv2.CAP_PROP_PAN)),
@@ -397,12 +401,16 @@ class CameraAdapter:
         if not cap.isOpened():
             return {"success": False, "error": "camera unavailable"}
         try:
+            props = []
             if pan is not None:
-                cap.set(cv2.CAP_PROP_PAN, int(pan))
+                props.append((cv2.CAP_PROP_PAN, int(pan)))
             if tilt is not None:
-                cap.set(cv2.CAP_PROP_TILT, int(tilt))
+                props.append((cv2.CAP_PROP_TILT, int(tilt)))
             if zoom is not None:
-                cap.set(cv2.CAP_PROP_ZOOM, int(zoom))
+                props.append((cv2.CAP_PROP_ZOOM, int(zoom)))
+            for prop_id, val in props:
+                cap.set(prop_id, val)
+                cap.read()
             return {
                 "success": True,
                 "pan": int(cap.get(cv2.CAP_PROP_PAN)),
