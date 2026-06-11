@@ -549,3 +549,20 @@ class TestServerCreationRegression:
         assert "Admin" in role_names
         assert "Member" in role_names
         assert "Guest" in role_names
+
+    @pytest.mark.asyncio
+    async def test_clerk_user_object_works(self):
+        """ClerkUser is a dataclass, not a dict — all routes must handle both."""
+        from transports.api.cockpit_auth import ClerkUser
+        clerk_user = ClerkUser(user_id="clerk_user_123")
+        server = await mod.create_server(
+            mod.CreateServerReq(name="Clerk Test", template="empty"), clerk_user
+        )
+        assert server["owner_id"] == "clerk_user_123"
+        servers = await mod.list_servers(clerk_user)
+        assert any(s["id"] == server["id"] for s in servers)
+        channels = await mod.list_channels(server["id"], clerk_user)
+        assert isinstance(channels, list)
+        members = mod._load("members")
+        member = [m for m in members if m["user_id"] == "clerk_user_123" and m["server_id"] == server["id"]]
+        assert len(member) == 1
