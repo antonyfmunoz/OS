@@ -6,6 +6,7 @@ import { useCockpitStore } from '../stores/cockpitStore'
 import { useActivityStore } from '../stores/activityStore'
 import { useConfigStore } from '../stores/configStore'
 import { useChatStore } from '../stores/chatStore'
+import { useRoomsStore } from '../stores/roomsStore'
 import { useBootstrapStore } from '../stores/bootstrapStore'
 import { getWsToken, getClerkToken } from '../api/client'
 
@@ -151,7 +152,16 @@ export function useOrganismRealtime(): void {
 
       const organismEvents = msg.organism_events as Array<Record<string, unknown>> | undefined
       if (organismEvents && organismEvents.length > 0) {
-        const parsed: OrganismEvent[] = organismEvents.map((e) => ({
+        const roomEvents = organismEvents.filter((e) => e.type === 'room_event')
+        for (const re of roomEvents) {
+          useRoomsStore.getState().handleWsEvent({
+            type: re.event as string,
+            payload: re as unknown,
+          })
+        }
+
+        const nonRoom = organismEvents.filter((e) => e.type !== 'room_event')
+        const parsed: OrganismEvent[] = nonRoom.map((e) => ({
           event_id: (e.event_id as string) ?? '',
           domain: (e.domain as string) ?? 'unknown',
           event_type: (e.event_type as string) ?? '',
@@ -161,7 +171,7 @@ export function useOrganismRealtime(): void {
           timestamp: (e.timestamp as number) ?? Date.now() / 1000,
           correlation_id: (e.correlation_id as string) ?? null,
         }))
-        pushEvents(parsed)
+        if (parsed.length > 0) pushEvents(parsed)
 
         const hasMutationEvents = parsed.some((e) =>
           ['governance', 'execution', 'runtime', 'supervisor'].includes(e.domain)
