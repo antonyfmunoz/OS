@@ -121,6 +121,28 @@ services:
           memory: 1G
           cpus: "0.35"
 
+  os-livekit:
+    image: livekit/livekit-server:v1.8.3
+    container_name: os-livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    networks:
+      - eos_network
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "3478:3478/udp"
+      - "50000-50020:50000-50020/udp"
+    volumes:
+      - ./infra/livekit.yaml:/etc/livekit.yaml:ro
+    environment:
+      - LIVEKIT_KEYS=${LIVEKIT_API_KEY:-UMHKey1}: ${LIVEKIT_API_SECRET}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.35"
+          memory: 256M
+
   os-operator:
     build: .
     container_name: os-operator
@@ -147,6 +169,10 @@ services:
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - VOICE_WS_UPSTREAM=ws://host.docker.internal:8096/voice
       - UMH_ROUTER_CLAUDE_CLI_ENABLED=0
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-UMHKey1}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - LIVEKIT_URL=ws://os-livekit:7880
+      - LIVEKIT_WS_URL=${LIVEKIT_WS_URL}
     ports:
       - "127.0.0.1:8091:8091"
     deploy:

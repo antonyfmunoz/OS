@@ -21,6 +21,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
 
+import jwt as pyjwt
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from transports.api.cockpit_auth import require_clerk_auth
@@ -93,11 +95,19 @@ def _audit(server_id: str, channel_id: str | None, event_type: str, actor: str, 
 
 # ── Authorization helpers ──
 
-def _user_id(user: dict) -> str:
-    return user.get("user_id", "operator")
+def _user_id(user) -> str:
+    if isinstance(user, dict):
+        return user.get("user_id", "operator")
+    return getattr(user, "user_id", "operator")
 
 
-def _get_member(user: dict, server_id: str) -> dict | None:
+def _display_name(user) -> str:
+    if isinstance(user, dict):
+        return user.get("display_name", "Operator")
+    return getattr(user, "display_name", None) or getattr(user, "email", None) or "Operator"
+
+
+def _get_member(user, server_id: str) -> dict | None:
     uid = _user_id(user)
     for m in _load("members"):
         if m["server_id"] == server_id and m["user_id"] == uid:
@@ -105,7 +115,7 @@ def _get_member(user: dict, server_id: str) -> dict | None:
     return None
 
 
-def _effective_permissions(user: dict, server_id: str) -> set[str]:
+def _effective_permissions(user, server_id: str) -> set[str]:
     member = _get_member(user, server_id)
     if not member:
         return set()
@@ -117,21 +127,21 @@ def _effective_permissions(user: dict, server_id: str) -> set[str]:
     return perms
 
 
-def _is_server_owner(user: dict, server_id: str) -> bool:
+def _is_server_owner(user, server_id: str) -> bool:
     for s in _load("servers"):
         if s["id"] == server_id:
             return s.get("owner_id") == _user_id(user)
     return False
 
 
-def _require_server_member(user: dict, server_id: str) -> dict:
+def _require_server_member(user, server_id: str) -> dict:
     member = _get_member(user, server_id)
     if not member and not _is_server_owner(user, server_id):
         raise HTTPException(403, "Not a member of this server")
     return member or {"user_id": _user_id(user), "server_id": server_id, "roles": []}
 
 
-def _require_server_perm(user: dict, server_id: str, perm: str) -> None:
+def _require_server_perm(user, server_id: str, perm: str) -> None:
     if _is_server_owner(user, server_id):
         return
     perms = _effective_permissions(user, server_id)
@@ -146,7 +156,7 @@ def _channel_server_id(channel_id: str) -> str | None:
     return None
 
 
-def _require_channel_access(user: dict, channel_id: str, perm: str = "view_channel") -> str:
+def _require_channel_access(user, channel_id: str, perm: str = "view_channel") -> str:
     """Verify user can access a channel. Returns the server_id."""
     channels = _load("channels")
     ch = next((c for c in channels if c["id"] == channel_id), None)
@@ -425,7 +435,7 @@ async def create_server(req: CreateServerReq, user=Depends(require_clerk_auth)):
         "name": req.name,
         "description": req.description,
         "icon_emoji": "",
-        "owner_id": user.get("user_id", "operator"),
+        "owner_id": _user_id(user),
         "privacy": req.privacy,
         "template": req.template,
         "created_at": _now(),
@@ -541,14 +551,63 @@ async def create_server(req: CreateServerReq, user=Depends(require_clerk_auth)):
 
         _save("roles", roles)
 
-    # Auto-add creator as member
+    # Ensure default roles exist even without a template
+    if not req.template or req.template not in TEMPLATES:
+        roles = _load("roles")
+        for default_role in [
+            {"name": "Owner", "color": "#FF3D3D", "permissions": [
+                "view_server", "manage_server", "manage_roles", "manage_channels",
+                "manage_permissions", "create_invites", "view_channel", "send_messages",
+                "manage_messages", "create_threads", "manage_threads", "attach_files",
+                "add_reactions", "mention_everyone", "join_voice", "speak",
+                "mute_members", "deafen_members", "move_members", "share_screen",
+                "start_video", "record_meeting", "view_transcripts", "manage_room_memory",
+                "manage_dex_mode", "create_work_packets", "approve_room_actions", "invite_guests",
+            ]},
+            {"name": "Admin", "color": "#FFB800", "permissions": [
+                "view_server", "manage_channels", "create_invites", "view_channel",
+                "send_messages", "manage_messages", "create_threads", "manage_threads",
+                "attach_files", "add_reactions", "mention_everyone", "join_voice",
+                "speak", "mute_members", "share_screen", "start_video",
+                "view_transcripts", "manage_dex_mode", "invite_guests",
+            ]},
+            {"name": "Member", "color": "#888888", "permissions": [
+                "view_server", "view_channel", "send_messages", "create_threads",
+                "attach_files", "add_reactions", "join_voice", "speak",
+                "share_screen", "start_video",
+            ], "is_default": True},
+            {"name": "Guest", "color": "#555555", "permissions": [
+                "view_channel", "send_messages", "add_reactions",
+            ]},
+        ]:
+            role = {
+                "id": _uid(),
+                "server_id": server["id"],
+                "name": default_role["name"],
+                "color": default_role["color"],
+                "icon_emoji": "",
+                "sort_order": len(roles),
+                "permissions": default_role["permissions"],
+                "is_default": default_role.get("is_default", False),
+            }
+            roles.append(role)
+        _save("roles", roles)
+
+    # Find the Owner role ID for the creator's member record
+    owner_role_id = None
+    for r in _load("roles"):
+        if r["server_id"] == server["id"] and r["name"] == "Owner":
+            owner_role_id = r["id"]
+            break
+
+    # Auto-add creator as member with Owner role
     members = _load("members")
     members.append({
         "id": _uid(),
         "server_id": server["id"],
-        "user_id": user.get("user_id", "operator"),
-        "display_name": user.get("display_name", "Operator"),
-        "roles": [],
+        "user_id": _user_id(user),
+        "display_name": _display_name(user),
+        "roles": [owner_role_id] if owner_role_id else [],
         "joined_at": _now(),
         "presence": "online",
         "current_channel_id": None,
@@ -560,7 +619,7 @@ async def create_server(req: CreateServerReq, user=Depends(require_clerk_auth)):
     })
     _save("members", members)
 
-    _audit(server["id"], None, "server_created", user.get("user_id", "operator"), {"name": req.name})
+    _audit(server["id"], None, "server_created", _user_id(user), {"name": req.name})
     return server
 
 
@@ -752,8 +811,8 @@ async def send_message(channel_id: str, req: SendMessageReq, user=Depends(requir
     msg = {
         "id": _uid(),
         "channel_id": channel_id,
-        "author_id": user.get("user_id", "operator"),
-        "author_name": user.get("display_name", "Operator"),
+        "author_id": _user_id(user),
+        "author_name": _display_name(user),
         "content": req.content,
         "created_at": _now(),
         "updated_at": None,
@@ -787,7 +846,7 @@ async def edit_message(message_id: str, req: EditMessageReq, user=Depends(requir
     messages = _load("messages")
     for m in messages:
         if m["id"] == message_id:
-            if m["author_id"] != user.get("user_id", "operator"):
+            if m["author_id"] != _user_id(user):
                 raise HTTPException(403, "Can only edit own messages")
             m["content"] = req.content
             m["edited"] = True
@@ -836,7 +895,7 @@ async def pin_message(message_id: str, req: PinMessageReq, user=Depends(require_
 @rooms_router.post("/messages/{message_id}/reactions")
 async def add_reaction(message_id: str, req: ReactionReq, user=Depends(require_clerk_auth)):
     messages = _load("messages")
-    user_id = user.get("user_id", "operator")
+    user_id = _user_id(user)
     for m in messages:
         if m["id"] == message_id:
             existing = next((r for r in m.get("reactions", []) if r["emoji"] == req.emoji), None)
@@ -859,7 +918,7 @@ async def add_reaction(message_id: str, req: ReactionReq, user=Depends(require_c
 @rooms_router.delete("/messages/{message_id}/reactions/{emoji}")
 async def remove_reaction(message_id: str, emoji: str, user=Depends(require_clerk_auth)):
     messages = _load("messages")
-    user_id = user.get("user_id", "operator")
+    user_id = _user_id(user)
     for m in messages:
         if m["id"] == message_id:
             for r in m.get("reactions", []):
@@ -890,7 +949,7 @@ async def create_thread(channel_id: str, req: CreateThreadReq, user=Depends(requ
         "id": _uid(),
         "channel_id": channel_id,
         "name": req.name,
-        "created_by": user.get("user_id", "operator"),
+        "created_by": _user_id(user),
         "created_at": _now(),
         "message_count": 0,
         "last_message_at": None,
@@ -933,8 +992,8 @@ async def create_forum_post(channel_id: str, req: CreateForumPostReq, user=Depen
         "channel_id": channel_id,
         "title": req.title,
         "body": req.body,
-        "author_id": user.get("user_id", "operator"),
-        "author_name": user.get("display_name", "Operator"),
+        "author_id": _user_id(user),
+        "author_name": _display_name(user),
         "tags": req.tags,
         "created_at": _now(),
         "updated_at": None,
@@ -1073,7 +1132,7 @@ async def remove_member_role(server_id: str, user_id: str, role_id: str, user=De
 @rooms_router.post("/presence")
 async def update_presence(req: PresenceReq, user=Depends(require_clerk_auth)):
     members = _load("members")
-    user_id = user.get("user_id", "operator")
+    user_id = _user_id(user)
     for m in members:
         if m["user_id"] == user_id:
             m["presence"] = req.status
@@ -1085,12 +1144,12 @@ async def update_presence(req: PresenceReq, user=Depends(require_clerk_auth)):
 
 @rooms_router.post("/typing")
 async def typing_indicator(req: TypingReq, user=Depends(require_clerk_auth)):
-    user_id = user.get("user_id", "operator")
+    user_id = _user_id(user)
     event = "typing.started" if req.typing else "typing.stopped"
     _push_room_event(event, {
         "channel_id": req.channel_id,
         "user_id": user_id,
-        "user_name": user.get("display_name", "Operator"),
+        "user_name": _display_name(user),
     })
     return {"ok": True}
 
@@ -1238,11 +1297,11 @@ async def join_voice(channel_id: str, user=Depends(require_clerk_auth)):
         state = {"channel_id": channel_id, "participants": [], "topic": "", "capacity": 25, "locked": False}
         voice.append(state)
 
-    user_id = user.get("user_id", "operator")
+    user_id = _user_id(user)
     if not any(p["user_id"] == user_id for p in state["participants"]):
         state["participants"].append({
             "user_id": user_id,
-            "display_name": user.get("display_name", "Operator"),
+            "display_name": _display_name(user),
             "is_speaking": False,
             "is_muted": False,
             "is_deafened": False,
@@ -1256,13 +1315,49 @@ async def join_voice(channel_id: str, user=Depends(require_clerk_auth)):
 async def leave_voice(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     voice = _load("voice_states")
-    user_id = user.get("user_id", "operator")
+    user_id = _user_id(user)
     for v in voice:
         if v["channel_id"] == channel_id:
             v["participants"] = [p for p in v["participants"] if p["user_id"] != user_id]
             _save("voice_states", voice)
             return {"ok": True}
     return {"ok": True}
+
+
+@rooms_router.post("/channels/{channel_id}/voice/token")
+async def get_voice_token(channel_id: str, user=Depends(require_clerk_auth)):
+    """Generate a LiveKit JWT for joining a voice channel."""
+    _require_channel_access(user, channel_id, "connect")
+
+    api_key = os.environ.get("LIVEKIT_API_KEY")
+    api_secret = os.environ.get("LIVEKIT_API_SECRET")
+    if not api_key or not api_secret:
+        raise HTTPException(503, "Voice infrastructure not configured")
+
+    user_id = _user_id(user)
+    display = _display_name(user)
+    room_name = f"room-{channel_id}"
+
+    now = datetime.now(timezone.utc)
+    claims = {
+        "iss": api_key,
+        "sub": user_id,
+        "name": display,
+        "nbf": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=6)).timestamp()),
+        "jti": uuid.uuid4().hex,
+        "video": {
+            "roomJoin": True,
+            "room": room_name,
+            "canPublish": True,
+            "canSubscribe": True,
+            "canPublishData": True,
+        },
+    }
+    token = pyjwt.encode(claims, api_secret, algorithm="HS256")
+
+    livekit_ws = os.environ.get("LIVEKIT_WS_URL", "")
+    return {"token": token, "url": livekit_ws, "room": room_name}
 
 
 # ── DEX Settings ──
@@ -1366,7 +1461,7 @@ async def create_artifact(channel_id: str, req: CreateArtifactReq, user=Depends(
         "channel_id": channel_id,
         "name": req.name,
         "type": req.type,
-        "owner_id": user.get("user_id", "operator"),
+        "owner_id": _user_id(user),
         "pinned": False,
         "created_at": _now(),
         "metadata": req.metadata,
