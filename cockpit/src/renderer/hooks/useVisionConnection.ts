@@ -309,9 +309,21 @@ export function useVisionConnection(): void {
         setViewerCount(d.viewer_count as number || 0)
       }),
 
-      // Overlay events
+      // Overlay events — normalize flat x/y/w/h to bbox structure
       client.on('vision_overlay', (d) => {
-        const overlays = (d.overlays as import('../components/vision/VisionOverlay').OverlayMetadata[]) || []
+        const raw = (d.overlays as Record<string, unknown>[]) || []
+        const overlays: import('../components/vision/VisionOverlay').OverlayMetadata[] = raw.map((o) => ({
+          type: (o.type as string) || 'object',
+          track_id: (o.track_id as string) || '',
+          label: (o.label as string) || '',
+          confidence: (o.confidence as number) || 0,
+          bbox: o.bbox
+            ? (o.bbox as { x: number; y: number; w: number; h: number })
+            : { x: (o.x as number) || 0, y: (o.y as number) || 0, w: (o.w as number) || 0, h: (o.h as number) || 0 },
+          color: (o.color as string) || undefined,
+          source: (o.source as string) || undefined,
+          model: (o.model as string) || undefined,
+        })) as import('../components/vision/VisionOverlay').OverlayMetadata[]
         setOverlays(overlays)
         updateChainHealth({ lastOverlayAt: Date.now(), lastOverlayAgeMs: 0 })
       }),

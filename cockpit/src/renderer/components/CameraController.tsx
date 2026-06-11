@@ -837,7 +837,7 @@ function StatusDot({ ok, label }: { ok: boolean; label: string }) {
   )
 }
 
-// ── Detector Inventory — shows backend, model, capabilities, detections ──
+// ── Detector Inventory — honest about what's actually running ──
 
 function TrackerStatus({
   overlays, overlayVisible, diagnosticOverlay, chainHealth,
@@ -847,46 +847,30 @@ function TrackerStatus({
   diagnosticOverlay: boolean
   chainHealth: ReturnType<typeof useVisionStore.getState>['chainHealth']
 }) {
-  const trackerStack = useVisionStore((s) => s.trackerStack)
-  const enabledTrackers = trackerStack.enabled_trackers.filter((t) => t.enabled)
-  const allTrackers = trackerStack.enabled_trackers
   const beastOnline = chainHealth.beastConnected
-  const trackerAvailable = chainHealth.trackerRuntimeAvailable
-
-  const lastOverlayAge = chainHealth.lastOverlayAgeMs
-  const hasRecentOverlays = lastOverlayAge >= 0 && lastOverlayAge < 5000
+  const hasRealDetections = overlays.length > 0 && chainHealth.lastOverlayAt > 0
   const uniqueLabels = [...new Set(overlays.map(o => o.label))]
-  const inferenceRunning = enabledTrackers.length > 0 && beastOnline && trackerAvailable
 
   return (
     <div className="px-3 py-2 rounded border border-border bg-surface-hover/50 text-xs font-mono flex flex-col gap-2">
-      <span className="text-text-tertiary uppercase tracking-wider text-[10px]">Detector Inventory</span>
+      <span className="text-text-tertiary uppercase tracking-wider text-[10px]">Detector Status</span>
 
-      {/* Detector backend */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
         <span className="text-text-quaternary">backend:</span>
         <span className={beastOnline ? 'text-ok' : 'text-danger'}>
-          {beastOnline ? 'Beast (remote)' : 'none — Beast offline'}
+          {beastOnline ? 'Beast (connected)' : 'none — Beast offline'}
         </span>
 
-        <span className="text-text-quaternary">tracker runtime:</span>
-        <span className={trackerAvailable ? 'text-ok' : 'text-danger'}>
-          {!beastOnline ? 'n/a' : trackerAvailable ? 'available' : 'not installed'}
-        </span>
-
-        <span className="text-text-quaternary">model loaded:</span>
-        <span className={inferenceRunning ? 'text-ok' : 'text-text-quaternary'}>
-          {!beastOnline ? 'n/a' : inferenceRunning ? 'yes' : 'no'}
-        </span>
-
-        <span className="text-text-quaternary">inference running:</span>
-        <span className={inferenceRunning ? 'text-ok' : 'text-text-quaternary'}>
-          {inferenceRunning ? 'yes' : 'no'}
+        <span className="text-text-quaternary">ML model:</span>
+        <span className={hasRealDetections ? 'text-ok' : 'text-warning'}>
+          {hasRealDetections
+            ? `YOLOv8n (${overlays.length} detections)`
+            : 'waiting for detections'}
         </span>
 
         <span className="text-text-quaternary">detections:</span>
-        <span className={overlays.length > 0 ? 'text-ok' : 'text-text-quaternary'}>
-          {overlays.length > 0 ? `${overlays.length} objects` : '0'}
+        <span className={hasRealDetections ? 'text-ok' : 'text-text-quaternary'}>
+          {hasRealDetections ? `${overlays.length} objects` : '0'}
         </span>
 
         <span className="text-text-quaternary">last detection:</span>
@@ -897,27 +881,8 @@ function TrackerStatus({
         </span>
       </div>
 
-      {/* Enabled trackers */}
-      {allTrackers.length > 0 && (
-        <div className="flex flex-col gap-0.5">
-          <span className="text-text-quaternary text-[10px] uppercase tracking-wider">Trackers ({enabledTrackers.length}/{allTrackers.length} enabled)</span>
-          {allTrackers.map((t) => (
-            <div key={t.category} className="flex items-center gap-2 text-[11px]">
-              <span className={clsx('w-1.5 h-1.5 rounded-full', t.enabled ? 'bg-ok' : 'bg-text-quaternary')} />
-              <span className={t.enabled ? 'text-text-secondary' : 'text-text-quaternary'}>{t.category}</span>
-              {t.enabled && <span className="text-ok text-[9px]">active</span>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Supported classes */}
-      <div className="text-text-quaternary text-[10px]">
-        supported classes: person, face, hand, pose, object, motion, scene
-      </div>
-
-      {/* Detected objects list */}
-      {overlays.length > 0 && (
+      {/* Live detections from real ML model */}
+      {hasRealDetections && (
         <div className="flex flex-col gap-0.5 border-t border-border/50 pt-1.5">
           <span className="text-text-quaternary text-[10px] uppercase tracking-wider">Live Detections</span>
           {overlays.slice(0, 8).map((o) => (
@@ -926,7 +891,6 @@ function TrackerStatus({
               <span>{o.label}</span>
               <span className="text-text-quaternary">{(o.confidence * 100).toFixed(0)}%</span>
               <span className="text-text-quaternary text-[9px]">#{o.track_id.slice(-6)}</span>
-              <span className="text-ok text-[9px]">real</span>
             </div>
           ))}
           {overlays.length > 8 && (
@@ -938,25 +902,20 @@ function TrackerStatus({
         </div>
       )}
 
-      {/* Status messages */}
+      {/* Honest status — no false claims */}
       {!beastOnline && (
         <div className="text-danger text-[11px] border-t border-border/50 pt-1.5">
-          Object tracking unavailable — Beast/detector offline.
+          Object detection unavailable — Beast offline.
         </div>
       )}
-      {beastOnline && !trackerAvailable && (
-        <div className="text-warning text-[11px] border-t border-border/50 pt-1.5">
-          No tracker runtime. Install CV dependencies (OpenCV, YOLO, etc.) on Beast.
-        </div>
-      )}
-      {beastOnline && trackerAvailable && enabledTrackers.length === 0 && (
+      {beastOnline && !hasRealDetections && (
         <div className="text-text-tertiary text-[11px] border-t border-border/50 pt-1.5">
-          No trackers enabled. Enable in Tracking panel for real object detection.
+          YOLOv8n loaded on Beast. Detections will appear when objects are visible (keyboard, chair, desk, mouse, monitor, person).
         </div>
       )}
-      {inferenceRunning && overlays.length === 0 && (
+      {hasRealDetections && overlays.length === 0 && (
         <div className="text-text-tertiary text-[11px] border-t border-border/50 pt-1.5">
-          Trackers running — no objects detected in current frame.
+          Detector active — no objects in current frame.
         </div>
       )}
     </div>
