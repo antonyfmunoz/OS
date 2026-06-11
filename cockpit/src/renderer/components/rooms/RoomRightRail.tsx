@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Users, Bot, MessageSquare, Shield, Link2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Users, Bot, MessageSquare, Shield, Link2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { MemberListPanel } from './MemberListPanel'
 import { RoomDexPanel } from './RoomDexPanel'
@@ -17,46 +17,15 @@ const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: 'audit', label: 'Audit', icon: Shield },
 ]
 
-interface Props {
-  collapsed: boolean
-  onToggleCollapse: () => void
-}
-
-export function RoomRightRail({ collapsed, onToggleCollapse }: Props) {
+export function RoomRightRail() {
   const [activeTab, setActiveTab] = useState<Tab>('members')
-
-  if (collapsed) {
-    return (
-      <div
-        className="shrink-0 flex items-start pt-2 border-l"
-        style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
-      >
-        <button
-          onClick={onToggleCollapse}
-          className="p-1.5 transition-colors"
-          style={{ color: 'var(--color-text-tertiary)' }}
-          title="Show details"
-        >
-          <ChevronLeft size={14} />
-        </button>
-      </div>
-    )
-  }
 
   return (
     <div
-      className="w-52 shrink-0 flex flex-col border-l overflow-hidden"
+      className="w-56 shrink-0 flex flex-col border-l overflow-hidden"
       style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
     >
       <div className="flex items-center h-9 shrink-0 border-b px-1" style={{ borderColor: 'var(--color-border)' }}>
-        <button
-          onClick={onToggleCollapse}
-          className="p-1 transition-colors shrink-0"
-          style={{ color: 'var(--color-text-tertiary)' }}
-          title="Hide details"
-        >
-          <ChevronRight size={12} />
-        </button>
         {TABS.map((tab) => {
           const Icon = tab.icon
           const active = activeTab === tab.id
@@ -64,7 +33,7 @@ export function RoomRightRail({ collapsed, onToggleCollapse }: Props) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={clsx('flex items-center gap-0.5 px-1.5 py-1 text-[9px] font-mono uppercase transition-colors')}
+              className={clsx('flex items-center gap-1 px-2 py-1 text-[9px] font-mono uppercase transition-colors')}
               style={{
                 color: active ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
               }}
