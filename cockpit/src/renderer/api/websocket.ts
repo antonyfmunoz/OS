@@ -21,6 +21,7 @@ export class WsClient {
       this.ws = this.protocols
         ? new WebSocket(this.url, this.protocols)
         : new WebSocket(this.url)
+      this.ws.binaryType = 'arraybuffer'
 
       this.ws.onopen = () => {
         this._connecting = false

@@ -69,6 +69,7 @@ export function CameraPreview() {
             ref={imgRef}
             src={latestFrameUrl}
             alt="Camera preview"
+            decoding="async"
             className="w-full h-full object-contain"
           />
         ) : (

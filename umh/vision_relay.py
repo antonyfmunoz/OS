@@ -977,7 +977,12 @@ async def _stop_stream() -> None:
 
 
 async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
-    """Called by mesh frame callback — fan out to all subscribed viewers."""
+    """Called by mesh frame callback — fan out to all subscribed viewers.
+
+    Sends to all clients concurrently via gather to prevent one slow
+    client from blocking the others (the original sequential await
+    caused visible stutter at higher FPS).
+    """
     global _latest_frame, _latest_frame_meta, _stream_active
     global _last_frame_at, _frame_count, _last_overlay_at, _overlay_count
 
@@ -996,20 +1001,27 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
         _last_overlay_at = time.time()
         _overlay_count += 1
 
-    dead = set()
-    for ws in _clients:
+    if not _clients:
+        return
+
+    overlay_json = json.dumps({"type": "vision_overlay", "overlays": overlays}) if overlays else None
+
+    async def _send_to(ws: Any) -> bool:
         try:
             await ws.send(jpeg_bytes)
-            if overlays:
-                await ws.send(json.dumps({
-                    "type": "vision_overlay",
-                    "overlays": overlays,
-                }))
+            if overlay_json:
+                await ws.send(overlay_json)
+            return True
         except Exception:
-            dead.add(ws)
+            return False
+
+    clients = list(_clients)
+    results = await asyncio.gather(*(_send_to(ws) for ws in clients), return_exceptions=True)
+
+    dead = {clients[i] for i, ok in enumerate(results) if ok is not True}
     if dead:
         log.info("cleaned %d stale viewer(s), %d remaining", len(dead), len(_clients) - len(dead))
-    _clients.difference_update(dead)
+        _clients.difference_update(dead)
 
 
 _JPEG_SOI = b'\xff\xd8'
