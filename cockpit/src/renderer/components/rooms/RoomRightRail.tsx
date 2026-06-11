@@ -17,8 +17,31 @@ const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: 'audit', label: 'Audit', icon: Shield },
 ]
 
-export function RoomRightRail() {
+interface Props {
+  collapsed: boolean
+  onToggleCollapse: () => void
+}
+
+export function RoomRightRail({ collapsed, onToggleCollapse }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('members')
+
+  if (collapsed) {
+    return (
+      <div
+        className="shrink-0 flex items-start pt-2 border-l"
+        style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+      >
+        <button
+          onClick={onToggleCollapse}
+          className="p-1.5 transition-colors"
+          style={{ color: 'var(--color-text-tertiary)' }}
+          title="Show details"
+        >
+          <Users size={14} />
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -44,6 +67,14 @@ export function RoomRightRail() {
             </button>
           )
         })}
+        <button
+          onClick={onToggleCollapse}
+          className="ml-auto p-1 transition-colors"
+          style={{ color: 'var(--color-text-tertiary)' }}
+          title="Hide details"
+        >
+          <Users size={12} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto">
