@@ -212,6 +212,16 @@ export type VisionChainStatus =
   | 'degraded'
   | 'relay_idle'
 
+export interface DetectorStatus {
+  source: string
+  host: string
+  model: string
+  loaded: boolean
+  inference_ms: number
+  avg_inference_ms: number
+  detection_frames: number
+}
+
 export interface VisionHealthState {
   status: VisionChainStatus
   relayRunning: boolean
@@ -229,6 +239,7 @@ export interface VisionHealthState {
   triggerChainEngineAvailable: boolean
   activeChains: string[]
   securityMode: string
+  detectorStatus: DetectorStatus | null
   blockers: string[]
   recoveryAction: string
   lastCheckedAt: number
@@ -414,6 +425,7 @@ const INITIAL_HEALTH: VisionHealthState = {
   triggerChainEngineAvailable: false,
   activeChains: [],
   securityMode: 'normal',
+  detectorStatus: null,
   blockers: [],
   recoveryAction: '',
   lastCheckedAt: 0,
