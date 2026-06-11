@@ -16,11 +16,14 @@ cd "$UMH_ROOT"
 
 SERVICES_TPL="services/.env.tpl"
 UMH_TPL="infra/docker/umh.env.tpl"
+LIVEKIT_TPL="infra/livekit.yaml.tpl"
 SERVICES_ENV="services/.env"
 UMH_ENV="infra/docker/umh.env"
+LIVEKIT_CFG="infra/livekit.yaml"
 
 cleanup() {
     shred -u "$SERVICES_ENV" "$UMH_ENV" 2>/dev/null || true
+    # livekit.yaml stays on disk (mounted by container volume) but is gitignored
 }
 trap cleanup EXIT
 
@@ -38,7 +41,8 @@ fi
 echo "[dc-up] Resolving secrets from 1Password..."
 op inject -f -i "$SERVICES_TPL" -o "$SERVICES_ENV"
 op inject -f -i "$UMH_TPL" -o "$UMH_ENV"
-chmod 600 "$SERVICES_ENV" "$UMH_ENV"
+op inject -f -i "$LIVEKIT_TPL" -o "$LIVEKIT_CFG"
+chmod 600 "$SERVICES_ENV" "$UMH_ENV" "$LIVEKIT_CFG"
 
 # Allow Docker bridge traffic to reach voice server on host port 8096.
 # os-operator proxies voice WS via host.docker.internal — blocked by UFW without this.
