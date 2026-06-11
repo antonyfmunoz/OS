@@ -3396,6 +3396,15 @@ def _mount_command_center_router() -> None:
 
 _mount_command_center_router()
 
+
+def _mount_rooms_router() -> None:
+    from transports.api.cockpit_rooms_routes import rooms_router as _rooms_router
+
+    router.include_router(_rooms_router)
+
+
+_mount_rooms_router()
+
 # ── Claude Code Session Bridge ────────────────────────────────────────
 
 
