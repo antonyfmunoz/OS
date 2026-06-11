@@ -1,5 +1,5 @@
-import { useState, useCallback, type FormEvent } from 'react'
-import { Plus, Archive, Pin } from 'lucide-react'
+import { useState } from 'react'
+import { Plus } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useRoomsStore } from '../../stores/roomsStore'
 import { ServerCreateModal } from './ServerCreateModal'
@@ -19,8 +19,8 @@ export function ServerRail() {
 
   return (
     <div
-      className="flex flex-col items-center w-[60px] shrink-0 py-2 gap-1 overflow-y-auto border-r"
-      style={{ borderColor: 'var(--color-border)', background: 'var(--color-canvas)' }}
+      className="flex flex-col items-center w-[52px] shrink-0 py-2 gap-1 overflow-y-auto border-r"
+      style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
     >
       {visibleServers.map((server) => (
         <button
