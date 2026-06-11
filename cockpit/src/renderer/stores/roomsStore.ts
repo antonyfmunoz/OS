@@ -144,12 +144,30 @@ interface RoomsState {
   setTyping: (channelId: string, userId: string, typing: boolean) => void
 }
 
+const STORAGE_KEY = 'rooms:lastActive'
+
+function loadLastActive(): { serverId: string | null; channelId: string | null } {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return { serverId: null, channelId: null }
+}
+
+function saveLastActive(serverId: string | null, channelId: string | null) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ serverId, channelId }))
+  } catch { /* ignore */ }
+}
+
+const lastActive = loadLastActive()
+
 export const useRoomsStore = create<RoomsState>((set, get) => ({
   servers: [],
-  activeServerId: null,
+  activeServerId: lastActive.serverId,
   categories: [],
   channels: [],
-  activeChannelId: null,
+  activeChannelId: lastActive.channelId,
   messages: [],
   threads: [],
   forumPosts: [],
@@ -176,6 +194,16 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
     try {
       const servers = await fetchApi<RoomServer[]>(`${API}/servers`)
       set({ servers, loading: false })
+      const { activeServerId } = get()
+      if (activeServerId && servers.some((s) => s.id === activeServerId)) {
+        get().fetchCategories(activeServerId)
+        get().fetchChannels(activeServerId)
+        get().fetchRoles(activeServerId)
+        get().fetchMembers(activeServerId)
+      } else if (activeServerId) {
+        set({ activeServerId: null, activeChannelId: null })
+        saveLastActive(null, null)
+      }
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to fetch servers', loading: false })
     }
@@ -221,6 +249,7 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
 
   setActiveServer: (id) => {
     set({ activeServerId: id, activeChannelId: null, messages: [], threads: [], forumPosts: [] })
+    saveLastActive(id, null)
     if (id) {
       get().fetchCategories(id)
       get().fetchChannels(id)
@@ -281,6 +310,22 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
     try {
       const channels = await fetchApi<RoomChannel[]>(`${API}/servers/${serverId}/channels`)
       set({ channels })
+      const { activeChannelId } = get()
+      if (activeChannelId && channels.some((c) => c.id === activeChannelId)) {
+        const channel = channels.find((c) => c.id === activeChannelId)
+        if (channel?.type === 'forum') {
+          get().fetchForumPosts(activeChannelId)
+          get().fetchForumTags(activeChannelId)
+        } else {
+          get().fetchMessages(activeChannelId)
+        }
+        get().fetchThreads(activeChannelId)
+        get().fetchDexSettings(activeChannelId)
+        get().fetchArtifacts(activeChannelId)
+      } else if (activeChannelId) {
+        set({ activeChannelId: null })
+        saveLastActive(serverId, null)
+      }
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to fetch channels' })
     }
@@ -326,6 +371,7 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
 
   setActiveChannel: (id) => {
     set({ activeChannelId: id, messages: [], hasMoreMessages: true, threads: [], forumPosts: [] })
+    saveLastActive(get().activeServerId, id)
     if (id) {
       const channel = get().channels.find((c) => c.id === id)
       if (channel?.type === 'forum') {

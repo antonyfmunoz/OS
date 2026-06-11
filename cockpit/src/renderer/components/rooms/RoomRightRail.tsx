@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Users, Bot, MessageSquare, Shield, Link2, X } from 'lucide-react'
+import { Users, Bot, MessageSquare, Shield, Link2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
 import { MemberListPanel } from './MemberListPanel'
 import { RoomDexPanel } from './RoomDexPanel'
@@ -18,11 +18,30 @@ const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
 ]
 
 interface Props {
-  onClose?: () => void
+  collapsed: boolean
+  onToggleCollapse: () => void
 }
 
-export function RoomRightRail({ onClose }: Props) {
+export function RoomRightRail({ collapsed, onToggleCollapse }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('members')
+
+  if (collapsed) {
+    return (
+      <div
+        className="shrink-0 flex items-start pt-2 border-l"
+        style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+      >
+        <button
+          onClick={onToggleCollapse}
+          className="p-1.5 transition-colors"
+          style={{ color: 'var(--color-text-tertiary)' }}
+          title="Show details"
+        >
+          <ChevronLeft size={14} />
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -30,6 +49,14 @@ export function RoomRightRail({ onClose }: Props) {
       style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
     >
       <div className="flex items-center h-9 shrink-0 border-b px-1" style={{ borderColor: 'var(--color-border)' }}>
+        <button
+          onClick={onToggleCollapse}
+          className="p-1 transition-colors shrink-0"
+          style={{ color: 'var(--color-text-tertiary)' }}
+          title="Hide details"
+        >
+          <ChevronRight size={12} />
+        </button>
         {TABS.map((tab) => {
           const Icon = tab.icon
           const active = activeTab === tab.id
@@ -48,16 +75,6 @@ export function RoomRightRail({ onClose }: Props) {
             </button>
           )
         })}
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="ml-auto p-1 transition-colors"
-            style={{ color: 'var(--color-text-tertiary)' }}
-            title="Close"
-          >
-            <X size={12} />
-          </button>
-        )}
       </div>
 
       <div className="flex-1 overflow-y-auto">
