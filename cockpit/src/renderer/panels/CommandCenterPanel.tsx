@@ -198,7 +198,7 @@ export function CommandCenterPanel() {
             title="Open Vision panel"
           >
             {latestFrameUrl ? (
-              <img src={latestFrameUrl} alt="Camera" className="w-full h-full object-cover" />
+              <img src={latestFrameUrl} alt="Camera" decoding="async" className="w-full h-full object-cover" />
             ) : (
               <div className="flex items-center justify-center w-full h-full">
                 <Camera size={16} className="text-gray-600 opacity-30" />
