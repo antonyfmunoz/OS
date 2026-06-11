@@ -42,6 +42,8 @@ class CameraAdapter:
         self._stream_thread: threading.Thread | None = None
         self._stream_lock = threading.Lock()
         self._frame_callback: Callable[[dict[str, Any]], None] | None = None
+        self._active_cap: Any = None
+        self._cap_lock = threading.Lock()
 
         self._detector = None
         self._detect_every_n = 3
@@ -201,6 +203,9 @@ class CameraAdapter:
             self._stream_active = False
             return
 
+        with self._cap_lock:
+            self._active_cap = cap
+
         encode_params = [cv2.IMWRITE_JPEG_QUALITY, quality]
         frame_n = 0
 
@@ -219,6 +224,8 @@ class CameraAdapter:
                         backoff = min(2.0 ** (consecutive_failures // 10 - 1), 10.0)
                         time.sleep(backoff)
                         if open_camera():
+                            with self._cap_lock:
+                                self._active_cap = cap
                             logger.info("camera: reconnected to device %d", device)
                             consecutive_failures = 0
                         continue
@@ -275,6 +282,8 @@ class CameraAdapter:
         except Exception as exc:
             logger.error("camera stream error: %s", exc)
         finally:
+            with self._cap_lock:
+                self._active_cap = None
             if cap is not None:
                 try:
                     cap.release()
@@ -283,6 +292,17 @@ class CameraAdapter:
             self._stream_active = False
 
     # ── PTZ control (OpenCV UVC properties, duvc-ctl optional) ─────
+
+    def _get_ptz_cap(self):
+        """Get a VideoCapture for PTZ queries — reuse the stream's cap if active."""
+        with self._cap_lock:
+            if self._active_cap is not None:
+                return self._active_cap, False
+        import cv2
+        cap = cv2.VideoCapture(self._device_index, cv2.CAP_DSHOW)
+        if not cap.isOpened():
+            return None, False
+        return cap, True
 
     def _get_position(self, params: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -295,8 +315,8 @@ class CameraAdapter:
             logger.debug("duvc-ctl get_position failed: %s, falling back to OpenCV", exc)
 
         import cv2
-        cap = cv2.VideoCapture(self._device_index, cv2.CAP_DSHOW)
-        if not cap.isOpened():
+        cap, owned = self._get_ptz_cap()
+        if cap is None:
             return {"success": False, "error": "camera unavailable"}
         try:
             return {
@@ -306,7 +326,8 @@ class CameraAdapter:
                 "zoom": int(cap.get(cv2.CAP_PROP_ZOOM)),
             }
         finally:
-            cap.release()
+            if owned:
+                cap.release()
 
     def _set_position(self, params: dict[str, Any]) -> dict[str, Any]:
         pan = params.get("pan")
@@ -329,8 +350,8 @@ class CameraAdapter:
             logger.debug("duvc-ctl set_position failed: %s, falling back to OpenCV", exc)
 
         import cv2
-        cap = cv2.VideoCapture(self._device_index, cv2.CAP_DSHOW)
-        if not cap.isOpened():
+        cap, owned = self._get_ptz_cap()
+        if cap is None:
             return {"success": False, "error": "camera unavailable"}
         try:
             if pan is not None:
@@ -346,7 +367,8 @@ class CameraAdapter:
                 "zoom": int(cap.get(cv2.CAP_PROP_ZOOM)),
             }
         finally:
-            cap.release()
+            if owned:
+                cap.release()
 
     def _set_position_relative(self, params: dict[str, Any]) -> dict[str, Any]:
         """Apply relative pan/tilt/zoom deltas to current position."""
