@@ -5,8 +5,8 @@ import { ChannelSidebar } from '../components/rooms/ChannelSidebar'
 import { RoomMainView } from '../components/rooms/RoomMainView'
 import { RoomRightRail } from '../components/rooms/RoomRightRail'
 
-const CH_SIDEBAR_KEY = 'rooms:channelSidebarCollapsed'
-const RIGHT_RAIL_KEY = 'rooms:rightRailCollapsed'
+const CH_SIDEBAR_KEY = 'rooms:chSidebarV2'
+const RIGHT_RAIL_KEY = 'rooms:rightRailV2'
 
 function loadBool(key: string, fallback: boolean): boolean {
   try {
