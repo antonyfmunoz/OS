@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import queue
 import sys
 import threading
 import time
@@ -42,11 +43,8 @@ class CameraAdapter:
         self._stream_thread: threading.Thread | None = None
         self._stream_lock = threading.Lock()
         self._frame_callback: Callable[[dict[str, Any]], None] | None = None
-        self._active_cap: Any = None
-        self._cap_lock = threading.Lock()
-        self._ptz_pause = threading.Event()
-        self._ptz_done = threading.Event()
-        self._ptz_done.set()
+
+        self._ptz_queue: queue.Queue[tuple[dict[str, Any], threading.Event, list]] = queue.Queue()
 
         self._detector = None
         self._detect_every_n = 3
@@ -177,6 +175,35 @@ class CameraAdapter:
         logger.info("camera stream stopped")
         return {"success": True}
 
+    def _process_ptz_queue(self, cap: Any) -> None:
+        """Drain queued PTZ commands — called from stream thread only."""
+        import cv2
+        while not self._ptz_queue.empty():
+            try:
+                ptz_params, done_event, result_slot = self._ptz_queue.get_nowait()
+            except queue.Empty:
+                break
+            try:
+                pan = ptz_params.get("pan")
+                tilt = ptz_params.get("tilt")
+                zoom = ptz_params.get("zoom")
+                if pan is not None:
+                    cap.set(cv2.CAP_PROP_PAN, int(pan))
+                if tilt is not None:
+                    cap.set(cv2.CAP_PROP_TILT, int(tilt))
+                if zoom is not None:
+                    cap.set(cv2.CAP_PROP_ZOOM, int(zoom))
+                result_slot.append({
+                    "success": True,
+                    "pan": int(cap.get(cv2.CAP_PROP_PAN)),
+                    "tilt": int(cap.get(cv2.CAP_PROP_TILT)),
+                    "zoom": int(cap.get(cv2.CAP_PROP_ZOOM)),
+                })
+            except Exception as exc:
+                result_slot.append({"success": False, "error": str(exc)})
+            finally:
+                done_event.set()
+
     def _stream_loop(
         self, device: int, fps: int, width: int, height: int, quality: int,
     ) -> None:
@@ -206,17 +233,13 @@ class CameraAdapter:
             self._stream_active = False
             return
 
-        with self._cap_lock:
-            self._active_cap = cap
-
         encode_params = [cv2.IMWRITE_JPEG_QUALITY, quality]
         frame_n = 0
 
         try:
             while self._stream_active:
-                if self._ptz_pause.is_set():
-                    self._ptz_done.wait(timeout=5.0)
-                    continue
+                self._process_ptz_queue(cap)
+
                 t0 = time.monotonic()
                 frame_n += 1
                 ret, frame = cap.read()
@@ -230,8 +253,6 @@ class CameraAdapter:
                         backoff = min(2.0 ** (consecutive_failures // 10 - 1), 10.0)
                         time.sleep(backoff)
                         if open_camera():
-                            with self._cap_lock:
-                                self._active_cap = cap
                             logger.info("camera: reconnected to device %d", device)
                             consecutive_failures = 0
                         continue
@@ -288,8 +309,13 @@ class CameraAdapter:
         except Exception as exc:
             logger.error("camera stream error: %s", exc)
         finally:
-            with self._cap_lock:
-                self._active_cap = None
+            while not self._ptz_queue.empty():
+                try:
+                    _, done_event, result_slot = self._ptz_queue.get_nowait()
+                    result_slot.append({"success": False, "error": "stream stopped"})
+                    done_event.set()
+                except queue.Empty:
+                    break
             if cap is not None:
                 try:
                     cap.release()
@@ -298,17 +324,6 @@ class CameraAdapter:
             self._stream_active = False
 
     # ── PTZ control (OpenCV UVC properties, duvc-ctl optional) ─────
-
-    def _get_ptz_cap(self):
-        """Get a VideoCapture for PTZ queries — reuse the stream's cap if active."""
-        with self._cap_lock:
-            if self._active_cap is not None:
-                return self._active_cap, False
-        import cv2
-        cap = cv2.VideoCapture(self._device_index, cv2.CAP_DSHOW)
-        if not cap.isOpened():
-            return None, False
-        return cap, True
 
     def _get_position(self, params: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -320,9 +335,17 @@ class CameraAdapter:
         except Exception as exc:
             logger.debug("duvc-ctl get_position failed: %s, falling back to OpenCV", exc)
 
+        if self._stream_active:
+            result_slot: list[dict[str, Any]] = []
+            done = threading.Event()
+            self._ptz_queue.put(({}, done, result_slot))
+            if done.wait(timeout=5.0) and result_slot:
+                return result_slot[0]
+            return {"success": False, "error": "PTZ read timed out"}
+
         import cv2
-        cap, owned = self._get_ptz_cap()
-        if cap is None:
+        cap = cv2.VideoCapture(self._device_index, cv2.CAP_DSHOW)
+        if not cap.isOpened():
             return {"success": False, "error": "camera unavailable"}
         try:
             return {
@@ -332,8 +355,7 @@ class CameraAdapter:
                 "zoom": int(cap.get(cv2.CAP_PROP_ZOOM)),
             }
         finally:
-            if owned:
-                cap.release()
+            cap.release()
 
     def _set_position(self, params: dict[str, Any]) -> dict[str, Any]:
         pan = params.get("pan")
@@ -355,14 +377,25 @@ class CameraAdapter:
         except Exception as exc:
             logger.debug("duvc-ctl set_position failed: %s, falling back to OpenCV", exc)
 
+        if self._stream_active:
+            result_slot: list[dict[str, Any]] = []
+            done = threading.Event()
+            ptz_params = {}
+            if pan is not None:
+                ptz_params["pan"] = pan
+            if tilt is not None:
+                ptz_params["tilt"] = tilt
+            if zoom is not None:
+                ptz_params["zoom"] = zoom
+            self._ptz_queue.put((ptz_params, done, result_slot))
+            if done.wait(timeout=10.0) and result_slot:
+                return result_slot[0]
+            return {"success": False, "error": "PTZ command timed out"}
+
         import cv2
-        cap, owned = self._get_ptz_cap()
-        if cap is None:
+        cap = cv2.VideoCapture(self._device_index, cv2.CAP_DSHOW)
+        if not cap.isOpened():
             return {"success": False, "error": "camera unavailable"}
-        if not owned:
-            self._ptz_pause.set()
-            self._ptz_done.clear()
-            time.sleep(0.15)
         try:
             if pan is not None:
                 cap.set(cv2.CAP_PROP_PAN, int(pan))
@@ -377,11 +410,7 @@ class CameraAdapter:
                 "zoom": int(cap.get(cv2.CAP_PROP_ZOOM)),
             }
         finally:
-            if not owned:
-                self._ptz_pause.clear()
-                self._ptz_done.set()
-            else:
-                cap.release()
+            cap.release()
 
     def _set_position_relative(self, params: dict[str, Any]) -> dict[str, Any]:
         """Apply relative pan/tilt/zoom deltas to current position."""
