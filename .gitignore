@@ -119,3 +119,6 @@ data/codebase_graph_merged.json
 
 # Node mesh runtime (tokens, metrics logs)
 data/umh/mesh/
+
+# Conference rooms runtime state (created by operator API)
+data/umh/rooms/
