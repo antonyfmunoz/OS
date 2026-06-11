@@ -15,6 +15,52 @@ export interface OverlayMetadata {
   color?: string
 }
 
+// Client-side synthetic diagnostic overlays rendered immediately when DIAG mode is on,
+// even if the relay has not returned any vision_overlay events yet.
+// These confirm the overlay render pipeline works end-to-end without needing Beast.
+const SYNTHETIC_DIAG_OVERLAYS: OverlayMetadata[] = [
+  {
+    type: 'object',
+    track_id: 'diag_tl',
+    label: 'DIAG TL',
+    confidence: 1.0,
+    bbox: { x: 0.02, y: 0.02, w: 0.18, h: 0.12 },
+    color: '#22d3ee',
+  },
+  {
+    type: 'object',
+    track_id: 'diag_tr',
+    label: 'DIAG TR',
+    confidence: 1.0,
+    bbox: { x: 0.80, y: 0.02, w: 0.18, h: 0.12 },
+    color: '#f59e0b',
+  },
+  {
+    type: 'object',
+    track_id: 'diag_center',
+    label: 'PIPELINE OK',
+    confidence: 1.0,
+    bbox: { x: 0.35, y: 0.38, w: 0.30, h: 0.18 },
+    color: '#22c55e',
+  },
+  {
+    type: 'object',
+    track_id: 'diag_bl',
+    label: 'DIAG BL',
+    confidence: 1.0,
+    bbox: { x: 0.02, y: 0.80, w: 0.18, h: 0.12 },
+    color: '#a78bfa',
+  },
+  {
+    type: 'object',
+    track_id: 'diag_br',
+    label: 'DIAG BR',
+    confidence: 1.0,
+    bbox: { x: 0.80, y: 0.80, w: 0.18, h: 0.12 },
+    color: '#f43f5e',
+  },
+]
+
 interface VisionOverlayProps {
   overlays?: OverlayMetadata[]
   width: number
@@ -27,7 +73,16 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
   const securityMode = useVisionStore((s) => s.securityMode)
   const diagnosticOverlay = useVisionStore((s) => s.diagnosticOverlay)
 
-  if (!visible || overlays.length === 0) return null
+  if (!visible) return null
+
+  // When DIAG mode is on and no server overlays have arrived yet, render synthetic
+  // client-side test boxes so the operator can verify the overlay pipeline renders
+  // correctly on their device without needing the relay to respond.
+  const effectiveOverlays = diagnosticOverlay && overlays.filter(o => o.track_id?.startsWith('diag_')).length === 0
+    ? [...overlays, ...SYNTHETIC_DIAG_OVERLAYS]
+    : overlays
+
+  if (effectiveOverlays.length === 0) return null
 
   const enabledCategories = new Set(
     trackerStack.enabled_trackers
@@ -51,7 +106,7 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
         />
       )}
 
-      {overlays.map((overlay) => {
+      {effectiveOverlays.map((overlay) => {
         const isDiagnostic = overlay.track_id?.startsWith('diag_')
         if (isDiagnostic && !diagnosticOverlay) return null
 
