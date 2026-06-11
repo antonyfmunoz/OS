@@ -48,33 +48,35 @@ export function RoomRightRail({ collapsed, onToggleCollapse }: Props) {
       className="w-56 shrink-0 flex flex-col border-l overflow-hidden"
       style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
     >
-      <div className="flex items-center h-9 shrink-0 border-b px-1" style={{ borderColor: 'var(--color-border)' }}>
-        {TABS.map((tab) => {
-          const Icon = tab.icon
-          const active = activeTab === tab.id
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={clsx('flex items-center gap-1 px-2 py-1 text-[9px] font-mono uppercase transition-colors')}
-              style={{
-                color: active ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
-              }}
-              title={tab.label}
-            >
-              <Icon size={11} />
-              <span className="hidden xl:inline">{tab.label}</span>
-            </button>
-          )
-        })}
+      <div className="flex items-center h-9 shrink-0 border-b px-2" style={{ borderColor: 'var(--color-border)' }}>
         <button
           onClick={onToggleCollapse}
-          className="ml-auto p-1 transition-colors"
+          className="p-1 transition-colors shrink-0"
           style={{ color: 'var(--color-text-tertiary)' }}
           title="Hide details"
         >
-          <ChevronRight size={12} />
+          <ChevronRight size={14} />
         </button>
+        <div className="flex items-center justify-end flex-1 min-w-0">
+          {TABS.map((tab) => {
+            const Icon = tab.icon
+            const active = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={clsx('flex items-center gap-1 px-2 py-1 text-[9px] font-mono uppercase transition-colors')}
+                style={{
+                  color: active ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
+                }}
+                title={tab.label}
+              >
+                <Icon size={11} />
+                <span className="hidden xl:inline">{tab.label}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
