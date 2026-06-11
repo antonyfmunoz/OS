@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import {
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Hash,
   Volume2,
   Video,
@@ -116,10 +117,12 @@ function CategoryGroup({ category, channels, onSelect }: CategoryGroupProps) {
 }
 
 interface ChannelSidebarProps {
+  collapsed: boolean
+  onToggleCollapse: () => void
   onChannelSelect?: () => void
 }
 
-export function ChannelSidebar({ onChannelSelect }: ChannelSidebarProps) {
+export function ChannelSidebar({ collapsed, onToggleCollapse, onChannelSelect }: ChannelSidebarProps) {
   const activeServerId = useRoomsStore((s) => s.activeServerId)
   const servers = useRoomsStore((s) => s.servers)
   const categories = useRoomsStore((s) => s.categories)
@@ -147,6 +150,24 @@ export function ChannelSidebar({ onChannelSelect }: ChannelSidebarProps) {
     onChannelSelect?.()
   }
 
+  if (collapsed) {
+    return (
+      <div
+        className="shrink-0 flex items-start pt-2 border-r"
+        style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+      >
+        <button
+          onClick={onToggleCollapse}
+          className="p-1.5 transition-colors"
+          style={{ color: 'var(--color-text-tertiary)' }}
+          title="Show channels"
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div
       className="w-52 shrink-0 flex flex-col border-r overflow-hidden"
@@ -167,6 +188,14 @@ export function ChannelSidebar({ onChannelSelect }: ChannelSidebarProps) {
             title="Create Channel"
           >
             <Plus size={12} />
+          </button>
+          <button
+            onClick={onToggleCollapse}
+            className="p-1 transition-colors"
+            style={{ color: 'var(--color-text-tertiary)' }}
+            title="Hide channels"
+          >
+            <ChevronLeft size={12} />
           </button>
         </div>
       </div>
