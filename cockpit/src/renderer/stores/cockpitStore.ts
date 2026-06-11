@@ -70,14 +70,25 @@ interface CockpitState {
   setConnectionStatus: (channel: 'api' | 'ws' | 'voice', status: ConnectionStatus) => void
 }
 
+const RAIL_STORAGE_KEY = 'cockpit:railCollapsed'
+const RIGHT_RAIL_STORAGE_KEY = 'cockpit:rightRailCollapsed'
+
+function loadBool(key: string, fallback: boolean): boolean {
+  try {
+    const v = localStorage.getItem(key)
+    if (v === null) return fallback
+    return v === 'true'
+  } catch { return fallback }
+}
+
 export const useCockpitStore = create<CockpitState>((set) => ({
   activePanel: 'commandcenter',
   chatOpen: false,
   splitPanel: null,
   mode: 'EXECUTE',
   windowMode: 'maximized',
-  railCollapsed: false,
-  rightRailCollapsed: false,
+  railCollapsed: loadBool(RAIL_STORAGE_KEY, true),
+  rightRailCollapsed: loadBool(RIGHT_RAIL_STORAGE_KEY, true),
   controlPanelExpanded: false,
   apiStatus: 'disconnected',
   wsStatus: 'disconnected',
@@ -103,8 +114,16 @@ export const useCockpitStore = create<CockpitState>((set) => ({
     set({ windowMode })
     window.cockpit?.window?.setMode?.(windowMode)
   },
-  toggleRail: () => set((s) => ({ railCollapsed: !s.railCollapsed })),
-  toggleRightRail: () => set((s) => ({ rightRailCollapsed: !s.rightRailCollapsed })),
+  toggleRail: () => set((s) => {
+    const next = !s.railCollapsed
+    try { localStorage.setItem(RAIL_STORAGE_KEY, String(next)) } catch {}
+    return { railCollapsed: next }
+  }),
+  toggleRightRail: () => set((s) => {
+    const next = !s.rightRailCollapsed
+    try { localStorage.setItem(RIGHT_RAIL_STORAGE_KEY, String(next)) } catch {}
+    return { rightRailCollapsed: next }
+  }),
   toggleControlPanel: () => set((s) => ({ controlPanelExpanded: !s.controlPanelExpanded })),
   cycleWindowMode: (direction) =>
     set((s) => {
