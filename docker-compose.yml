@@ -135,8 +135,8 @@ services:
       - "50000-50020:50000-50020/udp"
     volumes:
       - ./infra/livekit.yaml:/etc/livekit.yaml:ro
-    environment:
-      - LIVEKIT_KEYS=${LIVEKIT_API_KEY:-UMHKey1}: ${LIVEKIT_API_SECRET}
+    env_file:
+      - services/.env
     deploy:
       resources:
         limits:

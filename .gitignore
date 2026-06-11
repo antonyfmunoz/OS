@@ -11,6 +11,10 @@ eos_ai/.env
 !*.env.tpl
 !.env.sessions.tpl
 
+# LiveKit — resolved config with secrets (generated from livekit.yaml.tpl)
+infra/livekit.yaml
+!infra/livekit.yaml.tpl
+
 # Non-secret config — safe to commit
 !config/nonsecret.env
 
