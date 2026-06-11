@@ -474,3 +474,78 @@ class TestSecurity:
         await mod.send_message(ch["id"], mod.SendMessageReq(content="Scoped"), _MOCK_USER)
         msgs = await mod.list_messages(ch["id"], user=_MOCK_USER)
         assert all(m["channel_id"] == ch["id"] for m in msgs)
+
+
+class TestServerCreationRegression:
+    @pytest.mark.asyncio
+    async def test_authenticated_user_can_create_server(self):
+        server = await mod.create_server(
+            mod.CreateServerReq(name="New Server", privacy="private", template="empty"),
+            _MOCK_USER,
+        )
+        assert server["name"] == "New Server"
+        assert server["owner_id"] == "operator"
+
+    @pytest.mark.asyncio
+    async def test_creator_becomes_owner_and_member(self):
+        server = await mod.create_server(
+            mod.CreateServerReq(name="Owned", template="empty"), _MOCK_USER
+        )
+        assert server["owner_id"] == "operator"
+        members = mod._load("members")
+        creator_member = [m for m in members if m["server_id"] == server["id"] and m["user_id"] == "operator"]
+        assert len(creator_member) == 1
+        assert len(creator_member[0]["roles"]) > 0
+        owner_role = next(
+            r for r in mod._load("roles")
+            if r["server_id"] == server["id"] and r["name"] == "Owner"
+        )
+        assert owner_role["id"] in creator_member[0]["roles"]
+
+    @pytest.mark.asyncio
+    async def test_creator_can_access_own_server(self):
+        server = await mod.create_server(
+            mod.CreateServerReq(name="Mine", template="empty"), _MOCK_USER
+        )
+        servers = await mod.list_servers(_MOCK_USER)
+        assert any(s["id"] == server["id"] for s in servers)
+        categories = await mod.list_categories(server["id"], _MOCK_USER)
+        assert isinstance(categories, list)
+        channels = await mod.list_channels(server["id"], _MOCK_USER)
+        assert isinstance(channels, list)
+
+    @pytest.mark.asyncio
+    async def test_non_member_cannot_access_server(self):
+        server = await mod.create_server(
+            mod.CreateServerReq(name="Private", template="empty"), _MOCK_USER
+        )
+        outsider = {"user_id": "outsider", "display_name": "Outsider"}
+        servers = await mod.list_servers(outsider)
+        assert not any(s["id"] == server["id"] for s in servers)
+        with pytest.raises(HTTPException) as exc_info:
+            await mod.list_channels(server["id"], outsider)
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_default_roles_created_without_template(self):
+        server = await mod.create_server(
+            mod.CreateServerReq(name="No Tmpl", template=None), _MOCK_USER
+        )
+        roles = [r for r in mod._load("roles") if r["server_id"] == server["id"]]
+        role_names = {r["name"] for r in roles}
+        assert "Owner" in role_names
+        assert "Admin" in role_names
+        assert "Member" in role_names
+        assert "Guest" in role_names
+
+    @pytest.mark.asyncio
+    async def test_default_roles_created_with_template(self):
+        server = await mod.create_server(
+            mod.CreateServerReq(name="With Tmpl", template="founder_war_room"), _MOCK_USER
+        )
+        roles = [r for r in mod._load("roles") if r["server_id"] == server["id"]]
+        role_names = {r["name"] for r in roles}
+        assert "Owner" in role_names
+        assert "Admin" in role_names
+        assert "Member" in role_names
+        assert "Guest" in role_names
