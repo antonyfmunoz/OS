@@ -863,7 +863,9 @@ function TrackerStatus({
 
         <span className="text-text-quaternary">ML model:</span>
         <span className={hasRealDetections ? 'text-ok' : 'text-warning'}>
-          {hasRealDetections ? 'producing detections' : 'not running'}
+          {hasRealDetections
+            ? `YOLOv8n (${overlays.length} detections)`
+            : 'waiting for detections'}
         </span>
 
         <span className="text-text-quaternary">detections:</span>
@@ -907,8 +909,9 @@ function TrackerStatus({
         </div>
       )}
       {beastOnline && !hasRealDetections && (
-        <div className="text-warning text-[11px] border-t border-border/50 pt-1.5">
-          No ML detector running. Object detection (keyboard, chair, desk, etc.) requires a model to be loaded on Beast.</div>
+        <div className="text-text-tertiary text-[11px] border-t border-border/50 pt-1.5">
+          YOLOv8n loaded on Beast. Detections will appear when objects are visible (keyboard, chair, desk, mouse, monitor, person).
+        </div>
       )}
       {hasRealDetections && overlays.length === 0 && (
         <div className="text-text-tertiary text-[11px] border-t border-border/50 pt-1.5">
