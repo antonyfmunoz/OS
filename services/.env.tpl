@@ -47,3 +47,9 @@ UMH_WS_TOKEN=op://UMH-Production/UMH-Operator/ws_token
 
 # ── Cockpit Auth (Clerk JWT) ───────────────────────────────────────────────
 CLERK_JWKS_URL=https://obliging-donkey-31.clerk.accounts.dev/.well-known/jwks.json
+
+# ── LiveKit (Voice Rooms) ──────────────────────────────────────────────────
+LIVEKIT_API_KEY=UMHKey1
+LIVEKIT_API_SECRET=op://UMH-Production/LiveKit/api_secret
+LIVEKIT_WS_URL=ws://157.173.212.126:7880
+ALLOWED_CLERK_USER_IDS=user_3EHDsQSiGJUVF5FdLVkGflrwFlu
