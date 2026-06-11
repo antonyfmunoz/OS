@@ -43,6 +43,7 @@ import { WorkspacePanel } from '../panels/WorkspacePanel'
 import { WorkPanel } from '../panels/WorkPanel'
 import { CommandCenterPanel } from '../panels/CommandCenterPanel'
 import { VisionPanel } from '../panels/VisionPanel'
+import { ConferenceRoomsPanel } from '../panels/ConferenceRoomsPanel'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -112,6 +113,8 @@ function ActivePanel() {
       return <CommandCenterPanel />
     case 'vision':
       return <VisionPanel />
+    case 'rooms':
+      return <ConferenceRoomsPanel />
     default:
       return <DashboardPanel />
   }
