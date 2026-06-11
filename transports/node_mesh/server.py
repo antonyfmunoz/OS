@@ -62,7 +62,7 @@ class NodeMeshServer:
         )
         self._view_socket = view_socket
         self._pipeline_submit_fn = pipeline_submit_fn
-        self._frame_callback: Callable[[str, str], None] | None = None
+        self._frame_callback: Callable[..., None] | None = None
         self._server: Any = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
@@ -77,8 +77,8 @@ class NodeMeshServer:
     def metrics_buffer(self) -> MetricsBuffer:
         return self._metrics
 
-    def register_frame_callback(self, callback: Callable[[str, str], None]) -> None:
-        """Register a callback for camera frames: callback(node_id, base64_jpeg)."""
+    def register_frame_callback(self, callback: Callable[..., None]) -> None:
+        """Register a callback for camera frames: callback(node_id, payload_dict)."""
         self._frame_callback = callback
 
     def start(self) -> threading.Thread:
@@ -414,10 +414,10 @@ class NodeMeshServer:
             self._metrics.record(snapshot)
         elif signal_class == "camera_frame":
             if self._frame_callback is not None:
-                frame_b64 = params.get("payload", {}).get("image_base64", "")
-                if frame_b64:
+                payload = params.get("payload", {})
+                if payload.get("image_base64"):
                     try:
-                        self._frame_callback(node_id, frame_b64)
+                        self._frame_callback(node_id, payload)
                     except Exception as exc:
                         logger.warning("frame callback failed: %s", exc)
         elif self._pipeline_submit_fn is not None:

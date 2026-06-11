@@ -5,7 +5,7 @@ import { HandLandmarkOverlay } from './HandLandmarkOverlay'
 import { FaceTrackingOverlay } from './FaceTrackingOverlay'
 
 export interface OverlayMetadata {
-  type: 'object' | 'face' | 'hand' | 'pose' | 'motion'
+  type: 'object' | 'face' | 'hand' | 'pose' | 'motion' | string
   track_id: string
   label: string
   confidence: number
@@ -13,6 +13,8 @@ export interface OverlayMetadata {
   landmarks?: Array<{ x: number; y: number; label?: string }>
   connections?: Array<[number, number]>
   color?: string
+  source?: string
+  model?: string
 }
 
 const SYNTHETIC_DIAG_OVERLAYS: OverlayMetadata[] = [

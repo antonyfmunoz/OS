@@ -136,15 +136,16 @@ def main() -> None:
     vision_relay_url = os.getenv("VISION_RELAY_FRAME_URL", "http://127.0.0.1:8098/frame")
     vision_frame_token = os.getenv("VISION_FRAME_TOKEN", "")
 
-    def _forward_frame_to_relay(node_id: str, b64: str) -> None:
+    def _forward_frame_to_relay(node_id: str, frame_payload: dict) -> None:
         try:
             import urllib.request
-            payload = json.dumps({"node_id": node_id, "image_base64": b64}).encode()
+            frame_payload["node_id"] = node_id
+            body = json.dumps(frame_payload).encode()
             headers: dict[str, str] = {"Content-Type": "application/json"}
             if vision_frame_token:
                 headers["X-Frame-Token"] = vision_frame_token
             req = urllib.request.Request(
-                vision_relay_url, data=payload,
+                vision_relay_url, data=body,
                 headers=headers,
             )
             urllib.request.urlopen(req, timeout=2)
