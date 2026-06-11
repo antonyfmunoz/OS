@@ -442,8 +442,31 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             />
           </>
         ) : (
-          <div className="flex items-center justify-center w-full h-full text-text-tertiary min-h-[180px]">
-            <Camera size={32} className="opacity-30" />
+          <div className="flex flex-col items-center justify-center w-full h-full text-text-tertiary min-h-[180px] gap-3 px-4">
+            {cameraStatus === 'connecting' ? (
+              <>
+                <Camera size={32} className="opacity-50 animate-pulse" />
+                <span className="text-xs font-mono uppercase tracking-wider text-text-quaternary">Connecting to camera...</span>
+              </>
+            ) : connected ? (
+              <>
+                <Camera size={32} className="opacity-30" />
+                <button
+                  onClick={handleStart}
+                  className="px-6 py-3 rounded-lg bg-ok/10 text-ok text-sm font-mono uppercase tracking-wider hover:bg-ok/20 active:bg-ok/30 transition-colors"
+                >
+                  Tap to Start Camera
+                </button>
+                {!chainHealth.beastConnected && (
+                  <span className="text-[11px] font-mono text-danger text-center">Beast offline — camera may not respond.</span>
+                )}
+              </>
+            ) : (
+              <>
+                <Camera size={32} className="opacity-20" />
+                <span className="text-xs font-mono text-text-quaternary text-center">Connecting to vision relay...</span>
+              </>
+            )}
           </div>
         )}
 
@@ -482,14 +505,15 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         <button
           onClick={() => setOverlayVisible(!overlayVisible)}
           className={clsx(
-            'flex-1 py-2.5 rounded text-xs font-mono uppercase tracking-wider text-center transition-colors',
+            'flex-1 py-2.5 rounded text-xs font-mono text-center transition-colors flex flex-col items-center gap-0.5',
             overlayVisible
               ? 'bg-ok/20 text-ok border border-ok/30'
               : 'bg-surface-hover text-text-tertiary border border-transparent',
           )}
-          title="OVR = real AI object detection overlays"
+          title="OVR = real AI object detection overlays only"
         >
-          OVR {overlayVisible ? 'on' : 'off'}
+          <span className="uppercase tracking-wider">OVR {overlayVisible ? 'on' : 'off'}</span>
+          <span className="text-[9px] opacity-70 normal-case">real detections only</span>
         </button>
         <button
           onClick={() => {
@@ -498,14 +522,15 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             getVisionClient()?.setDiagnosticOverlay(next)
           }}
           className={clsx(
-            'flex-1 py-2.5 rounded text-xs font-mono uppercase tracking-wider text-center transition-colors',
+            'flex-1 py-2.5 rounded text-xs font-mono text-center transition-colors flex flex-col items-center gap-0.5',
             diagnosticOverlay
               ? 'bg-warning/20 text-warning border border-warning/30'
               : 'bg-surface-hover text-text-tertiary border border-transparent',
           )}
-          title="DIAG = synthetic test boxes (pipeline diagnostic only)"
+          title="DIAG = synthetic test boxes for pipeline verification only"
         >
-          DIAG {diagnosticOverlay ? 'on' : 'off'}
+          <span className="uppercase tracking-wider">DIAG {diagnosticOverlay ? 'on' : 'off'}</span>
+          <span className="text-[9px] opacity-70 normal-case">synthetic test boxes</span>
         </button>
       </div>
 
@@ -812,7 +837,7 @@ function StatusDot({ ok, label }: { ok: boolean; label: string }) {
   )
 }
 
-// ── Tracker Status — shows detector/model state, tracked objects ──
+// ── Detector Inventory — shows backend, model, capabilities, detections ──
 
 function TrackerStatus({
   overlays, overlayVisible, diagnosticOverlay, chainHealth,
@@ -824,60 +849,79 @@ function TrackerStatus({
 }) {
   const trackerStack = useVisionStore((s) => s.trackerStack)
   const enabledTrackers = trackerStack.enabled_trackers.filter((t) => t.enabled)
+  const allTrackers = trackerStack.enabled_trackers
   const beastOnline = chainHealth.beastConnected
   const trackerAvailable = chainHealth.trackerRuntimeAvailable
-
-  if (!overlayVisible && !diagnosticOverlay) return null
-
-  if (!beastOnline) {
-    return (
-      <div className="px-3 py-2 rounded border border-danger/30 bg-danger/5 text-xs font-mono text-danger">
-        Object tracking unavailable — Beast/detector offline.
-      </div>
-    )
-  }
-
-  if (!trackerAvailable) {
-    return (
-      <div className="px-3 py-2 rounded border border-warning/30 bg-warning/5 text-xs font-mono text-warning">
-        No tracker runtime on Beast. Install CV dependencies (OpenCV, YOLO, etc.) to enable real object detection.
-      </div>
-    )
-  }
-
-  if (enabledTrackers.length === 0) {
-    return (
-      <div className="px-3 py-2 rounded border border-border bg-surface-hover/50 text-xs font-mono text-text-tertiary">
-        No trackers enabled. Enable trackers in the Tracking panel below for real object detection.
-      </div>
-    )
-  }
 
   const lastOverlayAge = chainHealth.lastOverlayAgeMs
   const hasRecentOverlays = lastOverlayAge >= 0 && lastOverlayAge < 5000
   const uniqueLabels = [...new Set(overlays.map(o => o.label))]
+  const inferenceRunning = enabledTrackers.length > 0 && beastOnline && trackerAvailable
 
   return (
-    <div className="px-3 py-2 rounded border border-border bg-surface-hover/50 text-xs font-mono flex flex-col gap-1">
-      <div className="flex items-center justify-between">
-        <span className="text-text-tertiary uppercase tracking-wider text-[10px]">Object Tracker</span>
-        <span className={clsx(
-          hasRecentOverlays ? 'text-ok' : 'text-text-quaternary',
-        )}>
-          {overlays.length > 0 ? `${overlays.length} detected` : 'no detections'}
+    <div className="px-3 py-2 rounded border border-border bg-surface-hover/50 text-xs font-mono flex flex-col gap-2">
+      <span className="text-text-tertiary uppercase tracking-wider text-[10px]">Detector Inventory</span>
+
+      {/* Detector backend */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+        <span className="text-text-quaternary">backend:</span>
+        <span className={beastOnline ? 'text-ok' : 'text-danger'}>
+          {beastOnline ? 'Beast (remote)' : 'none — Beast offline'}
+        </span>
+
+        <span className="text-text-quaternary">tracker runtime:</span>
+        <span className={trackerAvailable ? 'text-ok' : 'text-danger'}>
+          {!beastOnline ? 'n/a' : trackerAvailable ? 'available' : 'not installed'}
+        </span>
+
+        <span className="text-text-quaternary">model loaded:</span>
+        <span className={inferenceRunning ? 'text-ok' : 'text-text-quaternary'}>
+          {!beastOnline ? 'n/a' : inferenceRunning ? 'yes' : 'no'}
+        </span>
+
+        <span className="text-text-quaternary">inference running:</span>
+        <span className={inferenceRunning ? 'text-ok' : 'text-text-quaternary'}>
+          {inferenceRunning ? 'yes' : 'no'}
+        </span>
+
+        <span className="text-text-quaternary">detections:</span>
+        <span className={overlays.length > 0 ? 'text-ok' : 'text-text-quaternary'}>
+          {overlays.length > 0 ? `${overlays.length} objects` : '0'}
+        </span>
+
+        <span className="text-text-quaternary">last detection:</span>
+        <span className="text-text-secondary">
+          {chainHealth.lastOverlayAt > 0
+            ? `${Math.round((Date.now() - chainHealth.lastOverlayAt) / 1000)}s ago`
+            : 'never'}
         </span>
       </div>
 
-      {/* Active trackers */}
-      <div className="text-text-tertiary">
-        trackers: {enabledTrackers.map((t) => t.category).join(', ')}
+      {/* Enabled trackers */}
+      {allTrackers.length > 0 && (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-text-quaternary text-[10px] uppercase tracking-wider">Trackers ({enabledTrackers.length}/{allTrackers.length} enabled)</span>
+          {allTrackers.map((t) => (
+            <div key={t.category} className="flex items-center gap-2 text-[11px]">
+              <span className={clsx('w-1.5 h-1.5 rounded-full', t.enabled ? 'bg-ok' : 'bg-text-quaternary')} />
+              <span className={t.enabled ? 'text-text-secondary' : 'text-text-quaternary'}>{t.category}</span>
+              {t.enabled && <span className="text-ok text-[9px]">active</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Supported classes */}
+      <div className="text-text-quaternary text-[10px]">
+        supported classes: person, face, hand, pose, object, motion, scene
       </div>
 
-      {/* Detected objects */}
+      {/* Detected objects list */}
       {overlays.length > 0 && (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-0.5 border-t border-border/50 pt-1.5">
+          <span className="text-text-quaternary text-[10px] uppercase tracking-wider">Live Detections</span>
           {overlays.slice(0, 8).map((o) => (
-            <div key={o.track_id} className="flex items-center gap-2 text-text-secondary">
+            <div key={o.track_id} className="flex items-center gap-2 text-[11px] text-text-secondary">
               <span className="w-2 h-2 rounded-sm" style={{ background: o.color || '#22c55e' }} />
               <span>{o.label}</span>
               <span className="text-text-quaternary">{(o.confidence * 100).toFixed(0)}%</span>
@@ -886,24 +930,35 @@ function TrackerStatus({
             </div>
           ))}
           {overlays.length > 8 && (
-            <span className="text-text-quaternary">+{overlays.length - 8} more</span>
+            <span className="text-text-quaternary text-[10px]">+{overlays.length - 8} more</span>
+          )}
+          {uniqueLabels.length > 0 && (
+            <span className="text-text-quaternary text-[10px]">classes: {uniqueLabels.join(', ')}</span>
           )}
         </div>
       )}
 
-      {/* Labels summary */}
-      {uniqueLabels.length > 0 && (
-        <div className="text-text-quaternary">
-          classes: {uniqueLabels.join(', ')}
+      {/* Status messages */}
+      {!beastOnline && (
+        <div className="text-danger text-[11px] border-t border-border/50 pt-1.5">
+          Object tracking unavailable — Beast/detector offline.
         </div>
       )}
-
-      {/* Last inference */}
-      <div className="text-text-quaternary">
-        last overlay: {chainHealth.lastOverlayAt > 0
-          ? `${Math.round((Date.now() - chainHealth.lastOverlayAt) / 1000)}s ago`
-          : 'never'}
-      </div>
+      {beastOnline && !trackerAvailable && (
+        <div className="text-warning text-[11px] border-t border-border/50 pt-1.5">
+          No tracker runtime. Install CV dependencies (OpenCV, YOLO, etc.) on Beast.
+        </div>
+      )}
+      {beastOnline && trackerAvailable && enabledTrackers.length === 0 && (
+        <div className="text-text-tertiary text-[11px] border-t border-border/50 pt-1.5">
+          No trackers enabled. Enable in Tracking panel for real object detection.
+        </div>
+      )}
+      {inferenceRunning && overlays.length === 0 && (
+        <div className="text-text-tertiary text-[11px] border-t border-border/50 pt-1.5">
+          Trackers running — no objects detected in current frame.
+        </div>
+      )}
     </div>
   )
 }
