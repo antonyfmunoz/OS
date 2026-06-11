@@ -11,6 +11,8 @@ import {
   QUALITY_PROFILES,
   type QualityMode,
   type MotionState,
+  type StreamMetrics,
+  type ControlMetrics,
 } from '../stores/visionStore'
 import { getVisionClient } from '../hooks/useVisionConnection'
 import { useVisionPopout } from './VisionPopout'
@@ -251,15 +253,21 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
 
   // ── Joystick drag ──────────────────────────────────────────────
 
-  const computeJoystickVector = useCallback((e: React.PointerEvent) => {
+
+  // iOS Safari does not reliably fire Pointer Events when an ancestor has
+  // overflow-y-auto (the scroll container intercepts touch). We therefore
+  // also attach Touch event handlers as a parallel path.  Both paths call
+  // the same internal helpers so motion behaviour is identical.
+
+  const computeJoystickVectorFromClient = useCallback((clientX: number, clientY: number) => {
     const el = joystickRef.current
     if (!el) return { dx: 0, dy: 0, panV: 0, tiltV: 0 }
     const rect = el.getBoundingClientRect()
     const radius = rect.width / 2
     const cx = rect.left + radius
     const cy = rect.top + radius
-    let dx = (e.clientX - cx) / radius
-    let dy = -(e.clientY - cy) / radius
+    let dx = (clientX - cx) / radius
+    let dy = -(clientY - cy) / radius
     const dist = Math.sqrt(dx * dx + dy * dy)
     if (dist > 1) { dx /= dist; dy /= dist }
     const panV = Math.abs(dx) > JOYSTICK_DEADZONE ? dx : 0
@@ -271,36 +279,78 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     const el = joystickRef.current
     if (!el) return
     e.preventDefault()
-    el.setPointerCapture(e.pointerId)
+    // Pointer capture allows tracking outside the element
+    try { el.setPointerCapture(e.pointerId) } catch { /* Safari may throw */ }
     joystickDragging.current = true
 
-    const { dx, dy, panV, tiltV } = computeJoystickVector(e)
+    const { dx, dy, panV, tiltV } = computeJoystickVectorFromClient(e.clientX, e.clientY)
     setThumbPos({ x: dx, y: -dy })
     joystickVelocity.current = { pan: panV, tilt: tiltV }
 
     if (Math.abs(panV) > 0 || Math.abs(tiltV) > 0) {
       startDirectionMotion(panV, tiltV)
     }
-  }, [startDirectionMotion, computeJoystickVector])
+  }, [startDirectionMotion, computeJoystickVectorFromClient])
 
   const handleJoystickPointerMove = useCallback((e: React.PointerEvent) => {
     if (!joystickDragging.current) return
     e.preventDefault()
 
-    const { dx, dy, panV, tiltV } = computeJoystickVector(e)
+    const { dx, dy, panV, tiltV } = computeJoystickVectorFromClient(e.clientX, e.clientY)
     setThumbPos({ x: dx, y: -dy })
     joystickVelocity.current = { pan: panV, tilt: tiltV }
 
     if (!activeMotionIdRef.current && (Math.abs(panV) > 0 || Math.abs(tiltV) > 0)) {
       startDirectionMotion(panV, tiltV)
     }
-  }, [startDirectionMotion, computeJoystickVector])
+  }, [startDirectionMotion, computeJoystickVectorFromClient])
 
   const handleJoystickPointerUp = useCallback((e: React.PointerEvent) => {
     const el = joystickRef.current
     if (el) {
       try { el.releasePointerCapture(e.pointerId) } catch { /* already released */ }
     }
+    joystickDragging.current = false
+    joystickVelocity.current = { pan: 0, tilt: 0 }
+    setThumbPos({ x: 0, y: 0 })
+    stopDirectionMotion()
+  }, [stopDirectionMotion])
+
+  // ── Touch fallback for iOS Safari ─────────────────────────────────
+  // Runs in parallel with pointer events. On iOS Safari the scroll
+  // container's touchstart fires first; preventDefault() here stops
+  // the page from scrolling and lets us handle the gesture.
+
+  const handleJoystickTouchStart = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const t = e.touches[0]
+    if (!t) return
+    joystickDragging.current = true
+    const { dx, dy, panV, tiltV } = computeJoystickVectorFromClient(t.clientX, t.clientY)
+    setThumbPos({ x: dx, y: -dy })
+    joystickVelocity.current = { pan: panV, tilt: tiltV }
+    if (Math.abs(panV) > 0 || Math.abs(tiltV) > 0) {
+      startDirectionMotion(panV, tiltV)
+    }
+  }, [startDirectionMotion, computeJoystickVectorFromClient])
+
+  const handleJoystickTouchMove = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const t = e.touches[0]
+    if (!t || !joystickDragging.current) return
+    const { dx, dy, panV, tiltV } = computeJoystickVectorFromClient(t.clientX, t.clientY)
+    setThumbPos({ x: dx, y: -dy })
+    joystickVelocity.current = { pan: panV, tilt: tiltV }
+    if (!activeMotionIdRef.current && (Math.abs(panV) > 0 || Math.abs(tiltV) > 0)) {
+      startDirectionMotion(panV, tiltV)
+    }
+  }, [startDirectionMotion, computeJoystickVectorFromClient])
+
+  const handleJoystickTouchEnd = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
     joystickDragging.current = false
     joystickVelocity.current = { pan: 0, tilt: 0 }
     setThumbPos({ x: 0, y: 0 })
@@ -404,6 +454,17 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
           </div>
         )}
 
+        {/* Operator HUD: always-visible pipeline health overlay */}
+        <VisionHud
+          connected={connected}
+          streaming={streaming}
+          streamMetrics={streamMetrics}
+          overlayCount={overlays.length}
+          ptzMotion={ptzMotion}
+          controlMetrics={controlMetrics}
+          error={error}
+        />
+
         {streaming && (
           <div className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-black/60 text-[9px] font-mono text-text-secondary">
             {streamMetrics.actualFps.toFixed(1)} fps | {Math.round(streamMetrics.avgFrameSize / 1024)}KB
@@ -502,8 +563,12 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                 onPointerUp={handleJoystickPointerUp}
                 onPointerCancel={handleJoystickPointerUp}
                 onPointerLeave={handleJoystickPointerUp}
+                onTouchStart={handleJoystickTouchStart}
+                onTouchMove={handleJoystickTouchMove}
+                onTouchEnd={handleJoystickTouchEnd}
+                onTouchCancel={handleJoystickTouchEnd}
                 className="w-20 h-20 rounded-full border-2 border-border bg-surface-hover relative cursor-crosshair select-none"
-                style={{ touchAction: 'none' }}
+                style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
               >
                 {/* Crosshair guides */}
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -758,8 +823,7 @@ function DpadBtn({
     <button
       onPointerDown={(e) => {
         e.preventDefault()
-        if (!isStop) onStart()
-        else onStart()
+        onStart()
       }}
       onPointerUp={(e) => {
         e.preventDefault()
@@ -773,6 +837,22 @@ function DpadBtn({
         e.preventDefault()
         if (!isStop) onStop()
       }}
+      // Touch fallbacks for iOS Safari (scroll container intercepts pointer events)
+      onTouchStart={(e) => {
+        e.stopPropagation()
+        e.preventDefault()
+        onStart()
+      }}
+      onTouchEnd={(e) => {
+        e.stopPropagation()
+        e.preventDefault()
+        if (!isStop) onStop()
+      }}
+      onTouchCancel={(e) => {
+        e.stopPropagation()
+        e.preventDefault()
+        if (!isStop) onStop()
+      }}
       disabled={!connected}
       title={`Pan ${direction}`}
       className={clsx(
@@ -781,6 +861,7 @@ function DpadBtn({
         'transition-colors disabled:opacity-40 disabled:cursor-not-allowed touch-none select-none',
         isStop && 'bg-surface-hover',
       )}
+      style={{ touchAction: 'none' }}
     >
       {icons[direction]}
     </button>
@@ -804,6 +885,10 @@ function ZoomBtn({
       onPointerUp={(e) => { e.preventDefault(); onStop() }}
       onPointerCancel={(e) => { e.preventDefault(); onStop() }}
       onPointerLeave={(e) => { e.preventDefault(); onStop() }}
+      // Touch fallbacks for iOS Safari
+      onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); onStart() }}
+      onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); onStop() }}
+      onTouchCancel={(e) => { e.stopPropagation(); e.preventDefault(); onStop() }}
       disabled={!connected}
       title={title}
       className={clsx(
@@ -811,6 +896,7 @@ function ZoomBtn({
         'text-text-secondary hover:text-text-primary hover:bg-surface-hover',
         'transition-colors disabled:opacity-40 disabled:cursor-not-allowed touch-none select-none',
       )}
+      style={{ touchAction: 'none' }}
     >
       {icon}
     </button>
@@ -927,6 +1013,100 @@ function PtzDiagnosticsPanel({
             : 'Trackers enabled but no detections yet. Waiting for tracker output...'}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Operator HUD — always-visible pipeline health overlay ────────────
+
+function VisionHud({
+  connected,
+  streaming,
+  streamMetrics,
+  overlayCount,
+  ptzMotion,
+  controlMetrics,
+  error,
+}: {
+  connected: boolean
+  streaming: boolean
+  streamMetrics: StreamMetrics
+  overlayCount: number
+  ptzMotion: { state: MotionState; motionId: string }
+  controlMetrics: ControlMetrics
+  error: string | null
+}) {
+  const chainHealth = useVisionStore((s) => s.chainHealth)
+
+  const wsColor = connected ? '#22c55e' : '#ef4444'
+  const frameAge = streamMetrics.lastFrameAge
+  const frameAgeStr = frameAge <= 0
+    ? 'no frames'
+    : frameAge < 1000
+    ? `${frameAge}ms`
+    : `${(frameAge / 1000).toFixed(1)}s`
+  const frameAgeColor = frameAge > 5000 ? '#ef4444' : frameAge > 2000 ? '#f59e0b' : '#22c55e'
+
+  const lastCmdAgo = controlMetrics.lastCommandSentAt > 0
+    ? Date.now() - controlMetrics.lastCommandSentAt
+    : -1
+  const lastCmdStr = lastCmdAgo < 0 ? '—' : lastCmdAgo < 2000 ? `${lastCmdAgo}ms ago` : `${(lastCmdAgo / 1000).toFixed(0)}s ago`
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        bottom: 6,
+        left: 6,
+        zIndex: 20,
+        pointerEvents: 'none',
+        fontFamily: '"JetBrains Mono", "Fira Mono", monospace',
+        fontSize: 9,
+        lineHeight: '14px',
+        letterSpacing: '0.03em',
+      }}
+    >
+      <div style={{
+        background: 'rgba(0,0,0,0.72)',
+        borderRadius: 4,
+        padding: '4px 7px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
+        minWidth: 160,
+      }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ color: wsColor }}>● {connected ? 'WS' : 'WS DISCONNECTED'}</span>
+          {connected && (
+            <span style={{ color: '#888' }}>
+              {chainHealth.status.replace('_', ' ')}
+            </span>
+          )}
+        </div>
+        <div style={{ color: frameAgeColor }}>
+          frame: {streaming ? frameAgeStr : 'not streaming'}
+        </div>
+        <div style={{ color: '#888' }}>
+          fps: <span style={{ color: streamMetrics.actualFps > 0 ? '#22c55e' : '#888' }}>
+            {streaming ? streamMetrics.actualFps.toFixed(1) : '0'}
+          </span>
+          {' / '}
+          <span style={{ color: overlayCount > 0 ? '#22c55e' : '#555' }}>
+            {overlayCount} ovr
+          </span>
+        </div>
+        {ptzMotion.state !== 'idle' && ptzMotion.state !== 'disconnected' && (
+          <div style={{ color: '#f59e0b' }}>ptz: {ptzMotion.state}</div>
+        )}
+        {controlMetrics.lastCommandSentAt > 0 && (
+          <div style={{ color: '#555' }}>cmd: {lastCmdStr}</div>
+        )}
+        {error && (
+          <div style={{ color: '#ef4444', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            ! {error}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

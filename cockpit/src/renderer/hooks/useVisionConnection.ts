@@ -63,10 +63,20 @@ export function useVisionConnection(): void {
     if (!_client) _client = new VisionWsClient()
     const client = _client
 
+    // Debounce camera_start on reconnects.
+    // Without this guard the camera_start + vision_subscribe pair fires on every
+    // WS reconnect, producing the loop visible in the console on real devices.
+    // Strategy: allow camera_start only if we have been connected for ≥1s
+    // (i.e. not a rapid flap) and the camera was not already running.
+    let cameraStartedInSession = false
+    let connectedAt = 0
+    let cameraStartDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
     const profile = QUALITY_PROFILES[useVisionStore.getState().qualityMode]
 
     const unsubs = [
       client.on('connected', () => {
+        connectedAt = Date.now()
         setConnected(true)
         setCameraSessionActive(true)
         setError(null)
@@ -76,23 +86,39 @@ export function useVisionConnection(): void {
         client.requestHealth()
 
         const policy = useVisionStore.getState().defaultOnPolicy
-        if (shouldAutoStartCamera(policy)) {
-          client.startCamera({
-            fps: profile.fps,
-            width: profile.width,
-            height: profile.height,
-            quality: profile.quality,
-          })
-          client.subscribe(profile.fps, profile.quality)
+        if (shouldAutoStartCamera(policy) && !cameraStartedInSession) {
+          // Debounce: wait 800ms before starting camera so rapid reconnect flaps
+          // do not each trigger a full camera_start cycle.
+          if (cameraStartDebounceTimer) clearTimeout(cameraStartDebounceTimer)
+          cameraStartDebounceTimer = setTimeout(() => {
+            // Re-check: still connected, still no session started
+            if (!client.connected || cameraStartedInSession) return
+            cameraStartedInSession = true
+            client.startCamera({
+              fps: profile.fps,
+              width: profile.width,
+              height: profile.height,
+              quality: profile.quality,
+            })
+            client.subscribe(profile.fps, profile.quality)
+          }, 800)
         }
         client.requestSceneState()
         setPtzMotion({ state: 'idle', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
       }),
       client.on('disconnected', () => {
+        if (cameraStartDebounceTimer) {
+          clearTimeout(cameraStartDebounceTimer)
+          cameraStartDebounceTimer = null
+        }
         setConnected(false)
         setCameraStatus('off')
         setStreaming(false)
         setCameraSessionActive(false)
+        // Reset so camera restarts after a genuine reconnect (relay restart, network recovery).
+        // Rapid flaps are absorbed by the 800ms debounce on next connect.
+        cameraStartedInSession = false
+        connectedAt = 0
         setPtzMotion({ state: 'disconnected', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
         updateChainHealth({ status: 'relay_offline', relayRunning: false, cockpitConnected: false, blockers: ['WebSocket disconnected from vision relay'], recoveryAction: 'reconnecting automatically' })
       }),
@@ -356,6 +382,7 @@ export function useVisionConnection(): void {
 
     return () => {
       unsubs.forEach((fn) => fn())
+      if (cameraStartDebounceTimer) clearTimeout(cameraStartDebounceTimer)
       if (metricsInterval.current) clearInterval(metricsInterval.current)
       if (sceneInterval.current) clearInterval(sceneInterval.current)
       if (healthInterval.current) clearInterval(healthInterval.current)
