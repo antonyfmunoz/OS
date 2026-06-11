@@ -541,6 +541,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         streamMetrics={streamMetrics}
         chainHealth={chainHealth}
         error={error}
+        overlayCount={realOverlays.length}
       />
 
       {/* Object tracking status */}
@@ -788,24 +789,28 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
 // ── Pipeline Status — below camera, NOT over it ───────────────────
 
 function PipelineStatus({
-  connected, streaming, streamMetrics, chainHealth, error,
+  connected, streaming, streamMetrics, chainHealth, error, overlayCount,
 }: {
   connected: boolean
   streaming: boolean
   streamMetrics: StreamMetrics
   chainHealth: ReturnType<typeof useVisionStore.getState>['chainHealth']
   error: string | null
+  overlayCount: number
 }) {
   const frameAge = streamMetrics.lastFrameAge
   const frameFresh = frameAge > 0 && frameAge < 3000
+  const hasRecentOverlays = chainHealth.lastOverlayAt > 0 && (Date.now() - chainHealth.lastOverlayAt) < 10000
+  // Beast is online if health says so OR if we're getting live data from it
+  const beastEffective = chainHealth.beastConnected || (streaming && frameFresh) || hasRecentOverlays
 
   return (
     <div className="flex flex-col gap-1 px-3 py-2 rounded border border-border bg-surface-hover/50 text-xs font-mono">
       {/* Status chain as dots */}
       <div className="flex items-center gap-3 flex-wrap">
         <StatusDot ok={connected} label={connected ? 'relay' : 'relay down'} />
-        <StatusDot ok={chainHealth.beastConnected} label={chainHealth.beastConnected ? 'beast' : 'beast offline'} />
-        <StatusDot ok={chainHealth.cameraStreaming} label={chainHealth.cameraStreaming ? 'camera' : 'cam off'} />
+        <StatusDot ok={beastEffective} label={beastEffective ? 'beast' : 'beast offline'} />
+        <StatusDot ok={chainHealth.cameraStreaming || (streaming && frameFresh)} label={(chainHealth.cameraStreaming || (streaming && frameFresh)) ? 'camera' : 'cam off'} />
         <StatusDot ok={streaming && frameFresh} label={streaming ? (frameFresh ? 'streaming' : 'stale') : 'no stream'} />
         {streaming && (
           <span className="text-text-tertiary">
@@ -814,14 +819,14 @@ function PipelineStatus({
         )}
       </div>
 
-      {/* Blocker explanation */}
-      {!chainHealth.beastConnected && connected && (
-        <span className="text-danger text-[11px]">Beast PC not on mesh — camera, PTZ, and detection unavailable.</span>
+      {/* Blocker explanation — never contradict live evidence */}
+      {!beastEffective && connected && (
+        <span className="text-danger text-[11px]">Beast not on mesh — camera, PTZ, and detection unavailable.</span>
       )}
-      {chainHealth.beastConnected && !chainHealth.cameraStreaming && connected && (
+      {beastEffective && !chainHealth.cameraStreaming && !streaming && connected && (
         <span className="text-warning text-[11px]">Camera not streaming — press Start.</span>
       )}
-      {streaming && !frameFresh && frameAge > 5000 && chainHealth.beastConnected && (
+      {streaming && !frameFresh && frameAge > 5000 && beastEffective && (
         <span className="text-danger text-[11px]">Frames stale ({(frameAge / 1000).toFixed(1)}s) — Beast may have stopped sending.</span>
       )}
     </div>
@@ -837,7 +842,7 @@ function StatusDot({ ok, label }: { ok: boolean; label: string }) {
   )
 }
 
-// ── Detector Inventory — honest about what's actually running ──
+// ── Detector Status — source, model, inference, detections ──
 
 function TrackerStatus({
   overlays, overlayVisible, diagnosticOverlay, chainHealth,
@@ -848,24 +853,35 @@ function TrackerStatus({
   chainHealth: ReturnType<typeof useVisionStore.getState>['chainHealth']
 }) {
   const beastOnline = chainHealth.beastConnected
+  const det = chainHealth.detectorStatus
   const hasRealDetections = overlays.length > 0 && chainHealth.lastOverlayAt > 0
+  const detectorActive = det?.loaded ?? false
   const uniqueLabels = [...new Set(overlays.map(o => o.label))]
+
+  const inferFps = det && det.avg_inference_ms > 0
+    ? Math.round(1000 / det.avg_inference_ms)
+    : 0
 
   return (
     <div className="px-3 py-2 rounded border border-border bg-surface-hover/50 text-xs font-mono flex flex-col gap-2">
       <span className="text-text-tertiary uppercase tracking-wider text-[10px]">Detector Status</span>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
-        <span className="text-text-quaternary">backend:</span>
+        <span className="text-text-quaternary">source:</span>
         <span className={beastOnline ? 'text-ok' : 'text-danger'}>
-          {beastOnline ? 'Beast (connected)' : 'none — Beast offline'}
+          {det ? `${det.source} (${det.host})` : beastOnline ? 'Beast (connected)' : 'none'}
         </span>
 
-        <span className="text-text-quaternary">ML model:</span>
-        <span className={hasRealDetections ? 'text-ok' : 'text-warning'}>
-          {hasRealDetections
-            ? `YOLOv8n (${overlays.length} detections)`
-            : 'waiting for detections'}
+        <span className="text-text-quaternary">model:</span>
+        <span className={detectorActive ? 'text-ok' : 'text-warning'}>
+          {det ? `${det.model}${det.loaded ? '' : ' (not loaded)'}` : beastOnline ? 'waiting' : 'none'}
+        </span>
+
+        <span className="text-text-quaternary">inference:</span>
+        <span className={detectorActive ? 'text-ok' : 'text-text-quaternary'}>
+          {det && det.avg_inference_ms > 0
+            ? `${det.avg_inference_ms.toFixed(0)}ms avg · ${inferFps} fps`
+            : 'idle'}
         </span>
 
         <span className="text-text-quaternary">detections:</span>
@@ -879,6 +895,13 @@ function TrackerStatus({
             ? `${Math.round((Date.now() - chainHealth.lastOverlayAt) / 1000)}s ago`
             : 'never'}
         </span>
+
+        {det && det.detection_frames > 0 && (
+          <>
+            <span className="text-text-quaternary">frames analyzed:</span>
+            <span className="text-text-secondary">{det.detection_frames.toLocaleString()}</span>
+          </>
+        )}
       </div>
 
       {/* Live detections from real ML model */}
@@ -902,18 +925,18 @@ function TrackerStatus({
         </div>
       )}
 
-      {/* Honest status — no false claims */}
-      {!beastOnline && (
+      {/* Status messages — never contradict live detections */}
+      {!beastOnline && !hasRealDetections && (
         <div className="text-danger text-[11px] border-t border-border/50 pt-1.5">
           Object detection unavailable — Beast offline.
         </div>
       )}
-      {beastOnline && !hasRealDetections && (
+      {beastOnline && !hasRealDetections && !detectorActive && (
         <div className="text-text-tertiary text-[11px] border-t border-border/50 pt-1.5">
-          YOLOv8n loaded on Beast. Detections will appear when objects are visible (keyboard, chair, desk, mouse, monitor, person).
+          Waiting for detector to load on Beast.
         </div>
       )}
-      {hasRealDetections && overlays.length === 0 && (
+      {beastOnline && !hasRealDetections && detectorActive && (
         <div className="text-text-tertiary text-[11px] border-t border-border/50 pt-1.5">
           Detector active — no objects in current frame.
         </div>
