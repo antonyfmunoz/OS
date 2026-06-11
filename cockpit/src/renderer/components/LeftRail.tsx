@@ -24,7 +24,7 @@ export function LeftRail() {
           return (
             <button
               key={r.id}
-              onClick={() => { toggleRail(); setPanel(r.id) }}
+              onClick={() => setPanel(r.id)}
               className={clsx('p-2 mt-1', activePanel === r.id ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary')}
               title={r.label}
             >
