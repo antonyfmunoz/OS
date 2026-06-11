@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRoomsStore } from '../stores/roomsStore'
 import { ServerRail } from '../components/rooms/ServerRail'
 import { ChannelSidebar } from '../components/rooms/ChannelSidebar'
@@ -9,8 +9,6 @@ export function ConferenceRoomsPanel() {
   const fetchServers = useRoomsStore((s) => s.fetchServers)
   const activeServerId = useRoomsStore((s) => s.activeServerId)
   const loading = useRoomsStore((s) => s.loading)
-  const [channelSidebarCollapsed, setChannelSidebarCollapsed] = useState(false)
-  const [rightRailCollapsed, setRightRailCollapsed] = useState(false)
 
   useEffect(() => {
     fetchServers()
@@ -22,17 +20,11 @@ export function ConferenceRoomsPanel() {
 
       {activeServerId ? (
         <>
-          <ChannelSidebar
-            collapsed={channelSidebarCollapsed}
-            onToggleCollapse={() => setChannelSidebarCollapsed((v) => !v)}
-          />
+          <ChannelSidebar />
           <div className="flex-1 flex flex-col min-w-0">
             <RoomMainView />
           </div>
-          <RoomRightRail
-            collapsed={rightRailCollapsed}
-            onToggleCollapse={() => setRightRailCollapsed((v) => !v)}
-          />
+          <RoomRightRail />
         </>
       ) : (
         <div className="flex-1 flex items-center justify-center">
