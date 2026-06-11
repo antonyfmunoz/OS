@@ -101,6 +101,7 @@ _last_frame_at: float = 0.0
 _frame_count: int = 0
 _last_overlay_at: float = 0.0
 _overlay_count: int = 0
+_latest_detector_status: dict[str, Any] = {}
 _mesh_dispatch_url = os.getenv(
     "MESH_DISPATCH_URL",
     "http://localhost:8095/dispatch",
@@ -989,6 +990,7 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
     """
     global _latest_frame, _latest_frame_meta, _stream_active
     global _last_frame_at, _frame_count, _last_overlay_at, _overlay_count
+    global _latest_detector_status
 
     if len(jpeg_bytes) > MAX_FRAME_BYTES:
         log.warning("frame too large: %d bytes, dropping", len(jpeg_bytes))
@@ -1000,6 +1002,10 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
     _last_frame_at = time.time()
     _frame_count += 1
 
+    det_status = meta.get("detector_status")
+    if det_status:
+        _latest_detector_status = det_status
+
     overlays = meta.get("overlays")
     if overlays:
         _last_overlay_at = time.time()
@@ -1008,7 +1014,12 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
     if not _clients:
         return
 
-    overlay_json = json.dumps({"type": "vision_overlay", "overlays": overlays}) if overlays else None
+    overlay_msg: dict[str, Any] | None = None
+    if overlays:
+        overlay_msg = {"type": "vision_overlay", "overlays": overlays}
+        if det_status:
+            overlay_msg["detector_status"] = det_status
+    overlay_json = json.dumps(overlay_msg) if overlay_msg else None
 
     async def _send_to(ws: Any) -> bool:
         try:
@@ -1582,6 +1593,7 @@ def _build_health() -> dict[str, Any]:
         "active_chains": active_chains,
         "security_mode": "security_harden" if security_active else "normal",
         "diagnostic_overlay_active": _diagnostic_overlay_active,
+        "detector_status": _latest_detector_status,
         "blockers": blockers,
         "recovery_action": recovery_action,
     }

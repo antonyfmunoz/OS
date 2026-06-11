@@ -285,6 +285,16 @@ class CameraAdapter:
                             detections = self._detector.detect(frame)
                             if frame_n % 45 == 0:
                                 logger.info("detection frame %d: %d objects found", frame_n, len(detections))
+                            det_status = self._detector.get_status()
+                            payload["detector_status"] = {
+                                "source": "beast",
+                                "host": "windows-desktop",
+                                "model": det_status["model"],
+                                "loaded": det_status["loaded"],
+                                "inference_ms": det_status["last_inference_ms"],
+                                "avg_inference_ms": det_status["avg_inference_ms"],
+                                "detection_frames": det_status["frame_count"],
+                            }
                             if detections:
                                 payload["overlays"] = [
                                     {
