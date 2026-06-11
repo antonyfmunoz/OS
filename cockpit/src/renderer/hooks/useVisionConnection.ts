@@ -325,11 +325,27 @@ export function useVisionConnection(): void {
           model: (o.model as string) || undefined,
         })) as import('../components/vision/VisionOverlay').OverlayMetadata[]
         setOverlays(overlays)
-        updateChainHealth({ lastOverlayAt: Date.now(), lastOverlayAgeMs: 0 })
+        const detStatus = d.detector_status as Record<string, unknown> | null
+        const healthUpdate: Partial<import('../stores/visionStore').VisionHealthState> = {
+          lastOverlayAt: Date.now(), lastOverlayAgeMs: 0,
+        }
+        if (detStatus) {
+          healthUpdate.detectorStatus = {
+            source: detStatus.source as string || 'unknown',
+            host: detStatus.host as string || 'unknown',
+            model: detStatus.model as string || 'unknown',
+            loaded: detStatus.loaded as boolean ?? false,
+            inference_ms: detStatus.inference_ms as number ?? 0,
+            avg_inference_ms: detStatus.avg_inference_ms as number ?? 0,
+            detection_frames: detStatus.detection_frames as number ?? 0,
+          }
+        }
+        updateChainHealth(healthUpdate)
       }),
 
       // Health chain events
       client.on('vision_health', (d) => {
+        const detStatus = d.detector_status as Record<string, unknown> | null
         updateChainHealth({
           status: (d.status as VisionChainStatus) || 'degraded',
           relayRunning: d.relay_running as boolean ?? true,
@@ -347,6 +363,15 @@ export function useVisionConnection(): void {
           triggerChainEngineAvailable: d.trigger_chain_engine_available as boolean ?? false,
           activeChains: (d.active_chains as string[]) ?? [],
           securityMode: d.security_mode as string ?? 'normal',
+          detectorStatus: detStatus ? {
+            source: detStatus.source as string || 'unknown',
+            host: detStatus.host as string || 'unknown',
+            model: detStatus.model as string || 'unknown',
+            loaded: detStatus.loaded as boolean ?? false,
+            inference_ms: detStatus.inference_ms as number ?? 0,
+            avg_inference_ms: detStatus.avg_inference_ms as number ?? 0,
+            detection_frames: detStatus.detection_frames as number ?? 0,
+          } : null,
           blockers: (d.blockers as string[]) ?? [],
           recoveryAction: d.recovery_action as string ?? '',
         })
