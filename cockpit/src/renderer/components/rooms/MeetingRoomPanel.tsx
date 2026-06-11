@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronRight,
   Users,
+  AlertTriangle,
 } from 'lucide-react'
 import { useRoomsStore } from '../../stores/roomsStore'
 import type { MeetingMode } from '../../types/rooms'
@@ -179,23 +180,21 @@ export function MeetingRoomPanel({ channelId }: { channelId: string }) {
           </div>
         </div>
 
-        {/* AI participant card */}
+        {/* Shell-only warning */}
         <div
           className="rounded border p-3"
-          style={{ borderColor: 'var(--color-violet)', background: 'var(--color-violet-dim)' }}
+          style={{ borderColor: 'var(--color-warn)', background: 'var(--color-warn-dim)' }}
         >
           <div className="flex items-center gap-2 mb-1">
-            <Bot size={12} style={{ color: 'var(--color-violet)' }} />
-            <span className="text-[10px] font-mono font-semibold" style={{ color: 'var(--color-violet)' }}>
-              AI Participant Available
+            <AlertTriangle size={12} style={{ color: 'var(--color-warn)' }} />
+            <span className="text-[10px] font-mono font-semibold uppercase" style={{ color: 'var(--color-warn)' }}>
+              Shell Only — No Audio/Video
             </span>
           </div>
           <p className="text-[9px] font-mono" style={{ color: 'var(--color-text-secondary)' }}>
-            Transcribe, summarize, action items, coaching cues.
-            Governed by room permissions and AI Assistance toggle.
-          </p>
-          <p className="text-[9px] font-mono mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
-            Media listener unavailable until WebRTC/SFU is live.
+            Meeting metadata (agenda, notes, decisions, action items) is functional.
+            Real audio/video requires WebRTC/SFU infrastructure.
+            Join button sets presence only — no media session is created.
           </p>
         </div>
 
