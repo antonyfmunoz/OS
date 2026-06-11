@@ -12,6 +12,9 @@ NOTION_API_KEY=op://UMH-Production/Notion-Integration/api_key
 HIGGSFIELD_API_KEY=op://UMH-Production/Higgsfield/api_key
 HIGGSFIELD_API_KEY_SECRET=op://UMH-Production/Higgsfield/api_key_secret
 DISCORD_BRIEF_WEBHOOK=op://UMH-Production/Discord-Bot/brief_webhook
+LIVEKIT_API_KEY=UMHKey1
+LIVEKIT_API_SECRET=op://UMH-Production/LiveKit/api_secret
+LIVEKIT_URL=ws://host.docker.internal:7880
 
 # ── Non-secret config (inline — not worth a separate file for Docker) ───────
 EOS_ORG_ID=72727be3-e24d-48f2-bcea-de760ecb4c23

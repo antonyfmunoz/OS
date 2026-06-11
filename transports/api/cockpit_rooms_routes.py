@@ -21,6 +21,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
 
+import jwt as pyjwt
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from transports.api.cockpit_auth import require_clerk_auth
@@ -1320,6 +1322,42 @@ async def leave_voice(channel_id: str, user=Depends(require_clerk_auth)):
             _save("voice_states", voice)
             return {"ok": True}
     return {"ok": True}
+
+
+@rooms_router.post("/channels/{channel_id}/voice/token")
+async def get_voice_token(channel_id: str, user=Depends(require_clerk_auth)):
+    """Generate a LiveKit JWT for joining a voice channel."""
+    _require_channel_access(user, channel_id, "connect")
+
+    api_key = os.environ.get("LIVEKIT_API_KEY")
+    api_secret = os.environ.get("LIVEKIT_API_SECRET")
+    if not api_key or not api_secret:
+        raise HTTPException(503, "Voice infrastructure not configured")
+
+    user_id = _user_id(user)
+    display = _display_name(user)
+    room_name = f"room-{channel_id}"
+
+    now = datetime.now(timezone.utc)
+    claims = {
+        "iss": api_key,
+        "sub": user_id,
+        "name": display,
+        "nbf": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=6)).timestamp()),
+        "jti": uuid.uuid4().hex,
+        "video": {
+            "roomJoin": True,
+            "room": room_name,
+            "canPublish": True,
+            "canSubscribe": True,
+            "canPublishData": True,
+        },
+    }
+    token = pyjwt.encode(claims, api_secret, algorithm="HS256")
+
+    livekit_ws = os.environ.get("LIVEKIT_WS_URL", "")
+    return {"token": token, "url": livekit_ws, "room": room_name}
 
 
 # ── DEX Settings ──
