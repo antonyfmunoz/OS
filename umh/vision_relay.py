@@ -954,9 +954,13 @@ async def _start_stream(
     _stream_width = width
     _stream_height = height
     _stream_quality = quality
-    if _stream_active:
+    frame_age = (time.time() - _last_frame_at) if _last_frame_at else float("inf")
+    stale = frame_age > 15.0
+    if _stream_active and not stale:
         log.info("stream already active, updating params")
         return
+    if _stream_active and stale:
+        log.info("stream marked active but frames stale (%.1fs) — re-dispatching to Beast", frame_age)
     _stream_active = True
     result = await _dispatch_to_beast("camera.stream_start", {
         "fps": _stream_fps,
@@ -968,6 +972,7 @@ async def _start_stream(
         log.info("Beast stream started: %dx%d @%dfps q%d", width, height, _stream_fps, quality)
     else:
         log.warning("Beast stream_start failed: %s", result)
+        _stream_active = False
     for ws in list(_clients):
         await send_json(ws, {"type": "vision_status", "streaming": True, "fps": _stream_fps})
 
