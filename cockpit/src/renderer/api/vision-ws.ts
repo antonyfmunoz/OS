@@ -204,6 +204,8 @@ export class VisionWsClient {
     this.ws.disconnect()
     setTimeout(() => {
       this.ws = new WsClient(VISION_URL, getVisionProtocols())
+      // CRITICAL: re-register binary frame handler after replacing WsClient instance
+      // Without this, video frames are silently dropped after reconnect()
       this.ws.onBinary((buf) => this._enqueueFrame(buf))
       this.ws.connect()
     }, 500)

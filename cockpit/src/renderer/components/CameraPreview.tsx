@@ -7,6 +7,53 @@ import { useVisionPopout } from './VisionPopout'
 import { VisionConnectionStatus } from './vision/VisionConnectionStatus'
 import { VisionOverlay } from './vision'
 
+// Minimal operator HUD shown on preview frame (mirrors the one in CameraController)
+function PreviewHud() {
+  const connected = useVisionStore((s) => s.connected)
+  const streaming = useVisionStore((s) => s.streaming)
+  const streamMetrics = useVisionStore((s) => s.streamMetrics)
+  const overlays = useVisionStore((s) => s.overlays)
+  const error = useVisionStore((s) => s.error)
+  const chainHealth = useVisionStore((s) => s.chainHealth)
+
+  const wsColor = connected ? '#22c55e' : '#ef4444'
+  const frameAge = streamMetrics.lastFrameAge
+  const frameAgeStr = frameAge <= 0 ? 'no frames' : frameAge < 1000 ? `${frameAge}ms` : `${(frameAge / 1000).toFixed(1)}s`
+  const frameAgeColor = frameAge > 5000 ? '#ef4444' : frameAge > 2000 ? '#f59e0b' : '#22c55e'
+
+  return (
+    <div style={{
+      position: 'absolute', bottom: 6, left: 6, zIndex: 20,
+      pointerEvents: 'none', fontFamily: '"JetBrains Mono", monospace',
+      fontSize: 9, lineHeight: '14px',
+    }}>
+      <div style={{
+        background: 'rgba(0,0,0,0.72)', borderRadius: 4,
+        padding: '4px 7px', display: 'flex', flexDirection: 'column', gap: 1, minWidth: 148,
+      }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <span style={{ color: wsColor }}>● {connected ? 'WS' : 'DISCONNECTED'}</span>
+          {connected && <span style={{ color: '#555' }}>{chainHealth.status.replace('_', ' ')}</span>}
+        </div>
+        <div style={{ color: frameAgeColor }}>
+          frame: {streaming ? frameAgeStr : 'not streaming'}
+        </div>
+        <div style={{ color: '#888' }}>
+          fps: <span style={{ color: streamMetrics.actualFps > 0 ? '#22c55e' : '#555' }}>
+            {streaming ? streamMetrics.actualFps.toFixed(1) : '0'}
+          </span>
+          {' '}<span style={{ color: overlays.length > 0 ? '#22c55e' : '#555' }}>{overlays.length} ovr</span>
+        </div>
+        {error && (
+          <div style={{ color: '#ef4444', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            ! {error}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function CameraPreview() {
   const {
     connected, streaming, cameraStatus, activePreset, latestFrameUrl,
@@ -90,6 +137,9 @@ export function CameraPreview() {
             <Camera size={24} className="opacity-30" />
           </div>
         )}
+
+        {/* Operator pipeline HUD */}
+        <PreviewHud />
 
         {/* FPS overlay */}
         {streaming && (
