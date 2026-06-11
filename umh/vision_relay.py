@@ -1478,10 +1478,15 @@ def _build_health() -> dict[str, Any]:
         )
         with urllib.request.urlopen(req, timeout=2) as resp:
             mesh_data = json.loads(resp.read())
+            node_ids = mesh_data.get("node_ids", [])
+            if not node_ids:
+                node_ids = [
+                    n.get("node_id", "") if isinstance(n, dict) else str(n)
+                    for n in mesh_data.get("nodes", [])
+                ]
             beast_connected = any(
-                n.get("node_id", "").startswith("windows")
-                or n.get("node_id", "") == "beast_windows"
-                for n in mesh_data.get("nodes", [])
+                nid.startswith("windows") or nid == "beast_windows"
+                for nid in node_ids
             )
     except Exception:
         pass
