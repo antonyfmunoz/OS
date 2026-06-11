@@ -541,14 +541,63 @@ async def create_server(req: CreateServerReq, user=Depends(require_clerk_auth)):
 
         _save("roles", roles)
 
-    # Auto-add creator as member
+    # Ensure default roles exist even without a template
+    if not req.template or req.template not in TEMPLATES:
+        roles = _load("roles")
+        for default_role in [
+            {"name": "Owner", "color": "#FF3D3D", "permissions": [
+                "view_server", "manage_server", "manage_roles", "manage_channels",
+                "manage_permissions", "create_invites", "view_channel", "send_messages",
+                "manage_messages", "create_threads", "manage_threads", "attach_files",
+                "add_reactions", "mention_everyone", "join_voice", "speak",
+                "mute_members", "deafen_members", "move_members", "share_screen",
+                "start_video", "record_meeting", "view_transcripts", "manage_room_memory",
+                "manage_dex_mode", "create_work_packets", "approve_room_actions", "invite_guests",
+            ]},
+            {"name": "Admin", "color": "#FFB800", "permissions": [
+                "view_server", "manage_channels", "create_invites", "view_channel",
+                "send_messages", "manage_messages", "create_threads", "manage_threads",
+                "attach_files", "add_reactions", "mention_everyone", "join_voice",
+                "speak", "mute_members", "share_screen", "start_video",
+                "view_transcripts", "manage_dex_mode", "invite_guests",
+            ]},
+            {"name": "Member", "color": "#888888", "permissions": [
+                "view_server", "view_channel", "send_messages", "create_threads",
+                "attach_files", "add_reactions", "join_voice", "speak",
+                "share_screen", "start_video",
+            ], "is_default": True},
+            {"name": "Guest", "color": "#555555", "permissions": [
+                "view_channel", "send_messages", "add_reactions",
+            ]},
+        ]:
+            role = {
+                "id": _uid(),
+                "server_id": server["id"],
+                "name": default_role["name"],
+                "color": default_role["color"],
+                "icon_emoji": "",
+                "sort_order": len(roles),
+                "permissions": default_role["permissions"],
+                "is_default": default_role.get("is_default", False),
+            }
+            roles.append(role)
+        _save("roles", roles)
+
+    # Find the Owner role ID for the creator's member record
+    owner_role_id = None
+    for r in _load("roles"):
+        if r["server_id"] == server["id"] and r["name"] == "Owner":
+            owner_role_id = r["id"]
+            break
+
+    # Auto-add creator as member with Owner role
     members = _load("members")
     members.append({
         "id": _uid(),
         "server_id": server["id"],
         "user_id": user.get("user_id", "operator"),
         "display_name": user.get("display_name", "Operator"),
-        "roles": [],
+        "roles": [owner_role_id] if owner_role_id else [],
         "joined_at": _now(),
         "presence": "online",
         "current_channel_id": None,
