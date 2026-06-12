@@ -208,65 +208,21 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
           />
         </div>
 
-        {/* Side panel — right slide-over on all viewports */}
+        {/* Side panel — inline flex sibling, no overlay/drawer */}
         {sidePanel && (
-          <>
-            {/* Backdrop — click to close */}
-            <div className="sm:hidden fixed inset-0 z-30" style={{ background: 'rgba(0,0,0,0.3)' }}
-              onClick={() => setSidePanel(null)}
-            />
-
-            {/* Mobile: right-side panel overlay */}
-            <div className="sm:hidden fixed top-0 right-0 bottom-0 z-40 flex flex-col"
-              style={{
-                width: '80vw',
-                maxWidth: '320px',
-                background: 'var(--color-canvas)',
-                borderLeft: '1px solid var(--color-border)',
-                boxShadow: '-4px 0 20px rgba(0,0,0,0.3)',
-              }}
-            >
-              <div className="flex items-center justify-between px-3 h-10 border-b shrink-0"
-                style={{ borderColor: 'var(--color-border)' }}
-              >
-                <span className="text-[11px] font-mono font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                  {sidePanel === 'chat' ? 'Chat' : 'Settings'}
-                </span>
-                <button onClick={() => setSidePanel(null)}
-                  className="p-1.5 rounded min-w-[36px] min-h-[36px] flex items-center justify-center"
-                  style={{ color: 'var(--color-text-tertiary)' }}
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              {sidePanel === 'chat' ? (
-                <VoiceChat channelId={channelId} />
-              ) : (
-                <SettingsPanel
-                  diagnostics={voice.diagnostics}
-                  state={voice.state}
-                  aiGovernance={conf.aiGovernance}
-                  onUpdateGovernance={conf.setAIGovernance}
-                  productionChecklist={conf.productionChecklist}
-                />
-              )}
-            </div>
-
-            {/* Desktop: inline side panel */}
-            <div className="hidden sm:flex w-80 flex-col min-h-0" style={{ maxWidth: '50%' }}>
-              {sidePanel === 'chat' ? (
-                <VoiceChat channelId={channelId} />
-              ) : (
-                <SettingsPanel
-                  diagnostics={voice.diagnostics}
-                  state={voice.state}
-                  aiGovernance={conf.aiGovernance}
-                  onUpdateGovernance={conf.setAIGovernance}
-                  productionChecklist={conf.productionChecklist}
-                />
-              )}
-            </div>
-          </>
+          <div className="w-80 flex flex-col min-h-0" style={{ maxWidth: '50%' }}>
+            {sidePanel === 'chat' ? (
+              <VoiceChat channelId={channelId} />
+            ) : (
+              <SettingsPanel
+                diagnostics={voice.diagnostics}
+                state={voice.state}
+                aiGovernance={conf.aiGovernance}
+                onUpdateGovernance={conf.setAIGovernance}
+                productionChecklist={conf.productionChecklist}
+              />
+            )}
+          </div>
         )}
       </div>
     </div>
