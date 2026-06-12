@@ -381,11 +381,28 @@ class TypingReq(BaseModel):
     channel_id: str
     typing: bool = True
 
+class GuestPermissions(BaseModel):
+    can_speak: bool = True
+    can_video: bool = True
+    can_screen_share: bool = False
+    can_chat: bool = True
+
 class CreateInviteReq(BaseModel):
     channel_id: str | None = None
+    room_type: str = "voice"
+    label: str | None = None
     max_uses: int | None = None
-    expires_hours: int | None = None
+    expires_hours: float | None = None
+    allowed_email_domains: list[str] | None = None
+    allowed_emails: list[str] | None = None
+    permissions: GuestPermissions = Field(default_factory=GuestPermissions)
     role_on_join: str | None = None
+
+class GuestJoinReq(BaseModel):
+    guest_name: str
+    guest_email: str | None = None
+    mic_enabled: bool = True
+    video_enabled: bool = False
 
 class UpdateMeetingReq(BaseModel):
     objective: str | None = None
@@ -1174,11 +1191,17 @@ async def create_invite(server_id: str, req: CreateInviteReq, user=Depends(requi
         "id": _uid(),
         "server_id": server_id,
         "channel_id": req.channel_id,
+        "room_type": req.room_type,
         "created_by": _user_id(user),
         "code": secrets.token_urlsafe(16),
+        "label": req.label,
         "max_uses": req.max_uses,
         "uses": 0,
         "expires_at": expires_at,
+        "allowed_email_domains": req.allowed_email_domains,
+        "allowed_emails": req.allowed_emails,
+        "guest_role": "temporary_guest",
+        "permissions": req.permissions.model_dump(),
         "role_on_join": req.role_on_join,
         "created_at": _now(),
         "revoked": False,
@@ -1199,6 +1222,163 @@ async def revoke_invite(invite_id: str, user=Depends(require_clerk_auth)):
             _save("invites", invites)
             return {"ok": True}
     raise HTTPException(404, "Invite not found")
+
+
+def _find_invite_by_code(code: str) -> dict | None:
+    invites = _load("invites")
+    for inv in invites:
+        if inv.get("code") == code and not inv.get("revoked"):
+            return inv
+    return None
+
+
+def _validate_invite(invite: dict) -> str | None:
+    """Returns error message if invite is invalid, None if valid."""
+    if invite.get("revoked"):
+        return "Invite has been revoked"
+    if invite.get("expires_at"):
+        from datetime import datetime as dt
+        try:
+            exp = dt.fromisoformat(invite["expires_at"])
+            if exp < dt.now(timezone.utc):
+                return "Invite has expired"
+        except (ValueError, TypeError):
+            pass
+    if invite.get("max_uses") is not None and invite.get("uses", 0) >= invite["max_uses"]:
+        return "Invite has reached maximum uses"
+    return None
+
+
+@rooms_router.get("/invite/{code}/info")
+async def get_invite_info(code: str):
+    """Public endpoint — no auth required. Returns invite metadata for guest join page."""
+    invite = _find_invite_by_code(code)
+    if not invite:
+        return {"valid": False, "error": "Invalid or expired invite link"}
+
+    validation_error = _validate_invite(invite)
+    if validation_error:
+        return {"valid": False, "error": validation_error}
+
+    # Look up room and server names
+    channel_id = invite.get("channel_id")
+    room_name = "Room"
+    server_name = "Server"
+    if channel_id:
+        channels = _load("channels")
+        ch = next((c for c in channels if c["id"] == channel_id), None)
+        if ch:
+            room_name = ch.get("name", "Room")
+            servers = _load("servers")
+            srv = next((s for s in servers if s["id"] == ch.get("server_id")), None)
+            if srv:
+                server_name = srv.get("name", "Server")
+
+    requires_email = bool(
+        invite.get("allowed_email_domains") or invite.get("allowed_emails")
+    )
+
+    return {
+        "valid": True,
+        "room_name": room_name,
+        "room_type": invite.get("room_type", "voice"),
+        "server_name": server_name,
+        "label": invite.get("label"),
+        "permissions": invite.get("permissions", {"can_speak": True, "can_video": True, "can_screen_share": False, "can_chat": True}),
+        "requires_email": requires_email,
+        "expires_at": invite.get("expires_at"),
+    }
+
+
+@rooms_router.post("/invite/{code}/join")
+async def guest_join_via_invite(code: str, req: GuestJoinReq):
+    """Public endpoint — no auth required. Validates invite and returns a LiveKit token for the guest."""
+    invite = _find_invite_by_code(code)
+    if not invite:
+        raise HTTPException(404, "Invalid or expired invite link")
+
+    validation_error = _validate_invite(invite)
+    if validation_error:
+        raise HTTPException(403, validation_error)
+
+    # Validate email restrictions
+    if invite.get("allowed_emails") and req.guest_email:
+        if req.guest_email.lower() not in [e.lower() for e in invite["allowed_emails"]]:
+            raise HTTPException(403, "Email not authorized for this invite")
+    if invite.get("allowed_email_domains") and req.guest_email:
+        domain = req.guest_email.split("@")[-1].lower() if "@" in req.guest_email else ""
+        if domain not in [d.lower() for d in invite["allowed_email_domains"]]:
+            raise HTTPException(403, "Email domain not authorized for this invite")
+    if (invite.get("allowed_emails") or invite.get("allowed_email_domains")) and not req.guest_email:
+        raise HTTPException(400, "Email required for this invite")
+
+    # Increment use count
+    invites = _load("invites")
+    for inv in invites:
+        if inv["id"] == invite["id"]:
+            inv["uses"] = inv.get("uses", 0) + 1
+            break
+    _save("invites", invites)
+
+    channel_id = invite.get("channel_id")
+    if not channel_id:
+        raise HTTPException(400, "Invite has no channel")
+
+    room_name = f"room-{channel_id}"
+    guest_identity = f"temporary_guest:{invite['id']}:{secrets.token_urlsafe(8)}"
+
+    api_key = os.environ.get("LIVEKIT_API_KEY", "")
+    api_secret = os.environ.get("LIVEKIT_API_SECRET", "")
+    livekit_ws = os.environ.get("LIVEKIT_WS_URL", "")
+    cockpit_domain = os.environ.get("COCKPIT_DOMAIN", "")
+    if cockpit_domain:
+        livekit_ws = f"wss://{cockpit_domain}/livekit/"
+
+    permissions_data = invite.get("permissions", {})
+    publish_sources: list[str] = []
+    if permissions_data.get("can_speak", False):
+        publish_sources.append("microphone")
+    if permissions_data.get("can_video", False):
+        publish_sources.append("camera")
+    if permissions_data.get("can_screen_share", False):
+        publish_sources.extend(["screen_share", "screen_share_audio"])
+
+    if api_key and api_secret:
+        now = datetime.now(timezone.utc)
+        claims = {
+            "iss": api_key,
+            "sub": guest_identity,
+            "name": req.guest_name,
+            "nbf": int(now.timestamp()),
+            "exp": int((now + timedelta(hours=2)).timestamp()),
+            "jti": uuid.uuid4().hex,
+            "video": {
+                "roomJoin": True,
+                "room": room_name,
+                "canPublish": len(publish_sources) > 0,
+                "canPublishSources": publish_sources,
+                "canSubscribe": True,
+                "canPublishData": permissions_data.get("can_chat", True),
+            },
+        }
+        jwt_token = pyjwt.encode(claims, api_secret, algorithm="HS256")
+    else:
+        jwt_token = f"guest-token-{guest_identity}"
+
+    _audit(
+        invite.get("server_id", ""),
+        channel_id,
+        "guest_joined",
+        guest_identity,
+        {"invite_id": invite["id"], "guest_name": req.guest_name, "guest_email": req.guest_email},
+    )
+
+    return {
+        "token": jwt_token,
+        "url": livekit_ws,
+        "room": room_name,
+        "identity": guest_identity,
+    }
 
 
 # ── Meeting ──
@@ -1274,6 +1454,37 @@ async def toggle_meeting_action(channel_id: str, item_id: str, user=Depends(requ
                     _save("meetings", meetings)
                     return m
     raise HTTPException(404, "Action item not found")
+
+
+@rooms_router.post("/channels/{channel_id}/meeting/end")
+async def end_meeting(channel_id: str, user=Depends(require_clerk_auth)):
+    _require_channel_access(user, channel_id)
+    meetings = _load("meetings")
+    for m in meetings:
+        if m["channel_id"] == channel_id:
+            m["ended_at"] = _now()
+            _save("meetings", meetings)
+            # Revoke all active invites for this channel
+            invites = _load("invites")
+            for inv in invites:
+                if inv.get("channel_id") == channel_id and not inv.get("revoked"):
+                    inv["revoked"] = True
+            _save("invites", invites)
+            _audit(
+                _find_server_for_channel(channel_id),
+                channel_id,
+                "meeting_ended",
+                _user_id(user),
+                {},
+            )
+            return m
+    raise HTTPException(404, "No meeting found for this channel")
+
+
+def _find_server_for_channel(channel_id: str) -> str:
+    channels = _load("channels")
+    ch = next((c for c in channels if c["id"] == channel_id), None)
+    return ch.get("server_id", "") if ch else ""
 
 
 # ── Voice ──

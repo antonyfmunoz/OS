@@ -11,6 +11,8 @@ import type {
   RoomRole,
   RoomMember,
   RoomInvite,
+  GuestPermissions,
+  DEFAULT_GUEST_PERMISSIONS,
   MeetingState,
   VoiceRoomState,
   RoomEvent,
@@ -28,6 +30,17 @@ import type {
 } from '../types/rooms'
 
 const API = '/rooms'
+
+export interface CreateInviteOptions {
+  channel_id: string | null
+  room_type: 'voice' | 'meeting'
+  label?: string | null
+  max_uses?: number | null
+  expires_hours?: number | null
+  allowed_email_domains?: string[] | null
+  allowed_emails?: string[] | null
+  permissions?: Partial<GuestPermissions>
+}
 
 interface RoomsState {
   servers: RoomServer[]
@@ -110,7 +123,7 @@ interface RoomsState {
 
   // Invite actions
   fetchInvites: (serverId: string) => Promise<void>
-  createInvite: (serverId: string, channelId: string | null, maxUses: number | null, expiresHours: number | null, roleOnJoin: string | null) => Promise<RoomInvite | null>
+  createInvite: (serverId: string, opts: CreateInviteOptions) => Promise<RoomInvite | null>
   revokeInvite: (id: string) => Promise<void>
 
   // Meeting actions
@@ -118,6 +131,7 @@ interface RoomsState {
   updateMeeting: (channelId: string, updates: Partial<Pick<MeetingState, 'objective' | 'agenda' | 'notes' | 'decisions' | 'mode' | 'recording_consent' | 'ai_assistance'>>) => Promise<void>
   addMeetingActionItem: (channelId: string, item: Omit<MeetingActionItem, 'id'>) => Promise<void>
   toggleMeetingActionItem: (channelId: string, itemId: string) => Promise<void>
+  endMeeting: (channelId: string) => Promise<void>
 
   // Voice actions
   fetchVoiceState: (channelId: string) => Promise<void>
@@ -727,11 +741,20 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
     }
   },
 
-  createInvite: async (serverId, channelId, maxUses, expiresHours, roleOnJoin) => {
+  createInvite: async (serverId, opts) => {
     try {
       const invite = await fetchApi<RoomInvite>(`${API}/servers/${serverId}/invites`, {
         method: 'POST',
-        body: JSON.stringify({ channel_id: channelId, max_uses: maxUses, expires_hours: expiresHours, role_on_join: roleOnJoin }),
+        body: JSON.stringify({
+          channel_id: opts.channel_id,
+          room_type: opts.room_type,
+          label: opts.label ?? null,
+          max_uses: opts.max_uses ?? null,
+          expires_hours: opts.expires_hours ?? null,
+          allowed_email_domains: opts.allowed_email_domains ?? null,
+          allowed_emails: opts.allowed_emails ?? null,
+          permissions: { ...DEFAULT_GUEST_PERMISSIONS, ...opts.permissions },
+        }),
       })
       set((s) => ({ invites: [...s.invites, invite] }))
       return invite
@@ -793,6 +816,24 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
       set((s) => ({ meetingStates: { ...s.meetingStates, [channelId]: meeting } }))
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to toggle action item' })
+    }
+  },
+
+  endMeeting: async (channelId) => {
+    try {
+      await fetchApi(`${API}/channels/${channelId}/meeting/end`, { method: 'POST' })
+      set((s) => {
+        const meeting = s.meetingStates[channelId]
+        if (!meeting) return s
+        return {
+          meetingStates: {
+            ...s.meetingStates,
+            [channelId]: { ...meeting, ended_at: new Date().toISOString() },
+          },
+        }
+      })
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : 'Failed to end meeting' })
     }
   },
 

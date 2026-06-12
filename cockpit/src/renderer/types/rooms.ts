@@ -230,15 +230,37 @@ export interface RoomMember {
   is_deafened: boolean
 }
 
+export type GuestRole = 'temporary_guest'
+
+export interface GuestPermissions {
+  can_speak: boolean
+  can_video: boolean
+  can_screen_share: boolean
+  can_chat: boolean
+}
+
+export const DEFAULT_GUEST_PERMISSIONS: GuestPermissions = {
+  can_speak: true,
+  can_video: true,
+  can_screen_share: false,
+  can_chat: true,
+}
+
 export interface RoomInvite {
   id: string
   server_id: string
   channel_id: string | null
+  room_type: 'voice' | 'meeting'
   created_by: string
   code: string
+  label: string | null
   max_uses: number | null
   uses: number
   expires_at: string | null
+  allowed_email_domains: string[] | null
+  allowed_emails: string[] | null
+  guest_role: GuestRole
+  permissions: GuestPermissions
   role_on_join: string | null
   created_at: string
   revoked: boolean

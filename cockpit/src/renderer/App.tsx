@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { SignedIn, SignedOut, SignIn, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react'
 import { Shell } from './components/Shell'
+import { GuestJoinPage } from './components/rooms/GuestJoinPage'
 import { useKeyboard } from './hooks/useKeyboard'
 import { useOrganismRealtime } from './hooks/useOrganismRealtime'
 import { useVisionConnection } from './hooks/useVisionConnection'
@@ -85,7 +86,15 @@ function LoginScreen() {
   )
 }
 
+function getGuestInviteCode(): string | null {
+  const match = window.location.pathname.match(/^\/join\/([a-zA-Z0-9_-]+)$/)
+  return match ? match[1] : null
+}
+
 export function App() {
+  const guestCode = getGuestInviteCode()
+  if (guestCode) return <GuestJoinPage inviteCode={guestCode} />
+
   if (!hasClerk) return <AuthenticatedApp />
 
   return (
