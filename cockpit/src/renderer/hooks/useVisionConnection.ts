@@ -5,6 +5,7 @@ import {
   QUALITY_PROFILES,
   shouldAutoStartCamera,
   loadPresetsFromStorage,
+  savePresetsToStorage,
   type CameraPreset,
   type TrackedObjectState,
   type WatchItemState,
@@ -141,7 +142,22 @@ export function useVisionConnection(): void {
       client.on('camera_presets', (d) => {
         const fromBeast = d.presets as Record<string, CameraPreset>
         const fromStorage = loadPresetsFromStorage()
-        setPresets({ ...fromStorage, ...fromBeast })
+        const merged: Record<string, CameraPreset> = {}
+        for (const [key, beastPreset] of Object.entries(fromBeast)) {
+          const local = fromStorage[key]
+          merged[key] = {
+            ...local,
+            ...beastPreset,
+            mode: beastPreset.mode || local?.mode || 'physical_ptz',
+            created_at: local?.created_at,
+            updated_at: local?.updated_at,
+          }
+        }
+        for (const [key, local] of Object.entries(fromStorage)) {
+          if (!merged[key]) merged[key] = local
+        }
+        setPresets(merged)
+        savePresetsToStorage(merged)
       }),
       client.on('camera_position', (d) => {
         setPtzPosition({
@@ -190,15 +206,19 @@ export function useVisionConnection(): void {
       client.on('preset_saved', (d) => {
         client.requestPresets()
         const presetName = d.preset as string
+        const pan = d.pan as number | undefined
+        const tilt = d.tilt as number | undefined
+        const zoom = d.zoom as number | undefined
         if (presetName) {
-          useVisionStore.getState().addToast(`Preset "${presetName}" saved to device`, 'ok')
+          const posStr = pan != null ? ` (P:${pan} T:${tilt} Z:${zoom})` : ''
+          useVisionStore.getState().addToast(`"${presetName}" saved to Beast${posStr}`, 'ok')
         }
       }),
       client.on('preset_deleted', (d) => {
         client.requestPresets()
         const presetName = d.preset as string
         if (presetName) {
-          useVisionStore.getState().addToast(`Preset "${presetName}" deleted from device`, 'warning')
+          useVisionStore.getState().addToast(`"${presetName}" deleted from Beast`, 'warning')
         }
       }),
       client.on('label_corrected', (d) => {

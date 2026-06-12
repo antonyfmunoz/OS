@@ -511,29 +511,39 @@ class CameraAdapter:
         name = params.get("preset", "")
         label = params.get("label", name)
         analysis_hint = params.get("analysis_hint", "")
+        mode = params.get("mode", "physical_ptz")
 
         if not name:
             return {"success": False, "error": "preset name required"}
 
-        pos = self._get_position({})
-        if not pos["success"]:
-            return pos
+        if params.get("pan") is not None and params.get("tilt") is not None:
+            pan = int(params["pan"])
+            tilt = int(params["tilt"])
+            zoom = int(params.get("zoom", 100))
+        else:
+            pos = self._get_position({})
+            if not pos["success"]:
+                return pos
+            pan = pos["pan"]
+            tilt = pos["tilt"]
+            zoom = pos["zoom"]
 
         self._presets[name] = {
             "label": label,
-            "pan": pos["pan"],
-            "tilt": pos["tilt"],
-            "zoom": pos["zoom"],
+            "pan": pan,
+            "tilt": tilt,
+            "zoom": zoom,
+            "mode": mode,
             "analysis_hint": analysis_hint,
         }
         self._save_presets_to_disk()
-        logger.info("saved preset '%s': pan=%s tilt=%s zoom=%s", name, pos["pan"], pos["tilt"], pos["zoom"])
+        logger.info("saved preset '%s': pan=%s tilt=%s zoom=%s", name, pan, tilt, zoom)
         return {
             "success": True,
             "preset": name,
-            "pan": pos["pan"],
-            "tilt": pos["tilt"],
-            "zoom": pos["zoom"],
+            "pan": pan,
+            "tilt": tilt,
+            "zoom": zoom,
         }
 
     # ── Device enumeration ───────────────────────────────────────────
@@ -616,32 +626,36 @@ class CameraAdapter:
 
 def _default_presets() -> dict[str, dict[str, Any]]:
     return {
-        "operator": {
-            "label": "Look at me",
+        "home": {
+            "label": "Home",
             "pan": 0,
             "tilt": 0,
             "zoom": 100,
+            "mode": "physical_ptz",
             "analysis_hint": "operator face, posture, presence",
         },
         "keyboard": {
-            "label": "Look at my keyboard",
+            "label": "Keyboard",
             "pan": 0,
             "tilt": -45,
             "zoom": 150,
+            "mode": "physical_ptz",
             "analysis_hint": "hands, keyboard, desk interaction",
         },
+        "monitor": {
+            "label": "Monitor",
+            "pan": 0,
+            "tilt": 0,
+            "zoom": 130,
+            "mode": "physical_ptz",
+            "analysis_hint": "screen content, monitor state",
+        },
         "desk": {
-            "label": "Look at the desk",
+            "label": "Desk",
             "pan": 0,
             "tilt": -30,
             "zoom": 120,
+            "mode": "physical_ptz",
             "analysis_hint": "desk objects, workspace state",
-        },
-        "room": {
-            "label": "Watch the room",
-            "pan": 0,
-            "tilt": 0,
-            "zoom": 100,
-            "analysis_hint": "general room awareness",
         },
     }

@@ -290,9 +290,18 @@ export class VisionWsClient {
     this.ws.send('camera_preset', { preset, smooth, duration, request_id: nextRequestId() })
   }
 
-  savePreset(preset: string, label: string, analysisHint = ''): void {
-    log('camera_save_preset', { preset, label })
-    this.ws.send('camera_save_preset', { preset, label, analysis_hint: analysisHint, request_id: nextRequestId() })
+  savePreset(preset: string, label: string, opts: { pan?: number; tilt?: number; zoom?: number; mode?: string; analysisHint?: string } = {}): void {
+    log('camera_save_preset', { preset, label, ...opts })
+    this.ws.send('camera_save_preset', {
+      preset,
+      label,
+      pan: opts.pan,
+      tilt: opts.tilt,
+      zoom: opts.zoom,
+      mode: opts.mode ?? 'physical_ptz',
+      analysis_hint: opts.analysisHint ?? '',
+      request_id: nextRequestId(),
+    })
   }
 
   deletePresetOnDevice(preset: string): void {
