@@ -13,6 +13,7 @@ import {
   LocalParticipant,
   createLocalScreenTracks,
   LocalVideoTrack,
+  DataPacket_Kind,
   type TrackPublication,
 } from 'livekit-client'
 import { fetchApi } from '../api/client'
@@ -170,6 +171,14 @@ export interface ProductionTestItem {
   detail: string
 }
 
+export interface DataChatMessage {
+  id: string
+  sender: string
+  senderName: string
+  content: string
+  timestamp: number
+}
+
 export interface UseConferenceRoomReturn {
   state: ConferenceRoomState
   error: string | null
@@ -186,6 +195,7 @@ export interface UseConferenceRoomReturn {
   diagnostics: ConferenceDiagnostics
   aiGovernance: AIGovernancePermissions
   productionChecklist: ProductionTestItem[]
+  dataChatMessages: DataChatMessage[]
   join: () => Promise<void>
   leave: () => void
   toggleMute: () => Promise<void>
@@ -199,6 +209,7 @@ export interface UseConferenceRoomReturn {
   canAddStream: boolean
   getVideoElement: (trackSid: string) => HTMLVideoElement | null
   setAIGovernance: (patch: Partial<AIGovernancePermissions>) => void
+  sendDataChat: (content: string) => Promise<void>
 }
 
 const MAX_STREAMS_PER_USER = 4
@@ -206,6 +217,7 @@ const MAX_RECONNECT_ATTEMPTS = 5
 const INITIAL_BACKOFF_MS = 1000
 const TOKEN_CACHE_TTL_MS = 25000
 const RECONNECT_WATCHDOG_MS = 3000
+const DATA_CHAT_TOPIC = 'umh-chat'
 
 let actionIdCounter = 0
 function nextActionId(): number { return ++actionIdCounter }
@@ -444,6 +456,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
   const [streams, setStreams] = useState<Map<string, MediaStreamSource[]>>(new Map())
   const [diagnostics, setDiagnostics] = useState<ConferenceDiagnostics>({ ...INITIAL_DIAGNOSTICS })
   const [aiGovernance, setAIGovernanceState] = useState<AIGovernancePermissions>({ ...DEFAULT_AI_GOVERNANCE })
+  const [dataChatMessages, setDataChatMessages] = useState<DataChatMessage[]>([])
 
   const updateDiag = useCallback((patch: Partial<ConferenceDiagnostics>) => {
     setDiagnostics((prev) => ({ ...prev, ...patch }))
@@ -924,6 +937,22 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
         }
       })
 
+      room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant: RemoteParticipant | undefined, _kind: DataPacket_Kind, topic: string | undefined) => {
+        if (topic !== DATA_CHAT_TOPIC) return
+        try {
+          const msg = JSON.parse(new TextDecoder().decode(payload))
+          if (msg.type === 'chat' && msg.content) {
+            setDataChatMessages((prev) => [...prev, {
+              id: `${prev.length}-${Date.now()}`,
+              sender: participant?.identity || 'unknown',
+              senderName: participant?.name || msg.senderName || 'Unknown',
+              content: msg.content,
+              timestamp: Date.now(),
+            }])
+          }
+        } catch { /* ignore malformed data messages */ }
+      })
+
       updateDiag({ joinStage: micEnabled ? 'requesting_mic' : 'connecting', micState: micEnabled ? 'publishing' : 'prejoin_off' })
       await room.connect(tokenData.url, tokenData.token, {
         autoSubscribe: true,
@@ -1084,6 +1113,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     updateCameraIntent({ ...INITIAL_CAMERA_INTENT })
     setStreams(new Map())
     setDiagnostics({ ...INITIAL_DIAGNOSTICS })
+    setDataChatMessages([])
     prefetchToken()
   }, [prefetchToken, updateMicIntent, updateCameraIntent])
 
@@ -1272,6 +1302,24 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     setAIGovernanceState((prev) => ({ ...prev, ...patch }))
   }, [])
 
+  const sendDataChat = useCallback(async (content: string) => {
+    const room = roomRef.current
+    if (!room || !content.trim()) return
+    const payload = new TextEncoder().encode(JSON.stringify({
+      type: 'chat',
+      content: content.trim(),
+      senderName: room.localParticipant.name || room.localParticipant.identity,
+    }))
+    await room.localParticipant.publishData(payload, { reliable: true, topic: DATA_CHAT_TOPIC })
+    setDataChatMessages((prev) => [...prev, {
+      id: `${prev.length}-${Date.now()}`,
+      sender: room.localParticipant.identity,
+      senderName: room.localParticipant.name || room.localParticipant.identity,
+      content: content.trim(),
+      timestamp: Date.now(),
+    }])
+  }, [])
+
   const localIdentity = roomRef.current?.localParticipant?.identity
   const localStreams = localIdentity ? (streams.get(localIdentity) ?? []) : []
   const localScreenCount = localStreams.filter(s => s.sourceType !== 'camera').length
@@ -1312,6 +1360,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     diagnostics,
     aiGovernance,
     productionChecklist,
+    dataChatMessages,
     join,
     leave,
     toggleMute,
@@ -1325,5 +1374,6 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     canAddStream,
     getVideoElement,
     setAIGovernance,
+    sendDataChat,
   }
 }
