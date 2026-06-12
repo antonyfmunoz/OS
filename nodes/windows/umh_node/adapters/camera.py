@@ -511,6 +511,9 @@ class CameraAdapter:
             }
 
         preset = self._presets[name]
+        preset_device = preset.get("device_id")
+        device_mismatch = preset_device is not None and preset_device != self._device_index
+
         result = self._set_position({
             "pan": preset.get("pan"),
             "tilt": preset.get("tilt"),
@@ -520,6 +523,14 @@ class CameraAdapter:
             result["preset"] = name
             result["label"] = preset.get("label", name)
             result["analysis_hint"] = preset.get("analysis_hint", "")
+            if device_mismatch:
+                result["device_mismatch"] = True
+                result["preset_device_id"] = preset_device
+                result["current_device_id"] = self._device_index
+                logger.warning(
+                    "preset '%s' was saved on device %s but current device is %s",
+                    name, preset_device, self._device_index,
+                )
         return result
 
     def _save_preset(self, params: dict[str, Any]) -> dict[str, Any]:

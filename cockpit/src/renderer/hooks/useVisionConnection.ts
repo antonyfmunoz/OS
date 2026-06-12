@@ -186,6 +186,12 @@ export function useVisionConnection(): void {
             zoom: d.zoom as number,
           })
         }
+        if (d.device_mismatch) {
+          addNotification('warn', 'Preset device mismatch', 'camera',
+            `Preset saved on device ${d.preset_device_id} but current is ${d.current_device_id} — PTZ position may not match`,
+            'check preset')
+          addToast('Preset from different camera — position may differ', 'warning')
+        }
       }),
       client.on('vision_snapshot', (d) => {
         const b64 = d.image_base64 as string
