@@ -32,6 +32,7 @@ export function DiagnosticsPanel({
   const trackerStack = useVisionStore((s) => s.trackerStack)
   const latencyHistory = useVisionStore((s) => s.latencyHistory)
   const labelCorrections = useVisionStore((s) => s.labelCorrections)
+  const authorityLog = useVisionStore((s) => s.authority.log)
   const [expanded, setExpanded] = useState(false)
 
   const enabledTrackers = trackerStack.enabled_trackers.filter((t) => t.enabled)
@@ -138,6 +139,24 @@ export function DiagnosticsPanel({
               {chainHealth.recoveryAction && (
                 <div className="text-warning/80 mt-0.5">{chainHealth.recoveryAction}</div>
               )}
+            </div>
+          )}
+
+          {/* Authority audit log */}
+          {authorityLog.length > 0 && (
+            <div className="text-[9px] font-mono border border-dashed border-border/50 rounded p-2">
+              <span className="text-text-quaternary uppercase tracking-wider block mb-1">authority log ({authorityLog.length})</span>
+              {authorityLog.slice(-10).reverse().map((entry, i) => (
+                <div key={i} className="flex gap-2 text-text-quaternary">
+                  <span className="shrink-0">{new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                  <span className={clsx(
+                    entry.to === 'ai' && 'text-warning',
+                    entry.to === 'operator' && 'text-ok',
+                    entry.to === 'voice' && 'text-cyan',
+                  )}>{entry.from} → {entry.to}</span>
+                  {entry.reason && <span className="text-text-quaternary truncate">{entry.reason}</span>}
+                </div>
+              ))}
             </div>
           )}
         </div>

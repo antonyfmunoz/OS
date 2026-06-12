@@ -164,16 +164,33 @@ export function useVisionConnection(): void {
           clearTimeout(presetLoadTimeout)
           presetLoadTimeout = null
         }
+        // Relay WS is down, but frames may still be live if they arrived
+        // recently. Don't nuke everything — only mark relay path offline.
+        // Controls remain enabled if commandPathReady was recently true.
         setConnected(false)
-        setCameraStatus('off')
-        setStreaming(false)
         setCameraSessionActive(false)
         useVisionStore.getState().setDeviceScanLoading(false)
         cameraStartedInSession = false
         connectedAt = 0
-        setPtzMotion({ state: 'disconnected', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
-        updateChainHealth({ status: 'relay_offline', relayRunning: false, cockpitConnected: false, blockers: ['WebSocket disconnected from vision relay'], recoveryAction: 'reconnecting automatically' })
-        addNotification('warn', 'Vision relay disconnected', 'relay', 'WebSocket connection lost — reconnecting', 'auto-reconnect', true)
+        // Check if frames are still fresh — if so, video path is healthy
+        const state = useVisionStore.getState()
+        const frameAge = state.latestFrameAt ? Date.now() - state.latestFrameAt : Infinity
+        const framesLive = frameAge < 5000
+        if (!framesLive) {
+          setCameraStatus('off')
+          setStreaming(false)
+          setPtzMotion({ state: 'disconnected', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
+        }
+        updateChainHealth({
+          cockpitConnected: false,
+          blockers: ['WebSocket disconnected from vision relay'],
+          recoveryAction: 'reconnecting automatically',
+        })
+        addNotification('warn', 'Vision relay disconnected', 'relay',
+          framesLive
+            ? 'WebSocket lost — video frames still recent, controls may work'
+            : 'WebSocket connection lost — reconnecting',
+          'auto-reconnect', true)
       }),
       client.on('vision_frame', (d) => {
         setLatestFrame(d.url as string, d.timestamp as number)
@@ -597,6 +614,23 @@ export function useVisionConnection(): void {
             if (state.cameraDevices.length === 0) {
               state.setDeviceScanLoading(true)
               client.listDevices()
+            }
+            if (state.pendingPresetChanges.length > 0) {
+              for (const change of state.pendingPresetChanges) {
+                if ((change.op === 'save' || change.op === 'update') && change.preset) {
+                  client.savePreset(change.label, change.preset.label || change.label, {
+                    pan: change.preset.pan,
+                    tilt: change.preset.tilt,
+                    zoom: change.preset.zoom,
+                    mode: change.preset.mode,
+                    analysisHint: change.preset.analysis_hint,
+                  })
+                } else if (change.op === 'delete') {
+                  client.deletePresetOnDevice(change.label)
+                }
+              }
+              addToast(`Synced ${state.pendingPresetChanges.length} queued preset change(s)`, 'ok')
+              state.clearPendingPresetChanges()
             }
           } else {
             addNotification('critical', 'Beast offline', 'mesh', 'Beast node disconnected — camera commands unavailable', 'check Beast', true)

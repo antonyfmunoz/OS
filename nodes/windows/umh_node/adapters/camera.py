@@ -40,6 +40,7 @@ class CameraAdapter:
 
         saved_device = self._load_device_preference()
         self._device_index = saved_device if saved_device is not None else device_index
+        self._device_name: str | None = None
 
         self._stream_active = False
         self._stream_thread: threading.Thread | None = None
@@ -592,6 +593,14 @@ class CameraAdapter:
 
     # ── Device enumeration ───────────────────────────────────────────
 
+    def _resolve_device_name(self, wmi_cameras: list[dict[str, str]]) -> str:
+        """Best-effort name for the active DirectShow index using WMI data."""
+        if len(wmi_cameras) == 1:
+            return wmi_cameras[0]["name"]
+        if self._device_index < len(wmi_cameras):
+            return wmi_cameras[self._device_index]["name"]
+        return f"Camera {self._device_index}"
+
     def _get_wmi_cameras(self) -> list[dict[str, str]]:
         """Get physical camera devices via WMI with name and DeviceID for dedup.
 
@@ -702,8 +711,8 @@ class CameraAdapter:
         import concurrent.futures
 
         wmi_cameras = self._get_wmi_cameras()
-        wmi_name_map = {i: c["name"] for i, c in enumerate(wmi_cameras)}
-        wmi_id_map = {i: c["device_id"] for i, c in enumerate(wmi_cameras)}
+        wmi_by_name: dict[str, str] = {c["name"]: c["device_id"] for c in wmi_cameras}
+        wmi_names = set(wmi_by_name.keys())
         devices = []
         now_ms = int(time.time() * 1000)
         validate = params.get("validate", False)
@@ -720,11 +729,12 @@ class CameraAdapter:
                     fps_est = round(cap_ref.get(cv2.CAP_PROP_FPS) or 0, 1)
                 except Exception:
                     pass
-            active_name = wmi_name_map.get(self._device_index, f"Camera {self._device_index}")
+            active_name = getattr(self, '_device_name', None) or self._resolve_device_name(wmi_cameras)
+            active_pid = wmi_by_name.get(active_name, "")
             devices.append({
                 "index": self._device_index,
                 "name": active_name,
-                "physical_id": wmi_id_map.get(self._device_index, ""),
+                "physical_id": active_pid,
                 "raw_indexes": [self._device_index],
                 "width": w,
                 "height": h,
@@ -736,14 +746,15 @@ class CameraAdapter:
                 "last_validated_at": now_ms,
                 "last_probe_error": None,
             })
-            # WMI-only for other devices — DirectShow hangs when a capture is active
-            for idx, cam in enumerate(wmi_cameras):
-                if idx != self._device_index:
+            seen_names = {active_name}
+            for cam in wmi_cameras:
+                if cam["name"] not in seen_names:
+                    seen_names.add(cam["name"])
                     devices.append({
-                        "index": idx,
+                        "index": -1,
                         "name": cam["name"],
                         "physical_id": cam["device_id"],
-                        "raw_indexes": [idx],
+                        "raw_indexes": [],
                         "width": 0,
                         "height": 0,
                         "fps": 0,
@@ -756,6 +767,13 @@ class CameraAdapter:
                     })
             devices.sort(key=lambda d: d["index"])
             return {"success": True, "devices": devices, "selected_index": self._device_index}
+
+        wmi_name_by_idx: dict[int, str] = {}
+        wmi_id_by_idx: dict[int, str] = {}
+        if len(wmi_cameras) > 0:
+            for i, c in enumerate(wmi_cameras):
+                wmi_name_by_idx[i] = c["name"]
+                wmi_id_by_idx[i] = c["device_id"]
 
         def probe_index(i: int) -> dict[str, Any] | None:
             try:
@@ -783,8 +801,8 @@ class CameraAdapter:
                     cap.release()
                     return {
                         "index": i,
-                        "name": wmi_name_map.get(i, f"Camera {i}"),
-                        "physical_id": wmi_id_map.get(i, ""),
+                        "name": wmi_name_by_idx.get(i, f"Camera {i}"),
+                        "physical_id": wmi_id_by_idx.get(i, ""),
                         "raw_indexes": [i],
                         "width": w,
                         "height": h,
@@ -884,7 +902,8 @@ class CameraAdapter:
             restarted = True
 
         wmi_cameras = self._get_wmi_cameras()
-        name = wmi_cameras[new_index]["name"] if new_index < len(wmi_cameras) else f"Camera {new_index}"
+        name = self._resolve_device_name(wmi_cameras)
+        self._device_name = name
         return {
             "success": True,
             "device_index": new_index,
