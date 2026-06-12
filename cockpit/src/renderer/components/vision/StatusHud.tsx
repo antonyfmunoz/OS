@@ -93,12 +93,15 @@ export function StatusHud() {
   const det = chainHealth.detectorStatus
   const detectorColor: StatusColor =
     det === null ? 'off'
-    : det.loaded ? 'ok'
+    : !det.loaded ? 'warn'
+    : det.device === 'cuda' ? 'ok'
     : 'warn'
   const detectorState =
     det === null ? 'OFF'
-    : det.loaded ? 'ACTIVE'
-    : 'LOADING'
+    : !det.loaded ? 'LOADING'
+    : det.device === 'cuda' ? `CUDA ${det.avg_inference_ms.toFixed(0)}ms`
+    : det.device === 'cpu' ? `CPU ${det.avg_inference_ms.toFixed(0)}ms`
+    : 'ACTIVE'
 
   // 5. TRACKER — from tracker reports only
   const trackerColor: StatusColor =
@@ -111,7 +114,8 @@ export function StatusHud() {
     : 'IDLE'
 
   // Derived display values
-  const resolutionStr = width > 0 && height > 0 ? `${width}x${height}` : streaming ? '—' : '—'
+  const aiEnabled = authority.aiEnabled
+  const resolutionStr = width > 0 && height > 0 ? `${width}×${height}` : streaming ? '—' : '—'
   const fpsStr = `${fps.toFixed(1)} fps`
   const latencyStr = frameAge < 1000 ? `${frameAge}ms` : `${(frameAge / 1000).toFixed(1)}s`
   const bitrateStr = streamMetrics.bitrateKbps > 1024
@@ -145,10 +149,16 @@ export function StatusHud() {
   }, [allOffline, allReady, connected, videoState, controlState, ptzState])
 
   if (!connected) {
+    const hasRecentFrame = latestFrameAt != null && (Date.now() - latestFrameAt) < 5000
     return (
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border bg-surface-hover/30">
-        <Dot color="danger" />
-        <span className="text-[10px] font-mono text-danger">relay offline</span>
+      <div className={clsx(
+        'flex items-center gap-1.5 px-3 py-1.5 rounded border',
+        hasRecentFrame ? 'border-warning/30 bg-warning/10' : 'border-border bg-surface-hover/30',
+      )}>
+        <Dot color={hasRecentFrame ? 'warn' : 'danger'} />
+        <span className={clsx('text-[10px] font-mono', hasRecentFrame ? 'text-warning' : 'text-danger')}>
+          {hasRecentFrame ? 'relay reconnecting — video live' : 'relay offline'}
+        </span>
       </div>
     )
   }
@@ -207,6 +217,12 @@ export function StatusHud() {
           )}>
             {AUTHORITY_LABELS[authority.current]}
           </span>
+          {aiEnabled && (
+            <>
+              <span className="text-text-quaternary text-[10px]">·</span>
+              <span className="text-[10px] font-mono text-warning">AI</span>
+            </>
+          )}
         </div>
       )}
 

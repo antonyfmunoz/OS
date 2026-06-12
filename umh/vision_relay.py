@@ -1698,9 +1698,13 @@ async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str
 
 
 async def _command_path_ping_loop() -> None:
-    """Periodically ping Beast with camera.status to keep command_path_ready fresh."""
+    """Periodically ping Beast with camera.status to keep command_path_ready fresh.
+
+    5s cadence: command_path_ready expires after 15s of no successful dispatch,
+    so we must ping faster than that window to keep the control path alive.
+    """
     while True:
-        await asyncio.sleep(30)
+        await asyncio.sleep(5)
         try:
             result = await _dispatch_to_beast("camera.status", {})
             if result and result.get("success"):
@@ -1818,8 +1822,9 @@ def _build_health() -> dict[str, Any]:
     physical_ptz_available = beast_connected
     digital_roi_available = True
     ptz_mode = "physical_ptz" if physical_ptz_available else "digital_roi"
-    # command_path_ready requires beast connected AND a recent successful dispatch
-    dispatch_fresh = (now - _last_dispatch_ok_at) < 120 if _last_dispatch_ok_at > 0 else False
+    # command_path_ready requires beast connected AND a recent successful dispatch.
+    # 15s window: ping loop runs every 5s, so 3 consecutive failures = stale.
+    dispatch_fresh = (now - _last_dispatch_ok_at) < 15 if _last_dispatch_ok_at > 0 else False
     command_path_ready = beast_connected and dispatch_fresh
 
     return {

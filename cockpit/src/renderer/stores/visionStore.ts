@@ -7,12 +7,20 @@ export type CameraMode = 'manual' | 'follow' | 'watch' | 'ai_assist'
 
 export type ControlAuthority = 'operator' | 'voice' | 'ai' | 'autonomous'
 
+export interface AuthorityLogEntry {
+  at: number
+  from: ControlAuthority
+  to: ControlAuthority
+  reason: string
+}
+
 export interface AuthorityState {
   current: ControlAuthority
   aiEnabled: boolean
   aiIntentDescription: string
   lastOverrideAt: number
   lastOverrideBy: ControlAuthority
+  log: AuthorityLogEntry[]
 }
 
 // ── Default-on policy ────────────────────────────────────────────
@@ -85,6 +93,14 @@ export interface CameraPreset {
   roi?: { x: number; y: number; zoom: number }
   created_at?: number
   updated_at?: number
+}
+
+export type PresetChangeOp = 'save' | 'update' | 'delete'
+export interface PendingPresetChange {
+  op: PresetChangeOp
+  label: string
+  preset?: CameraPreset
+  queuedAt: number
 }
 
 export type DeviceStatus = 'usable' | 'busy' | 'stale' | 'unavailable' | 'duplicate' | 'error' | 'unknown'
@@ -205,7 +221,7 @@ export type FrameFreshness = 'live' | 'recent' | 'stale' | 'dead' | 'none'
 
 export function computeFrameFreshness(ageMs: number, hasFrame: boolean): FrameFreshness {
   if (!hasFrame) return 'none'
-  if (ageMs < 2000) return 'live'
+  if (ageMs < 3000) return 'live'
   if (ageMs < 5000) return 'recent'
   if (ageMs < 15000) return 'stale'
   return 'dead'
@@ -632,6 +648,11 @@ interface VisionState {
   setPresetsLoading: (loading: boolean) => void
   setPresetsLoadError: (error: string | null) => void
 
+  // Preset offline queue — changes queued while Beast unavailable
+  pendingPresetChanges: PendingPresetChange[]
+  queuePresetChange: (change: PendingPresetChange) => void
+  clearPendingPresetChanges: () => void
+
   reset: () => void
 }
 
@@ -668,6 +689,7 @@ const INITIAL_AUTHORITY: AuthorityState = {
   aiIntentDescription: '',
   lastOverrideAt: 0,
   lastOverrideBy: 'operator',
+  log: [],
 }
 
 const INITIAL_CONTROL_METRICS: ControlMetrics = {
@@ -1009,6 +1031,7 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   claimAuthority: (who, reason) => set((s) => {
     const prev = s.authority.current
     if (prev === who) return s
+    const entry: AuthorityLogEntry = { at: Date.now(), from: prev, to: who, reason: reason || '' }
     return {
       authority: {
         ...s.authority,
@@ -1016,6 +1039,7 @@ export const useVisionStore = create<VisionState>((set, get) => ({
         lastOverrideAt: Date.now(),
         lastOverrideBy: prev,
         aiIntentDescription: reason || '',
+        log: [...s.authority.log.slice(-49), entry],
       },
     }
   }),
@@ -1026,6 +1050,12 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   presetsLoadedAt: 0,
   setPresetsLoading: (presetsLoading) => set({ presetsLoading }),
   setPresetsLoadError: (presetsLoadError) => set({ presetsLoadError }),
+
+  pendingPresetChanges: [],
+  queuePresetChange: (change) => set((s) => ({
+    pendingPresetChanges: [...s.pendingPresetChanges, change],
+  })),
+  clearPendingPresetChanges: () => set({ pendingPresetChanges: [] }),
 
   reset: () => set({
     connected: false,
@@ -1078,5 +1108,6 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     presetsLoading: false,
     presetsLoadError: null,
     presetsLoadedAt: 0,
+    pendingPresetChanges: [],
   }),
 }))
