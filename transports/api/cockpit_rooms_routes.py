@@ -1382,6 +1382,100 @@ async def guest_join_via_invite(code: str, req: GuestJoinReq):
     }
 
 
+# ── Room Chat (persistent, survives reconnect/refresh) ──
+
+
+class RoomChatReq(BaseModel):
+    content: str = Field(..., min_length=1, max_length=2000)
+    sender_type: str = "owner"
+
+
+@rooms_router.get("/channels/{channel_id}/room-chat")
+async def list_room_chat(channel_id: str, limit: int = 100, user=Depends(require_clerk_auth)):
+    _require_channel_access(user, channel_id, "view_channel")
+    msgs = _load("room_chat")
+    ch_msgs = [m for m in msgs if m["channel_id"] == channel_id]
+    ch_msgs.sort(key=lambda m: m["created_at"])
+    return ch_msgs[-limit:]
+
+
+@rooms_router.post("/channels/{channel_id}/room-chat")
+async def send_room_chat(channel_id: str, req: RoomChatReq, user=Depends(require_clerk_auth)):
+    _require_channel_access(user, channel_id)
+    msg = {
+        "id": _uid(),
+        "channel_id": channel_id,
+        "sender_identity": _user_id(user),
+        "sender_display_name": _display_name(user),
+        "sender_type": "owner",
+        "body": req.content,
+        "created_at": _now(),
+    }
+    msgs = _load("room_chat")
+    msgs.append(msg)
+    if len(msgs) > 5000:
+        msgs = msgs[-5000:]
+    _save("room_chat", msgs)
+    _push_room_event("room_chat.message", {"channel_id": channel_id, "message": msg})
+    return msg
+
+
+class GuestChatReq(BaseModel):
+    content: str = Field(..., min_length=1, max_length=2000)
+    guest_identity: str
+    guest_name: str
+
+
+@rooms_public_router.get("/invite/{code}/chat")
+async def guest_list_room_chat(code: str, limit: int = 100):
+    invite = _find_invite_by_code(code)
+    if not invite:
+        raise HTTPException(404, "Invalid invite")
+    validation_error = _validate_invite(invite)
+    if validation_error:
+        raise HTTPException(403, validation_error)
+    channel_id = invite.get("channel_id")
+    if not channel_id:
+        raise HTTPException(400, "Invite has no channel")
+    msgs = _load("room_chat")
+    ch_msgs = [m for m in msgs if m["channel_id"] == channel_id]
+    ch_msgs.sort(key=lambda m: m["created_at"])
+    return ch_msgs[-limit:]
+
+
+@rooms_public_router.post("/invite/{code}/chat")
+async def guest_send_room_chat(code: str, req: GuestChatReq):
+    invite = _find_invite_by_code(code)
+    if not invite:
+        raise HTTPException(404, "Invalid invite")
+    validation_error = _validate_invite(invite)
+    if validation_error:
+        raise HTTPException(403, validation_error)
+    permissions = invite.get("permissions", {})
+    if not permissions.get("can_chat", True):
+        raise HTTPException(403, "Chat not permitted")
+    channel_id = invite.get("channel_id")
+    if not channel_id:
+        raise HTTPException(400, "Invite has no channel")
+    msg = {
+        "id": _uid(),
+        "channel_id": channel_id,
+        "sender_identity": req.guest_identity,
+        "sender_display_name": req.guest_name,
+        "sender_type": "guest",
+        "body": req.content,
+        "created_at": _now(),
+        "invite_id": invite["id"],
+    }
+    msgs = _load("room_chat")
+    msgs.append(msg)
+    if len(msgs) > 5000:
+        msgs = msgs[-5000:]
+    _save("room_chat", msgs)
+    _push_room_event("room_chat.message", {"channel_id": channel_id, "message": msg})
+    return msg
+
+
 # ── Meeting ──
 
 @rooms_router.get("/channels/{channel_id}/meeting")

@@ -630,7 +630,7 @@ function CallBar({
   preJoinVideoEnabled: boolean
   localStreamCount: number
   canAddStream: boolean
-  sidePanel: 'settings' | null
+  sidePanel: 'settings' | 'datachat' | null
   error: string | null
   onJoin: () => void
   onLeave: () => void
@@ -1183,7 +1183,7 @@ function DataChatPanel({
       <div className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-1">
         {messages.length === 0 && (
           <p className="text-[9px] font-mono text-center py-4" style={{ color: 'var(--color-text-tertiary)' }}>
-            No messages yet — chat is shared with all room participants including guests.
+            No messages yet — chat persists across sessions and is shared with all participants.
           </p>
         )}
         {messages.map((msg) => (
