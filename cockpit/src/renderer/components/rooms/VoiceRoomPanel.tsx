@@ -3,7 +3,6 @@ import {
   Mic,
   MicOff,
   PhoneOff,
-  Radio,
   Wifi,
   WifiOff,
   Activity,
@@ -29,6 +28,7 @@ import {
   Shield,
   Bot,
   Eye,
+  Settings,
 } from 'lucide-react'
 import { useRoomsStore } from '../../stores/roomsStore'
 import { useConferenceRoom } from '../../hooks/useConferenceRoom'
@@ -39,6 +39,8 @@ import type {
   MediaStreamSource,
   AIGovernancePermissions,
   ProductionTestItem,
+  MediaIntent,
+  JoinTiming,
 } from '../../hooks/useConferenceRoom'
 import type { RoomMessage } from '../../types/rooms'
 
@@ -78,10 +80,11 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
   const channel = channels.find((c) => c.id === channelId)
   const conf = useConferenceRoom(channelId)
   const voice = conf
-  const [chatOpen, setChatOpen] = useState(false)
+  const [sidePanel, setSidePanel] = useState<'chat' | 'settings' | null>(null)
   const [focusedStream, setFocusedStream] = useState<string | null>(null)
 
   const isConnected = voice.state === 'connected'
+  const hasVideo = voice.participants.some(p => p.isVideoOn)
 
   const allStreams: Array<MediaStreamSource & { participantName: string }> = []
   voice.streams.forEach((sources, identity) => {
@@ -92,68 +95,104 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
     }
   })
 
+  const screenShares = allStreams.filter(s => s.sourceType !== 'camera')
+  const cameraStreams = allStreams.filter(s => s.sourceType === 'camera')
+  const hasScreenShare = screenShares.length > 0
+
   return (
     <div className="flex flex-col h-full overflow-hidden voice-room-root"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="flex flex-1 min-h-0">
-        <div className={`flex-1 flex flex-col min-h-0 ${chatOpen ? 'sm:border-r' : ''}`}
+        {/* Main area */}
+        <div className={`flex-1 flex flex-col min-h-0 ${sidePanel ? 'sm:border-r' : ''}`}
           style={{ borderColor: 'var(--color-border)' }}
         >
+          {/* Content area — changes based on media state */}
           <div className="flex-1 overflow-y-auto overscroll-contain">
-            <div className="flex flex-col items-center justify-start p-3 sm:p-4 max-w-3xl mx-auto w-full">
-              <ChannelHeader name={channel?.name || 'Voice Room'} state={voice.state} />
-              <ConnectionBanner state={voice.state} error={voice.error} reconnectAttempts={voice.diagnostics.reconnectAttempts} />
-
-              {isConnected && allStreams.length > 0 && (
-                <StreamGrid
-                  streams={allStreams}
-                  focusedStream={focusedStream}
-                  onFocus={setFocusedStream}
-                  getVideoElement={voice.getVideoElement}
-                  onStopStream={voice.stopStream}
-                  localIdentity={voice.participants.find(p => p.identity === voice.diagnostics.participantIdentity)?.identity}
-                />
-              )}
-
-              {isConnected && voice.participants.length > 0 && (
-                <ParticipantGrid participants={voice.participants} />
-              )}
-
-              {voice.state === 'disconnected' && (
-                <div className="w-full rounded px-3 py-2 mb-3 text-center"
-                  style={{ background: 'var(--color-warn-dim)' }}
-                >
-                  <p className="text-[10px] font-mono mb-1" style={{ color: 'var(--color-warn)' }}>
-                    Connection lost
-                  </p>
-                  <button onClick={voice.join}
-                    className="text-[10px] font-mono px-3 py-1 rounded"
-                    style={{ background: 'var(--color-ok)', color: 'var(--color-canvas)' }}
-                  >
-                    Reconnect
-                  </button>
+            {!isConnected ? (
+              /* Pre-join / connecting / disconnected */
+              <div className="flex flex-col items-center justify-center h-full p-4">
+                <ChannelHeader name={channel?.name || 'Voice Room'} state={voice.state} />
+                <ConnectionBanner state={voice.state} error={voice.error} reconnectAttempts={voice.diagnostics.reconnectAttempts} />
+              </div>
+            ) : hasScreenShare ? (
+              /* Screen share layout — prominent screen, strip of other media */
+              <div className="flex flex-col h-full p-2 gap-2">
+                <div className="flex-1 min-h-0">
+                  <StreamTile
+                    stream={focusedStream ? allStreams.find(s => s.trackSid === focusedStream) || screenShares[0] : screenShares[0]}
+                    focused
+                    getVideoElement={voice.getVideoElement}
+                    onFocus={() => setFocusedStream(null)}
+                    onStop={voice.stopStream}
+                    localIdentity={voice.diagnostics.participantIdentity || undefined}
+                  />
                 </div>
-              )}
-
-              <AIGovernanceBadge governance={conf.aiGovernance} onUpdate={conf.setAIGovernance} />
-
-              <ProductionTestChecklist items={conf.productionChecklist} />
-
-              <DiagnosticsPanel diagnostics={voice.diagnostics} state={voice.state} />
-            </div>
+                {(screenShares.length > 1 || cameraStreams.length > 0) && (
+                  <div className="flex gap-1.5 overflow-x-auto pb-1 shrink-0" style={{ height: 80 }}>
+                    {[...screenShares.slice(1), ...cameraStreams].map(s => (
+                      <div key={s.trackSid} className="flex-shrink-0" style={{ width: 120, height: 72 }}>
+                        <StreamTile
+                          stream={s}
+                          compact
+                          getVideoElement={voice.getVideoElement}
+                          onFocus={() => setFocusedStream(s.trackSid)}
+                          onStop={voice.stopStream}
+                          localIdentity={voice.diagnostics.participantIdentity || undefined}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <ParticipantStrip participants={voice.participants} />
+              </div>
+            ) : hasVideo ? (
+              /* Video grid layout */
+              <div className="flex flex-col h-full p-2 gap-2">
+                <VideoGrid
+                  streams={cameraStreams}
+                  getVideoElement={voice.getVideoElement}
+                  onFocus={setFocusedStream}
+                  focusedStream={focusedStream}
+                  onStopStream={voice.stopStream}
+                  localIdentity={voice.diagnostics.participantIdentity || undefined}
+                />
+                <ParticipantStrip
+                  participants={voice.participants.filter(p => !p.isVideoOn)}
+                />
+              </div>
+            ) : (
+              /* Voice-only layout — Discord style */
+              <div className="flex flex-col p-3 sm:p-4 max-w-lg mx-auto w-full">
+                <VoiceHeader name={channel?.name || 'Voice Room'} participantCount={voice.participants.length} />
+                <div className="space-y-0.5 mt-2">
+                  {voice.participants.map((p) => (
+                    <VoiceParticipantRow key={p.identity} participant={p} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          <ControlBar
+          {/* Reconnect prompt */}
+          {voice.state === 'disconnected' && (
+            <ReconnectBar onReconnect={voice.join} />
+          )}
+
+          {/* Bottom call bar */}
+          <CallBar
             state={voice.state}
             isMuted={voice.isMuted}
             isDeafened={voice.isDeafened}
             isVideoOn={voice.isVideoOn}
+            micIntent={voice.micIntent}
+            cameraIntent={voice.cameraIntent}
             preJoinMicEnabled={voice.preJoinMicEnabled}
             preJoinVideoEnabled={conf.preJoinVideoEnabled}
             localStreamCount={voice.localStreams.filter(s => s.sourceType !== 'camera').length}
             canAddStream={voice.canAddStream}
-            chatOpen={chatOpen}
+            sidePanel={sidePanel}
             error={voice.error}
             onJoin={voice.join}
             onLeave={voice.leave}
@@ -164,13 +203,15 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
             onToggleVideo={voice.toggleVideo}
             onAddScreenShare={voice.addScreenShare}
             onStopAllStreams={voice.stopAllStreams}
-            onToggleChat={() => setChatOpen(!chatOpen)}
+            onToggleChat={() => setSidePanel(sidePanel === 'chat' ? null : 'chat')}
+            onToggleSettings={() => setSidePanel(sidePanel === 'settings' ? null : 'settings')}
           />
         </div>
 
-        {chatOpen && (
+        {/* Side panel — desktop inline, mobile bottom sheet */}
+        {sidePanel && (
           <>
-            {/* Mobile: bottom sheet drawer — keeps room context visible */}
+            {/* Mobile: bottom sheet */}
             <div className="sm:hidden fixed inset-x-0 bottom-0 z-40 flex flex-col"
               style={{
                 background: 'var(--color-canvas)',
@@ -181,30 +222,49 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
                 boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
               }}
             >
-              <div className="flex items-center justify-between px-3 h-9 shrink-0">
-                <div className="w-8 h-1 rounded-full mx-auto" style={{ background: 'var(--color-border)' }} />
+              <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
+                <div className="w-8 h-1 rounded-full" style={{ background: 'var(--color-border)' }} />
               </div>
               <div className="flex items-center justify-between px-3 pb-1 shrink-0">
                 <span className="text-[11px] font-mono font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                  Room Chat
+                  {sidePanel === 'chat' ? 'Chat' : 'Settings'}
                 </span>
-                <button onClick={() => setChatOpen(false)}
+                <button onClick={() => setSidePanel(null)}
                   className="p-1.5 rounded min-w-[36px] min-h-[36px] flex items-center justify-center"
                   style={{ color: 'var(--color-text-tertiary)' }}
                 >
                   <X size={16} />
                 </button>
               </div>
-              <VoiceChat channelId={channelId} />
+              {sidePanel === 'chat' ? (
+                <VoiceChat channelId={channelId} />
+              ) : (
+                <SettingsPanel
+                  diagnostics={voice.diagnostics}
+                  state={voice.state}
+                  aiGovernance={conf.aiGovernance}
+                  onUpdateGovernance={conf.setAIGovernance}
+                  productionChecklist={conf.productionChecklist}
+                />
+              )}
             </div>
-            {/* Mobile backdrop — tapping outside closes chat */}
             <div className="sm:hidden fixed inset-0 z-30" style={{ background: 'rgba(0,0,0,0.3)' }}
-              onClick={() => setChatOpen(false)}
+              onClick={() => setSidePanel(null)}
             />
 
             {/* Desktop: side panel */}
             <div className="hidden sm:flex w-80 flex-col min-h-0" style={{ maxWidth: '50%' }}>
-              <VoiceChat channelId={channelId} />
+              {sidePanel === 'chat' ? (
+                <VoiceChat channelId={channelId} />
+              ) : (
+                <SettingsPanel
+                  diagnostics={voice.diagnostics}
+                  state={voice.state}
+                  aiGovernance={conf.aiGovernance}
+                  onUpdateGovernance={conf.setAIGovernance}
+                  productionChecklist={conf.productionChecklist}
+                />
+              )}
             </div>
           </>
         )}
@@ -213,68 +273,135 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
   )
 }
 
-function ChannelHeader({ name, state }: { name: string; state: VoiceRoomState }) {
-  const isConnected = state === 'connected'
-  const isActive = state !== 'idle'
+/* ─── Voice-Only Layout Components ─── */
 
+function VoiceHeader({ name, participantCount }: { name: string; participantCount: number }) {
   return (
-    <div className="flex flex-col items-center mb-3">
-      <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2"
-        style={{ background: 'var(--color-surface-raised)' }}
-      >
-        <Radio size={20} style={{
-          color: isConnected ? 'var(--color-ok)' :
-            isActive ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
-        }} />
-      </div>
-      <h3 className="text-sm font-mono font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+    <div className="flex items-center gap-2 mb-1">
+      <Volume2 size={14} style={{ color: 'var(--color-ok)' }} />
+      <span className="text-xs font-mono font-semibold" style={{ color: 'var(--color-text-primary)' }}>
         {name}
-      </h3>
+      </span>
+      {participantCount > 0 && (
+        <span className="text-[9px] font-mono ml-auto" style={{ color: 'var(--color-text-tertiary)' }}>
+          {participantCount}
+        </span>
+      )}
     </div>
   )
 }
 
-function StreamGrid({
+function VoiceParticipantRow({ participant: p }: { participant: VoiceParticipant }) {
+  return (
+    <div className="flex items-center gap-2.5 py-1 px-1.5 rounded transition-colors hover:bg-surface-raised">
+      <div className="relative">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-mono font-bold"
+          style={{
+            background: p.isSpeaking ? 'var(--color-ok-dim)' : 'var(--color-surface-overlay)',
+            color: p.isSpeaking ? 'var(--color-ok)' : 'var(--color-text-secondary)',
+            outline: p.isSpeaking ? '2px solid var(--color-ok)' : '2px solid transparent',
+            outlineOffset: '1px',
+            transition: 'outline-color 150ms',
+          }}
+        >
+          {p.name.charAt(0).toUpperCase()}
+        </div>
+      </div>
+
+      <span className="text-[11px] font-mono flex-1 truncate" style={{
+        color: p.isSpeaking ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+      }}>
+        {p.name}
+      </span>
+
+      <div className="flex items-center gap-1">
+        {p.streamCount > 0 && (
+          <ScreenShare size={12} style={{ color: 'var(--color-cyan)' }} />
+        )}
+        {p.isVideoOn && (
+          <Video size={12} style={{ color: 'var(--color-ok)' }} />
+        )}
+        {p.isDeafened ? (
+          <VolumeX size={12} style={{ color: 'var(--color-danger)' }} />
+        ) : p.isMuted ? (
+          <MicOff size={12} style={{ color: 'var(--color-danger)' }} />
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function ParticipantStrip({ participants }: { participants: VoiceParticipant[] }) {
+  if (participants.length === 0) return null
+  return (
+    <div className="flex gap-1 overflow-x-auto py-1 shrink-0">
+      {participants.map(p => (
+        <div key={p.identity} className="flex items-center gap-1 px-2 py-1 rounded shrink-0"
+          style={{ background: 'var(--color-surface)' }}
+        >
+          <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-mono font-bold"
+            style={{
+              background: p.isSpeaking ? 'var(--color-ok-dim)' : 'var(--color-surface-overlay)',
+              color: p.isSpeaking ? 'var(--color-ok)' : 'var(--color-text-secondary)',
+              outline: p.isSpeaking ? '1.5px solid var(--color-ok)' : 'none',
+            }}
+          >
+            {p.name.charAt(0).toUpperCase()}
+          </div>
+          <span className="text-[9px] font-mono truncate max-w-[60px]" style={{ color: 'var(--color-text-secondary)' }}>
+            {p.name}
+          </span>
+          {p.isMuted && <MicOff size={9} style={{ color: 'var(--color-danger)' }} />}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ─── Video/Stream Layout Components ─── */
+
+function VideoGrid({
   streams,
-  focusedStream,
-  onFocus,
   getVideoElement,
+  onFocus,
+  focusedStream,
   onStopStream,
   localIdentity,
 }: {
   streams: Array<MediaStreamSource & { participantName: string }>
-  focusedStream: string | null
-  onFocus: (sid: string | null) => void
   getVideoElement: (sid: string) => HTMLVideoElement | null
+  onFocus: (sid: string | null) => void
+  focusedStream: string | null
   onStopStream: (sid: string) => Promise<void>
   localIdentity: string | undefined
 }) {
   if (streams.length === 0) return null
 
   const focused = focusedStream ? streams.find(s => s.trackSid === focusedStream) : null
-
   if (focused) {
     return (
-      <div className="w-full mb-3">
-        <StreamTile
-          stream={focused}
-          focused
-          getVideoElement={getVideoElement}
-          onFocus={() => onFocus(null)}
-          onStop={focused.participantIdentity === localIdentity ? () => onStopStream(focused.trackSid) : undefined}
-          isOwner={focused.participantIdentity === localIdentity}
-        />
+      <div className="flex-1 min-h-0 flex flex-col gap-1.5">
+        <div className="flex-1 min-h-0">
+          <StreamTile
+            stream={focused}
+            focused
+            getVideoElement={getVideoElement}
+            onFocus={() => onFocus(null)}
+            onStop={onStopStream}
+            localIdentity={localIdentity}
+          />
+        </div>
         {streams.length > 1 && (
-          <div className="flex gap-1.5 mt-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+          <div className="flex gap-1.5 overflow-x-auto shrink-0" style={{ height: 72 }}>
             {streams.filter(s => s.trackSid !== focusedStream).map(s => (
-              <div key={s.trackSid} className="flex-shrink-0" style={{ width: 120, height: 68 }}>
+              <div key={s.trackSid} className="flex-shrink-0" style={{ width: 120, height: 72 }}>
                 <StreamTile
                   stream={s}
                   compact
                   getVideoElement={getVideoElement}
                   onFocus={() => onFocus(s.trackSid)}
-                  onStop={s.participantIdentity === localIdentity ? () => onStopStream(s.trackSid) : undefined}
-                  isOwner={s.participantIdentity === localIdentity}
+                  onStop={onStopStream}
+                  localIdentity={localIdentity}
                 />
               </div>
             ))}
@@ -288,15 +415,15 @@ function StreamGrid({
     streams.length <= 4 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'
 
   return (
-    <div className={`w-full grid ${gridCols} gap-1.5 mb-3`}>
+    <div className={`flex-1 min-h-0 grid ${gridCols} gap-1.5 auto-rows-fr`}>
       {streams.map(s => (
         <StreamTile
           key={s.trackSid}
           stream={s}
           getVideoElement={getVideoElement}
           onFocus={() => onFocus(s.trackSid)}
-          onStop={s.participantIdentity === localIdentity ? () => onStopStream(s.trackSid) : undefined}
-          isOwner={s.participantIdentity === localIdentity}
+          onStop={onStopStream}
+          localIdentity={localIdentity}
         />
       ))}
     </div>
@@ -310,18 +437,19 @@ function StreamTile({
   getVideoElement,
   onFocus,
   onStop,
-  isOwner,
+  localIdentity,
 }: {
   stream: MediaStreamSource & { participantName: string }
   focused?: boolean
   compact?: boolean
   getVideoElement: (sid: string) => HTMLVideoElement | null
   onFocus: () => void
-  onStop?: () => void
-  isOwner: boolean
+  onStop: (sid: string) => Promise<void>
+  localIdentity: string | undefined
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mountedSidRef = useRef<string | null>(null)
+  const isOwner = stream.participantIdentity === localIdentity
 
   useEffect(() => {
     const container = containerRef.current
@@ -340,7 +468,7 @@ function StreamTile({
         el.style.width = '100%'
         el.style.height = '100%'
         el.style.objectFit = 'contain'
-        el.style.borderRadius = '4px'
+        el.style.borderRadius = '6px'
         el.style.position = 'absolute'
         container.appendChild(el)
         mountedSidRef.current = stream.trackSid
@@ -370,56 +498,47 @@ function StreamTile({
 
   const Icon = SOURCE_TYPE_ICONS[stream.sourceType] || Monitor
   const label = SOURCE_TYPE_LABELS[stream.sourceType] || stream.sourceType
-  const dims = stream.dimensions
-  const fps = stream.frameRate
 
   return (
     <div
-      className={`relative rounded border overflow-hidden group ${focused ? 'aspect-video' : compact ? '' : 'aspect-video'}`}
+      className={`relative rounded-lg overflow-hidden group h-full ${focused ? '' : compact ? '' : 'aspect-video'}`}
       style={{
-        borderColor: 'var(--color-border)',
-        background: 'var(--color-surface)',
-        height: compact ? '100%' : undefined,
+        background: '#1a1a1a',
+        minHeight: compact ? undefined : focused ? undefined : 120,
       }}
     >
       <div ref={containerRef} className="absolute inset-0" />
 
-      <div className="absolute bottom-0 left-0 right-0 px-2 py-1 flex items-center gap-1.5"
-        style={{ background: 'rgba(0,0,0,0.6)' }}
+      {/* Name overlay */}
+      <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 flex items-center gap-1.5"
+        style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.7))' }}
       >
-        <Icon size={compact ? 8 : 10} style={{ color: 'var(--color-cyan)' }} />
+        <span className={`font-mono truncate ${compact ? 'text-[8px]' : 'text-[10px]'}`} style={{ color: '#fff' }}>
+          {stream.participantName}
+        </span>
         {!compact && (
-          <>
-            <span className="text-[9px] font-mono truncate" style={{ color: '#fff' }}>
-              {stream.participantName}
-            </span>
-            <span className="text-[8px] font-mono" style={{ color: 'rgba(255,255,255,0.6)' }}>
-              {label}
-            </span>
-            {dims && (
-              <span className="text-[7px] font-mono ml-auto" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                {dims.width}x{dims.height}{fps ? `@${Math.round(fps)}` : ''}
-              </span>
-            )}
-          </>
+          <span className="text-[8px] font-mono ml-auto" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            {label}
+          </span>
         )}
       </div>
 
-      <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Hover controls */}
+      <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button onClick={onFocus}
-          className="p-1 rounded"
+          className="p-1 rounded-md"
           style={{ background: 'rgba(0,0,0,0.6)' }}
           title={focused ? 'Minimize' : 'Focus'}
         >
-          {focused ? <Minimize2 size={10} color="#fff" /> : <Maximize2 size={10} color="#fff" />}
+          {focused ? <Minimize2 size={12} color="#fff" /> : <Maximize2 size={12} color="#fff" />}
         </button>
-        {isOwner && onStop && (
-          <button onClick={onStop}
-            className="p-1 rounded"
+        {isOwner && (
+          <button onClick={() => onStop(stream.trackSid)}
+            className="p-1 rounded-md"
             style={{ background: 'rgba(220,38,38,0.8)' }}
-            title="Stop stream"
+            title="Stop"
           >
-            <X size={10} color="#fff" />
+            <X size={12} color="#fff" />
           </button>
         )}
       </div>
@@ -427,16 +546,92 @@ function StreamTile({
   )
 }
 
-function ControlBar({
+/* ─── UI Components ─── */
+
+function ChannelHeader({ name, state }: { name: string; state: VoiceRoomState }) {
+  const isConnected = state === 'connected'
+  const isActive = state !== 'idle'
+
+  return (
+    <div className="flex flex-col items-center mb-3">
+      <div className="w-14 h-14 rounded-full flex items-center justify-center mb-2"
+        style={{ background: 'var(--color-surface-raised)' }}
+      >
+        <Volume2 size={24} style={{
+          color: isConnected ? 'var(--color-ok)' :
+            isActive ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
+        }} />
+      </div>
+      <h3 className="text-sm font-mono font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+        {name}
+      </h3>
+    </div>
+  )
+}
+
+function ConnectionBanner({ state, error, reconnectAttempts }: { state: VoiceRoomState; error: string | null; reconnectAttempts: number }) {
+  if (state === 'idle' || state === 'connected') return null
+
+  const config: Record<string, { bg: string; color: string; text: string; icon: typeof Wifi }> = {
+    requesting_permissions: { bg: 'var(--color-cyan-glow)', color: 'var(--color-cyan)', text: 'Requesting mic...', icon: Mic },
+    connecting: { bg: 'var(--color-cyan-glow)', color: 'var(--color-cyan)', text: 'Joining...', icon: Activity },
+    reconnecting: {
+      bg: 'var(--color-warn-dim)',
+      color: 'var(--color-warn)',
+      text: reconnectAttempts > 0 ? `Reconnecting (${reconnectAttempts}/5)...` : 'Reconnecting...',
+      icon: Activity,
+    },
+    suspended: { bg: 'var(--color-warn-dim)', color: 'var(--color-warn)', text: 'Backgrounded — tap to resume', icon: Activity },
+    failed: { bg: 'var(--color-danger-dim)', color: 'var(--color-danger)', text: error || 'Connection failed', icon: WifiOff },
+    disconnected: { bg: 'var(--color-warn-dim)', color: 'var(--color-warn)', text: 'Disconnected', icon: WifiOff },
+  }
+
+  const c = config[state]
+  if (!c) return null
+  const Icon = c.icon
+  const animating = state === 'connecting' || state === 'reconnecting' || state === 'requesting_permissions'
+
+  return (
+    <div className="w-full max-w-xs rounded-lg px-3 py-2 flex items-center gap-2" style={{ background: c.bg }}>
+      <Icon size={14} style={{ color: c.color }} className={animating ? 'animate-pulse' : ''} />
+      <span className="text-[10px] font-mono" style={{ color: c.color }}>{c.text}</span>
+    </div>
+  )
+}
+
+function ReconnectBar({ onReconnect }: { onReconnect: () => void }) {
+  return (
+    <div className="flex items-center justify-center gap-2 px-3 py-2 border-t"
+      style={{ borderColor: 'var(--color-border)', background: 'var(--color-warn-dim)' }}
+    >
+      <WifiOff size={12} style={{ color: 'var(--color-warn)' }} />
+      <span className="text-[10px] font-mono" style={{ color: 'var(--color-warn)' }}>
+        Connection lost
+      </span>
+      <button onClick={onReconnect}
+        className="text-[10px] font-mono px-3 py-1 rounded"
+        style={{ background: 'var(--color-ok)', color: 'var(--color-canvas)' }}
+      >
+        Reconnect
+      </button>
+    </div>
+  )
+}
+
+/* ─── Call Bar (Discord-style bottom bar) ─── */
+
+function CallBar({
   state,
   isMuted,
   isDeafened,
   isVideoOn,
+  micIntent,
+  cameraIntent,
   preJoinMicEnabled,
   preJoinVideoEnabled,
   localStreamCount,
   canAddStream,
-  chatOpen,
+  sidePanel,
   error,
   onJoin,
   onLeave,
@@ -448,16 +643,19 @@ function ControlBar({
   onAddScreenShare,
   onStopAllStreams,
   onToggleChat,
+  onToggleSettings,
 }: {
   state: VoiceRoomState
   isMuted: boolean
   isDeafened: boolean
   isVideoOn: boolean
+  micIntent: MediaIntent
+  cameraIntent: MediaIntent
   preJoinMicEnabled: boolean
   preJoinVideoEnabled: boolean
   localStreamCount: number
   canAddStream: boolean
-  chatOpen: boolean
+  sidePanel: 'chat' | 'settings' | null
   error: string | null
   onJoin: () => void
   onLeave: () => void
@@ -469,22 +667,28 @@ function ControlBar({
   onAddScreenShare: () => void
   onStopAllStreams: () => void
   onToggleChat: () => void
+  onToggleSettings: () => void
 }) {
   const [shareMenuOpen, setShareMenuOpen] = useState(false)
   const isConnected = state === 'connected' || state === 'reconnecting'
   const screenShareCap = detectScreenShareCapability()
   const showIOSShareNote = isIOS() && screenShareCap === 'none'
 
+  const micTransitioning = micIntent.transition === 'publishing' || micIntent.transition === 'disabling'
+  const camTransitioning = cameraIntent.transition === 'requesting_permission' || cameraIntent.transition === 'disabling' || cameraIntent.transition === 'publishing'
+
+  // Pre-join state
   if (!isConnected && state !== 'failed' && state !== 'disconnected') {
     const isJoining = state === 'connecting' || state === 'requesting_permissions'
     return (
       <div className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-3 border-t shrink-0"
         style={{
           borderColor: 'var(--color-border)',
+          background: 'var(--color-surface)',
           paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
         }}
       >
-        <ControlButton
+        <CallBarButton
           active={preJoinMicEnabled}
           danger={!preJoinMicEnabled}
           icon={preJoinMicEnabled ? Mic : MicOff}
@@ -492,7 +696,7 @@ function ControlBar({
           onClick={onTogglePreJoinMic}
           disabled={isJoining}
         />
-        <ControlButton
+        <CallBarButton
           active={preJoinVideoEnabled}
           icon={preJoinVideoEnabled ? Video : VideoOff}
           label={preJoinVideoEnabled ? 'Cam On' : 'Cam Off'}
@@ -501,7 +705,7 @@ function ControlBar({
         />
         <button onClick={onJoin}
           disabled={isJoining}
-          className="flex items-center gap-2 text-xs font-mono px-5 py-2.5 rounded transition-colors"
+          className="flex items-center gap-2 text-xs font-mono px-5 py-2.5 rounded-lg transition-colors"
           style={{
             background: isJoining ? 'var(--color-surface-raised)' : 'var(--color-ok)',
             color: isJoining ? 'var(--color-text-tertiary)' : 'var(--color-canvas)',
@@ -509,45 +713,28 @@ function ControlBar({
         >
           {isJoining ? 'Joining...' : 'Join Voice'}
         </button>
-        <ControlButton
-          active={chatOpen}
-          icon={MessageSquare}
-          label="Chat"
-          onClick={onToggleChat}
-        />
       </div>
     )
   }
 
+  // Failed/disconnected
   if (state === 'failed' || state === 'disconnected') {
     return (
       <div className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-3 border-t shrink-0"
         style={{
           borderColor: 'var(--color-border)',
+          background: 'var(--color-surface)',
           paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
         }}
       >
-        <ControlButton
-          active={preJoinMicEnabled}
-          danger={!preJoinMicEnabled}
-          icon={preJoinMicEnabled ? Mic : MicOff}
-          label={preJoinMicEnabled ? 'Mic On' : 'Mic Off'}
-          onClick={onTogglePreJoinMic}
-        />
         <button onClick={onJoin}
-          className="flex items-center gap-2 text-xs font-mono px-4 py-2 rounded transition-colors"
+          className="flex items-center gap-2 text-xs font-mono px-4 py-2 rounded-lg transition-colors"
           style={{ background: 'var(--color-ok)', color: 'var(--color-canvas)' }}
         >
           Retry
         </button>
-        <ControlButton
-          active={chatOpen}
-          icon={MessageSquare}
-          label="Chat"
-          onClick={onToggleChat}
-        />
         {error && (
-          <span className="text-[9px] font-mono max-w-48 truncate hidden sm:inline" style={{ color: 'var(--color-danger)' }}>
+          <span className="text-[9px] font-mono max-w-48 truncate" style={{ color: 'var(--color-danger)' }}>
             {error}
           </span>
         )}
@@ -555,40 +742,43 @@ function ControlBar({
     )
   }
 
+  // Connected — Discord-style control bar
   return (
-    <div className="relative flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2.5 border-t shrink-0"
+    <div className="relative flex items-center justify-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-2 border-t shrink-0"
       style={{
         borderColor: 'var(--color-border)',
         background: 'var(--color-surface)',
-        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 10px)',
+        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)',
       }}
     >
-      <ControlButton
+      <CallBarButton
         active={!isMuted}
         danger={isMuted}
         icon={isMuted ? MicOff : Mic}
         label={isMuted ? 'Unmute' : 'Mute'}
         onClick={onToggleMute}
+        transitioning={micTransitioning}
       />
-      <ControlButton
+      <CallBarButton
         active={!isDeafened}
         danger={isDeafened}
         icon={isDeafened ? VolumeX : Volume2}
         label={isDeafened ? 'Undeafen' : 'Deafen'}
         onClick={onToggleDeafen}
       />
-      <ControlButton
+      <CallBarButton
         active={isVideoOn}
         icon={isVideoOn ? Video : VideoOff}
         label={isVideoOn ? 'Stop Video' : 'Video'}
         onClick={onToggleVideo}
+        transitioning={camTransitioning}
       />
 
       <div className="relative">
-        <ControlButton
+        <CallBarButton
           active={localStreamCount > 0}
           icon={localStreamCount > 0 ? ScreenShare : Monitor}
-          label={localStreamCount > 0 ? `Sharing (${localStreamCount})` : 'Share'}
+          label="Share"
           onClick={() => setShareMenuOpen(!shareMenuOpen)}
         />
         {localStreamCount > 0 && (
@@ -600,18 +790,28 @@ function ControlBar({
         )}
       </div>
 
-      <ControlButton
-        active={chatOpen}
+      <CallBarButton
+        active={sidePanel === 'chat'}
         icon={MessageSquare}
         label="Chat"
         onClick={onToggleChat}
       />
-      <div className="w-px h-6 mx-0.5 sm:mx-1 hidden sm:block" style={{ background: 'var(--color-border)' }} />
+
+      <CallBarButton
+        active={sidePanel === 'settings'}
+        icon={Settings}
+        label="Settings"
+        onClick={onToggleSettings}
+      />
+
+      <div className="w-px h-5 mx-0.5 hidden sm:block" style={{ background: 'var(--color-border)' }} />
+
       <button onClick={onLeave}
-        className="flex items-center gap-1.5 text-[10px] font-mono px-2 sm:px-3 py-2 rounded transition-colors"
-        style={{ background: 'var(--color-danger)', color: 'var(--color-canvas)' }}
+        className="flex items-center gap-1.5 text-[10px] font-mono px-2.5 sm:px-3 py-2 rounded-lg transition-colors"
+        style={{ background: 'var(--color-danger)', color: '#fff' }}
       >
-        <PhoneOff size={13} /> <span className="hidden sm:inline">Leave</span>
+        <PhoneOff size={14} />
+        <span className="hidden sm:inline">Leave</span>
       </button>
 
       {shareMenuOpen && (
@@ -628,6 +828,43 @@ function ControlBar({
     </div>
   )
 }
+
+function CallBarButton({
+  active,
+  danger,
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+  transitioning,
+}: {
+  active: boolean
+  danger?: boolean
+  icon: typeof Mic
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  transitioning?: boolean
+}) {
+  return (
+    <button onClick={onClick}
+      disabled={disabled}
+      className={`flex flex-col items-center gap-0.5 px-2 sm:px-2.5 py-1.5 rounded-lg transition-all min-w-[40px] min-h-[40px] justify-center ${transitioning ? 'animate-pulse' : ''}`}
+      style={{
+        background: danger ? 'var(--color-danger)' : active ? 'var(--color-surface-raised)' : 'transparent',
+        color: danger ? '#fff' : active ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+        opacity: disabled ? 0.4 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+      }}
+      title={label}
+    >
+      <Icon size={16} />
+      <span className="text-[7px] font-mono leading-none">{label}</span>
+    </button>
+  )
+}
+
+/* ─── Share Menu ─── */
 
 function ShareMenu({
   canAdd,
@@ -656,7 +893,7 @@ function ShareMenu({
         <span className="text-[10px] font-mono font-semibold" style={{ color: 'var(--color-text-primary)' }}>
           Share Sources
         </span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-surface">
+        <button onClick={onClose} className="p-0.5 rounded">
           <X size={10} style={{ color: 'var(--color-text-tertiary)' }} />
         </button>
       </div>
@@ -668,65 +905,35 @@ function ShareMenu({
           <AlertTriangle size={12} style={{ color: 'var(--color-warn)' }} className="flex-shrink-0 mt-0.5" />
           <p className="text-[9px] font-mono" style={{ color: 'var(--color-warn)' }}>
             {showIOSNote
-              ? 'Screen share is not supported in iOS Safari. Use the native app wrapper or a desktop browser.'
-              : 'Screen share is not available in this browser. Use the desktop app or a supported browser.'}
+              ? 'Screen share is not supported in iOS Safari. Use the native app or a desktop browser.'
+              : 'Screen share not available in this browser.'}
           </p>
         </div>
       )}
 
       {screenShareCap === 'native' && (
         <div className="p-1">
-          <ShareMenuItem
-            icon={Monitor}
-            label="Broadcast Screen"
-            desc="Share your device screen"
-            disabled={!canAdd}
-            onClick={onAddScreen}
-          />
+          <ShareMenuItem icon={Monitor} label="Broadcast Screen" desc="Share your device screen" disabled={!canAdd} onClick={onAddScreen} />
         </div>
       )}
 
       {screenShareCap === 'browser' && (
         <div className="p-1">
-          <ShareMenuItem
-            icon={Monitor}
-            label="Screen"
-            desc="Share your entire screen"
-            disabled={!canAdd}
-            onClick={onAddScreen}
-          />
-          <ShareMenuItem
-            icon={AppWindow}
-            label="Window"
-            desc="Share an application window"
-            disabled={!canAdd}
-            onClick={onAddScreen}
-          />
-          <ShareMenuItem
-            icon={Globe}
-            label="Browser Tab"
-            desc="Share a browser tab"
-            disabled={!canAdd}
-            onClick={onAddScreen}
-          />
-          <ShareMenuItem
-            icon={Plus}
-            label="Additional Source"
-            desc={canAdd ? `${4 - localStreamCount} more allowed` : 'Max 4 streams reached'}
-            disabled={!canAdd}
-            onClick={onAddScreen}
-          />
+          <ShareMenuItem icon={Monitor} label="Screen" desc="Entire screen" disabled={!canAdd} onClick={onAddScreen} />
+          <ShareMenuItem icon={AppWindow} label="Window" desc="Application window" disabled={!canAdd} onClick={onAddScreen} />
+          <ShareMenuItem icon={Globe} label="Browser Tab" desc="Browser tab" disabled={!canAdd} onClick={onAddScreen} />
+          <ShareMenuItem icon={Plus} label="Additional Source" desc={canAdd ? `${4 - localStreamCount} more` : 'Max 4'} disabled={!canAdd} onClick={onAddScreen} />
         </div>
       )}
 
       {localStreamCount > 0 && (
         <div className="px-1 pb-1 border-t" style={{ borderColor: 'var(--color-border)' }}>
           <button onClick={onStopAll}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[9px] font-mono transition-colors hover:bg-surface"
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[9px] font-mono transition-colors"
             style={{ color: 'var(--color-danger)' }}
           >
             <MonitorOff size={12} />
-            Stop All Streams ({localStreamCount})
+            Stop All ({localStreamCount})
           </button>
         </div>
       )}
@@ -734,24 +941,12 @@ function ShareMenu({
   )
 }
 
-function ShareMenuItem({
-  icon: Icon,
-  label,
-  desc,
-  disabled,
-  onClick,
-}: {
-  icon: typeof Monitor
-  label: string
-  desc: string
-  disabled: boolean
-  onClick: () => void
+function ShareMenuItem({ icon: Icon, label, desc, disabled, onClick }: {
+  icon: typeof Monitor; label: string; desc: string; disabled: boolean; onClick: () => void
 }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed"
+    <button onClick={onClick} disabled={disabled}
+      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
     >
       <Icon size={14} style={{ color: disabled ? 'var(--color-text-tertiary)' : 'var(--color-cyan)' }} />
       <div>
@@ -762,128 +957,66 @@ function ShareMenuItem({
   )
 }
 
-function ControlButton({
-  active,
-  danger,
-  icon: Icon,
-  label,
-  onClick,
-  disabled,
+/* ─── Settings Panel (diagnostics + governance — hidden by default) ─── */
+
+function SettingsPanel({
+  diagnostics,
+  state,
+  aiGovernance,
+  onUpdateGovernance,
+  productionChecklist,
 }: {
-  active: boolean
-  danger?: boolean
-  icon: typeof Mic
-  label: string
-  onClick: () => void
-  disabled?: boolean
+  diagnostics: VoiceDiagnostics
+  state: string
+  aiGovernance: AIGovernancePermissions
+  onUpdateGovernance: (patch: Partial<AIGovernancePermissions>) => void
+  productionChecklist: ProductionTestItem[]
 }) {
   return (
-    <button onClick={onClick}
-      disabled={disabled}
-      className="flex flex-col items-center gap-0.5 px-2 sm:px-2.5 py-1.5 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] justify-center"
-      style={{
-        background: danger ? 'var(--color-danger)' : active ? 'var(--color-surface-raised)' : 'transparent',
-        color: danger ? 'var(--color-canvas)' : active ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
-      }}
-      title={label}
-    >
-      <Icon size={16} />
-      <span className="text-[8px] font-mono">{label}</span>
-    </button>
-  )
-}
-
-function ConnectionBanner({ state, error, reconnectAttempts }: { state: VoiceRoomState; error: string | null; reconnectAttempts: number }) {
-  if (state === 'idle') return null
-
-  const config: Record<string, { bg: string; color: string; text: string; icon: typeof Wifi }> = {
-    requesting_permissions: { bg: 'var(--color-cyan-glow)', color: 'var(--color-cyan)', text: 'Requesting mic...', icon: Mic },
-    connecting: { bg: 'var(--color-cyan-glow)', color: 'var(--color-cyan)', text: 'Joining...', icon: Activity },
-    connected: { bg: 'var(--color-ok-dim)', color: 'var(--color-ok)', text: 'Connected', icon: Wifi },
-    reconnecting: {
-      bg: 'var(--color-warn-dim)',
-      color: 'var(--color-warn)',
-      text: reconnectAttempts > 0 ? `Reconnecting (${reconnectAttempts}/5)...` : 'Reconnecting...',
-      icon: Activity,
-    },
-    failed: { bg: 'var(--color-danger-dim)', color: 'var(--color-danger)', text: error || 'Connection failed', icon: WifiOff },
-    disconnected: { bg: 'var(--color-warn-dim)', color: 'var(--color-warn)', text: 'Disconnected', icon: WifiOff },
-  }
-
-  const c = config[state]
-  if (!c) return null
-  const Icon = c.icon
-  const animating = state === 'connecting' || state === 'reconnecting' || state === 'requesting_permissions'
-
-  if (state === 'connected') return null
-
-  return (
-    <div className="w-full rounded px-3 py-2 mb-3 flex items-center gap-2" style={{ background: c.bg }}>
-      <Icon size={12} style={{ color: c.color }}
-        className={animating ? 'animate-pulse' : ''}
-      />
-      <span className="text-[10px] font-mono flex-1" style={{ color: c.color }}>{c.text}</span>
+    <div className="flex flex-col h-full overflow-y-auto">
+      <div className="hidden sm:flex items-center px-3 h-8 border-b shrink-0"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        <Settings size={11} style={{ color: 'var(--color-text-tertiary)' }} />
+        <span className="text-[10px] font-mono ml-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+          Settings
+        </span>
+      </div>
+      <div className="p-3 space-y-3">
+        <AIGovernanceSection governance={aiGovernance} onUpdate={onUpdateGovernance} />
+        <TimingSection timing={diagnostics.joinTiming} />
+        <ProductionTestChecklist items={productionChecklist} />
+        <DiagnosticsSection diagnostics={diagnostics} state={state} />
+      </div>
     </div>
   )
 }
 
-function ParticipantGrid({ participants }: { participants: VoiceParticipant[] }) {
+function TimingSection({ timing }: { timing: JoinTiming }) {
+  const hasData = timing.joinClickToOperationalMs !== null
+  if (!hasData) return null
+
   return (
-    <div className="w-full rounded border p-3 mb-3" style={{ borderColor: 'var(--color-border)' }}>
-      <span className="text-[10px] font-mono mb-2 block" style={{ color: 'var(--color-text-secondary)' }}>
-        {participants.length} participant{participants.length !== 1 ? 's' : ''}
+    <div className="rounded border p-2" style={{ borderColor: 'var(--color-border)' }}>
+      <span className="text-[9px] font-mono font-semibold block mb-1" style={{ color: 'var(--color-text-secondary)' }}>
+        Join Timing
       </span>
       <div className="space-y-0.5">
-        {participants.map((p) => (
-          <ParticipantRow key={p.identity} participant={p} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ParticipantRow({ participant: p }: { participant: VoiceParticipant }) {
-  return (
-    <div className="flex items-center gap-2 py-1.5 px-1 rounded transition-colors">
-      <div className="relative">
-        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-mono font-bold"
-          style={{
-            background: 'var(--color-surface-overlay)',
-            color: 'var(--color-text-secondary)',
-            outline: p.isSpeaking ? '2px solid var(--color-ok)' : 'none',
-            outlineOffset: p.isSpeaking ? '1px' : undefined,
-          }}
-        >
-          {p.name.charAt(0).toUpperCase()}
-        </div>
-      </div>
-
-      <span className="text-[10px] font-mono flex-1 truncate" style={{ color: 'var(--color-text-primary)' }}>
-        {p.name}
-      </span>
-
-      <div className="flex items-center gap-1.5">
-        {p.streamCount > 0 && (
-          <ScreenShare size={11} style={{ color: 'var(--color-cyan)' }} />
-        )}
-
-        {p.isVideoOn && (
-          <Video size={11} style={{ color: 'var(--color-ok)' }} />
-        )}
-
-        {p.isDeafened ? (
-          <VolumeX size={11} style={{ color: 'var(--color-danger)' }} />
-        ) : p.isMuted ? (
-          <MicOff size={11} style={{ color: 'var(--color-danger)' }} />
-        ) : (
-          <Mic size={11} style={{ color: 'var(--color-ok)' }} />
+        {timing.tokenPrefetchMs !== null && <DiagRow label="token prefetch" value={`${timing.tokenPrefetchMs}ms`} />}
+        {timing.joinClickToConnectStartMs !== null && <DiagRow label="click→connect" value={`${timing.joinClickToConnectStartMs}ms`} />}
+        {timing.connectMs !== null && <DiagRow label="connect" value={`${timing.connectMs}ms`} />}
+        {timing.micPublishMs !== null && <DiagRow label="mic publish" value={`${timing.micPublishMs}ms`} />}
+        {timing.joinClickToOperationalMs !== null && (
+          <DiagRow label="total" value={`${timing.joinClickToOperationalMs}ms`}
+            highlight={timing.joinClickToOperationalMs < 2000}
+          />
         )}
       </div>
     </div>
   )
 }
 
-function AIGovernanceBadge({
+function AIGovernanceSection({
   governance,
   onUpdate,
 }: {
@@ -893,9 +1026,9 @@ function AIGovernanceBadge({
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className="w-full rounded border mt-1 mb-2" style={{ borderColor: 'var(--color-border)' }}>
+    <div className="rounded border" style={{ borderColor: 'var(--color-border)' }}>
       <button onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-mono"
+        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[9px] font-mono"
         style={{ color: 'var(--color-text-tertiary)' }}
       >
         <Bot size={10} style={{ color: 'var(--color-violet)' }} />
@@ -903,40 +1036,24 @@ function AIGovernanceBadge({
         {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
       </button>
       {expanded && (
-        <div className="px-3 pb-2 space-y-1.5">
-          <p className="text-[9px] font-mono" style={{ color: 'var(--color-text-secondary)' }}>
-            AI participants can join this room with operator permission.
-          </p>
+        <div className="px-2 pb-2 space-y-1.5">
           <GovernanceToggle icon={Eye} label="Listen" field="ai_can_listen" value={governance.ai_can_listen} onUpdate={onUpdate} />
           <GovernanceToggle icon={Mic} label="Speak" field="ai_can_speak" value={governance.ai_can_speak} onUpdate={onUpdate} />
           <GovernanceToggle icon={Bot} label="Transcribe" field="ai_can_transcribe" value={governance.ai_can_transcribe} onUpdate={onUpdate} />
-          <GovernanceRow icon={Shield} label="Access Log" value={governance.ai_access_logged ? 'All AI actions recorded' : 'Disabled'} />
+          <GovernanceRow icon={Shield} label="Audit Log" value={governance.ai_access_logged ? 'On' : 'Off'} />
         </div>
       )}
     </div>
   )
 }
 
-function GovernanceToggle({
-  icon: Icon,
-  label,
-  field,
-  value,
-  onUpdate,
-}: {
-  icon: typeof Bot
-  label: string
-  field: keyof AIGovernancePermissions
-  value: boolean
-  onUpdate: (patch: Partial<AIGovernancePermissions>) => void
+function GovernanceToggle({ icon: Icon, label, field, value, onUpdate }: {
+  icon: typeof Bot; label: string; field: keyof AIGovernancePermissions; value: boolean; onUpdate: (patch: Partial<AIGovernancePermissions>) => void
 }) {
   return (
-    <button
-      onClick={() => onUpdate({ [field]: !value })}
-      className="flex items-center gap-2 text-[9px] font-mono w-full"
-    >
+    <button onClick={() => onUpdate({ [field]: !value })} className="flex items-center gap-2 text-[9px] font-mono w-full">
       <Icon size={10} style={{ color: 'var(--color-violet)' }} />
-      <span style={{ color: 'var(--color-text-secondary)', minWidth: 64 }}>{label}</span>
+      <span style={{ color: 'var(--color-text-secondary)', minWidth: 56 }}>{label}</span>
       <div className="w-3 h-3 rounded-full border"
         style={{
           borderColor: value ? 'var(--color-ok)' : 'var(--color-border)',
@@ -944,7 +1061,7 @@ function GovernanceToggle({
         }}
       />
       <span style={{ color: value ? 'var(--color-ok)' : 'var(--color-text-tertiary)' }}>
-        {value ? 'Enabled' : 'Disabled'}
+        {value ? 'On' : 'Off'}
       </span>
     </button>
   )
@@ -954,7 +1071,7 @@ function GovernanceRow({ icon: Icon, label, value }: { icon: typeof Bot; label: 
   return (
     <div className="flex items-center gap-2 text-[9px] font-mono">
       <Icon size={10} style={{ color: 'var(--color-violet)' }} />
-      <span style={{ color: 'var(--color-text-secondary)', minWidth: 64 }}>{label}</span>
+      <span style={{ color: 'var(--color-text-secondary)', minWidth: 56 }}>{label}</span>
       <span style={{ color: 'var(--color-text-tertiary)' }}>{value}</span>
     </div>
   )
@@ -962,38 +1079,32 @@ function GovernanceRow({ icon: Icon, label, value }: { icon: typeof Bot; label: 
 
 function ProductionTestChecklist({ items }: { items: ProductionTestItem[] }) {
   const [expanded, setExpanded] = useState(false)
-
   const passCount = items.filter(i => i.status === 'pass').length
 
   return (
-    <div className="w-full rounded border mt-1 mb-2" style={{ borderColor: 'var(--color-border)' }}>
+    <div className="rounded border" style={{ borderColor: 'var(--color-border)' }}>
       <button onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-mono"
+        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[9px] font-mono"
         style={{ color: 'var(--color-text-tertiary)' }}
       >
         <Activity size={10} style={{ color: passCount === items.length ? 'var(--color-ok)' : 'var(--color-text-tertiary)' }} />
-        <span>Production Test Checklist ({passCount}/{items.length})</span>
+        <span>Checklist ({passCount}/{items.length})</span>
         {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
       </button>
       {expanded && (
-        <div className="px-3 pb-2 space-y-0.5">
+        <div className="px-2 pb-2 space-y-0.5">
           {items.map((item) => (
             <div key={item.label} className="flex items-center justify-between">
-              <span className="text-[9px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
-                {item.label}
-              </span>
+              <span className="text-[9px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>{item.label}</span>
               <div className="flex items-center gap-1">
                 <div className="w-1.5 h-1.5 rounded-full"
                   style={{
                     background: item.status === 'pass' ? 'var(--color-ok)' :
                       item.status === 'fail' ? 'var(--color-danger)' :
-                        item.status === 'pending' ? 'var(--color-warn)' :
-                          'var(--color-text-tertiary)',
+                        item.status === 'pending' ? 'var(--color-warn)' : 'var(--color-text-tertiary)',
                   }}
                 />
-                <span className="text-[9px] font-mono max-w-[140px] truncate"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                >
+                <span className="text-[9px] font-mono max-w-[120px] truncate" style={{ color: 'var(--color-text-secondary)' }}>
                   {item.detail}
                 </span>
               </div>
@@ -1004,6 +1115,55 @@ function ProductionTestChecklist({ items }: { items: ProductionTestItem[] }) {
     </div>
   )
 }
+
+function DiagnosticsSection({ diagnostics, state }: { diagnostics: VoiceDiagnostics; state: string }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="rounded border" style={{ borderColor: 'var(--color-border)' }}>
+      <button onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-1 px-2 py-1.5 text-[9px] font-mono"
+        style={{ color: 'var(--color-text-tertiary)' }}
+      >
+        {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+        Diagnostics
+      </button>
+      {expanded && (
+        <div className="px-2 pb-2 space-y-0.5">
+          <DiagRow label="state" value={state} />
+          <DiagRow label="join stage" value={diagnostics.joinStage} />
+          <DiagRow label="mic state" value={diagnostics.micState} />
+          <DiagRow label="cam state" value={diagnostics.cameraState} />
+          <DiagRow label="url" value={diagnostics.livekitUrl} />
+          <DiagRow label="room" value={diagnostics.roomName} />
+          <DiagRow label="identity" value={diagnostics.participantIdentity} />
+          <DiagRow label="token" value={diagnostics.tokenReceived ? 'yes' : 'no'} />
+          <DiagRow label="signal" value={diagnostics.signalConnected ? 'yes' : 'no'} />
+          <DiagRow label="mic perm" value={diagnostics.micPermission} />
+          <DiagRow label="mic actual" value={diagnostics.micEnabledActual ? 'on' : 'off'} />
+          <DiagRow label="audio sid" value={diagnostics.audioTrackSid} />
+          {diagnostics.lastMicError && <DiagRow label="mic err" value={diagnostics.lastMicError} error />}
+          <DiagRow label="cam perm" value={diagnostics.cameraPermission} />
+          <DiagRow label="cam actual" value={diagnostics.cameraEnabledActual ? 'on' : 'off'} />
+          <DiagRow label="video sid" value={diagnostics.videoTrackSid} />
+          {diagnostics.lastVideoError && <DiagRow label="cam err" value={diagnostics.lastVideoError} error />}
+          <DiagRow label="screenshare" value={diagnostics.screenShareSupport ? 'yes' : 'no'} />
+          <DiagRow label="reconnects" value={String(diagnostics.reconnectAttempts)} />
+          <DiagRow label="published" value={String(diagnostics.publishedTrackCount)} />
+          <DiagRow label="subscribed" value={String(diagnostics.subscribedTrackCount)} />
+          <DiagRow label="visibility" value={diagnostics.visibility.lastVisibilityState} />
+          {diagnostics.visibility.backgroundDurationMs !== null && (
+            <DiagRow label="bg duration" value={`${Math.round(diagnostics.visibility.backgroundDurationMs / 1000)}s`} />
+          )}
+          <DiagRow label="last" value={diagnostics.lastEvent} />
+          {diagnostics.lastError && <DiagRow label="error" value={diagnostics.lastError} error />}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── Chat ─── */
 
 function VoiceChat({ channelId }: { channelId: string }) {
   const messages = useRoomsStore((s) => s.messages)
@@ -1055,7 +1215,6 @@ function VoiceChat({ channelId }: { channelId: string }) {
             </p>
           </div>
         )}
-
         {channelMessages.map((msg) => (
           <ChatMessage key={msg.id} message={msg} />
         ))}
@@ -1103,7 +1262,6 @@ function VoiceChat({ channelId }: { channelId: string }) {
 
 function ChatMessage({ message: msg }: { message: RoomMessage }) {
   if (msg.deleted) return null
-
   return (
     <div className="px-3 py-1 hover:bg-surface-raised transition-colors">
       <div className="flex items-baseline gap-1.5">
@@ -1121,61 +1279,16 @@ function ChatMessage({ message: msg }: { message: RoomMessage }) {
   )
 }
 
-function DiagnosticsPanel({ diagnostics, state }: { diagnostics: VoiceDiagnostics; state: string }) {
-  const [expanded, setExpanded] = useState(false)
+/* ─── Shared helpers ─── */
 
-  if (state === 'idle' && !diagnostics.lastEvent) return null
-
-  return (
-    <div className="w-full rounded border mt-2" style={{ borderColor: 'var(--color-border)' }}>
-      <button onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-1 px-3 py-1.5 text-[9px] font-mono"
-        style={{ color: 'var(--color-text-tertiary)' }}
-      >
-        {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
-        diagnostics
-      </button>
-      {expanded && (
-        <div className="px-3 pb-2 space-y-1">
-          <DiagRow label="state" value={state} />
-          <DiagRow label="join stage" value={diagnostics.joinStage} />
-          <DiagRow label="url" value={diagnostics.livekitUrl} />
-          <DiagRow label="room" value={diagnostics.roomName} />
-          <DiagRow label="identity" value={diagnostics.participantIdentity} />
-          <DiagRow label="token" value={diagnostics.tokenReceived ? 'received' : 'none'} />
-          <DiagRow label="signal" value={diagnostics.signalConnected ? 'connected' : 'no'} />
-          <DiagRow label="ice" value={diagnostics.iceState} />
-          <DiagRow label="mic perm" value={diagnostics.micPermission} />
-          <DiagRow label="mic requested" value={diagnostics.micEnabledRequested ? 'on' : 'off'} />
-          <DiagRow label="mic actual" value={diagnostics.micEnabledActual ? 'on' : 'off'} />
-          <DiagRow label="audio sid" value={diagnostics.audioTrackSid} />
-          <DiagRow label="audio pub" value={diagnostics.audioPublicationExists ? 'yes' : 'no'} />
-          {diagnostics.lastMicError && <DiagRow label="mic error" value={diagnostics.lastMicError} error />}
-          <DiagRow label="cam perm" value={diagnostics.cameraPermission} />
-          <DiagRow label="cam actual" value={diagnostics.cameraEnabledActual ? 'on' : 'off'} />
-          <DiagRow label="video sid" value={diagnostics.videoTrackSid} />
-          <DiagRow label="video pub" value={diagnostics.videoPublicationExists ? 'yes' : 'no'} />
-          <DiagRow label="preview" value={diagnostics.localPreviewAttached ? 'attached' : 'no'} />
-          {diagnostics.lastVideoError && <DiagRow label="cam error" value={diagnostics.lastVideoError} error />}
-          <DiagRow label="screenshare" value={diagnostics.screenShareSupport ? 'supported' : 'not supported'} />
-          <DiagRow label="reconnects" value={String(diagnostics.reconnectAttempts)} />
-          <DiagRow label="published" value={String(diagnostics.publishedTrackCount)} />
-          <DiagRow label="subscribed" value={String(diagnostics.subscribedTrackCount)} />
-          <DiagRow label="last" value={diagnostics.lastEvent} />
-          {diagnostics.lastError && (
-            <DiagRow label="error" value={diagnostics.lastError} error />
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function DiagRow({ label, value, error }: { label: string; value: string | null; error?: boolean }) {
+function DiagRow({ label, value, error, highlight }: { label: string; value: string | null; error?: boolean; highlight?: boolean }) {
   return (
     <div className="flex gap-2 text-[9px] font-mono">
-      <span style={{ color: 'var(--color-text-tertiary)', minWidth: 80 }}>{label}</span>
-      <span style={{ color: error ? 'var(--color-danger)' : 'var(--color-text-secondary)', wordBreak: 'break-all' }}>
+      <span style={{ color: 'var(--color-text-tertiary)', minWidth: 72 }}>{label}</span>
+      <span style={{
+        color: error ? 'var(--color-danger)' : highlight ? 'var(--color-ok)' : 'var(--color-text-secondary)',
+        wordBreak: 'break-all',
+      }}>
         {value ?? '—'}
       </span>
     </div>
