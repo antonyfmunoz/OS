@@ -324,14 +324,12 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
         get().fetchThreads(activeChannelId)
         get().fetchDexSettings(activeChannelId)
         get().fetchArtifacts(activeChannelId)
-      } else {
-        const fallback = activeChannelId ? null : channels.sort((a, b) => a.sort_order - b.sort_order)[0]
-        if (fallback) {
-          get().setActiveChannel(fallback.id)
-        } else if (activeChannelId) {
-          set({ activeChannelId: null })
-          saveLastActive(serverId, null)
-        }
+      } else if (channels.length > 0) {
+        const sorted = [...channels].sort((a, b) => a.sort_order - b.sort_order)
+        get().setActiveChannel(sorted[0].id)
+      } else if (activeChannelId) {
+        set({ activeChannelId: null })
+        saveLastActive(serverId, null)
       }
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to fetch channels' })
