@@ -642,15 +642,13 @@ function CallBar({
   if (!isConnected && state !== 'failed' && state !== 'disconnected') {
     const isJoining = state === 'connecting' || state === 'requesting_permissions'
     return (
-      <div className="flex flex-col items-center gap-2 px-3 sm:px-4 py-3 border-t shrink-0"
+      <div className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-3 border-t shrink-0"
         style={{
           borderColor: 'var(--color-border)',
           background: 'var(--color-surface)',
           paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
         }}
       >
-        {/* Mic / Join / Chat */}
-        <div className="flex items-center justify-center gap-1.5">
           <CallBarButton
             active={preJoinMicEnabled}
             danger={!preJoinMicEnabled}
@@ -676,7 +674,6 @@ function CallBar({
             onClick={onToggleChat}
             disabled={false}
           />
-        </div>
       </div>
     )
   }
