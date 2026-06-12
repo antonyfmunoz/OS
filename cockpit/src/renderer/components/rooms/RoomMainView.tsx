@@ -2,11 +2,14 @@ import { lazy, Suspense } from 'react'
 import { useRoomsStore } from '../../stores/roomsStore'
 import { TextChannelView } from './TextChannelView'
 import { ForumChannelView } from './ForumChannelView'
-import { MeetingRoomPanel } from './MeetingRoomPanel'
 import { ErrorBoundary } from '../ErrorBoundary'
 
 const VoiceRoomPanel = lazy(() =>
   import('./VoiceRoomPanel').then((m) => ({ default: m.VoiceRoomPanel }))
+)
+
+const MeetingRoomPanel = lazy(() =>
+  import('./MeetingRoomPanel').then((m) => ({ default: m.MeetingRoomPanel }))
 )
 
 export function RoomMainView() {
@@ -37,7 +40,11 @@ export function RoomMainView() {
               <VoiceRoomPanel channelId={channel.id} />
             </Suspense>
           )}
-          {channel.type === 'video_meeting' && <MeetingRoomPanel channelId={channel.id} />}
+          {channel.type === 'video_meeting' && (
+            <Suspense fallback={<LoadingFallback label="Loading meeting..." />}>
+              <MeetingRoomPanel channelId={channel.id} />
+            </Suspense>
+          )}
           {(channel.type === 'text' || channel.type === 'announcement' || channel.type === 'files' || channel.type === 'tasks' || channel.type === 'ai_room' || channel.type === 'security') && (
             <TextChannelView channelId={channel.id} />
           )}
