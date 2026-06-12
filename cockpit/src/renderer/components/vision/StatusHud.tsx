@@ -77,14 +77,21 @@ export function StatusHud() {
   }
 
   // ── Per-subsystem truth states ──
+  // Each subsystem derives ONLY from its own source. No inference.
+  // STREAM_STATE: from frame timestamps (latestFrameAt, streaming flag)
+  // BEAST_STATE: from mesh health poll (chainHealth.beastConnected)
+  // DEVICE_STATE: from device list response (cameraDevices in store)
+  // DETECTOR_STATE: from overlay events (detectorStatus in health)
+  // PTZ_STATE: from command path + hardware flags
+
   const relayColor: StatusColor = connected ? 'ok' : 'danger'
   const relayLabel = connected ? 'relay' : 'relay offline'
 
-  const beastEffective = chainHealth.beastConnected || (streaming && frameFresh) || hasRecentOverlays
-  const beastColor: StatusColor = !connected ? 'off' : beastEffective ? 'ok' : 'danger'
-  const beastLabel = !connected ? 'beast' : beastEffective ? 'beast' : 'beast offline'
+  // BEAST_STATE — only from mesh health report, never inferred from frames
+  const beastColor: StatusColor = !connected ? 'off' : chainHealth.beastConnected ? 'ok' : 'danger'
+  const beastLabel = !connected ? 'beast' : chainHealth.beastConnected ? 'beast' : 'beast offline'
 
-  // Frame freshness truth — the core of Section 1
+  // STREAM_STATE — only from frame freshness, never from beast status
   const cameraColor: StatusColor =
     !connected ? 'off'
     : freshness === 'live' ? 'ok'
@@ -100,27 +107,29 @@ export function StatusHud() {
     : freshness === 'dead' ? 'NO LIVE STREAM'
     : streaming ? 'camera starting' : 'camera off'
 
+  // DETECTOR_STATE — only from detector status reports
   const detectorStatus = chainHealth.detectorStatus
-  const detectorColor: StatusColor = !beastEffective ? 'off' : detectorStatus?.loaded ? 'ok' : 'warn'
-  const detectorLabel = !beastEffective ? 'detector' : detectorStatus?.loaded ? `detector ${detectorStatus.avg_inference_ms.toFixed(0)}ms` : 'detector loading'
+  const hasDetectorReport = detectorStatus !== null
+  const detectorColor: StatusColor = !hasDetectorReport ? 'off' : detectorStatus?.loaded ? 'ok' : 'warn'
+  const detectorLabel = !hasDetectorReport ? 'detector' : detectorStatus?.loaded ? `detector ${detectorStatus.avg_inference_ms.toFixed(0)}ms` : 'detector loading'
 
-  const trackerColor: StatusColor = !beastEffective ? 'off' : detectorStatus?.tracker_active ? 'ok' : 'warn'
-  const trackerLabel = !beastEffective ? 'tracker' : detectorStatus?.tracker_active
+  const trackerColor: StatusColor = !hasDetectorReport ? 'off' : detectorStatus?.tracker_active ? 'ok' : 'warn'
+  const trackerLabel = !hasDetectorReport ? 'tracker' : detectorStatus?.tracker_active
     ? `tracker ${detectorStatus.active_tracks}/${detectorStatus.total_tracks}`
     : 'tracker off'
 
-  const ptzReady = connected && (chainHealth.beastConnected || chainHealth.commandPathReady)
+  // PTZ_STATE — only from command path flags
+  const ptzReady = connected && chainHealth.commandPathReady
   const ptzColor: StatusColor = !connected ? 'off' : ptzReady ? (hasPtzHardware ? 'ok' : chainHealth.digitalRoiAvailable ? 'warn' : 'off') : 'danger'
   const ptzLabel = !connected ? 'ptz' : !ptzReady ? 'ptz blocked' : hasPtzHardware ? 'ptz hw' : chainHealth.digitalRoiAvailable ? 'ptz digital' : 'ptz unavailable'
 
   const gpuDevice = detectorStatus?.device
-  const gpuColor: StatusColor = !beastEffective ? 'off' : gpuDevice === 'cuda' ? 'ok' : gpuDevice === 'cpu' ? 'warn' : 'off'
-  const gpuLabel = !beastEffective ? 'gpu' : gpuDevice === 'cuda' ? 'gpu cuda' : gpuDevice === 'cpu' ? 'gpu → cpu' : 'gpu unknown'
+  const gpuColor: StatusColor = !hasDetectorReport ? 'off' : gpuDevice === 'cuda' ? 'ok' : gpuDevice === 'cpu' ? 'warn' : 'off'
+  const gpuLabel = !hasDetectorReport ? 'gpu' : gpuDevice === 'cuda' ? 'gpu cuda' : gpuDevice === 'cpu' ? 'gpu → cpu' : 'gpu unknown'
 
   const secColor: StatusColor = securityMode.active ? 'danger' : 'off'
   const secLabel = securityMode.active ? `security: ${securityMode.mode}` : 'security off'
 
-  // Command path truth — Section 5
   const cmdPathColor: StatusColor = !connected ? 'off' : chainHealth.commandPathReady ? 'ok' : chainHealth.beastConnected ? 'warn' : 'danger'
   const cmdPathLabel = !connected ? 'cmd path' : chainHealth.commandPathReady ? 'cmd ready' : chainHealth.beastConnected ? 'cmd degraded' : 'cmd blocked'
 

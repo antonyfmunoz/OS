@@ -143,6 +143,8 @@ export function VisionSettings() {
   const switching = useVisionStore((s) => s.deviceSwitching)
   const switchError = useVisionStore((s) => s.deviceSwitchError)
   const qualityMode = useVisionStore((s) => s.qualityMode)
+  const streaming = useVisionStore((s) => s.streaming)
+  const latestFrameAt = useVisionStore((s) => s.latestFrameAt)
   const setQualityMode = useVisionStore((s) => s.setQualityMode)
   const streamMetrics = useVisionStore((s) => s.streamMetrics)
   const chainHealth = useVisionStore((s) => s.chainHealth)
@@ -248,7 +250,9 @@ export function VisionSettings() {
                   <span className="flex items-center justify-center gap-1.5">
                     <Loader2 size={10} className="animate-spin" /> Scanning...
                   </span>
-                ) : 'No cameras detected — click refresh'}
+                ) : (streaming || (latestFrameAt && Date.now() - latestFrameAt < 10000))
+                  ? 'Device list pending — stream is live, click refresh to scan'
+                  : 'No cameras detected — click refresh'}
               </div>
             ) : (
               <>
