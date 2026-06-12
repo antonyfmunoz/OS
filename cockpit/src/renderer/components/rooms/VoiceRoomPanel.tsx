@@ -1,320 +1,691 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   Mic,
   MicOff,
   PhoneOff,
-  Phone,
   Radio,
   Wifi,
   WifiOff,
   Activity,
+  ChevronDown,
+  ChevronRight,
   Video,
   VideoOff,
   Monitor,
   MonitorOff,
   MessageSquare,
-  Bug,
-  ChevronDown,
-  ChevronRight,
+  Send,
+  Plus,
+  X,
+  Maximize2,
+  Minimize2,
+  AppWindow,
+  Globe,
+  Camera,
+  ScreenShare,
+  AlertTriangle,
 } from 'lucide-react'
 import { useRoomsStore } from '../../stores/roomsStore'
 import { useVoiceRoom } from '../../hooks/useVoiceRoom'
-import { ConnectionQuality } from 'livekit-client'
-import type { VoiceParticipant, MediaDiagnostics } from '../../hooks/useVoiceRoom'
+import type { VoiceParticipant, VoiceDiagnostics, VoiceRoomState, MediaStreamSource } from '../../hooks/useVoiceRoom'
+import type { RoomMessage } from '../../types/rooms'
+
+const SOURCE_TYPE_ICONS: Record<string, typeof Monitor> = {
+  camera: Camera,
+  screen: Monitor,
+  window: AppWindow,
+  tab: Globe,
+  application: AppWindow,
+}
+
+const SOURCE_TYPE_LABELS: Record<string, string> = {
+  camera: 'Camera',
+  screen: 'Screen',
+  window: 'Window',
+  tab: 'Browser Tab',
+  application: 'Application',
+}
+
+function isIOSSafari(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent
+  return /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && 'ontouchend' in document)
+}
 
 export function VoiceRoomPanel({ channelId }: { channelId: string }) {
   const channels = useRoomsStore((s) => s.channels)
   const channel = channels.find((c) => c.id === channelId)
-  const {
-    state,
-    error,
-    participants,
-    isMuted,
-    isCameraOn,
-    isScreenSharing,
-    preJoinMicEnabled,
-    diagnostics,
-    screenShareSupported,
-    setPreJoinMicEnabled,
-    join,
-    leave,
-    toggleMute,
-    toggleCamera,
-    toggleScreenShare,
-  } = useVoiceRoom(channelId)
+  const voice = useVoiceRoom(channelId)
+  const [chatOpen, setChatOpen] = useState(false)
+  const [focusedStream, setFocusedStream] = useState<string | null>(null)
 
-  const [showDiagnostics, setShowDiagnostics] = useState(false)
-  const [showChat, setShowChat] = useState(false)
-  const isConnected = state === 'connected'
+  const isConnected = voice.state === 'connected'
+
+  const allStreams: Array<MediaStreamSource & { participantName: string }> = []
+  voice.streams.forEach((sources, identity) => {
+    const participant = voice.participants.find(p => p.identity === identity)
+    const name = participant?.name || identity
+    for (const source of sources) {
+      allStreams.push({ ...source, participantName: name })
+    }
+  })
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
-      <div className="flex-1 flex flex-col items-center justify-start p-6 max-w-lg mx-auto w-full">
-        <div
-          className="w-14 h-14 rounded-full flex items-center justify-center mb-3"
-          style={{ background: 'var(--color-surface-raised)' }}
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex flex-1 min-h-0">
+        <div className={`flex-1 flex flex-col min-h-0 ${chatOpen ? 'border-r' : ''}`}
+          style={{ borderColor: 'var(--color-border)' }}
         >
-          <Radio size={24} style={{ color: isConnected ? 'var(--color-ok)' : 'var(--color-cyan)' }} />
+          <div className="flex-1 overflow-y-auto">
+            <div className="flex flex-col items-center justify-start p-4 max-w-3xl mx-auto w-full">
+              <ChannelHeader name={channel?.name || 'Voice Room'} isConnected={isConnected} />
+              <ConnectionBanner state={voice.state} error={voice.error} reconnectAttempts={voice.diagnostics.reconnectAttempts} />
+
+              {isConnected && allStreams.length > 0 && (
+                <StreamGrid
+                  streams={allStreams}
+                  focusedStream={focusedStream}
+                  onFocus={setFocusedStream}
+                  getVideoElement={voice.getVideoElement}
+                  onStopStream={voice.stopStream}
+                  localIdentity={voice.participants.find(p => p.identity === voice.diagnostics.participantIdentity)?.identity}
+                />
+              )}
+
+              {isConnected && voice.participants.length > 0 && (
+                <ParticipantGrid participants={voice.participants} />
+              )}
+
+              {voice.state === 'disconnected' && (
+                <div className="w-full rounded px-3 py-2 mb-3 text-center"
+                  style={{ background: 'var(--color-warn-dim)' }}
+                >
+                  <p className="text-[10px] font-mono mb-1" style={{ color: 'var(--color-warn)' }}>
+                    Connection lost
+                  </p>
+                  <button onClick={voice.join}
+                    className="text-[10px] font-mono px-3 py-1 rounded"
+                    style={{ background: 'var(--color-ok)', color: 'var(--color-canvas)' }}
+                  >
+                    Reconnect
+                  </button>
+                </div>
+              )}
+
+              <DiagnosticsPanel diagnostics={voice.diagnostics} state={voice.state} />
+            </div>
+          </div>
+
+          <ControlBar
+            state={voice.state}
+            isMuted={voice.isMuted}
+            isVideoOn={voice.isVideoOn}
+            preJoinMicEnabled={voice.preJoinMicEnabled}
+            localStreamCount={voice.localStreams.filter(s => s.sourceType !== 'camera').length}
+            canAddStream={voice.canAddStream}
+            chatOpen={chatOpen}
+            error={voice.error}
+            onJoin={voice.join}
+            onLeave={voice.leave}
+            onToggleMute={voice.toggleMute}
+            onTogglePreJoinMic={voice.togglePreJoinMic}
+            onToggleVideo={voice.toggleVideo}
+            onAddScreenShare={voice.addScreenShare}
+            onStopAllStreams={voice.stopAllStreams}
+            onToggleChat={() => setChatOpen(!chatOpen)}
+          />
         </div>
 
-        <h3 className="text-sm font-mono font-semibold mb-1" style={{ color: 'var(--color-text-primary)' }}>
-          {channel?.name || 'Voice Room'}
-        </h3>
-
-        <ConnectionBanner state={state} error={error} />
-
-        {/* Video tiles */}
-        {isConnected && participants.some((p) => p.hasVideo || p.hasScreenShare) && (
-          <div className="w-full grid gap-2 mb-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-            {participants.map((p) => (
-              (p.hasVideo || p.hasScreenShare) && (
-                <VideoTile key={p.identity} participant={p} />
-              )
-            ))}
+        {chatOpen && (
+          <div className="w-80 flex flex-col min-h-0" style={{ maxWidth: '50%' }}>
+            <VoiceChat channelId={channelId} />
           </div>
-        )}
-
-        {/* Participants */}
-        {participants.length > 0 && (
-          <div
-            className="w-full rounded border p-3 mb-3"
-            style={{ borderColor: 'var(--color-border)' }}
-          >
-            <span className="text-[10px] font-mono mb-2 block" style={{ color: 'var(--color-text-secondary)' }}>
-              {participants.length} participant{participants.length !== 1 ? 's' : ''}
-            </span>
-            {participants.map((p) => (
-              <ParticipantRow key={p.identity} participant={p} />
-            ))}
-          </div>
-        )}
-
-        {/* Controls */}
-        {isConnected ? (
-          <JoinedControls
-            isMuted={isMuted}
-            isCameraOn={isCameraOn}
-            isScreenSharing={isScreenSharing}
-            screenShareSupported={screenShareSupported}
-            toggleMute={toggleMute}
-            toggleCamera={toggleCamera}
-            toggleScreenShare={toggleScreenShare}
-            onToggleChat={() => setShowChat(!showChat)}
-            leave={leave}
-          />
-        ) : (
-          <PreJoinControls
-            state={state}
-            preJoinMicEnabled={preJoinMicEnabled}
-            setPreJoinMicEnabled={setPreJoinMicEnabled}
-            onToggleChat={() => setShowChat(!showChat)}
-            join={join}
-          />
-        )}
-
-        {state === 'failed' && error && (
-          <button
-            onClick={join}
-            className="text-[10px] font-mono px-3 py-1 rounded border transition-colors mt-2"
-            style={{ borderColor: 'var(--color-border)', color: 'var(--color-cyan)' }}
-          >
-            Retry
-          </button>
-        )}
-
-        {/* Diagnostics panel */}
-        <button
-          onClick={() => setShowDiagnostics(!showDiagnostics)}
-          className="flex items-center gap-1 text-[9px] font-mono mt-3 transition-colors"
-          style={{ color: 'var(--color-text-quaternary)' }}
-        >
-          <Bug size={10} />
-          Diagnostics
-          {showDiagnostics ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
-        </button>
-
-        {showDiagnostics && (
-          <DiagnosticsView diagnostics={diagnostics} state={state} />
         )}
       </div>
     </div>
   )
 }
 
-function PreJoinControls({
-  state,
-  preJoinMicEnabled,
-  setPreJoinMicEnabled,
-  onToggleChat,
-  join,
-}: {
-  state: string
-  preJoinMicEnabled: boolean
-  setPreJoinMicEnabled: (v: boolean) => void
-  onToggleChat: () => void
-  join: () => Promise<void>
-}) {
+function ChannelHeader({ name, isConnected }: { name: string; isConnected: boolean }) {
   return (
-    <div className="flex gap-2 mb-3 flex-wrap justify-center">
-      {/* Mic toggle (pre-join) */}
-      <button
-        onClick={() => setPreJoinMicEnabled(!preJoinMicEnabled)}
-        className="flex items-center gap-2 text-xs font-mono px-4 py-2 rounded transition-colors"
-        style={{
-          background: preJoinMicEnabled ? 'var(--color-surface-raised)' : 'var(--color-danger)',
-          color: preJoinMicEnabled ? 'var(--color-text-primary)' : 'var(--color-canvas)',
-        }}
-        title={preJoinMicEnabled ? 'Will join unmuted' : 'Will join muted'}
+    <div className="flex flex-col items-center mb-3">
+      <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2"
+        style={{ background: 'var(--color-surface-raised)' }}
       >
-        {preJoinMicEnabled ? <Mic size={14} /> : <MicOff size={14} />}
-        {preJoinMicEnabled ? 'Mic On' : 'Mic Off'}
-      </button>
-
-      {/* Join button */}
-      <button
-        onClick={join}
-        disabled={state === 'connecting'}
-        className="flex items-center gap-2 text-xs font-mono px-4 py-2 rounded transition-colors"
-        style={{
-          background: state === 'connecting' ? 'var(--color-surface-raised)' : 'var(--color-ok)',
-          color: state === 'connecting' ? 'var(--color-text-tertiary)' : 'var(--color-canvas)',
-        }}
-      >
-        <Phone size={14} />
-        {state === 'connecting' ? 'Connecting...' : 'Join Voice'}
-      </button>
-
-      {/* Chat toggle */}
-      <button
-        onClick={onToggleChat}
-        className="flex items-center gap-2 text-xs font-mono px-3 py-2 rounded transition-colors"
-        style={{
-          background: 'var(--color-surface-raised)',
-          color: 'var(--color-text-secondary)',
-        }}
-      >
-        <MessageSquare size={14} />
-        Chat
-      </button>
+        <Radio size={20} style={{ color: isConnected ? 'var(--color-ok)' : 'var(--color-cyan)' }} />
+      </div>
+      <h3 className="text-sm font-mono font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+        {name}
+      </h3>
     </div>
   )
 }
 
-function JoinedControls({
-  isMuted,
-  isCameraOn,
-  isScreenSharing,
-  screenShareSupported,
-  toggleMute,
-  toggleCamera,
-  toggleScreenShare,
-  onToggleChat,
-  leave,
+function StreamGrid({
+  streams,
+  focusedStream,
+  onFocus,
+  getVideoElement,
+  onStopStream,
+  localIdentity,
 }: {
-  isMuted: boolean
-  isCameraOn: boolean
-  isScreenSharing: boolean
-  screenShareSupported: boolean
-  toggleMute: () => void
-  toggleCamera: () => Promise<void>
-  toggleScreenShare: () => Promise<void>
-  onToggleChat: () => void
-  leave: () => void
+  streams: Array<MediaStreamSource & { participantName: string }>
+  focusedStream: string | null
+  onFocus: (sid: string | null) => void
+  getVideoElement: (sid: string) => HTMLVideoElement | null
+  onStopStream: (sid: string) => Promise<void>
+  localIdentity: string | undefined
 }) {
-  return (
-    <div className="flex gap-2 mb-3 flex-wrap justify-center">
-      {/* Mute/Unmute */}
-      <button
-        onClick={toggleMute}
-        className="flex items-center gap-2 text-xs font-mono px-4 py-2 rounded transition-colors"
-        style={{
-          background: isMuted ? 'var(--color-danger)' : 'var(--color-surface-raised)',
-          color: isMuted ? 'var(--color-canvas)' : 'var(--color-text-primary)',
-        }}
-      >
-        {isMuted ? <MicOff size={14} /> : <Mic size={14} />}
-        {isMuted ? 'Unmute' : 'Mute'}
-      </button>
+  if (streams.length === 0) return null
 
-      {/* Video */}
-      <button
-        onClick={toggleCamera}
-        className="flex items-center gap-2 text-xs font-mono px-3 py-2 rounded transition-colors"
-        style={{
-          background: isCameraOn ? 'var(--color-cyan-glow)' : 'var(--color-surface-raised)',
-          color: isCameraOn ? 'var(--color-cyan)' : 'var(--color-text-secondary)',
-        }}
-      >
-        {isCameraOn ? <Video size={14} /> : <VideoOff size={14} />}
-        {isCameraOn ? 'Video On' : 'Video Off'}
-      </button>
+  const focused = focusedStream ? streams.find(s => s.trackSid === focusedStream) : null
 
-      {/* Screen share */}
-      <button
-        onClick={screenShareSupported ? toggleScreenShare : undefined}
-        disabled={!screenShareSupported}
-        className="flex items-center gap-2 text-xs font-mono px-3 py-2 rounded transition-colors relative group"
-        style={{
-          background: isScreenSharing ? 'var(--color-cyan-glow)' : 'var(--color-surface-raised)',
-          color: !screenShareSupported
-            ? 'var(--color-text-quaternary)'
-            : isScreenSharing
-            ? 'var(--color-cyan)'
-            : 'var(--color-text-secondary)',
-          cursor: screenShareSupported ? 'pointer' : 'not-allowed',
-          opacity: screenShareSupported ? 1 : 0.5,
-        }}
-        title={
-          screenShareSupported
-            ? isScreenSharing ? 'Stop sharing' : 'Share screen'
-            : 'Screen share unavailable on iOS Safari. Join from desktop to share.'
-        }
-      >
-        {isScreenSharing ? <Monitor size={14} /> : <MonitorOff size={14} />}
-        Share
-        {!screenShareSupported && (
-          <div
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded text-[9px] font-mono whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-            style={{ background: 'var(--color-surface-overlay)', color: 'var(--color-warn)' }}
-          >
-            Unavailable on iOS Safari
+  if (focused) {
+    return (
+      <div className="w-full mb-3">
+        <StreamTile
+          stream={focused}
+          focused
+          getVideoElement={getVideoElement}
+          onFocus={() => onFocus(null)}
+          onStop={focused.participantIdentity === localIdentity ? () => onStopStream(focused.trackSid) : undefined}
+          isOwner={focused.participantIdentity === localIdentity}
+        />
+        {streams.length > 1 && (
+          <div className="flex gap-1.5 mt-1.5 overflow-x-auto pb-1">
+            {streams.filter(s => s.trackSid !== focusedStream).map(s => (
+              <div key={s.trackSid} className="flex-shrink-0" style={{ width: 120, height: 68 }}>
+                <StreamTile
+                  stream={s}
+                  compact
+                  getVideoElement={getVideoElement}
+                  onFocus={() => onFocus(s.trackSid)}
+                  onStop={s.participantIdentity === localIdentity ? () => onStopStream(s.trackSid) : undefined}
+                  isOwner={s.participantIdentity === localIdentity}
+                />
+              </div>
+            ))}
           </div>
         )}
-      </button>
+      </div>
+    )
+  }
 
-      {/* Chat */}
-      <button
-        onClick={onToggleChat}
-        className="flex items-center gap-2 text-xs font-mono px-3 py-2 rounded transition-colors"
-        style={{
-          background: 'var(--color-surface-raised)',
-          color: 'var(--color-text-secondary)',
-        }}
-      >
-        <MessageSquare size={14} />
-        Chat
-      </button>
+  const gridCols = streams.length === 1 ? 'grid-cols-1' :
+    streams.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'
 
-      {/* Leave */}
-      <button
-        onClick={leave}
-        className="flex items-center gap-2 text-xs font-mono px-4 py-2 rounded transition-colors"
-        style={{ background: 'var(--color-danger)', color: 'var(--color-canvas)' }}
-      >
-        <PhoneOff size={14} /> Leave
-      </button>
+  return (
+    <div className={`w-full grid ${gridCols} gap-1.5 mb-3`}>
+      {streams.map(s => (
+        <StreamTile
+          key={s.trackSid}
+          stream={s}
+          getVideoElement={getVideoElement}
+          onFocus={() => onFocus(s.trackSid)}
+          onStop={s.participantIdentity === localIdentity ? () => onStopStream(s.trackSid) : undefined}
+          isOwner={s.participantIdentity === localIdentity}
+        />
+      ))}
     </div>
   )
 }
 
-function ConnectionBanner({ state, error }: { state: string; error: string | null }) {
+function StreamTile({
+  stream,
+  focused,
+  compact,
+  getVideoElement,
+  onFocus,
+  onStop,
+  isOwner,
+}: {
+  stream: MediaStreamSource & { participantName: string }
+  focused?: boolean
+  compact?: boolean
+  getVideoElement: (sid: string) => HTMLVideoElement | null
+  onFocus: () => void
+  onStop?: () => void
+  isOwner: boolean
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mountedSidRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    let cancelled = false
+    let pollTimer: ReturnType<typeof setInterval> | undefined
+
+    function tryMount() {
+      if (cancelled || !container) return
+      if (mountedSidRef.current === stream.trackSid) return
+
+      const el = getVideoElement(stream.trackSid)
+      if (el) {
+        el.style.display = 'block'
+        el.style.width = '100%'
+        el.style.height = '100%'
+        el.style.objectFit = 'contain'
+        el.style.borderRadius = '4px'
+        el.style.position = 'absolute'
+        container.appendChild(el)
+        mountedSidRef.current = stream.trackSid
+        if (pollTimer) clearInterval(pollTimer)
+      }
+    }
+
+    tryMount()
+    if (mountedSidRef.current !== stream.trackSid) {
+      pollTimer = setInterval(tryMount, 200)
+    }
+
+    return () => {
+      cancelled = true
+      if (pollTimer) clearInterval(pollTimer)
+      if (mountedSidRef.current === stream.trackSid) {
+        const el = getVideoElement(stream.trackSid)
+        if (el) {
+          el.style.display = 'none'
+          el.style.position = 'absolute'
+          document.body.appendChild(el)
+        }
+        mountedSidRef.current = null
+      }
+    }
+  }, [stream.trackSid, getVideoElement])
+
+  const Icon = SOURCE_TYPE_ICONS[stream.sourceType] || Monitor
+  const label = SOURCE_TYPE_LABELS[stream.sourceType] || stream.sourceType
+  const dims = stream.dimensions
+  const fps = stream.frameRate
+
+  return (
+    <div
+      className={`relative rounded border overflow-hidden group ${focused ? 'aspect-video' : compact ? '' : 'aspect-video'}`}
+      style={{
+        borderColor: 'var(--color-border)',
+        background: 'var(--color-surface)',
+        height: compact ? '100%' : undefined,
+      }}
+    >
+      <div ref={containerRef} className="absolute inset-0" />
+
+      <div className="absolute bottom-0 left-0 right-0 px-2 py-1 flex items-center gap-1.5"
+        style={{ background: 'rgba(0,0,0,0.6)' }}
+      >
+        <Icon size={compact ? 8 : 10} style={{ color: 'var(--color-cyan)' }} />
+        {!compact && (
+          <>
+            <span className="text-[9px] font-mono truncate" style={{ color: '#fff' }}>
+              {stream.participantName}
+            </span>
+            <span className="text-[8px] font-mono" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              {label}
+            </span>
+            {dims && (
+              <span className="text-[7px] font-mono ml-auto" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                {dims.width}x{dims.height}{fps ? `@${Math.round(fps)}` : ''}
+              </span>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={onFocus}
+          className="p-1 rounded"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
+          title={focused ? 'Minimize' : 'Focus'}
+        >
+          {focused ? <Minimize2 size={10} color="#fff" /> : <Maximize2 size={10} color="#fff" />}
+        </button>
+        {isOwner && onStop && (
+          <button onClick={onStop}
+            className="p-1 rounded"
+            style={{ background: 'rgba(220,38,38,0.8)' }}
+            title="Stop stream"
+          >
+            <X size={10} color="#fff" />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ControlBar({
+  state,
+  isMuted,
+  isVideoOn,
+  preJoinMicEnabled,
+  localStreamCount,
+  canAddStream,
+  chatOpen,
+  error,
+  onJoin,
+  onLeave,
+  onToggleMute,
+  onTogglePreJoinMic,
+  onToggleVideo,
+  onAddScreenShare,
+  onStopAllStreams,
+  onToggleChat,
+}: {
+  state: VoiceRoomState
+  isMuted: boolean
+  isVideoOn: boolean
+  preJoinMicEnabled: boolean
+  localStreamCount: number
+  canAddStream: boolean
+  chatOpen: boolean
+  error: string | null
+  onJoin: () => void
+  onLeave: () => void
+  onToggleMute: () => void
+  onTogglePreJoinMic: () => void
+  onToggleVideo: () => void
+  onAddScreenShare: () => void
+  onStopAllStreams: () => void
+  onToggleChat: () => void
+}) {
+  const [shareMenuOpen, setShareMenuOpen] = useState(false)
+  const isConnected = state === 'connected' || state === 'reconnecting'
+  const iosBlocked = isIOSSafari()
+
+  // Pre-join: mic toggle + join + chat
+  if (!isConnected && state !== 'failed' && state !== 'disconnected') {
+    return (
+      <div className="flex items-center justify-center gap-1.5 px-4 py-3 border-t shrink-0"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        <ControlButton
+          active={preJoinMicEnabled}
+          danger={!preJoinMicEnabled}
+          icon={preJoinMicEnabled ? Mic : MicOff}
+          label={preJoinMicEnabled ? 'Mic On' : 'Mic Off'}
+          onClick={onTogglePreJoinMic}
+          disabled={state === 'connecting'}
+        />
+        <button onClick={onJoin}
+          disabled={state === 'connecting'}
+          className="flex items-center gap-2 text-xs font-mono px-5 py-2.5 rounded transition-colors"
+          style={{
+            background: state === 'connecting' ? 'var(--color-surface-raised)' : 'var(--color-ok)',
+            color: state === 'connecting' ? 'var(--color-text-tertiary)' : 'var(--color-canvas)',
+          }}
+        >
+          {state === 'connecting' ? 'Connecting...' : 'Join Voice'}
+        </button>
+        <ControlButton
+          active={chatOpen}
+          icon={MessageSquare}
+          label="Chat"
+          onClick={onToggleChat}
+        />
+      </div>
+    )
+  }
+
+  // Failed / disconnected: retry + mic toggle + chat
+  if (state === 'failed' || state === 'disconnected') {
+    return (
+      <div className="flex items-center justify-center gap-1.5 px-4 py-3 border-t shrink-0"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        <ControlButton
+          active={preJoinMicEnabled}
+          danger={!preJoinMicEnabled}
+          icon={preJoinMicEnabled ? Mic : MicOff}
+          label={preJoinMicEnabled ? 'Mic On' : 'Mic Off'}
+          onClick={onTogglePreJoinMic}
+        />
+        <button onClick={onJoin}
+          className="flex items-center gap-2 text-xs font-mono px-4 py-2 rounded transition-colors"
+          style={{ background: 'var(--color-ok)', color: 'var(--color-canvas)' }}
+        >
+          Retry
+        </button>
+        <ControlButton
+          active={chatOpen}
+          icon={MessageSquare}
+          label="Chat"
+          onClick={onToggleChat}
+        />
+        {error && (
+          <span className="text-[9px] font-mono max-w-48 truncate" style={{ color: 'var(--color-danger)' }}>
+            {error}
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  // Connected: full control bar
+  return (
+    <div className="relative flex items-center justify-center gap-1.5 px-3 py-2.5 border-t shrink-0"
+      style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+    >
+      <ControlButton
+        active={!isMuted}
+        danger={isMuted}
+        icon={isMuted ? MicOff : Mic}
+        label={isMuted ? 'Unmute' : 'Mute'}
+        onClick={onToggleMute}
+      />
+      <ControlButton
+        active={isVideoOn}
+        icon={isVideoOn ? Video : VideoOff}
+        label={isVideoOn ? 'Stop Video' : 'Video'}
+        onClick={onToggleVideo}
+      />
+
+      <div className="relative">
+        <ControlButton
+          active={localStreamCount > 0}
+          icon={localStreamCount > 0 ? ScreenShare : Monitor}
+          label={localStreamCount > 0 ? `Sharing (${localStreamCount})` : 'Share'}
+          onClick={() => setShareMenuOpen(!shareMenuOpen)}
+        />
+        {localStreamCount > 0 && (
+          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-mono font-bold"
+            style={{ background: 'var(--color-cyan)', color: 'var(--color-canvas)' }}
+          >
+            {localStreamCount}
+          </div>
+        )}
+      </div>
+
+      <ControlButton
+        active={chatOpen}
+        icon={MessageSquare}
+        label="Chat"
+        onClick={onToggleChat}
+      />
+      <div className="w-px h-6 mx-1" style={{ background: 'var(--color-border)' }} />
+      <button onClick={onLeave}
+        className="flex items-center gap-1.5 text-[10px] font-mono px-3 py-2 rounded transition-colors"
+        style={{ background: 'var(--color-danger)', color: 'var(--color-canvas)' }}
+      >
+        <PhoneOff size={13} /> Leave
+      </button>
+
+      {shareMenuOpen && (
+        <ShareMenu
+          canAdd={canAddStream}
+          iosBlocked={iosBlocked}
+          localStreamCount={localStreamCount}
+          onAddScreen={() => { onAddScreenShare(); setShareMenuOpen(false) }}
+          onStopAll={() => { onStopAllStreams(); setShareMenuOpen(false) }}
+          onClose={() => setShareMenuOpen(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+function ShareMenu({
+  canAdd,
+  iosBlocked,
+  localStreamCount,
+  onAddScreen,
+  onStopAll,
+  onClose,
+}: {
+  canAdd: boolean
+  iosBlocked: boolean
+  localStreamCount: number
+  onAddScreen: () => void
+  onStopAll: () => void
+  onClose: () => void
+}) {
+  return (
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 rounded-lg border shadow-lg overflow-hidden"
+      style={{ background: 'var(--color-surface-raised)', borderColor: 'var(--color-border)', zIndex: 50 }}
+    >
+      <div className="px-3 py-2 border-b flex items-center justify-between"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        <span className="text-[10px] font-mono font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+          Share Sources
+        </span>
+        <button onClick={onClose} className="p-0.5 rounded hover:bg-surface">
+          <X size={10} style={{ color: 'var(--color-text-tertiary)' }} />
+        </button>
+      </div>
+
+      {iosBlocked && (
+        <div className="px-3 py-2 flex items-start gap-2"
+          style={{ background: 'var(--color-warn-dim)' }}
+        >
+          <AlertTriangle size={12} style={{ color: 'var(--color-warn)' }} className="flex-shrink-0 mt-0.5" />
+          <p className="text-[9px] font-mono" style={{ color: 'var(--color-warn)' }}>
+            iOS browser screen share requires native app / browser support. You can still watch shared streams.
+          </p>
+        </div>
+      )}
+
+      {!iosBlocked && (
+        <div className="p-1">
+          <ShareMenuItem
+            icon={Monitor}
+            label="Screen"
+            desc="Share your entire screen"
+            disabled={!canAdd}
+            onClick={onAddScreen}
+          />
+          <ShareMenuItem
+            icon={AppWindow}
+            label="Window"
+            desc="Share an application window"
+            disabled={!canAdd}
+            onClick={onAddScreen}
+          />
+          <ShareMenuItem
+            icon={Globe}
+            label="Browser Tab"
+            desc="Share a browser tab"
+            disabled={!canAdd}
+            onClick={onAddScreen}
+          />
+          <ShareMenuItem
+            icon={Plus}
+            label="Additional Source"
+            desc={canAdd ? `${4 - localStreamCount} more allowed` : 'Max 4 streams reached'}
+            disabled={!canAdd}
+            onClick={onAddScreen}
+          />
+        </div>
+      )}
+
+      {localStreamCount > 0 && (
+        <div className="px-1 pb-1 border-t" style={{ borderColor: 'var(--color-border)' }}>
+          <button onClick={onStopAll}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[9px] font-mono transition-colors hover:bg-surface"
+            style={{ color: 'var(--color-danger)' }}
+          >
+            <MonitorOff size={12} />
+            Stop All Streams ({localStreamCount})
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ShareMenuItem({
+  icon: Icon,
+  label,
+  desc,
+  disabled,
+  onClick,
+}: {
+  icon: typeof Monitor
+  label: string
+  desc: string
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      <Icon size={14} style={{ color: disabled ? 'var(--color-text-tertiary)' : 'var(--color-cyan)' }} />
+      <div>
+        <span className="text-[10px] font-mono block" style={{ color: 'var(--color-text-primary)' }}>{label}</span>
+        <span className="text-[8px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>{desc}</span>
+      </div>
+    </button>
+  )
+}
+
+function ControlButton({
+  active,
+  danger,
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  active: boolean
+  danger?: boolean
+  icon: typeof Mic
+  label: string
+  onClick: () => void
+  disabled?: boolean
+}) {
+  return (
+    <button onClick={onClick}
+      disabled={disabled}
+      className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      style={{
+        background: danger ? 'var(--color-danger)' : active ? 'var(--color-surface-raised)' : 'transparent',
+        color: danger ? 'var(--color-canvas)' : active ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+      }}
+      title={label}
+    >
+      <Icon size={16} />
+      <span className="text-[8px] font-mono">{label}</span>
+    </button>
+  )
+}
+
+function ConnectionBanner({ state, error, reconnectAttempts }: { state: VoiceRoomState; error: string | null; reconnectAttempts: number }) {
   if (state === 'idle') return null
 
   const config: Record<string, { bg: string; color: string; text: string; icon: typeof Wifi }> = {
     connecting: { bg: 'var(--color-cyan-glow)', color: 'var(--color-cyan)', text: 'Connecting...', icon: Activity },
     connected: { bg: 'var(--color-ok-dim)', color: 'var(--color-ok)', text: 'Connected', icon: Wifi },
-    reconnecting: { bg: 'var(--color-warn-dim)', color: 'var(--color-warn)', text: 'Reconnecting...', icon: Activity },
+    reconnecting: {
+      bg: 'var(--color-warn-dim)',
+      color: 'var(--color-warn)',
+      text: reconnectAttempts > 0 ? `Reconnecting (${reconnectAttempts}/5)...` : 'Reconnecting...',
+      icon: Activity,
+    },
     failed: { bg: 'var(--color-danger-dim)', color: 'var(--color-danger)', text: error || 'Connection failed', icon: WifiOff },
+    disconnected: { bg: 'var(--color-warn-dim)', color: 'var(--color-warn)', text: 'Disconnected', icon: WifiOff },
   }
 
   const c = config[state]
@@ -322,130 +693,232 @@ function ConnectionBanner({ state, error }: { state: string; error: string | nul
   const Icon = c.icon
 
   return (
-    <div
-      className="w-full rounded px-3 py-2 mb-3 flex items-center gap-2"
-      style={{ background: c.bg }}
-    >
-      <Icon size={12} style={{ color: c.color }} className={state === 'connecting' || state === 'reconnecting' ? 'animate-pulse' : ''} />
-      <span className="text-[10px] font-mono" style={{ color: c.color }}>{c.text}</span>
+    <div className="w-full rounded px-3 py-2 mb-3 flex items-center gap-2" style={{ background: c.bg }}>
+      <Icon size={12} style={{ color: c.color }}
+        className={state === 'connecting' || state === 'reconnecting' ? 'animate-pulse' : ''}
+      />
+      <span className="text-[10px] font-mono flex-1" style={{ color: c.color }}>{c.text}</span>
+    </div>
+  )
+}
+
+function ParticipantGrid({ participants }: { participants: VoiceParticipant[] }) {
+  return (
+    <div className="w-full rounded border p-3 mb-3" style={{ borderColor: 'var(--color-border)' }}>
+      <span className="text-[10px] font-mono mb-2 block" style={{ color: 'var(--color-text-secondary)' }}>
+        {participants.length} participant{participants.length !== 1 ? 's' : ''}
+      </span>
+      <div className="space-y-0.5">
+        {participants.map((p) => (
+          <ParticipantRow key={p.identity} participant={p} />
+        ))}
+      </div>
     </div>
   )
 }
 
 function ParticipantRow({ participant: p }: { participant: VoiceParticipant }) {
-  const qualityColor = p.connectionQuality === ConnectionQuality.Excellent ? 'var(--color-ok)'
-    : p.connectionQuality === ConnectionQuality.Good ? 'var(--color-ok)'
-    : p.connectionQuality === ConnectionQuality.Poor ? 'var(--color-warn)'
-    : 'var(--color-text-tertiary)'
-
   return (
-    <div className="flex items-center gap-2 py-1.5">
-      <div
-        className="w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-mono font-bold"
-        style={{ background: 'var(--color-surface-overlay)', color: 'var(--color-text-secondary)' }}
-      >
-        {p.name.charAt(0).toUpperCase()}
+    <div className="flex items-center gap-2 py-1.5 px-1 rounded transition-colors">
+      <div className="relative">
+        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-mono font-bold"
+          style={{
+            background: 'var(--color-surface-overlay)',
+            color: 'var(--color-text-secondary)',
+            outline: p.isSpeaking ? '2px solid var(--color-ok)' : 'none',
+            outlineOffset: p.isSpeaking ? '1px' : undefined,
+          }}
+        >
+          {p.name.charAt(0).toUpperCase()}
+        </div>
       </div>
-      <span className="text-[10px] font-mono flex-1" style={{ color: 'var(--color-text-primary)' }}>
+
+      <span className="text-[10px] font-mono flex-1 truncate" style={{ color: 'var(--color-text-primary)' }}>
         {p.name}
       </span>
+
       <div className="flex items-center gap-1.5">
-        {p.isSpeaking && (
-          <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--color-ok)' }} />
+        {p.streamCount > 0 && (
+          <ScreenShare size={11} style={{ color: 'var(--color-cyan)' }} />
         )}
-        {p.isMuted && <MicOff size={10} style={{ color: 'var(--color-danger)' }} />}
-        {p.hasVideo && <Video size={10} style={{ color: 'var(--color-cyan)' }} />}
-        {p.hasScreenShare && <Monitor size={10} style={{ color: 'var(--color-cyan)' }} />}
-        <div className="w-1.5 h-1.5 rounded-full" style={{ background: qualityColor }} />
+
+        {p.isVideoOn && (
+          <Video size={11} style={{ color: 'var(--color-ok)' }} />
+        )}
+
+        {p.isMuted ? (
+          <MicOff size={11} style={{ color: 'var(--color-danger)' }} />
+        ) : (
+          <Mic size={11} style={{ color: 'var(--color-ok)' }} />
+        )}
       </div>
     </div>
   )
 }
 
-function VideoTile({ participant: p }: { participant: VoiceParticipant }) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const screenRef = useRef<HTMLVideoElement>(null)
+function VoiceChat({ channelId }: { channelId: string }) {
+  const messages = useRoomsStore((s) => s.messages)
+  const fetchMessages = useRoomsStore((s) => s.fetchMessages)
+  const sendMessage = useRoomsStore((s) => s.sendMessage)
+  const typingUsers = useRoomsStore((s) => s.typingUsers)
+
+  const [input, setInput] = useState('')
+  const [sending, setSending] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (p.videoTrack && videoRef.current) {
-      p.videoTrack.attach(videoRef.current)
-      return () => { p.videoTrack?.detach(videoRef.current!) }
-    }
-  }, [p.videoTrack])
+    fetchMessages(channelId)
+  }, [channelId, fetchMessages])
 
   useEffect(() => {
-    if (p.screenTrack && screenRef.current) {
-      p.screenTrack.attach(screenRef.current)
-      return () => { p.screenTrack?.detach(screenRef.current!) }
-    }
-  }, [p.screenTrack])
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages.length])
+
+  const handleSend = async (e: FormEvent) => {
+    e.preventDefault()
+    const text = input.trim()
+    if (!text || sending) return
+    setSending(true)
+    setInput('')
+    await sendMessage(channelId, text)
+    setSending(false)
+  }
+
+  const channelMessages = messages.filter((m) => m.channel_id === channelId)
+  const typing = typingUsers[channelId] || []
 
   return (
-    <>
-      {p.hasVideo && (
-        <div className="relative rounded overflow-hidden" style={{ background: 'var(--color-surface-overlay)' }}>
-          <video ref={videoRef} autoPlay playsInline muted className="w-full aspect-video object-cover" />
-          <span
-            className="absolute bottom-1 left-1 text-[9px] font-mono px-1 rounded"
-            style={{ background: 'rgba(0,0,0,0.6)', color: 'var(--color-text-primary)' }}
-          >
-            {p.name}
+    <div className="flex flex-col h-full">
+      <div className="flex items-center px-3 h-8 border-b shrink-0"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        <MessageSquare size={11} style={{ color: 'var(--color-text-tertiary)' }} />
+        <span className="text-[10px] font-mono ml-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+          Chat
+        </span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {channelMessages.length === 0 && (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-[10px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
+              No messages yet
+            </p>
+          </div>
+        )}
+
+        {channelMessages.map((msg) => (
+          <ChatMessage key={msg.id} message={msg} />
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      {typing.length > 0 && (
+        <div className="px-3 py-0.5">
+          <span className="text-[8px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
+            {typing.join(', ')} typing...
           </span>
         </div>
       )}
-      {p.hasScreenShare && (
-        <div className="relative rounded overflow-hidden" style={{ background: 'var(--color-surface-overlay)' }}>
-          <video ref={screenRef} autoPlay playsInline muted className="w-full aspect-video object-contain" />
-          <span
-            className="absolute bottom-1 left-1 text-[9px] font-mono px-1 rounded flex items-center gap-1"
-            style={{ background: 'rgba(0,0,0,0.6)', color: 'var(--color-cyan)' }}
-          >
-            <Monitor size={8} /> {p.name}
-          </span>
-        </div>
-      )}
-    </>
+
+      <form onSubmit={handleSend}
+        className="flex items-center gap-1.5 px-2 py-1.5 border-t shrink-0"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Message..."
+          disabled={sending}
+          className="flex-1 text-[10px] font-mono px-2 py-1.5 rounded border bg-transparent outline-none"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
+        />
+        <button type="submit"
+          disabled={!input.trim() || sending}
+          className="p-1.5 rounded transition-colors"
+          style={{
+            background: input.trim() ? 'var(--color-cyan)' : 'transparent',
+            color: input.trim() ? 'var(--color-canvas)' : 'var(--color-text-tertiary)',
+          }}
+        >
+          <Send size={11} />
+        </button>
+      </form>
+    </div>
   )
 }
 
-function DiagnosticsView({ diagnostics, state }: { diagnostics: MediaDiagnostics; state: string }) {
-  const rows: [string, string][] = [
-    ['mic permission', String(diagnostics.micPermission)],
-    ['mic enabled requested', String(diagnostics.micEnabledRequested)],
-    ['mic enabled actual', String(diagnostics.micEnabledActual)],
-    ['audio track sid', diagnostics.audioTrackSid || '—'],
-    ['camera permission', String(diagnostics.cameraPermission)],
-    ['camera enabled actual', String(diagnostics.cameraEnabledActual)],
-    ['screen share support', String(diagnostics.screenShareSupported)],
-    ['connection state', state],
-    ['last media error', diagnostics.lastMediaError || '—'],
-  ]
+function ChatMessage({ message: msg }: { message: RoomMessage }) {
+  if (msg.deleted) return null
 
   return (
-    <div
-      className="w-full rounded border p-2 mt-2"
-      style={{ borderColor: 'var(--color-border)' }}
-    >
-      <span className="text-[9px] font-mono font-semibold block mb-1" style={{ color: 'var(--color-text-secondary)' }}>
-        Media Diagnostics
-      </span>
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex justify-between py-0.5">
-          <span className="text-[9px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>{label}</span>
-          <span
-            className="text-[9px] font-mono"
-            style={{
-              color: value === 'denied' || value.includes('fail') || value.includes('error')
-                ? 'var(--color-danger)'
-                : value === 'granted' || value === 'true'
-                ? 'var(--color-ok)'
-                : 'var(--color-text-secondary)',
-            }}
-          >
-            {value}
-          </span>
+    <div className="px-3 py-1 hover:bg-surface-raised transition-colors">
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-[9px] font-mono font-semibold" style={{ color: 'var(--color-cyan)' }}>
+          {msg.author_name}
+        </span>
+        <span className="text-[8px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
+          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      </div>
+      <p className="text-[10px] font-mono whitespace-pre-wrap break-words" style={{ color: 'var(--color-text-primary)' }}>
+        {msg.content}
+      </p>
+    </div>
+  )
+}
+
+function DiagnosticsPanel({ diagnostics, state }: { diagnostics: VoiceDiagnostics; state: string }) {
+  const [expanded, setExpanded] = useState(false)
+
+  if (state === 'idle' && !diagnostics.lastEvent) return null
+
+  return (
+    <div className="w-full rounded border mt-2" style={{ borderColor: 'var(--color-border)' }}>
+      <button onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-1 px-3 py-1.5 text-[9px] font-mono"
+        style={{ color: 'var(--color-text-tertiary)' }}
+      >
+        {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+        diagnostics
+      </button>
+      {expanded && (
+        <div className="px-3 pb-2 space-y-1">
+          <DiagRow label="state" value={state} />
+          <DiagRow label="url" value={diagnostics.livekitUrl} />
+          <DiagRow label="room" value={diagnostics.roomName} />
+          <DiagRow label="identity" value={diagnostics.participantIdentity} />
+          <DiagRow label="token" value={diagnostics.tokenReceived ? 'received' : 'none'} />
+          <DiagRow label="signal" value={diagnostics.signalConnected ? 'connected' : 'no'} />
+          <DiagRow label="ice" value={diagnostics.iceState} />
+          <DiagRow label="mic perm" value={diagnostics.micPermission} />
+          <DiagRow label="mic requested" value={diagnostics.micEnabledRequested ? 'on' : 'off'} />
+          <DiagRow label="mic actual" value={diagnostics.micEnabledActual ? 'on' : 'off'} />
+          <DiagRow label="audio sid" value={diagnostics.audioTrackSid} />
+          <DiagRow label="cam perm" value={diagnostics.cameraPermission} />
+          <DiagRow label="cam actual" value={diagnostics.cameraEnabledActual ? 'on' : 'off'} />
+          <DiagRow label="screenshare" value={diagnostics.screenShareSupport ? 'supported' : 'not supported'} />
+          <DiagRow label="reconnects" value={String(diagnostics.reconnectAttempts)} />
+          <DiagRow label="published" value={String(diagnostics.publishedTrackCount)} />
+          <DiagRow label="subscribed" value={String(diagnostics.subscribedTrackCount)} />
+          <DiagRow label="last" value={diagnostics.lastEvent} />
+          {diagnostics.lastError && (
+            <DiagRow label="error" value={diagnostics.lastError} error />
+          )}
         </div>
-      ))}
+      )}
+    </div>
+  )
+}
+
+function DiagRow({ label, value, error }: { label: string; value: string | null; error?: boolean }) {
+  return (
+    <div className="flex gap-2 text-[9px] font-mono">
+      <span style={{ color: 'var(--color-text-tertiary)', minWidth: 80 }}>{label}</span>
+      <span style={{ color: error ? 'var(--color-danger)' : 'var(--color-text-secondary)', wordBreak: 'break-all' }}>
+        {value ?? '—'}
+      </span>
     </div>
   )
 }
