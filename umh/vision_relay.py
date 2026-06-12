@@ -689,20 +689,27 @@ async def handle_vision(ws: Any) -> None:
                     await send_json(ws, {"type": "vision_status", **result})
 
             elif msg_type == "camera_list_devices":
+                log.info("device scan requested by %s", ws.remote_address)
                 result = await _dispatch_to_beast("camera.list_devices", {})
+                log.info("device scan result: success=%s devices=%d",
+                         result.get("success") if result else None,
+                         len(result.get("devices", [])) if result else 0)
                 if result and result.get("success"):
-                    await send_json(ws, {
+                    resp = {
                         "type": "camera_devices",
                         "devices": result.get("devices", []),
                         "selected_index": result.get("selected_index", 0),
-                    })
+                    }
                 else:
-                    await send_json(ws, {
+                    resp = {
                         "type": "camera_devices",
                         "devices": [],
                         "selected_index": 0,
                         "error": result.get("error", "scan failed") if result else "dispatch failed",
-                    })
+                    }
+                log.info("sending camera_devices to %s: %d devices, error=%s",
+                         ws.remote_address, len(resp.get("devices", [])), resp.get("error"))
+                await send_json(ws, resp)
 
             elif msg_type == "camera_select_device":
                 device_index = msg.get("device_index", 0)
