@@ -586,138 +586,306 @@ class CameraAdapter:
 
     # ── Device enumeration ───────────────────────────────────────────
 
-    def _get_wmi_device_names(self) -> dict[int, str]:
-        """Get webcam/camera device names via Windows WMI. Returns {index: name}.
+    def _get_wmi_cameras(self) -> list[dict[str, str]]:
+        """Get physical camera devices via WMI with name and DeviceID for dedup.
 
-        Only returns PNPClass 'Camera' — excludes 'Image' (printers/scanners).
+        Only returns PNPClass 'Camera'. Each entry has 'name' and 'device_id'.
         """
-        names: dict[int, str] = {}
+        cameras: list[dict[str, str]] = []
         if sys.platform != "win32":
-            return names
+            return cameras
         try:
             import subprocess
             result = subprocess.run(
                 ["powershell", "-NoProfile", "-Command",
-                 "Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPClass -eq 'Camera' } | Select-Object -ExpandProperty Name"],
+                 "Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPClass -eq 'Camera' } "
+                 "| Select-Object Name, DeviceID | ConvertTo-Json -Compress"],
                 capture_output=True, text=True, timeout=5,
             )
-            if result.returncode == 0:
-                for idx, line in enumerate(result.stdout.strip().splitlines()):
-                    name = line.strip()
+            if result.returncode == 0 and result.stdout.strip():
+                data = json.loads(result.stdout.strip())
+                if isinstance(data, dict):
+                    data = [data]
+                for entry in data:
+                    name = entry.get("Name", "").strip()
+                    device_id = entry.get("DeviceID", "").strip()
                     if name:
-                        names[idx] = name
+                        cameras.append({"name": name, "device_id": device_id})
         except Exception as exc:
-            logger.debug("WMI device name lookup failed: %s", exc)
-        return names
+            logger.debug("WMI camera lookup failed: %s", exc)
+        return cameras
+
+    def _build_physical_device_map(
+        self, wmi_cameras: list[dict[str, str]], probed: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Merge WMI physical cameras with DirectShow probe results.
+
+        Groups duplicate DirectShow indexes under one physical device.
+        Returns one entry per physical camera, not per endpoint.
+        """
+        seen_names: dict[str, dict[str, Any]] = {}
+        wmi_name_set = {c["name"] for c in wmi_cameras}
+
+        for dev in probed:
+            name = dev["name"]
+            if name in seen_names:
+                seen_names[name]["raw_indexes"].append(dev["index"])
+                if dev["width"] > seen_names[name]["width"]:
+                    seen_names[name]["width"] = dev["width"]
+                    seen_names[name]["height"] = dev["height"]
+                    seen_names[name]["index"] = dev["index"]
+            else:
+                dev["raw_indexes"] = [dev["index"]]
+                seen_names[name] = dev
+
+        # Only return devices whose name matches a WMI physical camera
+        # (eliminates virtual/phantom DirectShow endpoints with no physical device)
+        result = []
+        for dev in seen_names.values():
+            if dev["name"] in wmi_name_set or not wmi_name_set:
+                result.append(dev)
+
+        result.sort(key=lambda d: d["index"])
+        return result
+
+    def _validate_device(self, index: int) -> dict[str, Any]:
+        """Validate a device produces real frames. Returns status info."""
+        import cv2
+        try:
+            cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+            if not cap.isOpened():
+                return {"status": "unavailable", "error": "could not open device"}
+            try:
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+                ret, frame1 = cap.read()
+                if not ret or frame1 is None:
+                    return {"status": "error", "error": "no frames", "width": w, "height": h}
+
+                ret2, frame2 = cap.read()
+                frames_advance = ret2 and frame2 is not None
+                fps_est = 0.0
+                if frames_advance:
+                    t0 = time.monotonic()
+                    read_count = 0
+                    while time.monotonic() - t0 < 0.5:
+                        r, _ = cap.read()
+                        if r:
+                            read_count += 1
+                    elapsed = time.monotonic() - t0
+                    if elapsed > 0:
+                        fps_est = round(read_count / elapsed, 1)
+
+                return {
+                    "status": "usable" if frames_advance else "stale",
+                    "width": w,
+                    "height": h,
+                    "fps": fps_est,
+                    "error": None if frames_advance else "frames do not advance",
+                }
+            finally:
+                cap.release()
+        except Exception as exc:
+            return {"status": "error", "error": str(exc)}
 
     def _list_devices(self, params: dict[str, Any]) -> dict[str, Any]:
         import cv2
         import concurrent.futures
 
-        wmi_names = self._get_wmi_device_names()
+        wmi_cameras = self._get_wmi_cameras()
+        wmi_name_map = {i: c["name"] for i, c in enumerate(wmi_cameras)}
+        wmi_id_map = {i: c["device_id"] for i, c in enumerate(wmi_cameras)}
         devices = []
+        now_ms = int(time.time() * 1000)
+        validate = params.get("validate", False)
 
         if self._stream_active:
-            # Active device — get resolution from running capture
+            w = 0
+            h = 0
+            fps_est = 0.0
             cap_ref = getattr(self, '_cap', None)
-            w = int(cap_ref.get(cv2.CAP_PROP_FRAME_WIDTH)) if cap_ref else 0
-            h = int(cap_ref.get(cv2.CAP_PROP_FRAME_HEIGHT)) if cap_ref else 0
+            if cap_ref:
+                try:
+                    w = int(cap_ref.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    h = int(cap_ref.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    fps_est = round(cap_ref.get(cv2.CAP_PROP_FPS) or 0, 1)
+                except Exception:
+                    pass
+            active_name = wmi_name_map.get(self._device_index, f"Camera {self._device_index}")
             devices.append({
                 "index": self._device_index,
-                "name": wmi_names.get(self._device_index, f"Camera {self._device_index}"),
+                "name": active_name,
+                "physical_id": wmi_id_map.get(self._device_index, ""),
+                "raw_indexes": [self._device_index],
                 "width": w,
                 "height": h,
+                "fps": fps_est,
+                "status": "usable",
                 "online": True,
                 "busy": True,
                 "selected": True,
+                "last_validated_at": now_ms,
+                "last_probe_error": None,
             })
             # WMI-only for other devices — DirectShow hangs when a capture is active
-            for idx, name in wmi_names.items():
+            for idx, cam in enumerate(wmi_cameras):
                 if idx != self._device_index:
                     devices.append({
                         "index": idx,
-                        "name": name,
+                        "name": cam["name"],
+                        "physical_id": cam["device_id"],
+                        "raw_indexes": [idx],
                         "width": 0,
                         "height": 0,
+                        "fps": 0,
+                        "status": "unknown",
                         "online": True,
                         "busy": False,
                         "selected": False,
+                        "last_validated_at": 0,
+                        "last_probe_error": None,
                     })
             devices.sort(key=lambda d: d["index"])
-            return {
-                "success": True,
-                "devices": devices,
-                "selected_index": self._device_index,
-            }
+            return {"success": True, "devices": devices, "selected_index": self._device_index}
 
-        # No active stream — safe to probe with cv2.VideoCapture
         def probe_index(i: int) -> dict[str, Any] | None:
             try:
                 cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
                 if cap.isOpened():
                     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    status = "usable"
+                    fps_est = 0.0
+                    probe_error = None
+                    if validate:
+                        ret, frame = cap.read()
+                        if not ret or frame is None:
+                            status = "error"
+                            probe_error = "no frames"
+                        else:
+                            t0 = time.monotonic()
+                            count = 0
+                            while time.monotonic() - t0 < 0.3:
+                                r, _ = cap.read()
+                                if r:
+                                    count += 1
+                            elapsed = time.monotonic() - t0
+                            fps_est = round(count / elapsed, 1) if elapsed > 0 else 0.0
                     cap.release()
                     return {
                         "index": i,
-                        "name": wmi_names.get(i, f"Camera {i}"),
+                        "name": wmi_name_map.get(i, f"Camera {i}"),
+                        "physical_id": wmi_id_map.get(i, ""),
+                        "raw_indexes": [i],
                         "width": w,
                         "height": h,
+                        "fps": fps_est,
+                        "status": status,
                         "online": True,
                         "busy": False,
                         "selected": False,
+                        "last_validated_at": now_ms if validate else 0,
+                        "last_probe_error": probe_error,
                     }
                 cap.release()
             except Exception:
                 pass
             return None
 
+        probed = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
             futures = {pool.submit(probe_index, i): i for i in range(8)}
-            for fut in concurrent.futures.as_completed(futures, timeout=6):
+            for fut in concurrent.futures.as_completed(futures, timeout=8):
                 try:
-                    result = fut.result(timeout=3)
+                    result = fut.result(timeout=4)
                     if result:
-                        devices.append(result)
+                        probed.append(result)
                 except Exception:
                     pass
 
-        devices.sort(key=lambda d: d["index"])
-        return {
-            "success": True,
-            "devices": devices,
-            "selected_index": self._device_index,
-        }
+        # Deduplicate: group DirectShow indexes under physical cameras
+        devices = self._build_physical_device_map(wmi_cameras, probed)
+        for d in devices:
+            d["selected"] = d["index"] == self._device_index
+        return {"success": True, "devices": devices, "selected_index": self._device_index}
 
     def _select_device(self, params: dict[str, Any]) -> dict[str, Any]:
-        """Select camera device by index. Restarts stream if active."""
+        """Select camera device by index. Validates frames before claiming success.
+
+        Transactional: rolls back to previous device on failure.
+        """
         new_index = params.get("device_index")
         if new_index is None:
             return {"success": False, "error": "device_index required"}
         new_index = int(new_index)
+        old_index = self._device_index
+
+        if new_index == old_index:
+            return {"success": True, "device_index": new_index, "restarted_stream": False,
+                    "message": "already on this device"}
 
         import cv2
-        cap = cv2.VideoCapture(new_index, cv2.CAP_DSHOW)
-        if not cap.isOpened():
-            return {"success": False, "error": f"device {new_index} unavailable or in use"}
-        cap.release()
 
-        old_index = self._device_index
+        validation = self._validate_device(new_index)
+        if validation["status"] not in ("usable", "stale"):
+            return {
+                "success": False,
+                "error": f"device {new_index} validation failed: {validation.get('error', validation['status'])}",
+                "validation": validation,
+            }
+
+        was_streaming = self._stream_active
+        if was_streaming:
+            logger.info("stopping stream on device %d for switch to %d", old_index, new_index)
+            self._stream_active = False
+            if self._stream_thread and self._stream_thread.is_alive():
+                self._stream_thread.join(timeout=3.0)
+
         self._device_index = new_index
         self._save_device_preference()
         logger.info("camera device changed: %d -> %d", old_index, new_index)
 
-        if self._stream_active:
+        restarted = False
+        if was_streaming:
             logger.info("restarting stream on new device %d", new_index)
-            self._stream_active = False
-            if self._stream_thread and self._stream_thread.is_alive():
-                self._stream_thread.join(timeout=3.0)
-            self._stream_start({
+            start_result = self._stream_start({
                 "device_index": new_index,
-                "fps": 2, "width": 640, "height": 480, "quality": 60,
+                "fps": params.get("fps", 15),
+                "width": params.get("width", 1280),
+                "height": params.get("height", 720),
+                "quality": params.get("quality", 70),
             })
+            if not start_result.get("success"):
+                logger.warning("switch rollback: stream failed on device %d, reverting to %d", new_index, old_index)
+                self._device_index = old_index
+                self._save_device_preference()
+                self._stream_start({
+                    "device_index": old_index,
+                    "fps": params.get("fps", 15),
+                    "width": params.get("width", 1280),
+                    "height": params.get("height", 720),
+                    "quality": params.get("quality", 70),
+                })
+                return {
+                    "success": False,
+                    "error": f"stream failed on device {new_index} — rolled back to {old_index}",
+                    "device_index": old_index,
+                    "rolled_back": True,
+                }
+            restarted = True
 
-        return {"success": True, "device_index": new_index, "restarted_stream": self._stream_active}
+        wmi_cameras = self._get_wmi_cameras()
+        name = wmi_cameras[new_index]["name"] if new_index < len(wmi_cameras) else f"Camera {new_index}"
+        return {
+            "success": True,
+            "device_index": new_index,
+            "device_name": name,
+            "restarted_stream": restarted,
+            "validation": validation,
+        }
 
     def _save_device_preference(self) -> None:
         pref_path = self._presets_path.parent / "device_preference.json"

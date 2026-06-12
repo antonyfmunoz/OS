@@ -87,14 +87,75 @@ export interface CameraPreset {
   updated_at?: number
 }
 
+export type DeviceStatus = 'usable' | 'busy' | 'stale' | 'unavailable' | 'duplicate' | 'error' | 'unknown'
+
 export interface CameraDevice {
   index: number
   name: string
+  physical_id: string
+  raw_indexes: number[]
   width: number
   height: number
+  fps: number
+  status: DeviceStatus
   online: boolean
   busy: boolean
   selected: boolean
+  last_validated_at: number
+  last_probe_error: string | null
+}
+
+export type VisionReadiness = 'READY' | 'DEGRADED' | 'STALE' | 'OFFLINE' | 'BLOCKED'
+
+export interface VisionReadinessState {
+  readiness: VisionReadiness
+  reason: string
+  details: {
+    beastConnected: boolean
+    deviceValidated: boolean
+    streamActive: boolean
+    frameAge: number
+    fpsOk: boolean
+    commandPathReady: boolean
+    ptzReady: boolean
+    detectorReady: boolean
+    presetsLoaded: boolean
+  }
+}
+
+export function computeVisionReadiness(
+  health: VisionHealthState,
+  streaming: boolean,
+  latestFrameAt: number | null,
+  fps: number,
+  hasPtzHardware: boolean,
+  presetsLoaded: boolean,
+): VisionReadinessState {
+  const now = Date.now()
+  const frameAge = latestFrameAt ? now - latestFrameAt : Infinity
+  const fpsOk = fps > 0
+  const deviceValidated = health.cameraAvailable || health.cameraStreaming
+  const details = {
+    beastConnected: health.beastConnected,
+    deviceValidated,
+    streamActive: streaming,
+    frameAge: latestFrameAt ? frameAge : -1,
+    fpsOk,
+    commandPathReady: health.commandPathReady,
+    ptzReady: hasPtzHardware || health.digitalRoiAvailable,
+    detectorReady: health.detectorStatus?.loaded ?? false,
+    presetsLoaded,
+  }
+
+  if (!health.beastConnected) return { readiness: 'OFFLINE', reason: 'Beast not connected', details }
+  if (!health.relayRunning && !health.cockpitConnected) return { readiness: 'OFFLINE', reason: 'Relay offline', details }
+  if (health.blockers.length > 0) return { readiness: 'BLOCKED', reason: health.blockers[0], details }
+  if (!streaming) return { readiness: 'OFFLINE', reason: 'Stream not active', details }
+  if (frameAge > 5000) return { readiness: 'STALE', reason: `No frames for ${Math.round(frameAge / 1000)}s`, details }
+  if (frameAge > 2000) return { readiness: 'DEGRADED', reason: `Frame age ${Math.round(frameAge / 1000)}s`, details }
+  if (!fpsOk) return { readiness: 'DEGRADED', reason: 'FPS dropped to 0', details }
+  if (!health.commandPathReady) return { readiness: 'DEGRADED', reason: 'Command path not ready', details }
+  return { readiness: 'READY', reason: 'All systems operational', details }
 }
 
 export type AnalysisStatus = 'idle' | 'capturing' | 'analyzing' | 'complete' | 'error'
@@ -470,6 +531,10 @@ interface VisionState {
   setSelectedDeviceIndex: (index: number) => void
   setDeviceScanLoading: (loading: boolean) => void
   setSettingsOpen: (open: boolean) => void
+  deviceSwitching: boolean
+  deviceSwitchError: string | null
+  setDeviceSwitching: (switching: boolean) => void
+  setDeviceSwitchError: (error: string | null) => void
 
   // Connection health setters
   updateChainHealth: (health: Partial<VisionHealthState>) => void
@@ -767,6 +832,10 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   setSelectedDeviceIndex: (selectedDeviceIndex) => set({ selectedDeviceIndex }),
   setDeviceScanLoading: (deviceScanLoading) => set({ deviceScanLoading }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+  deviceSwitching: false,
+  deviceSwitchError: null,
+  setDeviceSwitching: (deviceSwitching) => set({ deviceSwitching }),
+  setDeviceSwitchError: (deviceSwitchError) => set({ deviceSwitchError }),
 
   // Connection health setter
   updateChainHealth: (partial) => set((s) => ({
