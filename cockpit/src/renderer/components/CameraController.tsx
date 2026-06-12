@@ -5,7 +5,7 @@ import {
   ZoomIn, ZoomOut, Home, Square,
   Save, Camera, CameraOff, Aperture,
   PictureInPicture2, Maximize2, Minimize2, Circle,
-  ChevronDown, ChevronRight,
+  Keyboard, Monitor, BookOpen,
 } from 'lucide-react'
 import {
   useVisionStore,
@@ -19,6 +19,10 @@ import { getVisionClient } from '../hooks/useVisionConnection'
 import { useVisionPopout } from './VisionPopout'
 import { TrackingPanel } from './TrackingPanel'
 import { VisionOverlay } from './vision'
+import { StatusHud } from './vision/StatusHud'
+import { CameraModeSelector } from './vision/CameraModeSelector'
+import { SceneInventory } from './vision/SceneInventory'
+import { DiagnosticsPanel } from './vision/DiagnosticsPanel'
 
 const QUALITY_LABELS: Record<QualityMode, string> = {
   smooth: 'Smooth',
@@ -42,11 +46,20 @@ function nextMotionId(): string {
 const MOTION_UPDATE_INTERVAL_MS = 50
 const JOYSTICK_DEADZONE = 0.15
 
+// Default presets with icons
+const DEFAULT_PRESETS = [
+  { key: 'home', label: 'Home', icon: <Home size={14} /> },
+  { key: 'keyboard', label: 'Keyboard', icon: <Keyboard size={14} /> },
+  { key: 'monitor', label: 'Monitor', icon: <Monitor size={14} /> },
+  { key: 'desk', label: 'Desk', icon: <BookOpen size={14} /> },
+]
+const DEFAULT_PRESET_KEYS = new Set(DEFAULT_PRESETS.map((p) => p.key))
+
 export function CameraController({ compact = false }: { compact?: boolean }) {
   const {
     connected, streaming, cameraStatus, latestFrameUrl,
-    presets, activePreset, ptzPosition, ptzMoving,
-    hasPtzHardware, qualityMode, streamMetrics, error, frameCount,
+    presets, activePreset, ptzPosition,
+    qualityMode, streamMetrics, error, frameCount,
     ptzMotion, controlMetrics,
   } = useVisionStore()
   const overlays = useVisionStore((s) => s.overlays)
@@ -68,11 +81,11 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
 
   const { openPopout } = useVisionPopout()
   const [expanded, setExpanded] = useState(false)
-  const [presetOpen, setPresetOpen] = useState(false)
   const [savingPreset, setSavingPreset] = useState(false)
   const [newPresetName, setNewPresetName] = useState('')
   const [newPresetLabel, setNewPresetLabel] = useState('')
   const [speed, setSpeed] = useState(1)
+  const [qualityOpen, setQualityOpen] = useState(false)
 
   const activeMotionIdRef = useRef<string>('')
   const motionUpdateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -80,6 +93,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const joystickDragging = useRef(false)
   const joystickVelocity = useRef({ pan: 0, tilt: 0 })
   const [thumbPos, setThumbPos] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
 
   const isActive = cameraStatus === 'live' || cameraStatus === 'connecting'
 
@@ -142,7 +156,6 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const handlePreset = useCallback((name: string) => {
     getVisionClient()?.setPreset(name, true, 1.0)
     setActivePreset(name)
-    setPresetOpen(false)
   }, [setActivePreset])
 
   // ── Realtime PTZ motion — press-and-hold D-pad ─────────────────
@@ -280,6 +293,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     e.preventDefault()
     try { el.setPointerCapture(e.pointerId) } catch { /* Safari may throw */ }
     joystickDragging.current = true
+    setIsDragging(true)
 
     const { dx, dy, panV, tiltV } = computeJoystickVectorFromClient(e.clientX, e.clientY)
     setThumbPos({ x: dx, y: -dy })
@@ -311,6 +325,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     joystickDragging.current = false
     joystickVelocity.current = { pan: 0, tilt: 0 }
     setThumbPos({ x: 0, y: 0 })
+    setIsDragging(false)
     stopDirectionMotion()
   }, [stopDirectionMotion])
 
@@ -322,6 +337,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     const t = e.touches[0]
     if (!t) return
     joystickDragging.current = true
+    setIsDragging(true)
     const { dx, dy, panV, tiltV } = computeJoystickVectorFromClient(t.clientX, t.clientY)
     setThumbPos({ x: dx, y: -dy })
     joystickVelocity.current = { pan: panV, tilt: tiltV }
@@ -349,6 +365,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     joystickDragging.current = false
     joystickVelocity.current = { pan: 0, tilt: 0 }
     setThumbPos({ x: 0, y: 0 })
+    setIsDragging(false)
     stopDirectionMotion()
   }, [stopDirectionMotion])
 
@@ -377,6 +394,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
 
   const handleQualityChange = useCallback((mode: QualityMode) => {
     setQualityMode(mode)
+    setQualityOpen(false)
     const client = getVisionClient()
     if (!client?.connected || !streaming) return
     client.switchQuality(QUALITY_PROFILES[mode])
@@ -401,12 +419,17 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     return labels[state] || state
   }
 
-  const realOverlays = overlays.filter(o => !o.track_id?.startsWith('diag_'))
+  // Merged presets: default presets first, then custom presets from store
+  const customPresets = Object.entries(presets).filter(([name]) => !DEFAULT_PRESET_KEYS.has(name))
 
   // ── Render ─────────────────────────────────────────────────────
 
   return (
     <div className={clsx('flex flex-col gap-3', expanded && 'fixed inset-0 z-50 bg-surface p-4')}>
+
+      {/* 1. StatusHud — single compact line above camera preview */}
+      <StatusHud />
+
       {/* CAMERA LIVE indicator */}
       {isActive && (
         <div className="flex items-center gap-1.5 px-3 py-2 rounded bg-danger/10 text-danger text-xs font-mono uppercase tracking-wider">
@@ -419,7 +442,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         </div>
       )}
 
-      {/* Preview frame — CLEAN. No HUD, no FPS overlay, no debug text. */}
+      {/* 2. Camera preview */}
       <div className={clsx(
         'relative rounded border overflow-hidden bg-black',
         expanded ? 'flex-1 min-h-0' : 'aspect-video',
@@ -444,6 +467,34 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
               height={height || 720}
               visible={overlayVisible}
             />
+            {/* Stream quality badge — bottom-right corner */}
+            <div className="absolute bottom-2 right-2">
+              <button
+                onClick={() => setQualityOpen(!qualityOpen)}
+                className="px-2 py-1 rounded-full bg-black/70 text-[10px] font-mono text-text-secondary backdrop-blur-sm hover:text-text-primary transition-colors"
+              >
+                {QUALITY_LABELS[qualityMode]} · {streamMetrics.actualFps.toFixed(1)}fps · {Math.round(streamMetrics.avgFrameSize / 1024)}KB
+              </button>
+              {qualityOpen && (
+                <div className="absolute bottom-full right-0 mb-1 bg-surface border border-border rounded-lg p-2 shadow-lg flex flex-col gap-1 min-w-[120px]">
+                  {(Object.keys(QUALITY_PROFILES) as QualityMode[]).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => handleQualityChange(mode)}
+                      className={clsx(
+                        'px-3 py-2 rounded text-xs font-mono uppercase tracking-wider transition-colors text-left',
+                        qualityMode === mode
+                          ? 'bg-cyan/20 text-cyan border border-cyan/30'
+                          : 'bg-surface-hover text-text-secondary hover:text-text-primary border border-transparent',
+                      )}
+                      title={QUALITY_DESCRIPTIONS[mode]}
+                    >
+                      {QUALITY_LABELS[mode]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <div className="flex flex-col items-center justify-center w-full h-full text-text-tertiary min-h-[180px] gap-3 px-4">
@@ -493,7 +544,10 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         </div>
       </div>
 
-      {/* Primary action buttons — large for mobile */}
+      {/* 3. CameraModeSelector — below camera preview */}
+      <CameraModeSelector />
+
+      {/* 4. Primary action buttons */}
       <div className="flex items-center gap-2">
         {!isActive ? (
           <MobileBtn icon={<Camera size={18} />} label="Start" onClick={handleStart} disabled={!connected} variant="ok" />
@@ -504,7 +558,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         <MobileBtn icon={<Square size={18} />} label="E-Stop" onClick={handleEmergencyStop} variant="danger" />
       </div>
 
-      {/* OVR / DIAG toggles — below camera, not on it */}
+      {/* 5. OVR / DIAG toggles */}
       <div className="flex items-center gap-2">
         <button
           onClick={() => setOverlayVisible(!overlayVisible)}
@@ -538,51 +592,126 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         </button>
       </div>
 
-      {/* Pipeline status — below camera, not over it */}
-      <PipelineStatus
-        connected={connected}
-        streaming={streaming}
-        streamMetrics={streamMetrics}
-        chainHealth={chainHealth}
-        error={error}
-        overlayCount={realOverlays.length}
-      />
-
-      {/* Object tracking status */}
-      <TrackerStatus
-        overlays={realOverlays}
-        overlayVisible={overlayVisible}
-        diagnosticOverlay={diagnosticOverlay}
-        chainHealth={chainHealth}
-      />
-
       {!compact && (
         <>
-          {/* PTZ Controls — mobile-sized */}
+          {/* 6. Presets — above PTZ controls */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Presets</span>
+              <button
+                onClick={() => setSavingPreset(!savingPreset)}
+                className="flex items-center gap-1 text-[10px] font-mono text-text-tertiary hover:text-text-primary uppercase tracking-wider transition-colors"
+              >
+                <Save size={12} />
+                Save
+              </button>
+            </div>
+
+            {/* Default presets with icons */}
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              {DEFAULT_PRESETS.map(({ key, label, icon }) => (
+                <button
+                  key={key}
+                  onClick={() => handlePreset(key)}
+                  disabled={!connected}
+                  className={clsx(
+                    'px-3 py-2.5 rounded-lg border text-xs font-mono flex items-center gap-1.5 transition-colors',
+                    activePreset === key
+                      ? 'bg-cyan/20 border-cyan/30 text-cyan'
+                      : 'bg-surface-hover border-border text-text-secondary hover:text-text-primary',
+                    !connected && 'opacity-50 cursor-not-allowed',
+                  )}
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom presets from store (non-default) */}
+            {customPresets.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {customPresets.map(([name, preset]) => (
+                  <button
+                    key={name}
+                    onClick={() => handlePreset(name)}
+                    disabled={!connected}
+                    className={clsx(
+                      'px-3 py-2 rounded-lg border text-xs font-mono uppercase tracking-wider transition-colors',
+                      activePreset === name
+                        ? 'bg-cyan/20 text-cyan border-cyan/30'
+                        : 'bg-surface-hover text-text-secondary hover:text-text-primary border-border',
+                      !connected && 'opacity-50 cursor-not-allowed',
+                    )}
+                  >
+                    {preset.label || name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {savingPreset && (
+              <div className="flex items-center gap-1.5 p-2 rounded border border-border bg-surface-hover">
+                <input
+                  type="text"
+                  value={newPresetName}
+                  onChange={(e) => setNewPresetName(e.target.value)}
+                  placeholder="Slug"
+                  className="flex-1 px-2 py-1.5 rounded bg-surface border border-border text-xs font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-cyan/50"
+                />
+                <input
+                  type="text"
+                  value={newPresetLabel}
+                  onChange={(e) => setNewPresetLabel(e.target.value)}
+                  placeholder="Label"
+                  className="flex-1 px-2 py-1.5 rounded bg-surface border border-border text-xs font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-cyan/50"
+                />
+                <button
+                  onClick={handleSavePreset}
+                  disabled={!newPresetName.trim()}
+                  className="px-3 py-1.5 rounded bg-cyan/10 text-cyan text-xs font-mono uppercase tracking-wider hover:bg-cyan/20 disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 7. PTZ Controls — joystick primary, D-pad secondary */}
           <div className="flex flex-col gap-3">
             <div className="flex items-start gap-4 justify-center">
-              {/* D-pad — 56px buttons */}
+              {/* D-pad — SECONDARY "Precision Mode" — smaller buttons */}
               <div className="flex flex-col items-center gap-1">
-                <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
-                  {chainHealth.ptzMode === 'physical_ptz' ? 'PTZ' : 'ROI'}
+                <span className="text-[9px] font-mono text-text-tertiary uppercase tracking-wider">
+                  Precision
                 </span>
-                <div className="grid grid-cols-3 gap-1 w-fit">
+                <div className="grid grid-cols-3 gap-0.5 w-fit">
                   <div />
-                  <DpadBtn direction="up" onStart={() => startDirectionMotion(0, 1)} onStop={stopDirectionMotion} connected={controlsEnabled} />
+                  <DpadBtn direction="up" onStart={() => startDirectionMotion(0, 1)} onStop={stopDirectionMotion} connected={controlsEnabled} size={40} />
                   <div />
-                  <DpadBtn direction="left" onStart={() => startDirectionMotion(-1, 0)} onStop={stopDirectionMotion} connected={controlsEnabled} />
-                  <DpadBtn direction="stop" onStart={handleEmergencyStop} onStop={() => {}} connected={controlsEnabled} isStop />
-                  <DpadBtn direction="right" onStart={() => startDirectionMotion(1, 0)} onStop={stopDirectionMotion} connected={controlsEnabled} />
+                  <DpadBtn direction="left" onStart={() => startDirectionMotion(-1, 0)} onStop={stopDirectionMotion} connected={controlsEnabled} size={40} />
+                  <DpadBtn direction="stop" onStart={handleEmergencyStop} onStop={() => {}} connected={controlsEnabled} isStop size={40} />
+                  <DpadBtn direction="right" onStart={() => startDirectionMotion(1, 0)} onStop={stopDirectionMotion} connected={controlsEnabled} size={40} />
                   <div />
-                  <DpadBtn direction="down" onStart={() => startDirectionMotion(0, -1)} onStop={stopDirectionMotion} connected={controlsEnabled} />
+                  <DpadBtn direction="down" onStart={() => startDirectionMotion(0, -1)} onStop={stopDirectionMotion} connected={controlsEnabled} size={40} />
                   <div />
                 </div>
-                <MobileBtn icon={<Home size={16} />} label="Home" onClick={handlePtzHome} disabled={!controlsEnabled} variant="cyan" />
+                <button
+                  onClick={handlePtzHome}
+                  disabled={!controlsEnabled}
+                  className={clsx(
+                    'mt-0.5 flex items-center gap-1 px-2 py-1.5 rounded text-[10px] font-mono text-text-secondary',
+                    'border border-border bg-surface-hover hover:text-text-primary transition-colors',
+                    !controlsEnabled && 'opacity-40 cursor-not-allowed',
+                  )}
+                >
+                  <Home size={12} />
+                  Home
+                </button>
               </div>
 
-              {/* Joystick — 160px diameter */}
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Joystick</span>
+              {/* Joystick — PRIMARY — enlarged 192px */}
+              <div className="flex flex-col items-center gap-2">
                 <div
                   ref={joystickRef}
                   onPointerDown={handleJoystickPointerDown}
@@ -595,8 +724,9 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                   onTouchEnd={handleJoystickTouchEnd}
                   onTouchCancel={handleJoystickTouchEnd}
                   className={clsx(
-                    'w-40 h-40 rounded-full border-2 relative cursor-crosshair select-none',
+                    'w-48 h-48 rounded-full border-2 relative cursor-crosshair select-none transition-shadow',
                     controlsEnabled ? 'border-border bg-surface-hover' : 'border-border/50 bg-surface-hover/50 opacity-50',
+                    (isDragging || ptzMotion.state === 'moving') && 'shadow-[0_0_20px_rgba(34,211,238,0.3)] border-cyan/50',
                   )}
                   style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
                 >
@@ -607,8 +737,8 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                   </div>
                   <div
                     className={clsx(
-                      'absolute w-8 h-8 rounded-full border-2 transition-colors',
-                      joystickDragging.current || ptzMotion.state === 'moving'
+                      'absolute w-10 h-10 rounded-full border-2 transition-colors',
+                      isDragging || ptzMotion.state === 'moving'
                         ? 'bg-cyan/80 border-cyan shadow-[0_0_12px_rgba(34,211,238,0.5)]'
                         : 'bg-text-quaternary/40 border-text-quaternary/60',
                     )}
@@ -620,14 +750,16 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                     }}
                   />
                 </div>
-                {(joystickDragging.current || ptzMotion.state === 'moving') && (
-                  <span className="text-[10px] font-mono text-cyan">
-                    {joystickVelocity.current.pan.toFixed(2)}, {joystickVelocity.current.tilt.toFixed(2)}
-                  </span>
-                )}
+                {/* Velocity vector readout */}
+                <span className={clsx(
+                  'text-[10px] font-mono',
+                  isDragging || ptzMotion.state === 'moving' ? 'text-cyan' : 'text-text-quaternary',
+                )}>
+                  pan: {joystickVelocity.current.pan.toFixed(2)}  tilt: {joystickVelocity.current.tilt.toFixed(2)}
+                </span>
               </div>
 
-              {/* Zoom — tall buttons */}
+              {/* Zoom — to the right of joystick */}
               <div className="flex flex-col items-center gap-1">
                 <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Zoom</span>
                 <div className="flex flex-col gap-1">
@@ -637,7 +769,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
               </div>
             </div>
 
-            {/* Position readout */}
+            {/* 8. Position readout */}
             <div className="flex items-center justify-center gap-4 text-xs font-mono text-text-tertiary">
               <span>P: {ptzPosition.pan}</span>
               <span>T: {ptzPosition.tilt}</span>
@@ -667,92 +799,14 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             <span className="text-xs font-mono text-text-tertiary w-10 text-right">{speed.toFixed(1)}x</span>
           </div>
 
-          {/* Quality mode selector — larger buttons */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Stream Quality</span>
-            <div className="flex gap-1">
-              {(Object.keys(QUALITY_PROFILES) as QualityMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => handleQualityChange(mode)}
-                  className={clsx(
-                    'flex-1 px-2 py-2.5 rounded text-xs font-mono uppercase tracking-wider transition-colors text-center',
-                    qualityMode === mode
-                      ? 'bg-cyan/20 text-cyan border border-cyan/30'
-                      : 'bg-surface-hover text-text-secondary hover:text-text-primary border border-transparent',
-                  )}
-                  title={QUALITY_DESCRIPTIONS[mode]}
-                >
-                  {QUALITY_LABELS[mode]}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* 9. SceneInventory — replaces TrackerStatus live detections */}
+          <SceneInventory />
 
-          {/* Presets — larger buttons */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Presets</span>
-              <button
-                onClick={() => setSavingPreset(!savingPreset)}
-                className="flex items-center gap-1 text-[10px] font-mono text-text-tertiary hover:text-text-primary uppercase tracking-wider transition-colors"
-              >
-                <Save size={12} />
-                Save
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-1">
-              {Object.entries(presets).map(([name, preset]) => (
-                <button
-                  key={name}
-                  onClick={() => handlePreset(name)}
-                  disabled={!connected}
-                  className={clsx(
-                    'px-3 py-2 rounded text-xs font-mono uppercase tracking-wider transition-colors',
-                    activePreset === name
-                      ? 'bg-cyan/20 text-cyan border border-cyan/30'
-                      : 'bg-surface-hover text-text-secondary hover:text-text-primary border border-transparent',
-                    !connected && 'opacity-50 cursor-not-allowed',
-                  )}
-                >
-                  {preset.label || name}
-                </button>
-              ))}
-            </div>
-
-            {savingPreset && (
-              <div className="flex items-center gap-1.5 p-2 rounded border border-border bg-surface-hover">
-                <input
-                  type="text"
-                  value={newPresetName}
-                  onChange={(e) => setNewPresetName(e.target.value)}
-                  placeholder="Slug"
-                  className="flex-1 px-2 py-1.5 rounded bg-surface border border-border text-xs font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-cyan/50"
-                />
-                <input
-                  type="text"
-                  value={newPresetLabel}
-                  onChange={(e) => setNewPresetLabel(e.target.value)}
-                  placeholder="Label"
-                  className="flex-1 px-2 py-1.5 rounded bg-surface border border-border text-xs font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-cyan/50"
-                />
-                <button
-                  onClick={handleSavePreset}
-                  disabled={!newPresetName.trim()}
-                  className="px-3 py-1.5 rounded bg-cyan/10 text-cyan text-xs font-mono uppercase tracking-wider hover:bg-cyan/20 disabled:opacity-50"
-                >
-                  Save
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Collapsible diagnostics — NOT on the camera view */}
+          {/* 10. DiagnosticsPanel */}
           <DiagnosticsPanel
             ptzMotion={ptzMotion}
             controlMetrics={controlMetrics}
-            joystickDragging={joystickDragging.current}
+            joystickDragging={isDragging}
             joystickVelocity={joystickVelocity.current}
             speed={speed}
             overlays={overlays}
@@ -765,14 +819,14 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             qualityMode={qualityMode}
           />
 
-          {/* Tracking / Scene Intelligence */}
+          {/* 11. TrackingPanel */}
           <div className="border-t border-border pt-3">
             <TrackingPanel />
           </div>
         </>
       )}
 
-      {/* Connection status bar */}
+      {/* 12. Connection status bar */}
       <div className="flex items-center gap-2 text-xs font-mono text-text-tertiary">
         <span className={clsx(
           'w-2 h-2 rounded-full',
@@ -790,189 +844,24 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   )
 }
 
-// ── Pipeline Status — below camera, NOT over it ───────────────────
-
-function PipelineStatus({
-  connected, streaming, streamMetrics, chainHealth, error, overlayCount,
-}: {
-  connected: boolean
-  streaming: boolean
-  streamMetrics: StreamMetrics
-  chainHealth: ReturnType<typeof useVisionStore.getState>['chainHealth']
-  error: string | null
-  overlayCount: number
-}) {
-  const frameAge = streamMetrics.lastFrameAge
-  const frameFresh = frameAge > 0 && frameAge < 3000
-  const hasRecentOverlays = chainHealth.lastOverlayAt > 0 && (Date.now() - chainHealth.lastOverlayAt) < 10000
-  // Beast is online if health says so OR if we're getting live data from it
-  const beastEffective = chainHealth.beastConnected || (streaming && frameFresh) || hasRecentOverlays
-
-  return (
-    <div className="flex flex-col gap-1 px-3 py-2 rounded border border-border bg-surface-hover/50 text-xs font-mono">
-      {/* Status chain as dots */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <StatusDot ok={connected} label={connected ? 'relay' : 'relay down'} />
-        <StatusDot ok={beastEffective} label={beastEffective ? 'beast' : 'beast offline'} />
-        <StatusDot ok={chainHealth.cameraStreaming || (streaming && frameFresh)} label={(chainHealth.cameraStreaming || (streaming && frameFresh)) ? 'camera' : 'cam off'} />
-        <StatusDot ok={streaming && frameFresh} label={streaming ? (frameFresh ? 'streaming' : 'stale') : 'no stream'} />
-        {streaming && (
-          <span className="text-text-tertiary">
-            {streamMetrics.actualFps.toFixed(1)} fps
-          </span>
-        )}
-      </div>
-
-      {/* Blocker explanation — never contradict live evidence */}
-      {!beastEffective && connected && (
-        <span className="text-danger text-[11px]">Beast not on mesh — camera, PTZ, and detection unavailable.</span>
-      )}
-      {beastEffective && !chainHealth.cameraStreaming && !streaming && connected && (
-        <span className="text-warning text-[11px]">Camera not streaming — press Start.</span>
-      )}
-      {streaming && !frameFresh && frameAge > 5000 && beastEffective && (
-        <span className="text-danger text-[11px]">Frames stale ({(frameAge / 1000).toFixed(1)}s) — Beast may have stopped sending.</span>
-      )}
-    </div>
-  )
-}
-
-function StatusDot({ ok, label }: { ok: boolean; label: string }) {
-  return (
-    <span className={clsx('flex items-center gap-1', ok ? 'text-ok' : 'text-text-quaternary')}>
-      <span className={clsx('w-1.5 h-1.5 rounded-full', ok ? 'bg-ok' : 'bg-danger')} />
-      {label}
-    </span>
-  )
-}
-
-// ── Detector Status — source, model, inference, detections ──
-
-function TrackerStatus({
-  overlays, overlayVisible, diagnosticOverlay, chainHealth,
-}: {
-  overlays: import('./vision/VisionOverlay').OverlayMetadata[]
-  overlayVisible: boolean
-  diagnosticOverlay: boolean
-  chainHealth: ReturnType<typeof useVisionStore.getState>['chainHealth']
-}) {
-  const beastOnline = chainHealth.beastConnected
-  const det = chainHealth.detectorStatus
-  const hasRealDetections = overlays.length > 0 && chainHealth.lastOverlayAt > 0
-  const detectorActive = det?.loaded ?? false
-  const uniqueLabels = [...new Set(overlays.map(o => o.label))]
-
-  const inferFps = det && det.avg_inference_ms > 0
-    ? Math.round(1000 / det.avg_inference_ms)
-    : 0
-
-  return (
-    <div className="px-3 py-2 rounded border border-border bg-surface-hover/50 text-xs font-mono flex flex-col gap-2">
-      <span className="text-text-tertiary uppercase tracking-wider text-[10px]">Detector Status</span>
-
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
-        <span className="text-text-quaternary">source:</span>
-        <span className={beastOnline ? 'text-ok' : 'text-danger'}>
-          {det ? `${det.source} (${det.host})` : beastOnline ? 'Beast (connected)' : 'none'}
-        </span>
-
-        <span className="text-text-quaternary">model:</span>
-        <span className={detectorActive ? 'text-ok' : 'text-warning'}>
-          {det ? `${det.model}${det.loaded ? '' : ' (not loaded)'}` : beastOnline ? 'waiting' : 'none'}
-        </span>
-
-        <span className="text-text-quaternary">inference:</span>
-        <span className={detectorActive ? 'text-ok' : 'text-text-quaternary'}>
-          {det && det.avg_inference_ms > 0
-            ? `${det.avg_inference_ms.toFixed(0)}ms avg · ${inferFps} fps`
-            : 'idle'}
-        </span>
-
-        <span className="text-text-quaternary">detections:</span>
-        <span className={hasRealDetections ? 'text-ok' : 'text-text-quaternary'}>
-          {hasRealDetections ? `${overlays.length} objects` : '0'}
-        </span>
-
-        <span className="text-text-quaternary">last detection:</span>
-        <span className="text-text-secondary">
-          {chainHealth.lastOverlayAt > 0
-            ? `${Math.round((Date.now() - chainHealth.lastOverlayAt) / 1000)}s ago`
-            : 'never'}
-        </span>
-
-        {det && det.detection_frames > 0 && (
-          <>
-            <span className="text-text-quaternary">frames analyzed:</span>
-            <span className="text-text-secondary">{det.detection_frames.toLocaleString()}</span>
-          </>
-        )}
-      </div>
-
-      {/* Tracker status */}
-      {det?.tracker_active && (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] border-t border-border/50 pt-1.5">
-          <span className="text-text-quaternary">tracker:</span>
-          <span className="text-ok">IoU active · {det.active_tracks} tracked</span>
-        </div>
-      )}
-
-      {/* Live detections from real ML model — with persistent track IDs */}
-      {hasRealDetections && (
-        <div className="flex flex-col gap-0.5 border-t border-border/50 pt-1.5">
-          <span className="text-text-quaternary text-[10px] uppercase tracking-wider">Live Detections</span>
-          {overlays.slice(0, 8).map((o) => (
-            <div key={o.track_id} className="flex items-center gap-2 text-[11px] text-text-secondary">
-              <span className="w-2 h-2 rounded-sm" style={{ background: o.color || '#22c55e' }} />
-              <span>{o.label} #{o.track_id}</span>
-              <span className="text-text-quaternary">{(o.confidence * 100).toFixed(0)}%</span>
-            </div>
-          ))}
-          {overlays.length > 8 && (
-            <span className="text-text-quaternary text-[10px]">+{overlays.length - 8} more</span>
-          )}
-          {uniqueLabels.length > 0 && (
-            <span className="text-text-quaternary text-[10px]">classes: {uniqueLabels.join(', ')}</span>
-          )}
-        </div>
-      )}
-
-      {/* Status messages — never contradict live detections */}
-      {!beastOnline && !hasRealDetections && (
-        <div className="text-danger text-[11px] border-t border-border/50 pt-1.5">
-          Object detection unavailable — Beast offline.
-        </div>
-      )}
-      {beastOnline && !hasRealDetections && !detectorActive && (
-        <div className="text-text-tertiary text-[11px] border-t border-border/50 pt-1.5">
-          Waiting for detector to load on Beast.
-        </div>
-      )}
-      {beastOnline && !hasRealDetections && detectorActive && (
-        <div className="text-text-tertiary text-[11px] border-t border-border/50 pt-1.5">
-          Detector active — no objects in current frame.
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── D-pad button — 56px for mobile ──────────────────────────────────
+// ── D-pad button — accepts size prop (default 56, pass 40 for precision mode) ──
 
 function DpadBtn({
-  direction, onStart, onStop, connected, isStop,
+  direction, onStart, onStop, connected, isStop, size = 56,
 }: {
   direction: string
   onStart: () => void
   onStop: () => void
   connected: boolean
   isStop?: boolean
+  size?: number
 }) {
   const icons: Record<string, React.ReactNode> = {
-    up: <ArrowUp size={20} />,
-    down: <ArrowDown size={20} />,
-    left: <ArrowLeft size={20} />,
-    right: <ArrowRight size={20} />,
-    stop: <div className="w-3 h-3 rounded-full bg-current" />,
+    up: <ArrowUp size={size <= 40 ? 16 : 20} />,
+    down: <ArrowDown size={size <= 40 ? 16 : 20} />,
+    left: <ArrowLeft size={size <= 40 ? 16 : 20} />,
+    right: <ArrowRight size={size <= 40 ? 16 : 20} />,
+    stop: <div className={clsx('rounded-full bg-current', size <= 40 ? 'w-2 h-2' : 'w-3 h-3')} />,
   }
   return (
     <button
@@ -986,13 +875,13 @@ function DpadBtn({
       disabled={!connected}
       title={`Pan ${direction}`}
       className={clsx(
-        'w-14 h-14 flex items-center justify-center rounded-lg border border-border',
+        'flex items-center justify-center rounded-lg border border-border',
         'text-text-secondary hover:text-text-primary hover:bg-surface-hover',
         'transition-colors disabled:opacity-40 disabled:cursor-not-allowed touch-none select-none',
         'active:bg-cyan/20 active:border-cyan/50',
         isStop && 'bg-surface-hover',
       )}
-      style={{ touchAction: 'none' }}
+      style={{ touchAction: 'none', width: size, height: size }}
     >
       {icons[direction]}
     </button>
@@ -1065,111 +954,3 @@ function MobileBtn({
   )
 }
 
-// ── Collapsible diagnostics panel — separate from camera ────────────
-
-function DiagnosticsPanel({
-  ptzMotion, controlMetrics, joystickDragging, joystickVelocity,
-  speed, overlays, overlayVisible, diagnosticOverlay, connected,
-  streaming, streamMetrics, frameCount, qualityMode,
-}: {
-  ptzMotion: { state: MotionState; motionId: string; panVelocity: number; tiltVelocity: number; zoomVelocity: number }
-  controlMetrics: { ptzLoopCadenceHz: number; stopLatencyMs: number; guardTimeouts: number; lastCommandSentAt: number; coalescedCommands: number; lastStopSentAt: number }
-  joystickDragging: boolean
-  joystickVelocity: { pan: number; tilt: number }
-  speed: number
-  overlays: unknown[]
-  overlayVisible: boolean
-  diagnosticOverlay: boolean
-  connected: boolean
-  streaming: boolean
-  streamMetrics: StreamMetrics
-  frameCount: number
-  qualityMode: QualityMode
-}) {
-  const chainHealth = useVisionStore((s) => s.chainHealth)
-  const trackerStack = useVisionStore((s) => s.trackerStack)
-  const [expanded, setExpanded] = useState(false)
-
-  const enabledTrackers = trackerStack.enabled_trackers.filter((t) => t.enabled)
-
-  return (
-    <div className="border-t border-border pt-2">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1 text-[10px] font-mono text-text-quaternary hover:text-text-secondary uppercase tracking-wider w-full"
-      >
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        Diagnostics
-        {ptzMotion.state !== 'idle' ? ` [${ptzMotion.state}]` : ''}
-        {overlays.length > 0 ? ` [${overlays.length} ovr]` : ''}
-      </button>
-
-      {expanded && (
-        <div className="mt-2 flex flex-col gap-2">
-          {/* Stream metrics */}
-          <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-[10px] font-mono text-text-tertiary">
-            <span>FPS: <span className={streamMetrics.actualFps > 0 ? 'text-ok' : 'text-text-secondary'}>{streamMetrics.actualFps.toFixed(1)}</span> / {streamMetrics.targetFps}</span>
-            <span>Frame: {Math.round(streamMetrics.avgFrameSize / 1024)} KB</span>
-            <span>Age: {streamMetrics.lastFrameAge < 1000 ? `${streamMetrics.lastFrameAge}ms` : `${(streamMetrics.lastFrameAge / 1000).toFixed(1)}s`}</span>
-            <span>Frames: {frameCount}</span>
-            <span>Dropped: {streamMetrics.droppedFrames}</span>
-            <span>Quality: {QUALITY_DESCRIPTIONS[qualityMode]}</span>
-          </div>
-
-          {/* PTZ state */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-border/50 rounded p-2">
-            <span>joystick: <span className={joystickDragging ? 'text-cyan' : ''}>{joystickDragging ? 'DRAGGING' : 'idle'}</span></span>
-            <span>vector: {joystickVelocity.pan.toFixed(2)}, {joystickVelocity.tilt.toFixed(2)}</span>
-            <span>speed: {speed.toFixed(1)}x</span>
-            <span>motion_id: {ptzMotion.motionId || '—'}</span>
-            <span>state: <span className={clsx(
-              ptzMotion.state === 'moving' && 'text-warning',
-              ptzMotion.state === 'blocked' && 'text-danger',
-              ptzMotion.state === 'idle' && 'text-ok',
-            )}>{ptzMotion.state}</span></span>
-            <span>relay_loop: {controlMetrics.ptzLoopCadenceHz > 0 ? `${controlMetrics.ptzLoopCadenceHz}Hz` : 'off'}</span>
-            <span>stop_latency: {controlMetrics.stopLatencyMs > 0 ? `${controlMetrics.stopLatencyMs}ms` : '—'}</span>
-            <span>guard_kills: <span className={controlMetrics.guardTimeouts > 0 ? 'text-danger' : ''}>{controlMetrics.guardTimeouts}</span></span>
-            <span>coalesced: {controlMetrics.coalescedCommands}</span>
-            <span>last_cmd: {controlMetrics.lastCommandSentAt > 0
-              ? `${Math.round((Date.now() - controlMetrics.lastCommandSentAt) / 1000)}s ago`
-              : '—'}</span>
-            <span>ws: {connected ? 'connected' : 'DISCONNECTED'}</span>
-            <span>update_rate: 50ms</span>
-          </div>
-
-          {/* Chain health */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-warning/30 rounded p-2">
-            <span>overlay_visible: <span className={overlayVisible ? 'text-ok' : 'text-danger'}>{overlayVisible ? 'ON' : 'OFF'}</span></span>
-            <span>diagnostic_mode: <span className={diagnosticOverlay ? 'text-warning' : ''}>{diagnosticOverlay ? 'ON' : 'off'}</span></span>
-            <span>overlay_count: <span className={overlays.length > 0 ? 'text-ok' : ''}>{overlays.length}</span></span>
-            <span>last_overlay: {chainHealth.lastOverlayAt > 0 ? `${Math.round((Date.now() - chainHealth.lastOverlayAt) / 1000)}s ago` : 'never'}</span>
-            <span>tracker_runtime: <span className={chainHealth.trackerRuntimeAvailable ? 'text-ok' : 'text-danger'}>{chainHealth.trackerRuntimeAvailable ? 'available' : 'UNAVAILABLE'}</span></span>
-            <span>enabled_trackers: {enabledTrackers.length > 0 ? enabledTrackers.map((t) => t.category).join(', ') : 'none'}</span>
-            <span>beast: <span className={chainHealth.beastConnected ? 'text-ok' : 'text-danger'}>{chainHealth.beastConnected ? 'connected' : 'OFFLINE'}</span></span>
-            <span>camera: <span className={chainHealth.cameraStreaming ? 'text-ok' : 'text-danger'}>{chainHealth.cameraStreaming ? 'streaming' : chainHealth.cameraAvailable ? 'available' : 'UNAVAILABLE'}</span></span>
-            <span>ptz_mode: <span className={chainHealth.ptzMode === 'physical_ptz' ? 'text-ok' : 'text-cyan'}>{chainHealth.ptzMode}</span></span>
-            <span>cmd_path: <span className={chainHealth.commandPathReady ? 'text-ok' : 'text-danger'}>{chainHealth.commandPathReady ? 'ready' : 'BLOCKED'}</span></span>
-            {chainHealth.ptzMode === 'digital_roi' && (
-              <>
-                <span>roi_x: {chainHealth.roi.x.toFixed(3)}</span>
-                <span>roi_y: {chainHealth.roi.y.toFixed(3)}</span>
-                <span>roi_zoom: {chainHealth.roi.zoom.toFixed(2)}x</span>
-              </>
-            )}
-          </div>
-
-          {/* Blockers */}
-          {chainHealth.blockers.length > 0 && (
-            <div className="text-[9px] font-mono text-danger/80 bg-danger/5 rounded p-1.5">
-              {chainHealth.blockers.map((b, i) => <div key={i}>{b}</div>)}
-              {chainHealth.recoveryAction && (
-                <div className="text-warning/80 mt-0.5">{chainHealth.recoveryAction}</div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}

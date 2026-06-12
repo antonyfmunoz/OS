@@ -3,6 +3,8 @@ import type { OverlayMetadata } from '../components/vision/VisionOverlay'
 
 export type CameraStatus = 'off' | 'connecting' | 'live' | 'analyzing' | 'error'
 
+export type CameraMode = 'manual' | 'follow' | 'watch'
+
 // ── Default-on policy ────────────────────────────────────────────
 
 export type ProfileMode =
@@ -381,6 +383,10 @@ interface VisionState {
   setViewerCount: (count: number) => void
   setCameraSessionActive: (active: boolean) => void
 
+  // Camera mode
+  cameraMode: CameraMode
+  setCameraMode: (mode: CameraMode) => void
+
   reset: () => void
 }
 
@@ -595,6 +601,10 @@ export const useVisionStore = create<VisionState>((set) => ({
   setViewerCount: (viewerCount) => set({ viewerCount }),
   setCameraSessionActive: (cameraSessionActive) => set({ cameraSessionActive }),
 
+  // Camera mode
+  cameraMode: 'manual',
+  setCameraMode: (cameraMode) => set({ cameraMode }),
+
   reset: () => set({
     connected: false,
     streaming: false,
@@ -636,5 +646,6 @@ export const useVisionStore = create<VisionState>((set) => ({
     controlMetrics: { ...INITIAL_CONTROL_METRICS },
     viewerCount: 0,
     cameraSessionActive: false,
+    cameraMode: 'manual',
   }),
 }))
