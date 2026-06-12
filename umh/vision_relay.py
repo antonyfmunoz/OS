@@ -1683,8 +1683,10 @@ def _build_health() -> dict[str, Any]:
 
     frame_stale = frame_age_ms > stale_frame_threshold_ms if _last_frame_at else True
 
-    # Beast connectivity: check mesh
-    beast_connected = False
+    # Beast connectivity: mesh health + frame recency (independent signals).
+    # Mesh health can fail (timeout, restart) while frames still arrive
+    # via the HTTP ingestion path — these must not infer each other.
+    beast_mesh_connected = False
     try:
         import urllib.request
         req = urllib.request.Request(
@@ -1699,12 +1701,16 @@ def _build_health() -> dict[str, Any]:
                     n.get("node_id", "") if isinstance(n, dict) else str(n)
                     for n in mesh_data.get("nodes", [])
                 ]
-            beast_connected = any(
+            beast_mesh_connected = any(
                 nid.startswith("windows") or nid == "beast_windows"
                 for nid in node_ids
             )
     except Exception:
         pass
+    beast_frames_recent = (
+        _last_frame_at > 0 and frame_age_ms >= 0 and frame_age_ms < 10000
+    )
+    beast_connected = beast_mesh_connected or beast_frames_recent
 
     # Tracker state
     tracker_mgr = None
@@ -1787,6 +1793,8 @@ def _build_health() -> dict[str, Any]:
         "motion_guard_timeouts": _motion_guard_timeouts,
         "motion_coalesced": _motion_coalesced,
         "beast_connected": beast_connected,
+        "beast_mesh_connected": beast_mesh_connected,
+        "beast_frames_recent": beast_frames_recent,
         "camera_available": camera_available,
         "camera_streaming": camera_streaming,
         "last_frame_at": _last_frame_at,

@@ -63,6 +63,7 @@ export function useVisionConnection(): void {
   const metricsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const sceneInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const healthInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const devicePollInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (!_client) _client = new VisionWsClient()
@@ -685,6 +686,15 @@ export function useVisionConnection(): void {
       client.requestHealth()
     }, 5000)
 
+    // Device list polling — 30s, auto-recovers from stale empty device list
+    devicePollInterval.current = setInterval(() => {
+      if (!client.connected) return
+      const state = useVisionStore.getState()
+      if (state.cameraDevices.length === 0 && (state.streaming || state.latestFrameAt)) {
+        client.listDevices()
+      }
+    }, 30000)
+
     client.connect()
 
     return () => {
@@ -694,6 +704,7 @@ export function useVisionConnection(): void {
       if (metricsInterval.current) clearInterval(metricsInterval.current)
       if (sceneInterval.current) clearInterval(sceneInterval.current)
       if (healthInterval.current) clearInterval(healthInterval.current)
+      if (devicePollInterval.current) clearInterval(devicePollInterval.current)
       client.unsubscribe()
       client.disconnect()
       _client = null

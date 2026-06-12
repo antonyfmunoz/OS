@@ -134,6 +134,7 @@ export function computeVisionReadiness(
   const now = Date.now()
   const frameAge = latestFrameAt ? now - latestFrameAt : Infinity
   const fpsOk = fps > 0
+  const framesLive = frameAge < 5000
   const deviceValidated = health.cameraAvailable || health.cameraStreaming
   const details = {
     beastConnected: health.beastConnected,
@@ -147,13 +148,16 @@ export function computeVisionReadiness(
     presetsLoaded,
   }
 
-  if (!health.beastConnected) return { readiness: 'OFFLINE', reason: 'Beast not connected', details }
+  // Stream and Beast are independent signals. Live frames prove the
+  // camera→relay→cockpit path works regardless of mesh health check.
   if (!health.relayRunning && !health.cockpitConnected) return { readiness: 'OFFLINE', reason: 'Relay offline', details }
-  if (health.blockers.length > 0) return { readiness: 'BLOCKED', reason: health.blockers[0], details }
-  if (!streaming) return { readiness: 'OFFLINE', reason: 'Stream not active', details }
+  if (!health.beastConnected && !streaming && !framesLive) return { readiness: 'OFFLINE', reason: 'Beast not connected', details }
+  if (health.blockers.length > 0 && !framesLive) return { readiness: 'BLOCKED', reason: health.blockers[0], details }
+  if (!streaming && !framesLive) return { readiness: 'OFFLINE', reason: 'Stream not active', details }
   if (frameAge > 5000) return { readiness: 'STALE', reason: `No frames for ${Math.round(frameAge / 1000)}s`, details }
   if (frameAge > 2000) return { readiness: 'DEGRADED', reason: `Frame age ${Math.round(frameAge / 1000)}s`, details }
   if (!fpsOk) return { readiness: 'DEGRADED', reason: 'FPS dropped to 0', details }
+  if (!health.beastConnected) return { readiness: 'DEGRADED', reason: 'Stream live but mesh reports Beast offline', details }
   if (!health.commandPathReady) return { readiness: 'DEGRADED', reason: 'Command path not ready', details }
   return { readiness: 'READY', reason: 'All systems operational', details }
 }
