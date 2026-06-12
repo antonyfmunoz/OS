@@ -24,10 +24,22 @@ import {
   Camera,
   ScreenShare,
   AlertTriangle,
+  VolumeX,
+  Volume2,
+  Shield,
+  Bot,
+  Eye,
 } from 'lucide-react'
 import { useRoomsStore } from '../../stores/roomsStore'
-import { useVoiceRoom } from '../../hooks/useVoiceRoom'
-import type { VoiceParticipant, VoiceDiagnostics, VoiceRoomState, MediaStreamSource } from '../../hooks/useVoiceRoom'
+import { useConferenceRoom } from '../../hooks/useConferenceRoom'
+import type {
+  ConferenceParticipant as VoiceParticipant,
+  ConferenceDiagnostics as VoiceDiagnostics,
+  ConferenceRoomState as VoiceRoomState,
+  MediaStreamSource,
+  AIGovernancePermissions,
+  ProductionTestItem,
+} from '../../hooks/useConferenceRoom'
 import type { RoomMessage } from '../../types/rooms'
 
 const SOURCE_TYPE_ICONS: Record<string, typeof Monitor> = {
@@ -55,10 +67,17 @@ function detectScreenShareCapability(): 'native' | 'browser' | 'none' {
   return 'none'
 }
 
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
 export function VoiceRoomPanel({ channelId }: { channelId: string }) {
   const channels = useRoomsStore((s) => s.channels)
   const channel = channels.find((c) => c.id === channelId)
-  const voice = useVoiceRoom(channelId)
+  const conf = useConferenceRoom(channelId)
+  const voice = conf
   const [chatOpen, setChatOpen] = useState(false)
   const [focusedStream, setFocusedStream] = useState<string | null>(null)
 
@@ -74,14 +93,16 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
   })
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden voice-room-root"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
       <div className="flex flex-1 min-h-0">
-        <div className={`flex-1 flex flex-col min-h-0 ${chatOpen ? 'border-r' : ''}`}
+        <div className={`flex-1 flex flex-col min-h-0 ${chatOpen ? 'sm:border-r' : ''}`}
           style={{ borderColor: 'var(--color-border)' }}
         >
-          <div className="flex-1 overflow-y-auto">
-            <div className="flex flex-col items-center justify-start p-4 max-w-3xl mx-auto w-full">
-              <ChannelHeader name={channel?.name || 'Voice Room'} isConnected={isConnected} />
+          <div className="flex-1 overflow-y-auto overscroll-contain">
+            <div className="flex flex-col items-center justify-start p-3 sm:p-4 max-w-3xl mx-auto w-full">
+              <ChannelHeader name={channel?.name || 'Voice Room'} state={voice.state} />
               <ConnectionBanner state={voice.state} error={voice.error} reconnectAttempts={voice.diagnostics.reconnectAttempts} />
 
               {isConnected && allStreams.length > 0 && (
@@ -115,6 +136,10 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
                 </div>
               )}
 
+              <AIGovernanceBadge governance={conf.aiGovernance} onUpdate={conf.setAIGovernance} />
+
+              <ProductionTestChecklist items={conf.productionChecklist} />
+
               <DiagnosticsPanel diagnostics={voice.diagnostics} state={voice.state} />
             </div>
           </div>
@@ -122,6 +147,7 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
           <ControlBar
             state={voice.state}
             isMuted={voice.isMuted}
+            isDeafened={voice.isDeafened}
             isVideoOn={voice.isVideoOn}
             preJoinMicEnabled={voice.preJoinMicEnabled}
             localStreamCount={voice.localStreams.filter(s => s.sourceType !== 'camera').length}
@@ -131,6 +157,7 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
             onJoin={voice.join}
             onLeave={voice.leave}
             onToggleMute={voice.toggleMute}
+            onToggleDeafen={voice.toggleDeafen}
             onTogglePreJoinMic={voice.togglePreJoinMic}
             onToggleVideo={voice.toggleVideo}
             onAddScreenShare={voice.addScreenShare}
@@ -140,22 +167,51 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
         </div>
 
         {chatOpen && (
-          <div className="w-80 flex flex-col min-h-0" style={{ maxWidth: '50%' }}>
-            <VoiceChat channelId={channelId} />
-          </div>
+          <>
+            {/* Mobile: full-width drawer overlay */}
+            <div className="sm:hidden fixed inset-0 z-40 flex flex-col"
+              style={{ background: 'var(--color-canvas)' }}
+            >
+              <div className="flex items-center justify-between px-3 h-10 border-b shrink-0"
+                style={{ borderColor: 'var(--color-border)' }}
+              >
+                <span className="text-[11px] font-mono font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                  Room Chat
+                </span>
+                <button onClick={() => setChatOpen(false)}
+                  className="p-1 rounded"
+                  style={{ color: 'var(--color-text-tertiary)' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <VoiceChat channelId={channelId} />
+            </div>
+
+            {/* Desktop: side panel */}
+            <div className="hidden sm:flex w-80 flex-col min-h-0" style={{ maxWidth: '50%' }}>
+              <VoiceChat channelId={channelId} />
+            </div>
+          </>
         )}
       </div>
     </div>
   )
 }
 
-function ChannelHeader({ name, isConnected }: { name: string; isConnected: boolean }) {
+function ChannelHeader({ name, state }: { name: string; state: VoiceRoomState }) {
+  const isConnected = state === 'connected'
+  const isActive = state !== 'idle'
+
   return (
     <div className="flex flex-col items-center mb-3">
       <div className="w-12 h-12 rounded-full flex items-center justify-center mb-2"
         style={{ background: 'var(--color-surface-raised)' }}
       >
-        <Radio size={20} style={{ color: isConnected ? 'var(--color-ok)' : 'var(--color-cyan)' }} />
+        <Radio size={20} style={{
+          color: isConnected ? 'var(--color-ok)' :
+            isActive ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
+        }} />
       </div>
       <h3 className="text-sm font-mono font-semibold" style={{ color: 'var(--color-text-primary)' }}>
         {name}
@@ -195,7 +251,7 @@ function StreamGrid({
           isOwner={focused.participantIdentity === localIdentity}
         />
         {streams.length > 1 && (
-          <div className="flex gap-1.5 mt-1.5 overflow-x-auto pb-1">
+          <div className="flex gap-1.5 mt-1.5 overflow-x-auto pb-1 -mx-1 px-1">
             {streams.filter(s => s.trackSid !== focusedStream).map(s => (
               <div key={s.trackSid} className="flex-shrink-0" style={{ width: 120, height: 68 }}>
                 <StreamTile
@@ -215,7 +271,7 @@ function StreamGrid({
   }
 
   const gridCols = streams.length === 1 ? 'grid-cols-1' :
-    streams.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'
+    streams.length <= 4 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'
 
   return (
     <div className={`w-full grid ${gridCols} gap-1.5 mb-3`}>
@@ -360,6 +416,7 @@ function StreamTile({
 function ControlBar({
   state,
   isMuted,
+  isDeafened,
   isVideoOn,
   preJoinMicEnabled,
   localStreamCount,
@@ -369,6 +426,7 @@ function ControlBar({
   onJoin,
   onLeave,
   onToggleMute,
+  onToggleDeafen,
   onTogglePreJoinMic,
   onToggleVideo,
   onAddScreenShare,
@@ -377,6 +435,7 @@ function ControlBar({
 }: {
   state: VoiceRoomState
   isMuted: boolean
+  isDeafened: boolean
   isVideoOn: boolean
   preJoinMicEnabled: boolean
   localStreamCount: number
@@ -386,6 +445,7 @@ function ControlBar({
   onJoin: () => void
   onLeave: () => void
   onToggleMute: () => void
+  onToggleDeafen: () => void
   onTogglePreJoinMic: () => void
   onToggleVideo: () => void
   onAddScreenShare: () => void
@@ -395,12 +455,15 @@ function ControlBar({
   const [shareMenuOpen, setShareMenuOpen] = useState(false)
   const isConnected = state === 'connected' || state === 'reconnecting'
   const screenShareCap = detectScreenShareCapability()
+  const showIOSShareNote = isIOS() && screenShareCap === 'none'
 
-  // Pre-join: mic toggle + join + chat
   if (!isConnected && state !== 'failed' && state !== 'disconnected') {
     return (
-      <div className="flex items-center justify-center gap-1.5 px-4 py-3 border-t shrink-0"
-        style={{ borderColor: 'var(--color-border)' }}
+      <div className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-3 border-t shrink-0"
+        style={{
+          borderColor: 'var(--color-border)',
+          paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
+        }}
       >
         <ControlButton
           active={preJoinMicEnabled}
@@ -408,17 +471,28 @@ function ControlBar({
           icon={preJoinMicEnabled ? Mic : MicOff}
           label={preJoinMicEnabled ? 'Mic On' : 'Mic Off'}
           onClick={onTogglePreJoinMic}
-          disabled={state === 'connecting'}
+          disabled={state === 'connecting' || state === 'requesting_permissions'}
+        />
+        <ControlButton
+          active={false}
+          icon={Video}
+          label="Video"
+          onClick={() => {}}
+          disabled
         />
         <button onClick={onJoin}
-          disabled={state === 'connecting'}
+          disabled={state === 'connecting' || state === 'requesting_permissions'}
           className="flex items-center gap-2 text-xs font-mono px-5 py-2.5 rounded transition-colors"
           style={{
-            background: state === 'connecting' ? 'var(--color-surface-raised)' : 'var(--color-ok)',
-            color: state === 'connecting' ? 'var(--color-text-tertiary)' : 'var(--color-canvas)',
+            background: state === 'connecting' || state === 'requesting_permissions'
+              ? 'var(--color-surface-raised)' : 'var(--color-ok)',
+            color: state === 'connecting' || state === 'requesting_permissions'
+              ? 'var(--color-text-tertiary)' : 'var(--color-canvas)',
           }}
         >
-          {state === 'connecting' ? 'Connecting...' : 'Join Voice'}
+          {state === 'connecting' ? 'Connecting...' :
+            state === 'requesting_permissions' ? 'Requesting Permissions...' :
+              'Join Voice'}
         </button>
         <ControlButton
           active={chatOpen}
@@ -430,11 +504,13 @@ function ControlBar({
     )
   }
 
-  // Failed / disconnected: retry + mic toggle + chat
   if (state === 'failed' || state === 'disconnected') {
     return (
-      <div className="flex items-center justify-center gap-1.5 px-4 py-3 border-t shrink-0"
-        style={{ borderColor: 'var(--color-border)' }}
+      <div className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-3 border-t shrink-0"
+        style={{
+          borderColor: 'var(--color-border)',
+          paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
+        }}
       >
         <ControlButton
           active={preJoinMicEnabled}
@@ -456,7 +532,7 @@ function ControlBar({
           onClick={onToggleChat}
         />
         {error && (
-          <span className="text-[9px] font-mono max-w-48 truncate" style={{ color: 'var(--color-danger)' }}>
+          <span className="text-[9px] font-mono max-w-48 truncate hidden sm:inline" style={{ color: 'var(--color-danger)' }}>
             {error}
           </span>
         )}
@@ -464,10 +540,13 @@ function ControlBar({
     )
   }
 
-  // Connected: full control bar
   return (
-    <div className="relative flex items-center justify-center gap-1.5 px-3 py-2.5 border-t shrink-0"
-      style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+    <div className="relative flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2.5 border-t shrink-0"
+      style={{
+        borderColor: 'var(--color-border)',
+        background: 'var(--color-surface)',
+        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 10px)',
+      }}
     >
       <ControlButton
         active={!isMuted}
@@ -475,6 +554,13 @@ function ControlBar({
         icon={isMuted ? MicOff : Mic}
         label={isMuted ? 'Unmute' : 'Mute'}
         onClick={onToggleMute}
+      />
+      <ControlButton
+        active={!isDeafened}
+        danger={isDeafened}
+        icon={isDeafened ? VolumeX : Volume2}
+        label={isDeafened ? 'Undeafen' : 'Deafen'}
+        onClick={onToggleDeafen}
       />
       <ControlButton
         active={isVideoOn}
@@ -505,18 +591,19 @@ function ControlBar({
         label="Chat"
         onClick={onToggleChat}
       />
-      <div className="w-px h-6 mx-1" style={{ background: 'var(--color-border)' }} />
+      <div className="w-px h-6 mx-0.5 sm:mx-1 hidden sm:block" style={{ background: 'var(--color-border)' }} />
       <button onClick={onLeave}
-        className="flex items-center gap-1.5 text-[10px] font-mono px-3 py-2 rounded transition-colors"
+        className="flex items-center gap-1.5 text-[10px] font-mono px-2 sm:px-3 py-2 rounded transition-colors"
         style={{ background: 'var(--color-danger)', color: 'var(--color-canvas)' }}
       >
-        <PhoneOff size={13} /> Leave
+        <PhoneOff size={13} /> <span className="hidden sm:inline">Leave</span>
       </button>
 
       {shareMenuOpen && (
         <ShareMenu
           canAdd={canAddStream}
           screenShareCap={screenShareCap}
+          showIOSNote={showIOSShareNote}
           localStreamCount={localStreamCount}
           onAddScreen={() => { onAddScreenShare(); setShareMenuOpen(false) }}
           onStopAll={() => { onStopAllStreams(); setShareMenuOpen(false) }}
@@ -530,6 +617,7 @@ function ControlBar({
 function ShareMenu({
   canAdd,
   screenShareCap,
+  showIOSNote,
   localStreamCount,
   onAddScreen,
   onStopAll,
@@ -537,6 +625,7 @@ function ShareMenu({
 }: {
   canAdd: boolean
   screenShareCap: 'native' | 'browser' | 'none'
+  showIOSNote: boolean
   localStreamCount: number
   onAddScreen: () => void
   onStopAll: () => void
@@ -563,7 +652,9 @@ function ShareMenu({
         >
           <AlertTriangle size={12} style={{ color: 'var(--color-warn)' }} className="flex-shrink-0 mt-0.5" />
           <p className="text-[9px] font-mono" style={{ color: 'var(--color-warn)' }}>
-            Screen share is not available in this browser. Use the desktop app or a supported browser.
+            {showIOSNote
+              ? 'Screen share is not supported in iOS Safari. Use the native app wrapper or a desktop browser.'
+              : 'Screen share is not available in this browser. Use the desktop app or a supported browser.'}
           </p>
         </div>
       )}
@@ -674,7 +765,7 @@ function ControlButton({
   return (
     <button onClick={onClick}
       disabled={disabled}
-      className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      className="flex flex-col items-center gap-0.5 px-2 sm:px-2.5 py-1.5 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] justify-center"
       style={{
         background: danger ? 'var(--color-danger)' : active ? 'var(--color-surface-raised)' : 'transparent',
         color: danger ? 'var(--color-canvas)' : active ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
@@ -691,6 +782,7 @@ function ConnectionBanner({ state, error, reconnectAttempts }: { state: VoiceRoo
   if (state === 'idle') return null
 
   const config: Record<string, { bg: string; color: string; text: string; icon: typeof Wifi }> = {
+    requesting_permissions: { bg: 'var(--color-cyan-glow)', color: 'var(--color-cyan)', text: 'Requesting permissions...', icon: Shield },
     connecting: { bg: 'var(--color-cyan-glow)', color: 'var(--color-cyan)', text: 'Connecting...', icon: Activity },
     connected: { bg: 'var(--color-ok-dim)', color: 'var(--color-ok)', text: 'Connected', icon: Wifi },
     reconnecting: {
@@ -710,7 +802,7 @@ function ConnectionBanner({ state, error, reconnectAttempts }: { state: VoiceRoo
   return (
     <div className="w-full rounded px-3 py-2 mb-3 flex items-center gap-2" style={{ background: c.bg }}>
       <Icon size={12} style={{ color: c.color }}
-        className={state === 'connecting' || state === 'reconnecting' ? 'animate-pulse' : ''}
+        className={state === 'connecting' || state === 'reconnecting' || state === 'requesting_permissions' ? 'animate-pulse' : ''}
       />
       <span className="text-[10px] font-mono flex-1" style={{ color: c.color }}>{c.text}</span>
     </div>
@@ -761,12 +853,136 @@ function ParticipantRow({ participant: p }: { participant: VoiceParticipant }) {
           <Video size={11} style={{ color: 'var(--color-ok)' }} />
         )}
 
-        {p.isMuted ? (
+        {p.isDeafened ? (
+          <VolumeX size={11} style={{ color: 'var(--color-danger)' }} />
+        ) : p.isMuted ? (
           <MicOff size={11} style={{ color: 'var(--color-danger)' }} />
         ) : (
           <Mic size={11} style={{ color: 'var(--color-ok)' }} />
         )}
       </div>
+    </div>
+  )
+}
+
+function AIGovernanceBadge({
+  governance,
+  onUpdate,
+}: {
+  governance: AIGovernancePermissions
+  onUpdate: (patch: Partial<AIGovernancePermissions>) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="w-full rounded border mt-1 mb-2" style={{ borderColor: 'var(--color-border)' }}>
+      <button onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-mono"
+        style={{ color: 'var(--color-text-tertiary)' }}
+      >
+        <Bot size={10} style={{ color: 'var(--color-violet)' }} />
+        <span>AI Governance</span>
+        {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+      </button>
+      {expanded && (
+        <div className="px-3 pb-2 space-y-1.5">
+          <p className="text-[9px] font-mono" style={{ color: 'var(--color-text-secondary)' }}>
+            AI participants can join this room with operator permission.
+          </p>
+          <GovernanceToggle icon={Eye} label="Listen" field="ai_can_listen" value={governance.ai_can_listen} onUpdate={onUpdate} />
+          <GovernanceToggle icon={Mic} label="Speak" field="ai_can_speak" value={governance.ai_can_speak} onUpdate={onUpdate} />
+          <GovernanceToggle icon={Bot} label="Transcribe" field="ai_can_transcribe" value={governance.ai_can_transcribe} onUpdate={onUpdate} />
+          <GovernanceRow icon={Shield} label="Access Log" value={governance.ai_access_logged ? 'All AI actions recorded' : 'Disabled'} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GovernanceToggle({
+  icon: Icon,
+  label,
+  field,
+  value,
+  onUpdate,
+}: {
+  icon: typeof Bot
+  label: string
+  field: keyof AIGovernancePermissions
+  value: boolean
+  onUpdate: (patch: Partial<AIGovernancePermissions>) => void
+}) {
+  return (
+    <button
+      onClick={() => onUpdate({ [field]: !value })}
+      className="flex items-center gap-2 text-[9px] font-mono w-full"
+    >
+      <Icon size={10} style={{ color: 'var(--color-violet)' }} />
+      <span style={{ color: 'var(--color-text-secondary)', minWidth: 64 }}>{label}</span>
+      <div className="w-3 h-3 rounded-full border"
+        style={{
+          borderColor: value ? 'var(--color-ok)' : 'var(--color-border)',
+          background: value ? 'var(--color-ok)' : 'transparent',
+        }}
+      />
+      <span style={{ color: value ? 'var(--color-ok)' : 'var(--color-text-tertiary)' }}>
+        {value ? 'Enabled' : 'Disabled'}
+      </span>
+    </button>
+  )
+}
+
+function GovernanceRow({ icon: Icon, label, value }: { icon: typeof Bot; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-2 text-[9px] font-mono">
+      <Icon size={10} style={{ color: 'var(--color-violet)' }} />
+      <span style={{ color: 'var(--color-text-secondary)', minWidth: 64 }}>{label}</span>
+      <span style={{ color: 'var(--color-text-tertiary)' }}>{value}</span>
+    </div>
+  )
+}
+
+function ProductionTestChecklist({ items }: { items: ProductionTestItem[] }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const passCount = items.filter(i => i.status === 'pass').length
+
+  return (
+    <div className="w-full rounded border mt-1 mb-2" style={{ borderColor: 'var(--color-border)' }}>
+      <button onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-mono"
+        style={{ color: 'var(--color-text-tertiary)' }}
+      >
+        <Activity size={10} style={{ color: passCount === items.length ? 'var(--color-ok)' : 'var(--color-text-tertiary)' }} />
+        <span>Production Test Checklist ({passCount}/{items.length})</span>
+        {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+      </button>
+      {expanded && (
+        <div className="px-3 pb-2 space-y-0.5">
+          {items.map((item) => (
+            <div key={item.label} className="flex items-center justify-between">
+              <span className="text-[9px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
+                {item.label}
+              </span>
+              <div className="flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full"
+                  style={{
+                    background: item.status === 'pass' ? 'var(--color-ok)' :
+                      item.status === 'fail' ? 'var(--color-danger)' :
+                        item.status === 'pending' ? 'var(--color-warn)' :
+                          'var(--color-text-tertiary)',
+                  }}
+                />
+                <span className="text-[9px] font-mono max-w-[140px] truncate"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                >
+                  {item.detail}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -804,7 +1020,7 @@ function VoiceChat({ channelId }: { channelId: string }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center px-3 h-8 border-b shrink-0"
+      <div className="hidden sm:flex items-center px-3 h-8 border-b shrink-0"
         style={{ borderColor: 'var(--color-border)' }}
       >
         <MessageSquare size={11} style={{ color: 'var(--color-text-tertiary)' }} />
@@ -813,7 +1029,7 @@ function VoiceChat({ channelId }: { channelId: string }) {
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overscroll-contain">
         {channelMessages.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <p className="text-[10px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
@@ -838,7 +1054,10 @@ function VoiceChat({ channelId }: { channelId: string }) {
 
       <form onSubmit={handleSend}
         className="flex items-center gap-1.5 px-2 py-1.5 border-t shrink-0"
-        style={{ borderColor: 'var(--color-border)' }}
+        style={{
+          borderColor: 'var(--color-border)',
+          paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 6px)',
+        }}
       >
         <input
           type="text"
@@ -851,7 +1070,7 @@ function VoiceChat({ channelId }: { channelId: string }) {
         />
         <button type="submit"
           disabled={!input.trim() || sending}
-          className="p-1.5 rounded transition-colors"
+          className="p-1.5 rounded transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
           style={{
             background: input.trim() ? 'var(--color-cyan)' : 'transparent',
             color: input.trim() ? 'var(--color-canvas)' : 'var(--color-text-tertiary)',
