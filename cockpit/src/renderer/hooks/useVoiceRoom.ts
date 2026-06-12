@@ -5,10 +5,8 @@ import {
   Track,
   ConnectionState,
   RemoteParticipant,
-  LocalParticipant,
   Participant,
   RemoteTrackPublication,
-  LocalTrackPublication,
   ConnectionQuality,
 } from 'livekit-client'
 import { fetchApi } from '../api/client'
@@ -23,11 +21,21 @@ export interface VoiceParticipant {
 
 export type VoiceRoomState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'failed'
 
+export interface VoiceDiagnostics {
+  livekitUrl: string | null
+  roomName: string | null
+  tokenReceived: boolean
+  signalConnected: boolean
+  micPermission: 'unknown' | 'granted' | 'denied' | 'prompt'
+  lastEvent: string | null
+}
+
 interface UseVoiceRoomReturn {
   state: VoiceRoomState
   error: string | null
   participants: VoiceParticipant[]
   isMuted: boolean
+  diagnostics: VoiceDiagnostics
   join: () => Promise<void>
   leave: () => void
   toggleMute: () => void
@@ -52,6 +60,18 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
   const [error, setError] = useState<string | null>(null)
   const [participants, setParticipants] = useState<VoiceParticipant[]>([])
   const [isMuted, setIsMuted] = useState(false)
+  const [diagnostics, setDiagnostics] = useState<VoiceDiagnostics>({
+    livekitUrl: null,
+    roomName: null,
+    tokenReceived: false,
+    signalConnected: false,
+    micPermission: 'unknown',
+    lastEvent: null,
+  })
+
+  const updateDiag = useCallback((patch: Partial<VoiceDiagnostics>) => {
+    setDiagnostics((prev) => ({ ...prev, ...patch }))
+  }, [])
 
   const updateParticipants = useCallback(() => {
     const room = roomRef.current
@@ -68,6 +88,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     if (roomRef.current) return
     setState('connecting')
     setError(null)
+    updateDiag({ lastEvent: 'requesting token...' })
 
     try {
       const res = await fetchApi(`/rooms/channels/${channelId}/voice/token`, {
@@ -78,6 +99,13 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
         throw new Error('No token or URL returned from server')
       }
 
+      updateDiag({
+        livekitUrl: res.url,
+        roomName: res.room,
+        tokenReceived: true,
+        lastEvent: 'token received, connecting to LiveKit...',
+      })
+
       const room = new Room({
         adaptiveStream: true,
         dynacast: true,
@@ -85,7 +113,12 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
       })
       roomRef.current = room
 
+      room.on(RoomEvent.SignalConnected, () => {
+        updateDiag({ signalConnected: true, lastEvent: 'signal connected' })
+      })
+
       room.on(RoomEvent.ConnectionStateChanged, (connectionState: ConnectionState) => {
+        updateDiag({ lastEvent: `connection: ${connectionState}` })
         switch (connectionState) {
           case ConnectionState.Connected:
             setState('connected')
@@ -102,8 +135,14 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
         }
       })
 
-      room.on(RoomEvent.ParticipantConnected, () => updateParticipants())
-      room.on(RoomEvent.ParticipantDisconnected, () => updateParticipants())
+      room.on(RoomEvent.ParticipantConnected, () => {
+        updateDiag({ lastEvent: 'participant joined' })
+        updateParticipants()
+      })
+      room.on(RoomEvent.ParticipantDisconnected, () => {
+        updateDiag({ lastEvent: 'participant left' })
+        updateParticipants()
+      })
       room.on(RoomEvent.ActiveSpeakersChanged, () => updateParticipants())
       room.on(RoomEvent.TrackMuted, () => updateParticipants())
       room.on(RoomEvent.TrackUnmuted, () => updateParticipants())
@@ -117,29 +156,47 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
         }
       })
 
-      room.on(RoomEvent.TrackUnsubscribed, (track, _pub: RemoteTrackPublication, _participant: RemoteParticipant) => {
+      room.on(RoomEvent.TrackUnsubscribed, (track) => {
         track.detach().forEach((el) => el.remove())
       })
 
-      room.on(RoomEvent.Disconnected, () => {
+      room.on(RoomEvent.Disconnected, (reason) => {
+        updateDiag({ lastEvent: `disconnected: ${reason ?? 'unknown'}`, signalConnected: false })
         setState('idle')
         setParticipants([])
         roomRef.current = null
       })
 
+      room.on(RoomEvent.MediaDevicesError, (e) => {
+        updateDiag({ lastEvent: `media error: ${e?.message ?? 'unknown'}`, micPermission: 'denied' })
+      })
+
       await room.connect(res.url, res.token)
-      await room.localParticipant.setMicrophoneEnabled(true)
-      setIsMuted(false)
+      updateDiag({ lastEvent: 'connected, enabling mic...' })
+
+      try {
+        await room.localParticipant.setMicrophoneEnabled(true)
+        updateDiag({ micPermission: 'granted', lastEvent: 'mic enabled' })
+        setIsMuted(false)
+      } catch (micErr) {
+        updateDiag({
+          micPermission: 'denied',
+          lastEvent: `mic error: ${micErr instanceof Error ? micErr.message : 'unknown'}`,
+        })
+        setIsMuted(true)
+      }
       updateParticipants()
     } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to join voice room'
       setState('failed')
-      setError(e instanceof Error ? e.message : 'Failed to join voice room')
+      setError(msg)
+      updateDiag({ lastEvent: `error: ${msg}` })
       if (roomRef.current) {
         roomRef.current.disconnect()
         roomRef.current = null
       }
     }
-  }, [channelId, updateParticipants])
+  }, [channelId, updateParticipants, updateDiag])
 
   const leave = useCallback(() => {
     const room = roomRef.current
@@ -151,6 +208,14 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     setParticipants([])
     setError(null)
     setIsMuted(false)
+    setDiagnostics({
+      livekitUrl: null,
+      roomName: null,
+      tokenReceived: false,
+      signalConnected: false,
+      micPermission: 'unknown',
+      lastEvent: null,
+    })
   }, [])
 
   const toggleMute = useCallback(() => {
@@ -171,5 +236,5 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     }
   }, [])
 
-  return { state, error, participants, isMuted, join, leave, toggleMute }
+  return { state, error, participants, isMuted, diagnostics, join, leave, toggleMute }
 }
