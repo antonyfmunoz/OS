@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   Mic,
   MicOff,
@@ -23,7 +23,6 @@ import {
   X,
   Maximize2,
   Minimize2,
-  Pin,
   AppWindow,
   Globe,
   Camera,
@@ -33,7 +32,7 @@ import {
 import { useRoomsStore } from '../../stores/roomsStore'
 import { useVoiceRoom } from '../../hooks/useVoiceRoom'
 import { ConnectionQuality } from 'livekit-client'
-import type { VoiceParticipant, VoiceDiagnostics, VoiceRoomState, MediaStreamSource, StreamSourceType } from '../../hooks/useVoiceRoom'
+import type { VoiceParticipant, VoiceDiagnostics, VoiceRoomState, MediaStreamSource } from '../../hooks/useVoiceRoom'
 import type { RoomMessage } from '../../types/rooms'
 
 const SOURCE_TYPE_ICONS: Record<string, typeof Monitor> = {
@@ -42,7 +41,6 @@ const SOURCE_TYPE_ICONS: Record<string, typeof Monitor> = {
   window: AppWindow,
   tab: Globe,
   application: AppWindow,
-  second_camera: Camera,
 }
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
@@ -51,7 +49,6 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   window: 'Window',
   tab: 'Browser Tab',
   application: 'Application',
-  second_camera: 'Camera 2',
 }
 
 function isIOSSafari(): boolean {
@@ -68,7 +65,6 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
   const [focusedStream, setFocusedStream] = useState<string | null>(null)
 
   const isConnected = voice.state === 'connected'
-  const showChat = chatOpen
 
   const allStreams: Array<MediaStreamSource & { participantName: string }> = []
   voice.streams.forEach((sources, identity) => {
@@ -82,7 +78,7 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex flex-1 min-h-0">
-        <div className={`flex-1 flex flex-col min-h-0 ${showChat ? 'border-r' : ''}`}
+        <div className={`flex-1 flex flex-col min-h-0 ${chatOpen ? 'border-r' : ''}`}
           style={{ borderColor: 'var(--color-border)' }}
         >
           <div className="flex-1 overflow-y-auto">
@@ -129,6 +125,7 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
             state={voice.state}
             isMuted={voice.isMuted}
             isVideoOn={voice.isVideoOn}
+            preJoinMicEnabled={voice.preJoinMicEnabled}
             localStreamCount={voice.localStreams.filter(s => s.sourceType !== 'camera').length}
             canAddStream={voice.canAddStream}
             chatOpen={chatOpen}
@@ -136,6 +133,7 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
             onJoin={voice.join}
             onLeave={voice.leave}
             onToggleMute={voice.toggleMute}
+            onTogglePreJoinMic={voice.togglePreJoinMic}
             onToggleVideo={voice.toggleVideo}
             onAddScreenShare={voice.addScreenShare}
             onStopAllStreams={voice.stopAllStreams}
@@ -143,7 +141,7 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
           />
         </div>
 
-        {showChat && (
+        {chatOpen && (
           <div className="w-80 flex flex-col min-h-0" style={{ maxWidth: '50%' }}>
             <VoiceChat channelId={channelId} />
           </div>
@@ -365,6 +363,7 @@ function ControlBar({
   state,
   isMuted,
   isVideoOn,
+  preJoinMicEnabled,
   localStreamCount,
   canAddStream,
   chatOpen,
@@ -372,6 +371,7 @@ function ControlBar({
   onJoin,
   onLeave,
   onToggleMute,
+  onTogglePreJoinMic,
   onToggleVideo,
   onAddScreenShare,
   onStopAllStreams,
@@ -380,6 +380,7 @@ function ControlBar({
   state: VoiceRoomState
   isMuted: boolean
   isVideoOn: boolean
+  preJoinMicEnabled: boolean
   localStreamCount: number
   canAddStream: boolean
   chatOpen: boolean
@@ -387,6 +388,7 @@ function ControlBar({
   onJoin: () => void
   onLeave: () => void
   onToggleMute: () => void
+  onTogglePreJoinMic: () => void
   onToggleVideo: () => void
   onAddScreenShare: () => void
   onStopAllStreams: () => void
@@ -396,20 +398,28 @@ function ControlBar({
   const isConnected = state === 'connected' || state === 'reconnecting'
   const iosBlocked = isIOSSafari()
 
+  // Pre-join: mic toggle + join + chat
   if (!isConnected && state !== 'failed' && state !== 'disconnected') {
     return (
-      <div className="flex items-center justify-center gap-2 px-4 py-3 border-t shrink-0"
+      <div className="flex items-center justify-center gap-1.5 px-4 py-3 border-t shrink-0"
         style={{ borderColor: 'var(--color-border)' }}
       >
+        <ControlButton
+          active={preJoinMicEnabled}
+          danger={!preJoinMicEnabled}
+          icon={preJoinMicEnabled ? Mic : MicOff}
+          label={preJoinMicEnabled ? 'Mic On' : 'Mic Off'}
+          onClick={onTogglePreJoinMic}
+          disabled={state === 'connecting'}
+        />
         <button onClick={onJoin}
           disabled={state === 'connecting'}
-          className="flex items-center gap-2 text-xs font-mono px-6 py-2.5 rounded transition-colors"
+          className="flex items-center gap-2 text-xs font-mono px-5 py-2.5 rounded transition-colors"
           style={{
             background: state === 'connecting' ? 'var(--color-surface-raised)' : 'var(--color-ok)',
             color: state === 'connecting' ? 'var(--color-text-tertiary)' : 'var(--color-canvas)',
           }}
         >
-          <Mic size={14} />
           {state === 'connecting' ? 'Connecting...' : 'Join Voice'}
         </button>
         <ControlButton
@@ -422,16 +432,24 @@ function ControlBar({
     )
   }
 
+  // Failed / disconnected: retry + mic toggle + chat
   if (state === 'failed' || state === 'disconnected') {
     return (
-      <div className="flex items-center justify-center gap-2 px-4 py-3 border-t shrink-0"
+      <div className="flex items-center justify-center gap-1.5 px-4 py-3 border-t shrink-0"
         style={{ borderColor: 'var(--color-border)' }}
       >
+        <ControlButton
+          active={preJoinMicEnabled}
+          danger={!preJoinMicEnabled}
+          icon={preJoinMicEnabled ? Mic : MicOff}
+          label={preJoinMicEnabled ? 'Mic On' : 'Mic Off'}
+          onClick={onTogglePreJoinMic}
+        />
         <button onClick={onJoin}
           className="flex items-center gap-2 text-xs font-mono px-4 py-2 rounded transition-colors"
           style={{ background: 'var(--color-ok)', color: 'var(--color-canvas)' }}
         >
-          <Mic size={14} /> Retry
+          Retry
         </button>
         <ControlButton
           active={chatOpen}
@@ -448,6 +466,7 @@ function ControlBar({
     )
   }
 
+  // Connected: full control bar
   return (
     <div className="relative flex items-center justify-center gap-1.5 px-3 py-2.5 border-t shrink-0"
       style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
@@ -467,12 +486,22 @@ function ControlBar({
       />
 
       <div className="relative">
-        <ControlButton
-          active={localStreamCount > 0}
-          icon={localStreamCount > 0 ? ScreenShare : Monitor}
-          label={localStreamCount > 0 ? `Sharing (${localStreamCount})` : 'Share'}
-          onClick={() => setShareMenuOpen(!shareMenuOpen)}
-        />
+        {iosBlocked ? (
+          <ControlButton
+            active={false}
+            icon={Monitor}
+            label="No Share"
+            onClick={() => setShareMenuOpen(!shareMenuOpen)}
+            disabled
+          />
+        ) : (
+          <ControlButton
+            active={localStreamCount > 0}
+            icon={localStreamCount > 0 ? ScreenShare : Monitor}
+            label={localStreamCount > 0 ? `Sharing (${localStreamCount})` : 'Share'}
+            onClick={() => setShareMenuOpen(!shareMenuOpen)}
+          />
+        )}
         {localStreamCount > 0 && (
           <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-mono font-bold"
             style={{ background: 'var(--color-cyan)', color: 'var(--color-canvas)' }}
@@ -546,7 +575,7 @@ function ShareMenu({
         >
           <AlertTriangle size={12} style={{ color: 'var(--color-warn)' }} className="flex-shrink-0 mt-0.5" />
           <p className="text-[9px] font-mono" style={{ color: 'var(--color-warn)' }}>
-            Screen sharing is not supported from iOS Safari. Join from desktop to share. You can still watch streams.
+            Screen sharing unavailable on iOS Safari. Join from desktop to share. You can still watch shared streams.
           </p>
         </div>
       )}
@@ -633,16 +662,19 @@ function ControlButton({
   icon: Icon,
   label,
   onClick,
+  disabled,
 }: {
   active: boolean
   danger?: boolean
   icon: typeof Mic
   label: string
   onClick: () => void
+  disabled?: boolean
 }) {
   return (
     <button onClick={onClick}
-      className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded transition-colors"
+      disabled={disabled}
+      className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       style={{
         background: danger ? 'var(--color-danger)' : active ? 'var(--color-surface-raised)' : 'transparent',
         color: danger ? 'var(--color-canvas)' : active ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
@@ -903,11 +935,13 @@ function DiagnosticsPanel({ diagnostics, state }: { diagnostics: VoiceDiagnostic
           <DiagRow label="token" value={diagnostics.tokenReceived ? 'received' : 'none'} />
           <DiagRow label="signal" value={diagnostics.signalConnected ? 'connected' : 'no'} />
           <DiagRow label="ice" value={diagnostics.iceState} />
-          <DiagRow label="pub" value={diagnostics.publisherState} />
-          <DiagRow label="sub" value={diagnostics.subscriberState} />
-          <DiagRow label="mic" value={diagnostics.micPermission} />
-          <DiagRow label="camera" value={diagnostics.cameraPermission} />
-          <DiagRow label="screenshare" value={diagnostics.screenShareSupport ? 'supported' : 'no'} />
+          <DiagRow label="mic perm" value={diagnostics.micPermission} />
+          <DiagRow label="mic requested" value={diagnostics.micEnabledRequested ? 'on' : 'off'} />
+          <DiagRow label="mic actual" value={diagnostics.micEnabledActual ? 'on' : 'off'} />
+          <DiagRow label="audio sid" value={diagnostics.audioTrackSid} />
+          <DiagRow label="cam perm" value={diagnostics.cameraPermission} />
+          <DiagRow label="cam actual" value={diagnostics.cameraEnabledActual ? 'on' : 'off'} />
+          <DiagRow label="screenshare" value={diagnostics.screenShareSupport ? 'supported' : 'not supported'} />
           <DiagRow label="reconnects" value={String(diagnostics.reconnectAttempts)} />
           <DiagRow label="published" value={String(diagnostics.publishedTrackCount)} />
           <DiagRow label="subscribed" value={String(diagnostics.subscribedTrackCount)} />
@@ -924,7 +958,7 @@ function DiagnosticsPanel({ diagnostics, state }: { diagnostics: VoiceDiagnostic
 function DiagRow({ label, value, error }: { label: string; value: string | null; error?: boolean }) {
   return (
     <div className="flex gap-2 text-[9px] font-mono">
-      <span style={{ color: 'var(--color-text-tertiary)', minWidth: 64 }}>{label}</span>
+      <span style={{ color: 'var(--color-text-tertiary)', minWidth: 80 }}>{label}</span>
       <span style={{ color: error ? 'var(--color-danger)' : 'var(--color-text-secondary)', wordBreak: 'break-all' }}>
         {value ?? '—'}
       </span>
