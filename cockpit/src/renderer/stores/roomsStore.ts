@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { fetchApi } from '../api/client'
+import { DEFAULT_GUEST_PERMISSIONS } from '../types/rooms'
 import type {
   RoomServer,
   ServerCategory,
@@ -12,7 +13,6 @@ import type {
   RoomMember,
   RoomInvite,
   GuestPermissions,
-  DEFAULT_GUEST_PERMISSIONS,
   MeetingState,
   VoiceRoomState,
   RoomEvent,
