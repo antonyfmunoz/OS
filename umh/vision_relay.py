@@ -546,6 +546,9 @@ async def handle_vision(ws: Any) -> None:
                 await send_json(ws, {
                     "type": "vision_status",
                     "streaming": _stream_active,
+                    "width": _stream_width if _stream_active else 0,
+                    "height": _stream_height if _stream_active else 0,
+                    "fps": _stream_fps if _stream_active else 0,
                     "source": _latest_frame_meta.get("node_id", "none"),
                 })
 
@@ -1173,7 +1176,10 @@ async def _start_stream(
         log.warning("Beast stream_start failed: %s", result)
         _stream_active = False
     for ws in list(_clients):
-        await send_json(ws, {"type": "vision_status", "streaming": True, "fps": _stream_fps})
+        await send_json(ws, {
+            "type": "vision_status", "streaming": True,
+            "fps": _stream_fps, "width": _stream_width, "height": _stream_height,
+        })
 
 
 async def _stop_stream() -> None:
@@ -1182,7 +1188,7 @@ async def _stop_stream() -> None:
     await _dispatch_to_beast("camera.stream_stop", {})
     log.info("stream stopped")
     for ws in list(_clients):
-        await send_json(ws, {"type": "vision_status", "streaming": False})
+        await send_json(ws, {"type": "vision_status", "streaming": False, "width": 0, "height": 0})
 
 
 async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:

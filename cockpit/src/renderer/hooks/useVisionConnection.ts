@@ -103,8 +103,11 @@ export function useVisionConnection(): void {
             requestPresetsWithTimeout()
           } else {
             useVisionStore.getState().setPresetsLoading(false)
-            useVisionStore.getState().setPresetsLoadError('Presets failed to load after 3 retries — Beast may be offline')
-            addNotification('warn', 'Preset load failed', 'relay', 'Could not load presets from Beast after 3 retries', 'check Beast connection')
+            const beastUp = useVisionStore.getState().chainHealth.beastConnected
+            const errMsg = beastUp
+              ? 'Presets unavailable — Beast connected but not responding'
+              : 'Presets unavailable — waiting for Beast'
+            useVisionStore.getState().setPresetsLoadError(errMsg)
           }
         }
       }, PRESET_LOAD_TIMEOUT_MS)
@@ -143,7 +146,13 @@ export function useVisionConnection(): void {
         }
         client.requestSceneState()
         client.requestLabelCorrections()
+        useVisionStore.getState().setDeviceScanLoading(true)
         client.listDevices()
+        setTimeout(() => {
+          if (useVisionStore.getState().deviceScanLoading) {
+            useVisionStore.getState().setDeviceScanLoading(false)
+          }
+        }, 15000)
         setPtzMotion({ state: 'idle', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
       }),
       client.on('disconnected', () => {
@@ -159,6 +168,7 @@ export function useVisionConnection(): void {
         setCameraStatus('off')
         setStreaming(false)
         setCameraSessionActive(false)
+        useVisionStore.getState().setDeviceScanLoading(false)
         cameraStartedInSession = false
         connectedAt = 0
         setPtzMotion({ state: 'disconnected', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
@@ -173,6 +183,11 @@ export function useVisionConnection(): void {
         const isStreaming = d.streaming as boolean
         setStreaming(isStreaming)
         setCameraStatus(isStreaming ? 'live' : 'off')
+        const w = d.width as number | undefined
+        const h = d.height as number | undefined
+        if (w !== undefined && h !== undefined) {
+          useVisionStore.setState({ width: w, height: h })
+        }
       }),
       client.on('camera_presets', (d) => {
         if (presetLoadTimeout) {
@@ -574,6 +589,15 @@ export function useVisionConnection(): void {
         if (lastBeastConnected !== null && lastBeastConnected !== beastNow) {
           if (beastNow) {
             addNotification('info', 'Beast online', 'mesh', 'Beast node connected to vision relay', 'monitoring')
+            const state = useVisionStore.getState()
+            if (state.presetsLoadError || Object.keys(state.presets).length === 0) {
+              presetRetryCount = 0
+              requestPresetsWithTimeout()
+            }
+            if (state.cameraDevices.length === 0) {
+              state.setDeviceScanLoading(true)
+              client.listDevices()
+            }
           } else {
             addNotification('critical', 'Beast offline', 'mesh', 'Beast node disconnected — camera commands unavailable', 'check Beast', true)
             addToast('Beast offline — camera commands unavailable', 'danger')
