@@ -516,6 +516,10 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     if (videoElementsRef.current.has(trackSid)) return
     const el = track.attach() as HTMLVideoElement
     el.id = `lk-video-${trackSid}`
+    el.playsInline = true
+    el.autoplay = true
+    el.muted = true
+    el.setAttribute('playsinline', '')
     el.style.display = 'none'
     el.style.position = 'absolute'
     document.body.appendChild(el)
@@ -944,7 +948,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
         } catch (camErr) {
           const msg = camErr instanceof Error ? camErr.message : 'unknown'
           updateCameraIntent({ actual: false, transition: 'failed', lastError: msg })
-          updateDiag({ cameraPermission: 'denied', cameraState: 'failed', lastVideoError: msg, lastEvent: `camera denied: ${msg}`, lastError: `Camera: ${msg}` })
+          updateDiag({ cameraPermission: 'denied', cameraState: 'failed', lastVideoError: msg, lastEvent: `camera denied: ${msg}` })
         }
         updateDiag({ joinStage: 'connected' })
       }
@@ -1126,14 +1130,12 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'camera toggle failed'
-      // Revert optimistic update
-      updateCameraIntent({ intended: currentlyEnabled, actual: currentlyEnabled, transition: currentlyEnabled ? 'on' : 'off', lastError: msg })
+      updateCameraIntent({ intended: currentlyEnabled, actual: currentlyEnabled, transition: currentlyEnabled ? 'on' : 'failed', lastError: msg })
       setIsVideoOn(currentlyEnabled)
       updateDiag({
-        lastError: `Camera: ${msg}`,
         lastVideoError: msg,
-        cameraPermission: 'denied',
-        cameraState: currentlyEnabled ? 'on' : 'failed',
+        cameraPermission: targetEnabled ? 'denied' : diagnostics.cameraPermission,
+        cameraState: 'failed',
         lastEvent: `camera error: ${msg}`,
       })
     }

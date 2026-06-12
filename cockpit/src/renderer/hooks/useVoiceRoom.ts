@@ -22,6 +22,7 @@ export interface UseVoiceRoomReturn {
   isDeafened: boolean
   isVideoOn: boolean
   preJoinMicEnabled: boolean
+  preJoinVideoEnabled: boolean
   micIntent: MediaIntent
   cameraIntent: MediaIntent
   streams: Map<string, MediaStreamSource[]>
@@ -32,6 +33,7 @@ export interface UseVoiceRoomReturn {
   toggleMute: () => Promise<void>
   toggleDeafen: () => void
   togglePreJoinMic: () => void
+  togglePreJoinVideo: () => void
   toggleVideo: () => Promise<void>
   addScreenShare: () => Promise<void>
   stopStream: (trackSid: string) => Promise<void>
@@ -50,6 +52,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     isDeafened: conf.isDeafened,
     isVideoOn: conf.isVideoOn,
     preJoinMicEnabled: conf.preJoinMicEnabled,
+    preJoinVideoEnabled: conf.preJoinVideoEnabled,
     micIntent: conf.micIntent,
     cameraIntent: conf.cameraIntent,
     streams: conf.streams,
@@ -60,6 +63,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     toggleMute: conf.toggleMute,
     toggleDeafen: conf.toggleDeafen,
     togglePreJoinMic: conf.togglePreJoinMic,
+    togglePreJoinVideo: conf.togglePreJoinVideo,
     toggleVideo: conf.toggleVideo,
     addScreenShare: conf.addScreenShare,
     stopStream: conf.stopStream,
