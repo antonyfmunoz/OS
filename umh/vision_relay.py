@@ -128,6 +128,12 @@ _motion_guard_timeouts: int = 0
 _motion_coalesced: int = 0
 _motion_dropped: int = 0
 
+# ── Command dispatch tracking ───────────────────────────────────
+_last_dispatch_ok_at: float = 0.0
+_last_dispatch_fail_at: float = 0.0
+_last_dispatch_operation: str = ""
+_last_dispatch_rtt_ms: float = 0.0
+
 # ── Digital ROI state ────────────────────────────────────────────
 _roi_x: float = 0.0
 _roi_y: float = 0.0
@@ -1650,6 +1656,9 @@ async def _analyze_current_frame(transcript: str = "") -> dict:
 
 def _dispatch_to_beast_sync(operation: str, params: dict[str, Any]) -> dict[str, Any] | None:
     """Blocking mesh dispatch — runs in thread pool via _dispatch_to_beast."""
+    global _last_dispatch_ok_at, _last_dispatch_fail_at
+    global _last_dispatch_operation, _last_dispatch_rtt_ms
+    t0 = time.monotonic()
     try:
         import urllib.request
 
@@ -1666,8 +1675,18 @@ def _dispatch_to_beast_sync(operation: str, params: dict[str, Any]) -> dict[str,
         )
         with urllib.request.urlopen(req, timeout=12) as resp:
             data = json.loads(resp.read())
-            return data.get("result_data", data)
+            result = data.get("result_data", data)
+            rtt = (time.monotonic() - t0) * 1000
+            if data.get("ok", False):
+                _last_dispatch_ok_at = time.time()
+                _last_dispatch_rtt_ms = rtt
+            else:
+                _last_dispatch_fail_at = time.time()
+            _last_dispatch_operation = operation
+            return result
     except Exception as exc:
+        _last_dispatch_fail_at = time.time()
+        _last_dispatch_operation = operation
         log.warning("mesh dispatch failed (%s): %s", operation, exc)
         return None
 
@@ -1676,6 +1695,20 @@ async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str
     """Non-blocking mesh dispatch — offloads to thread pool."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _dispatch_to_beast_sync, operation, params)
+
+
+async def _command_path_ping_loop() -> None:
+    """Periodically ping Beast with camera.status to keep command_path_ready fresh."""
+    while True:
+        await asyncio.sleep(30)
+        try:
+            result = await _dispatch_to_beast("camera.status", {})
+            if result and result.get("success"):
+                log.debug("command path ping ok (%.1fms)", _last_dispatch_rtt_ms)
+            else:
+                log.debug("command path ping failed: %s", result)
+        except Exception as exc:
+            log.debug("command path ping error: %s", exc)
 
 
 def _build_health() -> dict[str, Any]:
@@ -1785,7 +1818,9 @@ def _build_health() -> dict[str, Any]:
     physical_ptz_available = beast_connected
     digital_roi_available = True
     ptz_mode = "physical_ptz" if physical_ptz_available else "digital_roi"
-    command_path_ready = True
+    # command_path_ready requires beast connected AND a recent successful dispatch
+    dispatch_fresh = (now - _last_dispatch_ok_at) < 120 if _last_dispatch_ok_at > 0 else False
+    command_path_ready = beast_connected and dispatch_fresh
 
     return {
         "status": status,
@@ -1821,6 +1856,10 @@ def _build_health() -> dict[str, Any]:
         "physical_ptz_available": physical_ptz_available,
         "digital_roi_available": digital_roi_available,
         "command_path_ready": command_path_ready,
+        "last_dispatch_ok_at": _last_dispatch_ok_at,
+        "last_dispatch_fail_at": _last_dispatch_fail_at,
+        "last_dispatch_operation": _last_dispatch_operation,
+        "last_dispatch_rtt_ms": round(_last_dispatch_rtt_ms, 1),
         "roi": _get_roi(),
         "blockers": blockers,
         "recovery_action": recovery_action,
@@ -1912,6 +1951,7 @@ async def main() -> None:
 
     log.info("Vision relay starting on ws://%s:%d/vision", HOST, PORT)
     asyncio.create_task(_health_server())
+    asyncio.create_task(_command_path_ping_loop())
 
     async with websockets.serve(
         handle_vision, HOST, PORT,

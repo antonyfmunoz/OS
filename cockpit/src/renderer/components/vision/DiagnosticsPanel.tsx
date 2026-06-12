@@ -117,6 +117,11 @@ export function DiagnosticsPanel({
             <span>camera: <span className={chainHealth.cameraStreaming ? 'text-ok' : 'text-danger'}>{chainHealth.cameraStreaming ? 'streaming' : chainHealth.cameraAvailable ? 'available' : 'UNAVAILABLE'}</span></span>
             <span>ptz_mode: <span className={chainHealth.ptzMode === 'physical_ptz' ? 'text-ok' : 'text-cyan'}>{chainHealth.ptzMode}</span></span>
             <span>cmd_path: <span className={chainHealth.commandPathReady ? 'text-ok' : 'text-danger'}>{chainHealth.commandPathReady ? 'ready' : 'BLOCKED'}</span></span>
+            <span>dispatch_rtt: <span className={clsx(
+              chainHealth.lastDispatchRttMs > 500 ? 'text-danger' : chainHealth.lastDispatchRttMs > 100 ? 'text-warning' : 'text-ok',
+            )}>{chainHealth.lastDispatchRttMs > 0 ? `${chainHealth.lastDispatchRttMs}ms` : '—'}</span></span>
+            <span>last_op: {chainHealth.lastDispatchOperation || '—'}</span>
+            <span>dispatch_ok: {chainHealth.lastDispatchOkAt > 0 ? `${Math.round(Date.now() / 1000 - chainHealth.lastDispatchOkAt)}s ago` : 'never'}</span>
             {chainHealth.ptzMode === 'digital_roi' && (
               <>
                 <span>roi_x: {chainHealth.roi.x.toFixed(3)}</span>
