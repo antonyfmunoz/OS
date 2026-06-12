@@ -57,6 +57,10 @@ export function StatusHud() {
   const ptzColor: StatusColor = !connected ? 'off' : hasPtzHardware ? 'ok' : chainHealth.digitalRoiAvailable ? 'warn' : 'off'
   const ptzLabel = !connected ? 'ptz' : hasPtzHardware ? 'ptz hw' : chainHealth.digitalRoiAvailable ? 'ptz digital' : 'ptz unavailable'
 
+  const gpuDevice = detectorStatus?.device
+  const gpuColor: StatusColor = !beastEffective ? 'off' : gpuDevice === 'cuda' ? 'ok' : gpuDevice === 'cpu' ? 'warn' : 'off'
+  const gpuLabel = !beastEffective ? 'gpu' : gpuDevice === 'cuda' ? 'gpu cuda' : gpuDevice === 'cpu' ? 'gpu → cpu' : 'gpu unknown'
+
   const secColor: StatusColor = securityMode.active ? 'danger' : 'off'
   const secLabel = securityMode.active ? `security: ${securityMode.mode}` : 'security off'
 
@@ -108,6 +112,7 @@ export function StatusHud() {
         <StatusChip label={detectorLabel} color={detectorColor} />
         <StatusChip label={trackerLabel} color={trackerColor} />
         <StatusChip label={ptzLabel} color={ptzColor} />
+        <StatusChip label={gpuLabel} color={gpuColor} />
         <StatusChip label={secLabel} color={secColor} />
         {followMode.active && <StatusChip label={`follow: ${followMode.target}`} color="ok" />}
       </div>
