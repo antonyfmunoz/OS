@@ -382,8 +382,9 @@ class CameraAdapter:
             result_slot: list[dict[str, Any]] = []
             done = threading.Event()
             self._ptz_queue.put(({}, done, result_slot))
-            if done.wait(timeout=5.0) and result_slot:
+            if done.wait(timeout=2.0) and result_slot:
                 return result_slot[0]
+            logger.warning("PTZ read timed out (stream_active=%s, queue_size=%d)", self._stream_active, self._ptz_queue.qsize())
             return {"success": False, "error": "PTZ read timed out"}
 
         import cv2
@@ -433,8 +434,9 @@ class CameraAdapter:
             if zoom is not None:
                 ptz_params["zoom"] = zoom
             self._ptz_queue.put((ptz_params, done, result_slot))
-            if done.wait(timeout=10.0) and result_slot:
+            if done.wait(timeout=3.0) and result_slot:
                 return result_slot[0]
+            logger.warning("PTZ set timed out (stream_active=%s, queue_size=%d)", self._stream_active, self._ptz_queue.qsize())
             return {"success": False, "error": "PTZ command timed out"}
 
         import cv2
