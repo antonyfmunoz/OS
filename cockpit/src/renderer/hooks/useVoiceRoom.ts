@@ -100,6 +100,9 @@ const INITIAL_BACKOFF_MS = 1000
 
 function detectScreenShareSupport(): boolean {
   if (typeof navigator === 'undefined') return false
+  const isNativeApp = !!(window as Record<string, unknown>).Capacitor
+    || !!(window as Record<string, unknown>).ReactNativeWebView
+  if (isNativeApp) return true
   return typeof navigator.mediaDevices?.getDisplayMedia === 'function'
 }
 
