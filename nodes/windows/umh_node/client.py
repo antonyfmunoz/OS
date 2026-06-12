@@ -12,6 +12,7 @@ import logging
 import platform
 import socket
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
 
 import websockets
@@ -44,6 +45,7 @@ class NodeClient:
 
         self._loop: asyncio.AbstractEventLoop | None = None
         self._on_workspace_change: Callable[[dict[str, Any]], None] | None = None
+        self._camera_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="cam")
 
     @property
     def connected(self) -> bool:
@@ -306,7 +308,15 @@ class NodeClient:
 
         t0 = time.monotonic()
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, adapter.execute, cap_name, cap_params)
+        executor = self._camera_executor if adapter_key == "camera" else None
+        try:
+            result = await asyncio.wait_for(
+                loop.run_in_executor(executor, adapter.execute, cap_name, cap_params),
+                timeout=8.0,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("capability %s timed out after 8s", cap_name)
+            result = {"success": False, "error": f"{cap_name} timed out"}
         duration = (time.monotonic() - t0) * 1000
 
         await self._ws.send(
