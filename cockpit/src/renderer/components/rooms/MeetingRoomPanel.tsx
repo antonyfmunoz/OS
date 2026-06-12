@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   Video,
   VideoOff,
@@ -113,19 +113,30 @@ export function MeetingRoomPanel({ channelId, onOpenChat }: { channelId: string;
     if (activeServerId) fetchInvites(activeServerId)
   }, [channelId, fetchMeeting, activeServerId, fetchInvites])
 
+  const endMeeting = useRoomsStore((s) => s.endMeeting)
+
   const handleCopyInvite = async () => {
     let code = invites.find((inv) => !inv.revoked)?.code
     if (!code && activeServerId) {
-      const invite = await createInvite(activeServerId, channelId, null, 24, null)
+      const invite = await createInvite(activeServerId, {
+        channel_id: channelId,
+        room_type: 'meeting',
+        expires_hours: 24,
+      })
       code = invite?.code
     }
     if (code) {
-      const link = `${window.location.origin}/invite/${code}`
+      const link = `${window.location.origin}/join/${code}`
       await navigator.clipboard.writeText(link)
       setCopiedLink(true)
       setTimeout(() => setCopiedLink(false), 2000)
     }
   }
+
+  const handleEndMeeting = useCallback(() => {
+    endMeeting(channelId)
+    conf.leave()
+  }, [channelId, endMeeting, conf])
 
   const allStreams: Array<MediaStreamSource & { participantName: string }> = []
   conf.streams.forEach((sources, identity) => {
@@ -257,6 +268,7 @@ export function MeetingRoomPanel({ channelId, onOpenChat }: { channelId: string;
             error={conf.error}
             onJoin={conf.join}
             onLeave={conf.leave}
+            onEndMeeting={handleEndMeeting}
             onToggleMute={conf.toggleMute}
             onToggleDeafen={conf.toggleDeafen}
             onTogglePreJoinMic={conf.togglePreJoinMic}
@@ -461,6 +473,7 @@ function MeetingControlBar({
   error,
   onJoin,
   onLeave,
+  onEndMeeting,
   onToggleMute,
   onToggleDeafen,
   onTogglePreJoinMic,
@@ -482,6 +495,7 @@ function MeetingControlBar({
   error: string | null
   onJoin: () => void
   onLeave: () => void
+  onEndMeeting: () => void
   onToggleMute: () => void
   onToggleDeafen: () => void
   onTogglePreJoinMic: () => void
@@ -657,6 +671,13 @@ function MeetingControlBar({
         style={{ background: 'var(--color-danger)', color: 'var(--color-canvas)' }}
       >
         <PhoneOff size={13} /> <span className="hidden sm:inline">Leave</span>
+      </button>
+      <button onClick={onEndMeeting}
+        className="flex items-center gap-1.5 text-[10px] font-mono px-2 sm:px-3 py-2 rounded transition-colors hidden sm:flex"
+        style={{ background: 'var(--color-danger)', color: 'var(--color-canvas)', opacity: 0.8 }}
+        title="End meeting for all participants"
+      >
+        <PhoneOff size={13} /> End Meeting
       </button>
 
       {shareMenuOpen && (
@@ -1063,6 +1084,9 @@ function ParticipantStrip({ participants }: { participants: ConferenceParticipan
           <span className="text-[9px] font-mono" style={{ color: 'var(--color-text-primary)' }}>
             {p.name}
           </span>
+          {p.identity.startsWith('guest-') && (
+            <span className="text-[6px] px-0.5 rounded" style={{ background: 'var(--color-warn-dim, rgba(255,170,0,0.1))', color: 'var(--color-warn, #ffaa00)' }}>GUEST</span>
+          )}
           <div className="flex items-center gap-1">
             {p.isVideoOn && <Video size={9} style={{ color: 'var(--color-ok)' }} />}
             {p.streamCount > 0 && <ScreenShare size={9} style={{ color: 'var(--color-cyan)' }} />}
@@ -1531,6 +1555,7 @@ function DiagnosticsPanel({ diagnostics, state }: { diagnostics: ConferenceDiagn
           <DiagRow label="video sid" value={diagnostics.videoTrackSid} />
           {diagnostics.lastVideoError && <DiagRow label="cam error" value={diagnostics.lastVideoError} error />}
           <DiagRow label="screenshare" value={diagnostics.screenShareSupport ? 'yes' : 'no'} />
+          {diagnostics.lastScreenShareError && <DiagRow label="share error" value={diagnostics.lastScreenShareError} error />}
           <DiagRow label="reconnects" value={String(diagnostics.reconnectAttempts)} />
           <DiagRow label="published" value={String(diagnostics.publishedTrackCount)} />
           <DiagRow label="subscribed" value={String(diagnostics.subscribedTrackCount)} />

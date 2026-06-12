@@ -872,3 +872,188 @@ class TestSharedEngineIsolation:
         assert voice_meeting["objective"] == ""
         assert meet_meeting["objective"] == "Close deal"
         assert len(meet_meeting["agenda"]) == 2
+
+
+class TestGuestInviteLinks:
+    @pytest.mark.asyncio
+    async def test_invite_has_new_fields(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        invite = await mod.create_invite(
+            server["id"],
+            mod.CreateInviteReq(
+                channel_id=ch["id"],
+                room_type="voice",
+                label="Client call",
+                max_uses=5,
+                expires_hours=24,
+                allowed_email_domains=["acme.com"],
+                permissions=mod.GuestPermissions(can_speak=True, can_video=True, can_screen_share=False, can_chat=True),
+            ),
+            _MOCK_USER,
+        )
+        assert invite["room_type"] == "voice"
+        assert invite["label"] == "Client call"
+        assert invite["guest_role"] == "temporary_guest"
+        assert invite["permissions"]["can_speak"] is True
+        assert invite["permissions"]["can_screen_share"] is False
+        assert invite["allowed_email_domains"] == ["acme.com"]
+
+    @pytest.mark.asyncio
+    async def test_invite_info_endpoint(self):
+        server = await mod.create_server(mod.CreateServerReq(name="Info Test"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        invite = await mod.create_invite(
+            server["id"],
+            mod.CreateInviteReq(channel_id=ch["id"], room_type="voice", label="Demo"),
+            _MOCK_USER,
+        )
+        info = await mod.get_invite_info(invite["code"])
+        assert info["valid"] is True
+        assert info["room_name"] == "voice"
+        assert info["room_type"] == "voice"
+        assert info["label"] == "Demo"
+        assert info["requires_email"] is False
+
+    @pytest.mark.asyncio
+    async def test_invite_info_invalid_code(self):
+        info = await mod.get_invite_info("nonexistent_code")
+        assert info["valid"] is False
+
+    @pytest.mark.asyncio
+    async def test_invite_info_email_required_when_restricted(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        invite = await mod.create_invite(
+            server["id"],
+            mod.CreateInviteReq(
+                channel_id=ch["id"],
+                allowed_email_domains=["company.com"],
+            ),
+            _MOCK_USER,
+        )
+        info = await mod.get_invite_info(invite["code"])
+        assert info["requires_email"] is True
+
+    @pytest.mark.asyncio
+    async def test_guest_join_increments_uses(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        invite = await mod.create_invite(
+            server["id"],
+            mod.CreateInviteReq(channel_id=ch["id"], max_uses=3),
+            _MOCK_USER,
+        )
+        result = await mod.guest_join_via_invite(invite["code"], mod.GuestJoinReq(guest_name="Guest1"))
+        assert result["room"] == f"room-{ch['id']}"
+        assert result["identity"].startswith("guest-")
+        # Check uses incremented
+        invites = mod._load("invites")
+        updated = next(i for i in invites if i["id"] == invite["id"])
+        assert updated["uses"] == 1
+
+    @pytest.mark.asyncio
+    async def test_guest_join_respects_max_uses(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        invite = await mod.create_invite(
+            server["id"],
+            mod.CreateInviteReq(channel_id=ch["id"], max_uses=1),
+            _MOCK_USER,
+        )
+        await mod.guest_join_via_invite(invite["code"], mod.GuestJoinReq(guest_name="Guest1"))
+        with pytest.raises(HTTPException) as exc_info:
+            await mod.guest_join_via_invite(invite["code"], mod.GuestJoinReq(guest_name="Guest2"))
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_guest_join_validates_email_domain(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        invite = await mod.create_invite(
+            server["id"],
+            mod.CreateInviteReq(channel_id=ch["id"], allowed_email_domains=["acme.com"]),
+            _MOCK_USER,
+        )
+        # Valid domain
+        result = await mod.guest_join_via_invite(invite["code"], mod.GuestJoinReq(guest_name="Guest", guest_email="john@acme.com"))
+        assert result["identity"].startswith("guest-")
+        # Invalid domain
+        with pytest.raises(HTTPException) as exc_info:
+            await mod.guest_join_via_invite(invite["code"], mod.GuestJoinReq(guest_name="Guest2", guest_email="eve@evil.com"))
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_guest_join_requires_email_when_restricted(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        invite = await mod.create_invite(
+            server["id"],
+            mod.CreateInviteReq(channel_id=ch["id"], allowed_emails=["john@acme.com"]),
+            _MOCK_USER,
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            await mod.guest_join_via_invite(invite["code"], mod.GuestJoinReq(guest_name="No Email"))
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_revoked_invite_not_joinable(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        invite = await mod.create_invite(
+            server["id"],
+            mod.CreateInviteReq(channel_id=ch["id"]),
+            _MOCK_USER,
+        )
+        await mod.revoke_invite(invite["id"], _MOCK_USER)
+        with pytest.raises(HTTPException) as exc_info:
+            await mod.guest_join_via_invite(invite["code"], mod.GuestJoinReq(guest_name="Guest"))
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_guest_join_audited(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        invite = await mod.create_invite(
+            server["id"],
+            mod.CreateInviteReq(channel_id=ch["id"]),
+            _MOCK_USER,
+        )
+        await mod.guest_join_via_invite(invite["code"], mod.GuestJoinReq(guest_name="TestGuest"))
+        events = await mod.get_audit_log(server["id"], _MOCK_USER)
+        assert any(e["type"] == "guest_joined" for e in events)
+
+
+class TestEndMeeting:
+    @pytest.mark.asyncio
+    async def test_end_meeting_sets_ended_at(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.get_meeting(ch["id"], _MOCK_USER)
+        result = await mod.end_meeting(ch["id"], _MOCK_USER)
+        assert result["ended_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_end_meeting_revokes_invites(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.get_meeting(ch["id"], _MOCK_USER)
+        invite = await mod.create_invite(
+            server["id"],
+            mod.CreateInviteReq(channel_id=ch["id"], room_type="meeting"),
+            _MOCK_USER,
+        )
+        assert invite["revoked"] is False
+        await mod.end_meeting(ch["id"], _MOCK_USER)
+        invites = mod._load("invites")
+        updated = next(i for i in invites if i["id"] == invite["id"])
+        assert updated["revoked"] is True
+
+    @pytest.mark.asyncio
+    async def test_end_meeting_audited(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.get_meeting(ch["id"], _MOCK_USER)
+        await mod.end_meeting(ch["id"], _MOCK_USER)
+        events = await mod.get_audit_log(server["id"], _MOCK_USER)
+        assert any(e["type"] == "meeting_ended" for e in events)
