@@ -17,49 +17,6 @@ export interface OverlayMetadata {
   model?: string
 }
 
-const SYNTHETIC_DIAG_OVERLAYS: OverlayMetadata[] = [
-  {
-    type: 'object',
-    track_id: 'diag_tl',
-    label: 'DIAG TL',
-    confidence: 1.0,
-    bbox: { x: 0.02, y: 0.02, w: 0.18, h: 0.12 },
-    color: '#22d3ee',
-  },
-  {
-    type: 'object',
-    track_id: 'diag_tr',
-    label: 'DIAG TR',
-    confidence: 1.0,
-    bbox: { x: 0.80, y: 0.02, w: 0.18, h: 0.12 },
-    color: '#f59e0b',
-  },
-  {
-    type: 'object',
-    track_id: 'diag_center',
-    label: 'PIPELINE OK',
-    confidence: 1.0,
-    bbox: { x: 0.35, y: 0.38, w: 0.30, h: 0.18 },
-    color: '#22c55e',
-  },
-  {
-    type: 'object',
-    track_id: 'diag_bl',
-    label: 'DIAG BL',
-    confidence: 1.0,
-    bbox: { x: 0.02, y: 0.80, w: 0.18, h: 0.12 },
-    color: '#a78bfa',
-  },
-  {
-    type: 'object',
-    track_id: 'diag_br',
-    label: 'DIAG BR',
-    confidence: 1.0,
-    bbox: { x: 0.80, y: 0.80, w: 0.18, h: 0.12 },
-    color: '#f43f5e',
-  },
-]
-
 interface VisionOverlayProps {
   overlays?: OverlayMetadata[]
   width: number
@@ -70,27 +27,15 @@ interface VisionOverlayProps {
 export function VisionOverlay({ overlays = [], width, height, visible = true }: VisionOverlayProps) {
   const trackerStack = useVisionStore((s) => s.trackerStack)
   const securityMode = useVisionStore((s) => s.securityMode)
-  const diagnosticOverlay = useVisionStore((s) => s.diagnosticOverlay)
   const labelCorrections = useVisionStore((s) => s.labelCorrections)
 
-  if (!visible && !diagnosticOverlay) return null
+  if (!visible) return null
 
-  const realOverlays = overlays.filter(o => !o.track_id?.startsWith('diag_'))
-  const diagOverlays = diagnosticOverlay ? SYNTHETIC_DIAG_OVERLAYS : []
-
-  const effectiveOverlays: OverlayMetadata[] = []
-
-  if (visible) {
-    effectiveOverlays.push(...realOverlays.map((o) => {
-      const correction = labelCorrections[o.track_id]
-      if (correction) return { ...o, label: correction.correctedLabel }
-      return o
-    }))
-  }
-
-  if (diagnosticOverlay) {
-    effectiveOverlays.push(...diagOverlays)
-  }
+  const effectiveOverlays = overlays.map((o) => {
+    const correction = labelCorrections[o.track_id]
+    if (correction) return { ...o, label: correction.correctedLabel }
+    return o
+  })
 
   if (effectiveOverlays.length === 0) return null
 
@@ -117,8 +62,6 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
       )}
 
       {effectiveOverlays.map((overlay) => {
-        const isDiagnostic = overlay.track_id?.startsWith('diag_')
-
         const typeToCategory: Record<string, string> = {
           object: 'object_detector',
           face: 'face_tracker',
@@ -127,7 +70,7 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
           motion: 'motion_tracker',
         }
         const cat = typeToCategory[overlay.type]
-        if (!isDiagnostic && hasTrackerFilters && cat && !enabledCategories.has(cat)) return null
+        if (hasTrackerFilters && cat && !enabledCategories.has(cat)) return null
 
         const px = overlay.bbox.x * width
         const py = overlay.bbox.y * height

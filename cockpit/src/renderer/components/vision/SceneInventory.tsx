@@ -19,9 +19,8 @@ export function SceneInventory() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
 
-  const realOverlays = overlays.filter((o) => !o.track_id?.startsWith('diag_'))
-  const visible = realOverlays.slice(0, MAX_CHIPS)
-  const overflow = realOverlays.length - MAX_CHIPS
+  const visible = overlays.slice(0, MAX_CHIPS)
+  const overflow = overlays.length - MAX_CHIPS
 
   const [flashingId, setFlashingId] = useState<string | null>(null)
 
@@ -98,7 +97,7 @@ export function SceneInventory() {
     }
   }, [cancelLongPress])
 
-  if (realOverlays.length === 0) {
+  if (overlays.length === 0) {
     return (
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
@@ -119,7 +118,7 @@ export function SceneInventory() {
           Scene Inventory
         </span>
         <span className="text-[10px] font-mono text-text-quaternary">
-          {realOverlays.length} object{realOverlays.length !== 1 ? 's' : ''}
+          {overlays.length} object{overlays.length !== 1 ? 's' : ''}
           {Object.keys(labelCorrections).length > 0 && (
             <span className="ml-1 text-warning">
               ({Object.keys(labelCorrections).length} corrected)
