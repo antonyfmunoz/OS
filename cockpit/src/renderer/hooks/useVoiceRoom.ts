@@ -59,7 +59,11 @@ export interface VoiceDiagnostics {
   publisherState: string | null
   subscriberState: string | null
   micPermission: 'unknown' | 'granted' | 'denied'
+  micEnabledRequested: boolean
+  micEnabledActual: boolean
+  audioTrackSid: string | null
   cameraPermission: 'unknown' | 'granted' | 'denied'
+  cameraEnabledActual: boolean
   screenShareSupport: boolean
   lastEvent: string | null
   lastError: string | null
@@ -74,12 +78,14 @@ export interface UseVoiceRoomReturn {
   participants: VoiceParticipant[]
   isMuted: boolean
   isVideoOn: boolean
+  preJoinMicEnabled: boolean
   streams: Map<string, MediaStreamSource[]>
   localStreams: MediaStreamSource[]
   diagnostics: VoiceDiagnostics
   join: () => Promise<void>
   leave: () => void
   toggleMute: () => Promise<void>
+  togglePreJoinMic: () => void
   toggleVideo: () => Promise<void>
   addScreenShare: () => Promise<void>
   stopStream: (trackSid: string) => Promise<void>
@@ -155,6 +161,15 @@ function participantToInfo(p: Participant, streams: MediaStreamSource[]): VoiceP
   }
 }
 
+function findAudioTrackSid(p: LocalParticipant): string | null {
+  for (const pub of p.trackPublications.values()) {
+    if (pub.source === Track.Source.Microphone && pub.track) {
+      return pub.trackSid
+    }
+  }
+  return null
+}
+
 const INITIAL_DIAGNOSTICS: VoiceDiagnostics = {
   livekitUrl: null,
   roomName: null,
@@ -165,7 +180,11 @@ const INITIAL_DIAGNOSTICS: VoiceDiagnostics = {
   publisherState: null,
   subscriberState: null,
   micPermission: 'unknown',
+  micEnabledRequested: true,
+  micEnabledActual: false,
+  audioTrackSid: null,
   cameraPermission: 'unknown',
+  cameraEnabledActual: false,
   screenShareSupport: detectScreenShareSupport(),
   lastEvent: null,
   lastError: null,
@@ -179,12 +198,14 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
   const intentionalDisconnectRef = useRef(false)
   const videoElementsRef = useRef<Map<string, HTMLVideoElement>>(new Map())
   const localScreenTracksRef = useRef<Map<string, LocalVideoTrack>>(new Map())
+  const preJoinMicRef = useRef(true)
 
   const [state, setState] = useState<VoiceRoomState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [participants, setParticipants] = useState<VoiceParticipant[]>([])
-  const [isMuted, setIsMuted] = useState(true)
+  const [isMuted, setIsMuted] = useState(false)
   const [isVideoOn, setIsVideoOn] = useState(false)
+  const [preJoinMicEnabled, setPreJoinMicEnabled] = useState(true)
   const [streams, setStreams] = useState<Map<string, MediaStreamSource[]>>(new Map())
   const [diagnostics, setDiagnostics] = useState<VoiceDiagnostics>({ ...INITIAL_DIAGNOSTICS })
 
@@ -200,6 +221,8 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     const camEnabled = room.localParticipant.isCameraEnabled
     setIsMuted(!micEnabled)
     setIsVideoOn(camEnabled)
+
+    const audioSid = findAudioTrackSid(room.localParticipant)
 
     const allStreams = new Map<string, MediaStreamSource[]>()
     const allParticipants: VoiceParticipant[] = []
@@ -225,7 +248,13 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
         if (pub.isSubscribed) subscribedCount++
       })
     })
-    updateDiag({ publishedTrackCount: publishedCount, subscribedTrackCount: subscribedCount })
+    updateDiag({
+      publishedTrackCount: publishedCount,
+      subscribedTrackCount: subscribedCount,
+      micEnabledActual: micEnabled,
+      cameraEnabledActual: camEnabled,
+      audioTrackSid: audioSid,
+    })
   }, [updateDiag])
 
   const attachVideoTrack = useCallback((trackSid: string, track: { attach: () => HTMLMediaElement }) => {
@@ -246,10 +275,10 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     }
   }, [])
 
-  const doConnect = useCallback(async () => {
+  const doConnect = useCallback(async (micEnabled: boolean) => {
     setState('connecting')
     setError(null)
-    updateDiag({ lastEvent: 'requesting token...' })
+    updateDiag({ lastEvent: 'requesting token...', micEnabledRequested: micEnabled })
 
     try {
       const res = await fetchApi(`/rooms/channels/${channelId}/voice/token`, {
@@ -389,16 +418,22 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
 
       await room.connect(res.url, res.token)
       updateDiag({
-        lastEvent: 'connected, enabling mic...',
         participantIdentity: room.localParticipant.identity,
       })
 
-      try {
-        await room.localParticipant.setMicrophoneEnabled(true)
-        updateDiag({ micPermission: 'granted', lastEvent: 'mic enabled' })
-      } catch (micErr) {
-        const msg = micErr instanceof Error ? micErr.message : 'unknown'
-        updateDiag({ micPermission: 'denied', lastEvent: `mic error: ${msg}`, lastError: msg })
+      if (micEnabled) {
+        updateDiag({ lastEvent: 'connected, enabling mic...' })
+        try {
+          await room.localParticipant.setMicrophoneEnabled(true)
+          updateDiag({ micPermission: 'granted', lastEvent: 'mic enabled' })
+        } catch (micErr) {
+          const msg = micErr instanceof Error ? micErr.message : 'unknown'
+          updateDiag({ micPermission: 'denied', lastEvent: `mic denied: ${msg}`, lastError: `Mic: ${msg}` })
+          setIsMuted(true)
+        }
+      } else {
+        updateDiag({ lastEvent: 'connected (mic intentionally muted)' })
+        setIsMuted(true)
       }
 
       syncAllState()
@@ -417,10 +452,20 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
   const join = useCallback(async () => {
     if (roomRef.current) return
     intentionalDisconnectRef.current = false
-    setIsMuted(true)
+    const mic = preJoinMicRef.current
+    setIsMuted(!mic)
     setIsVideoOn(false)
-    await doConnect()
+    await doConnect(mic)
   }, [doConnect])
+
+  const togglePreJoinMic = useCallback(() => {
+    setPreJoinMicEnabled((prev) => {
+      const next = !prev
+      preJoinMicRef.current = next
+      setIsMuted(!next)
+      return next
+    })
+  }, [])
 
   const leave = useCallback(() => {
     intentionalDisconnectRef.current = true
@@ -438,7 +483,9 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     setState('idle')
     setParticipants([])
     setError(null)
-    setIsMuted(true)
+    setPreJoinMicEnabled(true)
+    preJoinMicRef.current = true
+    setIsMuted(false)
     setIsVideoOn(false)
     setStreams(new Map())
     setDiagnostics({ ...INITIAL_DIAGNOSTICS })
@@ -448,12 +495,18 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     const room = roomRef.current
     if (!room) return
     const currentlyEnabled = room.localParticipant.isMicrophoneEnabled
+    const targetEnabled = !currentlyEnabled
+    updateDiag({ micEnabledRequested: targetEnabled })
     try {
-      await room.localParticipant.setMicrophoneEnabled(!currentlyEnabled)
+      await room.localParticipant.setMicrophoneEnabled(targetEnabled)
+      updateDiag({ micPermission: 'granted' })
     } catch (err) {
-      updateDiag({ lastError: err instanceof Error ? err.message : 'mic toggle failed', micPermission: 'denied' })
+      const msg = err instanceof Error ? err.message : 'mic toggle failed'
+      updateDiag({ lastError: `Mic: ${msg}`, micPermission: 'denied' })
     }
-    setIsMuted(!room.localParticipant.isMicrophoneEnabled)
+    const actualEnabled = room.localParticipant.isMicrophoneEnabled
+    setIsMuted(!actualEnabled)
+    updateDiag({ micEnabledActual: actualEnabled })
     syncAllState()
   }, [syncAllState, updateDiag])
 
@@ -468,12 +521,16 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
         cameraPermission: 'granted',
       })
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'camera toggle failed'
       updateDiag({
-        lastError: err instanceof Error ? err.message : 'camera toggle failed',
+        lastError: `Camera: ${msg}`,
         cameraPermission: 'denied',
+        lastEvent: `camera error: ${msg}`,
       })
     }
-    setIsVideoOn(room.localParticipant.isCameraEnabled)
+    const actualEnabled = room.localParticipant.isCameraEnabled
+    setIsVideoOn(actualEnabled)
+    updateDiag({ cameraEnabledActual: actualEnabled })
     syncAllState()
   }, [syncAllState, updateDiag])
 
@@ -500,7 +557,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
           if (pub.trackSid) {
             localScreenTracksRef.current.set(pub.trackSid, videoTrack)
           }
-          updateDiag({ lastEvent: `screen share started` })
+          updateDiag({ lastEvent: 'screen share started' })
         } else if (track.kind === Track.Kind.Audio) {
           await room.localParticipant.publishTrack(track, {
             source: Track.Source.ScreenShareAudio,
@@ -589,12 +646,14 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     participants,
     isMuted,
     isVideoOn,
+    preJoinMicEnabled,
     streams,
     localStreams,
     diagnostics,
     join,
     leave,
     toggleMute,
+    togglePreJoinMic,
     toggleVideo,
     addScreenShare,
     stopStream,
