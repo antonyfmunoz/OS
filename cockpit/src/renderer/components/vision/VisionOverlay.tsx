@@ -166,6 +166,7 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
                 label={overlay.label}
                 confidence={overlay.confidence}
                 color={overlay.color || '#22c55e'}
+                trackId={overlay.track_id}
               />
             )
         }

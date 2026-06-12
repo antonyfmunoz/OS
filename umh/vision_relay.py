@@ -128,18 +128,47 @@ _motion_guard_timeouts: int = 0
 _motion_coalesced: int = 0
 _motion_dropped: int = 0
 
+# ── Digital ROI state ────────────────────────────────────────────
+_roi_x: float = 0.0
+_roi_y: float = 0.0
+_roi_zoom: float = 1.0
+_ROI_MIN_ZOOM = 1.0
+_ROI_MAX_ZOOM = 5.0
+
+
+def _get_roi() -> dict[str, float]:
+    return {"x": round(_roi_x, 4), "y": round(_roi_y, 4), "zoom": round(_roi_zoom, 2)}
+
+
+def _apply_roi_delta(pan_delta: float, tilt_delta: float, zoom_delta: float) -> None:
+    global _roi_x, _roi_y, _roi_zoom
+    viewport = 1.0 / _roi_zoom
+    _roi_x = max(0.0, min(1.0 - viewport, _roi_x + pan_delta * 0.02))
+    _roi_y = max(0.0, min(1.0 - viewport, _roi_y + tilt_delta * 0.02))
+    _roi_zoom = max(_ROI_MIN_ZOOM, min(_ROI_MAX_ZOOM, _roi_zoom + zoom_delta * 0.1))
+    new_viewport = 1.0 / _roi_zoom
+    _roi_x = max(0.0, min(1.0 - new_viewport, _roi_x))
+    _roi_y = max(0.0, min(1.0 - new_viewport, _roi_y))
+
+
+def _is_physical_ptz_available() -> bool:
+    """True if Beast is on mesh — we can dispatch hardware PTZ commands."""
+    return _latest_detector_status.get("loaded", False) or _last_frame_at > 0
+
 
 async def _motion_loop() -> None:
-    """Beast-side PTZ motion loop — emits hardware commands at fixed cadence."""
+    """PTZ motion loop — dispatches to Beast hardware or updates digital ROI."""
     global _motion_active, _motion_pan_velocity, _motion_tilt_velocity
     global _motion_zoom_velocity, _motion_loop_hz, _motion_guard_timeouts
 
     cadence_hz = 20
     interval = 1.0 / cadence_hz
     guard_timeout_s = _motion_guard_ms / 1000.0
+    use_physical = _is_physical_ptz_available()
 
-    log.info("motion loop started: motion_id=%s cadence=%dHz guard=%dms",
-             _motion_id, cadence_hz, _motion_guard_ms)
+    log.info("motion loop started: motion_id=%s cadence=%dHz guard=%dms mode=%s",
+             _motion_id, cadence_hz, _motion_guard_ms,
+             "physical_ptz" if use_physical else "digital_roi")
 
     loop_count = 0
     loop_start = time.time()
@@ -154,7 +183,8 @@ async def _motion_loop() -> None:
                             now - _motion_last_update, _motion_id)
                 _motion_guard_timeouts += 1
                 _motion_active = False
-                await _dispatch_motion_stop()
+                if use_physical:
+                    await _dispatch_motion_stop()
                 await _broadcast_motion_state("idle")
                 break
 
@@ -171,11 +201,18 @@ async def _motion_loop() -> None:
                 zoom_delta = round(_motion_zoom_velocity * _motion_speed * 10)
 
             if pan_delta != 0 or tilt_delta != 0 or zoom_delta != 0:
-                await _dispatch_to_beast("camera.set_position_relative", {
-                    "pan_delta": pan_delta,
-                    "tilt_delta": tilt_delta,
-                    "zoom_delta": zoom_delta,
-                })
+                if use_physical:
+                    await _dispatch_to_beast("camera.set_position_relative", {
+                        "pan_delta": pan_delta,
+                        "tilt_delta": tilt_delta,
+                        "zoom_delta": zoom_delta,
+                    })
+                else:
+                    _apply_roi_delta(
+                        float(pan_delta),
+                        float(tilt_delta),
+                        float(zoom_delta),
+                    )
 
             loop_count += 1
             elapsed_total = time.time() - loop_start
@@ -299,6 +336,8 @@ async def _broadcast_motion_state(state: str) -> None:
         "loop_cadence_hz": _motion_loop_hz,
         "guard_timeout_events": _motion_guard_timeouts,
         "coalesced_commands": _motion_coalesced,
+        "ptz_mode": "physical_ptz" if _is_physical_ptz_available() else "digital_roi",
+        "roi": _get_roi(),
     }
     for ws in list(_clients):
         await send_json(ws, msg)
@@ -692,6 +731,58 @@ async def handle_vision(ws: Any) -> None:
             elif msg_type == "vision_scene_state":
                 state = _get_scene_state()
                 await send_json(ws, {"type": "vision_scene_state", **state})
+
+            elif msg_type == "vision_scene_describe":
+                result = await _dispatch_to_beast("camera.scene_describe", {})
+                if result and result.get("success"):
+                    await send_json(ws, {"type": "vision_scene_describe_result", "description": result["description"], "success": True})
+                else:
+                    state = _get_scene_state()
+                    summary = state.get("scene", {}).get("summary", "") if isinstance(state.get("scene"), dict) else ""
+                    await send_json(ws, {"type": "vision_scene_describe_result", "description": summary or "Scene data unavailable.", "success": bool(summary)})
+
+            elif msg_type == "vision_active_tracks":
+                result = await _dispatch_to_beast("camera.active_tracks", {})
+                if result and result.get("success"):
+                    await send_json(ws, {"type": "vision_active_tracks_result", "tracks": result["tracks"], "success": True})
+                else:
+                    await send_json(ws, {"type": "vision_active_tracks_result", "tracks": [], "success": False})
+
+            elif msg_type == "vision_track_query":
+                label = msg.get("label", "")
+                result = await _dispatch_to_beast("camera.track_query", {"label": label})
+                if result and result.get("success"):
+                    await send_json(ws, {"type": "vision_track_query_result", "track": result["track"], "success": True, "label": label})
+                else:
+                    await send_json(ws, {"type": "vision_track_query_result", "track": None, "success": False, "label": label, "error": result.get("error", "not found") if result else "dispatch failed"})
+
+            elif msg_type == "vision_look_at":
+                label = msg.get("label", "")
+                track_result = await _dispatch_to_beast("camera.track_query", {"label": label})
+                if track_result and track_result.get("success"):
+                    track = track_result["track"]
+                    cx, cy = track.get("center", [0.5, 0.5])
+                    pan_delta = int((cx - 0.5) * 40)
+                    tilt_delta = int((0.5 - cy) * 40)
+                    ptz_result = await _dispatch_to_beast("camera.set_position_relative", {
+                        "pan_delta": pan_delta,
+                        "tilt_delta": tilt_delta,
+                        "zoom_delta": 0,
+                    })
+                    await send_json(ws, {
+                        "type": "vision_look_at_result",
+                        "success": bool(ptz_result and ptz_result.get("success")),
+                        "label": label,
+                        "track_id": track.get("track_id"),
+                        "ptz_result": ptz_result,
+                    })
+                else:
+                    await send_json(ws, {
+                        "type": "vision_look_at_result",
+                        "success": False,
+                        "label": label,
+                        "error": f"no active track for '{label}'",
+                    })
 
             elif msg_type == "vision_analyze":
                 result = await _analyze_current_frame(msg.get("transcript", ""))
@@ -1571,6 +1662,11 @@ def _build_health() -> dict[str, Any]:
     else:
         status = "degraded"
 
+    physical_ptz_available = beast_connected
+    digital_roi_available = True
+    ptz_mode = "physical_ptz" if physical_ptz_available else "digital_roi"
+    command_path_ready = True
+
     return {
         "status": status,
         "relay_running": True,
@@ -1599,6 +1695,11 @@ def _build_health() -> dict[str, Any]:
         "security_mode": "security_harden" if security_active else "normal",
         "diagnostic_overlay_active": _diagnostic_overlay_active,
         "detector_status": _latest_detector_status,
+        "ptz_mode": ptz_mode,
+        "physical_ptz_available": physical_ptz_available,
+        "digital_roi_available": digital_roi_available,
+        "command_path_ready": command_path_ready,
+        "roi": _get_roi(),
         "blockers": blockers,
         "recovery_action": recovery_action,
     }

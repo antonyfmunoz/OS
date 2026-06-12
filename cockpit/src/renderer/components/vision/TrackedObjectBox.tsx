@@ -6,13 +6,17 @@ interface TrackedObjectBoxProps {
   label: string
   confidence: number
   color?: string
+  trackId?: string
 }
 
-export function TrackedObjectBox({ x, y, w, h, label, confidence, color = '#22c55e' }: TrackedObjectBoxProps) {
-  // Place label below the box when near the top edge (y < 18) to avoid SVG clipping
+export function TrackedObjectBox({ x, y, w, h, label, confidence, color = '#22c55e', trackId }: TrackedObjectBoxProps) {
   const labelAbove = y >= 18
   const labelY = labelAbove ? y - 16 : y + h
   const labelTextY = labelAbove ? y - 4 : y + h + 12
+
+  const idSuffix = trackId && !trackId.startsWith('diag_') && !trackId.startsWith('det_')
+    ? ` #${trackId}`
+    : ''
 
   return (
     <g>
@@ -31,7 +35,7 @@ export function TrackedObjectBox({ x, y, w, h, label, confidence, color = '#22c5
             x={x + 3} y={labelTextY}
             fill="white" fontSize={11} fontFamily="monospace"
           >
-            {label} {Math.round(confidence * 100)}%
+            {label}{idSuffix} {Math.round(confidence * 100)}%
           </text>
         </>
       )}

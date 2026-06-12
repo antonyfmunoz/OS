@@ -220,6 +220,15 @@ export interface DetectorStatus {
   inference_ms: number
   avg_inference_ms: number
   detection_frames: number
+  tracker_active: boolean
+  active_tracks: number
+  total_tracks: number
+}
+
+export interface RoiState {
+  x: number
+  y: number
+  zoom: number
 }
 
 export interface VisionHealthState {
@@ -243,6 +252,11 @@ export interface VisionHealthState {
   blockers: string[]
   recoveryAction: string
   lastCheckedAt: number
+  ptzMode: 'physical_ptz' | 'digital_roi'
+  physicalPtzAvailable: boolean
+  digitalRoiAvailable: boolean
+  commandPathReady: boolean
+  roi: RoiState
 }
 
 interface VisionState {
@@ -429,6 +443,11 @@ const INITIAL_HEALTH: VisionHealthState = {
   blockers: [],
   recoveryAction: '',
   lastCheckedAt: 0,
+  ptzMode: 'physical_ptz',
+  physicalPtzAvailable: false,
+  digitalRoiAvailable: true,
+  commandPathReady: false,
+  roi: { x: 0, y: 0, zoom: 1 },
 }
 
 export const useVisionStore = create<VisionState>((set) => ({
