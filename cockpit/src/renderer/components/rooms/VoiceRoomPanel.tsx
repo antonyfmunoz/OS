@@ -36,7 +36,7 @@ import { ConnectionQuality } from 'livekit-client'
 import type { VoiceParticipant, VoiceDiagnostics, VoiceRoomState, MediaStreamSource, StreamSourceType } from '../../hooks/useVoiceRoom'
 import type { RoomMessage } from '../../types/rooms'
 
-const SOURCE_TYPE_ICONS: Record<StreamSourceType, typeof Monitor> = {
+const SOURCE_TYPE_ICONS: Record<string, typeof Monitor> = {
   camera: Camera,
   screen: Monitor,
   window: AppWindow,
@@ -45,7 +45,7 @@ const SOURCE_TYPE_ICONS: Record<StreamSourceType, typeof Monitor> = {
   second_camera: Camera,
 }
 
-const SOURCE_TYPE_LABELS: Record<StreamSourceType, string> = {
+const SOURCE_TYPE_LABELS: Record<string, string> = {
   camera: 'Camera',
   screen: 'Screen',
   window: 'Window',
@@ -68,7 +68,7 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
   const [focusedStream, setFocusedStream] = useState<string | null>(null)
 
   const isConnected = voice.state === 'connected'
-  const showChat = chatOpen && isConnected
+  const showChat = chatOpen
 
   const allStreams: Array<MediaStreamSource & { participantName: string }> = []
   voice.streams.forEach((sources, identity) => {
@@ -95,7 +95,7 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
                   streams={allStreams}
                   focusedStream={focusedStream}
                   onFocus={setFocusedStream}
-                  getTrackElement={voice.getTrackElement}
+                  getVideoElement={voice.getVideoElement}
                   onStopStream={voice.stopStream}
                   localIdentity={voice.participants.find(p => p.identity === voice.diagnostics.participantIdentity)?.identity}
                 />
@@ -172,14 +172,14 @@ function StreamGrid({
   streams,
   focusedStream,
   onFocus,
-  getTrackElement,
+  getVideoElement,
   onStopStream,
   localIdentity,
 }: {
   streams: Array<MediaStreamSource & { participantName: string }>
   focusedStream: string | null
   onFocus: (sid: string | null) => void
-  getTrackElement: (sid: string) => HTMLVideoElement | null
+  getVideoElement: (sid: string) => HTMLVideoElement | null
   onStopStream: (sid: string) => Promise<void>
   localIdentity: string | undefined
 }) {
@@ -193,7 +193,7 @@ function StreamGrid({
         <StreamTile
           stream={focused}
           focused
-          getTrackElement={getTrackElement}
+          getVideoElement={getVideoElement}
           onFocus={() => onFocus(null)}
           onStop={focused.participantIdentity === localIdentity ? () => onStopStream(focused.trackSid) : undefined}
           isOwner={focused.participantIdentity === localIdentity}
@@ -205,7 +205,7 @@ function StreamGrid({
                 <StreamTile
                   stream={s}
                   compact
-                  getTrackElement={getTrackElement}
+                  getVideoElement={getVideoElement}
                   onFocus={() => onFocus(s.trackSid)}
                   onStop={s.participantIdentity === localIdentity ? () => onStopStream(s.trackSid) : undefined}
                   isOwner={s.participantIdentity === localIdentity}
@@ -227,7 +227,7 @@ function StreamGrid({
         <StreamTile
           key={s.trackSid}
           stream={s}
-          getTrackElement={getTrackElement}
+          getVideoElement={getVideoElement}
           onFocus={() => onFocus(s.trackSid)}
           onStop={s.participantIdentity === localIdentity ? () => onStopStream(s.trackSid) : undefined}
           isOwner={s.participantIdentity === localIdentity}
@@ -241,7 +241,7 @@ function StreamTile({
   stream,
   focused,
   compact,
-  getTrackElement,
+  getVideoElement,
   onFocus,
   onStop,
   isOwner,
@@ -249,37 +249,58 @@ function StreamTile({
   stream: MediaStreamSource & { participantName: string }
   focused?: boolean
   compact?: boolean
-  getTrackElement: (sid: string) => HTMLVideoElement | null
+  getVideoElement: (sid: string) => HTMLVideoElement | null
   onFocus: () => void
   onStop?: () => void
   isOwner: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const videoMountedRef = useRef(false)
+  const mountedSidRef = useRef<string | null>(null)
 
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
-    const el = getTrackElement(stream.trackSid)
-    if (el && !videoMountedRef.current) {
-      el.style.display = 'block'
-      el.style.width = '100%'
-      el.style.height = '100%'
-      el.style.objectFit = 'contain'
-      el.style.borderRadius = '4px'
-      container.appendChild(el)
-      videoMountedRef.current = true
+    let cancelled = false
+    let pollTimer: ReturnType<typeof setInterval> | undefined
+
+    function tryMount() {
+      if (cancelled || !container) return
+      if (mountedSidRef.current === stream.trackSid) return
+
+      const el = getVideoElement(stream.trackSid)
+      if (el) {
+        el.style.display = 'block'
+        el.style.width = '100%'
+        el.style.height = '100%'
+        el.style.objectFit = 'contain'
+        el.style.borderRadius = '4px'
+        el.style.position = 'absolute'
+        container.appendChild(el)
+        mountedSidRef.current = stream.trackSid
+        if (pollTimer) clearInterval(pollTimer)
+      }
+    }
+
+    tryMount()
+    if (mountedSidRef.current !== stream.trackSid) {
+      pollTimer = setInterval(tryMount, 200)
     }
 
     return () => {
-      if (el && videoMountedRef.current) {
-        el.style.display = 'none'
-        document.body.appendChild(el)
-        videoMountedRef.current = false
+      cancelled = true
+      if (pollTimer) clearInterval(pollTimer)
+      if (mountedSidRef.current === stream.trackSid) {
+        const el = getVideoElement(stream.trackSid)
+        if (el) {
+          el.style.display = 'none'
+          el.style.position = 'absolute'
+          document.body.appendChild(el)
+        }
+        mountedSidRef.current = null
       }
     }
-  }, [stream.trackSid, getTrackElement])
+  }, [stream.trackSid, getVideoElement])
 
   const Icon = SOURCE_TYPE_ICONS[stream.sourceType] || Monitor
   const label = SOURCE_TYPE_LABELS[stream.sourceType] || stream.sourceType
@@ -297,7 +318,6 @@ function StreamTile({
     >
       <div ref={containerRef} className="absolute inset-0" />
 
-      {/* Overlay info bar */}
       <div className="absolute bottom-0 left-0 right-0 px-2 py-1 flex items-center gap-1.5"
         style={{ background: 'rgba(0,0,0,0.6)' }}
       >
@@ -319,7 +339,6 @@ function StreamTile({
         )}
       </div>
 
-      {/* Hover controls */}
       <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <button onClick={onFocus}
           className="p-1 rounded"
@@ -379,11 +398,11 @@ function ControlBar({
 
   if (!isConnected && state !== 'failed' && state !== 'disconnected') {
     return (
-      <div className="flex items-center justify-center px-4 py-3 border-t shrink-0"
+      <div className="flex items-center justify-center gap-2 px-4 py-3 border-t shrink-0"
         style={{ borderColor: 'var(--color-border)' }}
       >
         <button onClick={onJoin}
-          disabled={state === 'connecting' || state === 'requesting-permission'}
+          disabled={state === 'connecting'}
           className="flex items-center gap-2 text-xs font-mono px-6 py-2.5 rounded transition-colors"
           style={{
             background: state === 'connecting' ? 'var(--color-surface-raised)' : 'var(--color-ok)',
@@ -393,6 +412,12 @@ function ControlBar({
           <Mic size={14} />
           {state === 'connecting' ? 'Connecting...' : 'Join Voice'}
         </button>
+        <ControlButton
+          active={chatOpen}
+          icon={MessageSquare}
+          label="Chat"
+          onClick={onToggleChat}
+        />
       </div>
     )
   }
@@ -408,6 +433,12 @@ function ControlBar({
         >
           <Mic size={14} /> Retry
         </button>
+        <ControlButton
+          active={chatOpen}
+          icon={MessageSquare}
+          label="Chat"
+          onClick={onToggleChat}
+        />
         {error && (
           <span className="text-[9px] font-mono max-w-48 truncate" style={{ color: 'var(--color-danger)' }}>
             {error}
@@ -435,7 +466,6 @@ function ControlBar({
         onClick={onToggleVideo}
       />
 
-      {/* Share button with count badge */}
       <div className="relative">
         <ControlButton
           active={localStreamCount > 0}
@@ -466,7 +496,6 @@ function ControlBar({
         <PhoneOff size={13} /> Leave
       </button>
 
-      {/* Share menu popup */}
       {shareMenuOpen && (
         <ShareMenu
           canAdd={canAddStream}
@@ -630,7 +659,6 @@ function ConnectionBanner({ state, error, reconnectAttempts }: { state: VoiceRoo
   if (state === 'idle') return null
 
   const config: Record<string, { bg: string; color: string; text: string; icon: typeof Wifi }> = {
-    'requesting-permission': { bg: 'var(--color-cyan-glow)', color: 'var(--color-cyan)', text: 'Requesting mic permission...', icon: Activity },
     connecting: { bg: 'var(--color-cyan-glow)', color: 'var(--color-cyan)', text: 'Connecting...', icon: Activity },
     connected: { bg: 'var(--color-ok-dim)', color: 'var(--color-ok)', text: 'Connected', icon: Wifi },
     reconnecting: {
@@ -650,7 +678,7 @@ function ConnectionBanner({ state, error, reconnectAttempts }: { state: VoiceRoo
   return (
     <div className="w-full rounded px-3 py-2 mb-3 flex items-center gap-2" style={{ background: c.bg }}>
       <Icon size={12} style={{ color: c.color }}
-        className={state === 'connecting' || state === 'reconnecting' || state === 'requesting-permission' ? 'animate-pulse' : ''}
+        className={state === 'connecting' || state === 'reconnecting' ? 'animate-pulse' : ''}
       />
       <span className="text-[10px] font-mono flex-1" style={{ color: c.color }}>{c.text}</span>
     </div>
@@ -878,6 +906,8 @@ function DiagnosticsPanel({ diagnostics, state }: { diagnostics: VoiceDiagnostic
           <DiagRow label="pub" value={diagnostics.publisherState} />
           <DiagRow label="sub" value={diagnostics.subscriberState} />
           <DiagRow label="mic" value={diagnostics.micPermission} />
+          <DiagRow label="camera" value={diagnostics.cameraPermission} />
+          <DiagRow label="screenshare" value={diagnostics.screenShareSupport ? 'supported' : 'no'} />
           <DiagRow label="reconnects" value={String(diagnostics.reconnectAttempts)} />
           <DiagRow label="published" value={String(diagnostics.publishedTrackCount)} />
           <DiagRow label="subscribed" value={String(diagnostics.subscribedTrackCount)} />

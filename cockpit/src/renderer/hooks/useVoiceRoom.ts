@@ -17,7 +17,7 @@ import {
 } from 'livekit-client'
 import { fetchApi } from '../api/client'
 
-export type StreamSourceType = 'camera' | 'screen' | 'window' | 'tab' | 'application' | 'second_camera'
+export type StreamSourceType = 'camera' | 'screen' | 'window' | 'tab' | 'application'
 
 export interface MediaStreamSource {
   id: string
@@ -29,10 +29,6 @@ export interface MediaStreamSource {
   muted: boolean
   dimensions: { width: number; height: number } | null
   frameRate: number | null
-  createdAt: number
-  aiVisible: boolean
-  allowAiAnalysis: boolean
-  captureToMemory: boolean
 }
 
 export interface VoiceParticipant {
@@ -47,7 +43,6 @@ export interface VoiceParticipant {
 
 export type VoiceRoomState =
   | 'idle'
-  | 'requesting-permission'
   | 'connecting'
   | 'connected'
   | 'reconnecting'
@@ -63,7 +58,9 @@ export interface VoiceDiagnostics {
   iceState: string | null
   publisherState: string | null
   subscriberState: string | null
-  micPermission: 'unknown' | 'granted' | 'denied' | 'prompt'
+  micPermission: 'unknown' | 'granted' | 'denied'
+  cameraPermission: 'unknown' | 'granted' | 'denied'
+  screenShareSupport: boolean
   lastEvent: string | null
   lastError: string | null
   reconnectAttempts: number
@@ -88,30 +85,16 @@ export interface UseVoiceRoomReturn {
   stopStream: (trackSid: string) => Promise<void>
   stopAllStreams: () => Promise<void>
   canAddStream: boolean
-  getTrackElement: (trackSid: string) => HTMLVideoElement | null
+  getVideoElement: (trackSid: string) => HTMLVideoElement | null
 }
 
 const MAX_STREAMS_PER_USER = 4
 const MAX_RECONNECT_ATTEMPTS = 5
 const INITIAL_BACKOFF_MS = 1000
 
-function getLocalMicEnabled(room: Room): boolean {
-  return room.localParticipant.isMicrophoneEnabled
-}
-
-function getLocalVideoEnabled(room: Room): boolean {
-  return room.localParticipant.isCameraEnabled
-}
-
-function classifyScreenSource(track: LocalVideoTrack): StreamSourceType {
-  const settings = track.mediaStreamTrack?.getSettings?.()
-  const label = track.mediaStreamTrack?.label?.toLowerCase() ?? ''
-  if (settings?.displaySurface === 'monitor') return 'screen'
-  if (settings?.displaySurface === 'window') return 'window'
-  if (settings?.displaySurface === 'browser') return 'tab'
-  if (label.includes('tab')) return 'tab'
-  if (label.includes('window')) return 'window'
-  return 'screen'
+function detectScreenShareSupport(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return typeof navigator.mediaDevices?.getDisplayMedia === 'function'
 }
 
 function getTrackDimensions(pub: TrackPublication): { width: number; height: number } | null {
@@ -120,57 +103,55 @@ function getTrackDimensions(pub: TrackPublication): { width: number; height: num
   return null
 }
 
+function classifyScreenTrack(pub: TrackPublication): StreamSourceType {
+  const track = pub.track
+  if (!track) return 'screen'
+  const settings = track.mediaStreamTrack?.getSettings?.()
+  const label = track.mediaStreamTrack?.label?.toLowerCase() ?? ''
+  if (settings?.displaySurface === 'window') return 'window'
+  if (settings?.displaySurface === 'browser') return 'tab'
+  if (settings?.displaySurface === 'monitor') return 'screen'
+  if (label.includes('tab')) return 'tab'
+  if (label.includes('window')) return 'window'
+  return 'screen'
+}
+
 function buildStreamSources(p: Participant): MediaStreamSource[] {
   const sources: MediaStreamSource[] = []
+  let screenIdx = 0
   for (const pub of p.trackPublications.values()) {
     if (!pub.track || pub.track.kind !== Track.Kind.Video) continue
     const isCamera = pub.source === Track.Source.Camera
     const isScreen = pub.source === Track.Source.ScreenShare
-
     if (!isCamera && !isScreen) continue
 
-    let sourceType: StreamSourceType = 'camera'
-    if (isScreen) {
-      const label = pub.track.mediaStreamTrack?.label?.toLowerCase() ?? ''
-      const settings = pub.track.mediaStreamTrack?.getSettings?.()
-      if (settings?.displaySurface === 'window') sourceType = 'window'
-      else if (settings?.displaySurface === 'browser') sourceType = 'tab'
-      else if (label.includes('tab')) sourceType = 'tab'
-      else if (label.includes('window')) sourceType = 'window'
-      else sourceType = 'screen'
-    }
+    const sourceType: StreamSourceType = isCamera ? 'camera' : classifyScreenTrack(pub)
+    if (isScreen) screenIdx++
 
     sources.push({
       id: pub.trackSid,
       kind: 'video',
       sourceType,
-      name: pub.trackName || (isCamera ? 'Camera' : `Screen ${sources.filter(s => s.sourceType !== 'camera').length + 1}`),
+      name: isCamera ? 'Camera' : `Screen ${screenIdx}`,
       trackSid: pub.trackSid,
       participantIdentity: p.identity,
       muted: pub.isMuted,
       dimensions: getTrackDimensions(pub),
       frameRate: pub.track.mediaStreamTrack?.getSettings?.()?.frameRate ?? null,
-      createdAt: Date.now(),
-      aiVisible: true,
-      allowAiAnalysis: false,
-      captureToMemory: false,
     })
   }
   return sources
 }
 
 function participantToInfo(p: Participant, streams: MediaStreamSource[]): VoiceParticipant {
-  const audioTrack = Array.from(p.trackPublications.values()).find(
-    (t) => t.track?.kind === Track.Kind.Audio && t.source === Track.Source.Microphone
-  )
   return {
     identity: p.identity,
     name: p.name || p.identity,
     isSpeaking: p.isSpeaking,
-    isMuted: audioTrack ? audioTrack.isMuted : true,
-    isVideoOn: streams.some(s => s.sourceType === 'camera' && !s.muted),
+    isMuted: !p.isMicrophoneEnabled,
+    isVideoOn: p.isCameraEnabled,
     connectionQuality: p.connectionQuality,
-    streamCount: streams.length,
+    streamCount: streams.filter(s => s.sourceType !== 'camera').length,
   }
 }
 
@@ -184,6 +165,8 @@ const INITIAL_DIAGNOSTICS: VoiceDiagnostics = {
   publisherState: null,
   subscriberState: null,
   micPermission: 'unknown',
+  cameraPermission: 'unknown',
+  screenShareSupport: detectScreenShareSupport(),
   lastEvent: null,
   lastError: null,
   reconnectAttempts: 0,
@@ -200,7 +183,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
   const [state, setState] = useState<VoiceRoomState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [participants, setParticipants] = useState<VoiceParticipant[]>([])
-  const [isMuted, setIsMuted] = useState(false)
+  const [isMuted, setIsMuted] = useState(true)
   const [isVideoOn, setIsVideoOn] = useState(false)
   const [streams, setStreams] = useState<Map<string, MediaStreamSource[]>>(new Map())
   const [diagnostics, setDiagnostics] = useState<VoiceDiagnostics>({ ...INITIAL_DIAGNOSTICS })
@@ -213,8 +196,10 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     const room = roomRef.current
     if (!room) return
 
-    setIsMuted(!getLocalMicEnabled(room))
-    setIsVideoOn(getLocalVideoEnabled(room))
+    const micEnabled = room.localParticipant.isMicrophoneEnabled
+    const camEnabled = room.localParticipant.isCameraEnabled
+    setIsMuted(!micEnabled)
+    setIsVideoOn(camEnabled)
 
     const allStreams = new Map<string, MediaStreamSource[]>()
     const allParticipants: VoiceParticipant[] = []
@@ -242,6 +227,24 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     })
     updateDiag({ publishedTrackCount: publishedCount, subscribedTrackCount: subscribedCount })
   }, [updateDiag])
+
+  const attachVideoTrack = useCallback((trackSid: string, track: { attach: () => HTMLMediaElement }) => {
+    if (videoElementsRef.current.has(trackSid)) return
+    const el = track.attach() as HTMLVideoElement
+    el.id = `lk-video-${trackSid}`
+    el.style.display = 'none'
+    el.style.position = 'absolute'
+    document.body.appendChild(el)
+    videoElementsRef.current.set(trackSid, el)
+  }, [])
+
+  const detachVideoTrack = useCallback((trackSid: string) => {
+    const el = videoElementsRef.current.get(trackSid)
+    if (el) {
+      el.remove()
+      videoElementsRef.current.delete(trackSid)
+    }
+  }, [])
 
   const doConnect = useCallback(async () => {
     setState('connecting')
@@ -316,15 +319,12 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
         updateDiag({ lastEvent: `${participant.identity} joined` })
         syncAllState()
       })
+
       room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
         updateDiag({ lastEvent: `${participant.identity} left` })
-        videoElementsRef.current.forEach((el, sid) => {
-          const pubs = Array.from(participant.trackPublications.values())
-          if (pubs.some(p => p.trackSid === sid)) {
-            el.remove()
-            videoElementsRef.current.delete(sid)
-          }
-        })
+        for (const pub of participant.trackPublications.values()) {
+          detachVideoTrack(pub.trackSid)
+        }
         syncAllState()
       })
 
@@ -333,44 +333,36 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
       room.on(RoomEvent.TrackUnmuted, () => syncAllState())
       room.on(RoomEvent.ConnectionQualityChanged, () => syncAllState())
 
-      room.on(RoomEvent.LocalTrackPublished, (_pub: LocalTrackPublication, _lp: LocalParticipant) => {
-        updateDiag({ lastEvent: `published ${_pub.source} (${_pub.trackSid})` })
-        syncAllState()
-      })
-      room.on(RoomEvent.LocalTrackUnpublished, (_pub: LocalTrackPublication, _lp: LocalParticipant) => {
-        updateDiag({ lastEvent: `unpublished ${_pub.source}` })
-        if (_pub.trackSid) {
-          const el = videoElementsRef.current.get(_pub.trackSid)
-          if (el) {
-            el.remove()
-            videoElementsRef.current.delete(_pub.trackSid)
-          }
-          localScreenTracksRef.current.delete(_pub.trackSid)
+      room.on(RoomEvent.LocalTrackPublished, (pub: LocalTrackPublication, _lp: LocalParticipant) => {
+        updateDiag({ lastEvent: `published ${pub.source} (${pub.trackSid})` })
+        if (pub.track && pub.track.kind === Track.Kind.Video) {
+          attachVideoTrack(pub.trackSid, pub.track)
         }
         syncAllState()
       })
 
-      room.on(RoomEvent.TrackSubscribed, (track, _pub: RemoteTrackPublication, participant: RemoteParticipant) => {
+      room.on(RoomEvent.LocalTrackUnpublished, (pub: LocalTrackPublication, _lp: LocalParticipant) => {
+        updateDiag({ lastEvent: `unpublished ${pub.source}` })
+        detachVideoTrack(pub.trackSid)
+        localScreenTracksRef.current.delete(pub.trackSid)
+        syncAllState()
+      })
+
+      room.on(RoomEvent.TrackSubscribed, (track, pub: RemoteTrackPublication, participant: RemoteParticipant) => {
         if (track.kind === Track.Kind.Audio) {
           const el = track.attach()
-          el.id = `lk-audio-${participant.identity}-${_pub.trackSid}`
+          el.id = `lk-audio-${participant.identity}-${pub.trackSid}`
           document.body.appendChild(el)
         }
         if (track.kind === Track.Kind.Video) {
-          const videoEl = track.attach() as HTMLVideoElement
-          videoEl.id = `lk-video-${_pub.trackSid}`
-          videoEl.style.display = 'none'
-          document.body.appendChild(videoEl)
-          videoElementsRef.current.set(_pub.trackSid, videoEl)
+          attachVideoTrack(pub.trackSid, track)
         }
         syncAllState()
       })
 
       room.on(RoomEvent.TrackUnsubscribed, (track, pub: RemoteTrackPublication) => {
         track.detach().forEach((el) => el.remove())
-        if (pub.trackSid) {
-          videoElementsRef.current.delete(pub.trackSid)
-        }
+        detachVideoTrack(pub.trackSid)
         syncAllState()
       })
 
@@ -392,10 +384,9 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
 
       room.on(RoomEvent.MediaDevicesError, (e) => {
         const msg = e instanceof Error ? e.message : 'unknown media error'
-        updateDiag({ lastEvent: `media error: ${msg}`, lastError: msg, micPermission: 'denied' })
+        updateDiag({ lastEvent: `media error: ${msg}`, lastError: msg })
       })
 
-      updateDiag({ participantIdentity: null })
       await room.connect(res.url, res.token)
       updateDiag({
         lastEvent: 'connected, enabling mic...',
@@ -409,6 +400,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
         const msg = micErr instanceof Error ? micErr.message : 'unknown'
         updateDiag({ micPermission: 'denied', lastEvent: `mic error: ${msg}`, lastError: msg })
       }
+
       syncAllState()
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to join voice room'
@@ -420,11 +412,13 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
         roomRef.current = null
       }
     }
-  }, [channelId, syncAllState, updateDiag])
+  }, [channelId, syncAllState, updateDiag, attachVideoTrack, detachVideoTrack])
 
   const join = useCallback(async () => {
     if (roomRef.current) return
     intentionalDisconnectRef.current = false
+    setIsMuted(true)
+    setIsVideoOn(false)
     await doConnect()
   }, [doConnect])
 
@@ -432,9 +426,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     intentionalDisconnectRef.current = true
     const room = roomRef.current
     if (room) {
-      localScreenTracksRef.current.forEach((track) => {
-        track.stop()
-      })
+      localScreenTracksRef.current.forEach((track) => track.stop())
       localScreenTracksRef.current.clear()
       room.localParticipant.setCameraEnabled(false).catch(() => {})
       room.localParticipant.setMicrophoneEnabled(false).catch(() => {})
@@ -446,7 +438,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     setState('idle')
     setParticipants([])
     setError(null)
-    setIsMuted(false)
+    setIsMuted(true)
     setIsVideoOn(false)
     setStreams(new Map())
     setDiagnostics({ ...INITIAL_DIAGNOSTICS })
@@ -455,25 +447,33 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
   const toggleMute = useCallback(async () => {
     const room = roomRef.current
     if (!room) return
-    const newEnabled = !getLocalMicEnabled(room)
+    const currentlyEnabled = room.localParticipant.isMicrophoneEnabled
     try {
-      await room.localParticipant.setMicrophoneEnabled(newEnabled)
+      await room.localParticipant.setMicrophoneEnabled(!currentlyEnabled)
     } catch (err) {
       updateDiag({ lastError: err instanceof Error ? err.message : 'mic toggle failed', micPermission: 'denied' })
     }
+    setIsMuted(!room.localParticipant.isMicrophoneEnabled)
     syncAllState()
   }, [syncAllState, updateDiag])
 
   const toggleVideo = useCallback(async () => {
     const room = roomRef.current
     if (!room) return
-    const newEnabled = !getLocalVideoEnabled(room)
+    const currentlyEnabled = room.localParticipant.isCameraEnabled
     try {
-      await room.localParticipant.setCameraEnabled(newEnabled)
-      updateDiag({ lastEvent: newEnabled ? 'camera enabled' : 'camera disabled' })
+      await room.localParticipant.setCameraEnabled(!currentlyEnabled)
+      updateDiag({
+        lastEvent: !currentlyEnabled ? 'camera enabled' : 'camera disabled',
+        cameraPermission: 'granted',
+      })
     } catch (err) {
-      updateDiag({ lastError: err instanceof Error ? err.message : 'camera toggle failed' })
+      updateDiag({
+        lastError: err instanceof Error ? err.message : 'camera toggle failed',
+        cameraPermission: 'denied',
+      })
     }
+    setIsVideoOn(room.localParticipant.isCameraEnabled)
     syncAllState()
   }, [syncAllState, updateDiag])
 
@@ -481,7 +481,6 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     const room = roomRef.current
     if (!room) return
 
-    const localIdentity = room.localParticipant.identity
     const currentLocalStreams = buildStreamSources(room.localParticipant)
     const screenStreams = currentLocalStreams.filter(s => s.sourceType !== 'camera')
     if (screenStreams.length >= MAX_STREAMS_PER_USER) {
@@ -500,15 +499,8 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
           })
           if (pub.trackSid) {
             localScreenTracksRef.current.set(pub.trackSid, videoTrack)
-
-            const videoEl = videoTrack.attach() as HTMLVideoElement
-            videoEl.id = `lk-video-${pub.trackSid}`
-            videoEl.style.display = 'none'
-            document.body.appendChild(videoEl)
-            videoElementsRef.current.set(pub.trackSid, videoEl)
           }
-          const sourceType = classifyScreenSource(videoTrack)
-          updateDiag({ lastEvent: `screen share started (${sourceType})` })
+          updateDiag({ lastEvent: `screen share started` })
         } else if (track.kind === Track.Kind.Audio) {
           await room.localParticipant.publishTrack(track, {
             source: Track.Source.ScreenShareAudio,
@@ -545,15 +537,10 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
       }
     }
 
-    const el = videoElementsRef.current.get(trackSid)
-    if (el) {
-      el.remove()
-      videoElementsRef.current.delete(trackSid)
-    }
-
+    detachVideoTrack(trackSid)
     updateDiag({ lastEvent: `stopped stream ${trackSid}` })
     syncAllState()
-  }, [syncAllState, updateDiag])
+  }, [syncAllState, updateDiag, detachVideoTrack])
 
   const stopAllStreams = useCallback(async () => {
     const room = roomRef.current
@@ -566,23 +553,14 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
         await room.localParticipant.unpublishTrack(track)
         track.stop()
       }
+      detachVideoTrack(sid)
     }
     localScreenTracksRef.current.clear()
-
-    videoElementsRef.current.forEach((el, sid) => {
-      if (!Array.from(room.remoteParticipants.values()).some(rp =>
-        Array.from(rp.trackPublications.values()).some(p => p.trackSid === sid)
-      )) {
-        el.remove()
-        videoElementsRef.current.delete(sid)
-      }
-    })
-
     updateDiag({ lastEvent: 'stopped all local streams' })
     syncAllState()
-  }, [syncAllState, updateDiag])
+  }, [syncAllState, updateDiag, detachVideoTrack])
 
-  const getTrackElement = useCallback((trackSid: string): HTMLVideoElement | null => {
+  const getVideoElement = useCallback((trackSid: string): HTMLVideoElement | null => {
     return videoElementsRef.current.get(trackSid) ?? null
   }, [])
 
@@ -622,6 +600,6 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     stopStream,
     stopAllStreams,
     canAddStream,
-    getTrackElement,
+    getVideoElement,
   }
 }
