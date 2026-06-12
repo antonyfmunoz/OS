@@ -5,7 +5,7 @@ import type {
   ConferenceDiagnostics,
   MediaStreamSource,
   StreamSourceType,
-  UseConferenceRoomReturn,
+  MediaIntent,
 } from './useConferenceRoom'
 
 export type { StreamSourceType, MediaStreamSource }
@@ -22,6 +22,8 @@ export interface UseVoiceRoomReturn {
   isDeafened: boolean
   isVideoOn: boolean
   preJoinMicEnabled: boolean
+  micIntent: MediaIntent
+  cameraIntent: MediaIntent
   streams: Map<string, MediaStreamSource[]>
   localStreams: MediaStreamSource[]
   diagnostics: VoiceDiagnostics
@@ -48,6 +50,8 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     isDeafened: conf.isDeafened,
     isVideoOn: conf.isVideoOn,
     preJoinMicEnabled: conf.preJoinMicEnabled,
+    micIntent: conf.micIntent,
+    cameraIntent: conf.cameraIntent,
     streams: conf.streams,
     localStreams: conf.localStreams,
     diagnostics: conf.diagnostics,
