@@ -46,10 +46,13 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   application: 'Application',
 }
 
-function isIOSSafari(): boolean {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent
-  return /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && 'ontouchend' in document)
+function detectScreenShareCapability(): 'native' | 'browser' | 'none' {
+  if (typeof navigator === 'undefined') return 'none'
+  const isNativeApp = !!(window as Record<string, unknown>).Capacitor
+    || !!(window as Record<string, unknown>).ReactNativeWebView
+  if (isNativeApp) return 'native'
+  if (typeof navigator.mediaDevices?.getDisplayMedia === 'function') return 'browser'
+  return 'none'
 }
 
 export function VoiceRoomPanel({ channelId }: { channelId: string }) {
@@ -391,7 +394,7 @@ function ControlBar({
 }) {
   const [shareMenuOpen, setShareMenuOpen] = useState(false)
   const isConnected = state === 'connected' || state === 'reconnecting'
-  const iosBlocked = isIOSSafari()
+  const screenShareCap = detectScreenShareCapability()
 
   // Pre-join: mic toggle + join + chat
   if (!isConnected && state !== 'failed' && state !== 'disconnected') {
@@ -513,7 +516,7 @@ function ControlBar({
       {shareMenuOpen && (
         <ShareMenu
           canAdd={canAddStream}
-          iosBlocked={iosBlocked}
+          screenShareCap={screenShareCap}
           localStreamCount={localStreamCount}
           onAddScreen={() => { onAddScreenShare(); setShareMenuOpen(false) }}
           onStopAll={() => { onStopAllStreams(); setShareMenuOpen(false) }}
@@ -526,14 +529,14 @@ function ControlBar({
 
 function ShareMenu({
   canAdd,
-  iosBlocked,
+  screenShareCap,
   localStreamCount,
   onAddScreen,
   onStopAll,
   onClose,
 }: {
   canAdd: boolean
-  iosBlocked: boolean
+  screenShareCap: 'native' | 'browser' | 'none'
   localStreamCount: number
   onAddScreen: () => void
   onStopAll: () => void
@@ -554,18 +557,30 @@ function ShareMenu({
         </button>
       </div>
 
-      {iosBlocked && (
+      {screenShareCap === 'none' && (
         <div className="px-3 py-2 flex items-start gap-2"
           style={{ background: 'var(--color-warn-dim)' }}
         >
           <AlertTriangle size={12} style={{ color: 'var(--color-warn)' }} className="flex-shrink-0 mt-0.5" />
           <p className="text-[9px] font-mono" style={{ color: 'var(--color-warn)' }}>
-            iOS browser screen share requires native app / browser support. You can still watch shared streams.
+            Screen share is not available in this browser. Use the desktop app or a supported browser.
           </p>
         </div>
       )}
 
-      {!iosBlocked && (
+      {screenShareCap === 'native' && (
+        <div className="p-1">
+          <ShareMenuItem
+            icon={Monitor}
+            label="Broadcast Screen"
+            desc="Share your device screen"
+            disabled={!canAdd}
+            onClick={onAddScreen}
+          />
+        </div>
+      )}
+
+      {screenShareCap === 'browser' && (
         <div className="p-1">
           <ShareMenuItem
             icon={Monitor}
