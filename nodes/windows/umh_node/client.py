@@ -45,7 +45,8 @@ class NodeClient:
 
         self._loop: asyncio.AbstractEventLoop | None = None
         self._on_workspace_change: Callable[[dict[str, Any]], None] | None = None
-        self._camera_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="cam")
+        self._camera_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cam")
+        self._capability_semaphore = asyncio.Semaphore(8)
 
     @property
     def connected(self) -> bool:
@@ -259,7 +260,7 @@ class NodeClient:
         method = msg.get("method", "")
 
         if method == "capability.execute":
-            asyncio.create_task(self._handle_capability(msg))
+            asyncio.create_task(self._safe_handle_capability(msg))
         elif method == "outcome.notify":
             logger.info("outcome received: %s", msg.get("params", {}).get("summary", ""))
         elif "result" in msg or "error" in msg:
@@ -267,72 +268,90 @@ class NodeClient:
         else:
             logger.debug("unhandled message method: %s", method)
 
-    async def _handle_capability(self, msg: dict[str, Any]) -> None:
-        params = msg.get("params", {})
-        msg_id = msg.get("id")
-        cap_name = params.get("capability_name", "")
-        cap_params = params.get("params", {})
-        risk_class = params.get("risk_class", "REVERSIBLE_WRITE")
-
-        adapter_key = cap_name.split(".")[0] if "." in cap_name else cap_name
-        cap_config = self._config.capabilities.get(adapter_key)
-        allowed, reason = validate_request(adapter_key, cap_params, risk_class, cap_config)
-
-        if not allowed:
-            await self._ws.send(
-                json.dumps(
-                    {
+    async def _safe_handle_capability(self, msg: dict[str, Any]) -> None:
+        try:
+            await self._handle_capability(msg)
+        except Exception as exc:
+            logger.error("capability handler crashed: %s", exc, exc_info=True)
+            msg_id = msg.get("id")
+            if msg_id and self._ws:
+                try:
+                    await self._ws.send(json.dumps({
                         "jsonrpc": "2.0",
-                        "result": {"success": False, "error": f"node governance denied: {reason}"},
+                        "result": {"success": False, "error": f"internal error: {exc}"},
                         "id": msg_id,
-                    }
-                )
-            )
-            return
+                    }))
+                except Exception:
+                    pass
 
-        adapter = self._adapters.get(adapter_key)
-        if adapter is None:
+    async def _handle_capability(self, msg: dict[str, Any]) -> None:
+        async with self._capability_semaphore:
+            params = msg.get("params", {})
+            msg_id = msg.get("id")
+            cap_name = params.get("capability_name", "")
+            cap_params = params.get("params", {})
+            risk_class = params.get("risk_class", "REVERSIBLE_WRITE")
+
+            adapter_key = cap_name.split(".")[0] if "." in cap_name else cap_name
+            cap_config = self._config.capabilities.get(adapter_key)
+            allowed, reason = validate_request(adapter_key, cap_params, risk_class, cap_config)
+
+            if not allowed:
+                logger.warning("capability %s denied: %s", cap_name, reason)
+                await self._ws.send(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "result": {"success": False, "error": f"node governance denied: {reason}"},
+                            "id": msg_id,
+                        }
+                    )
+                )
+                return
+
+            adapter = self._adapters.get(adapter_key)
+            if adapter is None:
+                await self._ws.send(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "result": {
+                                "success": False,
+                                "error": f"adapter not available: {adapter_key}",
+                            },
+                            "id": msg_id,
+                        }
+                    )
+                )
+                return
+
+            t0 = time.monotonic()
+            loop = asyncio.get_event_loop()
+            executor = self._camera_executor if adapter_key == "camera" else None
+            try:
+                result = await asyncio.wait_for(
+                    loop.run_in_executor(executor, adapter.execute, cap_name, cap_params),
+                    timeout=8.0,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("capability %s timed out after 8s", cap_name)
+                result = {"success": False, "error": f"{cap_name} timed out"}
+            duration = (time.monotonic() - t0) * 1000
+
             await self._ws.send(
                 json.dumps(
                     {
                         "jsonrpc": "2.0",
                         "result": {
-                            "success": False,
-                            "error": f"adapter not available: {adapter_key}",
+                            "success": result.get("success", False),
+                            "result_data": result,
+                            "latency_ms": round(duration, 1),
+                            "side_effects": [],
                         },
                         "id": msg_id,
                     }
                 )
             )
-            return
-
-        t0 = time.monotonic()
-        loop = asyncio.get_event_loop()
-        executor = self._camera_executor if adapter_key == "camera" else None
-        try:
-            result = await asyncio.wait_for(
-                loop.run_in_executor(executor, adapter.execute, cap_name, cap_params),
-                timeout=8.0,
-            )
-        except asyncio.TimeoutError:
-            logger.warning("capability %s timed out after 8s", cap_name)
-            result = {"success": False, "error": f"{cap_name} timed out"}
-        duration = (time.monotonic() - t0) * 1000
-
-        await self._ws.send(
-            json.dumps(
-                {
-                    "jsonrpc": "2.0",
-                    "result": {
-                        "success": result.get("success", False),
-                        "result_data": result,
-                        "latency_ms": round(duration, 1),
-                        "side_effects": [],
-                    },
-                    "id": msg_id,
-                }
-            )
-        )
 
     async def emit_signal(
         self,
