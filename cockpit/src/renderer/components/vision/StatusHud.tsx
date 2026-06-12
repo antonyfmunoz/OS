@@ -141,7 +141,7 @@ export function StatusHud() {
     )
   }
 
-  const resolutionStr = width > 0 && height > 0 ? `${width}x${height}` : '—'
+  const resolutionStr = width > 0 && height > 0 ? `${width}x${height}` : streaming ? 'Unknown' : '—'
   const fpsStr = `${streamMetrics.actualFps.toFixed(1)} fps`
   const latencyStr = frameAge < 1000 ? `${frameAge}ms` : `${(frameAge / 1000).toFixed(1)}s`
   const bitrateStr = streamMetrics.bitrateKbps > 1024
