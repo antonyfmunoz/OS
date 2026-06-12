@@ -306,7 +306,13 @@ export function VisionSettings() {
               )
             })}
             <div className="grid grid-cols-3 gap-1 px-2 pt-1">
-              <MetricCell label="Resolution" value={streamMetrics.actualFps > 0 ? `${useVisionStore.getState().width}x${useVisionStore.getState().height}` : '—'} />
+              <MetricCell label="Resolution" value={(() => {
+                const w = useVisionStore.getState().width
+                const h = useVisionStore.getState().height
+                if (w > 0 && h > 0) return `${w}x${h}`
+                if (streamMetrics.actualFps > 0) return 'Unknown'
+                return '—'
+              })()} />
               <MetricCell label="Actual FPS" value={streamMetrics.actualFps > 0 ? streamMetrics.actualFps.toFixed(1) : '—'} />
               <MetricCell label="Bitrate" value={streamMetrics.bitrateKbps > 0
                 ? streamMetrics.bitrateKbps > 1024 ? `${(streamMetrics.bitrateKbps / 1024).toFixed(1)} Mbps` : `${streamMetrics.bitrateKbps} Kbps`
@@ -405,14 +411,15 @@ export function VisionSettings() {
                 color={authority.aiEnabled ? 'warn' : undefined} />
               <MetricCell label="Presets" value={
                 presetsLoading ? 'loading...'
-                  : presetsLoadError ? 'error'
+                  : presetsLoadError ? 'waiting'
                   : `${Object.keys(useVisionStore.getState().presets).length} loaded`}
-                color={presetsLoadError ? 'danger' : presetsLoading ? 'warn' : 'ok'} />
+                color={presetsLoadError ? 'warn' : presetsLoading ? 'warn' : 'ok'} />
             </div>
             {presetsLoadError && (
               <div className="flex items-center gap-1.5 px-2 pt-1">
-                <span className="text-[10px] text-danger flex-1">{presetsLoadError}</span>
-                <button onClick={handleRetryPresets} className="text-[10px] text-cyan hover:underline">Retry</button>
+                <span className="text-[10px] text-warning flex-1">{presetsLoadError}</span>
+                <button onClick={handleRetryPresets} className="text-[10px] text-cyan hover:underline">Retry now</button>
+                <span className="text-[9px] text-text-quaternary">auto-retries on reconnect</span>
               </div>
             )}
           </div>
