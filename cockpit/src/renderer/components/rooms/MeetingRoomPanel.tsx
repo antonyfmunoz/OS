@@ -820,18 +820,18 @@ function ControlButton({
 }
 
 function ConnectionBanner({ state, error, reconnectAttempts }: { state: ConferenceRoomState; error: string | null; reconnectAttempts: number }) {
-  if (state === 'idle') return null
+  if (state === 'idle' || state === 'connected') return null
 
   const config: Record<string, { bg: string; color: string; text: string; icon: typeof Wifi }> = {
     requesting_permissions: { bg: 'var(--color-cyan-glow)', color: 'var(--color-cyan)', text: 'Requesting mic...', icon: Mic },
     connecting: { bg: 'var(--color-cyan-glow)', color: 'var(--color-cyan)', text: 'Joining...', icon: Activity },
-    connected: { bg: 'var(--color-ok-dim)', color: 'var(--color-ok)', text: 'Connected', icon: Wifi },
     reconnecting: {
       bg: 'var(--color-warn-dim)',
       color: 'var(--color-warn)',
       text: reconnectAttempts > 0 ? `Reconnecting (${reconnectAttempts}/5)...` : 'Reconnecting...',
       icon: Activity,
     },
+    suspended: { bg: 'var(--color-warn-dim)', color: 'var(--color-warn)', text: 'Backgrounded — tap to resume', icon: Activity },
     failed: { bg: 'var(--color-danger-dim)', color: 'var(--color-danger)', text: error || 'Connection failed', icon: WifiOff },
     disconnected: { bg: 'var(--color-warn-dim)', color: 'var(--color-warn)', text: 'Disconnected', icon: WifiOff },
   }
@@ -840,8 +840,6 @@ function ConnectionBanner({ state, error, reconnectAttempts }: { state: Conferen
   if (!c) return null
   const Icon = c.icon
   const animating = state === 'connecting' || state === 'reconnecting' || state === 'requesting_permissions'
-
-  if (state === 'connected') return null
 
   return (
     <div className="w-full rounded px-3 py-2 mb-3 flex items-center gap-2" style={{ background: c.bg }}>
@@ -1517,28 +1515,32 @@ function DiagnosticsPanel({ diagnostics, state }: { diagnostics: ConferenceDiagn
         <div className="px-3 pb-2 space-y-1">
           <DiagRow label="state" value={state} />
           <DiagRow label="join stage" value={diagnostics.joinStage} />
+          <DiagRow label="mic state" value={diagnostics.micState} />
+          <DiagRow label="cam state" value={diagnostics.cameraState} />
           <DiagRow label="url" value={diagnostics.livekitUrl} />
           <DiagRow label="room" value={diagnostics.roomName} />
           <DiagRow label="identity" value={diagnostics.participantIdentity} />
-          <DiagRow label="token" value={diagnostics.tokenReceived ? 'received' : 'none'} />
-          <DiagRow label="signal" value={diagnostics.signalConnected ? 'connected' : 'no'} />
-          <DiagRow label="ice" value={diagnostics.iceState} />
+          <DiagRow label="token" value={diagnostics.tokenReceived ? 'yes' : 'no'} />
+          <DiagRow label="signal" value={diagnostics.signalConnected ? 'yes' : 'no'} />
           <DiagRow label="mic perm" value={diagnostics.micPermission} />
-          <DiagRow label="mic requested" value={diagnostics.micEnabledRequested ? 'on' : 'off'} />
           <DiagRow label="mic actual" value={diagnostics.micEnabledActual ? 'on' : 'off'} />
           <DiagRow label="audio sid" value={diagnostics.audioTrackSid} />
-          <DiagRow label="audio pub" value={diagnostics.audioPublicationExists ? 'yes' : 'no'} />
           {diagnostics.lastMicError && <DiagRow label="mic error" value={diagnostics.lastMicError} error />}
           <DiagRow label="cam perm" value={diagnostics.cameraPermission} />
           <DiagRow label="cam actual" value={diagnostics.cameraEnabledActual ? 'on' : 'off'} />
           <DiagRow label="video sid" value={diagnostics.videoTrackSid} />
-          <DiagRow label="video pub" value={diagnostics.videoPublicationExists ? 'yes' : 'no'} />
-          <DiagRow label="preview" value={diagnostics.localPreviewAttached ? 'attached' : 'no'} />
           {diagnostics.lastVideoError && <DiagRow label="cam error" value={diagnostics.lastVideoError} error />}
-          <DiagRow label="screenshare" value={diagnostics.screenShareSupport ? 'supported' : 'not supported'} />
+          <DiagRow label="screenshare" value={diagnostics.screenShareSupport ? 'yes' : 'no'} />
           <DiagRow label="reconnects" value={String(diagnostics.reconnectAttempts)} />
           <DiagRow label="published" value={String(diagnostics.publishedTrackCount)} />
           <DiagRow label="subscribed" value={String(diagnostics.subscribedTrackCount)} />
+          <DiagRow label="visibility" value={diagnostics.visibility.lastVisibilityState} />
+          {diagnostics.visibility.backgroundDurationMs !== null && (
+            <DiagRow label="bg duration" value={`${Math.round(diagnostics.visibility.backgroundDurationMs / 1000)}s`} />
+          )}
+          {diagnostics.joinTiming.joinClickToOperationalMs !== null && (
+            <DiagRow label="join total" value={`${diagnostics.joinTiming.joinClickToOperationalMs}ms`} />
+          )}
           <DiagRow label="last" value={diagnostics.lastEvent} />
           {diagnostics.lastError && (
             <DiagRow label="error" value={diagnostics.lastError} error />
