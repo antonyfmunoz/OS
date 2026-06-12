@@ -1,8 +1,13 @@
+import { lazy, Suspense } from 'react'
 import { useRoomsStore } from '../../stores/roomsStore'
 import { TextChannelView } from './TextChannelView'
 import { ForumChannelView } from './ForumChannelView'
-import { VoiceRoomPanel } from './VoiceRoomPanel'
 import { MeetingRoomPanel } from './MeetingRoomPanel'
+import { ErrorBoundary } from '../ErrorBoundary'
+
+const VoiceRoomPanel = lazy(() =>
+  import('./VoiceRoomPanel').then((m) => ({ default: m.VoiceRoomPanel }))
+)
 
 export function RoomMainView() {
   const activeChannelId = useRoomsStore((s) => s.activeChannelId)
@@ -19,19 +24,33 @@ export function RoomMainView() {
     )
   }
 
+  const isVoiceType = channel.type === 'voice' || channel.type === 'stage' || channel.type === 'broadcast'
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <RoomHeader channel={channel} />
       <div className="flex-1 min-h-0">
-        {channel.type === 'forum' && <ForumChannelView channelId={channel.id} />}
-        {channel.type === 'voice' && <VoiceRoomPanel channelId={channel.id} />}
-        {channel.type === 'video_meeting' && <MeetingRoomPanel channelId={channel.id} />}
-        {(channel.type === 'text' || channel.type === 'announcement' || channel.type === 'files' || channel.type === 'tasks' || channel.type === 'ai_room' || channel.type === 'security') && (
-          <TextChannelView channelId={channel.id} />
-        )}
-        {channel.type === 'stage' && <VoiceRoomPanel channelId={channel.id} />}
-        {channel.type === 'broadcast' && <VoiceRoomPanel channelId={channel.id} />}
+        <ErrorBoundary>
+          {channel.type === 'forum' && <ForumChannelView channelId={channel.id} />}
+          {isVoiceType && (
+            <Suspense fallback={<LoadingFallback label="Loading voice..." />}>
+              <VoiceRoomPanel channelId={channel.id} />
+            </Suspense>
+          )}
+          {channel.type === 'video_meeting' && <MeetingRoomPanel channelId={channel.id} />}
+          {(channel.type === 'text' || channel.type === 'announcement' || channel.type === 'files' || channel.type === 'tasks' || channel.type === 'ai_room' || channel.type === 'security') && (
+            <TextChannelView channelId={channel.id} />
+          )}
+        </ErrorBoundary>
       </div>
+    </div>
+  )
+}
+
+function LoadingFallback({ label }: { label: string }) {
+  return (
+    <div className="flex-1 flex items-center justify-center h-full">
+      <p className="text-xs font-mono" style={{ color: 'var(--color-text-tertiary)' }}>{label}</p>
     </div>
   )
 }
