@@ -1357,6 +1357,9 @@ async def get_voice_token(channel_id: str, user=Depends(require_clerk_auth)):
     token = pyjwt.encode(claims, api_secret, algorithm="HS256")
 
     livekit_ws = os.environ.get("LIVEKIT_WS_URL", "")
+    cockpit_domain = os.environ.get("COCKPIT_DOMAIN", "")
+    if cockpit_domain:
+        livekit_ws = f"wss://{cockpit_domain}/livekit/"
     return {"token": token, "url": livekit_ws, "room": room_name}
 
 
