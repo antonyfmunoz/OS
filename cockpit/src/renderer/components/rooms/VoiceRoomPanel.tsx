@@ -263,6 +263,9 @@ function VoiceParticipantRow({ participant: p }: { participant: VoiceParticipant
         color: p.isSpeaking ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
       }}>
         {p.name}
+        {p.identity.startsWith('guest-') && (
+          <span className="ml-1.5 text-[7px] px-1 rounded" style={{ background: 'var(--color-warn-dim, rgba(255,170,0,0.1))', color: 'var(--color-warn, #ffaa00)' }}>GUEST</span>
+        )}
       </span>
 
       <div className="flex items-center gap-1">
@@ -302,6 +305,9 @@ function ParticipantStrip({ participants }: { participants: VoiceParticipant[] }
           <span className="text-[9px] font-mono truncate max-w-[60px]" style={{ color: 'var(--color-text-secondary)' }}>
             {p.name}
           </span>
+          {p.identity.startsWith('guest-') && (
+            <span className="text-[6px] px-0.5 rounded" style={{ background: 'var(--color-warn-dim, rgba(255,170,0,0.1))', color: 'var(--color-warn, #ffaa00)' }}>G</span>
+          )}
           {p.isMuted && <MicOff size={9} style={{ color: 'var(--color-danger)' }} />}
         </div>
       ))}
@@ -945,7 +951,7 @@ function SettingsPanel({
 }
 
 function TimingSection({ timing }: { timing: JoinTiming }) {
-  const hasData = timing.joinClickToOperationalMs !== null
+  const hasData = timing.joinClickToOperationalMs !== null || timing.tokenPrefetchMs !== null
   if (!hasData) return null
 
   return (
@@ -954,6 +960,7 @@ function TimingSection({ timing }: { timing: JoinTiming }) {
         Join Timing
       </span>
       <div className="space-y-0.5">
+        {timing.roomOpenTimeMs !== null && <DiagRow label="room open" value={`${timing.roomOpenTimeMs}ms`} />}
         {timing.tokenPrefetchMs !== null && <DiagRow label="token prefetch" value={`${timing.tokenPrefetchMs}ms`} />}
         {timing.joinClickToConnectStartMs !== null && <DiagRow label="click→connect" value={`${timing.joinClickToConnectStartMs}ms`} />}
         {timing.connectMs !== null && <DiagRow label="connect" value={`${timing.connectMs}ms`} />}
@@ -1100,6 +1107,7 @@ function DiagnosticsSection({ diagnostics, state }: { diagnostics: VoiceDiagnost
           <DiagRow label="video sid" value={diagnostics.videoTrackSid} />
           {diagnostics.lastVideoError && <DiagRow label="cam err" value={diagnostics.lastVideoError} error />}
           <DiagRow label="screenshare" value={diagnostics.screenShareSupport ? 'yes' : 'no'} />
+          {diagnostics.lastScreenShareError && <DiagRow label="share err" value={diagnostics.lastScreenShareError} error />}
           <DiagRow label="reconnects" value={String(diagnostics.reconnectAttempts)} />
           <DiagRow label="published" value={String(diagnostics.publishedTrackCount)} />
           <DiagRow label="subscribed" value={String(diagnostics.subscribedTrackCount)} />
