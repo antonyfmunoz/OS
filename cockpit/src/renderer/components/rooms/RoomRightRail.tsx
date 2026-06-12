@@ -12,7 +12,7 @@ type Tab = 'members' | 'dex' | 'threads' | 'invites' | 'audit'
 const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: 'members', label: 'Members', icon: Users },
   { id: 'dex', label: 'DEX', icon: Bot },
-  { id: 'threads', label: 'Chat', icon: MessageSquare },
+  { id: 'threads', label: 'Threads', icon: MessageSquare },
   { id: 'invites', label: 'Invites', icon: Link2 },
   { id: 'audit', label: 'Audit', icon: Shield },
 ]

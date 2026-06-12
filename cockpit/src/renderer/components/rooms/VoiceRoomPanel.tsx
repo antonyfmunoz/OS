@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   Mic,
   MicOff,
   PhoneOff,
+  Wifi,
   WifiOff,
   Activity,
   ChevronDown,
@@ -11,6 +12,8 @@ import {
   VideoOff,
   Monitor,
   MonitorOff,
+  MessageSquare,
+  Send,
   Plus,
   X,
   Maximize2,
@@ -39,6 +42,7 @@ import type {
   MediaIntent,
   JoinTiming,
 } from '../../hooks/useConferenceRoom'
+import type { RoomMessage } from '../../types/rooms'
 
 const SOURCE_TYPE_ICONS: Record<string, typeof Monitor> = {
   camera: Camera,
@@ -76,7 +80,7 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
   const channel = channels.find((c) => c.id === channelId)
   const conf = useConferenceRoom(channelId)
   const voice = conf
-  const [sidePanel, setSidePanel] = useState<'settings' | null>(null)
+  const [sidePanel, setSidePanel] = useState<'chat' | 'settings' | null>(null)
   const [focusedStream, setFocusedStream] = useState<string | null>(null)
 
   const isConnected = voice.state === 'connected'
@@ -186,7 +190,7 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
             preJoinVideoEnabled={conf.preJoinVideoEnabled}
             localStreamCount={voice.localStreams.filter(s => s.sourceType !== 'camera').length}
             canAddStream={voice.canAddStream}
-            settingsOpen={sidePanel === 'settings'}
+            sidePanel={sidePanel}
             error={voice.error}
             onJoin={voice.join}
             onLeave={voice.leave}
@@ -197,22 +201,27 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
             onToggleVideo={voice.toggleVideo}
             onAddScreenShare={voice.addScreenShare}
             onStopAllStreams={voice.stopAllStreams}
+            onToggleChat={() => setSidePanel(sidePanel === 'chat' ? null : 'chat')}
             onToggleSettings={() => setSidePanel(sidePanel === 'settings' ? null : 'settings')}
           />
         </div>
 
-        {/* Settings panel — inline flex sibling */}
-        {sidePanel === 'settings' && (
-          <div className="w-72 flex flex-col min-h-0 border-l"
-            style={{ borderColor: 'var(--color-border)', maxWidth: '50%' }}
+        {/* Side panel — inline flex sibling, no overlay/drawer */}
+        {sidePanel && (
+          <div className="w-80 sm:w-80 flex flex-col min-h-0 border-l"
+            style={{ borderColor: 'var(--color-border)', maxWidth: '65%', minWidth: '260px' }}
           >
-            <SettingsPanel
-              diagnostics={voice.diagnostics}
-              state={voice.state}
-              aiGovernance={conf.aiGovernance}
-              onUpdateGovernance={conf.setAIGovernance}
-              productionChecklist={conf.productionChecklist}
-            />
+            {sidePanel === 'chat' ? (
+              <VoiceChat channelId={channelId} />
+            ) : (
+              <SettingsPanel
+                diagnostics={voice.diagnostics}
+                state={voice.state}
+                aiGovernance={conf.aiGovernance}
+                onUpdateGovernance={conf.setAIGovernance}
+                productionChecklist={conf.productionChecklist}
+              />
+            )}
           </div>
         )}
       </div>
@@ -606,7 +615,7 @@ function CallBar({
   preJoinVideoEnabled: boolean
   localStreamCount: number
   canAddStream: boolean
-  settingsOpen: boolean
+  sidePanel: 'chat' | 'settings' | null
   error: string | null
   onJoin: () => void
   onLeave: () => void
@@ -617,6 +626,7 @@ function CallBar({
   onToggleVideo: () => void
   onAddScreenShare: () => void
   onStopAllStreams: () => void
+  onToggleChat: () => void
   onToggleSettings: () => void
 }) {
   const [shareMenuOpen, setShareMenuOpen] = useState(false)
@@ -638,7 +648,7 @@ function CallBar({
           paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
         }}
       >
-        {/* Primary row: Mic / Join */}
+        {/* Primary row: Mic / Join / Chat */}
         <div className="flex items-center justify-center gap-1.5">
           <CallBarButton
             active={preJoinMicEnabled}
@@ -658,6 +668,13 @@ function CallBar({
           >
             {isJoining ? 'Joining...' : 'Join Voice'}
           </button>
+          <CallBarButton
+            active={sidePanel === 'chat'}
+            icon={MessageSquare}
+            label="Chat"
+            onClick={onToggleChat}
+            disabled={false}
+          />
         </div>
         {/* Secondary row: Video + Settings */}
         <div className="flex items-center justify-center gap-1.5">
@@ -669,7 +686,7 @@ function CallBar({
             disabled={isJoining}
           />
           <CallBarButton
-            active={settingsOpen}
+            active={sidePanel === 'settings'}
             icon={Settings}
             label="Settings"
             onClick={onToggleSettings}
@@ -755,7 +772,14 @@ function CallBar({
       </div>
 
       <CallBarButton
-        active={settingsOpen}
+        active={sidePanel === 'chat'}
+        icon={MessageSquare}
+        label="Chat"
+        onClick={onToggleChat}
+      />
+
+      <CallBarButton
+        active={sidePanel === 'settings'}
         icon={Settings}
         label="Settings"
         onClick={onToggleSettings}
@@ -1116,6 +1140,122 @@ function DiagnosticsSection({ diagnostics, state }: { diagnostics: VoiceDiagnost
           {diagnostics.lastError && <DiagRow label="error" value={diagnostics.lastError} error />}
         </div>
       )}
+    </div>
+  )
+}
+
+/* ─── Chat ─── */
+
+function VoiceChat({ channelId }: { channelId: string }) {
+  const messages = useRoomsStore((s) => s.messages)
+  const fetchMessages = useRoomsStore((s) => s.fetchMessages)
+  const sendMessage = useRoomsStore((s) => s.sendMessage)
+  const typingUsers = useRoomsStore((s) => s.typingUsers)
+
+  const [input, setInput] = useState('')
+  const [sending, setSending] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    fetchMessages(channelId)
+  }, [channelId, fetchMessages])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages.length])
+
+  const handleSend = async (e: FormEvent) => {
+    e.preventDefault()
+    const text = input.trim()
+    if (!text || sending) return
+    setSending(true)
+    setInput('')
+    await sendMessage(channelId, text)
+    setSending(false)
+  }
+
+  const channelMessages = messages.filter((m) => m.channel_id === channelId)
+  const typing = typingUsers[channelId] || []
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="hidden sm:flex items-center px-3 h-8 border-b shrink-0"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        <MessageSquare size={11} style={{ color: 'var(--color-text-tertiary)' }} />
+        <span className="text-[10px] font-mono ml-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+          Chat
+        </span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto overscroll-contain">
+        {channelMessages.length === 0 && (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-[10px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
+              No messages yet
+            </p>
+          </div>
+        )}
+        {channelMessages.map((msg) => (
+          <ChatMessage key={msg.id} message={msg} />
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      {typing.length > 0 && (
+        <div className="px-3 py-0.5">
+          <span className="text-[8px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
+            {typing.join(', ')} typing...
+          </span>
+        </div>
+      )}
+
+      <form onSubmit={handleSend}
+        className="flex items-center gap-1.5 px-2 py-1.5 border-t shrink-0"
+        style={{
+          borderColor: 'var(--color-border)',
+          paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 6px)',
+        }}
+      >
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Message..."
+          disabled={sending}
+          className="flex-1 text-[10px] font-mono px-2 py-1.5 rounded border bg-transparent outline-none"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
+        />
+        <button type="submit"
+          disabled={!input.trim() || sending}
+          className="p-1.5 rounded transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+          style={{
+            background: input.trim() ? 'var(--color-cyan)' : 'transparent',
+            color: input.trim() ? 'var(--color-canvas)' : 'var(--color-text-tertiary)',
+          }}
+        >
+          <Send size={11} />
+        </button>
+      </form>
+    </div>
+  )
+}
+
+function ChatMessage({ message: msg }: { message: RoomMessage }) {
+  if (msg.deleted) return null
+  return (
+    <div className="px-3 py-1 hover:bg-surface-raised transition-colors">
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-[9px] font-mono font-semibold" style={{ color: 'var(--color-cyan)' }}>
+          {msg.author_name}
+        </span>
+        <span className="text-[8px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
+          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      </div>
+      <p className="text-[10px] font-mono whitespace-pre-wrap break-words" style={{ color: 'var(--color-text-primary)' }}>
+        {msg.content}
+      </p>
     </div>
   )
 }
