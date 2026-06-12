@@ -12,9 +12,11 @@ import {
   useVisionStore,
   QUALITY_PROFILES,
   savePresetsToStorage,
+  computeFrameFreshness,
   type QualityMode,
   type MotionState,
   type CameraPreset,
+  type FrameFreshness,
 } from '../stores/visionStore'
 import { getVisionClient } from '../hooks/useVisionConnection'
 import { useVisionPopout } from './VisionPopout'
@@ -106,8 +108,16 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const [thumbPos, setThumbPos] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
 
+  const claimAuthority = useVisionStore((s) => s.claimAuthority)
+  const authority = useVisionStore((s) => s.authority)
+
   const isActive = cameraStatus === 'live' || cameraStatus === 'connecting'
   const previewRef = useRef<HTMLDivElement>(null)
+
+  const frameFreshness: FrameFreshness = computeFrameFreshness(
+    streamMetrics.lastFrameAge,
+    !!latestFrameUrl,
+  )
 
   // ── Scroll-wheel zoom on preview ───────────────────────────────
   useEffect(() => {
@@ -214,6 +224,12 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     if (!client?.connected) return
     if (!useVisionStore.getState().chainHealth.beastConnected) return
 
+    // Manual input always overrides AI — authority priority
+    const currentAuth = useVisionStore.getState().authority.current
+    if (currentAuth !== 'operator') {
+      claimAuthority('operator', 'Manual joystick/D-pad input')
+    }
+
     if (activeMotionIdRef.current) {
       client.ptzStopMotion(activeMotionIdRef.current)
       if (motionUpdateTimerRef.current) {
@@ -236,7 +252,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     setPtzMoving(true)
     updateControlMetrics({ lastCommandSentAt: Date.now() })
     ensureUpdateTimer()
-  }, [speed, setPtzMotion, setPtzMoving, updateControlMetrics, ensureUpdateTimer])
+  }, [speed, setPtzMotion, setPtzMoving, updateControlMetrics, ensureUpdateTimer, claimAuthority])
 
   const stopDirectionMotion = useCallback(() => {
     const client = getVisionClient()
@@ -362,45 +378,62 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     stopDirectionMotion()
   }, [stopDirectionMotion])
 
-  // ── Touch fallback for iOS Safari ─────────────────────────────────
+  // ── Native touch listeners for iOS Safari ──────────────────────────
+  // React registers touch listeners as passive, so preventDefault() is ignored.
+  // We must use native addEventListener with { passive: false } to prevent scroll stealing.
+  useEffect(() => {
+    const el = joystickRef.current
+    if (!el) return
 
-  const handleJoystickTouchStart = useCallback((e: React.TouchEvent) => {
-    e.stopPropagation()
-    e.preventDefault()
-    const t = e.touches[0]
-    if (!t) return
-    joystickDragging.current = true
-    setIsDragging(true)
-    const { dx, dy, panV, tiltV } = computeJoystickVectorFromClient(t.clientX, t.clientY)
-    setThumbPos({ x: dx, y: -dy })
-    joystickVelocity.current = { pan: panV, tilt: tiltV }
-    if (Math.abs(panV) > 0 || Math.abs(tiltV) > 0) {
-      startDirectionMotion(panV, tiltV)
+    const onTouchStart = (e: TouchEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+      const t = e.touches[0]
+      if (!t) return
+      joystickDragging.current = true
+      setIsDragging(true)
+      const { dx, dy, panV, tiltV } = computeJoystickVectorFromClient(t.clientX, t.clientY)
+      setThumbPos({ x: dx, y: -dy })
+      joystickVelocity.current = { pan: panV, tilt: tiltV }
+      if (Math.abs(panV) > 0 || Math.abs(tiltV) > 0) {
+        startDirectionMotion(panV, tiltV)
+      }
     }
-  }, [startDirectionMotion, computeJoystickVectorFromClient])
 
-  const handleJoystickTouchMove = useCallback((e: React.TouchEvent) => {
-    e.stopPropagation()
-    e.preventDefault()
-    const t = e.touches[0]
-    if (!t || !joystickDragging.current) return
-    const { dx, dy, panV, tiltV } = computeJoystickVectorFromClient(t.clientX, t.clientY)
-    setThumbPos({ x: dx, y: -dy })
-    joystickVelocity.current = { pan: panV, tilt: tiltV }
-    if (!activeMotionIdRef.current && (Math.abs(panV) > 0 || Math.abs(tiltV) > 0)) {
-      startDirectionMotion(panV, tiltV)
+    const onTouchMove = (e: TouchEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+      const t = e.touches[0]
+      if (!t || !joystickDragging.current) return
+      const { dx, dy, panV, tiltV } = computeJoystickVectorFromClient(t.clientX, t.clientY)
+      setThumbPos({ x: dx, y: -dy })
+      joystickVelocity.current = { pan: panV, tilt: tiltV }
+      if (!activeMotionIdRef.current && (Math.abs(panV) > 0 || Math.abs(tiltV) > 0)) {
+        startDirectionMotion(panV, tiltV)
+      }
     }
-  }, [startDirectionMotion, computeJoystickVectorFromClient])
 
-  const handleJoystickTouchEnd = useCallback((e: React.TouchEvent) => {
-    e.stopPropagation()
-    e.preventDefault()
-    joystickDragging.current = false
-    joystickVelocity.current = { pan: 0, tilt: 0 }
-    setThumbPos({ x: 0, y: 0 })
-    setIsDragging(false)
-    stopDirectionMotion()
-  }, [stopDirectionMotion])
+    const onTouchEnd = (e: TouchEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+      joystickDragging.current = false
+      joystickVelocity.current = { pan: 0, tilt: 0 }
+      setThumbPos({ x: 0, y: 0 })
+      setIsDragging(false)
+      stopDirectionMotion()
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: false })
+    el.addEventListener('touchcancel', onTouchEnd, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+      el.removeEventListener('touchcancel', onTouchEnd)
+    }
+  }, [computeJoystickVectorFromClient, startDirectionMotion, stopDirectionMotion])
 
   // ── PTZ Home / Emergency Stop ──────────────────────────────────
 
@@ -423,8 +456,34 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     stopZoomMotion()
     client.ptzStop()
     setPtzMoving(false)
-    addNotification('warn', 'E-stop pressed', 'operator', 'Emergency stop — all PTZ motion halted', 'motion stopped')
-  }, [setPtzMoving, stopDirectionMotion, stopZoomMotion, addNotification])
+    claimAuthority('operator', 'E-stop')
+    addNotification('warn', 'E-stop pressed', 'operator', 'Emergency stop — all PTZ motion halted, operator has control', 'motion stopped')
+  }, [setPtzMoving, stopDirectionMotion, stopZoomMotion, addNotification, claimAuthority])
+
+  // ── Keyboard shortcuts for PTZ ─────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!controlsEnabled) return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const key = e.key.toLowerCase()
+      if (key === 'escape') { handleEmergencyStop(); return }
+      if (key === 'arrowup' || key === 'w') { e.preventDefault(); startDirectionMotion(0, 1); return }
+      if (key === 'arrowdown' || key === 's') { e.preventDefault(); startDirectionMotion(0, -1); return }
+      if (key === 'arrowleft' || key === 'a') { e.preventDefault(); startDirectionMotion(-1, 0); return }
+      if (key === 'arrowright' || key === 'd') { e.preventDefault(); startDirectionMotion(1, 0); return }
+      if (key === '=' || key === '+') { e.preventDefault(); getVisionClient()?.ptzRelative(0, 0, 10); return }
+      if (key === '-') { e.preventDefault(); getVisionClient()?.ptzRelative(0, 0, -10); return }
+    }
+    const upHandler = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(key)) {
+        stopDirectionMotion()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    window.addEventListener('keyup', upHandler)
+    return () => { window.removeEventListener('keydown', handler); window.removeEventListener('keyup', upHandler) }
+  }, [controlsEnabled, handleEmergencyStop, startDirectionMotion, stopDirectionMotion])
 
   // ── Keyboard shortcuts for PTZ ─────────────────────────────────
   useEffect(() => {
@@ -586,8 +645,16 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     activePresetData.zoom !== ptzPosition.zoom
   )
 
-  // Preset sync status
-  const presetSyncStatus = Object.keys(presets).length > 0 ? 'synced' : connected ? 'loading' : 'offline'
+  // Preset sync status — truthful, not optimistic
+  const presetsLoading = useVisionStore((s) => s.presetsLoading)
+  const presetsLoadError = useVisionStore((s) => s.presetsLoadError)
+  const presetsLoadedAt = useVisionStore((s) => s.presetsLoadedAt)
+  const presetSyncStatus: 'synced' | 'loading' | 'error' | 'offline' =
+    !connected ? 'offline'
+    : presetsLoadError ? 'error'
+    : presetsLoading ? 'loading'
+    : Object.keys(presets).length > 0 || presetsLoadedAt > 0 ? 'synced'
+    : 'loading'
 
   // ── Render ─────────────────────────────────────────────────────
 
@@ -647,6 +714,24 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
               height={height || 720}
               visible={overlayVisible}
             />
+            {/* Stale frame overlay — Section 1: no old frame masquerades as live */}
+            {(frameFreshness === 'stale' || frameFreshness === 'dead') && (
+              <div className={clsx(
+                'absolute inset-0 flex items-center justify-center pointer-events-none',
+                frameFreshness === 'dead' ? 'bg-black/60' : 'bg-black/30',
+              )}>
+                <div className={clsx(
+                  'px-4 py-2 rounded-lg backdrop-blur-sm text-sm font-mono uppercase tracking-wider',
+                  frameFreshness === 'stale' ? 'bg-warning/20 text-warning border border-warning/40' : 'bg-danger/20 text-danger border border-danger/40',
+                )}>
+                  {frameFreshness === 'stale' ? 'STALE — last frame' : 'NO LIVE STREAM'}
+                  <span className="block text-[10px] normal-case mt-0.5 opacity-80">
+                    {(streamMetrics.lastFrameAge / 1000).toFixed(1)}s since last frame
+                    {!chainHealth.beastConnected && ' · beast offline'}
+                  </span>
+                </div>
+              </div>
+            )}
             {/* Stream quality badge — bottom-right corner */}
             <div className="absolute bottom-2 right-2">
               <button
@@ -763,8 +848,12 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                 {isPresetModified && (
                   <span className="ml-1 text-warning">(modified)</span>
                 )}
-                <span className={clsx('ml-1', presetSyncStatus === 'synced' ? 'text-ok' : presetSyncStatus === 'loading' ? 'text-text-quaternary' : 'text-danger')}>
-                  · {presetSyncStatus}
+                <span className={clsx('ml-1',
+                  presetSyncStatus === 'synced' ? 'text-ok'
+                  : presetSyncStatus === 'loading' ? 'text-text-quaternary'
+                  : presetSyncStatus === 'error' ? 'text-danger'
+                  : 'text-danger')}>
+                  · {presetSyncStatus === 'error' ? `error: ${presetsLoadError}` : presetSyncStatus}
                 </span>
               </span>
               <div className="flex items-center gap-2">
@@ -991,10 +1080,6 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                   onPointerUp={handleJoystickPointerUp}
                   onPointerCancel={handleJoystickPointerUp}
                   onPointerLeave={handleJoystickPointerUp}
-                  onTouchStart={handleJoystickTouchStart}
-                  onTouchMove={handleJoystickTouchMove}
-                  onTouchEnd={handleJoystickTouchEnd}
-                  onTouchCancel={handleJoystickTouchEnd}
                   className={clsx(
                     'w-48 h-48 rounded-full border-2 relative cursor-crosshair select-none transition-shadow',
                     controlsEnabled ? 'border-border bg-surface-hover' : 'border-border/50 bg-surface-hover/50 opacity-50',

@@ -3,7 +3,17 @@ import type { OverlayMetadata } from '../components/vision/VisionOverlay'
 
 export type CameraStatus = 'off' | 'connecting' | 'live' | 'analyzing' | 'error'
 
-export type CameraMode = 'manual' | 'follow' | 'watch'
+export type CameraMode = 'manual' | 'follow' | 'watch' | 'ai_assist'
+
+export type ControlAuthority = 'operator' | 'voice' | 'ai' | 'autonomous'
+
+export interface AuthorityState {
+  current: ControlAuthority
+  aiEnabled: boolean
+  aiIntentDescription: string
+  lastOverrideAt: number
+  lastOverrideBy: ControlAuthority
+}
 
 // ── Default-on policy ────────────────────────────────────────────
 
@@ -124,6 +134,16 @@ export interface PtzPosition {
   pan: number
   tilt: number
   zoom: number
+}
+
+export type FrameFreshness = 'live' | 'recent' | 'stale' | 'dead' | 'none'
+
+export function computeFrameFreshness(ageMs: number, hasFrame: boolean): FrameFreshness {
+  if (!hasFrame) return 'none'
+  if (ageMs < 2000) return 'live'
+  if (ageMs < 5000) return 'recent'
+  if (ageMs < 15000) return 'stale'
+  return 'dead'
 }
 
 export interface StreamMetrics {
@@ -527,6 +547,18 @@ interface VisionState {
   cameraMode: CameraMode
   setCameraMode: (mode: CameraMode) => void
 
+  // Authority state
+  authority: AuthorityState
+  setAuthority: (partial: Partial<AuthorityState>) => void
+  claimAuthority: (who: ControlAuthority, reason?: string) => void
+
+  // Preset loading state
+  presetsLoading: boolean
+  presetsLoadError: string | null
+  presetsLoadedAt: number
+  setPresetsLoading: (loading: boolean) => void
+  setPresetsLoadError: (error: string | null) => void
+
   reset: () => void
 }
 
@@ -557,6 +589,14 @@ const INITIAL_PTZ_MOTION: PtzMotionState = {
   speed: 1,
   startedAt: 0,
 }
+const INITIAL_AUTHORITY: AuthorityState = {
+  current: 'operator',
+  aiEnabled: false,
+  aiIntentDescription: '',
+  lastOverrideAt: 0,
+  lastOverrideBy: 'operator',
+}
+
 const INITIAL_CONTROL_METRICS: ControlMetrics = {
   commandSendRate: 0,
   beastReceiveRate: 0,
@@ -880,6 +920,32 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   cameraMode: 'manual',
   setCameraMode: (cameraMode) => set({ cameraMode }),
 
+  // Authority state
+  authority: { ...INITIAL_AUTHORITY },
+  setAuthority: (partial) => set((s) => ({
+    authority: { ...s.authority, ...partial },
+  })),
+  claimAuthority: (who, reason) => set((s) => {
+    const prev = s.authority.current
+    if (prev === who) return s
+    return {
+      authority: {
+        ...s.authority,
+        current: who,
+        lastOverrideAt: Date.now(),
+        lastOverrideBy: prev,
+        aiIntentDescription: reason || '',
+      },
+    }
+  }),
+
+  // Preset loading state
+  presetsLoading: false,
+  presetsLoadError: null,
+  presetsLoadedAt: 0,
+  setPresetsLoading: (presetsLoading) => set({ presetsLoading }),
+  setPresetsLoadError: (presetsLoadError) => set({ presetsLoadError }),
+
   reset: () => set({
     connected: false,
     streaming: false,
@@ -927,5 +993,9 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     viewerCount: 0,
     cameraSessionActive: false,
     cameraMode: 'manual',
+    authority: { ...INITIAL_AUTHORITY },
+    presetsLoading: false,
+    presetsLoadError: null,
+    presetsLoadedAt: 0,
   }),
 }))
