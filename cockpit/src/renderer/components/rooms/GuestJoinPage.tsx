@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link2, AlertTriangle, Mic, MicOff, Video, VideoOff, PhoneOff, Loader2 } from 'lucide-react'
+import {
+  Link2, AlertTriangle, Mic, MicOff, Video, VideoOff,
+  PhoneOff, Loader2, Monitor, MonitorOff,
+} from 'lucide-react'
 import {
   Room,
   RoomEvent,
   Track,
   ConnectionState,
   RemoteTrackPublication,
+  createLocalScreenTracks,
+  LocalVideoTrack,
   type RemoteParticipant,
 } from 'livekit-client'
 import { fetchApi } from '../../api/client'
@@ -30,12 +35,32 @@ interface GuestToken {
   identity: string
 }
 
+type GuestJoinStage =
+  | 'idle'
+  | 'validating_invite'
+  | 'requesting_token'
+  | 'connecting'
+  | 'publishing_mic'
+  | 'publishing_camera'
+  | 'connected'
+
+const STAGE_LABELS: Record<GuestJoinStage, string> = {
+  idle: '',
+  validating_invite: 'Validating invite...',
+  requesting_token: 'Getting room access...',
+  connecting: 'Connecting...',
+  publishing_mic: 'Setting up microphone...',
+  publishing_camera: 'Setting up camera...',
+  connected: 'Connected',
+}
+
 export function GuestJoinPage({ inviteCode }: { inviteCode: string }) {
   const [info, setInfo] = useState<InviteInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [guestName, setGuestName] = useState('')
   const [guestEmail, setGuestEmail] = useState('')
   const [joining, setJoining] = useState(false)
+  const [joinStage, setJoinStage] = useState<GuestJoinStage>('idle')
   const [error, setError] = useState<string | null>(null)
   const [joined, setJoined] = useState(false)
   const [guestToken, setGuestToken] = useState<GuestToken | null>(null)
@@ -71,6 +96,7 @@ export function GuestJoinPage({ inviteCode }: { inviteCode: string }) {
 
     setJoining(true)
     setError(null)
+    setJoinStage('requesting_token')
     try {
       const token = await fetchApi<GuestToken>(`/rooms/invite/${inviteCode}/join`, {
         method: 'POST',
@@ -85,6 +111,7 @@ export function GuestJoinPage({ inviteCode }: { inviteCode: string }) {
       setJoined(true)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to join')
+      setJoinStage('idle')
     } finally {
       setJoining(false)
     }
@@ -244,13 +271,22 @@ export function GuestJoinPage({ inviteCode }: { inviteCode: string }) {
             </p>
           )}
 
+          {joining && joinStage !== 'idle' && (
+            <div className="flex items-center justify-center gap-2">
+              <Loader2 size={12} className="animate-spin" style={{ color: 'var(--color-cyan, #00d4ff)' }} />
+              <span className="text-[10px] font-mono" style={{ color: 'var(--color-text-secondary, #999)' }}>
+                {STAGE_LABELS[joinStage]}
+              </span>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={joining || !guestName.trim()}
             className="w-full text-[11px] font-mono font-semibold py-2.5 rounded transition-colors"
             style={{
-              background: guestName.trim() ? 'var(--color-cyan, #00d4ff)' : 'var(--color-border, #222)',
-              color: guestName.trim() ? 'var(--color-canvas, #0a0a0f)' : 'var(--color-text-tertiary, #666)',
+              background: guestName.trim() && !joining ? 'var(--color-cyan, #00d4ff)' : 'var(--color-border, #222)',
+              color: guestName.trim() && !joining ? 'var(--color-canvas, #0a0a0f)' : 'var(--color-text-tertiary, #666)',
             }}
           >
             {joining ? 'Joining...' : `Join ${info.room_type === 'meeting' ? 'Meeting' : 'Room'}`}
@@ -272,6 +308,7 @@ interface GuestParticipant {
   name: string
   isSpeaking: boolean
   isMuted: boolean
+  isVideoOn: boolean
 }
 
 function GuestRoomView({
@@ -293,12 +330,17 @@ function GuestRoomView({
 }) {
   const roomRef = useRef<Room | null>(null)
   const [connState, setConnState] = useState<'connecting' | 'connected' | 'disconnected' | 'failed'>('connecting')
+  const [joinStage, setJoinStage] = useState<GuestJoinStage>('connecting')
   const [micOn, setMicOn] = useState(initialMic && permissions.can_speak)
   const [videoOn, setVideoOn] = useState(initialVideo && permissions.can_video)
+  const [screenSharing, setScreenSharing] = useState(false)
   const [participants, setParticipants] = useState<GuestParticipant[]>([])
   const [connError, setConnError] = useState<string | null>(null)
+  const [micError, setMicError] = useState<string | null>(null)
+  const [camError, setCamError] = useState<string | null>(null)
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
+  const localScreenTracksRef = useRef<Map<string, LocalVideoTrack>>(new Map())
 
   useEffect(() => {
     const room = new Room({
@@ -316,16 +358,10 @@ function GuestRoomView({
           name: p.name || p.identity,
           isSpeaking: p.isSpeaking,
           isMuted: !p.isMicrophoneEnabled,
+          isVideoOn: p.isCameraEnabled,
         })
       })
       setParticipants(parts)
-    }
-
-    function attachRemoteVideo(pub: RemoteTrackPublication, participant: RemoteParticipant) {
-      if (pub.track && pub.source === Track.Source.Camera) {
-        const el = remoteVideoRefs.current.get(participant.identity)
-        if (el) pub.track.attach(el)
-      }
     }
 
     room.on(RoomEvent.Connected, () => {
@@ -341,37 +377,84 @@ function GuestRoomView({
     room.on(RoomEvent.ActiveSpeakersChanged, syncParticipants)
     room.on(RoomEvent.TrackMuted, syncParticipants)
     room.on(RoomEvent.TrackUnmuted, syncParticipants)
+
     room.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
-      if (pub.source === Track.Source.Camera) {
+      if (track.kind === 'audio') {
+        const el = track.attach()
+        el.id = `guest-audio-${participant.identity}-${pub.trackSid}`
+        document.body.appendChild(el)
+      }
+      if (track.kind === 'video' && pub.source === Track.Source.Camera) {
         const el = remoteVideoRefs.current.get(participant.identity)
+        if (el) track.attach(el)
+      }
+      if (track.kind === 'video' && pub.source === Track.Source.ScreenShare) {
+        const el = remoteVideoRefs.current.get(`screen-${participant.identity}`)
         if (el) track.attach(el)
       }
       syncParticipants()
     })
-    room.on(RoomEvent.TrackUnsubscribed, (track) => {
-      track.detach()
+    room.on(RoomEvent.TrackUnsubscribed, (track, pub) => {
+      track.detach().forEach((el) => el.remove())
       syncParticipants()
+    })
+
+    room.on(RoomEvent.MediaDevicesError, (e) => {
+      const msg = e instanceof Error ? e.message : 'unknown media error'
+      const lower = msg.toLowerCase()
+      if (lower.includes('camera') || lower.includes('video')) {
+        setCamError(msg)
+      } else {
+        setMicError(msg)
+      }
     })
 
     async function connect() {
       try {
+        setJoinStage('connecting')
         await room.connect(token.url, token.token)
+        setConnState('connected')
 
         if (initialMic && permissions.can_speak) {
-          await room.localParticipant.setMicrophoneEnabled(true)
-        }
-        if (initialVideo && permissions.can_video) {
-          await room.localParticipant.setCameraEnabled(true)
-          const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera)
-          if (camPub?.track && localVideoRef.current) {
-            camPub.track.attach(localVideoRef.current)
+          setJoinStage('publishing_mic')
+          try {
+            await room.localParticipant.setMicrophoneEnabled(true)
+            setMicOn(true)
+            setMicError(null)
+          } catch (micErr) {
+            const msg = micErr instanceof Error ? micErr.message : 'mic failed'
+            setMicError(msg)
+            setMicOn(false)
           }
         }
 
+        if (initialVideo && permissions.can_video) {
+          setJoinStage('publishing_camera')
+          try {
+            await room.localParticipant.setCameraEnabled(true)
+            const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera)
+            if (camPub?.track && localVideoRef.current) {
+              camPub.track.attach(localVideoRef.current)
+            }
+            setVideoOn(true)
+            setCamError(null)
+          } catch (camErr) {
+            const msg = camErr instanceof Error ? camErr.message : 'camera failed'
+            setCamError(msg)
+            setVideoOn(false)
+          }
+        }
+
+        setJoinStage('connected')
+        syncParticipants()
+
         room.remoteParticipants.forEach((p) => {
           p.trackPublications.forEach((pub) => {
-            if (pub instanceof RemoteTrackPublication) {
-              attachRemoteVideo(pub, p)
+            if (pub instanceof RemoteTrackPublication && pub.track) {
+              if (pub.source === Track.Source.Camera) {
+                const el = remoteVideoRefs.current.get(p.identity)
+                if (el) pub.track.attach(el)
+              }
             }
           })
         })
@@ -395,7 +478,10 @@ function GuestRoomView({
     try {
       await room.localParticipant.setMicrophoneEnabled(next)
       setMicOn(next)
-    } catch { /* mic toggle failed — keep current state */ }
+      setMicError(null)
+    } catch (err) {
+      setMicError(err instanceof Error ? err.message : 'mic toggle failed')
+    }
   }, [micOn, permissions.can_speak])
 
   const toggleVideo = useCallback(async () => {
@@ -411,11 +497,54 @@ function GuestRoomView({
         }
       }
       setVideoOn(next)
-    } catch { /* video toggle failed — keep current state */ }
+      setCamError(null)
+    } catch (err) {
+      setCamError(err instanceof Error ? err.message : 'camera toggle failed')
+    }
   }, [videoOn, permissions.can_video])
 
+  const toggleScreenShare = useCallback(async () => {
+    const room = roomRef.current
+    if (!room || !permissions.can_screen_share) return
+
+    if (screenSharing) {
+      localScreenTracksRef.current.forEach((track) => {
+        room.localParticipant.unpublishTrack(track)
+        track.stop()
+      })
+      localScreenTracksRef.current.clear()
+      setScreenSharing(false)
+      return
+    }
+
+    try {
+      const tracks = await createLocalScreenTracks({ audio: true })
+      for (const track of tracks) {
+        if (track.kind === Track.Kind.Video) {
+          const pub = await room.localParticipant.publishTrack(track as LocalVideoTrack, {
+            source: Track.Source.ScreenShare,
+          })
+          if (pub.trackSid) {
+            localScreenTracksRef.current.set(pub.trackSid, track as LocalVideoTrack)
+          }
+        } else if (track.kind === Track.Kind.Audio) {
+          await room.localParticipant.publishTrack(track, {
+            source: Track.Source.ScreenShareAudio,
+          })
+        }
+      }
+      setScreenSharing(true)
+    } catch { /* user cancelled or not supported */ }
+  }, [screenSharing, permissions.can_screen_share])
+
   const handleLeave = useCallback(() => {
-    roomRef.current?.disconnect()
+    const room = roomRef.current
+    if (room) {
+      localScreenTracksRef.current.forEach((track) => track.stop())
+      localScreenTracksRef.current.clear()
+      room.disconnect()
+      roomRef.current = null
+    }
     setConnState('disconnected')
   }, [])
 
@@ -447,6 +576,8 @@ function GuestRoomView({
     )
   }
 
+  const hasAnyVideo = videoOn || participants.some(p => p.isVideoOn)
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-canvas, #0a0a0f)' }}>
       {/* Header bar */}
@@ -461,18 +592,39 @@ function GuestRoomView({
         <span className="text-[9px] font-mono ml-2" style={{ color: 'var(--color-text-tertiary, #666)' }}>
           {guestName}
         </span>
-        {connState === 'connecting' && (
-          <Loader2 size={12} className="animate-spin ml-2" style={{ color: 'var(--color-cyan, #00d4ff)' }} />
+        {joinStage !== 'connected' && joinStage !== 'idle' && (
+          <div className="flex items-center gap-1.5 ml-2">
+            <Loader2 size={10} className="animate-spin" style={{ color: 'var(--color-cyan, #00d4ff)' }} />
+            <span className="text-[8px] font-mono" style={{ color: 'var(--color-text-tertiary, #666)' }}>
+              {STAGE_LABELS[joinStage]}
+            </span>
+          </div>
         )}
         <span className="ml-auto text-[9px] font-mono" style={{ color: 'var(--color-text-tertiary, #666)' }}>
           {participants.length + 1} in room
         </span>
       </div>
 
+      {/* Errors — isolated per subsystem */}
+      {(micError || camError) && (
+        <div className="px-4 py-1.5 shrink-0 space-y-0.5" style={{ background: 'var(--color-danger-dim, rgba(255,68,68,0.08))' }}>
+          {micError && (
+            <p className="text-[9px] font-mono" style={{ color: 'var(--color-danger, #ff4444)' }}>
+              Mic: {micError}
+            </p>
+          )}
+          {camError && (
+            <p className="text-[9px] font-mono" style={{ color: 'var(--color-danger, #ff4444)' }}>
+              Camera: {camError}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-0 p-3 gap-3">
+      <div className="flex-1 flex flex-col min-h-0 p-3 gap-3 overflow-y-auto">
         {/* Video area */}
-        {(videoOn || participants.some(p => !p.isMuted)) && (
+        {hasAnyVideo && (
           <div className="flex flex-wrap gap-2 justify-center">
             {videoOn && (
               <div className="relative rounded overflow-hidden" style={{ background: 'var(--color-surface, #111)' }}>
@@ -489,7 +641,7 @@ function GuestRoomView({
                 </span>
               </div>
             )}
-            {participants.map(p => (
+            {participants.filter(p => p.isVideoOn).map(p => (
               <div key={p.identity} className="relative rounded overflow-hidden" style={{ background: 'var(--color-surface, #111)' }}>
                 <video
                   ref={(el) => {
@@ -524,6 +676,7 @@ function GuestRoomView({
               </div>
               <span className="text-[9px] font-mono" style={{ color: 'var(--color-text-secondary, #999)' }}>{p.name}</span>
               {p.isMuted && <MicOff size={9} style={{ color: 'var(--color-danger, #ff4444)' }} />}
+              {p.isVideoOn && <Video size={9} style={{ color: 'var(--color-ok, #00c853)' }} />}
             </div>
           ))}
         </div>
@@ -539,6 +692,7 @@ function GuestRoomView({
               background: micOn ? 'var(--color-surface, #111)' : 'var(--color-danger-dim, rgba(255,68,68,0.15))',
               color: micOn ? 'var(--color-text-primary, #e0e0e0)' : 'var(--color-danger, #ff4444)',
             }}
+            title={micOn ? 'Mute' : 'Unmute'}
           >
             {micOn ? <Mic size={18} /> : <MicOff size={18} />}
           </button>
@@ -551,8 +705,22 @@ function GuestRoomView({
               background: videoOn ? 'var(--color-surface, #111)' : 'var(--color-danger-dim, rgba(255,68,68,0.15))',
               color: videoOn ? 'var(--color-text-primary, #e0e0e0)' : 'var(--color-danger, #ff4444)',
             }}
+            title={videoOn ? 'Camera Off' : 'Camera On'}
           >
             {videoOn ? <Video size={18} /> : <VideoOff size={18} />}
+          </button>
+        )}
+        {permissions.can_screen_share && typeof navigator.mediaDevices?.getDisplayMedia === 'function' && (
+          <button
+            onClick={toggleScreenShare}
+            className="flex items-center justify-center w-10 h-10 rounded-full transition-colors"
+            style={{
+              background: screenSharing ? 'var(--color-cyan-dim, rgba(0,212,255,0.15))' : 'var(--color-surface, #111)',
+              color: screenSharing ? 'var(--color-cyan, #00d4ff)' : 'var(--color-text-primary, #e0e0e0)',
+            }}
+            title={screenSharing ? 'Stop Sharing' : 'Share Screen'}
+          >
+            {screenSharing ? <MonitorOff size={18} /> : <Monitor size={18} />}
           </button>
         )}
         <button
@@ -562,6 +730,7 @@ function GuestRoomView({
             background: 'var(--color-danger, #ff4444)',
             color: '#fff',
           }}
+          title="Leave"
         >
           <PhoneOff size={18} />
         </button>

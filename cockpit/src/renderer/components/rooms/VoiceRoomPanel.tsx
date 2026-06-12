@@ -263,7 +263,7 @@ function VoiceParticipantRow({ participant: p }: { participant: VoiceParticipant
         color: p.isSpeaking ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
       }}>
         {p.name}
-        {p.identity.startsWith('guest-') && (
+        {p.identity.startsWith('temporary_guest:') && (
           <span className="ml-1.5 text-[7px] px-1 rounded" style={{ background: 'var(--color-warn-dim, rgba(255,170,0,0.1))', color: 'var(--color-warn, #ffaa00)' }}>GUEST</span>
         )}
       </span>
@@ -305,7 +305,7 @@ function ParticipantStrip({ participants }: { participants: VoiceParticipant[] }
           <span className="text-[9px] font-mono truncate max-w-[60px]" style={{ color: 'var(--color-text-secondary)' }}>
             {p.name}
           </span>
-          {p.identity.startsWith('guest-') && (
+          {p.identity.startsWith('temporary_guest:') && (
             <span className="text-[6px] px-0.5 rounded" style={{ background: 'var(--color-warn-dim, rgba(255,170,0,0.1))', color: 'var(--color-warn, #ffaa00)' }}>G</span>
           )}
           {p.isMuted && <MicOff size={9} style={{ color: 'var(--color-danger)' }} />}

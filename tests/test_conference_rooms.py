@@ -946,7 +946,7 @@ class TestGuestInviteLinks:
         )
         result = await mod.guest_join_via_invite(invite["code"], mod.GuestJoinReq(guest_name="Guest1"))
         assert result["room"] == f"room-{ch['id']}"
-        assert result["identity"].startswith("guest-")
+        assert result["identity"].startswith("temporary_guest:")
         # Check uses incremented
         invites = mod._load("invites")
         updated = next(i for i in invites if i["id"] == invite["id"])
@@ -977,7 +977,7 @@ class TestGuestInviteLinks:
         )
         # Valid domain
         result = await mod.guest_join_via_invite(invite["code"], mod.GuestJoinReq(guest_name="Guest", guest_email="john@acme.com"))
-        assert result["identity"].startswith("guest-")
+        assert result["identity"].startswith("temporary_guest:")
         # Invalid domain
         with pytest.raises(HTTPException) as exc_info:
             await mod.guest_join_via_invite(invite["code"], mod.GuestJoinReq(guest_name="Guest2", guest_email="eve@evil.com"))

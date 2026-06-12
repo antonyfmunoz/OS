@@ -1084,7 +1084,7 @@ function ParticipantStrip({ participants }: { participants: ConferenceParticipan
           <span className="text-[9px] font-mono" style={{ color: 'var(--color-text-primary)' }}>
             {p.name}
           </span>
-          {p.identity.startsWith('guest-') && (
+          {p.identity.startsWith('temporary_guest:') && (
             <span className="text-[6px] px-0.5 rounded" style={{ background: 'var(--color-warn-dim, rgba(255,170,0,0.1))', color: 'var(--color-warn, #ffaa00)' }}>GUEST</span>
           )}
           <div className="flex items-center gap-1">

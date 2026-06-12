@@ -392,7 +392,7 @@ class CreateInviteReq(BaseModel):
     room_type: str = "voice"
     label: str | None = None
     max_uses: int | None = None
-    expires_hours: int | None = None
+    expires_hours: float | None = None
     allowed_email_domains: list[str] | None = None
     allowed_emails: list[str] | None = None
     permissions: GuestPermissions = Field(default_factory=GuestPermissions)
@@ -1325,7 +1325,7 @@ async def guest_join_via_invite(code: str, req: GuestJoinReq):
         raise HTTPException(400, "Invite has no channel")
 
     room_name = f"room-{channel_id}"
-    guest_identity = f"guest-{secrets.token_urlsafe(8)}"
+    guest_identity = f"temporary_guest:{invite['id']}:{secrets.token_urlsafe(8)}"
 
     api_key = os.environ.get("LIVEKIT_API_KEY", "")
     api_secret = os.environ.get("LIVEKIT_API_SECRET", "")

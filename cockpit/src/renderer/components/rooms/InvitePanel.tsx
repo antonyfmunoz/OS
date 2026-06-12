@@ -106,7 +106,7 @@ function CreateInviteForm({
   createInvite: (serverId: string, opts: CreateInviteOptions) => Promise<unknown>
 }) {
   const [label, setLabel] = useState('')
-  const [expiresHours, setExpiresHours] = useState('24')
+  const [expiresHours, setExpiresHours] = useState('1')
   const [maxUses, setMaxUses] = useState('')
   const [emailDomains, setEmailDomains] = useState('')
   const [emails, setEmails] = useState('')
@@ -131,7 +131,7 @@ function CreateInviteForm({
       room_type: roomType,
       label: label.trim() || null,
       max_uses: maxUses ? parseInt(maxUses, 10) : null,
-      expires_hours: expiresHours ? parseInt(expiresHours, 10) : null,
+      expires_hours: expiresHours ? parseFloat(expiresHours) : null,
       allowed_email_domains: parsedDomains,
       allowed_emails: parsedEmails,
       permissions,
@@ -170,10 +170,10 @@ function CreateInviteForm({
             className="w-full text-[10px] font-mono px-2 py-1 rounded border outline-none"
             style={inputStyle}
           >
+            <option value="0.25">15 minutes</option>
+            <option value="0.5">30 minutes</option>
             <option value="1">1 hour</option>
-            <option value="6">6 hours</option>
             <option value="24">24 hours</option>
-            <option value="72">3 days</option>
             <option value="168">7 days</option>
           </select>
         </div>
