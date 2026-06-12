@@ -520,6 +520,7 @@ function GuestRoomView({
     async function connect() {
       try {
         setJoinStage('connecting')
+        console.log('[GuestRoom] connect()', { url: token.url, room: token.room, identity: token.identity, tokenLen: token.token?.length })
         await room.connect(token.url, token.token)
         setConnState('connected')
 
@@ -568,8 +569,10 @@ function GuestRoomView({
           })
         })
       } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Connection failed'
+        console.error('[GuestRoom] connect failed', { error: msg, url: token.url, room: token.room, stack: e instanceof Error ? e.stack : undefined })
         setConnState('failed')
-        setConnError(e instanceof Error ? e.message : 'Connection failed')
+        setConnError(msg)
       }
     }
     connect()
@@ -821,6 +824,7 @@ function GuestRoomView({
     })
 
     try {
+      console.log('[GuestRoom] rejoin connect()', { url: token.url, room: token.room })
       await room.connect(token.url, token.token)
       setConnState('connected')
       setJoinStage('connected')
@@ -838,8 +842,10 @@ function GuestRoomView({
       }
       syncParticipants()
     } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Reconnection failed'
+      console.error('[GuestRoom] rejoin failed', { error: msg, url: token.url, stack: e instanceof Error ? e.stack : undefined })
       setConnState('failed')
-      setConnError(e instanceof Error ? e.message : 'Reconnection failed')
+      setConnError(msg)
     }
   }, [token, syncParticipants, restoreMediaIntents, attachRemoteVideo])
 
@@ -879,6 +885,9 @@ function GuestRoomView({
           <p className="text-xs font-mono" style={{ color: 'var(--color-text-primary, #e0e0e0)' }}>Connection Failed</p>
           <p className="text-[10px] font-mono" style={{ color: 'var(--color-text-tertiary, #666)' }}>
             {connError || 'Could not connect to the room.'}
+          </p>
+          <p className="text-[8px] font-mono break-all" style={{ color: 'var(--color-text-tertiary, #444)', maxWidth: '300px', margin: '4px auto' }}>
+            signal: {token.url}
           </p>
           <button
             onClick={handleRejoin}
