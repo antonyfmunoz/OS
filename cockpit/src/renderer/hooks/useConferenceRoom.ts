@@ -284,11 +284,11 @@ function participantToInfo(
 ): ConferenceParticipant {
   let isMuted: boolean
   if (p instanceof LocalParticipant) {
-    if (micIntent.transition === 'publishing' || micIntent.transition === 'prejoin_on') {
-      isMuted = !micIntent.intended
-    } else {
-      isMuted = !micIntent.actual
-    }
+    const transitioning = micIntent.transition === 'publishing'
+      || micIntent.transition === 'disabling'
+      || micIntent.transition === 'prejoin_on'
+      || micIntent.transition === 'prejoin_off'
+    isMuted = transitioning ? !micIntent.intended : !micIntent.actual
   } else {
     isMuted = !p.isMicrophoneEnabled
   }
@@ -479,12 +479,18 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     const micEnabled = room.localParticipant.isMicrophoneEnabled
     const camEnabled = room.localParticipant.isCameraEnabled
 
-    if (micIntentRef.current.transition === 'enabled' || micIntentRef.current.transition === 'disabled') {
+    const micTransitioning = micIntentRef.current.transition === 'publishing'
+      || micIntentRef.current.transition === 'disabling'
+    if (!micTransitioning) {
       setIsMuted(!micEnabled)
       updateMicIntent({ actual: micEnabled })
     }
-    setIsVideoOn(camEnabled)
-    if (cameraIntentRef.current.transition === 'on' || cameraIntentRef.current.transition === 'off') {
+
+    const camTransitioning = cameraIntentRef.current.transition === 'requesting_permission'
+      || cameraIntentRef.current.transition === 'disabling'
+      || cameraIntentRef.current.transition === 'publishing'
+    if (!camTransitioning) {
+      setIsVideoOn(camEnabled)
       updateCameraIntent({ actual: camEnabled })
     }
 
@@ -803,6 +809,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
         setState('connected')
         updateDiag({ reconnectAttempts: 0, signalConnected: true, lastEvent: 'reconnected successfully' })
         restoreMediaAfterForeground()
+        fetchChatHistory()
       })
 
       room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
@@ -821,14 +828,25 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       room.on(RoomEvent.ActiveSpeakersChanged, () => syncAllState())
 
       room.on(RoomEvent.TrackMuted, (pub: TrackPublication, participant: Participant) => {
-        if (participant instanceof LocalParticipant && pub.source === Track.Source.Microphone) {
-          if ((pub as LocalTrackPublication).trackSid && micIntentRef.current.lastActionId <= micActionId) {
-            // stale event — ignore if a newer action is in progress
+        if (participant instanceof LocalParticipant) {
+          const mi = micIntentRef.current
+          if (pub.source === Track.Source.Microphone && (mi.transition === 'publishing' || mi.transition === 'disabling')) {
+            return
+          }
+          const ci = cameraIntentRef.current
+          if (pub.source === Track.Source.Camera && (ci.transition === 'requesting_permission' || ci.transition === 'disabling')) {
+            return
           }
         }
         syncAllState()
       })
-      room.on(RoomEvent.TrackUnmuted, () => syncAllState())
+      room.on(RoomEvent.TrackUnmuted, (_pub: TrackPublication, participant: Participant) => {
+        if (participant instanceof LocalParticipant) {
+          const mi = micIntentRef.current
+          if (mi.transition === 'publishing' || mi.transition === 'disabling') return
+        }
+        syncAllState()
+      })
       room.on(RoomEvent.ConnectionQualityChanged, () => syncAllState())
 
       room.on(RoomEvent.LocalTrackPublished, (pub: LocalTrackPublication, _lp: LocalParticipant) => {
@@ -942,21 +960,42 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
         try {
           const msg = JSON.parse(new TextDecoder().decode(payload))
           if (msg.type === 'chat' && msg.content) {
-            setDataChatMessages((prev) => [...prev, {
-              id: `${prev.length}-${Date.now()}`,
-              sender: participant?.identity || 'unknown',
-              senderName: participant?.name || msg.senderName || 'Unknown',
-              content: msg.content,
-              timestamp: Date.now(),
-            }])
+            const senderIdentity = participant?.identity || 'unknown'
+            if (senderIdentity === roomRef.current?.localParticipant?.identity) return
+            setDataChatMessages((prev) => {
+              const isDup = prev.some(m => m.sender === senderIdentity && m.content === msg.content && Date.now() - m.timestamp < 3000)
+              if (isDup) return prev
+              return [...prev, {
+                id: `dc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                sender: senderIdentity,
+                senderName: participant?.name || msg.senderName || 'Unknown',
+                content: msg.content,
+                timestamp: Date.now(),
+              }]
+            })
           }
         } catch { /* ignore malformed data messages */ }
       })
 
       updateDiag({ joinStage: micEnabled ? 'requesting_mic' : 'connecting', micState: micEnabled ? 'publishing' : 'prejoin_off' })
-      await room.connect(tokenData.url, tokenData.token, {
-        autoSubscribe: true,
-      })
+
+      const CONNECT_RETRIES = 3
+      const CONNECT_BACKOFF = [500, 1000, 2000]
+      let connectAttempt = 0
+      while (true) {
+        try {
+          await room.connect(tokenData.url, tokenData.token, {
+            autoSubscribe: true,
+          })
+          break
+        } catch (connectErr) {
+          connectAttempt++
+          if (connectAttempt >= CONNECT_RETRIES) throw connectErr
+          const delay = CONNECT_BACKOFF[connectAttempt - 1] || 2000
+          updateDiag({ lastEvent: `connect attempt ${connectAttempt}/${CONNECT_RETRIES} failed, retrying in ${delay}ms...` })
+          await new Promise(r => setTimeout(r, delay))
+        }
+      }
       const connectDoneTs = Date.now()
       joinTimingRef.current.connectDoneTs = connectDoneTs
       updateDiag({
@@ -969,6 +1008,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       })
 
       setState('connected')
+      fetchChatHistory()
 
       if (micEnabled) {
         try {
@@ -1044,7 +1084,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
         roomRef.current = null
       }
     }
-  }, [channelId, syncAllState, updateDiag, attachVideoTrack, detachVideoTrack, updateMicIntent, updateCameraIntent, restoreMediaAfterForeground])
+  }, [channelId, syncAllState, updateDiag, attachVideoTrack, detachVideoTrack, updateMicIntent, updateCameraIntent, restoreMediaAfterForeground, fetchChatHistory])
 
   const join = useCallback(async () => {
     if (roomRef.current) return
@@ -1302,23 +1342,53 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     setAIGovernanceState((prev) => ({ ...prev, ...patch }))
   }, [])
 
+  const fetchChatHistory = useCallback(async () => {
+    try {
+      const msgs = await fetchApi<Array<{ id: string; sender_identity: string; sender_display_name: string; body: string; created_at: string }>>(`/rooms/channels/${channelId}/room-chat`)
+      if (Array.isArray(msgs)) {
+        setDataChatMessages(msgs.map(m => ({
+          id: m.id,
+          sender: m.sender_identity,
+          senderName: m.sender_display_name,
+          content: m.body,
+          timestamp: new Date(m.created_at).getTime(),
+        })))
+      }
+    } catch { /* chat history fetch failed — non-fatal */ }
+  }, [channelId])
+
   const sendDataChat = useCallback(async (content: string) => {
     const room = roomRef.current
     if (!room || !content.trim()) return
+    const text = content.trim()
+    const senderName = room.localParticipant.name || room.localParticipant.identity
+
+    const optimisticMsg: DataChatMessage = {
+      id: `local-${Date.now()}`,
+      sender: room.localParticipant.identity,
+      senderName,
+      content: text,
+      timestamp: Date.now(),
+    }
+    setDataChatMessages((prev) => [...prev, optimisticMsg])
+
+    try {
+      const saved = await fetchApi<{ id: string }>(`/rooms/channels/${channelId}/room-chat`, {
+        method: 'POST',
+        body: JSON.stringify({ content: text }),
+      })
+      setDataChatMessages((prev) => prev.map(m => m.id === optimisticMsg.id ? { ...m, id: saved.id } : m))
+    } catch { /* backend save failed — message still visible locally */ }
+
     const payload = new TextEncoder().encode(JSON.stringify({
       type: 'chat',
-      content: content.trim(),
-      senderName: room.localParticipant.name || room.localParticipant.identity,
+      content: text,
+      senderName,
     }))
-    await room.localParticipant.publishData(payload, { reliable: true, topic: DATA_CHAT_TOPIC })
-    setDataChatMessages((prev) => [...prev, {
-      id: `${prev.length}-${Date.now()}`,
-      sender: room.localParticipant.identity,
-      senderName: room.localParticipant.name || room.localParticipant.identity,
-      content: content.trim(),
-      timestamp: Date.now(),
-    }])
-  }, [])
+    try {
+      await room.localParticipant.publishData(payload, { reliable: true, topic: DATA_CHAT_TOPIC })
+    } catch { /* data channel send failed — message already persisted via API */ }
+  }, [channelId])
 
   const localIdentity = roomRef.current?.localParticipant?.identity
   const localStreams = localIdentity ? (streams.get(localIdentity) ?? []) : []
