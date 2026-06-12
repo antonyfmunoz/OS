@@ -45,7 +45,7 @@ def _push_room_event(event_type: str, payload: dict) -> None:
 
 # ── Storage ──
 
-_DATA_DIR = Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "rooms"
+_DATA_DIR = Path(os.environ.get("UMH_ROOMS_DATA", "/var/lib/umh/rooms"))
 _DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
