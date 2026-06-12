@@ -75,6 +75,7 @@ class ObjectDetector:
     def __init__(self, confidence_threshold: float = 0.35) -> None:
         self._model = None
         self._model_name = "yolov8n"
+        self._device = "cpu"
         self._confidence_threshold = confidence_threshold
         self._loaded = False
         self._load_error: str = ""
@@ -124,13 +125,18 @@ class ObjectDetector:
                 return True
             try:
                 from ultralytics import YOLO
-                logger.info("loading YOLOv8n model...")
+                import torch
+                self._device = "cuda" if torch.cuda.is_available() else "cpu"
+                logger.info("loading YOLOv8n on %s (CUDA available: %s)...", self._device, torch.cuda.is_available())
+                if self._device == "cuda":
+                    logger.info("GPU: %s", torch.cuda.get_device_name(0))
                 t0 = time.monotonic()
                 self._model = YOLO("yolov8n.pt")
+                self._model.to(self._device)
                 load_time = (time.monotonic() - t0) * 1000
                 self._loaded = True
                 self._load_error = ""
-                logger.info("YOLOv8n loaded in %.0fms", load_time)
+                logger.info("YOLOv8n loaded on %s in %.0fms", self._device, load_time)
                 return True
             except ImportError:
                 self._load_error = "ultralytics not installed"
@@ -151,7 +157,7 @@ class ObjectDetector:
 
         t0 = time.monotonic()
         try:
-            results = self._model(frame, verbose=False, conf=self._confidence_threshold)
+            results = self._model(frame, verbose=False, conf=self._confidence_threshold, device=self._device)
         except Exception as exc:
             logger.warning("inference error: %s", exc)
             return []
@@ -221,6 +227,7 @@ class ObjectDetector:
         status: dict[str, Any] = {
             "loaded": self._loaded,
             "model": self._model_name,
+            "device": self._device,
             "load_error": self._load_error,
             "frame_count": self._frame_count,
             "avg_inference_ms": round(self.avg_inference_ms, 1),
