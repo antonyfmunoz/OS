@@ -374,6 +374,10 @@ export interface VisionHealthState {
   physicalPtzAvailable: boolean
   digitalRoiAvailable: boolean
   commandPathReady: boolean
+  lastDispatchOkAt: number
+  lastDispatchFailAt: number
+  lastDispatchOperation: string
+  lastDispatchRttMs: number
   roi: RoiState
 }
 
@@ -703,6 +707,10 @@ const INITIAL_HEALTH: VisionHealthState = {
   physicalPtzAvailable: false,
   digitalRoiAvailable: true,
   commandPathReady: false,
+  lastDispatchOkAt: 0,
+  lastDispatchFailAt: 0,
+  lastDispatchOperation: '',
+  lastDispatchRttMs: 0,
   roi: { x: 0, y: 0, zoom: 1 },
 }
 

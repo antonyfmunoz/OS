@@ -650,6 +650,10 @@ export function useVisionConnection(): void {
           physicalPtzAvailable: d.physical_ptz_available as boolean ?? false,
           digitalRoiAvailable: d.digital_roi_available as boolean ?? true,
           commandPathReady: d.command_path_ready as boolean ?? false,
+          lastDispatchOkAt: d.last_dispatch_ok_at as number ?? 0,
+          lastDispatchFailAt: d.last_dispatch_fail_at as number ?? 0,
+          lastDispatchOperation: d.last_dispatch_operation as string ?? '',
+          lastDispatchRttMs: d.last_dispatch_rtt_ms as number ?? 0,
           roi: d.roi as { x: number; y: number; zoom: number } ?? { x: 0, y: 0, zoom: 1 },
         })
       }),
