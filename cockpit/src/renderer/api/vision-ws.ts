@@ -265,9 +265,16 @@ export class VisionWsClient {
     this.ws.send('camera_list_devices', { request_id: nextRequestId() })
   }
 
-  selectDevice(deviceIndex: number): void {
-    log('camera_select_device', { device_index: deviceIndex })
-    this.ws.send('camera_select_device', { device_index: deviceIndex, request_id: nextRequestId() })
+  selectDevice(deviceIndex: number, opts?: { fps?: number; width?: number; height?: number; quality?: number }): void {
+    log('camera_select_device', { device_index: deviceIndex, ...opts })
+    this.ws.send('camera_select_device', {
+      device_index: deviceIndex,
+      fps: opts?.fps,
+      width: opts?.width,
+      height: opts?.height,
+      quality: opts?.quality,
+      request_id: nextRequestId(),
+    })
   }
 
   startCamera(opts: { fps?: number; width?: number; height?: number; quality?: number } = {}): void {
