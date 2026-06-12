@@ -85,6 +85,11 @@ export function VisionSettings() {
     if (!client?.connected) return
     useVisionStore.getState().setDeviceScanLoading(true)
     client.listDevices()
+    setTimeout(() => {
+      if (useVisionStore.getState().deviceScanLoading) {
+        useVisionStore.getState().setDeviceScanLoading(false)
+      }
+    }, 15000)
   }, [])
 
   const handleSelectDevice = useCallback((idx: number) => {
