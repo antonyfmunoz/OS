@@ -71,6 +71,7 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
   const trackerStack = useVisionStore((s) => s.trackerStack)
   const securityMode = useVisionStore((s) => s.securityMode)
   const diagnosticOverlay = useVisionStore((s) => s.diagnosticOverlay)
+  const labelCorrections = useVisionStore((s) => s.labelCorrections)
 
   if (!visible && !diagnosticOverlay) return null
 
@@ -80,7 +81,11 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
   const effectiveOverlays: OverlayMetadata[] = []
 
   if (visible) {
-    effectiveOverlays.push(...realOverlays)
+    effectiveOverlays.push(...realOverlays.map((o) => {
+      const correction = labelCorrections[o.track_id]
+      if (correction) return { ...o, label: correction.correctedLabel }
+      return o
+    }))
   }
 
   if (diagnosticOverlay) {

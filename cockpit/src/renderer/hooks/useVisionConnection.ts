@@ -4,6 +4,7 @@ import {
   useVisionStore,
   QUALITY_PROFILES,
   shouldAutoStartCamera,
+  loadPresetsFromStorage,
   type CameraPreset,
   type TrackedObjectState,
   type WatchItemState,
@@ -53,6 +54,7 @@ export function useVisionConnection(): void {
   const updateControlMetrics = useVisionStore((s) => s.updateControlMetrics)
   const setViewerCount = useVisionStore((s) => s.setViewerCount)
   const setCameraSessionActive = useVisionStore((s) => s.setCameraSessionActive)
+  const recordLatency = useVisionStore((s) => s.recordLatency)
   const reset = useVisionStore((s) => s.reset)
 
   const metricsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -132,7 +134,9 @@ export function useVisionConnection(): void {
         setCameraStatus(isStreaming ? 'live' : 'off')
       }),
       client.on('camera_presets', (d) => {
-        setPresets(d.presets as Record<string, CameraPreset>)
+        const fromBeast = d.presets as Record<string, CameraPreset>
+        const fromStorage = loadPresetsFromStorage()
+        setPresets({ ...fromStorage, ...fromBeast })
       }),
       client.on('camera_position', (d) => {
         setPtzPosition({
@@ -176,8 +180,26 @@ export function useVisionConnection(): void {
         setError(d.error as string)
         setTimeout(() => setError(null), 5000)
       }),
-      client.on('preset_saved', () => {
+      client.on('preset_saved', (d) => {
         client.requestPresets()
+        const presetName = d.preset as string
+        if (presetName) {
+          useVisionStore.getState().addToast(`Preset "${presetName}" saved to device`, 'ok')
+        }
+      }),
+      client.on('preset_deleted', (d) => {
+        client.requestPresets()
+        const presetName = d.preset as string
+        if (presetName) {
+          useVisionStore.getState().addToast(`Preset "${presetName}" deleted from device`, 'warning')
+        }
+      }),
+      client.on('label_corrected', (d) => {
+        const trackId = d.track_id as string
+        const corrected = d.corrected_label as string
+        if (trackId && corrected) {
+          useVisionStore.getState().addToast(`Label correction synced to detector: "${corrected}"`, 'ok')
+        }
       }),
 
       // Scene / tracking events
@@ -327,13 +349,22 @@ export function useVisionConnection(): void {
       }),
       client.on('ptz_motion_ack', (d) => {
         const op = d.operation as string
+        const now = Date.now()
         if (op === 'stop_motion' || op === 'zoom_stop') {
           const sentAt = useVisionStore.getState().controlMetrics.lastStopSentAt
           if (sentAt > 0) {
-            updateControlMetrics({ lastStopAckedAt: Date.now(), stopLatencyMs: Date.now() - sentAt })
+            const rtt = now - sentAt
+            updateControlMetrics({ lastStopAckedAt: now, stopLatencyMs: rtt })
+            recordLatency({ commandId: d.request_id as string || '', sentAt, ackedAt: now, roundTripMs: rtt, operation: op })
           }
           setPtzMotion({ state: 'idle', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
           setPtzMoving(false)
+        } else if (op === 'start_motion' || op === 'zoom_start') {
+          const sentAt = useVisionStore.getState().controlMetrics.lastCommandSentAt
+          if (sentAt > 0) {
+            const rtt = now - sentAt
+            recordLatency({ commandId: d.request_id as string || '', sentAt, ackedAt: now, roundTripMs: rtt, operation: op })
+          }
         }
       }),
 

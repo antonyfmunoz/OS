@@ -294,6 +294,16 @@ export class VisionWsClient {
     this.ws.send('camera_save_preset', { preset, label, analysis_hint: analysisHint, request_id: nextRequestId() })
   }
 
+  deletePresetOnDevice(preset: string): void {
+    log('camera_delete_preset', { preset })
+    this.ws.send('camera_delete_preset', { preset, request_id: nextRequestId() })
+  }
+
+  correctLabel(trackId: string, correctedLabel: string, rawLabel: string): void {
+    log('vision_correct_label', { trackId, correctedLabel, rawLabel })
+    this.ws.send('vision_correct_label', { track_id: trackId, corrected_label: correctedLabel, raw_label: rawLabel })
+  }
+
   requestSnapshot(opts: { width?: number; height?: number; quality?: number } = {}): void {
     log('camera_snapshot')
     this.ws.send('camera_snapshot', {
