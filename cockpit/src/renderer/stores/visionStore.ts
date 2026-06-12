@@ -64,11 +64,13 @@ export interface ControlMetrics {
 }
 
 export interface CameraPreset {
+  id?: string
   label: string
   pan?: number
   tilt?: number
   zoom?: number
   mode?: 'physical_ptz' | 'digital_roi'
+  device_id?: number
   analysis_hint?: string
   roi?: { x: number; y: number; zoom: number }
   created_at?: number
