@@ -292,6 +292,42 @@ export interface CommandLatencyMeasurement {
   operation: string
 }
 
+// ── Security notification types ─────────────────────────────────
+
+export type NotificationSeverity = 'info' | 'warn' | 'critical'
+
+export interface SecurityNotification {
+  id: string
+  severity: NotificationSeverity
+  event: string
+  source: string
+  detail: string
+  action: string
+  timestamp: number
+  acknowledged: boolean
+  persistent: boolean
+}
+
+const NOTIFICATION_STORAGE_KEY = 'umh_security_notifications'
+
+function loadNotificationsFromStorage(): SecurityNotification[] {
+  try {
+    const raw = localStorage.getItem(NOTIFICATION_STORAGE_KEY)
+    if (raw) {
+      const all = JSON.parse(raw) as SecurityNotification[]
+      return all.filter((n) => n.persistent || Date.now() - n.timestamp < 86400000)
+    }
+  } catch { /* ignore */ }
+  return []
+}
+
+function saveNotificationsToStorage(notifications: SecurityNotification[]): void {
+  try {
+    const persistent = notifications.filter((n) => n.persistent || Date.now() - n.timestamp < 86400000)
+    localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(persistent.slice(-200)))
+  } catch { /* ignore */ }
+}
+
 interface VisionState {
   connected: boolean
   streaming: boolean
@@ -352,6 +388,10 @@ interface VisionState {
   // Command latency history
   latencyHistory: CommandLatencyMeasurement[]
 
+  // Security notifications
+  notifications: SecurityNotification[]
+  notificationUnreadCount: number
+
   setConnected: (connected: boolean) => void
   setStreaming: (streaming: boolean) => void
   setCameraStatus: (status: CameraStatus) => void
@@ -409,6 +449,12 @@ interface VisionState {
 
   // Latency setters
   recordLatency: (measurement: CommandLatencyMeasurement) => void
+
+  // Security notification setters
+  addNotification: (severity: NotificationSeverity, event: string, source: string, detail: string, action?: string, persistent?: boolean) => void
+  acknowledgeNotification: (id: string) => void
+  clearNotification: (id: string) => void
+  clearAllNotifications: () => void
 
   // Overlay data (from vision_overlay WS events)
   overlays: OverlayMetadata[]
@@ -599,6 +645,9 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   toasts: [],
   // Command latency history (keep last 20)
   latencyHistory: [],
+  // Security notifications
+  notifications: loadNotificationsFromStorage(),
+  notificationUnreadCount: loadNotificationsFromStorage().filter((n) => !n.acknowledged).length,
 
   setConnected: (connected) => set({ connected }),
   setStreaming: (streaming) => set({ streaming }),
@@ -702,6 +751,32 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     latencyHistory: [...s.latencyHistory.slice(-19), measurement],
   })),
 
+  // Security notification setters
+  addNotification: (severity, event, source, detail, action = '', persistent = false) => set((s) => {
+    const id = `notif_${++_toastId}`
+    const n: SecurityNotification = { id, severity, event, source, detail, action, timestamp: Date.now(), acknowledged: false, persistent: severity === 'critical' || persistent }
+    const notifications = [...s.notifications, n].slice(-200)
+    const unread = notifications.filter((x) => !x.acknowledged).length
+    saveNotificationsToStorage(notifications)
+    return { notifications, notificationUnreadCount: unread }
+  }),
+  acknowledgeNotification: (id) => set((s) => {
+    const notifications = s.notifications.map((n) => n.id === id ? { ...n, acknowledged: true } : n)
+    const unread = notifications.filter((n) => !n.acknowledged).length
+    saveNotificationsToStorage(notifications)
+    return { notifications, notificationUnreadCount: unread }
+  }),
+  clearNotification: (id) => set((s) => {
+    const notifications = s.notifications.filter((n) => n.id !== id)
+    const unread = notifications.filter((n) => !n.acknowledged).length
+    saveNotificationsToStorage(notifications)
+    return { notifications, notificationUnreadCount: unread }
+  }),
+  clearAllNotifications: () => {
+    saveNotificationsToStorage([])
+    set({ notifications: [], notificationUnreadCount: 0 })
+  },
+
   // Overlay data
   overlays: [],
   setOverlays: (overlays) => set({ overlays }),
@@ -774,6 +849,8 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     labelCorrections: loadCorrectionsFromStorage(),
     toasts: [],
     latencyHistory: [],
+    notifications: loadNotificationsFromStorage(),
+    notificationUnreadCount: loadNotificationsFromStorage().filter((n) => !n.acknowledged).length,
     overlays: [],
     diagnosticOverlay: false,
     overlayVisible: true,

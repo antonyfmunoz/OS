@@ -55,6 +55,8 @@ export function useVisionConnection(): void {
   const setViewerCount = useVisionStore((s) => s.setViewerCount)
   const setCameraSessionActive = useVisionStore((s) => s.setCameraSessionActive)
   const recordLatency = useVisionStore((s) => s.recordLatency)
+  const addNotification = useVisionStore((s) => s.addNotification)
+  const addToast = useVisionStore((s) => s.addToast)
   const reset = useVisionStore((s) => s.reset)
 
   const metricsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -73,6 +75,8 @@ export function useVisionConnection(): void {
     let cameraStartedInSession = false
     let connectedAt = 0
     let cameraStartDebounceTimer: ReturnType<typeof setTimeout> | null = null
+    let lastBeastConnected: boolean | null = null
+    let lastCameraStreaming: boolean | null = null
 
     const profile = QUALITY_PROFILES[useVisionStore.getState().qualityMode]
 
@@ -82,6 +86,7 @@ export function useVisionConnection(): void {
         setConnected(true)
         setCameraSessionActive(true)
         setError(null)
+        addNotification('info', 'Vision relay connected', 'relay', 'WebSocket connection established', 'monitoring')
         client.requestPresets()
         client.requestStatus()
         client.requestPosition()
@@ -117,12 +122,11 @@ export function useVisionConnection(): void {
         setCameraStatus('off')
         setStreaming(false)
         setCameraSessionActive(false)
-        // Reset so camera restarts after a genuine reconnect (relay restart, network recovery).
-        // Rapid flaps are absorbed by the 800ms debounce on next connect.
         cameraStartedInSession = false
         connectedAt = 0
         setPtzMotion({ state: 'disconnected', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
         updateChainHealth({ status: 'relay_offline', relayRunning: false, cockpitConnected: false, blockers: ['WebSocket disconnected from vision relay'], recoveryAction: 'reconnecting automatically' })
+        addNotification('warn', 'Vision relay disconnected', 'relay', 'WebSocket connection lost — reconnecting', 'auto-reconnect', true)
       }),
       client.on('vision_frame', (d) => {
         setLatestFrame(d.url as string, d.timestamp as number)
@@ -177,8 +181,10 @@ export function useVisionConnection(): void {
         }
       }),
       client.on('vision_error', (d) => {
-        setError(d.error as string)
+        const errMsg = d.error as string
+        setError(errMsg)
         setTimeout(() => setError(null), 5000)
+        addNotification('warn', 'Vision error', 'relay', errMsg, 'check diagnostics')
       }),
       client.on('preset_saved', (d) => {
         client.requestPresets()
@@ -308,6 +314,15 @@ export function useVisionConnection(): void {
             actions_taken: (d.actions_taken as string[]) || [],
             requires_review: d.requires_review as boolean || false,
           })
+          const isActive = d.active as boolean
+          if (isActive) {
+            addNotification('critical', 'Security mode activated', d.triggered_by as string || 'system',
+              `Mode: ${d.mode || 'unknown'} | Risk: ${d.risk || 'unknown'}`,
+              (d.actions_taken as string[] || []).join(', ') || 'monitoring', true)
+            addToast(`Security mode: ${d.mode || 'activated'}`, 'danger')
+          } else {
+            addNotification('info', 'Security mode deactivated', 'operator', 'Security mode returned to normal', 'none')
+          }
         }
         client.requestSecurityState()
       }),
@@ -411,8 +426,28 @@ export function useVisionConnection(): void {
         updateChainHealth(healthUpdate)
       }),
 
-      // Health chain events
+      // Health chain events — emit notifications on state transitions
       client.on('vision_health', (d) => {
+        const beastNow = d.beast_connected as boolean ?? false
+        const cameraNow = d.camera_streaming as boolean ?? false
+        if (lastBeastConnected !== null && lastBeastConnected !== beastNow) {
+          if (beastNow) {
+            addNotification('info', 'Beast online', 'mesh', 'Beast node connected to vision relay', 'monitoring')
+          } else {
+            addNotification('critical', 'Beast offline', 'mesh', 'Beast node disconnected — camera commands unavailable', 'check Beast', true)
+            addToast('Beast offline — camera commands unavailable', 'danger')
+          }
+        }
+        if (lastCameraStreaming !== null && lastCameraStreaming !== cameraNow) {
+          if (cameraNow) {
+            addNotification('info', 'Camera stream started', 'camera', 'Camera is now streaming frames', 'monitoring')
+          } else {
+            addNotification('warn', 'Camera stream stopped', 'camera', 'Camera is no longer streaming', 'check camera')
+          }
+        }
+        lastBeastConnected = beastNow
+        lastCameraStreaming = cameraNow
+
         const detStatus = d.detector_status as Record<string, unknown> | null
         updateChainHealth({
           status: (d.status as VisionChainStatus) || 'degraded',
