@@ -23,6 +23,18 @@ export function ConferenceRoomsPanel() {
   const [channelSidebarCollapsed, setChannelSidebarCollapsed] = useState(() => loadBool(CH_SIDEBAR_KEY, true))
   const [rightRailCollapsed, setRightRailCollapsed] = useState(() => loadBool(RIGHT_RAIL_KEY, true))
 
+  const toggleChannelSidebar = useCallback(() => setChannelSidebarCollapsed((v) => {
+    const next = !v
+    try { localStorage.setItem(CH_SIDEBAR_KEY, String(next)) } catch {}
+    return next
+  }), [])
+
+  const toggleRightRail = useCallback(() => setRightRailCollapsed((v) => {
+    const next = !v
+    try { localStorage.setItem(RIGHT_RAIL_KEY, String(next)) } catch {}
+    return next
+  }), [])
+
   useEffect(() => {
     fetchServers()
   }, [fetchServers])
@@ -35,22 +47,14 @@ export function ConferenceRoomsPanel() {
         <>
           <ChannelSidebar
             collapsed={channelSidebarCollapsed}
-            onToggleCollapse={useCallback(() => setChannelSidebarCollapsed((v) => {
-              const next = !v
-              try { localStorage.setItem(CH_SIDEBAR_KEY, String(next)) } catch {}
-              return next
-            }), [])}
+            onToggleCollapse={toggleChannelSidebar}
           />
           <div className="flex-1 flex flex-col min-w-0">
             <RoomMainView />
           </div>
           <RoomRightRail
             collapsed={rightRailCollapsed}
-            onToggleCollapse={useCallback(() => setRightRailCollapsed((v) => {
-              const next = !v
-              try { localStorage.setItem(RIGHT_RAIL_KEY, String(next)) } catch {}
-              return next
-            }), [])}
+            onToggleCollapse={toggleRightRail}
           />
         </>
       ) : (
