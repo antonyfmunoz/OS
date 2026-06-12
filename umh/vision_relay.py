@@ -715,17 +715,25 @@ async def handle_vision(ws: Any) -> None:
                 device_index = msg.get("device_index", 0)
                 result = await _dispatch_to_beast("camera.select_device", {
                     "device_index": device_index,
+                    "fps": msg.get("fps", 15),
+                    "width": msg.get("width", 1280),
+                    "height": msg.get("height", 720),
+                    "quality": msg.get("quality", 70),
                 })
                 if result and result.get("success"):
                     await send_json(ws, {
                         "type": "camera_device_selected",
                         "device_index": result.get("device_index"),
+                        "device_name": result.get("device_name", ""),
                         "restarted_stream": result.get("restarted_stream", False),
+                        "validation": result.get("validation"),
                     })
                 else:
                     await send_json(ws, {
-                        "type": "vision_error",
+                        "type": "camera_device_select_failed",
                         "error": result.get("error", "select failed") if result else "dispatch failed",
+                        "device_index": result.get("device_index", device_index) if result else device_index,
+                        "rolled_back": result.get("rolled_back", False) if result else False,
                     })
 
             elif msg_type == "camera_ptz_move":
@@ -1231,7 +1239,7 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
 
     dead = {clients[i] for i, ok in enumerate(results) if ok is not True}
     if dead:
-        log.info("cleaned %d stale viewer(s), %d remaining", len(dead), len(_clients) - len(dead))
+        log.debug("cleaned %d stale viewer(s), %d remaining", len(dead), len(_clients) - len(dead))
         _clients.difference_update(dead)
 
 

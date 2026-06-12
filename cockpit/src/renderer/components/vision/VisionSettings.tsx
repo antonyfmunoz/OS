@@ -1,14 +1,18 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { clsx } from 'clsx'
 import {
   Camera, RefreshCw, Settings2, Cpu, Zap, Activity,
-  X, Monitor, Check,
+  X, Monitor, Check, AlertTriangle, Loader2,
+  Eye,
 } from 'lucide-react'
 import {
   useVisionStore,
   QUALITY_PROFILES,
+  computeVisionReadiness,
   type QualityMode,
   type CameraDevice,
+  type DeviceStatus,
+  type VisionReadiness,
 } from '../../stores/visionStore'
 import { getVisionClient } from '../../hooks/useVisionConnection'
 
@@ -26,40 +30,108 @@ const QUALITY_DESCRIPTIONS: Record<QualityMode, string> = {
   analysis: '1fps 1080p — AI snapshot, max clarity',
 }
 
-function DeviceRow({ device, onSelect }: { device: CameraDevice; onSelect: (idx: number) => void }) {
-  const busyElsewhere = device.busy && !device.selected
-  const offline = !device.online
+const STATUS_LABELS: Record<DeviceStatus, string> = {
+  usable: 'Ready',
+  busy: 'In Use',
+  stale: 'Stale Frames',
+  unavailable: 'Unavailable',
+  duplicate: 'Duplicate',
+  error: 'Error',
+  unknown: 'Not Probed',
+}
+
+const READINESS_COLORS: Record<VisionReadiness, string> = {
+  READY: 'bg-ok',
+  DEGRADED: 'bg-warning',
+  STALE: 'bg-warning',
+  OFFLINE: 'bg-danger',
+  BLOCKED: 'bg-danger',
+}
+
+const READINESS_TEXT: Record<VisionReadiness, string> = {
+  READY: 'text-ok',
+  DEGRADED: 'text-warning',
+  STALE: 'text-warning',
+  OFFLINE: 'text-danger',
+  BLOCKED: 'text-danger',
+}
+
+function DeviceRow({ device, onSelect, switching }: {
+  device: CameraDevice
+  onSelect: (idx: number) => void
+  switching: boolean
+}) {
+  const isUsable = device.status === 'usable' || device.status === 'unknown'
+  const isBusyElsewhere = device.busy && !device.selected
+  const isDisabled = !isUsable && !device.selected
+  const statusLabel = isBusyElsewhere
+    ? 'In use — may conflict'
+    : STATUS_LABELS[device.status] || device.status
+
   return (
     <button
       onClick={() => onSelect(device.index)}
-      disabled={offline}
-      title={offline ? 'Device offline' : busyElsewhere ? 'In use by another app — may conflict' : undefined}
+      disabled={switching || (isDisabled && !device.selected)}
+      title={device.last_probe_error || statusLabel}
       className={clsx(
-        'w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors',
+        'w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border text-left transition-colors',
         device.selected
           ? 'border-cyan/50 bg-cyan/5'
-          : offline
+          : isDisabled
             ? 'border-border opacity-40 cursor-not-allowed'
-            : 'border-border hover:bg-surface-hover',
-        busyElsewhere && 'opacity-60 border-warning/30',
+            : 'border-border hover:bg-surface-hover cursor-pointer',
+        isBusyElsewhere && 'opacity-60 border-warning/30',
       )}
     >
       <Camera size={14} className={device.selected ? 'text-cyan' : 'text-text-tertiary'} />
       <div className="flex-1 min-w-0">
         <div className="text-xs font-mono text-text-primary truncate">{device.name}</div>
-        <div className="text-[10px] text-text-tertiary">
-          {device.width}x{device.height}
-          {busyElsewhere && <span className="text-warning"> · in use by another app</span>}
-          {offline && <span className="text-danger"> · offline</span>}
-          {device.selected && device.busy && <span className="text-cyan"> · active</span>}
+        <div className="text-[10px] text-text-tertiary flex items-center gap-1.5 mt-0.5">
+          {device.width > 0 && <span>{device.width}x{device.height}</span>}
+          {device.fps > 0 && <span>· {device.fps}fps</span>}
+          <span className={clsx(
+            device.status === 'usable' ? 'text-ok' :
+            device.status === 'error' || device.status === 'unavailable' ? 'text-danger' :
+            device.status === 'stale' || device.status === 'busy' ? 'text-warning' :
+            'text-text-quaternary',
+          )}>
+            · {statusLabel}
+          </span>
+          {device.selected && device.busy && <span className="text-cyan">· streaming</span>}
         </div>
       </div>
       {device.selected && <Check size={12} className="text-cyan shrink-0" />}
       <span className={clsx(
         'w-1.5 h-1.5 rounded-full shrink-0',
-        device.online ? (device.busy ? (device.selected ? 'bg-cyan' : 'bg-warning') : 'bg-ok') : 'bg-danger',
+        device.status === 'usable' ? (device.busy ? (device.selected ? 'bg-cyan' : 'bg-warning') : 'bg-ok')
+          : device.status === 'error' || device.status === 'unavailable' ? 'bg-danger'
+          : 'bg-text-quaternary',
       )} />
     </button>
+  )
+}
+
+function ReadinessIndicator() {
+  const streaming = useVisionStore((s) => s.streaming)
+  const latestFrameAt = useVisionStore((s) => s.latestFrameAt)
+  const chainHealth = useVisionStore((s) => s.chainHealth)
+  const hasPtzHardware = useVisionStore((s) => s.hasPtzHardware)
+  const presetsLoaded = Object.keys(useVisionStore.getState().presets).length > 0
+
+  const fps = useVisionStore((s) => s.streamMetrics.actualFps)
+  const readiness = useMemo(
+    () => computeVisionReadiness(chainHealth, streaming, latestFrameAt, fps, hasPtzHardware, presetsLoaded),
+    [chainHealth, streaming, latestFrameAt, fps, hasPtzHardware, presetsLoaded],
+  )
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-surface-hover/30 border-b border-border">
+      <span className={clsx('w-2 h-2 rounded-full', READINESS_COLORS[readiness.readiness])} />
+      <span className={clsx('text-xs font-mono font-medium', READINESS_TEXT[readiness.readiness])}>
+        {readiness.readiness}
+      </span>
+      <span className="text-[10px] text-text-tertiary flex-1">{readiness.reason}</span>
+    </div>
   )
 }
 
@@ -68,6 +140,8 @@ export function VisionSettings() {
   const devices = useVisionStore((s) => s.cameraDevices)
   const selectedDevice = useVisionStore((s) => s.selectedDeviceIndex)
   const scanLoading = useVisionStore((s) => s.deviceScanLoading)
+  const switching = useVisionStore((s) => s.deviceSwitching)
+  const switchError = useVisionStore((s) => s.deviceSwitchError)
   const qualityMode = useVisionStore((s) => s.qualityMode)
   const setQualityMode = useVisionStore((s) => s.setQualityMode)
   const streamMetrics = useVisionStore((s) => s.streamMetrics)
@@ -96,7 +170,20 @@ export function VisionSettings() {
     const client = getVisionClient()
     if (!client?.connected) return
     if (idx === selectedDevice) return
+    const store = useVisionStore.getState()
+    store.setDeviceSwitching(true)
+    store.setDeviceSwitchError(null)
+    store.addToast('Switching camera...', 'cyan')
+    const profile = QUALITY_PROFILES[store.qualityMode]
     client.selectDevice(idx)
+    // Timeout: if no response in 10s, clear switching state
+    setTimeout(() => {
+      if (useVisionStore.getState().deviceSwitching) {
+        useVisionStore.getState().setDeviceSwitching(false)
+        useVisionStore.getState().setDeviceSwitchError('Switch timed out — no response from Beast')
+        useVisionStore.getState().addToast('Camera switch timed out', 'danger')
+      }
+    }, 10000)
   }, [selectedDevice])
 
   const handleQualityChange = useCallback((mode: QualityMode) => {
@@ -106,6 +193,14 @@ export function VisionSettings() {
       client.switchQuality(QUALITY_PROFILES[mode])
     }
   }, [setQualityMode])
+
+  const handleRetryPresets = useCallback(() => {
+    const client = getVisionClient()
+    if (!client?.connected) return
+    useVisionStore.getState().setPresetsLoading(true)
+    useVisionStore.getState().setPresetsLoadError(null)
+    client.requestPresets()
+  }, [])
 
   const det = chainHealth.detectorStatus
   const avgRtt = latencyHistory.length > 0
@@ -123,8 +218,11 @@ export function VisionSettings() {
         </button>
       </div>
 
+      {/* Vision Readiness — single source of truth */}
+      <ReadinessIndicator />
+
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {/* Camera Device */}
+        {/* Camera Device — OBS/Discord style */}
         <div className="border border-border rounded-lg overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 bg-surface-hover/30">
             <Camera size={14} className="text-text-secondary" />
@@ -136,6 +234,7 @@ export function VisionSettings() {
                 'p-1 rounded transition-colors',
                 scanLoading ? 'animate-spin text-cyan' : 'text-text-tertiary hover:text-text-primary hover:bg-surface-hover',
               )}
+              title="Rescan devices"
             >
               <RefreshCw size={12} />
             </button>
@@ -145,12 +244,28 @@ export function VisionSettings() {
               <div className="text-[10px] text-text-tertiary px-2 py-3 text-center">Connect to relay to scan devices</div>
             ) : devices.length === 0 ? (
               <div className="text-[10px] text-text-tertiary px-2 py-3 text-center">
-                {scanLoading ? 'Scanning...' : 'No cameras detected — click refresh'}
+                {scanLoading ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <Loader2 size={10} className="animate-spin" /> Scanning...
+                  </span>
+                ) : 'No cameras detected — click refresh'}
               </div>
             ) : (
-              devices.map((d) => (
-                <DeviceRow key={d.index} device={d} onSelect={handleSelectDevice} />
-              ))
+              <>
+                {devices.map((d) => (
+                  <DeviceRow key={d.index} device={d} onSelect={handleSelectDevice} switching={switching} />
+                ))}
+                {switching && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] text-cyan">
+                    <Loader2 size={10} className="animate-spin" /> Switching camera...
+                  </div>
+                )}
+                {switchError && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] text-danger">
+                    <AlertTriangle size={10} /> {switchError}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -186,7 +301,6 @@ export function VisionSettings() {
                 </button>
               )
             })}
-            {/* Actual metrics */}
             <div className="grid grid-cols-3 gap-1 px-2 pt-1">
               <MetricCell label="Resolution" value={streamMetrics.actualFps > 0 ? `${useVisionStore.getState().width}x${useVisionStore.getState().height}` : '—'} />
               <MetricCell label="Actual FPS" value={streamMetrics.actualFps > 0 ? streamMetrics.actualFps.toFixed(1) : '—'} />
@@ -229,7 +343,7 @@ export function VisionSettings() {
           </div>
         </div>
 
-        {/* Controls / PTZ */}
+        {/* Controls / PTZ — Section 7 */}
         <div className="border border-border rounded-lg overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 bg-surface-hover/30">
             <Activity size={14} className="text-text-secondary" />
@@ -246,6 +360,24 @@ export function VisionSettings() {
               <MetricCell label="Cmd RTT" value={avgRtt !== null ? `${avgRtt}ms` : '—'}
                 color={avgRtt !== null ? (avgRtt < 80 ? 'ok' : avgRtt < 150 ? 'warn' : 'danger') : 'off'} />
             </div>
+            {!chainHealth.commandPathReady && (
+              <div className="flex items-center gap-1.5 px-2 pt-1 text-[10px] text-warning">
+                <AlertTriangle size={10} />
+                {!chainHealth.beastConnected
+                  ? 'Beast offline — controls unavailable'
+                  : 'Command path not ready — controls may not respond'}
+              </div>
+            )}
+            {!hasPtzHardware && chainHealth.digitalRoiAvailable && (
+              <div className="flex items-center gap-1.5 px-2 pt-1 text-[10px] text-text-tertiary">
+                <Eye size={10} /> No PTZ hardware — using Digital ROI fallback
+              </div>
+            )}
+            {!hasPtzHardware && !chainHealth.digitalRoiAvailable && (
+              <div className="flex items-center gap-1.5 px-2 pt-1 text-[10px] text-danger">
+                <AlertTriangle size={10} /> No PTZ or ROI available — controls disabled
+              </div>
+            )}
           </div>
         </div>
 
@@ -267,9 +399,18 @@ export function VisionSettings() {
                 color={authority.current === 'operator' ? 'ok' : authority.current === 'ai' ? 'warn' : undefined} />
               <MetricCell label="AI Enabled" value={authority.aiEnabled ? 'yes' : 'no'}
                 color={authority.aiEnabled ? 'warn' : undefined} />
-              <MetricCell label="Presets" value={presetsLoading ? 'loading...' : presetsLoadError ? 'error' : `${Object.keys(useVisionStore.getState().presets).length} loaded`}
+              <MetricCell label="Presets" value={
+                presetsLoading ? 'loading...'
+                  : presetsLoadError ? 'error'
+                  : `${Object.keys(useVisionStore.getState().presets).length} loaded`}
                 color={presetsLoadError ? 'danger' : presetsLoading ? 'warn' : 'ok'} />
             </div>
+            {presetsLoadError && (
+              <div className="flex items-center gap-1.5 px-2 pt-1">
+                <span className="text-[10px] text-danger flex-1">{presetsLoadError}</span>
+                <button onClick={handleRetryPresets} className="text-[10px] text-cyan hover:underline">Retry</button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -285,7 +426,8 @@ export function VisionSettings() {
             <StatusCell label="Camera" ok={chainHealth.cameraStreaming} />
             <StatusCell label="Detector" ok={det?.loaded ?? false} />
             <StatusCell label="Tracker" ok={det?.tracker_active ?? false} />
-            <StatusCell label="PTZ" ok={hasPtzHardware || chainHealth.digitalRoiAvailable} />
+            <StatusCell label="PTZ" ok={hasPtzHardware || chainHealth.digitalRoiAvailable}
+              warnLabel={!hasPtzHardware && chainHealth.digitalRoiAvailable ? 'ROI mode' : undefined} />
             <StatusCell label="Cmd Path" ok={chainHealth.commandPathReady} />
             <StatusCell label="Presets" ok={!presetsLoadError && Object.keys(useVisionStore.getState().presets).length > 0}
               warnLabel={presetsLoadError || undefined} />

@@ -1,5 +1,6 @@
+import { useMemo } from 'react'
 import { clsx } from 'clsx'
-import { useVisionStore, computeFrameFreshness, type ControlAuthority } from '../../stores/visionStore'
+import { useVisionStore, computeFrameFreshness, computeVisionReadiness, type ControlAuthority, type VisionReadiness } from '../../stores/visionStore'
 
 type StatusColor = 'ok' | 'warn' | 'danger' | 'off'
 
@@ -40,10 +41,40 @@ export function StatusHud() {
   const latestFrameUrl = useVisionStore((s) => s.latestFrameUrl)
   const authority = useVisionStore((s) => s.authority)
 
+  const hasPtz = hasPtzHardware
+  const fps = streamMetrics.actualFps
+  const presetsLoaded = Object.keys(useVisionStore.getState().presets).length > 0
+  const readiness = useMemo(
+    () => computeVisionReadiness(chainHealth, streaming, latestFrameAt, fps, hasPtz, presetsLoaded),
+    [chainHealth, streaming, latestFrameAt, fps, hasPtz, presetsLoaded],
+  )
+
   const frameAge = streamMetrics.lastFrameAge
   const freshness = computeFrameFreshness(frameAge, !!latestFrameUrl)
   const frameFresh = freshness === 'live'
   const hasRecentOverlays = chainHealth.lastOverlayAt > 0 && (Date.now() - chainHealth.lastOverlayAt) < 10000
+
+  const readinessBg: Record<VisionReadiness, string> = {
+    READY: 'bg-ok/10 border-ok/30',
+    DEGRADED: 'bg-warning/10 border-warning/30',
+    STALE: 'bg-warning/10 border-warning/30',
+    OFFLINE: 'bg-danger/10 border-danger/30',
+    BLOCKED: 'bg-danger/10 border-danger/30',
+  }
+  const readinessText: Record<VisionReadiness, string> = {
+    READY: 'text-ok',
+    DEGRADED: 'text-warning',
+    STALE: 'text-warning',
+    OFFLINE: 'text-danger',
+    BLOCKED: 'text-danger',
+  }
+  const readinessDot: Record<VisionReadiness, string> = {
+    READY: 'bg-ok',
+    DEGRADED: 'bg-warning animate-pulse',
+    STALE: 'bg-warning animate-pulse',
+    OFFLINE: 'bg-danger',
+    BLOCKED: 'bg-danger',
+  }
 
   // ── Per-subsystem truth states ──
   const relayColor: StatusColor = connected ? 'ok' : 'danger'
@@ -110,6 +141,15 @@ export function StatusHud() {
 
   return (
     <div className="flex flex-col gap-1">
+      {/* Vision Readiness — single truth */}
+      <div className={clsx('flex items-center gap-2 px-3 py-1 rounded border', readinessBg[readiness.readiness])}>
+        <span className={clsx('w-2 h-2 rounded-full', readinessDot[readiness.readiness])} />
+        <span className={clsx('text-[11px] font-mono font-bold tracking-wide', readinessText[readiness.readiness])}>
+          {readiness.readiness}
+        </span>
+        <span className="text-[10px] font-mono text-text-tertiary flex-1">{readiness.reason}</span>
+      </div>
+
       {/* Metrics row */}
       <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-border bg-surface-hover/30 flex-wrap">
         <span className={clsx('text-[10px] font-mono', width > 0 ? 'text-text-secondary' : 'text-text-tertiary')}>
