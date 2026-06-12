@@ -284,8 +284,8 @@ export function useVisionConnection(): void {
 
       // Device events
       client.on('camera_devices', (d) => {
-        const devices = d.devices as Array<{ index: number; name: string; width: number; height: number; online: boolean; busy: boolean; selected: boolean }>
-        useVisionStore.getState().setCameraDevices(devices || [])
+        const devices = (d.devices || []) as import('../stores/visionStore').CameraDevice[]
+        useVisionStore.getState().setCameraDevices(devices)
         useVisionStore.getState().setSelectedDeviceIndex(d.selected_index as number || 0)
         useVisionStore.getState().setDeviceScanLoading(false)
         if (d.error) {
@@ -293,14 +293,46 @@ export function useVisionConnection(): void {
         }
       }),
       client.on('camera_device_selected', (d) => {
+        const store = useVisionStore.getState()
         const idx = d.device_index as number
-        useVisionStore.getState().setSelectedDeviceIndex(idx)
-        useVisionStore.getState().addToast(`Camera switched to device ${idx}`, 'ok')
-        useVisionStore.getState().addNotification('info', 'Camera device changed', 'camera', `Now using device ${idx}`)
+        const name = d.device_name as string || `Camera ${idx}`
+        store.setSelectedDeviceIndex(idx)
+        store.setDeviceSwitching(false)
+        store.setDeviceSwitchError(null)
         if (d.restarted_stream) {
-          useVisionStore.getState().addNotification('info', 'Stream restarted', 'camera', 'Stream restarted on new device')
+          // Wait for live frames before declaring success (Section 3: transactional switch)
+          let frameCheckCount = 0
+          const frameCheckInterval = setInterval(() => {
+            frameCheckCount++
+            const s = useVisionStore.getState()
+            const frameAge = s.latestFrameAt ? Date.now() - s.latestFrameAt : Infinity
+            if (frameAge < 2000 && s.streaming) {
+              clearInterval(frameCheckInterval)
+              store.addToast(`Switched to ${name} — live`, 'ok')
+              store.addNotification('info', 'Camera switch verified', 'camera', `Now streaming from ${name}`)
+              client.listDevices()
+            } else if (frameCheckCount >= 10) {
+              clearInterval(frameCheckInterval)
+              store.addToast(`Switched to ${name} — waiting for frames`, 'warning')
+              store.addNotification('warn', 'Camera switch slow', 'camera', `Switched to ${name} but frames not yet verified`)
+              client.listDevices()
+            }
+          }, 300)
+        } else {
+          store.addToast(`Selected ${name}`, 'ok')
+          client.listDevices()
         }
-        client.listDevices()
+      }),
+      client.on('camera_device_select_failed', (d) => {
+        const store = useVisionStore.getState()
+        store.setDeviceSwitching(false)
+        const errorMsg = d.error as string || 'Switch failed'
+        store.setDeviceSwitchError(errorMsg)
+        store.addToast(`Camera switch failed: ${errorMsg}`, 'danger')
+        store.addNotification('warn', 'Camera switch failed', 'camera', errorMsg)
+        if (d.rolled_back) {
+          store.addNotification('info', 'Rolled back', 'camera', `Reverted to device ${d.device_index}`)
+        }
       }),
 
       // Scene / tracking events
