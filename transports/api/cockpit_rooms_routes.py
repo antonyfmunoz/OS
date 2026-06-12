@@ -30,6 +30,7 @@ from transports.api.cockpit_auth import require_clerk_auth
 logger = logging.getLogger(__name__)
 
 rooms_router = APIRouter(prefix="/rooms", tags=["rooms"])
+rooms_public_router = APIRouter(prefix="/rooms", tags=["rooms-public"])
 
 
 # ── Realtime broadcast ──
@@ -1249,7 +1250,7 @@ def _validate_invite(invite: dict) -> str | None:
     return None
 
 
-@rooms_router.get("/invite/{code}/info")
+@rooms_public_router.get("/invite/{code}/info")
 async def get_invite_info(code: str):
     """Public endpoint — no auth required. Returns invite metadata for guest join page."""
     invite = _find_invite_by_code(code)
@@ -1290,7 +1291,7 @@ async def get_invite_info(code: str):
     }
 
 
-@rooms_router.post("/invite/{code}/join")
+@rooms_public_router.post("/invite/{code}/join")
 async def guest_join_via_invite(code: str, req: GuestJoinReq):
     """Public endpoint — no auth required. Validates invite and returns a LiveKit token for the guest."""
     invite = _find_invite_by_code(code)
