@@ -73,6 +73,7 @@ class ObjectDetector:
         self._total_inference_ms = 0.0
         self._last_inference_ms = 0.0
         self._tracker = None
+        self._label_corrections: dict[str, str] = {}
         self._init_tracker()
 
     def _init_tracker(self) -> None:
@@ -193,6 +194,11 @@ class ObjectDetector:
 
         if self._tracker:
             tracked = self._tracker.update(raw_detections)
+            for d in tracked:
+                tid = str(d.get("track_id", ""))
+                if tid in self._label_corrections:
+                    d["raw_label"] = d["label"]
+                    d["label"] = self._label_corrections[tid]
             return tracked
 
         for i, d in enumerate(raw_detections):
@@ -231,4 +237,27 @@ class ObjectDetector:
     def get_active_tracks(self) -> list[dict[str, Any]]:
         if not self._tracker:
             return []
-        return [t.to_dict() for t in self._tracker.active_tracks]
+        tracks = []
+        for t in self._tracker.active_tracks:
+            d = t.to_dict()
+            tid = str(d.get("track_id", ""))
+            if tid in self._label_corrections:
+                d["raw_label"] = d["label"]
+                d["label"] = self._label_corrections[tid]
+            tracks.append(d)
+        return tracks
+
+    def correct_label(self, track_id: str, corrected_label: str) -> bool:
+        self._label_corrections[str(track_id)] = corrected_label
+        if self._tracker:
+            track = self._tracker.get_track(int(track_id)) if track_id.isdigit() else None
+            if track:
+                track.label = corrected_label
+                return True
+        return True
+
+    def remove_label_correction(self, track_id: str) -> None:
+        self._label_corrections.pop(str(track_id), None)
+
+    def get_label_corrections(self) -> dict[str, str]:
+        return dict(self._label_corrections)

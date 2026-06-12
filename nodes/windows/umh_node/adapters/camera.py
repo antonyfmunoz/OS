@@ -89,6 +89,9 @@ class CameraAdapter:
             "camera.scene_describe": self._scene_describe,
             "camera.track_query": self._track_query,
             "camera.active_tracks": self._active_tracks,
+            "camera.delete_preset": self._delete_preset,
+            "camera.correct_label": self._correct_label,
+            "camera.label_corrections": self._label_corrections_list,
         }
         handler = ops.get(operation)
         if handler is None:
@@ -582,6 +585,33 @@ class CameraAdapter:
         if self._detector is None:
             return {"success": False, "error": "detector not initialized"}
         return {"success": True, "tracks": self._detector.get_active_tracks()}
+
+    def _delete_preset(self, params: dict[str, Any]) -> dict[str, Any]:
+        name = params.get("preset", "")
+        if not name:
+            return {"success": False, "error": "preset name required"}
+        if name not in self._presets:
+            return {"success": False, "error": f"unknown preset: {name}"}
+        del self._presets[name]
+        self._save_presets_to_disk()
+        logger.info("deleted preset '%s'", name)
+        return {"success": True, "preset": name}
+
+    def _correct_label(self, params: dict[str, Any]) -> dict[str, Any]:
+        track_id = params.get("track_id", "")
+        corrected = params.get("corrected_label", "")
+        if not track_id or not corrected:
+            return {"success": False, "error": "track_id and corrected_label required"}
+        if self._detector is None:
+            return {"success": False, "error": "detector not initialized"}
+        self._detector.correct_label(str(track_id), corrected)
+        logger.info("label correction: track %s → '%s'", track_id, corrected)
+        return {"success": True, "track_id": track_id, "corrected_label": corrected}
+
+    def _label_corrections_list(self, params: dict[str, Any]) -> dict[str, Any]:
+        if self._detector is None:
+            return {"success": False, "error": "detector not initialized"}
+        return {"success": True, "corrections": self._detector.get_label_corrections()}
 
 
 def _default_presets() -> dict[str, dict[str, Any]]:

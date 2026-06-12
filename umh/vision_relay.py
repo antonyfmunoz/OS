@@ -616,6 +616,41 @@ async def handle_vision(ws: Any) -> None:
                         "error": result.get("error", "save failed") if result else "dispatch failed",
                     })
 
+            elif msg_type == "camera_delete_preset":
+                preset = msg.get("preset", "")
+                result = await _dispatch_to_beast("camera.delete_preset", {
+                    "preset": preset,
+                })
+                if result and result.get("success"):
+                    await send_json(ws, {"type": "preset_deleted", "preset": preset})
+                else:
+                    await send_json(ws, {
+                        "type": "vision_error",
+                        "error": result.get("error", "delete failed") if result else "dispatch failed",
+                    })
+
+            elif msg_type == "vision_correct_label":
+                track_id = msg.get("track_id", "")
+                corrected = msg.get("corrected_label", "")
+                raw = msg.get("raw_label", "")
+                result = await _dispatch_to_beast("camera.correct_label", {
+                    "track_id": track_id,
+                    "corrected_label": corrected,
+                    "raw_label": raw,
+                })
+                if result and result.get("success"):
+                    await send_json(ws, {
+                        "type": "label_corrected",
+                        "track_id": track_id,
+                        "corrected_label": corrected,
+                        "raw_label": raw,
+                    })
+                else:
+                    await send_json(ws, {
+                        "type": "vision_error",
+                        "error": result.get("error", "label correction failed") if result else "dispatch failed",
+                    })
+
             elif msg_type == "camera_get_position":
                 request_id = msg.get("request_id", "")
                 result = await _dispatch_to_beast("camera.get_position", {})

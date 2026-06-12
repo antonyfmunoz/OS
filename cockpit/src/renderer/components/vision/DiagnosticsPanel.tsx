@@ -31,9 +31,22 @@ export function DiagnosticsPanel({
 }) {
   const chainHealth = useVisionStore((s) => s.chainHealth)
   const trackerStack = useVisionStore((s) => s.trackerStack)
+  const latencyHistory = useVisionStore((s) => s.latencyHistory)
+  const labelCorrections = useVisionStore((s) => s.labelCorrections)
   const [expanded, setExpanded] = useState(false)
 
   const enabledTrackers = trackerStack.enabled_trackers.filter((t) => t.enabled)
+
+  const avgLatency = latencyHistory.length > 0
+    ? Math.round(latencyHistory.reduce((sum, m) => sum + m.roundTripMs, 0) / latencyHistory.length)
+    : 0
+  const maxLatency = latencyHistory.length > 0
+    ? Math.max(...latencyHistory.map((m) => m.roundTripMs))
+    : 0
+
+  const cmdAge = controlMetrics.lastCommandSentAt > 0
+    ? Math.round((Date.now() - controlMetrics.lastCommandSentAt) / 1000)
+    : -1
 
   return (
     <div className="border-t border-border pt-2">
@@ -45,6 +58,7 @@ export function DiagnosticsPanel({
         Diagnostics
         {ptzMotion.state !== 'idle' ? ` [${ptzMotion.state}]` : ''}
         {overlays.length > 0 ? ` [${overlays.length} ovr]` : ''}
+        {controlMetrics.stopLatencyMs > 0 ? ` [${controlMetrics.stopLatencyMs}ms]` : ''}
       </button>
 
       {expanded && (
@@ -59,6 +73,22 @@ export function DiagnosticsPanel({
             <span>Quality: {QUALITY_DESCRIPTIONS[qualityMode]}</span>
           </div>
 
+          {/* Command latency — prominent */}
+          <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 text-[9px] font-mono border border-dashed border-cyan/30 rounded p-2">
+            <span className="text-text-quaternary">stop_rtt: <span className={clsx(
+              controlMetrics.stopLatencyMs > 150 ? 'text-danger' : controlMetrics.stopLatencyMs > 80 ? 'text-warning' : 'text-ok',
+            )}>{controlMetrics.stopLatencyMs > 0 ? `${controlMetrics.stopLatencyMs}ms` : '—'}</span></span>
+            <span className="text-text-quaternary">avg_rtt: <span className={clsx(
+              avgLatency > 150 ? 'text-danger' : avgLatency > 80 ? 'text-warning' : 'text-ok',
+            )}>{avgLatency > 0 ? `${avgLatency}ms` : '—'}</span></span>
+            <span className="text-text-quaternary">max_rtt: <span className={clsx(
+              maxLatency > 200 ? 'text-danger' : maxLatency > 100 ? 'text-warning' : 'text-ok',
+            )}>{maxLatency > 0 ? `${maxLatency}ms` : '—'}</span></span>
+            <span className="text-text-quaternary">samples: {latencyHistory.length}</span>
+            <span className="text-text-quaternary">update_hz: 30</span>
+            <span className="text-text-quaternary">coalesced: {controlMetrics.coalescedCommands}</span>
+          </div>
+
           {/* PTZ state */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-border/50 rounded p-2">
             <span>joystick: <span className={joystickDragging ? 'text-cyan' : ''}>{joystickDragging ? 'DRAGGING' : 'idle'}</span></span>
@@ -71,14 +101,10 @@ export function DiagnosticsPanel({
               ptzMotion.state === 'idle' && 'text-ok',
             )}>{ptzMotion.state}</span></span>
             <span>relay_loop: {controlMetrics.ptzLoopCadenceHz > 0 ? `${controlMetrics.ptzLoopCadenceHz}Hz` : 'off'}</span>
-            <span>stop_latency: {controlMetrics.stopLatencyMs > 0 ? `${controlMetrics.stopLatencyMs}ms` : '—'}</span>
             <span>guard_kills: <span className={controlMetrics.guardTimeouts > 0 ? 'text-danger' : ''}>{controlMetrics.guardTimeouts}</span></span>
-            <span>coalesced: {controlMetrics.coalescedCommands}</span>
-            <span>last_cmd: {controlMetrics.lastCommandSentAt > 0
-              ? `${Math.round((Date.now() - controlMetrics.lastCommandSentAt) / 1000)}s ago`
-              : '—'}</span>
+            <span>last_cmd: {cmdAge >= 0 ? `${cmdAge}s ago` : '—'}</span>
             <span>ws: {connected ? 'connected' : 'DISCONNECTED'}</span>
-            <span>update_rate: 50ms</span>
+            <span>labels_corrected: {Object.keys(labelCorrections).length}</span>
           </div>
 
           {/* Chain health */}

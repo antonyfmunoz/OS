@@ -70,6 +70,9 @@ export interface CameraPreset {
   zoom?: number
   mode?: 'physical_ptz' | 'digital_roi'
   analysis_hint?: string
+  roi?: { x: number; y: number; zoom: number }
+  created_at?: number
+  updated_at?: number
 }
 
 export type AnalysisStatus = 'idle' | 'capturing' | 'analyzing' | 'complete' | 'error'
@@ -261,6 +264,34 @@ export interface VisionHealthState {
   roi: RoiState
 }
 
+// ── Label correction types ──────────────────────────────────────
+
+export interface LabelCorrection {
+  correctedLabel: string
+  rawLabel: string
+  trackId: string
+  correctedAt: number
+}
+
+// ── Toast notification types ────────────────────────────────────
+
+export interface ToastNotification {
+  id: string
+  message: string
+  variant: 'ok' | 'danger' | 'warning' | 'cyan'
+  expiresAt: number
+}
+
+// ── Command latency measurement ─────────────────────────────────
+
+export interface CommandLatencyMeasurement {
+  commandId: string
+  sentAt: number
+  ackedAt: number
+  roundTripMs: number
+  operation: string
+}
+
 interface VisionState {
   connected: boolean
   streaming: boolean
@@ -312,6 +343,15 @@ interface VisionState {
   // Security mode
   securityMode: SecurityModeInfo
 
+  // Label corrections — operator overrides for detector labels
+  labelCorrections: Record<string, LabelCorrection>
+
+  // Toast notifications
+  toasts: ToastNotification[]
+
+  // Command latency history
+  latencyHistory: CommandLatencyMeasurement[]
+
   setConnected: (connected: boolean) => void
   setStreaming: (streaming: boolean) => void
   setCameraStatus: (status: CameraStatus) => void
@@ -356,6 +396,19 @@ interface VisionState {
   setLastChainExplanation: (explanation: string) => void
   // Security mode setters
   setSecurityMode: (mode: Partial<SecurityModeInfo>) => void
+
+  // Label correction setters
+  setLabelCorrection: (trackId: string, correctedLabel: string, rawLabel: string) => void
+  removeLabelCorrection: (trackId: string) => void
+  getEffectiveLabel: (trackId: string, rawLabel: string) => string
+  loadLabelCorrections: () => void
+
+  // Toast setters
+  addToast: (message: string, variant: ToastNotification['variant']) => void
+  removeToast: (id: string) => void
+
+  // Latency setters
+  recordLatency: (measurement: CommandLatencyMeasurement) => void
 
   // Overlay data (from vision_overlay WS events)
   overlays: OverlayMetadata[]
@@ -456,7 +509,40 @@ const INITIAL_HEALTH: VisionHealthState = {
   roi: { x: 0, y: 0, zoom: 1 },
 }
 
-export const useVisionStore = create<VisionState>((set) => ({
+const LABEL_CORRECTIONS_KEY = 'umh_vision_label_corrections'
+const PRESET_STORAGE_KEY = 'umh_vision_presets'
+
+function loadCorrectionsFromStorage(): Record<string, LabelCorrection> {
+  try {
+    const raw = localStorage.getItem(LABEL_CORRECTIONS_KEY)
+    if (raw) return JSON.parse(raw) as Record<string, LabelCorrection>
+  } catch { /* ignore */ }
+  return {}
+}
+
+function saveCorrectionsToStorage(corrections: Record<string, LabelCorrection>): void {
+  try {
+    localStorage.setItem(LABEL_CORRECTIONS_KEY, JSON.stringify(corrections))
+  } catch { /* ignore */ }
+}
+
+export function loadPresetsFromStorage(): Record<string, CameraPreset> {
+  try {
+    const raw = localStorage.getItem(PRESET_STORAGE_KEY)
+    if (raw) return JSON.parse(raw) as Record<string, CameraPreset>
+  } catch { /* ignore */ }
+  return {}
+}
+
+export function savePresetsToStorage(presets: Record<string, CameraPreset>): void {
+  try {
+    localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets))
+  } catch { /* ignore */ }
+}
+
+let _toastId = 0
+
+export const useVisionStore = create<VisionState>((set, get) => ({
   connected: false,
   streaming: false,
   cameraStatus: 'off',
@@ -507,6 +593,13 @@ export const useVisionStore = create<VisionState>((set) => ({
   // Security mode initial state
   securityMode: { ...INITIAL_SECURITY },
 
+  // Label corrections
+  labelCorrections: loadCorrectionsFromStorage(),
+  // Toasts
+  toasts: [],
+  // Command latency history (keep last 20)
+  latencyHistory: [],
+
   setConnected: (connected) => set({ connected }),
   setStreaming: (streaming) => set({ streaming }),
   setCameraStatus: (cameraStatus) => set({ cameraStatus }),
@@ -514,7 +607,11 @@ export const useVisionStore = create<VisionState>((set) => ({
   setLatestFrame: (url, timestamp) => set({ latestFrameUrl: url, latestFrameAt: timestamp }),
   clearFrame: () => set({ latestFrameUrl: null, latestFrameAt: null }),
   setError: (error) => set({ error }),
-  setPresets: (presets) => set({ presets }),
+  setPresets: (presets) => {
+    const merged = { ...loadPresetsFromStorage(), ...presets }
+    savePresetsToStorage(merged)
+    set({ presets: merged })
+  },
   setAnalysisStatus: (analysisStatus) => set({ analysisStatus }),
   setAnalysisResult: (analysisResult) => set({ analysisResult }),
   incrementFrameCount: () => set((s) => ({ frameCount: s.frameCount + 1 })),
@@ -567,6 +664,42 @@ export const useVisionStore = create<VisionState>((set) => ({
   // Security mode setters
   setSecurityMode: (partial) => set((s) => ({
     securityMode: { ...s.securityMode, ...partial },
+  })),
+
+  // Label correction setters
+  setLabelCorrection: (trackId, correctedLabel, rawLabel) => set((s) => {
+    const corrections = {
+      ...s.labelCorrections,
+      [trackId]: { correctedLabel, rawLabel, trackId, correctedAt: Date.now() },
+    }
+    saveCorrectionsToStorage(corrections)
+    return { labelCorrections: corrections }
+  }),
+  removeLabelCorrection: (trackId) => set((s) => {
+    const corrections = { ...s.labelCorrections }
+    delete corrections[trackId]
+    saveCorrectionsToStorage(corrections)
+    return { labelCorrections: corrections }
+  }),
+  getEffectiveLabel: (trackId, rawLabel) => {
+    const correction = get().labelCorrections[trackId]
+    return correction ? correction.correctedLabel : rawLabel
+  },
+  loadLabelCorrections: () => set({ labelCorrections: loadCorrectionsFromStorage() }),
+
+  // Toast setters
+  addToast: (message, variant) => set((s) => {
+    const id = `toast_${++_toastId}`
+    const toast: ToastNotification = { id, message, variant, expiresAt: Date.now() + 4000 }
+    return { toasts: [...s.toasts, toast] }
+  }),
+  removeToast: (id) => set((s) => ({
+    toasts: s.toasts.filter((t) => t.id !== id),
+  })),
+
+  // Latency recording
+  recordLatency: (measurement) => set((s) => ({
+    latencyHistory: [...s.latencyHistory.slice(-19), measurement],
   })),
 
   // Overlay data
@@ -638,6 +771,9 @@ export const useVisionStore = create<VisionState>((set) => ({
     recentFires: [],
     lastChainExplanation: '',
     securityMode: { ...INITIAL_SECURITY },
+    labelCorrections: loadCorrectionsFromStorage(),
+    toasts: [],
+    latencyHistory: [],
     overlays: [],
     diagnosticOverlay: false,
     overlayVisible: true,
