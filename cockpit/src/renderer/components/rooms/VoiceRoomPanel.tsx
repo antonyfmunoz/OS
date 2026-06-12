@@ -650,7 +650,7 @@ function CallBar({
         }}
       >
           <CallBarButton
-            active={preJoinMicEnabled}
+            active={false}
             danger={!preJoinMicEnabled}
             icon={preJoinMicEnabled ? Mic : MicOff}
             label={preJoinMicEnabled ? 'Mic On' : 'Mic Off'}
