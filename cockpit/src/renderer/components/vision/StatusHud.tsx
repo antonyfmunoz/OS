@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { clsx } from 'clsx'
-import { useVisionStore, computeFrameFreshness, computeVisionReadiness, type ControlAuthority, type VisionReadiness } from '../../stores/visionStore'
+import { useVisionStore, computeFrameFreshness, type ControlAuthority } from '../../stores/visionStore'
 
 type StatusColor = 'ok' | 'warn' | 'danger' | 'off'
 
@@ -9,12 +9,13 @@ function Dot({ color }: { color: StatusColor }) {
   return <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', bg)} />
 }
 
-function StatusChip({ label, color, detail }: { label: string; color: StatusColor; detail?: string }) {
+function DomainChip({ label, state, color }: { label: string; state: string; color: StatusColor }) {
   const textCls = color === 'ok' ? 'text-ok' : color === 'warn' ? 'text-warning' : color === 'danger' ? 'text-danger' : 'text-text-quaternary'
   return (
-    <span className="flex items-center gap-1 text-[10px] font-mono" title={detail}>
+    <span className="flex items-center gap-1.5 text-[10px] font-mono">
       <Dot color={color} />
-      <span className={textCls}>{label}</span>
+      <span className="text-text-tertiary uppercase tracking-wider" style={{ fontSize: '9px' }}>{label}</span>
+      <span className={textCls}>{state}</span>
     </span>
   )
 }
@@ -35,183 +36,181 @@ export function StatusHud() {
   const width = useVisionStore((s) => s.width)
   const height = useVisionStore((s) => s.height)
   const hasPtzHardware = useVisionStore((s) => s.hasPtzHardware)
-  const securityMode = useVisionStore((s) => s.securityMode)
   const followMode = useVisionStore((s) => s.followMode)
   const latestFrameAt = useVisionStore((s) => s.latestFrameAt)
   const latestFrameUrl = useVisionStore((s) => s.latestFrameUrl)
   const authority = useVisionStore((s) => s.authority)
 
-  const hasPtz = hasPtzHardware
   const fps = streamMetrics.actualFps
-  const presetsLoaded = Object.keys(useVisionStore.getState().presets).length > 0
-  const readiness = useMemo(
-    () => computeVisionReadiness(chainHealth, streaming, latestFrameAt, fps, hasPtz, presetsLoaded),
-    [chainHealth, streaming, latestFrameAt, fps, hasPtz, presetsLoaded],
-  )
-
   const frameAge = streamMetrics.lastFrameAge
   const freshness = computeFrameFreshness(frameAge, !!latestFrameUrl)
-  const frameFresh = freshness === 'live'
-  const hasRecentOverlays = chainHealth.lastOverlayAt > 0 && (Date.now() - chainHealth.lastOverlayAt) < 10000
 
-  const readinessBg: Record<VisionReadiness, string> = {
-    READY: 'bg-ok/10 border-ok/30',
-    DEGRADED: 'bg-warning/10 border-warning/30',
-    STALE: 'bg-warning/10 border-warning/30',
-    OFFLINE: 'bg-danger/10 border-danger/30',
-    BLOCKED: 'bg-danger/10 border-danger/30',
-  }
-  const readinessText: Record<VisionReadiness, string> = {
-    READY: 'text-ok',
-    DEGRADED: 'text-warning',
-    STALE: 'text-warning',
-    OFFLINE: 'text-danger',
-    BLOCKED: 'text-danger',
-  }
-  const readinessDot: Record<VisionReadiness, string> = {
-    READY: 'bg-ok',
-    DEGRADED: 'bg-warning animate-pulse',
-    STALE: 'bg-warning animate-pulse',
-    OFFLINE: 'bg-danger',
-    BLOCKED: 'bg-danger',
-  }
+  // ── 5 independent state domains ──
+  // Each derives ONLY from its own source. No cross-contamination.
 
-  // ── Per-subsystem truth states ──
-  // Each subsystem derives ONLY from its own source. No inference.
-  // STREAM_STATE: from frame timestamps (latestFrameAt, streaming flag)
-  // BEAST_STATE: from mesh health poll (chainHealth.beastConnected)
-  // DEVICE_STATE: from device list response (cameraDevices in store)
-  // DETECTOR_STATE: from overlay events (detectorStatus in health)
-  // PTZ_STATE: from command path + hardware flags
-
-  const relayColor: StatusColor = connected ? 'ok' : 'danger'
-  const relayLabel = connected ? 'relay' : 'relay offline'
-
-  // BEAST_STATE — only from mesh health report, never inferred from frames
-  const beastColor: StatusColor = !connected ? 'off' : chainHealth.beastConnected ? 'ok' : 'danger'
-  const beastLabel = !connected ? 'beast' : chainHealth.beastConnected ? 'beast' : 'beast offline'
-
-  // STREAM_STATE — only from frame freshness, never from beast status
-  const cameraColor: StatusColor =
+  // 1. VIDEO — from frame timestamps only
+  const videoColor: StatusColor =
     !connected ? 'off'
-    : freshness === 'live' ? 'ok'
-    : freshness === 'recent' ? 'ok'
+    : freshness === 'live' || freshness === 'recent' ? 'ok'
     : freshness === 'stale' ? 'warn'
     : freshness === 'dead' ? 'danger'
-    : 'off'
-  const cameraLabel =
-    !connected ? 'camera'
-    : freshness === 'live' ? 'camera live'
-    : freshness === 'recent' ? `camera ${(frameAge / 1000).toFixed(1)}s`
+    : streaming ? 'warn' : 'off'
+  const videoState =
+    !connected ? 'OFFLINE'
+    : freshness === 'live' ? 'LIVE'
+    : freshness === 'recent' ? 'LIVE'
     : freshness === 'stale' ? 'STALE'
-    : freshness === 'dead' ? 'NO LIVE STREAM'
-    : streaming ? 'camera starting' : 'camera off'
+    : freshness === 'dead' ? 'OFFLINE'
+    : streaming ? 'STARTING' : 'OFFLINE'
 
-  // DETECTOR_STATE — only from detector status reports
-  const detectorStatus = chainHealth.detectorStatus
-  const hasDetectorReport = detectorStatus !== null
-  const detectorColor: StatusColor = !hasDetectorReport ? 'off' : detectorStatus?.loaded ? 'ok' : 'warn'
-  const detectorLabel = !hasDetectorReport ? 'detector' : detectorStatus?.loaded ? `detector ${detectorStatus.avg_inference_ms.toFixed(0)}ms` : 'detector loading'
+  // 2. CONTROL — from command path only
+  const controlColor: StatusColor =
+    !connected ? 'off'
+    : chainHealth.commandPathReady ? 'ok'
+    : chainHealth.beastConnected ? 'warn'
+    : 'danger'
+  const controlState =
+    !connected ? 'OFFLINE'
+    : chainHealth.commandPathReady ? 'READY'
+    : chainHealth.beastConnected ? 'DEGRADED'
+    : 'OFFLINE'
 
-  const trackerColor: StatusColor = !hasDetectorReport ? 'off' : detectorStatus?.tracker_active ? 'ok' : 'warn'
-  const trackerLabel = !hasDetectorReport ? 'tracker' : detectorStatus?.tracker_active
-    ? `tracker ${detectorStatus.active_tracks}/${detectorStatus.total_tracks}`
-    : 'tracker off'
+  // 3. PTZ — from PTZ hardware/ROI flags only
+  const ptzColor: StatusColor =
+    !connected ? 'off'
+    : !chainHealth.commandPathReady ? 'danger'
+    : hasPtzHardware ? 'ok'
+    : chainHealth.digitalRoiAvailable ? 'warn'
+    : 'off'
+  const ptzState =
+    !connected ? 'OFF'
+    : !chainHealth.commandPathReady ? 'BLOCKED'
+    : hasPtzHardware ? 'READY'
+    : chainHealth.digitalRoiAvailable ? 'ROI'
+    : 'UNAVAILABLE'
 
-  // PTZ_STATE — only from command path flags
-  const ptzReady = connected && chainHealth.commandPathReady
-  const ptzColor: StatusColor = !connected ? 'off' : ptzReady ? (hasPtzHardware ? 'ok' : chainHealth.digitalRoiAvailable ? 'warn' : 'off') : 'danger'
-  const ptzLabel = !connected ? 'ptz' : !ptzReady ? 'ptz blocked' : hasPtzHardware ? 'ptz hw' : chainHealth.digitalRoiAvailable ? 'ptz digital' : 'ptz unavailable'
+  // 4. DETECTOR — from detector status reports only
+  const det = chainHealth.detectorStatus
+  const detectorColor: StatusColor =
+    det === null ? 'off'
+    : det.loaded ? 'ok'
+    : 'warn'
+  const detectorState =
+    det === null ? 'OFF'
+    : det.loaded ? 'ACTIVE'
+    : 'LOADING'
 
-  const gpuDevice = detectorStatus?.device
-  const gpuColor: StatusColor = !hasDetectorReport ? 'off' : gpuDevice === 'cuda' ? 'ok' : gpuDevice === 'cpu' ? 'warn' : 'off'
-  const gpuLabel = !hasDetectorReport ? 'gpu' : gpuDevice === 'cuda' ? 'gpu cuda' : gpuDevice === 'cpu' ? 'gpu → cpu' : 'gpu unknown'
+  // 5. TRACKER — from tracker reports only
+  const trackerColor: StatusColor =
+    det === null ? 'off'
+    : det.tracker_active ? 'ok'
+    : 'off'
+  const trackerState =
+    det === null ? 'OFF'
+    : det.tracker_active ? `ACTIVE ${det.active_tracks}`
+    : 'IDLE'
 
-  const secColor: StatusColor = securityMode.active ? 'danger' : 'off'
-  const secLabel = securityMode.active ? `security: ${securityMode.mode}` : 'security off'
-
-  const cmdPathColor: StatusColor = !connected ? 'off' : chainHealth.commandPathReady ? 'ok' : chainHealth.beastConnected ? 'warn' : 'danger'
-  const cmdPathLabel = !connected ? 'cmd path' : chainHealth.commandPathReady ? 'cmd ready' : chainHealth.beastConnected ? 'cmd degraded' : 'cmd blocked'
-
-  if (!connected) {
-    return (
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border bg-surface-hover/30">
-        <StatusChip label={relayLabel} color={relayColor} />
-      </div>
-    )
-  }
-
-  const resolutionStr = width > 0 && height > 0 ? `${width}x${height}` : streaming ? 'Unknown' : '—'
-  const fpsStr = `${streamMetrics.actualFps.toFixed(1)} fps`
+  // Derived display values
+  const resolutionStr = width > 0 && height > 0 ? `${width}x${height}` : streaming ? '—' : '—'
+  const fpsStr = `${fps.toFixed(1)} fps`
   const latencyStr = frameAge < 1000 ? `${frameAge}ms` : `${(frameAge / 1000).toFixed(1)}s`
   const bitrateStr = streamMetrics.bitrateKbps > 1024
     ? `${(streamMetrics.bitrateKbps / 1024).toFixed(1)} Mbps`
     : `${streamMetrics.bitrateKbps} Kbps`
 
+  // Overall summary — only OFFLINE when both video and control are offline
+  const allOffline = videoState === 'OFFLINE' && controlState === 'OFFLINE'
+  const allReady = videoState === 'LIVE' && controlState === 'READY'
+  const summaryColor = allOffline ? 'danger' : allReady ? 'ok' : 'warn'
+  const summaryBg = allOffline
+    ? 'bg-danger/10 border-danger/30'
+    : allReady
+      ? 'bg-ok/10 border-ok/30'
+      : 'bg-warning/10 border-warning/30'
+  const summaryDot = allOffline ? 'bg-danger' : allReady ? 'bg-ok' : 'bg-warning animate-pulse'
+  const summaryText = allOffline
+    ? 'text-danger'
+    : allReady
+      ? 'text-ok'
+      : 'text-warning'
+  const summaryLabel = allOffline ? 'OFFLINE' : allReady ? 'READY' : 'DEGRADED'
+  const summaryReason = useMemo(() => {
+    if (allOffline) return !connected ? 'Relay disconnected' : 'No video or control'
+    if (allReady) return 'All systems operational'
+    const issues: string[] = []
+    if (videoState !== 'LIVE') issues.push(`video ${videoState.toLowerCase()}`)
+    if (controlState !== 'READY') issues.push(`control ${controlState.toLowerCase()}`)
+    if (ptzState === 'BLOCKED') issues.push('ptz blocked')
+    return issues.join(' · ') || 'Partial functionality'
+  }, [allOffline, allReady, connected, videoState, controlState, ptzState])
+
+  if (!connected) {
+    return (
+      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border bg-surface-hover/30">
+        <Dot color="danger" />
+        <span className="text-[10px] font-mono text-danger">relay offline</span>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-1">
-      {/* Vision Readiness — single truth */}
-      <div className={clsx('flex items-center gap-2 px-3 py-1 rounded border', readinessBg[readiness.readiness])}>
-        <span className={clsx('w-2 h-2 rounded-full', readinessDot[readiness.readiness])} />
-        <span className={clsx('text-[11px] font-mono font-bold tracking-wide', readinessText[readiness.readiness])}>
-          {readiness.readiness}
+      {/* Summary — OFFLINE only when no video AND no control */}
+      <div className={clsx('flex items-center gap-2 px-3 py-1 rounded border', summaryBg)}>
+        <span className={clsx('w-2 h-2 rounded-full', summaryDot)} />
+        <span className={clsx('text-[11px] font-mono font-bold tracking-wide', summaryText)}>
+          {summaryLabel}
         </span>
-        <span className="text-[10px] font-mono text-text-tertiary flex-1">{readiness.reason}</span>
+        <span className="text-[10px] font-mono text-text-tertiary flex-1">{summaryReason}</span>
       </div>
 
-      {/* Metrics row */}
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-border bg-surface-hover/30 flex-wrap">
-        <span className={clsx('text-[10px] font-mono', width > 0 ? 'text-text-secondary' : 'text-text-tertiary')}>
-          {resolutionStr}
-        </span>
-        <span className="text-text-quaternary text-[10px]">·</span>
-        <span className={clsx('text-[10px] font-mono', streamMetrics.actualFps >= 10 ? 'text-ok' : streamMetrics.actualFps > 0 ? 'text-warning' : 'text-danger')}>
-          {fpsStr}
-        </span>
-        <span className="text-text-quaternary text-[10px]">·</span>
-        <span className={clsx('text-[10px] font-mono',
-          freshness === 'live' ? 'text-ok'
-          : freshness === 'recent' ? 'text-warning'
-          : freshness === 'stale' ? 'text-danger'
-          : 'text-danger'
-        )}>
-          {latencyStr}
-        </span>
-        <span className="text-text-quaternary text-[10px]">·</span>
-        <span className={clsx('text-[10px] font-mono', streamMetrics.bitrateKbps > 0 ? 'text-text-secondary' : 'text-text-tertiary')}>
-          {bitrateStr}
-        </span>
-        <span className="text-text-quaternary text-[10px]">·</span>
-        <span className={clsx('text-[10px] font-mono', overlays.length > 0 ? 'text-ok' : 'text-text-tertiary')}>
-          {overlays.length} obj
-        </span>
-        {/* Authority indicator */}
-        <span className="text-text-quaternary text-[10px]">·</span>
-        <span className={clsx('text-[10px] font-mono',
-          authority.current === 'operator' ? 'text-text-secondary'
-          : authority.current === 'voice' ? 'text-cyan'
-          : authority.current === 'ai' ? 'text-warning'
-          : 'text-danger'
-        )}>
-          {AUTHORITY_LABELS[authority.current]}
-        </span>
+      {/* 5-domain subsystem states */}
+      <div className="flex items-center gap-3 px-3 py-1.5 rounded border border-border bg-surface-hover/20 flex-wrap">
+        <DomainChip label="video" state={videoState} color={videoColor} />
+        <DomainChip label="control" state={controlState} color={controlColor} />
+        <DomainChip label="ptz" state={ptzState} color={ptzColor} />
+        <DomainChip label="detector" state={detectorState} color={detectorColor} />
+        <DomainChip label="tracker" state={trackerState} color={trackerColor} />
+        {followMode.active && <DomainChip label="follow" state={followMode.target} color="ok" />}
       </div>
 
-      {/* Subsystem truth states */}
-      <div className="flex items-center gap-2 px-3 py-1 rounded border border-border bg-surface-hover/20 flex-wrap">
-        <StatusChip label={relayLabel} color={relayColor} />
-        <StatusChip label={beastLabel} color={beastColor} />
-        <StatusChip label={cameraLabel} color={cameraColor} detail={`Frame age: ${frameAge}ms | Freshness: ${freshness}`} />
-        <StatusChip label={detectorLabel} color={detectorColor} />
-        <StatusChip label={trackerLabel} color={trackerColor} />
-        <StatusChip label={ptzLabel} color={ptzColor} />
-        <StatusChip label={cmdPathLabel} color={cmdPathColor} />
-        <StatusChip label={gpuLabel} color={gpuColor} />
-        <StatusChip label={secLabel} color={secColor} />
-        {followMode.active && <StatusChip label={`follow: ${followMode.target}`} color="ok" />}
-      </div>
+      {/* Metrics row — only when video has frames */}
+      {(fps > 0 || freshness === 'live' || freshness === 'recent') && (
+        <div className="flex items-center gap-2 px-3 py-1 rounded border border-border bg-surface-hover/30 flex-wrap">
+          <span className={clsx('text-[10px] font-mono', width > 0 ? 'text-text-secondary' : 'text-text-tertiary')}>
+            {resolutionStr}
+          </span>
+          <span className="text-text-quaternary text-[10px]">·</span>
+          <span className={clsx('text-[10px] font-mono', fps >= 10 ? 'text-ok' : fps > 0 ? 'text-warning' : 'text-danger')}>
+            {fpsStr}
+          </span>
+          <span className="text-text-quaternary text-[10px]">·</span>
+          <span className={clsx('text-[10px] font-mono',
+            freshness === 'live' ? 'text-ok' : freshness === 'recent' ? 'text-warning' : 'text-danger',
+          )}>
+            {latencyStr}
+          </span>
+          <span className="text-text-quaternary text-[10px]">·</span>
+          <span className={clsx('text-[10px] font-mono', streamMetrics.bitrateKbps > 0 ? 'text-text-secondary' : 'text-text-tertiary')}>
+            {bitrateStr}
+          </span>
+          <span className="text-text-quaternary text-[10px]">·</span>
+          <span className={clsx('text-[10px] font-mono', overlays.length > 0 ? 'text-ok' : 'text-text-tertiary')}>
+            {overlays.length} obj
+          </span>
+          <span className="text-text-quaternary text-[10px]">·</span>
+          <span className={clsx('text-[10px] font-mono',
+            authority.current === 'operator' ? 'text-text-secondary'
+            : authority.current === 'voice' ? 'text-cyan'
+            : authority.current === 'ai' ? 'text-warning'
+            : 'text-danger',
+          )}>
+            {AUTHORITY_LABELS[authority.current]}
+          </span>
+        </div>
+      )}
 
-      {/* Stale frame warning banner — prominent */}
+      {/* Stale frame warning — prominent */}
       {(freshness === 'stale' || freshness === 'dead') && latestFrameUrl && (
         <div className={clsx(
           'flex items-center gap-2 px-3 py-1.5 rounded text-[11px] font-mono uppercase tracking-wider',
@@ -219,14 +218,6 @@ export function StatusHud() {
         )}>
           <span className={clsx('w-2 h-2 rounded-full', freshness === 'stale' ? 'bg-warning animate-pulse' : 'bg-danger')} />
           {freshness === 'stale' ? `last frame ${(frameAge / 1000).toFixed(1)}s ago — image may not reflect reality` : 'no live stream — showing last captured frame'}
-          {!chainHealth.beastConnected && ' — beast offline'}
-        </div>
-      )}
-
-      {/* Command path blocked banner */}
-      {connected && !chainHealth.commandPathReady && !chainHealth.beastConnected && (
-        <div className="flex items-center gap-2 px-3 py-1 rounded bg-danger/5 text-[10px] font-mono text-danger border border-danger/20">
-          controls disabled — Beast offline, no command path available
         </div>
       )}
 
