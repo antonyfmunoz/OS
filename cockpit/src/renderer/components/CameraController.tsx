@@ -124,31 +124,6 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     return () => el.removeEventListener('wheel', handler)
   }, [controlsEnabled])
 
-  // ── Keyboard shortcuts for PTZ ─────────────────────────────────
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (!controlsEnabled) return
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      const key = e.key.toLowerCase()
-      if (key === 'escape') { handleEmergencyStop(); return }
-      if (key === 'arrowup' || key === 'w') { e.preventDefault(); startDirectionMotion(0, 1); return }
-      if (key === 'arrowdown' || key === 's') { e.preventDefault(); startDirectionMotion(0, -1); return }
-      if (key === 'arrowleft' || key === 'a') { e.preventDefault(); startDirectionMotion(-1, 0); return }
-      if (key === 'arrowright' || key === 'd') { e.preventDefault(); startDirectionMotion(1, 0); return }
-      if (key === '=' || key === '+') { e.preventDefault(); getVisionClient()?.ptzRelative(0, 0, 10); return }
-      if (key === '-') { e.preventDefault(); getVisionClient()?.ptzRelative(0, 0, -10); return }
-    }
-    const upHandler = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase()
-      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(key)) {
-        stopDirectionMotion()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    window.addEventListener('keyup', upHandler)
-    return () => { window.removeEventListener('keydown', handler); window.removeEventListener('keyup', upHandler) }
-  }, [controlsEnabled, handleEmergencyStop, startDirectionMotion, stopDirectionMotion])
-
   // ── Emergency stop — window blur / visibility ───────────────────
 
   useEffect(() => {
@@ -450,6 +425,31 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     setPtzMoving(false)
     addNotification('warn', 'E-stop pressed', 'operator', 'Emergency stop — all PTZ motion halted', 'motion stopped')
   }, [setPtzMoving, stopDirectionMotion, stopZoomMotion, addNotification])
+
+  // ── Keyboard shortcuts for PTZ ─────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!controlsEnabled) return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const key = e.key.toLowerCase()
+      if (key === 'escape') { handleEmergencyStop(); return }
+      if (key === 'arrowup' || key === 'w') { e.preventDefault(); startDirectionMotion(0, 1); return }
+      if (key === 'arrowdown' || key === 's') { e.preventDefault(); startDirectionMotion(0, -1); return }
+      if (key === 'arrowleft' || key === 'a') { e.preventDefault(); startDirectionMotion(-1, 0); return }
+      if (key === 'arrowright' || key === 'd') { e.preventDefault(); startDirectionMotion(1, 0); return }
+      if (key === '=' || key === '+') { e.preventDefault(); getVisionClient()?.ptzRelative(0, 0, 10); return }
+      if (key === '-') { e.preventDefault(); getVisionClient()?.ptzRelative(0, 0, -10); return }
+    }
+    const upHandler = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(key)) {
+        stopDirectionMotion()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    window.addEventListener('keyup', upHandler)
+    return () => { window.removeEventListener('keydown', handler); window.removeEventListener('keyup', upHandler) }
+  }, [controlsEnabled, handleEmergencyStop, startDirectionMotion, stopDirectionMotion])
 
   const handleQualityChange = useCallback((mode: QualityMode) => {
     setQualityMode(mode)
