@@ -1,0 +1,278 @@
+import { useCallback } from 'react'
+import { clsx } from 'clsx'
+import {
+  Camera, RefreshCw, Settings2, Cpu, Zap, Activity,
+  X, Monitor, Check,
+} from 'lucide-react'
+import {
+  useVisionStore,
+  QUALITY_PROFILES,
+  type QualityMode,
+  type CameraDevice,
+} from '../../stores/visionStore'
+import { getVisionClient } from '../../hooks/useVisionConnection'
+
+const QUALITY_LABELS: Record<QualityMode, string> = {
+  smooth: 'Smooth',
+  balanced: 'Balanced',
+  high: 'High',
+  analysis: 'Analysis',
+}
+
+const QUALITY_DESCRIPTIONS: Record<QualityMode, string> = {
+  smooth: '30fps 720p — low latency streaming',
+  balanced: '15fps 720p — default operator mode',
+  high: '10fps 1080p — high detail',
+  analysis: '1fps 1080p — AI snapshot, max clarity',
+}
+
+function DeviceRow({ device, onSelect }: { device: CameraDevice; onSelect: (idx: number) => void }) {
+  return (
+    <button
+      onClick={() => onSelect(device.index)}
+      className={clsx(
+        'w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors',
+        device.selected
+          ? 'border-cyan/50 bg-cyan/5'
+          : 'border-border hover:bg-surface-hover',
+        device.busy && !device.selected && 'opacity-60',
+      )}
+    >
+      <Camera size={14} className={device.selected ? 'text-cyan' : 'text-text-tertiary'} />
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-mono text-text-primary truncate">{device.name}</div>
+        <div className="text-[10px] text-text-tertiary">
+          {device.width}x{device.height}
+          {device.busy && !device.selected && ' · in use'}
+        </div>
+      </div>
+      {device.selected && <Check size={12} className="text-cyan shrink-0" />}
+      <span className={clsx(
+        'w-1.5 h-1.5 rounded-full shrink-0',
+        device.online ? 'bg-ok' : 'bg-danger',
+      )} />
+    </button>
+  )
+}
+
+export function VisionSettings() {
+  const connected = useVisionStore((s) => s.connected)
+  const devices = useVisionStore((s) => s.cameraDevices)
+  const selectedDevice = useVisionStore((s) => s.selectedDeviceIndex)
+  const scanLoading = useVisionStore((s) => s.deviceScanLoading)
+  const qualityMode = useVisionStore((s) => s.qualityMode)
+  const setQualityMode = useVisionStore((s) => s.setQualityMode)
+  const streamMetrics = useVisionStore((s) => s.streamMetrics)
+  const chainHealth = useVisionStore((s) => s.chainHealth)
+  const ptzPosition = useVisionStore((s) => s.ptzPosition)
+  const hasPtzHardware = useVisionStore((s) => s.hasPtzHardware)
+  const setSettingsOpen = useVisionStore((s) => s.setSettingsOpen)
+  const latencyHistory = useVisionStore((s) => s.latencyHistory)
+
+  const handleRescan = useCallback(() => {
+    const client = getVisionClient()
+    if (!client?.connected) return
+    useVisionStore.getState().setDeviceScanLoading(true)
+    client.listDevices()
+  }, [])
+
+  const handleSelectDevice = useCallback((idx: number) => {
+    const client = getVisionClient()
+    if (!client?.connected) return
+    if (idx === selectedDevice) return
+    client.selectDevice(idx)
+  }, [selectedDevice])
+
+  const handleQualityChange = useCallback((mode: QualityMode) => {
+    setQualityMode(mode)
+    const client = getVisionClient()
+    if (client?.connected) {
+      client.switchQuality(QUALITY_PROFILES[mode])
+    }
+  }, [setQualityMode])
+
+  const det = chainHealth.detectorStatus
+  const avgRtt = latencyHistory.length > 0
+    ? Math.round(latencyHistory.reduce((a, m) => a + m.roundTripMs, 0) / latencyHistory.length)
+    : null
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+        <Settings2 size={16} className="text-text-secondary" />
+        <span className="text-sm font-medium text-text-primary flex-1">Vision Settings</span>
+        <button onClick={() => setSettingsOpen(false)} className="p-1 rounded hover:bg-surface-hover">
+          <X size={14} className="text-text-tertiary" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        {/* Camera Device */}
+        <div className="border border-border rounded-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 bg-surface-hover/30">
+            <Camera size={14} className="text-text-secondary" />
+            <span className="text-xs font-medium text-text-secondary flex-1">Camera Device</span>
+            <button
+              onClick={handleRescan}
+              disabled={scanLoading || !connected}
+              className={clsx(
+                'p-1 rounded transition-colors',
+                scanLoading ? 'animate-spin text-cyan' : 'text-text-tertiary hover:text-text-primary hover:bg-surface-hover',
+              )}
+            >
+              <RefreshCw size={12} />
+            </button>
+          </div>
+          <div className="p-2 space-y-1.5">
+            {!connected ? (
+              <div className="text-[10px] text-text-tertiary px-2 py-3 text-center">Connect to relay to scan devices</div>
+            ) : devices.length === 0 ? (
+              <div className="text-[10px] text-text-tertiary px-2 py-3 text-center">
+                {scanLoading ? 'Scanning...' : 'No cameras detected — click refresh'}
+              </div>
+            ) : (
+              devices.map((d) => (
+                <DeviceRow key={d.index} device={d} onSelect={handleSelectDevice} />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Stream Quality */}
+        <div className="border border-border rounded-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 bg-surface-hover/30">
+            <Monitor size={14} className="text-text-secondary" />
+            <span className="text-xs font-medium text-text-secondary">Stream Quality</span>
+          </div>
+          <div className="p-2 space-y-1.5">
+            {(Object.keys(QUALITY_PROFILES) as QualityMode[]).map((mode) => {
+              const p = QUALITY_PROFILES[mode]
+              const active = qualityMode === mode
+              return (
+                <button
+                  key={mode}
+                  onClick={() => handleQualityChange(mode)}
+                  className={clsx(
+                    'w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors',
+                    active ? 'border-cyan/50 bg-cyan/5' : 'border-border hover:bg-surface-hover',
+                  )}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className={clsx('text-xs font-mono', active ? 'text-cyan' : 'text-text-primary')}>
+                      {QUALITY_LABELS[mode]}
+                    </div>
+                    <div className="text-[10px] text-text-tertiary">{QUALITY_DESCRIPTIONS[mode]}</div>
+                  </div>
+                  <div className="text-[10px] text-text-quaternary font-mono shrink-0">
+                    {p.width}x{p.height} @{p.fps}fps q{p.quality}
+                  </div>
+                </button>
+              )
+            })}
+            {/* Actual metrics */}
+            <div className="grid grid-cols-3 gap-1 px-2 pt-1">
+              <MetricCell label="Resolution" value={streamMetrics.actualFps > 0 ? `${useVisionStore.getState().width}x${useVisionStore.getState().height}` : '—'} />
+              <MetricCell label="Actual FPS" value={streamMetrics.actualFps > 0 ? streamMetrics.actualFps.toFixed(1) : '—'} />
+              <MetricCell label="Bitrate" value={streamMetrics.bitrateKbps > 0
+                ? streamMetrics.bitrateKbps > 1024 ? `${(streamMetrics.bitrateKbps / 1024).toFixed(1)} Mbps` : `${streamMetrics.bitrateKbps} Kbps`
+                : '—'} />
+              <MetricCell label="Frame Size" value={streamMetrics.avgFrameSize > 0 ? `${(streamMetrics.avgFrameSize / 1024).toFixed(1)} KB` : '—'} />
+              <MetricCell label="Latency" value={streamMetrics.lastFrameAge > 0 ? `${streamMetrics.lastFrameAge}ms` : '—'}
+                color={streamMetrics.lastFrameAge < 500 ? 'ok' : streamMetrics.lastFrameAge < 2000 ? 'warn' : 'danger'} />
+              <MetricCell label="Dropped" value={String(streamMetrics.droppedFrames)} />
+            </div>
+          </div>
+        </div>
+
+        {/* AI / Detector */}
+        <div className="border border-border rounded-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 bg-surface-hover/30">
+            <Zap size={14} className="text-text-secondary" />
+            <span className="text-xs font-medium text-text-secondary">AI / Detector</span>
+          </div>
+          <div className="p-2">
+            {det ? (
+              <div className="grid grid-cols-2 gap-1">
+                <MetricCell label="Model" value={det.model || 'none'} />
+                <MetricCell label="Device" value={det.device || 'cpu'}
+                  color={det.device === 'cuda' ? 'ok' : 'warn'} />
+                <MetricCell label="Status" value={det.loaded ? 'loaded' : 'not loaded'}
+                  color={det.loaded ? 'ok' : 'danger'} />
+                <MetricCell label="Inference" value={det.avg_inference_ms > 0 ? `${det.avg_inference_ms.toFixed(0)}ms` : '—'}
+                  color={det.avg_inference_ms < 100 ? 'ok' : det.avg_inference_ms < 300 ? 'warn' : 'danger'} />
+                <MetricCell label="Det. FPS" value={det.detection_frames > 0 ? `${det.detection_frames} frames` : '0'} />
+                <MetricCell label="Tracker" value={det.tracker_active ? `${det.active_tracks} tracks` : 'off'}
+                  color={det.tracker_active ? 'ok' : 'off'} />
+              </div>
+            ) : (
+              <div className="text-[10px] text-text-tertiary text-center py-2">
+                {connected ? 'Detector not reporting — start stream' : 'Connect to see detector status'}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Controls / PTZ */}
+        <div className="border border-border rounded-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 bg-surface-hover/30">
+            <Activity size={14} className="text-text-secondary" />
+            <span className="text-xs font-medium text-text-secondary">Controls / PTZ</span>
+          </div>
+          <div className="p-2">
+            <div className="grid grid-cols-2 gap-1">
+              <MetricCell label="Mode" value={chainHealth.ptzMode === 'physical_ptz' ? 'Physical PTZ' : 'Digital ROI'} />
+              <MetricCell label="Hardware" value={hasPtzHardware ? 'Available' : 'Not detected'}
+                color={hasPtzHardware ? 'ok' : 'warn'} />
+              <MetricCell label="Pan" value={String(ptzPosition.pan)} />
+              <MetricCell label="Tilt" value={String(ptzPosition.tilt)} />
+              <MetricCell label="Zoom" value={String(ptzPosition.zoom)} />
+              <MetricCell label="Cmd RTT" value={avgRtt !== null ? `${avgRtt}ms` : '—'}
+                color={avgRtt !== null ? (avgRtt < 80 ? 'ok' : avgRtt < 150 ? 'warn' : 'danger') : 'off'} />
+            </div>
+          </div>
+        </div>
+
+        {/* Subsystem States */}
+        <div className="border border-border rounded-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 bg-surface-hover/30">
+            <Cpu size={14} className="text-text-secondary" />
+            <span className="text-xs font-medium text-text-secondary">Subsystem States</span>
+          </div>
+          <div className="p-2 grid grid-cols-2 gap-1">
+            <StatusCell label="Relay" ok={connected} />
+            <StatusCell label="Beast" ok={chainHealth.beastConnected} />
+            <StatusCell label="Camera" ok={chainHealth.cameraStreaming} />
+            <StatusCell label="Detector" ok={det?.loaded ?? false} />
+            <StatusCell label="Tracker" ok={det?.tracker_active ?? false} />
+            <StatusCell label="PTZ" ok={hasPtzHardware || chainHealth.digitalRoiAvailable} />
+            <StatusCell label="Presets" ok={Object.keys(useVisionStore.getState().presets).length > 0} />
+            <StatusCell label="GPU"
+              ok={det?.device === 'cuda'}
+              warnLabel={det?.device === 'cpu' ? 'CPU fallback' : undefined} />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MetricCell({ label, value, color }: { label: string; value: string; color?: 'ok' | 'warn' | 'danger' | 'off' }) {
+  const textCls = color === 'ok' ? 'text-ok' : color === 'warn' ? 'text-warning' : color === 'danger' ? 'text-danger' : 'text-text-primary'
+  return (
+    <div className="px-2 py-1">
+      <div className="text-[9px] text-text-quaternary uppercase tracking-wider">{label}</div>
+      <div className={clsx('text-[11px] font-mono', textCls)}>{value}</div>
+    </div>
+  )
+}
+
+function StatusCell({ label, ok, warnLabel }: { label: string; ok: boolean; warnLabel?: string }) {
+  return (
+    <div className="flex items-center gap-1.5 px-2 py-1">
+      <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', ok ? 'bg-ok' : warnLabel ? 'bg-warning' : 'bg-danger')} />
+      <span className="text-[10px] font-mono text-text-secondary">{label}</span>
+      {warnLabel && <span className="text-[9px] text-warning">{warnLabel}</span>}
+    </div>
+  )
+}

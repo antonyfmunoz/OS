@@ -260,6 +260,16 @@ export class VisionWsClient {
 
   // ── Camera control ──────────────────────────────────────────────
 
+  listDevices(): void {
+    log('camera_list_devices')
+    this.ws.send('camera_list_devices', { request_id: nextRequestId() })
+  }
+
+  selectDevice(deviceIndex: number): void {
+    log('camera_select_device', { device_index: deviceIndex })
+    this.ws.send('camera_select_device', { device_index: deviceIndex, request_id: nextRequestId() })
+  }
+
   startCamera(opts: { fps?: number; width?: number; height?: number; quality?: number } = {}): void {
     log('camera_start', opts)
     this.ws.send('camera_start', {
@@ -333,7 +343,7 @@ export class VisionWsClient {
   }
 
   requestStatus(): void {
-    this.ws.send('camera_status')
+    this.ws.send('camera_status', { request_id: nextRequestId() })
   }
 
   requestHealth(): void {
