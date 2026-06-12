@@ -25,6 +25,7 @@ import { CameraModeSelector } from './vision/CameraModeSelector'
 import { SceneInventory } from './vision/SceneInventory'
 import { DiagnosticsPanel } from './vision/DiagnosticsPanel'
 import { ToastContainer } from './vision/ToastContainer'
+import { NotificationCenter } from './vision/NotificationCenter'
 
 const QUALITY_LABELS: Record<QualityMode, string> = {
   smooth: 'Smooth',
@@ -82,6 +83,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const setPtzMotion = useVisionStore((s) => s.setPtzMotion)
   const updateControlMetrics = useVisionStore((s) => s.updateControlMetrics)
   const addToast = useVisionStore((s) => s.addToast)
+  const addNotification = useVisionStore((s) => s.addNotification)
 
   const { openPopout } = useVisionPopout()
   const [expanded, setExpanded] = useState(false)
@@ -403,7 +405,8 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     stopZoomMotion()
     client.ptzStop()
     setPtzMoving(false)
-  }, [setPtzMoving, stopDirectionMotion, stopZoomMotion])
+    addNotification('warn', 'E-stop pressed', 'operator', 'Emergency stop — all PTZ motion halted', 'motion stopped')
+  }, [setPtzMoving, stopDirectionMotion, stopZoomMotion, addNotification])
 
   const handleQualityChange = useCallback((mode: QualityMode) => {
     setQualityMode(mode)
@@ -687,7 +690,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
 
       {!compact && (
         <>
-          {/* 6. Presets — above PTZ controls */}
+          {/* 6. Presets — unified style for all preset buttons */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
@@ -700,7 +703,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                 {isPresetModified && activePreset && (
                   <button
                     onClick={() => handleUpdatePreset(activePreset)}
-                    className="flex items-center gap-1 text-[10px] font-mono text-warning hover:text-text-primary uppercase tracking-wider transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded border border-warning/30 bg-warning/10 text-[10px] font-mono text-warning hover:bg-warning/20 uppercase tracking-wider transition-colors"
                     title={`Update ${activePreset} to current position`}
                   >
                     <RotateCcw size={10} />
@@ -709,7 +712,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                 )}
                 <button
                   onClick={() => setSavingPreset(!savingPreset)}
-                  className="flex items-center gap-1 text-[10px] font-mono text-text-tertiary hover:text-text-primary uppercase tracking-wider transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded border border-border bg-surface-hover text-[10px] font-mono text-text-tertiary hover:text-text-primary uppercase tracking-wider transition-colors"
                 >
                   <Plus size={12} />
                   New
@@ -717,97 +720,73 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
               </div>
             </div>
 
-            {/* Default presets with icons */}
+            {/* All presets — unified grid with identical button treatment */}
             <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-              {DEFAULT_PRESETS.map(({ key, label, icon }) => (
-                <button
-                  key={key}
-                  onClick={() => handlePreset(key)}
-                  disabled={!connected}
-                  className={clsx(
-                    'px-3 py-3 rounded-lg border text-xs font-mono flex items-center gap-1.5 transition-colors min-h-[48px]',
-                    activePreset === key
-                      ? isPresetModified
-                        ? 'bg-warning/10 border-warning/30 text-warning'
-                        : 'bg-cyan/20 border-cyan/30 text-cyan'
-                      : 'bg-surface-hover border-border text-text-secondary hover:text-text-primary',
-                    !connected && 'opacity-50 cursor-not-allowed',
-                  )}
-                >
-                  {icon}
-                  {label}
-                </button>
-              ))}
-            </div>
+              {DEFAULT_PRESETS.map(({ key, label, icon }) => {
+                const isThisActive = activePreset === key
+                return (
+                  <PresetBtn
+                    key={key}
+                    label={label}
+                    icon={icon}
+                    active={isThisActive}
+                    modified={isThisActive && !!isPresetModified}
+                    disabled={!connected}
+                    onClick={() => handlePreset(key)}
+                  />
+                )
+              })}
+              {customPresets.map(([name, preset]) => {
+                const isThisActive = activePreset === name
+                const isRenaming = renamingPreset === name
+                const isDeleting = confirmDelete === name
 
-            {/* Custom presets from store (non-default) */}
-            {customPresets.length > 0 && (
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                {customPresets.map(([name, preset]) => {
-                  const isActive = activePreset === name
-                  const isRenaming = renamingPreset === name
-                  const isDeleting = confirmDelete === name
-
-                  if (isDeleting) {
-                    return (
-                      <div key={name} className="flex items-center gap-1 px-2 py-2 rounded-lg border border-danger/30 bg-danger/5 min-h-[48px]">
-                        <span className="text-[10px] font-mono text-danger truncate flex-1">Delete?</span>
-                        <button onClick={() => handleDeletePreset(name)} className="p-1 rounded text-danger hover:bg-danger/10"><Check size={12} /></button>
-                        <button onClick={() => setConfirmDelete(null)} className="p-1 rounded text-text-tertiary hover:bg-surface-hover"><X size={12} /></button>
-                      </div>
-                    )
-                  }
-
-                  if (isRenaming) {
-                    return (
-                      <div key={name} className="flex items-center gap-1 px-2 py-1 rounded-lg border border-cyan/30 bg-surface min-h-[48px]">
-                        <input
-                          type="text"
-                          value={renameValue}
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleRenamePreset(name); if (e.key === 'Escape') setRenamingPreset(null) }}
-                          autoFocus
-                          className="flex-1 px-1.5 py-0.5 rounded bg-surface-hover border border-border text-xs font-mono text-text-primary focus:outline-none focus:border-cyan/50 min-w-0"
-                        />
-                        <button onClick={() => handleRenamePreset(name)} className="p-1 rounded text-ok hover:bg-ok/10"><Check size={12} /></button>
-                        <button onClick={() => setRenamingPreset(null)} className="p-1 rounded text-text-tertiary hover:bg-surface-hover"><X size={12} /></button>
-                      </div>
-                    )
-                  }
-
+                if (isDeleting) {
                   return (
-                    <div
-                      key={name}
-                      className={clsx(
-                        'group relative flex items-center gap-1.5 px-3 py-3 rounded-lg border text-xs font-mono transition-colors min-h-[48px]',
-                        isActive
-                          ? isPresetModified
-                            ? 'bg-warning/10 text-warning border-warning/30'
-                            : 'bg-cyan/20 text-cyan border-cyan/30'
-                          : 'bg-surface-hover text-text-secondary hover:text-text-primary border-border',
-                        !connected && 'opacity-50',
-                      )}
-                    >
-                      <button
-                        onClick={() => handlePreset(name)}
-                        disabled={!connected}
-                        className="flex-1 text-left truncate uppercase tracking-wider"
-                      >
-                        {preset.label || name}
-                      </button>
-                      <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
-                        <button onClick={() => { setRenamingPreset(name); setRenameValue(preset.label || name) }} className="p-0.5 rounded text-text-quaternary hover:text-cyan" title="Rename"><Pencil size={10} /></button>
-                        <button onClick={() => handleUpdatePreset(name)} className="p-0.5 rounded text-text-quaternary hover:text-warning" title="Update to current position"><RotateCcw size={10} /></button>
-                        <button onClick={() => setConfirmDelete(name)} className="p-0.5 rounded text-text-quaternary hover:text-danger" title="Delete"><Trash2 size={10} /></button>
-                      </div>
+                    <div key={name} className="flex items-center gap-1 px-3 py-2.5 rounded-lg border border-danger/30 bg-danger/5 min-h-[48px]">
+                      <span className="text-[10px] font-mono text-danger truncate flex-1">Delete?</span>
+                      <button onClick={() => handleDeletePreset(name)} className="p-1 rounded text-danger hover:bg-danger/10"><Check size={12} /></button>
+                      <button onClick={() => setConfirmDelete(null)} className="p-1 rounded text-text-tertiary hover:bg-surface-hover"><X size={12} /></button>
                     </div>
                   )
-                })}
-              </div>
-            )}
+                }
+
+                if (isRenaming) {
+                  return (
+                    <div key={name} className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-cyan/30 bg-surface min-h-[48px]">
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleRenamePreset(name); if (e.key === 'Escape') setRenamingPreset(null) }}
+                        autoFocus
+                        className="flex-1 px-1.5 py-0.5 rounded bg-surface-hover border border-border text-xs font-mono text-text-primary focus:outline-none focus:border-cyan/50 min-w-0"
+                      />
+                      <button onClick={() => handleRenamePreset(name)} className="p-1 rounded text-ok hover:bg-ok/10"><Check size={12} /></button>
+                      <button onClick={() => setRenamingPreset(null)} className="p-1 rounded text-text-tertiary hover:bg-surface-hover"><X size={12} /></button>
+                    </div>
+                  )
+                }
+
+                return (
+                  <PresetBtn
+                    key={name}
+                    label={preset.label || name}
+                    active={isThisActive}
+                    modified={isThisActive && !!isPresetModified}
+                    disabled={!connected}
+                    onClick={() => handlePreset(name)}
+                    onRename={() => { setRenamingPreset(name); setRenameValue(preset.label || name) }}
+                    onUpdate={() => handleUpdatePreset(name)}
+                    onDelete={() => setConfirmDelete(name)}
+                    editable
+                  />
+                )
+              })}
+            </div>
 
             {savingPreset && (
-              <div className="flex items-center gap-1.5 p-2 rounded border border-border bg-surface-hover">
+              <div className="flex items-center gap-1.5 p-2 rounded-lg border border-border bg-surface-hover">
                 <input
                   type="text"
                   value={newPresetName}
@@ -827,7 +806,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                 <button
                   onClick={handleSavePreset}
                   disabled={!newPresetName.trim()}
-                  className="px-3 py-1.5 rounded bg-ok/10 text-ok text-xs font-mono uppercase tracking-wider hover:bg-ok/20 disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-lg border border-ok/30 bg-ok/10 text-ok text-xs font-mono uppercase tracking-wider hover:bg-ok/20 disabled:opacity-50 transition-colors"
                 >
                   Save
                 </button>
@@ -983,14 +962,17 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             qualityMode={qualityMode}
           />
 
-          {/* 11. TrackingPanel */}
+          {/* 11. Notification center — security/governance events */}
+          <NotificationCenter />
+
+          {/* 12. TrackingPanel */}
           <div className="border-t border-border pt-3">
             <TrackingPanel />
           </div>
         </>
       )}
 
-      {/* 12. Connection status bar */}
+      {/* 13. Connection status bar */}
       <div className="flex items-center gap-2 text-xs font-mono text-text-tertiary">
         <span className={clsx(
           'w-2 h-2 rounded-full',
@@ -1086,6 +1068,54 @@ function ZoomBtn({
     >
       {icon}
     </button>
+  )
+}
+
+// ── Unified preset button — same treatment for default + custom ─────
+
+function PresetBtn({
+  label, icon, active, modified, disabled, onClick,
+  onRename, onUpdate, onDelete, editable,
+}: {
+  label: string
+  icon?: React.ReactNode
+  active: boolean
+  modified: boolean
+  disabled: boolean
+  onClick: () => void
+  onRename?: () => void
+  onUpdate?: () => void
+  onDelete?: () => void
+  editable?: boolean
+}) {
+  return (
+    <div
+      className={clsx(
+        'group relative flex items-center gap-1.5 px-3 py-2.5 rounded-lg border text-xs font-mono transition-colors min-h-[48px]',
+        active
+          ? modified
+            ? 'bg-warning/10 text-warning border-warning/30'
+            : 'bg-cyan/20 text-cyan border-cyan/30'
+          : 'bg-surface-hover text-text-secondary hover:text-text-primary border-border',
+        disabled && 'opacity-50 cursor-not-allowed',
+      )}
+    >
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className="flex items-center gap-1.5 flex-1 text-left truncate uppercase tracking-wider"
+      >
+        {icon}
+        {label}
+      </button>
+      {editable && (
+        <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+          {onRename && <button onClick={(e) => { e.stopPropagation(); onRename() }} className="p-0.5 rounded text-text-quaternary hover:text-cyan" title="Rename"><Pencil size={10} /></button>}
+          {onUpdate && <button onClick={(e) => { e.stopPropagation(); onUpdate() }} className="p-0.5 rounded text-text-quaternary hover:text-warning" title="Update position"><RotateCcw size={10} /></button>}
+          {onDelete && <button onClick={(e) => { e.stopPropagation(); onDelete() }} className="p-0.5 rounded text-text-quaternary hover:text-danger" title="Delete"><Trash2 size={10} /></button>}
+        </div>
+      )}
+    </div>
   )
 }
 
