@@ -609,25 +609,58 @@ class CameraAdapter:
 
     def _list_devices(self, params: dict[str, Any]) -> dict[str, Any]:
         import cv2
+        import concurrent.futures
 
         wmi_names = self._get_wmi_device_names()
         devices = []
-        for i in range(8):
-            cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
-            if cap.isOpened():
-                w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                busy = (self._stream_active and i == self._device_index)
-                devices.append({
-                    "index": i,
-                    "name": wmi_names.get(i, f"Camera {i}"),
-                    "width": w,
-                    "height": h,
-                    "online": True,
-                    "busy": busy,
-                    "selected": (i == self._device_index),
-                })
+
+        if self._stream_active:
+            cap_ref = getattr(self, '_cap', None)
+            w = int(cap_ref.get(cv2.CAP_PROP_FRAME_WIDTH)) if cap_ref else 0
+            h = int(cap_ref.get(cv2.CAP_PROP_FRAME_HEIGHT)) if cap_ref else 0
+            devices.append({
+                "index": self._device_index,
+                "name": wmi_names.get(self._device_index, f"Camera {self._device_index}"),
+                "width": w,
+                "height": h,
+                "online": True,
+                "busy": True,
+                "selected": True,
+            })
+
+        def probe_index(i: int) -> dict[str, Any] | None:
+            try:
+                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+                if cap.isOpened():
+                    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    cap.release()
+                    return {
+                        "index": i,
+                        "name": wmi_names.get(i, f"Camera {i}"),
+                        "width": w,
+                        "height": h,
+                        "online": True,
+                        "busy": False,
+                        "selected": False,
+                    }
                 cap.release()
+            except Exception:
+                pass
+            return None
+
+        indices_to_probe = [i for i in range(8) if not (self._stream_active and i == self._device_index)]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            futures = {pool.submit(probe_index, i): i for i in indices_to_probe}
+            for fut in concurrent.futures.as_completed(futures, timeout=6):
+                try:
+                    result = fut.result(timeout=3)
+                    if result:
+                        devices.append(result)
+                except Exception:
+                    pass
+
+        devices.sort(key=lambda d: d["index"])
         return {
             "success": True,
             "devices": devices,
