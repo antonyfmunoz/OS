@@ -31,11 +31,13 @@ export function VisionOverlay({ overlays = [], width, height, visible = true }: 
 
   if (!visible) return null
 
-  const effectiveOverlays = overlays.map((o) => {
-    const correction = labelCorrections[o.track_id]
-    if (correction) return { ...o, label: correction.correctedLabel }
-    return o
-  })
+  const effectiveOverlays = overlays
+    .filter((o) => !o.track_id?.startsWith('diag_'))
+    .map((o) => {
+      const correction = labelCorrections[o.track_id]
+      if (correction) return { ...o, label: correction.correctedLabel }
+      return o
+    })
 
   if (effectiveOverlays.length === 0) return null
 

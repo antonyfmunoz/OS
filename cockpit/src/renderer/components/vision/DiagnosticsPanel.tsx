@@ -6,7 +6,7 @@ import { useVisionStore, type MotionState, type StreamMetrics, type QualityMode 
 const QUALITY_DESCRIPTIONS: Record<QualityMode, string> = {
   smooth: '720p 30fps',
   balanced: '720p 15fps',
-  sharp: '1080p 10fps',
+  high: '1080p 10fps',
   analysis: '1080p 1fps',
 }
 
@@ -67,8 +67,8 @@ export function DiagnosticsPanel({
             <span>FPS: <span className={streamMetrics.actualFps > 0 ? 'text-ok' : 'text-text-secondary'}>{streamMetrics.actualFps.toFixed(1)}</span> / {streamMetrics.targetFps}</span>
             <span>Frame: {Math.round(streamMetrics.avgFrameSize / 1024)} KB</span>
             <span>Age: {streamMetrics.lastFrameAge < 1000 ? `${streamMetrics.lastFrameAge}ms` : `${(streamMetrics.lastFrameAge / 1000).toFixed(1)}s`}</span>
-            <span>Frames: {frameCount}</span>
-            <span>Dropped: {streamMetrics.droppedFrames}</span>
+            <span>Bitrate: <span className={streamMetrics.bitrateKbps > 0 ? 'text-ok' : 'text-text-secondary'}>{streamMetrics.bitrateKbps > 1024 ? `${(streamMetrics.bitrateKbps / 1024).toFixed(1)} Mbps` : `${streamMetrics.bitrateKbps} Kbps`}</span></span>
+            <span>Frames: {frameCount} <span className={streamMetrics.droppedFrames > 0 ? 'text-warning' : ''}>({streamMetrics.droppedFrames} dropped)</span></span>
             <span>Quality: {QUALITY_DESCRIPTIONS[qualityMode]}</span>
           </div>
 

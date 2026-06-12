@@ -30,15 +30,15 @@ import { NotificationCenter } from './vision/NotificationCenter'
 const QUALITY_LABELS: Record<QualityMode, string> = {
   smooth: 'Smooth',
   balanced: 'Balanced',
-  sharp: 'Sharp',
+  high: 'High',
   analysis: 'Analysis',
 }
 
 const QUALITY_DESCRIPTIONS: Record<QualityMode, string> = {
-  smooth: '720p 30fps',
-  balanced: '720p 15fps',
-  sharp: '1080p 10fps',
-  analysis: '1080p 1fps',
+  smooth: '720p 30fps — streaming',
+  balanced: '720p 15fps — default',
+  high: '1080p 10fps — detail',
+  analysis: '1080p 1fps — AI snapshot',
 }
 
 let _motionIdCounter = 0
@@ -103,6 +103,47 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const [isDragging, setIsDragging] = useState(false)
 
   const isActive = cameraStatus === 'live' || cameraStatus === 'connecting'
+  const previewRef = useRef<HTMLDivElement>(null)
+
+  // ── Scroll-wheel zoom on preview ───────────────────────────────
+  useEffect(() => {
+    const el = previewRef.current
+    if (!el) return
+    const handler = (e: WheelEvent) => {
+      e.preventDefault()
+      const client = getVisionClient()
+      if (!client?.connected || !controlsEnabled) return
+      const delta = e.deltaY < 0 ? 10 : -10
+      client.ptzRelative(0, 0, delta)
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
+  }, [controlsEnabled])
+
+  // ── Keyboard shortcuts for PTZ ─────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!controlsEnabled) return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const key = e.key.toLowerCase()
+      if (key === 'escape') { handleEmergencyStop(); return }
+      if (key === 'arrowup' || key === 'w') { e.preventDefault(); startDirectionMotion(0, 1); return }
+      if (key === 'arrowdown' || key === 's') { e.preventDefault(); startDirectionMotion(0, -1); return }
+      if (key === 'arrowleft' || key === 'a') { e.preventDefault(); startDirectionMotion(-1, 0); return }
+      if (key === 'arrowright' || key === 'd') { e.preventDefault(); startDirectionMotion(1, 0); return }
+      if (key === '=' || key === '+') { e.preventDefault(); getVisionClient()?.ptzRelative(0, 0, 10); return }
+      if (key === '-') { e.preventDefault(); getVisionClient()?.ptzRelative(0, 0, -10); return }
+    }
+    const upHandler = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(key)) {
+        stopDirectionMotion()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    window.addEventListener('keyup', upHandler)
+    return () => { window.removeEventListener('keydown', handler); window.removeEventListener('keyup', upHandler) }
+  }, [controlsEnabled, handleEmergencyStop, startDirectionMotion, stopDirectionMotion])
 
   // ── Emergency stop — window blur / visibility ───────────────────
 
@@ -444,7 +485,8 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     setNewPresetName('')
     setNewPresetLabel('')
     addToast(`Preset "${label}" saved`, 'ok')
-  }, [newPresetName, newPresetLabel, setPresets, addToast])
+    addNotification('info', 'Preset created', 'operator', `Created preset "${label}" at P:${pos.pan} T:${pos.tilt} Z:${pos.zoom}`)
+  }, [newPresetName, newPresetLabel, setPresets, addToast, addNotification])
 
   const handleUpdatePreset = useCallback((name: string) => {
     const client = getVisionClient()
@@ -470,7 +512,8 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     setPresets(updated)
     savePresetsToStorage(updated)
     addToast(`Preset "${preset.label || name}" updated`, 'cyan')
-  }, [setPresets, addToast])
+    addNotification('info', 'Preset updated', 'operator', `Updated "${preset.label || name}" to P:${pos.pan} T:${pos.tilt} Z:${pos.zoom}`)
+  }, [setPresets, addToast, addNotification])
 
   const handleDeletePreset = useCallback((name: string) => {
     const current = useVisionStore.getState().presets
@@ -483,7 +526,8 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     if (activePreset === name) setActivePreset('')
     setConfirmDelete(null)
     addToast(`Preset "${label}" deleted`, 'danger')
-  }, [setPresets, setActivePreset, activePreset, addToast])
+    addNotification('warn', 'Preset deleted', 'operator', `Deleted preset "${label}"`)
+  }, [setPresets, setActivePreset, activePreset, addToast, addNotification])
 
   const handleRenamePreset = useCallback((name: string) => {
     const trimmed = renameValue.trim()
@@ -537,11 +581,24 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
       )}
 
       {/* 2. Camera preview */}
-      <div className={clsx(
-        'relative rounded border overflow-hidden bg-black',
-        expanded ? 'flex-1 min-h-0' : 'aspect-video',
-        isActive ? 'border-danger/30' : 'border-border',
-      )}>
+      <div
+        ref={previewRef}
+        className={clsx(
+          'relative rounded border overflow-hidden bg-black',
+          expanded ? 'flex-1 min-h-0' : 'aspect-video',
+          isActive ? 'border-danger/30' : 'border-border',
+        )}
+        onDoubleClick={(e) => {
+          if (!controlsEnabled || !latestFrameUrl) return
+          const rect = e.currentTarget.getBoundingClientRect()
+          const nx = (e.clientX - rect.left) / rect.width
+          const ny = (e.clientY - rect.top) / rect.height
+          const panDelta = (nx - 0.5) * 40
+          const tiltDelta = -(ny - 0.5) * 40
+          getVisionClient()?.ptzRelative(panDelta, tiltDelta, 0)
+          addToast(`Pan to ${nx > 0.5 ? 'right' : 'left'}, ${ny > 0.5 ? 'down' : 'up'}`, 'cyan')
+        }}
+      >
         {latestFrameUrl ? (
           <>
             <img
@@ -567,7 +624,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                 onClick={() => setQualityOpen(!qualityOpen)}
                 className="px-2 py-1 rounded-full bg-black/70 text-[10px] font-mono text-text-secondary backdrop-blur-sm hover:text-text-primary transition-colors"
               >
-                {QUALITY_LABELS[qualityMode]} · {streamMetrics.actualFps.toFixed(1)}fps · {Math.round(streamMetrics.avgFrameSize / 1024)}KB
+                {QUALITY_LABELS[qualityMode]} · {streamMetrics.actualFps.toFixed(1)}fps · {streamMetrics.bitrateKbps > 1024 ? `${(streamMetrics.bitrateKbps / 1024).toFixed(1)}Mbps` : `${streamMetrics.bitrateKbps}Kbps`}
               </button>
               {qualityOpen && (
                 <div className="absolute bottom-full right-0 mb-1 bg-surface border border-border rounded-lg p-2 shadow-lg flex flex-col gap-1 min-w-[120px]">
