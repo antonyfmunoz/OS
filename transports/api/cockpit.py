@@ -3399,8 +3399,10 @@ _mount_command_center_router()
 
 def _mount_rooms_router() -> None:
     from transports.api.cockpit_rooms_routes import rooms_router as _rooms_router
+    from transports.api.cockpit_rooms_routes import rooms_public_router as _rooms_public
 
     router.include_router(_rooms_router)
+    ws_router.include_router(_rooms_public)
 
 
 _mount_rooms_router()
