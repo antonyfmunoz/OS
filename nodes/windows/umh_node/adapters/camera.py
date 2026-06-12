@@ -587,7 +587,10 @@ class CameraAdapter:
     # ── Device enumeration ───────────────────────────────────────────
 
     def _get_wmi_device_names(self) -> dict[int, str]:
-        """Get camera device names via Windows WMI. Returns {index: name}."""
+        """Get webcam/camera device names via Windows WMI. Returns {index: name}.
+
+        Only returns PNPClass 'Camera' — excludes 'Image' (printers/scanners).
+        """
         names: dict[int, str] = {}
         if sys.platform != "win32":
             return names
@@ -595,7 +598,7 @@ class CameraAdapter:
             import subprocess
             result = subprocess.run(
                 ["powershell", "-NoProfile", "-Command",
-                 "Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPClass -eq 'Camera' -or $_.PNPClass -eq 'Image' } | Select-Object -ExpandProperty Name"],
+                 "Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPClass -eq 'Camera' } | Select-Object -ExpandProperty Name"],
                 capture_output=True, text=True, timeout=5,
             )
             if result.returncode == 0:
