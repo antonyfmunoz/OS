@@ -12,7 +12,7 @@ const MeetingRoomPanel = lazy(() =>
   import('./MeetingRoomPanel').then((m) => ({ default: m.MeetingRoomPanel }))
 )
 
-export function RoomMainView() {
+export function RoomMainView({ onOpenChat }: { onOpenChat?: () => void }) {
   const activeChannelId = useRoomsStore((s) => s.activeChannelId)
   const channels = useRoomsStore((s) => s.channels)
   const channel = channels.find((c) => c.id === activeChannelId)
@@ -37,12 +37,12 @@ export function RoomMainView() {
           {channel.type === 'forum' && <ForumChannelView channelId={channel.id} />}
           {isVoiceType && (
             <Suspense fallback={<LoadingFallback label="Loading voice..." />}>
-              <VoiceRoomPanel channelId={channel.id} />
+              <VoiceRoomPanel channelId={channel.id} onOpenChat={onOpenChat} />
             </Suspense>
           )}
           {channel.type === 'video_meeting' && (
             <Suspense fallback={<LoadingFallback label="Loading meeting..." />}>
-              <MeetingRoomPanel channelId={channel.id} />
+              <MeetingRoomPanel channelId={channel.id} onOpenChat={onOpenChat} />
             </Suspense>
           )}
           {(channel.type === 'text' || channel.type === 'announcement' || channel.type === 'files' || channel.type === 'tasks' || channel.type === 'ai_room' || channel.type === 'security') && (
