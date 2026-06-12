@@ -44,6 +44,7 @@ import { WorkPanel } from '../panels/WorkPanel'
 import { CommandCenterPanel } from '../panels/CommandCenterPanel'
 import { VisionPanel } from '../panels/VisionPanel'
 import { ConferenceRoomsPanel } from '../panels/ConferenceRoomsPanel'
+import { ErrorBoundary } from './ErrorBoundary'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -114,7 +115,7 @@ function ActivePanel() {
     case 'vision':
       return <VisionPanel />
     case 'rooms':
-      return <ConferenceRoomsPanel />
+      return <ErrorBoundary><ConferenceRoomsPanel /></ErrorBoundary>
     default:
       return <DashboardPanel />
   }
