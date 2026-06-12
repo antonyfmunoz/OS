@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Mic,
   MicOff,
@@ -6,17 +7,18 @@ import {
   Wifi,
   WifiOff,
   Activity,
-  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 import { useRoomsStore } from '../../stores/roomsStore'
 import { useVoiceRoom } from '../../hooks/useVoiceRoom'
 import { ConnectionQuality } from 'livekit-client'
-import type { VoiceParticipant } from '../../hooks/useVoiceRoom'
+import type { VoiceParticipant, VoiceDiagnostics } from '../../hooks/useVoiceRoom'
 
 export function VoiceRoomPanel({ channelId }: { channelId: string }) {
   const channels = useRoomsStore((s) => s.channels)
   const channel = channels.find((c) => c.id === channelId)
-  const { state, error, participants, isMuted, join, leave, toggleMute } = useVoiceRoom(channelId)
+  const { state, error, participants, isMuted, diagnostics, join, leave, toggleMute } = useVoiceRoom(channelId)
 
   const isConnected = state === 'connected'
 
@@ -36,7 +38,6 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
 
         <ConnectionBanner state={state} error={error} />
 
-        {/* Participants */}
         {participants.length > 0 && (
           <div
             className="w-full rounded border p-3 mb-3"
@@ -51,7 +52,6 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
           </div>
         )}
 
-        {/* Controls */}
         <div className="flex gap-2 mb-3">
           {isConnected ? (
             <>
@@ -93,12 +93,14 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
         {state === 'failed' && error && (
           <button
             onClick={join}
-            className="text-[10px] font-mono px-3 py-1 rounded border transition-colors"
+            className="text-[10px] font-mono px-3 py-1 rounded border transition-colors mb-3"
             style={{ borderColor: 'var(--color-border)', color: 'var(--color-cyan)' }}
           >
             Retry
           </button>
         )}
+
+        <DiagnosticsPanel diagnostics={diagnostics} state={state} />
       </div>
     </div>
   )
@@ -153,6 +155,48 @@ function ParticipantRow({ participant: p }: { participant: VoiceParticipant }) {
         {p.isMuted && <MicOff size={10} style={{ color: 'var(--color-danger)' }} />}
         <div className="w-1.5 h-1.5 rounded-full" style={{ background: qualityColor }} />
       </div>
+    </div>
+  )
+}
+
+function DiagnosticsPanel({ diagnostics, state }: { diagnostics: VoiceDiagnostics; state: string }) {
+  const [expanded, setExpanded] = useState(false)
+
+  if (state === 'idle' && !diagnostics.lastEvent) return null
+
+  return (
+    <div
+      className="w-full rounded border mt-2"
+      style={{ borderColor: 'var(--color-border)' }}
+    >
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-1 px-3 py-1.5 text-[9px] font-mono"
+        style={{ color: 'var(--color-text-tertiary)' }}
+      >
+        {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+        diagnostics
+      </button>
+      {expanded && (
+        <div className="px-3 pb-2 space-y-1">
+          <DiagRow label="state" value={state} />
+          <DiagRow label="url" value={diagnostics.livekitUrl} />
+          <DiagRow label="room" value={diagnostics.roomName} />
+          <DiagRow label="token" value={diagnostics.tokenReceived ? 'received' : 'none'} />
+          <DiagRow label="signal" value={diagnostics.signalConnected ? 'connected' : 'no'} />
+          <DiagRow label="mic" value={diagnostics.micPermission} />
+          <DiagRow label="last" value={diagnostics.lastEvent} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DiagRow({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="flex gap-2 text-[9px] font-mono">
+      <span style={{ color: 'var(--color-text-tertiary)', minWidth: 48 }}>{label}</span>
+      <span style={{ color: 'var(--color-text-secondary)', wordBreak: 'break-all' }}>{value ?? '—'}</span>
     </div>
   )
 }

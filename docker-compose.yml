@@ -173,6 +173,7 @@ services:
       - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
       - LIVEKIT_URL=ws://os-livekit:7880
       - LIVEKIT_WS_URL=${LIVEKIT_WS_URL}
+      - COCKPIT_DOMAIN=${COCKPIT_DOMAIN:-}
     ports:
       - "127.0.0.1:8091:8091"
     deploy:
