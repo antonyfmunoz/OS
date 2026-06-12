@@ -50,6 +50,24 @@ export type ConferenceRoomState =
   | 'reconnecting'
   | 'failed'
   | 'disconnected'
+  | 'suspended'
+
+export type MicState =
+  | 'prejoin_on'
+  | 'prejoin_off'
+  | 'publishing'
+  | 'enabled'
+  | 'disabling'
+  | 'disabled'
+  | 'failed'
+
+export type CameraState =
+  | 'off'
+  | 'requesting_permission'
+  | 'publishing'
+  | 'on'
+  | 'disabling'
+  | 'failed'
 
 export type JoinStage =
   | 'idle'
@@ -61,6 +79,32 @@ export type JoinStage =
   | 'requesting_camera'
   | 'connected'
 
+export interface MediaIntent {
+  intended: boolean
+  transition: MicState | CameraState
+  actual: boolean
+  lastActionId: number
+  lastError: string | null
+}
+
+export interface JoinTiming {
+  tokenPrefetchMs: number | null
+  joinClickToConnectStartMs: number | null
+  connectMs: number | null
+  micPublishMs: number | null
+  joinClickToOperationalMs: number | null
+}
+
+export interface VisibilityDiagnostics {
+  lastVisibilityState: string
+  backgroundDurationMs: number | null
+  reconnectAttempts: number
+  intendedMicState: boolean
+  actualMicState: boolean
+  intendedCameraState: boolean
+  actualCameraState: boolean
+}
+
 export interface ConferenceDiagnostics {
   livekitUrl: string | null
   roomName: string | null
@@ -71,12 +115,14 @@ export interface ConferenceDiagnostics {
   publisherState: string | null
   subscriberState: string | null
   micPermission: 'unknown' | 'granted' | 'denied'
+  micState: MicState
   micEnabledRequested: boolean
   micEnabledActual: boolean
   audioTrackSid: string | null
   audioPublicationExists: boolean
   lastMicError: string | null
   cameraPermission: 'unknown' | 'granted' | 'denied'
+  cameraState: CameraState
   cameraEnabledActual: boolean
   videoTrackSid: string | null
   videoPublicationExists: boolean
@@ -89,6 +135,8 @@ export interface ConferenceDiagnostics {
   publishedTrackCount: number
   subscribedTrackCount: number
   joinStage: JoinStage
+  joinTiming: JoinTiming
+  visibility: VisibilityDiagnostics
 }
 
 export interface AIGovernancePermissions {
@@ -126,6 +174,8 @@ export interface UseConferenceRoomReturn {
   isVideoOn: boolean
   preJoinMicEnabled: boolean
   preJoinVideoEnabled: boolean
+  micIntent: MediaIntent
+  cameraIntent: MediaIntent
   streams: Map<string, MediaStreamSource[]>
   localStreams: MediaStreamSource[]
   diagnostics: ConferenceDiagnostics
@@ -149,6 +199,11 @@ export interface UseConferenceRoomReturn {
 const MAX_STREAMS_PER_USER = 4
 const MAX_RECONNECT_ATTEMPTS = 5
 const INITIAL_BACKOFF_MS = 1000
+const TOKEN_CACHE_TTL_MS = 25000
+const RECONNECT_WATCHDOG_MS = 3000
+
+let actionIdCounter = 0
+function nextActionId(): number { return ++actionIdCounter }
 
 export function detectScreenShareSupport(): boolean {
   if (typeof navigator === 'undefined') return false
@@ -207,13 +262,16 @@ function buildStreamSources(p: Participant): MediaStreamSource[] {
 function participantToInfo(
   p: Participant,
   streams: MediaStreamSource[],
-  localMicSetupDone: boolean,
-  localMicIntent: boolean,
+  micIntent: MediaIntent,
   localDeafened: boolean,
 ): ConferenceParticipant {
   let isMuted: boolean
-  if (p instanceof LocalParticipant && !localMicSetupDone) {
-    isMuted = !localMicIntent
+  if (p instanceof LocalParticipant) {
+    if (micIntent.transition === 'publishing' || micIntent.transition === 'prejoin_on') {
+      isMuted = !micIntent.intended
+    } else {
+      isMuted = !micIntent.actual
+    }
   } else {
     isMuted = !p.isMicrophoneEnabled
   }
@@ -254,6 +312,40 @@ function hasPublication(p: LocalParticipant, source: Track.Source): boolean {
   return false
 }
 
+const INITIAL_MIC_INTENT: MediaIntent = {
+  intended: true,
+  transition: 'prejoin_on',
+  actual: false,
+  lastActionId: 0,
+  lastError: null,
+}
+
+const INITIAL_CAMERA_INTENT: MediaIntent = {
+  intended: false,
+  transition: 'off',
+  actual: false,
+  lastActionId: 0,
+  lastError: null,
+}
+
+const INITIAL_JOIN_TIMING: JoinTiming = {
+  tokenPrefetchMs: null,
+  joinClickToConnectStartMs: null,
+  connectMs: null,
+  micPublishMs: null,
+  joinClickToOperationalMs: null,
+}
+
+const INITIAL_VISIBILITY: VisibilityDiagnostics = {
+  lastVisibilityState: 'visible',
+  backgroundDurationMs: null,
+  reconnectAttempts: 0,
+  intendedMicState: true,
+  actualMicState: false,
+  intendedCameraState: false,
+  actualCameraState: false,
+}
+
 const INITIAL_DIAGNOSTICS: ConferenceDiagnostics = {
   livekitUrl: null,
   roomName: null,
@@ -264,12 +356,14 @@ const INITIAL_DIAGNOSTICS: ConferenceDiagnostics = {
   publisherState: null,
   subscriberState: null,
   micPermission: 'unknown',
+  micState: 'prejoin_on',
   micEnabledRequested: true,
   micEnabledActual: false,
   audioTrackSid: null,
   audioPublicationExists: false,
   lastMicError: null,
   cameraPermission: 'unknown',
+  cameraState: 'off',
   cameraEnabledActual: false,
   videoTrackSid: null,
   videoPublicationExists: false,
@@ -282,6 +376,8 @@ const INITIAL_DIAGNOSTICS: ConferenceDiagnostics = {
   publishedTrackCount: 0,
   subscribedTrackCount: 0,
   joinStage: 'idle',
+  joinTiming: { ...INITIAL_JOIN_TIMING },
+  visibility: { ...INITIAL_VISIBILITY },
 }
 
 function buildProductionChecklist(
@@ -314,10 +410,14 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
   const localScreenTracksRef = useRef<Map<string, LocalVideoTrack>>(new Map())
   const preJoinMicRef = useRef(true)
   const preJoinVideoRef = useRef(false)
-  const micSetupDoneRef = useRef(false)
   const deafenedRef = useRef(false)
   const prefetchedTokenRef = useRef<{ token: string; url: string; room: string; fetchedAt: number } | null>(null)
   const prefetchingRef = useRef(false)
+  const micIntentRef = useRef<MediaIntent>({ ...INITIAL_MIC_INTENT })
+  const cameraIntentRef = useRef<MediaIntent>({ ...INITIAL_CAMERA_INTENT })
+  const joinTimingRef = useRef<{ joinClickTs: number; connectStartTs: number; connectDoneTs: number; micDoneTs: number }>({ joinClickTs: 0, connectStartTs: 0, connectDoneTs: 0, micDoneTs: 0 })
+  const backgroundAtRef = useRef<number | null>(null)
+  const reconnectWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [state, setState] = useState<ConferenceRoomState>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -327,6 +427,8 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
   const [isVideoOn, setIsVideoOn] = useState(false)
   const [preJoinMicEnabled, setPreJoinMicEnabled] = useState(true)
   const [preJoinVideoEnabled, setPreJoinVideoEnabled] = useState(false)
+  const [micIntent, setMicIntent] = useState<MediaIntent>({ ...INITIAL_MIC_INTENT })
+  const [cameraIntent, setCameraIntent] = useState<MediaIntent>({ ...INITIAL_CAMERA_INTENT })
   const [streams, setStreams] = useState<Map<string, MediaStreamSource[]>>(new Map())
   const [diagnostics, setDiagnostics] = useState<ConferenceDiagnostics>({ ...INITIAL_DIAGNOSTICS })
   const [aiGovernance, setAIGovernanceState] = useState<AIGovernancePermissions>({ ...DEFAULT_AI_GOVERNANCE })
@@ -335,35 +437,46 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     setDiagnostics((prev) => ({ ...prev, ...patch }))
   }, [])
 
+  const updateMicIntent = useCallback((patch: Partial<MediaIntent>) => {
+    micIntentRef.current = { ...micIntentRef.current, ...patch }
+    setMicIntent({ ...micIntentRef.current })
+  }, [])
+
+  const updateCameraIntent = useCallback((patch: Partial<MediaIntent>) => {
+    cameraIntentRef.current = { ...cameraIntentRef.current, ...patch }
+    setCameraIntent({ ...cameraIntentRef.current })
+  }, [])
+
   const syncAllState = useCallback(() => {
     const room = roomRef.current
     if (!room) return
 
-    const micDone = micSetupDoneRef.current
-    const micIntent = preJoinMicRef.current
+    const micEnabled = room.localParticipant.isMicrophoneEnabled
+    const camEnabled = room.localParticipant.isCameraEnabled
 
-    if (micDone) {
-      const micEnabled = room.localParticipant.isMicrophoneEnabled
+    if (micIntentRef.current.transition === 'enabled' || micIntentRef.current.transition === 'disabled') {
       setIsMuted(!micEnabled)
+      updateMicIntent({ actual: micEnabled })
+    }
+    setIsVideoOn(camEnabled)
+    if (cameraIntentRef.current.transition === 'on' || cameraIntentRef.current.transition === 'off') {
+      updateCameraIntent({ actual: camEnabled })
     }
 
-    const camEnabled = room.localParticipant.isCameraEnabled
-    setIsVideoOn(camEnabled)
-
     const audioSid = findAudioTrackSid(room.localParticipant)
-
     const allStreams = new Map<string, MediaStreamSource[]>()
     const allParticipants: ConferenceParticipant[] = []
     const deaf = deafenedRef.current
 
     const localSources = buildStreamSources(room.localParticipant)
     allStreams.set(room.localParticipant.identity, localSources)
-    allParticipants.push(participantToInfo(room.localParticipant, localSources, micDone, micIntent, deaf))
+    allParticipants.push(participantToInfo(room.localParticipant, localSources, micIntentRef.current, deaf))
 
     room.remoteParticipants.forEach((rp) => {
       const remoteSources = buildStreamSources(rp)
       allStreams.set(rp.identity, remoteSources)
-      allParticipants.push(participantToInfo(rp, remoteSources, true, true, false))
+      const remoteMicIntent: MediaIntent = { intended: rp.isMicrophoneEnabled, transition: rp.isMicrophoneEnabled ? 'enabled' : 'disabled', actual: rp.isMicrophoneEnabled, lastActionId: 0, lastError: null }
+      allParticipants.push(participantToInfo(rp, remoteSources, remoteMicIntent, false))
     })
 
     setStreams(allStreams)
@@ -381,15 +494,23 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     updateDiag({
       publishedTrackCount: publishedCount,
       subscribedTrackCount: subscribedCount,
-      micEnabledActual: room.localParticipant.isMicrophoneEnabled,
+      micEnabledActual: micEnabled,
       cameraEnabledActual: camEnabled,
       audioTrackSid: audioSid,
       audioPublicationExists: hasPublication(room.localParticipant, Track.Source.Microphone),
       videoTrackSid: videoSid,
       videoPublicationExists: hasPublication(room.localParticipant, Track.Source.Camera),
       localPreviewAttached: videoSid ? videoElementsRef.current.has(videoSid) : false,
+      visibility: {
+        ...INITIAL_VISIBILITY,
+        intendedMicState: micIntentRef.current.intended,
+        actualMicState: micEnabled,
+        intendedCameraState: cameraIntentRef.current.intended,
+        actualCameraState: camEnabled,
+        reconnectAttempts: diagnostics.reconnectAttempts,
+      },
     })
-  }, [updateDiag])
+  }, [updateDiag, updateMicIntent, updateCameraIntent])
 
   const attachVideoTrack = useCallback((trackSid: string, track: { attach: () => HTMLMediaElement }) => {
     if (videoElementsRef.current.has(trackSid)) return
@@ -412,18 +533,25 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
   const prefetchToken = useCallback(async () => {
     if (prefetchingRef.current) return
     const cached = prefetchedTokenRef.current
-    if (cached && Date.now() - cached.fetchedAt < 25000) return
+    if (cached && Date.now() - cached.fetchedAt < TOKEN_CACHE_TTL_MS) return
     prefetchingRef.current = true
+    const t0 = Date.now()
     try {
       const res = await fetchApi(`/rooms/channels/${channelId}/voice/token`, {
         method: 'POST',
       }) as { token: string; url: string; room: string }
       if (res.token && res.url) {
         prefetchedTokenRef.current = { ...res, fetchedAt: Date.now() }
-        updateDiag({ tokenReceived: true, joinStage: 'token_ready', lastEvent: 'token prefetched' })
+        const prefetchMs = Date.now() - t0
+        updateDiag({
+          tokenReceived: true,
+          joinStage: 'token_ready',
+          lastEvent: 'token prefetched',
+          joinTiming: { ...INITIAL_JOIN_TIMING, tokenPrefetchMs: prefetchMs },
+        })
       }
     } catch {
-      // prefetch failure is not fatal — doConnect will retry
+      // prefetch failure is not fatal
     } finally {
       prefetchingRef.current = false
     }
@@ -433,16 +561,131 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     prefetchToken()
   }, [prefetchToken])
 
+  const restoreMediaAfterForeground = useCallback(async () => {
+    const room = roomRef.current
+    if (!room || room.state !== ConnectionState.Connected) return
+
+    const bgAt = backgroundAtRef.current
+    const bgDuration = bgAt ? Date.now() - bgAt : null
+    backgroundAtRef.current = null
+
+    updateDiag({
+      visibility: {
+        lastVisibilityState: 'visible',
+        backgroundDurationMs: bgDuration,
+        reconnectAttempts: diagnostics.reconnectAttempts,
+        intendedMicState: micIntentRef.current.intended,
+        actualMicState: room.localParticipant.isMicrophoneEnabled,
+        intendedCameraState: cameraIntentRef.current.intended,
+        actualCameraState: room.localParticipant.isCameraEnabled,
+      },
+      lastEvent: `foreground restored (bg ${bgDuration ? Math.round(bgDuration / 1000) + 's' : 'unknown'})`,
+    })
+
+    if (micIntentRef.current.intended && !room.localParticipant.isMicrophoneEnabled) {
+      try {
+        await room.localParticipant.setMicrophoneEnabled(true)
+        updateMicIntent({ actual: true, transition: 'enabled', lastError: null })
+        setIsMuted(false)
+        updateDiag({ lastEvent: 'mic restored after foreground' })
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'mic restore failed'
+        updateMicIntent({ lastError: msg })
+        updateDiag({ lastEvent: `mic restore failed: ${msg}` })
+      }
+    }
+
+    if (cameraIntentRef.current.intended && !room.localParticipant.isCameraEnabled) {
+      try {
+        await room.localParticipant.setCameraEnabled(true)
+        updateCameraIntent({ actual: true, transition: 'on', lastError: null })
+        setIsVideoOn(true)
+        updateDiag({ lastEvent: 'camera restored after foreground' })
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'camera restore failed'
+        updateCameraIntent({ lastError: msg })
+        updateDiag({ lastEvent: `camera restore failed: ${msg}` })
+      }
+    }
+
+    syncAllState()
+  }, [syncAllState, updateDiag, updateMicIntent, updateCameraIntent])
+
+  const handleVisibilityChange = useCallback(() => {
+    if (typeof document === 'undefined') return
+    const room = roomRef.current
+    if (!room) return
+
+    if (document.visibilityState === 'hidden') {
+      backgroundAtRef.current = Date.now()
+      updateDiag({
+        visibility: {
+          lastVisibilityState: 'hidden',
+          backgroundDurationMs: null,
+          reconnectAttempts: diagnostics.reconnectAttempts,
+          intendedMicState: micIntentRef.current.intended,
+          actualMicState: room.localParticipant.isMicrophoneEnabled,
+          intendedCameraState: cameraIntentRef.current.intended,
+          actualCameraState: room.localParticipant.isCameraEnabled,
+        },
+        lastEvent: 'app backgrounded',
+      })
+    } else if (document.visibilityState === 'visible') {
+      if (room.state === ConnectionState.Connected) {
+        restoreMediaAfterForeground()
+      } else {
+        updateDiag({ lastEvent: 'foreground — room not connected, waiting for reconnect' })
+        reconnectWatchdogRef.current = setTimeout(() => {
+          const r = roomRef.current
+          if (r && r.state !== ConnectionState.Connected) {
+            updateDiag({ lastEvent: 'watchdog: room still disconnected after foreground, leaving' })
+            setState('disconnected')
+          }
+        }, RECONNECT_WATCHDOG_MS)
+      }
+    }
+  }, [restoreMediaAfterForeground, updateDiag])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('online', () => {
+      const room = roomRef.current
+      if (room && room.state !== ConnectionState.Connected) {
+        updateDiag({ lastEvent: 'network online — expecting LiveKit reconnect' })
+      }
+    })
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [handleVisibilityChange, updateDiag])
+
   const doConnect = useCallback(async (micEnabled: boolean, videoEnabled: boolean) => {
     setState('connecting')
     setError(null)
-    micSetupDoneRef.current = false
-    updateDiag({ lastEvent: 'joining...', micEnabledRequested: micEnabled, joinStage: 'fetching_token' })
+    const joinClickTs = Date.now()
+    joinTimingRef.current = { joinClickTs, connectStartTs: 0, connectDoneTs: 0, micDoneTs: 0 }
+
+    const micActionId = nextActionId()
+    updateMicIntent({
+      intended: micEnabled,
+      transition: micEnabled ? 'publishing' : 'prejoin_off',
+      actual: false,
+      lastActionId: micActionId,
+      lastError: null,
+    })
+    setIsMuted(!micEnabled)
+    updateDiag({
+      lastEvent: 'joining...',
+      micEnabledRequested: micEnabled,
+      micState: micEnabled ? 'publishing' : 'prejoin_off',
+      joinStage: 'fetching_token',
+    })
 
     try {
       let tokenData: { token: string; url: string; room: string }
       const cached = prefetchedTokenRef.current
-      if (cached && Date.now() - cached.fetchedAt < 25000) {
+      if (cached && Date.now() - cached.fetchedAt < TOKEN_CACHE_TTL_MS) {
         tokenData = cached
         updateDiag({ joinStage: 'token_ready', lastEvent: 'using prefetched token' })
       } else {
@@ -457,18 +700,24 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       }
       prefetchedTokenRef.current = null
 
+      const connectStartTs = Date.now()
+      joinTimingRef.current.connectStartTs = connectStartTs
       updateDiag({
         livekitUrl: tokenData.url,
         roomName: tokenData.room,
         tokenReceived: true,
         joinStage: 'connecting',
         lastEvent: 'connecting to LiveKit...',
+        joinTiming: {
+          ...INITIAL_JOIN_TIMING,
+          joinClickToConnectStartMs: connectStartTs - joinClickTs,
+        },
       })
 
       const room = new Room({
         adaptiveStream: true,
         dynacast: true,
-        disconnectOnPageLeave: true,
+        disconnectOnPageLeave: false,
         reconnectPolicy: {
           nextRetryDelayInMs: (context) => {
             if (context.retryCount >= MAX_RECONNECT_ATTEMPTS) return null
@@ -510,7 +759,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       room.on(RoomEvent.Reconnected, () => {
         setState('connected')
         updateDiag({ reconnectAttempts: 0, signalConnected: true, lastEvent: 'reconnected successfully' })
-        syncAllState()
+        restoreMediaAfterForeground()
       })
 
       room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
@@ -527,7 +776,15 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       })
 
       room.on(RoomEvent.ActiveSpeakersChanged, () => syncAllState())
-      room.on(RoomEvent.TrackMuted, () => syncAllState())
+
+      room.on(RoomEvent.TrackMuted, (pub: TrackPublication, participant: Participant) => {
+        if (participant instanceof LocalParticipant && pub.source === Track.Source.Microphone) {
+          if ((pub as LocalTrackPublication).trackSid && micIntentRef.current.lastActionId <= micActionId) {
+            // stale event — ignore if a newer action is in progress
+          }
+        }
+        syncAllState()
+      })
       room.on(RoomEvent.TrackUnmuted, () => syncAllState())
       room.on(RoomEvent.ConnectionQualityChanged, () => syncAllState())
 
@@ -537,9 +794,34 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
           attachVideoTrack(pub.trackSid, pub.track)
         }
         if (pub.source === Track.Source.Microphone) {
-          micSetupDoneRef.current = true
+          updateMicIntent({ actual: true, transition: 'enabled', lastError: null })
           setIsMuted(false)
-          updateDiag({ micPermission: 'granted', micEnabledActual: true, audioTrackSid: pub.trackSid, audioPublicationExists: true, lastMicError: null })
+          updateDiag({
+            micPermission: 'granted',
+            micState: 'enabled',
+            micEnabledActual: true,
+            audioTrackSid: pub.trackSid,
+            audioPublicationExists: true,
+            lastMicError: null,
+          })
+          joinTimingRef.current.micDoneTs = Date.now()
+          const timing = joinTimingRef.current
+          if (timing.connectDoneTs > 0) {
+            updateDiag({
+              joinTiming: {
+                tokenPrefetchMs: diagnostics.joinTiming.tokenPrefetchMs,
+                joinClickToConnectStartMs: timing.connectStartTs - timing.joinClickTs,
+                connectMs: timing.connectDoneTs - timing.connectStartTs,
+                micPublishMs: timing.micDoneTs - timing.connectDoneTs,
+                joinClickToOperationalMs: timing.micDoneTs - timing.joinClickTs,
+              },
+            })
+          }
+        }
+        if (pub.source === Track.Source.Camera) {
+          updateCameraIntent({ actual: true, transition: 'on', lastError: null })
+          setIsVideoOn(true)
+          updateDiag({ cameraPermission: 'granted', cameraState: 'on', cameraEnabledActual: true, lastVideoError: null })
         }
         syncAllState()
       })
@@ -548,6 +830,16 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
         updateDiag({ lastEvent: `unpublished ${pub.source}` })
         detachVideoTrack(pub.trackSid)
         localScreenTracksRef.current.delete(pub.trackSid)
+        if (pub.source === Track.Source.Microphone) {
+          updateMicIntent({ actual: false, transition: 'disabled' })
+          setIsMuted(true)
+          updateDiag({ micState: 'disabled', micEnabledActual: false })
+        }
+        if (pub.source === Track.Source.Camera) {
+          updateCameraIntent({ actual: false, transition: 'off' })
+          setIsVideoOn(false)
+          updateDiag({ cameraState: 'off', cameraEnabledActual: false })
+        }
         syncAllState()
       })
 
@@ -591,20 +883,32 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
         updateDiag({ lastEvent: `media error: ${msg}`, lastError: msg })
       })
 
-      updateDiag({ joinStage: micEnabled ? 'requesting_mic' : 'connecting' })
+      updateDiag({ joinStage: micEnabled ? 'requesting_mic' : 'connecting', micState: micEnabled ? 'publishing' : 'prejoin_off' })
       await room.connect(tokenData.url, tokenData.token, {
         autoSubscribe: true,
       })
-      updateDiag({ participantIdentity: room.localParticipant.identity, joinStage: 'publishing_mic' })
+      const connectDoneTs = Date.now()
+      joinTimingRef.current.connectDoneTs = connectDoneTs
+      updateDiag({
+        participantIdentity: room.localParticipant.identity,
+        joinStage: 'publishing_mic',
+        joinTiming: {
+          ...diagnostics.joinTiming,
+          connectMs: connectDoneTs - connectStartTs,
+        },
+      })
+
+      setState('connected')
 
       if (micEnabled) {
         try {
           await room.localParticipant.setMicrophoneEnabled(true)
-          micSetupDoneRef.current = true
           const isEnabled = room.localParticipant.isMicrophoneEnabled
+          updateMicIntent({ actual: isEnabled, transition: isEnabled ? 'enabled' : 'failed', lastError: null })
           setIsMuted(!isEnabled)
           updateDiag({
             micPermission: 'granted',
+            micState: isEnabled ? 'enabled' : 'failed',
             micEnabledActual: isEnabled,
             lastMicError: null,
             joinStage: 'connected',
@@ -612,10 +916,11 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
           })
         } catch (micErr) {
           const msg = micErr instanceof Error ? micErr.message : 'unknown'
-          micSetupDoneRef.current = true
+          updateMicIntent({ actual: false, transition: 'failed', lastError: msg })
           setIsMuted(true)
           updateDiag({
             micPermission: 'denied',
+            micState: 'failed',
             micEnabledActual: false,
             lastMicError: msg,
             lastEvent: `mic denied: ${msg}`,
@@ -623,64 +928,84 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
           })
         }
       } else {
-        micSetupDoneRef.current = true
-        updateDiag({ joinStage: 'connected', lastEvent: 'connected (mic off by choice)' })
+        updateMicIntent({ transition: 'disabled', actual: false })
+        updateDiag({ joinStage: 'connected', micState: 'disabled', lastEvent: 'connected (mic off by choice)' })
       }
 
-      setState('connected')
-
       if (videoEnabled) {
-        updateDiag({ joinStage: 'requesting_camera' })
+        const camActionId = nextActionId()
+        updateCameraIntent({ intended: true, transition: 'requesting_permission', lastActionId: camActionId })
+        updateDiag({ joinStage: 'requesting_camera', cameraState: 'requesting_permission' })
         try {
           await room.localParticipant.setCameraEnabled(true)
-          updateDiag({ cameraPermission: 'granted', lastVideoError: null, lastEvent: 'camera enabled' })
+          updateCameraIntent({ actual: true, transition: 'on', lastError: null })
+          setIsVideoOn(true)
+          updateDiag({ cameraPermission: 'granted', cameraState: 'on', lastVideoError: null, lastEvent: 'camera enabled' })
         } catch (camErr) {
           const msg = camErr instanceof Error ? camErr.message : 'unknown'
-          updateDiag({ cameraPermission: 'denied', lastVideoError: msg, lastEvent: `camera denied: ${msg}`, lastError: `Camera: ${msg}` })
+          updateCameraIntent({ actual: false, transition: 'failed', lastError: msg })
+          updateDiag({ cameraPermission: 'denied', cameraState: 'failed', lastVideoError: msg, lastEvent: `camera denied: ${msg}`, lastError: `Camera: ${msg}` })
         }
         updateDiag({ joinStage: 'connected' })
       }
+
+      const operationalTs = Date.now()
+      updateDiag({
+        joinTiming: {
+          tokenPrefetchMs: diagnostics.joinTiming.tokenPrefetchMs,
+          joinClickToConnectStartMs: connectStartTs - joinClickTs,
+          connectMs: connectDoneTs - connectStartTs,
+          micPublishMs: operationalTs - connectDoneTs,
+          joinClickToOperationalMs: operationalTs - joinClickTs,
+        },
+      })
 
       syncAllState()
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to join room'
       setState('failed')
       setError(msg)
-      updateDiag({ lastEvent: `error: ${msg}`, lastError: msg, joinStage: 'idle' })
-      micSetupDoneRef.current = true
+      updateMicIntent({ transition: 'failed', lastError: msg })
+      updateDiag({ lastEvent: `error: ${msg}`, lastError: msg, joinStage: 'idle', micState: 'failed' })
       if (roomRef.current) {
         roomRef.current.disconnect()
         roomRef.current = null
       }
     }
-  }, [channelId, syncAllState, updateDiag, attachVideoTrack, detachVideoTrack])
+  }, [channelId, syncAllState, updateDiag, attachVideoTrack, detachVideoTrack, updateMicIntent, updateCameraIntent, restoreMediaAfterForeground])
 
   const join = useCallback(async () => {
     if (roomRef.current) return
     intentionalDisconnectRef.current = false
     const mic = preJoinMicRef.current
     const vid = preJoinVideoRef.current
+    updateMicIntent({ intended: mic, transition: mic ? 'publishing' : 'prejoin_off' })
+    updateCameraIntent({ intended: vid, transition: vid ? 'requesting_permission' : 'off' })
     setIsMuted(!mic)
     setIsVideoOn(vid)
     await doConnect(mic, vid)
-  }, [doConnect])
+  }, [doConnect, updateMicIntent, updateCameraIntent])
 
   const togglePreJoinMic = useCallback(() => {
     setPreJoinMicEnabled((prev) => {
       const next = !prev
       preJoinMicRef.current = next
       setIsMuted(!next)
+      updateMicIntent({ intended: next, transition: next ? 'prejoin_on' : 'prejoin_off' })
+      updateDiag({ micState: next ? 'prejoin_on' : 'prejoin_off' })
       return next
     })
-  }, [])
+  }, [updateMicIntent, updateDiag])
 
   const togglePreJoinVideo = useCallback(() => {
     setPreJoinVideoEnabled((prev) => {
       const next = !prev
       preJoinVideoRef.current = next
+      updateCameraIntent({ intended: next, transition: next ? 'requesting_permission' : 'off' })
+      updateDiag({ cameraState: next ? 'requesting_permission' : 'off' })
       return next
     })
-  }, [])
+  }, [updateCameraIntent, updateDiag])
 
   const leave = useCallback(() => {
     intentionalDisconnectRef.current = true
@@ -695,9 +1020,13 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     }
     videoElementsRef.current.forEach(el => el.remove())
     videoElementsRef.current.clear()
-    micSetupDoneRef.current = false
     deafenedRef.current = false
     prefetchedTokenRef.current = null
+    backgroundAtRef.current = null
+    if (reconnectWatchdogRef.current) {
+      clearTimeout(reconnectWatchdogRef.current)
+      reconnectWatchdogRef.current = null
+    }
     setState('idle')
     setParticipants([])
     setError(null)
@@ -708,29 +1037,40 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     setIsMuted(false)
     setIsDeafened(false)
     setIsVideoOn(false)
+    updateMicIntent({ ...INITIAL_MIC_INTENT })
+    updateCameraIntent({ ...INITIAL_CAMERA_INTENT })
     setStreams(new Map())
     setDiagnostics({ ...INITIAL_DIAGNOSTICS })
     prefetchToken()
-  }, [prefetchToken])
+  }, [prefetchToken, updateMicIntent, updateCameraIntent])
 
   const toggleMute = useCallback(async () => {
     const room = roomRef.current
     if (!room) return
     const currentlyEnabled = room.localParticipant.isMicrophoneEnabled
     const targetEnabled = !currentlyEnabled
-    updateDiag({ micEnabledRequested: targetEnabled })
+    const actionId = nextActionId()
+
+    // Optimistic UI
+    updateMicIntent({ intended: targetEnabled, transition: targetEnabled ? 'publishing' : 'disabling', lastActionId: actionId })
+    setIsMuted(!targetEnabled)
+    updateDiag({ micEnabledRequested: targetEnabled, micState: targetEnabled ? 'publishing' : 'disabling' })
+
     try {
       await room.localParticipant.setMicrophoneEnabled(targetEnabled)
-      updateDiag({ micPermission: 'granted', lastMicError: null })
+      const actualEnabled = room.localParticipant.isMicrophoneEnabled
+      updateMicIntent({ actual: actualEnabled, transition: actualEnabled ? 'enabled' : 'disabled', lastError: null })
+      setIsMuted(!actualEnabled)
+      updateDiag({ micPermission: 'granted', micState: actualEnabled ? 'enabled' : 'disabled', micEnabledActual: actualEnabled, lastMicError: null })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'mic toggle failed'
-      updateDiag({ lastError: `Mic: ${msg}`, lastMicError: msg, micPermission: 'denied' })
+      // Revert optimistic update
+      updateMicIntent({ intended: currentlyEnabled, actual: currentlyEnabled, transition: currentlyEnabled ? 'enabled' : 'disabled', lastError: msg })
+      setIsMuted(!currentlyEnabled)
+      updateDiag({ lastError: `Mic: ${msg}`, lastMicError: msg, micPermission: 'denied', micState: currentlyEnabled ? 'enabled' : 'disabled' })
     }
-    const actualEnabled = room.localParticipant.isMicrophoneEnabled
-    setIsMuted(!actualEnabled)
-    updateDiag({ micEnabledActual: actualEnabled })
     syncAllState()
-  }, [syncAllState, updateDiag])
+  }, [syncAllState, updateDiag, updateMicIntent])
 
   const toggleDeafen = useCallback(() => {
     const room = roomRef.current
@@ -747,39 +1087,58 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     })
     if (next) {
       setIsMuted(true)
+      updateMicIntent({ intended: false, transition: 'disabled' })
       room.localParticipant.setMicrophoneEnabled(false).catch(() => {})
-      updateDiag({ lastEvent: 'deafened — mic muted, incoming audio silenced' })
+      updateDiag({ lastEvent: 'deafened', micState: 'disabled' })
     } else {
-      updateDiag({ lastEvent: 'undeafened — incoming audio restored' })
+      updateDiag({ lastEvent: 'undeafened' })
     }
     syncAllState()
-  }, [syncAllState, updateDiag])
+  }, [syncAllState, updateDiag, updateMicIntent])
 
   const toggleVideo = useCallback(async () => {
     const room = roomRef.current
     if (!room) return
     const currentlyEnabled = room.localParticipant.isCameraEnabled
+    const targetEnabled = !currentlyEnabled
+    const actionId = nextActionId()
+
+    // Optimistic UI
+    updateCameraIntent({
+      intended: targetEnabled,
+      transition: targetEnabled ? 'requesting_permission' : 'disabling',
+      lastActionId: actionId,
+    })
+    setIsVideoOn(targetEnabled)
+    updateDiag({ cameraState: targetEnabled ? 'requesting_permission' : 'disabling' })
+
     try {
-      await room.localParticipant.setCameraEnabled(!currentlyEnabled)
+      await room.localParticipant.setCameraEnabled(targetEnabled)
+      const actualEnabled = room.localParticipant.isCameraEnabled
+      updateCameraIntent({ actual: actualEnabled, transition: actualEnabled ? 'on' : 'off', lastError: null })
+      setIsVideoOn(actualEnabled)
       updateDiag({
-        lastEvent: !currentlyEnabled ? 'camera enabled' : 'camera disabled',
+        lastEvent: actualEnabled ? 'camera enabled' : 'camera disabled',
         cameraPermission: 'granted',
+        cameraState: actualEnabled ? 'on' : 'off',
+        cameraEnabledActual: actualEnabled,
         lastVideoError: null,
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'camera toggle failed'
+      // Revert optimistic update
+      updateCameraIntent({ intended: currentlyEnabled, actual: currentlyEnabled, transition: currentlyEnabled ? 'on' : 'off', lastError: msg })
+      setIsVideoOn(currentlyEnabled)
       updateDiag({
         lastError: `Camera: ${msg}`,
         lastVideoError: msg,
         cameraPermission: 'denied',
+        cameraState: currentlyEnabled ? 'on' : 'failed',
         lastEvent: `camera error: ${msg}`,
       })
     }
-    const actualEnabled = room.localParticipant.isCameraEnabled
-    setIsVideoOn(actualEnabled)
-    updateDiag({ cameraEnabledActual: actualEnabled })
     syncAllState()
-  }, [syncAllState, updateDiag])
+  }, [syncAllState, updateDiag, updateCameraIntent])
 
   const addScreenShare = useCallback(async () => {
     const room = roomRef.current
@@ -886,6 +1245,9 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       localScreenTracksRef.current.clear()
       videoElementsRef.current.forEach(el => el.remove())
       videoElementsRef.current.clear()
+      if (reconnectWatchdogRef.current) {
+        clearTimeout(reconnectWatchdogRef.current)
+      }
       if (roomRef.current) {
         roomRef.current.disconnect()
         roomRef.current = null
@@ -902,6 +1264,8 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     isVideoOn,
     preJoinMicEnabled,
     preJoinVideoEnabled,
+    micIntent,
+    cameraIntent,
     streams,
     localStreams,
     diagnostics,
