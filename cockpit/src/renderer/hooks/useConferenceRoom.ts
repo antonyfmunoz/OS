@@ -85,9 +85,13 @@ export interface MediaIntent {
   actual: boolean
   lastActionId: number
   lastError: string | null
+  updatedAt: number
 }
 
 export interface JoinTiming {
+  roomOpenTimeMs: number | null
+  tokenPrefetchStartMs: number | null
+  tokenPrefetchDoneMs: number | null
   tokenPrefetchMs: number | null
   joinClickToConnectStartMs: number | null
   connectMs: number | null
@@ -129,6 +133,7 @@ export interface ConferenceDiagnostics {
   localPreviewAttached: boolean
   lastVideoError: string | null
   screenShareSupport: boolean
+  lastScreenShareError: string | null
   lastEvent: string | null
   lastError: string | null
   reconnectAttempts: number
@@ -318,6 +323,7 @@ const INITIAL_MIC_INTENT: MediaIntent = {
   actual: false,
   lastActionId: 0,
   lastError: null,
+  updatedAt: 0,
 }
 
 const INITIAL_CAMERA_INTENT: MediaIntent = {
@@ -326,9 +332,13 @@ const INITIAL_CAMERA_INTENT: MediaIntent = {
   actual: false,
   lastActionId: 0,
   lastError: null,
+  updatedAt: 0,
 }
 
 const INITIAL_JOIN_TIMING: JoinTiming = {
+  roomOpenTimeMs: null,
+  tokenPrefetchStartMs: null,
+  tokenPrefetchDoneMs: null,
   tokenPrefetchMs: null,
   joinClickToConnectStartMs: null,
   connectMs: null,
@@ -370,6 +380,7 @@ const INITIAL_DIAGNOSTICS: ConferenceDiagnostics = {
   localPreviewAttached: false,
   lastVideoError: null,
   screenShareSupport: detectScreenShareSupport(),
+  lastScreenShareError: null,
   lastEvent: null,
   lastError: null,
   reconnectAttempts: 0,
@@ -415,6 +426,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
   const prefetchingRef = useRef(false)
   const micIntentRef = useRef<MediaIntent>({ ...INITIAL_MIC_INTENT })
   const cameraIntentRef = useRef<MediaIntent>({ ...INITIAL_CAMERA_INTENT })
+  const roomOpenTimeRef = useRef(Date.now())
   const joinTimingRef = useRef<{ joinClickTs: number; connectStartTs: number; connectDoneTs: number; micDoneTs: number }>({ joinClickTs: 0, connectStartTs: 0, connectDoneTs: 0, micDoneTs: 0 })
   const backgroundAtRef = useRef<number | null>(null)
   const reconnectWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -438,12 +450,12 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
   }, [])
 
   const updateMicIntent = useCallback((patch: Partial<MediaIntent>) => {
-    micIntentRef.current = { ...micIntentRef.current, ...patch }
+    micIntentRef.current = { ...micIntentRef.current, ...patch, updatedAt: Date.now() }
     setMicIntent({ ...micIntentRef.current })
   }, [])
 
   const updateCameraIntent = useCallback((patch: Partial<MediaIntent>) => {
-    cameraIntentRef.current = { ...cameraIntentRef.current, ...patch }
+    cameraIntentRef.current = { ...cameraIntentRef.current, ...patch, updatedAt: Date.now() }
     setCameraIntent({ ...cameraIntentRef.current })
   }, [])
 
@@ -475,7 +487,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     room.remoteParticipants.forEach((rp) => {
       const remoteSources = buildStreamSources(rp)
       allStreams.set(rp.identity, remoteSources)
-      const remoteMicIntent: MediaIntent = { intended: rp.isMicrophoneEnabled, transition: rp.isMicrophoneEnabled ? 'enabled' : 'disabled', actual: rp.isMicrophoneEnabled, lastActionId: 0, lastError: null }
+      const remoteMicIntent: MediaIntent = { intended: rp.isMicrophoneEnabled, transition: rp.isMicrophoneEnabled ? 'enabled' : 'disabled', actual: rp.isMicrophoneEnabled, lastActionId: 0, lastError: null, updatedAt: 0 }
       allParticipants.push(participantToInfo(rp, remoteSources, remoteMicIntent, false))
     })
 
@@ -540,18 +552,32 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     if (cached && Date.now() - cached.fetchedAt < TOKEN_CACHE_TTL_MS) return
     prefetchingRef.current = true
     const t0 = Date.now()
+    updateDiag({
+      joinTiming: {
+        ...INITIAL_JOIN_TIMING,
+        roomOpenTimeMs: t0 - roomOpenTimeRef.current,
+        tokenPrefetchStartMs: t0,
+      },
+    })
     try {
       const res = await fetchApi(`/rooms/channels/${channelId}/voice/token`, {
         method: 'POST',
       }) as { token: string; url: string; room: string }
       if (res.token && res.url) {
-        prefetchedTokenRef.current = { ...res, fetchedAt: Date.now() }
-        const prefetchMs = Date.now() - t0
+        const doneTs = Date.now()
+        prefetchedTokenRef.current = { ...res, fetchedAt: doneTs }
+        const prefetchMs = doneTs - t0
         updateDiag({
           tokenReceived: true,
           joinStage: 'token_ready',
           lastEvent: 'token prefetched',
-          joinTiming: { ...INITIAL_JOIN_TIMING, tokenPrefetchMs: prefetchMs },
+          joinTiming: {
+            ...INITIAL_JOIN_TIMING,
+            roomOpenTimeMs: t0 - roomOpenTimeRef.current,
+            tokenPrefetchStartMs: t0,
+            tokenPrefetchDoneMs: doneTs,
+            tokenPrefetchMs: prefetchMs,
+          },
         })
       }
     } catch {
@@ -713,7 +739,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
         joinStage: 'connecting',
         lastEvent: 'connecting to LiveKit...',
         joinTiming: {
-          ...INITIAL_JOIN_TIMING,
+          ...diagnostics.joinTiming,
           joinClickToConnectStartMs: connectStartTs - joinClickTs,
         },
       })
@@ -813,7 +839,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
           if (timing.connectDoneTs > 0) {
             updateDiag({
               joinTiming: {
-                tokenPrefetchMs: diagnostics.joinTiming.tokenPrefetchMs,
+                ...diagnostics.joinTiming,
                 joinClickToConnectStartMs: timing.connectStartTs - timing.joinClickTs,
                 connectMs: timing.connectDoneTs - timing.connectStartTs,
                 micPublishMs: timing.micDoneTs - timing.connectDoneTs,
@@ -884,7 +910,18 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
 
       room.on(RoomEvent.MediaDevicesError, (e) => {
         const msg = e instanceof Error ? e.message : 'unknown media error'
-        updateDiag({ lastEvent: `media error: ${msg}`, lastError: msg })
+        const lower = msg.toLowerCase()
+        const isCameraError = lower.includes('camera') || lower.includes('video')
+        const isMicError = lower.includes('microphone') || lower.includes('audio') || lower.includes('mic')
+        if (isCameraError) {
+          updateCameraIntent({ lastError: msg })
+          updateDiag({ lastEvent: `camera media error: ${msg}`, lastVideoError: msg, cameraState: 'failed' })
+        } else if (isMicError) {
+          updateMicIntent({ lastError: msg })
+          updateDiag({ lastEvent: `mic media error: ${msg}`, lastMicError: msg, micState: 'failed' })
+        } else {
+          updateDiag({ lastEvent: `media error: ${msg}`, lastMicError: msg })
+        }
       })
 
       updateDiag({ joinStage: micEnabled ? 'requesting_mic' : 'connecting', micState: micEnabled ? 'publishing' : 'prejoin_off' })
@@ -928,7 +965,6 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
             micEnabledActual: false,
             lastMicError: msg,
             lastEvent: `mic denied: ${msg}`,
-            lastError: `Mic: ${msg}`,
           })
         }
       } else {
@@ -956,6 +992,9 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       const operationalTs = Date.now()
       updateDiag({
         joinTiming: {
+          roomOpenTimeMs: joinClickTs - roomOpenTimeRef.current,
+          tokenPrefetchStartMs: diagnostics.joinTiming.tokenPrefetchStartMs,
+          tokenPrefetchDoneMs: diagnostics.joinTiming.tokenPrefetchDoneMs,
           tokenPrefetchMs: diagnostics.joinTiming.tokenPrefetchMs,
           joinClickToConnectStartMs: connectStartTs - joinClickTs,
           connectMs: connectDoneTs - connectStartTs,
@@ -1071,7 +1110,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       // Revert optimistic update
       updateMicIntent({ intended: currentlyEnabled, actual: currentlyEnabled, transition: currentlyEnabled ? 'enabled' : 'disabled', lastError: msg })
       setIsMuted(!currentlyEnabled)
-      updateDiag({ lastError: `Mic: ${msg}`, lastMicError: msg, micPermission: 'denied', micState: currentlyEnabled ? 'enabled' : 'disabled' })
+      updateDiag({ lastMicError: msg, micPermission: 'denied', micState: currentlyEnabled ? 'enabled' : 'disabled' })
     }
     syncAllState()
   }, [syncAllState, updateDiag, updateMicIntent])
@@ -1149,7 +1188,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     const currentLocalStreams = buildStreamSources(room.localParticipant)
     const screenStreams = currentLocalStreams.filter(s => s.sourceType !== 'camera')
     if (screenStreams.length >= MAX_STREAMS_PER_USER) {
-      updateDiag({ lastError: `Max ${MAX_STREAMS_PER_USER} streams reached` })
+      updateDiag({ lastScreenShareError: `Max ${MAX_STREAMS_PER_USER} streams reached`, lastEvent: `max streams reached` })
       return
     }
 
@@ -1165,7 +1204,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
           if (pub.trackSid) {
             localScreenTracksRef.current.set(pub.trackSid, videoTrack)
           }
-          updateDiag({ lastEvent: 'screen share started' })
+          updateDiag({ lastEvent: 'screen share started', lastScreenShareError: null })
         } else if (track.kind === Track.Kind.Audio) {
           await room.localParticipant.publishTrack(track, {
             source: Track.Source.ScreenShareAudio,
@@ -1178,7 +1217,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       if (msg.includes('Permission denied') || msg.includes('NotAllowedError') || msg.includes('AbortError')) {
         updateDiag({ lastEvent: 'screen share cancelled by user' })
       } else {
-        updateDiag({ lastError: msg, lastEvent: `screen share error: ${msg}` })
+        updateDiag({ lastScreenShareError: msg, lastEvent: `screen share error: ${msg}` })
       }
     }
   }, [syncAllState, updateDiag])

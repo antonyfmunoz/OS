@@ -263,6 +263,9 @@ function VoiceParticipantRow({ participant: p }: { participant: VoiceParticipant
         color: p.isSpeaking ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
       }}>
         {p.name}
+        {p.identity.startsWith('temporary_guest:') && (
+          <span className="ml-1.5 text-[7px] px-1 rounded" style={{ background: 'var(--color-warn-dim, rgba(255,170,0,0.1))', color: 'var(--color-warn, #ffaa00)' }}>GUEST</span>
+        )}
       </span>
 
       <div className="flex items-center gap-1">
@@ -302,6 +305,9 @@ function ParticipantStrip({ participants }: { participants: VoiceParticipant[] }
           <span className="text-[9px] font-mono truncate max-w-[60px]" style={{ color: 'var(--color-text-secondary)' }}>
             {p.name}
           </span>
+          {p.identity.startsWith('temporary_guest:') && (
+            <span className="text-[6px] px-0.5 rounded" style={{ background: 'var(--color-warn-dim, rgba(255,170,0,0.1))', color: 'var(--color-warn, #ffaa00)' }}>G</span>
+          )}
           {p.isMuted && <MicOff size={9} style={{ color: 'var(--color-danger)' }} />}
         </div>
       ))}
@@ -636,17 +642,15 @@ function CallBar({
   if (!isConnected && state !== 'failed' && state !== 'disconnected') {
     const isJoining = state === 'connecting' || state === 'requesting_permissions'
     return (
-      <div className="flex flex-col items-center gap-2 px-3 sm:px-4 py-3 border-t shrink-0"
+      <div className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-3 border-t shrink-0"
         style={{
           borderColor: 'var(--color-border)',
           background: 'var(--color-surface)',
           paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
         }}
       >
-        {/* Mic / Join / Chat */}
-        <div className="flex items-center justify-center gap-1.5">
           <CallBarButton
-            active={preJoinMicEnabled}
+            active={false}
             danger={!preJoinMicEnabled}
             icon={preJoinMicEnabled ? Mic : MicOff}
             label={preJoinMicEnabled ? 'Mic On' : 'Mic Off'}
@@ -670,7 +674,6 @@ function CallBar({
             onClick={onToggleChat}
             disabled={false}
           />
-        </div>
       </div>
     )
   }
@@ -945,7 +948,7 @@ function SettingsPanel({
 }
 
 function TimingSection({ timing }: { timing: JoinTiming }) {
-  const hasData = timing.joinClickToOperationalMs !== null
+  const hasData = timing.joinClickToOperationalMs !== null || timing.tokenPrefetchMs !== null
   if (!hasData) return null
 
   return (
@@ -954,6 +957,7 @@ function TimingSection({ timing }: { timing: JoinTiming }) {
         Join Timing
       </span>
       <div className="space-y-0.5">
+        {timing.roomOpenTimeMs !== null && <DiagRow label="room open" value={`${timing.roomOpenTimeMs}ms`} />}
         {timing.tokenPrefetchMs !== null && <DiagRow label="token prefetch" value={`${timing.tokenPrefetchMs}ms`} />}
         {timing.joinClickToConnectStartMs !== null && <DiagRow label="click→connect" value={`${timing.joinClickToConnectStartMs}ms`} />}
         {timing.connectMs !== null && <DiagRow label="connect" value={`${timing.connectMs}ms`} />}
@@ -1100,6 +1104,7 @@ function DiagnosticsSection({ diagnostics, state }: { diagnostics: VoiceDiagnost
           <DiagRow label="video sid" value={diagnostics.videoTrackSid} />
           {diagnostics.lastVideoError && <DiagRow label="cam err" value={diagnostics.lastVideoError} error />}
           <DiagRow label="screenshare" value={diagnostics.screenShareSupport ? 'yes' : 'no'} />
+          {diagnostics.lastScreenShareError && <DiagRow label="share err" value={diagnostics.lastScreenShareError} error />}
           <DiagRow label="reconnects" value={String(diagnostics.reconnectAttempts)} />
           <DiagRow label="published" value={String(diagnostics.publishedTrackCount)} />
           <DiagRow label="subscribed" value={String(diagnostics.subscribedTrackCount)} />
