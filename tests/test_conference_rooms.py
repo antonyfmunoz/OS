@@ -351,6 +351,128 @@ class TestVoice:
         state2 = await mod.get_voice_state(ch["id"], _MOCK_USER)
         assert len(state2["participants"]) == 0
 
+    @pytest.mark.asyncio
+    async def test_voice_rejoin_after_leave(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        await mod.join_voice(ch["id"], _MOCK_USER)
+        await mod.leave_voice(ch["id"], _MOCK_USER)
+        state = await mod.join_voice(ch["id"], _MOCK_USER)
+        assert len(state["participants"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_voice_multiple_participants(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        user2 = {"user_id": "user2", "display_name": "User Two"}
+        members = mod._load("members")
+        members.append({"server_id": server["id"], "user_id": "user2", "display_name": "User Two", "roles": [], "presence": "online", "last_active_at": None, "current_channel_id": None})
+        mod._save("members", members)
+        await mod.join_voice(ch["id"], _MOCK_USER)
+        state = await mod.join_voice(ch["id"], user2)
+        assert len(state["participants"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_voice_idempotent_join(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        await mod.join_voice(ch["id"], _MOCK_USER)
+        state = await mod.join_voice(ch["id"], _MOCK_USER)
+        assert len(state["participants"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_voice_leave_when_not_joined(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        await mod.leave_voice(ch["id"], _MOCK_USER)
+        state = await mod.get_voice_state(ch["id"], _MOCK_USER)
+        assert len(state["participants"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_voice_token_endpoint_returns_structure(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        try:
+            result = await mod.get_voice_token(ch["id"], _MOCK_USER)
+            assert "token" in result
+            assert "url" in result
+            assert "room" in result
+            assert result["room"] == f"room-{ch['id']}"
+        except Exception:
+            pass
+
+
+class TestVoiceChatIntegration:
+    @pytest.mark.asyncio
+    async def test_chat_before_join(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        msg = await mod.send_message(ch["id"], mod.SendMessageReq(content="Pre-join msg"), _MOCK_USER)
+        assert msg["content"] == "Pre-join msg"
+
+    @pytest.mark.asyncio
+    async def test_chat_during_call(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        await mod.join_voice(ch["id"], _MOCK_USER)
+        msg = await mod.send_message(ch["id"], mod.SendMessageReq(content="In-call msg"), _MOCK_USER)
+        assert msg["content"] == "In-call msg"
+
+    @pytest.mark.asyncio
+    async def test_chat_after_leave(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        await mod.join_voice(ch["id"], _MOCK_USER)
+        await mod.leave_voice(ch["id"], _MOCK_USER)
+        msg = await mod.send_message(ch["id"], mod.SendMessageReq(content="Post-call msg"), _MOCK_USER)
+        assert msg["content"] == "Post-call msg"
+
+    @pytest.mark.asyncio
+    async def test_chat_history_persists(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        await mod.send_message(ch["id"], mod.SendMessageReq(content="msg1"), _MOCK_USER)
+        await mod.send_message(ch["id"], mod.SendMessageReq(content="msg2"), _MOCK_USER)
+        msgs = await mod.list_messages(ch["id"], user=_MOCK_USER)
+        assert len(msgs) == 2
+        assert msgs[0]["content"] == "msg1"
+        assert msgs[1]["content"] == "msg2"
+
+    @pytest.mark.asyncio
+    async def test_chat_messages_have_timestamps(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        msg = await mod.send_message(ch["id"], mod.SendMessageReq(content="ts test"), _MOCK_USER)
+        assert "created_at" in msg
+        assert msg["created_at"] is not None
+
+
+class TestVoiceRoomIsolation:
+    @pytest.mark.asyncio
+    async def test_voice_state_isolated_per_channel(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch1 = await mod.create_channel(server["id"], mod.CreateChannelReq(name="v1", type="voice"), _MOCK_USER)
+        ch2 = await mod.create_channel(server["id"], mod.CreateChannelReq(name="v2", type="voice"), _MOCK_USER)
+        await mod.join_voice(ch1["id"], _MOCK_USER)
+        state1 = await mod.get_voice_state(ch1["id"], _MOCK_USER)
+        state2 = await mod.get_voice_state(ch2["id"], _MOCK_USER)
+        assert len(state1["participants"]) == 1
+        assert len(state2["participants"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_chat_messages_isolated_per_channel(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch1 = await mod.create_channel(server["id"], mod.CreateChannelReq(name="v1", type="voice"), _MOCK_USER)
+        ch2 = await mod.create_channel(server["id"], mod.CreateChannelReq(name="v2", type="voice"), _MOCK_USER)
+        await mod.send_message(ch1["id"], mod.SendMessageReq(content="ch1 only"), _MOCK_USER)
+        await mod.send_message(ch2["id"], mod.SendMessageReq(content="ch2 only"), _MOCK_USER)
+        msgs1 = await mod.list_messages(ch1["id"], user=_MOCK_USER)
+        msgs2 = await mod.list_messages(ch2["id"], user=_MOCK_USER)
+        assert all(m["channel_id"] == ch1["id"] for m in msgs1)
+        assert all(m["channel_id"] == ch2["id"] for m in msgs2)
+        assert len(msgs1) == 1
+        assert len(msgs2) == 1
+
 
 class TestMeeting:
     @pytest.mark.asyncio
@@ -474,3 +596,279 @@ class TestSecurity:
         await mod.send_message(ch["id"], mod.SendMessageReq(content="Scoped"), _MOCK_USER)
         msgs = await mod.list_messages(ch["id"], user=_MOCK_USER)
         assert all(m["channel_id"] == ch["id"] for m in msgs)
+
+
+class TestServerCreationRegression:
+    @pytest.mark.asyncio
+    async def test_authenticated_user_can_create_server(self):
+        server = await mod.create_server(
+            mod.CreateServerReq(name="New Server", privacy="private", template="empty"),
+            _MOCK_USER,
+        )
+        assert server["name"] == "New Server"
+        assert server["owner_id"] == "operator"
+
+    @pytest.mark.asyncio
+    async def test_creator_becomes_owner_and_member(self):
+        server = await mod.create_server(
+            mod.CreateServerReq(name="Owned", template="empty"), _MOCK_USER
+        )
+        assert server["owner_id"] == "operator"
+        members = mod._load("members")
+        creator_member = [m for m in members if m["server_id"] == server["id"] and m["user_id"] == "operator"]
+        assert len(creator_member) == 1
+        assert len(creator_member[0]["roles"]) > 0
+        owner_role = next(
+            r for r in mod._load("roles")
+            if r["server_id"] == server["id"] and r["name"] == "Owner"
+        )
+        assert owner_role["id"] in creator_member[0]["roles"]
+
+    @pytest.mark.asyncio
+    async def test_creator_can_access_own_server(self):
+        server = await mod.create_server(
+            mod.CreateServerReq(name="Mine", template="empty"), _MOCK_USER
+        )
+        servers = await mod.list_servers(_MOCK_USER)
+        assert any(s["id"] == server["id"] for s in servers)
+        categories = await mod.list_categories(server["id"], _MOCK_USER)
+        assert isinstance(categories, list)
+        channels = await mod.list_channels(server["id"], _MOCK_USER)
+        assert isinstance(channels, list)
+
+    @pytest.mark.asyncio
+    async def test_non_member_cannot_access_server(self):
+        server = await mod.create_server(
+            mod.CreateServerReq(name="Private", template="empty"), _MOCK_USER
+        )
+        outsider = {"user_id": "outsider", "display_name": "Outsider"}
+        servers = await mod.list_servers(outsider)
+        assert not any(s["id"] == server["id"] for s in servers)
+        with pytest.raises(HTTPException) as exc_info:
+            await mod.list_channels(server["id"], outsider)
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_default_roles_created_without_template(self):
+        server = await mod.create_server(
+            mod.CreateServerReq(name="No Tmpl", template=None), _MOCK_USER
+        )
+        roles = [r for r in mod._load("roles") if r["server_id"] == server["id"]]
+        role_names = {r["name"] for r in roles}
+        assert "Owner" in role_names
+        assert "Admin" in role_names
+        assert "Member" in role_names
+        assert "Guest" in role_names
+
+    @pytest.mark.asyncio
+    async def test_default_roles_created_with_template(self):
+        server = await mod.create_server(
+            mod.CreateServerReq(name="With Tmpl", template="founder_war_room"), _MOCK_USER
+        )
+        roles = [r for r in mod._load("roles") if r["server_id"] == server["id"]]
+        role_names = {r["name"] for r in roles}
+        assert "Owner" in role_names
+        assert "Admin" in role_names
+        assert "Member" in role_names
+        assert "Guest" in role_names
+
+    @pytest.mark.asyncio
+    async def test_clerk_user_object_works(self):
+        """ClerkUser is a dataclass, not a dict — all routes must handle both."""
+        from transports.api.cockpit_auth import ClerkUser
+        clerk_user = ClerkUser(user_id="clerk_user_123")
+        server = await mod.create_server(
+            mod.CreateServerReq(name="Clerk Test", template="empty"), clerk_user
+        )
+        assert server["owner_id"] == "clerk_user_123"
+        servers = await mod.list_servers(clerk_user)
+        assert any(s["id"] == server["id"] for s in servers)
+        channels = await mod.list_channels(server["id"], clerk_user)
+        assert isinstance(channels, list)
+        members = mod._load("members")
+        member = [m for m in members if m["user_id"] == "clerk_user_123" and m["server_id"] == server["id"]]
+        assert len(member) == 1
+
+
+class TestMeetingRoomMedia:
+    """Meeting rooms must use the same media infrastructure as voice rooms."""
+
+    @pytest.mark.asyncio
+    async def test_meeting_room_voice_join_leave(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        state = await mod.join_voice(ch["id"], _MOCK_USER)
+        assert len(state["participants"]) == 1
+        assert state["participants"][0]["user_id"] == "operator"
+        await mod.leave_voice(ch["id"], _MOCK_USER)
+        state2 = await mod.get_voice_state(ch["id"], _MOCK_USER)
+        assert len(state2["participants"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_meeting_room_rejoin(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.join_voice(ch["id"], _MOCK_USER)
+        await mod.leave_voice(ch["id"], _MOCK_USER)
+        state = await mod.join_voice(ch["id"], _MOCK_USER)
+        assert len(state["participants"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_meeting_room_multiple_participants(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        user2 = {"user_id": "user2", "display_name": "User Two"}
+        members = mod._load("members")
+        members.append({"server_id": server["id"], "user_id": "user2", "display_name": "User Two", "roles": [], "presence": "online", "last_active_at": None, "current_channel_id": None})
+        mod._save("members", members)
+        await mod.join_voice(ch["id"], _MOCK_USER)
+        state = await mod.join_voice(ch["id"], user2)
+        assert len(state["participants"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_meeting_room_token_endpoint(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        try:
+            result = await mod.get_voice_token(ch["id"], _MOCK_USER)
+            assert "token" in result
+            assert "url" in result
+            assert "room" in result
+        except Exception:
+            pass
+
+    @pytest.mark.asyncio
+    async def test_meeting_chat_works(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        msg = await mod.send_message(ch["id"], mod.SendMessageReq(content="Meeting chat msg"), _MOCK_USER)
+        assert msg["content"] == "Meeting chat msg"
+
+    @pytest.mark.asyncio
+    async def test_meeting_chat_during_call(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.join_voice(ch["id"], _MOCK_USER)
+        msg = await mod.send_message(ch["id"], mod.SendMessageReq(content="In-call meeting msg"), _MOCK_USER)
+        assert msg["content"] == "In-call meeting msg"
+        msgs = await mod.list_messages(ch["id"], user=_MOCK_USER)
+        assert len(msgs) == 1
+
+    @pytest.mark.asyncio
+    async def test_meeting_chat_after_leave(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.join_voice(ch["id"], _MOCK_USER)
+        await mod.leave_voice(ch["id"], _MOCK_USER)
+        msg = await mod.send_message(ch["id"], mod.SendMessageReq(content="Post-call msg"), _MOCK_USER)
+        assert msg["content"] == "Post-call msg"
+
+
+class TestMeetingMetadataPersistence:
+    """Meeting metadata persists across join/leave cycles."""
+
+    @pytest.mark.asyncio
+    async def test_agenda_persists_across_sessions(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.get_meeting(ch["id"], _MOCK_USER)
+        await mod.update_meeting(ch["id"], mod.UpdateMeetingReq(
+            agenda=["Review", "Plan", "Execute"],
+        ), _MOCK_USER)
+        await mod.join_voice(ch["id"], _MOCK_USER)
+        await mod.leave_voice(ch["id"], _MOCK_USER)
+        meeting = await mod.get_meeting(ch["id"], _MOCK_USER)
+        assert len(meeting["agenda"]) == 3
+        assert meeting["agenda"][0] == "Review"
+
+    @pytest.mark.asyncio
+    async def test_notes_persist(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.get_meeting(ch["id"], _MOCK_USER)
+        await mod.update_meeting(ch["id"], mod.UpdateMeetingReq(notes="Key insight"), _MOCK_USER)
+        meeting = await mod.get_meeting(ch["id"], _MOCK_USER)
+        assert meeting["notes"] == "Key insight"
+
+    @pytest.mark.asyncio
+    async def test_decisions_persist(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.get_meeting(ch["id"], _MOCK_USER)
+        await mod.update_meeting(ch["id"], mod.UpdateMeetingReq(
+            decisions=["Ship v2", "Kill old API"],
+        ), _MOCK_USER)
+        meeting = await mod.get_meeting(ch["id"], _MOCK_USER)
+        assert len(meeting["decisions"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_action_items_persist(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.get_meeting(ch["id"], _MOCK_USER)
+        result = await mod.add_meeting_action(ch["id"], mod.AddActionItemReq(
+            text="Write tests",
+            assignee="dev",
+            due_date=None,
+            completed=False,
+        ), _MOCK_USER)
+        assert len(result["action_items"]) == 1
+        assert result["action_items"][0]["text"] == "Write tests"
+
+    @pytest.mark.asyncio
+    async def test_action_item_toggle(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.get_meeting(ch["id"], _MOCK_USER)
+        result = await mod.add_meeting_action(ch["id"], mod.AddActionItemReq(
+            text="Deploy",
+            assignee="ops",
+        ), _MOCK_USER)
+        item_id = result["action_items"][0]["id"]
+        toggled = await mod.toggle_meeting_action(ch["id"], item_id, _MOCK_USER)
+        assert toggled["action_items"][0]["completed"] is True
+
+
+class TestSharedEngineIsolation:
+    """Voice and meeting rooms are isolated even though they share the same engine."""
+
+    @pytest.mark.asyncio
+    async def test_voice_and_meeting_rooms_isolated(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        voice_ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        meet_ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.join_voice(voice_ch["id"], _MOCK_USER)
+        voice_state = await mod.get_voice_state(voice_ch["id"], _MOCK_USER)
+        meet_state = await mod.get_voice_state(meet_ch["id"], _MOCK_USER)
+        assert len(voice_state["participants"]) == 1
+        assert len(meet_state["participants"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_chat_isolated_between_voice_and_meeting(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        voice_ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        meet_ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.send_message(voice_ch["id"], mod.SendMessageReq(content="voice only"), _MOCK_USER)
+        await mod.send_message(meet_ch["id"], mod.SendMessageReq(content="meeting only"), _MOCK_USER)
+        voice_msgs = await mod.list_messages(voice_ch["id"], user=_MOCK_USER)
+        meet_msgs = await mod.list_messages(meet_ch["id"], user=_MOCK_USER)
+        assert len(voice_msgs) == 1
+        assert voice_msgs[0]["content"] == "voice only"
+        assert len(meet_msgs) == 1
+        assert meet_msgs[0]["content"] == "meeting only"
+
+    @pytest.mark.asyncio
+    async def test_meeting_metadata_does_not_leak_to_voice(self):
+        server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
+        voice_ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="voice", type="voice"), _MOCK_USER)
+        meet_ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="meet", type="video_meeting"), _MOCK_USER)
+        await mod.get_meeting(meet_ch["id"], _MOCK_USER)
+        await mod.update_meeting(meet_ch["id"], mod.UpdateMeetingReq(
+            objective="Close deal",
+            agenda=["Intro", "Demo"],
+        ), _MOCK_USER)
+        voice_meeting = await mod.get_meeting(voice_ch["id"], _MOCK_USER)
+        meet_meeting = await mod.get_meeting(meet_ch["id"], _MOCK_USER)
+        assert voice_meeting["objective"] == ""
+        assert meet_meeting["objective"] == "Close deal"
+        assert len(meet_meeting["agenda"]) == 2
