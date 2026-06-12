@@ -615,8 +615,6 @@ class CameraAdapter:
         import concurrent.futures
 
         wmi_names = self._get_wmi_device_names()
-        logger.info("list_devices: stream_active=%s, wmi_names=%s, device_index=%s",
-                     self._stream_active, wmi_names, self._device_index)
         devices = []
 
         if self._stream_active:
