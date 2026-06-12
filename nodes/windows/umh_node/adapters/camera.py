@@ -47,7 +47,8 @@ class CameraAdapter:
         self._ptz_queue: queue.Queue[tuple[dict[str, Any], threading.Event, list]] = queue.Queue()
 
         self._detector = None
-        self._detect_every_n = 3
+        self._detect_min_interval = 0.5
+        self._detect_last_at = 0.0
         self._detection_enabled = True
         self._init_detector()
 
@@ -283,14 +284,23 @@ class CameraAdapter:
                         "size_bytes": len(buf),
                     }
 
+                    now_mono = time.monotonic()
+                    detect_due = (now_mono - self._detect_last_at) >= self._detect_min_interval
                     if (self._detection_enabled
                             and self._detector is not None
                             and self._detector.loaded
-                            and frame_n % self._detect_every_n == 0):
+                            and detect_due):
                         try:
                             detections = self._detector.detect(frame)
+                            infer_ms = self._detector._last_inference_ms
+                            self._detect_last_at = time.monotonic()
+                            if infer_ms > 400:
+                                self._detect_min_interval = min(self._detect_min_interval * 1.5, 5.0)
+                                logger.info("detection backpressure: inference %.0fms, interval now %.2fs", infer_ms, self._detect_min_interval)
+                            elif infer_ms < 150 and self._detect_min_interval > 0.5:
+                                self._detect_min_interval = max(self._detect_min_interval * 0.8, 0.5)
                             if frame_n % 45 == 0:
-                                logger.info("detection frame %d: %d objects found", frame_n, len(detections))
+                                logger.info("detection frame %d: %d objects, %.0fms, interval %.2fs", frame_n, len(detections), infer_ms, self._detect_min_interval)
                             det_status = self._detector.get_status()
                             payload["detector_status"] = {
                                 "source": "beast",
