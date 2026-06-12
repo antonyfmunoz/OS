@@ -587,7 +587,10 @@ class CameraAdapter:
     # ── Device enumeration ───────────────────────────────────────────
 
     def _get_wmi_device_names(self) -> dict[int, str]:
-        """Get camera device names via Windows WMI. Returns {index: name}."""
+        """Get webcam/camera device names via Windows WMI. Returns {index: name}.
+
+        Only returns PNPClass 'Camera' — excludes 'Image' (printers/scanners).
+        """
         names: dict[int, str] = {}
         if sys.platform != "win32":
             return names
@@ -595,7 +598,7 @@ class CameraAdapter:
             import subprocess
             result = subprocess.run(
                 ["powershell", "-NoProfile", "-Command",
-                 "Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPClass -eq 'Camera' -or $_.PNPClass -eq 'Image' } | Select-Object -ExpandProperty Name"],
+                 "Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPClass -eq 'Camera' } | Select-Object -ExpandProperty Name"],
                 capture_output=True, text=True, timeout=5,
             )
             if result.returncode == 0:
@@ -615,6 +618,7 @@ class CameraAdapter:
         devices = []
 
         if self._stream_active:
+            # Active device — get resolution from running capture
             cap_ref = getattr(self, '_cap', None)
             w = int(cap_ref.get(cv2.CAP_PROP_FRAME_WIDTH)) if cap_ref else 0
             h = int(cap_ref.get(cv2.CAP_PROP_FRAME_HEIGHT)) if cap_ref else 0
@@ -627,7 +631,26 @@ class CameraAdapter:
                 "busy": True,
                 "selected": True,
             })
+            # WMI-only for other devices — DirectShow hangs when a capture is active
+            for idx, name in wmi_names.items():
+                if idx != self._device_index:
+                    devices.append({
+                        "index": idx,
+                        "name": name,
+                        "width": 0,
+                        "height": 0,
+                        "online": True,
+                        "busy": False,
+                        "selected": False,
+                    })
+            devices.sort(key=lambda d: d["index"])
+            return {
+                "success": True,
+                "devices": devices,
+                "selected_index": self._device_index,
+            }
 
+        # No active stream — safe to probe with cv2.VideoCapture
         def probe_index(i: int) -> dict[str, Any] | None:
             try:
                 cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
@@ -649,9 +672,8 @@ class CameraAdapter:
                 pass
             return None
 
-        indices_to_probe = [i for i in range(8) if not (self._stream_active and i == self._device_index)]
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-            futures = {pool.submit(probe_index, i): i for i in indices_to_probe}
+            futures = {pool.submit(probe_index, i): i for i in range(8)}
             for fut in concurrent.futures.as_completed(futures, timeout=6):
                 try:
                     result = fut.result(timeout=3)

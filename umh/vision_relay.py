@@ -442,8 +442,8 @@ async def _smooth_preset_transition(preset: str, duration_s: float = 1.0) -> Non
 async def send_json(ws: Any, data: dict[str, Any]) -> None:
     try:
         await ws.send(json.dumps(data))
-    except Exception:
-        pass
+    except Exception as exc:
+        log.debug("send_json failed (%s): %s", data.get("type", "?"), exc)
 
 
 def _check_auth(ws: Any) -> bool:
