@@ -709,6 +709,21 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     }
   }, [handleVisibilityChange, updateDiag])
 
+  const fetchChatHistory = useCallback(async () => {
+    try {
+      const msgs = await fetchApi<Array<{ id: string; sender_identity: string; sender_display_name: string; body: string; created_at: string }>>(`/rooms/channels/${channelId}/room-chat`)
+      if (Array.isArray(msgs)) {
+        setDataChatMessages(msgs.map(m => ({
+          id: m.id,
+          sender: m.sender_identity,
+          senderName: m.sender_display_name,
+          content: m.body,
+          timestamp: new Date(m.created_at).getTime(),
+        })))
+      }
+    } catch { /* chat history fetch failed — non-fatal */ }
+  }, [channelId])
+
   const doConnect = useCallback(async (micEnabled: boolean, videoEnabled: boolean) => {
     setState('connecting')
     setError(null)
@@ -1341,21 +1356,6 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
   const setAIGovernance = useCallback((patch: Partial<AIGovernancePermissions>) => {
     setAIGovernanceState((prev) => ({ ...prev, ...patch }))
   }, [])
-
-  const fetchChatHistory = useCallback(async () => {
-    try {
-      const msgs = await fetchApi<Array<{ id: string; sender_identity: string; sender_display_name: string; body: string; created_at: string }>>(`/rooms/channels/${channelId}/room-chat`)
-      if (Array.isArray(msgs)) {
-        setDataChatMessages(msgs.map(m => ({
-          id: m.id,
-          sender: m.sender_identity,
-          senderName: m.sender_display_name,
-          content: m.body,
-          timestamp: new Date(m.created_at).getTime(),
-        })))
-      }
-    } catch { /* chat history fetch failed — non-fatal */ }
-  }, [channelId])
 
   const sendDataChat = useCallback(async (content: string) => {
     const room = roomRef.current
