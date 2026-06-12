@@ -900,7 +900,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                     icon={PRESET_ICONS[name]}
                     active={isThisActive}
                     modified={isThisActive && !!isPresetModified}
-                    disabled={!connected}
+                    disabled={!controlsEnabled}
                     onClick={() => handlePreset(name)}
                     onEdit={() => handleEditPreset(name)}
                     onUpdate={() => handleUpdatePreset(name)}

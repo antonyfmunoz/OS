@@ -75,7 +75,7 @@ export function StatusHud() {
     : chainHealth.beastConnected ? 'DEGRADED'
     : 'OFFLINE'
 
-  // 3. PTZ — from PTZ hardware/ROI flags only
+  // 3. PTZ — from PTZ hardware + command path verification
   const ptzColor: StatusColor =
     !connected ? 'off'
     : !chainHealth.commandPathReady ? 'danger'
