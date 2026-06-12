@@ -6,7 +6,7 @@ import {
   Camera, CameraOff, Aperture,
   PictureInPicture2, Maximize2, Minimize2, Circle,
   Keyboard, Monitor, BookOpen,
-  Trash2, RotateCcw, Pencil, Check, X, Plus,
+  Trash2, RotateCcw, Pencil, Check, X, Plus, Settings2,
 } from 'lucide-react'
 import {
   useVisionStore,
@@ -26,6 +26,7 @@ import { SceneInventory } from './vision/SceneInventory'
 import { DiagnosticsPanel } from './vision/DiagnosticsPanel'
 import { ToastContainer } from './vision/ToastContainer'
 import { NotificationCenter } from './vision/NotificationCenter'
+import { VisionSettings } from './vision/VisionSettings'
 
 const QUALITY_LABELS: Record<QualityMode, string> = {
   smooth: 'Smooth',
@@ -82,6 +83,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const updateControlMetrics = useVisionStore((s) => s.updateControlMetrics)
   const addToast = useVisionStore((s) => s.addToast)
   const addNotification = useVisionStore((s) => s.addNotification)
+  const settingsOpen = useVisionStore((s) => s.settingsOpen)
 
   const { openPopout } = useVisionPopout()
   const [expanded, setExpanded] = useState(false)
@@ -734,6 +736,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         )}
         <MobileBtn icon={<Aperture size={18} />} label="Snap" onClick={handleSnapshot} disabled={!connected} variant="cyan" />
         <MobileBtn icon={<Square size={18} />} label="E-Stop" onClick={handleEmergencyStop} variant="danger" />
+        <MobileBtn icon={<Settings2 size={18} />} label="Settings" onClick={() => useVisionStore.getState().setSettingsOpen(!useVisionStore.getState().settingsOpen)} variant="default" />
       </div>
 
       {/* 5. OVR toggle — real detections only */}
@@ -1113,6 +1116,16 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
       )}
 
       <ToastContainer />
+
+      {/* Settings panel slide-over */}
+      {settingsOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="flex-1 bg-black/30 backdrop-blur-sm" onClick={() => useVisionStore.getState().setSettingsOpen(false)} />
+          <div className="w-[340px] max-w-full bg-surface border-l border-border shadow-lg overflow-hidden">
+            <VisionSettings />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1254,12 +1267,13 @@ function MobileBtn({
   label: string
   onClick: () => void
   disabled?: boolean
-  variant: 'ok' | 'danger' | 'cyan'
+  variant: 'ok' | 'danger' | 'cyan' | 'default'
 }) {
   const colors = {
     ok: 'bg-ok/10 text-ok hover:bg-ok/20 active:bg-ok/30',
     danger: 'bg-danger/10 text-danger hover:bg-danger/20 active:bg-danger/30',
     cyan: 'bg-cyan/10 text-cyan hover:bg-cyan/20 active:bg-cyan/30',
+    default: 'bg-surface-hover text-text-secondary hover:text-text-primary hover:bg-surface-hover/80',
   }
   return (
     <button

@@ -64,15 +64,27 @@ export interface ControlMetrics {
 }
 
 export interface CameraPreset {
+  id?: string
   label: string
   pan?: number
   tilt?: number
   zoom?: number
   mode?: 'physical_ptz' | 'digital_roi'
+  device_id?: number
   analysis_hint?: string
   roi?: { x: number; y: number; zoom: number }
   created_at?: number
   updated_at?: number
+}
+
+export interface CameraDevice {
+  index: number
+  name: string
+  width: number
+  height: number
+  online: boolean
+  busy: boolean
+  selected: boolean
 }
 
 export type AnalysisStatus = 'idle' | 'capturing' | 'analyzing' | 'complete' | 'error'
@@ -243,6 +255,7 @@ export interface DetectorStatus {
   tracker_active: boolean
   active_tracks: number
   total_tracks: number
+  device?: string
 }
 
 export interface RoiState {
@@ -369,6 +382,12 @@ interface VisionState {
   hasPtzHardware: boolean
   streamMetrics: StreamMetrics
 
+  // Camera devices
+  cameraDevices: CameraDevice[]
+  selectedDeviceIndex: number
+  deviceScanLoading: boolean
+  settingsOpen: boolean
+
   // Connection health
   chainHealth: VisionHealthState
 
@@ -425,6 +444,12 @@ interface VisionState {
   setPtzMoving: (moving: boolean) => void
   setHasPtzHardware: (has: boolean) => void
   updateStreamMetrics: (partial: Partial<StreamMetrics>) => void
+
+  // Camera device setters
+  setCameraDevices: (devices: CameraDevice[]) => void
+  setSelectedDeviceIndex: (index: number) => void
+  setDeviceScanLoading: (loading: boolean) => void
+  setSettingsOpen: (open: boolean) => void
 
   // Connection health setters
   updateChainHealth: (health: Partial<VisionHealthState>) => void
@@ -631,6 +656,12 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   hasPtzHardware: true,
   streamMetrics: { ...INITIAL_METRICS },
 
+  // Camera devices
+  cameraDevices: [],
+  selectedDeviceIndex: 0,
+  deviceScanLoading: false,
+  settingsOpen: false,
+
   // Connection health initial state
   chainHealth: { ...INITIAL_HEALTH },
 
@@ -690,6 +721,12 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   updateStreamMetrics: (partial) => set((s) => ({
     streamMetrics: { ...s.streamMetrics, ...partial },
   })),
+
+  // Camera device setters
+  setCameraDevices: (cameraDevices) => set({ cameraDevices }),
+  setSelectedDeviceIndex: (selectedDeviceIndex) => set({ selectedDeviceIndex }),
+  setDeviceScanLoading: (deviceScanLoading) => set({ deviceScanLoading }),
+  setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
 
   // Connection health setter
   updateChainHealth: (partial) => set((s) => ({
