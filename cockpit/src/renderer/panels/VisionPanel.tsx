@@ -101,10 +101,10 @@ export function VisionPanel() {
           <span className="text-gray-500">desk preset</span>
           <span className="text-gray-300">"save this as my keyboard preset"</span>
           <span className="text-gray-500">save PTZ preset</span>
-          <span className="text-gray-300">"switch to smooth / sharp mode"</span>
+          <span className="text-gray-300">"switch to smooth / high mode"</span>
           <span className="text-gray-500">quality mode</span>
           <span className="text-gray-300">"make the camera clearer"</span>
-          <span className="text-gray-500">switch to sharp</span>
+          <span className="text-gray-500">switch to high</span>
 
           <span className="text-gray-600 col-span-2 uppercase tracking-wider mt-2">Scene Understanding</span>
           <span className="text-gray-300">"what do you see?"</span>

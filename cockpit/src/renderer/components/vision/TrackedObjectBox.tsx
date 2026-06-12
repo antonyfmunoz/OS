@@ -14,7 +14,7 @@ export function TrackedObjectBox({ x, y, w, h, label, confidence, color = '#22c5
   const labelY = labelAbove ? y - 16 : y + h
   const labelTextY = labelAbove ? y - 4 : y + h + 12
 
-  const idSuffix = trackId && !trackId.startsWith('diag_') && !trackId.startsWith('det_')
+  const idSuffix = trackId && !trackId.startsWith('det_')
     ? ` #${trackId}`
     : ''
 

@@ -6,13 +6,13 @@ import { useVisionStore, type MotionState, type StreamMetrics, type QualityMode 
 const QUALITY_DESCRIPTIONS: Record<QualityMode, string> = {
   smooth: '720p 30fps',
   balanced: '720p 15fps',
-  sharp: '1080p 10fps',
+  high: '1080p 10fps',
   analysis: '1080p 1fps',
 }
 
 export function DiagnosticsPanel({
   ptzMotion, controlMetrics, joystickDragging, joystickVelocity,
-  speed, overlays, overlayVisible, diagnosticOverlay, connected,
+  speed, overlays, overlayVisible, connected,
   streaming, streamMetrics, frameCount, qualityMode,
 }: {
   ptzMotion: { state: MotionState; motionId: string; panVelocity: number; tiltVelocity: number; zoomVelocity: number }
@@ -22,7 +22,6 @@ export function DiagnosticsPanel({
   speed: number
   overlays: unknown[]
   overlayVisible: boolean
-  diagnosticOverlay: boolean
   connected: boolean
   streaming: boolean
   streamMetrics: StreamMetrics
@@ -31,9 +30,22 @@ export function DiagnosticsPanel({
 }) {
   const chainHealth = useVisionStore((s) => s.chainHealth)
   const trackerStack = useVisionStore((s) => s.trackerStack)
+  const latencyHistory = useVisionStore((s) => s.latencyHistory)
+  const labelCorrections = useVisionStore((s) => s.labelCorrections)
   const [expanded, setExpanded] = useState(false)
 
   const enabledTrackers = trackerStack.enabled_trackers.filter((t) => t.enabled)
+
+  const avgLatency = latencyHistory.length > 0
+    ? Math.round(latencyHistory.reduce((sum, m) => sum + m.roundTripMs, 0) / latencyHistory.length)
+    : 0
+  const maxLatency = latencyHistory.length > 0
+    ? Math.max(...latencyHistory.map((m) => m.roundTripMs))
+    : 0
+
+  const cmdAge = controlMetrics.lastCommandSentAt > 0
+    ? Math.round((Date.now() - controlMetrics.lastCommandSentAt) / 1000)
+    : -1
 
   return (
     <div className="border-t border-border pt-2">
@@ -45,6 +57,7 @@ export function DiagnosticsPanel({
         Diagnostics
         {ptzMotion.state !== 'idle' ? ` [${ptzMotion.state}]` : ''}
         {overlays.length > 0 ? ` [${overlays.length} ovr]` : ''}
+        {controlMetrics.stopLatencyMs > 0 ? ` [${controlMetrics.stopLatencyMs}ms]` : ''}
       </button>
 
       {expanded && (
@@ -54,9 +67,25 @@ export function DiagnosticsPanel({
             <span>FPS: <span className={streamMetrics.actualFps > 0 ? 'text-ok' : 'text-text-secondary'}>{streamMetrics.actualFps.toFixed(1)}</span> / {streamMetrics.targetFps}</span>
             <span>Frame: {Math.round(streamMetrics.avgFrameSize / 1024)} KB</span>
             <span>Age: {streamMetrics.lastFrameAge < 1000 ? `${streamMetrics.lastFrameAge}ms` : `${(streamMetrics.lastFrameAge / 1000).toFixed(1)}s`}</span>
-            <span>Frames: {frameCount}</span>
-            <span>Dropped: {streamMetrics.droppedFrames}</span>
+            <span>Bitrate: <span className={streamMetrics.bitrateKbps > 0 ? 'text-ok' : 'text-text-secondary'}>{streamMetrics.bitrateKbps > 1024 ? `${(streamMetrics.bitrateKbps / 1024).toFixed(1)} Mbps` : `${streamMetrics.bitrateKbps} Kbps`}</span></span>
+            <span>Frames: {frameCount} <span className={streamMetrics.droppedFrames > 0 ? 'text-warning' : ''}>({streamMetrics.droppedFrames} dropped)</span></span>
             <span>Quality: {QUALITY_DESCRIPTIONS[qualityMode]}</span>
+          </div>
+
+          {/* Command latency — prominent */}
+          <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 text-[9px] font-mono border border-dashed border-cyan/30 rounded p-2">
+            <span className="text-text-quaternary">stop_rtt: <span className={clsx(
+              controlMetrics.stopLatencyMs > 150 ? 'text-danger' : controlMetrics.stopLatencyMs > 80 ? 'text-warning' : 'text-ok',
+            )}>{controlMetrics.stopLatencyMs > 0 ? `${controlMetrics.stopLatencyMs}ms` : '—'}</span></span>
+            <span className="text-text-quaternary">avg_rtt: <span className={clsx(
+              avgLatency > 150 ? 'text-danger' : avgLatency > 80 ? 'text-warning' : 'text-ok',
+            )}>{avgLatency > 0 ? `${avgLatency}ms` : '—'}</span></span>
+            <span className="text-text-quaternary">max_rtt: <span className={clsx(
+              maxLatency > 200 ? 'text-danger' : maxLatency > 100 ? 'text-warning' : 'text-ok',
+            )}>{maxLatency > 0 ? `${maxLatency}ms` : '—'}</span></span>
+            <span className="text-text-quaternary">samples: {latencyHistory.length}</span>
+            <span className="text-text-quaternary">update_hz: 30</span>
+            <span className="text-text-quaternary">coalesced: {controlMetrics.coalescedCommands}</span>
           </div>
 
           {/* PTZ state */}
@@ -71,20 +100,15 @@ export function DiagnosticsPanel({
               ptzMotion.state === 'idle' && 'text-ok',
             )}>{ptzMotion.state}</span></span>
             <span>relay_loop: {controlMetrics.ptzLoopCadenceHz > 0 ? `${controlMetrics.ptzLoopCadenceHz}Hz` : 'off'}</span>
-            <span>stop_latency: {controlMetrics.stopLatencyMs > 0 ? `${controlMetrics.stopLatencyMs}ms` : '—'}</span>
             <span>guard_kills: <span className={controlMetrics.guardTimeouts > 0 ? 'text-danger' : ''}>{controlMetrics.guardTimeouts}</span></span>
-            <span>coalesced: {controlMetrics.coalescedCommands}</span>
-            <span>last_cmd: {controlMetrics.lastCommandSentAt > 0
-              ? `${Math.round((Date.now() - controlMetrics.lastCommandSentAt) / 1000)}s ago`
-              : '—'}</span>
+            <span>last_cmd: {cmdAge >= 0 ? `${cmdAge}s ago` : '—'}</span>
             <span>ws: {connected ? 'connected' : 'DISCONNECTED'}</span>
-            <span>update_rate: 50ms</span>
+            <span>labels_corrected: {Object.keys(labelCorrections).length}</span>
           </div>
 
           {/* Chain health */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-warning/30 rounded p-2">
             <span>overlay_visible: <span className={overlayVisible ? 'text-ok' : 'text-danger'}>{overlayVisible ? 'ON' : 'OFF'}</span></span>
-            <span>diagnostic_mode: <span className={diagnosticOverlay ? 'text-warning' : ''}>{diagnosticOverlay ? 'ON' : 'off'}</span></span>
             <span>overlay_count: <span className={overlays.length > 0 ? 'text-ok' : ''}>{overlays.length}</span></span>
             <span>last_overlay: {chainHealth.lastOverlayAt > 0 ? `${Math.round((Date.now() - chainHealth.lastOverlayAt) / 1000)}s ago` : 'never'}</span>
             <span>tracker_runtime: <span className={chainHealth.trackerRuntimeAvailable ? 'text-ok' : 'text-danger'}>{chainHealth.trackerRuntimeAvailable ? 'available' : 'UNAVAILABLE'}</span></span>
