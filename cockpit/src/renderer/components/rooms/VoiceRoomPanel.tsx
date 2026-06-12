@@ -28,6 +28,7 @@ import {
   Bot,
   Eye,
   Settings,
+  Send,
 } from 'lucide-react'
 import { useRoomsStore } from '../../stores/roomsStore'
 import { useConferenceRoom } from '../../hooks/useConferenceRoom'
@@ -40,6 +41,7 @@ import type {
   ProductionTestItem,
   MediaIntent,
   JoinTiming,
+  DataChatMessage,
 } from '../../hooks/useConferenceRoom'
 
 
@@ -79,7 +81,7 @@ export function VoiceRoomPanel({ channelId, onOpenChat }: { channelId: string; o
   const channel = channels.find((c) => c.id === channelId)
   const conf = useConferenceRoom(channelId)
   const voice = conf
-  const [sidePanel, setSidePanel] = useState<'settings' | null>(null)
+  const [sidePanel, setSidePanel] = useState<'settings' | 'datachat' | null>(null)
   const [focusedStream, setFocusedStream] = useState<string | null>(null)
 
   const isConnected = voice.state === 'connected'
@@ -200,12 +202,12 @@ export function VoiceRoomPanel({ channelId, onOpenChat }: { channelId: string; o
             onToggleVideo={voice.toggleVideo}
             onAddScreenShare={voice.addScreenShare}
             onStopAllStreams={voice.stopAllStreams}
-            onToggleChat={() => onOpenChat?.()}
+            onToggleChat={() => setSidePanel(sidePanel === 'datachat' ? null : 'datachat')}
             onToggleSettings={() => setSidePanel(sidePanel === 'settings' ? null : 'settings')}
           />
         </div>
 
-        {/* Settings side panel */}
+        {/* Side panels */}
         {sidePanel === 'settings' && (
           <div className="w-80 sm:w-80 flex flex-col min-h-0 border-l"
             style={{ borderColor: 'var(--color-border)', maxWidth: '65%', minWidth: '260px' }}
@@ -216,6 +218,18 @@ export function VoiceRoomPanel({ channelId, onOpenChat }: { channelId: string; o
               aiGovernance={conf.aiGovernance}
               onUpdateGovernance={conf.setAIGovernance}
               productionChecklist={conf.productionChecklist}
+            />
+          </div>
+        )}
+        {sidePanel === 'datachat' && (
+          <div className="w-72 sm:w-80 flex flex-col min-h-0 border-l"
+            style={{ borderColor: 'var(--color-border)', maxWidth: '65%', minWidth: '240px' }}
+          >
+            <DataChatPanel
+              messages={conf.dataChatMessages}
+              onSend={conf.sendDataChat}
+              localIdentity={voice.diagnostics.participantIdentity || undefined}
+              onClose={() => setSidePanel(null)}
             />
           </div>
         )}
@@ -1116,6 +1130,103 @@ function DiagnosticsSection({ diagnostics, state }: { diagnostics: VoiceDiagnost
           {diagnostics.lastError && <DiagRow label="error" value={diagnostics.lastError} error />}
         </div>
       )}
+    </div>
+  )
+}
+
+/* ─── Data Channel Chat Panel ─── */
+
+function DataChatPanel({
+  messages,
+  onSend,
+  localIdentity,
+  onClose,
+}: {
+  messages: DataChatMessage[]
+  onSend: (content: string) => Promise<void>
+  localIdentity: string | undefined
+  onClose: () => void
+}) {
+  const [input, setInput] = useState('')
+  const [sending, setSending] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages.length])
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const text = input.trim()
+    if (!text || sending) return
+    setSending(true)
+    setInput('')
+    try {
+      await onSend(text)
+    } catch { /* send failed */ }
+    setSending(false)
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center px-3 h-8 border-b shrink-0"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        <MessageSquare size={11} style={{ color: 'var(--color-text-tertiary)' }} />
+        <span className="text-[10px] font-mono ml-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+          Room Chat
+        </span>
+        <button onClick={onClose} className="ml-auto p-0.5">
+          <X size={12} style={{ color: 'var(--color-text-tertiary)' }} />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-1">
+        {messages.length === 0 && (
+          <p className="text-[9px] font-mono text-center py-4" style={{ color: 'var(--color-text-tertiary)' }}>
+            No messages yet — chat is shared with all room participants including guests.
+          </p>
+        )}
+        {messages.map((msg) => (
+          <div key={msg.id} className="px-1 py-0.5">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[9px] font-mono font-semibold" style={{ color: 'var(--color-cyan)' }}>
+                {msg.sender === localIdentity ? 'You' : msg.senderName}
+              </span>
+              <span className="text-[7px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
+                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+            <p className="text-[10px] font-mono whitespace-pre-wrap break-words" style={{ color: 'var(--color-text-primary)' }}>
+              {msg.content}
+            </p>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      <form onSubmit={handleSend}
+        className="flex items-center gap-1.5 px-2 py-1.5 border-t shrink-0"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Message..."
+          disabled={sending}
+          className="flex-1 text-[10px] font-mono px-2 py-1.5 rounded border bg-transparent outline-none"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
+        />
+        <button type="submit"
+          disabled={!input.trim() || sending}
+          className="p-1.5 rounded transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+          style={{
+            background: input.trim() ? 'var(--color-cyan)' : 'transparent',
+            color: input.trim() ? 'var(--color-canvas)' : 'var(--color-text-tertiary)',
+          }}
+        >
+          <Send size={11} />
+        </button>
+      </form>
     </div>
   )
 }
