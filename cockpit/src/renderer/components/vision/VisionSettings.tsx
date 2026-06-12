@@ -27,15 +27,21 @@ const QUALITY_DESCRIPTIONS: Record<QualityMode, string> = {
 }
 
 function DeviceRow({ device, onSelect }: { device: CameraDevice; onSelect: (idx: number) => void }) {
+  const busyElsewhere = device.busy && !device.selected
+  const offline = !device.online
   return (
     <button
       onClick={() => onSelect(device.index)}
+      disabled={offline}
+      title={offline ? 'Device offline' : busyElsewhere ? 'In use by another app — may conflict' : undefined}
       className={clsx(
         'w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors',
         device.selected
           ? 'border-cyan/50 bg-cyan/5'
-          : 'border-border hover:bg-surface-hover',
-        device.busy && !device.selected && 'opacity-60',
+          : offline
+            ? 'border-border opacity-40 cursor-not-allowed'
+            : 'border-border hover:bg-surface-hover',
+        busyElsewhere && 'opacity-60 border-warning/30',
       )}
     >
       <Camera size={14} className={device.selected ? 'text-cyan' : 'text-text-tertiary'} />
@@ -43,13 +49,15 @@ function DeviceRow({ device, onSelect }: { device: CameraDevice; onSelect: (idx:
         <div className="text-xs font-mono text-text-primary truncate">{device.name}</div>
         <div className="text-[10px] text-text-tertiary">
           {device.width}x{device.height}
-          {device.busy && !device.selected && ' · in use'}
+          {busyElsewhere && <span className="text-warning"> · in use by another app</span>}
+          {offline && <span className="text-danger"> · offline</span>}
+          {device.selected && device.busy && <span className="text-cyan"> · active</span>}
         </div>
       </div>
       {device.selected && <Check size={12} className="text-cyan shrink-0" />}
       <span className={clsx(
         'w-1.5 h-1.5 rounded-full shrink-0',
-        device.online ? 'bg-ok' : 'bg-danger',
+        device.online ? (device.busy ? (device.selected ? 'bg-cyan' : 'bg-warning') : 'bg-ok') : 'bg-danger',
       )} />
     </button>
   )

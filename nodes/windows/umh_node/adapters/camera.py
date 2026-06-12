@@ -527,6 +527,7 @@ class CameraAdapter:
         label = params.get("label", name)
         analysis_hint = params.get("analysis_hint", "")
         mode = params.get("mode", "physical_ptz")
+        roi = params.get("roi")
 
         if not name:
             return {"success": False, "error": "preset name required"}
@@ -543,22 +544,33 @@ class CameraAdapter:
             tilt = pos["tilt"]
             zoom = pos["zoom"]
 
-        self._presets[name] = {
+        existing = self._presets.get(name, {})
+        now_ms = int(time.time() * 1000)
+        preset_data: dict[str, Any] = {
+            "id": existing.get("id", name),
             "label": label,
             "pan": pan,
             "tilt": tilt,
             "zoom": zoom,
             "mode": mode,
+            "device_id": self._device_index,
             "analysis_hint": analysis_hint,
+            "created_at": existing.get("created_at", now_ms),
+            "updated_at": now_ms,
         }
+        if roi and isinstance(roi, dict):
+            preset_data["roi"] = roi
+
+        self._presets[name] = preset_data
         self._save_presets_to_disk()
-        logger.info("saved preset '%s': pan=%s tilt=%s zoom=%s", name, pan, tilt, zoom)
+        logger.info("saved preset '%s': pan=%s tilt=%s zoom=%s device=%s", name, pan, tilt, zoom, self._device_index)
         return {
             "success": True,
             "preset": name,
             "pan": pan,
             "tilt": tilt,
             "zoom": zoom,
+            "device_id": self._device_index,
         }
 
     # ── Device enumeration ───────────────────────────────────────────
