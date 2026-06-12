@@ -5,282 +5,162 @@ import {
   Track,
   ConnectionState,
   RemoteParticipant,
+  LocalParticipant,
   Participant,
   RemoteTrackPublication,
   ConnectionQuality,
-  LocalTrackPublication,
-  DisconnectReason,
-  LocalParticipant,
-  createLocalScreenTracks,
-  LocalVideoTrack,
-  type TrackPublication,
 } from 'livekit-client'
 import { fetchApi } from '../api/client'
-
-export type StreamSourceType = 'camera' | 'screen' | 'window' | 'tab' | 'application'
-
-export interface MediaStreamSource {
-  id: string
-  kind: 'audio' | 'video'
-  sourceType: StreamSourceType
-  name: string
-  trackSid: string
-  participantIdentity: string
-  muted: boolean
-  dimensions: { width: number; height: number } | null
-  frameRate: number | null
-}
 
 export interface VoiceParticipant {
   identity: string
   name: string
   isSpeaking: boolean
   isMuted: boolean
-  isVideoOn: boolean
+  hasVideo: boolean
+  hasScreenShare: boolean
   connectionQuality: ConnectionQuality
-  streamCount: number
+  videoTrack: Track | null
+  screenTrack: Track | null
 }
 
-export type VoiceRoomState =
-  | 'idle'
-  | 'connecting'
-  | 'connected'
-  | 'reconnecting'
-  | 'failed'
-  | 'disconnected'
+export type VoiceRoomState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'failed'
 
-export interface VoiceDiagnostics {
-  livekitUrl: string | null
-  roomName: string | null
-  participantIdentity: string | null
-  tokenReceived: boolean
-  signalConnected: boolean
-  iceState: string | null
-  publisherState: string | null
-  subscriberState: string | null
-  micPermission: 'unknown' | 'granted' | 'denied'
+export interface MediaDiagnostics {
+  micPermission: PermissionState | 'unknown'
   micEnabledRequested: boolean
   micEnabledActual: boolean
   audioTrackSid: string | null
-  cameraPermission: 'unknown' | 'granted' | 'denied'
+  cameraPermission: PermissionState | 'unknown'
   cameraEnabledActual: boolean
-  screenShareSupport: boolean
-  lastEvent: string | null
-  lastError: string | null
-  reconnectAttempts: number
-  publishedTrackCount: number
-  subscribedTrackCount: number
+  screenShareSupported: boolean
+  lastMediaError: string | null
 }
 
-export interface UseVoiceRoomReturn {
+interface UseVoiceRoomReturn {
   state: VoiceRoomState
   error: string | null
   participants: VoiceParticipant[]
   isMuted: boolean
-  isVideoOn: boolean
+  isCameraOn: boolean
+  isScreenSharing: boolean
   preJoinMicEnabled: boolean
-  streams: Map<string, MediaStreamSource[]>
-  localStreams: MediaStreamSource[]
-  diagnostics: VoiceDiagnostics
+  diagnostics: MediaDiagnostics
+  screenShareSupported: boolean
+  setPreJoinMicEnabled: (enabled: boolean) => void
   join: () => Promise<void>
   leave: () => void
-  toggleMute: () => Promise<void>
-  togglePreJoinMic: () => void
-  toggleVideo: () => Promise<void>
-  addScreenShare: () => Promise<void>
-  stopStream: (trackSid: string) => Promise<void>
-  stopAllStreams: () => Promise<void>
-  canAddStream: boolean
-  getVideoElement: (trackSid: string) => HTMLVideoElement | null
+  toggleMute: () => void
+  toggleCamera: () => Promise<void>
+  toggleScreenShare: () => Promise<void>
 }
 
-const MAX_STREAMS_PER_USER = 4
-const MAX_RECONNECT_ATTEMPTS = 5
-const INITIAL_BACKOFF_MS = 1000
-
-function detectScreenShareSupport(): boolean {
-  if (typeof navigator === 'undefined') return false
-  return typeof navigator.mediaDevices?.getDisplayMedia === 'function'
-}
-
-function getTrackDimensions(pub: TrackPublication): { width: number; height: number } | null {
-  const dims = pub.dimensions
-  if (dims && dims.width && dims.height) return { width: dims.width, height: dims.height }
-  return null
-}
-
-function classifyScreenTrack(pub: TrackPublication): StreamSourceType {
-  const track = pub.track
-  if (!track) return 'screen'
-  const settings = track.mediaStreamTrack?.getSettings?.()
-  const label = track.mediaStreamTrack?.label?.toLowerCase() ?? ''
-  if (settings?.displaySurface === 'window') return 'window'
-  if (settings?.displaySurface === 'browser') return 'tab'
-  if (settings?.displaySurface === 'monitor') return 'screen'
-  if (label.includes('tab')) return 'tab'
-  if (label.includes('window')) return 'window'
-  return 'screen'
-}
-
-function buildStreamSources(p: Participant): MediaStreamSource[] {
-  const sources: MediaStreamSource[] = []
-  let screenIdx = 0
-  for (const pub of p.trackPublications.values()) {
-    if (!pub.track || pub.track.kind !== Track.Kind.Video) continue
-    const isCamera = pub.source === Track.Source.Camera
-    const isScreen = pub.source === Track.Source.ScreenShare
-    if (!isCamera && !isScreen) continue
-
-    const sourceType: StreamSourceType = isCamera ? 'camera' : classifyScreenTrack(pub)
-    if (isScreen) screenIdx++
-
-    sources.push({
-      id: pub.trackSid,
-      kind: 'video',
-      sourceType,
-      name: isCamera ? 'Camera' : `Screen ${screenIdx}`,
-      trackSid: pub.trackSid,
-      participantIdentity: p.identity,
-      muted: pub.isMuted,
-      dimensions: getTrackDimensions(pub),
-      frameRate: pub.track.mediaStreamTrack?.getSettings?.()?.frameRate ?? null,
-    })
-  }
-  return sources
-}
-
-function participantToInfo(p: Participant, streams: MediaStreamSource[]): VoiceParticipant {
+function participantToInfo(p: Participant): VoiceParticipant {
+  const audioTrack = p.getTrackPublications().find(
+    (t) => t.track?.kind === Track.Kind.Audio && t.source === Track.Source.Microphone
+  )
+  const videoTrack = p.getTrackPublications().find(
+    (t) => t.track?.kind === Track.Kind.Video && t.source === Track.Source.Camera
+  )
+  const screenTrack = p.getTrackPublications().find(
+    (t) => t.track?.kind === Track.Kind.Video && t.source === Track.Source.ScreenShare
+  )
   return {
     identity: p.identity,
     name: p.name || p.identity,
     isSpeaking: p.isSpeaking,
-    isMuted: !p.isMicrophoneEnabled,
-    isVideoOn: p.isCameraEnabled,
+    isMuted: audioTrack ? audioTrack.isMuted : !p.isMicrophoneEnabled,
+    hasVideo: !!videoTrack?.track && !videoTrack.isMuted,
+    hasScreenShare: !!screenTrack?.track && !screenTrack.isMuted,
     connectionQuality: p.connectionQuality,
-    streamCount: streams.filter(s => s.sourceType !== 'camera').length,
+    videoTrack: videoTrack?.track ?? null,
+    screenTrack: screenTrack?.track ?? null,
   }
 }
 
-function findAudioTrackSid(p: LocalParticipant): string | null {
-  for (const pub of p.trackPublications.values()) {
-    if (pub.source === Track.Source.Microphone && pub.track) {
-      return pub.trackSid
-    }
-  }
-  return null
-}
-
-const INITIAL_DIAGNOSTICS: VoiceDiagnostics = {
-  livekitUrl: null,
-  roomName: null,
-  participantIdentity: null,
-  tokenReceived: false,
-  signalConnected: false,
-  iceState: null,
-  publisherState: null,
-  subscriberState: null,
-  micPermission: 'unknown',
-  micEnabledRequested: true,
-  micEnabledActual: false,
-  audioTrackSid: null,
-  cameraPermission: 'unknown',
-  cameraEnabledActual: false,
-  screenShareSupport: detectScreenShareSupport(),
-  lastEvent: null,
-  lastError: null,
-  reconnectAttempts: 0,
-  publishedTrackCount: 0,
-  subscribedTrackCount: 0,
+const detectScreenShareSupport = (): boolean => {
+  if (typeof navigator === 'undefined') return false
+  return typeof navigator.mediaDevices?.getDisplayMedia === 'function'
 }
 
 export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
   const roomRef = useRef<Room | null>(null)
-  const intentionalDisconnectRef = useRef(false)
-  const videoElementsRef = useRef<Map<string, HTMLVideoElement>>(new Map())
-  const localScreenTracksRef = useRef<Map<string, LocalVideoTrack>>(new Map())
-  const preJoinMicRef = useRef(true)
-
   const [state, setState] = useState<VoiceRoomState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [participants, setParticipants] = useState<VoiceParticipant[]>([])
-  const [isMuted, setIsMuted] = useState(false)
-  const [isVideoOn, setIsVideoOn] = useState(false)
   const [preJoinMicEnabled, setPreJoinMicEnabled] = useState(true)
-  const [streams, setStreams] = useState<Map<string, MediaStreamSource[]>>(new Map())
-  const [diagnostics, setDiagnostics] = useState<VoiceDiagnostics>({ ...INITIAL_DIAGNOSTICS })
+  const [diagnostics, setDiagnostics] = useState<MediaDiagnostics>({
+    micPermission: 'unknown',
+    micEnabledRequested: false,
+    micEnabledActual: false,
+    audioTrackSid: null,
+    cameraPermission: 'unknown',
+    cameraEnabledActual: false,
+    screenShareSupported: detectScreenShareSupport(),
+    lastMediaError: null,
+  })
 
-  const updateDiag = useCallback((patch: Partial<VoiceDiagnostics>) => {
-    setDiagnostics((prev) => ({ ...prev, ...patch }))
-  }, [])
+  const screenShareSupported = detectScreenShareSupport()
 
-  const syncAllState = useCallback(() => {
+  const updateParticipants = useCallback(() => {
     const room = roomRef.current
     if (!room) return
-
-    const micEnabled = room.localParticipant.isMicrophoneEnabled
-    const camEnabled = room.localParticipant.isCameraEnabled
-    setIsMuted(!micEnabled)
-    setIsVideoOn(camEnabled)
-
-    const audioSid = findAudioTrackSid(room.localParticipant)
-
-    const allStreams = new Map<string, MediaStreamSource[]>()
-    const allParticipants: VoiceParticipant[] = []
-
-    const localSources = buildStreamSources(room.localParticipant)
-    allStreams.set(room.localParticipant.identity, localSources)
-    allParticipants.push(participantToInfo(room.localParticipant, localSources))
-
-    room.remoteParticipants.forEach((rp) => {
-      const remoteSources = buildStreamSources(rp)
-      allStreams.set(rp.identity, remoteSources)
-      allParticipants.push(participantToInfo(rp, remoteSources))
+    const all: VoiceParticipant[] = []
+    all.push(participantToInfo(room.localParticipant))
+    room.remoteParticipants.forEach((p) => {
+      all.push(participantToInfo(p))
     })
-
-    setStreams(allStreams)
-    setParticipants(allParticipants)
-
-    let publishedCount = 0
-    let subscribedCount = 0
-    room.localParticipant.trackPublications.forEach(() => publishedCount++)
-    room.remoteParticipants.forEach((rp) => {
-      rp.trackPublications.forEach((pub) => {
-        if (pub.isSubscribed) subscribedCount++
-      })
-    })
-    updateDiag({
-      publishedTrackCount: publishedCount,
-      subscribedTrackCount: subscribedCount,
-      micEnabledActual: micEnabled,
-      cameraEnabledActual: camEnabled,
-      audioTrackSid: audioSid,
-    })
-  }, [updateDiag])
-
-  const attachVideoTrack = useCallback((trackSid: string, track: { attach: () => HTMLMediaElement }) => {
-    if (videoElementsRef.current.has(trackSid)) return
-    const el = track.attach() as HTMLVideoElement
-    el.id = `lk-video-${trackSid}`
-    el.style.display = 'none'
-    el.style.position = 'absolute'
-    document.body.appendChild(el)
-    videoElementsRef.current.set(trackSid, el)
+    setParticipants(all)
   }, [])
 
-  const detachVideoTrack = useCallback((trackSid: string) => {
-    const el = videoElementsRef.current.get(trackSid)
-    if (el) {
-      el.remove()
-      videoElementsRef.current.delete(trackSid)
-    }
+  const updateDiagnosticsFromRoom = useCallback(() => {
+    const room = roomRef.current
+    if (!room) return
+    const lp = room.localParticipant
+    const audioTrack = lp.getTrackPublications().find(
+      (t) => t.source === Track.Source.Microphone
+    )
+    setDiagnostics((prev) => ({
+      ...prev,
+      micEnabledActual: lp.isMicrophoneEnabled,
+      audioTrackSid: audioTrack?.trackSid ?? null,
+      cameraEnabledActual: lp.isCameraEnabled,
+    }))
   }, [])
 
-  const doConnect = useCallback(async (micEnabled: boolean) => {
+  const isMuted = (() => {
+    const room = roomRef.current
+    if (!room || state !== 'connected') return !preJoinMicEnabled
+    return !room.localParticipant.isMicrophoneEnabled
+  })()
+
+  const isCameraOn = (() => {
+    const room = roomRef.current
+    if (!room || state !== 'connected') return false
+    return room.localParticipant.isCameraEnabled
+  })()
+
+  const isScreenSharing = (() => {
+    const room = roomRef.current
+    if (!room || state !== 'connected') return false
+    return room.localParticipant.isScreenShareEnabled
+  })()
+
+  const join = useCallback(async () => {
+    if (roomRef.current) return
     setState('connecting')
     setError(null)
-    updateDiag({ lastEvent: 'requesting token...', micEnabledRequested: micEnabled })
+    setDiagnostics((prev) => ({ ...prev, micEnabledRequested: preJoinMicEnabled, lastMediaError: null }))
 
     try {
+      // Check mic permission
+      try {
+        const permResult = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+        setDiagnostics((prev) => ({ ...prev, micPermission: permResult.state }))
+      } catch {
+        setDiagnostics((prev) => ({ ...prev, micPermission: 'unknown' }))
+      }
+
       const res = await fetchApi(`/rooms/channels/${channelId}/voice/token`, {
         method: 'POST',
       }) as { token: string; url: string; room: string }
@@ -289,350 +169,154 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
         throw new Error('No token or URL returned from server')
       }
 
-      updateDiag({
-        livekitUrl: res.url,
-        roomName: res.room,
-        tokenReceived: true,
-        lastEvent: 'token received, connecting...',
-      })
-
       const room = new Room({
         adaptiveStream: true,
         dynacast: true,
         disconnectOnPageLeave: true,
-        reconnectPolicy: {
-          nextRetryDelayInMs: (context) => {
-            if (context.retryCount >= MAX_RECONNECT_ATTEMPTS) return null
-            const delay = INITIAL_BACKOFF_MS * Math.pow(2, context.retryCount)
-            updateDiag({
-              reconnectAttempts: context.retryCount + 1,
-              lastEvent: `reconnect attempt ${context.retryCount + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
-            })
-            return delay
-          },
-        },
       })
       roomRef.current = room
 
-      room.on(RoomEvent.SignalConnected, () => {
-        updateDiag({ signalConnected: true, lastEvent: 'signal connected' })
-      })
-
       room.on(RoomEvent.ConnectionStateChanged, (connectionState: ConnectionState) => {
-        updateDiag({ lastEvent: `connection: ${connectionState}` })
         switch (connectionState) {
           case ConnectionState.Connected:
             setState('connected')
-            updateDiag({ reconnectAttempts: 0 })
-            syncAllState()
+            updateParticipants()
+            updateDiagnosticsFromRoom()
             break
           case ConnectionState.Reconnecting:
             setState('reconnecting')
             break
           case ConnectionState.Disconnected:
-            if (!intentionalDisconnectRef.current) {
-              setState('disconnected')
-              updateDiag({ signalConnected: false, lastEvent: 'disconnected unexpectedly' })
-            }
+            setState('idle')
+            setParticipants([])
+            roomRef.current = null
             break
         }
       })
 
-      room.on(RoomEvent.Reconnected, () => {
-        setState('connected')
-        updateDiag({ reconnectAttempts: 0, signalConnected: true, lastEvent: 'reconnected successfully' })
-        syncAllState()
-      })
+      room.on(RoomEvent.ParticipantConnected, () => updateParticipants())
+      room.on(RoomEvent.ParticipantDisconnected, () => updateParticipants())
+      room.on(RoomEvent.ActiveSpeakersChanged, () => updateParticipants())
+      room.on(RoomEvent.TrackMuted, () => { updateParticipants(); updateDiagnosticsFromRoom() })
+      room.on(RoomEvent.TrackUnmuted, () => { updateParticipants(); updateDiagnosticsFromRoom() })
+      room.on(RoomEvent.ConnectionQualityChanged, () => updateParticipants())
+      room.on(RoomEvent.LocalTrackPublished, () => { updateParticipants(); updateDiagnosticsFromRoom() })
+      room.on(RoomEvent.LocalTrackUnpublished, () => { updateParticipants(); updateDiagnosticsFromRoom() })
 
-      room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
-        updateDiag({ lastEvent: `${participant.identity} joined` })
-        syncAllState()
-      })
-
-      room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
-        updateDiag({ lastEvent: `${participant.identity} left` })
-        for (const pub of participant.trackPublications.values()) {
-          detachVideoTrack(pub.trackSid)
-        }
-        syncAllState()
-      })
-
-      room.on(RoomEvent.ActiveSpeakersChanged, () => syncAllState())
-      room.on(RoomEvent.TrackMuted, () => syncAllState())
-      room.on(RoomEvent.TrackUnmuted, () => syncAllState())
-      room.on(RoomEvent.ConnectionQualityChanged, () => syncAllState())
-
-      room.on(RoomEvent.LocalTrackPublished, (pub: LocalTrackPublication, _lp: LocalParticipant) => {
-        updateDiag({ lastEvent: `published ${pub.source} (${pub.trackSid})` })
-        if (pub.track && pub.track.kind === Track.Kind.Video) {
-          attachVideoTrack(pub.trackSid, pub.track)
-        }
-        syncAllState()
-      })
-
-      room.on(RoomEvent.LocalTrackUnpublished, (pub: LocalTrackPublication, _lp: LocalParticipant) => {
-        updateDiag({ lastEvent: `unpublished ${pub.source}` })
-        detachVideoTrack(pub.trackSid)
-        localScreenTracksRef.current.delete(pub.trackSid)
-        syncAllState()
-      })
-
-      room.on(RoomEvent.TrackSubscribed, (track, pub: RemoteTrackPublication, participant: RemoteParticipant) => {
+      room.on(RoomEvent.TrackSubscribed, (track, _pub: RemoteTrackPublication, _participant: RemoteParticipant) => {
         if (track.kind === Track.Kind.Audio) {
           const el = track.attach()
-          el.id = `lk-audio-${participant.identity}-${pub.trackSid}`
+          el.id = `lk-audio-${_participant.identity}`
           document.body.appendChild(el)
         }
-        if (track.kind === Track.Kind.Video) {
-          attachVideoTrack(pub.trackSid, track)
-        }
-        syncAllState()
+        updateParticipants()
       })
 
-      room.on(RoomEvent.TrackUnsubscribed, (track, pub: RemoteTrackPublication) => {
+      room.on(RoomEvent.TrackUnsubscribed, (track) => {
         track.detach().forEach((el) => el.remove())
-        detachVideoTrack(pub.trackSid)
-        syncAllState()
+        updateParticipants()
       })
 
-      room.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
-        updateDiag({
-          lastEvent: `disconnected: ${reason ?? 'unknown'}`,
-          signalConnected: false,
-        })
-        if (!intentionalDisconnectRef.current) {
-          setState('disconnected')
-        }
+      room.on(RoomEvent.Disconnected, () => {
+        setState('idle')
         setParticipants([])
-        setStreams(new Map())
-        videoElementsRef.current.forEach(el => el.remove())
-        videoElementsRef.current.clear()
-        localScreenTracksRef.current.clear()
         roomRef.current = null
       })
 
-      room.on(RoomEvent.MediaDevicesError, (e) => {
-        const msg = e instanceof Error ? e.message : 'unknown media error'
-        updateDiag({ lastEvent: `media error: ${msg}`, lastError: msg })
-      })
-
       await room.connect(res.url, res.token)
-      updateDiag({
-        participantIdentity: room.localParticipant.identity,
-      })
-
-      if (micEnabled) {
-        updateDiag({ lastEvent: 'connected, enabling mic...' })
-        try {
-          await room.localParticipant.setMicrophoneEnabled(true)
-          updateDiag({ micPermission: 'granted', lastEvent: 'mic enabled' })
-        } catch (micErr) {
-          const msg = micErr instanceof Error ? micErr.message : 'unknown'
-          updateDiag({ micPermission: 'denied', lastEvent: `mic denied: ${msg}`, lastError: `Mic: ${msg}` })
-          setIsMuted(true)
-        }
-      } else {
-        updateDiag({ lastEvent: 'connected (mic intentionally muted)' })
-        setIsMuted(true)
-      }
-
-      syncAllState()
+      await room.localParticipant.setMicrophoneEnabled(preJoinMicEnabled)
+      updateParticipants()
+      updateDiagnosticsFromRoom()
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to join voice room'
       setState('failed')
       setError(msg)
-      updateDiag({ lastEvent: `error: ${msg}`, lastError: msg })
+      setDiagnostics((prev) => ({ ...prev, lastMediaError: msg }))
       if (roomRef.current) {
         roomRef.current.disconnect()
         roomRef.current = null
       }
     }
-  }, [channelId, syncAllState, updateDiag, attachVideoTrack, detachVideoTrack])
-
-  const join = useCallback(async () => {
-    if (roomRef.current) return
-    intentionalDisconnectRef.current = false
-    const mic = preJoinMicRef.current
-    setIsMuted(!mic)
-    setIsVideoOn(false)
-    await doConnect(mic)
-  }, [doConnect])
-
-  const togglePreJoinMic = useCallback(() => {
-    setPreJoinMicEnabled((prev) => {
-      const next = !prev
-      preJoinMicRef.current = next
-      setIsMuted(!next)
-      return next
-    })
-  }, [])
+  }, [channelId, preJoinMicEnabled, updateParticipants, updateDiagnosticsFromRoom])
 
   const leave = useCallback(() => {
-    intentionalDisconnectRef.current = true
     const room = roomRef.current
     if (room) {
-      localScreenTracksRef.current.forEach((track) => track.stop())
-      localScreenTracksRef.current.clear()
-      room.localParticipant.setCameraEnabled(false).catch(() => {})
-      room.localParticipant.setMicrophoneEnabled(false).catch(() => {})
       room.disconnect()
       roomRef.current = null
     }
-    videoElementsRef.current.forEach(el => el.remove())
-    videoElementsRef.current.clear()
     setState('idle')
     setParticipants([])
     setError(null)
-    setPreJoinMicEnabled(true)
-    preJoinMicRef.current = true
-    setIsMuted(false)
-    setIsVideoOn(false)
-    setStreams(new Map())
-    setDiagnostics({ ...INITIAL_DIAGNOSTICS })
+    setDiagnostics((prev) => ({
+      ...prev,
+      micEnabledActual: false,
+      micEnabledRequested: false,
+      audioTrackSid: null,
+      cameraEnabledActual: false,
+      lastMediaError: null,
+    }))
   }, [])
 
-  const toggleMute = useCallback(async () => {
+  const toggleMute = useCallback(() => {
     const room = roomRef.current
     if (!room) return
-    const currentlyEnabled = room.localParticipant.isMicrophoneEnabled
-    const targetEnabled = !currentlyEnabled
-    updateDiag({ micEnabledRequested: targetEnabled })
+    const current = room.localParticipant.isMicrophoneEnabled
+    room.localParticipant.setMicrophoneEnabled(!current).then(() => {
+      updateParticipants()
+      updateDiagnosticsFromRoom()
+    }).catch((e) => {
+      setDiagnostics((prev) => ({
+        ...prev,
+        lastMediaError: e instanceof Error ? e.message : 'Mute toggle failed',
+      }))
+    })
+  }, [updateParticipants, updateDiagnosticsFromRoom])
+
+  const toggleCamera = useCallback(async () => {
+    const room = roomRef.current
+    if (!room) return
     try {
-      await room.localParticipant.setMicrophoneEnabled(targetEnabled)
-      updateDiag({ micPermission: 'granted' })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'mic toggle failed'
-      updateDiag({ lastError: `Mic: ${msg}`, micPermission: 'denied' })
-    }
-    const actualEnabled = room.localParticipant.isMicrophoneEnabled
-    setIsMuted(!actualEnabled)
-    updateDiag({ micEnabledActual: actualEnabled })
-    syncAllState()
-  }, [syncAllState, updateDiag])
+      // Check camera permission
+      try {
+        const permResult = await navigator.permissions.query({ name: 'camera' as PermissionName })
+        setDiagnostics((prev) => ({ ...prev, cameraPermission: permResult.state }))
+      } catch {
+        setDiagnostics((prev) => ({ ...prev, cameraPermission: 'unknown' }))
+      }
 
-  const toggleVideo = useCallback(async () => {
+      const current = room.localParticipant.isCameraEnabled
+      await room.localParticipant.setCameraEnabled(!current)
+      updateParticipants()
+      updateDiagnosticsFromRoom()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Camera toggle failed'
+      setError(msg)
+      setDiagnostics((prev) => ({ ...prev, lastMediaError: msg }))
+    }
+  }, [updateParticipants, updateDiagnosticsFromRoom])
+
+  const toggleScreenShare = useCallback(async () => {
     const room = roomRef.current
     if (!room) return
-    const currentlyEnabled = room.localParticipant.isCameraEnabled
-    try {
-      await room.localParticipant.setCameraEnabled(!currentlyEnabled)
-      updateDiag({
-        lastEvent: !currentlyEnabled ? 'camera enabled' : 'camera disabled',
-        cameraPermission: 'granted',
-      })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'camera toggle failed'
-      updateDiag({
-        lastError: `Camera: ${msg}`,
-        cameraPermission: 'denied',
-        lastEvent: `camera error: ${msg}`,
-      })
-    }
-    const actualEnabled = room.localParticipant.isCameraEnabled
-    setIsVideoOn(actualEnabled)
-    updateDiag({ cameraEnabledActual: actualEnabled })
-    syncAllState()
-  }, [syncAllState, updateDiag])
-
-  const addScreenShare = useCallback(async () => {
-    const room = roomRef.current
-    if (!room) return
-
-    const currentLocalStreams = buildStreamSources(room.localParticipant)
-    const screenStreams = currentLocalStreams.filter(s => s.sourceType !== 'camera')
-    if (screenStreams.length >= MAX_STREAMS_PER_USER) {
-      updateDiag({ lastError: `Max ${MAX_STREAMS_PER_USER} streams reached` })
+    if (!screenShareSupported) {
+      setError('Screen share unavailable on this browser')
       return
     }
-
     try {
-      const tracks = await createLocalScreenTracks({ audio: true })
-      for (const track of tracks) {
-        if (track.kind === Track.Kind.Video) {
-          const videoTrack = track as LocalVideoTrack
-          const pub = await room.localParticipant.publishTrack(videoTrack, {
-            source: Track.Source.ScreenShare,
-            name: `screen-${Date.now()}`,
-          })
-          if (pub.trackSid) {
-            localScreenTracksRef.current.set(pub.trackSid, videoTrack)
-          }
-          updateDiag({ lastEvent: 'screen share started' })
-        } else if (track.kind === Track.Kind.Audio) {
-          await room.localParticipant.publishTrack(track, {
-            source: Track.Source.ScreenShareAudio,
-          })
-        }
-      }
-      syncAllState()
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'screen share failed'
-      if (msg.includes('Permission denied') || msg.includes('NotAllowedError') || msg.includes('AbortError')) {
-        updateDiag({ lastEvent: 'screen share cancelled by user' })
-      } else {
-        updateDiag({ lastError: msg, lastEvent: `screen share error: ${msg}` })
-      }
+      const current = room.localParticipant.isScreenShareEnabled
+      await room.localParticipant.setScreenShareEnabled(!current)
+      updateParticipants()
+      updateDiagnosticsFromRoom()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Screen share failed'
+      setError(msg)
+      setDiagnostics((prev) => ({ ...prev, lastMediaError: msg }))
     }
-  }, [syncAllState, updateDiag])
-
-  const stopStream = useCallback(async (trackSid: string) => {
-    const room = roomRef.current
-    if (!room) return
-
-    const localTrack = localScreenTracksRef.current.get(trackSid)
-    if (localTrack) {
-      await room.localParticipant.unpublishTrack(localTrack)
-      localTrack.stop()
-      localScreenTracksRef.current.delete(trackSid)
-    } else {
-      for (const pub of room.localParticipant.trackPublications.values()) {
-        if (pub.trackSid === trackSid && pub.track) {
-          await room.localParticipant.unpublishTrack(pub.track)
-          pub.track.stop()
-          break
-        }
-      }
-    }
-
-    detachVideoTrack(trackSid)
-    updateDiag({ lastEvent: `stopped stream ${trackSid}` })
-    syncAllState()
-  }, [syncAllState, updateDiag, detachVideoTrack])
-
-  const stopAllStreams = useCallback(async () => {
-    const room = roomRef.current
-    if (!room) return
-
-    const sids = Array.from(localScreenTracksRef.current.keys())
-    for (const sid of sids) {
-      const track = localScreenTracksRef.current.get(sid)
-      if (track) {
-        await room.localParticipant.unpublishTrack(track)
-        track.stop()
-      }
-      detachVideoTrack(sid)
-    }
-    localScreenTracksRef.current.clear()
-    updateDiag({ lastEvent: 'stopped all local streams' })
-    syncAllState()
-  }, [syncAllState, updateDiag, detachVideoTrack])
-
-  const getVideoElement = useCallback((trackSid: string): HTMLVideoElement | null => {
-    return videoElementsRef.current.get(trackSid) ?? null
-  }, [])
-
-  const localIdentity = roomRef.current?.localParticipant?.identity
-  const localStreams = localIdentity ? (streams.get(localIdentity) ?? []) : []
-  const localScreenCount = localStreams.filter(s => s.sourceType !== 'camera').length
-  const canAddStream = state === 'connected' && localScreenCount < MAX_STREAMS_PER_USER
+  }, [screenShareSupported, updateParticipants, updateDiagnosticsFromRoom])
 
   useEffect(() => {
     return () => {
-      intentionalDisconnectRef.current = true
-      localScreenTracksRef.current.forEach(track => track.stop())
-      localScreenTracksRef.current.clear()
-      videoElementsRef.current.forEach(el => el.remove())
-      videoElementsRef.current.clear()
       if (roomRef.current) {
         roomRef.current.disconnect()
         roomRef.current = null
@@ -645,20 +329,16 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     error,
     participants,
     isMuted,
-    isVideoOn,
+    isCameraOn,
+    isScreenSharing,
     preJoinMicEnabled,
-    streams,
-    localStreams,
     diagnostics,
+    screenShareSupported,
+    setPreJoinMicEnabled,
     join,
     leave,
     toggleMute,
-    togglePreJoinMic,
-    toggleVideo,
-    addScreenShare,
-    stopStream,
-    stopAllStreams,
-    canAddStream,
-    getVideoElement,
+    toggleCamera,
+    toggleScreenShare,
   }
 }
