@@ -15,10 +15,6 @@ import {
   MonitorOff,
   MessageSquare,
   Send,
-  Signal,
-  SignalHigh,
-  SignalLow,
-  SignalZero,
   Plus,
   X,
   Maximize2,
@@ -31,7 +27,6 @@ import {
 } from 'lucide-react'
 import { useRoomsStore } from '../../stores/roomsStore'
 import { useVoiceRoom } from '../../hooks/useVoiceRoom'
-import { ConnectionQuality } from 'livekit-client'
 import type { VoiceParticipant, VoiceDiagnostics, VoiceRoomState, MediaStreamSource } from '../../hooks/useVoiceRoom'
 import type { RoomMessage } from '../../types/rooms'
 
@@ -486,22 +481,12 @@ function ControlBar({
       />
 
       <div className="relative">
-        {iosBlocked ? (
-          <ControlButton
-            active={false}
-            icon={Monitor}
-            label="No Share"
-            onClick={() => setShareMenuOpen(!shareMenuOpen)}
-            disabled
-          />
-        ) : (
-          <ControlButton
-            active={localStreamCount > 0}
-            icon={localStreamCount > 0 ? ScreenShare : Monitor}
-            label={localStreamCount > 0 ? `Sharing (${localStreamCount})` : 'Share'}
-            onClick={() => setShareMenuOpen(!shareMenuOpen)}
-          />
-        )}
+        <ControlButton
+          active={localStreamCount > 0}
+          icon={localStreamCount > 0 ? ScreenShare : Monitor}
+          label={localStreamCount > 0 ? `Sharing (${localStreamCount})` : 'Share'}
+          onClick={() => setShareMenuOpen(!shareMenuOpen)}
+        />
         {localStreamCount > 0 && (
           <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-mono font-bold"
             style={{ background: 'var(--color-cyan)', color: 'var(--color-canvas)' }}
@@ -575,7 +560,7 @@ function ShareMenu({
         >
           <AlertTriangle size={12} style={{ color: 'var(--color-warn)' }} className="flex-shrink-0 mt-0.5" />
           <p className="text-[9px] font-mono" style={{ color: 'var(--color-warn)' }}>
-            Screen sharing unavailable on iOS Safari. Join from desktop to share. You can still watch shared streams.
+            iOS browser screen share requires native app / browser support. You can still watch shared streams.
           </p>
         </div>
       )}
@@ -733,26 +718,15 @@ function ParticipantGrid({ participants }: { participants: VoiceParticipant[] })
 }
 
 function ParticipantRow({ participant: p }: { participant: VoiceParticipant }) {
-  const QualityIcon = p.connectionQuality === ConnectionQuality.Excellent ? SignalHigh
-    : p.connectionQuality === ConnectionQuality.Good ? Signal
-    : p.connectionQuality === ConnectionQuality.Poor ? SignalLow
-    : SignalZero
-
-  const qualityColor = p.connectionQuality === ConnectionQuality.Excellent ? 'var(--color-ok)'
-    : p.connectionQuality === ConnectionQuality.Good ? 'var(--color-ok)'
-    : p.connectionQuality === ConnectionQuality.Poor ? 'var(--color-warn)'
-    : 'var(--color-text-tertiary)'
-
   return (
-    <div className="flex items-center gap-2 py-1.5 px-1 rounded transition-colors"
-      style={p.isSpeaking ? { background: 'var(--color-ok-dim)' } : undefined}
-    >
+    <div className="flex items-center gap-2 py-1.5 px-1 rounded transition-colors">
       <div className="relative">
         <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-mono font-bold"
           style={{
             background: 'var(--color-surface-overlay)',
             color: 'var(--color-text-secondary)',
             outline: p.isSpeaking ? '2px solid var(--color-ok)' : 'none',
+            outlineOffset: p.isSpeaking ? '1px' : undefined,
           }}
         >
           {p.name.charAt(0).toUpperCase()}
@@ -763,37 +737,20 @@ function ParticipantRow({ participant: p }: { participant: VoiceParticipant }) {
         {p.name}
       </span>
 
-      <div className="flex items-center gap-1">
-        {p.isSpeaking && (
-          <div className="flex gap-0.5 items-end h-3">
-            <div className="w-0.5 bg-green-400 animate-pulse" style={{ height: '40%' }} />
-            <div className="w-0.5 bg-green-400 animate-pulse" style={{ height: '80%', animationDelay: '0.1s' }} />
-            <div className="w-0.5 bg-green-400 animate-pulse" style={{ height: '60%', animationDelay: '0.2s' }} />
-          </div>
-        )}
-
+      <div className="flex items-center gap-1.5">
         {p.streamCount > 0 && (
-          <div className="flex items-center gap-0.5">
-            <ScreenShare size={10} style={{ color: 'var(--color-cyan)' }} />
-            {p.streamCount > 1 && (
-              <span className="text-[7px] font-mono font-bold" style={{ color: 'var(--color-cyan)' }}>
-                {p.streamCount}
-              </span>
-            )}
-          </div>
+          <ScreenShare size={11} style={{ color: 'var(--color-cyan)' }} />
         )}
 
         {p.isVideoOn && (
-          <Video size={10} style={{ color: 'var(--color-ok)' }} />
+          <Video size={11} style={{ color: 'var(--color-ok)' }} />
         )}
 
         {p.isMuted ? (
-          <MicOff size={10} style={{ color: 'var(--color-danger)' }} />
+          <MicOff size={11} style={{ color: 'var(--color-danger)' }} />
         ) : (
-          <Mic size={10} style={{ color: 'var(--color-ok)' }} />
+          <Mic size={11} style={{ color: 'var(--color-ok)' }} />
         )}
-
-        <QualityIcon size={10} style={{ color: qualityColor }} />
       </div>
     </div>
   )
