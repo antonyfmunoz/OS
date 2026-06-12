@@ -149,12 +149,18 @@ function buildStreamSources(p: Participant): MediaStreamSource[] {
   return sources
 }
 
-function participantToInfo(p: Participant, streams: MediaStreamSource[]): VoiceParticipant {
+function participantToInfo(p: Participant, streams: MediaStreamSource[], localMicSetupDone: boolean, localMicIntent: boolean): VoiceParticipant {
+  let isMuted: boolean
+  if (p instanceof LocalParticipant && !localMicSetupDone) {
+    isMuted = !localMicIntent
+  } else {
+    isMuted = !p.isMicrophoneEnabled
+  }
   return {
     identity: p.identity,
     name: p.name || p.identity,
     isSpeaking: p.isSpeaking,
-    isMuted: !p.isMicrophoneEnabled,
+    isMuted,
     isVideoOn: p.isCameraEnabled,
     connectionQuality: p.connectionQuality,
     streamCount: streams.filter(s => s.sourceType !== 'camera').length,
@@ -199,6 +205,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
   const videoElementsRef = useRef<Map<string, HTMLVideoElement>>(new Map())
   const localScreenTracksRef = useRef<Map<string, LocalVideoTrack>>(new Map())
   const preJoinMicRef = useRef(true)
+  const micSetupDoneRef = useRef(false)
 
   const [state, setState] = useState<VoiceRoomState>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -217,9 +224,15 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     const room = roomRef.current
     if (!room) return
 
-    const micEnabled = room.localParticipant.isMicrophoneEnabled
+    const micDone = micSetupDoneRef.current
+    const micIntent = preJoinMicRef.current
+
+    if (micDone) {
+      const micEnabled = room.localParticipant.isMicrophoneEnabled
+      setIsMuted(!micEnabled)
+    }
+
     const camEnabled = room.localParticipant.isCameraEnabled
-    setIsMuted(!micEnabled)
     setIsVideoOn(camEnabled)
 
     const audioSid = findAudioTrackSid(room.localParticipant)
@@ -229,12 +242,12 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
 
     const localSources = buildStreamSources(room.localParticipant)
     allStreams.set(room.localParticipant.identity, localSources)
-    allParticipants.push(participantToInfo(room.localParticipant, localSources))
+    allParticipants.push(participantToInfo(room.localParticipant, localSources, micDone, micIntent))
 
     room.remoteParticipants.forEach((rp) => {
       const remoteSources = buildStreamSources(rp)
       allStreams.set(rp.identity, remoteSources)
-      allParticipants.push(participantToInfo(rp, remoteSources))
+      allParticipants.push(participantToInfo(rp, remoteSources, true, true))
     })
 
     setStreams(allStreams)
@@ -251,7 +264,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     updateDiag({
       publishedTrackCount: publishedCount,
       subscribedTrackCount: subscribedCount,
-      micEnabledActual: micEnabled,
+      micEnabledActual: room.localParticipant.isMicrophoneEnabled,
       cameraEnabledActual: camEnabled,
       audioTrackSid: audioSid,
     })
@@ -278,6 +291,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
   const doConnect = useCallback(async (micEnabled: boolean) => {
     setState('connecting')
     setError(null)
+    micSetupDoneRef.current = false
     updateDiag({ lastEvent: 'requesting token...', micEnabledRequested: micEnabled })
 
     try {
@@ -417,9 +431,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
       })
 
       await room.connect(res.url, res.token)
-      updateDiag({
-        participantIdentity: room.localParticipant.identity,
-      })
+      updateDiag({ participantIdentity: room.localParticipant.identity })
 
       if (micEnabled) {
         updateDiag({ lastEvent: 'connected, enabling mic...' })
@@ -433,15 +445,16 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
         }
       } else {
         updateDiag({ lastEvent: 'connected (mic intentionally muted)' })
-        setIsMuted(true)
       }
 
+      micSetupDoneRef.current = true
       syncAllState()
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to join voice room'
       setState('failed')
       setError(msg)
       updateDiag({ lastEvent: `error: ${msg}`, lastError: msg })
+      micSetupDoneRef.current = true
       if (roomRef.current) {
         roomRef.current.disconnect()
         roomRef.current = null
@@ -480,6 +493,7 @@ export function useVoiceRoom(channelId: string): UseVoiceRoomReturn {
     }
     videoElementsRef.current.forEach(el => el.remove())
     videoElementsRef.current.clear()
+    micSetupDoneRef.current = false
     setState('idle')
     setParticipants([])
     setError(null)
