@@ -148,6 +148,7 @@ export type VisionEvent =
   | { type: 'ptz_motion_ack'; motion_id: string; operation: string; ok: boolean }
   | { type: 'camera_session_state'; active: boolean; viewer_count: number }
   | { type: 'vision_overlay'; overlays: Array<{ type: string; track_id: string; label: string; confidence: number; bbox: { x: number; y: number; w: number; h: number }; landmarks?: Array<{ x: number; y: number; label?: string }>; connections?: Array<[number, number]>; color?: string }> }
+  | { type: 'label_corrections_list'; corrections: Record<string, string> }
 
 function getVisionProtocols(): string[] {
   const token = import.meta.env.VITE_VISION_TOKEN as string | undefined
@@ -328,6 +329,10 @@ export class VisionWsClient {
 
   requestHealth(): void {
     this.ws.send('vision_health')
+  }
+
+  requestLabelCorrections(): void {
+    this.ws.send('vision_get_label_corrections')
   }
 
   // ── PTZ control ─────────────────────────────────────────────────
