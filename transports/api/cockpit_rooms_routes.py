@@ -1352,6 +1352,7 @@ async def get_voice_token(channel_id: str, user=Depends(require_clerk_auth)):
             "canPublish": True,
             "canSubscribe": True,
             "canPublishData": True,
+            "canPublishSources": ["camera", "microphone", "screen_share", "screen_share_audio"],
         },
     }
     token = pyjwt.encode(claims, api_secret, algorithm="HS256")
