@@ -380,7 +380,9 @@ function GuestRoomView({
 
   const fetchChatHistory = useCallback(async () => {
     try {
-      const msgs = await fetchApi<Array<{ id: string; sender_identity: string; sender_display_name: string; body: string; created_at: string }>>(`/rooms/invite/${inviteCode}/chat`)
+      const msgs = await fetchApi<Array<{ id: string; sender_identity: string; sender_display_name: string; body: string; created_at: string }>>(`/rooms/invite/${inviteCode}/chat`, {
+        headers: { Authorization: `Bearer ${token.token}` },
+      })
       if (Array.isArray(msgs)) {
         setChatMessages(msgs.map(m => ({
           id: m.id,
@@ -391,7 +393,7 @@ function GuestRoomView({
         })))
       }
     } catch { /* non-fatal */ }
-  }, [inviteCode])
+  }, [inviteCode, token.token])
 
   /* ─── Sync participants from room state ─── */
   const syncParticipants = useCallback(() => {
@@ -932,7 +934,8 @@ function GuestRoomView({
     try {
       const saved = await fetchApi<{ id: string }>(`/rooms/invite/${inviteCode}/chat`, {
         method: 'POST',
-        body: JSON.stringify({ content: text, guest_identity: identity, guest_name: guestName }),
+        headers: { Authorization: `Bearer ${token.token}` },
+        body: JSON.stringify({ content: text }),
       })
       setChatMessages((prev) => prev.map(m => m.id === optimisticId ? { ...m, id: saved.id } : m))
     } catch { /* backend save failed — message still visible locally */ }
