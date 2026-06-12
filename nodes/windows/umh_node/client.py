@@ -259,7 +259,7 @@ class NodeClient:
         method = msg.get("method", "")
 
         if method == "capability.execute":
-            await self._handle_capability(msg)
+            asyncio.create_task(self._handle_capability(msg))
         elif method == "outcome.notify":
             logger.info("outcome received: %s", msg.get("params", {}).get("summary", ""))
         elif "result" in msg or "error" in msg:
