@@ -111,6 +111,7 @@ export function useVisionConnection(): void {
           }, 800)
         }
         client.requestSceneState()
+        client.requestLabelCorrections()
         setPtzMotion({ state: 'idle', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
       }),
       client.on('disconnected', () => {
@@ -205,6 +206,12 @@ export function useVisionConnection(): void {
         const corrected = d.corrected_label as string
         if (trackId && corrected) {
           useVisionStore.getState().addToast(`Label correction synced to detector: "${corrected}"`, 'ok')
+        }
+      }),
+      client.on('label_corrections_list', (d) => {
+        const corrections = d.corrections as Record<string, string> | undefined
+        if (corrections && Object.keys(corrections).length > 0) {
+          useVisionStore.getState().mergeLabelCorrections(corrections)
         }
       }),
 

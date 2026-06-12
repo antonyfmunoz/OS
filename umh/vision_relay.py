@@ -629,6 +629,19 @@ async def handle_vision(ws: Any) -> None:
                         "error": result.get("error", "delete failed") if result else "dispatch failed",
                     })
 
+            elif msg_type == "vision_get_label_corrections":
+                result = await _dispatch_to_beast("camera.label_corrections", {})
+                if result and result.get("success"):
+                    await send_json(ws, {
+                        "type": "label_corrections_list",
+                        "corrections": result.get("corrections", {}),
+                    })
+                else:
+                    await send_json(ws, {
+                        "type": "label_corrections_list",
+                        "corrections": {},
+                    })
+
             elif msg_type == "vision_correct_label":
                 track_id = msg.get("track_id", "")
                 corrected = msg.get("corrected_label", "")

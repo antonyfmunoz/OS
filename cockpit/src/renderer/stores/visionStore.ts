@@ -455,6 +455,7 @@ interface VisionState {
   // Label correction setters
   setLabelCorrection: (trackId: string, correctedLabel: string, rawLabel: string) => void
   removeLabelCorrection: (trackId: string) => void
+  mergeLabelCorrections: (beastCorrections: Record<string, string>) => void
   getEffectiveLabel: (trackId: string, rawLabel: string) => string
   loadLabelCorrections: () => void
 
@@ -743,6 +744,19 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   removeLabelCorrection: (trackId) => set((s) => {
     const corrections = { ...s.labelCorrections }
     delete corrections[trackId]
+    saveCorrectionsToStorage(corrections)
+    return { labelCorrections: corrections }
+  }),
+  mergeLabelCorrections: (beastCorrections) => set((s) => {
+    let changed = false
+    const corrections = { ...s.labelCorrections }
+    for (const [trackId, correctedLabel] of Object.entries(beastCorrections)) {
+      if (!corrections[trackId]) {
+        corrections[trackId] = { correctedLabel, rawLabel: correctedLabel, trackId, correctedAt: Date.now() }
+        changed = true
+      }
+    }
+    if (!changed) return s
     saveCorrectionsToStorage(corrections)
     return { labelCorrections: corrections }
   }),
