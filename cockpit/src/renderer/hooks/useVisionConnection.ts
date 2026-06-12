@@ -82,6 +82,33 @@ export function useVisionConnection(): void {
 
     const profile = QUALITY_PROFILES[useVisionStore.getState().qualityMode]
 
+    let presetLoadTimeout: ReturnType<typeof setTimeout> | null = null
+    let presetRetryCount = 0
+    const MAX_PRESET_RETRIES = 3
+    const PRESET_LOAD_TIMEOUT_MS = 5000
+
+    const requestPresetsWithTimeout = () => {
+      useVisionStore.getState().setPresetsLoading(true)
+      useVisionStore.getState().setPresetsLoadError(null)
+      client.requestPresets()
+
+      if (presetLoadTimeout) clearTimeout(presetLoadTimeout)
+      presetLoadTimeout = setTimeout(() => {
+        const state = useVisionStore.getState()
+        if (state.presetsLoading && Object.keys(state.presets).length === 0) {
+          presetRetryCount++
+          if (presetRetryCount <= MAX_PRESET_RETRIES) {
+            addNotification('warn', 'Preset load retry', 'relay', `Presets did not arrive within ${PRESET_LOAD_TIMEOUT_MS / 1000}s — retrying (${presetRetryCount}/${MAX_PRESET_RETRIES})`)
+            requestPresetsWithTimeout()
+          } else {
+            useVisionStore.getState().setPresetsLoading(false)
+            useVisionStore.getState().setPresetsLoadError('Presets failed to load after 3 retries — Beast may be offline')
+            addNotification('warn', 'Preset load failed', 'relay', 'Could not load presets from Beast after 3 retries', 'check Beast connection')
+          }
+        }
+      }, PRESET_LOAD_TIMEOUT_MS)
+    }
+
     const unsubs = [
       client.on('connected', () => {
         connectedAt = Date.now()
@@ -89,7 +116,8 @@ export function useVisionConnection(): void {
         setCameraSessionActive(true)
         setError(null)
         addNotification('info', 'Vision relay connected', 'relay', 'WebSocket connection established', 'monitoring')
-        client.requestPresets()
+        presetRetryCount = 0
+        requestPresetsWithTimeout()
         client.requestStatus()
         client.requestPosition()
         client.requestHealth()
@@ -122,6 +150,10 @@ export function useVisionConnection(): void {
           clearTimeout(cameraStartDebounceTimer)
           cameraStartDebounceTimer = null
         }
+        if (presetLoadTimeout) {
+          clearTimeout(presetLoadTimeout)
+          presetLoadTimeout = null
+        }
         setConnected(false)
         setCameraStatus('off')
         setStreaming(false)
@@ -142,6 +174,10 @@ export function useVisionConnection(): void {
         setCameraStatus(isStreaming ? 'live' : 'off')
       }),
       client.on('camera_presets', (d) => {
+        if (presetLoadTimeout) {
+          clearTimeout(presetLoadTimeout)
+          presetLoadTimeout = null
+        }
         const fromBeast = d.presets as Record<string, CameraPreset>
         const fromStorage = loadPresetsFromStorage()
         const merged: Record<string, CameraPreset> = {}
@@ -160,6 +196,9 @@ export function useVisionConnection(): void {
         }
         setPresets(merged)
         savePresetsToStorage(merged)
+        useVisionStore.getState().setPresetsLoading(false)
+        useVisionStore.getState().setPresetsLoadError(null)
+        useVisionStore.setState({ presetsLoadedAt: Date.now() })
       }),
       client.on('camera_position', (d) => {
         setPtzPosition({
@@ -560,7 +599,7 @@ export function useVisionConnection(): void {
     ]
 
     // Metrics polling + stale detection — 1s
-    const STALE_FRAME_MS = 15000
+    const STALE_FRAME_MS = 5000
     const STALE_OVERLAY_MS = 5000
     let lastMetricFrameCount = 0
     let lastMetricTime = Date.now()
@@ -619,6 +658,7 @@ export function useVisionConnection(): void {
     return () => {
       unsubs.forEach((fn) => fn())
       if (cameraStartDebounceTimer) clearTimeout(cameraStartDebounceTimer)
+      if (presetLoadTimeout) clearTimeout(presetLoadTimeout)
       if (metricsInterval.current) clearInterval(metricsInterval.current)
       if (sceneInterval.current) clearInterval(sceneInterval.current)
       if (healthInterval.current) clearInterval(healthInterval.current)

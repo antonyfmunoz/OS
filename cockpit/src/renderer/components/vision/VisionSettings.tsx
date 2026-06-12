@@ -76,6 +76,9 @@ export function VisionSettings() {
   const hasPtzHardware = useVisionStore((s) => s.hasPtzHardware)
   const setSettingsOpen = useVisionStore((s) => s.setSettingsOpen)
   const latencyHistory = useVisionStore((s) => s.latencyHistory)
+  const presetsLoading = useVisionStore((s) => s.presetsLoading)
+  const presetsLoadError = useVisionStore((s) => s.presetsLoadError)
+  const authority = useVisionStore((s) => s.authority)
 
   const handleRescan = useCallback(() => {
     const client = getVisionClient()
@@ -241,6 +244,30 @@ export function VisionSettings() {
           </div>
         </div>
 
+        {/* Command Path Truth — Section 5 */}
+        <div className="border border-border rounded-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 bg-surface-hover/30">
+            <Activity size={14} className="text-text-secondary" />
+            <span className="text-xs font-medium text-text-secondary">Command Path</span>
+          </div>
+          <div className="p-2">
+            <div className="grid grid-cols-2 gap-1">
+              <MetricCell label="Path Ready" value={chainHealth.commandPathReady ? 'yes' : 'no'}
+                color={chainHealth.commandPathReady ? 'ok' : 'danger'} />
+              <MetricCell label="Beast" value={chainHealth.beastConnected ? 'connected' : 'offline'}
+                color={chainHealth.beastConnected ? 'ok' : 'danger'} />
+              <MetricCell label="Cmd RTT" value={avgRtt !== null ? `${avgRtt}ms` : '—'}
+                color={avgRtt !== null ? (avgRtt < 80 ? 'ok' : avgRtt < 150 ? 'warn' : 'danger') : 'off'} />
+              <MetricCell label="Authority" value={authority.current}
+                color={authority.current === 'operator' ? 'ok' : authority.current === 'ai' ? 'warn' : undefined} />
+              <MetricCell label="AI Enabled" value={authority.aiEnabled ? 'yes' : 'no'}
+                color={authority.aiEnabled ? 'warn' : undefined} />
+              <MetricCell label="Presets" value={presetsLoading ? 'loading...' : presetsLoadError ? 'error' : `${Object.keys(useVisionStore.getState().presets).length} loaded`}
+                color={presetsLoadError ? 'danger' : presetsLoading ? 'warn' : 'ok'} />
+            </div>
+          </div>
+        </div>
+
         {/* Subsystem States */}
         <div className="border border-border rounded-lg overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 bg-surface-hover/30">
@@ -254,7 +281,9 @@ export function VisionSettings() {
             <StatusCell label="Detector" ok={det?.loaded ?? false} />
             <StatusCell label="Tracker" ok={det?.tracker_active ?? false} />
             <StatusCell label="PTZ" ok={hasPtzHardware || chainHealth.digitalRoiAvailable} />
-            <StatusCell label="Presets" ok={Object.keys(useVisionStore.getState().presets).length > 0} />
+            <StatusCell label="Cmd Path" ok={chainHealth.commandPathReady} />
+            <StatusCell label="Presets" ok={!presetsLoadError && Object.keys(useVisionStore.getState().presets).length > 0}
+              warnLabel={presetsLoadError || undefined} />
             <StatusCell label="GPU"
               ok={det?.device === 'cuda'}
               warnLabel={det?.device === 'cpu' ? 'CPU fallback' : undefined} />
