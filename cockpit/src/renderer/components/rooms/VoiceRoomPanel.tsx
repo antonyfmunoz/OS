@@ -208,24 +208,27 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
           />
         </div>
 
-        {/* Side panel — desktop inline, mobile bottom sheet */}
+        {/* Side panel — right slide-over on all viewports */}
         {sidePanel && (
           <>
-            {/* Mobile: bottom sheet */}
-            <div className="sm:hidden fixed inset-x-0 bottom-0 z-40 flex flex-col"
+            {/* Backdrop — click to close */}
+            <div className="sm:hidden fixed inset-0 z-30" style={{ background: 'rgba(0,0,0,0.3)' }}
+              onClick={() => setSidePanel(null)}
+            />
+
+            {/* Mobile: right-side panel overlay */}
+            <div className="sm:hidden fixed top-0 right-0 bottom-0 z-40 flex flex-col"
               style={{
+                width: '80vw',
+                maxWidth: '320px',
                 background: 'var(--color-canvas)',
-                borderTop: '1px solid var(--color-border)',
-                height: '55vh',
-                maxHeight: '55vh',
-                borderRadius: '12px 12px 0 0',
-                boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
+                borderLeft: '1px solid var(--color-border)',
+                boxShadow: '-4px 0 20px rgba(0,0,0,0.3)',
               }}
             >
-              <div className="flex items-center justify-center pt-2 pb-1 shrink-0">
-                <div className="w-8 h-1 rounded-full" style={{ background: 'var(--color-border)' }} />
-              </div>
-              <div className="flex items-center justify-between px-3 pb-1 shrink-0">
+              <div className="flex items-center justify-between px-3 h-10 border-b shrink-0"
+                style={{ borderColor: 'var(--color-border)' }}
+              >
                 <span className="text-[11px] font-mono font-semibold" style={{ color: 'var(--color-text-primary)' }}>
                   {sidePanel === 'chat' ? 'Chat' : 'Settings'}
                 </span>
@@ -248,11 +251,8 @@ export function VoiceRoomPanel({ channelId }: { channelId: string }) {
                 />
               )}
             </div>
-            <div className="sm:hidden fixed inset-0 z-30" style={{ background: 'rgba(0,0,0,0.3)' }}
-              onClick={() => setSidePanel(null)}
-            />
 
-            {/* Desktop: side panel */}
+            {/* Desktop: inline side panel */}
             <div className="hidden sm:flex w-80 flex-col min-h-0" style={{ maxWidth: '50%' }}>
               {sidePanel === 'chat' ? (
                 <VoiceChat channelId={channelId} />
@@ -464,6 +464,10 @@ function StreamTile({
 
       const el = getVideoElement(stream.trackSid)
       if (el) {
+        el.playsInline = true
+        el.autoplay = true
+        el.muted = true
+        el.setAttribute('playsinline', '')
         el.style.display = 'block'
         el.style.width = '100%'
         el.style.height = '100%'
@@ -681,38 +685,58 @@ function CallBar({
   if (!isConnected && state !== 'failed' && state !== 'disconnected') {
     const isJoining = state === 'connecting' || state === 'requesting_permissions'
     return (
-      <div className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-3 border-t shrink-0"
+      <div className="flex flex-col items-center gap-2 px-3 sm:px-4 py-3 border-t shrink-0"
         style={{
           borderColor: 'var(--color-border)',
           background: 'var(--color-surface)',
           paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
         }}
       >
-        <CallBarButton
-          active={preJoinMicEnabled}
-          danger={!preJoinMicEnabled}
-          icon={preJoinMicEnabled ? Mic : MicOff}
-          label={preJoinMicEnabled ? 'Mic On' : 'Mic Off'}
-          onClick={onTogglePreJoinMic}
-          disabled={isJoining}
-        />
-        <CallBarButton
-          active={preJoinVideoEnabled}
-          icon={preJoinVideoEnabled ? Video : VideoOff}
-          label={preJoinVideoEnabled ? 'Cam On' : 'Cam Off'}
-          onClick={onTogglePreJoinVideo}
-          disabled={isJoining}
-        />
-        <button onClick={onJoin}
-          disabled={isJoining}
-          className="flex items-center gap-2 text-xs font-mono px-5 py-2.5 rounded-lg transition-colors"
-          style={{
-            background: isJoining ? 'var(--color-surface-raised)' : 'var(--color-ok)',
-            color: isJoining ? 'var(--color-text-tertiary)' : 'var(--color-canvas)',
-          }}
-        >
-          {isJoining ? 'Joining...' : 'Join Voice'}
-        </button>
+        {/* Primary row: Mic / Join / Chat */}
+        <div className="flex items-center justify-center gap-1.5">
+          <CallBarButton
+            active={preJoinMicEnabled}
+            danger={!preJoinMicEnabled}
+            icon={preJoinMicEnabled ? Mic : MicOff}
+            label={preJoinMicEnabled ? 'Mic On' : 'Mic Off'}
+            onClick={onTogglePreJoinMic}
+            disabled={isJoining}
+          />
+          <button onClick={onJoin}
+            disabled={isJoining}
+            className="flex items-center gap-2 text-xs font-mono px-5 py-2.5 rounded-lg transition-colors"
+            style={{
+              background: isJoining ? 'var(--color-surface-raised)' : 'var(--color-ok)',
+              color: isJoining ? 'var(--color-text-tertiary)' : 'var(--color-canvas)',
+            }}
+          >
+            {isJoining ? 'Joining...' : 'Join Voice'}
+          </button>
+          <CallBarButton
+            active={sidePanel === 'chat'}
+            icon={MessageSquare}
+            label="Chat"
+            onClick={onToggleChat}
+            disabled={false}
+          />
+        </div>
+        {/* Secondary row: Video + Settings */}
+        <div className="flex items-center justify-center gap-1.5">
+          <CallBarButton
+            active={preJoinVideoEnabled}
+            icon={preJoinVideoEnabled ? Video : VideoOff}
+            label={preJoinVideoEnabled ? 'Cam On' : 'Cam Off'}
+            onClick={onTogglePreJoinVideo}
+            disabled={isJoining}
+          />
+          <CallBarButton
+            active={sidePanel === 'settings'}
+            icon={Settings}
+            label="Settings"
+            onClick={onToggleSettings}
+            disabled={false}
+          />
+        </div>
       </div>
     )
   }
@@ -768,8 +792,9 @@ function CallBar({
       />
       <CallBarButton
         active={isVideoOn}
-        icon={isVideoOn ? Video : VideoOff}
-        label={isVideoOn ? 'Stop Video' : 'Video'}
+        danger={cameraIntent.transition === 'failed'}
+        icon={cameraIntent.transition === 'failed' ? AlertTriangle : isVideoOn ? Video : VideoOff}
+        label={cameraIntent.transition === 'failed' ? 'Cam Fail' : isVideoOn ? 'Stop Video' : 'Video'}
         onClick={onToggleVideo}
         transitioning={camTransitioning}
       />
