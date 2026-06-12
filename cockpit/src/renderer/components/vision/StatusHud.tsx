@@ -10,7 +10,6 @@ export function StatusHud() {
   const width = useVisionStore((s) => s.width)
   const height = useVisionStore((s) => s.height)
 
-  const realOverlays = overlays.filter((o) => !o.track_id?.startsWith('diag_'))
   const frameAge = streamMetrics.lastFrameAge
   const frameFresh = frameAge > 0 && frameAge < 3000
   const hasRecentOverlays = chainHealth.lastOverlayAt > 0 && (Date.now() - chainHealth.lastOverlayAt) < 10000
@@ -43,7 +42,7 @@ export function StatusHud() {
   const resolutionStr = width > 0 && height > 0 ? `${width}x${height}` : '—'
   const fpsStr = `${streamMetrics.actualFps.toFixed(1)} fps`
   const latencyStr = frameAge < 1000 ? `${frameAge}ms` : `${(frameAge / 1000).toFixed(1)}s`
-  const trackedStr = `${realOverlays.length} obj`
+  const trackedStr = `${overlays.length} obj`
 
   return (
     <div className="flex flex-col gap-1">
@@ -89,7 +88,7 @@ export function StatusHud() {
         {/* Object count */}
         <span className={clsx(
           'text-[10px] font-mono',
-          realOverlays.length > 0 ? 'text-ok' : 'text-text-tertiary',
+          overlays.length > 0 ? 'text-ok' : 'text-text-tertiary',
         )}>
           {trackedStr}
         </span>

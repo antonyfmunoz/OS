@@ -12,7 +12,7 @@ const QUALITY_DESCRIPTIONS: Record<QualityMode, string> = {
 
 export function DiagnosticsPanel({
   ptzMotion, controlMetrics, joystickDragging, joystickVelocity,
-  speed, overlays, overlayVisible, diagnosticOverlay, connected,
+  speed, overlays, overlayVisible, connected,
   streaming, streamMetrics, frameCount, qualityMode,
 }: {
   ptzMotion: { state: MotionState; motionId: string; panVelocity: number; tiltVelocity: number; zoomVelocity: number }
@@ -22,7 +22,6 @@ export function DiagnosticsPanel({
   speed: number
   overlays: unknown[]
   overlayVisible: boolean
-  diagnosticOverlay: boolean
   connected: boolean
   streaming: boolean
   streamMetrics: StreamMetrics
@@ -110,7 +109,6 @@ export function DiagnosticsPanel({
           {/* Chain health */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-warning/30 rounded p-2">
             <span>overlay_visible: <span className={overlayVisible ? 'text-ok' : 'text-danger'}>{overlayVisible ? 'ON' : 'OFF'}</span></span>
-            <span>diagnostic_mode: <span className={diagnosticOverlay ? 'text-warning' : ''}>{diagnosticOverlay ? 'ON' : 'off'}</span></span>
             <span>overlay_count: <span className={overlays.length > 0 ? 'text-ok' : ''}>{overlays.length}</span></span>
             <span>last_overlay: {chainHealth.lastOverlayAt > 0 ? `${Math.round((Date.now() - chainHealth.lastOverlayAt) / 1000)}s ago` : 'never'}</span>
             <span>tracker_runtime: <span className={chainHealth.trackerRuntimeAvailable ? 'text-ok' : 'text-danger'}>{chainHealth.trackerRuntimeAvailable ? 'available' : 'UNAVAILABLE'}</span></span>

@@ -70,8 +70,6 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const controlsEnabled = connected && (chainHealth.beastConnected || chainHealth.commandPathReady)
   const overlayVisible = useVisionStore((s) => s.overlayVisible)
   const setOverlayVisible = useVisionStore((s) => s.setOverlayVisible)
-  const diagnosticOverlay = useVisionStore((s) => s.diagnosticOverlay)
-  const setDiagnosticOverlay = useVisionStore((s) => s.setDiagnosticOverlay)
   const width = useVisionStore((s) => s.width)
   const height = useVisionStore((s) => s.height)
   const setQualityMode = useVisionStore((s) => s.setQualityMode)
@@ -556,7 +554,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                 transform: `scale(${chainHealth.roi.zoom})`,
               } : undefined}
             />
-            {/* OVR: only real AI overlays. DIAG synthetic boxes handled by VisionOverlay internally. */}
+            {/* OVR: real AI detections from Beast only */}
             <VisionOverlay
               overlays={overlays}
               width={width || 1280}
@@ -654,39 +652,19 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         <MobileBtn icon={<Square size={18} />} label="E-Stop" onClick={handleEmergencyStop} variant="danger" />
       </div>
 
-      {/* 5. OVR / DIAG toggles */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setOverlayVisible(!overlayVisible)}
-          className={clsx(
-            'flex-1 py-2.5 rounded text-xs font-mono text-center transition-colors flex flex-col items-center gap-0.5',
-            overlayVisible
-              ? 'bg-ok/20 text-ok border border-ok/30'
-              : 'bg-surface-hover text-text-tertiary border border-transparent',
-          )}
-          title="OVR = real AI object detection overlays only"
-        >
-          <span className="uppercase tracking-wider">OVR {overlayVisible ? 'on' : 'off'}</span>
-          <span className="text-[9px] opacity-70 normal-case">real detections only</span>
-        </button>
-        <button
-          onClick={() => {
-            const next = !diagnosticOverlay
-            setDiagnosticOverlay(next)
-            getVisionClient()?.setDiagnosticOverlay(next)
-          }}
-          className={clsx(
-            'flex-1 py-2.5 rounded text-xs font-mono text-center transition-colors flex flex-col items-center gap-0.5',
-            diagnosticOverlay
-              ? 'bg-warning/20 text-warning border border-warning/30'
-              : 'bg-surface-hover text-text-tertiary border border-transparent',
-          )}
-          title="DIAG = synthetic test boxes for pipeline verification only"
-        >
-          <span className="uppercase tracking-wider">DIAG {diagnosticOverlay ? 'on' : 'off'}</span>
-          <span className="text-[9px] opacity-70 normal-case">synthetic test boxes</span>
-        </button>
-      </div>
+      {/* 5. OVR toggle — real detections only */}
+      <button
+        onClick={() => setOverlayVisible(!overlayVisible)}
+        className={clsx(
+          'py-2.5 rounded text-xs font-mono text-center transition-colors flex flex-col items-center gap-0.5',
+          overlayVisible
+            ? 'bg-ok/20 text-ok border border-ok/30'
+            : 'bg-surface-hover text-text-tertiary border border-transparent',
+        )}
+      >
+        <span className="uppercase tracking-wider">OVR {overlayVisible ? 'on' : 'off'}</span>
+        <span className="text-[9px] opacity-70 normal-case">real detections only</span>
+      </button>
 
       {!compact && (
         <>
@@ -954,7 +932,6 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             speed={speed}
             overlays={overlays}
             overlayVisible={overlayVisible}
-            diagnosticOverlay={diagnosticOverlay}
             connected={connected}
             streaming={streaming}
             streamMetrics={streamMetrics}
