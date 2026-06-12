@@ -400,8 +400,8 @@ class CreateInviteReq(BaseModel):
     role_on_join: str | None = None
 
 class GuestJoinReq(BaseModel):
-    guest_name: str
-    guest_email: str | None = None
+    guest_name: str = Field(..., min_length=1, max_length=40)
+    guest_email: str | None = Field(None, max_length=254)
     mic_enabled: bool = True
     video_enabled: bool = False
 
