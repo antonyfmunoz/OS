@@ -22,6 +22,7 @@ export function ConferenceRoomsPanel() {
   const loading = useRoomsStore((s) => s.loading)
   const [channelSidebarCollapsed, setChannelSidebarCollapsed] = useState(() => loadBool(CH_SIDEBAR_KEY, true))
   const [rightRailCollapsed, setRightRailCollapsed] = useState(() => loadBool(RIGHT_RAIL_KEY, true))
+  const [chatRequested, setChatRequested] = useState(false)
 
   const toggleChannelSidebar = useCallback(() => setChannelSidebarCollapsed((v) => {
     const next = !v
@@ -34,6 +35,14 @@ export function ConferenceRoomsPanel() {
     try { localStorage.setItem(RIGHT_RAIL_KEY, String(next)) } catch {}
     return next
   }), [])
+
+  const handleOpenChat = useCallback(() => {
+    setChatRequested(true)
+  }, [])
+
+  const handleChatOpened = useCallback(() => {
+    setChatRequested(false)
+  }, [])
 
   useEffect(() => {
     fetchServers()
@@ -50,11 +59,13 @@ export function ConferenceRoomsPanel() {
             onToggleCollapse={toggleChannelSidebar}
           />
           <div className="flex-1 flex flex-col min-w-0">
-            <RoomMainView />
+            <RoomMainView onOpenChat={handleOpenChat} />
           </div>
           <RoomRightRail
             collapsed={rightRailCollapsed}
             onToggleCollapse={toggleRightRail}
+            chatRequested={chatRequested}
+            onChatOpened={handleChatOpened}
           />
         </>
       ) : (

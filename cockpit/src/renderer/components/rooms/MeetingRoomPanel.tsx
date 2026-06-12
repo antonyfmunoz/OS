@@ -87,7 +87,7 @@ function isIOS(): boolean {
 
 type MeetingSidePanel = 'chat' | 'agenda' | 'notes' | 'actions' | null
 
-export function MeetingRoomPanel({ channelId }: { channelId: string }) {
+export function MeetingRoomPanel({ channelId, onOpenChat }: { channelId: string; onOpenChat?: () => void }) {
   const channels = useRoomsStore((s) => s.channels)
   const channel = channels.find((c) => c.id === channelId)
   const meetingStates = useRoomsStore((s) => s.meetingStates)

@@ -1,18 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Users, Bot, MessageSquare, Shield, Link2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
 import { MemberListPanel } from './MemberListPanel'
 import { RoomDexPanel } from './RoomDexPanel'
-import { ThreadPanel } from './ThreadPanel'
+import { RoomChatPanel } from './RoomChatPanel'
 import { RoomAuditLog } from './RoomAuditLog'
 import { InvitePanel } from './InvitePanel'
 
-type Tab = 'members' | 'dex' | 'threads' | 'invites' | 'audit'
+type Tab = 'members' | 'dex' | 'chat' | 'invites' | 'audit'
 
 const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: 'members', label: 'Members', icon: Users },
   { id: 'dex', label: 'DEX', icon: Bot },
-  { id: 'threads', label: 'Threads', icon: MessageSquare },
+  { id: 'chat', label: 'Chat', icon: MessageSquare },
   { id: 'invites', label: 'Invites', icon: Link2 },
   { id: 'audit', label: 'Audit', icon: Shield },
 ]
@@ -20,10 +20,22 @@ const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
 interface Props {
   collapsed: boolean
   onToggleCollapse: () => void
+  chatRequested?: boolean
+  onChatOpened?: () => void
 }
 
-export function RoomRightRail({ collapsed, onToggleCollapse }: Props) {
+export function RoomRightRail({ collapsed, onToggleCollapse, chatRequested, onChatOpened }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('members')
+
+  useEffect(() => {
+    if (!chatRequested) return
+    if (collapsed) onToggleCollapse()
+    setActiveTab('chat')
+    onChatOpened?.()
+  }, [chatRequested, collapsed, onToggleCollapse, onChatOpened])
+
+  const isChatActive = activeTab === 'chat'
+  const railWidth = isChatActive ? 'w-80' : 'w-56'
 
   if (collapsed) {
     return (
@@ -45,7 +57,7 @@ export function RoomRightRail({ collapsed, onToggleCollapse }: Props) {
 
   return (
     <div
-      className="w-56 shrink-0 flex flex-col border-l overflow-hidden"
+      className={`${railWidth} shrink-0 flex flex-col border-l overflow-hidden transition-all`}
       style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
     >
       <div className="flex items-center h-9 shrink-0 border-b px-2" style={{ borderColor: 'var(--color-border)' }}>
@@ -82,7 +94,7 @@ export function RoomRightRail({ collapsed, onToggleCollapse }: Props) {
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'members' && <MemberListPanel />}
         {activeTab === 'dex' && <RoomDexPanel />}
-        {activeTab === 'threads' && <ThreadPanel />}
+        {activeTab === 'chat' && <RoomChatPanel />}
         {activeTab === 'invites' && <InvitePanel />}
         {activeTab === 'audit' && <RoomAuditLog />}
       </div>
