@@ -1335,7 +1335,13 @@ async def guest_join_via_invite(code: str, req: GuestJoinReq):
         livekit_ws = f"wss://{cockpit_domain}/livekit/"
 
     permissions_data = invite.get("permissions", {})
-    can_publish = permissions_data.get("can_speak", True)
+    publish_sources: list[str] = []
+    if permissions_data.get("can_speak", False):
+        publish_sources.append("microphone")
+    if permissions_data.get("can_video", False):
+        publish_sources.append("camera")
+    if permissions_data.get("can_screen_share", False):
+        publish_sources.extend(["screen_share", "screen_share_audio"])
 
     if api_key and api_secret:
         now = datetime.now(timezone.utc)
@@ -1349,7 +1355,8 @@ async def guest_join_via_invite(code: str, req: GuestJoinReq):
             "video": {
                 "roomJoin": True,
                 "room": room_name,
-                "canPublish": can_publish,
+                "canPublish": len(publish_sources) > 0,
+                "canPublishSources": publish_sources,
                 "canSubscribe": True,
                 "canPublishData": permissions_data.get("can_chat", True),
             },
