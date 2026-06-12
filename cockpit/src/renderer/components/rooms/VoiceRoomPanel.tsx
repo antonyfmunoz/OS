@@ -643,7 +643,7 @@ function CallBar({
           paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)',
         }}
       >
-        {/* Primary row: Mic / Join / Chat */}
+        {/* Mic / Join / Chat */}
         <div className="flex items-center justify-center gap-1.5">
           <CallBarButton
             active={preJoinMicEnabled}
@@ -668,23 +668,6 @@ function CallBar({
             icon={MessageSquare}
             label="Chat"
             onClick={onToggleChat}
-            disabled={false}
-          />
-        </div>
-        {/* Secondary row: Video + Settings */}
-        <div className="flex items-center justify-center gap-1.5">
-          <CallBarButton
-            active={preJoinVideoEnabled}
-            icon={preJoinVideoEnabled ? Video : VideoOff}
-            label={preJoinVideoEnabled ? 'Cam On' : 'Cam Off'}
-            onClick={onTogglePreJoinVideo}
-            disabled={isJoining}
-          />
-          <CallBarButton
-            active={sidePanel === 'settings'}
-            icon={Settings}
-            label="Settings"
-            onClick={onToggleSettings}
             disabled={false}
           />
         </div>
