@@ -688,6 +688,39 @@ async def handle_vision(ws: Any) -> None:
                 if result:
                     await send_json(ws, {"type": "vision_status", **result})
 
+            elif msg_type == "camera_list_devices":
+                result = await _dispatch_to_beast("camera.list_devices", {})
+                if result and result.get("success"):
+                    await send_json(ws, {
+                        "type": "camera_devices",
+                        "devices": result.get("devices", []),
+                        "selected_index": result.get("selected_index", 0),
+                    })
+                else:
+                    await send_json(ws, {
+                        "type": "camera_devices",
+                        "devices": [],
+                        "selected_index": 0,
+                        "error": result.get("error", "scan failed") if result else "dispatch failed",
+                    })
+
+            elif msg_type == "camera_select_device":
+                device_index = msg.get("device_index", 0)
+                result = await _dispatch_to_beast("camera.select_device", {
+                    "device_index": device_index,
+                })
+                if result and result.get("success"):
+                    await send_json(ws, {
+                        "type": "camera_device_selected",
+                        "device_index": result.get("device_index"),
+                        "restarted_stream": result.get("restarted_stream", False),
+                    })
+                else:
+                    await send_json(ws, {
+                        "type": "vision_error",
+                        "error": result.get("error", "select failed") if result else "dispatch failed",
+                    })
+
             elif msg_type == "camera_ptz_move":
                 request_id = msg.get("request_id", "")
                 delta = _direction_to_delta(msg.get("direction", ""), msg.get("speed", 1))

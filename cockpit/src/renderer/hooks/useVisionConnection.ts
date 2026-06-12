@@ -78,6 +78,7 @@ export function useVisionConnection(): void {
     let cameraStartDebounceTimer: ReturnType<typeof setTimeout> | null = null
     let lastBeastConnected: boolean | null = null
     let lastCameraStreaming: boolean | null = null
+    let lastDetectorDevice: string | null = null
 
     const profile = QUALITY_PROFILES[useVisionStore.getState().qualityMode]
 
@@ -113,6 +114,7 @@ export function useVisionConnection(): void {
         }
         client.requestSceneState()
         client.requestLabelCorrections()
+        client.listDevices()
         setPtzMotion({ state: 'idle', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
       }),
       client.on('disconnected', () => {
@@ -233,6 +235,27 @@ export function useVisionConnection(): void {
         if (corrections && Object.keys(corrections).length > 0) {
           useVisionStore.getState().mergeLabelCorrections(corrections)
         }
+      }),
+
+      // Device events
+      client.on('camera_devices', (d) => {
+        const devices = d.devices as Array<{ index: number; name: string; width: number; height: number; online: boolean; busy: boolean; selected: boolean }>
+        useVisionStore.getState().setCameraDevices(devices || [])
+        useVisionStore.getState().setSelectedDeviceIndex(d.selected_index as number || 0)
+        useVisionStore.getState().setDeviceScanLoading(false)
+        if (d.error) {
+          useVisionStore.getState().addNotification('warn', 'Device scan failed', 'camera', d.error as string)
+        }
+      }),
+      client.on('camera_device_selected', (d) => {
+        const idx = d.device_index as number
+        useVisionStore.getState().setSelectedDeviceIndex(idx)
+        useVisionStore.getState().addToast(`Camera switched to device ${idx}`, 'ok')
+        useVisionStore.getState().addNotification('info', 'Camera device changed', 'camera', `Now using device ${idx}`)
+        if (d.restarted_stream) {
+          useVisionStore.getState().addNotification('info', 'Stream restarted', 'camera', 'Stream restarted on new device')
+        }
+        client.listDevices()
       }),
 
       // Scene / tracking events
@@ -448,7 +471,20 @@ export function useVisionConnection(): void {
             tracker_active: detStatus.tracker_active as boolean ?? false,
             active_tracks: detStatus.active_tracks as number ?? 0,
             total_tracks: detStatus.total_tracks as number ?? 0,
+            device: detStatus.device as string | undefined,
           }
+          const device = detStatus.device as string | undefined
+          if (device && lastDetectorDevice !== null && lastDetectorDevice !== device) {
+            if (device === 'cpu' && lastDetectorDevice === 'cuda') {
+              addNotification('warn', 'GPU → CPU fallback', 'detector',
+                'YOLO inference fell back from CUDA to CPU — expect slower detection', 'check GPU', true)
+              addToast('Detector fell back to CPU', 'warning')
+            } else if (device === 'cuda' && lastDetectorDevice === 'cpu') {
+              addNotification('info', 'GPU inference restored', 'detector',
+                'YOLO inference now using CUDA GPU', 'monitoring')
+            }
+          }
+          if (device) lastDetectorDevice = device
         }
         updateChainHealth(healthUpdate)
       }),
@@ -504,6 +540,7 @@ export function useVisionConnection(): void {
             tracker_active: detStatus.tracker_active as boolean ?? false,
             active_tracks: detStatus.active_tracks as number ?? 0,
             total_tracks: detStatus.total_tracks as number ?? 0,
+            device: detStatus.device as string | undefined,
           } : null,
           blockers: (d.blockers as string[]) ?? [],
           recoveryAction: d.recovery_action as string ?? '',

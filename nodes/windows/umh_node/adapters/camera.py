@@ -34,10 +34,12 @@ class CameraAdapter:
         device_index: int = 0,
         presets_path: Path | None = None,
     ) -> None:
-        self._device_index = device_index
         self._presets_path = presets_path or _DEFAULT_PRESETS_PATH
         self._presets: dict[str, dict[str, Any]] = {}
         self._load_presets()
+
+        saved_device = self._load_device_preference()
+        self._device_index = saved_device if saved_device is not None else device_index
 
         self._stream_active = False
         self._stream_thread: threading.Thread | None = None
@@ -79,6 +81,7 @@ class CameraAdapter:
             "camera.stream_start": self._stream_start,
             "camera.stream_stop": self._stream_stop,
             "camera.list_devices": self._list_devices,
+            "camera.select_device": self._select_device,
             "camera.set_preset": self._set_preset,
             "camera.save_preset": self._save_preset,
             "camera.list_presets": self._list_presets,
@@ -307,9 +310,11 @@ class CameraAdapter:
                                 "host": "windows-desktop",
                                 "model": det_status["model"],
                                 "loaded": det_status["loaded"],
+                                "device": det_status.get("device", "cpu"),
                                 "inference_ms": det_status["last_inference_ms"],
                                 "avg_inference_ms": det_status["avg_inference_ms"],
                                 "detection_frames": det_status["frame_count"],
+                                "detect_interval": self._detect_min_interval,
                                 "tracker_active": det_status.get("tracker_active", False),
                                 "active_tracks": det_status.get("active_tracks", 0),
                             }
@@ -522,6 +527,7 @@ class CameraAdapter:
         label = params.get("label", name)
         analysis_hint = params.get("analysis_hint", "")
         mode = params.get("mode", "physical_ptz")
+        roi = params.get("roi")
 
         if not name:
             return {"success": False, "error": "preset name required"}
@@ -538,48 +544,144 @@ class CameraAdapter:
             tilt = pos["tilt"]
             zoom = pos["zoom"]
 
-        self._presets[name] = {
+        existing = self._presets.get(name, {})
+        now_ms = int(time.time() * 1000)
+        preset_data: dict[str, Any] = {
+            "id": existing.get("id", name),
             "label": label,
             "pan": pan,
             "tilt": tilt,
             "zoom": zoom,
             "mode": mode,
+            "device_id": self._device_index,
             "analysis_hint": analysis_hint,
+            "created_at": existing.get("created_at", now_ms),
+            "updated_at": now_ms,
         }
+        if roi and isinstance(roi, dict):
+            preset_data["roi"] = roi
+
+        self._presets[name] = preset_data
         self._save_presets_to_disk()
-        logger.info("saved preset '%s': pan=%s tilt=%s zoom=%s", name, pan, tilt, zoom)
+        logger.info("saved preset '%s': pan=%s tilt=%s zoom=%s device=%s", name, pan, tilt, zoom, self._device_index)
         return {
             "success": True,
             "preset": name,
             "pan": pan,
             "tilt": tilt,
             "zoom": zoom,
+            "device_id": self._device_index,
         }
 
     # ── Device enumeration ───────────────────────────────────────────
 
+    def _get_wmi_device_names(self) -> dict[int, str]:
+        """Get camera device names via Windows WMI. Returns {index: name}."""
+        names: dict[int, str] = {}
+        if sys.platform != "win32":
+            return names
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 "Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPClass -eq 'Camera' -or $_.PNPClass -eq 'Image' } | Select-Object -ExpandProperty Name"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0:
+                for idx, line in enumerate(result.stdout.strip().splitlines()):
+                    name = line.strip()
+                    if name:
+                        names[idx] = name
+        except Exception as exc:
+            logger.debug("WMI device name lookup failed: %s", exc)
+        return names
+
     def _list_devices(self, params: dict[str, Any]) -> dict[str, Any]:
         import cv2
 
+        wmi_names = self._get_wmi_device_names()
         devices = []
-        for i in range(5):
+        for i in range(8):
             cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
             if cap.isOpened():
                 w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                devices.append({"index": i, "width": w, "height": h})
+                busy = (self._stream_active and i == self._device_index)
+                devices.append({
+                    "index": i,
+                    "name": wmi_names.get(i, f"Camera {i}"),
+                    "width": w,
+                    "height": h,
+                    "online": True,
+                    "busy": busy,
+                    "selected": (i == self._device_index),
+                })
                 cap.release()
-        return {"success": True, "devices": devices}
+        return {
+            "success": True,
+            "devices": devices,
+            "selected_index": self._device_index,
+        }
+
+    def _select_device(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Select camera device by index. Restarts stream if active."""
+        new_index = params.get("device_index")
+        if new_index is None:
+            return {"success": False, "error": "device_index required"}
+        new_index = int(new_index)
+
+        import cv2
+        cap = cv2.VideoCapture(new_index, cv2.CAP_DSHOW)
+        if not cap.isOpened():
+            return {"success": False, "error": f"device {new_index} unavailable or in use"}
+        cap.release()
+
+        old_index = self._device_index
+        self._device_index = new_index
+        self._save_device_preference()
+        logger.info("camera device changed: %d -> %d", old_index, new_index)
+
+        if self._stream_active:
+            logger.info("restarting stream on new device %d", new_index)
+            self._stream_active = False
+            if self._stream_thread and self._stream_thread.is_alive():
+                self._stream_thread.join(timeout=3.0)
+            self._stream_start({
+                "device_index": new_index,
+                "fps": 2, "width": 640, "height": 480, "quality": 60,
+            })
+
+        return {"success": True, "device_index": new_index, "restarted_stream": self._stream_active}
+
+    def _save_device_preference(self) -> None:
+        pref_path = self._presets_path.parent / "device_preference.json"
+        try:
+            pref_path.parent.mkdir(parents=True, exist_ok=True)
+            pref_path.write_text(json.dumps({"device_index": self._device_index}))
+        except Exception as exc:
+            logger.warning("failed to save device preference: %s", exc)
+
+    def _load_device_preference(self) -> int | None:
+        pref_path = self._presets_path.parent / "device_preference.json"
+        try:
+            if pref_path.exists():
+                data = json.loads(pref_path.read_text())
+                return data.get("device_index")
+        except Exception as exc:
+            logger.debug("device preference load failed: %s", exc)
+        return None
 
     # ── Status ───────────────────────────────────────────────────────
 
     def _status(self, params: dict[str, Any]) -> dict[str, Any]:
+        det = self.get_detector_status()
         return {
             "success": True,
             "streaming": self._stream_active,
             "device_index": self._device_index,
             "presets_loaded": len(self._presets),
-            "detector": self.get_detector_status(),
+            "detector": det,
+            "detect_interval": round(self._detect_min_interval, 2),
         }
 
     def _detector_status(self, params: dict[str, Any]) -> dict[str, Any]:
