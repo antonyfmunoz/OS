@@ -3,17 +3,18 @@ import { clsx } from 'clsx'
 import {
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
   ZoomIn, ZoomOut, Home, Square,
-  Save, Camera, CameraOff, Aperture,
+  Camera, CameraOff, Aperture,
   PictureInPicture2, Maximize2, Minimize2, Circle,
   Keyboard, Monitor, BookOpen,
+  Trash2, RotateCcw, Pencil, Check, X, Plus,
 } from 'lucide-react'
 import {
   useVisionStore,
   QUALITY_PROFILES,
+  savePresetsToStorage,
   type QualityMode,
   type MotionState,
-  type StreamMetrics,
-  type ControlMetrics,
+  type CameraPreset,
 } from '../stores/visionStore'
 import { getVisionClient } from '../hooks/useVisionConnection'
 import { useVisionPopout } from './VisionPopout'
@@ -23,19 +24,21 @@ import { StatusHud } from './vision/StatusHud'
 import { CameraModeSelector } from './vision/CameraModeSelector'
 import { SceneInventory } from './vision/SceneInventory'
 import { DiagnosticsPanel } from './vision/DiagnosticsPanel'
+import { ToastContainer } from './vision/ToastContainer'
+import { NotificationCenter } from './vision/NotificationCenter'
 
 const QUALITY_LABELS: Record<QualityMode, string> = {
   smooth: 'Smooth',
   balanced: 'Balanced',
-  sharp: 'Sharp',
+  high: 'High',
   analysis: 'Analysis',
 }
 
 const QUALITY_DESCRIPTIONS: Record<QualityMode, string> = {
-  smooth: '720p 30fps',
-  balanced: '720p 15fps',
-  sharp: '1080p 10fps',
-  analysis: '1080p 1fps',
+  smooth: '720p 30fps — streaming',
+  balanced: '720p 15fps — default',
+  high: '1080p 10fps — detail',
+  analysis: '1080p 1fps — AI snapshot',
 }
 
 let _motionIdCounter = 0
@@ -43,17 +46,17 @@ function nextMotionId(): string {
   return `m_${++_motionIdCounter}_${Date.now()}`
 }
 
-const MOTION_UPDATE_INTERVAL_MS = 50
-const JOYSTICK_DEADZONE = 0.15
+const MOTION_UPDATE_INTERVAL_MS = 33
+const JOYSTICK_DEADZONE = 0.12
 
-// Default presets with icons
-const DEFAULT_PRESETS = [
-  { key: 'home', label: 'Home', icon: <Home size={14} /> },
-  { key: 'keyboard', label: 'Keyboard', icon: <Keyboard size={14} /> },
-  { key: 'monitor', label: 'Monitor', icon: <Monitor size={14} /> },
-  { key: 'desk', label: 'Desk', icon: <BookOpen size={14} /> },
-]
-const DEFAULT_PRESET_KEYS = new Set(DEFAULT_PRESETS.map((p) => p.key))
+const PRESET_ICONS: Record<string, React.ReactNode> = {
+  home: <Home size={14} />,
+  keyboard: <Keyboard size={14} />,
+  monitor: <Monitor size={14} />,
+  desk: <BookOpen size={14} />,
+}
+
+const DEFAULT_PRESET_KEYS = new Set(['home', 'keyboard', 'monitor', 'desk'])
 
 export function CameraController({ compact = false }: { compact?: boolean }) {
   const {
@@ -67,17 +70,18 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const controlsEnabled = connected && (chainHealth.beastConnected || chainHealth.commandPathReady)
   const overlayVisible = useVisionStore((s) => s.overlayVisible)
   const setOverlayVisible = useVisionStore((s) => s.setOverlayVisible)
-  const diagnosticOverlay = useVisionStore((s) => s.diagnosticOverlay)
-  const setDiagnosticOverlay = useVisionStore((s) => s.setDiagnosticOverlay)
   const width = useVisionStore((s) => s.width)
   const height = useVisionStore((s) => s.height)
   const setQualityMode = useVisionStore((s) => s.setQualityMode)
   const setCameraStatus = useVisionStore((s) => s.setCameraStatus)
   const setStreaming = useVisionStore((s) => s.setStreaming)
   const setActivePreset = useVisionStore((s) => s.setActivePreset)
+  const setPresets = useVisionStore((s) => s.setPresets)
   const setPtzMoving = useVisionStore((s) => s.setPtzMoving)
   const setPtzMotion = useVisionStore((s) => s.setPtzMotion)
   const updateControlMetrics = useVisionStore((s) => s.updateControlMetrics)
+  const addToast = useVisionStore((s) => s.addToast)
+  const addNotification = useVisionStore((s) => s.addNotification)
 
   const { openPopout } = useVisionPopout()
   const [expanded, setExpanded] = useState(false)
@@ -86,6 +90,11 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const [newPresetLabel, setNewPresetLabel] = useState('')
   const [speed, setSpeed] = useState(1)
   const [qualityOpen, setQualityOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [editingPreset, setEditingPreset] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ label: '', pan: 0, tilt: 0, zoom: 100, mode: 'physical_ptz' as string })
+  const [presetDiagOpen, setPresetDiagOpen] = useState(false)
+  const [lastPresetAction, setLastPresetAction] = useState('')
 
   const activeMotionIdRef = useRef<string>('')
   const motionUpdateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -96,6 +105,47 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const [isDragging, setIsDragging] = useState(false)
 
   const isActive = cameraStatus === 'live' || cameraStatus === 'connecting'
+  const previewRef = useRef<HTMLDivElement>(null)
+
+  // ── Scroll-wheel zoom on preview ───────────────────────────────
+  useEffect(() => {
+    const el = previewRef.current
+    if (!el) return
+    const handler = (e: WheelEvent) => {
+      e.preventDefault()
+      const client = getVisionClient()
+      if (!client?.connected || !controlsEnabled) return
+      const delta = e.deltaY < 0 ? 10 : -10
+      client.ptzRelative(0, 0, delta)
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
+  }, [controlsEnabled])
+
+  // ── Keyboard shortcuts for PTZ ─────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!controlsEnabled) return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const key = e.key.toLowerCase()
+      if (key === 'escape') { handleEmergencyStop(); return }
+      if (key === 'arrowup' || key === 'w') { e.preventDefault(); startDirectionMotion(0, 1); return }
+      if (key === 'arrowdown' || key === 's') { e.preventDefault(); startDirectionMotion(0, -1); return }
+      if (key === 'arrowleft' || key === 'a') { e.preventDefault(); startDirectionMotion(-1, 0); return }
+      if (key === 'arrowright' || key === 'd') { e.preventDefault(); startDirectionMotion(1, 0); return }
+      if (key === '=' || key === '+') { e.preventDefault(); getVisionClient()?.ptzRelative(0, 0, 10); return }
+      if (key === '-') { e.preventDefault(); getVisionClient()?.ptzRelative(0, 0, -10); return }
+    }
+    const upHandler = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(key)) {
+        stopDirectionMotion()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    window.addEventListener('keyup', upHandler)
+    return () => { window.removeEventListener('keydown', handler); window.removeEventListener('keyup', upHandler) }
+  }, [controlsEnabled, handleEmergencyStop, startDirectionMotion, stopDirectionMotion])
 
   // ── Emergency stop — window blur / visibility ───────────────────
 
@@ -160,6 +210,8 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
 
   // ── Realtime PTZ motion — press-and-hold D-pad ─────────────────
 
+  const lastSentVector = useRef({ pan: 0, tilt: 0 })
+
   const ensureUpdateTimer = useCallback(() => {
     if (motionUpdateTimerRef.current) return
     motionUpdateTimerRef.current = setInterval(() => {
@@ -167,14 +219,18 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
       const mid = activeMotionIdRef.current
       if (!client?.connected || !mid) return
       const v = joystickVelocity.current
+      const last = lastSentVector.current
+      if (Math.abs(v.pan - last.pan) < 0.02 && Math.abs(v.tilt - last.tilt) < 0.02) return
+      lastSentVector.current = { pan: v.pan, tilt: v.tilt }
       client.ptzUpdateMotion({
         motionId: mid,
         panVelocity: v.pan,
         tiltVelocity: v.tilt,
         speed,
       })
+      updateControlMetrics({ lastCommandSentAt: Date.now() })
     }, MOTION_UPDATE_INTERVAL_MS)
-  }, [speed])
+  }, [speed, updateControlMetrics])
 
   const startDirectionMotion = useCallback((panV: number, tiltV: number) => {
     const client = getVisionClient()
@@ -390,7 +446,8 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     stopZoomMotion()
     client.ptzStop()
     setPtzMoving(false)
-  }, [setPtzMoving, stopDirectionMotion, stopZoomMotion])
+    addNotification('warn', 'E-stop pressed', 'operator', 'Emergency stop — all PTZ motion halted', 'motion stopped')
+  }, [setPtzMoving, stopDirectionMotion, stopZoomMotion, addNotification])
 
   const handleQualityChange = useCallback((mode: QualityMode) => {
     setQualityMode(mode)
@@ -405,11 +462,100 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     const client = getVisionClient()
     if (!client?.connected) return
     const slug = newPresetName.trim().toLowerCase().replace(/\s+/g, '_')
-    client.savePreset(slug, newPresetLabel.trim() || newPresetName.trim())
+    const label = newPresetLabel.trim() || newPresetName.trim()
+    const pos = useVisionStore.getState().ptzPosition
+    const mode = useVisionStore.getState().chainHealth.ptzMode
+
+    client.savePreset(slug, label, { pan: pos.pan, tilt: pos.tilt, zoom: pos.zoom, mode })
+
+    const preset: CameraPreset = {
+      label, pan: pos.pan, tilt: pos.tilt, zoom: pos.zoom, mode,
+      created_at: Date.now(), updated_at: Date.now(),
+    }
+    const updated = { ...useVisionStore.getState().presets, [slug]: preset }
+    setPresets(updated)
+    savePresetsToStorage(updated)
     setSavingPreset(false)
     setNewPresetName('')
     setNewPresetLabel('')
-  }, [newPresetName, newPresetLabel])
+    setLastPresetAction(`create:${slug}:${Date.now()}`)
+    addNotification('info', 'Preset created', 'operator', `"${label}" at P:${pos.pan} T:${pos.tilt} Z:${pos.zoom} — awaiting Beast confirmation`)
+  }, [newPresetName, newPresetLabel, setPresets, addNotification])
+
+  const handleUpdatePreset = useCallback((name: string) => {
+    const client = getVisionClient()
+    if (!client?.connected) return
+    const pos = useVisionStore.getState().ptzPosition
+    const mode = useVisionStore.getState().chainHealth.ptzMode
+    const existing = useVisionStore.getState().presets[name]
+
+    client.savePreset(name, existing?.label || name, { pan: pos.pan, tilt: pos.tilt, zoom: pos.zoom, mode })
+
+    const preset: CameraPreset = {
+      ...existing, pan: pos.pan, tilt: pos.tilt, zoom: pos.zoom, mode,
+      updated_at: Date.now(),
+    }
+    const updated = { ...useVisionStore.getState().presets, [name]: preset }
+    setPresets(updated)
+    savePresetsToStorage(updated)
+    setLastPresetAction(`update:${name}:${Date.now()}`)
+    addNotification('info', 'Preset updated', 'operator', `"${existing?.label || name}" → P:${pos.pan} T:${pos.tilt} Z:${pos.zoom}`)
+  }, [setPresets, addNotification])
+
+  const handleDeletePreset = useCallback((name: string) => {
+    const current = useVisionStore.getState().presets
+    const label = current[name]?.label || name
+    getVisionClient()?.deletePresetOnDevice(name)
+    const updated = { ...current }
+    delete updated[name]
+    setPresets(updated)
+    savePresetsToStorage(updated)
+    if (activePreset === name) setActivePreset('')
+    setConfirmDelete(null)
+    setLastPresetAction(`delete:${name}:${Date.now()}`)
+    addNotification('warn', 'Preset deleted', 'operator', `"${label}" — awaiting Beast confirmation`)
+  }, [setPresets, setActivePreset, activePreset, addNotification])
+
+  const handleEditPreset = useCallback((name: string) => {
+    const p = useVisionStore.getState().presets[name]
+    if (!p) return
+    setEditForm({
+      label: p.label || name,
+      pan: p.pan ?? 0,
+      tilt: p.tilt ?? 0,
+      zoom: p.zoom ?? 100,
+      mode: p.mode || 'physical_ptz',
+    })
+    setEditingPreset(name)
+  }, [])
+
+  const handleEditSubmit = useCallback(() => {
+    if (!editingPreset) return
+    const client = getVisionClient()
+    if (!client?.connected) return
+
+    client.savePreset(editingPreset, editForm.label, {
+      pan: editForm.pan, tilt: editForm.tilt, zoom: editForm.zoom, mode: editForm.mode,
+    })
+
+    const updated = {
+      ...useVisionStore.getState().presets,
+      [editingPreset]: {
+        ...useVisionStore.getState().presets[editingPreset],
+        label: editForm.label,
+        pan: editForm.pan,
+        tilt: editForm.tilt,
+        zoom: editForm.zoom,
+        mode: editForm.mode as CameraPreset['mode'],
+        updated_at: Date.now(),
+      },
+    }
+    setPresets(updated)
+    savePresetsToStorage(updated)
+    setLastPresetAction(`edit:${editingPreset}:${Date.now()}`)
+    setEditingPreset(null)
+    addNotification('info', 'Preset edited', 'operator', `"${editForm.label}" → P:${editForm.pan} T:${editForm.tilt} Z:${editForm.zoom}`)
+  }, [editingPreset, editForm, setPresets, addNotification])
 
   const motionLabel = (state: MotionState): string => {
     const labels: Record<MotionState, string> = {
@@ -419,8 +565,27 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     return labels[state] || state
   }
 
-  // Merged presets: default presets first, then custom presets from store
-  const customPresets = Object.entries(presets).filter(([name]) => !DEFAULT_PRESET_KEYS.has(name))
+  // Sort presets: defaults first (in order), then custom by name
+  const defaultOrder = ['home', 'keyboard', 'monitor', 'desk']
+  const sortedPresets = Object.entries(presets).sort(([a], [b]) => {
+    const ai = defaultOrder.indexOf(a)
+    const bi = defaultOrder.indexOf(b)
+    if (ai >= 0 && bi >= 0) return ai - bi
+    if (ai >= 0) return -1
+    if (bi >= 0) return 1
+    return a.localeCompare(b)
+  })
+
+  // Check if current position differs from active preset
+  const activePresetData = activePreset ? presets[activePreset] : null
+  const isPresetModified = activePresetData && activePresetData.pan != null && (
+    activePresetData.pan !== ptzPosition.pan ||
+    activePresetData.tilt !== ptzPosition.tilt ||
+    activePresetData.zoom !== ptzPosition.zoom
+  )
+
+  // Preset sync status
+  const presetSyncStatus = Object.keys(presets).length > 0 ? 'synced' : connected ? 'loading' : 'offline'
 
   // ── Render ─────────────────────────────────────────────────────
 
@@ -443,11 +608,24 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
       )}
 
       {/* 2. Camera preview */}
-      <div className={clsx(
-        'relative rounded border overflow-hidden bg-black',
-        expanded ? 'flex-1 min-h-0' : 'aspect-video',
-        isActive ? 'border-danger/30' : 'border-border',
-      )}>
+      <div
+        ref={previewRef}
+        className={clsx(
+          'relative rounded border overflow-hidden bg-black',
+          expanded ? 'flex-1 min-h-0' : 'aspect-video',
+          isActive ? 'border-danger/30' : 'border-border',
+        )}
+        onDoubleClick={(e) => {
+          if (!controlsEnabled || !latestFrameUrl) return
+          const rect = e.currentTarget.getBoundingClientRect()
+          const nx = (e.clientX - rect.left) / rect.width
+          const ny = (e.clientY - rect.top) / rect.height
+          const panDelta = (nx - 0.5) * 40
+          const tiltDelta = -(ny - 0.5) * 40
+          getVisionClient()?.ptzRelative(panDelta, tiltDelta, 0)
+          addToast(`Pan to ${nx > 0.5 ? 'right' : 'left'}, ${ny > 0.5 ? 'down' : 'up'}`, 'cyan')
+        }}
+      >
         {latestFrameUrl ? (
           <>
             <img
@@ -460,7 +638,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                 transform: `scale(${chainHealth.roi.zoom})`,
               } : undefined}
             />
-            {/* OVR: only real AI overlays. DIAG synthetic boxes handled by VisionOverlay internally. */}
+            {/* OVR: real AI detections from Beast only */}
             <VisionOverlay
               overlays={overlays}
               width={width || 1280}
@@ -473,7 +651,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                 onClick={() => setQualityOpen(!qualityOpen)}
                 className="px-2 py-1 rounded-full bg-black/70 text-[10px] font-mono text-text-secondary backdrop-blur-sm hover:text-text-primary transition-colors"
               >
-                {QUALITY_LABELS[qualityMode]} · {streamMetrics.actualFps.toFixed(1)}fps · {Math.round(streamMetrics.avgFrameSize / 1024)}KB
+                {QUALITY_LABELS[qualityMode]} · {streamMetrics.actualFps.toFixed(1)}fps · {streamMetrics.bitrateKbps > 1024 ? `${(streamMetrics.bitrateKbps / 1024).toFixed(1)}Mbps` : `${streamMetrics.bitrateKbps}Kbps`}
               </button>
               {qualityOpen && (
                 <div className="absolute bottom-full right-0 mb-1 bg-surface border border-border rounded-lg p-2 shadow-lg flex flex-col gap-1 min-w-[120px]">
@@ -558,121 +736,212 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         <MobileBtn icon={<Square size={18} />} label="E-Stop" onClick={handleEmergencyStop} variant="danger" />
       </div>
 
-      {/* 5. OVR / DIAG toggles */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setOverlayVisible(!overlayVisible)}
-          className={clsx(
-            'flex-1 py-2.5 rounded text-xs font-mono text-center transition-colors flex flex-col items-center gap-0.5',
-            overlayVisible
-              ? 'bg-ok/20 text-ok border border-ok/30'
-              : 'bg-surface-hover text-text-tertiary border border-transparent',
-          )}
-          title="OVR = real AI object detection overlays only"
-        >
-          <span className="uppercase tracking-wider">OVR {overlayVisible ? 'on' : 'off'}</span>
-          <span className="text-[9px] opacity-70 normal-case">real detections only</span>
-        </button>
-        <button
-          onClick={() => {
-            const next = !diagnosticOverlay
-            setDiagnosticOverlay(next)
-            getVisionClient()?.setDiagnosticOverlay(next)
-          }}
-          className={clsx(
-            'flex-1 py-2.5 rounded text-xs font-mono text-center transition-colors flex flex-col items-center gap-0.5',
-            diagnosticOverlay
-              ? 'bg-warning/20 text-warning border border-warning/30'
-              : 'bg-surface-hover text-text-tertiary border border-transparent',
-          )}
-          title="DIAG = synthetic test boxes for pipeline verification only"
-        >
-          <span className="uppercase tracking-wider">DIAG {diagnosticOverlay ? 'on' : 'off'}</span>
-          <span className="text-[9px] opacity-70 normal-case">synthetic test boxes</span>
-        </button>
-      </div>
+      {/* 5. OVR toggle — real detections only */}
+      <button
+        onClick={() => setOverlayVisible(!overlayVisible)}
+        className={clsx(
+          'py-2.5 rounded text-xs font-mono text-center transition-colors flex flex-col items-center gap-0.5',
+          overlayVisible
+            ? 'bg-ok/20 text-ok border border-ok/30'
+            : 'bg-surface-hover text-text-tertiary border border-transparent',
+        )}
+      >
+        <span className="uppercase tracking-wider">OVR {overlayVisible ? 'on' : 'off'}</span>
+        <span className="text-[9px] opacity-70 normal-case">real detections only</span>
+      </button>
 
       {!compact && (
         <>
-          {/* 6. Presets — above PTZ controls */}
+          {/* 6. Presets — all presets from Beast, unified treatment */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">Presets</span>
-              <button
-                onClick={() => setSavingPreset(!savingPreset)}
-                className="flex items-center gap-1 text-[10px] font-mono text-text-tertiary hover:text-text-primary uppercase tracking-wider transition-colors"
-              >
-                <Save size={12} />
-                Save
-              </button>
-            </div>
-
-            {/* Default presets with icons */}
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-              {DEFAULT_PRESETS.map(({ key, label, icon }) => (
-                <button
-                  key={key}
-                  onClick={() => handlePreset(key)}
-                  disabled={!connected}
-                  className={clsx(
-                    'px-3 py-2.5 rounded-lg border text-xs font-mono flex items-center gap-1.5 transition-colors',
-                    activePreset === key
-                      ? 'bg-cyan/20 border-cyan/30 text-cyan'
-                      : 'bg-surface-hover border-border text-text-secondary hover:text-text-primary',
-                    !connected && 'opacity-50 cursor-not-allowed',
-                  )}
-                >
-                  {icon}
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* Custom presets from store (non-default) */}
-            {customPresets.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {customPresets.map(([name, preset]) => (
+              <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
+                Presets
+                {isPresetModified && (
+                  <span className="ml-1 text-warning">(modified)</span>
+                )}
+                <span className={clsx('ml-1', presetSyncStatus === 'synced' ? 'text-ok' : presetSyncStatus === 'loading' ? 'text-text-quaternary' : 'text-danger')}>
+                  · {presetSyncStatus}
+                </span>
+              </span>
+              <div className="flex items-center gap-2">
+                {isPresetModified && activePreset && (
                   <button
-                    key={name}
-                    onClick={() => handlePreset(name)}
-                    disabled={!connected}
-                    className={clsx(
-                      'px-3 py-2 rounded-lg border text-xs font-mono uppercase tracking-wider transition-colors',
-                      activePreset === name
-                        ? 'bg-cyan/20 text-cyan border-cyan/30'
-                        : 'bg-surface-hover text-text-secondary hover:text-text-primary border-border',
-                      !connected && 'opacity-50 cursor-not-allowed',
-                    )}
+                    onClick={() => handleUpdatePreset(activePreset)}
+                    className="flex items-center gap-1 px-2 py-1 rounded border border-warning/30 bg-warning/10 text-[10px] font-mono text-warning hover:bg-warning/20 uppercase tracking-wider transition-colors"
+                    title={`Update ${activePreset} to current position`}
                   >
-                    {preset.label || name}
+                    <RotateCcw size={10} />
+                    Update {presets[activePreset]?.label || activePreset}
                   </button>
-                ))}
+                )}
+                <button
+                  onClick={() => setSavingPreset(!savingPreset)}
+                  className="flex items-center gap-1 px-2 py-1 rounded border border-border bg-surface-hover text-[10px] font-mono text-text-tertiary hover:text-text-primary uppercase tracking-wider transition-colors"
+                >
+                  <Plus size={12} />
+                  New
+                </button>
               </div>
-            )}
+            </div>
+
+            {/* Unified preset grid — defaults + custom, all editable */}
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              {sortedPresets.map(([name, preset]) => {
+                const isThisActive = activePreset === name
+                const isDeleting = confirmDelete === name
+
+                if (isDeleting) {
+                  return (
+                    <div key={name} className="flex items-center gap-1 px-3 py-2.5 rounded-lg border border-danger/30 bg-danger/5 min-h-[48px]">
+                      <span className="text-[10px] font-mono text-danger truncate flex-1">Delete {preset.label || name}?</span>
+                      <button onClick={() => handleDeletePreset(name)} className="p-1 rounded text-danger hover:bg-danger/10"><Check size={12} /></button>
+                      <button onClick={() => setConfirmDelete(null)} className="p-1 rounded text-text-tertiary hover:bg-surface-hover"><X size={12} /></button>
+                    </div>
+                  )
+                }
+
+                return (
+                  <PresetBtn
+                    key={name}
+                    label={preset.label || name}
+                    icon={PRESET_ICONS[name]}
+                    active={isThisActive}
+                    modified={isThisActive && !!isPresetModified}
+                    disabled={!connected}
+                    onClick={() => handlePreset(name)}
+                    onEdit={() => handleEditPreset(name)}
+                    onUpdate={() => handleUpdatePreset(name)}
+                    onDelete={() => setConfirmDelete(name)}
+                    editable
+                  />
+                )
+              })}
+            </div>
 
             {savingPreset && (
-              <div className="flex items-center gap-1.5 p-2 rounded border border-border bg-surface-hover">
+              <div className="flex items-center gap-1.5 p-2 rounded-lg border border-border bg-surface-hover">
                 <input
                   type="text"
                   value={newPresetName}
                   onChange={(e) => setNewPresetName(e.target.value)}
-                  placeholder="Slug"
+                  placeholder="Name (slug)"
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSavePreset() }}
                   className="flex-1 px-2 py-1.5 rounded bg-surface border border-border text-xs font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-cyan/50"
                 />
                 <input
                   type="text"
                   value={newPresetLabel}
                   onChange={(e) => setNewPresetLabel(e.target.value)}
-                  placeholder="Label"
+                  placeholder="Display label"
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSavePreset() }}
                   className="flex-1 px-2 py-1.5 rounded bg-surface border border-border text-xs font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-cyan/50"
                 />
                 <button
                   onClick={handleSavePreset}
                   disabled={!newPresetName.trim()}
-                  className="px-3 py-1.5 rounded bg-cyan/10 text-cyan text-xs font-mono uppercase tracking-wider hover:bg-cyan/20 disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-lg border border-ok/30 bg-ok/10 text-ok text-xs font-mono uppercase tracking-wider hover:bg-ok/20 disabled:opacity-50 transition-colors"
                 >
                   Save
                 </button>
+                <button
+                  onClick={() => { setSavingPreset(false); setNewPresetName(''); setNewPresetLabel('') }}
+                  className="px-2 py-1.5 rounded text-text-tertiary hover:text-text-primary text-xs"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* Edit preset modal */}
+            {editingPreset && (
+              <div className="p-3 rounded-lg border border-cyan/30 bg-surface flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-cyan uppercase tracking-wider">Edit Preset: {editingPreset}</span>
+                  <button onClick={() => setEditingPreset(null)} className="p-1 rounded text-text-tertiary hover:text-text-primary"><X size={14} /></button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[9px] font-mono text-text-quaternary uppercase">Label</label>
+                    <input type="text" value={editForm.label} onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))}
+                      className="px-2 py-1.5 rounded bg-surface-hover border border-border text-xs font-mono text-text-primary focus:outline-none focus:border-cyan/50" />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[9px] font-mono text-text-quaternary uppercase">Mode</label>
+                    <select value={editForm.mode} onChange={(e) => setEditForm((f) => ({ ...f, mode: e.target.value }))}
+                      className="px-2 py-1.5 rounded bg-surface-hover border border-border text-xs font-mono text-text-primary focus:outline-none focus:border-cyan/50">
+                      <option value="physical_ptz">Physical PTZ</option>
+                      <option value="digital_roi">Digital ROI</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[9px] font-mono text-text-quaternary uppercase">Pan</label>
+                    <input type="number" value={editForm.pan} onChange={(e) => setEditForm((f) => ({ ...f, pan: parseInt(e.target.value) || 0 }))}
+                      className="px-2 py-1.5 rounded bg-surface-hover border border-border text-xs font-mono text-text-primary focus:outline-none focus:border-cyan/50" />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[9px] font-mono text-text-quaternary uppercase">Tilt</label>
+                    <input type="number" value={editForm.tilt} onChange={(e) => setEditForm((f) => ({ ...f, tilt: parseInt(e.target.value) || 0 }))}
+                      className="px-2 py-1.5 rounded bg-surface-hover border border-border text-xs font-mono text-text-primary focus:outline-none focus:border-cyan/50" />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[9px] font-mono text-text-quaternary uppercase">Zoom</label>
+                    <input type="number" value={editForm.zoom} onChange={(e) => setEditForm((f) => ({ ...f, zoom: parseInt(e.target.value) || 100 }))}
+                      className="px-2 py-1.5 rounded bg-surface-hover border border-border text-xs font-mono text-text-primary focus:outline-none focus:border-cyan/50" />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[9px] font-mono text-text-quaternary uppercase">Current PTZ</label>
+                    <span className="px-2 py-1.5 text-[10px] font-mono text-text-tertiary">
+                      P:{ptzPosition.pan} T:{ptzPosition.tilt} Z:{ptzPosition.zoom}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <button onClick={() => setEditForm((f) => ({ ...f, pan: ptzPosition.pan, tilt: ptzPosition.tilt, zoom: ptzPosition.zoom }))}
+                    className="px-3 py-1.5 rounded border border-border bg-surface-hover text-[10px] font-mono text-text-secondary hover:text-text-primary uppercase tracking-wider transition-colors">
+                    Use Current Position
+                  </button>
+                  <button onClick={handleEditSubmit} disabled={!editForm.label.trim()}
+                    className="px-3 py-1.5 rounded border border-ok/30 bg-ok/10 text-ok text-[10px] font-mono uppercase tracking-wider hover:bg-ok/20 disabled:opacity-50 transition-colors">
+                    Save Changes
+                  </button>
+                  <button onClick={() => { handleDeletePreset(editingPreset); setEditingPreset(null) }}
+                    className="px-3 py-1.5 rounded border border-danger/30 bg-danger/10 text-danger text-[10px] font-mono uppercase tracking-wider hover:bg-danger/20 transition-colors">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Preset diagnostics */}
+            <button onClick={() => setPresetDiagOpen(!presetDiagOpen)}
+              className="text-[9px] font-mono text-text-quaternary hover:text-text-tertiary uppercase tracking-wider text-left">
+              {presetDiagOpen ? '▼' : '▶'} preset diagnostics
+            </button>
+            {presetDiagOpen && (
+              <div className="p-2 rounded border border-border bg-surface-hover/30 text-[10px] font-mono grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <span className="text-text-quaternary">selected</span>
+                <span className="text-text-secondary">{activePreset || '—'}</span>
+                <span className="text-text-quaternary">current ptz</span>
+                <span className="text-text-secondary">P:{ptzPosition.pan} T:{ptzPosition.tilt} Z:{ptzPosition.zoom}</span>
+                {activePresetData && (
+                  <>
+                    <span className="text-text-quaternary">saved ptz</span>
+                    <span className="text-text-secondary">P:{activePresetData.pan ?? '?'} T:{activePresetData.tilt ?? '?'} Z:{activePresetData.zoom ?? '?'}</span>
+                    <span className="text-text-quaternary">modified</span>
+                    <span className={isPresetModified ? 'text-warning' : 'text-ok'}>{isPresetModified ? 'true' : 'false'}</span>
+                    <span className="text-text-quaternary">mode</span>
+                    <span className="text-text-secondary">{activePresetData.mode || 'physical_ptz'}</span>
+                  </>
+                )}
+                <span className="text-text-quaternary">total presets</span>
+                <span className="text-text-secondary">{Object.keys(presets).length}</span>
+                <span className="text-text-quaternary">sync status</span>
+                <span className={clsx(presetSyncStatus === 'synced' ? 'text-ok' : 'text-danger')}>{presetSyncStatus}</span>
+                <span className="text-text-quaternary">last action</span>
+                <span className="text-text-secondary truncate">{lastPresetAction || '—'}</span>
+                <span className="text-text-quaternary">backend path</span>
+                <span className="text-text-tertiary text-[9px]">C:\ProgramData\UMH\camera_presets.json</span>
               </div>
             )}
           </div>
@@ -811,7 +1080,6 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             speed={speed}
             overlays={overlays}
             overlayVisible={overlayVisible}
-            diagnosticOverlay={diagnosticOverlay}
             connected={connected}
             streaming={streaming}
             streamMetrics={streamMetrics}
@@ -819,14 +1087,17 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
             qualityMode={qualityMode}
           />
 
-          {/* 11. TrackingPanel */}
+          {/* 11. Notification center — security/governance events */}
+          <NotificationCenter />
+
+          {/* 12. TrackingPanel */}
           <div className="border-t border-border pt-3">
             <TrackingPanel />
           </div>
         </>
       )}
 
-      {/* 12. Connection status bar */}
+      {/* 13. Connection status bar */}
       <div className="flex items-center gap-2 text-xs font-mono text-text-tertiary">
         <span className={clsx(
           'w-2 h-2 rounded-full',
@@ -840,6 +1111,8 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
           {error}
         </div>
       )}
+
+      <ToastContainer />
     </div>
   )
 }
@@ -920,6 +1193,55 @@ function ZoomBtn({
     >
       {icon}
     </button>
+  )
+}
+
+// ── Unified preset button — same treatment for default + custom ─────
+
+function PresetBtn({
+  label, icon, active, modified, disabled, onClick,
+  onRename, onUpdate, onDelete, onEdit, editable,
+}: {
+  label: string
+  icon?: React.ReactNode
+  active: boolean
+  modified: boolean
+  disabled: boolean
+  onClick: () => void
+  onRename?: () => void
+  onUpdate?: () => void
+  onDelete?: () => void
+  onEdit?: () => void
+  editable?: boolean
+}) {
+  return (
+    <div
+      className={clsx(
+        'group relative flex items-center gap-1.5 px-3 py-2.5 rounded-lg border text-xs font-mono transition-colors min-h-[48px]',
+        active
+          ? modified
+            ? 'bg-warning/10 text-warning border-warning/30'
+            : 'bg-cyan/20 text-cyan border-cyan/30'
+          : 'bg-surface-hover text-text-secondary hover:text-text-primary border-border',
+        disabled && 'opacity-50 cursor-not-allowed',
+      )}
+    >
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className="flex items-center gap-1.5 flex-1 text-left truncate uppercase tracking-wider"
+      >
+        {icon}
+        {label}
+      </button>
+      {editable && (
+        <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+          {onEdit && <button onClick={(e) => { e.stopPropagation(); onEdit() }} className="p-0.5 rounded text-text-quaternary hover:text-cyan" title="Edit preset"><Pencil size={10} /></button>}
+          {onUpdate && <button onClick={(e) => { e.stopPropagation(); onUpdate() }} className="p-0.5 rounded text-text-quaternary hover:text-warning" title="Update position"><RotateCcw size={10} /></button>}
+          {onDelete && <button onClick={(e) => { e.stopPropagation(); onDelete() }} className="p-0.5 rounded text-text-quaternary hover:text-danger" title="Delete"><Trash2 size={10} /></button>}
+        </div>
+      )}
+    </div>
   )
 }
 

@@ -4,6 +4,8 @@ import {
   useVisionStore,
   QUALITY_PROFILES,
   shouldAutoStartCamera,
+  loadPresetsFromStorage,
+  savePresetsToStorage,
   type CameraPreset,
   type TrackedObjectState,
   type WatchItemState,
@@ -53,6 +55,9 @@ export function useVisionConnection(): void {
   const updateControlMetrics = useVisionStore((s) => s.updateControlMetrics)
   const setViewerCount = useVisionStore((s) => s.setViewerCount)
   const setCameraSessionActive = useVisionStore((s) => s.setCameraSessionActive)
+  const recordLatency = useVisionStore((s) => s.recordLatency)
+  const addNotification = useVisionStore((s) => s.addNotification)
+  const addToast = useVisionStore((s) => s.addToast)
   const reset = useVisionStore((s) => s.reset)
 
   const metricsInterval = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -71,6 +76,8 @@ export function useVisionConnection(): void {
     let cameraStartedInSession = false
     let connectedAt = 0
     let cameraStartDebounceTimer: ReturnType<typeof setTimeout> | null = null
+    let lastBeastConnected: boolean | null = null
+    let lastCameraStreaming: boolean | null = null
 
     const profile = QUALITY_PROFILES[useVisionStore.getState().qualityMode]
 
@@ -80,6 +87,7 @@ export function useVisionConnection(): void {
         setConnected(true)
         setCameraSessionActive(true)
         setError(null)
+        addNotification('info', 'Vision relay connected', 'relay', 'WebSocket connection established', 'monitoring')
         client.requestPresets()
         client.requestStatus()
         client.requestPosition()
@@ -104,6 +112,7 @@ export function useVisionConnection(): void {
           }, 800)
         }
         client.requestSceneState()
+        client.requestLabelCorrections()
         setPtzMotion({ state: 'idle', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
       }),
       client.on('disconnected', () => {
@@ -115,12 +124,11 @@ export function useVisionConnection(): void {
         setCameraStatus('off')
         setStreaming(false)
         setCameraSessionActive(false)
-        // Reset so camera restarts after a genuine reconnect (relay restart, network recovery).
-        // Rapid flaps are absorbed by the 800ms debounce on next connect.
         cameraStartedInSession = false
         connectedAt = 0
         setPtzMotion({ state: 'disconnected', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
         updateChainHealth({ status: 'relay_offline', relayRunning: false, cockpitConnected: false, blockers: ['WebSocket disconnected from vision relay'], recoveryAction: 'reconnecting automatically' })
+        addNotification('warn', 'Vision relay disconnected', 'relay', 'WebSocket connection lost — reconnecting', 'auto-reconnect', true)
       }),
       client.on('vision_frame', (d) => {
         setLatestFrame(d.url as string, d.timestamp as number)
@@ -132,7 +140,24 @@ export function useVisionConnection(): void {
         setCameraStatus(isStreaming ? 'live' : 'off')
       }),
       client.on('camera_presets', (d) => {
-        setPresets(d.presets as Record<string, CameraPreset>)
+        const fromBeast = d.presets as Record<string, CameraPreset>
+        const fromStorage = loadPresetsFromStorage()
+        const merged: Record<string, CameraPreset> = {}
+        for (const [key, beastPreset] of Object.entries(fromBeast)) {
+          const local = fromStorage[key]
+          merged[key] = {
+            ...local,
+            ...beastPreset,
+            mode: beastPreset.mode || local?.mode || 'physical_ptz',
+            created_at: local?.created_at,
+            updated_at: local?.updated_at,
+          }
+        }
+        for (const [key, local] of Object.entries(fromStorage)) {
+          if (!merged[key]) merged[key] = local
+        }
+        setPresets(merged)
+        savePresetsToStorage(merged)
       }),
       client.on('camera_position', (d) => {
         setPtzPosition({
@@ -173,11 +198,41 @@ export function useVisionConnection(): void {
         }
       }),
       client.on('vision_error', (d) => {
-        setError(d.error as string)
+        const errMsg = d.error as string
+        setError(errMsg)
         setTimeout(() => setError(null), 5000)
+        addNotification('warn', 'Vision error', 'relay', errMsg, 'check diagnostics')
       }),
-      client.on('preset_saved', () => {
+      client.on('preset_saved', (d) => {
         client.requestPresets()
+        const presetName = d.preset as string
+        const pan = d.pan as number | undefined
+        const tilt = d.tilt as number | undefined
+        const zoom = d.zoom as number | undefined
+        if (presetName) {
+          const posStr = pan != null ? ` (P:${pan} T:${tilt} Z:${zoom})` : ''
+          useVisionStore.getState().addToast(`"${presetName}" saved to Beast${posStr}`, 'ok')
+        }
+      }),
+      client.on('preset_deleted', (d) => {
+        client.requestPresets()
+        const presetName = d.preset as string
+        if (presetName) {
+          useVisionStore.getState().addToast(`"${presetName}" deleted from Beast`, 'warning')
+        }
+      }),
+      client.on('label_corrected', (d) => {
+        const trackId = d.track_id as string
+        const corrected = d.corrected_label as string
+        if (trackId && corrected) {
+          useVisionStore.getState().addToast(`Label correction synced to detector: "${corrected}"`, 'ok')
+        }
+      }),
+      client.on('label_corrections_list', (d) => {
+        const corrections = d.corrections as Record<string, string> | undefined
+        if (corrections && Object.keys(corrections).length > 0) {
+          useVisionStore.getState().mergeLabelCorrections(corrections)
+        }
       }),
 
       // Scene / tracking events
@@ -286,6 +341,15 @@ export function useVisionConnection(): void {
             actions_taken: (d.actions_taken as string[]) || [],
             requires_review: d.requires_review as boolean || false,
           })
+          const isActive = d.active as boolean
+          if (isActive) {
+            addNotification('critical', 'Security mode activated', d.triggered_by as string || 'system',
+              `Mode: ${d.mode || 'unknown'} | Risk: ${d.risk || 'unknown'}`,
+              (d.actions_taken as string[] || []).join(', ') || 'monitoring', true)
+            addToast(`Security mode: ${d.mode || 'activated'}`, 'danger')
+          } else {
+            addNotification('info', 'Security mode deactivated', 'operator', 'Security mode returned to normal', 'none')
+          }
         }
         client.requestSecurityState()
       }),
@@ -327,13 +391,22 @@ export function useVisionConnection(): void {
       }),
       client.on('ptz_motion_ack', (d) => {
         const op = d.operation as string
+        const now = Date.now()
         if (op === 'stop_motion' || op === 'zoom_stop') {
           const sentAt = useVisionStore.getState().controlMetrics.lastStopSentAt
           if (sentAt > 0) {
-            updateControlMetrics({ lastStopAckedAt: Date.now(), stopLatencyMs: Date.now() - sentAt })
+            const rtt = now - sentAt
+            updateControlMetrics({ lastStopAckedAt: now, stopLatencyMs: rtt })
+            recordLatency({ commandId: d.request_id as string || '', sentAt, ackedAt: now, roundTripMs: rtt, operation: op })
           }
           setPtzMotion({ state: 'idle', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
           setPtzMoving(false)
+        } else if (op === 'start_motion' || op === 'zoom_start') {
+          const sentAt = useVisionStore.getState().controlMetrics.lastCommandSentAt
+          if (sentAt > 0) {
+            const rtt = now - sentAt
+            recordLatency({ commandId: d.request_id as string || '', sentAt, ackedAt: now, roundTripMs: rtt, operation: op })
+          }
         }
       }),
 
@@ -380,8 +453,28 @@ export function useVisionConnection(): void {
         updateChainHealth(healthUpdate)
       }),
 
-      // Health chain events
+      // Health chain events — emit notifications on state transitions
       client.on('vision_health', (d) => {
+        const beastNow = d.beast_connected as boolean ?? false
+        const cameraNow = d.camera_streaming as boolean ?? false
+        if (lastBeastConnected !== null && lastBeastConnected !== beastNow) {
+          if (beastNow) {
+            addNotification('info', 'Beast online', 'mesh', 'Beast node connected to vision relay', 'monitoring')
+          } else {
+            addNotification('critical', 'Beast offline', 'mesh', 'Beast node disconnected — camera commands unavailable', 'check Beast', true)
+            addToast('Beast offline — camera commands unavailable', 'danger')
+          }
+        }
+        if (lastCameraStreaming !== null && lastCameraStreaming !== cameraNow) {
+          if (cameraNow) {
+            addNotification('info', 'Camera stream started', 'camera', 'Camera is now streaming frames', 'monitoring')
+          } else {
+            addNotification('warn', 'Camera stream stopped', 'camera', 'Camera is no longer streaming', 'check camera')
+          }
+        }
+        lastBeastConnected = beastNow
+        lastCameraStreaming = cameraNow
+
         const detStatus = d.detector_status as Record<string, unknown> | null
         updateChainHealth({
           status: (d.status as VisionChainStatus) || 'degraded',
@@ -426,16 +519,34 @@ export function useVisionConnection(): void {
     // Metrics polling + stale detection — 1s
     const STALE_FRAME_MS = 15000
     const STALE_OVERLAY_MS = 5000
+    let lastMetricFrameCount = 0
+    let lastMetricTime = Date.now()
     metricsInterval.current = setInterval(() => {
       if (!client.connected) return
       const state = useVisionStore.getState()
       const lastFrame = state.latestFrameAt
       const frameAge = lastFrame ? Date.now() - lastFrame : 0
+      const fps = client.measuredFps
+      const avgSize = client.avgFrameSize
+      const bitrateKbps = Math.round((fps * avgSize * 8) / 1024)
+
+      const currentFrameCount = client.frameCount
+      const now = Date.now()
+      const elapsed = (now - lastMetricTime) / 1000
+      const targetFps = QUALITY_PROFILES[state.qualityMode].fps
+      const expectedFrames = elapsed * targetFps
+      const actualFrames = currentFrameCount - lastMetricFrameCount
+      const dropped = Math.max(0, Math.round(expectedFrames - actualFrames))
+      lastMetricFrameCount = currentFrameCount
+      lastMetricTime = now
+
       updateStreamMetrics({
-        actualFps: client.measuredFps,
-        targetFps: QUALITY_PROFILES[state.qualityMode].fps,
-        avgFrameSize: client.avgFrameSize,
+        actualFps: fps,
+        targetFps,
+        avgFrameSize: avgSize,
+        bitrateKbps,
         lastFrameAge: frameAge,
+        droppedFrames: state.streamMetrics.droppedFrames + dropped,
       })
       if (lastFrame && frameAge > STALE_FRAME_MS && state.streaming) {
         setStreaming(false)

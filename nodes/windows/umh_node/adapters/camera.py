@@ -47,7 +47,8 @@ class CameraAdapter:
         self._ptz_queue: queue.Queue[tuple[dict[str, Any], threading.Event, list]] = queue.Queue()
 
         self._detector = None
-        self._detect_every_n = 3
+        self._detect_min_interval = 0.5
+        self._detect_last_at = 0.0
         self._detection_enabled = True
         self._init_detector()
 
@@ -89,6 +90,9 @@ class CameraAdapter:
             "camera.scene_describe": self._scene_describe,
             "camera.track_query": self._track_query,
             "camera.active_tracks": self._active_tracks,
+            "camera.delete_preset": self._delete_preset,
+            "camera.correct_label": self._correct_label,
+            "camera.label_corrections": self._label_corrections_list,
         }
         handler = ops.get(operation)
         if handler is None:
@@ -280,14 +284,23 @@ class CameraAdapter:
                         "size_bytes": len(buf),
                     }
 
+                    now_mono = time.monotonic()
+                    detect_due = (now_mono - self._detect_last_at) >= self._detect_min_interval
                     if (self._detection_enabled
                             and self._detector is not None
                             and self._detector.loaded
-                            and frame_n % self._detect_every_n == 0):
+                            and detect_due):
                         try:
                             detections = self._detector.detect(frame)
+                            infer_ms = self._detector._last_inference_ms
+                            self._detect_last_at = time.monotonic()
+                            if infer_ms > 400:
+                                self._detect_min_interval = min(self._detect_min_interval * 1.5, 5.0)
+                                logger.info("detection backpressure: inference %.0fms, interval now %.2fs", infer_ms, self._detect_min_interval)
+                            elif infer_ms < 150 and self._detect_min_interval > 0.5:
+                                self._detect_min_interval = max(self._detect_min_interval * 0.8, 0.5)
                             if frame_n % 45 == 0:
-                                logger.info("detection frame %d: %d objects found", frame_n, len(detections))
+                                logger.info("detection frame %d: %d objects, %.0fms, interval %.2fs", frame_n, len(detections), infer_ms, self._detect_min_interval)
                             det_status = self._detector.get_status()
                             payload["detector_status"] = {
                                 "source": "beast",
@@ -508,29 +521,39 @@ class CameraAdapter:
         name = params.get("preset", "")
         label = params.get("label", name)
         analysis_hint = params.get("analysis_hint", "")
+        mode = params.get("mode", "physical_ptz")
 
         if not name:
             return {"success": False, "error": "preset name required"}
 
-        pos = self._get_position({})
-        if not pos["success"]:
-            return pos
+        if params.get("pan") is not None and params.get("tilt") is not None:
+            pan = int(params["pan"])
+            tilt = int(params["tilt"])
+            zoom = int(params.get("zoom", 100))
+        else:
+            pos = self._get_position({})
+            if not pos["success"]:
+                return pos
+            pan = pos["pan"]
+            tilt = pos["tilt"]
+            zoom = pos["zoom"]
 
         self._presets[name] = {
             "label": label,
-            "pan": pos["pan"],
-            "tilt": pos["tilt"],
-            "zoom": pos["zoom"],
+            "pan": pan,
+            "tilt": tilt,
+            "zoom": zoom,
+            "mode": mode,
             "analysis_hint": analysis_hint,
         }
         self._save_presets_to_disk()
-        logger.info("saved preset '%s': pan=%s tilt=%s zoom=%s", name, pos["pan"], pos["tilt"], pos["zoom"])
+        logger.info("saved preset '%s': pan=%s tilt=%s zoom=%s", name, pan, tilt, zoom)
         return {
             "success": True,
             "preset": name,
-            "pan": pos["pan"],
-            "tilt": pos["tilt"],
-            "zoom": pos["zoom"],
+            "pan": pan,
+            "tilt": tilt,
+            "zoom": zoom,
         }
 
     # ── Device enumeration ───────────────────────────────────────────
@@ -583,35 +606,66 @@ class CameraAdapter:
             return {"success": False, "error": "detector not initialized"}
         return {"success": True, "tracks": self._detector.get_active_tracks()}
 
+    def _delete_preset(self, params: dict[str, Any]) -> dict[str, Any]:
+        name = params.get("preset", "")
+        if not name:
+            return {"success": False, "error": "preset name required"}
+        if name not in self._presets:
+            return {"success": False, "error": f"unknown preset: {name}"}
+        del self._presets[name]
+        self._save_presets_to_disk()
+        logger.info("deleted preset '%s'", name)
+        return {"success": True, "preset": name}
+
+    def _correct_label(self, params: dict[str, Any]) -> dict[str, Any]:
+        track_id = params.get("track_id", "")
+        corrected = params.get("corrected_label", "")
+        if not track_id or not corrected:
+            return {"success": False, "error": "track_id and corrected_label required"}
+        if self._detector is None:
+            return {"success": False, "error": "detector not initialized"}
+        self._detector.correct_label(str(track_id), corrected)
+        logger.info("label correction: track %s → '%s'", track_id, corrected)
+        return {"success": True, "track_id": track_id, "corrected_label": corrected}
+
+    def _label_corrections_list(self, params: dict[str, Any]) -> dict[str, Any]:
+        if self._detector is None:
+            return {"success": False, "error": "detector not initialized"}
+        return {"success": True, "corrections": self._detector.get_label_corrections()}
+
 
 def _default_presets() -> dict[str, dict[str, Any]]:
     return {
-        "operator": {
-            "label": "Look at me",
+        "home": {
+            "label": "Home",
             "pan": 0,
             "tilt": 0,
             "zoom": 100,
+            "mode": "physical_ptz",
             "analysis_hint": "operator face, posture, presence",
         },
         "keyboard": {
-            "label": "Look at my keyboard",
+            "label": "Keyboard",
             "pan": 0,
             "tilt": -45,
             "zoom": 150,
+            "mode": "physical_ptz",
             "analysis_hint": "hands, keyboard, desk interaction",
         },
+        "monitor": {
+            "label": "Monitor",
+            "pan": 0,
+            "tilt": 0,
+            "zoom": 130,
+            "mode": "physical_ptz",
+            "analysis_hint": "screen content, monitor state",
+        },
         "desk": {
-            "label": "Look at the desk",
+            "label": "Desk",
             "pan": 0,
             "tilt": -30,
             "zoom": 120,
+            "mode": "physical_ptz",
             "analysis_hint": "desk objects, workspace state",
-        },
-        "room": {
-            "label": "Watch the room",
-            "pan": 0,
-            "tilt": 0,
-            "zoom": 100,
-            "analysis_hint": "general room awareness",
         },
     }

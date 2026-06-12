@@ -148,6 +148,7 @@ export type VisionEvent =
   | { type: 'ptz_motion_ack'; motion_id: string; operation: string; ok: boolean }
   | { type: 'camera_session_state'; active: boolean; viewer_count: number }
   | { type: 'vision_overlay'; overlays: Array<{ type: string; track_id: string; label: string; confidence: number; bbox: { x: number; y: number; w: number; h: number }; landmarks?: Array<{ x: number; y: number; label?: string }>; connections?: Array<[number, number]>; color?: string }> }
+  | { type: 'label_corrections_list'; corrections: Record<string, string> }
 
 function getVisionProtocols(): string[] {
   const token = import.meta.env.VITE_VISION_TOKEN as string | undefined
@@ -289,9 +290,28 @@ export class VisionWsClient {
     this.ws.send('camera_preset', { preset, smooth, duration, request_id: nextRequestId() })
   }
 
-  savePreset(preset: string, label: string, analysisHint = ''): void {
-    log('camera_save_preset', { preset, label })
-    this.ws.send('camera_save_preset', { preset, label, analysis_hint: analysisHint, request_id: nextRequestId() })
+  savePreset(preset: string, label: string, opts: { pan?: number; tilt?: number; zoom?: number; mode?: string; analysisHint?: string } = {}): void {
+    log('camera_save_preset', { preset, label, ...opts })
+    this.ws.send('camera_save_preset', {
+      preset,
+      label,
+      pan: opts.pan,
+      tilt: opts.tilt,
+      zoom: opts.zoom,
+      mode: opts.mode ?? 'physical_ptz',
+      analysis_hint: opts.analysisHint ?? '',
+      request_id: nextRequestId(),
+    })
+  }
+
+  deletePresetOnDevice(preset: string): void {
+    log('camera_delete_preset', { preset })
+    this.ws.send('camera_delete_preset', { preset, request_id: nextRequestId() })
+  }
+
+  correctLabel(trackId: string, correctedLabel: string, rawLabel: string): void {
+    log('vision_correct_label', { trackId, correctedLabel, rawLabel })
+    this.ws.send('vision_correct_label', { track_id: trackId, corrected_label: correctedLabel, raw_label: rawLabel })
   }
 
   requestSnapshot(opts: { width?: number; height?: number; quality?: number } = {}): void {
@@ -318,6 +338,10 @@ export class VisionWsClient {
 
   requestHealth(): void {
     this.ws.send('vision_health')
+  }
+
+  requestLabelCorrections(): void {
+    this.ws.send('vision_get_label_corrections')
   }
 
   // ── PTZ control ─────────────────────────────────────────────────

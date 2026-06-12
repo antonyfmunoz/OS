@@ -70,11 +70,14 @@ export interface CameraPreset {
   zoom?: number
   mode?: 'physical_ptz' | 'digital_roi'
   analysis_hint?: string
+  roi?: { x: number; y: number; zoom: number }
+  created_at?: number
+  updated_at?: number
 }
 
 export type AnalysisStatus = 'idle' | 'capturing' | 'analyzing' | 'complete' | 'error'
 
-export type QualityMode = 'smooth' | 'balanced' | 'sharp' | 'analysis'
+export type QualityMode = 'smooth' | 'balanced' | 'high' | 'analysis'
 
 export interface QualityProfile {
   fps: number
@@ -87,8 +90,22 @@ export interface QualityProfile {
 export const QUALITY_PROFILES: Record<QualityMode, QualityProfile> = {
   smooth:   { fps: 30, width: 1280, height: 720,  quality: 55, priority: 'fps' },
   balanced: { fps: 15, width: 1280, height: 720,  quality: 70, priority: 'latency_quality' },
-  sharp:    { fps: 10, width: 1920, height: 1080, quality: 80, priority: 'image_quality' },
-  analysis: { fps: 1,  width: 1920, height: 1080, quality: 90, priority: 'ai_snapshot' },
+  high:     { fps: 10, width: 1920, height: 1080, quality: 85, priority: 'image_quality' },
+  analysis: { fps: 1,  width: 1920, height: 1080, quality: 95, priority: 'ai_snapshot' },
+}
+
+const QUALITY_STORAGE_KEY = 'umh_vision_quality_mode'
+
+export function loadQualityModeFromStorage(): QualityMode {
+  try {
+    const raw = localStorage.getItem(QUALITY_STORAGE_KEY)
+    if (raw && raw in QUALITY_PROFILES) return raw as QualityMode
+  } catch { /* ignore */ }
+  return 'balanced'
+}
+
+function saveQualityModeToStorage(mode: QualityMode): void {
+  try { localStorage.setItem(QUALITY_STORAGE_KEY, mode) } catch { /* ignore */ }
 }
 
 export interface PtzPosition {
@@ -101,6 +118,7 @@ export interface StreamMetrics {
   actualFps: number
   targetFps: number
   avgFrameSize: number
+  bitrateKbps: number
   latencyMs: number
   droppedFrames: number
   lastFrameAge: number
@@ -261,6 +279,70 @@ export interface VisionHealthState {
   roi: RoiState
 }
 
+// ── Label correction types ──────────────────────────────────────
+
+export interface LabelCorrection {
+  correctedLabel: string
+  rawLabel: string
+  trackId: string
+  correctedAt: number
+}
+
+// ── Toast notification types ────────────────────────────────────
+
+export interface ToastNotification {
+  id: string
+  message: string
+  variant: 'ok' | 'danger' | 'warning' | 'cyan'
+  expiresAt: number
+}
+
+// ── Command latency measurement ─────────────────────────────────
+
+export interface CommandLatencyMeasurement {
+  commandId: string
+  sentAt: number
+  ackedAt: number
+  roundTripMs: number
+  operation: string
+}
+
+// ── Security notification types ─────────────────────────────────
+
+export type NotificationSeverity = 'info' | 'warn' | 'critical'
+
+export interface SecurityNotification {
+  id: string
+  severity: NotificationSeverity
+  event: string
+  source: string
+  detail: string
+  action: string
+  timestamp: number
+  acknowledged: boolean
+  persistent: boolean
+}
+
+const NOTIFICATION_STORAGE_KEY = 'umh_security_notifications'
+
+function loadNotificationsFromStorage(): SecurityNotification[] {
+  try {
+    const raw = localStorage.getItem(NOTIFICATION_STORAGE_KEY)
+    if (raw) {
+      const all = JSON.parse(raw) as SecurityNotification[]
+      return all.filter((n) => n.persistent || Date.now() - n.timestamp < 86400000)
+    }
+  } catch { /* ignore */ }
+  return []
+}
+
+function saveNotificationsToStorage(notifications: SecurityNotification[]): void {
+  try {
+    const persistent = notifications.filter((n) => n.persistent || Date.now() - n.timestamp < 86400000)
+    localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(persistent.slice(-200)))
+  } catch { /* ignore */ }
+}
+
 interface VisionState {
   connected: boolean
   streaming: boolean
@@ -312,6 +394,19 @@ interface VisionState {
   // Security mode
   securityMode: SecurityModeInfo
 
+  // Label corrections — operator overrides for detector labels
+  labelCorrections: Record<string, LabelCorrection>
+
+  // Toast notifications
+  toasts: ToastNotification[]
+
+  // Command latency history
+  latencyHistory: CommandLatencyMeasurement[]
+
+  // Security notifications
+  notifications: SecurityNotification[]
+  notificationUnreadCount: number
+
   setConnected: (connected: boolean) => void
   setStreaming: (streaming: boolean) => void
   setCameraStatus: (status: CameraStatus) => void
@@ -357,6 +452,26 @@ interface VisionState {
   // Security mode setters
   setSecurityMode: (mode: Partial<SecurityModeInfo>) => void
 
+  // Label correction setters
+  setLabelCorrection: (trackId: string, correctedLabel: string, rawLabel: string) => void
+  removeLabelCorrection: (trackId: string) => void
+  mergeLabelCorrections: (beastCorrections: Record<string, string>) => void
+  getEffectiveLabel: (trackId: string, rawLabel: string) => string
+  loadLabelCorrections: () => void
+
+  // Toast setters
+  addToast: (message: string, variant: ToastNotification['variant']) => void
+  removeToast: (id: string) => void
+
+  // Latency setters
+  recordLatency: (measurement: CommandLatencyMeasurement) => void
+
+  // Security notification setters
+  addNotification: (severity: NotificationSeverity, event: string, source: string, detail: string, action?: string, persistent?: boolean) => void
+  acknowledgeNotification: (id: string) => void
+  clearNotification: (id: string) => void
+  clearAllNotifications: () => void
+
   // Overlay data (from vision_overlay WS events)
   overlays: OverlayMetadata[]
   setOverlays: (overlays: OverlayMetadata[]) => void
@@ -394,6 +509,7 @@ const INITIAL_METRICS: StreamMetrics = {
   actualFps: 0,
   targetFps: 0,
   avgFrameSize: 0,
+  bitrateKbps: 0,
   latencyMs: 0,
   droppedFrames: 0,
   lastFrameAge: 0,
@@ -456,7 +572,40 @@ const INITIAL_HEALTH: VisionHealthState = {
   roi: { x: 0, y: 0, zoom: 1 },
 }
 
-export const useVisionStore = create<VisionState>((set) => ({
+const LABEL_CORRECTIONS_KEY = 'umh_vision_label_corrections'
+const PRESET_STORAGE_KEY = 'umh_vision_presets'
+
+function loadCorrectionsFromStorage(): Record<string, LabelCorrection> {
+  try {
+    const raw = localStorage.getItem(LABEL_CORRECTIONS_KEY)
+    if (raw) return JSON.parse(raw) as Record<string, LabelCorrection>
+  } catch { /* ignore */ }
+  return {}
+}
+
+function saveCorrectionsToStorage(corrections: Record<string, LabelCorrection>): void {
+  try {
+    localStorage.setItem(LABEL_CORRECTIONS_KEY, JSON.stringify(corrections))
+  } catch { /* ignore */ }
+}
+
+export function loadPresetsFromStorage(): Record<string, CameraPreset> {
+  try {
+    const raw = localStorage.getItem(PRESET_STORAGE_KEY)
+    if (raw) return JSON.parse(raw) as Record<string, CameraPreset>
+  } catch { /* ignore */ }
+  return {}
+}
+
+export function savePresetsToStorage(presets: Record<string, CameraPreset>): void {
+  try {
+    localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets))
+  } catch { /* ignore */ }
+}
+
+let _toastId = 0
+
+export const useVisionStore = create<VisionState>((set, get) => ({
   connected: false,
   streaming: false,
   cameraStatus: 'off',
@@ -476,7 +625,7 @@ export const useVisionStore = create<VisionState>((set) => ({
   poppedOut: false,
   popoutWindow: null,
 
-  qualityMode: 'balanced',
+  qualityMode: loadQualityModeFromStorage(),
   ptzPosition: { pan: 0, tilt: 0, zoom: 100 },
   ptzMoving: false,
   hasPtzHardware: true,
@@ -507,6 +656,16 @@ export const useVisionStore = create<VisionState>((set) => ({
   // Security mode initial state
   securityMode: { ...INITIAL_SECURITY },
 
+  // Label corrections
+  labelCorrections: loadCorrectionsFromStorage(),
+  // Toasts
+  toasts: [],
+  // Command latency history (keep last 20)
+  latencyHistory: [],
+  // Security notifications
+  notifications: loadNotificationsFromStorage(),
+  notificationUnreadCount: loadNotificationsFromStorage().filter((n) => !n.acknowledged).length,
+
   setConnected: (connected) => set({ connected }),
   setStreaming: (streaming) => set({ streaming }),
   setCameraStatus: (cameraStatus) => set({ cameraStatus }),
@@ -514,13 +673,17 @@ export const useVisionStore = create<VisionState>((set) => ({
   setLatestFrame: (url, timestamp) => set({ latestFrameUrl: url, latestFrameAt: timestamp }),
   clearFrame: () => set({ latestFrameUrl: null, latestFrameAt: null }),
   setError: (error) => set({ error }),
-  setPresets: (presets) => set({ presets }),
+  setPresets: (presets) => {
+    const merged = { ...loadPresetsFromStorage(), ...presets }
+    savePresetsToStorage(merged)
+    set({ presets: merged })
+  },
   setAnalysisStatus: (analysisStatus) => set({ analysisStatus }),
   setAnalysisResult: (analysisResult) => set({ analysisResult }),
   incrementFrameCount: () => set((s) => ({ frameCount: s.frameCount + 1 })),
   setPoppedOut: (poppedOut, win) => set({ poppedOut, popoutWindow: win ?? null }),
 
-  setQualityMode: (qualityMode) => set({ qualityMode }),
+  setQualityMode: (qualityMode) => { saveQualityModeToStorage(qualityMode); set({ qualityMode }) },
   setPtzPosition: (ptzPosition) => set({ ptzPosition }),
   setPtzMoving: (ptzMoving) => set({ ptzMoving }),
   setHasPtzHardware: (hasPtzHardware) => set({ hasPtzHardware }),
@@ -568,6 +731,81 @@ export const useVisionStore = create<VisionState>((set) => ({
   setSecurityMode: (partial) => set((s) => ({
     securityMode: { ...s.securityMode, ...partial },
   })),
+
+  // Label correction setters
+  setLabelCorrection: (trackId, correctedLabel, rawLabel) => set((s) => {
+    const corrections = {
+      ...s.labelCorrections,
+      [trackId]: { correctedLabel, rawLabel, trackId, correctedAt: Date.now() },
+    }
+    saveCorrectionsToStorage(corrections)
+    return { labelCorrections: corrections }
+  }),
+  removeLabelCorrection: (trackId) => set((s) => {
+    const corrections = { ...s.labelCorrections }
+    delete corrections[trackId]
+    saveCorrectionsToStorage(corrections)
+    return { labelCorrections: corrections }
+  }),
+  mergeLabelCorrections: (beastCorrections) => set((s) => {
+    let changed = false
+    const corrections = { ...s.labelCorrections }
+    for (const [trackId, correctedLabel] of Object.entries(beastCorrections)) {
+      if (!corrections[trackId]) {
+        corrections[trackId] = { correctedLabel, rawLabel: correctedLabel, trackId, correctedAt: Date.now() }
+        changed = true
+      }
+    }
+    if (!changed) return s
+    saveCorrectionsToStorage(corrections)
+    return { labelCorrections: corrections }
+  }),
+  getEffectiveLabel: (trackId, rawLabel) => {
+    const correction = get().labelCorrections[trackId]
+    return correction ? correction.correctedLabel : rawLabel
+  },
+  loadLabelCorrections: () => set({ labelCorrections: loadCorrectionsFromStorage() }),
+
+  // Toast setters
+  addToast: (message, variant) => set((s) => {
+    const id = `toast_${++_toastId}`
+    const toast: ToastNotification = { id, message, variant, expiresAt: Date.now() + 4000 }
+    return { toasts: [...s.toasts, toast] }
+  }),
+  removeToast: (id) => set((s) => ({
+    toasts: s.toasts.filter((t) => t.id !== id),
+  })),
+
+  // Latency recording
+  recordLatency: (measurement) => set((s) => ({
+    latencyHistory: [...s.latencyHistory.slice(-19), measurement],
+  })),
+
+  // Security notification setters
+  addNotification: (severity, event, source, detail, action = '', persistent = false) => set((s) => {
+    const id = `notif_${++_toastId}`
+    const n: SecurityNotification = { id, severity, event, source, detail, action, timestamp: Date.now(), acknowledged: false, persistent: severity === 'critical' || persistent }
+    const notifications = [...s.notifications, n].slice(-200)
+    const unread = notifications.filter((x) => !x.acknowledged).length
+    saveNotificationsToStorage(notifications)
+    return { notifications, notificationUnreadCount: unread }
+  }),
+  acknowledgeNotification: (id) => set((s) => {
+    const notifications = s.notifications.map((n) => n.id === id ? { ...n, acknowledged: true } : n)
+    const unread = notifications.filter((n) => !n.acknowledged).length
+    saveNotificationsToStorage(notifications)
+    return { notifications, notificationUnreadCount: unread }
+  }),
+  clearNotification: (id) => set((s) => {
+    const notifications = s.notifications.filter((n) => n.id !== id)
+    const unread = notifications.filter((n) => !n.acknowledged).length
+    saveNotificationsToStorage(notifications)
+    return { notifications, notificationUnreadCount: unread }
+  }),
+  clearAllNotifications: () => {
+    saveNotificationsToStorage([])
+    set({ notifications: [], notificationUnreadCount: 0 })
+  },
 
   // Overlay data
   overlays: [],
@@ -618,7 +856,7 @@ export const useVisionStore = create<VisionState>((set) => ({
     frameCount: 0,
     poppedOut: false,
     popoutWindow: null,
-    qualityMode: 'balanced',
+    qualityMode: loadQualityModeFromStorage(),
     ptzPosition: { pan: 0, tilt: 0, zoom: 100 },
     ptzMoving: false,
     streamMetrics: { ...INITIAL_METRICS },
@@ -638,6 +876,11 @@ export const useVisionStore = create<VisionState>((set) => ({
     recentFires: [],
     lastChainExplanation: '',
     securityMode: { ...INITIAL_SECURITY },
+    labelCorrections: loadCorrectionsFromStorage(),
+    toasts: [],
+    latencyHistory: [],
+    notifications: loadNotificationsFromStorage(),
+    notificationUnreadCount: loadNotificationsFromStorage().filter((n) => !n.acknowledged).length,
     overlays: [],
     diagnosticOverlay: false,
     overlayVisible: true,
