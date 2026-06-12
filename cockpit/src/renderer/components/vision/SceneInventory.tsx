@@ -15,6 +15,7 @@ export function SceneInventory() {
   const setLabelCorrection = useVisionStore((s) => s.setLabelCorrection)
   const removeLabelCorrection = useVisionStore((s) => s.removeLabelCorrection)
   const addToast = useVisionStore((s) => s.addToast)
+  const addNotification = useVisionStore((s) => s.addNotification)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -57,6 +58,7 @@ export function SceneInventory() {
       setLabelCorrection(overlay.track_id, trimmed, overlay.label)
       getVisionClient()?.correctLabel(overlay.track_id, trimmed, overlay.label)
       addToast(`Relabeled "${overlay.label}" → "${trimmed}"`, 'ok')
+      addNotification('info', 'Label corrected', 'operator', `"${overlay.label}" → "${trimmed}" (track #${overlay.track_id})`)
     }
     setEditingId(null)
     setEditValue('')

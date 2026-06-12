@@ -42,6 +42,9 @@ export function StatusHud() {
   const resolutionStr = width > 0 && height > 0 ? `${width}x${height}` : '—'
   const fpsStr = `${streamMetrics.actualFps.toFixed(1)} fps`
   const latencyStr = frameAge < 1000 ? `${frameAge}ms` : `${(frameAge / 1000).toFixed(1)}s`
+  const bitrateStr = streamMetrics.bitrateKbps > 1024
+    ? `${(streamMetrics.bitrateKbps / 1024).toFixed(1)} Mbps`
+    : `${streamMetrics.bitrateKbps} Kbps`
   const trackedStr = `${overlays.length} obj`
 
   return (
@@ -73,6 +76,16 @@ export function StatusHud() {
           frameAge < 500 ? 'text-ok' : frameAge < 2000 ? 'text-warning' : 'text-danger',
         )}>
           {latencyStr}
+        </span>
+
+        <span className="text-text-quaternary text-[10px]">·</span>
+
+        {/* Bitrate */}
+        <span className={clsx(
+          'text-[10px] font-mono',
+          streamMetrics.bitrateKbps > 0 ? 'text-text-secondary' : 'text-text-tertiary',
+        )}>
+          {bitrateStr}
         </span>
 
         <span className="text-text-quaternary text-[10px]">·</span>

@@ -77,7 +77,7 @@ export interface CameraPreset {
 
 export type AnalysisStatus = 'idle' | 'capturing' | 'analyzing' | 'complete' | 'error'
 
-export type QualityMode = 'smooth' | 'balanced' | 'sharp' | 'analysis'
+export type QualityMode = 'smooth' | 'balanced' | 'high' | 'analysis'
 
 export interface QualityProfile {
   fps: number
@@ -90,8 +90,22 @@ export interface QualityProfile {
 export const QUALITY_PROFILES: Record<QualityMode, QualityProfile> = {
   smooth:   { fps: 30, width: 1280, height: 720,  quality: 55, priority: 'fps' },
   balanced: { fps: 15, width: 1280, height: 720,  quality: 70, priority: 'latency_quality' },
-  sharp:    { fps: 10, width: 1920, height: 1080, quality: 80, priority: 'image_quality' },
-  analysis: { fps: 1,  width: 1920, height: 1080, quality: 90, priority: 'ai_snapshot' },
+  high:     { fps: 10, width: 1920, height: 1080, quality: 85, priority: 'image_quality' },
+  analysis: { fps: 1,  width: 1920, height: 1080, quality: 95, priority: 'ai_snapshot' },
+}
+
+const QUALITY_STORAGE_KEY = 'umh_vision_quality_mode'
+
+export function loadQualityModeFromStorage(): QualityMode {
+  try {
+    const raw = localStorage.getItem(QUALITY_STORAGE_KEY)
+    if (raw && raw in QUALITY_PROFILES) return raw as QualityMode
+  } catch { /* ignore */ }
+  return 'balanced'
+}
+
+function saveQualityModeToStorage(mode: QualityMode): void {
+  try { localStorage.setItem(QUALITY_STORAGE_KEY, mode) } catch { /* ignore */ }
 }
 
 export interface PtzPosition {
@@ -104,6 +118,7 @@ export interface StreamMetrics {
   actualFps: number
   targetFps: number
   avgFrameSize: number
+  bitrateKbps: number
   latencyMs: number
   droppedFrames: number
   lastFrameAge: number
@@ -493,6 +508,7 @@ const INITIAL_METRICS: StreamMetrics = {
   actualFps: 0,
   targetFps: 0,
   avgFrameSize: 0,
+  bitrateKbps: 0,
   latencyMs: 0,
   droppedFrames: 0,
   lastFrameAge: 0,
@@ -608,7 +624,7 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   poppedOut: false,
   popoutWindow: null,
 
-  qualityMode: 'balanced',
+  qualityMode: loadQualityModeFromStorage(),
   ptzPosition: { pan: 0, tilt: 0, zoom: 100 },
   ptzMoving: false,
   hasPtzHardware: true,
@@ -666,7 +682,7 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   incrementFrameCount: () => set((s) => ({ frameCount: s.frameCount + 1 })),
   setPoppedOut: (poppedOut, win) => set({ poppedOut, popoutWindow: win ?? null }),
 
-  setQualityMode: (qualityMode) => set({ qualityMode }),
+  setQualityMode: (qualityMode) => { saveQualityModeToStorage(qualityMode); set({ qualityMode }) },
   setPtzPosition: (ptzPosition) => set({ ptzPosition }),
   setPtzMoving: (ptzMoving) => set({ ptzMoving }),
   setHasPtzHardware: (hasPtzHardware) => set({ hasPtzHardware }),
@@ -826,7 +842,7 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     frameCount: 0,
     poppedOut: false,
     popoutWindow: null,
-    qualityMode: 'balanced',
+    qualityMode: loadQualityModeFromStorage(),
     ptzPosition: { pan: 0, tilt: 0, zoom: 100 },
     ptzMoving: false,
     streamMetrics: { ...INITIAL_METRICS },

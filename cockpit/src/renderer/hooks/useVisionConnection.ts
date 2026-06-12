@@ -492,16 +492,34 @@ export function useVisionConnection(): void {
     // Metrics polling + stale detection — 1s
     const STALE_FRAME_MS = 15000
     const STALE_OVERLAY_MS = 5000
+    let lastMetricFrameCount = 0
+    let lastMetricTime = Date.now()
     metricsInterval.current = setInterval(() => {
       if (!client.connected) return
       const state = useVisionStore.getState()
       const lastFrame = state.latestFrameAt
       const frameAge = lastFrame ? Date.now() - lastFrame : 0
+      const fps = client.measuredFps
+      const avgSize = client.avgFrameSize
+      const bitrateKbps = Math.round((fps * avgSize * 8) / 1024)
+
+      const currentFrameCount = client.frameCount
+      const now = Date.now()
+      const elapsed = (now - lastMetricTime) / 1000
+      const targetFps = QUALITY_PROFILES[state.qualityMode].fps
+      const expectedFrames = elapsed * targetFps
+      const actualFrames = currentFrameCount - lastMetricFrameCount
+      const dropped = Math.max(0, Math.round(expectedFrames - actualFrames))
+      lastMetricFrameCount = currentFrameCount
+      lastMetricTime = now
+
       updateStreamMetrics({
-        actualFps: client.measuredFps,
-        targetFps: QUALITY_PROFILES[state.qualityMode].fps,
-        avgFrameSize: client.avgFrameSize,
+        actualFps: fps,
+        targetFps,
+        avgFrameSize: avgSize,
+        bitrateKbps,
         lastFrameAge: frameAge,
+        droppedFrames: state.streamMetrics.droppedFrames + dropped,
       })
       if (lastFrame && frameAge > STALE_FRAME_MS && state.streaming) {
         setStreaming(false)

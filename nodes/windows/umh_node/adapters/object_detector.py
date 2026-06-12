@@ -10,9 +10,12 @@ Target: 3-10 FPS detection on Beast hardware.
 
 from __future__ import annotations
 
+import json
 import logging
+import sys
 import time
 import threading
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -59,6 +62,13 @@ LABEL_REMAP = {
 }
 
 
+_DEFAULT_CORRECTIONS_PATH = (
+    Path("C:\\ProgramData\\UMH\\label_corrections.json")
+    if sys.platform == "win32"
+    else Path.home() / ".umh" / "label_corrections.json"
+)
+
+
 class ObjectDetector:
     """YOLOv8n object detector with lazy model loading and IoU tracking."""
 
@@ -73,7 +83,8 @@ class ObjectDetector:
         self._total_inference_ms = 0.0
         self._last_inference_ms = 0.0
         self._tracker = None
-        self._label_corrections: dict[str, str] = {}
+        self._corrections_path = _DEFAULT_CORRECTIONS_PATH
+        self._label_corrections: dict[str, str] = self._load_corrections()
         self._init_tracker()
 
     def _init_tracker(self) -> None:
@@ -247,8 +258,24 @@ class ObjectDetector:
             tracks.append(d)
         return tracks
 
+    def _load_corrections(self) -> dict[str, str]:
+        if self._corrections_path.exists():
+            try:
+                return json.loads(self._corrections_path.read_text())
+            except Exception as exc:
+                logger.warning("failed to load label corrections: %s", exc)
+        return {}
+
+    def _save_corrections(self) -> None:
+        try:
+            self._corrections_path.parent.mkdir(parents=True, exist_ok=True)
+            self._corrections_path.write_text(json.dumps(self._label_corrections, indent=2))
+        except Exception as exc:
+            logger.warning("failed to save label corrections: %s", exc)
+
     def correct_label(self, track_id: str, corrected_label: str) -> bool:
         self._label_corrections[str(track_id)] = corrected_label
+        self._save_corrections()
         if self._tracker:
             track = self._tracker.get_track(int(track_id)) if track_id.isdigit() else None
             if track:
@@ -258,6 +285,7 @@ class ObjectDetector:
 
     def remove_label_correction(self, track_id: str) -> None:
         self._label_corrections.pop(str(track_id), None)
+        self._save_corrections()
 
     def get_label_corrections(self) -> dict[str, str]:
         return dict(self._label_corrections)
