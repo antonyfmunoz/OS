@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import {
   Eye, EyeOff, Tag, Bell, BellOff,
-  UserCheck, UserX, Crosshair, Search, Trash2,
+  UserCheck, UserX, Crosshair, Search, Trash2, Focus,
 } from 'lucide-react'
 import { useVisionStore } from '../stores/visionStore'
 import { getVisionClient } from '../hooks/useVisionConnection'
@@ -66,9 +66,20 @@ export function TrackingPanel() {
     }
   }, [followMode.active])
 
-  const handleAnalyze = useCallback(() => {
-    getVisionClient()?.analyzeFrame('what do you see?')
+  const handleSceneDescribe = useCallback(() => {
+    const client = getVisionClient()
+    if (!client?.connected) return
+    useVisionStore.getState().setAnalysisStatus('analyzing')
+    client.sceneDescribe()
   }, [])
+
+  const handleLookAt = useCallback(() => {
+    if (!trackInput.trim()) return
+    const client = getVisionClient()
+    if (!client?.connected) return
+    useVisionStore.getState().setAnalysisStatus('analyzing')
+    client.lookAt(trackInput.trim())
+  }, [trackInput])
 
   const handleQuery = useCallback(() => {
     if (!queryInput.trim()) return
@@ -115,7 +126,7 @@ export function TrackingPanel() {
           {followMode.active ? `Following ${followMode.target}` : 'Follow Me'}
         </button>
         <button
-          onClick={handleAnalyze}
+          onClick={handleSceneDescribe}
           disabled={!connected}
           className={clsx(
             'flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider transition-colors',
@@ -211,6 +222,15 @@ export function TrackingPanel() {
             className="px-2 py-1 rounded bg-cyan/10 text-cyan text-[10px] font-mono uppercase tracking-wider hover:bg-cyan/20 disabled:opacity-50"
           >
             Track
+          </button>
+          <button
+            onClick={handleLookAt}
+            disabled={!connected || !trackInput.trim()}
+            className="px-2 py-1 rounded bg-ok/10 text-ok text-[10px] font-mono uppercase tracking-wider hover:bg-ok/20 disabled:opacity-50"
+            title="Center camera on this object"
+          >
+            <Focus size={10} className="inline mr-0.5" />
+            Look
           </button>
         </div>
       </div>

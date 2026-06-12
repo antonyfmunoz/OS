@@ -60,7 +60,7 @@ LABEL_REMAP = {
 
 
 class ObjectDetector:
-    """YOLOv8n object detector with lazy model loading."""
+    """YOLOv8n object detector with lazy model loading and IoU tracking."""
 
     def __init__(self, confidence_threshold: float = 0.35) -> None:
         self._model = None
@@ -72,6 +72,21 @@ class ObjectDetector:
         self._frame_count = 0
         self._total_inference_ms = 0.0
         self._last_inference_ms = 0.0
+        self._tracker = None
+        self._init_tracker()
+
+    def _init_tracker(self) -> None:
+        try:
+            from nodes.windows.umh_node.adapters.iou_tracker import IoUTracker
+            self._tracker = IoUTracker(
+                iou_threshold=0.25,
+                max_lost_frames=30,
+                label_must_match=True,
+            )
+            logger.info("IoU tracker initialized")
+        except Exception as exc:
+            logger.warning("tracker init failed, detections will lack persistent IDs: %s", exc)
+            self._tracker = None
 
     @property
     def loaded(self) -> bool:
@@ -142,9 +157,11 @@ class ObjectDetector:
         if h == 0 or w == 0:
             return []
 
-        detections = []
+        raw_detections = []
         boxes = result.boxes
         if boxes is None or len(boxes) == 0:
+            if self._tracker:
+                self._tracker.update([])
             return []
 
         for i in range(len(boxes)):
@@ -164,8 +181,7 @@ class ObjectDetector:
             nw = (x2 - x1) / w
             nh = (y2 - y1) / h
 
-            detections.append({
-                "id": f"det_{self._frame_count}_{i}",
+            raw_detections.append({
                 "label": display_label,
                 "confidence": round(conf, 3),
                 "bbox": {"x": round(nx, 4), "y": round(ny, 4),
@@ -175,10 +191,17 @@ class ObjectDetector:
                 "class_id": cls_id,
             })
 
-        return detections
+        if self._tracker:
+            tracked = self._tracker.update(raw_detections)
+            return tracked
+
+        for i, d in enumerate(raw_detections):
+            d["id"] = f"det_{self._frame_count}_{i}"
+            d["track_id"] = d["id"]
+        return raw_detections
 
     def get_status(self) -> dict[str, Any]:
-        return {
+        status: dict[str, Any] = {
             "loaded": self._loaded,
             "model": self._model_name,
             "load_error": self._load_error,
@@ -186,4 +209,26 @@ class ObjectDetector:
             "avg_inference_ms": round(self.avg_inference_ms, 1),
             "last_inference_ms": round(self._last_inference_ms, 1),
             "confidence_threshold": self._confidence_threshold,
+            "tracker_active": self._tracker is not None,
         }
+        if self._tracker:
+            ts = self._tracker.get_status()
+            status["active_tracks"] = ts["active_count"]
+            status["total_tracks"] = ts["total_count"]
+        return status
+
+    def get_scene_description(self) -> str:
+        if not self._tracker:
+            return "Tracker not available."
+        return self._tracker.get_scene_description()
+
+    def get_track_by_label(self, label: str) -> dict[str, Any] | None:
+        if not self._tracker:
+            return None
+        track = self._tracker.get_track_by_label(label)
+        return track.to_dict() if track else None
+
+    def get_active_tracks(self) -> list[dict[str, Any]]:
+        if not self._tracker:
+            return []
+        return [t.to_dict() for t in self._tracker.active_tracks]

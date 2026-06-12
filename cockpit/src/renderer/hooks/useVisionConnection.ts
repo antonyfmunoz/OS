@@ -213,6 +213,34 @@ export function useVisionConnection(): void {
         setAnalysisStatus('complete')
         setTimeout(() => setAnalysisStatus('idle'), 10000)
       }),
+      client.on('vision_scene_describe_result', (d) => {
+        setAnalysisResult(d.description as string || d.answer as string || 'No description')
+        setAnalysisStatus('complete')
+        setTimeout(() => setAnalysisStatus('idle'), 10000)
+      }),
+      client.on('vision_active_tracks_result', (d) => {
+        const tracks = (d.tracks as TrackedObjectState[]) || []
+        setDetectedObjects(tracks)
+      }),
+      client.on('vision_track_query_result', (d) => {
+        if (d.success && d.track) {
+          const t = d.track as Record<string, unknown>
+          setAnalysisResult(`Found: ${t.label} #${t.track_id} — ${Math.round((t.confidence as number || 0) * 100)}% confidence`)
+        } else {
+          setAnalysisResult(`Not found: "${d.label}" is not currently visible`)
+        }
+        setAnalysisStatus('complete')
+        setTimeout(() => setAnalysisStatus('idle'), 10000)
+      }),
+      client.on('vision_look_at_result', (d) => {
+        if (d.success) {
+          setAnalysisResult(`Centering on ${d.label} #${d.track_id}`)
+        } else {
+          setAnalysisResult(`Look-at failed: ${d.error || 'target not found'}`)
+        }
+        setAnalysisStatus('complete')
+        setTimeout(() => setAnalysisStatus('idle'), 5000)
+      }),
 
       // Tracker stack events
       client.on('vision_tracker_result', () => {
@@ -279,6 +307,12 @@ export function useVisionConnection(): void {
           tiltVelocity: d.tilt_velocity as number || 0,
           zoomVelocity: d.zoom_velocity as number || 0,
         })
+        if (d.ptz_mode) {
+          updateChainHealth({
+            ptzMode: d.ptz_mode as 'physical_ptz' | 'digital_roi',
+            roi: d.roi as { x: number; y: number; zoom: number } ?? undefined,
+          })
+        }
         if (d.loop_cadence_hz !== undefined) {
           updateControlMetrics({ ptzLoopCadenceHz: d.loop_cadence_hz as number })
         }
@@ -338,6 +372,9 @@ export function useVisionConnection(): void {
             inference_ms: detStatus.inference_ms as number ?? 0,
             avg_inference_ms: detStatus.avg_inference_ms as number ?? 0,
             detection_frames: detStatus.detection_frames as number ?? 0,
+            tracker_active: detStatus.tracker_active as boolean ?? false,
+            active_tracks: detStatus.active_tracks as number ?? 0,
+            total_tracks: detStatus.total_tracks as number ?? 0,
           }
         }
         updateChainHealth(healthUpdate)
@@ -371,9 +408,17 @@ export function useVisionConnection(): void {
             inference_ms: detStatus.inference_ms as number ?? 0,
             avg_inference_ms: detStatus.avg_inference_ms as number ?? 0,
             detection_frames: detStatus.detection_frames as number ?? 0,
+            tracker_active: detStatus.tracker_active as boolean ?? false,
+            active_tracks: detStatus.active_tracks as number ?? 0,
+            total_tracks: detStatus.total_tracks as number ?? 0,
           } : null,
           blockers: (d.blockers as string[]) ?? [],
           recoveryAction: d.recovery_action as string ?? '',
+          ptzMode: (d.ptz_mode as 'physical_ptz' | 'digital_roi') || 'physical_ptz',
+          physicalPtzAvailable: d.physical_ptz_available as boolean ?? false,
+          digitalRoiAvailable: d.digital_roi_available as boolean ?? true,
+          commandPathReady: d.command_path_ready as boolean ?? false,
+          roi: d.roi as { x: number; y: number; zoom: number } ?? { x: 0, y: 0, zoom: 1 },
         })
       }),
     ]

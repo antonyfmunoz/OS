@@ -51,7 +51,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   } = useVisionStore()
   const overlays = useVisionStore((s) => s.overlays)
   const chainHealth = useVisionStore((s) => s.chainHealth)
-  const controlsEnabled = connected && chainHealth.beastConnected
+  const controlsEnabled = connected && (chainHealth.beastConnected || chainHealth.commandPathReady)
   const overlayVisible = useVisionStore((s) => s.overlayVisible)
   const setOverlayVisible = useVisionStore((s) => s.setOverlayVisible)
   const diagnosticOverlay = useVisionStore((s) => s.diagnosticOverlay)
@@ -412,7 +412,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         <div className="flex items-center gap-1.5 px-3 py-2 rounded bg-danger/10 text-danger text-xs font-mono uppercase tracking-wider">
           <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
           camera live
-          {hasPtzHardware ? ' — physical ptz' : ' — digital roi'}
+          {chainHealth.ptzMode === 'physical_ptz' ? ' — physical ptz' : ' — digital roi'}
           {ptzMotion.state === 'moving' && (
             <span className="ml-auto text-warning">{motionLabel(ptzMotion.state)}</span>
           )}
@@ -432,6 +432,10 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
               alt="Camera preview"
               decoding="async"
               className="w-full h-full object-contain"
+              style={chainHealth.ptzMode === 'digital_roi' && chainHealth.roi.zoom > 1 ? {
+                transformOrigin: `${(chainHealth.roi.x + (1 / chainHealth.roi.zoom) / 2) * 100}% ${(chainHealth.roi.y + (1 / chainHealth.roi.zoom) / 2) * 100}%`,
+                transform: `scale(${chainHealth.roi.zoom})`,
+              } : undefined}
             />
             {/* OVR: only real AI overlays. DIAG synthetic boxes handled by VisionOverlay internally. */}
             <VisionOverlay
@@ -560,7 +564,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
               {/* D-pad — 56px buttons */}
               <div className="flex flex-col items-center gap-1">
                 <span className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider">
-                  {hasPtzHardware ? 'PTZ' : 'ROI'}
+                  {chainHealth.ptzMode === 'physical_ptz' ? 'PTZ' : 'ROI'}
                 </span>
                 <div className="grid grid-cols-3 gap-1 w-fit">
                   <div />
@@ -904,16 +908,23 @@ function TrackerStatus({
         )}
       </div>
 
-      {/* Live detections from real ML model */}
+      {/* Tracker status */}
+      {det?.tracker_active && (
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] border-t border-border/50 pt-1.5">
+          <span className="text-text-quaternary">tracker:</span>
+          <span className="text-ok">IoU active · {det.active_tracks} tracked</span>
+        </div>
+      )}
+
+      {/* Live detections from real ML model — with persistent track IDs */}
       {hasRealDetections && (
         <div className="flex flex-col gap-0.5 border-t border-border/50 pt-1.5">
           <span className="text-text-quaternary text-[10px] uppercase tracking-wider">Live Detections</span>
           {overlays.slice(0, 8).map((o) => (
             <div key={o.track_id} className="flex items-center gap-2 text-[11px] text-text-secondary">
               <span className="w-2 h-2 rounded-sm" style={{ background: o.color || '#22c55e' }} />
-              <span>{o.label}</span>
+              <span>{o.label} #{o.track_id}</span>
               <span className="text-text-quaternary">{(o.confidence * 100).toFixed(0)}%</span>
-              <span className="text-text-quaternary text-[9px]">#{o.track_id.slice(-6)}</span>
             </div>
           ))}
           {overlays.length > 8 && (
@@ -1137,6 +1148,15 @@ function DiagnosticsPanel({
             <span>enabled_trackers: {enabledTrackers.length > 0 ? enabledTrackers.map((t) => t.category).join(', ') : 'none'}</span>
             <span>beast: <span className={chainHealth.beastConnected ? 'text-ok' : 'text-danger'}>{chainHealth.beastConnected ? 'connected' : 'OFFLINE'}</span></span>
             <span>camera: <span className={chainHealth.cameraStreaming ? 'text-ok' : 'text-danger'}>{chainHealth.cameraStreaming ? 'streaming' : chainHealth.cameraAvailable ? 'available' : 'UNAVAILABLE'}</span></span>
+            <span>ptz_mode: <span className={chainHealth.ptzMode === 'physical_ptz' ? 'text-ok' : 'text-cyan'}>{chainHealth.ptzMode}</span></span>
+            <span>cmd_path: <span className={chainHealth.commandPathReady ? 'text-ok' : 'text-danger'}>{chainHealth.commandPathReady ? 'ready' : 'BLOCKED'}</span></span>
+            {chainHealth.ptzMode === 'digital_roi' && (
+              <>
+                <span>roi_x: {chainHealth.roi.x.toFixed(3)}</span>
+                <span>roi_y: {chainHealth.roi.y.toFixed(3)}</span>
+                <span>roi_zoom: {chainHealth.roi.zoom.toFixed(2)}x</span>
+              </>
+            )}
           </div>
 
           {/* Blockers */}

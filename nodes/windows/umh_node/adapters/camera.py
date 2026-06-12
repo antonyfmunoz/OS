@@ -86,6 +86,9 @@ class CameraAdapter:
             "camera.set_position_relative": self._set_position_relative,
             "camera.status": self._status,
             "camera.detector_status": self._detector_status,
+            "camera.scene_describe": self._scene_describe,
+            "camera.track_query": self._track_query,
+            "camera.active_tracks": self._active_tracks,
         }
         handler = ops.get(operation)
         if handler is None:
@@ -294,11 +297,13 @@ class CameraAdapter:
                                 "inference_ms": det_status["last_inference_ms"],
                                 "avg_inference_ms": det_status["avg_inference_ms"],
                                 "detection_frames": det_status["frame_count"],
+                                "tracker_active": det_status.get("tracker_active", False),
+                                "active_tracks": det_status.get("active_tracks", 0),
                             }
                             if detections:
                                 payload["overlays"] = [
                                     {
-                                        "track_id": d["id"],
+                                        "track_id": str(d.get("track_id", d.get("id", f"det_{frame_n}_{i}"))),
                                         "label": d["label"],
                                         "confidence": d["confidence"],
                                         "x": d["bbox"]["x"],
@@ -307,8 +312,12 @@ class CameraAdapter:
                                         "h": d["bbox"]["h"],
                                         "source": "real",
                                         "model": d.get("model", "yolov8n"),
+                                        "age_frames": d.get("age_frames", 0),
+                                        "lost_frames": d.get("lost_frames", 0),
+                                        "status": d.get("status", "active"),
+                                        "velocity": d.get("velocity", [0, 0]),
                                     }
-                                    for d in detections
+                                    for i, d in enumerate(detections)
                                 ]
                         except Exception as exc:
                             if frame_n % 45 == 0:
@@ -552,6 +561,27 @@ class CameraAdapter:
 
     def _detector_status(self, params: dict[str, Any]) -> dict[str, Any]:
         return {"success": True, **self.get_detector_status()}
+
+    def _scene_describe(self, params: dict[str, Any]) -> dict[str, Any]:
+        if self._detector is None:
+            return {"success": False, "error": "detector not initialized"}
+        return {"success": True, "description": self._detector.get_scene_description()}
+
+    def _track_query(self, params: dict[str, Any]) -> dict[str, Any]:
+        if self._detector is None:
+            return {"success": False, "error": "detector not initialized"}
+        label = params.get("label", "")
+        if not label:
+            return {"success": False, "error": "label required"}
+        track = self._detector.get_track_by_label(label)
+        if track:
+            return {"success": True, "track": track}
+        return {"success": False, "error": f"no active track for '{label}'"}
+
+    def _active_tracks(self, params: dict[str, Any]) -> dict[str, Any]:
+        if self._detector is None:
+            return {"success": False, "error": "detector not initialized"}
+        return {"success": True, "tracks": self._detector.get_active_tracks()}
 
 
 def _default_presets() -> dict[str, dict[str, Any]]:

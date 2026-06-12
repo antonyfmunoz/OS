@@ -507,6 +507,25 @@ export class VisionWsClient {
     this.ws.send('vision_query', { target })
   }
 
+  sceneDescribe(): void {
+    log('scene_describe')
+    this.ws.send('vision_scene_describe')
+  }
+
+  requestActiveTracks(): void {
+    this.ws.send('vision_active_tracks')
+  }
+
+  trackQuery(label: string): void {
+    log('track_query', { label })
+    this.ws.send('vision_track_query', { label })
+  }
+
+  lookAt(label: string): void {
+    log('look_at', { label })
+    this.ws.send('vision_look_at', { label })
+  }
+
   // ── Tracker stack ──────────────────────────────────────────────
 
   enableTracker(category: string): void {
