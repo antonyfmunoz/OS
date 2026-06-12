@@ -367,14 +367,16 @@ class CameraAdapter:
     # ── PTZ control (OpenCV UVC properties, duvc-ctl optional) ─────
 
     def _get_position(self, params: dict[str, Any]) -> dict[str, Any]:
-        try:
-            import duvc_ctl as duvc
-            with duvc.CameraController() as cam:
-                return {"success": True, "pan": cam.pan, "tilt": cam.tilt, "zoom": cam.zoom}
-        except ImportError:
-            pass
-        except Exception as exc:
-            logger.debug("duvc-ctl get_position failed: %s, falling back to OpenCV", exc)
+        # duvc_ctl opens USB device — deadlocks when stream holds it via OpenCV
+        if not self._stream_active:
+            try:
+                import duvc_ctl as duvc
+                with duvc.CameraController() as cam:
+                    return {"success": True, "pan": cam.pan, "tilt": cam.tilt, "zoom": cam.zoom}
+            except ImportError:
+                pass
+            except Exception as exc:
+                logger.debug("duvc-ctl get_position failed: %s, falling back to OpenCV", exc)
 
         if self._stream_active:
             result_slot: list[dict[str, Any]] = []
@@ -403,20 +405,22 @@ class CameraAdapter:
         tilt = params.get("tilt")
         zoom = params.get("zoom")
 
-        try:
-            import duvc_ctl as duvc
-            with duvc.CameraController() as cam:
-                if pan is not None:
-                    cam.pan = int(pan)
-                if tilt is not None:
-                    cam.tilt = int(tilt)
-                if zoom is not None:
-                    cam.zoom = int(zoom)
-                return {"success": True, "pan": cam.pan, "tilt": cam.tilt, "zoom": cam.zoom}
-        except ImportError:
-            pass
-        except Exception as exc:
-            logger.debug("duvc-ctl set_position failed: %s, falling back to OpenCV", exc)
+        # duvc_ctl opens USB device — deadlocks when stream holds it via OpenCV
+        if not self._stream_active:
+            try:
+                import duvc_ctl as duvc
+                with duvc.CameraController() as cam:
+                    if pan is not None:
+                        cam.pan = int(pan)
+                    if tilt is not None:
+                        cam.tilt = int(tilt)
+                    if zoom is not None:
+                        cam.zoom = int(zoom)
+                    return {"success": True, "pan": cam.pan, "tilt": cam.tilt, "zoom": cam.zoom}
+            except ImportError:
+                pass
+            except Exception as exc:
+                logger.debug("duvc-ctl set_position failed: %s, falling back to OpenCV", exc)
 
         if self._stream_active:
             result_slot: list[dict[str, Any]] = []
