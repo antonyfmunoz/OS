@@ -603,13 +603,25 @@ async def handle_vision(ws: Any) -> None:
                     })
 
             elif msg_type == "camera_save_preset":
-                result = await _dispatch_to_beast("camera.save_preset", {
+                payload: dict = {
                     "preset": msg.get("preset", ""),
                     "label": msg.get("label", ""),
                     "analysis_hint": msg.get("analysis_hint", ""),
-                })
+                    "mode": msg.get("mode", "physical_ptz"),
+                }
+                if msg.get("pan") is not None:
+                    payload["pan"] = msg["pan"]
+                    payload["tilt"] = msg.get("tilt", 0)
+                    payload["zoom"] = msg.get("zoom", 100)
+                result = await _dispatch_to_beast("camera.save_preset", payload)
                 if result and result.get("success"):
-                    await send_json(ws, {"type": "preset_saved", "preset": msg.get("preset")})
+                    await send_json(ws, {
+                        "type": "preset_saved",
+                        "preset": msg.get("preset"),
+                        "pan": result.get("pan"),
+                        "tilt": result.get("tilt"),
+                        "zoom": result.get("zoom"),
+                    })
                 else:
                     await send_json(ws, {
                         "type": "vision_error",
