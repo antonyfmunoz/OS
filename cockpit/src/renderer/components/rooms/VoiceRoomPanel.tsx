@@ -756,13 +756,6 @@ function CallBar({
         onClick={onToggleChat}
       />
 
-      <CallBarButton
-        active={sidePanel === 'settings'}
-        icon={Settings}
-        label="Settings"
-        onClick={onToggleSettings}
-      />
-
       <div className="w-px h-5 mx-0.5 hidden sm:block" style={{ background: 'var(--color-border)' }} />
 
       <button onClick={onLeave}
