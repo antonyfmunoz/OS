@@ -442,7 +442,6 @@ class CameraAdapter:
                 success, buf = cv2.imencode(".jpg", frame, encode_params)
                 if success and self._frame_callback:
                     frame_bytes = buf.tobytes()
-                    encoded = base64.b64encode(frame_bytes).decode("ascii")
                     self._stream_frame_count += 1
                     self._stream_bytes_total += len(frame_bytes)
 
@@ -454,7 +453,7 @@ class CameraAdapter:
 
                     payload: dict[str, Any] = {
                         "type": "camera_frame",
-                        "image_base64": encoded,
+                        "image_jpeg": frame_bytes,
                         "width": frame.shape[1],
                         "height": frame.shape[0],
                         "quality": quality,
