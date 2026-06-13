@@ -442,6 +442,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
   const joinTimingRef = useRef<{ joinClickTs: number; connectStartTs: number; connectDoneTs: number; micDoneTs: number }>({ joinClickTs: 0, connectStartTs: 0, connectDoneTs: 0, micDoneTs: 0 })
   const backgroundAtRef = useRef<number | null>(null)
   const reconnectWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const diagnosticsRef = useRef<ConferenceDiagnostics>({ ...INITIAL_DIAGNOSTICS })
 
   const [state, setState] = useState<ConferenceRoomState>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -459,7 +460,11 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
   const [dataChatMessages, setDataChatMessages] = useState<DataChatMessage[]>([])
 
   const updateDiag = useCallback((patch: Partial<ConferenceDiagnostics>) => {
-    setDiagnostics((prev) => ({ ...prev, ...patch }))
+    setDiagnostics((prev) => {
+      const next = { ...prev, ...patch }
+      diagnosticsRef.current = next
+      return next
+    })
   }, [])
 
   const updateMicIntent = useCallback((patch: Partial<MediaIntent>) => {
@@ -538,7 +543,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
         actualMicState: micEnabled,
         intendedCameraState: cameraIntentRef.current.intended,
         actualCameraState: camEnabled,
-        reconnectAttempts: diagnostics.reconnectAttempts,
+        reconnectAttempts: diagnosticsRef.current.reconnectAttempts,
       },
     })
   }, [updateDiag, updateMicIntent, updateCameraIntent])
@@ -622,7 +627,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       visibility: {
         lastVisibilityState: 'visible',
         backgroundDurationMs: bgDuration,
-        reconnectAttempts: diagnostics.reconnectAttempts,
+        reconnectAttempts: diagnosticsRef.current.reconnectAttempts,
         intendedMicState: micIntentRef.current.intended,
         actualMicState: room.localParticipant.isMicrophoneEnabled,
         intendedCameraState: cameraIntentRef.current.intended,
@@ -671,7 +676,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
         visibility: {
           lastVisibilityState: 'hidden',
           backgroundDurationMs: null,
-          reconnectAttempts: diagnostics.reconnectAttempts,
+          reconnectAttempts: diagnosticsRef.current.reconnectAttempts,
           intendedMicState: micIntentRef.current.intended,
           actualMicState: room.localParticipant.isMicrophoneEnabled,
           intendedCameraState: cameraIntentRef.current.intended,
@@ -773,7 +778,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
         joinStage: 'connecting',
         lastEvent: 'connecting to LiveKit...',
         joinTiming: {
-          ...diagnostics.joinTiming,
+          ...diagnosticsRef.current.joinTiming,
           joinClickToConnectStartMs: connectStartTs - joinClickTs,
         },
       })
@@ -885,7 +890,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
           if (timing.connectDoneTs > 0) {
             updateDiag({
               joinTiming: {
-                ...diagnostics.joinTiming,
+                ...diagnosticsRef.current.joinTiming,
                 joinClickToConnectStartMs: timing.connectStartTs - timing.joinClickTs,
                 connectMs: timing.connectDoneTs - timing.connectStartTs,
                 micPublishMs: timing.micDoneTs - timing.connectDoneTs,
@@ -1017,7 +1022,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
         participantIdentity: room.localParticipant.identity,
         joinStage: 'publishing_mic',
         joinTiming: {
-          ...diagnostics.joinTiming,
+          ...diagnosticsRef.current.joinTiming,
           connectMs: connectDoneTs - connectStartTs,
         },
       })
@@ -1077,9 +1082,9 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       updateDiag({
         joinTiming: {
           roomOpenTimeMs: joinClickTs - roomOpenTimeRef.current,
-          tokenPrefetchStartMs: diagnostics.joinTiming.tokenPrefetchStartMs,
-          tokenPrefetchDoneMs: diagnostics.joinTiming.tokenPrefetchDoneMs,
-          tokenPrefetchMs: diagnostics.joinTiming.tokenPrefetchMs,
+          tokenPrefetchStartMs: diagnosticsRef.current.joinTiming.tokenPrefetchStartMs,
+          tokenPrefetchDoneMs: diagnosticsRef.current.joinTiming.tokenPrefetchDoneMs,
+          tokenPrefetchMs: diagnosticsRef.current.joinTiming.tokenPrefetchMs,
           joinClickToConnectStartMs: connectStartTs - joinClickTs,
           connectMs: connectDoneTs - connectStartTs,
           micPublishMs: operationalTs - connectDoneTs,
@@ -1167,6 +1172,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
     updateMicIntent({ ...INITIAL_MIC_INTENT })
     updateCameraIntent({ ...INITIAL_CAMERA_INTENT })
     setStreams(new Map())
+    diagnosticsRef.current = { ...INITIAL_DIAGNOSTICS }
     setDiagnostics({ ...INITIAL_DIAGNOSTICS })
     setDataChatMessages([])
     prefetchToken()
@@ -1258,7 +1264,7 @@ export function useConferenceRoom(channelId: string): UseConferenceRoomReturn {
       setIsVideoOn(currentlyEnabled)
       updateDiag({
         lastVideoError: msg,
-        cameraPermission: targetEnabled ? 'denied' : diagnostics.cameraPermission,
+        cameraPermission: targetEnabled ? 'denied' : diagnosticsRef.current.cameraPermission,
         cameraState: 'failed',
         lastEvent: `camera error: ${msg}`,
       })
