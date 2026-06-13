@@ -102,6 +102,7 @@ class BroadcastEngine:
         self._config: dict[str, Any] = {}
         self._on_health: Callable[[dict[str, Any]], None] | None = None
         self._state: str = "idle"
+        self._lock = asyncio.Lock()
 
     @property
     def state(self) -> str:
@@ -116,6 +117,10 @@ class BroadcastEngine:
 
     async def start(self, config: dict[str, Any]) -> bool:
         """Start broadcasting with the given config.  Returns False on failure."""
+        async with self._lock:
+            return await self._start_locked(config)
+
+    async def _start_locked(self, config: dict[str, Any]) -> bool:
         if self._state == "live":
             logger.warning("[BroadcastEngine] already live, stop first")
             return False
@@ -166,6 +171,10 @@ class BroadcastEngine:
 
     async def stop(self) -> int | None:
         """Idempotent stop.  Returns exit code."""
+        async with self._lock:
+            return await self._stop_locked()
+
+    async def _stop_locked(self) -> int | None:
         if self._state == "idle":
             return None
 
