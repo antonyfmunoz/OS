@@ -735,6 +735,29 @@ export function useVisionConnection(): void {
           fail: (d.fail as number) ?? 0,
         })
       }),
+
+      // Relay authority state sync
+      client.on('authority_state', (d) => {
+        const current = (d.current as string) ?? 'operator'
+        const store = useVisionStore.getState()
+        if (current !== store.authority.current) {
+          store.claimAuthority(current as 'operator' | 'voice' | 'ai' | 'autonomous', 'relay sync')
+        }
+      }),
+
+      // Relay pipeline metrics
+      client.on('pipeline_metrics', (d) => {
+        useVisionStore.getState().updateRelayPipelineMetrics({
+          measuredFps: (d.measured_fps as number) ?? 0,
+          avgIngestMs: (d.avg_ingest_ms as number) ?? 0,
+          avgBroadcastMs: (d.avg_broadcast_ms as number) ?? 0,
+          p95IngestMs: (d.p95_ingest_ms as number) ?? 0,
+          avgFrameBytes: (d.avg_frame_bytes as number) ?? 0,
+          avgJitterMs: (d.avg_jitter_ms as number) ?? 0,
+          maxJitterMs: (d.max_jitter_ms as number) ?? 0,
+          samples: (d.samples as number) ?? 0,
+        })
+      }),
     ]
 
     // Metrics polling + stale detection — 1s
@@ -790,10 +813,12 @@ export function useVisionConnection(): void {
     healthInterval.current = setInterval(() => {
       if (!client.connected) return
       client.requestHealth()
-      // Piggyback vision events + command log on health poll
+      // Piggyback vision events + command log + pipeline metrics + authority on health poll
       const lastSeq = useVisionStore.getState().visionEvents.at(-1)?.seq ?? 0
       client.requestEvents(lastSeq)
       client.requestCommandLog(20)
+      client.requestPipelineMetrics()
+      client.requestAuthorityState()
     }, 5000)
 
     // Device list polling — 30s, auto-recovers from stale empty device list
