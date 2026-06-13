@@ -416,10 +416,10 @@ class NodeMeshServer:
             if self._frame_callback is not None:
                 payload = params.get("payload", {})
                 if payload.get("image_base64"):
-                    try:
-                        self._frame_callback(node_id, payload)
-                    except Exception as exc:
-                        logger.warning("frame callback failed: %s", exc)
+                    loop = asyncio.get_running_loop()
+                    loop.run_in_executor(
+                        None, self._frame_callback, node_id, payload
+                    )
         elif self._pipeline_submit_fn is not None:
             content = params.get("content_type", "node.signal")
             payload = params.get("payload", {})
