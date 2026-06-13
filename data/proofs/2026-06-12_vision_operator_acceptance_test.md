@@ -108,7 +108,7 @@ Authority priority: **operator > voice > ai > autonomous**
 | Test | Result | Evidence |
 |------|--------|----------|
 | Inject ON | PASS | fault_inject_ack active=true |
-| Verify | PASS | avg frame gap = 548ms across 3 frames (500ms injection + pipeline overhead) |
+| Verify | PASS | avg frame gap = 501ms across 4 frames (asyncio.Lock serializes broadcast, 500ms sleep per frame) |
 | Clear | PASS | fault_inject_ack active=false |
 
 ### Recovery
