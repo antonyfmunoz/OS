@@ -43,6 +43,7 @@ import { WorkspacePanel } from '../panels/WorkspacePanel'
 import { WorkPanel } from '../panels/WorkPanel'
 import { CommandCenterPanel } from '../panels/CommandCenterPanel'
 import { VisionPanel } from '../panels/VisionPanel'
+import { BroadcastPanel } from '../panels/BroadcastPanel'
 import { ConferenceRoomsPanel } from '../panels/ConferenceRoomsPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 
@@ -116,6 +117,8 @@ function ActivePanel() {
       return <VisionPanel />
     case 'rooms':
       return <ErrorBoundary><ConferenceRoomsPanel /></ErrorBoundary>
+    case 'broadcast':
+      return <BroadcastPanel />
     default:
       return <DashboardPanel />
   }
