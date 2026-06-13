@@ -36,6 +36,7 @@ export interface PacketDetail extends PacketSummary {
   outcome_summary: string
   audit_trail: AuditEntry[]
   sandbox?: SandboxDetail
+  execution_records?: ExecutionRecordSummary[]
 }
 
 export interface ValidationResult {
@@ -63,6 +64,8 @@ export interface AuditEntry {
   data: Record<string, unknown>
 }
 
+export type ExecutionMode = 'validate_only' | 'implement' | 'implement_and_validate'
+
 export interface IntentContract {
   user_intent: string
   desired_end_state?: string
@@ -70,10 +73,52 @@ export interface IntentContract {
   non_goals?: string[]
   acceptance_criteria?: string[]
   quality_bar?: string
-  allowed_environments?: string[]
   approval_policy?: 'auto' | 'always' | ''
   risk_tolerance?: 'low' | 'medium' | 'high' | 'critical' | ''
   proof_required?: string[]
+  execution_mode?: ExecutionMode
+}
+
+export interface ExecutionPlan {
+  plan_id: string
+  packet_id: string
+  objectives: string[]
+  files_expected: string[]
+  validation_strategy: string
+  rollback_strategy: string
+  risk_assessment: string
+  created_at: number
+  approved: boolean
+}
+
+export interface ExecutionRecordSummary {
+  record_id: string
+  packet_id: string
+  sandbox_id: string
+  mode: string
+  started_at: number
+  completed_at: number
+  duration_seconds: number
+  files_changed: string[]
+  diff_summary: string
+  commits: string[]
+  all_validations_passed: boolean
+  success: boolean
+  error: string
+  agent_output: string
+  validation_results: ValidationResult[]
+  plan?: ExecutionPlan
+}
+
+export interface FailureReport {
+  report_id: string
+  packet_id: string
+  root_cause: string
+  failing_command: string
+  logs: string
+  recommended_action: string
+  retry_count: number
+  max_retries: number
 }
 
 interface SubmitResult {
@@ -81,22 +126,29 @@ interface SubmitResult {
   packet: PacketSummary
   needs_approval: boolean
   risk_class: string
+  execution_mode: string
   next_action: string
 }
 
 interface ExecuteResult {
   success: boolean
   packet_id: string
+  record_id: string
   sandbox_id: string
-  sandbox_path: string
-  branch_name: string
-  status: string
-  all_passed: boolean
-  execution_log: ValidationResult[]
-  changed_files: string[]
+  mode: string
+  execution_success: boolean
+  files_changed: string[]
   diff_summary: string
+  commits: string[]
   validation_results: ValidationResult[]
-  error?: string
+  all_passed: boolean
+  agent_output: string
+  duration_seconds: number
+  error: string
+  plan: ExecutionPlan | null
+  failure_report: FailureReport | null
+  needs_review: boolean
+  next_action: string
 }
 
 interface LoopHealth {
@@ -105,7 +157,7 @@ interface LoopHealth {
   queue_summary: Record<string, unknown>
   latest_audit_event: AuditEntry | null
   sandbox_summary: { total: number; active: number }
-  reality_model: string
+  execution_records: number
 }
 
 interface ImprovementStatus {
@@ -123,6 +175,7 @@ interface OperatorLoopState {
   auditTrail: AuditEntry[]
   selectedPacket: PacketDetail | null
   lastExecuteResult: ExecuteResult | null
+  lastPlan: ExecutionPlan | null
   loopHealth: LoopHealth | null
   improvementStatus: ImprovementStatus | null
   loading: boolean
@@ -140,7 +193,9 @@ interface OperatorLoopState {
   submitIntent: (contract: IntentContract) => Promise<SubmitResult | null>
   approvePacket: (id: string) => Promise<boolean>
   rejectPacket: (id: string, reason?: string) => Promise<boolean>
-  executePacket: (id: string) => Promise<ExecuteResult | null>
+  generatePlan: (packetId: string) => Promise<ExecutionPlan | null>
+  approvePlan: (planId: string) => Promise<boolean>
+  executePacket: (id: string, mode?: ExecutionMode, planId?: string) => Promise<ExecuteResult | null>
   completePacket: (id: string, outcome: string, success: boolean) => Promise<boolean>
   recordOutcome: (packetId: string, outcome: string, domain?: string) => Promise<boolean>
   verifyOutcome: (packetId: string, claimedOutcome: string, domain?: string) => Promise<Record<string, unknown> | null>
@@ -154,6 +209,7 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
   auditTrail: [],
   selectedPacket: null,
   lastExecuteResult: null,
+  lastPlan: null,
   loopHealth: null,
   improvementStatus: null,
   loading: false,
@@ -279,12 +335,48 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
     }
   },
 
-  executePacket: async (id) => {
+  generatePlan: async (packetId: string) => {
+    set({ loading: true, lastError: null })
+    try {
+      const res = await fetchApi<{ success: boolean; plan: ExecutionPlan }>('/operator-loop/generate-plan', {
+        method: 'POST',
+        body: JSON.stringify({ packet_id: packetId }),
+      })
+      set({ loading: false })
+      if (res.success) {
+        set({ lastPlan: res.plan })
+        return res.plan
+      }
+      return null
+    } catch {
+      set({ loading: false, lastError: 'Failed to generate plan' })
+      return null
+    }
+  },
+
+  approvePlan: async (planId: string) => {
+    try {
+      const res = await fetchApi<{ success: boolean }>('/operator-loop/approve-plan', {
+        method: 'POST',
+        body: JSON.stringify({ plan_id: planId }),
+      })
+      if (res.success && get().lastPlan?.plan_id === planId) {
+        set({ lastPlan: { ...get().lastPlan!, approved: true } })
+      }
+      return res.success
+    } catch {
+      return false
+    }
+  },
+
+  executePacket: async (id, mode = 'validate_only', planId) => {
     set({ executing: true, lastError: null })
     try {
+      const body: Record<string, string> = { packet_id: id, mode }
+      if (planId) body.plan_id = planId
       const res = await fetchApi<ExecuteResult>('/operator-loop/execute', {
         method: 'POST',
-        body: JSON.stringify({ packet_id: id }),
+        body: JSON.stringify(body),
       })
       set({ executing: false, lastExecuteResult: res })
       if (res.success) {
@@ -317,9 +409,9 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
 
   recordOutcome: async (packetId, outcome, domain = 'execution') => {
     try {
-      const res = await fetchApi<{ success: boolean }>('/self-improvement/assimilate-outcome', {
+      const res = await fetchApi<{ success: boolean }>('/operator-loop/record-outcome', {
         method: 'POST',
-        body: JSON.stringify({ packet_id: packetId, outcome, domain, confidence: 0.8, create_follow_up: false }),
+        body: JSON.stringify({ packet_id: packetId, outcome, domain, confidence: 0.8 }),
       })
       return res.success
     } catch {

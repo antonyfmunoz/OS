@@ -3,6 +3,13 @@ import { fetchApi } from '../api/client'
 import { ConnectionBanner } from '../components/ConnectionBanner'
 import { usePolling } from '../hooks/usePolling'
 import { useOperatorLoopStore } from '../stores/operatorLoopStore'
+import type {
+  ExecutionMode,
+  ExecutionPlan,
+  ExecutionRecordSummary,
+  FailureReport,
+  ValidationResult,
+} from '../stores/operatorLoopStore'
 
 interface QueueSummary {
   total_packets: number
@@ -66,6 +73,7 @@ const RISK_COLOR: Record<string, string> = {
   low: 'text-ok',
   medium: 'text-warn',
   high: 'text-danger',
+  critical: 'text-danger',
 }
 
 const KANBAN_COLUMNS = [
@@ -89,12 +97,18 @@ export function UniversalWorkPanel() {
   const [showCreate, setShowCreate] = useState(false)
   const [intentText, setIntentText] = useState('')
   const [desiredEndState, setDesiredEndState] = useState('')
+  const [createMode, setCreateMode] = useState<ExecutionMode>('validate_only')
 
   const submitIntent = useOperatorLoopStore((s) => s.submitIntent)
   const approvePacket = useOperatorLoopStore((s) => s.approvePacket)
   const rejectPacket = useOperatorLoopStore((s) => s.rejectPacket)
   const executePacket = useOperatorLoopStore((s) => s.executePacket)
   const completePacket = useOperatorLoopStore((s) => s.completePacket)
+  const generatePlan = useOperatorLoopStore((s) => s.generatePlan)
+  const approvePlan = useOperatorLoopStore((s) => s.approvePlan)
+  const lastExecuteResult = useOperatorLoopStore((s) => s.lastExecuteResult)
+  const lastPlan = useOperatorLoopStore((s) => s.lastPlan)
+  const executing = useOperatorLoopStore((s) => s.executing)
 
   const refresh = useCallback(async () => {
     const [s, p] = await Promise.all([
@@ -116,7 +130,11 @@ export function UniversalWorkPanel() {
 
   const handleCreate = async () => {
     if (!intentText.trim()) return
-    const result = await submitIntent({ user_intent: intentText, desired_end_state: desiredEndState })
+    const result = await submitIntent({
+      user_intent: intentText,
+      desired_end_state: desiredEndState,
+      execution_mode: createMode,
+    })
     if (result) {
       setIntentText('')
       setDesiredEndState('')
@@ -128,9 +146,7 @@ export function UniversalWorkPanel() {
   const handleApprove = async (id: string) => {
     await approvePacket(id)
     refresh()
-    if (selected && String(selected.packet_id) === id) {
-      selectPacket(id)
-    }
+    if (selected && String(selected.packet_id) === id) selectPacket(id)
   }
 
   const handleReject = async (id: string) => {
@@ -138,9 +154,20 @@ export function UniversalWorkPanel() {
     refresh()
   }
 
-  const handleExecute = async (id: string) => {
-    await executePacket(id)
+  const handleGeneratePlan = async (id: string) => {
+    await generatePlan(id)
     refresh()
+    if (selected && String(selected.packet_id) === id) selectPacket(id)
+  }
+
+  const handleApprovePlan = async (planId: string) => {
+    await approvePlan(planId)
+  }
+
+  const handleExecute = async (id: string, mode: ExecutionMode = 'validate_only', planId?: string) => {
+    await executePacket(id, mode, planId)
+    refresh()
+    if (selected && String(selected.packet_id) === id) selectPacket(id)
   }
 
   const handleComplete = async (id: string, success: boolean) => {
@@ -167,9 +194,9 @@ export function UniversalWorkPanel() {
       <div className="flex items-center gap-4 px-4 py-2 flex-shrink-0 border-b border-border">
         <h2 className="text-sm font-semibold text-text-primary">Work Packets</h2>
         <span className="text-xs text-text-secondary">{summary.total_packets} total</span>
+        {executing && <span className="text-xs text-cyan animate-pulse">executing...</span>}
         <div className="flex-1" />
 
-        {/* View mode tabs */}
         <div className="flex gap-1">
           {(['kanban', 'table'] as const).map((m) => (
             <button key={m} onClick={() => setViewMode(m)}
@@ -201,6 +228,18 @@ export function UniversalWorkPanel() {
             placeholder="Desired end state (optional)"
             className="w-full px-3 py-2 text-xs rounded bg-surface border border-border text-text-secondary outline-none"
           />
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-text-secondary">Mode:</span>
+            {(['validate_only', 'implement', 'implement_and_validate'] as const).map((m) => (
+              <button key={m} onClick={() => setCreateMode(m)}
+                className={`px-2 py-1 text-[10px] rounded border transition-colors ${
+                  createMode === m ? 'bg-cyan/10 text-cyan border-cyan/30' : 'text-text-secondary border-border'
+                }`}
+              >
+                {m === 'validate_only' ? 'Validate' : m === 'implement' ? 'Implement' : 'Full Loop'}
+              </button>
+            ))}
+          </div>
           <div className="flex gap-2">
             <button onClick={handleCreate}
               className="px-3 py-1 text-xs rounded bg-cyan-glow text-cyan border border-border"
@@ -217,7 +256,8 @@ export function UniversalWorkPanel() {
         {viewMode === 'kanban' && (
           <KanbanView packets={packets} onSelect={selectPacket}
             onApprove={handleApprove} onReject={handleReject}
-            onExecute={handleExecute} onComplete={handleComplete} />
+            onExecute={handleExecute} onComplete={handleComplete}
+            onGeneratePlan={handleGeneratePlan} />
         )}
         {viewMode === 'table' && (
           <TableView packets={packets} onSelect={selectPacket}
@@ -227,20 +267,26 @@ export function UniversalWorkPanel() {
         {viewMode === 'detail' && selected && (
           <DetailView packet={selected} onBack={() => setViewMode('kanban')}
             onApprove={handleApprove} onReject={handleReject}
-            onExecute={handleExecute} onComplete={handleComplete} />
+            onExecute={handleExecute} onComplete={handleComplete}
+            onGeneratePlan={handleGeneratePlan}
+            onApprovePlan={handleApprovePlan}
+            lastExecuteResult={lastExecuteResult}
+            lastPlan={lastPlan}
+            executing={executing} />
         )}
       </div>
     </div>
   )
 }
 
-function KanbanView({ packets, onSelect, onApprove, onReject, onExecute, onComplete }: {
+function KanbanView({ packets, onSelect, onApprove, onReject, onExecute, onComplete, onGeneratePlan }: {
   packets: PacketSafe[]
   onSelect: (id: string) => void
   onApprove: (id: string) => void
   onReject: (id: string) => void
-  onExecute: (id: string) => void
+  onExecute: (id: string, mode?: ExecutionMode) => void
   onComplete: (id: string, success: boolean) => void
+  onGeneratePlan: (id: string) => void
 }) {
   return (
     <div className="flex gap-2 p-3 h-full overflow-x-auto">
@@ -255,7 +301,8 @@ function KanbanView({ packets, onSelect, onApprove, onReject, onExecute, onCompl
             <div className="flex-1 overflow-y-auto space-y-1.5">
               {colPackets.map((pkt) => (
                 <KanbanCard key={pkt.packet_id} packet={pkt} onClick={() => onSelect(pkt.packet_id)}
-                  onApprove={onApprove} onReject={onReject} onExecute={onExecute} onComplete={onComplete} />
+                  onApprove={onApprove} onReject={onReject} onExecute={onExecute}
+                  onComplete={onComplete} onGeneratePlan={onGeneratePlan} />
               ))}
             </div>
           </div>
@@ -265,13 +312,14 @@ function KanbanView({ packets, onSelect, onApprove, onReject, onExecute, onCompl
   )
 }
 
-function KanbanCard({ packet, onClick, onApprove, onReject, onExecute, onComplete }: {
+function KanbanCard({ packet, onClick, onApprove, onReject, onExecute, onComplete, onGeneratePlan }: {
   packet: PacketSafe
   onClick: () => void
   onApprove: (id: string) => void
   onReject: (id: string) => void
-  onExecute: (id: string) => void
+  onExecute: (id: string, mode?: ExecutionMode) => void
   onComplete: (id: string, success: boolean) => void
+  onGeneratePlan: (id: string) => void
 }) {
   return (
     <div className="border border-border rounded p-2 bg-surface-secondary cursor-pointer hover:border-cyan transition-colors"
@@ -285,8 +333,7 @@ function KanbanCard({ packet, onClick, onApprove, onReject, onExecute, onComplet
         <span className="text-[10px] text-warn">approval required</span>
       )}
 
-      {/* Inline controls */}
-      <div className="flex gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
+      <div className="flex flex-wrap gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
         {packet.status === 'approval_pending' && (
           <>
             <button onClick={() => onApprove(packet.packet_id)}
@@ -296,10 +343,16 @@ function KanbanCard({ packet, onClick, onApprove, onReject, onExecute, onComplet
           </>
         )}
         {(packet.status === 'approved' || (packet.status === 'classified' && packet.approval_gates.length === 0)) && (
-          <button onClick={() => onExecute(packet.packet_id)}
-            className="px-2 py-1 text-[10px] rounded bg-cyan/10 text-cyan border border-border">execute</button>
+          <>
+            <button onClick={() => onGeneratePlan(packet.packet_id)}
+              className="px-2 py-1 text-[10px] rounded bg-surface-tertiary text-text-secondary border border-border">plan</button>
+            <button onClick={() => onExecute(packet.packet_id, 'validate_only')}
+              className="px-2 py-1 text-[10px] rounded bg-cyan/10 text-cyan border border-border">validate</button>
+            <button onClick={() => onExecute(packet.packet_id, 'implement_and_validate')}
+              className="px-2 py-1 text-[10px] rounded bg-ok/10 text-ok border border-border">run</button>
+          </>
         )}
-        {packet.status === 'executing' && (
+        {packet.status === 'validating' && (
           <>
             <button onClick={() => onComplete(packet.packet_id, true)}
               className="px-2 py-1 text-[10px] rounded bg-ok/10 text-ok border border-border">done</button>
@@ -317,7 +370,7 @@ function TableView({ packets, onSelect, onApprove, onReject, onExecute, onComple
   onSelect: (id: string) => void
   onApprove: (id: string) => void
   onReject: (id: string) => void
-  onExecute: (id: string) => void
+  onExecute: (id: string, mode?: ExecutionMode) => void
   onComplete: (id: string, success: boolean) => void
 }) {
   return (
@@ -355,10 +408,10 @@ function TableView({ packets, onSelect, onApprove, onReject, onExecute, onComple
                       </>
                     )}
                     {(pkt.status === 'approved' || (pkt.status === 'classified' && pkt.approval_gates.length === 0)) && (
-                      <button onClick={() => onExecute(pkt.packet_id)}
+                      <button onClick={() => onExecute(pkt.packet_id, 'implement_and_validate')}
                         className="px-2 py-1 text-[10px] rounded text-cyan border border-border">▶</button>
                     )}
-                    {pkt.status === 'executing' && (
+                    {pkt.status === 'validating' && (
                       <>
                         <button onClick={() => onComplete(pkt.packet_id, true)}
                           className="px-2 py-1 text-[10px] rounded text-ok border border-border">✓</button>
@@ -377,27 +430,37 @@ function TableView({ packets, onSelect, onApprove, onReject, onExecute, onComple
   )
 }
 
-function DetailView({ packet, onBack, onApprove, onReject, onExecute, onComplete }: {
+function DetailView({ packet, onBack, onApprove, onReject, onExecute, onComplete, onGeneratePlan, onApprovePlan, lastExecuteResult, lastPlan, executing }: {
   packet: Record<string, unknown>
   onBack: () => void
   onApprove: (id: string) => void
   onReject: (id: string) => void
-  onExecute: (id: string) => void
+  onExecute: (id: string, mode?: ExecutionMode, planId?: string) => void
   onComplete: (id: string, success: boolean) => void
+  onGeneratePlan: (id: string) => void
+  onApprovePlan: (planId: string) => void
+  lastExecuteResult: Record<string, unknown> | null
+  lastPlan: ExecutionPlan | null
+  executing: boolean
 }) {
   const id = String(packet.packet_id || '')
   const status = String(packet.status || '')
+  const [selectedMode, setSelectedMode] = useState<ExecutionMode>('implement_and_validate')
+
+  const canExecute = status === 'approved' || (status === 'classified' && (!Array.isArray(packet.approval_gates) || packet.approval_gates.length === 0))
+  const activeResult = lastExecuteResult && String((lastExecuteResult as Record<string, unknown>).packet_id) === id ? lastExecuteResult as Record<string, unknown> : null
 
   return (
-    <div className="p-4 space-y-4 max-w-3xl">
+    <div className="p-4 space-y-4 max-w-3xl overflow-y-auto">
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="text-xs text-text-secondary hover:text-text-primary">← Back</button>
         <h2 className="text-sm font-semibold text-text-primary">{String(packet.title || 'Untitled')}</h2>
         <span className={`text-xs font-mono ${STATUS_COLOR[status]}`}>{status}</span>
+        {executing && <span className="text-xs text-cyan animate-pulse">executing...</span>}
       </div>
 
       {/* Action bar */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {status === 'approval_pending' && (
           <>
             <button onClick={() => onApprove(id)}
@@ -406,11 +469,33 @@ function DetailView({ packet, onBack, onApprove, onReject, onExecute, onComplete
               className="px-3 py-2 text-xs rounded bg-danger/10 text-danger border border-border">Reject</button>
           </>
         )}
-        {(status === 'approved' || (status === 'classified' && !Array.isArray(packet.approval_gates) || (Array.isArray(packet.approval_gates) && packet.approval_gates.length === 0))) && (
-          <button onClick={() => onExecute(id)}
-            className="px-3 py-2 text-xs rounded bg-cyan/10 text-cyan border border-border">Execute</button>
+        {canExecute && (
+          <>
+            <button onClick={() => onGeneratePlan(id)}
+              className="px-3 py-2 text-xs rounded bg-surface-tertiary text-text-secondary border border-border">Generate Plan</button>
+            <div className="flex items-center gap-1 border border-border rounded px-1">
+              {(['validate_only', 'implement', 'implement_and_validate'] as const).map((m) => (
+                <button key={m} onClick={() => setSelectedMode(m)}
+                  className={`px-2 py-1 text-[10px] rounded transition-colors ${
+                    selectedMode === m ? 'bg-cyan/10 text-cyan' : 'text-text-tertiary'
+                  }`}
+                >
+                  {m === 'validate_only' ? 'Validate' : m === 'implement' ? 'Implement' : 'Full'}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => onExecute(id, selectedMode, lastPlan?.packet_id === id && lastPlan?.approved ? lastPlan.plan_id : undefined)}
+              disabled={executing}
+              className={`px-3 py-2 text-xs rounded border border-border ${
+                executing ? 'bg-surface-secondary text-text-tertiary cursor-not-allowed' : 'bg-cyan/10 text-cyan'
+              }`}
+            >
+              {executing ? 'Running...' : 'Execute'}
+            </button>
+          </>
         )}
-        {status === 'executing' && (
+        {status === 'validating' && (
           <>
             <button onClick={() => onComplete(id, true)}
               className="px-3 py-2 text-xs rounded bg-ok/10 text-ok border border-border">Mark Done</button>
@@ -419,6 +504,16 @@ function DetailView({ packet, onBack, onApprove, onReject, onExecute, onComplete
           </>
         )}
       </div>
+
+      {/* Execution Plan */}
+      {lastPlan && lastPlan.packet_id === id && (
+        <PlanSection plan={lastPlan} onApprove={onApprovePlan} />
+      )}
+
+      {/* Execution Result */}
+      {activeResult && (
+        <ExecutionResultSection result={activeResult} />
+      )}
 
       {/* Detail fields */}
       <div className="border border-border rounded p-4 bg-surface-secondary text-xs space-y-3">
@@ -457,6 +552,34 @@ function DetailView({ packet, onBack, onApprove, onReject, onExecute, onComplete
         <Field label="Context" value={String(packet.context_summary || '')} />
       </div>
 
+      {/* Execution Records (from packet detail API) */}
+      {Array.isArray(packet.execution_records) && (packet.execution_records as ExecutionRecordSummary[]).length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Execution History</h3>
+          <div className="space-y-2">
+            {(packet.execution_records as ExecutionRecordSummary[]).map((rec) => (
+              <div key={rec.record_id} className="border border-border rounded p-3 bg-surface-secondary text-xs space-y-1">
+                <div className="flex items-center gap-3">
+                  <span className={`font-mono ${rec.success ? 'text-ok' : 'text-danger'}`}>
+                    {rec.success ? 'PASSED' : 'FAILED'}
+                  </span>
+                  <span className="text-text-tertiary">{rec.mode}</span>
+                  <span className="text-text-tertiary">{rec.duration_seconds.toFixed(1)}s</span>
+                  <span className="text-text-tertiary font-mono text-[10px]">{rec.record_id}</span>
+                </div>
+                {rec.files_changed.length > 0 && (
+                  <div className="text-text-secondary">Files: {rec.files_changed.join(', ')}</div>
+                )}
+                {rec.commits.length > 0 && (
+                  <div className="text-text-secondary">Commits: {rec.commits.join(', ')}</div>
+                )}
+                {rec.error && <div className="text-danger">{rec.error}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Audit trail */}
       {Array.isArray(packet.audit_trail) && (packet.audit_trail as Array<Record<string, unknown>>).length > 0 && (
         <div>
@@ -477,21 +600,153 @@ function DetailView({ packet, onBack, onApprove, onReject, onExecute, onComplete
   )
 }
 
+function PlanSection({ plan, onApprove }: { plan: ExecutionPlan; onApprove: (id: string) => void }) {
+  return (
+    <div className="border border-border rounded p-3 bg-surface-secondary space-y-2">
+      <div className="flex items-center gap-3">
+        <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Execution Plan</h3>
+        <span className="text-[10px] font-mono text-text-tertiary">{plan.plan_id}</span>
+        {plan.approved ? (
+          <span className="text-[10px] text-ok font-mono uppercase">approved</span>
+        ) : (
+          <button onClick={() => onApprove(plan.plan_id)}
+            className="px-2 py-1 text-[10px] rounded bg-ok/10 text-ok border border-border">
+            Approve Plan
+          </button>
+        )}
+      </div>
+      <div className="text-xs space-y-1">
+        {plan.objectives.length > 0 && (
+          <div>
+            <span className="text-text-secondary">Objectives:</span>
+            <ul className="ml-3 mt-1 text-text-primary">{plan.objectives.map((o, i) => <li key={i}>• {o}</li>)}</ul>
+          </div>
+        )}
+        {plan.files_expected.length > 0 && (
+          <div>
+            <span className="text-text-secondary">Expected Files:</span>
+            <ul className="ml-3 mt-1 text-text-primary font-mono">{plan.files_expected.map((f, i) => <li key={i}>• {f}</li>)}</ul>
+          </div>
+        )}
+        <Field label="Validation Strategy" value={plan.validation_strategy} />
+        <Field label="Rollback Strategy" value={plan.rollback_strategy} />
+        <Field label="Risk Assessment" value={plan.risk_assessment} color={RISK_COLOR[plan.risk_assessment]} />
+      </div>
+    </div>
+  )
+}
+
+function ExecutionResultSection({ result }: { result: Record<string, unknown> }) {
+  const success = Boolean(result.execution_success)
+  const mode = String(result.mode || '')
+  const agentOutput = String(result.agent_output || '')
+  const filesChanged = Array.isArray(result.files_changed) ? result.files_changed as string[] : []
+  const diffSummary = String(result.diff_summary || '')
+  const commits = Array.isArray(result.commits) ? result.commits as string[] : []
+  const validationResults = Array.isArray(result.validation_results) ? result.validation_results as ValidationResult[] : []
+  const duration = Number(result.duration_seconds || 0)
+  const error = String(result.error || '')
+  const needsReview = Boolean(result.needs_review)
+  const failureReport = result.failure_report as FailureReport | null
+
+  return (
+    <div className={`border rounded p-3 space-y-3 ${success ? 'border-ok/30' : 'border-danger/30'}`}>
+      <div className="flex items-center gap-3">
+        <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Execution Result</h3>
+        <span className={`text-xs font-mono ${success ? 'text-ok' : 'text-danger'}`}>
+          {success ? 'SUCCESS' : 'FAILED'}
+        </span>
+        <span className="text-[10px] text-text-tertiary">{mode} · {duration.toFixed(1)}s</span>
+        {needsReview && <span className="text-[10px] text-warn font-mono uppercase">review required</span>}
+      </div>
+
+      {agentOutput && (
+        <div>
+          <span className="text-[10px] text-text-secondary uppercase">Agent Output</span>
+          <pre className="mt-1 p-2 bg-surface rounded text-[11px] text-text-primary whitespace-pre-wrap max-h-40 overflow-y-auto font-mono">
+            {agentOutput}
+          </pre>
+        </div>
+      )}
+
+      {filesChanged.length > 0 && (
+        <div>
+          <span className="text-[10px] text-text-secondary uppercase">Files Changed ({filesChanged.length})</span>
+          <div className="mt-1 space-y-0.5">
+            {filesChanged.map((f, i) => (
+              <div key={i} className="text-xs font-mono text-text-primary">{f}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {diffSummary && (
+        <div>
+          <span className="text-[10px] text-text-secondary uppercase">Diff Summary</span>
+          <pre className="mt-1 p-2 bg-surface rounded text-[11px] text-text-primary whitespace-pre-wrap font-mono max-h-32 overflow-y-auto">
+            {diffSummary}
+          </pre>
+        </div>
+      )}
+
+      {commits.length > 0 && (
+        <div>
+          <span className="text-[10px] text-text-secondary uppercase">Commits</span>
+          <div className="mt-1 space-y-0.5">
+            {commits.map((c, i) => (
+              <div key={i} className="text-xs font-mono text-cyan">{c}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {validationResults.length > 0 && (
+        <div>
+          <span className="text-[10px] text-text-secondary uppercase">Validation ({validationResults.filter((v) => v.passed).length}/{validationResults.length} passed)</span>
+          <div className="mt-1 space-y-1">
+            {validationResults.map((v, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <span className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${v.passed ? 'bg-ok' : 'bg-danger'}`} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-text-primary">{v.label}</span>
+                  <span className="text-text-tertiary ml-2">{v.duration_seconds.toFixed(1)}s</span>
+                  {!v.passed && v.stderr && (
+                    <pre className="mt-1 p-1 bg-surface rounded text-[10px] text-danger whitespace-pre-wrap max-h-20 overflow-y-auto">
+                      {v.stderr}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="text-xs text-danger bg-danger/5 p-2 rounded">
+          <span className="font-semibold">Error:</span> {error}
+        </div>
+      )}
+
+      {failureReport && (
+        <div className="border border-danger/20 rounded p-2 space-y-1 text-xs">
+          <span className="text-[10px] text-danger uppercase font-semibold">Failure Report</span>
+          <Field label="Root Cause" value={failureReport.root_cause} />
+          <Field label="Failing Command" value={failureReport.failing_command} mono />
+          <Field label="Recommended" value={failureReport.recommended_action} />
+          <Field label="Retries" value={`${failureReport.retry_count}/${failureReport.max_retries}`} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Field({ label, value, mono, color }: { label: string; value: string; mono?: boolean; color?: string }) {
   if (!value) return null
   return (
     <div>
       <span className="text-text-secondary">{label}:</span>{' '}
       <span className={`text-text-primary ${mono ? 'font-mono' : ''} ${color || ''}`}>{value}</span>
-    </div>
-  )
-}
-
-function StatCard({ label, value, color = 'text-text-primary' }: { label: string; value: number; color?: string }) {
-  return (
-    <div className="border border-border rounded px-3 py-2 bg-surface-secondary">
-      <div className="text-xs text-text-secondary">{label}</div>
-      <div className={`text-lg font-mono ${color}`}>{value}</div>
     </div>
   )
 }
