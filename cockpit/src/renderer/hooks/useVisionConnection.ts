@@ -725,6 +725,16 @@ export function useVisionConnection(): void {
           useVisionStore.getState().appendVisionEvents(events)
         }
       }),
+
+      // Command telemetry (Phase 6)
+      client.on('command_log', (d) => {
+        useVisionStore.getState().updateCommandTelemetry({
+          commands: (d.commands as Array<{ id: number; operation: string; sent_at: number; rtt_ms: number; success: boolean; error?: string }>) ?? [],
+          total: (d.total as number) ?? 0,
+          ok: (d.ok as number) ?? 0,
+          fail: (d.fail as number) ?? 0,
+        })
+      }),
     ]
 
     // Metrics polling + stale detection — 1s
@@ -780,9 +790,10 @@ export function useVisionConnection(): void {
     healthInterval.current = setInterval(() => {
       if (!client.connected) return
       client.requestHealth()
-      // Piggyback vision events request on health poll
+      // Piggyback vision events + command log on health poll
       const lastSeq = useVisionStore.getState().visionEvents.at(-1)?.seq ?? 0
       client.requestEvents(lastSeq)
+      client.requestCommandLog(20)
     }, 5000)
 
     // Device list polling — 30s, auto-recovers from stale empty device list

@@ -137,6 +137,20 @@ def _emit_vision_event(event_type: str, detail: dict[str, Any] | None = None) ->
         _vision_events[:] = _vision_events[-_VISION_EVENT_MAX:]
 
 
+# ── Failure injection (Phase 9) ──────────────────────────────────
+
+_fault_inject: dict[str, bool] = {
+    "drop_frames": False,
+    "block_commands": False,
+    "fake_detector_offline": False,
+    "high_latency": False,
+}
+
+
+def _is_fault_active(fault: str) -> bool:
+    return _fault_inject.get(fault, False)
+
+
 # ── Diagnostic overlay state ─────────────────────────────────────
 
 _diagnostic_overlay_active = False
@@ -163,6 +177,11 @@ _last_dispatch_ok_at: float = 0.0
 _last_dispatch_fail_at: float = 0.0
 _last_dispatch_operation: str = ""
 _last_dispatch_rtt_ms: float = 0.0
+_dispatch_total: int = 0
+_dispatch_ok_count: int = 0
+_dispatch_fail_count: int = 0
+_COMMAND_LOG_MAX = 100
+_command_log: list[dict[str, Any]] = []
 
 # ── Digital ROI state ────────────────────────────────────────────
 _roi_x: float = 0.0
@@ -1098,6 +1117,30 @@ async def handle_vision(ws: Any) -> None:
                     "total": len(_vision_events),
                 })
 
+            elif msg_type == "command_log":
+                last_n = min(msg.get("last", 50), _COMMAND_LOG_MAX)
+                await send_json(ws, {
+                    "type": "command_log",
+                    "commands": _command_log[-last_n:],
+                    "total": _dispatch_total,
+                    "ok": _dispatch_ok_count,
+                    "fail": _dispatch_fail_count,
+                })
+
+            elif msg_type == "fault_inject":
+                fault = msg.get("fault", "")
+                active = msg.get("active", False)
+                if fault in _fault_inject:
+                    _fault_inject[fault] = bool(active)
+                    _emit_vision_event("fault_inject", {"fault": fault, "active": active})
+                    log.warning("fault injection: %s = %s", fault, active)
+                    await send_json(ws, {"type": "fault_inject_ack", "fault": fault, "active": active, "faults": dict(_fault_inject)})
+                else:
+                    await send_json(ws, {"type": "fault_inject_ack", "error": f"unknown fault: {fault}", "faults": dict(_fault_inject)})
+
+            elif msg_type == "fault_status":
+                await send_json(ws, {"type": "fault_status", "faults": dict(_fault_inject)})
+
     except websockets.exceptions.ConnectionClosed:
         log.info("viewer disconnected: %s", ws.remote_address)
     except Exception as e:
@@ -1260,6 +1303,12 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
         log.warning("frame too large: %d bytes, dropping", len(jpeg_bytes))
         return
 
+    if _is_fault_active("drop_frames"):
+        return
+
+    if _is_fault_active("high_latency"):
+        await asyncio.sleep(0.5)
+
     _latest_frame = jpeg_bytes
     _latest_frame_meta = meta
     _stream_active = True
@@ -1275,6 +1324,8 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
         _capture_to_relay_ms = round((now - capture_ts) * 1000, 1)
 
     det_status = meta.get("detector_status")
+    if _is_fault_active("fake_detector_offline"):
+        det_status = None
     if det_status:
         _latest_detector_status = det_status
 
@@ -1720,7 +1771,17 @@ def _dispatch_to_beast_sync(operation: str, params: dict[str, Any]) -> dict[str,
     """Blocking mesh dispatch — runs in thread pool via _dispatch_to_beast."""
     global _last_dispatch_ok_at, _last_dispatch_fail_at
     global _last_dispatch_operation, _last_dispatch_rtt_ms
+    global _dispatch_total, _dispatch_ok_count, _dispatch_fail_count
+    _dispatch_total += 1
+    cmd_id = _dispatch_total
     t0 = time.monotonic()
+    sent_at = time.time()
+    if _is_fault_active("block_commands"):
+        _dispatch_fail_count += 1
+        _last_dispatch_fail_at = time.time()
+        _last_dispatch_operation = operation
+        _record_command(cmd_id, operation, sent_at, 0, False, "fault_injected")
+        return None
     try:
         import urllib.request
 
@@ -1739,18 +1800,43 @@ def _dispatch_to_beast_sync(operation: str, params: dict[str, Any]) -> dict[str,
             data = json.loads(resp.read())
             result = data.get("result_data", data)
             rtt = (time.monotonic() - t0) * 1000
-            if data.get("ok", False):
+            ok = data.get("ok", False)
+            if ok:
                 _last_dispatch_ok_at = time.time()
                 _last_dispatch_rtt_ms = rtt
+                _dispatch_ok_count += 1
             else:
                 _last_dispatch_fail_at = time.time()
+                _dispatch_fail_count += 1
             _last_dispatch_operation = operation
+            _record_command(cmd_id, operation, sent_at, rtt, ok)
             return result
     except Exception as exc:
+        rtt = (time.monotonic() - t0) * 1000
         _last_dispatch_fail_at = time.time()
         _last_dispatch_operation = operation
+        _dispatch_fail_count += 1
+        _record_command(cmd_id, operation, sent_at, rtt, False, str(exc))
         log.warning("mesh dispatch failed (%s): %s", operation, exc)
         return None
+
+
+def _record_command(
+    cmd_id: int, operation: str, sent_at: float,
+    rtt_ms: float, success: bool, error: str | None = None,
+) -> None:
+    entry: dict[str, Any] = {
+        "id": cmd_id,
+        "operation": operation,
+        "sent_at": sent_at,
+        "rtt_ms": round(rtt_ms, 1),
+        "success": success,
+    }
+    if error:
+        entry["error"] = error
+    _command_log.append(entry)
+    if len(_command_log) > _COMMAND_LOG_MAX:
+        _command_log[:] = _command_log[-_COMMAND_LOG_MAX:]
 
 
 async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str, Any] | None:
@@ -1929,7 +2015,11 @@ def _build_health() -> dict[str, Any]:
         "last_dispatch_fail_at": _last_dispatch_fail_at,
         "last_dispatch_operation": _last_dispatch_operation,
         "last_dispatch_rtt_ms": round(_last_dispatch_rtt_ms, 1),
+        "dispatch_total": _dispatch_total,
+        "dispatch_ok_count": _dispatch_ok_count,
+        "dispatch_fail_count": _dispatch_fail_count,
         "roi": _get_roi(),
+        "active_faults": {k: v for k, v in _fault_inject.items() if v},
         "blockers": blockers,
         "recovery_action": recovery_action,
     }
@@ -1958,6 +2048,23 @@ async def _health_server() -> None:
                             since = int(part.split("=", 1)[1])
                 events = [e for e in _vision_events if e["seq"] > since][-100:]
                 body = json.dumps({"events": events, "total": len(_vision_events)}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path == "/commands" or self.path.startswith("/commands?"):
+                last_n = 50
+                if "?" in self.path:
+                    for part in self.path.split("?", 1)[1].split("&"):
+                        if part.startswith("last="):
+                            last_n = min(int(part.split("=", 1)[1]), _COMMAND_LOG_MAX)
+                entries = _command_log[-last_n:]
+                body = json.dumps({
+                    "commands": entries,
+                    "total": _dispatch_total,
+                    "ok": _dispatch_ok_count,
+                    "fail": _dispatch_fail_count,
+                }).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()

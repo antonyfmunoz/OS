@@ -35,6 +35,7 @@ export function DiagnosticsPanel({
   const authorityLog = useVisionStore((s) => s.authority.log)
   const pipelineLatency = useVisionStore((s) => s.pipelineLatency)
   const visionEvents = useVisionStore((s) => s.visionEvents)
+  const commandTelemetry = useVisionStore((s) => s.commandTelemetry)
   const [expanded, setExpanded] = useState(false)
 
   const enabledTrackers = trackerStack.enabled_trackers.filter((t) => t.enabled)
@@ -192,6 +193,26 @@ export function DiagnosticsPanel({
                     evt.type.includes('preset') && 'text-cyan',
                   )}>{evt.type}</span>
                   {evt.detail && <span className="text-text-quaternary truncate">{JSON.stringify(evt.detail)}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Command telemetry (Phase 6) */}
+          {commandTelemetry.total > 0 && (
+            <div className="text-[9px] font-mono border border-dashed border-border/50 rounded p-2">
+              <span className="text-text-quaternary uppercase tracking-wider block mb-1">
+                command telemetry ({commandTelemetry.total} total — {commandTelemetry.ok} ok / {commandTelemetry.fail} fail)
+              </span>
+              {commandTelemetry.commands.slice(-8).reverse().map((cmd) => (
+                <div key={cmd.id} className="flex gap-2 text-text-quaternary">
+                  <span className="shrink-0">{new Date(cmd.sent_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                  <span className="text-text-secondary truncate">{cmd.operation.replace('camera.', '')}</span>
+                  <span className={clsx(
+                    cmd.rtt_ms < 200 ? 'text-ok' : cmd.rtt_ms < 500 ? 'text-warning' : 'text-error',
+                  )}>{cmd.rtt_ms}ms</span>
+                  <span className={cmd.success ? 'text-ok' : 'text-error'}>{cmd.success ? 'OK' : 'FAIL'}</span>
+                  {cmd.error && <span className="text-error truncate">{cmd.error}</span>}
                 </div>
               ))}
             </div>
