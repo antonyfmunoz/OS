@@ -1,20 +1,70 @@
-# UMH Broadcast Build Plan (Re-Derived from Full OBS Architecture)
+# UMH Broadcast Build Plan (Re-Derived from Full OBS Architecture + Organism Placement)
 
-> **Supersedes**: The ad-hoc Wave 1/2/3 list. This plan is grounded in the
-> complete OBS architecture map, sequenced by leverage + dependency order.
+> **Supersedes**: The ad-hoc Wave 1/2/3 list AND the first re-derivation. This
+> version corrects a silent assumption in the prior plan — that the engine lives
+> on the VPS (Linux) — by encoding UMH's actual deployment reality: **VPS + Beast
+> (local Windows workstation) + iPhone are one organism.** The engine is
+> node-portable; capture and hardware encode are first-class organism capabilities,
+> not deferred phases.
 
-> **Principle**: UMH wraps FFmpeg where OBS wraps GPU APIs. Every capability
-> maps to FFmpeg filter_complex parameters, not in-process rendering. The
-> differentiator is AI-operable broadcasting — agents and cells control the
-> same API as humans. No other broadcast tool has this.
+> **Principle**: UMH wraps FFmpeg where OBS wraps GPU APIs. Every capability maps
+> to FFmpeg `filter_complex` parameters, codec flags, or muxer options — not
+> in-process rendering. The differentiator is **AI-operable broadcasting across an
+> organism**: agents and cells control the same socket as humans, and that socket
+> drives the engine on whichever node holds the capability. No other broadcast tool
+> has either property.
 
----
+-----
 
-## What's Already Shipped
+## Organism Placement Model (read this first)
+
+The control-plane socket (HTTP + WS) is **node-agnostic**. The engine is **node-portable**.
+The same socket that makes the engine dual-*consumer* (human cockpit + agent cells) makes it
+dual-*node* (VPS + Beast). The cockpit and agent cells address the engine over Tailscale
+**without caring which box it runs on**.
+
+### Node roles
+
+|Node                           |Address            |Role                                                                      |Has                                                                                   |
+|-------------------------------|-------------------|--------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+|**Beast** (Windows workstation)|`100.74.199.102`   |**Production capture + encode engine**                                    |Real display/window/webcam capture, mic + system audio, **NVENC** hardware encode, GPU|
+|**VPS** (Ubuntu, headless)     |`100.77.233.50`    |**Control plane + agent orchestration + always-on synthetic/relay engine**|No capture devices, no GPU, always-on                                                 |
+|**iPhone**                     |(Termius/Tailscale)|Control surface                                                           |—                                                                                     |
+
+### Node-aware capability resolution
+
+A single uniform socket capability resolves to the right FFmpeg construct **per node**. The
+caller (human or agent) asks for `"display capture"` or `"mic"`; the engine resolves it for the
+node it's running on:
+
+|Capability               |Beast (Windows)                                          |VPS (Linux)                        |
+|-------------------------|---------------------------------------------------------|-----------------------------------|
+|Display capture          |`ddagrab` (Desktop Duplication, GPU) / `gdigrab` fallback|`x11grab` (needs Xvfb)             |
+|Window capture           |`gdigrab title=` / `ddagrab` output                      |`x11grab` window id                |
+|Webcam                   |`-f dshow -i video="<name>"`                             |`-f v4l2 -i /dev/videoN`           |
+|Mic / audio device       |`-f dshow -i audio="<name>"`                             |`pulse` / `alsa`                   |
+|System (loopback) audio  |WASAPI loopback / loopback capture device                |pulse monitor source               |
+|Hardware encode          |`h264_nvenc` / `hevc_nvenc`                              |`x264` (sw) or `vaapi`/`qsv` if GPU|
+|Synthetic / relay sources|lavfi, file, RTMP/SRT pull (node-independent)            |lavfi, file, RTMP/SRT pull         |
+
+**Windows system-audio capture is finicky** — it usually requires a loopback device. This is
+a specific derisk item, not a given.
+
+### Why NVENC on the Beast is also a license win
+
+Hardware encoders (`h264_nvenc`/`hevc_nvenc`) sidestep the **x264 GPL flip** the LICENSE_FIREWALL
+flagged: software x264 in an FFmpeg build pulls GPL, while NVENC keeps the FFmpeg dependency
+cleanly **LGPL** (CLI subprocess, no `libav*` linking). Performance *and* license cleanliness in
+one move — so the Beast's GPU encode is the preferred production path, not just the fast one.
+
+-----
+
+## What's Already Shipped (all VPS-hosted, synthetic sources)
 
 ### Slice 0 — Single-Source Broadcast (COMPLETE)
-- BroadcastEngine state machine (idle → starting → live → stopping)
-- ProcessLifecycle (process group isolation, CPU gate, SIGTERM→SIGKILL)
+
+- BroadcastEngine state machine (idle -> starting -> live -> stopping)
+- ProcessLifecycle (process group isolation, CPU gate, SIGTERM->SIGKILL)
 - FFmpeg argument builder with SSRF-hardened URL validation
 - Source types: test_pattern (8 lavfi), v4l2 camera, RTMP/SRT pull, file (loop)
 - x264 encoding (High profile, level 4.1)
@@ -27,334 +77,276 @@
 - 7 process lifecycle tests
 
 ### Wave 2 Slice A — Multi-Source Compositing + Scene Switching (COMPLETE)
-- filter_complex builder (canvas + scaled overlays + ZMQ named filters)
+
+- `filter_complex` builder (canvas + scaled overlays + ZMQ named filters)
 - Scene/SourceEntry/SourceLayout/CompositeConfig Pydantic models
 - ZMQ client (per-command fresh socket, batch with abort semantics)
 - Live scene switching via ZMQ overlay repositioning (~200ms, no FFmpeg restart)
 - Composite start API + scene switch API + scene list API
 - Cockpit scene switcher UI (conditional on composite + live)
 - 25 filtergraph tests (overlays, z-order, scenes, injection prevention)
-- nginx WS upgrade block for broadcast endpoint
-- Frontend Clerk auth + backend subprotocol echo
+- nginx WS upgrade block; frontend Clerk auth; backend subprotocol echo (deployed v239)
 
----
+> **Reality check**: everything shipped runs on the VPS with synthetic/file/pull sources. No
+> real capture, no real audio, no hardware encode, no Beast engine node yet. Against the full
+> OBS surface this is **~15%** of capabilities — and all of it on the node that has none of the
+> real hardware.
 
-## What's Missing (Mapped Against Full OBS Surface)
+-----
 
-### Coverage Assessment
+## Coverage Assessment (against full OBS surface + organism placement)
 
-| OBS Subsystem | UMH Status | Priority |
-|--------------|-----------|----------|
-| Graphics/Compositor | N/A (FFmpeg wraps) | — |
-| Source primitive | Partial (SourceEntry, no capability flags) | HIGH |
-| Scene/Scene-item | Partial (no crop/rotation/opacity/blend/nesting) | HIGH |
-| Audio pipeline | ABSENT (silent anullsrc placeholder) | **CRITICAL** |
-| Video pipeline | WRAPPED (FFmpeg handles) | — |
-| Encoder abstraction | Partial (x264 only, no HW) | MEDIUM |
-| Output abstraction | Partial (stream only, no record) | HIGH |
-| Service abstraction | ABSENT | MEDIUM |
-| Module/plugin system | N/A (CapabilityHandler serves this role) | — |
-| Capture sources | 4 of 16 types | MEDIUM |
-| Video filters | ABSENT | HIGH |
-| Audio filters | ABSENT | HIGH |
-| Transitions | ABSENT (instant cut only) | MEDIUM |
-| Studio mode | ABSENT | LOW |
-| Properties/settings | Partial (Pydantic, no dynamic) | LOW |
-| Profiles/collections | ABSENT | MEDIUM |
-| Stats/performance | Partial (health monitor, no separate counters) | LOW |
-| Projectors | N/A (cockpit serves this role) | — |
-| Hotkeys | N/A (API serves this role) | — |
-| Auto-config | ABSENT | LOW |
-| Remote control | Partial (HTTP + WS health, no bidirectional WS) | MEDIUM |
+|OBS Subsystem                                  |UMH Status                                      |Production Node|Priority        |
+|-----------------------------------------------|------------------------------------------------|---------------|----------------|
+|Graphics/Compositor                            |N/A (FFmpeg wraps)                              |either         |—               |
+|Source primitive                               |Partial (SourceEntry, no capability flags)      |either         |HIGH            |
+|Scene/Scene-item                               |Partial (no crop/rotation/opacity/blend/nesting)|either         |HIGH            |
+|Audio pipeline                                 |**ABSENT** (silent `anullsrc` placeholder)      |either         |**CRITICAL**    |
+|Real capture (display/window/webcam/mic/system)|**ABSENT**                                      |**Beast**      |**HIGH**        |
+|Hardware encode (NVENC)                        |**ABSENT** (x264 only)                          |**Beast**      |**HIGH**        |
+|Cross-node engine placement                    |**ABSENT** (VPS-only today)                     |organism       |**FOUNDATIONAL**|
+|Video pipeline                                 |WRAPPED (FFmpeg)                                |either         |—               |
+|Output abstraction                             |Partial (stream only, no record)                |either         |HIGH            |
+|Service abstraction                            |ABSENT                                          |either         |MEDIUM          |
+|Video filters                                  |ABSENT                                          |either         |HIGH            |
+|Audio filters                                  |ABSENT                                          |either         |HIGH            |
+|Transitions                                    |ABSENT (instant cut only)                       |either         |MEDIUM          |
+|Studio mode                                    |ABSENT                                          |either         |LOW             |
+|Properties/settings                            |Partial (Pydantic)                              |either         |LOW             |
+|Profiles/collections                           |ABSENT                                          |either         |MEDIUM          |
+|Stats/performance                              |Partial (health monitor)                        |either         |LOW             |
+|Remote control                                 |Partial (HTTP + WS health, no bidirectional WS) |either         |MEDIUM          |
+|Module/plugin system                           |N/A (CapabilityHandler)                         |—              |DEFER           |
+|Projectors / Hotkeys                           |N/A (cockpit / API serve these)                 |—              |DEFER           |
 
----
+-----
 
 ## Re-Derived Critical Path
 
-Sequenced by dependency order. Each phase builds on the previous.
-Estimated scope in parentheses.
+Sequenced by dependency order + organism placement. **Phase 0 is new and foundational** —
+everything "real" sits on top of the engine actually running where the hardware is.
 
-### Phase 1: Audio Pipeline (CRITICAL — blocks everything after it)
+### Phase 0: Organism Engine Placement (FOUNDATIONAL — everything real depends on it)
 
-**Why first**: A broadcast tool without audio is a slideshow. Audio is the
-single largest capability gap. Every subsequent phase (recording, filters,
-transitions) needs audio to be meaningful.
-
-**What to build**:
-1. Per-source audio input in filter_complex (`-i` audio sources mapped to
-   each video source, or `anullsrc` for sources without audio)
-2. Audio mixing via FFmpeg `amix` or `amerge` filters
-3. Per-source volume control via `volume` filter with ZMQ-addressable parameter
-4. Per-source mute (volume=0 via ZMQ, or `enable` flag)
-5. Audio sync offset via `adelay` filter per source
-6. AAC encoding for output stream (already have `aac` in args, just need
-   real audio input instead of anullsrc)
-7. Cockpit audio mixer UI (per-source volume sliders, mute toggles, VU meters)
-8. API endpoints: set volume, set mute, get audio levels
-
-**Wraps**: FFmpeg `amix`, `volume`, `adelay`, `pan` filters.
-**Scope**: Medium. Filter_complex changes + new API endpoints + cockpit UI.
-
-**Dependency chain**: Audio → Filters → Recording → Transitions → Studio Mode
-
-### Phase 2: Recording + Multi-Output
-
-**Why second**: Recording is the second most-asked-for broadcast feature after
-"go live." Users need to stream AND record simultaneously. This also establishes
-the multi-output pattern needed for replay buffer and studio mode preview.
+**Why first**: Every real capability (real capture, real audio, hardware encode) lives on the
+Beast. None of it is reachable until the engine can run on the Beast and be driven from the VPS
+control plane. This is the deferred cross-host piece finally made foundational.
 
 **What to build**:
-1. Multi-output via FFmpeg `tee` muxer or multiple `-f` outputs
-2. Recording to MKV/MP4 (configurable container)
-3. Simultaneous stream + record from same encode
-4. Recording start/stop/pause API (independent of stream)
-5. Output directory configuration
-6. File naming with timestamps
-7. Cockpit recording controls (button, duration, file path display)
-8. Multi-track audio recording (separate tracks per source to MKV)
 
-**Wraps**: FFmpeg `-f tee`, segment muxer, container muxing.
-**Scope**: Medium. New output management layer, API endpoints, cockpit UI.
+1. Engine as a node-portable process (already decoupled from the control plane — formalize it)
+1. Beast runs an engine instance (Windows process / service), reachable over Tailscale
+1. VPS control plane (cockpit backend + agent cells) starts/stops/drives the Beast engine via
+   the existing broadcast socket — same API, different node target
+1. Engine registration/addressing: the socket resolves "which engine on which node"
+1. Health/status surfaced per node in the cockpit
+1. Secret + egress hygiene over Tailscale (no host-networking; keep container/process isolation)
 
-### Phase 3: Source Transform Completeness
+**Acceptance**: the deployed cockpit on the VPS starts an engine instance **on the Beast**,
+streams a source, and reports health — same socket, different box. Cross-node proven.
 
-**Why third**: With audio and recording working, the compositing layer needs
-to match OBS's transform model to be production-usable. Users expect crop,
-rotation, opacity — not just position and scale.
+**Scope**: Medium. No new broadcast capability — it's the substrate the rest runs on.
 
-**What to build**:
-1. Crop per source (FFmpeg `crop` filter before overlay)
-2. Rotation per source (FFmpeg `rotate` filter)
-3. Opacity per source (overlay `format=rgba`, alpha parameter via ZMQ)
-4. Blend modes (FFmpeg `blend` filter between overlay layers)
-5. Bounds modes (fit, fill, stretch — compute scale from bounds rectangle)
-6. Alignment/anchor points (compute overlay position from anchor)
-7. Source grouping (logical, transform inheritance)
-8. Nested scenes (scene-in-scene composition)
-9. Update scene_model.py with new transform fields
-10. Cockpit source transform UI (position/size/crop/rotation controls)
+### Phase 1: Audio Pipeline (CRITICAL — biggest capability gap)
 
-**Wraps**: FFmpeg `crop`, `rotate`, `blend`, `format` filters.
-**Scope**: Medium-Large. Extends existing filtergraph builder significantly.
+**Why here**: A broadcast tool without audio is a slideshow. The mixing *mechanics* are
+node-independent, so they can be derisked and built with file/lavfi audio. The *real* target,
+though, is **mic + system audio mix on the Beast** — the actual streamer scenario.
 
-### Phase 4: Video + Audio Filters
-
-**Why fourth**: Filters are what make raw sources look and sound professional.
-Chroma key is table-stakes for any producer. Noise suppression is table-stakes
-for any microphone.
-
-**What to build (video)**:
-1. Color correction (FFmpeg `eq` for brightness/contrast/gamma, `hue` for
-   hue/saturation)
-2. Chroma key (FFmpeg `chromakey` filter)
-3. Color key (FFmpeg `colorkey` filter)
-4. LUT (FFmpeg `lut3d` with .cube file support)
-5. Blur (FFmpeg `gblur` or `boxblur`)
-6. Sharpen (FFmpeg `unsharp`)
-7. Image mask/blend overlay
-
-**What to build (audio)**:
-1. Noise suppression (FFmpeg `arnndn` with RNNoise model)
-2. Noise gate (FFmpeg `agate`)
-3. Compressor (FFmpeg `acompressor`)
-4. Limiter (FFmpeg `alimiter`)
-5. EQ (FFmpeg `equalizer`)
-6. Gain (FFmpeg `volume` — already have, expose as filter)
-
-**For each filter**:
-- Per-source filter chain model (ordered list of filters per source)
-- ZMQ-addressable parameters for live adjustment
-- API: add/remove/reorder/configure filters per source
-- Cockpit filter panel (per-source filter list with parameter controls)
-
-**Wraps**: FFmpeg's extensive filter library.
-**Scope**: Large. Many filters, but each is a thin wrapper over FFmpeg.
-
-### Phase 5: Transitions
-
-**Why fifth**: With scenes, audio, and filters working, transitions make scene
-switching look professional instead of jarring instant cuts.
+**Derisk first (spike — node-independent)**: confirm which params are live-ZMQ-commandable —
+`volume` (expected yes), mute via `volume=0` (yes), sync offset via `adelay` (likely
+**launch-time only**, verify), `amix weights` (version-dependent), and the **level readback path
+for VU meters** (ZMQ is command-in only — levels must come out via `astats`/`ebur128` ->
+metadata; this is the risky one).
 
 **What to build**:
-1. Fade transition (ZMQ opacity crossfade over configurable duration)
-2. Cut transition (already exists — instant switch)
-3. Stinger transition (overlay pre-rendered video with alpha at cut point)
-4. Configurable transition duration (global default + per-scene override)
-5. Transition model in scene config
-6. API: set transition type/duration, trigger transition
-7. Cockpit transition controls (type selector, duration slider)
 
-**Architecture choice**: Crossfade via ZMQ opacity animation (source A opacity
-1→0, source B opacity 0→1 over N frames). Stinger: overlay a video source
-with alpha channel, timed to cover the cut. No FFmpeg restart needed.
+1. Per-source audio input in `filter_complex` (real inputs where present, `anullsrc` fallback)
+1. Audio mixing via `amix`/`amerge`
+1. Per-source volume via `volume` (ZMQ-addressable)
+1. Per-source mute (`volume=0` via ZMQ)
+1. Per-source sync offset via `adelay` (launch-time unless spike proves otherwise)
+1. AAC encode for output (already in args — just feed real audio)
+1. Level/VU readback path proven in the spike, surfaced to the cockpit
+1. Cockpit audio mixer UI (per-source volume sliders, mute toggles, VU meters)
+1. API: set volume, set mute, get audio levels
 
-**Wraps**: ZMQ parameter animation + FFmpeg overlay alpha.
-**Scope**: Medium. Animation timing logic + stinger video source.
+**Real validation**: mic + system audio mixed on the Beast (depends on Phase 2 capture for the
+real inputs; mechanics validated earlier with file/lavfi).
 
-### Phase 6: Service Registry + Encoder Expansion
+**Wraps**: FFmpeg `amix`, `volume`, `adelay`, `pan`. **Scope**: Medium.
 
-**Why sixth**: Quality-of-life. Users shouldn't need to know RTMP ingest URLs.
-Hardware encoding dramatically reduces CPU usage.
+### Phase 2: Real Capture + Hardware Encode (Beast — node-aware) — pulled forward
 
-**What to build (services)**:
-1. Service registry (JSON: platform → server URL pattern, stream key ref,
-   recommended settings, bitrate caps)
-2. Built-in templates: Twitch, YouTube, Kick, custom RTMP
-3. Stream key storage integration (1Password vault reference)
-4. API: list services, select service, validate connection
-5. Cockpit service selector (platform dropdown, stream key input, test button)
-
-**What to build (encoders)**:
-1. Encoder detection (probe FFmpeg `-encoders` output)
-2. Hardware encoder support: h264_nvenc, h264_qsv, h264_vaapi
-3. Encoder selection in config (auto or manual)
-4. Codec parameters exposed via API (preset, profile, bitrate, rate control)
-5. Auto-config: detect best encoder for node, recommend settings
-
-**Wraps**: FFmpeg encoder selection + platform knowledge.
-**Scope**: Medium. JSON config + FFmpeg arg changes + cockpit UI.
-
-### Phase 7: Additional Source Types
-
-**Why seventh**: Expanding the source palette beyond test patterns, cameras,
-files, and RTMP pulls.
+**Why here** (was buried at old Phase 6/7, Linux-only): real capture and NVENC are first-class
+organism capabilities available on the Beast *now*. They are the foundation of a real broadcast
+tool — without them it's test patterns. Together with Phase 1 they form the streamer MVP:
+capture screen + mic + system audio, mix, NVENC-encode, stream.
 
 **What to build**:
-1. Image source (FFmpeg `image2` input, PNG/JPG with alpha)
-2. Text source (FFmpeg `drawtext` filter — font, size, color, position)
-3. Color source (FFmpeg `color` lavfi generator)
-4. Screen capture (FFmpeg `x11grab` for X11, `pipewire` for Wayland)
-5. Audio-only sources (FFmpeg ALSA/PulseAudio input without video)
-6. NDI input (FFmpeg with libndi, if available on node)
 
-**Wraps**: FFmpeg input types + lavfi generators.
-**Scope**: Medium. Each source type is a new input builder in ffmpeg_args.py.
+1. Node-aware input resolution (the capability->construct table above): `ddagrab`/`gdigrab`,
+   `dshow` (webcam + audio device), WASAPI/loopback (system audio) on Windows; `x11grab`/`v4l2`/
+   `pulse` on Linux
+1. NVENC hardware encode (`h264_nvenc`/`hevc_nvenc`) on the Beast; encoder selection by node
+1. Encoder detection (probe FFmpeg `-encoders` per node)
+1. Capability flags on the source primitive (which inputs a node can satisfy)
+1. Windows system-audio loopback handling (the derisk item)
+1. Cockpit source picker that reflects the node's available devices
 
-### Phase 8: Replay Buffer + Source CRUD While Live
+**Wraps**: FFmpeg platform input drivers + NVENC. **Scope**: Medium-Large.
 
-**Why eighth**: Advanced features that differentiate a production tool from
-a simple encoder wrapper.
+### Phase 3: Recording + Multi-Output
 
-**What to build (replay)**:
-1. Circular buffer output (FFmpeg segment muxer with rolling window)
-2. Save-on-demand (copy buffer to timestamped file)
-3. Configurable duration (seconds)
-4. API: start buffer, save clip, get last saved path
-5. Cockpit replay button
-
-**What to build (live source management)**:
-1. Add source while live (new FFmpeg input + overlay in filter_complex —
-   requires filter_complex reinit or ZMQ source injection)
-2. Remove source while live (disable overlay, drop input)
-3. Update source config while live (URL change, device change)
-4. This is architecturally hard — may require filter_complex rebuild with
-   seamless switchover (start new FFmpeg, crossfade, stop old)
-
-**Scope**: Large. Replay is medium; live source CRUD is architecturally complex.
-
-### Phase 9: Studio Mode (Preview/Program)
-
-**Why ninth**: Professional workflow feature. Requires dual output (preview +
-program) which depends on multi-output (Phase 2) and transitions (Phase 5).
+**Why here**: Stream AND record simultaneously is the second most-asked feature after "go live,"
+and establishes the multi-output pattern that replay buffer and studio mode need.
 
 **What to build**:
-1. Dual filter_complex output pads (preview + program)
-2. Preview output via HLS or WebRTC to cockpit
-3. Program output to RTMP (existing)
-4. Scene changes affect preview only; transition fires to swap
-5. Cockpit dual-panel UI (preview left, program right, transition controls)
 
-**Wraps**: FFmpeg tee/split output + cockpit UI.
-**Scope**: Large. Dual output + cockpit redesign + state management.
+1. Multi-output via FFmpeg `tee` muxer (or multiple `-f` outputs)
+1. Recording to MKV/MP4 (configurable container)
+1. Simultaneous stream + record from the same encode
+1. Recording start/stop/pause API (independent of stream)
+1. Output directory + timestamped file naming
+1. Cockpit recording controls
+1. Multi-track audio recording (separate tracks per source to MKV)
 
-### Phase 10: Profiles + Scene Collections + Bidirectional WS
+**Wraps**: FFmpeg `-f tee`, segment muxer. **Scope**: Medium.
 
-**Why last**: Polish features. Save/load configurations, advanced remote control.
+### Phase 4: Source Transform Completeness
 
-**What to build (profiles/collections)**:
-1. Profile model (encoding, output, service settings as named JSON)
-2. Scene collection model (scenes, sources, filters as named JSON)
-3. Save/load/switch API
-4. Cockpit profile/collection selector
+Crop, rotation, opacity, blend modes, bounds (fit/fill/stretch), alignment/anchor, grouping,
+nested scenes. Extends the `filter_complex` builder + `scene_model.py`; cockpit transform UI.
+**Wraps**: FFmpeg `crop`, `rotate`, `blend`, `format`. **Scope**: Medium-Large.
 
-**What to build (WS expansion)**:
-1. Bidirectional WS commands (not just health push)
-2. Source/filter/scene CRUD via WS
-3. Event subscriptions (scene changed, source added, health update)
-4. Batch commands
+### Phase 5: Video + Audio Filters
 
-**Scope**: Medium. Data modeling + API expansion.
+**Video**: color correction (`eq`/`hue`), chroma key (`chromakey`), color key (`colorkey`), LUT
+(`lut3d`), blur (`gblur`), sharpen (`unsharp`), mask/blend.
+**Audio**: noise suppression (`arnndn`), gate (`agate`), compressor (`acompressor`), limiter
+(`alimiter`), EQ (`equalizer`), gain. Per-source ordered filter chain, ZMQ-addressable params,
+add/remove/reorder/configure API, cockpit filter panel. **Scope**: Large (each is a thin wrap).
 
----
+### Phase 6: Transitions
+
+Fade (ZMQ opacity crossfade), cut (exists), stinger (alpha overlay video), configurable
+duration, transition model + API + cockpit controls. Crossfade via ZMQ opacity animation; no
+FFmpeg restart. **Wraps**: ZMQ param animation + FFmpeg overlay alpha. **Scope**: Medium.
+
+### Phase 7: Service Registry
+
+Service templates (Twitch/YouTube/Kick/custom RTMP: server URL pattern, stream-key ref via
+1Password, recommended settings, bitrate caps), select/validate API, cockpit service selector +
+test button. Codec parameter exposure (preset/profile/bitrate/rate-control) — *hardware encoder
+support already landed in Phase 2.* **Scope**: Medium.
+
+### Phase 8: Additional Source Types (synthetic / generated / relay)
+
+Image (`image2`), text (`drawtext`), color (`color` lavfi), NDI input (`libndi` if present),
+audio-only file/lavfi sources. *(Device captures moved up to Phase 2.)* Each is a new input
+builder in `ffmpeg_args.py`. **Scope**: Medium.
+
+### Phase 9: Replay Buffer + Live Source CRUD
+
+Replay: circular segment buffer, save-on-demand, configurable duration, API + cockpit button.
+Live source CRUD: add/remove/update source while live (ZMQ injection where possible; otherwise
+seamless `filter_complex` rebuild via start-new/crossfade/stop-old). **Scope**: Large (live CRUD
+is architecturally hard).
+
+### Phase 10: Studio Mode (Preview/Program)
+
+Dual output pads (preview + program), preview to cockpit via HLS/WebRTC, scene changes affect
+preview then transition to program, dual-panel cockpit UI. Depends on Phase 3 (multi-output) +
+Phase 6 (transitions). **Scope**: Large.
+
+### Phase 11: Profiles + Scene Collections + Bidirectional WS
+
+Profile + scene-collection models (named JSON), save/load/switch API + cockpit selector.
+Bidirectional WS (source/filter/scene CRUD, event subscriptions, batch commands) beyond the
+health push. **Scope**: Medium.
+
+-----
 
 ## Dependency Graph
 
 ```
-Phase 1: Audio Pipeline
-    ↓
-Phase 2: Recording + Multi-Output
-    ↓
-Phase 3: Source Transforms ←── (can parallel with Phase 2)
-    ↓
-Phase 4: Video + Audio Filters ←── (depends on Phase 1 for audio filters)
-    ↓
-Phase 5: Transitions ←── (depends on Phase 3 for opacity, Phase 1 for audio crossfade)
-    ↓
-Phase 6: Services + Encoders ←── (independent, can parallel with 4-5)
-    ↓
-Phase 7: Source Types ←── (independent, can parallel with 4-6)
-    ↓
-Phase 8: Replay Buffer + Live CRUD ←── (depends on Phase 2 for multi-output)
-    ↓
-Phase 9: Studio Mode ←── (depends on Phase 2 + Phase 5)
-    ↓
-Phase 10: Profiles + Collections + WS
+Phase 0: Organism Engine Placement  (engine runs on Beast, driven from VPS over Tailscale)
+    |
+    +--> Phase 1: Audio Pipeline  (mechanics node-independent; real target = Beast mic+system)
+    |        |
+    +--> Phase 2: Real Capture + HW Encode (Beast)  <-- provides real audio/video inputs + NVENC
+    |        |
+    |     [Phase 1 + Phase 2 together = real streamer MVP]
+    |        v
+    +--> Phase 3: Recording + Multi-Output
+             |
+             +--> Phase 4: Source Transforms  (parallel with Phase 3)
+             |        |
+             |        v
+             +--> Phase 5: Video + Audio Filters  (audio filters need Phase 1)
+             |        |
+             |        v
+             +--> Phase 6: Transitions  (needs Phase 4 opacity, Phase 1 audio crossfade)
+             |
+             +--> Phase 7: Services  (independent; any time after Phase 2)
+             +--> Phase 8: Source Types  (additive; any time)
+                      |
+                      v
+                  Phase 9: Replay + Live CRUD  (needs Phase 3 multi-output)
+                      |
+                      v
+                  Phase 10: Studio Mode  (needs Phase 3 + Phase 6)
+                      |
+                      v
+                  Phase 11: Profiles + Collections + Bidirectional WS
 ```
 
-### Parallelization Opportunities
-- Phases 3 + 2 can run in parallel (independent)
-- Phase 6 can run any time after Phase 1 (encoder/service are independent)
-- Phase 7 can run any time (source types are additive)
-- Phases 4 + 5 have partial overlap but audio filters need Phase 1
+### Parallelization
 
----
+- Phase 1 (audio mechanics) and Phase 2 (capture/encode) are tightly coupled but Phase 1's
+  *mechanics* derisk independently — run the audio spike before either build.
+- Phases 3 + 4 parallel. Phase 7 + Phase 8 any time after Phase 2. Phases 5 + 6 partially overlap.
+
+-----
 
 ## Leverage Summary
 
-| Verdict | Count | What |
-|---------|-------|------|
-| **WRAP (FFmpeg)** | 18 | Graphics, video pipeline, frame timing, encoders, most sources, all filters, transitions, audio mixing, recording |
-| **INTERNALIZE** | 8 | Source primitive, scene model, output management, service registry, stats, studio mode, profiles, remote control |
-| **DEFER** | 5 | Plugin system, virtual camera, game capture, browser source, VST, hotkeys, projectors |
+|Verdict          |Count|What                                                                                                                                                                                     |
+|-----------------|-----|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|**WRAP (FFmpeg)**|18   |Graphics, video pipeline, frame timing, encoders, most sources, all filters, transitions, audio mixing, recording                                                                        |
+|**INTERNALIZE**  |8    |Source primitive, scene model, output management, service registry, stats, studio mode, profiles, remote control — **plus organism engine placement / node-aware resolution (UMH's own)**|
+|**DEFER**        |5    |Plugin system, virtual camera, game capture, browser source, VST, hotkeys, projectors                                                                                                    |
 
-**The fundamental insight**: OBS built a custom real-time GPU compositor because
-it's a desktop application rendering in-process. UMH wraps FFmpeg because it's a
-headless server orchestrating subprocesses. The capability surface is the same;
-the implementation strategy is completely different. Every OBS capability maps to
-FFmpeg filter parameters, codec flags, or muxer options — none require adopting
-OBS's in-process rendering architecture.
+**The fundamental insight**: OBS built a custom real-time GPU compositor because it's a desktop
+app rendering in-process. UMH wraps FFmpeg because it's a **headless control plane orchestrating
+subprocesses across an organism.** The capability surface is the same; the implementation and
+*placement* strategy are completely different. Every OBS capability maps to FFmpeg parameters —
+and runs on whichever organism node has the hardware for it.
 
-**The differentiator**: OBS has no AI integration. UMH's CapabilityHandler protocol
-means every broadcast action (start, stop, switch scene, adjust volume, apply
-filter) is agent-operable via the same API humans use. An AI agent can direct a
-broadcast, respond to health metrics, trigger scene switches based on content
-analysis, and manage multi-destination streaming autonomously. This is the
-capability that no existing broadcast tool provides.
+**The differentiator**: OBS has no AI integration and no concept of a multi-node organism. UMH's
+CapabilityHandler protocol makes every broadcast action (start, switch scene, adjust volume,
+apply filter, record) agent-operable via the same socket humans use — and that socket drives the
+engine on the VPS *or* the Beast transparently. An AI agent can direct a broadcast running on the
+workstation's GPU from the always-on control plane. No existing broadcast tool does either.
 
----
+-----
 
 ## Acceptance Criteria Per Phase
 
 Each phase is complete when:
-1. Unit tests cover the new filter_complex constructs
-2. Integration test: start composite, verify FFmpeg runs with new capabilities
-3. API endpoints documented and Clerk-authed
-4. Cockpit UI renders the new controls
-5. Agent-cell operable (CapabilityHandler updated)
-6. Health monitoring covers the new state
-7. Zero regression on existing Slice 0 / Wave 2 capabilities
 
----
+1. Unit tests cover the new `filter_complex` / capability constructs
+1. Integration test: start (composite) engine, verify FFmpeg runs with the new capability
+1. **Cross-node**: where the capability is Beast-resident, it is proven driven from the VPS
+   control plane over Tailscale (not just locally on the Beast)
+1. API endpoints documented and Clerk-authed
+1. Cockpit UI renders the new controls
+1. Agent-cell operable (CapabilityHandler updated)
+1. Health monitoring covers the new state
+1. Zero regression on existing Slice 0 / Wave 2 capabilities
 
-*Document produced 2026-06-13. Re-derived from complete OBS architecture study.*
-*Supersedes ad-hoc Wave 1/2/3 list.*
+-----
+
+*Document re-derived 2026-06-13 from the complete OBS architecture study, then corrected for*
+*UMH organism placement (VPS + Beast + iPhone as one system).*
+*Supersedes the ad-hoc Wave list and the first re-derivation.*
