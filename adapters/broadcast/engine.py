@@ -14,7 +14,14 @@ import time
 from typing import Any, Callable
 
 from adapters.broadcast.ffmpeg_args import build_args
+from adapters.broadcast.filtergraph import (
+    build_composite_args,
+    build_scene_switch_commands,
+    overlay_filter_name,
+)
 from adapters.broadcast.process_lifecycle import ProcessLifecycle
+from adapters.broadcast.scene_model import CompositeConfig, Scene, SourceLayout
+from adapters.broadcast.zmq_client import ZmqFilterClient
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +110,8 @@ class BroadcastEngine:
         self._on_health: Callable[[dict[str, Any]], None] | None = None
         self._state: str = "idle"
         self._lock = asyncio.Lock()
+        self._composite_config: CompositeConfig | None = None
+        self._zmq_client: ZmqFilterClient | None = None
 
     @property
     def state(self) -> str:
@@ -184,16 +193,115 @@ class BroadcastEngine:
             code = await self._lifecycle.stop()
             self._lifecycle = None
 
+        self._composite_config = None
+        self._zmq_client = None
         self._state = "idle"
         return code
 
-    def get_status(self) -> dict[str, Any]:
+    async def start_composite(self, config: CompositeConfig) -> bool:
+        """Start a multi-source composited broadcast with zmq scene control."""
+        async with self._lock:
+            return await self._start_composite_locked(config)
+
+    async def _start_composite_locked(self, config: CompositeConfig) -> bool:
+        if self._state == "live":
+            logger.warning("[BroadcastEngine] already live, stop first")
+            return False
+
+        self._health = BroadcastHealth()
+        self._composite_config = config
+
+        try:
+            cmd = build_composite_args(config)
+        except (KeyError, ValueError) as exc:
+            logger.error("[BroadcastEngine] bad composite config: %s", exc)
+            self._state = "error"
+            return False
+
+        logger.info("[BroadcastEngine] composite ffmpeg cmd: %s", " ".join(cmd))
+
+        self._lifecycle = ProcessLifecycle(
+            cmd,
+            caller="broadcast_engine",
+            on_stdout=self._handle_stdout,
+            on_stderr=self._handle_stderr,
+            on_exit=self._handle_exit,
+            teardown_timeout=5.0,
+        )
+
+        self._state = "starting"
+        ok = await self._lifecycle.start()
+        if not ok:
+            self._state = "error"
+            return False
+
+        self._health.started_at = time.time()
+        self._zmq_client = ZmqFilterClient()
+        self._state = "live"
+        self._config = {"composite": True, "output_url": config.output_url}
+        return True
+
+    async def switch_scene(self, scene_id: str) -> dict[str, Any]:
+        """Switch active scene via zmq — no FFmpeg restart."""
+        async with self._lock:
+            return await self._switch_scene_locked(scene_id)
+
+    async def _switch_scene_locked(self, scene_id: str) -> dict[str, Any]:
+        if self._state != "live":
+            return {"success": False, "error": "not live"}
+        if self._composite_config is None:
+            return {"success": False, "error": "not in composite mode"}
+        if self._zmq_client is None:
+            return {"success": False, "error": "zmq client not initialized"}
+
+        old_scene = self._composite_config.active_scene_id
+        if scene_id == old_scene:
+            return {"success": True, "already_active": True}
+
+        try:
+            commands = build_scene_switch_commands(self._composite_config, scene_id)
+        except ValueError as exc:
+            return {"success": False, "error": str(exc)}
+
+        pid_before = self._lifecycle.pid if self._lifecycle else None
+
+        batch = self._zmq_client.apply_scene(commands)
+
+        self._composite_config.active_scene_id = scene_id
+
+        pid_after = self._lifecycle.pid if self._lifecycle else None
         return {
+            "success": batch.all_ok,
+            "scene_id": scene_id,
+            "prev_scene_id": old_scene,
+            "commands_sent": len(batch.results),
+            "total_ms": round(batch.total_ms, 2),
+            "pid_stable": pid_before == pid_after,
+            "pid": pid_after,
+            "errors": [
+                r.to_dict() for r in batch.results if not r.success
+            ],
+        }
+
+    def get_status(self) -> dict[str, Any]:
+        status: dict[str, Any] = {
             "state": self._state,
             "health": self._health.to_dict() if self._state == "live" else None,
             "config": self._config if self._state == "live" else None,
             "pid": self._lifecycle.pid if self._lifecycle else None,
         }
+        if self._composite_config is not None:
+            status["composite"] = True
+            status["active_scene_id"] = self._composite_config.active_scene_id
+            status["scenes"] = [
+                {"scene_id": s.scene_id, "name": s.name}
+                for s in self._composite_config.scenes
+            ]
+            status["sources"] = [
+                {"source_id": s.source_id, "source_type": s.source_type}
+                for s in self._composite_config.sources
+            ]
+        return status
 
     def _handle_stdout(self, line: str) -> None:
         """Parse structured -progress output from FFmpeg."""

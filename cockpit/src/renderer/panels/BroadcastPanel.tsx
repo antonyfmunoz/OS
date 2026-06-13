@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Radio } from 'lucide-react'
+import { Radio, Layers } from 'lucide-react'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useBroadcastStore } from '../stores/broadcastStore'
 import { useBroadcastConnection } from '../hooks/useBroadcastConnection'
@@ -17,10 +17,14 @@ export function BroadcastPanel() {
 
   useBroadcastConnection()
 
-  const { connected, broadcastState, health, pid } = useBroadcastStore()
+  const {
+    connected, broadcastState, health, pid,
+    composite, activeSceneId, scenes, sources,
+  } = useBroadcastStore()
   const [outputUrl, setOutputUrl] = useState('rtmp://localhost/live/test')
   const [starting, setStarting] = useState(false)
   const [stopping, setStopping] = useState(false)
+  const [switching, setSwitching] = useState<string | null>(null)
 
   const handleStart = async () => {
     setStarting(true)
@@ -49,6 +53,21 @@ export function BroadcastPanel() {
       console.error('[Broadcast] stop failed:', err)
     } finally {
       setStopping(false)
+    }
+  }
+
+  const handleSwitchScene = async (sceneId: string) => {
+    setSwitching(sceneId)
+    try {
+      await fetchApi('/broadcast/scene/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scene_id: sceneId }),
+      })
+    } catch (err) {
+      console.error('[Broadcast] scene switch failed:', err)
+    } finally {
+      setSwitching(null)
     }
   }
 
@@ -108,6 +127,42 @@ export function BroadcastPanel() {
           )}
         </div>
       </div>
+
+      {/* Scene Switcher — visible when composite mode + live */}
+      {isLive && composite && scenes.length > 0 && (
+        <div className="border border-border rounded p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Layers className="w-3 h-3 text-cyan" />
+            <span className="text-neutral-400 text-[10px] uppercase tracking-wider">
+              Scenes
+            </span>
+            <span className="ml-auto text-[10px] text-neutral-500">
+              {sources.length} source{sources.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {scenes.map((scene) => {
+              const isActive = scene.scene_id === activeSceneId
+              const isSwitching = switching === scene.scene_id
+              return (
+                <button
+                  key={scene.scene_id}
+                  onClick={() => handleSwitchScene(scene.scene_id)}
+                  disabled={isActive || isSwitching}
+                  className={`px-3 py-1.5 rounded text-xs border transition-colors ${
+                    isActive
+                      ? 'bg-cyan/20 text-cyan border-cyan/50'
+                      : 'bg-canvas text-neutral-300 border-border hover:border-cyan/30 hover:text-white'
+                  } disabled:opacity-60`}
+                >
+                  {isSwitching ? 'Switching...' : scene.name}
+                  {isActive && ' ●'}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Health Metrics */}
       {isLive && (
