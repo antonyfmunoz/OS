@@ -110,11 +110,7 @@ def _input_args(
         ]
 
     if source_type == "rtmp_pull":
-        url = config["url"]
-        parsed = urlparse(url)
-        if parsed.scheme not in _ALLOWED_RTMP_SCHEMES:
-            raise ValueError(f"Disallowed URL scheme: {parsed.scheme}")
-        _reject_private_host(parsed.hostname or "")
+        url = _validate_input_url(config["url"])
         return ["-i", url]
 
     if source_type == "file":
@@ -136,6 +132,7 @@ _ALLOWED_OUTPUT_SCHEMES = frozenset({"rtmp", "rtmps", "srt"})
 
 def _validate_output_url(url: str) -> str:
     """Validate output URL — only streaming protocols, no file/http/local writes."""
+    _reject_control_chars(url)
     if url.startswith("-"):
         raise ValueError("Output URL must not start with '-'")
     parsed = urlparse(url)
@@ -151,19 +148,57 @@ def _validate_output_url(url: str) -> str:
         raise ValueError("Credentials must not be embedded in output URL — use env var side channel")
     if parsed.query:
         raise ValueError("Query parameters not allowed in output URL (push-only)")
-    _reject_private_host(hostname)
+    resolved_ip = _resolve_and_pin(hostname)
+    port_str = f":{parsed.port}" if parsed.port else ""
+    return f"{parsed.scheme}://{resolved_ip}{port_str}{parsed.path}"
+
+
+def _validate_input_url(url: str) -> str:
+    """Validate RTMP pull input URL — same hardening as output."""
+    _reject_control_chars(url)
+    if url.startswith("-"):
+        raise ValueError("Input URL must not start with '-'")
+    parsed = urlparse(url)
+    if parsed.scheme not in _ALLOWED_RTMP_SCHEMES:
+        raise ValueError(f"Disallowed URL scheme: {parsed.scheme}")
+    hostname = parsed.hostname or ""
+    if not hostname:
+        raise ValueError("Input URL must have a hostname")
+    _resolve_and_pin(hostname)
     return url
 
 
-def _reject_private_host(hostname: str) -> None:
-    """Reject loopback, private, and link-local addresses to prevent SSRF."""
+def _reject_control_chars(url: str) -> None:
+    """Reject whitespace/control characters that could smuggle FFmpeg options."""
+    import re
+    if re.search(r"[\x00-\x1f\x7f\s]", url):
+        raise ValueError("URL contains control characters or whitespace")
+
+
+def _resolve_and_pin(hostname: str) -> str:
+    """Resolve hostname once, validate ALL addresses, return first valid IP.
+
+    Pins the resolved IP to eliminate DNS rebinding (TOCTOU).
+    """
     import ipaddress
     import socket
     try:
         infos = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
     except socket.gaierror:
         raise ValueError(f"Cannot resolve hostname: {hostname}")
+    if not infos:
+        raise ValueError(f"No addresses found for hostname: {hostname}")
+    first_ip = None
     for info in infos:
         addr = ipaddress.ip_address(info[4][0])
-        if addr.is_loopback or addr.is_private or addr.is_link_local:
-            raise ValueError(f"RTMP pull target resolves to private/loopback address: {hostname}")
+        if (addr.is_loopback or addr.is_private or addr.is_link_local
+                or addr.is_reserved or addr.is_unspecified or addr.is_multicast):
+            raise ValueError(f"Host resolves to disallowed address: {hostname} -> {addr}")
+        if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:
+            mapped = addr.ipv4_mapped
+            if (mapped.is_loopback or mapped.is_private or mapped.is_link_local
+                    or mapped.is_reserved or mapped.is_unspecified or mapped.is_multicast):
+                raise ValueError(f"Host resolves to disallowed IPv4-mapped address: {hostname} -> {addr}")
+        if first_ip is None:
+            first_ip = str(addr)
+    return first_ip
