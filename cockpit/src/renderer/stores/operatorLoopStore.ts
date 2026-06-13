@@ -9,7 +9,7 @@ interface LoopStatus {
   next_best: PacketSummary | null
 }
 
-interface PacketSummary {
+export interface PacketSummary {
   packet_id: string
   title: string
   user_intent: string
@@ -21,22 +21,91 @@ interface PacketSummary {
   created_at: number
 }
 
-interface PacketDetail extends PacketSummary {
+export interface PacketDetail extends PacketSummary {
   desired_end_state: string
   constraints: string[]
   success_criteria: string[]
+  failure_criteria: string[]
   human_required_actions: string[]
   blockers: string[]
   validation_plan: string
   rollback_plan: string
-  audit_trail: Array<{ id: string; event_type: string; timestamp: number; data: Record<string, unknown> }>
+  verification_results: ValidationResult[]
+  verification_passed: boolean | null
+  linked_sandbox_id: string
+  outcome_summary: string
+  audit_trail: AuditEntry[]
+  sandbox?: SandboxDetail
 }
 
-interface AuditEntry {
+export interface ValidationResult {
+  command: string
+  label: string
+  exit_code: number
+  stdout: string
+  stderr: string
+  passed: boolean
+  duration_seconds: number
+  timestamp: number
+}
+
+export interface SandboxDetail {
+  sandbox_id: string
+  worktree_path: string
+  branch_name: string
+  status: string
+}
+
+export interface AuditEntry {
   id: string
   event_type: string
   timestamp: number
   data: Record<string, unknown>
+}
+
+export interface IntentContract {
+  user_intent: string
+  desired_end_state?: string
+  constraints?: string[]
+  non_goals?: string[]
+  acceptance_criteria?: string[]
+  quality_bar?: string
+  allowed_environments?: string[]
+  approval_policy?: 'auto' | 'always' | ''
+  risk_tolerance?: 'low' | 'medium' | 'high' | 'critical' | ''
+  proof_required?: string[]
+}
+
+interface SubmitResult {
+  success: boolean
+  packet: PacketSummary
+  needs_approval: boolean
+  risk_class: string
+  next_action: string
+}
+
+interface ExecuteResult {
+  success: boolean
+  packet_id: string
+  sandbox_id: string
+  sandbox_path: string
+  branch_name: string
+  status: string
+  all_passed: boolean
+  execution_log: ValidationResult[]
+  changed_files: string[]
+  diff_summary: string
+  validation_results: ValidationResult[]
+  error?: string
+}
+
+interface LoopHealth {
+  healthy: boolean
+  timestamp: number
+  queue_summary: Record<string, unknown>
+  latest_audit_event: AuditEntry | null
+  sandbox_summary: { total: number; active: number }
+  reality_model: string
 }
 
 interface ImprovementStatus {
@@ -53,8 +122,11 @@ interface OperatorLoopState {
   activePackets: PacketSummary[]
   auditTrail: AuditEntry[]
   selectedPacket: PacketDetail | null
+  lastExecuteResult: ExecuteResult | null
+  loopHealth: LoopHealth | null
   improvementStatus: ImprovementStatus | null
   loading: boolean
+  executing: boolean
   lastError: string | null
 
   fetchLoopStatus: () => Promise<void>
@@ -62,12 +134,13 @@ interface OperatorLoopState {
   fetchActivePackets: () => Promise<void>
   fetchAuditTrail: () => Promise<void>
   fetchImprovementStatus: () => Promise<void>
+  fetchLoopHealth: () => Promise<void>
   selectPacket: (id: string) => Promise<void>
   clearSelection: () => void
-  submitIntent: (intent: string, desiredEndState?: string, constraints?: string[]) => Promise<PacketSummary | null>
+  submitIntent: (contract: IntentContract) => Promise<SubmitResult | null>
   approvePacket: (id: string) => Promise<boolean>
   rejectPacket: (id: string, reason?: string) => Promise<boolean>
-  executePacket: (id: string) => Promise<boolean>
+  executePacket: (id: string) => Promise<ExecuteResult | null>
   completePacket: (id: string, outcome: string, success: boolean) => Promise<boolean>
   recordOutcome: (packetId: string, outcome: string, domain?: string) => Promise<boolean>
   verifyOutcome: (packetId: string, claimedOutcome: string, domain?: string) => Promise<Record<string, unknown> | null>
@@ -80,8 +153,11 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
   activePackets: [],
   auditTrail: [],
   selectedPacket: null,
+  lastExecuteResult: null,
+  loopHealth: null,
   improvementStatus: null,
   loading: false,
+  executing: false,
   lastError: null,
 
   fetchLoopStatus: async () => {
@@ -129,6 +205,15 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
     }
   },
 
+  fetchLoopHealth: async () => {
+    try {
+      const data = await fetchApi<LoopHealth>('/operator-loop/health')
+      set({ loopHealth: data })
+    } catch {
+      set({ loopHealth: null })
+    }
+  },
+
   selectPacket: async (id: string) => {
     set({ loading: true })
     try {
@@ -141,19 +226,22 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
 
   clearSelection: () => set({ selectedPacket: null }),
 
-  submitIntent: async (intent, desiredEndState = '', constraints = []) => {
+  submitIntent: async (contract: IntentContract) => {
+    set({ loading: true, lastError: null })
     try {
-      const res = await fetchApi<{ success: boolean; packet: PacketSummary }>('/operator-loop/submit-intent', {
+      const res = await fetchApi<SubmitResult>('/operator-loop/submit-intent', {
         method: 'POST',
-        body: JSON.stringify({ user_intent: intent, desired_end_state: desiredEndState, constraints }),
+        body: JSON.stringify(contract),
       })
+      set({ loading: false })
       if (res.success) {
         get().fetchLoopStatus()
         get().fetchPendingApprovals()
-        return res.packet
+        return res
       }
       return null
-    } catch {
+    } catch (e) {
+      set({ loading: false, lastError: 'Failed to submit intent' })
       return null
     }
   },
@@ -192,18 +280,22 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
   },
 
   executePacket: async (id) => {
+    set({ executing: true, lastError: null })
     try {
-      const res = await fetchApi<{ success: boolean }>('/operator-loop/execute', {
+      const res = await fetchApi<ExecuteResult>('/operator-loop/execute', {
         method: 'POST',
         body: JSON.stringify({ packet_id: id }),
       })
+      set({ executing: false, lastExecuteResult: res })
       if (res.success) {
         get().fetchLoopStatus()
         get().fetchActivePackets()
+        if (get().selectedPacket?.packet_id === id) get().selectPacket(id)
       }
-      return res.success
-    } catch {
-      return false
+      return res
+    } catch (e) {
+      set({ executing: false, lastError: 'Execution failed' })
+      return null
     }
   },
 

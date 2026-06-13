@@ -116,8 +116,8 @@ export function UniversalWorkPanel() {
 
   const handleCreate = async () => {
     if (!intentText.trim()) return
-    const pkt = await submitIntent(intentText, desiredEndState)
-    if (pkt) {
+    const result = await submitIntent({ user_intent: intentText, desired_end_state: desiredEndState })
+    if (result) {
       setIntentText('')
       setDesiredEndState('')
       setShowCreate(false)
