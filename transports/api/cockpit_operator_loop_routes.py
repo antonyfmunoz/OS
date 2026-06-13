@@ -157,6 +157,22 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/continuity/handoff", _continuity_handoff, methods=["POST"], dependencies=auth)
     r.add_api_route("/continuity/interaction", _continuity_interaction, methods=["POST"], dependencies=auth)
 
+    # ── Phase 8: Presence Runtime routes ─────────────────────
+    r.add_api_route("/presence/status", _presence_status, methods=["GET"], dependencies=auth)
+    r.add_api_route("/presence/snapshot", _presence_snapshot, methods=["GET"], dependencies=auth)
+    r.add_api_route("/presence/capture", _presence_capture, methods=["POST"], dependencies=auth)
+    r.add_api_route("/presence/devices", _presence_devices, methods=["GET"], dependencies=auth)
+    r.add_api_route("/presence/sessions", _presence_sessions, methods=["GET"], dependencies=auth)
+    r.add_api_route("/presence/session/register", _presence_register_session, methods=["POST"], dependencies=auth)
+    r.add_api_route("/presence/session/end", _presence_end_session, methods=["POST"], dependencies=auth)
+    r.add_api_route("/presence/session/heartbeat", _presence_heartbeat, methods=["POST"], dependencies=auth)
+    r.add_api_route("/presence/interaction", _presence_interaction, methods=["POST"], dependencies=auth)
+    r.add_api_route("/presence/profile", _presence_change_profile, methods=["POST"], dependencies=auth)
+    r.add_api_route("/presence/attention", _presence_attention, methods=["GET"], dependencies=auth)
+    r.add_api_route("/presence/interruption", _presence_interruption, methods=["GET"], dependencies=auth)
+    r.add_api_route("/presence/timeline", _presence_timeline, methods=["GET"], dependencies=auth)
+    r.add_api_route("/presence/history", _presence_session_history, methods=["GET"], dependencies=auth)
+
     return r
 
 
@@ -1776,4 +1792,215 @@ async def _continuity_interaction(request: Request) -> dict:
         return {"success": True, "attention": rt.attention.to_dict()}
     except Exception as exc:
         logger.error("continuity interaction failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+# ── Phase 8: Presence Runtime handlers ────────────────────────────────
+
+
+def _get_presence_runtime():
+    from substrate.organism.presence_runtime import get_presence_runtime
+    return get_presence_runtime()
+
+
+async def _presence_status(request: Request) -> dict:
+    try:
+        rt = _get_presence_runtime()
+        return {"success": True, **rt.get_status()}
+    except Exception as exc:
+        logger.error("presence status failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_snapshot(request: Request) -> dict:
+    try:
+        rt = _get_presence_runtime()
+        snap = rt.get_snapshot()
+        return {"success": True, "snapshot": snap}
+    except Exception as exc:
+        logger.error("presence snapshot failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_capture(request: Request) -> dict:
+    try:
+        rt = _get_presence_runtime()
+        snap = rt.capture_snapshot()
+        _audit_log("presence_snapshot_captured", {"snapshot_id": snap.snapshot_id})
+        return {"success": True, "snapshot": snap.to_dict()}
+    except Exception as exc:
+        logger.error("presence capture failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_devices(request: Request) -> dict:
+    try:
+        rt = _get_presence_runtime()
+        return {"success": True, "devices": rt.get_devices()}
+    except Exception as exc:
+        logger.error("presence devices failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_sessions(request: Request) -> dict:
+    try:
+        rt = _get_presence_runtime()
+        return {"success": True, "sessions": rt.get_active_sessions()}
+    except Exception as exc:
+        logger.error("presence sessions failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_register_session(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except Exception:
+        return {"success": False, "error": "invalid JSON body"}
+
+    session_id = body.get("session_id", "")
+    if not session_id:
+        return {"success": False, "error": "session_id required"}
+
+    try:
+        rt = _get_presence_runtime()
+        session = rt.register_session(
+            session_id=session_id,
+            host=body.get("host", ""),
+            device_id=body.get("device_id", ""),
+            profile_mode=body.get("profile_mode", ""),
+            client_type=body.get("client_type", ""),
+            control_surface=body.get("control_surface", ""),
+            interaction_surface=body.get("interaction_surface", "none"),
+        )
+        _audit_log("presence_session_registered", {
+            "session_id": session_id,
+            "device_id": body.get("device_id", ""),
+        })
+        return {"success": True, "session": session.to_dict()}
+    except Exception as exc:
+        logger.error("presence register session failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_end_session(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except Exception:
+        return {"success": False, "error": "invalid JSON body"}
+
+    session_id = body.get("session_id", "")
+    if not session_id:
+        return {"success": False, "error": "session_id required"}
+
+    try:
+        rt = _get_presence_runtime()
+        session = rt.end_session(session_id)
+        _audit_log("presence_session_ended", {"session_id": session_id})
+        return {
+            "success": True,
+            "session": session.to_dict() if session else None,
+        }
+    except Exception as exc:
+        logger.error("presence end session failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_heartbeat(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except Exception:
+        return {"success": False, "error": "invalid JSON body"}
+
+    session_id = body.get("session_id", "")
+    if not session_id:
+        return {"success": False, "error": "session_id required"}
+
+    try:
+        rt = _get_presence_runtime()
+        updates = body.get("updates")
+        ok = rt.heartbeat(session_id, updates)
+        return {"success": True, "found": ok}
+    except Exception as exc:
+        logger.error("presence heartbeat failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_interaction(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    try:
+        rt = _get_presence_runtime()
+        result = rt.record_interaction(body.get("profile_mode", ""))
+        return {"success": True, "attention": result}
+    except Exception as exc:
+        logger.error("presence interaction failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_change_profile(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except Exception:
+        return {"success": False, "error": "invalid JSON body"}
+
+    profile = body.get("profile_mode", "")
+    if not profile:
+        return {"success": False, "error": "profile_mode required"}
+
+    try:
+        rt = _get_presence_runtime()
+        result = rt.change_profile(profile)
+        _audit_log("presence_profile_changed", {"profile_mode": profile})
+        return {"success": True, **result}
+    except Exception as exc:
+        logger.error("presence change profile failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_attention(request: Request) -> dict:
+    try:
+        rt = _get_presence_runtime()
+        return {"success": True, "attention": rt.get_attention_state()}
+    except Exception as exc:
+        logger.error("presence attention failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_interruption(request: Request) -> dict:
+    try:
+        rt = _get_presence_runtime()
+        is_critical = request.query_params.get("critical", "false").lower() == "true"
+        return {
+            "success": True,
+            "interruption_level": rt.get_interruption_level(),
+            "should_interrupt": rt.should_interrupt(is_critical),
+            "recommendation_filter": rt.get_recommendation_filter(),
+        }
+    except Exception as exc:
+        logger.error("presence interruption failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_timeline(request: Request) -> dict:
+    try:
+        rt = _get_presence_runtime()
+        since = float(request.query_params.get("since", "0"))
+        event_type = request.query_params.get("type")
+        limit = int(request.query_params.get("limit", "50"))
+        events = rt.get_timeline(since=since, event_type=event_type, limit=limit)
+        return {"success": True, "events": events}
+    except Exception as exc:
+        logger.error("presence timeline failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _presence_session_history(request: Request) -> dict:
+    try:
+        rt = _get_presence_runtime()
+        return {"success": True, "history": rt.get_session_history()}
+    except Exception as exc:
+        logger.error("presence session history failed: %s", exc)
         return {"success": False, "error": str(exc)}
