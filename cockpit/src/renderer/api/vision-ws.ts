@@ -149,6 +149,13 @@ export type VisionEvent =
   | { type: 'camera_session_state'; active: boolean; viewer_count: number }
   | { type: 'vision_overlay'; overlays: Array<{ type: string; track_id: string; label: string; confidence: number; bbox: { x: number; y: number; w: number; h: number }; landmarks?: Array<{ x: number; y: number; label?: string }>; connections?: Array<[number, number]>; color?: string }> }
   | { type: 'label_corrections_list'; corrections: Record<string, string> }
+  | { type: 'vision_events'; events: Array<{ seq: number; type: string; timestamp: number; detail?: Record<string, unknown> }>; total: number }
+  | { type: 'command_log'; commands: Array<{ id: number; operation: string; sent_at: number; rtt_ms: number; success: boolean; error?: string }>; total: number; ok: number; fail: number }
+  | { type: 'fault_inject_ack'; fault?: string; active?: boolean; error?: string; faults: Record<string, boolean> }
+  | { type: 'fault_status'; faults: Record<string, boolean> }
+  | { type: 'authority_state'; current: string; accepted?: boolean; log: Array<{ at: number; from: string; to: string; reason: string }> }
+  | { type: 'pipeline_metrics'; measured_fps: number; avg_ingest_ms: number; avg_broadcast_ms: number; p95_ingest_ms: number; avg_frame_bytes: number; avg_jitter_ms: number; max_jitter_ms: number; samples: number }
+  | { type: 'camera_registry'; cameras: Record<string, unknown>; active: string }
 
 function getVisionProtocols(): string[] {
   const token = import.meta.env.VITE_VISION_TOKEN as string | undefined
@@ -277,13 +284,14 @@ export class VisionWsClient {
     })
   }
 
-  startCamera(opts: { fps?: number; width?: number; height?: number; quality?: number } = {}): void {
+  startCamera(opts: { fps?: number; width?: number; height?: number; quality?: number; profile?: string } = {}): void {
     log('camera_start', opts)
     this.ws.send('camera_start', {
-      fps: opts.fps ?? 2,
-      width: opts.width ?? 640,
-      height: opts.height ?? 480,
-      quality: opts.quality ?? 60,
+      fps: opts.fps ?? 30,
+      width: opts.width ?? 1280,
+      height: opts.height ?? 720,
+      quality: opts.quality ?? 70,
+      profile: opts.profile ?? 'balanced',
     })
   }
 
@@ -292,7 +300,7 @@ export class VisionWsClient {
     this.ws.send('camera_stop')
   }
 
-  subscribe(fps = 2, quality = 60): void {
+  subscribe(fps = 30, quality = 70): void {
     log('vision_subscribe', { fps, quality })
     this.ws.send('vision_subscribe', { fps, quality })
   }
@@ -357,8 +365,47 @@ export class VisionWsClient {
     this.ws.send('vision_health')
   }
 
+  requestEvents(sinceSeq = 0): void {
+    this.ws.send('vision_events', { since_seq: sinceSeq })
+  }
+
+  requestCommandLog(last = 50): void {
+    this.ws.send('command_log', { last })
+  }
+
   requestLabelCorrections(): void {
     this.ws.send('vision_get_label_corrections')
+  }
+
+  injectFault(fault: string, active: boolean): void {
+    this.ws.send('fault_inject', { fault, active })
+  }
+
+  requestFaultStatus(): void {
+    this.ws.send('fault_status')
+  }
+
+  // ── Authority ───────────────────────────────────────────────────
+
+  claimAuthority(who: string, reason = ''): void {
+    log('authority_claim', { who, reason })
+    this.ws.send('authority_claim', { who, reason })
+  }
+
+  requestAuthorityState(): void {
+    this.ws.send('authority_state')
+  }
+
+  // ── Pipeline metrics ────────────────────────────────────────────
+
+  requestPipelineMetrics(): void {
+    this.ws.send('pipeline_metrics')
+  }
+
+  // ── Camera registry ─────────────────────────────────────────────
+
+  requestCameraRegistry(): void {
+    this.ws.send('camera_registry')
   }
 
   // ── PTZ control ─────────────────────────────────────────────────
@@ -490,11 +537,23 @@ export class VisionWsClient {
 
   // ── Quality mode ────────────────────────────────────────────────
 
-  switchQuality(mode: { fps: number; width: number; height: number; quality: number }): void {
-    log('switch_quality', mode)
-    this.stopCamera()
-    this.startCamera(mode)
-    this.subscribe(mode.fps, mode.quality)
+  switchQuality(mode: { fps: number; width: number; height: number; quality: number }, profileName?: string): void {
+    log('switch_quality', { ...mode, profile: profileName })
+    if (profileName) {
+      this.ws.send('camera_set_profile', { profile: profileName })
+    } else {
+      this.stopCamera()
+      this.startCamera({ ...mode, profile: profileName })
+      this.subscribe(mode.fps, mode.quality)
+    }
+  }
+
+  requestCapabilities(): void {
+    this.ws.send('camera_capabilities')
+  }
+
+  requestStreamMetrics(): void {
+    this.ws.send('camera_stream_metrics')
   }
 
   // ── Scene / Tracking / Watch / Follow ──────────────────────────
@@ -711,22 +770,31 @@ export class VisionWsClient {
     const blob = new Blob([buf], { type: 'image/jpeg' })
     const newUrl = URL.createObjectURL(blob)
 
-    const oldUrl = this._prevBlobUrl
-    this._latestFrameUrl = newUrl
-    this._prevBlobUrl = newUrl
-    this._frameCount++
+    // Double-buffer: preload image in hidden element, only swap on decode complete.
+    // Prevents flicker from showing a partially-decoded or blank frame.
+    const preload = new Image()
+    preload.onload = () => {
+      const oldUrl = this._prevBlobUrl
+      this._latestFrameUrl = newUrl
+      this._prevBlobUrl = newUrl
+      this._frameCount++
 
-    if (this._frameCount === 1) log('first_frame_received', `bytes=${buf.byteLength}`)
-    if (this._frameCount % 100 === 0) log('frames_received', this._frameCount)
+      if (this._frameCount === 1) log('first_frame_received', `bytes=${buf.byteLength}`)
+      if (this._frameCount % 100 === 0) log('frames_received', this._frameCount)
 
-    const handlers = (this.ws as unknown as { handlers: Map<string, ((d: Record<string, unknown>) => void)[]> }).handlers?.get('vision_frame') || []
-    for (const h of handlers) {
-      h({ type: 'vision_frame', url: newUrl, timestamp: Date.now(), byteLength: buf.byteLength })
+      const handlers = (this.ws as unknown as { handlers: Map<string, ((d: Record<string, unknown>) => void)[]> }).handlers?.get('vision_frame') || []
+      for (const h of handlers) {
+        h({ type: 'vision_frame', url: newUrl, timestamp: Date.now(), byteLength: buf.byteLength })
+      }
+
+      if (oldUrl) {
+        setTimeout(() => URL.revokeObjectURL(oldUrl), 200)
+      }
     }
-
-    if (oldUrl) {
-      setTimeout(() => URL.revokeObjectURL(oldUrl), 100)
+    preload.onerror = () => {
+      URL.revokeObjectURL(newUrl)
     }
+    preload.src = newUrl
   }
 
   private _revokeFrame(): void {

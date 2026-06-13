@@ -46,6 +46,7 @@ import { VisionPanel } from '../panels/VisionPanel'
 import { BroadcastPanel } from '../panels/BroadcastPanel'
 import { ConferenceRoomsPanel } from '../panels/ConferenceRoomsPanel'
 import { ErrorBoundary } from './ErrorBoundary'
+import { CallOverlay } from './CallOverlay'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -170,8 +171,9 @@ export function Shell() {
 
         <div className="flex-1 flex flex-col overflow-hidden">
           <ControlPanel />
-          <main className="flex-1 overflow-hidden bg-surface">
+          <main className="flex-1 overflow-hidden bg-surface relative">
             <ActivePanel />
+            <CallOverlay />
           </main>
         </div>
 

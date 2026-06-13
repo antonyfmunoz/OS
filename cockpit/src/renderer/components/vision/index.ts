@@ -1,4 +1,5 @@
-export { VisionOverlay, type OverlayMetadata } from './VisionOverlay'
+export { VisionOverlay } from './VisionOverlay'
+export type { OverlayMetadata } from '../../stores/visionStore'
 export { TrackedObjectBox } from './TrackedObjectBox'
 export { FaceTrackingOverlay } from './FaceTrackingOverlay'
 export { HandLandmarkOverlay } from './HandLandmarkOverlay'

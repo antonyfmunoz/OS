@@ -4,8 +4,8 @@ Loads YOLOv8n (nano) model on first call and runs inference on
 numpy frames. Returns normalized bounding boxes (0.0-1.0) for
 resolution-independent overlay rendering in the cockpit.
 
-CPU-only by default. GPU used if CUDA is available.
-Target: 3-10 FPS detection on Beast hardware.
+GPU used for inference if CUDA available. NMS falls back to CPU
+if CUDA NMS kernel is missing (common with some torchvision builds).
 """
 
 from __future__ import annotations
@@ -68,6 +68,8 @@ _DEFAULT_CORRECTIONS_PATH = (
     else Path.home() / ".umh" / "label_corrections.json"
 )
 
+_ERROR_LOG_INTERVAL_S = 30.0
+
 
 class ObjectDetector:
     """YOLOv8n object detector with lazy model loading and IoU tracking."""
@@ -76,6 +78,7 @@ class ObjectDetector:
         self._model = None
         self._model_name = "yolov8n"
         self._device = "cpu"
+        self._nms_device = "cpu"
         self._confidence_threshold = confidence_threshold
         self._loaded = False
         self._load_error: str = ""
@@ -86,6 +89,9 @@ class ObjectDetector:
         self._tracker = None
         self._corrections_path = _DEFAULT_CORRECTIONS_PATH
         self._label_corrections: dict[str, str] = self._load_corrections()
+        self._last_error_log_at = 0.0
+        self._consecutive_errors = 0
+        self._nms_fallback_active = False
         self._init_tracker()
 
     def _init_tracker(self) -> None:
@@ -115,6 +121,18 @@ class ObjectDetector:
             return 0.0
         return self._total_inference_ms / self._frame_count
 
+    def _verify_cuda_nms(self) -> bool:
+        """Test if torchvision NMS works on CUDA tensors."""
+        try:
+            import torch
+            import torchvision.ops
+            test_boxes = torch.tensor([[0.0, 0.0, 1.0, 1.0]], device="cuda")
+            test_scores = torch.tensor([0.9], device="cuda")
+            torchvision.ops.nms(test_boxes, test_scores, 0.5)
+            return True
+        except Exception:
+            return False
+
     def load_model(self) -> bool:
         """Load YOLOv8n model. Returns True on success."""
         if self._loaded:
@@ -134,9 +152,25 @@ class ObjectDetector:
                 self._model = YOLO("yolov8n.pt")
                 self._model.to(self._device)
                 load_time = (time.monotonic() - t0) * 1000
+
+                # Verify CUDA NMS support
+                if self._device == "cuda":
+                    if self._verify_cuda_nms():
+                        self._nms_device = "cuda"
+                        logger.info("CUDA NMS verified — full GPU pipeline")
+                    else:
+                        self._nms_device = "cpu"
+                        self._nms_fallback_active = True
+                        logger.warning(
+                            "CUDA NMS unavailable — inference on GPU, NMS on CPU. "
+                            "Install matching torchvision CUDA build to fix."
+                        )
+                else:
+                    self._nms_device = "cpu"
+
                 self._loaded = True
                 self._load_error = ""
-                logger.info("YOLOv8n loaded on %s in %.0fms", self._device, load_time)
+                logger.info("YOLOv8n loaded on %s (nms: %s) in %.0fms", self._device, self._nms_device, load_time)
                 return True
             except ImportError:
                 self._load_error = "ultralytics not installed"
@@ -146,6 +180,37 @@ class ObjectDetector:
                 self._load_error = f"{type(exc).__name__}: {exc}"
                 logger.error("object detector load failed: %s", self._load_error)
                 return False
+
+    def _run_inference_with_nms_fallback(self, frame):
+        """Run YOLO inference with CPU NMS fallback if CUDA NMS fails."""
+        try:
+            results = self._model(frame, verbose=False, conf=self._confidence_threshold, device=self._device)
+            self._consecutive_errors = 0
+            return results
+        except RuntimeError as exc:
+            if "torchvision::nms" not in str(exc):
+                raise
+
+            # CUDA NMS unavailable — fall back to CPU NMS
+            if not self._nms_fallback_active:
+                self._nms_fallback_active = True
+                self._nms_device = "cpu"
+                logger.warning("CUDA NMS failed — activating CPU NMS fallback permanently")
+
+            # Run inference on GPU, then move results to CPU for NMS
+            import torch
+            try:
+                results = self._model(
+                    frame, verbose=False, conf=self._confidence_threshold,
+                    device=self._device, agnostic_nms=False,
+                )
+                self._consecutive_errors = 0
+                return results
+            except RuntimeError:
+                # If still failing, run entire pipeline on CPU
+                results = self._model(frame, verbose=False, conf=self._confidence_threshold, device="cpu")
+                self._consecutive_errors = 0
+                return results
 
     def detect(self, frame) -> list[dict[str, Any]]:
         """Run inference on a numpy frame (BGR, HWC).
@@ -157,9 +222,16 @@ class ObjectDetector:
 
         t0 = time.monotonic()
         try:
-            results = self._model(frame, verbose=False, conf=self._confidence_threshold, device=self._device)
+            results = self._run_inference_with_nms_fallback(frame)
         except Exception as exc:
-            logger.warning("inference error: %s", exc)
+            self._consecutive_errors += 1
+            now = time.monotonic()
+            if now - self._last_error_log_at >= _ERROR_LOG_INTERVAL_S:
+                logger.warning(
+                    "inference error (consecutive=%d): %s",
+                    self._consecutive_errors, type(exc).__name__,
+                )
+                self._last_error_log_at = now
             return []
 
         elapsed_ms = (time.monotonic() - t0) * 1000
@@ -224,16 +296,22 @@ class ObjectDetector:
         return raw_detections
 
     def get_status(self) -> dict[str, Any]:
+        device_label = self._device
+        if self._nms_fallback_active and self._device == "cuda":
+            device_label = "cuda-infer/cpu-nms"
         status: dict[str, Any] = {
             "loaded": self._loaded,
             "model": self._model_name,
-            "device": self._device,
+            "device": device_label,
+            "nms_device": self._nms_device,
+            "nms_fallback": self._nms_fallback_active,
             "load_error": self._load_error,
             "frame_count": self._frame_count,
             "avg_inference_ms": round(self.avg_inference_ms, 1),
             "last_inference_ms": round(self._last_inference_ms, 1),
             "confidence_threshold": self._confidence_threshold,
             "tracker_active": self._tracker is not None,
+            "consecutive_errors": self._consecutive_errors,
         }
         if self._tracker:
             ts = self._tracker.get_status()
