@@ -2529,6 +2529,59 @@ async def _health_server() -> None:
     await loop.run_in_executor(None, server.serve_forever)
 
 
+async def _frame_ingest_ws_handler(ws: Any) -> None:
+    """Persistent WS endpoint for mesh→relay frame push.
+
+    Wire format per message (binary):
+      [4-byte big-endian meta length][JSON meta bytes][JPEG bytes]
+
+    Eliminates per-frame TCP+HTTP overhead (~100ms→<1ms per frame).
+    """
+    import struct as _struct
+
+    if _FRAME_INGEST_TOKEN:
+        try:
+            auth_msg = await asyncio.wait_for(ws.recv(), timeout=5)
+            if isinstance(auth_msg, str):
+                import hmac
+                if not hmac.compare_digest(auth_msg, _FRAME_INGEST_TOKEN):
+                    await ws.close(4001, "auth failed")
+                    return
+            else:
+                await ws.close(4001, "expected auth token")
+                return
+        except Exception:
+            return
+    await ws.send("ok")
+
+    log.info("frame ingest WS connected")
+    frame_n = 0
+    try:
+        async for msg in ws:
+            if not isinstance(msg, bytes) or len(msg) < 6:
+                continue
+            meta_len = _struct.unpack(">I", msg[:4])[0]
+            if meta_len > 65536 or 4 + meta_len > len(msg):
+                continue
+            meta_json = msg[4:4 + meta_len]
+            jpeg_bytes = msg[4 + meta_len:]
+            if len(jpeg_bytes) < 2 or jpeg_bytes[:2] != _JPEG_SOI:
+                continue
+            try:
+                meta = json.loads(meta_json) if meta_json else {}
+            except Exception:
+                meta = {}
+            frame_n += 1
+            if frame_n <= 3 or frame_n % 500 == 0:
+                log.info("ingest-ws frame %d: %d bytes jpeg, %d clients", frame_n, len(jpeg_bytes), len(_clients))
+            await broadcast_frame(jpeg_bytes, meta)
+    except websockets.ConnectionClosed:
+        pass
+    except Exception as exc:
+        log.warning("frame ingest WS error: %s", exc)
+    log.info("frame ingest WS disconnected after %d frames", frame_n)
+
+
 async def main() -> None:
     global _event_loop
     _event_loop = asyncio.get_event_loop()
@@ -2544,9 +2597,16 @@ async def main() -> None:
             "Set VISION_FRAME_TOKEN env var to secure /frame and /frame/binary endpoints."
         )
 
+    ingest_port = PORT + 2
     log.info("Vision relay starting on ws://%s:%d/vision", HOST, PORT)
+    log.info("Frame ingest WS on ws://%s:%d (persistent push)", HOST, ingest_port)
     asyncio.create_task(_health_server())
     asyncio.create_task(_command_path_ping_loop())
+
+    ingest_server = await websockets.serve(
+        _frame_ingest_ws_handler, HOST, ingest_port,
+        ping_interval=10, ping_timeout=20, max_size=MAX_FRAME_BYTES + 65536,
+    )
 
     async with websockets.serve(
         handle_vision, HOST, PORT,

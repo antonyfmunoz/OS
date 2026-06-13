@@ -63,6 +63,9 @@ class NodeMeshServer:
         self._view_socket = view_socket
         self._pipeline_submit_fn = pipeline_submit_fn
         self._frame_callback: Callable[..., None] | None = None
+        self._frame_queue: asyncio.Queue[tuple[str, dict[str, Any]]] | None = None
+        self._frame_relay_url: str | None = None
+        self._frame_relay_token: str = ""
         self._server: Any = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
@@ -80,6 +83,11 @@ class NodeMeshServer:
     def register_frame_callback(self, callback: Callable[..., None]) -> None:
         """Register a callback for camera frames: callback(node_id, payload_dict)."""
         self._frame_callback = callback
+
+    def register_frame_relay(self, ws_url: str, token: str = "") -> None:
+        """Enable persistent WS frame relay (replaces per-frame HTTP POST)."""
+        self._frame_relay_url = ws_url
+        self._frame_relay_token = token
 
     def start(self) -> threading.Thread:
         """Start the mesh server in a background thread."""
@@ -127,12 +135,90 @@ class NodeMeshServer:
         asyncio.set_event_loop(self._loop)
         self._loop.run_until_complete(self._serve())
 
+    async def _frame_relay_ws_loop(self) -> None:
+        """Persistent WS connection to relay for frame push.
+
+        Drains _frame_queue, encodes each frame as:
+          [4-byte big-endian meta_len][JSON meta][JPEG bytes]
+        and sends as a single binary WS message.
+        Reconnects on failure with backoff.
+        """
+        import base64 as _b64
+        import struct as _struct
+
+        assert self._frame_queue is not None
+        assert self._frame_relay_url is not None
+
+        backoff = 1.0
+        while not self._shutdown_event.is_set():
+            try:
+                async with websockets.connect(
+                    self._frame_relay_url,
+                    max_size=4 * 1024 * 1024,
+                    ping_interval=10,
+                    ping_timeout=20,
+                    close_timeout=2,
+                ) as ws:
+                    if self._frame_relay_token:
+                        await ws.send(self._frame_relay_token)
+                    ack = await asyncio.wait_for(ws.recv(), timeout=5)
+                    if ack != "ok":
+                        logger.warning("frame relay WS auth rejected: %s", ack)
+                        await asyncio.sleep(backoff)
+                        backoff = min(backoff * 2, 30)
+                        continue
+
+                    logger.info("frame relay WS connected to %s", self._frame_relay_url)
+                    backoff = 1.0
+                    frames_sent = 0
+
+                    while not self._shutdown_event.is_set():
+                        try:
+                            node_id, payload = await asyncio.wait_for(
+                                self._frame_queue.get(), timeout=5.0,
+                            )
+                        except asyncio.TimeoutError:
+                            continue
+
+                        b64_data = payload.get("image_base64", "")
+                        if not b64_data:
+                            continue
+                        try:
+                            jpeg_bytes = _b64.b64decode(b64_data)
+                        except Exception:
+                            continue
+
+                        meta = {k: v for k, v in payload.items() if k != "image_base64"}
+                        meta["node_id"] = node_id
+                        meta_bytes = json.dumps(meta).encode()
+                        msg = _struct.pack(">I", len(meta_bytes)) + meta_bytes + jpeg_bytes
+                        await ws.send(msg)
+                        frames_sent += 1
+                        if frames_sent <= 3 or frames_sent % 500 == 0:
+                            logger.info("frame relay WS: %d frames sent", frames_sent)
+
+            except websockets.ConnectionClosed as exc:
+                logger.warning("frame relay WS closed: %s", exc)
+            except Exception as exc:
+                logger.warning("frame relay WS error: %s", exc)
+
+            if not self._shutdown_event.is_set():
+                logger.info("frame relay WS reconnecting in %.0fs...", backoff)
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, 30)
+
     async def _serve(self) -> None:
         assert self._loop is not None
         self._health_task = self._loop.create_task(self._health_check_loop())
         self._vps_metrics_task = self._loop.create_task(self._vps_metrics_loop())
         self._http_task = self._loop.create_task(self._run_http_relay())
         self._http_task.add_done_callback(self._task_done_cb)
+
+        if self._frame_relay_url:
+            self._frame_queue = asyncio.Queue(maxsize=8)
+            self._frame_relay_task = self._loop.create_task(self._frame_relay_ws_loop())
+            self._frame_relay_task.add_done_callback(self._task_done_cb)
+            logger.info("frame relay WS push enabled → %s", self._frame_relay_url)
 
         async with websockets.serve(
             self._handle_connection,
@@ -153,6 +239,8 @@ class NodeMeshServer:
         self._health_task.cancel()
         self._vps_metrics_task.cancel()
         self._http_task.cancel()
+        if hasattr(self, "_frame_relay_task"):
+            self._frame_relay_task.cancel()
 
     async def _handle_connection(self, ws: ServerConnection) -> None:
         """Handle a single node WebSocket connection."""
@@ -413,9 +501,14 @@ class NodeMeshServer:
             )
             self._metrics.record(snapshot)
         elif signal_class == "camera_frame":
-            if self._frame_callback is not None:
-                payload = params.get("payload", {})
-                if payload.get("image_base64"):
+            payload = params.get("payload", {})
+            if payload.get("image_base64"):
+                if self._frame_queue is not None:
+                    try:
+                        self._frame_queue.put_nowait((node_id, payload))
+                    except asyncio.QueueFull:
+                        pass
+                elif self._frame_callback is not None:
                     loop = asyncio.get_running_loop()
                     loop.run_in_executor(
                         None, self._frame_callback, node_id, payload
