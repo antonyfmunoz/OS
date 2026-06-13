@@ -29,6 +29,16 @@ const INITIAL_HEALTH: BroadcastHealthMetrics = {
   status_tier: 'HEALTHY',
 }
 
+export interface SceneInfo {
+  scene_id: string
+  name: string
+}
+
+export interface SourceInfo {
+  source_id: string
+  source_type: string
+}
+
 export interface BroadcastStoreState {
   connected: boolean
   broadcastState: BroadcastState
@@ -36,6 +46,10 @@ export interface BroadcastStoreState {
   pid: number | null
   config: Record<string, unknown> | null
   error: string | null
+  composite: boolean
+  activeSceneId: string | null
+  scenes: SceneInfo[]
+  sources: SourceInfo[]
 
   setConnected: (v: boolean) => void
   setBroadcastState: (v: BroadcastState) => void
@@ -43,6 +57,10 @@ export interface BroadcastStoreState {
   setPid: (v: number | null) => void
   setConfig: (v: Record<string, unknown> | null) => void
   setError: (v: string | null) => void
+  setComposite: (v: boolean) => void
+  setActiveSceneId: (v: string | null) => void
+  setScenes: (v: SceneInfo[]) => void
+  setSources: (v: SourceInfo[]) => void
   reset: () => void
 }
 
@@ -53,6 +71,10 @@ export const useBroadcastStore = create<BroadcastStoreState>((set) => ({
   pid: null,
   config: null,
   error: null,
+  composite: false,
+  activeSceneId: null,
+  scenes: [],
+  sources: [],
 
   setConnected: (connected) => set({ connected }),
   setBroadcastState: (broadcastState) => set({ broadcastState }),
@@ -60,6 +82,10 @@ export const useBroadcastStore = create<BroadcastStoreState>((set) => ({
   setPid: (pid) => set({ pid }),
   setConfig: (config) => set({ config }),
   setError: (error) => set({ error }),
+  setComposite: (composite) => set({ composite }),
+  setActiveSceneId: (activeSceneId) => set({ activeSceneId }),
+  setScenes: (scenes) => set({ scenes }),
+  setSources: (sources) => set({ sources }),
   reset: () =>
     set({
       connected: false,
@@ -68,5 +94,9 @@ export const useBroadcastStore = create<BroadcastStoreState>((set) => ({
       pid: null,
       config: null,
       error: null,
+      composite: false,
+      activeSceneId: null,
+      scenes: [],
+      sources: [],
     }),
 }))

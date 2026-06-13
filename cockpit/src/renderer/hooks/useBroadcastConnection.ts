@@ -15,6 +15,10 @@ export function useBroadcastConnection(): void {
   const setHealth = useBroadcastStore((s) => s.setHealth)
   const setPid = useBroadcastStore((s) => s.setPid)
   const setConfig = useBroadcastStore((s) => s.setConfig)
+  const setComposite = useBroadcastStore((s) => s.setComposite)
+  const setActiveSceneId = useBroadcastStore((s) => s.setActiveSceneId)
+  const setScenes = useBroadcastStore((s) => s.setScenes)
+  const setSources = useBroadcastStore((s) => s.setSources)
   const reset = useBroadcastStore((s) => s.reset)
 
   useEffect(() => {
@@ -33,6 +37,12 @@ export function useBroadcastConnection(): void {
       if (health) {
         setHealth(health)
       }
+
+      const p = pulse as Record<string, unknown>
+      setComposite(Boolean(p.composite))
+      setActiveSceneId((p.active_scene_id as string) ?? null)
+      setScenes((p.scenes as Array<{ scene_id: string; name: string }>) ?? [])
+      setSources((p.sources as Array<{ source_id: string; source_type: string }>) ?? [])
     })
 
     client.connect()
