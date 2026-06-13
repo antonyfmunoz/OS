@@ -783,6 +783,40 @@ class CameraAdapter:
             devices.sort(key=lambda d: d["index"])
             return {"success": True, "devices": devices, "selected_index": self._device_index}
 
+        # Fast path: WMI-only enumeration (no DirectShow probe).
+        # DirectShow probing can hard-crash the process on Windows when
+        # a device is in a bad state. Only probe when validate=true.
+        if not validate:
+            for i, cam in enumerate(wmi_cameras):
+                devices.append({
+                    "index": i,
+                    "name": cam["name"],
+                    "physical_id": cam["device_id"],
+                    "raw_indexes": [i],
+                    "width": 0,
+                    "height": 0,
+                    "fps": 0,
+                    "status": "unknown",
+                    "online": True,
+                    "busy": False,
+                    "selected": i == self._device_index,
+                    "last_validated_at": 0,
+                    "last_probe_error": None,
+                })
+            if not devices:
+                devices.append({
+                    "index": self._device_index,
+                    "name": f"Camera {self._device_index}",
+                    "physical_id": "",
+                    "raw_indexes": [self._device_index],
+                    "width": 0, "height": 0, "fps": 0,
+                    "status": "unknown", "online": True,
+                    "busy": False, "selected": True,
+                    "last_validated_at": 0, "last_probe_error": None,
+                })
+            return {"success": True, "devices": devices, "selected_index": self._device_index}
+
+        # Slow path: DirectShow probe (only when validate=true)
         wmi_name_by_idx: dict[int, str] = {}
         wmi_id_by_idx: dict[int, str] = {}
         if len(wmi_cameras) > 0:
@@ -799,20 +833,19 @@ class CameraAdapter:
                     status = "usable"
                     fps_est = 0.0
                     probe_error = None
-                    if validate:
-                        ret, frame = cap.read()
-                        if not ret or frame is None:
-                            status = "error"
-                            probe_error = "no frames"
-                        else:
-                            t0 = time.monotonic()
-                            count = 0
-                            while time.monotonic() - t0 < 0.3:
-                                r, _ = cap.read()
-                                if r:
-                                    count += 1
-                            elapsed = time.monotonic() - t0
-                            fps_est = round(count / elapsed, 1) if elapsed > 0 else 0.0
+                    ret, frame = cap.read()
+                    if not ret or frame is None:
+                        status = "error"
+                        probe_error = "no frames"
+                    else:
+                        t0 = time.monotonic()
+                        count = 0
+                        while time.monotonic() - t0 < 0.3:
+                            r, _ = cap.read()
+                            if r:
+                                count += 1
+                        elapsed = time.monotonic() - t0
+                        fps_est = round(count / elapsed, 1) if elapsed > 0 else 0.0
                     cap.release()
                     return {
                         "index": i,
@@ -826,7 +859,7 @@ class CameraAdapter:
                         "online": True,
                         "busy": False,
                         "selected": False,
-                        "last_validated_at": now_ms if validate else 0,
+                        "last_validated_at": now_ms,
                         "last_probe_error": probe_error,
                     }
                 cap.release()
