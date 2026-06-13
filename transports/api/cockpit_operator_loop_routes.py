@@ -116,6 +116,22 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/strategy/decisions", _strategy_decisions, methods=["GET"], dependencies=auth)
     r.add_api_route("/strategy/decisions/{decision_id}/outcome", _strategy_record_outcome, methods=["POST"], dependencies=auth)
 
+    # ── Phase 5: Strategic Tick Loop routes ────────────────────
+    r.add_api_route("/tick/status", _tick_status, methods=["GET"], dependencies=auth)
+    r.add_api_route("/tick/state", _tick_strategic_state, methods=["GET"], dependencies=auth)
+    r.add_api_route("/tick/execute", _tick_execute, methods=["POST"], dependencies=auth)
+    r.add_api_route("/tick/start", _tick_start, methods=["POST"], dependencies=auth)
+    r.add_api_route("/tick/stop", _tick_stop, methods=["POST"], dependencies=auth)
+    r.add_api_route("/tick/pause", _tick_pause, methods=["POST"], dependencies=auth)
+    r.add_api_route("/tick/resume", _tick_resume, methods=["POST"], dependencies=auth)
+    r.add_api_route("/tick/frequency", _tick_set_frequency, methods=["POST"], dependencies=auth)
+    r.add_api_route("/tick/profiles", _tick_set_profiles, methods=["POST"], dependencies=auth)
+    r.add_api_route("/tick/candidates", _tick_candidates, methods=["GET"], dependencies=auth)
+    r.add_api_route("/tick/candidates/{candidate_id}/accept", _tick_accept_candidate, methods=["POST"], dependencies=auth)
+    r.add_api_route("/tick/candidates/{candidate_id}/reject", _tick_reject_candidate, methods=["POST"], dependencies=auth)
+    r.add_api_route("/tick/drift", _tick_drift_warnings, methods=["GET"], dependencies=auth)
+    r.add_api_route("/tick/history", _tick_history, methods=["GET"], dependencies=auth)
+
     return r
 
 
@@ -1202,4 +1218,213 @@ async def _strategy_record_outcome(request: Request) -> dict:
         return result
     except Exception as exc:
         logger.error("strategy record outcome failed: %s", exc, exc_info=True)
+        return {"success": False, "error": str(exc)}
+
+
+# ── Phase 5: Strategic Tick Loop helpers & handlers ────────────────
+
+
+def _get_tick_loop():
+    from substrate.organism.strategic_tick_loop import get_tick_loop
+    return get_tick_loop()
+
+
+async def _tick_status(request: Request) -> dict:
+    """Compact tick loop status."""
+    try:
+        loop = _get_tick_loop()
+        return {"success": True, **loop.status()}
+    except Exception as exc:
+        logger.error("tick status failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_strategic_state(request: Request) -> dict:
+    """Full strategic state for cockpit command center."""
+    try:
+        loop = _get_tick_loop()
+        return {"success": True, **loop.get_strategic_state()}
+    except Exception as exc:
+        logger.error("tick strategic state failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_execute(request: Request) -> dict:
+    """Execute one tick cycle manually."""
+    try:
+        loop = _get_tick_loop()
+        record = loop.execute_tick()
+        _audit_log("tick_executed", {
+            "tick_id": record.tick_id,
+            "change_detected": record.change_detected,
+            "analysis_ran": record.analysis_ran,
+            "gaps_found": record.gaps_found,
+        })
+        return {"success": True, "tick": record.to_dict()}
+    except Exception as exc:
+        logger.error("tick execute failed: %s", exc, exc_info=True)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_start(request: Request) -> dict:
+    """Start the tick loop."""
+    try:
+        body = await request.json()
+        freq = body.get("frequency", "")
+        loop = _get_tick_loop()
+        if freq:
+            from substrate.organism.strategic_tick_loop import TickFrequency
+            loop.frequency = TickFrequency(freq)
+        loop.start()
+        _audit_log("tick_started", {"frequency": loop.frequency.value})
+        return {"success": True, "status": loop.status()}
+    except Exception as exc:
+        logger.error("tick start failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_stop(request: Request) -> dict:
+    """Stop the tick loop."""
+    try:
+        loop = _get_tick_loop()
+        loop.stop()
+        _audit_log("tick_stopped", {"cycle_count": loop.cycle_count})
+        return {"success": True, "status": loop.status()}
+    except Exception as exc:
+        logger.error("tick stop failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_pause(request: Request) -> dict:
+    """Pause the tick loop (maintains state)."""
+    try:
+        loop = _get_tick_loop()
+        loop.pause()
+        _audit_log("tick_paused", {"cycle_count": loop.cycle_count})
+        return {"success": True, "status": loop.status()}
+    except Exception as exc:
+        logger.error("tick pause failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_resume(request: Request) -> dict:
+    """Resume the tick loop from paused state."""
+    try:
+        loop = _get_tick_loop()
+        loop.resume()
+        _audit_log("tick_resumed", {"cycle_count": loop.cycle_count})
+        return {"success": True, "status": loop.status()}
+    except Exception as exc:
+        logger.error("tick resume failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_set_frequency(request: Request) -> dict:
+    """Set tick frequency."""
+    try:
+        body = await request.json()
+        freq = body.get("frequency", "1m")
+        from substrate.organism.strategic_tick_loop import TickFrequency
+        loop = _get_tick_loop()
+        loop.frequency = TickFrequency(freq)
+        _audit_log("tick_frequency_changed", {"frequency": freq})
+        return {"success": True, "frequency": freq, "status": loop.status()}
+    except Exception as exc:
+        logger.error("tick set frequency failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_set_profiles(request: Request) -> dict:
+    """Set active profile modes for prioritization."""
+    try:
+        body = await request.json()
+        profiles = body.get("profiles", [])
+        loop = _get_tick_loop()
+        loop.set_active_profiles(profiles)
+        _audit_log("tick_profiles_set", {"profiles": profiles})
+        return {"success": True, "profiles": profiles}
+    except Exception as exc:
+        logger.error("tick set profiles failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_candidates(request: Request) -> dict:
+    """Return candidate work queue."""
+    try:
+        loop = _get_tick_loop()
+        pending = loop.candidate_queue.pending()
+        all_items = loop.candidate_queue.all_items()
+        return {
+            "success": True,
+            "pending": [i.to_dict() for i in pending],
+            "pending_count": len(pending),
+            "total": len(all_items),
+            "all": [i.to_dict() for i in all_items],
+        }
+    except Exception as exc:
+        logger.error("tick candidates failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_accept_candidate(request: Request) -> dict:
+    """Accept a candidate → transitions to ACCEPTED lifecycle."""
+    candidate_id = request.path_params.get("candidate_id", "")
+    try:
+        from substrate.organism.strategic_tick_loop import RecommendationLifecycle
+        loop = _get_tick_loop()
+        success = loop.candidate_queue.update_lifecycle(
+            candidate_id, RecommendationLifecycle.ACCEPTED
+        )
+        if success:
+            _audit_log("tick_candidate_accepted", {"candidate_id": candidate_id})
+        return {"success": success}
+    except Exception as exc:
+        logger.error("tick accept candidate failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_reject_candidate(request: Request) -> dict:
+    """Reject a candidate → transitions to REJECTED lifecycle."""
+    candidate_id = request.path_params.get("candidate_id", "")
+    try:
+        from substrate.organism.strategic_tick_loop import RecommendationLifecycle
+        loop = _get_tick_loop()
+        success = loop.candidate_queue.update_lifecycle(
+            candidate_id, RecommendationLifecycle.REJECTED
+        )
+        if success:
+            _audit_log("tick_candidate_rejected", {"candidate_id": candidate_id})
+        return {"success": success}
+    except Exception as exc:
+        logger.error("tick reject candidate failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_drift_warnings(request: Request) -> dict:
+    """Return current drift warnings."""
+    try:
+        loop = _get_tick_loop()
+        warnings = loop.last_drift_warnings
+        return {
+            "success": True,
+            "warnings": [w.to_dict() for w in warnings],
+            "count": len(warnings),
+        }
+    except Exception as exc:
+        logger.error("tick drift warnings failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _tick_history(request: Request) -> dict:
+    """Return recent tick history."""
+    try:
+        loop = _get_tick_loop()
+        history = loop.tick_history
+        return {
+            "success": True,
+            "ticks": [t.to_dict() for t in history[-20:]],
+            "count": len(history),
+        }
+    except Exception as exc:
+        logger.error("tick history failed: %s", exc)
         return {"success": False, "error": str(exc)}

@@ -36,6 +36,7 @@ export type Panel =
   | 'rooms'
   | 'broadcast'
   | 'strategy'
+  | 'tickloop'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

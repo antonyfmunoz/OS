@@ -255,6 +255,18 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "GapDetector": ["substrate.organism.strategic_gap_engine"],
     "RecommendationEngine": ["substrate.organism.strategic_gap_engine"],
     "StrategicGapEngine": ["substrate.organism.strategic_gap_engine"],
+    # Phase 5: Strategic Tick Loop
+    "TickFrequency": ["substrate.organism.strategic_tick_loop"],
+    "RecommendationLifecycle": ["substrate.organism.strategic_tick_loop"],
+    "DriftSeverity": ["substrate.organism.strategic_tick_loop"],
+    "RealityDelta": ["substrate.organism.strategic_tick_loop"],
+    "ChangeDetector": ["substrate.organism.strategic_tick_loop"],
+    "CandidateWorkItem": ["substrate.organism.strategic_tick_loop"],
+    "CandidateWorkQueue": ["substrate.organism.strategic_tick_loop"],
+    "DriftWarning": ["substrate.organism.strategic_tick_loop"],
+    "DriftDetector": ["substrate.organism.strategic_tick_loop"],
+    "TickRecord": ["substrate.organism.strategic_tick_loop"],
+    "StrategicTickLoop": ["substrate.organism.strategic_tick_loop"],
 }
 
 
