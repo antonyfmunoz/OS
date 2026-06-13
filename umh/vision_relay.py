@@ -1576,11 +1576,10 @@ async def _start_stream(
     _stream_height = height
     _stream_quality = quality
     frame_age = (time.time() - _last_frame_at) if _last_frame_at else float("inf")
-    stale = frame_age > 15.0
-    if _stream_active and not stale:
-        log.info("stream already active, updating params")
+    if _stream_active and frame_age < 3.0:
+        log.info("stream active with fresh frames (%.1fs ago), skipping re-dispatch", frame_age)
         return
-    if _stream_active and stale:
+    if _stream_active:
         log.info("stream marked active but frames stale (%.1fs) — re-dispatching to Beast", frame_age)
     _stream_active = True
     dispatch_params: dict[str, Any] = {
@@ -1736,12 +1735,18 @@ def receive_mesh_frame(frame_data: dict[str, Any]) -> None:
         asyncio.run_coroutine_threadsafe(broadcast_frame(jpeg_bytes, meta), loop)
 
 
+_binary_frame_count = 0
+
 def receive_binary_frame(jpeg_bytes: bytes, meta_json: str = "") -> None:
     """Binary frame ingest — accepts raw JPEG bytes, no base64 overhead.
 
     Used by /frame/binary POST endpoint. Eliminates ~33% bandwidth overhead
     and CPU cost of base64 encode/decode in the frame pipeline.
     """
+    global _binary_frame_count
+    _binary_frame_count += 1
+    if _binary_frame_count <= 3 or _binary_frame_count % 100 == 0:
+        log.info("binary frame received: %d bytes, total=%d, clients=%d", len(jpeg_bytes), _binary_frame_count, len(_clients))
     if len(jpeg_bytes) < 2 or jpeg_bytes[:2] != _JPEG_SOI:
         log.warning("binary frame rejected: not JPEG (size=%d)", len(jpeg_bytes))
         return
@@ -1754,6 +1759,8 @@ def receive_binary_frame(jpeg_bytes: bytes, meta_json: str = "") -> None:
     loop = _get_loop()
     if loop and loop.is_running():
         asyncio.run_coroutine_threadsafe(broadcast_frame(jpeg_bytes, meta), loop)
+    elif _binary_frame_count <= 5:
+        log.warning("binary frame %d: event loop not available (loop=%s, running=%s)", _binary_frame_count, loop is not None, loop.is_running() if loop else False)
 
 
 _event_loop: asyncio.AbstractEventLoop | None = None
@@ -2517,7 +2524,7 @@ async def _health_server() -> None:
             pass
 
     socketserver.TCPServer.allow_reuse_address = True
-    server = socketserver.TCPServer(("127.0.0.1", health_port), Handler)
+    server = socketserver.TCPServer(("0.0.0.0", health_port), Handler)
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, server.serve_forever)
 
