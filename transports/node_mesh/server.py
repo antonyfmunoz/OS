@@ -264,8 +264,12 @@ class NodeMeshServer:
                 await ws.close(4001, "authentication failed")
                 return
 
+            _binary_count = 0
             async for raw in ws:
                 if isinstance(raw, bytes):
+                    _binary_count += 1
+                    if _binary_count <= 3 or _binary_count % 500 == 0:
+                        logger.info("binary WS frame from %s: %d bytes (n=%d)", node_id or "?", len(raw), _binary_count)
                     if node_id and len(raw) > 6:
                         self._handle_binary_frame(node_id, raw)
                     continue
