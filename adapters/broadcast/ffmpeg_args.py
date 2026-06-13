@@ -144,6 +144,14 @@ def _validate_output_url(url: str) -> str:
             f"Disallowed output scheme: {parsed.scheme!r} "
             f"(allowed: {', '.join(sorted(_ALLOWED_OUTPUT_SCHEMES))})"
         )
+    hostname = parsed.hostname or ""
+    if not hostname:
+        raise ValueError("Output URL must have a hostname")
+    if parsed.username or parsed.password:
+        raise ValueError("Credentials must not be embedded in output URL — use env var side channel")
+    if parsed.query:
+        raise ValueError("Query parameters not allowed in output URL (push-only)")
+    _reject_private_host(hostname)
     return url
 
 
