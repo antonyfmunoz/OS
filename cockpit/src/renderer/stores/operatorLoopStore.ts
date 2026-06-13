@@ -329,6 +329,96 @@ export interface AnalysisResult {
   analyzed_at: number
 }
 
+// ── Phase 5: Tick Loop types ──────────────────────────────────
+
+export interface TickStatusData {
+  running: boolean
+  paused: boolean
+  frequency: string
+  cycle_count: number
+  last_tick_at: number | null
+  last_change_detected: boolean | null
+  pending_candidates: number
+  drift_warning_count: number
+  active_profiles: string[]
+  operator_present: boolean
+}
+
+export interface TickRecord {
+  tick_id: string
+  cycle_number: number
+  timestamp: number
+  change_detected: boolean
+  analysis_ran: boolean
+  gaps_found: number
+  recommendations_generated: number
+  candidates_added: number
+  drift_warnings: number
+  expired_candidates: number
+  operator_present: boolean
+  active_profiles: string[]
+  elapsed_ms: number
+  skipped_reason: string
+}
+
+export interface CandidateItem {
+  candidate_id: string
+  recommendation_id: string
+  title: string
+  domain: string
+  priority_score: number
+  impact: string
+  risk: string
+  dependencies: string[]
+  lifecycle: string
+  proposed_at: number
+  expires_at: number
+  decided_at: number
+}
+
+export interface DriftWarningData {
+  warning_id: string
+  goal_id: string
+  goal_title: string
+  domain: string
+  severity: string
+  days_stagnant: number
+  last_activity: number
+  completion_ratio: number
+  message: string
+  created_at: number
+}
+
+export interface TickStrategicState {
+  tick: {
+    running: boolean
+    paused: boolean
+    frequency: string
+    cycle_count: number
+    last_tick: TickRecord | null
+    next_tick_in: number | null
+  }
+  last_analysis: Record<string, unknown> | null
+  last_delta: {
+    has_meaningful_change: boolean
+    new_outcomes: Record<string, unknown>[]
+    new_failures: Record<string, unknown>[]
+    new_approvals: number
+    new_packets: Record<string, unknown>[]
+    goal_changes: string[]
+    domain_changes: string[]
+  } | null
+  candidate_queue: {
+    total: number
+    pending: number
+    items: CandidateItem[]
+  }
+  drift_warnings: DriftWarningData[]
+  active_profiles: string[]
+  operator_present: boolean
+  recent_ticks: TickRecord[]
+}
+
 interface OperatorLoopState {
   loopStatus: LoopStatus | null
   pendingApprovals: PacketSummary[]
@@ -388,6 +478,30 @@ interface OperatorLoopState {
   lastAnalysis: AnalysisResult | null
   strategyLoading: boolean
 
+  // Phase 5: Tick Loop state
+  tickStatus: TickStatusData | null
+  tickStrategicState: TickStrategicState | null
+  tickCandidates: CandidateItem[]
+  tickDriftWarnings: DriftWarningData[]
+  tickHistory: TickRecord[]
+  tickLoading: boolean
+
+  // Phase 5: Tick Loop actions
+  fetchTickStatus: () => Promise<void>
+  fetchTickState: () => Promise<void>
+  executeTick: () => Promise<TickRecord | null>
+  startTick: (frequency?: string) => Promise<void>
+  stopTick: () => Promise<void>
+  pauseTick: () => Promise<void>
+  resumeTick: () => Promise<void>
+  setTickFrequency: (frequency: string) => Promise<void>
+  setTickProfiles: (profiles: string[]) => Promise<void>
+  fetchTickCandidates: () => Promise<void>
+  acceptCandidate: (candidateId: string) => Promise<boolean>
+  rejectCandidate: (candidateId: string) => Promise<boolean>
+  fetchTickDrift: () => Promise<void>
+  fetchTickHistory: () => Promise<void>
+
   // Phase 4: Strategic Gap actions
   runAnalysis: () => Promise<AnalysisResult | null>
   fetchGoals: () => Promise<void>
@@ -415,6 +529,13 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
   nextActions: null,
   packetsByDomain: {},
   domainFilter: '',
+  // Phase 5 initial state
+  tickStatus: null,
+  tickStrategicState: null,
+  tickCandidates: [],
+  tickDriftWarnings: [],
+  tickHistory: [],
+  tickLoading: false,
   // Phase 4 initial state
   goals: [],
   gaps: [],
@@ -737,6 +858,156 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
   },
 
   setDomainFilter: (domain: string) => set({ domainFilter: domain }),
+
+  // ── Phase 5: Tick Loop actions ──────────────────────────────
+
+  fetchTickStatus: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean } & TickStatusData>('/tick/status')
+      if (res.success) set({ tickStatus: res })
+    } catch {
+      set({ tickStatus: null })
+    }
+  },
+
+  fetchTickState: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean } & TickStrategicState>('/tick/state')
+      if (res.success) set({ tickStrategicState: res })
+    } catch {
+      set({ tickStrategicState: null })
+    }
+  },
+
+  executeTick: async () => {
+    set({ tickLoading: true })
+    try {
+      const res = await fetchApi<{ success: boolean; tick: TickRecord }>('/tick/execute', { method: 'POST' })
+      set({ tickLoading: false })
+      if (res.success) {
+        get().fetchTickStatus()
+        get().fetchTickState()
+        get().fetchTickCandidates()
+        get().fetchTickDrift()
+        get().fetchTickHistory()
+        return res.tick
+      }
+      return null
+    } catch {
+      set({ tickLoading: false })
+      return null
+    }
+  },
+
+  startTick: async (frequency = '1m') => {
+    try {
+      await fetchApi<{ success: boolean }>('/tick/start', {
+        method: 'POST',
+        body: JSON.stringify({ frequency }),
+      })
+      get().fetchTickStatus()
+    } catch {
+      // silent
+    }
+  },
+
+  stopTick: async () => {
+    try {
+      await fetchApi<{ success: boolean }>('/tick/stop', { method: 'POST' })
+      get().fetchTickStatus()
+    } catch {
+      // silent
+    }
+  },
+
+  pauseTick: async () => {
+    try {
+      await fetchApi<{ success: boolean }>('/tick/pause', { method: 'POST' })
+      get().fetchTickStatus()
+    } catch {
+      // silent
+    }
+  },
+
+  resumeTick: async () => {
+    try {
+      await fetchApi<{ success: boolean }>('/tick/resume', { method: 'POST' })
+      get().fetchTickStatus()
+    } catch {
+      // silent
+    }
+  },
+
+  setTickFrequency: async (frequency: string) => {
+    try {
+      await fetchApi<{ success: boolean }>('/tick/frequency', {
+        method: 'POST',
+        body: JSON.stringify({ frequency }),
+      })
+      get().fetchTickStatus()
+    } catch {
+      // silent
+    }
+  },
+
+  setTickProfiles: async (profiles: string[]) => {
+    try {
+      await fetchApi<{ success: boolean }>('/tick/profiles', {
+        method: 'POST',
+        body: JSON.stringify({ profiles }),
+      })
+      get().fetchTickStatus()
+    } catch {
+      // silent
+    }
+  },
+
+  fetchTickCandidates: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; all: CandidateItem[] }>('/tick/candidates')
+      if (res.success) set({ tickCandidates: res.all })
+    } catch {
+      set({ tickCandidates: [] })
+    }
+  },
+
+  acceptCandidate: async (candidateId: string) => {
+    try {
+      const res = await fetchApi<{ success: boolean }>(`/tick/candidates/${candidateId}/accept`, { method: 'POST' })
+      if (res.success) get().fetchTickCandidates()
+      return res.success ?? false
+    } catch {
+      return false
+    }
+  },
+
+  rejectCandidate: async (candidateId: string) => {
+    try {
+      const res = await fetchApi<{ success: boolean }>(`/tick/candidates/${candidateId}/reject`, { method: 'POST' })
+      if (res.success) get().fetchTickCandidates()
+      return res.success ?? false
+    } catch {
+      return false
+    }
+  },
+
+  fetchTickDrift: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; warnings: DriftWarningData[] }>('/tick/drift')
+      if (res.success) set({ tickDriftWarnings: res.warnings })
+    } catch {
+      set({ tickDriftWarnings: [] })
+    }
+  },
+
+  fetchTickHistory: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; ticks: TickRecord[] }>('/tick/history')
+      if (res.success) set({ tickHistory: res.ticks })
+    } catch {
+      set({ tickHistory: [] })
+    }
+  },
 
   // ── Phase 4: Strategic Gap actions ──────────────────────────────
 

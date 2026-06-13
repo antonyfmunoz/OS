@@ -56,6 +56,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'vision', label: 'Vision', icon: Camera, group: 'primary', visibility: 'primary', key: 'v' },
   { id: 'broadcast', label: 'Broadcast', icon: Cast, group: 'primary', visibility: 'primary', key: 'b' },
   { id: 'strategy', label: 'Strategy', icon: Crosshair, group: 'primary', visibility: 'primary', key: 's' },
+  { id: 'tickloop', label: 'Tick Loop', icon: Activity, group: 'primary', visibility: 'primary', key: 'l' },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'primary', visibility: 'primary', key: '5' },
 
   // System (1)
