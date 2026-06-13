@@ -171,6 +171,7 @@ export function GuestJoinPage({ inviteCode }: { inviteCode: string }) {
         permissions={info.permissions}
         micEnabled={micEnabled}
         videoEnabled={videoEnabled}
+        inviteCode={inviteCode}
       />
     )
   }
@@ -341,6 +342,7 @@ function GuestRoomView({
   permissions,
   micEnabled: initialMic,
   videoEnabled: initialVideo,
+  inviteCode,
 }: {
   token: GuestToken
   roomType: 'voice' | 'meeting'
@@ -349,6 +351,7 @@ function GuestRoomView({
   permissions: GuestPermissions
   micEnabled: boolean
   videoEnabled: boolean
+  inviteCode: string
 }) {
   const roomRef = useRef<Room | null>(null)
   const intentionalDisconnectRef = useRef(false)
@@ -375,17 +378,33 @@ function GuestRoomView({
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const localScreenTracksRef = useRef<Map<string, LocalVideoTrack>>(new Map())
 
+  const fetchChatHistory = useCallback(async () => {
+    try {
+      const msgs = await fetchApi<Array<{ id: string; sender_identity: string; sender_display_name: string; body: string; created_at: string }>>(`/rooms/invite/${inviteCode}/chat`, {
+        headers: { Authorization: `Bearer ${token.token}` },
+      })
+      if (Array.isArray(msgs)) {
+        setChatMessages(msgs.map(m => ({
+          id: m.id,
+          sender: m.sender_identity,
+          senderName: m.sender_display_name,
+          content: m.body,
+          timestamp: new Date(m.created_at).getTime(),
+        })))
+      }
+    } catch { /* non-fatal */ }
+  }, [inviteCode, token.token])
+
   /* ─── Sync participants from room state ─── */
   const syncParticipants = useCallback(() => {
     const room = roomRef.current
     if (!room) return
     const parts: GuestParticipant[] = []
-    // Include self
     parts.push({
       identity: room.localParticipant.identity,
       name: room.localParticipant.name || guestName,
       isSpeaking: room.localParticipant.isSpeaking,
-      isMuted: !room.localParticipant.isMicrophoneEnabled,
+      isMuted: !micIntentRef.current,
       isVideoOn: room.localParticipant.isCameraEnabled,
       hasScreenShare: false,
     })
@@ -447,6 +466,7 @@ function GuestRoomView({
       reconnectCountRef.current = 0
       restoreMediaIntents()
       syncParticipants()
+      fetchChatHistory()
     })
 
     room.on(RoomEvent.Disconnected, () => {
@@ -496,13 +516,19 @@ function GuestRoomView({
       try {
         const msg = JSON.parse(new TextDecoder().decode(payload))
         if (msg.type === 'chat' && msg.content) {
-          setChatMessages((prev) => [...prev, {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            sender: participant?.identity || 'unknown',
-            senderName: participant?.name || msg.senderName || 'Unknown',
-            content: msg.content,
-            timestamp: Date.now(),
-          }])
+          const senderIdentity = participant?.identity || 'unknown'
+          if (senderIdentity === roomRef.current?.localParticipant?.identity) return
+          setChatMessages((prev) => {
+            const isDup = prev.some(m => m.sender === senderIdentity && m.content === msg.content && Date.now() - m.timestamp < 3000)
+            if (isDup) return prev
+            return [...prev, {
+              id: `dc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              sender: senderIdentity,
+              senderName: participant?.name || msg.senderName || 'Unknown',
+              content: msg.content,
+              timestamp: Date.now(),
+            }]
+          })
         }
       } catch { /* ignore malformed */ }
     })
@@ -518,62 +544,79 @@ function GuestRoomView({
     })
 
     async function connect() {
-      try {
-        setJoinStage('connecting')
-        console.log('[GuestRoom] connect()', { url: token.url, room: token.room, identity: token.identity, tokenLen: token.token?.length })
-        await room.connect(token.url, token.token)
-        setConnState('connected')
+      const RETRIES = 3
+      const BACKOFF = [500, 1000, 2000]
+      let attempt = 0
 
-        if (micIntentRef.current) {
-          setJoinStage('publishing_mic')
-          try {
-            await room.localParticipant.setMicrophoneEnabled(true)
-            setMicOn(true)
-            setMicError(null)
-          } catch (micErr) {
-            const msg = micErr instanceof Error ? micErr.message : 'mic failed'
-            setMicError(msg)
-            setMicOn(false)
-            micIntentRef.current = false
+      while (true) {
+        try {
+          setJoinStage('connecting')
+          console.log('[GuestRoom] connect()', { url: token.url, room: token.room, identity: token.identity, tokenLen: token.token?.length, attempt })
+          await room.connect(token.url, token.token)
+          break
+        } catch (connectErr) {
+          attempt++
+          if (attempt >= RETRIES) {
+            const msg = connectErr instanceof Error ? connectErr.message : 'Connection failed'
+            console.error('[GuestRoom] connect failed after retries', { error: msg, url: token.url, room: token.room, stack: connectErr instanceof Error ? connectErr.stack : undefined })
+            setConnState('failed')
+            setConnError(msg)
+            return
           }
+          const delay = BACKOFF[attempt - 1] || 2000
+          console.log(`[GuestRoom] connect attempt ${attempt}/${RETRIES} failed, retrying in ${delay}ms`)
+          await new Promise(r => setTimeout(r, delay))
         }
-
-        if (camIntentRef.current) {
-          setJoinStage('publishing_camera')
-          try {
-            await room.localParticipant.setCameraEnabled(true)
-            const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera)
-            if (camPub?.track && localVideoRef.current) {
-              camPub.track.attach(localVideoRef.current)
-            }
-            setVideoOn(true)
-            setCamError(null)
-          } catch (camErr) {
-            const msg = camErr instanceof Error ? camErr.message : 'camera failed'
-            setCamError(msg)
-            setVideoOn(false)
-            camIntentRef.current = false
-          }
-        }
-
-        setJoinStage('connected')
-        syncParticipants()
-
-        room.remoteParticipants.forEach((p) => {
-          p.trackPublications.forEach((pub) => {
-            if (pub instanceof RemoteTrackPublication && pub.track) {
-              if (pub.source === Track.Source.Camera || pub.source === Track.Source.ScreenShare) {
-                attachRemoteVideo(pub.track, p.identity, pub.source)
-              }
-            }
-          })
-        })
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Connection failed'
-        console.error('[GuestRoom] connect failed', { error: msg, url: token.url, room: token.room, stack: e instanceof Error ? e.stack : undefined })
-        setConnState('failed')
-        setConnError(msg)
       }
+
+      setConnState('connected')
+
+      fetchChatHistory()
+
+      if (micIntentRef.current) {
+        setJoinStage('publishing_mic')
+        try {
+          await room.localParticipant.setMicrophoneEnabled(true)
+          setMicOn(true)
+          setMicError(null)
+        } catch (micErr) {
+          const msg = micErr instanceof Error ? micErr.message : 'mic failed'
+          setMicError(msg)
+          setMicOn(false)
+          micIntentRef.current = false
+        }
+      }
+
+      if (camIntentRef.current) {
+        setJoinStage('publishing_camera')
+        try {
+          await room.localParticipant.setCameraEnabled(true)
+          const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera)
+          if (camPub?.track && localVideoRef.current) {
+            camPub.track.attach(localVideoRef.current)
+          }
+          setVideoOn(true)
+          setCamError(null)
+        } catch (camErr) {
+          const msg = camErr instanceof Error ? camErr.message : 'camera failed'
+          setCamError(msg)
+          setVideoOn(false)
+          camIntentRef.current = false
+        }
+      }
+
+      setJoinStage('connected')
+      syncParticipants()
+
+      room.remoteParticipants.forEach((p) => {
+        p.trackPublications.forEach((pub) => {
+          if (pub instanceof RemoteTrackPublication && pub.track) {
+            if (pub.source === Track.Source.Camera || pub.source === Track.Source.ScreenShare) {
+              attachRemoteVideo(pub.track, p.identity, pub.source)
+            }
+          }
+        })
+      })
     }
     connect()
 
@@ -584,7 +627,7 @@ function GuestRoomView({
       room.disconnect()
       roomRef.current = null
     }
-  }, [token, syncParticipants, attachRemoteVideo])
+  }, [token, syncParticipants, attachRemoteVideo, fetchChatHistory])
 
   /* ─── Restore media intents after reconnect/foreground ─── */
   const restoreMediaIntents = useCallback(async () => {
@@ -803,13 +846,19 @@ function GuestRoomView({
       try {
         const msg = JSON.parse(new TextDecoder().decode(payload))
         if (msg.type === 'chat' && msg.content) {
-          setChatMessages((prev) => [...prev, {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            sender: participant?.identity || 'unknown',
-            senderName: participant?.name || msg.senderName || 'Unknown',
-            content: msg.content,
-            timestamp: Date.now(),
-          }])
+          const senderIdentity = participant?.identity || 'unknown'
+          if (senderIdentity === roomRef.current?.localParticipant?.identity) return
+          setChatMessages((prev) => {
+            const isDup = prev.some(m => m.sender === senderIdentity && m.content === msg.content && Date.now() - m.timestamp < 3000)
+            if (isDup) return prev
+            return [...prev, {
+              id: `dc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              sender: senderIdentity,
+              senderName: participant?.name || msg.senderName || 'Unknown',
+              content: msg.content,
+              timestamp: Date.now(),
+            }]
+          })
         }
       } catch { /* ignore */ }
     })
@@ -823,33 +872,47 @@ function GuestRoomView({
       }
     })
 
-    try {
-      console.log('[GuestRoom] rejoin connect()', { url: token.url, room: token.room })
-      await room.connect(token.url, token.token)
-      setConnState('connected')
-      setJoinStage('connected')
-      if (micIntentRef.current) {
-        try {
-          await room.localParticipant.setMicrophoneEnabled(true)
-          setMicOn(true)
-        } catch { setMicOn(false) }
+    const RETRIES = 3
+    const BACKOFF = [500, 1000, 2000]
+    let attempt = 0
+    while (true) {
+      try {
+        console.log('[GuestRoom] rejoin connect()', { url: token.url, room: token.room, attempt })
+        await room.connect(token.url, token.token)
+        break
+      } catch (connectErr) {
+        attempt++
+        if (attempt >= RETRIES) {
+          const msg = connectErr instanceof Error ? connectErr.message : 'Reconnection failed'
+          console.error('[GuestRoom] rejoin failed after retries', { error: msg, url: token.url, stack: connectErr instanceof Error ? connectErr.stack : undefined })
+          setConnState('failed')
+          setConnError(msg)
+          return
+        }
+        await new Promise(r => setTimeout(r, BACKOFF[attempt - 1] || 2000))
       }
-      if (camIntentRef.current) {
-        try {
-          await room.localParticipant.setCameraEnabled(true)
-          setVideoOn(true)
-        } catch { setVideoOn(false) }
-      }
-      syncParticipants()
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Reconnection failed'
-      console.error('[GuestRoom] rejoin failed', { error: msg, url: token.url, stack: e instanceof Error ? e.stack : undefined })
-      setConnState('failed')
-      setConnError(msg)
     }
-  }, [token, syncParticipants, restoreMediaIntents, attachRemoteVideo])
 
-  /* ─── Chat send via LiveKit data channel ─── */
+    setConnState('connected')
+    setJoinStage('connected')
+    fetchChatHistory()
+
+    if (micIntentRef.current) {
+      try {
+        await room.localParticipant.setMicrophoneEnabled(true)
+        setMicOn(true)
+      } catch { setMicOn(false) }
+    }
+    if (camIntentRef.current) {
+      try {
+        await room.localParticipant.setCameraEnabled(true)
+        setVideoOn(true)
+      } catch { setVideoOn(false) }
+    }
+    syncParticipants()
+  }, [token, syncParticipants, restoreMediaIntents, attachRemoteVideo, fetchChatHistory])
+
+  /* ─── Chat send via backend + LiveKit data channel for instant delivery ─── */
   const sendChatMessage = useCallback(async (e: FormEvent) => {
     e.preventDefault()
     const text = chatInput.trim()
@@ -857,24 +920,35 @@ function GuestRoomView({
     const room = roomRef.current
     if (!room || !permissions.can_chat) return
 
+    const identity = room.localParticipant.identity
+    const optimisticId = `local-${Date.now()}`
+    setChatMessages((prev) => [...prev, {
+      id: optimisticId,
+      sender: identity,
+      senderName: guestName,
+      content: text,
+      timestamp: Date.now(),
+    }])
+    setChatInput('')
+
+    try {
+      const saved = await fetchApi<{ id: string }>(`/rooms/invite/${inviteCode}/chat`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token.token}` },
+        body: JSON.stringify({ content: text }),
+      })
+      setChatMessages((prev) => prev.map(m => m.id === optimisticId ? { ...m, id: saved.id } : m))
+    } catch { /* backend save failed — message still visible locally */ }
+
     const payload = new TextEncoder().encode(JSON.stringify({
       type: 'chat',
       content: text,
       senderName: guestName,
     }))
-
     try {
       await room.localParticipant.publishData(payload, { reliable: true, topic: CHAT_TOPIC })
-      setChatMessages((prev) => [...prev, {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        sender: room.localParticipant.identity,
-        senderName: guestName,
-        content: text,
-        timestamp: Date.now(),
-      }])
-      setChatInput('')
-    } catch { /* send failed */ }
-  }, [chatInput, guestName, permissions.can_chat])
+    } catch { /* data channel send failed — message already persisted via API */ }
+  }, [chatInput, guestName, permissions.can_chat, inviteCode])
 
   /* ─── Render: Failed ─── */
   if (connState === 'failed') {

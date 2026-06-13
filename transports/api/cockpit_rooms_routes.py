@@ -23,7 +23,7 @@ from typing import Any
 
 import jwt as pyjwt
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from transports.api.cockpit_auth import require_clerk_auth
 
@@ -92,6 +92,31 @@ def _audit(server_id: str, channel_id: str | None, event_type: str, actor: str, 
     if len(events) > 5000:
         events = events[-5000:]
     _save("audit_log", events)
+
+
+# ── Guest JWT verification ──
+
+
+def _verify_guest_token(authorization: str | None) -> dict:
+    """Verify a LiveKit guest JWT and return its claims (sub, name, video.room).
+
+    Raises HTTPException on missing/invalid/expired token.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(401, "Missing guest token")
+    token = authorization[7:]
+    api_secret = os.environ.get("LIVEKIT_API_SECRET", "")
+    if not api_secret:
+        raise HTTPException(500, "LiveKit not configured")
+    try:
+        claims = pyjwt.decode(token, api_secret, algorithms=["HS256"])
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(401, "Token expired")
+    except pyjwt.InvalidTokenError:
+        raise HTTPException(401, "Invalid token")
+    if not claims.get("sub"):
+        raise HTTPException(401, "Token missing identity")
+    return claims
 
 
 # ── Authorization helpers ──
@@ -1380,6 +1405,128 @@ async def guest_join_via_invite(code: str, req: GuestJoinReq):
         "room": room_name,
         "identity": guest_identity,
     }
+
+
+# ── Room Chat (persistent, survives reconnect/refresh) ──
+
+
+class RoomChatReq(BaseModel):
+    content: str = Field(..., min_length=1, max_length=2000)
+    sender_type: str = "owner"
+
+
+@rooms_router.get("/channels/{channel_id}/room-chat")
+async def list_room_chat(channel_id: str, limit: int = 100, user=Depends(require_clerk_auth)):
+    _require_channel_access(user, channel_id, "view_channel")
+    msgs = _load("room_chat")
+    ch_msgs = [m for m in msgs if m["channel_id"] == channel_id]
+    ch_msgs.sort(key=lambda m: m["created_at"])
+    return ch_msgs[-limit:]
+
+
+@rooms_router.post("/channels/{channel_id}/room-chat")
+async def send_room_chat(channel_id: str, req: RoomChatReq, user=Depends(require_clerk_auth)):
+    _require_channel_access(user, channel_id)
+    msg = {
+        "id": _uid(),
+        "channel_id": channel_id,
+        "sender_identity": _user_id(user),
+        "sender_display_name": _display_name(user),
+        "sender_type": "owner",
+        "body": req.content,
+        "created_at": _now(),
+    }
+    msgs = _load("room_chat")
+    ch_msgs = [m for m in msgs if m["channel_id"] == channel_id]
+    if len(ch_msgs) >= _GUEST_CHAT_PER_CHANNEL_CAP:
+        keep_ids = {m["id"] for m in ch_msgs[-(_GUEST_CHAT_PER_CHANNEL_CAP - 1):]}
+        msgs = [m for m in msgs if m["channel_id"] != channel_id or m["id"] in keep_ids]
+    msgs.append(msg)
+    _save("room_chat", msgs)
+    _push_room_event("room_chat.message", {"channel_id": channel_id, "message": msg})
+    return msg
+
+
+class GuestChatReq(BaseModel):
+    content: str = Field(..., min_length=1, max_length=2000)
+
+
+_GUEST_CHAT_MAX_LIMIT = 200
+_GUEST_CHAT_PER_CHANNEL_CAP = 5000
+
+
+@rooms_public_router.get("/invite/{code}/chat")
+async def guest_list_room_chat(
+    code: str,
+    limit: int = 100,
+    authorization: str | None = Header(None),
+):
+    claims = _verify_guest_token(authorization)
+    invite = _find_invite_by_code(code)
+    if not invite:
+        raise HTTPException(404, "Invalid invite")
+    validation_error = _validate_invite(invite)
+    if validation_error:
+        raise HTTPException(403, validation_error)
+    permissions = invite.get("permissions", {})
+    if not permissions.get("can_chat", True):
+        raise HTTPException(403, "Chat not permitted")
+    channel_id = invite.get("channel_id")
+    if not channel_id:
+        raise HTTPException(400, "Invite has no channel")
+    room_claim = (claims.get("video") or {}).get("room", "")
+    if room_claim != f"room-{channel_id}":
+        raise HTTPException(403, "Token does not match this room")
+    clamped = min(max(limit, 1), _GUEST_CHAT_MAX_LIMIT)
+    msgs = _load("room_chat")
+    ch_msgs = [m for m in msgs if m["channel_id"] == channel_id]
+    ch_msgs.sort(key=lambda m: m["created_at"])
+    return ch_msgs[-clamped:]
+
+
+@rooms_public_router.post("/invite/{code}/chat")
+async def guest_send_room_chat(
+    code: str,
+    req: GuestChatReq,
+    authorization: str | None = Header(None),
+):
+    claims = _verify_guest_token(authorization)
+    invite = _find_invite_by_code(code)
+    if not invite:
+        raise HTTPException(404, "Invalid invite")
+    validation_error = _validate_invite(invite)
+    if validation_error:
+        raise HTTPException(403, validation_error)
+    permissions = invite.get("permissions", {})
+    if not permissions.get("can_chat", True):
+        raise HTTPException(403, "Chat not permitted")
+    channel_id = invite.get("channel_id")
+    if not channel_id:
+        raise HTTPException(400, "Invite has no channel")
+    room_claim = (claims.get("video") or {}).get("room", "")
+    if room_claim != f"room-{channel_id}":
+        raise HTTPException(403, "Token does not match this room")
+    guest_identity = claims["sub"]
+    guest_name = claims.get("name", "Guest")
+    msg = {
+        "id": _uid(),
+        "channel_id": channel_id,
+        "sender_identity": guest_identity,
+        "sender_display_name": guest_name,
+        "sender_type": "guest",
+        "body": req.content,
+        "created_at": _now(),
+        "invite_id": invite["id"],
+    }
+    msgs = _load("room_chat")
+    ch_msgs = [m for m in msgs if m["channel_id"] == channel_id]
+    if len(ch_msgs) >= _GUEST_CHAT_PER_CHANNEL_CAP:
+        keep_ids = {m["id"] for m in ch_msgs[-(_GUEST_CHAT_PER_CHANNEL_CAP - 1):]}
+        msgs = [m for m in msgs if m["channel_id"] != channel_id or m["id"] in keep_ids]
+    msgs.append(msg)
+    _save("room_chat", msgs)
+    _push_room_event("room_chat.message", {"channel_id": channel_id, "message": msg})
+    return msg
 
 
 # ── Meeting ──

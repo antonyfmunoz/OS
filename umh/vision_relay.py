@@ -107,6 +107,259 @@ _mesh_dispatch_url = os.getenv(
     "http://localhost:8095/dispatch",
 )
 
+# ── Frame pipeline metrics (defense-grade) ───────────────────────
+
+_frame_ingest_times: list[float] = []
+_frame_broadcast_times: list[float] = []
+_frame_sizes: list[int] = []
+_frame_jitter_samples: list[float] = []
+_PIPELINE_METRIC_WINDOW = 60
+_measured_fps: float = 0.0
+_fps_window_start: float = 0.0
+_fps_window_count: int = 0
+
+# ── Authority enforcement at relay ───────────────────────────────
+
+_AUTHORITY_LEVELS = {"operator": 0, "voice": 1, "ai": 2, "autonomous": 3}
+_current_authority: str = "operator"
+_authority_last_action: float = 0.0
+_AUTHORITY_DECAY_SECONDS = 30.0
+_authority_log: list[dict[str, Any]] = []
+_AUTHORITY_LOG_MAX = 100
+
+# ── Multi-camera device registry ─────────────────────────────────
+
+_camera_registry: dict[str, dict[str, Any]] = {}
+_active_camera_id: str = "default"
+
+# ── Event severity levels ────────────────────────────────────────
+
+_EVENT_SEVERITY = {"critical": 0, "warning": 1, "info": 2, "debug": 3}
+_alert_thresholds: dict[str, str] = {
+    "frame_stale": "warning",
+    "beast_offline": "critical",
+    "command_blocked": "warning",
+    "detector_offline": "warning",
+    "authority_override": "info",
+    "ptz_guard_timeout": "warning",
+    "fault_injected": "info",
+}
+
+# ── Pipeline latency tracking (Phase 5) ─────────────────────────
+
+_last_capture_timestamp: float = 0.0
+_last_relay_receive_at: float = 0.0
+_capture_to_relay_ms: float = 0.0
+_relay_to_client_ms: float = 0.0
+
+# ── Vision event stream (Phase 8) ───────────────────────────────
+
+_VISION_EVENT_MAX = 500
+_vision_events: list[dict[str, Any]] = []
+_vision_event_seq: int = 0
+
+
+def _emit_vision_event(
+    event_type: str,
+    detail: dict[str, Any] | None = None,
+    severity: str = "info",
+) -> None:
+    """Append a vision event to the rolling history with severity level."""
+    global _vision_event_seq
+    _vision_event_seq += 1
+    resolved_severity = _alert_thresholds.get(event_type, severity)
+    evt: dict[str, Any] = {
+        "seq": _vision_event_seq,
+        "type": event_type,
+        "timestamp": time.time(),
+        "severity": resolved_severity,
+    }
+    if detail:
+        evt["detail"] = detail
+    _vision_events.append(evt)
+    if len(_vision_events) > _VISION_EVENT_MAX:
+        _vision_events[:] = _vision_events[-_VISION_EVENT_MAX:]
+    if _EVENT_SEVERITY.get(resolved_severity, 3) <= 1:
+        log.warning("ALERT [%s] %s: %s", resolved_severity, event_type, detail)
+
+
+def _authority_has_decayed() -> bool:
+    """Check if current authority holder's claim has expired from inactivity."""
+    if _authority_last_action <= 0:
+        return False
+    return (time.time() - _authority_last_action) > _AUTHORITY_DECAY_SECONDS
+
+
+def _claim_authority(who: str, reason: str = "") -> bool:
+    """Claim authority at relay level. Returns True if accepted.
+
+    NOTE: authority identity is self-asserted by the client (cooperating-client
+    convention). This gate prevents accidental AI override of manual control —
+    it is NOT a security boundary against malicious clients. WebSocket auth
+    (subprotocol token) gates connection; authority gates command priority.
+    """
+    global _current_authority, _authority_last_action
+    if who not in _AUTHORITY_LEVELS:
+        return False
+    prev = _current_authority
+    if prev == who:
+        _authority_last_action = time.time()
+        return True
+    new_level = _AUTHORITY_LEVELS[who]
+    cur_level = _AUTHORITY_LEVELS.get(prev, 3)
+    if new_level > cur_level and not _authority_has_decayed():
+        return False
+    _current_authority = who
+    _authority_last_action = time.time()
+    entry = {
+        "at": time.time(),
+        "from": prev,
+        "to": who,
+        "reason": reason,
+        "prev_decayed": _authority_has_decayed() if new_level > cur_level else False,
+    }
+    _authority_log.append(entry)
+    if len(_authority_log) > _AUTHORITY_LOG_MAX:
+        _authority_log[:] = _authority_log[-_AUTHORITY_LOG_MAX:]
+    _emit_vision_event("authority_override", entry)
+    log.info("authority: %s -> %s (%s)", prev, who, reason)
+    return True
+
+
+def _release_authority(who: str) -> bool:
+    """Release authority, falling back to autonomous (lowest priority)."""
+    global _current_authority, _authority_last_action
+    if _current_authority != who:
+        return False
+    prev = _current_authority
+    _current_authority = "autonomous"
+    _authority_last_action = time.time()
+    entry = {"at": time.time(), "from": prev, "to": "autonomous", "reason": "released"}
+    _authority_log.append(entry)
+    if len(_authority_log) > _AUTHORITY_LOG_MAX:
+        _authority_log[:] = _authority_log[-_AUTHORITY_LOG_MAX:]
+    _emit_vision_event("authority_override", entry)
+    log.info("authority released: %s -> autonomous", prev)
+    return True
+
+
+def _check_authority_for_command(who: str) -> bool:
+    """Check if the given authority level can issue commands.
+
+    If the current holder's claim has decayed (no action in DECAY_SECONDS),
+    any level can issue commands — the holder is considered idle.
+    """
+    global _authority_last_action
+    if _authority_has_decayed():
+        return True
+    who_level = _AUTHORITY_LEVELS.get(who, 3)
+    cur_level = _AUTHORITY_LEVELS.get(_current_authority, 0)
+    if who_level <= cur_level:
+        _authority_last_action = time.time()
+        return True
+    return False
+
+
+def _record_pipeline_metrics(
+    frame_size: int, ingest_ms: float, broadcast_ms: float,
+) -> None:
+    """Track frame pipeline metrics for defense-grade observability."""
+    global _measured_fps, _fps_window_start, _fps_window_count
+    now = time.time()
+    _frame_sizes.append(frame_size)
+    _frame_ingest_times.append(ingest_ms)
+    _frame_broadcast_times.append(broadcast_ms)
+    if len(_frame_sizes) > _PIPELINE_METRIC_WINDOW:
+        _frame_sizes[:] = _frame_sizes[-_PIPELINE_METRIC_WINDOW:]
+        _frame_ingest_times[:] = _frame_ingest_times[-_PIPELINE_METRIC_WINDOW:]
+        _frame_broadcast_times[:] = _frame_broadcast_times[-_PIPELINE_METRIC_WINDOW:]
+
+    # Jitter: time between consecutive frames
+    if _frame_jitter_samples or _last_frame_at > 0:
+        gap = now - _last_frame_at if _last_frame_at > 0 else 0
+        if gap > 0:
+            _frame_jitter_samples.append(gap * 1000)
+            if len(_frame_jitter_samples) > _PIPELINE_METRIC_WINDOW:
+                _frame_jitter_samples[:] = _frame_jitter_samples[-_PIPELINE_METRIC_WINDOW:]
+
+    # Measured FPS: rolling 2-second window
+    _fps_window_count += 1
+    elapsed = now - _fps_window_start if _fps_window_start > 0 else 0
+    if elapsed >= 2.0:
+        _measured_fps = round(_fps_window_count / elapsed, 1)
+        _fps_window_start = now
+        _fps_window_count = 0
+    elif _fps_window_start == 0:
+        _fps_window_start = now
+
+
+def _get_pipeline_metrics() -> dict[str, Any]:
+    """Return current pipeline performance metrics."""
+    avg_ingest = sum(_frame_ingest_times) / len(_frame_ingest_times) if _frame_ingest_times else 0
+    avg_broadcast = sum(_frame_broadcast_times) / len(_frame_broadcast_times) if _frame_broadcast_times else 0
+    avg_size = sum(_frame_sizes) / len(_frame_sizes) if _frame_sizes else 0
+    avg_jitter = sum(_frame_jitter_samples) / len(_frame_jitter_samples) if _frame_jitter_samples else 0
+    max_jitter = max(_frame_jitter_samples) if _frame_jitter_samples else 0
+    p95_ingest = sorted(_frame_ingest_times)[int(len(_frame_ingest_times) * 0.95)] if len(_frame_ingest_times) >= 5 else avg_ingest
+    return {
+        "measured_fps": _measured_fps,
+        "avg_ingest_ms": round(avg_ingest, 2),
+        "avg_broadcast_ms": round(avg_broadcast, 2),
+        "p95_ingest_ms": round(p95_ingest, 2),
+        "avg_frame_bytes": int(avg_size),
+        "avg_jitter_ms": round(avg_jitter, 1),
+        "max_jitter_ms": round(max_jitter, 1),
+        "samples": len(_frame_sizes),
+    }
+
+
+_MAX_CAMERAS = 16
+
+
+def _register_camera(camera_id: str, info: dict[str, Any]) -> None:
+    """Register a camera device in the multi-camera registry."""
+    camera_id = camera_id[:64]
+    if len(_camera_registry) >= _MAX_CAMERAS and camera_id not in _camera_registry:
+        log.warning("camera registry full (%d), rejecting %s", _MAX_CAMERAS, camera_id)
+        return
+    _camera_registry[camera_id] = {
+        **info,
+        "registered_at": time.time(),
+        "last_frame_at": 0.0,
+        "frame_count": 0,
+    }
+    _emit_vision_event("camera_registered", {"camera_id": camera_id})
+
+
+def _update_camera_frame(camera_id: str) -> None:
+    """Update last-frame timestamp for a camera."""
+    if camera_id in _camera_registry:
+        _camera_registry[camera_id]["last_frame_at"] = time.time()
+        _camera_registry[camera_id]["frame_count"] += 1
+
+
+# ── Failure injection (Phase 9) ──────────────────────────────────
+
+_fault_inject: dict[str, bool] = {
+    "drop_frames": False,
+    "block_commands": False,
+    "fake_detector_offline": False,
+    "high_latency": False,
+}
+_broadcast_lock: asyncio.Lock | None = None
+
+
+def _get_broadcast_lock() -> asyncio.Lock:
+    global _broadcast_lock
+    if _broadcast_lock is None:
+        _broadcast_lock = asyncio.Lock()
+    return _broadcast_lock
+
+
+def _is_fault_active(fault: str) -> bool:
+    return _fault_inject.get(fault, False)
+
+
 # ── Diagnostic overlay state ─────────────────────────────────────
 
 _diagnostic_overlay_active = False
@@ -133,6 +386,11 @@ _last_dispatch_ok_at: float = 0.0
 _last_dispatch_fail_at: float = 0.0
 _last_dispatch_operation: str = ""
 _last_dispatch_rtt_ms: float = 0.0
+_dispatch_total: int = 0
+_dispatch_ok_count: int = 0
+_dispatch_fail_count: int = 0
+_COMMAND_LOG_MAX = 100
+_command_log: list[dict[str, Any]] = []
 
 # ── Digital ROI state ────────────────────────────────────────────
 _roi_x: float = 0.0
@@ -519,6 +777,7 @@ async def _send_control_result(
 
 
 async def handle_vision(ws: Any) -> None:
+    global _stream_fps, _stream_width, _stream_height
     if not _check_auth(ws):
         log.warning("viewer rejected: invalid auth token from %s", ws.remote_address)
         await send_json(ws, {"type": "vision_error", "error": "authentication required"})
@@ -527,6 +786,7 @@ async def handle_vision(ws: Any) -> None:
 
     log.info("viewer connected: %s", ws.remote_address)
     _clients.add(ws)
+    _emit_vision_event("viewer_connected", {"viewers": len(_clients)})
     subscribed = False
     try:
         await send_json(ws, {"type": "connected"})
@@ -564,14 +824,46 @@ async def handle_vision(ws: Any) -> None:
 
             elif msg_type == "camera_start":
                 await _start_stream(
-                    fps=msg.get("fps", 2),
-                    width=msg.get("width", 640),
-                    height=msg.get("height", 480),
-                    quality=msg.get("quality", 60),
+                    fps=msg.get("fps", 30),
+                    width=msg.get("width", 1280),
+                    height=msg.get("height", 720),
+                    quality=msg.get("quality", 70),
+                    profile=msg.get("profile", ""),
                 )
 
             elif msg_type == "camera_stop":
                 await _stop_stream()
+
+            elif msg_type == "camera_set_profile":
+                profile_name = msg.get("profile", "balanced")
+                result = await _dispatch_to_beast("camera.set_profile", {"profile": profile_name})
+                if result and result.get("success"):
+                    _stream_fps = result.get("fps", _stream_fps)
+                    _stream_width = result.get("width", _stream_width)
+                    _stream_height = result.get("height", _stream_height)
+                    await send_json(ws, {
+                        "type": "camera_profile_applied",
+                        "profile": profile_name,
+                        "profile_label": result.get("profile_label", profile_name),
+                        "fps": _stream_fps,
+                        "width": _stream_width,
+                        "height": _stream_height,
+                    })
+                    _emit_vision_event("profile_changed", {"profile": profile_name})
+                else:
+                    await send_json(ws, {"type": "vision_error", "error": result.get("error", "profile switch failed") if result else "dispatch failed"})
+
+            elif msg_type == "camera_capabilities":
+                result = await _dispatch_to_beast("camera.capabilities", {})
+                if result and result.get("success"):
+                    await send_json(ws, {"type": "camera_capabilities", **result})
+                else:
+                    await send_json(ws, {"type": "camera_capabilities", "success": False, "modes": [], "profiles": {}})
+
+            elif msg_type == "camera_stream_metrics":
+                result = await _dispatch_to_beast("camera.stream_metrics", {})
+                if result and result.get("success"):
+                    await send_json(ws, {"type": "camera_stream_metrics", **result})
 
             elif msg_type == "camera_preset":
                 preset = msg.get("preset", "")
@@ -579,10 +871,13 @@ async def handle_vision(ws: Any) -> None:
                 if smooth:
                     duration = max(0.3, min(float(msg.get("duration", 1.0)), 3.0))
                     await _smooth_preset_transition(preset, duration)
+                    _emit_vision_event("preset_applied", {"preset": preset, "smooth": True})
                 else:
                     result = await _dispatch_to_beast("camera.set_preset", {"preset": preset})
                     if result and not result.get("success"):
                         await send_json(ws, {"type": "vision_error", "error": result.get("error", "preset failed")})
+                    else:
+                        _emit_vision_event("preset_applied", {"preset": preset})
 
             elif msg_type == "camera_snapshot":
                 result = await _dispatch_to_beast("camera.snapshot", {
@@ -747,44 +1042,60 @@ async def handle_vision(ws: Any) -> None:
 
             elif msg_type == "camera_ptz_move":
                 request_id = msg.get("request_id", "")
-                delta = _direction_to_delta(msg.get("direction", ""), msg.get("speed", 1))
-                pos_result = await _dispatch_to_beast("camera.get_position", {})
-                if pos_result and pos_result.get("success"):
-                    result = await _dispatch_to_beast("camera.set_position", {
-                        "pan": pos_result["pan"] + delta.get("pan", 0),
-                        "tilt": pos_result["tilt"] + delta.get("tilt", 0),
-                        "zoom": pos_result.get("zoom", 100),
-                    })
+                who = msg.get("authority", "operator")
+                if not _check_authority_for_command(who):
+                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    await _send_control_result(ws, request_id, "camera.ptz.move", {"success": False, "error": f"blocked: {_current_authority} holds authority"})
                 else:
-                    result = pos_result
-                await _send_control_result(ws, request_id, "camera.ptz.move", result)
+                    delta = _direction_to_delta(msg.get("direction", ""), msg.get("speed", 1))
+                    pos_result = await _dispatch_to_beast("camera.get_position", {})
+                    if pos_result and pos_result.get("success"):
+                        result = await _dispatch_to_beast("camera.set_position", {
+                            "pan": pos_result["pan"] + delta.get("pan", 0),
+                            "tilt": pos_result["tilt"] + delta.get("tilt", 0),
+                            "zoom": pos_result.get("zoom", 100),
+                        })
+                    else:
+                        result = pos_result
+                    await _send_control_result(ws, request_id, "camera.ptz.move", result)
 
             elif msg_type == "camera_ptz_set_position":
                 request_id = msg.get("request_id", "")
-                result = await _dispatch_to_beast("camera.set_position", {
-                    "pan": msg.get("pan", 0),
-                    "tilt": msg.get("tilt", 0),
-                    "zoom": msg.get("zoom", 100),
-                })
-                await _send_control_result(ws, request_id, "camera.ptz.set_position", result)
+                who = msg.get("authority", "operator")
+                if not _check_authority_for_command(who):
+                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    await _send_control_result(ws, request_id, "camera.ptz.set_position", {"success": False, "error": f"blocked: {_current_authority} holds authority"})
+                else:
+                    result = await _dispatch_to_beast("camera.set_position", {
+                        "pan": msg.get("pan", 0),
+                        "tilt": msg.get("tilt", 0),
+                        "zoom": msg.get("zoom", 100),
+                    })
+                    await _send_control_result(ws, request_id, "camera.ptz.set_position", result)
 
             elif msg_type == "camera_ptz_relative":
                 request_id = msg.get("request_id", "")
-                pos_result = await _dispatch_to_beast("camera.get_position", {})
-                if pos_result and pos_result.get("success"):
-                    new_pan = pos_result["pan"] + msg.get("pan_delta", 0)
-                    new_tilt = pos_result["tilt"] + msg.get("tilt_delta", 0)
-                    new_zoom = max(100, pos_result["zoom"] + msg.get("zoom_delta", 0))
-                    result = await _dispatch_to_beast("camera.set_position", {
-                        "pan": new_pan,
-                        "tilt": new_tilt,
-                        "zoom": new_zoom,
-                    })
+                who = msg.get("authority", "operator")
+                if not _check_authority_for_command(who):
+                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    await _send_control_result(ws, request_id, "camera.ptz.relative", {"success": False, "error": f"blocked: {_current_authority} holds authority"})
                 else:
-                    result = pos_result
-                await _send_control_result(ws, request_id, "camera.ptz.relative", result)
+                    pos_result = await _dispatch_to_beast("camera.get_position", {})
+                    if pos_result and pos_result.get("success"):
+                        new_pan = pos_result["pan"] + msg.get("pan_delta", 0)
+                        new_tilt = pos_result["tilt"] + msg.get("tilt_delta", 0)
+                        new_zoom = max(100, pos_result["zoom"] + msg.get("zoom_delta", 0))
+                        result = await _dispatch_to_beast("camera.set_position", {
+                            "pan": new_pan,
+                            "tilt": new_tilt,
+                            "zoom": new_zoom,
+                        })
+                    else:
+                        result = pos_result
+                    await _send_control_result(ws, request_id, "camera.ptz.relative", result)
 
             elif msg_type == "camera_ptz_stop":
+                # E-stop: NEVER gated by authority — always accepted
                 request_id = msg.get("request_id", "")
                 await _stop_motion()
                 await _send_control_result(ws, request_id, "camera.ptz.stop", {"success": True})
@@ -793,54 +1104,76 @@ async def handle_vision(ws: Any) -> None:
 
             elif msg_type == "camera_ptz_start_motion":
                 motion_id = msg.get("motion_id", "")
-                await _start_motion(
-                    motion_id=motion_id,
-                    pan_velocity=float(msg.get("pan_velocity", 0)),
-                    tilt_velocity=float(msg.get("tilt_velocity", 0)),
-                    zoom_velocity=float(msg.get("zoom_velocity", 0)),
-                    speed=float(msg.get("speed", 1)),
-                    guard_ms=int(msg.get("duration_guard_ms", 500)),
-                )
-                await _broadcast_motion_ack(motion_id, "start_motion", True)
+                who = msg.get("authority", "operator")
+                if not _check_authority_for_command(who):
+                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    await _broadcast_motion_ack(motion_id, "start_motion", False)
+                else:
+                    await _start_motion(
+                        motion_id=motion_id,
+                        pan_velocity=float(msg.get("pan_velocity", 0)),
+                        tilt_velocity=float(msg.get("tilt_velocity", 0)),
+                        zoom_velocity=float(msg.get("zoom_velocity", 0)),
+                        speed=float(msg.get("speed", 1)),
+                        guard_ms=int(msg.get("duration_guard_ms", 500)),
+                    )
+                    await _broadcast_motion_ack(motion_id, "start_motion", True)
 
             elif msg_type == "camera_ptz_update_motion":
                 motion_id = msg.get("motion_id", "")
-                await _update_motion(
-                    motion_id=motion_id,
-                    pan_velocity=float(msg.get("pan_velocity", 0)),
-                    tilt_velocity=float(msg.get("tilt_velocity", 0)),
-                    zoom_velocity=float(msg.get("zoom_velocity", 0)),
-                    speed=float(msg.get("speed", 1)),
-                )
+                who = msg.get("authority", "operator")
+                if not _check_authority_for_command(who):
+                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    await _broadcast_motion_ack(motion_id, "update_motion", False)
+                else:
+                    await _update_motion(
+                        motion_id=motion_id,
+                        pan_velocity=float(msg.get("pan_velocity", 0)),
+                        tilt_velocity=float(msg.get("tilt_velocity", 0)),
+                        zoom_velocity=float(msg.get("zoom_velocity", 0)),
+                        speed=float(msg.get("speed", 1)),
+                    )
 
             elif msg_type == "camera_ptz_stop_motion":
+                # E-stop: NEVER gated by authority — always accepted
                 motion_id = msg.get("motion_id", "")
                 await _stop_motion(motion_id)
                 await _broadcast_motion_ack(motion_id, "stop_motion", True)
 
             elif msg_type == "camera_zoom_start":
                 motion_id = msg.get("motion_id", "")
-                await _start_motion(
-                    motion_id=motion_id,
-                    pan_velocity=0,
-                    tilt_velocity=0,
-                    zoom_velocity=float(msg.get("zoom_velocity", 0)),
-                    speed=float(msg.get("speed", 1)),
-                    guard_ms=int(msg.get("duration_guard_ms", 500)),
-                )
-                await _broadcast_motion_ack(motion_id, "zoom_start", True)
+                who = msg.get("authority", "operator")
+                if not _check_authority_for_command(who):
+                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    await _broadcast_motion_ack(motion_id, "zoom_start", False)
+                else:
+                    await _start_motion(
+                        motion_id=motion_id,
+                        pan_velocity=0,
+                        tilt_velocity=0,
+                        zoom_velocity=float(msg.get("zoom_velocity", 0)),
+                        speed=float(msg.get("speed", 1)),
+                        guard_ms=int(msg.get("duration_guard_ms", 500)),
+                    )
+                    await _broadcast_motion_ack(motion_id, "zoom_start", True)
 
             elif msg_type == "camera_zoom_update":
                 motion_id = msg.get("motion_id", "")
-                await _update_motion(
-                    motion_id=motion_id,
-                    pan_velocity=0,
-                    tilt_velocity=0,
-                    zoom_velocity=float(msg.get("zoom_velocity", 0)),
-                    speed=float(msg.get("speed", 1)),
-                )
+                who = msg.get("authority", "operator")
+                if not _check_authority_for_command(who):
+                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    await _broadcast_motion_ack(motion_id, "zoom_update", False)
+                else:
+                    await _update_motion(
+                        motion_id=motion_id,
+                        pan_velocity=0,
+                        tilt_velocity=0,
+                        zoom_velocity=float(msg.get("zoom_velocity", 0)),
+                        speed=float(msg.get("speed", 1)),
+                    )
 
             elif msg_type == "camera_zoom_stop":
+                # E-stop: NEVER gated by authority
                 motion_id = msg.get("motion_id", "")
                 await _stop_motion(motion_id)
                 await _broadcast_motion_ack(motion_id, "zoom_stop", True)
@@ -1054,12 +1387,91 @@ async def handle_vision(ws: Any) -> None:
                 health = _build_health()
                 await send_json(ws, {"type": "vision_health", **health})
 
+            elif msg_type == "vision_events":
+                since_seq = msg.get("since_seq", 0)
+                limit = min(msg.get("limit", 100), 500)
+                events = [e for e in _vision_events if e["seq"] > since_seq][-limit:]
+                await send_json(ws, {
+                    "type": "vision_events",
+                    "events": events,
+                    "total": len(_vision_events),
+                })
+
+            elif msg_type == "command_log":
+                last_n = min(msg.get("last", 50), _COMMAND_LOG_MAX)
+                await send_json(ws, {
+                    "type": "command_log",
+                    "commands": _command_log[-last_n:],
+                    "total": _dispatch_total,
+                    "ok": _dispatch_ok_count,
+                    "fail": _dispatch_fail_count,
+                })
+
+            elif msg_type == "fault_inject":
+                fault = msg.get("fault", "")
+                active = msg.get("active", False)
+                if fault in _fault_inject:
+                    _fault_inject[fault] = bool(active)
+                    _emit_vision_event("fault_inject", {"fault": fault, "active": active})
+                    log.warning("fault injection: %s = %s", fault, active)
+                    await send_json(ws, {"type": "fault_inject_ack", "fault": fault, "active": active, "faults": dict(_fault_inject)})
+                else:
+                    await send_json(ws, {"type": "fault_inject_ack", "error": f"unknown fault: {fault}", "faults": dict(_fault_inject)})
+
+            elif msg_type == "fault_status":
+                await send_json(ws, {"type": "fault_status", "faults": dict(_fault_inject)})
+
+            elif msg_type == "authority_claim":
+                who = msg.get("who", "operator")
+                reason = msg.get("reason", "")
+                accepted = _claim_authority(who, reason)
+                await send_json(ws, {
+                    "type": "authority_state",
+                    "current": _current_authority,
+                    "accepted": accepted,
+                    "decay_seconds": _AUTHORITY_DECAY_SECONDS,
+                    "log": _authority_log[-10:],
+                })
+
+            elif msg_type == "authority_release":
+                who = msg.get("who", "operator")
+                released = _release_authority(who)
+                await send_json(ws, {
+                    "type": "authority_state",
+                    "current": _current_authority,
+                    "released": released,
+                    "log": _authority_log[-10:],
+                })
+
+            elif msg_type == "authority_state":
+                await send_json(ws, {
+                    "type": "authority_state",
+                    "current": _current_authority,
+                    "decayed": _authority_has_decayed(),
+                    "decay_seconds": _AUTHORITY_DECAY_SECONDS,
+                    "log": _authority_log[-10:],
+                })
+
+            elif msg_type == "pipeline_metrics":
+                await send_json(ws, {
+                    "type": "pipeline_metrics",
+                    **_get_pipeline_metrics(),
+                })
+
+            elif msg_type == "camera_registry":
+                await send_json(ws, {
+                    "type": "camera_registry",
+                    "cameras": _camera_registry,
+                    "active": _active_camera_id,
+                })
+
     except websockets.exceptions.ConnectionClosed:
         log.info("viewer disconnected: %s", ws.remote_address)
     except Exception as e:
         log.error("viewer session error: %s", e)
     finally:
         _clients.discard(ws)
+        _emit_vision_event("viewer_disconnected", {"viewers": len(_clients)})
         if len(_clients) == 0 and _motion_active:
             log.warning("last viewer disconnected while motion active, stopping motion")
             await _stop_motion()
@@ -1155,29 +1567,33 @@ async def _toggle_diagnostic_overlay(enabled: bool) -> None:
 
 
 async def _start_stream(
-    fps: int = 2, width: int = 640, height: int = 480, quality: int = 60,
+    fps: int = 30, width: int = 1280, height: int = 720, quality: int = 70,
+    profile: str = "",
 ) -> None:
     global _stream_active, _stream_fps, _stream_width, _stream_height, _stream_quality
-    _stream_fps = min(fps, 30)
+    _stream_fps = min(fps, 60)
     _stream_width = width
     _stream_height = height
     _stream_quality = quality
     frame_age = (time.time() - _last_frame_at) if _last_frame_at else float("inf")
-    stale = frame_age > 15.0
-    if _stream_active and not stale:
-        log.info("stream already active, updating params")
+    if _stream_active and frame_age < 3.0:
+        log.info("stream active with fresh frames (%.1fs ago), skipping re-dispatch", frame_age)
         return
-    if _stream_active and stale:
+    if _stream_active:
         log.info("stream marked active but frames stale (%.1fs) — re-dispatching to Beast", frame_age)
     _stream_active = True
-    result = await _dispatch_to_beast("camera.stream_start", {
+    dispatch_params: dict[str, Any] = {
         "fps": _stream_fps,
         "width": _stream_width,
         "height": _stream_height,
         "quality": _stream_quality,
-    })
+    }
+    if profile:
+        dispatch_params["profile"] = profile
+    result = await _dispatch_to_beast("camera.stream_start", dispatch_params)
     if result and result.get("success"):
-        log.info("Beast stream started: %dx%d @%dfps q%d", width, height, _stream_fps, quality)
+        log.info("Beast stream started: %dx%d @%dfps q%d profile=%s", width, height, _stream_fps, quality, profile or "default")
+        _emit_vision_event("stream_started", {"width": width, "height": height, "fps": _stream_fps, "profile": profile or "balanced"})
     else:
         log.warning("Beast stream_start failed: %s", result)
         _stream_active = False
@@ -1193,49 +1609,83 @@ async def _stop_stream() -> None:
     _stream_active = False
     await _dispatch_to_beast("camera.stream_stop", {})
     log.info("stream stopped")
+    _emit_vision_event("stream_stopped")
     for ws in list(_clients):
         await send_json(ws, {"type": "vision_status", "streaming": False, "width": 0, "height": 0})
 
 
 async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
-    """Called by mesh frame callback — fan out to all subscribed viewers.
+    """Fan out frame to all subscribed viewers with pipeline metrics.
 
-    Sends to all clients concurrently via gather to prevent one slow
-    client from blocking the others (the original sequential await
-    caused visible stutter at higher FPS).
+    Concurrent broadcast via gather prevents slow-client blocking.
+    Records ingest and broadcast timing for defense-grade observability.
     """
     global _latest_frame, _latest_frame_meta, _stream_active
     global _last_frame_at, _frame_count, _last_overlay_at, _overlay_count
     global _latest_detector_status
+    global _last_capture_timestamp, _last_relay_receive_at, _capture_to_relay_ms
+
+    t_ingest_start = time.monotonic()
 
     if len(jpeg_bytes) > MAX_FRAME_BYTES:
         log.warning("frame too large: %d bytes, dropping", len(jpeg_bytes))
         return
 
+    if _is_fault_active("drop_frames"):
+        return
+
+    if _is_fault_active("high_latency"):
+        async with _get_broadcast_lock():
+            await asyncio.sleep(0.5)
+
     _latest_frame = jpeg_bytes
     _latest_frame_meta = meta
     _stream_active = True
-    _last_frame_at = time.time()
+    now = time.time()
+    _last_frame_at = now
     _frame_count += 1
 
+    camera_id = meta.get("camera_id", "default")
+    _update_camera_frame(camera_id)
+
+    capture_ts = meta.get("capture_timestamp") or meta.get("timestamp", 0)
+    if capture_ts > 0:
+        _last_capture_timestamp = capture_ts
+        _last_relay_receive_at = now
+        raw_ms = round((now - capture_ts) * 1000, 1)
+        _capture_to_relay_ms = max(0.0, raw_ms) if raw_ms >= -2000 else 0.0
+
     det_status = meta.get("detector_status")
+    if _is_fault_active("fake_detector_offline"):
+        det_status = None
     if det_status:
         _latest_detector_status = det_status
 
     overlays = meta.get("overlays")
     if overlays:
-        _last_overlay_at = time.time()
+        _last_overlay_at = now
         _overlay_count += 1
 
+    ingest_ms = (time.monotonic() - t_ingest_start) * 1000
+
     if not _clients:
+        _record_pipeline_metrics(len(jpeg_bytes), ingest_ms, 0.0)
         return
 
     overlay_msg: dict[str, Any] | None = None
     if overlays:
-        overlay_msg = {"type": "vision_overlay", "overlays": overlays}
+        overlay_msg = {
+            "type": "vision_overlay",
+            "overlays": overlays,
+            "capture_timestamp": _last_capture_timestamp,
+            "relay_timestamp": now,
+            "capture_to_relay_ms": _capture_to_relay_ms,
+        }
         if det_status:
             overlay_msg["detector_status"] = det_status
     overlay_json = json.dumps(overlay_msg) if overlay_msg else None
+
+    t_broadcast_start = time.monotonic()
 
     async def _send_to(ws: Any) -> bool:
         try:
@@ -1248,6 +1698,9 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
 
     clients = list(_clients)
     results = await asyncio.gather(*(_send_to(ws) for ws in clients), return_exceptions=True)
+
+    broadcast_ms = (time.monotonic() - t_broadcast_start) * 1000
+    _record_pipeline_metrics(len(jpeg_bytes), ingest_ms, broadcast_ms)
 
     dead = {clients[i] for i, ok in enumerate(results) if ok is not True}
     if dead:
@@ -1280,6 +1733,34 @@ def receive_mesh_frame(frame_data: dict[str, Any]) -> None:
     loop = _get_loop()
     if loop and loop.is_running():
         asyncio.run_coroutine_threadsafe(broadcast_frame(jpeg_bytes, meta), loop)
+
+
+_binary_frame_count = 0
+
+def receive_binary_frame(jpeg_bytes: bytes, meta_json: str = "") -> None:
+    """Binary frame ingest — accepts raw JPEG bytes, no base64 overhead.
+
+    Used by /frame/binary POST endpoint. Eliminates ~33% bandwidth overhead
+    and CPU cost of base64 encode/decode in the frame pipeline.
+    """
+    global _binary_frame_count
+    _binary_frame_count += 1
+    if _binary_frame_count <= 3 or _binary_frame_count % 100 == 0:
+        log.info("binary frame received: %d bytes, total=%d, clients=%d", len(jpeg_bytes), _binary_frame_count, len(_clients))
+    if len(jpeg_bytes) < 2 or jpeg_bytes[:2] != _JPEG_SOI:
+        log.warning("binary frame rejected: not JPEG (size=%d)", len(jpeg_bytes))
+        return
+    meta: dict[str, Any] = {}
+    if meta_json:
+        try:
+            meta = json.loads(meta_json)
+        except Exception:
+            pass
+    loop = _get_loop()
+    if loop and loop.is_running():
+        asyncio.run_coroutine_threadsafe(broadcast_frame(jpeg_bytes, meta), loop)
+    elif _binary_frame_count <= 5:
+        log.warning("binary frame %d: event loop not available (loop=%s, running=%s)", _binary_frame_count, loop is not None, loop.is_running() if loop else False)
 
 
 _event_loop: asyncio.AbstractEventLoop | None = None
@@ -1658,7 +2139,17 @@ def _dispatch_to_beast_sync(operation: str, params: dict[str, Any]) -> dict[str,
     """Blocking mesh dispatch — runs in thread pool via _dispatch_to_beast."""
     global _last_dispatch_ok_at, _last_dispatch_fail_at
     global _last_dispatch_operation, _last_dispatch_rtt_ms
+    global _dispatch_total, _dispatch_ok_count, _dispatch_fail_count
+    _dispatch_total += 1
+    cmd_id = _dispatch_total
     t0 = time.monotonic()
+    sent_at = time.time()
+    if _is_fault_active("block_commands"):
+        _dispatch_fail_count += 1
+        _last_dispatch_fail_at = time.time()
+        _last_dispatch_operation = operation
+        _record_command(cmd_id, operation, sent_at, 0, False, "fault_injected")
+        return None
     try:
         import urllib.request
 
@@ -1677,18 +2168,43 @@ def _dispatch_to_beast_sync(operation: str, params: dict[str, Any]) -> dict[str,
             data = json.loads(resp.read())
             result = data.get("result_data", data)
             rtt = (time.monotonic() - t0) * 1000
-            if data.get("ok", False):
+            ok = data.get("ok", False)
+            if ok:
                 _last_dispatch_ok_at = time.time()
                 _last_dispatch_rtt_ms = rtt
+                _dispatch_ok_count += 1
             else:
                 _last_dispatch_fail_at = time.time()
+                _dispatch_fail_count += 1
             _last_dispatch_operation = operation
+            _record_command(cmd_id, operation, sent_at, rtt, ok)
             return result
     except Exception as exc:
+        rtt = (time.monotonic() - t0) * 1000
         _last_dispatch_fail_at = time.time()
         _last_dispatch_operation = operation
+        _dispatch_fail_count += 1
+        _record_command(cmd_id, operation, sent_at, rtt, False, str(exc))
         log.warning("mesh dispatch failed (%s): %s", operation, exc)
         return None
+
+
+def _record_command(
+    cmd_id: int, operation: str, sent_at: float,
+    rtt_ms: float, success: bool, error: str | None = None,
+) -> None:
+    entry: dict[str, Any] = {
+        "id": cmd_id,
+        "operation": operation,
+        "sent_at": sent_at,
+        "rtt_ms": round(rtt_ms, 1),
+        "success": success,
+    }
+    if error:
+        entry["error"] = error
+    _command_log.append(entry)
+    if len(_command_log) > _COMMAND_LOG_MAX:
+        _command_log[:] = _command_log[-_COMMAND_LOG_MAX:]
 
 
 async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str, Any] | None:
@@ -1698,9 +2214,13 @@ async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str
 
 
 async def _command_path_ping_loop() -> None:
-    """Periodically ping Beast with camera.status to keep command_path_ready fresh."""
+    """Periodically ping Beast with camera.status to keep command_path_ready fresh.
+
+    5s cadence: command_path_ready expires after 15s of no successful dispatch,
+    so we must ping faster than that window to keep the control path alive.
+    """
     while True:
-        await asyncio.sleep(30)
+        await asyncio.sleep(5)
         try:
             result = await _dispatch_to_beast("camera.status", {})
             if result and result.get("success"):
@@ -1818,8 +2338,9 @@ def _build_health() -> dict[str, Any]:
     physical_ptz_available = beast_connected
     digital_roi_available = True
     ptz_mode = "physical_ptz" if physical_ptz_available else "digital_roi"
-    # command_path_ready requires beast connected AND a recent successful dispatch
-    dispatch_fresh = (now - _last_dispatch_ok_at) < 120 if _last_dispatch_ok_at > 0 else False
+    # command_path_ready requires beast connected AND a recent successful dispatch.
+    # 15s window: ping loop runs every 5s, so 3 consecutive failures = stale.
+    dispatch_fresh = (now - _last_dispatch_ok_at) < 15 if _last_dispatch_ok_at > 0 else False
     command_path_ready = beast_connected and dispatch_fresh
 
     return {
@@ -1841,7 +2362,8 @@ def _build_health() -> dict[str, Any]:
         "last_frame_at": _last_frame_at,
         "last_frame_age_ms": frame_age_ms,
         "frame_count": _frame_count,
-        "frame_fps": _stream_fps if camera_streaming else 0,
+        "frame_fps": _measured_fps if camera_streaming else 0,
+        "configured_fps": _stream_fps,
         "tracker_runtime_available": tracker_available,
         "active_trackers": active_trackers,
         "last_overlay_at": _last_overlay_at,
@@ -1852,6 +2374,8 @@ def _build_health() -> dict[str, Any]:
         "security_mode": "security_harden" if security_active else "normal",
         "diagnostic_overlay_active": _diagnostic_overlay_active,
         "detector_status": _latest_detector_status,
+        "capture_to_relay_ms": _capture_to_relay_ms,
+        "vision_event_count": len(_vision_events),
         "ptz_mode": ptz_mode,
         "physical_ptz_available": physical_ptz_available,
         "digital_roi_available": digital_roi_available,
@@ -1860,7 +2384,26 @@ def _build_health() -> dict[str, Any]:
         "last_dispatch_fail_at": _last_dispatch_fail_at,
         "last_dispatch_operation": _last_dispatch_operation,
         "last_dispatch_rtt_ms": round(_last_dispatch_rtt_ms, 1),
+        "dispatch_total": _dispatch_total,
+        "dispatch_ok_count": _dispatch_ok_count,
+        "dispatch_fail_count": _dispatch_fail_count,
         "roi": _get_roi(),
+        "active_faults": {k: v for k, v in _fault_inject.items() if v},
+        "pipeline_metrics": _get_pipeline_metrics(),
+        "authority": {
+            "current": _current_authority,
+            "log_size": len(_authority_log),
+            "last_change": _authority_log[-1] if _authority_log else None,
+        },
+        "camera_registry": {
+            cid: {
+                "frame_count": info.get("frame_count", 0),
+                "last_frame_at": info.get("last_frame_at", 0),
+                "registered_at": info.get("registered_at", 0),
+            }
+            for cid, info in _camera_registry.items()
+        },
+        "active_camera": _active_camera_id,
         "blockers": blockers,
         "recovery_action": recovery_action,
     }
@@ -1877,6 +2420,35 @@ async def _health_server() -> None:
         def do_GET(self) -> None:
             if self.path == "/health":
                 body = json.dumps(_build_health()).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path == "/events" or self.path.startswith("/events?"):
+                since = 0
+                if "?" in self.path:
+                    for part in self.path.split("?", 1)[1].split("&"):
+                        if part.startswith("since_seq="):
+                            since = int(part.split("=", 1)[1])
+                events = [e for e in _vision_events if e["seq"] > since][-100:]
+                body = json.dumps({"events": events, "total": len(_vision_events)}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path == "/commands" or self.path.startswith("/commands?"):
+                last_n = 50
+                if "?" in self.path:
+                    for part in self.path.split("?", 1)[1].split("&"):
+                        if part.startswith("last="):
+                            last_n = min(int(part.split("=", 1)[1]), _COMMAND_LOG_MAX)
+                entries = _command_log[-last_n:]
+                body = json.dumps({
+                    "commands": entries,
+                    "total": _dispatch_total,
+                    "ok": _dispatch_ok_count,
+                    "fail": _dispatch_fail_count,
+                }).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
@@ -1926,6 +2498,24 @@ async def _health_server() -> None:
                 receive_mesh_frame(data)
                 self.send_response(204)
                 self.end_headers()
+            elif self.path == "/frame/binary":
+                if _FRAME_INGEST_TOKEN:
+                    import hmac
+                    provided = self.headers.get("X-Frame-Token", "")
+                    if not hmac.compare_digest(provided, _FRAME_INGEST_TOKEN):
+                        self.send_response(403)
+                        self.end_headers()
+                        return
+                length = int(self.headers.get("Content-Length", 0))
+                if length == 0 or length > MAX_FRAME_BYTES:
+                    self.send_response(400)
+                    self.end_headers()
+                    return
+                jpeg_bytes = self.rfile.read(length)
+                meta_json = self.headers.get("X-Frame-Meta", "")
+                receive_binary_frame(jpeg_bytes, meta_json)
+                self.send_response(204)
+                self.end_headers()
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -1934,9 +2524,64 @@ async def _health_server() -> None:
             pass
 
     socketserver.TCPServer.allow_reuse_address = True
-    server = socketserver.TCPServer(("127.0.0.1", health_port), Handler)
+    server = socketserver.TCPServer(("0.0.0.0", health_port), Handler)
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, server.serve_forever)
+
+
+async def _frame_ingest_ws_handler(ws: Any) -> None:
+    """Persistent WS endpoint for mesh→relay frame push.
+
+    Wire format per message (binary):
+      [4-byte big-endian meta length][JSON meta bytes][JPEG bytes]
+
+    Eliminates per-frame TCP+HTTP overhead (~100ms→<1ms per frame).
+    """
+    import struct as _struct
+
+    if _FRAME_INGEST_TOKEN:
+        try:
+            auth_msg = await asyncio.wait_for(ws.recv(), timeout=5)
+            if isinstance(auth_msg, str):
+                import hmac
+                if not hmac.compare_digest(auth_msg, _FRAME_INGEST_TOKEN):
+                    await ws.close(4001, "auth failed")
+                    return
+            else:
+                await ws.close(4001, "expected auth token")
+                return
+        except Exception:
+            return
+    await ws.send("ok")
+
+    log.info("frame ingest WS connected")
+    frame_n = 0
+    try:
+        async for msg in ws:
+            if not isinstance(msg, bytes) or len(msg) < 6:
+                continue
+            meta_len = _struct.unpack(">I", msg[:4])[0]
+            if meta_len > 65536 or 4 + meta_len > len(msg):
+                continue
+            meta_json = msg[4:4 + meta_len]
+            jpeg_bytes = msg[4 + meta_len:]
+            if len(jpeg_bytes) < 2 or jpeg_bytes[:2] != _JPEG_SOI:
+                continue
+            try:
+                meta = json.loads(meta_json) if meta_json else {}
+                if not isinstance(meta, dict):
+                    meta = {}
+            except Exception:
+                meta = {}
+            frame_n += 1
+            if frame_n <= 3 or frame_n % 500 == 0:
+                log.info("ingest-ws frame %d: %d bytes jpeg, %d clients", frame_n, len(jpeg_bytes), len(_clients))
+            await broadcast_frame(jpeg_bytes, meta)
+    except websockets.ConnectionClosed:
+        pass
+    except Exception as exc:
+        log.warning("frame ingest WS error: %s", exc)
+    log.info("frame ingest WS disconnected after %d frames", frame_n)
 
 
 async def main() -> None:
@@ -1948,10 +2593,22 @@ async def main() -> None:
             "VISION_RELAY_TOKEN is not set — authentication DISABLED. "
             "Set VISION_RELAY_TOKEN env var to enable auth."
         )
+    if not _FRAME_INGEST_TOKEN:
+        log.warning(
+            "VISION_FRAME_TOKEN is not set — frame ingest authentication DISABLED. "
+            "Set VISION_FRAME_TOKEN env var to secure /frame and /frame/binary endpoints."
+        )
 
+    ingest_port = PORT + 2
     log.info("Vision relay starting on ws://%s:%d/vision", HOST, PORT)
+    log.info("Frame ingest WS on ws://%s:%d (persistent push)", HOST, ingest_port)
     asyncio.create_task(_health_server())
     asyncio.create_task(_command_path_ping_loop())
+
+    ingest_server = await websockets.serve(
+        _frame_ingest_ws_handler, "127.0.0.1", ingest_port,
+        ping_interval=10, ping_timeout=20, max_size=MAX_FRAME_BYTES + 65536,
+    )
 
     async with websockets.serve(
         handle_vision, HOST, PORT,

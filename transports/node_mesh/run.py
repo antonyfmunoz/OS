@@ -133,31 +133,11 @@ def main() -> None:
 
     _ensure_docker_relay_access(config.port + 1)
 
-    vision_relay_url = os.getenv("VISION_RELAY_FRAME_URL", "http://127.0.0.1:8098/frame")
+    vision_relay_ws_url = os.getenv("VISION_RELAY_WS_URL", "ws://127.0.0.1:8099")
     vision_frame_token = os.getenv("VISION_FRAME_TOKEN", "")
 
-    def _forward_frame_to_relay(node_id: str, frame_payload: dict) -> None:
-        try:
-            import urllib.request
-            frame_payload["node_id"] = node_id
-            body = json.dumps(frame_payload).encode()
-            headers: dict[str, str] = {"Content-Type": "application/json"}
-            if vision_frame_token:
-                headers["X-Frame-Token"] = vision_frame_token
-            req = urllib.request.Request(
-                vision_relay_url, data=body,
-                headers=headers,
-            )
-            urllib.request.urlopen(req, timeout=2)
-        except Exception as exc:
-            if not hasattr(_forward_frame_to_relay, "_err_count"):
-                _forward_frame_to_relay._err_count = 0  # type: ignore[attr-defined]
-            _forward_frame_to_relay._err_count += 1  # type: ignore[attr-defined]
-            if _forward_frame_to_relay._err_count <= 3:  # type: ignore[attr-defined]
-                logger.warning("vision relay frame forward failed: %s", exc)
-
-    server.register_frame_callback(_forward_frame_to_relay)
-    logger.info("vision relay frame callback registered → %s", vision_relay_url)
+    server.register_frame_relay(vision_relay_ws_url, vision_frame_token)
+    logger.info("vision relay frame relay registered → %s (persistent WS)", vision_relay_ws_url)
 
     thread = server.start()
     logger.info("node mesh server running on port %d — waiting for connections", config.port)

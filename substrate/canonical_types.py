@@ -226,6 +226,21 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "LoopContract": ["substrate.workstation.loop_engine"],
     "LoopStatus": ["substrate.workstation.loop_engine"],
     "EndStateVerifier": ["substrate.workstation.loop_engine"],
+    # ── substrate/organism/agent_execution_runner.py (Operator Loop Phase 2) ─
+    "AgentExecutionPlan": ["substrate.organism.agent_execution_runner"],
+    "ExecutionRecord": ["substrate.organism.agent_execution_runner"],
+    "FailureReport": ["substrate.organism.agent_execution_runner"],
+    # ── substrate/organism/domain_registry.py (Empire Engine Phase 3) ────
+    "ProofRequirement": ["substrate.organism.domain_registry"],
+    "DomainDefinition": ["substrate.organism.domain_registry"],
+    "DomainRegistry": ["substrate.organism.domain_registry"],
+    # ── substrate/organism/agent_registry.py (Empire Engine Phase 3) ─────
+    "AgentType": ["substrate.organism.agent_registry"],
+    "AgentRegistry": ["substrate.organism.agent_registry"],
+    # ── substrate/organism/empire_router.py (Empire Engine Phase 3) ──────
+    "RoutingResult": ["substrate.organism.empire_router"],
+    "RealitySnapshot": ["substrate.organism.empire_router"],
+    "EmpireRouter": ["substrate.organism.empire_router"],
 }
 
 

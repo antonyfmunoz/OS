@@ -135,11 +135,13 @@ export function useVisionConnection(): void {
             // Re-check: still connected, still no session started
             if (!client.connected || cameraStartedInSession) return
             cameraStartedInSession = true
+            const qualityMode = useVisionStore.getState().qualityMode
             client.startCamera({
               fps: profile.fps,
               width: profile.width,
               height: profile.height,
               quality: profile.quality,
+              profile: qualityMode,
             })
             client.subscribe(profile.fps, profile.quality)
           }, 800)
@@ -164,16 +166,33 @@ export function useVisionConnection(): void {
           clearTimeout(presetLoadTimeout)
           presetLoadTimeout = null
         }
+        // Relay WS is down, but frames may still be live if they arrived
+        // recently. Don't nuke everything — only mark relay path offline.
+        // Controls remain enabled if commandPathReady was recently true.
         setConnected(false)
-        setCameraStatus('off')
-        setStreaming(false)
         setCameraSessionActive(false)
         useVisionStore.getState().setDeviceScanLoading(false)
         cameraStartedInSession = false
         connectedAt = 0
-        setPtzMotion({ state: 'disconnected', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
-        updateChainHealth({ status: 'relay_offline', relayRunning: false, cockpitConnected: false, blockers: ['WebSocket disconnected from vision relay'], recoveryAction: 'reconnecting automatically' })
-        addNotification('warn', 'Vision relay disconnected', 'relay', 'WebSocket connection lost — reconnecting', 'auto-reconnect', true)
+        // Check if frames are still fresh — if so, video path is healthy
+        const state = useVisionStore.getState()
+        const frameAge = state.latestFrameAt ? Date.now() - state.latestFrameAt : Infinity
+        const framesLive = frameAge < 5000
+        if (!framesLive) {
+          setCameraStatus('off')
+          setStreaming(false)
+          setPtzMotion({ state: 'disconnected', motionId: '', panVelocity: 0, tiltVelocity: 0, zoomVelocity: 0 })
+        }
+        updateChainHealth({
+          cockpitConnected: false,
+          blockers: ['WebSocket disconnected from vision relay'],
+          recoveryAction: 'reconnecting automatically',
+        })
+        addNotification('warn', 'Vision relay disconnected', 'relay',
+          framesLive
+            ? 'WebSocket lost — video frames still recent, controls may work'
+            : 'WebSocket connection lost — reconnecting',
+          'auto-reconnect', true)
       }),
       client.on('vision_frame', (d) => {
         setLatestFrame(d.url as string, d.timestamp as number)
@@ -535,7 +554,7 @@ export function useVisionConnection(): void {
       // Overlay events — normalize flat x/y/w/h to bbox structure
       client.on('vision_overlay', (d) => {
         const raw = (d.overlays as Record<string, unknown>[]) || []
-        const overlays: import('../components/vision/VisionOverlay').OverlayMetadata[] = raw.map((o) => ({
+        const overlays: import('../stores/visionStore').OverlayMetadata[] = raw.map((o) => ({
           type: (o.type as string) || 'object',
           track_id: (o.track_id as string) || '',
           label: (o.label as string) || '',
@@ -546,7 +565,7 @@ export function useVisionConnection(): void {
           color: (o.color as string) || undefined,
           source: (o.source as string) || undefined,
           model: (o.model as string) || undefined,
-        })) as import('../components/vision/VisionOverlay').OverlayMetadata[]
+        })) as import('../stores/visionStore').OverlayMetadata[]
         setOverlays(overlays)
         const detStatus = d.detector_status as Record<string, unknown> | null
         const healthUpdate: Partial<import('../stores/visionStore').VisionHealthState> = {
@@ -565,6 +584,10 @@ export function useVisionConnection(): void {
             active_tracks: detStatus.active_tracks as number ?? 0,
             total_tracks: detStatus.total_tracks as number ?? 0,
             device: detStatus.device as string | undefined,
+            nms_device: detStatus.nms_device as string | undefined,
+            nms_fallback: detStatus.nms_fallback as boolean | undefined,
+            consecutive_errors: detStatus.consecutive_errors as number | undefined,
+            detect_interval: detStatus.detect_interval as number | undefined,
           }
           const device = detStatus.device as string | undefined
           if (device && lastDetectorDevice !== null && lastDetectorDevice !== device) {
@@ -580,6 +603,24 @@ export function useVisionConnection(): void {
           if (device) lastDetectorDevice = device
         }
         updateChainHealth(healthUpdate)
+
+        // Pipeline latency (Phase 5)
+        const captureTs = d.capture_timestamp as number ?? 0
+        const relayTs = d.relay_timestamp as number ?? 0
+        const captureToRelayMs = d.capture_to_relay_ms as number ?? 0
+        if (captureTs > 0) {
+          const renderTs = Date.now() / 1000
+          const relayToRenderMs = relayTs > 0 ? Math.round((renderTs - relayTs) * 1000) : 0
+          const endToEndMs = Math.round((renderTs - captureTs) * 1000)
+          useVisionStore.getState().updatePipelineLatency({
+            captureToRelayMs,
+            relayToRenderMs,
+            endToEndMs,
+            captureTimestamp: captureTs,
+            relayTimestamp: relayTs,
+            renderTimestamp: renderTs,
+          })
+        }
       }),
 
       // Health chain events — emit notifications on state transitions
@@ -597,6 +638,23 @@ export function useVisionConnection(): void {
             if (state.cameraDevices.length === 0) {
               state.setDeviceScanLoading(true)
               client.listDevices()
+            }
+            if (state.pendingPresetChanges.length > 0) {
+              for (const change of state.pendingPresetChanges) {
+                if ((change.op === 'save' || change.op === 'update') && change.preset) {
+                  client.savePreset(change.label, change.preset.label || change.label, {
+                    pan: change.preset.pan,
+                    tilt: change.preset.tilt,
+                    zoom: change.preset.zoom,
+                    mode: change.preset.mode,
+                    analysisHint: change.preset.analysis_hint,
+                  })
+                } else if (change.op === 'delete') {
+                  client.deletePresetOnDevice(change.label)
+                }
+              }
+              addToast(`Synced ${state.pendingPresetChanges.length} queued preset change(s)`, 'ok')
+              state.clearPendingPresetChanges()
             }
           } else {
             addNotification('critical', 'Beast offline', 'mesh', 'Beast node disconnected — camera commands unavailable', 'check Beast', true)
@@ -643,6 +701,10 @@ export function useVisionConnection(): void {
             active_tracks: detStatus.active_tracks as number ?? 0,
             total_tracks: detStatus.total_tracks as number ?? 0,
             device: detStatus.device as string | undefined,
+            nms_device: detStatus.nms_device as string | undefined,
+            nms_fallback: detStatus.nms_fallback as boolean | undefined,
+            consecutive_errors: detStatus.consecutive_errors as number | undefined,
+            detect_interval: detStatus.detect_interval as number | undefined,
           } : null,
           blockers: (d.blockers as string[]) ?? [],
           recoveryAction: d.recovery_action as string ?? '',
@@ -655,6 +717,68 @@ export function useVisionConnection(): void {
           lastDispatchOperation: d.last_dispatch_operation as string ?? '',
           lastDispatchRttMs: d.last_dispatch_rtt_ms as number ?? 0,
           roi: d.roi as { x: number; y: number; zoom: number } ?? { x: 0, y: 0, zoom: 1 },
+        })
+      }),
+
+      // Vision event stream (Phase 8)
+      client.on('vision_events', (d) => {
+        const events = (d.events as Array<{ seq: number; type: string; timestamp: number; detail?: Record<string, unknown> }>) ?? []
+        if (events.length > 0) {
+          useVisionStore.getState().appendVisionEvents(events)
+        }
+      }),
+
+      // Command telemetry (Phase 6)
+      client.on('command_log', (d) => {
+        useVisionStore.getState().updateCommandTelemetry({
+          commands: (d.commands as Array<{ id: number; operation: string; sent_at: number; rtt_ms: number; success: boolean; error?: string }>) ?? [],
+          total: (d.total as number) ?? 0,
+          ok: (d.ok as number) ?? 0,
+          fail: (d.fail as number) ?? 0,
+        })
+      }),
+
+      // Relay authority state sync
+      client.on('authority_state', (d) => {
+        const current = (d.current as string) ?? 'operator'
+        const store = useVisionStore.getState()
+        if (current !== store.authority.current) {
+          store.claimAuthority(current as 'operator' | 'voice' | 'ai' | 'autonomous', 'relay sync')
+        }
+      }),
+
+      // Beast stream metrics (camera-side capture performance)
+      client.on('camera_stream_metrics', (d) => {
+        useVisionStore.getState().updateBeastStreamMetrics({
+          profile: (d.profile as string) ?? 'balanced',
+          negotiatedWidth: (d.negotiated_width as number) ?? 0,
+          negotiatedHeight: (d.negotiated_height as number) ?? 0,
+          negotiatedFps: (d.negotiated_fps as number) ?? 0,
+          measuredFps: (d.measured_fps as number) ?? 0,
+          totalFrames: (d.total_frames as number) ?? 0,
+          droppedFrames: (d.dropped_frames as number) ?? 0,
+          avgFrameBytes: (d.avg_frame_bytes as number) ?? 0,
+          bitrateKbps: (d.bitrate_kbps as number) ?? 0,
+          detectorFps: (d.detector_fps as number) ?? 0,
+          detectorInferenceMs: (d.detector_inference_ms as number) ?? 0,
+          detectorDevice: (d.detector_device as string) ?? 'unknown',
+          detectorNmsDevice: (d.detector_nms_device as string) ?? 'unknown',
+          trackerActive: (d.tracker_active as boolean) ?? false,
+          trackerActiveTracks: (d.tracker_active_tracks as number) ?? 0,
+        })
+      }),
+
+      // Relay pipeline metrics
+      client.on('pipeline_metrics', (d) => {
+        useVisionStore.getState().updateRelayPipelineMetrics({
+          measuredFps: (d.measured_fps as number) ?? 0,
+          avgIngestMs: (d.avg_ingest_ms as number) ?? 0,
+          avgBroadcastMs: (d.avg_broadcast_ms as number) ?? 0,
+          p95IngestMs: (d.p95_ingest_ms as number) ?? 0,
+          avgFrameBytes: (d.avg_frame_bytes as number) ?? 0,
+          avgJitterMs: (d.avg_jitter_ms as number) ?? 0,
+          maxJitterMs: (d.max_jitter_ms as number) ?? 0,
+          samples: (d.samples as number) ?? 0,
         })
       }),
     ]
@@ -712,6 +836,13 @@ export function useVisionConnection(): void {
     healthInterval.current = setInterval(() => {
       if (!client.connected) return
       client.requestHealth()
+      // Piggyback vision events + command log + pipeline metrics + authority on health poll
+      const lastSeq = useVisionStore.getState().visionEvents.at(-1)?.seq ?? 0
+      client.requestEvents(lastSeq)
+      client.requestCommandLog(20)
+      client.requestPipelineMetrics()
+      client.requestAuthorityState()
+      client.requestStreamMetrics()
     }, 5000)
 
     // Device list polling — 30s, auto-recovers from stale empty device list
