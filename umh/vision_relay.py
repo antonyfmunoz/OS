@@ -777,6 +777,7 @@ async def _send_control_result(
 
 
 async def handle_vision(ws: Any) -> None:
+    global _stream_fps, _stream_width, _stream_height
     if not _check_auth(ws):
         log.warning("viewer rejected: invalid auth token from %s", ws.remote_address)
         await send_json(ws, {"type": "vision_error", "error": "authentication required"})
