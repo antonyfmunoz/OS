@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 _ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
+_SIGKILL_WAIT_TIMEOUT = 5.0
+
 
 class ProcessLifecycle:
     """Manage the full lifecycle of a long-running subprocess.
@@ -46,6 +48,7 @@ class ProcessLifecycle:
         self._monitor_task: asyncio.Task[None] | None = None
         self._pgid: int | None = None
         self._stopped = False
+        self._lock = asyncio.Lock()
 
     @property
     def running(self) -> bool:
@@ -57,6 +60,10 @@ class ProcessLifecycle:
 
     async def start(self) -> bool:
         """Spawn the subprocess via CPU gate.  Returns False if gate denied."""
+        async with self._lock:
+            return await self._start_locked()
+
+    async def _start_locked(self) -> bool:
         if self.running:
             logger.warning("[ProcessLifecycle] already running (pid=%s)", self.pid)
             return True
@@ -92,14 +99,22 @@ class ProcessLifecycle:
 
     async def stop(self) -> int | None:
         """Idempotent graceful teardown.  Returns exit code or None."""
+        async with self._lock:
+            return await self._stop_locked()
+
+    async def _stop_locked(self) -> int | None:
         if self._stopped:
             return None
         self._stopped = True
+        self._on_exit = None
 
         if not self._proc or self._proc.returncode is not None:
             if self._monitor_task and not self._monitor_task.done():
                 self._monitor_task.cancel()
-            return self._proc.returncode if self._proc else None
+            code = self._proc.returncode if self._proc else None
+            self._proc = None
+            self._pgid = None
+            return code
 
         pid = self._proc.pid
         logger.info("[ProcessLifecycle] stopping pid=%s", pid)
@@ -123,7 +138,14 @@ class ProcessLifecycle:
                     self._proc.kill()
             except (ProcessLookupError, OSError):
                 pass
-            await self._proc.wait()
+            try:
+                await asyncio.wait_for(
+                    self._proc.wait(), timeout=_SIGKILL_WAIT_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                logger.error(
+                    "[ProcessLifecycle] zombie after SIGKILL pid=%s", pid,
+                )
 
         if self._monitor_task and not self._monitor_task.done():
             self._monitor_task.cancel()
@@ -136,9 +158,9 @@ class ProcessLifecycle:
 
     async def _monitor(self) -> None:
         """Read stdout/stderr and wait for exit."""
-        assert self._proc is not None
-        assert self._proc.stdout is not None
-        assert self._proc.stderr is not None
+        proc = self._proc
+        if proc is None or proc.stdout is None or proc.stderr is None:
+            return
 
         async def _read_stream(
             stream: asyncio.StreamReader,
@@ -158,15 +180,15 @@ class ProcessLifecycle:
 
         try:
             await asyncio.gather(
-                _read_stream(self._proc.stdout, self._on_stdout, "stdout"),
-                _read_stream(self._proc.stderr, self._on_stderr, "stderr"),
+                _read_stream(proc.stdout, self._on_stdout, "stdout"),
+                _read_stream(proc.stderr, self._on_stderr, "stderr"),
             )
-            await self._proc.wait()
+            await proc.wait()
         except asyncio.CancelledError:
             return
 
         if not self._stopped and self._on_exit:
             try:
-                self._on_exit(self._proc.returncode)
+                self._on_exit(proc.returncode)
             except Exception:
                 logger.debug("[ProcessLifecycle] on_exit callback error")
