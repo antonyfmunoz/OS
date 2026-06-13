@@ -29,6 +29,7 @@ import {
   Radio,
   Cast,
   Crosshair,
+  TrendingUp,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -57,6 +58,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'broadcast', label: 'Broadcast', icon: Cast, group: 'primary', visibility: 'primary', key: 'b' },
   { id: 'strategy', label: 'Strategy', icon: Crosshair, group: 'primary', visibility: 'primary', key: 's' },
   { id: 'tickloop', label: 'Tick Loop', icon: Activity, group: 'primary', visibility: 'primary', key: 'l' },
+  { id: 'projections', label: 'Projections', icon: TrendingUp, group: 'primary', visibility: 'primary', key: 'f' },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'primary', visibility: 'primary', key: '5' },
 
   // System (1)

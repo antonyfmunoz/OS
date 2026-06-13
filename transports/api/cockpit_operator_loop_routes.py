@@ -132,6 +132,18 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/tick/drift", _tick_drift_warnings, methods=["GET"], dependencies=auth)
     r.add_api_route("/tick/history", _tick_history, methods=["GET"], dependencies=auth)
 
+    # ── Phase 6: Projection Engine routes ─────────────────────
+    r.add_api_route("/projection/status", _projection_status, methods=["GET"], dependencies=auth)
+    r.add_api_route("/projection/state", _projection_state, methods=["GET"], dependencies=auth)
+    r.add_api_route("/projection/run", _projection_run, methods=["POST"], dependencies=auth)
+    r.add_api_route("/projection/trends", _projection_trends, methods=["GET"], dependencies=auth)
+    r.add_api_route("/projection/risks", _projection_risks, methods=["GET"], dependencies=auth)
+    r.add_api_route("/projection/opportunities", _projection_opportunities, methods=["GET"], dependencies=auth)
+    r.add_api_route("/projection/accuracy", _projection_accuracy, methods=["GET"], dependencies=auth)
+    r.add_api_route("/projection/domain/{domain}", _projection_by_domain, methods=["GET"], dependencies=auth)
+    r.add_api_route("/projection/projected-reality", _projection_projected_reality, methods=["GET"], dependencies=auth)
+    r.add_api_route("/projection/outcome", _projection_record_outcome, methods=["POST"], dependencies=auth)
+
     return r
 
 
@@ -1427,4 +1439,183 @@ async def _tick_history(request: Request) -> dict:
         }
     except Exception as exc:
         logger.error("tick history failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+# ── Phase 6: Projection Engine helpers & handlers ──────────────────
+
+
+def _get_projection_engine():
+    from substrate.organism.projection_engine import get_projection_engine
+    return get_projection_engine()
+
+
+async def _projection_status(request: Request) -> dict:
+    """Compact projection engine status."""
+    try:
+        engine = _get_projection_engine()
+        return {"success": True, **engine.status()}
+    except Exception as exc:
+        logger.error("projection status failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _projection_state(request: Request) -> dict:
+    """Full projection state for cockpit."""
+    try:
+        engine = _get_projection_engine()
+        return {"success": True, **engine.get_projection_state()}
+    except Exception as exc:
+        logger.error("projection state failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _projection_run(request: Request) -> dict:
+    """Run full projection cycle."""
+    try:
+        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    except Exception:
+        body = {}
+
+    horizons_raw = body.get("horizons")
+    domains = body.get("domains")
+
+    horizons = None
+    if horizons_raw:
+        from substrate.organism.projection_engine import TimeHorizon
+        try:
+            horizons = [TimeHorizon(h) for h in horizons_raw]
+        except (ValueError, KeyError):
+            pass
+
+    try:
+        engine = _get_projection_engine()
+        result = engine.run_projections(horizons=horizons, domains=domains)
+        _audit_log("projection_run", {
+            "run_number": result.get("run_number"),
+            "projection_count": result.get("projection_count"),
+            "risk_count": result.get("risk_count"),
+            "opportunity_count": result.get("opportunity_count"),
+        })
+        return {"success": True, **result}
+    except Exception as exc:
+        logger.error("projection run failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _projection_trends(request: Request) -> dict:
+    """Return detected trends."""
+    try:
+        engine = _get_projection_engine()
+        return {
+            "success": True,
+            "trends": [t.to_dict() for t in engine.last_trends],
+            "count": len(engine.last_trends),
+        }
+    except Exception as exc:
+        logger.error("projection trends failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _projection_risks(request: Request) -> dict:
+    """Return strategic risks."""
+    try:
+        engine = _get_projection_engine()
+        return {
+            "success": True,
+            "risks": [r.to_dict() for r in engine.last_risks],
+            "count": len(engine.last_risks),
+        }
+    except Exception as exc:
+        logger.error("projection risks failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _projection_opportunities(request: Request) -> dict:
+    """Return strategic opportunities."""
+    try:
+        engine = _get_projection_engine()
+        return {
+            "success": True,
+            "opportunities": [o.to_dict() for o in engine.last_opportunities],
+            "count": len(engine.last_opportunities),
+        }
+    except Exception as exc:
+        logger.error("projection opportunities failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _projection_accuracy(request: Request) -> dict:
+    """Return projection accuracy metrics."""
+    try:
+        engine = _get_projection_engine()
+        return {"success": True, **engine.accuracy_tracker.overall_accuracy()}
+    except Exception as exc:
+        logger.error("projection accuracy failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _projection_by_domain(request: Request) -> dict:
+    """Return projections for a specific domain."""
+    domain = request.path_params.get("domain", "")
+    if not domain:
+        return {"success": False, "error": "domain required"}
+    try:
+        engine = _get_projection_engine()
+        projections = engine.get_projections_for_domain(domain)
+        return {
+            "success": True,
+            "domain": domain,
+            "projections": [p.to_dict() for p in projections],
+            "count": len(projections),
+        }
+    except Exception as exc:
+        logger.error("projection by domain failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _projection_projected_reality(request: Request) -> dict:
+    """Return projected reality for gap analysis integration."""
+    try:
+        from substrate.organism.projection_engine import TimeHorizon
+        horizon_str = request.query_params.get("horizon", "7d")
+        try:
+            horizon = TimeHorizon(horizon_str)
+        except (ValueError, KeyError):
+            horizon = TimeHorizon.WEEK
+
+        engine = _get_projection_engine()
+        projected = engine.get_projected_reality(horizon)
+        return {"success": True, **projected}
+    except Exception as exc:
+        logger.error("projection projected reality failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _projection_record_outcome(request: Request) -> dict:
+    """Record a projection outcome for accuracy tracking."""
+    try:
+        body = await request.json()
+    except Exception:
+        return {"success": False, "error": "invalid JSON body"}
+
+    projection_id = body.get("projection_id", "")
+    actual_state = body.get("actual_state", "")
+    was_accurate = body.get("was_accurate", False)
+    accuracy_score = body.get("accuracy_score", 0.0)
+
+    if not projection_id:
+        return {"success": False, "error": "projection_id required"}
+
+    try:
+        engine = _get_projection_engine()
+        result = engine.record_outcome(projection_id, actual_state, was_accurate, accuracy_score)
+        if result.get("success"):
+            _audit_log("projection_outcome_recorded", {
+                "projection_id": projection_id,
+                "was_accurate": was_accurate,
+            })
+        return result
+    except Exception as exc:
+        logger.error("projection record outcome failed: %s", exc)
         return {"success": False, "error": str(exc)}

@@ -267,6 +267,22 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "DriftDetector": ["substrate.organism.strategic_tick_loop"],
     "TickRecord": ["substrate.organism.strategic_tick_loop"],
     "StrategicTickLoop": ["substrate.organism.strategic_tick_loop"],
+    # Phase 6: Projection Engine
+    "TimeHorizon": ["substrate.organism.projection_engine"],
+    "TrendDirection": ["substrate.organism.projection_engine"],
+    "RiskSeverity": ["substrate.organism.projection_engine"],
+    "ProjectionConfidence": ["substrate.organism.projection_engine"],
+    "TrendRecord": ["substrate.organism.projection_engine"],
+    "TrendDetector": ["substrate.organism.projection_engine"],
+    "Projection": ["substrate.organism.projection_engine"],
+    "StrategicRisk": ["substrate.organism.projection_engine"],
+    "StrategicOpportunity": ["substrate.organism.projection_engine"],
+    "ProjectionOutcome": ["substrate.organism.projection_engine"],
+    "AccuracyTracker": ["substrate.organism.projection_engine"],
+    "RiskDetector": ["substrate.organism.projection_engine"],
+    "OpportunityDetector": ["substrate.organism.projection_engine"],
+    "ProjectionGenerator": ["substrate.organism.projection_engine"],
+    "ProjectionEngine": ["substrate.organism.projection_engine"],
 }
 
 
