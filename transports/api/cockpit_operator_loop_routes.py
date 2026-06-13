@@ -102,6 +102,20 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/empire/packets-by-domain", _empire_packets_by_domain, methods=["GET"], dependencies=auth)
     r.add_api_route("/empire/next-actions", _empire_next_actions, methods=["GET"], dependencies=auth)
 
+    # ── Phase 4: Strategic Gap Engine routes ───────────────────
+    r.add_api_route("/strategy/analyze", _strategy_analyze, methods=["POST"], dependencies=auth)
+    r.add_api_route("/strategy/goals", _strategy_goals, methods=["GET"], dependencies=auth)
+    r.add_api_route("/strategy/goals/add", _strategy_add_goal, methods=["POST"], dependencies=auth)
+    r.add_api_route("/strategy/goals/{goal_id}", _strategy_goal_detail, methods=["GET"], dependencies=auth)
+    r.add_api_route("/strategy/goals/{goal_id}", _strategy_update_goal, methods=["PUT"], dependencies=auth)
+    r.add_api_route("/strategy/goals/{goal_id}", _strategy_delete_goal, methods=["DELETE"], dependencies=auth)
+    r.add_api_route("/strategy/gaps", _strategy_gaps, methods=["GET"], dependencies=auth)
+    r.add_api_route("/strategy/recommendations", _strategy_recommendations, methods=["GET"], dependencies=auth)
+    r.add_api_route("/strategy/recommendations/{rec_id}/approve", _strategy_approve_rec, methods=["POST"], dependencies=auth)
+    r.add_api_route("/strategy/recommendations/{rec_id}/reject", _strategy_reject_rec, methods=["POST"], dependencies=auth)
+    r.add_api_route("/strategy/decisions", _strategy_decisions, methods=["GET"], dependencies=auth)
+    r.add_api_route("/strategy/decisions/{decision_id}/outcome", _strategy_record_outcome, methods=["POST"], dependencies=auth)
+
     return r
 
 
@@ -917,4 +931,275 @@ async def _empire_next_actions(request: Request) -> dict:
         }
     except Exception as exc:
         logger.error("empire next actions failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+# ── Phase 4: Strategic Gap Engine handlers ──────────────────────────
+
+
+def _get_gap_engine():
+    from substrate.organism.strategic_gap_engine import StrategicGapEngine
+    return StrategicGapEngine()
+
+
+async def _strategy_analyze(request: Request) -> dict:
+    """Run full gap analysis cycle."""
+    try:
+        engine = _get_gap_engine()
+        result = engine.analyze()
+        _audit_log("strategy_analyze", {
+            "gap_count": result["gap_count"],
+            "recommendation_count": result["recommendation_count"],
+        })
+        return {"success": True, **result}
+    except Exception as exc:
+        logger.error("strategy analyze failed: %s", exc, exc_info=True)
+        return {"success": False, "error": str(exc)}
+
+
+async def _strategy_goals(request: Request) -> dict:
+    """Return all goals."""
+    try:
+        engine = _get_gap_engine()
+        goals = engine.goal_registry.all_goals()
+        return {
+            "success": True,
+            "goals": [g.to_dict() for g in goals],
+            "count": len(goals),
+        }
+    except Exception as exc:
+        logger.error("strategy goals failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _strategy_add_goal(request: Request) -> dict:
+    """Add a new goal."""
+    try:
+        body = await request.json()
+        from substrate.organism.strategic_gap_engine import Goal, GoalType, GoalStatus, SuccessCriterion
+
+        criteria = []
+        for c in body.get("success_criteria", []):
+            criteria.append(SuccessCriterion(
+                description=c.get("description", ""),
+                measurable=c.get("measurable", True),
+                current_value=c.get("current_value", ""),
+                target_value=c.get("target_value", ""),
+                met=c.get("met", False),
+            ))
+
+        goal = Goal(
+            title=body.get("title", ""),
+            description=body.get("description", ""),
+            goal_type=GoalType(body["goal_type"]) if "goal_type" in body else GoalType.GOAL,
+            status=GoalStatus(body["status"]) if "status" in body else GoalStatus.ACTIVE,
+            domain=body.get("domain", ""),
+            parent_goal_id=body.get("parent_goal_id", ""),
+            success_criteria=criteria,
+            required_capabilities=body.get("required_capabilities", []),
+            required_milestones=body.get("required_milestones", []),
+            dependencies=body.get("dependencies", []),
+            target_date=body.get("target_date", ""),
+            priority=body.get("priority", 50),
+        )
+
+        engine = _get_gap_engine()
+        engine.goal_registry.add(goal)
+
+        _audit_log("strategy_goal_added", {
+            "goal_id": goal.goal_id,
+            "title": goal.title,
+            "domain": goal.domain,
+        })
+
+        return {"success": True, "goal": goal.to_dict()}
+    except Exception as exc:
+        logger.error("strategy add goal failed: %s", exc, exc_info=True)
+        return {"success": False, "error": str(exc)}
+
+
+async def _strategy_goal_detail(request: Request) -> dict:
+    """Return a single goal."""
+    goal_id = request.path_params.get("goal_id", "")
+    try:
+        engine = _get_gap_engine()
+        goal = engine.goal_registry.get(goal_id)
+        if not goal:
+            return {"success": False, "error": f"goal {goal_id} not found"}
+        return {"success": True, "goal": goal.to_dict()}
+    except Exception as exc:
+        logger.error("strategy goal detail failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _strategy_update_goal(request: Request) -> dict:
+    """Update a goal."""
+    goal_id = request.path_params.get("goal_id", "")
+    try:
+        body = await request.json()
+        engine = _get_gap_engine()
+        goal = engine.goal_registry.get(goal_id)
+        if not goal:
+            return {"success": False, "error": f"goal {goal_id} not found"}
+
+        from substrate.organism.strategic_gap_engine import GoalStatus, GoalType, SuccessCriterion
+
+        if "title" in body:
+            goal.title = body["title"]
+        if "description" in body:
+            goal.description = body["description"]
+        if "status" in body:
+            goal.status = GoalStatus(body["status"])
+        if "goal_type" in body:
+            goal.goal_type = GoalType(body["goal_type"])
+        if "domain" in body:
+            goal.domain = body["domain"]
+        if "priority" in body:
+            goal.priority = body["priority"]
+        if "target_date" in body:
+            goal.target_date = body["target_date"]
+        if "required_capabilities" in body:
+            goal.required_capabilities = body["required_capabilities"]
+        if "required_milestones" in body:
+            goal.required_milestones = body["required_milestones"]
+        if "success_criteria" in body:
+            goal.success_criteria = [
+                SuccessCriterion.from_dict(c) for c in body["success_criteria"]
+            ]
+
+        engine.goal_registry.update(goal)
+
+        _audit_log("strategy_goal_updated", {
+            "goal_id": goal.goal_id,
+            "title": goal.title,
+        })
+
+        return {"success": True, "goal": goal.to_dict()}
+    except Exception as exc:
+        logger.error("strategy update goal failed: %s", exc, exc_info=True)
+        return {"success": False, "error": str(exc)}
+
+
+async def _strategy_delete_goal(request: Request) -> dict:
+    """Delete a goal."""
+    goal_id = request.path_params.get("goal_id", "")
+    try:
+        engine = _get_gap_engine()
+        removed = engine.goal_registry.remove(goal_id)
+        if not removed:
+            return {"success": False, "error": f"goal {goal_id} not found"}
+
+        _audit_log("strategy_goal_deleted", {"goal_id": goal_id})
+        return {"success": True, "goal_id": goal_id}
+    except Exception as exc:
+        logger.error("strategy delete goal failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _strategy_gaps(request: Request) -> dict:
+    """Return detected gaps from last analysis."""
+    try:
+        engine = _get_gap_engine()
+        result = engine.analyze()
+        return {
+            "success": True,
+            "gaps": result["gaps"],
+            "count": result["gap_count"],
+        }
+    except Exception as exc:
+        logger.error("strategy gaps failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _strategy_recommendations(request: Request) -> dict:
+    """Return top recommendations."""
+    try:
+        engine = _get_gap_engine()
+        recs = engine.get_top_recommendations(limit=10)
+        return {
+            "success": True,
+            "recommendations": [r.to_dict() for r in recs],
+            "count": len(recs),
+        }
+    except Exception as exc:
+        logger.error("strategy recommendations failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _strategy_approve_rec(request: Request) -> dict:
+    """Approve a recommendation → generates governed WorkPacket."""
+    rec_id = request.path_params.get("rec_id", "")
+    try:
+        body = await request.json()
+        reason = body.get("reason", "")
+        engine = _get_gap_engine()
+        result = engine.approve_recommendation(rec_id, reason)
+
+        if result.get("success"):
+            _audit_log("strategy_rec_approved", {
+                "recommendation_id": rec_id,
+                "packet_id": result.get("packet_id", ""),
+            })
+
+        return result
+    except Exception as exc:
+        logger.error("strategy approve rec failed: %s", exc, exc_info=True)
+        return {"success": False, "error": str(exc)}
+
+
+async def _strategy_reject_rec(request: Request) -> dict:
+    """Reject a recommendation with reason (feeds learning loop)."""
+    rec_id = request.path_params.get("rec_id", "")
+    try:
+        body = await request.json()
+        reason = body.get("reason", "")
+        engine = _get_gap_engine()
+        result = engine.reject_recommendation(rec_id, reason)
+
+        if result.get("success"):
+            _audit_log("strategy_rec_rejected", {
+                "recommendation_id": rec_id,
+                "reason": reason[:200],
+            })
+
+        return result
+    except Exception as exc:
+        logger.error("strategy reject rec failed: %s", exc, exc_info=True)
+        return {"success": False, "error": str(exc)}
+
+
+async def _strategy_decisions(request: Request) -> dict:
+    """Return decision history (learning loop)."""
+    try:
+        engine = _get_gap_engine()
+        decisions = engine.get_decision_history()
+        return {
+            "success": True,
+            "decisions": decisions,
+            "count": len(decisions),
+        }
+    except Exception as exc:
+        logger.error("strategy decisions failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _strategy_record_outcome(request: Request) -> dict:
+    """Record whether a decision was effective (learning loop)."""
+    decision_id = request.path_params.get("decision_id", "")
+    try:
+        body = await request.json()
+        was_effective = body.get("was_effective", False)
+        summary = body.get("summary", "")
+        engine = _get_gap_engine()
+        result = engine.record_outcome(decision_id, was_effective, summary)
+
+        if result.get("success"):
+            _audit_log("strategy_outcome_recorded", {
+                "decision_id": decision_id,
+                "was_effective": was_effective,
+            })
+
+        return result
+    except Exception as exc:
+        logger.error("strategy record outcome failed: %s", exc, exc_info=True)
         return {"success": False, "error": str(exc)}

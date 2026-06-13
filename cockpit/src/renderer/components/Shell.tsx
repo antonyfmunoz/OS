@@ -45,6 +45,7 @@ import { CommandCenterPanel } from '../panels/CommandCenterPanel'
 import { VisionPanel } from '../panels/VisionPanel'
 import { BroadcastPanel } from '../panels/BroadcastPanel'
 import { ConferenceRoomsPanel } from '../panels/ConferenceRoomsPanel'
+import { StrategyPanel } from '../panels/StrategyPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -120,6 +121,8 @@ function ActivePanel() {
       return <ErrorBoundary><ConferenceRoomsPanel /></ErrorBoundary>
     case 'broadcast':
       return <BroadcastPanel />
+    case 'strategy':
+      return <StrategyPanel />
     default:
       return <DashboardPanel />
   }

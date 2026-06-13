@@ -241,6 +241,20 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "RoutingResult": ["substrate.organism.empire_router"],
     "RealitySnapshot": ["substrate.organism.empire_router"],
     "EmpireRouter": ["substrate.organism.empire_router"],
+    # ── substrate/organism/strategic_gap_engine.py (Strategic Gap Phase 4) ──
+    "GoalStatus": ["substrate.organism.strategic_gap_engine"],
+    "GoalType": ["substrate.organism.strategic_gap_engine"],
+    "GapSeverity": ["substrate.organism.strategic_gap_engine"],
+    "RecommendationStatus": ["substrate.organism.strategic_gap_engine"],
+    "SuccessCriterion": ["substrate.organism.strategic_gap_engine"],
+    "Goal": ["substrate.organism.strategic_gap_engine"],
+    "Gap": ["substrate.organism.strategic_gap_engine"],
+    "Recommendation": ["substrate.organism.strategic_gap_engine"],
+    "DecisionRecord": ["substrate.organism.strategic_gap_engine"],
+    "GoalRegistry": ["substrate.organism.strategic_gap_engine"],
+    "GapDetector": ["substrate.organism.strategic_gap_engine"],
+    "RecommendationEngine": ["substrate.organism.strategic_gap_engine"],
+    "StrategicGapEngine": ["substrate.organism.strategic_gap_engine"],
 }
 
 
