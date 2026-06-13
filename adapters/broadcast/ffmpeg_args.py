@@ -130,6 +130,9 @@ def _input_args(
 _ALLOWED_OUTPUT_SCHEMES = frozenset({"rtmp", "rtmps", "srt"})
 
 
+_TLS_SCHEMES = frozenset({"rtmps", "srt"})
+
+
 def _validate_output_url(url: str) -> str:
     """Validate output URL — only streaming protocols, no file/http/local writes."""
     _reject_control_chars(url)
@@ -149,8 +152,7 @@ def _validate_output_url(url: str) -> str:
     if parsed.query:
         raise ValueError("Query parameters not allowed in output URL (push-only)")
     resolved_ip = _resolve_and_pin(hostname)
-    port_str = f":{parsed.port}" if parsed.port else ""
-    return f"{parsed.scheme}://{resolved_ip}{port_str}{parsed.path}"
+    return _rebuild_url(parsed, resolved_ip)
 
 
 def _validate_input_url(url: str) -> str:
@@ -164,8 +166,19 @@ def _validate_input_url(url: str) -> str:
     hostname = parsed.hostname or ""
     if not hostname:
         raise ValueError("Input URL must have a hostname")
-    _resolve_and_pin(hostname)
-    return url
+    resolved_ip = _resolve_and_pin(hostname)
+    return _rebuild_url(parsed, resolved_ip)
+
+
+def _rebuild_url(parsed: Any, resolved_ip: str) -> str:
+    """Rebuild URL with pinned IP. Preserves hostname for TLS schemes (SNI)."""
+    if parsed.scheme in _TLS_SCHEMES:
+        _resolve_and_pin(parsed.hostname or "")
+        host = parsed.hostname or ""
+    else:
+        host = f"[{resolved_ip}]" if ":" in resolved_ip else resolved_ip
+    port_str = f":{parsed.port}" if parsed.port else ""
+    return f"{parsed.scheme}://{host}{port_str}{parsed.path}"
 
 
 def _reject_control_chars(url: str) -> None:
@@ -179,6 +192,7 @@ def _resolve_and_pin(hostname: str) -> str:
     """Resolve hostname once, validate ALL addresses, return first valid IP.
 
     Pins the resolved IP to eliminate DNS rebinding (TOCTOU).
+    Checks IPv4-mapped, IPv4-compatible, and 6to4 embedded addresses.
     """
     import ipaddress
     import socket
@@ -191,14 +205,22 @@ def _resolve_and_pin(hostname: str) -> str:
     first_ip = None
     for info in infos:
         addr = ipaddress.ip_address(info[4][0])
-        if (addr.is_loopback or addr.is_private or addr.is_link_local
-                or addr.is_reserved or addr.is_unspecified or addr.is_multicast):
-            raise ValueError(f"Host resolves to disallowed address: {hostname} -> {addr}")
-        if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:
-            mapped = addr.ipv4_mapped
-            if (mapped.is_loopback or mapped.is_private or mapped.is_link_local
-                    or mapped.is_reserved or mapped.is_unspecified or mapped.is_multicast):
-                raise ValueError(f"Host resolves to disallowed IPv4-mapped address: {hostname} -> {addr}")
+        _reject_addr(addr, hostname)
+        if isinstance(addr, ipaddress.IPv6Address):
+            if addr.ipv4_mapped:
+                _reject_addr(addr.ipv4_mapped, hostname)
+            if addr.sixtofour:
+                _reject_addr(addr.sixtofour, hostname)
+            if addr in ipaddress.IPv6Network("::/96"):
+                embedded = ipaddress.IPv4Address(int(addr) & 0xFFFFFFFF)
+                _reject_addr(embedded, hostname)
         if first_ip is None:
             first_ip = str(addr)
     return first_ip
+
+
+def _reject_addr(addr: Any, hostname: str) -> None:
+    """Reject an address if it falls into any disallowed category."""
+    if (addr.is_loopback or addr.is_private or addr.is_link_local
+            or addr.is_reserved or addr.is_unspecified or addr.is_multicast):
+        raise ValueError(f"Host resolves to disallowed address: {hostname} -> {addr}")
