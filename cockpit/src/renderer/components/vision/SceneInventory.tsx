@@ -1,9 +1,8 @@
 import { useCallback, useRef, useState } from 'react'
 import { clsx } from 'clsx'
 import { Pencil, X, Check } from 'lucide-react'
-import { useVisionStore } from '../../stores/visionStore'
+import { useVisionStore, type OverlayMetadata } from '../../stores/visionStore'
 import { getVisionClient } from '../../hooks/useVisionConnection'
-import type { OverlayMetadata } from './VisionOverlay'
 
 const MAX_CHIPS = 12
 
