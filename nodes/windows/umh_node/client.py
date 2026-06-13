@@ -2,6 +2,13 @@
 
 Handles the full lifecycle: connect → hello → heartbeat loop →
 capability execution → signal emission → reconnect on failure.
+
+Architecture: CONTROL PLANE and MEDIA PLANE are hard-separated.
+- Control plane (heartbeats, capability dispatch) runs on the main
+  asyncio event loop and is NEVER blocked by frame emission.
+- Media plane (frame emission) uses a bounded async queue with
+  drop-oldest backpressure. A dedicated drain task sends frames
+  without blocking the control loop.
 """
 
 from __future__ import annotations
@@ -12,6 +19,7 @@ import logging
 import platform
 import socket
 import time
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
 
@@ -29,9 +37,17 @@ from nodes.windows.umh_node.metrics import collect_metrics
 
 logger = logging.getLogger(__name__)
 
+_MEDIA_QUEUE_MAX = 4
+_CONTROL_TIMEOUT_S = 8.0
+
 
 class NodeClient:
-    """WebSocket client that connects to the UMH node mesh server."""
+    """WebSocket client that connects to the UMH node mesh server.
+
+    Hard separation between control plane and media plane:
+    - Control: heartbeats + capability dispatch — always responsive.
+    - Media: frame emission via bounded queue — drops old frames on backpressure.
+    """
 
     def __init__(self, config: NodeConfig) -> None:
         self._config = config
@@ -47,6 +63,11 @@ class NodeClient:
         self._on_workspace_change: Callable[[dict[str, Any]], None] | None = None
         self._camera_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cam")
         self._capability_semaphore = asyncio.Semaphore(8)
+
+        # Media plane: bounded frame queue — stream thread pushes, drain task sends
+        self._media_queue: deque[str] = deque(maxlen=_MEDIA_QUEUE_MAX)
+        self._media_event = asyncio.Event()
+        self._media_drain_task: asyncio.Task | None = None
 
     @property
     def connected(self) -> bool:
@@ -73,21 +94,55 @@ class NodeClient:
             self._adapters["hermes"] = hermes
 
     def _on_camera_frame(self, frame_data: dict[str, Any]) -> None:
-        """Called from camera stream thread — pushes frame to VPS via mesh."""
+        """Called from camera stream thread — enqueues frame for async send.
+
+        NEVER blocks on WS send. Uses bounded deque with drop-oldest semantics.
+        The media drain task picks frames off the queue and sends them.
+        """
         if not self._connected or self._ws is None or self._loop is None:
             return
         try:
-            asyncio.run_coroutine_threadsafe(
-                self.emit_signal(
-                    content_type="camera.frame",
-                    payload=frame_data,
-                    signal_class="camera_frame",
-                    urgency="LOW",
-                ),
-                self._loop,
-            )
+            msg = json.dumps({
+                "jsonrpc": "2.0",
+                "method": "signal.emit",
+                "params": {
+                    "content_type": "camera.frame",
+                    "payload": frame_data,
+                    "urgency": "LOW",
+                    "signal_class": "camera_frame",
+                },
+                "id": self._next_id(),
+            })
+            # deque(maxlen=N) auto-drops oldest when full — no blocking
+            self._media_queue.append(msg)
+            # Wake the drain task (thread-safe)
+            self._loop.call_soon_threadsafe(self._media_event.set)
         except Exception as exc:
-            logger.debug("frame emit failed: %s", exc)
+            logger.debug("frame enqueue failed: %s", exc)
+
+    async def _media_drain_loop(self) -> None:
+        """Drain media queue and send frames over WS.
+
+        Runs as a separate task — if WS send is slow, frames drop from
+        the bounded queue. Control plane is never affected.
+        """
+        while True:
+            await self._media_event.wait()
+            self._media_event.clear()
+            while self._media_queue:
+                try:
+                    msg = self._media_queue.popleft()
+                except IndexError:
+                    break
+                if not self._connected or self._ws is None:
+                    self._media_queue.clear()
+                    break
+                try:
+                    await self._ws.send(msg)
+                except Exception as exc:
+                    logger.debug("media send failed: %s", exc)
+                    self._media_queue.clear()
+                    break
 
     def _next_id(self) -> int:
         self._msg_id += 1
@@ -198,14 +253,19 @@ class NodeClient:
             self._ws = ws
             await self._send_hello()
             self._connected = True
+            self._media_queue.clear()
             logger.info("connected to VPS mesh server")
 
             heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+            self._media_drain_task = asyncio.create_task(self._media_drain_loop())
             try:
                 async for raw in ws:
                     await self._handle_message(raw)
             finally:
                 heartbeat_task.cancel()
+                if self._media_drain_task:
+                    self._media_drain_task.cancel()
+                    self._media_drain_task = None
                 self._connected = False
 
     async def _send_hello(self) -> None:
@@ -219,7 +279,7 @@ class NodeClient:
                 "os": platform.system().lower(),
                 "os_version": platform.version(),
                 "capabilities": self._build_capabilities(),
-                "daemon_version": "0.1.0",
+                "daemon_version": "0.2.0",
                 "tailscale_ip": self._get_tailscale_ip(),
             },
             "id": self._next_id(),
@@ -239,6 +299,7 @@ class NodeClient:
             raise ConnectionError(f"node.hello rejected: {error}")
 
     async def _heartbeat_loop(self) -> None:
+        """Control plane heartbeat — runs independently of media plane."""
         interval = getattr(self, "_heartbeat_interval", self._config.signals.metrics_interval_s)
         while True:
             await asyncio.sleep(interval)
@@ -331,10 +392,10 @@ class NodeClient:
             try:
                 result = await asyncio.wait_for(
                     loop.run_in_executor(executor, adapter.execute, cap_name, cap_params),
-                    timeout=8.0,
+                    timeout=_CONTROL_TIMEOUT_S,
                 )
             except asyncio.TimeoutError:
-                logger.warning("capability %s timed out after 8s", cap_name)
+                logger.warning("capability %s timed out after %.0fs", cap_name, _CONTROL_TIMEOUT_S)
                 result = {"success": False, "error": f"{cap_name} timed out"}
             duration = (time.monotonic() - t0) * 1000
 
@@ -360,7 +421,7 @@ class NodeClient:
         signal_class: str = "event",
         urgency: str = "LOW",
     ) -> None:
-        """Emit a signal to the VPS."""
+        """Emit a signal to the VPS (control plane signals, not media frames)."""
         if not self._connected or self._ws is None:
             return
         msg = {
