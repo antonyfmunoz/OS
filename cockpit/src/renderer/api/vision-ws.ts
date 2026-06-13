@@ -149,6 +149,10 @@ export type VisionEvent =
   | { type: 'camera_session_state'; active: boolean; viewer_count: number }
   | { type: 'vision_overlay'; overlays: Array<{ type: string; track_id: string; label: string; confidence: number; bbox: { x: number; y: number; w: number; h: number }; landmarks?: Array<{ x: number; y: number; label?: string }>; connections?: Array<[number, number]>; color?: string }> }
   | { type: 'label_corrections_list'; corrections: Record<string, string> }
+  | { type: 'vision_events'; events: Array<{ seq: number; type: string; timestamp: number; detail?: Record<string, unknown> }>; total: number }
+  | { type: 'command_log'; commands: Array<{ id: number; operation: string; sent_at: number; rtt_ms: number; success: boolean; error?: string }>; total: number; ok: number; fail: number }
+  | { type: 'fault_inject_ack'; fault?: string; active?: boolean; error?: string; faults: Record<string, boolean> }
+  | { type: 'fault_status'; faults: Record<string, boolean> }
 
 function getVisionProtocols(): string[] {
   const token = import.meta.env.VITE_VISION_TOKEN as string | undefined
@@ -357,8 +361,24 @@ export class VisionWsClient {
     this.ws.send('vision_health')
   }
 
+  requestEvents(sinceSeq = 0): void {
+    this.ws.send('vision_events', { since_seq: sinceSeq })
+  }
+
+  requestCommandLog(last = 50): void {
+    this.ws.send('command_log', { last })
+  }
+
   requestLabelCorrections(): void {
     this.ws.send('vision_get_label_corrections')
+  }
+
+  injectFault(fault: string, active: boolean): void {
+    this.ws.send('fault_inject', { fault, active })
+  }
+
+  requestFaultStatus(): void {
+    this.ws.send('fault_status')
   }
 
   // ── PTZ control ─────────────────────────────────────────────────

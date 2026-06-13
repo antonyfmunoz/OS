@@ -70,7 +70,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   } = useVisionStore()
   const overlays = useVisionStore((s) => s.overlays)
   const chainHealth = useVisionStore((s) => s.chainHealth)
-  const controlsEnabled = connected && (chainHealth.beastConnected || chainHealth.commandPathReady)
+  const controlsEnabled = chainHealth.commandPathReady || (connected && chainHealth.beastConnected)
   const overlayVisible = useVisionStore((s) => s.overlayVisible)
   const setOverlayVisible = useVisionStore((s) => s.setOverlayVisible)
   const width = useVisionStore((s) => s.width)
@@ -277,6 +277,11 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     if (!client?.connected) return
     if (!useVisionStore.getState().chainHealth.beastConnected) return
 
+    const currentAuth = useVisionStore.getState().authority.current
+    if (currentAuth !== 'operator') {
+      claimAuthority('operator', 'Manual zoom input')
+    }
+
     if (activeMotionIdRef.current) {
       client.ptzStopMotion(activeMotionIdRef.current)
       if (motionUpdateTimerRef.current) {
@@ -300,7 +305,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         c.zoomUpdateMotion(mid, zoomV, speed)
       }, MOTION_UPDATE_INTERVAL_MS)
     }
-  }, [speed, setPtzMotion, setPtzMoving, updateControlMetrics])
+  }, [speed, setPtzMotion, setPtzMoving, updateControlMetrics, claimAuthority])
 
   const stopZoomMotion = useCallback(() => {
     const client = getVisionClient()
@@ -649,11 +654,12 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const presetsLoading = useVisionStore((s) => s.presetsLoading)
   const presetsLoadError = useVisionStore((s) => s.presetsLoadError)
   const presetsLoadedAt = useVisionStore((s) => s.presetsLoadedAt)
-  const presetSyncStatus: 'synced' | 'loading' | 'error' | 'offline' =
-    !connected ? 'offline'
+  const presetSyncStatus: 'synced' | 'loading' | 'error' | 'offline' | 'waiting' =
+    !connected && !chainHealth.commandPathReady ? 'offline'
     : presetsLoadError ? 'error'
     : presetsLoading ? 'loading'
-    : Object.keys(presets).length > 0 || presetsLoadedAt > 0 ? 'synced'
+    : presetsLoadedAt > 0 ? 'synced'
+    : !chainHealth.beastConnected ? 'waiting'
     : 'loading'
 
   // ── Render ─────────────────────────────────────────────────────
@@ -714,7 +720,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
               height={height || 720}
               visible={overlayVisible}
             />
-            {/* Stale frame overlay — Section 1: no old frame masquerades as live */}
+            {/* Stale frame overlay — no old frame masquerades as live */}
             {(frameFreshness === 'stale' || frameFreshness === 'dead') && (
               <div className={clsx(
                 'absolute inset-0 flex items-center justify-center pointer-events-none',
@@ -724,9 +730,12 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                   'px-4 py-2 rounded-lg backdrop-blur-sm text-sm font-mono uppercase tracking-wider',
                   frameFreshness === 'stale' ? 'bg-warning/20 text-warning border border-warning/40' : 'bg-danger/20 text-danger border border-danger/40',
                 )}>
-                  {frameFreshness === 'stale' ? 'STALE — last frame' : 'NO LIVE STREAM'}
+                  {frameFreshness === 'stale'
+                    ? `NO LIVE STREAM — last frame ${(streamMetrics.lastFrameAge / 1000).toFixed(0)}s ago`
+                    : 'NO LIVE STREAM'}
                   <span className="block text-[10px] normal-case mt-0.5 opacity-80">
-                    {(streamMetrics.lastFrameAge / 1000).toFixed(1)}s since last frame
+                    {frameFreshness === 'dead' && `${(streamMetrics.lastFrameAge / 1000).toFixed(1)}s since last frame`}
+                    {width > 0 && height > 0 && ` · ${width}×${height}`}
                     {!chainHealth.beastConnected && ' · beast offline'}
                   </span>
                 </div>
@@ -851,9 +860,12 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                 <span className={clsx('ml-1',
                   presetSyncStatus === 'synced' ? 'text-ok'
                   : presetSyncStatus === 'loading' ? 'text-text-quaternary'
+                  : presetSyncStatus === 'waiting' ? 'text-warning'
                   : presetSyncStatus === 'error' ? 'text-danger'
                   : 'text-danger')}>
-                  · {presetSyncStatus === 'error' ? `error: ${presetsLoadError}` : presetSyncStatus}
+                  · {presetSyncStatus === 'error' ? `error: ${presetsLoadError}`
+                    : presetSyncStatus === 'waiting' ? 'waiting for Beast'
+                    : presetSyncStatus}
                 </span>
               </span>
               <div className="flex items-center gap-2">
@@ -1029,7 +1041,12 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
                 <span className="text-text-quaternary">total presets</span>
                 <span className="text-text-secondary">{Object.keys(presets).length}</span>
                 <span className="text-text-quaternary">sync status</span>
-                <span className={clsx(presetSyncStatus === 'synced' ? 'text-ok' : 'text-danger')}>{presetSyncStatus}</span>
+                <span className={clsx(
+                  presetSyncStatus === 'synced' ? 'text-ok'
+                  : presetSyncStatus === 'waiting' ? 'text-warning'
+                  : presetSyncStatus === 'loading' ? 'text-text-quaternary'
+                  : 'text-danger'
+                )}>{presetSyncStatus}</span>
                 <span className="text-text-quaternary">last action</span>
                 <span className="text-text-secondary truncate">{lastPresetAction || '—'}</span>
                 <span className="text-text-quaternary">backend path</span>

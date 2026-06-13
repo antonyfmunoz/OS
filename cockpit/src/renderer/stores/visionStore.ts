@@ -7,12 +7,20 @@ export type CameraMode = 'manual' | 'follow' | 'watch' | 'ai_assist'
 
 export type ControlAuthority = 'operator' | 'voice' | 'ai' | 'autonomous'
 
+export interface AuthorityLogEntry {
+  at: number
+  from: ControlAuthority
+  to: ControlAuthority
+  reason: string
+}
+
 export interface AuthorityState {
   current: ControlAuthority
   aiEnabled: boolean
   aiIntentDescription: string
   lastOverrideAt: number
   lastOverrideBy: ControlAuthority
+  log: AuthorityLogEntry[]
 }
 
 // ── Default-on policy ────────────────────────────────────────────
@@ -85,6 +93,14 @@ export interface CameraPreset {
   roi?: { x: number; y: number; zoom: number }
   created_at?: number
   updated_at?: number
+}
+
+export type PresetChangeOp = 'save' | 'update' | 'delete'
+export interface PendingPresetChange {
+  op: PresetChangeOp
+  label: string
+  preset?: CameraPreset
+  queuedAt: number
 }
 
 export type DeviceStatus = 'usable' | 'busy' | 'stale' | 'unavailable' | 'duplicate' | 'error' | 'unknown'
@@ -205,7 +221,7 @@ export type FrameFreshness = 'live' | 'recent' | 'stale' | 'dead' | 'none'
 
 export function computeFrameFreshness(ageMs: number, hasFrame: boolean): FrameFreshness {
   if (!hasFrame) return 'none'
-  if (ageMs < 2000) return 'live'
+  if (ageMs < 3000) return 'live'
   if (ageMs < 5000) return 'recent'
   if (ageMs < 15000) return 'stale'
   return 'dead'
@@ -341,6 +357,46 @@ export interface DetectorStatus {
   active_tracks: number
   total_tracks: number
   device?: string
+  nms_device?: string
+  nms_fallback?: boolean
+  consecutive_errors?: number
+  detect_interval?: number
+}
+
+// ── Pipeline latency types (Phase 5) ────────────────────────────
+
+export interface PipelineLatency {
+  captureToRelayMs: number
+  relayToRenderMs: number
+  endToEndMs: number
+  captureTimestamp: number
+  relayTimestamp: number
+  renderTimestamp: number
+}
+
+// ── Vision event types (Phase 8) ────────────────────────────────
+
+export interface VisionEvent {
+  seq: number
+  type: string
+  timestamp: number
+  detail?: Record<string, unknown>
+}
+
+export interface CommandLogEntry {
+  id: number
+  operation: string
+  sent_at: number
+  rtt_ms: number
+  success: boolean
+  error?: string
+}
+
+export interface CommandTelemetry {
+  commands: CommandLogEntry[]
+  total: number
+  ok: number
+  fail: number
 }
 
 export interface RoiState {
@@ -511,6 +567,15 @@ interface VisionState {
   // Command latency history
   latencyHistory: CommandLatencyMeasurement[]
 
+  // Pipeline latency (Phase 5)
+  pipelineLatency: PipelineLatency
+
+  // Vision event stream (Phase 8)
+  visionEvents: VisionEvent[]
+
+  // Command telemetry (Phase 6)
+  commandTelemetry: CommandTelemetry
+
   // Security notifications
   notifications: SecurityNotification[]
   notificationUnreadCount: number
@@ -584,6 +649,15 @@ interface VisionState {
   // Latency setters
   recordLatency: (measurement: CommandLatencyMeasurement) => void
 
+  // Pipeline latency setters (Phase 5)
+  updatePipelineLatency: (partial: Partial<PipelineLatency>) => void
+
+  // Vision event setters (Phase 8)
+  appendVisionEvents: (events: VisionEvent[]) => void
+
+  // Command telemetry setter (Phase 6)
+  updateCommandTelemetry: (telemetry: CommandTelemetry) => void
+
   // Security notification setters
   addNotification: (severity: NotificationSeverity, event: string, source: string, detail: string, action?: string, persistent?: boolean) => void
   acknowledgeNotification: (id: string) => void
@@ -632,6 +706,11 @@ interface VisionState {
   setPresetsLoading: (loading: boolean) => void
   setPresetsLoadError: (error: string | null) => void
 
+  // Preset offline queue — changes queued while Beast unavailable
+  pendingPresetChanges: PendingPresetChange[]
+  queuePresetChange: (change: PendingPresetChange) => void
+  clearPendingPresetChanges: () => void
+
   reset: () => void
 }
 
@@ -668,6 +747,7 @@ const INITIAL_AUTHORITY: AuthorityState = {
   aiIntentDescription: '',
   lastOverrideAt: 0,
   lastOverrideBy: 'operator',
+  log: [],
 }
 
 const INITIAL_CONTROL_METRICS: ControlMetrics = {
@@ -810,6 +890,12 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   toasts: [],
   // Command latency history (keep last 20)
   latencyHistory: [],
+  // Pipeline latency (Phase 5)
+  pipelineLatency: { captureToRelayMs: 0, relayToRenderMs: 0, endToEndMs: 0, captureTimestamp: 0, relayTimestamp: 0, renderTimestamp: 0 },
+  // Vision event stream (Phase 8 — keep last 500)
+  visionEvents: [],
+  // Command telemetry (Phase 6)
+  commandTelemetry: { commands: [], total: 0, ok: 0, fail: 0 },
   // Security notifications
   notifications: loadNotificationsFromStorage(),
   notificationUnreadCount: loadNotificationsFromStorage().filter((n) => !n.acknowledged).length,
@@ -939,6 +1025,20 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     latencyHistory: [...s.latencyHistory.slice(-19), measurement],
   })),
 
+  // Pipeline latency (Phase 5)
+  updatePipelineLatency: (partial) => set((s) => ({
+    pipelineLatency: { ...s.pipelineLatency, ...partial },
+  })),
+
+  // Vision events (Phase 8)
+  appendVisionEvents: (events) => set((s) => {
+    const merged = [...s.visionEvents, ...events]
+    return { visionEvents: merged.slice(-500) }
+  }),
+
+  // Command telemetry (Phase 6)
+  updateCommandTelemetry: (telemetry) => set({ commandTelemetry: telemetry }),
+
   // Security notification setters
   addNotification: (severity, event, source, detail, action = '', persistent = false) => set((s) => {
     const id = `notif_${++_toastId}`
@@ -1009,6 +1109,7 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   claimAuthority: (who, reason) => set((s) => {
     const prev = s.authority.current
     if (prev === who) return s
+    const entry: AuthorityLogEntry = { at: Date.now(), from: prev, to: who, reason: reason || '' }
     return {
       authority: {
         ...s.authority,
@@ -1016,6 +1117,7 @@ export const useVisionStore = create<VisionState>((set, get) => ({
         lastOverrideAt: Date.now(),
         lastOverrideBy: prev,
         aiIntentDescription: reason || '',
+        log: [...s.authority.log.slice(-49), entry],
       },
     }
   }),
@@ -1026,6 +1128,12 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   presetsLoadedAt: 0,
   setPresetsLoading: (presetsLoading) => set({ presetsLoading }),
   setPresetsLoadError: (presetsLoadError) => set({ presetsLoadError }),
+
+  pendingPresetChanges: [],
+  queuePresetChange: (change) => set((s) => ({
+    pendingPresetChanges: [...s.pendingPresetChanges, change],
+  })),
+  clearPendingPresetChanges: () => set({ pendingPresetChanges: [] }),
 
   reset: () => set({
     connected: false,
@@ -1063,6 +1171,8 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     labelCorrections: loadCorrectionsFromStorage(),
     toasts: [],
     latencyHistory: [],
+    pipelineLatency: { captureToRelayMs: 0, relayToRenderMs: 0, endToEndMs: 0, captureTimestamp: 0, relayTimestamp: 0, renderTimestamp: 0 },
+    commandTelemetry: { commands: [], total: 0, ok: 0, fail: 0 },
     notifications: loadNotificationsFromStorage(),
     notificationUnreadCount: loadNotificationsFromStorage().filter((n) => !n.acknowledged).length,
     overlays: [],
@@ -1078,5 +1188,6 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     presetsLoading: false,
     presetsLoadError: null,
     presetsLoadedAt: 0,
+    pendingPresetChanges: [],
   }),
 }))

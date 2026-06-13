@@ -107,6 +107,50 @@ _mesh_dispatch_url = os.getenv(
     "http://localhost:8095/dispatch",
 )
 
+# ── Pipeline latency tracking (Phase 5) ─────────────────────────
+
+_last_capture_timestamp: float = 0.0
+_last_relay_receive_at: float = 0.0
+_capture_to_relay_ms: float = 0.0
+_relay_to_client_ms: float = 0.0
+
+# ── Vision event stream (Phase 8) ───────────────────────────────
+
+_VISION_EVENT_MAX = 500
+_vision_events: list[dict[str, Any]] = []
+_vision_event_seq: int = 0
+
+
+def _emit_vision_event(event_type: str, detail: dict[str, Any] | None = None) -> None:
+    """Append a vision event to the rolling history."""
+    global _vision_event_seq
+    _vision_event_seq += 1
+    evt: dict[str, Any] = {
+        "seq": _vision_event_seq,
+        "type": event_type,
+        "timestamp": time.time(),
+    }
+    if detail:
+        evt["detail"] = detail
+    _vision_events.append(evt)
+    if len(_vision_events) > _VISION_EVENT_MAX:
+        _vision_events[:] = _vision_events[-_VISION_EVENT_MAX:]
+
+
+# ── Failure injection (Phase 9) ──────────────────────────────────
+
+_fault_inject: dict[str, bool] = {
+    "drop_frames": False,
+    "block_commands": False,
+    "fake_detector_offline": False,
+    "high_latency": False,
+}
+
+
+def _is_fault_active(fault: str) -> bool:
+    return _fault_inject.get(fault, False)
+
+
 # ── Diagnostic overlay state ─────────────────────────────────────
 
 _diagnostic_overlay_active = False
@@ -133,6 +177,11 @@ _last_dispatch_ok_at: float = 0.0
 _last_dispatch_fail_at: float = 0.0
 _last_dispatch_operation: str = ""
 _last_dispatch_rtt_ms: float = 0.0
+_dispatch_total: int = 0
+_dispatch_ok_count: int = 0
+_dispatch_fail_count: int = 0
+_COMMAND_LOG_MAX = 100
+_command_log: list[dict[str, Any]] = []
 
 # ── Digital ROI state ────────────────────────────────────────────
 _roi_x: float = 0.0
@@ -527,6 +576,7 @@ async def handle_vision(ws: Any) -> None:
 
     log.info("viewer connected: %s", ws.remote_address)
     _clients.add(ws)
+    _emit_vision_event("viewer_connected", {"viewers": len(_clients)})
     subscribed = False
     try:
         await send_json(ws, {"type": "connected"})
@@ -579,10 +629,13 @@ async def handle_vision(ws: Any) -> None:
                 if smooth:
                     duration = max(0.3, min(float(msg.get("duration", 1.0)), 3.0))
                     await _smooth_preset_transition(preset, duration)
+                    _emit_vision_event("preset_applied", {"preset": preset, "smooth": True})
                 else:
                     result = await _dispatch_to_beast("camera.set_preset", {"preset": preset})
                     if result and not result.get("success"):
                         await send_json(ws, {"type": "vision_error", "error": result.get("error", "preset failed")})
+                    else:
+                        _emit_vision_event("preset_applied", {"preset": preset})
 
             elif msg_type == "camera_snapshot":
                 result = await _dispatch_to_beast("camera.snapshot", {
@@ -1054,12 +1107,47 @@ async def handle_vision(ws: Any) -> None:
                 health = _build_health()
                 await send_json(ws, {"type": "vision_health", **health})
 
+            elif msg_type == "vision_events":
+                since_seq = msg.get("since_seq", 0)
+                limit = min(msg.get("limit", 100), 500)
+                events = [e for e in _vision_events if e["seq"] > since_seq][-limit:]
+                await send_json(ws, {
+                    "type": "vision_events",
+                    "events": events,
+                    "total": len(_vision_events),
+                })
+
+            elif msg_type == "command_log":
+                last_n = min(msg.get("last", 50), _COMMAND_LOG_MAX)
+                await send_json(ws, {
+                    "type": "command_log",
+                    "commands": _command_log[-last_n:],
+                    "total": _dispatch_total,
+                    "ok": _dispatch_ok_count,
+                    "fail": _dispatch_fail_count,
+                })
+
+            elif msg_type == "fault_inject":
+                fault = msg.get("fault", "")
+                active = msg.get("active", False)
+                if fault in _fault_inject:
+                    _fault_inject[fault] = bool(active)
+                    _emit_vision_event("fault_inject", {"fault": fault, "active": active})
+                    log.warning("fault injection: %s = %s", fault, active)
+                    await send_json(ws, {"type": "fault_inject_ack", "fault": fault, "active": active, "faults": dict(_fault_inject)})
+                else:
+                    await send_json(ws, {"type": "fault_inject_ack", "error": f"unknown fault: {fault}", "faults": dict(_fault_inject)})
+
+            elif msg_type == "fault_status":
+                await send_json(ws, {"type": "fault_status", "faults": dict(_fault_inject)})
+
     except websockets.exceptions.ConnectionClosed:
         log.info("viewer disconnected: %s", ws.remote_address)
     except Exception as e:
         log.error("viewer session error: %s", e)
     finally:
         _clients.discard(ws)
+        _emit_vision_event("viewer_disconnected", {"viewers": len(_clients)})
         if len(_clients) == 0 and _motion_active:
             log.warning("last viewer disconnected while motion active, stopping motion")
             await _stop_motion()
@@ -1178,6 +1266,7 @@ async def _start_stream(
     })
     if result and result.get("success"):
         log.info("Beast stream started: %dx%d @%dfps q%d", width, height, _stream_fps, quality)
+        _emit_vision_event("stream_started", {"width": width, "height": height, "fps": _stream_fps})
     else:
         log.warning("Beast stream_start failed: %s", result)
         _stream_active = False
@@ -1193,6 +1282,7 @@ async def _stop_stream() -> None:
     _stream_active = False
     await _dispatch_to_beast("camera.stream_stop", {})
     log.info("stream stopped")
+    _emit_vision_event("stream_stopped")
     for ws in list(_clients):
         await send_json(ws, {"type": "vision_status", "streaming": False, "width": 0, "height": 0})
 
@@ -1207,24 +1297,41 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
     global _latest_frame, _latest_frame_meta, _stream_active
     global _last_frame_at, _frame_count, _last_overlay_at, _overlay_count
     global _latest_detector_status
+    global _last_capture_timestamp, _last_relay_receive_at, _capture_to_relay_ms
 
     if len(jpeg_bytes) > MAX_FRAME_BYTES:
         log.warning("frame too large: %d bytes, dropping", len(jpeg_bytes))
         return
 
+    if _is_fault_active("drop_frames"):
+        return
+
+    if _is_fault_active("high_latency"):
+        await asyncio.sleep(0.5)
+
     _latest_frame = jpeg_bytes
     _latest_frame_meta = meta
     _stream_active = True
-    _last_frame_at = time.time()
+    now = time.time()
+    _last_frame_at = now
     _frame_count += 1
 
+    # Pipeline latency: capture → relay
+    capture_ts = meta.get("capture_timestamp") or meta.get("timestamp", 0)
+    if capture_ts > 0:
+        _last_capture_timestamp = capture_ts
+        _last_relay_receive_at = now
+        _capture_to_relay_ms = round((now - capture_ts) * 1000, 1)
+
     det_status = meta.get("detector_status")
+    if _is_fault_active("fake_detector_offline"):
+        det_status = None
     if det_status:
         _latest_detector_status = det_status
 
     overlays = meta.get("overlays")
     if overlays:
-        _last_overlay_at = time.time()
+        _last_overlay_at = now
         _overlay_count += 1
 
     if not _clients:
@@ -1232,7 +1339,13 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
 
     overlay_msg: dict[str, Any] | None = None
     if overlays:
-        overlay_msg = {"type": "vision_overlay", "overlays": overlays}
+        overlay_msg = {
+            "type": "vision_overlay",
+            "overlays": overlays,
+            "capture_timestamp": _last_capture_timestamp,
+            "relay_timestamp": now,
+            "capture_to_relay_ms": _capture_to_relay_ms,
+        }
         if det_status:
             overlay_msg["detector_status"] = det_status
     overlay_json = json.dumps(overlay_msg) if overlay_msg else None
@@ -1658,7 +1771,17 @@ def _dispatch_to_beast_sync(operation: str, params: dict[str, Any]) -> dict[str,
     """Blocking mesh dispatch — runs in thread pool via _dispatch_to_beast."""
     global _last_dispatch_ok_at, _last_dispatch_fail_at
     global _last_dispatch_operation, _last_dispatch_rtt_ms
+    global _dispatch_total, _dispatch_ok_count, _dispatch_fail_count
+    _dispatch_total += 1
+    cmd_id = _dispatch_total
     t0 = time.monotonic()
+    sent_at = time.time()
+    if _is_fault_active("block_commands"):
+        _dispatch_fail_count += 1
+        _last_dispatch_fail_at = time.time()
+        _last_dispatch_operation = operation
+        _record_command(cmd_id, operation, sent_at, 0, False, "fault_injected")
+        return None
     try:
         import urllib.request
 
@@ -1677,18 +1800,43 @@ def _dispatch_to_beast_sync(operation: str, params: dict[str, Any]) -> dict[str,
             data = json.loads(resp.read())
             result = data.get("result_data", data)
             rtt = (time.monotonic() - t0) * 1000
-            if data.get("ok", False):
+            ok = data.get("ok", False)
+            if ok:
                 _last_dispatch_ok_at = time.time()
                 _last_dispatch_rtt_ms = rtt
+                _dispatch_ok_count += 1
             else:
                 _last_dispatch_fail_at = time.time()
+                _dispatch_fail_count += 1
             _last_dispatch_operation = operation
+            _record_command(cmd_id, operation, sent_at, rtt, ok)
             return result
     except Exception as exc:
+        rtt = (time.monotonic() - t0) * 1000
         _last_dispatch_fail_at = time.time()
         _last_dispatch_operation = operation
+        _dispatch_fail_count += 1
+        _record_command(cmd_id, operation, sent_at, rtt, False, str(exc))
         log.warning("mesh dispatch failed (%s): %s", operation, exc)
         return None
+
+
+def _record_command(
+    cmd_id: int, operation: str, sent_at: float,
+    rtt_ms: float, success: bool, error: str | None = None,
+) -> None:
+    entry: dict[str, Any] = {
+        "id": cmd_id,
+        "operation": operation,
+        "sent_at": sent_at,
+        "rtt_ms": round(rtt_ms, 1),
+        "success": success,
+    }
+    if error:
+        entry["error"] = error
+    _command_log.append(entry)
+    if len(_command_log) > _COMMAND_LOG_MAX:
+        _command_log[:] = _command_log[-_COMMAND_LOG_MAX:]
 
 
 async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str, Any] | None:
@@ -1698,9 +1846,13 @@ async def _dispatch_to_beast(operation: str, params: dict[str, Any]) -> dict[str
 
 
 async def _command_path_ping_loop() -> None:
-    """Periodically ping Beast with camera.status to keep command_path_ready fresh."""
+    """Periodically ping Beast with camera.status to keep command_path_ready fresh.
+
+    5s cadence: command_path_ready expires after 15s of no successful dispatch,
+    so we must ping faster than that window to keep the control path alive.
+    """
     while True:
-        await asyncio.sleep(30)
+        await asyncio.sleep(5)
         try:
             result = await _dispatch_to_beast("camera.status", {})
             if result and result.get("success"):
@@ -1818,8 +1970,9 @@ def _build_health() -> dict[str, Any]:
     physical_ptz_available = beast_connected
     digital_roi_available = True
     ptz_mode = "physical_ptz" if physical_ptz_available else "digital_roi"
-    # command_path_ready requires beast connected AND a recent successful dispatch
-    dispatch_fresh = (now - _last_dispatch_ok_at) < 120 if _last_dispatch_ok_at > 0 else False
+    # command_path_ready requires beast connected AND a recent successful dispatch.
+    # 15s window: ping loop runs every 5s, so 3 consecutive failures = stale.
+    dispatch_fresh = (now - _last_dispatch_ok_at) < 15 if _last_dispatch_ok_at > 0 else False
     command_path_ready = beast_connected and dispatch_fresh
 
     return {
@@ -1852,6 +2005,8 @@ def _build_health() -> dict[str, Any]:
         "security_mode": "security_harden" if security_active else "normal",
         "diagnostic_overlay_active": _diagnostic_overlay_active,
         "detector_status": _latest_detector_status,
+        "capture_to_relay_ms": _capture_to_relay_ms,
+        "vision_event_count": len(_vision_events),
         "ptz_mode": ptz_mode,
         "physical_ptz_available": physical_ptz_available,
         "digital_roi_available": digital_roi_available,
@@ -1860,7 +2015,11 @@ def _build_health() -> dict[str, Any]:
         "last_dispatch_fail_at": _last_dispatch_fail_at,
         "last_dispatch_operation": _last_dispatch_operation,
         "last_dispatch_rtt_ms": round(_last_dispatch_rtt_ms, 1),
+        "dispatch_total": _dispatch_total,
+        "dispatch_ok_count": _dispatch_ok_count,
+        "dispatch_fail_count": _dispatch_fail_count,
         "roi": _get_roi(),
+        "active_faults": {k: v for k, v in _fault_inject.items() if v},
         "blockers": blockers,
         "recovery_action": recovery_action,
     }
@@ -1877,6 +2036,35 @@ async def _health_server() -> None:
         def do_GET(self) -> None:
             if self.path == "/health":
                 body = json.dumps(_build_health()).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path == "/events" or self.path.startswith("/events?"):
+                since = 0
+                if "?" in self.path:
+                    for part in self.path.split("?", 1)[1].split("&"):
+                        if part.startswith("since_seq="):
+                            since = int(part.split("=", 1)[1])
+                events = [e for e in _vision_events if e["seq"] > since][-100:]
+                body = json.dumps({"events": events, "total": len(_vision_events)}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path == "/commands" or self.path.startswith("/commands?"):
+                last_n = 50
+                if "?" in self.path:
+                    for part in self.path.split("?", 1)[1].split("&"):
+                        if part.startswith("last="):
+                            last_n = min(int(part.split("=", 1)[1]), _COMMAND_LOG_MAX)
+                entries = _command_log[-last_n:]
+                body = json.dumps({
+                    "commands": entries,
+                    "total": _dispatch_total,
+                    "ok": _dispatch_ok_count,
+                    "fail": _dispatch_fail_count,
+                }).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
