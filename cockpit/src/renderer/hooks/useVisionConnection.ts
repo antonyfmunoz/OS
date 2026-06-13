@@ -582,6 +582,8 @@ export function useVisionConnection(): void {
             active_tracks: detStatus.active_tracks as number ?? 0,
             total_tracks: detStatus.total_tracks as number ?? 0,
             device: detStatus.device as string | undefined,
+            nms_device: detStatus.nms_device as string | undefined,
+            nms_fallback: detStatus.nms_fallback as boolean | undefined,
           }
           const device = detStatus.device as string | undefined
           if (device && lastDetectorDevice !== null && lastDetectorDevice !== device) {
@@ -677,6 +679,8 @@ export function useVisionConnection(): void {
             active_tracks: detStatus.active_tracks as number ?? 0,
             total_tracks: detStatus.total_tracks as number ?? 0,
             device: detStatus.device as string | undefined,
+            nms_device: detStatus.nms_device as string | undefined,
+            nms_fallback: detStatus.nms_fallback as boolean | undefined,
           } : null,
           blockers: (d.blockers as string[]) ?? [],
           recoveryAction: d.recovery_action as string ?? '',
