@@ -1,21 +1,8 @@
-import { useVisionStore } from '../../stores/visionStore'
+import { useVisionStore, type OverlayMetadata } from '../../stores/visionStore'
 import { TrackedObjectBox } from './TrackedObjectBox'
 import { PoseSkeletonOverlay } from './PoseSkeletonOverlay'
 import { HandLandmarkOverlay } from './HandLandmarkOverlay'
 import { FaceTrackingOverlay } from './FaceTrackingOverlay'
-
-export interface OverlayMetadata {
-  type: 'object' | 'face' | 'hand' | 'pose' | 'motion' | string
-  track_id: string
-  label: string
-  confidence: number
-  bbox: { x: number; y: number; w: number; h: number }
-  landmarks?: Array<{ x: number; y: number; label?: string }>
-  connections?: Array<[number, number]>
-  color?: string
-  source?: string
-  model?: string
-}
 
 interface VisionOverlayProps {
   overlays?: OverlayMetadata[]

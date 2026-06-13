@@ -1,5 +1,17 @@
 import { create } from 'zustand'
-import type { OverlayMetadata } from '../components/vision/VisionOverlay'
+
+export interface OverlayMetadata {
+  type: 'object' | 'face' | 'hand' | 'pose' | 'motion' | string
+  track_id: string
+  label: string
+  confidence: number
+  bbox: { x: number; y: number; w: number; h: number }
+  landmarks?: Array<{ x: number; y: number; label?: string }>
+  connections?: Array<[number, number]>
+  color?: string
+  source?: string
+  model?: string
+}
 
 export type CameraStatus = 'off' | 'connecting' | 'live' | 'analyzing' | 'error'
 

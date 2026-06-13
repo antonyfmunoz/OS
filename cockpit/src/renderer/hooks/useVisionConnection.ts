@@ -552,7 +552,7 @@ export function useVisionConnection(): void {
       // Overlay events — normalize flat x/y/w/h to bbox structure
       client.on('vision_overlay', (d) => {
         const raw = (d.overlays as Record<string, unknown>[]) || []
-        const overlays: import('../components/vision/VisionOverlay').OverlayMetadata[] = raw.map((o) => ({
+        const overlays: import('../stores/visionStore').OverlayMetadata[] = raw.map((o) => ({
           type: (o.type as string) || 'object',
           track_id: (o.track_id as string) || '',
           label: (o.label as string) || '',
@@ -563,7 +563,7 @@ export function useVisionConnection(): void {
           color: (o.color as string) || undefined,
           source: (o.source as string) || undefined,
           model: (o.model as string) || undefined,
-        })) as import('../components/vision/VisionOverlay').OverlayMetadata[]
+        })) as import('../stores/visionStore').OverlayMetadata[]
         setOverlays(overlays)
         const detStatus = d.detector_status as Record<string, unknown> | null
         const healthUpdate: Partial<import('../stores/visionStore').VisionHealthState> = {
