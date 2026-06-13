@@ -1317,11 +1317,13 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
     _frame_count += 1
 
     # Pipeline latency: capture → relay
+    # Uses wall-clock diff — negative values mean Beast clock is ahead of VPS (NTP skew)
     capture_ts = meta.get("capture_timestamp") or meta.get("timestamp", 0)
     if capture_ts > 0:
         _last_capture_timestamp = capture_ts
         _last_relay_receive_at = now
-        _capture_to_relay_ms = round((now - capture_ts) * 1000, 1)
+        raw_ms = round((now - capture_ts) * 1000, 1)
+        _capture_to_relay_ms = max(0.0, raw_ms) if raw_ms >= -2000 else 0.0
 
     det_status = meta.get("detector_status")
     if _is_fault_active("fake_detector_offline"):
