@@ -34,6 +34,7 @@ export type Panel =
   | 'work'
   | 'vision'
   | 'rooms'
+  | 'broadcast'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
