@@ -241,6 +241,94 @@ export interface NextActionsData {
   active_domains: string[]
 }
 
+// ── Phase 4: Strategic Gap types ──────────────────────────────────
+
+export interface SuccessCriterionData {
+  description: string
+  measurable: boolean
+  current_value: string
+  target_value: string
+  met: boolean
+}
+
+export interface GoalData {
+  goal_id: string
+  title: string
+  description: string
+  goal_type: string
+  status: string
+  domain: string
+  parent_goal_id: string
+  child_goal_ids: string[]
+  success_criteria: SuccessCriterionData[]
+  required_capabilities: string[]
+  required_milestones: string[]
+  dependencies: string[]
+  target_date: string
+  priority: number
+  created_at: number
+  updated_at: number
+}
+
+export interface GapData {
+  gap_id: string
+  goal_id: string
+  title: string
+  description: string
+  gap_type: string
+  severity: string
+  domain: string
+  current_state: string
+  required_state: string
+  blocking_goals: string[]
+  dependencies: string[]
+  estimated_effort: string
+  priority_score: number
+  created_at: number
+}
+
+export interface RecommendationData {
+  recommendation_id: string
+  gap_id: string
+  title: string
+  rationale: string
+  impact_estimate: string
+  risk_estimate: string
+  suggested_domain: string
+  suggested_agents: string[]
+  dependency_chain: string[]
+  priority_score: number
+  status: string
+  converted_packet_id: string
+  decision_reason: string
+  created_at: number
+  decided_at: number
+}
+
+export interface DecisionData {
+  decision_id: string
+  recommendation_id: string
+  gap_id: string
+  goal_id: string
+  action: string
+  reason: string
+  outcome_packet_id: string
+  outcome_summary: string
+  was_effective: boolean | null
+  created_at: number
+}
+
+export interface AnalysisResult {
+  reality: RealitySnapshot
+  goals: GoalData[]
+  gaps: GapData[]
+  gap_count: number
+  recommendations: RecommendationData[]
+  recommendation_count: number
+  top_recommendation: RecommendationData | null
+  analyzed_at: number
+}
+
 interface OperatorLoopState {
   loopStatus: LoopStatus | null
   pendingApprovals: PacketSummary[]
@@ -291,6 +379,27 @@ interface OperatorLoopState {
   fetchNextActions: () => Promise<void>
   fetchPacketsByDomain: () => Promise<void>
   setDomainFilter: (domain: string) => void
+
+  // Phase 4: Strategic Gap state
+  goals: GoalData[]
+  gaps: GapData[]
+  recommendations: RecommendationData[]
+  decisions: DecisionData[]
+  lastAnalysis: AnalysisResult | null
+  strategyLoading: boolean
+
+  // Phase 4: Strategic Gap actions
+  runAnalysis: () => Promise<AnalysisResult | null>
+  fetchGoals: () => Promise<void>
+  addGoal: (goal: Partial<GoalData>) => Promise<GoalData | null>
+  updateGoal: (goalId: string, updates: Partial<GoalData>) => Promise<GoalData | null>
+  deleteGoal: (goalId: string) => Promise<boolean>
+  fetchGaps: () => Promise<void>
+  fetchRecommendations: () => Promise<void>
+  approveRecommendation: (recId: string, reason?: string) => Promise<Record<string, unknown> | null>
+  rejectRecommendation: (recId: string, reason?: string) => Promise<boolean>
+  fetchDecisions: () => Promise<void>
+  recordDecisionOutcome: (decisionId: string, wasEffective: boolean, summary?: string) => Promise<boolean>
 }
 
 export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
@@ -306,6 +415,13 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
   nextActions: null,
   packetsByDomain: {},
   domainFilter: '',
+  // Phase 4 initial state
+  goals: [],
+  gaps: [],
+  recommendations: [],
+  decisions: [],
+  lastAnalysis: null,
+  strategyLoading: false,
   selectedPacket: null,
   lastExecuteResult: null,
   lastPlan: null,
@@ -621,4 +737,150 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
   },
 
   setDomainFilter: (domain: string) => set({ domainFilter: domain }),
+
+  // ── Phase 4: Strategic Gap actions ──────────────────────────────
+
+  runAnalysis: async () => {
+    set({ strategyLoading: true })
+    try {
+      const res = await fetchApi<{ success: boolean } & AnalysisResult>('/strategy/analyze', { method: 'POST' })
+      set({ strategyLoading: false })
+      if (res.success) {
+        set({
+          lastAnalysis: res,
+          goals: res.goals,
+          gaps: res.gaps,
+          recommendations: res.recommendations,
+        })
+        return res
+      }
+      return null
+    } catch {
+      set({ strategyLoading: false, lastError: 'Failed to run analysis' })
+      return null
+    }
+  },
+
+  fetchGoals: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; goals: GoalData[] }>('/strategy/goals')
+      if (res.success) set({ goals: res.goals })
+    } catch {
+      set({ goals: [] })
+    }
+  },
+
+  addGoal: async (goal) => {
+    try {
+      const res = await fetchApi<{ success: boolean; goal: GoalData }>('/strategy/goals/add', {
+        method: 'POST',
+        body: JSON.stringify(goal),
+      })
+      if (res.success) {
+        get().fetchGoals()
+        return res.goal
+      }
+      return null
+    } catch {
+      set({ lastError: 'Failed to add goal' })
+      return null
+    }
+  },
+
+  updateGoal: async (goalId, updates) => {
+    try {
+      const res = await fetchApi<{ success: boolean; goal: GoalData }>(`/strategy/goals/${goalId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      })
+      if (res.success) {
+        get().fetchGoals()
+        return res.goal
+      }
+      return null
+    } catch {
+      set({ lastError: 'Failed to update goal' })
+      return null
+    }
+  },
+
+  deleteGoal: async (goalId) => {
+    try {
+      const res = await fetchApi<{ success: boolean }>(`/strategy/goals/${goalId}`, { method: 'DELETE' })
+      if (res.success) get().fetchGoals()
+      return res.success ?? false
+    } catch {
+      return false
+    }
+  },
+
+  fetchGaps: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; gaps: GapData[] }>('/strategy/gaps')
+      if (res.success) set({ gaps: res.gaps })
+    } catch {
+      set({ gaps: [] })
+    }
+  },
+
+  fetchRecommendations: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; recommendations: RecommendationData[] }>('/strategy/recommendations')
+      if (res.success) set({ recommendations: res.recommendations })
+    } catch {
+      set({ recommendations: [] })
+    }
+  },
+
+  approveRecommendation: async (recId, reason = '') => {
+    try {
+      const res = await fetchApi<{ success: boolean; routing?: unknown; packet_id?: string }>(`/strategy/recommendations/${recId}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      })
+      if (res.success) {
+        get().fetchRecommendations()
+        get().fetchActivePackets()
+        get().fetchPendingApprovals()
+      }
+      return res.success ? (res as Record<string, unknown>) : null
+    } catch {
+      return null
+    }
+  },
+
+  rejectRecommendation: async (recId, reason = '') => {
+    try {
+      const res = await fetchApi<{ success: boolean }>(`/strategy/recommendations/${recId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      })
+      if (res.success) get().fetchRecommendations()
+      return res.success ?? false
+    } catch {
+      return false
+    }
+  },
+
+  fetchDecisions: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; decisions: DecisionData[] }>('/strategy/decisions')
+      if (res.success) set({ decisions: res.decisions })
+    } catch {
+      set({ decisions: [] })
+    }
+  },
+
+  recordDecisionOutcome: async (decisionId, wasEffective, summary = '') => {
+    try {
+      const res = await fetchApi<{ success: boolean }>(`/strategy/decisions/${decisionId}/outcome`, {
+        method: 'POST',
+        body: JSON.stringify({ was_effective: wasEffective, summary }),
+      })
+      if (res.success) get().fetchDecisions()
+      return res.success ?? false
+    } catch {
+      return false
+    }
+  },
 }))
