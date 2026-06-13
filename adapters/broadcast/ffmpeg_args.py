@@ -69,7 +69,7 @@ def build_args(
 
     args.extend(["-progress", "pipe:1", "-stats_period", "1"])
 
-    args.append(output_url)
+    args.append(_validate_output_url(output_url))
 
     return args
 
@@ -129,6 +129,22 @@ def _input_args(
         return args
 
     raise ValueError(f"Unknown source type: {source_type}")
+
+
+_ALLOWED_OUTPUT_SCHEMES = frozenset({"rtmp", "rtmps", "srt"})
+
+
+def _validate_output_url(url: str) -> str:
+    """Validate output URL — only streaming protocols, no file/http/local writes."""
+    if url.startswith("-"):
+        raise ValueError("Output URL must not start with '-'")
+    parsed = urlparse(url)
+    if parsed.scheme not in _ALLOWED_OUTPUT_SCHEMES:
+        raise ValueError(
+            f"Disallowed output scheme: {parsed.scheme!r} "
+            f"(allowed: {', '.join(sorted(_ALLOWED_OUTPUT_SCHEMES))})"
+        )
+    return url
 
 
 def _reject_private_host(hostname: str) -> None:
