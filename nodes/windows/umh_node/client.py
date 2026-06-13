@@ -18,6 +18,7 @@ import json
 import logging
 import platform
 import socket
+import struct
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
@@ -96,26 +97,19 @@ class NodeClient:
     def _on_camera_frame(self, frame_data: dict[str, Any]) -> None:
         """Called from camera stream thread — enqueues frame for async send.
 
+        Sends binary WS frames: [4-byte meta_len][JSON meta][JPEG bytes].
+        Saves ~33% bandwidth vs base64 JSON-RPC encoding.
         NEVER blocks on WS send. Uses bounded deque with drop-oldest semantics.
-        The media drain task picks frames off the queue and sends them.
         """
         if not self._connected or self._ws is None or self._loop is None:
             return
         try:
-            msg = json.dumps({
-                "jsonrpc": "2.0",
-                "method": "signal.emit",
-                "params": {
-                    "content_type": "camera.frame",
-                    "payload": frame_data,
-                    "urgency": "LOW",
-                    "signal_class": "camera_frame",
-                },
-                "id": self._next_id(),
-            })
-            # deque(maxlen=N) auto-drops oldest when full — no blocking
+            jpeg_bytes = frame_data.pop("image_jpeg", None)
+            if jpeg_bytes is None:
+                return
+            meta_bytes = json.dumps(frame_data).encode()
+            msg = struct.pack(">I", len(meta_bytes)) + meta_bytes + jpeg_bytes
             self._media_queue.append(msg)
-            # Wake the drain task (thread-safe)
             self._loop.call_soon_threadsafe(self._media_event.set)
         except Exception as exc:
             logger.debug("frame enqueue failed: %s", exc)
