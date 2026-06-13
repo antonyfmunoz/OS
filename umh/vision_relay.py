@@ -346,6 +346,14 @@ _fault_inject: dict[str, bool] = {
     "fake_detector_offline": False,
     "high_latency": False,
 }
+_broadcast_lock: asyncio.Lock | None = None
+
+
+def _get_broadcast_lock() -> asyncio.Lock:
+    global _broadcast_lock
+    if _broadcast_lock is None:
+        _broadcast_lock = asyncio.Lock()
+    return _broadcast_lock
 
 
 def _is_fault_active(fault: str) -> bool:
@@ -1591,7 +1599,8 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
         return
 
     if _is_fault_active("high_latency"):
-        await asyncio.sleep(0.5)
+        async with _get_broadcast_lock():
+            await asyncio.sleep(0.5)
 
     _latest_frame = jpeg_bytes
     _latest_frame_meta = meta
