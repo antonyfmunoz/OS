@@ -1,4 +1,5 @@
 import { WsClient } from './websocket'
+import { getClerkToken, getWsToken } from './client'
 
 function getBroadcastUrl(): string {
   if (import.meta.env.VITE_BROADCAST_URL) return import.meta.env.VITE_BROADCAST_URL as string
@@ -17,6 +18,13 @@ function getBroadcastUrl(): string {
 }
 
 const BROADCAST_URL = getBroadcastUrl()
+
+async function getWsProtocols(): Promise<string[] | undefined> {
+  const clerkToken = await getClerkToken()
+  if (clerkToken) return [`bearer.${clerkToken}`]
+  const wsToken = getWsToken()
+  return wsToken ? [`bearer.${wsToken}`] : undefined
+}
 
 export interface BroadcastHealthMetrics {
   frame: number
@@ -43,12 +51,11 @@ export interface BroadcastPulse {
 type BroadcastEventHandler = (data: BroadcastPulse) => void
 
 export class BroadcastWsClient {
-  private ws: WsClient
+  private ws: WsClient | null = null
   private handlers: Set<BroadcastEventHandler> = new Set()
 
-  constructor() {
-    this.ws = new WsClient(BROADCAST_URL)
-    this.ws.on('broadcast_pulse', (data: BroadcastPulse) => {
+  private _bindHandlers(client: WsClient): void {
+    client.on('broadcast_pulse', (data: BroadcastPulse) => {
       for (const handler of this.handlers) {
         try {
           handler(data)
@@ -60,33 +67,30 @@ export class BroadcastWsClient {
   }
 
   connect(): void {
-    this.ws.connect()
+    getWsProtocols().then((protocols) => {
+      if (this.ws) return
+      this.ws = new WsClient(BROADCAST_URL, protocols)
+      this._bindHandlers(this.ws)
+      this.ws.connect()
+    })
   }
 
   disconnect(): void {
-    this.ws.disconnect()
+    this.ws?.disconnect()
     this.handlers.clear()
+    this.ws = null
   }
 
   reconnect(): void {
-    this.ws.disconnect()
+    this.ws?.disconnect()
+    this.ws = null
     setTimeout(() => {
-      this.ws = new WsClient(BROADCAST_URL)
-      this.ws.on('broadcast_pulse', (data: BroadcastPulse) => {
-        for (const handler of this.handlers) {
-          try {
-            handler(data)
-          } catch {
-            // handler error
-          }
-        }
-      })
-      this.ws.connect()
+      this.connect()
     }, 500)
   }
 
   get connected(): boolean {
-    return this.ws.connected
+    return this.ws?.connected ?? false
   }
 
   on(handler: BroadcastEventHandler): () => void {
