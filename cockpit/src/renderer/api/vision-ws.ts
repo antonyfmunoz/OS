@@ -153,6 +153,9 @@ export type VisionEvent =
   | { type: 'command_log'; commands: Array<{ id: number; operation: string; sent_at: number; rtt_ms: number; success: boolean; error?: string }>; total: number; ok: number; fail: number }
   | { type: 'fault_inject_ack'; fault?: string; active?: boolean; error?: string; faults: Record<string, boolean> }
   | { type: 'fault_status'; faults: Record<string, boolean> }
+  | { type: 'authority_state'; current: string; accepted?: boolean; log: Array<{ at: number; from: string; to: string; reason: string }> }
+  | { type: 'pipeline_metrics'; measured_fps: number; avg_ingest_ms: number; avg_broadcast_ms: number; p95_ingest_ms: number; avg_frame_bytes: number; avg_jitter_ms: number; max_jitter_ms: number; samples: number }
+  | { type: 'camera_registry'; cameras: Record<string, unknown>; active: string }
 
 function getVisionProtocols(): string[] {
   const token = import.meta.env.VITE_VISION_TOKEN as string | undefined
@@ -379,6 +382,29 @@ export class VisionWsClient {
 
   requestFaultStatus(): void {
     this.ws.send('fault_status')
+  }
+
+  // ── Authority ───────────────────────────────────────────────────
+
+  claimAuthority(who: string, reason = ''): void {
+    log('authority_claim', { who, reason })
+    this.ws.send('authority_claim', { who, reason })
+  }
+
+  requestAuthorityState(): void {
+    this.ws.send('authority_state')
+  }
+
+  // ── Pipeline metrics ────────────────────────────────────────────
+
+  requestPipelineMetrics(): void {
+    this.ws.send('pipeline_metrics')
+  }
+
+  // ── Camera registry ─────────────────────────────────────────────
+
+  requestCameraRegistry(): void {
+    this.ws.send('camera_registry')
   }
 
   // ── PTZ control ─────────────────────────────────────────────────

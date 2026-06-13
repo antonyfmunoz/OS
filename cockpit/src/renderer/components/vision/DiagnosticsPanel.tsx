@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { useVisionStore, type MotionState, type StreamMetrics, type QualityMode } from '../../stores/visionStore'
+import { useVisionStore, type MotionState, type StreamMetrics, type QualityMode, type RelayPipelineMetrics } from '../../stores/visionStore'
 
 const QUALITY_DESCRIPTIONS: Record<QualityMode, string> = {
   smooth: '720p 30fps',
@@ -34,6 +34,7 @@ export function DiagnosticsPanel({
   const labelCorrections = useVisionStore((s) => s.labelCorrections)
   const authorityLog = useVisionStore((s) => s.authority.log)
   const pipelineLatency = useVisionStore((s) => s.pipelineLatency)
+  const relayMetrics = useVisionStore((s) => s.relayPipelineMetrics)
   const visionEvents = useVisionStore((s) => s.visionEvents)
   const commandTelemetry = useVisionStore((s) => s.commandTelemetry)
   const [expanded, setExpanded] = useState(false)
@@ -168,6 +169,29 @@ export function DiagnosticsPanel({
               pipelineLatency.endToEndMs > 1000 ? 'text-danger' : pipelineLatency.endToEndMs > 500 ? 'text-warning' : 'text-ok',
             )}>{pipelineLatency.endToEndMs > 0 ? `${pipelineLatency.endToEndMs.toFixed(0)}ms` : '—'}</span></span>
           </div>
+
+          {/* Relay pipeline metrics (defense-grade) */}
+          {relayMetrics.samples > 0 && (
+            <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-cyan/20 rounded p-2">
+              <span className="col-span-3 text-text-quaternary uppercase tracking-wider mb-0.5">relay pipeline</span>
+              <span>measured_fps: <span className={clsx(
+                relayMetrics.measuredFps >= 12 ? 'text-ok' : relayMetrics.measuredFps >= 5 ? 'text-warning' : 'text-danger',
+              )}>{relayMetrics.measuredFps.toFixed(1)}</span></span>
+              <span>ingest: <span className={clsx(
+                relayMetrics.avgIngestMs > 50 ? 'text-danger' : relayMetrics.avgIngestMs > 20 ? 'text-warning' : 'text-ok',
+              )}>{relayMetrics.avgIngestMs.toFixed(1)}ms</span></span>
+              <span>broadcast: <span className={clsx(
+                relayMetrics.avgBroadcastMs > 30 ? 'text-danger' : relayMetrics.avgBroadcastMs > 10 ? 'text-warning' : 'text-ok',
+              )}>{relayMetrics.avgBroadcastMs.toFixed(1)}ms</span></span>
+              <span>p95_ingest: <span className={clsx(
+                relayMetrics.p95IngestMs > 100 ? 'text-danger' : relayMetrics.p95IngestMs > 50 ? 'text-warning' : 'text-ok',
+              )}>{relayMetrics.p95IngestMs.toFixed(1)}ms</span></span>
+              <span>frame_size: {(relayMetrics.avgFrameBytes / 1024).toFixed(0)} KB</span>
+              <span>jitter: <span className={clsx(
+                relayMetrics.maxJitterMs > 100 ? 'text-danger' : relayMetrics.maxJitterMs > 50 ? 'text-warning' : 'text-ok',
+              )}>{relayMetrics.avgJitterMs.toFixed(1)} / {relayMetrics.maxJitterMs.toFixed(0)}ms</span></span>
+            </div>
+          )}
 
           {/* Blockers */}
           {chainHealth.blockers.length > 0 && (
