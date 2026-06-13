@@ -2569,6 +2569,8 @@ async def _frame_ingest_ws_handler(ws: Any) -> None:
                 continue
             try:
                 meta = json.loads(meta_json) if meta_json else {}
+                if not isinstance(meta, dict):
+                    meta = {}
             except Exception:
                 meta = {}
             frame_n += 1
@@ -2604,7 +2606,7 @@ async def main() -> None:
     asyncio.create_task(_command_path_ping_loop())
 
     ingest_server = await websockets.serve(
-        _frame_ingest_ws_handler, HOST, ingest_port,
+        _frame_ingest_ws_handler, "127.0.0.1", ingest_port,
         ping_interval=10, ping_timeout=20, max_size=MAX_FRAME_BYTES + 65536,
     )
 
