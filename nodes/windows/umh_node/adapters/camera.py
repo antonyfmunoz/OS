@@ -135,7 +135,7 @@ class CameraAdapter:
             else:
                 return {"success": False, "error": "failed to capture frame after 5 attempts"}
 
-            encode_params = [cv2.IMWRITE_JPEG_QUALITY, quality]
+            encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), int(quality)]
             success, buf = cv2.imencode(".jpg", frame, encode_params)
             if not success:
                 return {"success": False, "error": "JPEG encoding failed"}
@@ -250,7 +250,7 @@ class CameraAdapter:
             self._stream_active = False
             return
 
-        encode_params = [cv2.IMWRITE_JPEG_QUALITY, quality]
+        encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), int(quality)]
         frame_n = 0
 
         try:
