@@ -2,12 +2,13 @@
 
 Uses OpenCV for frame capture and duvc-ctl for hardware pan/tilt/zoom.
 Supports preset positions (physically moves the gimbal), snapshot capture,
-and low-FPS preview streaming via signal emission.
+and streaming with decoupled perception pipeline.
 """
 
 from __future__ import annotations
 
 import base64
+import copy
 import json
 import logging
 import queue
@@ -18,6 +19,19 @@ from pathlib import Path
 from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
+
+# ── Camera profiles ──────────────────────────────────────────────
+# Each profile specifies capture resolution, FPS target, and JPEG quality.
+# The actual negotiated values depend on hardware capability.
+
+CAMERA_PROFILES: dict[str, dict[str, Any]] = {
+    "smooth":   {"width": 1280, "height": 720,  "fps": 30, "quality": 55, "label": "720p30 Smooth"},
+    "balanced": {"width": 1280, "height": 720,  "fps": 30, "quality": 70, "label": "720p30 Balanced"},
+    "high":     {"width": 1920, "height": 1080, "fps": 30, "quality": 80, "label": "1080p30 High"},
+    "perf":     {"width": 1920, "height": 1080, "fps": 60, "quality": 65, "label": "1080p60 Performance"},
+    "quality":  {"width": 3840, "height": 2160, "fps": 15, "quality": 85, "label": "4K15 Quality"},
+    "analysis": {"width": 1920, "height": 1080, "fps": 5,  "quality": 95, "label": "1080p5 Analysis"},
+}
 
 _DEFAULT_PRESETS_PATH = (
     Path("C:\\ProgramData\\UMH\\camera_presets.json")
@@ -49,12 +63,29 @@ class CameraAdapter:
 
         self._ptz_queue: queue.Queue[tuple[dict[str, Any], threading.Event, list]] = queue.Queue()
 
+        # Decoupled detector — runs on its own thread, never blocks preview
         self._detector = None
         self._detect_min_interval = 0.5
         self._detect_last_at = 0.0
         self._detection_enabled = True
         self._detect_error_count = 0
         self._detect_error_last_log = 0.0
+        self._detect_thread: threading.Thread | None = None
+        self._detect_frame: Any = None
+        self._detect_frame_lock = threading.Lock()
+        self._detect_results: dict[str, Any] = {}
+        self._detect_results_lock = threading.Lock()
+
+        # Stream metrics
+        self._stream_frame_count = 0
+        self._stream_dropped = 0
+        self._stream_profile = "balanced"
+        self._negotiated_width = 0
+        self._negotiated_height = 0
+        self._negotiated_fps = 0.0
+        self._measured_fps_window: list[float] = []
+        self._stream_bytes_total = 0
+
         self._init_detector()
 
     def _init_detector(self) -> None:
@@ -99,6 +130,9 @@ class CameraAdapter:
             "camera.delete_preset": self._delete_preset,
             "camera.correct_label": self._correct_label,
             "camera.label_corrections": self._label_corrections_list,
+            "camera.capabilities": self._query_capabilities,
+            "camera.set_profile": self._set_profile,
+            "camera.stream_metrics": self._stream_metrics,
         }
         handler = ops.get(operation)
         if handler is None:
@@ -163,11 +197,26 @@ class CameraAdapter:
             if self._stream_thread and self._stream_thread.is_alive():
                 self._stream_thread.join(timeout=3.0)
 
-        fps = min(params.get("fps", 2), 30)
-        width = params.get("width", 640)
-        height = params.get("height", 480)
-        quality = params.get("quality", 60)
+        profile_name = params.get("profile", "")
+        if profile_name and profile_name in CAMERA_PROFILES:
+            profile = CAMERA_PROFILES[profile_name]
+            fps = min(params.get("fps", profile["fps"]), 60)
+            width = params.get("width", profile["width"])
+            height = params.get("height", profile["height"])
+            quality = params.get("quality", profile["quality"])
+            self._stream_profile = profile_name
+        else:
+            fps = min(params.get("fps", 30), 60)
+            width = params.get("width", 1280)
+            height = params.get("height", 720)
+            quality = params.get("quality", 70)
+            self._stream_profile = "balanced"
+
         device = params.get("device_index", self._device_index)
+        self._stream_frame_count = 0
+        self._stream_dropped = 0
+        self._stream_bytes_total = 0
+        self._measured_fps_window = []
 
         self._stream_active = True
         self._stream_thread = threading.Thread(
@@ -177,11 +226,19 @@ class CameraAdapter:
             name="camera-stream",
         )
         self._stream_thread.start()
-        logger.info("camera stream started: %dx%d @%dfps q%d", width, height, fps, quality)
-        return {"success": True, "fps": fps, "width": width, "height": height, "quality": quality}
+
+        # Start decoupled detector thread
+        if self._detection_enabled and self._detector is not None:
+            self._start_detect_thread()
+
+        logger.info("camera stream started: %dx%d @%dfps q%d profile=%s", width, height, fps, quality, self._stream_profile)
+        return {"success": True, "fps": fps, "width": width, "height": height, "quality": quality, "profile": self._stream_profile}
 
     def _stream_stop(self, params: dict[str, Any]) -> dict[str, Any]:
         self._stream_active = False
+        if self._detect_thread and self._detect_thread.is_alive():
+            self._detect_thread.join(timeout=3.0)
+            self._detect_thread = None
         if self._stream_thread:
             self._stream_thread.join(timeout=3.0)
             self._stream_thread = None
@@ -221,6 +278,101 @@ class CameraAdapter:
             finally:
                 done_event.set()
 
+    def _start_detect_thread(self) -> None:
+        """Launch detector on its own thread — preview never waits on inference."""
+        if self._detect_thread and self._detect_thread.is_alive():
+            return
+        self._detect_thread = threading.Thread(
+            target=self._detect_loop,
+            daemon=True,
+            name="camera-detect",
+        )
+        self._detect_thread.start()
+        logger.info("detector thread started (decoupled from preview)")
+
+    def _detect_loop(self) -> None:
+        """Continuously runs YOLO on the latest frame, independent of preview cadence."""
+        while self._stream_active:
+            with self._detect_frame_lock:
+                frame = self._detect_frame
+            if frame is None:
+                time.sleep(0.05)
+                continue
+
+            now_mono = time.monotonic()
+            if (now_mono - self._detect_last_at) < self._detect_min_interval:
+                time.sleep(0.02)
+                continue
+
+            if self._detector is None or not self._detector.loaded:
+                time.sleep(0.5)
+                continue
+
+            try:
+                detections = self._detector.detect(frame)
+                infer_ms = self._detector._last_inference_ms
+                self._detect_last_at = time.monotonic()
+
+                if infer_ms > 400:
+                    self._detect_min_interval = min(self._detect_min_interval * 1.5, 5.0)
+                elif infer_ms < 150 and self._detect_min_interval > 0.5:
+                    self._detect_min_interval = max(self._detect_min_interval * 0.8, 0.5)
+
+                det_status = self._detector.get_status()
+                results: dict[str, Any] = {
+                    "detector_status": {
+                        "source": "beast",
+                        "host": "windows-desktop",
+                        "model": det_status["model"],
+                        "loaded": det_status["loaded"],
+                        "device": det_status.get("device", "cpu"),
+                        "nms_device": det_status.get("nms_device", "cpu"),
+                        "nms_fallback": det_status.get("nms_fallback", False),
+                        "inference_ms": det_status["last_inference_ms"],
+                        "avg_inference_ms": det_status["avg_inference_ms"],
+                        "detection_frames": det_status["frame_count"],
+                        "detect_interval": self._detect_min_interval,
+                        "tracker_active": det_status.get("tracker_active", False),
+                        "active_tracks": det_status.get("active_tracks", 0),
+                        "total_tracks": det_status.get("total_tracks", 0),
+                        "consecutive_errors": det_status.get("consecutive_errors", 0),
+                    },
+                    "timestamp": time.time(),
+                }
+                if detections:
+                    results["overlays"] = [
+                        {
+                            "track_id": str(d.get("track_id", d.get("id", f"det_{i}"))),
+                            "label": d["label"],
+                            "confidence": d["confidence"],
+                            "x": d["bbox"]["x"],
+                            "y": d["bbox"]["y"],
+                            "w": d["bbox"]["w"],
+                            "h": d["bbox"]["h"],
+                            "source": "real",
+                            "model": d.get("model", "yolov8n"),
+                            "age_frames": d.get("age_frames", 0),
+                            "lost_frames": d.get("lost_frames", 0),
+                            "status": d.get("status", "active"),
+                            "velocity": d.get("velocity", [0, 0]),
+                            "first_seen": d.get("first_seen", 0),
+                            "last_seen": d.get("last_seen", 0),
+                        }
+                        for i, d in enumerate(detections)
+                    ]
+                with self._detect_results_lock:
+                    self._detect_results = results
+            except Exception as exc:
+                self._detect_error_count += 1
+                now_err = time.monotonic()
+                if now_err - self._detect_error_last_log >= 30.0:
+                    logger.warning(
+                        "detection error (count=%d): %s",
+                        self._detect_error_count, type(exc).__name__,
+                    )
+                    self._detect_error_last_log = now_err
+                time.sleep(0.1)
+
     def _stream_loop(
         self, device: int, fps: int, width: int, height: int, quality: int,
     ) -> None:
@@ -242,6 +394,8 @@ class CameraAdapter:
             if cap.isOpened():
                 cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
                 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+                if fps >= 30:
+                    cap.set(cv2.CAP_PROP_FPS, fps)
                 return True
             return False
 
@@ -249,6 +403,14 @@ class CameraAdapter:
             logger.error("camera stream: device %d unavailable", device)
             self._stream_active = False
             return
+
+        actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        actual_fps = cap.get(cv2.CAP_PROP_FPS) or fps
+        self._negotiated_width = actual_w
+        self._negotiated_height = actual_h
+        self._negotiated_fps = actual_fps
+        logger.info("negotiated: %dx%d @%.1ffps (requested %dx%d @%d)", actual_w, actual_h, actual_fps, width, height, fps)
 
         encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), int(quality)]
         frame_n = 0
@@ -279,7 +441,17 @@ class CameraAdapter:
                 consecutive_failures = 0
                 success, buf = cv2.imencode(".jpg", frame, encode_params)
                 if success and self._frame_callback:
-                    encoded = base64.b64encode(buf.tobytes()).decode("ascii")
+                    frame_bytes = buf.tobytes()
+                    encoded = base64.b64encode(frame_bytes).decode("ascii")
+                    self._stream_frame_count += 1
+                    self._stream_bytes_total += len(frame_bytes)
+
+                    # Track measured FPS
+                    now_mono_fps = time.monotonic()
+                    self._measured_fps_window.append(now_mono_fps)
+                    cutoff = now_mono_fps - 2.0
+                    self._measured_fps_window = [t for t in self._measured_fps_window if t >= cutoff]
+
                     payload: dict[str, Any] = {
                         "type": "camera_frame",
                         "image_base64": encoded,
@@ -287,75 +459,24 @@ class CameraAdapter:
                         "height": frame.shape[0],
                         "quality": quality,
                         "timestamp": time.time(),
-                        "size_bytes": len(buf),
+                        "size_bytes": len(frame_bytes),
+                        "capture_timestamp": time.time(),
+                        "profile": self._stream_profile,
+                        "frame_seq": self._stream_frame_count,
                     }
 
-                    now_mono = time.monotonic()
-                    detect_due = (now_mono - self._detect_last_at) >= self._detect_min_interval
-                    if (self._detection_enabled
-                            and self._detector is not None
-                            and self._detector.loaded
-                            and detect_due):
-                        try:
-                            detections = self._detector.detect(frame)
-                            infer_ms = self._detector._last_inference_ms
-                            self._detect_last_at = time.monotonic()
-                            if infer_ms > 400:
-                                self._detect_min_interval = min(self._detect_min_interval * 1.5, 5.0)
-                                logger.info("detection backpressure: inference %.0fms, interval now %.2fs", infer_ms, self._detect_min_interval)
-                            elif infer_ms < 150 and self._detect_min_interval > 0.5:
-                                self._detect_min_interval = max(self._detect_min_interval * 0.8, 0.5)
-                            if frame_n % 45 == 0:
-                                logger.info("detection frame %d: %d objects, %.0fms, interval %.2fs", frame_n, len(detections), infer_ms, self._detect_min_interval)
-                            det_status = self._detector.get_status()
-                            payload["detector_status"] = {
-                                "source": "beast",
-                                "host": "windows-desktop",
-                                "model": det_status["model"],
-                                "loaded": det_status["loaded"],
-                                "device": det_status.get("device", "cpu"),
-                                "nms_device": det_status.get("nms_device", "cpu"),
-                                "nms_fallback": det_status.get("nms_fallback", False),
-                                "inference_ms": det_status["last_inference_ms"],
-                                "avg_inference_ms": det_status["avg_inference_ms"],
-                                "detection_frames": det_status["frame_count"],
-                                "detect_interval": self._detect_min_interval,
-                                "tracker_active": det_status.get("tracker_active", False),
-                                "active_tracks": det_status.get("active_tracks", 0),
-                                "total_tracks": det_status.get("total_tracks", 0),
-                                "consecutive_errors": det_status.get("consecutive_errors", 0),
-                            }
-                            payload["capture_timestamp"] = time.time()
-                            if detections:
-                                payload["overlays"] = [
-                                    {
-                                        "track_id": str(d.get("track_id", d.get("id", f"det_{frame_n}_{i}"))),
-                                        "label": d["label"],
-                                        "confidence": d["confidence"],
-                                        "x": d["bbox"]["x"],
-                                        "y": d["bbox"]["y"],
-                                        "w": d["bbox"]["w"],
-                                        "h": d["bbox"]["h"],
-                                        "source": "real",
-                                        "model": d.get("model", "yolov8n"),
-                                        "age_frames": d.get("age_frames", 0),
-                                        "lost_frames": d.get("lost_frames", 0),
-                                        "status": d.get("status", "active"),
-                                        "velocity": d.get("velocity", [0, 0]),
-                                        "first_seen": d.get("first_seen", 0),
-                                        "last_seen": d.get("last_seen", 0),
-                                    }
-                                    for i, d in enumerate(detections)
-                                ]
-                        except Exception as exc:
-                            self._detect_error_count += 1
-                            now_err = time.monotonic()
-                            if now_err - self._detect_error_last_log >= 30.0:
-                                logger.warning(
-                                    "detection error (count=%d): %s",
-                                    self._detect_error_count, type(exc).__name__,
-                                )
-                                self._detect_error_last_log = now_err
+                    # Feed frame to detector thread (non-blocking)
+                    with self._detect_frame_lock:
+                        self._detect_frame = frame.copy()
+
+                    # Attach latest detection results (never blocks preview)
+                    with self._detect_results_lock:
+                        det = self._detect_results
+                    if det:
+                        if "detector_status" in det:
+                            payload["detector_status"] = det["detector_status"]
+                        if "overlays" in det:
+                            payload["overlays"] = det["overlays"]
 
                     self._frame_callback(payload)
 
@@ -982,14 +1103,24 @@ class CameraAdapter:
 
     def _status(self, params: dict[str, Any]) -> dict[str, Any]:
         det = self.get_detector_status()
-        return {
+        status: dict[str, Any] = {
             "success": True,
             "streaming": self._stream_active,
             "device_index": self._device_index,
             "presets_loaded": len(self._presets),
             "detector": det,
             "detect_interval": round(self._detect_min_interval, 2),
+            "profile": self._stream_profile,
+            "negotiated_width": self._negotiated_width,
+            "negotiated_height": self._negotiated_height,
+            "negotiated_fps": round(self._negotiated_fps, 1),
         }
+        if self._stream_active:
+            metrics = self._stream_metrics({})
+            status["measured_fps"] = metrics.get("measured_fps", 0)
+            status["bitrate_kbps"] = metrics.get("bitrate_kbps", 0)
+            status["total_frames"] = metrics.get("total_frames", 0)
+        return status
 
     def _detector_status(self, params: dict[str, Any]) -> dict[str, Any]:
         return {"success": True, **self.get_detector_status()}
@@ -1041,6 +1172,138 @@ class CameraAdapter:
         if self._detector is None:
             return {"success": False, "error": "detector not initialized"}
         return {"success": True, "corrections": self._detector.get_label_corrections()}
+
+    # ── Camera capability negotiation ────────────────────────────────
+
+    def _query_capabilities(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Probe camera for supported resolutions and FPS."""
+        import cv2
+
+        test_modes = [
+            {"width": 1280, "height": 720, "label": "720p"},
+            {"width": 1920, "height": 1080, "label": "1080p"},
+            {"width": 3840, "height": 2160, "label": "4K"},
+        ]
+        supported: list[dict[str, Any]] = []
+        device = params.get("device_index", self._device_index)
+
+        if self._stream_active:
+            supported.append({
+                "width": self._negotiated_width,
+                "height": self._negotiated_height,
+                "fps": self._negotiated_fps,
+                "label": f"{self._negotiated_height}p",
+                "verified": True,
+                "active": True,
+            })
+            for mode in test_modes:
+                if mode["width"] != self._negotiated_width or mode["height"] != self._negotiated_height:
+                    supported.append({
+                        "width": mode["width"],
+                        "height": mode["height"],
+                        "fps": 0,
+                        "label": mode["label"],
+                        "verified": False,
+                        "active": False,
+                    })
+            return {
+                "success": True,
+                "modes": supported,
+                "profiles": CAMERA_PROFILES,
+                "active_profile": self._stream_profile,
+                "note": "stream active — non-active modes unverified",
+            }
+
+        cap = cv2.VideoCapture(device, cv2.CAP_DSHOW)
+        if not cap.isOpened():
+            return {"success": False, "error": "camera unavailable"}
+        try:
+            for mode in test_modes:
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, mode["width"])
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, mode["height"])
+                actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                actual_fps = cap.get(cv2.CAP_PROP_FPS) or 0
+
+                matched = (actual_w == mode["width"] and actual_h == mode["height"])
+                if matched or actual_w >= mode["width"] * 0.9:
+                    ret, _ = cap.read()
+                    supported.append({
+                        "width": actual_w,
+                        "height": actual_h,
+                        "fps": round(actual_fps, 1),
+                        "label": mode["label"],
+                        "verified": ret,
+                        "active": False,
+                    })
+        finally:
+            cap.release()
+
+        return {
+            "success": True,
+            "modes": supported,
+            "profiles": CAMERA_PROFILES,
+            "active_profile": self._stream_profile,
+        }
+
+    def _set_profile(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Switch to a named camera profile. Restarts stream with new params."""
+        profile_name = params.get("profile", "")
+        if profile_name not in CAMERA_PROFILES:
+            return {
+                "success": False,
+                "error": f"unknown profile: {profile_name}",
+                "available": list(CAMERA_PROFILES.keys()),
+            }
+        profile = CAMERA_PROFILES[profile_name]
+        was_streaming = self._stream_active
+        if was_streaming:
+            self._stream_stop({})
+
+        result = self._stream_start({
+            "profile": profile_name,
+            "fps": profile["fps"],
+            "width": profile["width"],
+            "height": profile["height"],
+            "quality": profile["quality"],
+        })
+        result["profile"] = profile_name
+        result["profile_label"] = profile["label"]
+        return result
+
+    def _stream_metrics(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Return live stream performance metrics."""
+        now = time.monotonic()
+        cutoff = now - 2.0
+        recent = [t for t in self._measured_fps_window if t >= cutoff]
+        measured_fps = len(recent) / 2.0 if len(recent) >= 2 else 0.0
+
+        avg_frame_bytes = 0
+        if self._stream_frame_count > 0:
+            avg_frame_bytes = self._stream_bytes_total // self._stream_frame_count
+
+        bitrate_bps = int(measured_fps * avg_frame_bytes * 8) if measured_fps > 0 else 0
+
+        det_status = self.get_detector_status()
+        return {
+            "success": True,
+            "profile": self._stream_profile,
+            "negotiated_width": self._negotiated_width,
+            "negotiated_height": self._negotiated_height,
+            "negotiated_fps": round(self._negotiated_fps, 1),
+            "measured_fps": round(measured_fps, 1),
+            "total_frames": self._stream_frame_count,
+            "dropped_frames": self._stream_dropped,
+            "avg_frame_bytes": avg_frame_bytes,
+            "bitrate_bps": bitrate_bps,
+            "bitrate_kbps": bitrate_bps // 1000,
+            "detector_fps": round(1.0 / max(self._detect_min_interval, 0.001), 1),
+            "detector_inference_ms": det_status.get("last_inference_ms", 0),
+            "detector_device": det_status.get("device", "unknown"),
+            "detector_nms_device": det_status.get("nms_device", "unknown"),
+            "tracker_active": det_status.get("tracker_active", False),
+            "tracker_active_tracks": det_status.get("active_tracks", 0),
+        }
 
 
 def _default_presets() -> dict[str, dict[str, Any]]:

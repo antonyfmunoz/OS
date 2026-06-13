@@ -135,11 +135,13 @@ export function useVisionConnection(): void {
             // Re-check: still connected, still no session started
             if (!client.connected || cameraStartedInSession) return
             cameraStartedInSession = true
+            const qualityMode = useVisionStore.getState().qualityMode
             client.startCamera({
               fps: profile.fps,
               width: profile.width,
               height: profile.height,
               quality: profile.quality,
+              profile: qualityMode,
             })
             client.subscribe(profile.fps, profile.quality)
           }, 800)
@@ -745,6 +747,27 @@ export function useVisionConnection(): void {
         }
       }),
 
+      // Beast stream metrics (camera-side capture performance)
+      client.on('camera_stream_metrics', (d) => {
+        useVisionStore.getState().updateBeastStreamMetrics({
+          profile: (d.profile as string) ?? 'balanced',
+          negotiatedWidth: (d.negotiated_width as number) ?? 0,
+          negotiatedHeight: (d.negotiated_height as number) ?? 0,
+          negotiatedFps: (d.negotiated_fps as number) ?? 0,
+          measuredFps: (d.measured_fps as number) ?? 0,
+          totalFrames: (d.total_frames as number) ?? 0,
+          droppedFrames: (d.dropped_frames as number) ?? 0,
+          avgFrameBytes: (d.avg_frame_bytes as number) ?? 0,
+          bitrateKbps: (d.bitrate_kbps as number) ?? 0,
+          detectorFps: (d.detector_fps as number) ?? 0,
+          detectorInferenceMs: (d.detector_inference_ms as number) ?? 0,
+          detectorDevice: (d.detector_device as string) ?? 'unknown',
+          detectorNmsDevice: (d.detector_nms_device as string) ?? 'unknown',
+          trackerActive: (d.tracker_active as boolean) ?? false,
+          trackerActiveTracks: (d.tracker_active_tracks as number) ?? 0,
+        })
+      }),
+
       // Relay pipeline metrics
       client.on('pipeline_metrics', (d) => {
         useVisionStore.getState().updateRelayPipelineMetrics({
@@ -819,6 +842,7 @@ export function useVisionConnection(): void {
       client.requestCommandLog(20)
       client.requestPipelineMetrics()
       client.requestAuthorityState()
+      client.requestStreamMetrics()
     }, 5000)
 
     // Device list polling — 30s, auto-recovers from stale empty device list
