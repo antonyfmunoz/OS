@@ -132,6 +132,22 @@ export function DiagnosticsPanel({
             )}
           </div>
 
+          {/* Detector status */}
+          {chainHealth.detectorStatus && (
+            <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-border/50 rounded p-2">
+              <span>detector: <span className={chainHealth.detectorStatus.loaded ? 'text-ok' : 'text-danger'}>{chainHealth.detectorStatus.loaded ? chainHealth.detectorStatus.model : 'NOT LOADED'}</span></span>
+              <span>device: <span className={clsx(
+                chainHealth.detectorStatus.device === 'cuda' && 'text-ok',
+                chainHealth.detectorStatus.device === 'cuda-infer/cpu-nms' && 'text-warning',
+                chainHealth.detectorStatus.device === 'cpu' && 'text-text-secondary',
+              )}>{chainHealth.detectorStatus.device || 'unknown'}</span></span>
+              <span>infer: {chainHealth.detectorStatus.avg_inference_ms > 0 ? `${chainHealth.detectorStatus.avg_inference_ms.toFixed(0)}ms avg` : '—'}</span>
+              <span>frames: {chainHealth.detectorStatus.detection_frames}</span>
+              <span>tracks: {chainHealth.detectorStatus.active_tracks}</span>
+              {chainHealth.detectorStatus.nms_fallback && <span className="text-warning">NMS: CPU fallback</span>}
+            </div>
+          )}
+
           {/* Blockers */}
           {chainHealth.blockers.length > 0 && (
             <div className="text-[9px] font-mono text-danger/80 bg-danger/5 rounded p-1.5">
