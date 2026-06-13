@@ -45,4 +45,18 @@ CAPABILITY_DESCRIPTORS: list[CapabilityDescriptor] = [
         },
         description="Query current broadcast state and health metrics",
     ),
+    CapabilityDescriptor(
+        name="switch_scene",
+        category=CapabilityCategory.COMMUNICATE,
+        risk_class=RiskClass.EXTERNAL_COMMUNICATION,
+        input_schema={"scene_id": "str"},
+        output_schema={
+            "success": "bool",
+            "scene_id": "str",
+            "commands_sent": "int",
+            "total_ms": "float",
+            "pid_stable": "bool",
+        },
+        description="Switch active scene via zmq — blip-free within pre-declared source set",
+    ),
 ]
