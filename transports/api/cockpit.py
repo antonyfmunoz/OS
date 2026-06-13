@@ -3407,6 +3407,17 @@ def _mount_rooms_router() -> None:
 
 _mount_rooms_router()
 
+
+def _mount_broadcast_router() -> None:
+    from transports.api.cockpit_broadcast_routes import broadcast_router as _br
+    from transports.api.cockpit_broadcast_routes import broadcast_ws_router as _bws
+
+    router.include_router(_br)
+    ws_router.include_router(_bws)
+
+
+_mount_broadcast_router()
+
 # ── Claude Code Session Bridge ────────────────────────────────────────
 
 
