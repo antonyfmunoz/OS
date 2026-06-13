@@ -38,10 +38,10 @@ const QUALITY_LABELS: Record<QualityMode, string> = {
 }
 
 const QUALITY_DESCRIPTIONS: Record<QualityMode, string> = {
-  smooth: '720p 30fps — streaming',
-  balanced: '720p 15fps — default',
-  high: '1080p 10fps — detail',
-  analysis: '1080p 1fps — AI snapshot',
+  smooth: '720p 30fps — low latency',
+  balanced: '720p 30fps — default',
+  high: '1080p 30fps — detail',
+  analysis: '1080p 5fps — AI analysis',
 }
 
 let _motionIdCounter = 0
@@ -523,7 +523,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     setQualityOpen(false)
     const client = getVisionClient()
     if (!client?.connected || !streaming) return
-    client.switchQuality(QUALITY_PROFILES[mode])
+    client.switchQuality(QUALITY_PROFILES[mode], mode)
   }, [streaming, setQualityMode])
 
   const handleSavePreset = useCallback(() => {

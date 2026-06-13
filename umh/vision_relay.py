@@ -823,14 +823,46 @@ async def handle_vision(ws: Any) -> None:
 
             elif msg_type == "camera_start":
                 await _start_stream(
-                    fps=msg.get("fps", 2),
-                    width=msg.get("width", 640),
-                    height=msg.get("height", 480),
-                    quality=msg.get("quality", 60),
+                    fps=msg.get("fps", 30),
+                    width=msg.get("width", 1280),
+                    height=msg.get("height", 720),
+                    quality=msg.get("quality", 70),
+                    profile=msg.get("profile", ""),
                 )
 
             elif msg_type == "camera_stop":
                 await _stop_stream()
+
+            elif msg_type == "camera_set_profile":
+                profile_name = msg.get("profile", "balanced")
+                result = await _dispatch_to_beast("camera.set_profile", {"profile": profile_name})
+                if result and result.get("success"):
+                    _stream_fps = result.get("fps", _stream_fps)
+                    _stream_width = result.get("width", _stream_width)
+                    _stream_height = result.get("height", _stream_height)
+                    await send_json(ws, {
+                        "type": "camera_profile_applied",
+                        "profile": profile_name,
+                        "profile_label": result.get("profile_label", profile_name),
+                        "fps": _stream_fps,
+                        "width": _stream_width,
+                        "height": _stream_height,
+                    })
+                    _emit_vision_event("profile_changed", {"profile": profile_name})
+                else:
+                    await send_json(ws, {"type": "vision_error", "error": result.get("error", "profile switch failed") if result else "dispatch failed"})
+
+            elif msg_type == "camera_capabilities":
+                result = await _dispatch_to_beast("camera.capabilities", {})
+                if result and result.get("success"):
+                    await send_json(ws, {"type": "camera_capabilities", **result})
+                else:
+                    await send_json(ws, {"type": "camera_capabilities", "success": False, "modes": [], "profiles": {}})
+
+            elif msg_type == "camera_stream_metrics":
+                result = await _dispatch_to_beast("camera.stream_metrics", {})
+                if result and result.get("success"):
+                    await send_json(ws, {"type": "camera_stream_metrics", **result})
 
             elif msg_type == "camera_preset":
                 preset = msg.get("preset", "")
@@ -1534,10 +1566,11 @@ async def _toggle_diagnostic_overlay(enabled: bool) -> None:
 
 
 async def _start_stream(
-    fps: int = 2, width: int = 640, height: int = 480, quality: int = 60,
+    fps: int = 30, width: int = 1280, height: int = 720, quality: int = 70,
+    profile: str = "",
 ) -> None:
     global _stream_active, _stream_fps, _stream_width, _stream_height, _stream_quality
-    _stream_fps = min(fps, 30)
+    _stream_fps = min(fps, 60)
     _stream_width = width
     _stream_height = height
     _stream_quality = quality
@@ -1549,15 +1582,18 @@ async def _start_stream(
     if _stream_active and stale:
         log.info("stream marked active but frames stale (%.1fs) — re-dispatching to Beast", frame_age)
     _stream_active = True
-    result = await _dispatch_to_beast("camera.stream_start", {
+    dispatch_params: dict[str, Any] = {
         "fps": _stream_fps,
         "width": _stream_width,
         "height": _stream_height,
         "quality": _stream_quality,
-    })
+    }
+    if profile:
+        dispatch_params["profile"] = profile
+    result = await _dispatch_to_beast("camera.stream_start", dispatch_params)
     if result and result.get("success"):
-        log.info("Beast stream started: %dx%d @%dfps q%d", width, height, _stream_fps, quality)
-        _emit_vision_event("stream_started", {"width": width, "height": height, "fps": _stream_fps})
+        log.info("Beast stream started: %dx%d @%dfps q%d profile=%s", width, height, _stream_fps, quality, profile or "default")
+        _emit_vision_event("stream_started", {"width": width, "height": height, "fps": _stream_fps, "profile": profile or "balanced"})
     else:
         log.warning("Beast stream_start failed: %s", result)
         _stream_active = False
