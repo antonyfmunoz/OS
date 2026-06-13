@@ -94,11 +94,13 @@ export function StatusHud() {
   const detectorColor: StatusColor =
     det === null ? 'off'
     : !det.loaded ? 'warn'
+    : det.nms_fallback ? 'warn'
     : det.device === 'cuda' ? 'ok'
     : 'warn'
   const detectorState =
     det === null ? 'OFF'
     : !det.loaded ? 'LOADING'
+    : det.nms_fallback ? `MIXED ${det.avg_inference_ms > 0 ? det.avg_inference_ms.toFixed(0) + 'ms' : ''}`
     : det.device === 'cuda' ? `CUDA ${det.avg_inference_ms.toFixed(0)}ms`
     : det.device === 'cpu' ? `CPU ${det.avg_inference_ms.toFixed(0)}ms`
     : 'ACTIVE'
@@ -113,6 +115,47 @@ export function StatusHud() {
     : det.tracker_active ? `ACTIVE ${det.active_tracks}`
     : 'IDLE'
 
+  // 6. GPU — from detector device field
+  const gpuColor: StatusColor =
+    det === null ? 'off'
+    : det.device === 'cuda' && !det.nms_fallback ? 'ok'
+    : det.device?.startsWith('cuda') || det.nms_fallback ? 'warn'
+    : 'off'
+  const gpuState =
+    det === null ? 'OFF'
+    : det.device === 'cuda' && !det.nms_fallback ? 'CUDA'
+    : det.nms_fallback ? 'PARTIAL'
+    : det.device === 'cpu' ? 'CPU'
+    : 'OFF'
+
+  // 7. DEVICE — from camera availability
+  const deviceColor: StatusColor =
+    !connected ? 'off'
+    : chainHealth.cameraStreaming ? 'ok'
+    : chainHealth.cameraAvailable ? 'warn'
+    : 'danger'
+  const deviceState =
+    !connected ? 'OFF'
+    : chainHealth.cameraStreaming ? 'ACTIVE'
+    : chainHealth.cameraAvailable ? 'IDLE'
+    : 'PENDING'
+
+  // 8. PRESETS — from store state
+  const presetsLoaded = useVisionStore((s) => Object.keys(s.presets).length > 0)
+  const presetsLoading = useVisionStore((s) => s.presetsLoading)
+  const presetsColor: StatusColor =
+    !connected ? 'off'
+    : !chainHealth.commandPathReady ? 'danger'
+    : presetsLoaded ? 'ok'
+    : presetsLoading ? 'warn'
+    : 'off'
+  const presetsState =
+    !connected ? 'OFF'
+    : !chainHealth.commandPathReady ? 'UNAVAILABLE'
+    : presetsLoaded ? 'LOADED'
+    : presetsLoading ? 'LOADING'
+    : 'WAITING'
+
   // Derived display values
   const aiEnabled = authority.aiEnabled
   const resolutionStr = width > 0 && height > 0 ? `${width}×${height}` : streaming ? '—' : '—'
@@ -122,9 +165,9 @@ export function StatusHud() {
     ? `${(streamMetrics.bitrateKbps / 1024).toFixed(1)} Mbps`
     : `${streamMetrics.bitrateKbps} Kbps`
 
-  // Overall summary — only OFFLINE when both video and control are offline
+  // Overall summary — READY requires video AND control AND PTZ AND device
   const allOffline = videoState === 'OFFLINE' && controlState === 'OFFLINE'
-  const allReady = videoState === 'LIVE' && controlState === 'READY'
+  const allReady = videoState === 'LIVE' && controlState === 'READY' && ptzState !== 'BLOCKED' && deviceState !== 'PENDING'
   const summaryColor = allOffline ? 'danger' : allReady ? 'ok' : 'warn'
   const summaryBg = allOffline
     ? 'bg-danger/10 border-danger/30'
@@ -174,13 +217,16 @@ export function StatusHud() {
         <span className="text-[10px] font-mono text-text-tertiary flex-1">{summaryReason}</span>
       </div>
 
-      {/* 5-domain subsystem states */}
+      {/* 8-domain subsystem states */}
       <div className="flex items-center gap-3 px-3 py-1.5 rounded border border-border bg-surface-hover/20 flex-wrap">
         <DomainChip label="video" state={videoState} color={videoColor} />
         <DomainChip label="control" state={controlState} color={controlColor} />
         <DomainChip label="ptz" state={ptzState} color={ptzColor} />
         <DomainChip label="detector" state={detectorState} color={detectorColor} />
         <DomainChip label="tracker" state={trackerState} color={trackerColor} />
+        <DomainChip label="gpu" state={gpuState} color={gpuColor} />
+        <DomainChip label="device" state={deviceState} color={deviceColor} />
+        <DomainChip label="presets" state={presetsState} color={presetsColor} />
         {followMode.active && <DomainChip label="follow" state={followMode.target} color="ok" />}
       </div>
 

@@ -357,6 +357,8 @@ export interface DetectorStatus {
   active_tracks: number
   total_tracks: number
   device?: string
+  nms_device?: string
+  nms_fallback?: boolean
 }
 
 export interface RoiState {

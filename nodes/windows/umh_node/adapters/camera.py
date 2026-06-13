@@ -53,6 +53,8 @@ class CameraAdapter:
         self._detect_min_interval = 0.5
         self._detect_last_at = 0.0
         self._detection_enabled = True
+        self._detect_error_count = 0
+        self._detect_error_last_log = 0.0
         self._init_detector()
 
     def _init_detector(self) -> None:
@@ -312,6 +314,8 @@ class CameraAdapter:
                                 "model": det_status["model"],
                                 "loaded": det_status["loaded"],
                                 "device": det_status.get("device", "cpu"),
+                                "nms_device": det_status.get("nms_device", "cpu"),
+                                "nms_fallback": det_status.get("nms_fallback", False),
                                 "inference_ms": det_status["last_inference_ms"],
                                 "avg_inference_ms": det_status["avg_inference_ms"],
                                 "detection_frames": det_status["frame_count"],
@@ -339,8 +343,14 @@ class CameraAdapter:
                                     for i, d in enumerate(detections)
                                 ]
                         except Exception as exc:
-                            if frame_n % 45 == 0:
-                                logger.warning("detection error frame %d: %s", frame_n, exc)
+                            self._detect_error_count += 1
+                            now_err = time.monotonic()
+                            if now_err - self._detect_error_last_log >= 30.0:
+                                logger.warning(
+                                    "detection error (count=%d): %s",
+                                    self._detect_error_count, type(exc).__name__,
+                                )
+                                self._detect_error_last_log = now_err
 
                     self._frame_callback(payload)
 
