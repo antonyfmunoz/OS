@@ -48,6 +48,7 @@ import { ConferenceRoomsPanel } from '../panels/ConferenceRoomsPanel'
 import { StrategyPanel } from '../panels/StrategyPanel'
 import { TickLoopPanel } from '../panels/TickLoopPanel'
 import { ProjectionPanel } from '../panels/ProjectionPanel'
+import { ContinuityPanel } from '../panels/ContinuityPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -129,6 +130,8 @@ function ActivePanel() {
       return <TickLoopPanel />
     case 'projections':
       return <ProjectionPanel />
+    case 'continuity':
+      return <ContinuityPanel />
     default:
       return <DashboardPanel />
   }

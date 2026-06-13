@@ -507,6 +507,80 @@ export interface ProjectionState {
   accuracy: ProjectionAccuracy
 }
 
+// Phase 7: Continuity Runtime types
+
+export interface ContinuityStatusData {
+  state: string
+  run_count: number
+  last_snapshot_id: string | null
+  has_departure_snapshot: boolean
+  attention: {
+    state: string
+    last_interaction: number
+    seconds_since_interaction: number
+    last_state_change: number
+  }
+  handoff_count: number
+  last_brief_id: string | null
+}
+
+export interface ContinuitySnapshotData {
+  snapshot_id: string
+  captured_at: number
+  active_profile_mode: string
+  active_system_modes: string[]
+  active_session_id: string
+  active_objectives: Record<string, unknown>[]
+  active_loops: Record<string, unknown>[]
+  active_work_packets: Record<string, unknown>[]
+  blocked_items: Record<string, unknown>[]
+  approvals_waiting: Record<string, unknown>[]
+  active_projections: Record<string, unknown>[]
+  active_risks: Record<string, unknown>[]
+  active_opportunities: Record<string, unknown>[]
+  current_recommendations: Record<string, unknown>[]
+  last_operator_interaction: number
+  operator_attention: string
+  reality_hash: string
+}
+
+export interface ContinuityBriefData {
+  brief_id: string
+  generated_at: number
+  mission_status: string
+  current_reality: string
+  critical_changes: string[]
+  pending_decisions: string[]
+  recommended_actions: string[]
+  active_objectives_count: number
+  active_work_count: number
+  blocked_count: number
+  approval_count: number
+  risk_count: number
+  opportunity_count: number
+}
+
+export interface ContinuityResumeData {
+  generated_at: number
+  absence_duration_seconds: number
+  changes: Record<string, unknown>[]
+  completed: Record<string, unknown>[]
+  failed: Record<string, unknown>[]
+  blocked: Record<string, unknown>[]
+  became_available: Record<string, unknown>[]
+  needs_review: Record<string, unknown>[]
+  recommended_actions: string[]
+}
+
+export interface ContinuityTimelineEvent {
+  event_id: string
+  event_type: string
+  timestamp: number
+  summary: string
+  details: Record<string, unknown>
+  related_ids: string[]
+}
+
 interface OperatorLoopState {
   loopStatus: LoopStatus | null
   pendingApprovals: PacketSummary[]
@@ -609,6 +683,25 @@ interface OperatorLoopState {
   fetchProjectionAccuracy: () => Promise<void>
   recordProjectionOutcome: (projectionId: string, actualState: string, wasAccurate: boolean, score?: number) => Promise<boolean>
 
+  // Phase 7: Continuity Runtime state
+  continuityStatus: ContinuityStatusData | null
+  continuitySnapshot: ContinuitySnapshotData | null
+  continuityBrief: ContinuityBriefData | null
+  continuityTimeline: ContinuityTimelineEvent[]
+  continuityResume: ContinuityResumeData | null
+  continuityLoading: boolean
+
+  // Phase 7: Continuity Runtime actions
+  fetchContinuityStatus: () => Promise<void>
+  fetchContinuitySnapshot: () => Promise<void>
+  fetchContinuityBrief: () => Promise<void>
+  fetchContinuityTimeline: () => Promise<void>
+  captureContinuitySnapshot: () => Promise<void>
+  generateContinuityBrief: () => Promise<void>
+  recordContinuityDeparture: () => Promise<void>
+  generateContinuityResume: () => Promise<void>
+  recordContinuityInteraction: () => Promise<void>
+
   // Phase 4: Strategic Gap actions
   runAnalysis: () => Promise<AnalysisResult | null>
   fetchGoals: () => Promise<void>
@@ -651,6 +744,13 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
   projectionOpportunities: [],
   projectionAccuracy: null,
   projectionLoading: false,
+  // Phase 7 initial state
+  continuityStatus: null,
+  continuitySnapshot: null,
+  continuityBrief: null,
+  continuityTimeline: [],
+  continuityResume: null,
+  continuityLoading: false,
   // Phase 4 initial state
   goals: [],
   gaps: [],
@@ -1372,5 +1472,82 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
     } catch {
       return false
     }
+  },
+
+  // Phase 7: Continuity Runtime actions
+
+  fetchContinuityStatus: async () => {
+    try {
+      const res = await fetchApi<ContinuityStatusData & { success: boolean }>('/continuity/status')
+      if (res.success) set({ continuityStatus: res })
+    } catch { /* no-op */ }
+  },
+
+  fetchContinuitySnapshot: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; snapshot: ContinuitySnapshotData | null }>('/continuity/snapshot')
+      if (res.success) set({ continuitySnapshot: res.snapshot })
+    } catch { /* no-op */ }
+  },
+
+  fetchContinuityBrief: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; brief: ContinuityBriefData | null }>('/continuity/brief')
+      if (res.success && res.brief) set({ continuityBrief: res.brief })
+    } catch { /* no-op */ }
+  },
+
+  fetchContinuityTimeline: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; events: ContinuityTimelineEvent[] }>('/continuity/timeline')
+      if (res.success) set({ continuityTimeline: res.events ?? [] })
+    } catch { /* no-op */ }
+  },
+
+  captureContinuitySnapshot: async () => {
+    set({ continuityLoading: true })
+    try {
+      const res = await fetchApi<{ success: boolean; snapshot: ContinuitySnapshotData }>('/continuity/capture', { method: 'POST' })
+      if (res.success) {
+        set({ continuitySnapshot: res.snapshot })
+        get().fetchContinuityStatus()
+      }
+    } catch { /* no-op */ }
+    set({ continuityLoading: false })
+  },
+
+  generateContinuityBrief: async () => {
+    set({ continuityLoading: true })
+    try {
+      const res = await fetchApi<{ success: boolean; brief: ContinuityBriefData }>('/continuity/generate-brief', { method: 'POST' })
+      if (res.success) set({ continuityBrief: res.brief })
+    } catch { /* no-op */ }
+    set({ continuityLoading: false })
+  },
+
+  recordContinuityDeparture: async () => {
+    try {
+      await fetchApi<{ success: boolean }>('/continuity/depart', { method: 'POST' })
+      get().fetchContinuityStatus()
+    } catch { /* no-op */ }
+  },
+
+  generateContinuityResume: async () => {
+    set({ continuityLoading: true })
+    try {
+      const res = await fetchApi<{ success: boolean; report: ContinuityResumeData }>('/continuity/resume', { method: 'POST' })
+      if (res.success) {
+        set({ continuityResume: res.report })
+        get().fetchContinuitySnapshot()
+        get().fetchContinuityStatus()
+      }
+    } catch { /* no-op */ }
+    set({ continuityLoading: false })
+  },
+
+  recordContinuityInteraction: async () => {
+    try {
+      await fetchApi<{ success: boolean }>('/continuity/interaction', { method: 'POST' })
+    } catch { /* no-op */ }
   },
 }))
