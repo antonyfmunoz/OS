@@ -9,6 +9,10 @@ import type {
   ExecutionRecordSummary,
   FailureReport,
   ValidationResult,
+  RoutingResultData,
+  DomainDefinition,
+  NextActionsData,
+  RealitySnapshot,
 } from '../stores/operatorLoopStore'
 
 interface QueueSummary {
@@ -110,6 +114,18 @@ export function UniversalWorkPanel() {
   const lastPlan = useOperatorLoopStore((s) => s.lastPlan)
   const executing = useOperatorLoopStore((s) => s.executing)
 
+  // Phase 3: Empire state
+  const routeIntent = useOperatorLoopStore((s) => s.routeIntent)
+  const fetchDomains = useOperatorLoopStore((s) => s.fetchDomains)
+  const fetchNextActions = useOperatorLoopStore((s) => s.fetchNextActions)
+  const fetchReality = useOperatorLoopStore((s) => s.fetchReality)
+  const domains = useOperatorLoopStore((s) => s.domains)
+  const lastRouting = useOperatorLoopStore((s) => s.lastRouting)
+  const nextActions = useOperatorLoopStore((s) => s.nextActions)
+  const realitySnapshot = useOperatorLoopStore((s) => s.realitySnapshot)
+  const domainFilter = useOperatorLoopStore((s) => s.domainFilter)
+  const setDomainFilter = useOperatorLoopStore((s) => s.setDomainFilter)
+
   const refresh = useCallback(async () => {
     const [s, p] = await Promise.all([
       fetchApi<QueueSummary>('/organism/universal-work/summary').catch(() => null),
@@ -122,6 +138,12 @@ export function UniversalWorkPanel() {
   useEffect(() => { refresh() }, [refresh])
   usePolling(refresh, 8000)
 
+  useEffect(() => {
+    fetchDomains()
+    fetchNextActions()
+    fetchReality()
+  }, [])
+
   const selectPacket = useCallback(async (id: string) => {
     const detail = await fetchApi<Record<string, unknown>>(`/organism/universal-work/packets/${id}`).catch(() => null)
     setSelected(detail)
@@ -130,12 +152,10 @@ export function UniversalWorkPanel() {
 
   const handleCreate = async () => {
     if (!intentText.trim()) return
-    const result = await submitIntent({
-      user_intent: intentText,
+    const routing = await routeIntent(intentText, {
       desired_end_state: desiredEndState,
-      execution_mode: createMode,
     })
-    if (result) {
+    if (routing) {
       setIntentText('')
       setDesiredEndState('')
       setShowCreate(false)
@@ -192,10 +212,38 @@ export function UniversalWorkPanel() {
 
       {/* Header */}
       <div className="flex items-center gap-4 px-4 py-2 flex-shrink-0 border-b border-border">
-        <h2 className="text-sm font-semibold text-text-primary">Work Packets</h2>
+        <h2 className="text-sm font-semibold text-text-primary">Empire Work Queue</h2>
         <span className="text-xs text-text-secondary">{summary.total_packets} total</span>
         {executing && <span className="text-xs text-cyan animate-pulse">executing...</span>}
+
+        {/* Domain filter */}
+        <select value={domainFilter} onChange={(e) => setDomainFilter(e.target.value)}
+          className="px-2 py-1 text-[10px] rounded bg-surface border border-border text-text-secondary outline-none"
+        >
+          <option value="">All Domains</option>
+          {domains.map((d) => (
+            <option key={d.domain_id} value={d.domain_id}>{d.label}</option>
+          ))}
+        </select>
+
         <div className="flex-1" />
+
+        {/* Next actions badge */}
+        {nextActions && nextActions.next_actions.length > 0 && (
+          <span className="px-2 py-0.5 text-[10px] bg-cyan/10 text-cyan rounded border border-cyan/20">
+            {nextActions.next_actions.length} action{nextActions.next_actions.length > 1 ? 's' : ''}
+          </span>
+        )}
+        {nextActions && nextActions.open_approvals > 0 && (
+          <span className="px-2 py-0.5 text-[10px] bg-warn/10 text-warn rounded border border-warn/20">
+            {nextActions.open_approvals} approval{nextActions.open_approvals > 1 ? 's' : ''}
+          </span>
+        )}
+        {nextActions && nextActions.blocked_count > 0 && (
+          <span className="px-2 py-0.5 text-[10px] bg-danger/10 text-danger rounded border border-danger/20">
+            {nextActions.blocked_count} blocked
+          </span>
+        )}
 
         <div className="flex gap-1">
           {(['kanban', 'table'] as const).map((m) => (
@@ -216,11 +264,11 @@ export function UniversalWorkPanel() {
         </button>
       </div>
 
-      {/* Create form */}
+      {/* Create form — Empire Router */}
       {showCreate && (
         <div className="px-4 py-3 border-b border-border bg-surface-secondary space-y-2">
           <input value={intentText} onChange={(e) => setIntentText(e.target.value)}
-            placeholder="What do you want UMH to do?"
+            placeholder="What do you want done? (natural language — any domain)"
             className="w-full px-3 py-2 text-sm rounded bg-surface border border-border text-text-primary outline-none"
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
           />
@@ -228,22 +276,10 @@ export function UniversalWorkPanel() {
             placeholder="Desired end state (optional)"
             className="w-full px-3 py-2 text-xs rounded bg-surface border border-border text-text-secondary outline-none"
           />
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-text-secondary">Mode:</span>
-            {(['validate_only', 'implement', 'implement_and_validate'] as const).map((m) => (
-              <button key={m} onClick={() => setCreateMode(m)}
-                className={`px-2 py-1 text-[10px] rounded border transition-colors ${
-                  createMode === m ? 'bg-cyan/10 text-cyan border-cyan/30' : 'text-text-secondary border-border'
-                }`}
-              >
-                {m === 'validate_only' ? 'Validate' : m === 'implement' ? 'Implement' : 'Full Loop'}
-              </button>
-            ))}
-          </div>
           <div className="flex gap-2">
             <button onClick={handleCreate}
               className="px-3 py-1 text-xs rounded bg-cyan-glow text-cyan border border-border"
-            >Submit Intent</button>
+            >Route Intent</button>
             <button onClick={() => setShowCreate(false)}
               className="px-3 py-1 text-xs rounded text-text-secondary border border-border"
             >Cancel</button>
@@ -251,16 +287,40 @@ export function UniversalWorkPanel() {
         </div>
       )}
 
+      {/* Last routing result */}
+      {lastRouting && (
+        <div className="px-4 py-2 border-b border-border bg-surface-secondary/50">
+          <RoutingResultBanner routing={lastRouting} onDismiss={() => useOperatorLoopStore.setState({ lastRouting: null })} />
+        </div>
+      )}
+
+      {/* Next actions bar */}
+      {nextActions && nextActions.next_actions.length > 0 && (
+        <div className="px-4 py-1.5 border-b border-border bg-cyan/5 flex items-center gap-3 overflow-x-auto">
+          <span className="text-[10px] text-cyan font-semibold uppercase shrink-0">Next:</span>
+          {nextActions.next_actions.map((a, i) => (
+            <span key={i} className="text-[11px] text-text-secondary shrink-0">{a}</span>
+          ))}
+          {nextActions.active_domains.length > 0 && (
+            <span className="text-[10px] text-text-secondary/60 shrink-0 ml-auto">
+              Active: {nextActions.active_domains.join(', ')}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Main content */}
       <div className="flex-1 overflow-auto">
         {viewMode === 'kanban' && (
-          <KanbanView packets={packets} onSelect={selectPacket}
+          <KanbanView packets={domainFilter ? packets.filter((p) => p.domain === domainFilter || p.domain === '') : packets}
+            onSelect={selectPacket}
             onApprove={handleApprove} onReject={handleReject}
             onExecute={handleExecute} onComplete={handleComplete}
             onGeneratePlan={handleGeneratePlan} />
         )}
         {viewMode === 'table' && (
-          <TableView packets={packets} onSelect={selectPacket}
+          <TableView packets={domainFilter ? packets.filter((p) => p.domain === domainFilter || p.domain === '') : packets}
+            onSelect={selectPacket}
             onApprove={handleApprove} onReject={handleReject}
             onExecute={handleExecute} onComplete={handleComplete} />
         )}
@@ -747,6 +807,73 @@ function Field({ label, value, mono, color }: { label: string; value: string; mo
     <div>
       <span className="text-text-secondary">{label}:</span>{' '}
       <span className={`text-text-primary ${mono ? 'font-mono' : ''} ${color || ''}`}>{value}</span>
+    </div>
+  )
+}
+
+
+// ── Phase 3: Empire components ──────────────────────────────────────
+
+function RoutingResultBanner({ routing, onDismiss }: { routing: RoutingResultData; onDismiss: () => void }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] text-cyan font-semibold uppercase">Routed</span>
+        <span className={`px-1.5 py-0.5 text-[10px] rounded ${RISK_COLOR[routing.risk_level] ?? 'text-text-secondary'} bg-surface border border-border`}>
+          {routing.risk_level} risk
+        </span>
+        <span className="text-[10px] text-text-secondary">{routing.domain_label}</span>
+        <span className="text-[10px] text-text-secondary/60">{routing.scope}</span>
+        {routing.urgency !== 'normal' && (
+          <span className={`text-[10px] ${routing.urgency === 'urgent' ? 'text-danger' : 'text-warn'}`}>
+            {routing.urgency}
+          </span>
+        )}
+        <div className="flex-1" />
+        <button onClick={onDismiss} className="text-[10px] text-text-secondary hover:text-text-primary">dismiss</button>
+      </div>
+
+      {routing.work_packets.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {routing.work_packets.map((wp, i) => (
+            <span key={i} className="px-2 py-0.5 text-[10px] rounded bg-surface border border-border text-text-primary">
+              {String(wp.title || wp.user_intent || `Packet ${i + 1}`).slice(0, 60)}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {routing.suggested_agents.length > 0 && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-text-secondary">Agents:</span>
+          {routing.suggested_agents.map((a, i) => (
+            <span key={i} className="text-[10px] text-cyan">{a}</span>
+          ))}
+        </div>
+      )}
+
+      {routing.proof_requirements.length > 0 && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-text-secondary">Proof:</span>
+          {routing.proof_requirements.map((p, i) => (
+            <span key={i} className="text-[10px] text-text-secondary/80">{p.proof_type}</span>
+          ))}
+        </div>
+      )}
+
+      {routing.missing_context.length > 0 && (
+        <div className="text-[10px] text-warn">
+          {routing.missing_context.map((m, i) => (
+            <div key={i}>{m}</div>
+          ))}
+        </div>
+      )}
+
+      {routing.next_action && (
+        <div className="text-[10px] text-text-secondary">
+          Next: <span className="text-text-primary">{routing.next_action.replace(/_/g, ' ')}</span>
+        </div>
+      )}
     </div>
   )
 }

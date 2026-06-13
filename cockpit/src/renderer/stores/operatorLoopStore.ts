@@ -168,6 +168,79 @@ interface ImprovementStatus {
   safety: { dry_run_only: boolean; no_auto_merge: boolean; operator_approval_required: boolean }
 }
 
+// ── Phase 3: Empire types ──────────────────────────────────
+
+export interface DomainDefinition {
+  domain_id: string
+  label: string
+  description: string
+  allowed_actions: string[]
+  proof_requirements: ProofRequirement[]
+  default_agent_types: string[]
+  approval_gates: string[]
+  default_risk_class: string
+  validation_methods: string[]
+  background_eligible: boolean
+  escalation_triggers: string[]
+}
+
+export interface ProofRequirement {
+  proof_type: string
+  description: string
+  required: boolean
+  validation_command?: string
+}
+
+export interface AgentTypeDef {
+  agent_type_id: string
+  label: string
+  description: string
+  capabilities: string[]
+  permissions: string[]
+  allowed_domains: string[]
+  required_tools: string[]
+  max_risk_class: string
+  can_auto_execute: boolean
+  can_create_subpackets: boolean
+}
+
+export interface RoutingResultData {
+  routing_id: string
+  domain: string
+  domain_label: string
+  objective: string
+  scope: string
+  urgency: string
+  risk_level: string
+  required_approvals: string[]
+  suggested_agents: string[]
+  proof_requirements: ProofRequirement[]
+  work_packets: Record<string, unknown>[]
+  suggested_sequence: string[]
+  missing_context: string[]
+  profile_constraints: Record<string, unknown>
+  background_eligible: boolean
+  next_action: string
+  created_at: number
+}
+
+export interface RealitySnapshot {
+  active_domains: string[]
+  active_loops: Record<string, unknown>[]
+  blocked_items: Record<string, unknown>[]
+  open_approvals: number
+  recent_outcomes: Record<string, unknown>[]
+  current_phase: string
+  next_best_actions: string[]
+}
+
+export interface NextActionsData {
+  next_actions: string[]
+  open_approvals: number
+  blocked_count: number
+  active_domains: string[]
+}
+
 interface OperatorLoopState {
   loopStatus: LoopStatus | null
   pendingApprovals: PacketSummary[]
@@ -181,6 +254,15 @@ interface OperatorLoopState {
   loading: boolean
   executing: boolean
   lastError: string | null
+
+  // Phase 3: Empire state
+  domains: DomainDefinition[]
+  agentTypes: AgentTypeDef[]
+  lastRouting: RoutingResultData | null
+  realitySnapshot: RealitySnapshot | null
+  nextActions: NextActionsData | null
+  packetsByDomain: Record<string, Record<string, unknown>[]>
+  domainFilter: string
 
   fetchLoopStatus: () => Promise<void>
   fetchPendingApprovals: () => Promise<void>
@@ -200,6 +282,15 @@ interface OperatorLoopState {
   recordOutcome: (packetId: string, outcome: string, domain?: string) => Promise<boolean>
   verifyOutcome: (packetId: string, claimedOutcome: string, domain?: string) => Promise<Record<string, unknown> | null>
   generateFollowUp: (packetId: string, outcome: string, suggestedIntent?: string) => Promise<PacketSummary | null>
+
+  // Phase 3: Empire actions
+  routeIntent: (intent: string, opts?: { desired_end_state?: string; constraints?: string[]; profile_mode?: string }) => Promise<RoutingResultData | null>
+  fetchDomains: () => Promise<void>
+  fetchAgentTypes: () => Promise<void>
+  fetchReality: () => Promise<void>
+  fetchNextActions: () => Promise<void>
+  fetchPacketsByDomain: () => Promise<void>
+  setDomainFilter: (domain: string) => void
 }
 
 export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
@@ -207,6 +298,14 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
   pendingApprovals: [],
   activePackets: [],
   auditTrail: [],
+  // Phase 3 initial state
+  domains: [],
+  agentTypes: [],
+  lastRouting: null,
+  realitySnapshot: null,
+  nextActions: null,
+  packetsByDomain: {},
+  domainFilter: '',
   selectedPacket: null,
   lastExecuteResult: null,
   lastPlan: null,
@@ -446,4 +545,80 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
       return null
     }
   },
+
+  // ── Phase 3: Empire actions ──────────────────────────────
+
+  routeIntent: async (intent, opts = {}) => {
+    set({ loading: true, lastError: null })
+    try {
+      const res = await fetchApi<{ success: boolean; routing: RoutingResultData }>('/empire/route', {
+        method: 'POST',
+        body: JSON.stringify({
+          intent,
+          desired_end_state: opts.desired_end_state ?? '',
+          constraints: opts.constraints ?? [],
+          profile_mode: opts.profile_mode ?? '',
+        }),
+      })
+      set({ loading: false })
+      if (res.success) {
+        set({ lastRouting: res.routing })
+        get().fetchLoopStatus()
+        get().fetchActivePackets()
+        get().fetchPendingApprovals()
+        return res.routing
+      }
+      return null
+    } catch (e) {
+      set({ loading: false, lastError: 'Failed to route intent' })
+      return null
+    }
+  },
+
+  fetchDomains: async () => {
+    try {
+      const data = await fetchApi<DomainDefinition[]>('/empire/domains')
+      set({ domains: data })
+    } catch {
+      set({ domains: [] })
+    }
+  },
+
+  fetchAgentTypes: async () => {
+    try {
+      const data = await fetchApi<AgentTypeDef[]>('/empire/agents')
+      set({ agentTypes: data })
+    } catch {
+      set({ agentTypes: [] })
+    }
+  },
+
+  fetchReality: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; reality: RealitySnapshot }>('/empire/reality')
+      if (res.success) set({ realitySnapshot: res.reality })
+    } catch {
+      set({ realitySnapshot: null })
+    }
+  },
+
+  fetchNextActions: async () => {
+    try {
+      const res = await fetchApi<NextActionsData>('/empire/next-actions')
+      if (res.next_actions) set({ nextActions: res })
+    } catch {
+      set({ nextActions: null })
+    }
+  },
+
+  fetchPacketsByDomain: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; domains: Record<string, Record<string, unknown>[]> }>('/empire/packets-by-domain')
+      if (res.success) set({ packetsByDomain: res.domains })
+    } catch {
+      set({ packetsByDomain: {} })
+    }
+  },
+
+  setDomainFilter: (domain: string) => set({ domainFilter: domain }),
 }))
