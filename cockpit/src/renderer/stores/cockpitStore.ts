@@ -39,6 +39,7 @@ export type Panel =
   | 'tickloop'
   | 'projections'
   | 'continuity'
+  | 'presence'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

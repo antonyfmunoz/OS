@@ -302,6 +302,21 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "OperatorBriefGenerator": ["substrate.organism.continuity_runtime"],
     "SnapshotCollector": ["substrate.organism.continuity_runtime"],
     "ContinuityRuntime": ["substrate.organism.continuity_runtime"],
+    # Phase 8: Presence Runtime
+    "PresenceAttentionState": ["substrate.organism.presence_runtime"],
+    "InterruptionLevel": ["substrate.organism.presence_runtime"],
+    "PresenceEventType": ["substrate.organism.presence_runtime"],
+    "InteractionSurface": ["substrate.organism.presence_runtime"],
+    "DeviceInfo": ["substrate.organism.presence_runtime"],
+    "SessionInfo": ["substrate.organism.presence_runtime"],
+    "PresenceSnapshot": ["substrate.organism.presence_runtime"],
+    "PresenceEvent": ["substrate.organism.presence_runtime"],
+    "DeviceRegistry": ["substrate.organism.presence_runtime"],
+    "SessionRegistry": ["substrate.organism.presence_runtime"],
+    "AttentionEngine": ["substrate.organism.presence_runtime"],
+    "InterruptibilityEngine": ["substrate.organism.presence_runtime"],
+    "PresenceTimeline": ["substrate.organism.presence_runtime"],
+    "PresenceRuntime": ["substrate.organism.presence_runtime"],
 }
 
 
