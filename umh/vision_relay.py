@@ -122,6 +122,8 @@ _fps_window_count: int = 0
 
 _AUTHORITY_LEVELS = {"operator": 0, "voice": 1, "ai": 2, "autonomous": 3}
 _current_authority: str = "operator"
+_authority_last_action: float = 0.0
+_AUTHORITY_DECAY_SECONDS = 30.0
 _authority_log: list[dict[str, Any]] = []
 _AUTHORITY_LOG_MAX = 100
 
@@ -181,24 +183,40 @@ def _emit_vision_event(
         log.warning("ALERT [%s] %s: %s", resolved_severity, event_type, detail)
 
 
+def _authority_has_decayed() -> bool:
+    """Check if current authority holder's claim has expired from inactivity."""
+    if _authority_last_action <= 0:
+        return False
+    return (time.time() - _authority_last_action) > _AUTHORITY_DECAY_SECONDS
+
+
 def _claim_authority(who: str, reason: str = "") -> bool:
-    """Claim authority at relay level. Returns True if accepted."""
-    global _current_authority
+    """Claim authority at relay level. Returns True if accepted.
+
+    NOTE: authority identity is self-asserted by the client (cooperating-client
+    convention). This gate prevents accidental AI override of manual control —
+    it is NOT a security boundary against malicious clients. WebSocket auth
+    (subprotocol token) gates connection; authority gates command priority.
+    """
+    global _current_authority, _authority_last_action
     if who not in _AUTHORITY_LEVELS:
         return False
     prev = _current_authority
     if prev == who:
+        _authority_last_action = time.time()
         return True
     new_level = _AUTHORITY_LEVELS[who]
     cur_level = _AUTHORITY_LEVELS.get(prev, 3)
-    if new_level > cur_level:
+    if new_level > cur_level and not _authority_has_decayed():
         return False
     _current_authority = who
+    _authority_last_action = time.time()
     entry = {
         "at": time.time(),
         "from": prev,
         "to": who,
         "reason": reason,
+        "prev_decayed": _authority_has_decayed() if new_level > cur_level else False,
     }
     _authority_log.append(entry)
     if len(_authority_log) > _AUTHORITY_LOG_MAX:
@@ -208,11 +226,38 @@ def _claim_authority(who: str, reason: str = "") -> bool:
     return True
 
 
+def _release_authority(who: str) -> bool:
+    """Release authority, falling back to autonomous (lowest priority)."""
+    global _current_authority, _authority_last_action
+    if _current_authority != who:
+        return False
+    prev = _current_authority
+    _current_authority = "autonomous"
+    _authority_last_action = time.time()
+    entry = {"at": time.time(), "from": prev, "to": "autonomous", "reason": "released"}
+    _authority_log.append(entry)
+    if len(_authority_log) > _AUTHORITY_LOG_MAX:
+        _authority_log[:] = _authority_log[-_AUTHORITY_LOG_MAX:]
+    _emit_vision_event("authority_override", entry)
+    log.info("authority released: %s -> autonomous", prev)
+    return True
+
+
 def _check_authority_for_command(who: str) -> bool:
-    """Check if the given authority level can issue commands."""
+    """Check if the given authority level can issue commands.
+
+    If the current holder's claim has decayed (no action in DECAY_SECONDS),
+    any level can issue commands — the holder is considered idle.
+    """
+    global _authority_last_action
+    if _authority_has_decayed():
+        return True
     who_level = _AUTHORITY_LEVELS.get(who, 3)
     cur_level = _AUTHORITY_LEVELS.get(_current_authority, 0)
-    return who_level <= cur_level
+    if who_level <= cur_level:
+        _authority_last_action = time.time()
+        return True
+    return False
 
 
 def _record_pipeline_metrics(
@@ -268,15 +313,22 @@ def _get_pipeline_metrics() -> dict[str, Any]:
     }
 
 
+_MAX_CAMERAS = 16
+
+
 def _register_camera(camera_id: str, info: dict[str, Any]) -> None:
     """Register a camera device in the multi-camera registry."""
+    camera_id = camera_id[:64]
+    if len(_camera_registry) >= _MAX_CAMERAS and camera_id not in _camera_registry:
+        log.warning("camera registry full (%d), rejecting %s", _MAX_CAMERAS, camera_id)
+        return
     _camera_registry[camera_id] = {
         **info,
         "registered_at": time.time(),
         "last_frame_at": 0.0,
         "frame_count": 0,
     }
-    _emit_vision_event("camera_registered", {"camera_id": camera_id, **info})
+    _emit_vision_event("camera_registered", {"camera_id": camera_id})
 
 
 def _update_camera_frame(camera_id: str) -> None:
@@ -1030,7 +1082,8 @@ async def handle_vision(ws: Any) -> None:
                 motion_id = msg.get("motion_id", "")
                 who = msg.get("authority", "operator")
                 if not _check_authority_for_command(who):
-                    pass
+                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    await _broadcast_motion_ack(motion_id, "update_motion", False)
                 else:
                     await _update_motion(
                         motion_id=motion_id,
@@ -1067,7 +1120,8 @@ async def handle_vision(ws: Any) -> None:
                 motion_id = msg.get("motion_id", "")
                 who = msg.get("authority", "operator")
                 if not _check_authority_for_command(who):
-                    pass
+                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    await _broadcast_motion_ack(motion_id, "zoom_update", False)
                 else:
                     await _update_motion(
                         motion_id=motion_id,
@@ -1334,6 +1388,17 @@ async def handle_vision(ws: Any) -> None:
                     "type": "authority_state",
                     "current": _current_authority,
                     "accepted": accepted,
+                    "decay_seconds": _AUTHORITY_DECAY_SECONDS,
+                    "log": _authority_log[-10:],
+                })
+
+            elif msg_type == "authority_release":
+                who = msg.get("who", "operator")
+                released = _release_authority(who)
+                await send_json(ws, {
+                    "type": "authority_state",
+                    "current": _current_authority,
+                    "released": released,
                     "log": _authority_log[-10:],
                 })
 
@@ -1341,6 +1406,8 @@ async def handle_vision(ws: Any) -> None:
                 await send_json(ws, {
                     "type": "authority_state",
                     "current": _current_authority,
+                    "decayed": _authority_has_decayed(),
+                    "decay_seconds": _AUTHORITY_DECAY_SECONDS,
                     "log": _authority_log[-10:],
                 })
 
@@ -2417,6 +2484,11 @@ async def main() -> None:
         log.warning(
             "VISION_RELAY_TOKEN is not set — authentication DISABLED. "
             "Set VISION_RELAY_TOKEN env var to enable auth."
+        )
+    if not _FRAME_INGEST_TOKEN:
+        log.warning(
+            "VISION_FRAME_TOKEN is not set — frame ingest authentication DISABLED. "
+            "Set VISION_FRAME_TOKEN env var to secure /frame and /frame/binary endpoints."
         )
 
     log.info("Vision relay starting on ws://%s:%d/vision", HOST, PORT)
