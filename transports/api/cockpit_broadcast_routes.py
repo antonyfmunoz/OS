@@ -22,6 +22,13 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from pydantic import BaseModel, Field
 from transports.api.cockpit_auth import require_clerk_auth, validate_ws_clerk_token
 
+from adapters.broadcast.scene_model import (
+    CompositeConfig,
+    Scene,
+    SourceEntry,
+    SourceLayout,
+)
+
 logger = logging.getLogger(__name__)
 
 broadcast_router = APIRouter(prefix="/broadcast", tags=["broadcast"])
@@ -122,6 +129,143 @@ async def get_broadcast_status(_user=Depends(require_clerk_auth)):
     return engine.get_status()
 
 
+# ── Composite (multi-source + scene switching) ──
+
+
+class SourceEntryRequest(BaseModel):
+    source_id: str
+    source_type: str = Field(default="test_pattern")
+    source_config: dict[str, Any] = Field(default_factory=dict)
+    x: int = Field(default=0)
+    y: int = Field(default=0)
+    width: int = Field(default=640)
+    height: int = Field(default=480)
+    z_order: int = Field(default=0)
+    enabled: bool = Field(default=True)
+
+
+class SourceLayoutRequest(BaseModel):
+    x: int = Field(default=0)
+    y: int = Field(default=0)
+    width: int = Field(default=640)
+    height: int = Field(default=480)
+    enabled: bool = Field(default=True)
+
+
+class SceneRequest(BaseModel):
+    scene_id: str
+    name: str
+    source_layouts: dict[str, SourceLayoutRequest] = Field(default_factory=dict)
+
+
+class CompositeStartRequest(BaseModel):
+    sources: list[SourceEntryRequest]
+    scenes: list[SceneRequest] = Field(default_factory=list)
+    active_scene_id: str | None = Field(default=None)
+    output_url: str
+    canvas_width: int = Field(default=1920)
+    canvas_height: int = Field(default=1080)
+    fps: int = Field(default=30, ge=1, le=120)
+    video_codec: str = Field(default="libx264")
+    video_bitrate: str = Field(default="4500k")
+    audio_codec: str = Field(default="aac")
+    audio_bitrate: str = Field(default="128k")
+    keyframe_interval: int = Field(default=2, ge=1, le=10)
+    preset: str = Field(default="veryfast")
+    container_format: str = Field(default="flv")
+
+
+class SceneSwitchRequest(BaseModel):
+    scene_id: str
+
+
+@broadcast_router.post("/composite/start")
+async def start_composite_broadcast(
+    req: CompositeStartRequest, _user=Depends(require_clerk_auth),
+):
+    engine = _get_engine()
+    async with _engine_lock:
+        if engine.state == "live":
+            raise HTTPException(status_code=409, detail="Already broadcasting")
+
+        config = CompositeConfig(
+            sources=[
+                SourceEntry(**s.model_dump()) for s in req.sources
+            ],
+            scenes=[
+                Scene(
+                    scene_id=s.scene_id,
+                    name=s.name,
+                    source_layouts={
+                        k: SourceLayout(**v.model_dump())
+                        for k, v in s.source_layouts.items()
+                    },
+                )
+                for s in req.scenes
+            ],
+            active_scene_id=req.active_scene_id,
+            output_url=req.output_url,
+            canvas_width=req.canvas_width,
+            canvas_height=req.canvas_height,
+            fps=req.fps,
+            video_codec=req.video_codec,
+            video_bitrate=req.video_bitrate,
+            audio_codec=req.audio_codec,
+            audio_bitrate=req.audio_bitrate,
+            keyframe_interval=req.keyframe_interval,
+            preset=req.preset,
+            container_format=req.container_format,
+        )
+
+        engine.set_health_callback(_on_engine_health)
+        ok = await engine.start_composite(config)
+        if not ok:
+            raise HTTPException(status_code=500, detail="Failed to start composite broadcast")
+
+    return {
+        "status": "started",
+        "mode": "composite",
+        "pid": engine._lifecycle.pid if engine._lifecycle else None,
+        "active_scene_id": req.active_scene_id,
+        "source_count": len(req.sources),
+        "scene_count": len(req.scenes),
+    }
+
+
+@broadcast_router.post("/scene/switch")
+async def switch_scene(
+    req: SceneSwitchRequest, _user=Depends(require_clerk_auth),
+):
+    engine = _get_engine()
+    result = await engine.switch_scene(req.scene_id)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=400,
+            detail=result.get("error", "Scene switch failed"),
+        )
+    return result
+
+
+@broadcast_router.get("/scenes")
+async def list_scenes(_user=Depends(require_clerk_auth)):
+    engine = _get_engine()
+    status = engine.get_status()
+    return {
+        "scenes": status.get("scenes", []),
+        "active_scene_id": status.get("active_scene_id"),
+        "composite": status.get("composite", False),
+    }
+
+
+def _extract_ws_subprotocol(ws: WebSocket) -> str | None:
+    """Return the bearer subprotocol if the client sent one, else None."""
+    for proto in (ws.headers.get("sec-websocket-protocol") or "").split(","):
+        proto = proto.strip()
+        if proto.startswith("bearer."):
+            return proto
+    return None
+
+
 # ── WebSocket health endpoint ──
 
 
@@ -143,7 +287,8 @@ async def broadcast_ws(ws: WebSocket):
             await ws.close(code=4001, reason="Unauthorized")
             return
 
-    await ws.accept()
+    subprotocol = _extract_ws_subprotocol(ws)
+    await ws.accept(subprotocol=subprotocol)
     _ws_clients.add(ws)
     logger.info("[BroadcastWS] client connected (%d total)", len(_ws_clients))
 
