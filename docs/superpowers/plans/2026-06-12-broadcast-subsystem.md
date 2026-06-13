@@ -113,25 +113,31 @@ Slice 0. The UI connects to it over localhost HTTP/WS.
 
 ---
 
-## Slice 0 — Active (Minimum Viable Broadcast)
+## Slice 0 — COMPLETE (Minimum Viable Broadcast)
 
 **Goal:** One source -> one trivial scene -> H.264 -> one RTMP out.
 Start/stop via API. Status (bitrate, dropped frames, uptime) over WS.
 Proof = live frames arriving at an RTMP endpoint.
+
+**Status:** PROVEN — dual-consumer (agent cell + cockpit human). See
+`docs/superpowers/specs/broadcast/SLICE0_PROOF_REPORT.md` for full evidence.
 
 **Proprietary code (Zone C):**
 
 | Component | Location | What it does |
 |-----------|----------|--------------|
 | Request/response models | `transports/api/cockpit_broadcast_routes.py` (local) | Pydantic schemas for start request, status response, source type enum. Local to route file per rooms pattern — graduates to substrate/ when stabilized. |
-| Process lifecycle | `adapters/broadcast/process_lifecycle.py` | Subsystem-agnostic subprocess lifecycle (process group isolation, SIGTERM→SIGKILL, CPU gate) |
-| Engine process | `adapters/broadcast/engine.py` | FFmpeg subprocess lifecycle, config->args, health parsing |
-| FFmpeg arg builder | `adapters/broadcast/ffmpeg_args.py` | Translate config into FFmpeg CLI args (with input validation) |
+| Process lifecycle | `adapters/broadcast/process_lifecycle.py` | Subsystem-agnostic subprocess lifecycle (process group isolation, SIGTERM→SIGKILL, CPU gate, asyncio.Lock, SIGKILL wait timeout) |
+| Engine process | `adapters/broadcast/engine.py` | FFmpeg subprocess lifecycle, config->args, health parsing, asyncio.Lock on state transitions |
+| FFmpeg arg builder | `adapters/broadcast/ffmpeg_args.py` | Translate config into FFmpeg CLI args (with input validation + output URL SSRF guard) |
 | Broadcast API routes | `transports/api/cockpit_broadcast_routes.py` | HTTP + WS endpoints (start/stop/status, 1s health push) |
+| Capability handler | `adapters/broadcast/integration/handlers.py` | BroadcastCapabilityHandler — agent cell surface (CapabilityHandler Protocol) |
+| Capability manifest | `adapters/broadcast/integration/manifest.py` | start/stop/status descriptors for IntegrationRegistry |
 | Broadcast store | `cockpit/.../stores/broadcastStore.ts` | Zustand store |
 | Broadcast panel | `cockpit/.../panels/BroadcastPanel.tsx` | Cockpit UI |
 | Broadcast WS hook | `cockpit/.../hooks/useBroadcastConnection.ts` | Module-level singleton auto-connect hook |
 | Broadcast WS client | `cockpit/.../api/broadcast-ws.ts` | WS health client |
+| ProcessLifecycle tests | `tests/adapters/broadcast/test_process_lifecycle.py` | 7 unit tests covering all 4 fixes |
 
 **What Slice 0 does NOT include:**
 - No multi-source compositing (one source fills the canvas)
@@ -143,12 +149,16 @@ Proof = live frames arriving at an RTMP endpoint.
 - No AI producer
 - No multi-destination
 
-**Verification:**
+**Verification (all PASS):**
 - FFmpeg subprocess starts with correct args
-- RTMP connection established to test endpoint
+- RTMP connection established to test endpoint (same-host MediaMTX)
 - Health metrics (bitrate, frames, uptime) arrive over WS
-- Start/stop lifecycle works cleanly
+- Start/stop lifecycle works cleanly via both HTTP and CapabilityHandler
 - Process cleanup on stop (no orphan FFmpeg processes)
+- ffprobe confirms H.264 High profile, 30fps, 1920x1080
+- Cockpit panel renders, Go Live flips to LIVE, Stop returns to IDLE
+- 7/7 ProcessLifecycle unit tests pass
+- Cross-host egress (VPS → Beast): DEFERRED — Beast MediaMTX pending
 
 ---
 

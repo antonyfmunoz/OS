@@ -127,7 +127,7 @@ async def get_broadcast_status(_user=Depends(require_clerk_auth)):
 
 @broadcast_ws_router.websocket("/ws")
 async def broadcast_ws(ws: WebSocket):
-    user = await validate_ws_clerk_token(ws)
+    user = validate_ws_clerk_token(ws)
     if user is None:
         if os.environ.get("UMH_ALLOW_LOCAL_WS") == "1":
             import ipaddress
