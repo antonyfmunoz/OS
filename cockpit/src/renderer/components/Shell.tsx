@@ -47,6 +47,7 @@ import { BroadcastPanel } from '../panels/BroadcastPanel'
 import { ConferenceRoomsPanel } from '../panels/ConferenceRoomsPanel'
 import { StrategyPanel } from '../panels/StrategyPanel'
 import { TickLoopPanel } from '../panels/TickLoopPanel'
+import { ProjectionPanel } from '../panels/ProjectionPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -126,6 +127,8 @@ function ActivePanel() {
       return <StrategyPanel />
     case 'tickloop':
       return <TickLoopPanel />
+    case 'projections':
+      return <ProjectionPanel />
     default:
       return <DashboardPanel />
   }

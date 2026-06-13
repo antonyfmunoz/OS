@@ -419,6 +419,94 @@ export interface TickStrategicState {
   recent_ticks: TickRecord[]
 }
 
+// ── Phase 6: Projection Engine types ────────────────────────
+
+export interface ProjectionTrend {
+  trend_id: string
+  domain: string
+  metric: string
+  direction: string
+  magnitude: number
+  data_points: number
+  period_days: number
+  description: string
+  created_at: number
+}
+
+export interface ProjectionData {
+  projection_id: string
+  domain: string
+  horizon: string
+  current_state: string
+  predicted_state: string
+  confidence: string
+  assumptions: string[]
+  supporting_evidence: string[]
+  trends: string[]
+  completion_forecast: number
+  velocity_forecast: number
+  risk_indicators: string[]
+  created_at: number
+}
+
+export interface ProjectionRisk {
+  risk_id: string
+  title: string
+  domain: string
+  risk_type: string
+  severity: string
+  probability: number
+  impact: string
+  evidence: string[]
+  mitigation: string
+  horizon: string
+  related_goal_id: string
+  created_at: number
+}
+
+export interface ProjectionOpportunity {
+  opportunity_id: string
+  title: string
+  domain: string
+  opportunity_type: string
+  potential_impact: string
+  evidence: string[]
+  action_suggestion: string
+  horizon: string
+  confidence: string
+  related_goal_id: string
+  created_at: number
+}
+
+export interface ProjectionAccuracy {
+  total_projections: number
+  accurate_count: number
+  accuracy_rate: number
+  avg_score: number
+  by_domain: Record<string, { total_projections: number; accurate_count: number; accuracy_rate: number; avg_score: number }>
+  by_horizon: Record<string, { total_projections: number; accurate_count: number; accuracy_rate: number; avg_score: number }>
+}
+
+export interface ProjectionStatusData {
+  run_count: number
+  last_run_at: number
+  trend_count: number
+  projection_count: number
+  risk_count: number
+  opportunity_count: number
+  accuracy: ProjectionAccuracy
+}
+
+export interface ProjectionState {
+  run_count: number
+  last_run_at: number
+  trends: ProjectionTrend[]
+  projections: ProjectionData[]
+  risks: ProjectionRisk[]
+  opportunities: ProjectionOpportunity[]
+  accuracy: ProjectionAccuracy
+}
+
 interface OperatorLoopState {
   loopStatus: LoopStatus | null
   pendingApprovals: PacketSummary[]
@@ -502,6 +590,25 @@ interface OperatorLoopState {
   fetchTickDrift: () => Promise<void>
   fetchTickHistory: () => Promise<void>
 
+  // Phase 6: Projection Engine state
+  projectionStatus: ProjectionStatusData | null
+  projectionState: ProjectionState | null
+  projectionTrends: ProjectionTrend[]
+  projectionRisks: ProjectionRisk[]
+  projectionOpportunities: ProjectionOpportunity[]
+  projectionAccuracy: ProjectionAccuracy | null
+  projectionLoading: boolean
+
+  // Phase 6: Projection Engine actions
+  fetchProjectionStatus: () => Promise<void>
+  fetchProjectionState: () => Promise<void>
+  runProjections: (horizons?: string[], domains?: string[]) => Promise<Record<string, unknown> | null>
+  fetchProjectionTrends: () => Promise<void>
+  fetchProjectionRisks: () => Promise<void>
+  fetchProjectionOpportunities: () => Promise<void>
+  fetchProjectionAccuracy: () => Promise<void>
+  recordProjectionOutcome: (projectionId: string, actualState: string, wasAccurate: boolean, score?: number) => Promise<boolean>
+
   // Phase 4: Strategic Gap actions
   runAnalysis: () => Promise<AnalysisResult | null>
   fetchGoals: () => Promise<void>
@@ -536,6 +643,14 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
   tickDriftWarnings: [],
   tickHistory: [],
   tickLoading: false,
+  // Phase 6 initial state
+  projectionStatus: null,
+  projectionState: null,
+  projectionTrends: [],
+  projectionRisks: [],
+  projectionOpportunities: [],
+  projectionAccuracy: null,
+  projectionLoading: false,
   // Phase 4 initial state
   goals: [],
   gaps: [],
@@ -1149,6 +1264,110 @@ export const useOperatorLoopStore = create<OperatorLoopState>((set, get) => ({
         body: JSON.stringify({ was_effective: wasEffective, summary }),
       })
       if (res.success) get().fetchDecisions()
+      return res.success ?? false
+    } catch {
+      return false
+    }
+  },
+
+  // ── Phase 6: Projection Engine actions ──────────────────────
+
+  fetchProjectionStatus: async () => {
+    try {
+      const res = await fetchApi<ProjectionStatusData & { success: boolean }>('/projection/status')
+      if (res.success) set({ projectionStatus: res })
+    } catch {
+      set({ projectionStatus: null })
+    }
+  },
+
+  fetchProjectionState: async () => {
+    try {
+      const res = await fetchApi<ProjectionState & { success: boolean }>('/projection/state')
+      if (res.success) {
+        set({
+          projectionState: res,
+          projectionTrends: res.trends ?? [],
+          projectionRisks: res.risks ?? [],
+          projectionOpportunities: res.opportunities ?? [],
+          projectionAccuracy: res.accuracy ?? null,
+        })
+      }
+    } catch {
+      set({ projectionState: null })
+    }
+  },
+
+  runProjections: async (horizons, domains) => {
+    set({ projectionLoading: true })
+    try {
+      const body: Record<string, unknown> = {}
+      if (horizons) body.horizons = horizons
+      if (domains) body.domains = domains
+      const res = await fetchApi<Record<string, unknown> & { success: boolean }>('/projection/run', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+      if (res.success) {
+        get().fetchProjectionState()
+        return res
+      }
+      return null
+    } catch {
+      return null
+    } finally {
+      set({ projectionLoading: false })
+    }
+  },
+
+  fetchProjectionTrends: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; trends: ProjectionTrend[] }>('/projection/trends')
+      if (res.success) set({ projectionTrends: res.trends })
+    } catch {
+      set({ projectionTrends: [] })
+    }
+  },
+
+  fetchProjectionRisks: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; risks: ProjectionRisk[] }>('/projection/risks')
+      if (res.success) set({ projectionRisks: res.risks })
+    } catch {
+      set({ projectionRisks: [] })
+    }
+  },
+
+  fetchProjectionOpportunities: async () => {
+    try {
+      const res = await fetchApi<{ success: boolean; opportunities: ProjectionOpportunity[] }>('/projection/opportunities')
+      if (res.success) set({ projectionOpportunities: res.opportunities })
+    } catch {
+      set({ projectionOpportunities: [] })
+    }
+  },
+
+  fetchProjectionAccuracy: async () => {
+    try {
+      const res = await fetchApi<ProjectionAccuracy & { success: boolean }>('/projection/accuracy')
+      if (res.success) set({ projectionAccuracy: res })
+    } catch {
+      set({ projectionAccuracy: null })
+    }
+  },
+
+  recordProjectionOutcome: async (projectionId, actualState, wasAccurate, score = 0) => {
+    try {
+      const res = await fetchApi<{ success: boolean }>('/projection/outcome', {
+        method: 'POST',
+        body: JSON.stringify({
+          projection_id: projectionId,
+          actual_state: actualState,
+          was_accurate: wasAccurate,
+          accuracy_score: score,
+        }),
+      })
+      if (res.success) get().fetchProjectionAccuracy()
       return res.success ?? false
     } catch {
       return false
