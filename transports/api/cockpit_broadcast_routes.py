@@ -122,6 +122,15 @@ async def get_broadcast_status(_user=Depends(require_clerk_auth)):
     return engine.get_status()
 
 
+def _extract_ws_subprotocol(ws: WebSocket) -> str | None:
+    """Return the bearer subprotocol if the client sent one, else None."""
+    for proto in (ws.headers.get("sec-websocket-protocol") or "").split(","):
+        proto = proto.strip()
+        if proto.startswith("bearer."):
+            return proto
+    return None
+
+
 # ── WebSocket health endpoint ──
 
 
@@ -143,7 +152,8 @@ async def broadcast_ws(ws: WebSocket):
             await ws.close(code=4001, reason="Unauthorized")
             return
 
-    await ws.accept()
+    subprotocol = _extract_ws_subprotocol(ws)
+    await ws.accept(subprotocol=subprotocol)
     _ws_clients.add(ws)
     logger.info("[BroadcastWS] client connected (%d total)", len(_ws_clients))
 
