@@ -256,7 +256,7 @@ let _room: Room | null = null
 let _intentionalDisconnect = false
 const _videoElements = new Map<string, HTMLVideoElement>()
 const _localScreenTracks = new Map<string, LocalVideoTrack>()
-let _prefetchedToken: { token: string; url: string; room: string; fetchedAt: number } | null = null
+let _prefetchedToken: { token: string; url: string; room: string; fetchedAt: number; channelId: string } | null = null
 let _prefetching = false
 let _roomOpenTime = Date.now()
 let _joinTiming = { joinClickTs: 0, connectStartTs: 0, connectDoneTs: 0, micDoneTs: 0 }
@@ -574,7 +574,7 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
 
     try {
       let tokenData: { token: string; url: string; room: string }
-      if (_prefetchedToken && Date.now() - _prefetchedToken.fetchedAt < TOKEN_CACHE_TTL_MS) {
+      if (_prefetchedToken && _prefetchedToken.channelId === channelId && Date.now() - _prefetchedToken.fetchedAt < TOKEN_CACHE_TTL_MS) {
         tokenData = _prefetchedToken
         updateDiag({ joinStage: 'token_ready', lastEvent: 'using prefetched token' })
       } else {
@@ -1199,7 +1199,7 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
       }) as { token: string; url: string; room: string }
       if (res.token && res.url) {
         const doneTs = Date.now()
-        _prefetchedToken = { ...res, fetchedAt: doneTs }
+        _prefetchedToken = { ...res, fetchedAt: doneTs, channelId }
         updateDiag({
           tokenReceived: true,
           joinStage: 'token_ready',
