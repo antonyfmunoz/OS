@@ -224,10 +224,11 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     if (!client?.connected) return
     if (!useVisionStore.getState().chainHealth.beastConnected) return
 
-    // Manual input always overrides AI — authority priority
+    // Manual input always overrides AI — authority priority (local + relay)
     const currentAuth = useVisionStore.getState().authority.current
     if (currentAuth !== 'operator') {
       claimAuthority('operator', 'Manual joystick/D-pad input')
+      getVisionClient()?.claimAuthority('operator', 'Manual joystick/D-pad input')
     }
 
     if (activeMotionIdRef.current) {
@@ -280,6 +281,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     const currentAuth = useVisionStore.getState().authority.current
     if (currentAuth !== 'operator') {
       claimAuthority('operator', 'Manual zoom input')
+      client.claimAuthority('operator', 'Manual zoom input')
     }
 
     if (activeMotionIdRef.current) {
@@ -462,6 +464,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
     client.ptzStop()
     setPtzMoving(false)
     claimAuthority('operator', 'E-stop')
+    client.claimAuthority('operator', 'E-stop')
     addNotification('warn', 'E-stop pressed', 'operator', 'Emergency stop — all PTZ motion halted, operator has control', 'motion stopped')
   }, [setPtzMoving, stopDirectionMotion, stopZoomMotion, addNotification, claimAuthority])
 

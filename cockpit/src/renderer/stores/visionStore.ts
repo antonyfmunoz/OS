@@ -35,6 +35,18 @@ export interface AuthorityState {
   log: AuthorityLogEntry[]
 }
 
+export interface RelayPipelineMetrics {
+  measuredFps: number
+  avgIngestMs: number
+  avgBroadcastMs: number
+  p95IngestMs: number
+  avgFrameBytes: number
+  avgJitterMs: number
+  maxJitterMs: number
+  samples: number
+  updatedAt: number
+}
+
 // ── Default-on policy ────────────────────────────────────────────
 
 export type ProfileMode =
@@ -711,6 +723,10 @@ interface VisionState {
   setAuthority: (partial: Partial<AuthorityState>) => void
   claimAuthority: (who: ControlAuthority, reason?: string) => void
 
+  // Relay pipeline metrics (defense-grade observability)
+  relayPipelineMetrics: RelayPipelineMetrics
+  updateRelayPipelineMetrics: (m: Partial<RelayPipelineMetrics>) => void
+
   // Preset loading state
   presetsLoading: boolean
   presetsLoadError: string | null
@@ -760,6 +776,17 @@ const INITIAL_AUTHORITY: AuthorityState = {
   lastOverrideAt: 0,
   lastOverrideBy: 'operator',
   log: [],
+}
+const INITIAL_RELAY_PIPELINE_METRICS: RelayPipelineMetrics = {
+  measuredFps: 0,
+  avgIngestMs: 0,
+  avgBroadcastMs: 0,
+  p95IngestMs: 0,
+  avgFrameBytes: 0,
+  avgJitterMs: 0,
+  maxJitterMs: 0,
+  samples: 0,
+  updatedAt: 0,
 }
 
 const INITIAL_CONTROL_METRICS: ControlMetrics = {
@@ -1134,6 +1161,12 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     }
   }),
 
+  // Relay pipeline metrics
+  relayPipelineMetrics: { ...INITIAL_RELAY_PIPELINE_METRICS },
+  updateRelayPipelineMetrics: (m) => set((s) => ({
+    relayPipelineMetrics: { ...s.relayPipelineMetrics, ...m, updatedAt: Date.now() },
+  })),
+
   // Preset loading state
   presetsLoading: false,
   presetsLoadError: null,
@@ -1197,6 +1230,7 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     cameraSessionActive: false,
     cameraMode: 'manual',
     authority: { ...INITIAL_AUTHORITY },
+    relayPipelineMetrics: { ...INITIAL_RELAY_PIPELINE_METRICS },
     presetsLoading: false,
     presetsLoadError: null,
     presetsLoadedAt: 0,
