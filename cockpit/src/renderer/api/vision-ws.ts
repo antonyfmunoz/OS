@@ -149,6 +149,7 @@ export type VisionEvent =
   | { type: 'camera_session_state'; active: boolean; viewer_count: number }
   | { type: 'vision_overlay'; overlays: Array<{ type: string; track_id: string; label: string; confidence: number; bbox: { x: number; y: number; w: number; h: number }; landmarks?: Array<{ x: number; y: number; label?: string }>; connections?: Array<[number, number]>; color?: string }> }
   | { type: 'label_corrections_list'; corrections: Record<string, string> }
+  | { type: 'vision_events'; events: Array<{ seq: number; type: string; timestamp: number; detail?: Record<string, unknown> }>; total: number }
 
 function getVisionProtocols(): string[] {
   const token = import.meta.env.VITE_VISION_TOKEN as string | undefined
@@ -355,6 +356,10 @@ export class VisionWsClient {
 
   requestHealth(): void {
     this.ws.send('vision_health')
+  }
+
+  requestEvents(sinceSeq = 0): void {
+    this.ws.send('vision_events', { since_seq: sinceSeq })
   }
 
   requestLabelCorrections(): void {

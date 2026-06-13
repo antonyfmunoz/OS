@@ -359,6 +359,28 @@ export interface DetectorStatus {
   device?: string
   nms_device?: string
   nms_fallback?: boolean
+  consecutive_errors?: number
+  detect_interval?: number
+}
+
+// ── Pipeline latency types (Phase 5) ────────────────────────────
+
+export interface PipelineLatency {
+  captureToRelayMs: number
+  relayToRenderMs: number
+  endToEndMs: number
+  captureTimestamp: number
+  relayTimestamp: number
+  renderTimestamp: number
+}
+
+// ── Vision event types (Phase 8) ────────────────────────────────
+
+export interface VisionEvent {
+  seq: number
+  type: string
+  timestamp: number
+  detail?: Record<string, unknown>
 }
 
 export interface RoiState {
@@ -529,6 +551,12 @@ interface VisionState {
   // Command latency history
   latencyHistory: CommandLatencyMeasurement[]
 
+  // Pipeline latency (Phase 5)
+  pipelineLatency: PipelineLatency
+
+  // Vision event stream (Phase 8)
+  visionEvents: VisionEvent[]
+
   // Security notifications
   notifications: SecurityNotification[]
   notificationUnreadCount: number
@@ -601,6 +629,12 @@ interface VisionState {
 
   // Latency setters
   recordLatency: (measurement: CommandLatencyMeasurement) => void
+
+  // Pipeline latency setters (Phase 5)
+  updatePipelineLatency: (partial: Partial<PipelineLatency>) => void
+
+  // Vision event setters (Phase 8)
+  appendVisionEvents: (events: VisionEvent[]) => void
 
   // Security notification setters
   addNotification: (severity: NotificationSeverity, event: string, source: string, detail: string, action?: string, persistent?: boolean) => void
@@ -834,6 +868,10 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   toasts: [],
   // Command latency history (keep last 20)
   latencyHistory: [],
+  // Pipeline latency (Phase 5)
+  pipelineLatency: { captureToRelayMs: 0, relayToRenderMs: 0, endToEndMs: 0, captureTimestamp: 0, relayTimestamp: 0, renderTimestamp: 0 },
+  // Vision event stream (Phase 8 — keep last 500)
+  visionEvents: [],
   // Security notifications
   notifications: loadNotificationsFromStorage(),
   notificationUnreadCount: loadNotificationsFromStorage().filter((n) => !n.acknowledged).length,
@@ -962,6 +1000,17 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   recordLatency: (measurement) => set((s) => ({
     latencyHistory: [...s.latencyHistory.slice(-19), measurement],
   })),
+
+  // Pipeline latency (Phase 5)
+  updatePipelineLatency: (partial) => set((s) => ({
+    pipelineLatency: { ...s.pipelineLatency, ...partial },
+  })),
+
+  // Vision events (Phase 8)
+  appendVisionEvents: (events) => set((s) => {
+    const merged = [...s.visionEvents, ...events]
+    return { visionEvents: merged.slice(-500) }
+  }),
 
   // Security notification setters
   addNotification: (severity, event, source, detail, action = '', persistent = false) => set((s) => {
@@ -1095,6 +1144,7 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     labelCorrections: loadCorrectionsFromStorage(),
     toasts: [],
     latencyHistory: [],
+    pipelineLatency: { captureToRelayMs: 0, relayToRenderMs: 0, endToEndMs: 0, captureTimestamp: 0, relayTimestamp: 0, renderTimestamp: 0 },
     notifications: loadNotificationsFromStorage(),
     notificationUnreadCount: loadNotificationsFromStorage().filter((n) => !n.acknowledged).length,
     overlays: [],

@@ -33,6 +33,8 @@ export function DiagnosticsPanel({
   const latencyHistory = useVisionStore((s) => s.latencyHistory)
   const labelCorrections = useVisionStore((s) => s.labelCorrections)
   const authorityLog = useVisionStore((s) => s.authority.log)
+  const pipelineLatency = useVisionStore((s) => s.pipelineLatency)
+  const visionEvents = useVisionStore((s) => s.visionEvents)
   const [expanded, setExpanded] = useState(false)
 
   const enabledTrackers = trackerStack.enabled_trackers.filter((t) => t.enabled)
@@ -132,7 +134,7 @@ export function DiagnosticsPanel({
             )}
           </div>
 
-          {/* Detector status */}
+          {/* Detector + tracker status */}
           {chainHealth.detectorStatus && (
             <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-border/50 rounded p-2">
               <span>detector: <span className={chainHealth.detectorStatus.loaded ? 'text-ok' : 'text-danger'}>{chainHealth.detectorStatus.loaded ? chainHealth.detectorStatus.model : 'NOT LOADED'}</span></span>
@@ -143,10 +145,28 @@ export function DiagnosticsPanel({
               )}>{chainHealth.detectorStatus.device || 'unknown'}</span></span>
               <span>infer: {chainHealth.detectorStatus.avg_inference_ms > 0 ? `${chainHealth.detectorStatus.avg_inference_ms.toFixed(0)}ms avg` : '—'}</span>
               <span>frames: {chainHealth.detectorStatus.detection_frames}</span>
-              <span>tracks: {chainHealth.detectorStatus.active_tracks}</span>
+              <span>tracks: <span className={chainHealth.detectorStatus.active_tracks > 0 ? 'text-ok' : ''}>{chainHealth.detectorStatus.active_tracks}</span> / {chainHealth.detectorStatus.total_tracks}</span>
+              <span>errors: <span className={(chainHealth.detectorStatus.consecutive_errors ?? 0) > 0 ? 'text-danger' : ''}>{chainHealth.detectorStatus.consecutive_errors ?? 0}</span></span>
               {chainHealth.detectorStatus.nms_fallback && <span className="text-warning">NMS: CPU fallback</span>}
+              {chainHealth.detectorStatus.detect_interval != null && (
+                <span>det_interval: {chainHealth.detectorStatus.detect_interval.toFixed(2)}s</span>
+              )}
             </div>
           )}
+
+          {/* Pipeline latency (Phase 5) */}
+          <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-ok/20 rounded p-2">
+            <span className="col-span-3 text-text-quaternary uppercase tracking-wider mb-0.5">pipeline latency</span>
+            <span>capture→relay: <span className={clsx(
+              pipelineLatency.captureToRelayMs > 500 ? 'text-danger' : pipelineLatency.captureToRelayMs > 200 ? 'text-warning' : 'text-ok',
+            )}>{pipelineLatency.captureToRelayMs > 0 ? `${pipelineLatency.captureToRelayMs.toFixed(0)}ms` : '—'}</span></span>
+            <span>relay→render: <span className={clsx(
+              pipelineLatency.relayToRenderMs > 300 ? 'text-danger' : pipelineLatency.relayToRenderMs > 100 ? 'text-warning' : 'text-ok',
+            )}>{pipelineLatency.relayToRenderMs > 0 ? `${pipelineLatency.relayToRenderMs.toFixed(0)}ms` : '—'}</span></span>
+            <span>end-to-end: <span className={clsx(
+              pipelineLatency.endToEndMs > 1000 ? 'text-danger' : pipelineLatency.endToEndMs > 500 ? 'text-warning' : 'text-ok',
+            )}>{pipelineLatency.endToEndMs > 0 ? `${pipelineLatency.endToEndMs.toFixed(0)}ms` : '—'}</span></span>
+          </div>
 
           {/* Blockers */}
           {chainHealth.blockers.length > 0 && (
@@ -155,6 +175,25 @@ export function DiagnosticsPanel({
               {chainHealth.recoveryAction && (
                 <div className="text-warning/80 mt-0.5">{chainHealth.recoveryAction}</div>
               )}
+            </div>
+          )}
+
+          {/* Vision event stream (Phase 8) */}
+          {visionEvents.length > 0 && (
+            <div className="text-[9px] font-mono border border-dashed border-border/50 rounded p-2">
+              <span className="text-text-quaternary uppercase tracking-wider block mb-1">vision events ({visionEvents.length})</span>
+              {visionEvents.slice(-8).reverse().map((evt) => (
+                <div key={evt.seq} className="flex gap-2 text-text-quaternary">
+                  <span className="shrink-0 text-text-quaternary">{new Date(evt.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                  <span className={clsx(
+                    evt.type.includes('error') && 'text-danger',
+                    evt.type.includes('started') && 'text-ok',
+                    evt.type.includes('stopped') && 'text-warning',
+                    evt.type.includes('preset') && 'text-cyan',
+                  )}>{evt.type}</span>
+                  {evt.detail && <span className="text-text-quaternary truncate">{JSON.stringify(evt.detail)}</span>}
+                </div>
+              ))}
             </div>
           )}
 
