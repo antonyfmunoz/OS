@@ -829,7 +829,7 @@ async def _empire_route(request: Request) -> dict:
             operator_available=operator_available,
         )
 
-        _log_audit("empire_route", {
+        _audit_log("empire_route", {
             "routing_id": result.routing_id,
             "domain": result.domain,
             "scope": result.scope,
