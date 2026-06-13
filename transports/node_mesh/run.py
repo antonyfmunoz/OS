@@ -165,8 +165,8 @@ def main() -> None:
             if not hasattr(_forward_frame_to_relay, "_err_count"):
                 _forward_frame_to_relay._err_count = 0  # type: ignore[attr-defined]
             _forward_frame_to_relay._err_count += 1  # type: ignore[attr-defined]
-            if _forward_frame_to_relay._err_count <= 3:  # type: ignore[attr-defined]
-                logger.warning("vision relay frame forward failed: %s", exc)
+            if _forward_frame_to_relay._err_count <= 3 or _forward_frame_to_relay._err_count % 100 == 0:  # type: ignore[attr-defined]
+                logger.warning("vision relay frame forward failed (%d): %s", _forward_frame_to_relay._err_count, exc)  # type: ignore[attr-defined]
 
     server.register_frame_callback(_forward_frame_to_relay)
     logger.info("vision relay frame callback registered → %s", vision_relay_url)
