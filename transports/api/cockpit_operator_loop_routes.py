@@ -144,6 +144,19 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/projection/projected-reality", _projection_projected_reality, methods=["GET"], dependencies=auth)
     r.add_api_route("/projection/outcome", _projection_record_outcome, methods=["POST"], dependencies=auth)
 
+    # ── Phase 7: Continuity Runtime routes ────────────────────
+    r.add_api_route("/continuity/status", _continuity_status, methods=["GET"], dependencies=auth)
+    r.add_api_route("/continuity/snapshot", _continuity_snapshot, methods=["GET"], dependencies=auth)
+    r.add_api_route("/continuity/capture", _continuity_capture, methods=["POST"], dependencies=auth)
+    r.add_api_route("/continuity/depart", _continuity_depart, methods=["POST"], dependencies=auth)
+    r.add_api_route("/continuity/resume", _continuity_resume, methods=["POST"], dependencies=auth)
+    r.add_api_route("/continuity/brief", _continuity_brief, methods=["GET"], dependencies=auth)
+    r.add_api_route("/continuity/generate-brief", _continuity_generate_brief, methods=["POST"], dependencies=auth)
+    r.add_api_route("/continuity/timeline", _continuity_timeline, methods=["GET"], dependencies=auth)
+    r.add_api_route("/continuity/lineage", _continuity_lineage, methods=["GET"], dependencies=auth)
+    r.add_api_route("/continuity/handoff", _continuity_handoff, methods=["POST"], dependencies=auth)
+    r.add_api_route("/continuity/interaction", _continuity_interaction, methods=["POST"], dependencies=auth)
+
     return r
 
 
@@ -1618,4 +1631,149 @@ async def _projection_record_outcome(request: Request) -> dict:
         return result
     except Exception as exc:
         logger.error("projection record outcome failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+# ── Phase 7: Continuity Runtime helpers & handlers ─────────────────────
+
+
+def _get_continuity_runtime():
+    from substrate.organism.continuity_runtime import get_continuity_runtime
+    return get_continuity_runtime()
+
+
+async def _continuity_status(request: Request) -> dict:
+    try:
+        rt = _get_continuity_runtime()
+        return {"success": True, **rt.status()}
+    except Exception as exc:
+        logger.error("continuity status failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _continuity_snapshot(request: Request) -> dict:
+    try:
+        rt = _get_continuity_runtime()
+        snap = rt.get_snapshot()
+        return {"success": True, "snapshot": snap}
+    except Exception as exc:
+        logger.error("continuity snapshot failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _continuity_capture(request: Request) -> dict:
+    try:
+        rt = _get_continuity_runtime()
+        snap = rt.capture_snapshot()
+        _audit_log("continuity_snapshot_captured", {"snapshot_id": snap.snapshot_id})
+        return {"success": True, "snapshot": snap.to_dict()}
+    except Exception as exc:
+        logger.error("continuity capture failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _continuity_depart(request: Request) -> dict:
+    try:
+        rt = _get_continuity_runtime()
+        snap = rt.record_departure()
+        _audit_log("continuity_departure_recorded", {"snapshot_id": snap.snapshot_id})
+        return {"success": True, "snapshot": snap.to_dict()}
+    except Exception as exc:
+        logger.error("continuity depart failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _continuity_resume(request: Request) -> dict:
+    try:
+        rt = _get_continuity_runtime()
+        report = rt.generate_resume()
+        _audit_log("continuity_resume_generated", {
+            "total_changes": report.total_changes,
+            "absence_seconds": report.absence_duration_seconds,
+        })
+        return {"success": True, "report": report.to_dict()}
+    except Exception as exc:
+        logger.error("continuity resume failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _continuity_brief(request: Request) -> dict:
+    try:
+        rt = _get_continuity_runtime()
+        brief = rt.get_last_brief()
+        return {"success": True, "brief": brief}
+    except Exception as exc:
+        logger.error("continuity brief failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _continuity_generate_brief(request: Request) -> dict:
+    try:
+        rt = _get_continuity_runtime()
+        brief = rt.generate_brief(include_resume=False)
+        _audit_log("continuity_brief_generated", {"brief_id": brief.brief_id})
+        return {"success": True, "brief": brief.to_dict()}
+    except Exception as exc:
+        logger.error("continuity generate brief failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _continuity_timeline(request: Request) -> dict:
+    try:
+        rt = _get_continuity_runtime()
+        since = float(request.query_params.get("since", "0"))
+        event_type = request.query_params.get("type")
+        limit = int(request.query_params.get("limit", "50"))
+        events = rt.get_timeline(since=since, event_type=event_type, limit=limit)
+        return {"success": True, "events": events}
+    except Exception as exc:
+        logger.error("continuity timeline failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _continuity_lineage(request: Request) -> dict:
+    try:
+        rt = _get_continuity_runtime()
+        lineages = rt.build_lineage()
+        return {"success": True, "lineages": [l.to_dict() for l in lineages]}
+    except Exception as exc:
+        logger.error("continuity lineage failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _continuity_handoff(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except Exception:
+        return {"success": False, "error": "invalid JSON body"}
+
+    from_session = body.get("from_session_id", "")
+    to_session = body.get("to_session_id", "")
+    if not from_session or not to_session:
+        return {"success": False, "error": "from_session_id and to_session_id required"}
+
+    try:
+        rt = _get_continuity_runtime()
+        handoff = rt.record_session_handoff(
+            from_session, to_session,
+            body.get("from_profile", ""),
+            body.get("to_profile", ""),
+        )
+        _audit_log("continuity_handoff", {
+            "from": from_session, "to": to_session,
+            "handoff_id": handoff.handoff_id,
+        })
+        return {"success": True, "handoff": handoff.to_dict()}
+    except Exception as exc:
+        logger.error("continuity handoff failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _continuity_interaction(request: Request) -> dict:
+    try:
+        rt = _get_continuity_runtime()
+        rt.record_interaction()
+        return {"success": True, "attention": rt.attention.to_dict()}
+    except Exception as exc:
+        logger.error("continuity interaction failed: %s", exc)
         return {"success": False, "error": str(exc)}

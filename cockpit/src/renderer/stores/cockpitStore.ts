@@ -38,6 +38,7 @@ export type Panel =
   | 'strategy'
   | 'tickloop'
   | 'projections'
+  | 'continuity'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

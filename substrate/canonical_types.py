@@ -283,6 +283,25 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "OpportunityDetector": ["substrate.organism.projection_engine"],
     "ProjectionGenerator": ["substrate.organism.projection_engine"],
     "ProjectionEngine": ["substrate.organism.projection_engine"],
+
+    # Phase 7: Continuity Runtime
+    "AttentionState": ["substrate.organism.continuity_runtime"],
+    "TimelineEventType": ["substrate.organism.continuity_runtime"],
+    "ChangeCategory": ["substrate.organism.continuity_runtime"],
+    "BriefSection": ["substrate.organism.continuity_runtime"],
+    "ContinuitySnapshot": ["substrate.organism.continuity_runtime"],
+    "TimelineEvent": ["substrate.organism.continuity_runtime"],
+    "ResumeReport": ["substrate.organism.continuity_runtime"],
+    "OperatorBrief": ["substrate.organism.continuity_runtime"],
+    "WorkLineage": ["substrate.organism.continuity_runtime"],
+    "SessionHandoff": ["substrate.organism.continuity_runtime"],
+    "AttentionModel": ["substrate.organism.continuity_runtime"],
+    "TimelineEngine": ["substrate.organism.continuity_runtime"],
+    "ResumeStateEngine": ["substrate.organism.continuity_runtime"],
+    "WorkContinuityGraph": ["substrate.organism.continuity_runtime"],
+    "OperatorBriefGenerator": ["substrate.organism.continuity_runtime"],
+    "SnapshotCollector": ["substrate.organism.continuity_runtime"],
+    "ContinuityRuntime": ["substrate.organism.continuity_runtime"],
 }
 
 
