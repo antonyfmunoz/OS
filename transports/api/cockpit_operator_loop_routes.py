@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 from typing import Any
 from uuid import uuid4
@@ -40,6 +41,19 @@ _configured: bool = False
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
 _VALID_MODES = ("validate_only", "implement", "implement_and_validate")
+
+_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def _safe_artifact_path(kind: str, ident: str) -> str | None:
+    """Build a safe filesystem path for execution artifacts. Returns None on traversal attempt."""
+    if not _ID_RE.match(ident):
+        return None
+    base = os.path.realpath(os.path.join(_REPO_ROOT, "data", "umh", "execution", kind))
+    path = os.path.realpath(os.path.join(base, f"{ident}.json"))
+    if not path.startswith(base + os.sep):
+        return None
+    return path
 
 
 def configure(require_operator_dep: Any) -> None:
@@ -251,8 +265,8 @@ async def _generate_plan(request: Request):
 
 async def _get_plan(plan_id: str):
     """Retrieve a generated plan."""
-    plan_path = os.path.join(_REPO_ROOT, "data", "umh", "execution", "plans", f"{plan_id}.json")
-    if not os.path.exists(plan_path):
+    plan_path = _safe_artifact_path("plans", plan_id)
+    if not plan_path or not os.path.exists(plan_path):
         return {"error": "Plan not found", "plan_id": plan_id}
     try:
         with open(plan_path) as f:
@@ -268,8 +282,8 @@ async def _approve_plan(request: Request):
     if not plan_id:
         return {"success": False, "error": "plan_id is required"}
 
-    plan_path = os.path.join(_REPO_ROOT, "data", "umh", "execution", "plans", f"{plan_id}.json")
-    if not os.path.exists(plan_path):
+    plan_path = _safe_artifact_path("plans", plan_id)
+    if not plan_path or not os.path.exists(plan_path):
         return {"success": False, "error": "Plan not found"}
 
     try:
@@ -699,8 +713,8 @@ async def _loop_health():
 
 async def _get_execution_record(record_id: str):
     """Retrieve a single execution record."""
-    path = os.path.join(_REPO_ROOT, "data", "umh", "execution", "records", f"{record_id}.json")
-    if not os.path.exists(path):
+    path = _safe_artifact_path("records", record_id)
+    if not path or not os.path.exists(path):
         return {"error": "Not found", "record_id": record_id}
     try:
         with open(path) as f:
