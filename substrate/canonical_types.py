@@ -226,6 +226,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "LoopContract": ["substrate.workstation.loop_engine"],
     "LoopStatus": ["substrate.workstation.loop_engine"],
     "EndStateVerifier": ["substrate.workstation.loop_engine"],
+    # ── substrate/organism/agent_execution_runner.py (Operator Loop Phase 2) ─
+    "AgentExecutionPlan": ["substrate.organism.agent_execution_runner"],
+    "ExecutionRecord": ["substrate.organism.agent_execution_runner"],
+    "FailureReport": ["substrate.organism.agent_execution_runner"],
 }
 
 
