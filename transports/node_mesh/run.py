@@ -133,43 +133,11 @@ def main() -> None:
 
     _ensure_docker_relay_access(config.port + 1)
 
-    vision_relay_url = os.getenv("VISION_RELAY_FRAME_URL", "http://127.0.0.1:8098/frame/binary")
+    vision_relay_ws_url = os.getenv("VISION_RELAY_WS_URL", "ws://127.0.0.1:8099")
     vision_frame_token = os.getenv("VISION_FRAME_TOKEN", "")
 
-    import base64 as _b64
-
-    def _forward_frame_to_relay(node_id: str, frame_payload: dict) -> None:
-        """Forward frame to relay using binary endpoint (skips base64 overhead)."""
-        try:
-            import urllib.request
-            b64_data = frame_payload.get("image_base64", "")
-            if not b64_data:
-                return
-            jpeg_bytes = _b64.b64decode(b64_data)
-
-            meta = {k: v for k, v in frame_payload.items() if k != "image_base64"}
-            meta["node_id"] = node_id
-
-            headers: dict[str, str] = {
-                "Content-Type": "image/jpeg",
-                "X-Frame-Meta": json.dumps(meta),
-            }
-            if vision_frame_token:
-                headers["X-Frame-Token"] = vision_frame_token
-            req = urllib.request.Request(
-                vision_relay_url, data=jpeg_bytes,
-                headers=headers,
-            )
-            urllib.request.urlopen(req, timeout=2)
-        except Exception as exc:
-            if not hasattr(_forward_frame_to_relay, "_err_count"):
-                _forward_frame_to_relay._err_count = 0  # type: ignore[attr-defined]
-            _forward_frame_to_relay._err_count += 1  # type: ignore[attr-defined]
-            if _forward_frame_to_relay._err_count <= 3 or _forward_frame_to_relay._err_count % 100 == 0:  # type: ignore[attr-defined]
-                logger.warning("vision relay frame forward failed (%d): %s", _forward_frame_to_relay._err_count, exc)  # type: ignore[attr-defined]
-
-    server.register_frame_callback(_forward_frame_to_relay)
-    logger.info("vision relay frame callback registered → %s", vision_relay_url)
+    server.register_frame_relay(vision_relay_ws_url, vision_frame_token)
+    logger.info("vision relay frame relay registered → %s (persistent WS)", vision_relay_ws_url)
 
     thread = server.start()
     logger.info("node mesh server running on port %d — waiting for connections", config.port)
