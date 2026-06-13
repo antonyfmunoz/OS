@@ -1,19 +1,28 @@
 """Cockpit operator loop routes — intent to plan to implementation to audit.
 
-The Operator Loop lifecycle:
-  1. Operator submits intent (full contract)
-  2. Intent classified → work packet created
+The Operator Loop lifecycle (Phase 1+2+3):
+  1. Operator submits intent (full contract or natural language)
+  2. Empire Router classifies domain, decomposes to WorkPackets
   3. Risk classified → approval gate enforced
   4. Plan generated → reviewable in cockpit
   5. Approved packets → sandbox created → agent executes
   6. Validation runs → proof captured
   7. Outcomes recorded in reality model
   8. Audit trail preserved
+  9. Next best actions surfaced
 
 Execution modes:
   VALIDATE_ONLY        — run validation commands (default)
   IMPLEMENT            — invoke coding agent
   IMPLEMENT_AND_VALIDATE — agent implements, then validate
+
+Phase 3 additions:
+  - /empire/route — full intent routing with domain/agent/proof assignment
+  - /empire/domains — domain registry listing
+  - /empire/agents — agent registry listing
+  - /empire/reality — reality model snapshot
+  - /empire/packets-by-domain — domain-filtered packet view
+  - /empire/next-actions — computed next best actions
 
 Mounted under /api/umh/ via include_router in cockpit.py.
 
@@ -84,6 +93,14 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/operator-loop/execution-record/{record_id}", _get_execution_record, methods=["GET"], dependencies=auth)
     r.add_api_route("/operator-loop/packet/{packet_id}/records", _packet_records, methods=["GET"], dependencies=auth)
     r.add_api_route("/operator-loop/packet/{packet_id}/failure", _packet_failure, methods=["GET"], dependencies=auth)
+
+    # ── Phase 3: Empire WorkPacket Engine routes ────────────────
+    r.add_api_route("/empire/route", _empire_route, methods=["POST"], dependencies=auth)
+    r.add_api_route("/empire/domains", _empire_domains, methods=["GET"], dependencies=auth)
+    r.add_api_route("/empire/agents", _empire_agents, methods=["GET"], dependencies=auth)
+    r.add_api_route("/empire/reality", _empire_reality, methods=["GET"], dependencies=auth)
+    r.add_api_route("/empire/packets-by-domain", _empire_packets_by_domain, methods=["GET"], dependencies=auth)
+    r.add_api_route("/empire/next-actions", _empire_next_actions, methods=["GET"], dependencies=auth)
 
     return r
 
@@ -781,3 +798,123 @@ def _get_audit_entries_for_packet(packet_id: str) -> list[dict]:
     except Exception:
         pass
     return entries
+
+
+# ── Phase 3: Empire WorkPacket Engine handlers ────────────────────────
+
+
+async def _empire_route(request: Request) -> dict:
+    """Route founder intent through domain classification, decomposition,
+    agent assignment, and governance."""
+    body = await request.json()
+    intent = body.get("intent", "").strip()
+    if not intent:
+        return {"success": False, "error": "intent is required"}
+
+    desired_end_state = body.get("desired_end_state", "")
+    constraints = body.get("constraints", [])
+    profile_mode = body.get("profile_mode", "")
+    session_mode = body.get("session_mode", "")
+    operator_available = body.get("operator_available", True)
+
+    try:
+        from substrate.organism.empire_router import EmpireRouter
+        router = EmpireRouter()
+        result = router.route(
+            intent=intent,
+            desired_end_state=desired_end_state,
+            constraints=constraints,
+            profile_mode=profile_mode,
+            session_mode=session_mode,
+            operator_available=operator_available,
+        )
+
+        _log_audit("empire_route", {
+            "routing_id": result.routing_id,
+            "domain": result.domain,
+            "scope": result.scope,
+            "packet_count": len(result.work_packets),
+            "intent_preview": intent[:100],
+        })
+
+        return {
+            "success": True,
+            "routing": result.to_dict(),
+        }
+    except Exception as exc:
+        logger.error("empire route failed: %s", exc, exc_info=True)
+        return {"success": False, "error": str(exc)}
+
+
+async def _empire_domains(request: Request) -> list:
+    """Return all domain definitions."""
+    try:
+        from substrate.organism.empire_router import EmpireRouter
+        router = EmpireRouter()
+        return router.get_domain_summary()
+    except Exception as exc:
+        logger.error("empire domains failed: %s", exc)
+        return []
+
+
+async def _empire_agents(request: Request) -> list:
+    """Return all agent type definitions."""
+    try:
+        from substrate.organism.empire_router import EmpireRouter
+        router = EmpireRouter()
+        return router.get_agent_summary()
+    except Exception as exc:
+        logger.error("empire agents failed: %s", exc)
+        return []
+
+
+async def _empire_reality(request: Request) -> dict:
+    """Return current reality model snapshot."""
+    try:
+        from substrate.organism.empire_router import EmpireRouter
+        router = EmpireRouter()
+        snapshot = router.get_reality_snapshot()
+        return {"success": True, "reality": snapshot.to_dict()}
+    except Exception as exc:
+        logger.error("empire reality failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _empire_packets_by_domain(request: Request) -> dict:
+    """Return work packets grouped by domain."""
+    try:
+        from substrate.organism.universal_work_queue import UniversalWorkQueue
+        from substrate.organism.domain_registry import DomainRegistry
+
+        q = UniversalWorkQueue()
+        registry = DomainRegistry()
+        by_domain: dict[str, list[dict]] = {}
+
+        for pkt in q.all_packets():
+            domain = registry.resolve_id(pkt.domain) if pkt.domain else "unknown"
+            if domain not in by_domain:
+                by_domain[domain] = []
+            by_domain[domain].append(pkt.to_safe_dict())
+
+        return {"success": True, "domains": by_domain}
+    except Exception as exc:
+        logger.error("empire packets by domain failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _empire_next_actions(request: Request) -> dict:
+    """Return computed next best actions."""
+    try:
+        from substrate.organism.empire_router import EmpireRouter
+        router = EmpireRouter()
+        snapshot = router.get_reality_snapshot()
+        return {
+            "success": True,
+            "next_actions": snapshot.next_best_actions,
+            "open_approvals": snapshot.open_approvals,
+            "blocked_count": len(snapshot.blocked_items),
+            "active_domains": snapshot.active_domains,
+        }
+    except Exception as exc:
+        logger.error("empire next actions failed: %s", exc)
+        return {"success": False, "error": str(exc)}
