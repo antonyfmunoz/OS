@@ -383,6 +383,22 @@ export interface VisionEvent {
   detail?: Record<string, unknown>
 }
 
+export interface CommandLogEntry {
+  id: number
+  operation: string
+  sent_at: number
+  rtt_ms: number
+  success: boolean
+  error?: string
+}
+
+export interface CommandTelemetry {
+  commands: CommandLogEntry[]
+  total: number
+  ok: number
+  fail: number
+}
+
 export interface RoiState {
   x: number
   y: number
@@ -557,6 +573,9 @@ interface VisionState {
   // Vision event stream (Phase 8)
   visionEvents: VisionEvent[]
 
+  // Command telemetry (Phase 6)
+  commandTelemetry: CommandTelemetry
+
   // Security notifications
   notifications: SecurityNotification[]
   notificationUnreadCount: number
@@ -635,6 +654,9 @@ interface VisionState {
 
   // Vision event setters (Phase 8)
   appendVisionEvents: (events: VisionEvent[]) => void
+
+  // Command telemetry setter (Phase 6)
+  updateCommandTelemetry: (telemetry: CommandTelemetry) => void
 
   // Security notification setters
   addNotification: (severity: NotificationSeverity, event: string, source: string, detail: string, action?: string, persistent?: boolean) => void
@@ -872,6 +894,8 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   pipelineLatency: { captureToRelayMs: 0, relayToRenderMs: 0, endToEndMs: 0, captureTimestamp: 0, relayTimestamp: 0, renderTimestamp: 0 },
   // Vision event stream (Phase 8 — keep last 500)
   visionEvents: [],
+  // Command telemetry (Phase 6)
+  commandTelemetry: { commands: [], total: 0, ok: 0, fail: 0 },
   // Security notifications
   notifications: loadNotificationsFromStorage(),
   notificationUnreadCount: loadNotificationsFromStorage().filter((n) => !n.acknowledged).length,
@@ -1012,6 +1036,9 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     return { visionEvents: merged.slice(-500) }
   }),
 
+  // Command telemetry (Phase 6)
+  updateCommandTelemetry: (telemetry) => set({ commandTelemetry: telemetry }),
+
   // Security notification setters
   addNotification: (severity, event, source, detail, action = '', persistent = false) => set((s) => {
     const id = `notif_${++_toastId}`
@@ -1145,6 +1172,7 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     toasts: [],
     latencyHistory: [],
     pipelineLatency: { captureToRelayMs: 0, relayToRenderMs: 0, endToEndMs: 0, captureTimestamp: 0, relayTimestamp: 0, renderTimestamp: 0 },
+    commandTelemetry: { commands: [], total: 0, ok: 0, fail: 0 },
     notifications: loadNotificationsFromStorage(),
     notificationUnreadCount: loadNotificationsFromStorage().filter((n) => !n.acknowledged).length,
     overlays: [],
