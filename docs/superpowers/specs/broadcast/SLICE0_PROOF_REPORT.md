@@ -87,8 +87,12 @@ _mount_broadcast_router()
 
 ### Topology
 ```
-testsrc2 (lavfi) → BroadcastEngine (FFmpeg subprocess) → MediaMTX (RTMP :1935) → ffprobe verify
+testsrc2 (lavfi) → BroadcastEngine (FFmpeg subprocess) → MediaMTX (RTMP :1935, same host) → ffprobe verify
 ```
+
+**Egress note**: RTMP target was `rtmp://localhost:1935/live/prooftest` —
+same-host MediaMTX. Cross-host egress (VPS → Beast over Tailscale WireGuard)
+is DEFERRED pending MediaMTX installation on Beast.
 
 ### Exact FFmpeg invocation
 ```
@@ -160,6 +164,51 @@ ffmpeg -y -re -f lavfi -i testsrc2=size=1280x720:rate=30 \
 
 - **Exit code 255**: FFmpeg returns 255 on SIGTERM (normal for interrupted streams). Engine handles this correctly — state is already "stopping" before kill, so on_exit does not transition to "error".
 - **-re flag required**: Added to test_pattern source to pace lavfi output at real-time rate. Without it, FFmpeg blasts frames at CPU speed, causing RTMP disconnects.
+
+---
+
+---
+
+## Post-Slice 0 Validation (2026-06-12)
+
+### Agent-Drive Go-Live (CapabilityHandler path)
+| Check | Result |
+|-------|--------|
+| BroadcastCapabilityHandler implements Protocol | **PASS** — 4 methods |
+| IntegrationManifest registered (zero core edits) | **PASS** |
+| CapabilityRequest → engine start → RTMP push | **PASS** |
+| CapabilityRequest → engine stop → clean teardown | **PASS** |
+| CapabilityRequest → status → health dict | **PASS** |
+| ProcessLifecycle stale exit callback fix | **PASS** — 7/7 tests |
+| ProcessLifecycle SIGKILL wait timeout | **PASS** |
+| ProcessLifecycle concurrent lock | **PASS** |
+| ProcessLifecycle monitor race fix | **PASS** |
+| Engine-level asyncio.Lock | **PASS** |
+
+### Cockpit Human Path (HTTP + WS)
+| Check | Result |
+|-------|--------|
+| Panel renders (IDLE state) | **PASS** — Playwright snapshot |
+| Start Stream → state flips to LIVE | **PASS** — WS pulse confirmed |
+| Health metrics live (FPS 30.0, Bitrate 4503 kbps) | **PASS** |
+| ffprobe confirms H.264 High, 1920x1080, 30fps | **PASS** |
+| Stop Stream → state returns to IDLE | **PASS** |
+| Zero orphan ffmpeg after stop | **PASS** |
+| WS auth bug fixed (sync function was awaited) | **PASS** |
+
+### Dual-Consumer Thesis
+Same HTTP routes + WS health push consumed by both agent cells
+(CapabilityHandler) and humans (cockpit panel). Both paths proven
+independently through the same engine singleton.
+
+### Egress Status
+| What | Status |
+|------|--------|
+| Agent-drive pipeline (testsrc2 → H.264 → RTMP) | **PROVEN** |
+| Cockpit human path (UI → API → engine → RTMP) | **PROVEN** |
+| SSRF output URL validator | **PROVEN** |
+| ProcessLifecycle fixes (4 fixes, 7 tests) | **PROVEN** |
+| Cross-host egress (VPS → Beast WireGuard) | **DEFERRED** — Beast MediaMTX pending |
 
 ---
 
