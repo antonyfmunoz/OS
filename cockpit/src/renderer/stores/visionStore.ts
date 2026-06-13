@@ -47,6 +47,44 @@ export interface RelayPipelineMetrics {
   updatedAt: number
 }
 
+export interface BeastStreamMetrics {
+  profile: string
+  negotiatedWidth: number
+  negotiatedHeight: number
+  negotiatedFps: number
+  measuredFps: number
+  totalFrames: number
+  droppedFrames: number
+  avgFrameBytes: number
+  bitrateKbps: number
+  detectorFps: number
+  detectorInferenceMs: number
+  detectorDevice: string
+  detectorNmsDevice: string
+  trackerActive: boolean
+  trackerActiveTracks: number
+  updatedAt: number
+}
+
+export const INITIAL_BEAST_STREAM_METRICS: BeastStreamMetrics = {
+  profile: 'balanced',
+  negotiatedWidth: 0,
+  negotiatedHeight: 0,
+  negotiatedFps: 0,
+  measuredFps: 0,
+  totalFrames: 0,
+  droppedFrames: 0,
+  avgFrameBytes: 0,
+  bitrateKbps: 0,
+  detectorFps: 0,
+  detectorInferenceMs: 0,
+  detectorDevice: 'unknown',
+  detectorNmsDevice: 'unknown',
+  trackerActive: false,
+  trackerActiveTracks: 0,
+  updatedAt: 0,
+}
+
 // ── Default-on policy ────────────────────────────────────────────
 
 export type ProfileMode =
@@ -216,9 +254,9 @@ export interface QualityProfile {
 
 export const QUALITY_PROFILES: Record<QualityMode, QualityProfile> = {
   smooth:   { fps: 30, width: 1280, height: 720,  quality: 55, priority: 'fps' },
-  balanced: { fps: 15, width: 1280, height: 720,  quality: 70, priority: 'latency_quality' },
-  high:     { fps: 10, width: 1920, height: 1080, quality: 85, priority: 'image_quality' },
-  analysis: { fps: 1,  width: 1920, height: 1080, quality: 95, priority: 'ai_snapshot' },
+  balanced: { fps: 30, width: 1280, height: 720,  quality: 70, priority: 'latency_quality' },
+  high:     { fps: 30, width: 1920, height: 1080, quality: 80, priority: 'image_quality' },
+  analysis: { fps: 5,  width: 1920, height: 1080, quality: 95, priority: 'ai_snapshot' },
 }
 
 const QUALITY_STORAGE_KEY = 'umh_vision_quality_mode'
@@ -727,6 +765,10 @@ interface VisionState {
   relayPipelineMetrics: RelayPipelineMetrics
   updateRelayPipelineMetrics: (m: Partial<RelayPipelineMetrics>) => void
 
+  // Beast stream metrics (camera-side capture performance)
+  beastStreamMetrics: BeastStreamMetrics
+  updateBeastStreamMetrics: (m: Partial<BeastStreamMetrics>) => void
+
   // Preset loading state
   presetsLoading: boolean
   presetsLoadError: string | null
@@ -1167,6 +1209,12 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     relayPipelineMetrics: { ...s.relayPipelineMetrics, ...m, updatedAt: Date.now() },
   })),
 
+  // Beast stream metrics
+  beastStreamMetrics: { ...INITIAL_BEAST_STREAM_METRICS },
+  updateBeastStreamMetrics: (m) => set((s) => ({
+    beastStreamMetrics: { ...s.beastStreamMetrics, ...m, updatedAt: Date.now() },
+  })),
+
   // Preset loading state
   presetsLoading: false,
   presetsLoadError: null,
@@ -1231,6 +1279,7 @@ export const useVisionStore = create<VisionState>((set, get) => ({
     cameraMode: 'manual',
     authority: { ...INITIAL_AUTHORITY },
     relayPipelineMetrics: { ...INITIAL_RELAY_PIPELINE_METRICS },
+    beastStreamMetrics: { ...INITIAL_BEAST_STREAM_METRICS },
     presetsLoading: false,
     presetsLoadError: null,
     presetsLoadedAt: 0,

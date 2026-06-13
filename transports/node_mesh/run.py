@@ -133,19 +133,31 @@ def main() -> None:
 
     _ensure_docker_relay_access(config.port + 1)
 
-    vision_relay_url = os.getenv("VISION_RELAY_FRAME_URL", "http://127.0.0.1:8098/frame")
+    vision_relay_url = os.getenv("VISION_RELAY_FRAME_URL", "http://127.0.0.1:8098/frame/binary")
     vision_frame_token = os.getenv("VISION_FRAME_TOKEN", "")
 
+    import base64 as _b64
+
     def _forward_frame_to_relay(node_id: str, frame_payload: dict) -> None:
+        """Forward frame to relay using binary endpoint (skips base64 overhead)."""
         try:
             import urllib.request
-            frame_payload["node_id"] = node_id
-            body = json.dumps(frame_payload).encode()
-            headers: dict[str, str] = {"Content-Type": "application/json"}
+            b64_data = frame_payload.get("image_base64", "")
+            if not b64_data:
+                return
+            jpeg_bytes = _b64.b64decode(b64_data)
+
+            meta = {k: v for k, v in frame_payload.items() if k != "image_base64"}
+            meta["node_id"] = node_id
+
+            headers: dict[str, str] = {
+                "Content-Type": "image/jpeg",
+                "X-Frame-Meta": json.dumps(meta),
+            }
             if vision_frame_token:
                 headers["X-Frame-Token"] = vision_frame_token
             req = urllib.request.Request(
-                vision_relay_url, data=body,
+                vision_relay_url, data=jpeg_bytes,
                 headers=headers,
             )
             urllib.request.urlopen(req, timeout=2)

@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { useVisionStore, type MotionState, type StreamMetrics, type QualityMode, type RelayPipelineMetrics } from '../../stores/visionStore'
+import { useVisionStore, type MotionState, type StreamMetrics, type QualityMode, type RelayPipelineMetrics, type BeastStreamMetrics } from '../../stores/visionStore'
 
 const QUALITY_DESCRIPTIONS: Record<QualityMode, string> = {
   smooth: '720p 30fps',
-  balanced: '720p 15fps',
-  high: '1080p 10fps',
-  analysis: '1080p 1fps',
+  balanced: '720p 30fps',
+  high: '1080p 30fps',
+  analysis: '1080p 5fps',
 }
 
 export function DiagnosticsPanel({
@@ -35,6 +35,7 @@ export function DiagnosticsPanel({
   const authorityLog = useVisionStore((s) => s.authority.log)
   const pipelineLatency = useVisionStore((s) => s.pipelineLatency)
   const relayMetrics = useVisionStore((s) => s.relayPipelineMetrics)
+  const beastMetrics = useVisionStore((s) => s.beastStreamMetrics)
   const visionEvents = useVisionStore((s) => s.visionEvents)
   const commandTelemetry = useVisionStore((s) => s.commandTelemetry)
   const [expanded, setExpanded] = useState(false)
@@ -190,6 +191,32 @@ export function DiagnosticsPanel({
               <span>jitter: <span className={clsx(
                 relayMetrics.maxJitterMs > 100 ? 'text-danger' : relayMetrics.maxJitterMs > 50 ? 'text-warning' : 'text-ok',
               )}>{relayMetrics.avgJitterMs.toFixed(1)} / {relayMetrics.maxJitterMs.toFixed(0)}ms</span></span>
+            </div>
+          )}
+
+          {/* Beast capture metrics */}
+          {beastMetrics.negotiatedWidth > 0 && (
+            <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 text-[9px] font-mono text-text-quaternary border border-dashed border-ok/20 rounded p-2">
+              <span className="col-span-3 text-text-quaternary uppercase tracking-wider mb-0.5">beast capture</span>
+              <span>profile: <span className="text-cyan">{beastMetrics.profile}</span></span>
+              <span>resolution: <span className="text-text-secondary">{beastMetrics.negotiatedWidth}×{beastMetrics.negotiatedHeight}</span></span>
+              <span>capture_fps: <span className={clsx(
+                beastMetrics.measuredFps >= 25 ? 'text-ok' : beastMetrics.measuredFps >= 10 ? 'text-warning' : 'text-danger',
+              )}>{beastMetrics.measuredFps.toFixed(1)}</span></span>
+              <span>bitrate: <span className="text-text-secondary">{beastMetrics.bitrateKbps > 1024 ? `${(beastMetrics.bitrateKbps / 1024).toFixed(1)} Mbps` : `${beastMetrics.bitrateKbps} Kbps`}</span></span>
+              <span>total: {beastMetrics.totalFrames}</span>
+              <span>dropped: <span className={beastMetrics.droppedFrames > 0 ? 'text-warning' : ''}>{beastMetrics.droppedFrames}</span></span>
+              <span>det_fps: <span className={clsx(
+                beastMetrics.detectorFps >= 5 ? 'text-ok' : beastMetrics.detectorFps >= 1 ? 'text-warning' : 'text-text-secondary',
+              )}>{beastMetrics.detectorFps.toFixed(1)}</span></span>
+              <span>infer: <span className={clsx(
+                beastMetrics.detectorInferenceMs > 200 ? 'text-warning' : 'text-ok',
+              )}>{beastMetrics.detectorInferenceMs.toFixed(0)}ms</span></span>
+              <span>gpu: <span className={clsx(
+                beastMetrics.detectorDevice === 'cuda' ? 'text-ok' : beastMetrics.detectorDevice.includes('cuda') ? 'text-warning' : 'text-text-secondary',
+              )}>{beastMetrics.detectorDevice}</span></span>
+              <span>nms: <span className={beastMetrics.detectorNmsDevice === 'cuda' ? 'text-ok' : 'text-warning'}>{beastMetrics.detectorNmsDevice}</span></span>
+              <span>tracker: <span className={beastMetrics.trackerActive ? 'text-ok' : ''}>{beastMetrics.trackerActive ? `active (${beastMetrics.trackerActiveTracks})` : 'off'}</span></span>
             </div>
           )}
 
