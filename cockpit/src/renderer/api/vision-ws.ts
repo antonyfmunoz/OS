@@ -284,13 +284,14 @@ export class VisionWsClient {
     })
   }
 
-  startCamera(opts: { fps?: number; width?: number; height?: number; quality?: number } = {}): void {
+  startCamera(opts: { fps?: number; width?: number; height?: number; quality?: number; profile?: string } = {}): void {
     log('camera_start', opts)
     this.ws.send('camera_start', {
-      fps: opts.fps ?? 2,
-      width: opts.width ?? 640,
-      height: opts.height ?? 480,
-      quality: opts.quality ?? 60,
+      fps: opts.fps ?? 30,
+      width: opts.width ?? 1280,
+      height: opts.height ?? 720,
+      quality: opts.quality ?? 70,
+      profile: opts.profile ?? 'balanced',
     })
   }
 
@@ -299,7 +300,7 @@ export class VisionWsClient {
     this.ws.send('camera_stop')
   }
 
-  subscribe(fps = 2, quality = 60): void {
+  subscribe(fps = 30, quality = 70): void {
     log('vision_subscribe', { fps, quality })
     this.ws.send('vision_subscribe', { fps, quality })
   }
@@ -536,11 +537,23 @@ export class VisionWsClient {
 
   // ── Quality mode ────────────────────────────────────────────────
 
-  switchQuality(mode: { fps: number; width: number; height: number; quality: number }): void {
-    log('switch_quality', mode)
-    this.stopCamera()
-    this.startCamera(mode)
-    this.subscribe(mode.fps, mode.quality)
+  switchQuality(mode: { fps: number; width: number; height: number; quality: number }, profileName?: string): void {
+    log('switch_quality', { ...mode, profile: profileName })
+    if (profileName) {
+      this.ws.send('camera_set_profile', { profile: profileName })
+    } else {
+      this.stopCamera()
+      this.startCamera({ ...mode, profile: profileName })
+      this.subscribe(mode.fps, mode.quality)
+    }
+  }
+
+  requestCapabilities(): void {
+    this.ws.send('camera_capabilities')
+  }
+
+  requestStreamMetrics(): void {
+    this.ws.send('camera_stream_metrics')
   }
 
   // ── Scene / Tracking / Watch / Follow ──────────────────────────
@@ -757,22 +770,31 @@ export class VisionWsClient {
     const blob = new Blob([buf], { type: 'image/jpeg' })
     const newUrl = URL.createObjectURL(blob)
 
-    const oldUrl = this._prevBlobUrl
-    this._latestFrameUrl = newUrl
-    this._prevBlobUrl = newUrl
-    this._frameCount++
+    // Double-buffer: preload image in hidden element, only swap on decode complete.
+    // Prevents flicker from showing a partially-decoded or blank frame.
+    const preload = new Image()
+    preload.onload = () => {
+      const oldUrl = this._prevBlobUrl
+      this._latestFrameUrl = newUrl
+      this._prevBlobUrl = newUrl
+      this._frameCount++
 
-    if (this._frameCount === 1) log('first_frame_received', `bytes=${buf.byteLength}`)
-    if (this._frameCount % 100 === 0) log('frames_received', this._frameCount)
+      if (this._frameCount === 1) log('first_frame_received', `bytes=${buf.byteLength}`)
+      if (this._frameCount % 100 === 0) log('frames_received', this._frameCount)
 
-    const handlers = (this.ws as unknown as { handlers: Map<string, ((d: Record<string, unknown>) => void)[]> }).handlers?.get('vision_frame') || []
-    for (const h of handlers) {
-      h({ type: 'vision_frame', url: newUrl, timestamp: Date.now(), byteLength: buf.byteLength })
+      const handlers = (this.ws as unknown as { handlers: Map<string, ((d: Record<string, unknown>) => void)[]> }).handlers?.get('vision_frame') || []
+      for (const h of handlers) {
+        h({ type: 'vision_frame', url: newUrl, timestamp: Date.now(), byteLength: buf.byteLength })
+      }
+
+      if (oldUrl) {
+        setTimeout(() => URL.revokeObjectURL(oldUrl), 200)
+      }
     }
-
-    if (oldUrl) {
-      setTimeout(() => URL.revokeObjectURL(oldUrl), 100)
+    preload.onerror = () => {
+      URL.revokeObjectURL(newUrl)
     }
+    preload.src = newUrl
   }
 
   private _revokeFrame(): void {
