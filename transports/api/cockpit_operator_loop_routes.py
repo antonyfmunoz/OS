@@ -1,13 +1,19 @@
-"""Cockpit operator loop routes — intent to execution to audit.
+"""Cockpit operator loop routes — intent to plan to implementation to audit.
 
-The core Stage 1 organism loop:
-  1. Operator gives intent (full contract)
+The Operator Loop lifecycle:
+  1. Operator submits intent (full contract)
   2. Intent classified → work packet created
   3. Risk classified → approval gate enforced
-  4. Approved packets → sandbox created → commands executed
-  5. Execution state tracked with live logs
-  6. Outcomes recorded in reality model + memory candidates
-  7. Audit trail preserved
+  4. Plan generated → reviewable in cockpit
+  5. Approved packets → sandbox created → agent executes
+  6. Validation runs → proof captured
+  7. Outcomes recorded in reality model
+  8. Audit trail preserved
+
+Execution modes:
+  VALIDATE_ONLY        — run validation commands (default)
+  IMPLEMENT            — invoke coding agent
+  IMPLEMENT_AND_VALIDATE — agent implements, then validate
 
 Mounted under /api/umh/ via include_router in cockpit.py.
 
@@ -33,6 +39,8 @@ _configured: bool = False
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
+_VALID_MODES = ("validate_only", "implement", "implement_and_validate")
+
 
 def configure(require_operator_dep: Any) -> None:
     global _configured, operator_loop_router
@@ -56,13 +64,14 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/operator-loop/audit-trail", _audit_trail, methods=["GET"])
     r.add_api_route("/operator-loop/record-outcome", _record_outcome, methods=["POST"], dependencies=auth)
     r.add_api_route("/operator-loop/health", _loop_health, methods=["GET"])
+    r.add_api_route("/operator-loop/generate-plan", _generate_plan, methods=["POST"], dependencies=auth)
+    r.add_api_route("/operator-loop/plan/{plan_id}", _get_plan, methods=["GET"])
+    r.add_api_route("/operator-loop/approve-plan", _approve_plan, methods=["POST"], dependencies=auth)
+    r.add_api_route("/operator-loop/execution-record/{record_id}", _get_execution_record, methods=["GET"])
+    r.add_api_route("/operator-loop/packet/{packet_id}/records", _packet_records, methods=["GET"])
+    r.add_api_route("/operator-loop/packet/{packet_id}/failure", _packet_failure, methods=["GET"])
 
     return r
-
-
-def _get_engine():
-    from substrate.organism.work_packet_engine import WorkPacketEngine
-    return WorkPacketEngine()
 
 
 def _get_queue():
@@ -70,9 +79,9 @@ def _get_queue():
     return UniversalWorkQueue()
 
 
-def _get_classifier():
-    from substrate.organism.intent_classifier import IntentClassifier
-    return IntentClassifier()
+def _get_runner():
+    from substrate.organism.agent_execution_runner import AgentExecutionRunner
+    return AgentExecutionRunner()
 
 
 def _get_sandbox_manager():
@@ -97,605 +106,13 @@ def _audit_log(event_type: str, data: dict[str, Any]) -> None:
         logger.debug("audit log write failed: %s", e)
 
 
-async def _submit_intent(request: Request):
-    """Step 1: Operator submits high-level intent with full contract."""
-    body = await request.json()
-    user_intent = body.get("user_intent", "") or body.get("intent", "")
-    if not user_intent:
-        return {"success": False, "error": "user_intent is required"}
-
-    desired_end_state = body.get("desired_end_state", "")
-    constraints = body.get("constraints", [])
-    non_goals = body.get("non_goals", [])
-    acceptance_criteria = body.get("acceptance_criteria", [])
-    quality_bar = body.get("quality_bar", "")
-    allowed_environments = body.get("allowed_environments", [])
-    approval_policy = body.get("approval_policy", "")
-    risk_tolerance = body.get("risk_tolerance", "")
-    proof_required = body.get("proof_required", [])
-
-    queue = _get_queue()
-    packet = queue.ingest_user_intent(
-        user_intent=user_intent,
-        desired_end_state=desired_end_state,
-        constraints=constraints,
-    )
-
-    if non_goals:
-        packet.failure_criteria = non_goals if isinstance(non_goals, list) else [non_goals]
-    if acceptance_criteria:
-        packet.success_criteria = acceptance_criteria if isinstance(acceptance_criteria, list) else [acceptance_criteria]
-    if quality_bar:
-        packet.validation_plan = f"Quality bar: {quality_bar}. {packet.validation_plan}"
-    if allowed_environments:
-        if isinstance(allowed_environments, list):
-            packet.constraints = list(set(packet.constraints + [f"env:{e}" for e in allowed_environments]))
-    if approval_policy:
-        if approval_policy == "auto":
-            packet.approval_gates = []
-        elif approval_policy == "always":
-            packet.approval_gates = ["operator_approval_required"]
-    if risk_tolerance:
-        if risk_tolerance in ("low", "medium", "high", "critical"):
-            packet.risk_class = risk_tolerance
-            if risk_tolerance in ("high", "critical"):
-                packet.approval_gates = list(set(packet.approval_gates + ["operator_approval_required"]))
-    if proof_required:
-        proofs = proof_required if isinstance(proof_required, list) else [proof_required]
-        existing = packet.validation_plan or ""
-        packet.validation_plan = existing + " Proof required: " + ", ".join(proofs)
-
-    queue._save()
-
-    needs_approval = bool(packet.approval_gates)
-    risk_class = packet.risk_class
-
-    _audit_log("intent_submitted", {
-        "packet_id": packet.packet_id,
-        "user_intent": user_intent[:500],
-        "risk_class": risk_class,
-        "needs_approval": needs_approval,
-        "domain": packet.domain,
-        "acceptance_criteria": acceptance_criteria[:5] if acceptance_criteria else [],
-        "non_goals": non_goals[:5] if non_goals else [],
-    })
-
-    return {
-        "success": True,
-        "packet": packet.to_safe_dict(),
-        "needs_approval": needs_approval,
-        "risk_class": risk_class,
-        "next_action": "approve" if needs_approval else "execute",
-    }
-
-
-async def _approve_packet(request: Request):
-    """Step 2a: Operator approves a work packet for execution."""
-    body = await request.json()
-    packet_id = body.get("packet_id", "")
-    if not packet_id:
-        return {"success": False, "error": "packet_id is required"}
-
-    from substrate.organism.work_packet import PacketLifecycleStatus
-
-    queue = _get_queue()
-    pkt = queue.get_packet(packet_id)
-    if not pkt:
-        return {"success": False, "error": f"Packet {packet_id} not found"}
-
-    current = pkt.status
-
-    transitions_needed = []
-    if current == PacketLifecycleStatus.CLASSIFIED:
-        transitions_needed = [
-            PacketLifecycleStatus.PLANNED,
-            PacketLifecycleStatus.READY_FOR_REVIEW,
-            PacketLifecycleStatus.APPROVAL_PENDING,
-            PacketLifecycleStatus.APPROVED,
-        ]
-    elif current == PacketLifecycleStatus.PLANNED:
-        transitions_needed = [
-            PacketLifecycleStatus.READY_FOR_REVIEW,
-            PacketLifecycleStatus.APPROVAL_PENDING,
-            PacketLifecycleStatus.APPROVED,
-        ]
-    elif current == PacketLifecycleStatus.READY_FOR_REVIEW:
-        transitions_needed = [
-            PacketLifecycleStatus.APPROVAL_PENDING,
-            PacketLifecycleStatus.APPROVED,
-        ]
-    elif current == PacketLifecycleStatus.APPROVAL_PENDING:
-        transitions_needed = [PacketLifecycleStatus.APPROVED]
-    elif current == PacketLifecycleStatus.APPROVED:
-        return {"success": True, "packet_id": packet_id, "status": "already_approved"}
-    else:
-        return {
-            "success": False,
-            "error": f"Cannot approve from status '{current.value}'",
-        }
-
-    for next_status in transitions_needed:
-        ok = queue.update_packet_status(packet_id, next_status, f"operator approved (advancing to {next_status.value})")
-        if not ok:
-            return {"success": False, "error": f"Transition to {next_status.value} failed"}
-
-    _audit_log("packet_approved", {"packet_id": packet_id})
-
-    return {
-        "success": True,
-        "packet_id": packet_id,
-        "status": "approved",
-        "next_action": "execute",
-    }
-
-
-async def _reject_packet(request: Request):
-    """Step 2b: Operator rejects a work packet."""
-    body = await request.json()
-    packet_id = body.get("packet_id", "")
-    reason = body.get("reason", "operator rejected")
-    if not packet_id:
-        return {"success": False, "error": "packet_id is required"}
-
-    from substrate.organism.work_packet import PacketLifecycleStatus
-
-    queue = _get_queue()
-    pkt = queue.get_packet(packet_id)
-    if not pkt:
-        return {"success": False, "error": f"Packet {packet_id} not found"}
-
-    if pkt.status == PacketLifecycleStatus.APPROVAL_PENDING:
-        ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.REJECTED, reason)
-    else:
-        ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, reason)
-
-    _audit_log("packet_rejected", {"packet_id": packet_id, "reason": reason})
-
-    return {"success": ok, "packet_id": packet_id, "status": "rejected"}
-
-
-async def _execute_packet(request: Request):
-    """Step 3: Execute an approved work packet — creates sandbox, runs commands, captures output."""
-    body = await request.json()
-    packet_id = body.get("packet_id", "")
-    if not packet_id:
-        return {"success": False, "error": "packet_id is required"}
-
-    from substrate.organism.work_packet import PacketLifecycleStatus
-    from substrate.organism.worktree_sandbox import SandboxStatus, SandboxValidationResult
-    from substrate.execution.cpu_gate import gated_subprocess_run
-
-    queue = _get_queue()
-    pkt = queue.get_packet(packet_id)
-    if not pkt:
-        return {"success": False, "error": f"Packet {packet_id} not found"}
-
-    if pkt.approval_gates and pkt.status != PacketLifecycleStatus.APPROVED:
-        return {
-            "success": False,
-            "error": "Packet requires approval before execution",
-            "status": pkt.status.value,
-            "approval_gates": pkt.approval_gates,
-        }
-
-    if pkt.status == PacketLifecycleStatus.APPROVED:
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.DELEGATED, "delegated for execution")
-    elif pkt.status == PacketLifecycleStatus.CLASSIFIED and not pkt.approval_gates:
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.PLANNED, "auto-planned")
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.READY_FOR_REVIEW, "auto-reviewed")
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.APPROVAL_PENDING, "auto-pending")
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.APPROVED, "auto-approved (no gates)")
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.DELEGATED, "auto-delegated")
-    elif pkt.status == PacketLifecycleStatus.DELEGATED:
-        pass
-    else:
-        return {
-            "success": False,
-            "error": f"Cannot execute from status '{pkt.status.value}'",
-        }
-
-    queue.update_packet_status(packet_id, PacketLifecycleStatus.EXECUTING, "execution started")
-
-    _audit_log("packet_executing", {
-        "packet_id": packet_id,
-        "risk_class": pkt.risk_class,
-        "domain": pkt.domain,
-    })
-
-    sandbox_mgr = _get_sandbox_manager()
-    execution_log: list[dict[str, Any]] = []
-    sandbox_id = ""
-    sandbox_path = ""
-    changed_files: list[str] = []
-    validation_results: list[dict[str, Any]] = []
-    all_passed = True
-
-    try:
-        slug = pkt.title[:30] or pkt.packet_id[:12]
-        sandbox = sandbox_mgr.create_sandbox(
-            candidate_id=pkt.packet_id,
-            candidate_slug=slug,
-            agent_type="operator_loop",
-        )
-        sandbox_id = sandbox.sandbox_id
-        sandbox_path = sandbox.worktree_path
-
-        pkt.linked_sandbox_id = sandbox_id
-        queue.link_execution_artifacts(packet_id, {"sandbox_id": sandbox_id})
-
-        sandbox_mgr.update_status(sandbox_id, SandboxStatus("executing"))
-
-        _audit_log("sandbox_created", {
-            "packet_id": packet_id,
-            "sandbox_id": sandbox_id,
-            "worktree_path": sandbox_path,
-            "branch_name": sandbox.branch_name,
-        })
-
-        execution_log.append({
-            "step": "sandbox_created",
-            "sandbox_id": sandbox_id,
-            "path": sandbox_path,
-            "branch": sandbox.branch_name,
-            "timestamp": time.time(),
-        })
-
-        validation_commands = _derive_validation_commands(pkt)
-
-        for cmd_entry in validation_commands:
-            cmd = cmd_entry["command"]
-            label = cmd_entry.get("label", cmd[:60])
-            t0 = time.time()
-
-            result = gated_subprocess_run(
-                cmd,
-                shell=True,
-                cwd=sandbox_path,
-                capture_output=True,
-                text=True,
-                timeout=120,
-                caller="operator_loop_execute",
-            )
-
-            duration = round(time.time() - t0, 2)
-            passed = result is not None and result.returncode == 0
-
-            step_result = {
-                "command": cmd,
-                "label": label,
-                "exit_code": result.returncode if result else -1,
-                "stdout": (result.stdout[:2000] if result else "")[:2000],
-                "stderr": (result.stderr[:2000] if result else "cpu gate blocked")[:2000],
-                "passed": passed,
-                "duration_seconds": duration,
-                "timestamp": time.time(),
-            }
-            execution_log.append(step_result)
-            validation_results.append(step_result)
-
-            sandbox_mgr.add_validation_result(sandbox_id, SandboxValidationResult(
-                passed=passed,
-                command=cmd,
-                stdout=(result.stdout[:500] if result else ""),
-                stderr=(result.stderr[:500] if result else "blocked"),
-                exit_code=result.returncode if result else -1,
-                duration_seconds=duration,
-            ))
-
-            if not passed:
-                all_passed = False
-
-            _audit_log("command_executed", {
-                "packet_id": packet_id,
-                "sandbox_id": sandbox_id,
-                "command": cmd[:200],
-                "passed": passed,
-                "exit_code": result.returncode if result else -1,
-            })
-
-        diff_result = gated_subprocess_run(
-            "git diff --name-only HEAD",
-            shell=True,
-            cwd=sandbox_path,
-            capture_output=True,
-            text=True,
-            timeout=15,
-            caller="operator_loop_diff",
-        )
-        if diff_result and diff_result.returncode == 0:
-            changed_files = [f for f in diff_result.stdout.strip().split("\n") if f]
-
-        diff_stat_result = gated_subprocess_run(
-            "git diff --stat HEAD",
-            shell=True,
-            cwd=sandbox_path,
-            capture_output=True,
-            text=True,
-            timeout=15,
-            caller="operator_loop_diff_stat",
-        )
-        diff_summary = diff_stat_result.stdout[:2000] if diff_stat_result and diff_stat_result.returncode == 0 else ""
-
-        new_status = PacketLifecycleStatus.VALIDATING
-        queue.update_packet_status(packet_id, new_status, "execution complete, validating")
-
-        pkt = queue.get_packet(packet_id)
-        pkt.verification_results = validation_results
-        pkt.verification_passed = all_passed
-        pkt.linked_sandbox_id = sandbox_id
-        queue._save()
-
-        if all_passed:
-            sandbox_mgr.update_status(sandbox_id, SandboxStatus.VALIDATED)
-        else:
-            sandbox_mgr.update_status(sandbox_id, SandboxStatus.VALIDATION_FAILED)
-
-        _record_outcome_internal(
-            packet_id=packet_id,
-            outcome_text=f"Execution {'passed' if all_passed else 'failed'}. "
-                         f"Commands: {len(validation_commands)}, "
-                         f"Passed: {sum(1 for v in validation_results if v['passed'])}, "
-                         f"Failed: {sum(1 for v in validation_results if not v['passed'])}. "
-                         f"Changed files: {len(changed_files)}. "
-                         f"Sandbox: {sandbox_id}.",
-            domain=pkt.domain or "execution",
-            confidence=0.9 if all_passed else 0.6,
-        )
-
-        _audit_log("execution_complete", {
-            "packet_id": packet_id,
-            "sandbox_id": sandbox_id,
-            "all_passed": all_passed,
-            "commands_run": len(validation_commands),
-            "changed_files": changed_files[:20],
-        })
-
-        return {
-            "success": True,
-            "packet_id": packet_id,
-            "sandbox_id": sandbox_id,
-            "sandbox_path": sandbox_path,
-            "branch_name": sandbox.branch_name,
-            "status": "validating",
-            "all_passed": all_passed,
-            "execution_log": execution_log,
-            "changed_files": changed_files,
-            "diff_summary": diff_summary,
-            "validation_results": validation_results,
-        }
-
-    except Exception as e:
-        error_msg = str(e)
-        logger.warning("execute_packet failed for %s: %s", packet_id, error_msg)
-
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.FAILED, f"execution error: {error_msg[:200]}")
-
-        _audit_log("execution_failed", {
-            "packet_id": packet_id,
-            "sandbox_id": sandbox_id,
-            "error": error_msg[:500],
-        })
-
-        return {
-            "success": False,
-            "packet_id": packet_id,
-            "sandbox_id": sandbox_id,
-            "error": error_msg,
-            "execution_log": execution_log,
-        }
-
-
-def _derive_validation_commands(pkt) -> list[dict[str, str]]:
-    """Derive validation commands from work packet context."""
-    commands: list[dict[str, str]] = []
-
-    commands.append({
-        "command": "python3 -c \"import sys; sys.path.insert(0,'/opt/OS'); import substrate; print('substrate import ok')\"",
-        "label": "substrate import check",
-    })
-
-    if pkt.validation_plan:
-        plan_lower = pkt.validation_plan.lower()
-        if "test" in plan_lower or "pytest" in plan_lower:
-            commands.append({
-                "command": "python3 -m pytest tests/ -x -q --tb=short 2>&1 | tail -30",
-                "label": "run test suite",
-            })
-        if "lint" in plan_lower or "ruff" in plan_lower:
-            commands.append({
-                "command": "python3 -m ruff check . --select E,F --ignore E501 2>&1 | tail -20",
-                "label": "ruff lint check",
-            })
-        if "typecheck" in plan_lower or "mypy" in plan_lower:
-            commands.append({
-                "command": "python3 -m mypy substrate/ --ignore-missing-imports 2>&1 | tail -20",
-                "label": "type check",
-            })
-        if "build" in plan_lower:
-            commands.append({
-                "command": "cd cockpit && npx tsc --noEmit 2>&1 | tail -20",
-                "label": "TypeScript build",
-            })
-
-    if pkt.domain == "infrastructure" or "gate" in (pkt.title or "").lower():
-        commands.append({
-            "command": "python3 scripts/check_dependency_direction.py --all 2>&1 | tail -10",
-            "label": "dependency direction gate",
-        })
-
-    if not commands or len(commands) == 1:
-        commands.append({
-            "command": "python3 -m pytest tests/ -x -q --tb=short 2>&1 | tail -30",
-            "label": "default test suite",
-        })
-        commands.append({
-            "command": "python3 scripts/check_dependency_direction.py --all 2>&1 | tail -10",
-            "label": "dependency direction gate",
-        })
-
-    return commands
-
-
-async def _complete_packet(request: Request):
-    """Step 4: Mark an executing/validating packet as completed with outcome."""
-    body = await request.json()
-    packet_id = body.get("packet_id", "")
-    outcome = body.get("outcome", "")
-    success = body.get("success", True)
-    if not packet_id:
-        return {"success": False, "error": "packet_id is required"}
-
-    from substrate.organism.work_packet import PacketLifecycleStatus
-
-    queue = _get_queue()
-    pkt = queue.get_packet(packet_id)
-    if not pkt:
-        return {"success": False, "error": f"Packet {packet_id} not found"}
-
-    if success:
-        if pkt.status != PacketLifecycleStatus.VALIDATING:
-            queue.update_packet_status(packet_id, PacketLifecycleStatus.VALIDATING, "validating outcome")
-        ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.COMPLETED, outcome or "completed")
-    else:
-        ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.FAILED, outcome or "failed")
-
-    pkt = queue.get_packet(packet_id)
-    pkt.outcome_summary = outcome[:500] if outcome else ""
-    queue._save()
-
-    _record_outcome_internal(
-        packet_id=packet_id,
-        outcome_text=f"Packet {packet_id} {'completed' if success else 'failed'}: {outcome[:300]}",
-        domain=pkt.domain or "execution",
-        confidence=0.85 if success else 0.5,
-    )
-
-    _audit_log("packet_completed", {
-        "packet_id": packet_id,
-        "success": success,
-        "outcome": outcome[:500] if outcome else "",
-    })
-
-    return {"success": ok, "packet_id": packet_id, "status": "completed" if success else "failed"}
-
-
-async def _loop_status():
-    """Current operator loop status — packets, approvals, execution."""
-    queue = _get_queue()
-    summary = queue.compute_queue_summary()
-
-    pending_approval = queue.get_packets_requiring_approval()
-    blocked = queue.get_blocked_packets()
-    human_required = queue.get_packets_requiring_human()
-
-    next_best = queue.get_next_best_packet()
-
-    return {
-        "queue_summary": summary,
-        "pending_approval_count": len(pending_approval),
-        "blocked_count": len(blocked),
-        "human_required_count": len(human_required),
-        "next_best": next_best.to_safe_dict() if next_best else None,
-    }
-
-
-async def _packet_detail(packet_id: str):
-    """Full work packet detail with audit trail."""
-    queue = _get_queue()
-    pkt = queue.get_packet(packet_id)
-    if not pkt:
-        return {"error": "Not found", "packet_id": packet_id}
-
-    audit_entries = _get_audit_entries_for_packet(packet_id)
-
-    result = pkt.to_dict()
-    result["audit_trail"] = audit_entries
-
-    if pkt.linked_sandbox_id:
-        try:
-            sandbox_mgr = _get_sandbox_manager()
-            sb = sandbox_mgr.get_sandbox(pkt.linked_sandbox_id)
-            if sb:
-                result["sandbox"] = sb.to_dict()
-        except Exception:
-            pass
-
-    return result
-
-
-async def _pending_approvals():
-    """List all packets needing operator approval."""
-    queue = _get_queue()
-    pending = queue.get_packets_requiring_approval()
-    return [p.to_safe_dict() for p in pending]
-
-
-async def _active_packets():
-    """List all packets currently executing or recently completed."""
-    queue = _get_queue()
-    all_packets = queue.all_packets()
-    active = [p for p in all_packets if p.status.value in (
-        "executing", "delegated", "reconverging", "validating",
-    )]
-    return [p.to_safe_dict() for p in active]
-
-
-async def _audit_trail(packet_id: str | None = None, limit: int = 50):
-    """Read audit trail, optionally filtered by packet."""
-    if packet_id:
-        return _get_audit_entries_for_packet(packet_id)
-
-    audit_path = os.path.join(_REPO_ROOT, "data", "umh", "audit", "operator_loop_audit.jsonl")
-    if not os.path.exists(audit_path):
-        return []
-
-    entries = []
-    try:
-        with open(audit_path) as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try:
-                        entries.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        pass
-    except Exception:
-        pass
-
-    entries.reverse()
-    return entries[:limit]
-
-
-async def _record_outcome(request: Request):
-    """Record an execution outcome in the reality model."""
-    body = await request.json()
-    packet_id = body.get("packet_id", "")
-    outcome_text = body.get("outcome", "")
-    domain = body.get("domain", "execution")
-    confidence = body.get("confidence", 0.7)
-
-    if not outcome_text:
-        return {"success": False, "error": "outcome is required"}
-
-    obs_id = _record_outcome_internal(
-        packet_id=packet_id,
-        outcome_text=outcome_text,
-        domain=domain,
-        confidence=confidence,
-    )
-
-    if obs_id:
-        return {"success": True, "observation_id": obs_id}
-    return {"success": False, "error": "outcome recording failed"}
-
-
 def _record_outcome_internal(
     packet_id: str,
     outcome_text: str,
     domain: str = "execution",
     confidence: float = 0.7,
 ) -> str | None:
-    """Internal outcome recorder — writes to reality model and audit trail."""
+    """Write outcome to reality model."""
     try:
         from substrate.reality_model.instance import InstanceRealityModel, InstanceObservation
         org_id = os.environ.get("UMH_ORG_ID", os.environ.get("EOS_ORG_ID", "default"))
@@ -721,20 +138,521 @@ def _record_outcome_internal(
             except Exception:
                 pass
 
-        _audit_log("outcome_recorded", {
-            "packet_id": packet_id,
-            "observation_id": str(obs_id),
-            "domain": domain,
-        })
-
         return str(obs_id)
     except Exception as e:
         logger.debug("record_outcome failed: %s", e)
         return None
 
 
+# ── Intent Submission ─────────────────────────────────────────
+
+
+async def _submit_intent(request: Request):
+    """Submit high-level intent with full contract."""
+    body = await request.json()
+    user_intent = body.get("user_intent", "") or body.get("intent", "")
+    if not user_intent:
+        return {"success": False, "error": "user_intent is required"}
+
+    desired_end_state = body.get("desired_end_state", "")
+    constraints = body.get("constraints", [])
+    non_goals = body.get("non_goals", [])
+    acceptance_criteria = body.get("acceptance_criteria", [])
+    quality_bar = body.get("quality_bar", "")
+    approval_policy = body.get("approval_policy", "")
+    risk_tolerance = body.get("risk_tolerance", "")
+    proof_required = body.get("proof_required", [])
+    execution_mode = body.get("execution_mode", "validate_only")
+
+    if execution_mode not in _VALID_MODES:
+        execution_mode = "validate_only"
+
+    queue = _get_queue()
+    packet = queue.ingest_user_intent(
+        user_intent=user_intent,
+        desired_end_state=desired_end_state,
+        constraints=constraints,
+    )
+
+    if non_goals:
+        packet.failure_criteria = non_goals if isinstance(non_goals, list) else [non_goals]
+    if acceptance_criteria:
+        packet.success_criteria = acceptance_criteria if isinstance(acceptance_criteria, list) else [acceptance_criteria]
+    if quality_bar:
+        packet.validation_plan = f"Quality bar: {quality_bar}. {packet.validation_plan or ''}"
+    if approval_policy == "auto":
+        packet.approval_gates = []
+    elif approval_policy == "always":
+        packet.approval_gates = ["operator_approval_required"]
+    if risk_tolerance and risk_tolerance in ("low", "medium", "high", "critical"):
+        packet.risk_class = risk_tolerance
+        if risk_tolerance in ("high", "critical"):
+            packet.approval_gates = list(set(packet.approval_gates + ["operator_approval_required"]))
+    if proof_required:
+        proofs = proof_required if isinstance(proof_required, list) else [proof_required]
+        existing = packet.validation_plan or ""
+        packet.validation_plan = existing + " Proof required: " + ", ".join(proofs)
+
+    if not hasattr(packet, "execution_mode"):
+        packet.constraints = list(set(packet.constraints + [f"mode:{execution_mode}"]))
+
+    queue._save()
+
+    needs_approval = bool(packet.approval_gates)
+
+    _audit_log("intent_submitted", {
+        "packet_id": packet.packet_id,
+        "user_intent": user_intent[:500],
+        "risk_class": packet.risk_class,
+        "needs_approval": needs_approval,
+        "execution_mode": execution_mode,
+    })
+
+    return {
+        "success": True,
+        "packet": packet.to_safe_dict(),
+        "needs_approval": needs_approval,
+        "risk_class": packet.risk_class,
+        "execution_mode": execution_mode,
+        "next_action": "approve" if needs_approval else "generate-plan",
+    }
+
+
+# ── Plan Generation ──────────────────────────────────────────
+
+
+async def _generate_plan(request: Request):
+    """Generate an execution plan for a work packet."""
+    body = await request.json()
+    packet_id = body.get("packet_id", "")
+    if not packet_id:
+        return {"success": False, "error": "packet_id is required"}
+
+    queue = _get_queue()
+    pkt = queue.get_packet(packet_id)
+    if not pkt:
+        return {"success": False, "error": f"Packet {packet_id} not found"}
+
+    runner = _get_runner()
+    plan = runner.generate_plan(pkt)
+
+    _audit_log("plan_generated", {
+        "packet_id": packet_id,
+        "plan_id": plan.plan_id,
+        "objectives": plan.objectives[:5],
+    })
+
+    return {
+        "success": True,
+        "plan": plan.to_dict(),
+        "next_action": "approve-plan",
+    }
+
+
+async def _get_plan(plan_id: str):
+    """Retrieve a generated plan."""
+    plan_path = os.path.join(_REPO_ROOT, "data", "umh", "execution", "plans", f"{plan_id}.json")
+    if not os.path.exists(plan_path):
+        return {"error": "Plan not found", "plan_id": plan_id}
+    try:
+        with open(plan_path) as f:
+            return json.load(f)
+    except Exception:
+        return {"error": "Failed to read plan"}
+
+
+async def _approve_plan(request: Request):
+    """Approve a generated plan for execution."""
+    body = await request.json()
+    plan_id = body.get("plan_id", "")
+    if not plan_id:
+        return {"success": False, "error": "plan_id is required"}
+
+    plan_path = os.path.join(_REPO_ROOT, "data", "umh", "execution", "plans", f"{plan_id}.json")
+    if not os.path.exists(plan_path):
+        return {"success": False, "error": "Plan not found"}
+
+    try:
+        with open(plan_path) as f:
+            plan_data = json.load(f)
+        plan_data["approved"] = True
+        with open(plan_path, "w") as f:
+            json.dump(plan_data, f, indent=2, default=str)
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+    _audit_log("plan_approved", {"plan_id": plan_id, "packet_id": plan_data.get("packet_id", "")})
+
+    return {
+        "success": True,
+        "plan_id": plan_id,
+        "next_action": "execute",
+    }
+
+
+# ── Approval ─────────────────────────────────────────────────
+
+
+async def _approve_packet(request: Request):
+    """Approve a work packet for execution."""
+    body = await request.json()
+    packet_id = body.get("packet_id", "")
+    if not packet_id:
+        return {"success": False, "error": "packet_id is required"}
+
+    from substrate.organism.work_packet import PacketLifecycleStatus
+
+    queue = _get_queue()
+    pkt = queue.get_packet(packet_id)
+    if not pkt:
+        return {"success": False, "error": f"Packet {packet_id} not found"}
+
+    current = pkt.status
+    transitions_needed = []
+
+    if current == PacketLifecycleStatus.CLASSIFIED:
+        transitions_needed = [
+            PacketLifecycleStatus.PLANNED,
+            PacketLifecycleStatus.READY_FOR_REVIEW,
+            PacketLifecycleStatus.APPROVAL_PENDING,
+            PacketLifecycleStatus.APPROVED,
+        ]
+    elif current == PacketLifecycleStatus.PLANNED:
+        transitions_needed = [
+            PacketLifecycleStatus.READY_FOR_REVIEW,
+            PacketLifecycleStatus.APPROVAL_PENDING,
+            PacketLifecycleStatus.APPROVED,
+        ]
+    elif current == PacketLifecycleStatus.READY_FOR_REVIEW:
+        transitions_needed = [
+            PacketLifecycleStatus.APPROVAL_PENDING,
+            PacketLifecycleStatus.APPROVED,
+        ]
+    elif current == PacketLifecycleStatus.APPROVAL_PENDING:
+        transitions_needed = [PacketLifecycleStatus.APPROVED]
+    elif current == PacketLifecycleStatus.APPROVED:
+        return {"success": True, "packet_id": packet_id, "status": "already_approved"}
+    else:
+        return {"success": False, "error": f"Cannot approve from status '{current.value}'"}
+
+    for next_status in transitions_needed:
+        ok = queue.update_packet_status(packet_id, next_status, f"operator approved → {next_status.value}")
+        if not ok:
+            return {"success": False, "error": f"Transition to {next_status.value} failed"}
+
+    _audit_log("packet_approved", {"packet_id": packet_id})
+    return {"success": True, "packet_id": packet_id, "status": "approved", "next_action": "execute"}
+
+
+async def _reject_packet(request: Request):
+    """Reject a work packet."""
+    body = await request.json()
+    packet_id = body.get("packet_id", "")
+    reason = body.get("reason", "operator rejected")
+    if not packet_id:
+        return {"success": False, "error": "packet_id is required"}
+
+    from substrate.organism.work_packet import PacketLifecycleStatus
+
+    queue = _get_queue()
+    pkt = queue.get_packet(packet_id)
+    if not pkt:
+        return {"success": False, "error": f"Packet {packet_id} not found"}
+
+    if pkt.status == PacketLifecycleStatus.APPROVAL_PENDING:
+        ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.REJECTED, reason)
+    else:
+        ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, reason)
+
+    _audit_log("packet_rejected", {"packet_id": packet_id, "reason": reason})
+    return {"success": ok, "packet_id": packet_id, "status": "rejected"}
+
+
+# ── Execution ────────────────────────────────────────────────
+
+
+async def _execute_packet(request: Request):
+    """Execute a work packet — plan, implement, validate."""
+    body = await request.json()
+    packet_id = body.get("packet_id", "")
+    mode = body.get("mode", "validate_only")
+    plan_id = body.get("plan_id", "")
+
+    if not packet_id:
+        return {"success": False, "error": "packet_id is required"}
+    if mode not in _VALID_MODES:
+        return {"success": False, "error": f"Invalid mode: {mode}. Must be one of {_VALID_MODES}"}
+
+    from substrate.organism.work_packet import PacketLifecycleStatus
+
+    queue = _get_queue()
+    pkt = queue.get_packet(packet_id)
+    if not pkt:
+        return {"success": False, "error": f"Packet {packet_id} not found"}
+
+    if pkt.approval_gates and pkt.status != PacketLifecycleStatus.APPROVED:
+        return {
+            "success": False,
+            "error": "Packet requires approval before execution",
+            "status": pkt.status.value,
+        }
+
+    if pkt.status == PacketLifecycleStatus.APPROVED:
+        queue.update_packet_status(packet_id, PacketLifecycleStatus.DELEGATED, "delegated")
+    elif pkt.status == PacketLifecycleStatus.CLASSIFIED and not pkt.approval_gates:
+        queue.update_packet_status(packet_id, PacketLifecycleStatus.PLANNED, "auto-planned")
+        queue.update_packet_status(packet_id, PacketLifecycleStatus.READY_FOR_REVIEW, "auto-reviewed")
+        queue.update_packet_status(packet_id, PacketLifecycleStatus.APPROVAL_PENDING, "auto-pending")
+        queue.update_packet_status(packet_id, PacketLifecycleStatus.APPROVED, "auto-approved")
+        queue.update_packet_status(packet_id, PacketLifecycleStatus.DELEGATED, "auto-delegated")
+    elif pkt.status == PacketLifecycleStatus.DELEGATED:
+        pass
+    else:
+        return {"success": False, "error": f"Cannot execute from status '{pkt.status.value}'"}
+
+    queue.update_packet_status(packet_id, PacketLifecycleStatus.EXECUTING, "execution started")
+
+    _audit_log("packet_executing", {
+        "packet_id": packet_id,
+        "mode": mode,
+        "risk_class": pkt.risk_class,
+    })
+
+    runner = _get_runner()
+    pkt = queue.get_packet(packet_id)
+
+    plan = None
+    if plan_id:
+        plan_data = await _get_plan(plan_id)
+        if not isinstance(plan_data, dict) or "error" in plan_data:
+            pass
+        else:
+            from substrate.organism.agent_execution_runner import AgentExecutionPlan
+            plan = AgentExecutionPlan(**{k: v for k, v in plan_data.items() if k in AgentExecutionPlan.__dataclass_fields__})
+    elif mode in ("implement", "implement_and_validate"):
+        plan = runner.generate_plan(pkt)
+        _audit_log("plan_auto_generated", {
+            "packet_id": packet_id,
+            "plan_id": plan.plan_id,
+        })
+
+    record = runner.execute(pkt, mode=mode, plan=plan)
+
+    pkt = queue.get_packet(packet_id)
+    pkt.verification_results = record.validation_results
+    pkt.verification_passed = record.all_validations_passed
+    pkt.linked_sandbox_id = record.sandbox_id
+    queue._save()
+
+    if record.sandbox_id:
+        queue.link_execution_artifacts(packet_id, {"sandbox_id": record.sandbox_id})
+
+    if record.success:
+        queue.update_packet_status(packet_id, PacketLifecycleStatus.VALIDATING, "validated")
+    else:
+        queue.update_packet_status(packet_id, PacketLifecycleStatus.FAILED, record.error or "execution failed")
+
+    _record_outcome_internal(
+        packet_id=packet_id,
+        outcome_text=(
+            f"Execution {mode}: {'passed' if record.success else 'failed'}. "
+            f"Files: {len(record.files_changed)}. "
+            f"Commits: {len(record.commits)}. "
+            f"Duration: {record.duration_seconds}s."
+        ),
+        domain=pkt.domain or "execution",
+        confidence=0.9 if record.success else 0.5,
+    )
+
+    _audit_log("execution_complete", {
+        "packet_id": packet_id,
+        "record_id": record.record_id,
+        "mode": mode,
+        "success": record.success,
+        "files_changed": record.files_changed[:20],
+        "duration_seconds": record.duration_seconds,
+    })
+
+    return {
+        "success": True,
+        "packet_id": packet_id,
+        "record_id": record.record_id,
+        "sandbox_id": record.sandbox_id,
+        "mode": mode,
+        "execution_success": record.success,
+        "files_changed": record.files_changed,
+        "diff_summary": record.diff_summary,
+        "commits": record.commits,
+        "validation_results": record.validation_results,
+        "all_passed": record.all_validations_passed,
+        "agent_output": record.agent_output[:3000] if record.agent_output else "",
+        "duration_seconds": record.duration_seconds,
+        "error": record.error,
+        "plan": plan.to_dict() if plan else None,
+        "failure_report": runner.get_failure(packet_id).to_dict() if runner.get_failure(packet_id) else None,
+        "needs_review": pkt.risk_class in ("high", "critical") and record.success,
+        "next_action": (
+            "review" if pkt.risk_class in ("high", "critical") and record.success
+            else "complete" if record.success
+            else "retry_or_escalate"
+        ),
+    }
+
+
+# ── Completion ───────────────────────────────────────────────
+
+
+async def _complete_packet(request: Request):
+    """Mark a packet as completed with outcome."""
+    body = await request.json()
+    packet_id = body.get("packet_id", "")
+    outcome = body.get("outcome", "")
+    success = body.get("success", True)
+    if not packet_id:
+        return {"success": False, "error": "packet_id is required"}
+
+    from substrate.organism.work_packet import PacketLifecycleStatus
+
+    queue = _get_queue()
+    pkt = queue.get_packet(packet_id)
+    if not pkt:
+        return {"success": False, "error": f"Packet {packet_id} not found"}
+
+    if success:
+        if pkt.status != PacketLifecycleStatus.VALIDATING:
+            queue.update_packet_status(packet_id, PacketLifecycleStatus.VALIDATING, "pre-complete")
+        ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.COMPLETED, outcome or "completed")
+    else:
+        ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.FAILED, outcome or "failed")
+
+    pkt = queue.get_packet(packet_id)
+    pkt.outcome_summary = outcome[:500] if outcome else ""
+    queue._save()
+
+    _record_outcome_internal(
+        packet_id=packet_id,
+        outcome_text=f"Packet {'completed' if success else 'failed'}: {outcome[:300]}",
+        domain=pkt.domain or "execution",
+        confidence=0.85 if success else 0.5,
+    )
+
+    _audit_log("packet_completed", {"packet_id": packet_id, "success": success, "outcome": outcome[:500]})
+    return {"success": ok, "packet_id": packet_id, "status": "completed" if success else "failed"}
+
+
+# ── Status & Query ───────────────────────────────────────────
+
+
+async def _loop_status():
+    """Current operator loop status."""
+    queue = _get_queue()
+    summary = queue.compute_queue_summary()
+    pending_approval = queue.get_packets_requiring_approval()
+    blocked = queue.get_blocked_packets()
+    human_required = queue.get_packets_requiring_human()
+    next_best = queue.get_next_best_packet()
+
+    return {
+        "queue_summary": summary,
+        "pending_approval_count": len(pending_approval),
+        "blocked_count": len(blocked),
+        "human_required_count": len(human_required),
+        "next_best": next_best.to_safe_dict() if next_best else None,
+    }
+
+
+async def _packet_detail(packet_id: str):
+    """Full work packet detail with audit trail and execution records."""
+    queue = _get_queue()
+    pkt = queue.get_packet(packet_id)
+    if not pkt:
+        return {"error": "Not found", "packet_id": packet_id}
+
+    result = pkt.to_dict()
+    result["audit_trail"] = _get_audit_entries_for_packet(packet_id)
+
+    records_dir = os.path.join(_REPO_ROOT, "data", "umh", "execution", "records")
+    if os.path.isdir(records_dir):
+        records = []
+        for fname in os.listdir(records_dir):
+            if fname.endswith(".json"):
+                try:
+                    with open(os.path.join(records_dir, fname)) as f:
+                        rec = json.load(f)
+                    if rec.get("packet_id") == packet_id:
+                        records.append(rec)
+                except Exception:
+                    pass
+        result["execution_records"] = sorted(records, key=lambda r: r.get("started_at", 0))
+
+    if pkt.linked_sandbox_id:
+        try:
+            sandbox_mgr = _get_sandbox_manager()
+            sb = sandbox_mgr.get_sandbox(pkt.linked_sandbox_id)
+            if sb:
+                result["sandbox"] = sb.to_dict()
+        except Exception:
+            pass
+
+    return result
+
+
+async def _pending_approvals():
+    queue = _get_queue()
+    return [p.to_safe_dict() for p in queue.get_packets_requiring_approval()]
+
+
+async def _active_packets():
+    queue = _get_queue()
+    active = [p for p in queue.all_packets() if p.status.value in (
+        "executing", "delegated", "reconverging", "validating",
+    )]
+    return [p.to_safe_dict() for p in active]
+
+
+async def _audit_trail(packet_id: str | None = None, limit: int = 50):
+    if packet_id:
+        return _get_audit_entries_for_packet(packet_id)
+
+    audit_path = os.path.join(_REPO_ROOT, "data", "umh", "audit", "operator_loop_audit.jsonl")
+    if not os.path.exists(audit_path):
+        return []
+
+    entries = []
+    try:
+        with open(audit_path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        pass
+    except Exception:
+        pass
+    entries.reverse()
+    return entries[:limit]
+
+
+async def _record_outcome(request: Request):
+    body = await request.json()
+    outcome_text = body.get("outcome", "")
+    if not outcome_text:
+        return {"success": False, "error": "outcome is required"}
+
+    obs_id = _record_outcome_internal(
+        packet_id=body.get("packet_id", ""),
+        outcome_text=outcome_text,
+        domain=body.get("domain", "execution"),
+        confidence=body.get("confidence", 0.7),
+    )
+    if obs_id:
+        return {"success": True, "observation_id": obs_id}
+    return {"success": False, "error": "recording failed"}
+
+
 async def _loop_health():
-    """Health endpoint — queue summary, latest audit event, trace/memory status."""
+    """Health endpoint."""
     queue = _get_queue()
     summary = queue.compute_queue_summary()
 
@@ -745,9 +663,9 @@ async def _loop_health():
             with open(audit_path) as f:
                 lines = f.readlines()
             if lines:
-                last_line = lines[-1].strip()
-                if last_line:
-                    latest_audit = json.loads(last_line)
+                last = lines[-1].strip()
+                if last:
+                    latest_audit = json.loads(last)
         except Exception:
             pass
 
@@ -756,18 +674,12 @@ async def _loop_health():
         sandbox_mgr = _get_sandbox_manager()
         sandbox_summary = sandbox_mgr.to_dict()
     except Exception:
-        sandbox_summary = {"error": "sandbox manager unavailable"}
+        sandbox_summary = {"error": "unavailable"}
 
-    reality_model_status = "unknown"
-    try:
-        from substrate.reality_model.instance import InstanceRealityModel
-        org_id = os.environ.get("UMH_ORG_ID", os.environ.get("EOS_ORG_ID", "default"))
-        user_id = os.environ.get("UMH_USER_ID", os.environ.get("EOS_USER_ID", "default"))
-        instance = InstanceRealityModel(user_id=user_id, org_id=org_id)
-        count = len(instance.all_observations())
-        reality_model_status = f"operational ({count} observations)"
-    except Exception as e:
-        reality_model_status = f"error: {e}"
+    records_count = 0
+    records_dir = os.path.join(_REPO_ROOT, "data", "umh", "execution", "records")
+    if os.path.isdir(records_dir):
+        records_count = len([f for f in os.listdir(records_dir) if f.endswith(".json")])
 
     return {
         "healthy": True,
@@ -778,16 +690,67 @@ async def _loop_health():
             "total": sandbox_summary.get("total_sandboxes", 0),
             "active": sandbox_summary.get("active_sandboxes", 0),
         },
-        "reality_model": reality_model_status,
+        "execution_records": records_count,
     }
 
 
+# ── Execution Records ────────────────────────────────────────
+
+
+async def _get_execution_record(record_id: str):
+    """Retrieve a single execution record."""
+    path = os.path.join(_REPO_ROOT, "data", "umh", "execution", "records", f"{record_id}.json")
+    if not os.path.exists(path):
+        return {"error": "Not found", "record_id": record_id}
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception:
+        return {"error": "Failed to read record"}
+
+
+async def _packet_records(packet_id: str):
+    """All execution records for a packet."""
+    records_dir = os.path.join(_REPO_ROOT, "data", "umh", "execution", "records")
+    if not os.path.isdir(records_dir):
+        return []
+    records = []
+    for fname in os.listdir(records_dir):
+        if fname.endswith(".json"):
+            try:
+                with open(os.path.join(records_dir, fname)) as f:
+                    rec = json.load(f)
+                if rec.get("packet_id") == packet_id:
+                    records.append(rec)
+            except Exception:
+                pass
+    return sorted(records, key=lambda r: r.get("started_at", 0))
+
+
+async def _packet_failure(packet_id: str):
+    """Get failure report for a packet."""
+    fail_dir = os.path.join(_REPO_ROOT, "data", "umh", "execution", "failures")
+    if not os.path.isdir(fail_dir):
+        return {"error": "No failures recorded"}
+    for fname in os.listdir(fail_dir):
+        if fname.endswith(".json"):
+            try:
+                with open(os.path.join(fail_dir, fname)) as f:
+                    report = json.load(f)
+                if report.get("packet_id") == packet_id:
+                    return report
+            except Exception:
+                pass
+    return {"error": "No failure found for this packet"}
+
+
+# ── Helpers ──────────────────────────────────────────────────
+
+
 def _get_audit_entries_for_packet(packet_id: str) -> list[dict]:
-    """Read audit entries for a specific packet."""
     audit_path = os.path.join(_REPO_ROOT, "data", "umh", "audit", "operator_loop_audit.jsonl")
     if not os.path.exists(audit_path):
         return []
-
     entries = []
     try:
         with open(audit_path) as f:
@@ -803,5 +766,4 @@ def _get_audit_entries_for_packet(packet_id: str) -> list[dict]:
                     pass
     except Exception:
         pass
-
     return entries
