@@ -322,7 +322,10 @@ class CameraAdapter:
                                 "detect_interval": self._detect_min_interval,
                                 "tracker_active": det_status.get("tracker_active", False),
                                 "active_tracks": det_status.get("active_tracks", 0),
+                                "total_tracks": det_status.get("total_tracks", 0),
+                                "consecutive_errors": det_status.get("consecutive_errors", 0),
                             }
+                            payload["capture_timestamp"] = time.time()
                             if detections:
                                 payload["overlays"] = [
                                     {
@@ -339,6 +342,8 @@ class CameraAdapter:
                                         "lost_frames": d.get("lost_frames", 0),
                                         "status": d.get("status", "active"),
                                         "velocity": d.get("velocity", [0, 0]),
+                                        "first_seen": d.get("first_seen", 0),
+                                        "last_seen": d.get("last_seen", 0),
                                     }
                                     for i, d in enumerate(detections)
                                 ]

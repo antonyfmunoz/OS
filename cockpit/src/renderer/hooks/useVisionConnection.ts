@@ -584,6 +584,8 @@ export function useVisionConnection(): void {
             device: detStatus.device as string | undefined,
             nms_device: detStatus.nms_device as string | undefined,
             nms_fallback: detStatus.nms_fallback as boolean | undefined,
+            consecutive_errors: detStatus.consecutive_errors as number | undefined,
+            detect_interval: detStatus.detect_interval as number | undefined,
           }
           const device = detStatus.device as string | undefined
           if (device && lastDetectorDevice !== null && lastDetectorDevice !== device) {
@@ -599,6 +601,24 @@ export function useVisionConnection(): void {
           if (device) lastDetectorDevice = device
         }
         updateChainHealth(healthUpdate)
+
+        // Pipeline latency (Phase 5)
+        const captureTs = d.capture_timestamp as number ?? 0
+        const relayTs = d.relay_timestamp as number ?? 0
+        const captureToRelayMs = d.capture_to_relay_ms as number ?? 0
+        if (captureTs > 0) {
+          const renderTs = Date.now() / 1000
+          const relayToRenderMs = relayTs > 0 ? Math.round((renderTs - relayTs) * 1000) : 0
+          const endToEndMs = Math.round((renderTs - captureTs) * 1000)
+          useVisionStore.getState().updatePipelineLatency({
+            captureToRelayMs,
+            relayToRenderMs,
+            endToEndMs,
+            captureTimestamp: captureTs,
+            relayTimestamp: relayTs,
+            renderTimestamp: renderTs,
+          })
+        }
       }),
 
       // Health chain events — emit notifications on state transitions
@@ -681,6 +701,8 @@ export function useVisionConnection(): void {
             device: detStatus.device as string | undefined,
             nms_device: detStatus.nms_device as string | undefined,
             nms_fallback: detStatus.nms_fallback as boolean | undefined,
+            consecutive_errors: detStatus.consecutive_errors as number | undefined,
+            detect_interval: detStatus.detect_interval as number | undefined,
           } : null,
           blockers: (d.blockers as string[]) ?? [],
           recoveryAction: d.recovery_action as string ?? '',
@@ -694,6 +716,14 @@ export function useVisionConnection(): void {
           lastDispatchRttMs: d.last_dispatch_rtt_ms as number ?? 0,
           roi: d.roi as { x: number; y: number; zoom: number } ?? { x: 0, y: 0, zoom: 1 },
         })
+      }),
+
+      // Vision event stream (Phase 8)
+      client.on('vision_events', (d) => {
+        const events = (d.events as Array<{ seq: number; type: string; timestamp: number; detail?: Record<string, unknown> }>) ?? []
+        if (events.length > 0) {
+          useVisionStore.getState().appendVisionEvents(events)
+        }
       }),
     ]
 
@@ -750,6 +780,9 @@ export function useVisionConnection(): void {
     healthInterval.current = setInterval(() => {
       if (!client.connected) return
       client.requestHealth()
+      // Piggyback vision events request on health poll
+      const lastSeq = useVisionStore.getState().visionEvents.at(-1)?.seq ?? 0
+      client.requestEvents(lastSeq)
     }, 5000)
 
     // Device list polling — 30s, auto-recovers from stale empty device list

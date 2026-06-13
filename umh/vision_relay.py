@@ -107,6 +107,36 @@ _mesh_dispatch_url = os.getenv(
     "http://localhost:8095/dispatch",
 )
 
+# ── Pipeline latency tracking (Phase 5) ─────────────────────────
+
+_last_capture_timestamp: float = 0.0
+_last_relay_receive_at: float = 0.0
+_capture_to_relay_ms: float = 0.0
+_relay_to_client_ms: float = 0.0
+
+# ── Vision event stream (Phase 8) ───────────────────────────────
+
+_VISION_EVENT_MAX = 500
+_vision_events: list[dict[str, Any]] = []
+_vision_event_seq: int = 0
+
+
+def _emit_vision_event(event_type: str, detail: dict[str, Any] | None = None) -> None:
+    """Append a vision event to the rolling history."""
+    global _vision_event_seq
+    _vision_event_seq += 1
+    evt: dict[str, Any] = {
+        "seq": _vision_event_seq,
+        "type": event_type,
+        "timestamp": time.time(),
+    }
+    if detail:
+        evt["detail"] = detail
+    _vision_events.append(evt)
+    if len(_vision_events) > _VISION_EVENT_MAX:
+        _vision_events[:] = _vision_events[-_VISION_EVENT_MAX:]
+
+
 # ── Diagnostic overlay state ─────────────────────────────────────
 
 _diagnostic_overlay_active = False
@@ -527,6 +557,7 @@ async def handle_vision(ws: Any) -> None:
 
     log.info("viewer connected: %s", ws.remote_address)
     _clients.add(ws)
+    _emit_vision_event("viewer_connected", {"viewers": len(_clients)})
     subscribed = False
     try:
         await send_json(ws, {"type": "connected"})
@@ -579,10 +610,13 @@ async def handle_vision(ws: Any) -> None:
                 if smooth:
                     duration = max(0.3, min(float(msg.get("duration", 1.0)), 3.0))
                     await _smooth_preset_transition(preset, duration)
+                    _emit_vision_event("preset_applied", {"preset": preset, "smooth": True})
                 else:
                     result = await _dispatch_to_beast("camera.set_preset", {"preset": preset})
                     if result and not result.get("success"):
                         await send_json(ws, {"type": "vision_error", "error": result.get("error", "preset failed")})
+                    else:
+                        _emit_vision_event("preset_applied", {"preset": preset})
 
             elif msg_type == "camera_snapshot":
                 result = await _dispatch_to_beast("camera.snapshot", {
@@ -1054,12 +1088,23 @@ async def handle_vision(ws: Any) -> None:
                 health = _build_health()
                 await send_json(ws, {"type": "vision_health", **health})
 
+            elif msg_type == "vision_events":
+                since_seq = msg.get("since_seq", 0)
+                limit = min(msg.get("limit", 100), 500)
+                events = [e for e in _vision_events if e["seq"] > since_seq][-limit:]
+                await send_json(ws, {
+                    "type": "vision_events",
+                    "events": events,
+                    "total": len(_vision_events),
+                })
+
     except websockets.exceptions.ConnectionClosed:
         log.info("viewer disconnected: %s", ws.remote_address)
     except Exception as e:
         log.error("viewer session error: %s", e)
     finally:
         _clients.discard(ws)
+        _emit_vision_event("viewer_disconnected", {"viewers": len(_clients)})
         if len(_clients) == 0 and _motion_active:
             log.warning("last viewer disconnected while motion active, stopping motion")
             await _stop_motion()
@@ -1178,6 +1223,7 @@ async def _start_stream(
     })
     if result and result.get("success"):
         log.info("Beast stream started: %dx%d @%dfps q%d", width, height, _stream_fps, quality)
+        _emit_vision_event("stream_started", {"width": width, "height": height, "fps": _stream_fps})
     else:
         log.warning("Beast stream_start failed: %s", result)
         _stream_active = False
@@ -1193,6 +1239,7 @@ async def _stop_stream() -> None:
     _stream_active = False
     await _dispatch_to_beast("camera.stream_stop", {})
     log.info("stream stopped")
+    _emit_vision_event("stream_stopped")
     for ws in list(_clients):
         await send_json(ws, {"type": "vision_status", "streaming": False, "width": 0, "height": 0})
 
@@ -1207,6 +1254,7 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
     global _latest_frame, _latest_frame_meta, _stream_active
     global _last_frame_at, _frame_count, _last_overlay_at, _overlay_count
     global _latest_detector_status
+    global _last_capture_timestamp, _last_relay_receive_at, _capture_to_relay_ms
 
     if len(jpeg_bytes) > MAX_FRAME_BYTES:
         log.warning("frame too large: %d bytes, dropping", len(jpeg_bytes))
@@ -1215,8 +1263,16 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
     _latest_frame = jpeg_bytes
     _latest_frame_meta = meta
     _stream_active = True
-    _last_frame_at = time.time()
+    now = time.time()
+    _last_frame_at = now
     _frame_count += 1
+
+    # Pipeline latency: capture → relay
+    capture_ts = meta.get("capture_timestamp") or meta.get("timestamp", 0)
+    if capture_ts > 0:
+        _last_capture_timestamp = capture_ts
+        _last_relay_receive_at = now
+        _capture_to_relay_ms = round((now - capture_ts) * 1000, 1)
 
     det_status = meta.get("detector_status")
     if det_status:
@@ -1224,7 +1280,7 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
 
     overlays = meta.get("overlays")
     if overlays:
-        _last_overlay_at = time.time()
+        _last_overlay_at = now
         _overlay_count += 1
 
     if not _clients:
@@ -1232,7 +1288,13 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
 
     overlay_msg: dict[str, Any] | None = None
     if overlays:
-        overlay_msg = {"type": "vision_overlay", "overlays": overlays}
+        overlay_msg = {
+            "type": "vision_overlay",
+            "overlays": overlays,
+            "capture_timestamp": _last_capture_timestamp,
+            "relay_timestamp": now,
+            "capture_to_relay_ms": _capture_to_relay_ms,
+        }
         if det_status:
             overlay_msg["detector_status"] = det_status
     overlay_json = json.dumps(overlay_msg) if overlay_msg else None
@@ -1857,6 +1919,8 @@ def _build_health() -> dict[str, Any]:
         "security_mode": "security_harden" if security_active else "normal",
         "diagnostic_overlay_active": _diagnostic_overlay_active,
         "detector_status": _latest_detector_status,
+        "capture_to_relay_ms": _capture_to_relay_ms,
+        "vision_event_count": len(_vision_events),
         "ptz_mode": ptz_mode,
         "physical_ptz_available": physical_ptz_available,
         "digital_roi_available": digital_roi_available,
@@ -1882,6 +1946,18 @@ async def _health_server() -> None:
         def do_GET(self) -> None:
             if self.path == "/health":
                 body = json.dumps(_build_health()).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path == "/events" or self.path.startswith("/events?"):
+                since = 0
+                if "?" in self.path:
+                    for part in self.path.split("?", 1)[1].split("&"):
+                        if part.startswith("since_seq="):
+                            since = int(part.split("=", 1)[1])
+                events = [e for e in _vision_events if e["seq"] > since][-100:]
+                body = json.dumps({"events": events, "total": len(_vision_events)}).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
