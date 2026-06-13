@@ -180,19 +180,23 @@ class NodeMeshServer:
                         except asyncio.TimeoutError:
                             continue
 
-                        b64_data = payload.get("image_base64", "")
-                        if not b64_data:
-                            continue
-                        try:
-                            jpeg_bytes = _b64.b64decode(b64_data)
-                        except Exception:
-                            continue
+                        raw_msg = payload.get("__raw__")
+                        if raw_msg is not None:
+                            await ws.send(raw_msg)
+                        else:
+                            b64_data = payload.get("image_base64", "")
+                            if not b64_data:
+                                continue
+                            try:
+                                jpeg_bytes = _b64.b64decode(b64_data)
+                            except Exception:
+                                continue
+                            meta = {k: v for k, v in payload.items() if k != "image_base64"}
+                            meta["node_id"] = node_id
+                            meta_bytes = json.dumps(meta).encode()
+                            msg = _struct.pack(">I", len(meta_bytes)) + meta_bytes + jpeg_bytes
+                            await ws.send(msg)
 
-                        meta = {k: v for k, v in payload.items() if k != "image_base64"}
-                        meta["node_id"] = node_id
-                        meta_bytes = json.dumps(meta).encode()
-                        msg = _struct.pack(">I", len(meta_bytes)) + meta_bytes + jpeg_bytes
-                        await ws.send(msg)
                         frames_sent += 1
                         if frames_sent <= 3 or frames_sent % 500 == 0:
                             logger.info("frame relay WS: %d frames sent", frames_sent)
@@ -261,6 +265,11 @@ class NodeMeshServer:
                 return
 
             async for raw in ws:
+                if isinstance(raw, bytes):
+                    if node_id and len(raw) > 6:
+                        self._handle_binary_frame(node_id, raw)
+                    continue
+
                 msg = json.loads(raw)
                 method = msg.get("method", "")
                 params = msg.get("params", {})
@@ -298,6 +307,38 @@ class NodeMeshServer:
         finally:
             if node_id:
                 self._unregister_node(node_id)
+
+    def _handle_binary_frame(self, node_id: str, raw: bytes) -> None:
+        """Handle binary camera frame from Beast — forward to relay queue.
+
+        Wire format: [4-byte meta_len][JSON meta][JPEG bytes]
+        Same format as the relay ingest WS, so forward directly.
+        """
+        import struct as _struct
+
+        meta_len = _struct.unpack(">I", raw[:4])[0]
+        if meta_len > 65536 or 4 + meta_len > len(raw):
+            return
+        try:
+            meta = json.loads(raw[4:4 + meta_len])
+        except Exception:
+            meta = {}
+        meta["node_id"] = node_id
+
+        if self._frame_queue is not None:
+            meta_bytes = json.dumps(meta).encode()
+            fwd = _struct.pack(">I", len(meta_bytes)) + meta_bytes + raw[4 + meta_len:]
+            try:
+                self._frame_queue.put_nowait(("__binary__", {"__raw__": fwd}))
+            except asyncio.QueueFull:
+                pass
+        elif self._frame_callback is not None:
+            import base64 as _b64
+            jpeg_bytes = raw[4 + meta_len:]
+            payload = dict(meta)
+            payload["image_base64"] = _b64.b64encode(jpeg_bytes).decode("ascii")
+            loop = asyncio.get_running_loop()
+            loop.run_in_executor(None, self._frame_callback, node_id, payload)
 
     def _resolve_pending_dispatch(self, msg: dict[str, Any]) -> None:
         """Route JSON-RPC responses back to pending HTTP dispatch futures."""
