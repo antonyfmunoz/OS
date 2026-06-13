@@ -46,6 +46,7 @@ class BroadcastCapabilityHandler:
             "start": self._start,
             "stop": self._stop,
             "status": self._status,
+            "switch_scene": self._switch_scene,
         }
 
         handler = handler_map.get(request.capability_name)
@@ -58,7 +59,10 @@ class BroadcastCapabilityHandler:
             )
 
         try:
-            result = handler(request.params)
+            if asyncio.iscoroutinefunction(handler):
+                result = asyncio.run(handler(request.params))
+            else:
+                result = handler(request.params)
             latency = (time.monotonic() - t0) * 1000
             return CapabilityResponse(
                 request_id=request.request_id,
@@ -89,6 +93,8 @@ class BroadcastCapabilityHandler:
             "start": self._start_async,
             "stop": self._stop_async,
             "status": self._status_sync,
+            "switch_scene": self._switch_scene_async,
+            "start_composite": self._start_composite_async,
         }
 
         handler = handler_map.get(request.capability_name)
@@ -170,6 +176,43 @@ class BroadcastCapabilityHandler:
 
     def _status_sync(self, params: dict[str, Any]) -> dict[str, Any]:
         return self._engine.get_status()
+
+    def _switch_scene(self, params: dict[str, Any]) -> dict[str, Any]:
+        return asyncio.run(self._switch_scene_async(params))
+
+    async def _switch_scene_async(self, params: dict[str, Any]) -> dict[str, Any]:
+        scene_id = params.get("scene_id")
+        if not scene_id:
+            raise ValueError("scene_id is required")
+        result = await self._engine.switch_scene(scene_id)
+        if not result.get("success"):
+            raise RuntimeError(result.get("error", "scene switch failed"))
+        return result
+
+    async def _start_composite_async(self, params: dict[str, Any]) -> dict[str, Any]:
+        from adapters.broadcast.scene_model import (
+            CompositeConfig, Scene, SourceEntry, SourceLayout,
+        )
+        config = CompositeConfig(
+            sources=[SourceEntry(**s) for s in params.get("sources", [])],
+            scenes=[
+                Scene(
+                    scene_id=s["scene_id"],
+                    name=s["name"],
+                    source_layouts={
+                        k: SourceLayout(**v)
+                        for k, v in s.get("source_layouts", {}).items()
+                    },
+                )
+                for s in params.get("scenes", [])
+            ],
+            active_scene_id=params.get("active_scene_id"),
+            output_url=params["output_url"],
+        )
+        ok = await self._engine.start_composite(config)
+        if not ok:
+            raise RuntimeError("composite start failed")
+        return {"pid": self._engine.get_status().get("pid"), "state": self._engine.state}
 
     def _build_config(self, params: dict[str, Any]) -> dict[str, Any]:
         return {
