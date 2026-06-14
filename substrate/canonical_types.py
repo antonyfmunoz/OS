@@ -449,6 +449,16 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ApprovalInterceptRequest": ["substrate.organism.executors.approval_intercept"],
     "ApprovalInterceptStore": ["substrate.organism.executors.approval_intercept"],
     "ApprovalInterceptService": ["substrate.organism.executors.approval_intercept"],
+    # Phase 16: Runtime State Registry
+    "WorktreeInfo": ["substrate.organism.runtime_state_registry"],
+    "GitRepoInfo": ["substrate.organism.runtime_state_registry"],
+    "ProcessInfo": ["substrate.organism.runtime_state_registry"],
+    "ContainerInfo": ["substrate.organism.runtime_state_registry"],
+    "ExecutionInfo": ["substrate.organism.runtime_state_registry"],
+    "RuntimeSnapshot": ["substrate.organism.runtime_state_registry"],
+    "RuntimeStateStore": ["substrate.organism.runtime_state_registry"],
+    "RuntimeStateRefresher": ["substrate.organism.runtime_state_registry"],
+    "RuntimeStateRegistry": ["substrate.organism.runtime_state_registry"],
 }
 
 
