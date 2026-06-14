@@ -62,7 +62,24 @@ interface TelemetryEvent {
   payload: Record<string, unknown>
 }
 
-type Tab = 'executors' | 'requests' | 'active' | 'results' | 'failures' | 'live'
+interface ApprovalIntercept {
+  approval_id: string
+  execution_id: string
+  request_id: string
+  executor_type: string
+  operation: string
+  risk_class: string
+  reason: string
+  details: Record<string, unknown>
+  requested_at: number
+  expires_at: number
+  status: string
+  decided_by: string
+  decided_at: number
+  rejection_reason: string
+}
+
+type Tab = 'executors' | 'requests' | 'active' | 'results' | 'failures' | 'live' | 'approvals'
 
 function KpiCard({ label, value }: { label: string; value: number | string }) {
   return (
@@ -221,6 +238,13 @@ function getEventColor(eventType: string): string {
     execution_completed: 'text-green-500',
     execution_failed: 'text-red-500',
     execution_cancelled: 'text-gray-500',
+    approval_requested: 'text-amber-400',
+    approval_viewed: 'text-amber-300',
+    approval_granted: 'text-green-400',
+    approval_rejected: 'text-red-400',
+    approval_expired: 'text-gray-400',
+    execution_paused: 'text-amber-500',
+    execution_resumed: 'text-cyan-400',
   }
   return map[eventType] || 'text-secondary'
 }
@@ -261,6 +285,84 @@ function TelemetryEventRow({ event }: { event: TelemetryEvent }) {
       )}
       {event.payload.error && (
         <div className="mt-1 text-red-400 font-mono text-[11px]">{String(event.payload.error).slice(0, 300)}</div>
+      )}
+    </div>
+  )
+}
+
+function ApprovalCard({
+  approval,
+  onApprove,
+  onReject,
+}: {
+  approval: ApprovalIntercept
+  onApprove?: (id: string) => void
+  onReject?: (id: string) => void
+}) {
+  const isPending = approval.status === 'pending'
+  const age = Math.round((Date.now() / 1000 - approval.requested_at))
+  const ageStr = age < 60 ? `${age}s` : `${Math.floor(age / 60)}m ${age % 60}s`
+  const expiresIn = Math.max(0, Math.round(approval.expires_at - Date.now() / 1000))
+  const expiresStr = expiresIn < 60 ? `${expiresIn}s` : `${Math.floor(expiresIn / 60)}m`
+
+  return (
+    <div className={`bg-surface-2 rounded p-3 border mb-2 ${
+      isPending ? 'border-amber-500/50' : 'border-border'
+    }`}>
+      {isPending && (
+        <div className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">
+          Approval Required
+        </div>
+      )}
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-2">
+          <span>{getTargetIcon(approval.executor_type)}</span>
+          <span className="font-mono text-sm text-primary">{approval.approval_id.slice(0, 17)}</span>
+          <span className={`text-xs font-bold uppercase ${
+            approval.status === 'approved' ? 'text-green-400' :
+            approval.status === 'rejected' ? 'text-red-400' :
+            approval.status === 'expired' ? 'text-gray-400' :
+            'text-amber-400'
+          }`}>
+            {approval.status}
+          </span>
+        </div>
+        <span className={`text-xs ${getRiskColor(approval.risk_class)} font-bold uppercase`}>
+          {approval.risk_class}
+        </span>
+      </div>
+      <div className="text-xs text-secondary mb-1">{approval.reason}</div>
+      {approval.operation && (
+        <div className="text-xs text-cyan-400 mb-1">op: {approval.operation}</div>
+      )}
+      <div className="text-xs text-secondary mb-2">
+        Exec: {approval.execution_id.slice(0, 17)} |
+        Age: {ageStr}
+        {isPending && <span className="text-amber-400 ml-1">| Expires: {expiresStr}</span>}
+        {approval.decided_by && <span> | By: {approval.decided_by}</span>}
+      </div>
+      {approval.rejection_reason && (
+        <div className="text-xs text-red-400 mb-2">Reason: {approval.rejection_reason}</div>
+      )}
+      {isPending && (
+        <div className="flex gap-2">
+          {onApprove && (
+            <button
+              onClick={() => onApprove(approval.approval_id)}
+              className="text-xs bg-green-700 hover:bg-green-600 text-white px-3 py-1.5 rounded font-bold"
+            >
+              Approve
+            </button>
+          )}
+          {onReject && (
+            <button
+              onClick={() => onReject(approval.approval_id)}
+              className="text-xs bg-red-700 hover:bg-red-600 text-white px-3 py-1.5 rounded font-bold"
+            >
+              Reject
+            </button>
+          )}
+        </div>
       )}
     </div>
   )
@@ -312,8 +414,21 @@ export function ExecutorPanel() {
   const [executorTypes, setExecutorTypes] = useState<string[]>([])
   const [telemetryEvents, setTelemetryEvents] = useState<TelemetryEvent[]>([])
   const [telemetrySeq, setTelemetrySeq] = useState(0)
+  const [approvals, setApprovals] = useState<ApprovalIntercept[]>([])
 
   const apiBase = useCockpitStore((s) => s.apiBase)
+
+  const fetchApprovals = useCallback(async () => {
+    try {
+      const base = apiBase || ''
+      const res = await fetch(`${base}/approvals/pending`).then(r => r.json()).catch(() => null)
+      if (res?.success && res.approvals) {
+        setApprovals(res.approvals)
+      }
+    } catch {
+      // silent
+    }
+  }, [apiBase])
 
   const fetchData = useCallback(async () => {
     try {
@@ -363,6 +478,13 @@ export function ExecutorPanel() {
     return () => clearInterval(iv)
   }, [tab, fetchTelemetry])
 
+  useEffect(() => {
+    if (tab !== 'approvals') return
+    fetchApprovals()
+    const iv = setInterval(fetchApprovals, 2000)
+    return () => clearInterval(iv)
+  }, [tab, fetchApprovals])
+
   const doAction = async (endpoint: string, body: Record<string, string>) => {
     try {
       const base = apiBase || ''
@@ -377,6 +499,20 @@ export function ExecutorPanel() {
     }
   }
 
+  const doApprovalAction = async (approval_id: string, action: 'approve' | 'reject') => {
+    try {
+      const base = apiBase || ''
+      await fetch(`${base}/approvals/${approval_id}/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      fetchApprovals()
+    } catch {
+      // silent
+    }
+  }
+
   const snap = state?.snapshot
 
   const tabs: { key: Tab; label: string; badge?: number }[] = [
@@ -385,6 +521,7 @@ export function ExecutorPanel() {
     { key: 'active', label: 'Active', badge: active.length },
     { key: 'results', label: 'Results', badge: results.length },
     { key: 'failures', label: 'Failures', badge: failures.length },
+    { key: 'approvals', label: 'Approvals', badge: approvals.length },
     { key: 'live', label: 'Live', badge: telemetryEvents.length },
   ]
 
@@ -496,6 +633,24 @@ export function ExecutorPanel() {
             ) : (
               failures.map(r => (
                 <RequestCard key={r.request_id} req={r} />
+              ))
+            )}
+          </div>
+        )}
+
+        {tab === 'approvals' && (
+          <div>
+            <h3 className="text-sm font-bold text-secondary mb-2 uppercase">Pending Approval Intercepts</h3>
+            {approvals.length === 0 ? (
+              <div className="text-secondary text-sm">No pending approvals</div>
+            ) : (
+              approvals.map(a => (
+                <ApprovalCard
+                  key={a.approval_id}
+                  approval={a}
+                  onApprove={(id) => doApprovalAction(id, 'approve')}
+                  onReject={(id) => doApprovalAction(id, 'reject')}
+                />
               ))
             )}
           </div>

@@ -112,6 +112,7 @@ class ExecutionProof:
     inputs: dict[str, Any] = field(default_factory=dict)
     outputs: dict[str, Any] = field(default_factory=dict)
     artifacts: list[dict[str, Any]] = field(default_factory=list)
+    approval_events: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -126,6 +127,7 @@ class ExecutionProof:
             "inputs": self.inputs,
             "outputs": self.outputs,
             "artifacts": self.artifacts,
+            "approval_events": self.approval_events,
         }
 
     @classmethod
@@ -477,10 +479,15 @@ class WorkstationExecutor(ExecutorContract):
     parameters in request.metadata["params"].
     """
 
-    def __init__(self, telemetry_emitter: Any | None = None) -> None:
+    def __init__(
+        self,
+        telemetry_emitter: Any | None = None,
+        runtime: Any | None = None,
+    ) -> None:
         self._active_requests: dict[str, dict[str, Any]] = {}
         self._cancelled: set[str] = set()
         self._telemetry = telemetry_emitter
+        self._runtime = runtime
 
     def _tel(self, event_type: str, request: ExecutorRequest, **payload: Any) -> None:
         """Emit telemetry. Never raises."""
@@ -601,6 +608,44 @@ class WorkstationExecutor(ExecutorContract):
                 completed_at=time.time(),
                 duration_seconds=time.time() - started,
             )
+
+        # ── Approval checkpoint ──────────────────────────
+        try:
+            from substrate.organism.executors.approval_intercept import (
+                classify_operation_risk, requires_approval,
+            )
+            op_risk = classify_operation_risk(operation, params)
+            if requires_approval(op_risk) and self._runtime:
+                approved, msg = self._runtime.request_approval(
+                    request,
+                    reason=f"{op_risk.upper()} risk: {operation}",
+                    details={"operation": operation, "risk_class": op_risk},
+                )
+                if not approved:
+                    completed = time.time()
+                    proof = ExecutionProof(
+                        execution_id=request.request_id,
+                        operation=operation,
+                        start_time=started,
+                        end_time=completed,
+                        duration_ms=(completed - started) * 1000,
+                        status="rejected",
+                        inputs={"operation": operation, "params": _sanitize(params)},
+                        outputs={"rejection": msg},
+                    )
+                    return ExecutorResult(
+                        request_id=request.request_id,
+                        executor_type=self.executor_type,
+                        success=False,
+                        outcome=f"Approval denied: {msg}",
+                        errors=[msg],
+                        started_at=started,
+                        completed_at=completed,
+                        duration_seconds=completed - started,
+                        metadata={"proof": proof.to_dict()},
+                    )
+        except ImportError:
+            pass
 
         cmd_desc = operation
         if operation == "run_command":
