@@ -930,8 +930,19 @@ class CommandHistory:
             if c.get("status") == status
         ][:limit]
 
-    def update_status(self, command_id: str, status: str, outcome: dict[str, Any] | None = None) -> bool:
-        """Update a command's status by rewriting the JSONL file."""
+    def update_status(
+        self,
+        command_id: str,
+        status: str,
+        outcome: dict[str, Any] | None = None,
+        required_current_status: set[str] | None = None,
+    ) -> bool:
+        """Update a command's status by rewriting the JSONL file.
+
+        If required_current_status is provided, the update only applies when the
+        command's current status is in that set — making the check-and-write atomic
+        within a single file pass (no TOCTOU window).
+        """
         if not os.path.exists(self._commands_path):
             return False
 
@@ -946,6 +957,8 @@ class CommandHistory:
                     try:
                         cmd = json.loads(stripped)
                         if cmd.get("command_id") == command_id:
+                            if required_current_status is not None and cmd.get("status") not in required_current_status:
+                                return False
                             cmd["status"] = status
                             if outcome:
                                 cmd["outcome"] = outcome
@@ -1071,31 +1084,33 @@ class CommandRuntime:
         return command
 
     def approve_command(self, command_id: str) -> dict[str, Any]:
-        """Approve a pending command and execute it."""
-        commands = self._history.get_by_status("pending_approval")
-        target = None
-        for c in commands:
-            if c.get("command_id") == command_id:
-                target = c
-                break
+        """Approve a pending command and execute it. Atomic state transition."""
+        _APPROVABLE = {"pending_approval", "routed", "received", "classified", "context_assembled"}
 
-        if not target:
-            return {"error": f"command {command_id} not found or not pending"}
+        if not self._history.update_status(
+            command_id, CommandStatus.APPROVED.value,
+            required_current_status=_APPROVABLE,
+        ):
+            return {"error": f"command {command_id} not found or not in approvable state"}
 
-        self._history.update_status(command_id, CommandStatus.APPROVED.value)
         self._timeline.emit(CommandEvent(
             event_type=CommandEventType.COMMAND_APPROVED.value,
             command_id=command_id,
             summary="Command approved by operator",
         ))
 
-        self._history.update_status(command_id, CommandStatus.EXECUTING.value)
+        self._history.update_status(
+            command_id, CommandStatus.EXECUTING.value,
+            required_current_status={"approved"},
+        )
         self._timeline.emit(CommandEvent(
             event_type=CommandEventType.EXECUTION_STARTED.value,
             command_id=command_id,
             summary="Execution started",
         ))
 
+        commands = [c for c in self._history.get_recent(200) if c.get("command_id") == command_id]
+        target = commands[0] if commands else {}
         cmd = Command(**{k: v for k, v in target.items() if k in Command.__dataclass_fields__})
         decision = self._router.route(cmd)
 
@@ -1111,20 +1126,16 @@ class CommandRuntime:
         return {"approved": True, "command_id": command_id, "outcome": outcome}
 
     def reject_command(self, command_id: str, reason: str = "") -> dict[str, Any]:
-        """Reject a pending command. Validates state before rejecting."""
+        """Reject a pending command. Atomic state transition — no TOCTOU window."""
         _REJECTABLE = {"received", "classified", "context_assembled", "routed", "pending_approval"}
-        commands = [c for c in self._history.get_recent(200) if c.get("command_id") == command_id]
-        if not commands:
-            return {"rejected": False, "error": f"command {command_id} not found"}
-        current_status = commands[0].get("status", "")
-        if current_status not in _REJECTABLE:
-            return {"rejected": False, "error": f"command {command_id} is {current_status}, not rejectable"}
-
         safe_reason = reason[:500] if reason else ""
-        self._history.update_status(
+
+        if not self._history.update_status(
             command_id, CommandStatus.REJECTED.value,
             {"reason": safe_reason},
-        )
+            required_current_status=_REJECTABLE,
+        ):
+            return {"rejected": False, "error": f"command {command_id} not found or not rejectable"}
         self._timeline.emit(CommandEvent(
             event_type=CommandEventType.COMMAND_REJECTED.value,
             command_id=command_id,
