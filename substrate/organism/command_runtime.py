@@ -1062,7 +1062,7 @@ class CommandRuntime:
         command.routing_result = decision.to_dict()
         command.workpacket_id = decision.workpacket_id
 
-        if command.approval_required and action_type.is_mutation:
+        if command.approval_required:
             command.status = CommandStatus.PENDING_APPROVAL.value
             self._emit_event(command, CommandEventType.APPROVAL_REQUESTED,
                              f"Approval required for {action_type.value}")
@@ -1070,9 +1070,6 @@ class CommandRuntime:
             command.status = CommandStatus.ROUTED.value
             self._emit_event(command, CommandEventType.COMMAND_ROUTED,
                              f"Routed to {decision.destination_system}")
-
-        # 6. For non-mutation commands, mark completed immediately
-        if not action_type.is_mutation or not command.approval_required:
             command.outcome = decision.outcome
             command.status = CommandStatus.COMPLETED.value
             self._emit_event(command, CommandEventType.EXECUTION_COMPLETED,
@@ -1084,7 +1081,7 @@ class CommandRuntime:
         return command
 
     def approve_command(self, command_id: str) -> dict[str, Any]:
-        """Approve a pending command and execute it. Atomic state transition."""
+        """Approve a pending command and execute it. Full atomic state chain."""
         _APPROVABLE = {"pending_approval", "routed", "received", "classified", "context_assembled"}
 
         if not self._history.update_status(
@@ -1099,10 +1096,12 @@ class CommandRuntime:
             summary="Command approved by operator",
         ))
 
-        self._history.update_status(
+        if not self._history.update_status(
             command_id, CommandStatus.EXECUTING.value,
             required_current_status={"approved"},
-        )
+        ):
+            return {"error": f"command {command_id} failed to transition approved→executing"}
+
         self._timeline.emit(CommandEvent(
             event_type=CommandEventType.EXECUTION_STARTED.value,
             command_id=command_id,
@@ -1115,7 +1114,16 @@ class CommandRuntime:
         decision = self._router.route(cmd)
 
         outcome = decision.outcome or decision.routing_result
-        self._history.update_status(command_id, CommandStatus.COMPLETED.value, outcome)
+        if not self._history.update_status(
+            command_id, CommandStatus.COMPLETED.value, outcome,
+            required_current_status={"executing"},
+        ):
+            self._history.update_status(
+                command_id, CommandStatus.FAILED.value,
+                {"error": "state transition executing→completed failed"},
+            )
+            return {"error": f"command {command_id} failed to transition executing→completed"}
+
         self._timeline.emit(CommandEvent(
             event_type=CommandEventType.EXECUTION_COMPLETED.value,
             command_id=command_id,
