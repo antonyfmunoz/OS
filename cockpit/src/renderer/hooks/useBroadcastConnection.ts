@@ -19,6 +19,7 @@ export function useBroadcastConnection(): void {
   const setActiveSceneId = useBroadcastStore((s) => s.setActiveSceneId)
   const setScenes = useBroadcastStore((s) => s.setScenes)
   const setSources = useBroadcastStore((s) => s.setSources)
+  const setActiveNode = useBroadcastStore((s) => s.setActiveNode)
   const reset = useBroadcastStore((s) => s.reset)
 
   useEffect(() => {
@@ -43,6 +44,9 @@ export function useBroadcastConnection(): void {
       setActiveSceneId((p.active_scene_id as string) ?? null)
       setScenes((p.scenes as Array<{ scene_id: string; name: string }>) ?? [])
       setSources((p.sources as Array<{ source_id: string; source_type: string }>) ?? [])
+      if (typeof p.active_node === 'string') {
+        setActiveNode(p.active_node)
+      }
     })
 
     client.connect()

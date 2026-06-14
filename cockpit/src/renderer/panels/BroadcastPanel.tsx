@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
-import { Radio, Layers } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
+import { Radio, Layers, Monitor } from 'lucide-react'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useBroadcastStore } from '../stores/broadcastStore'
+import type { NodeInfo } from '../stores/broadcastStore'
 import { useBroadcastConnection } from '../hooks/useBroadcastConnection'
 import { fetchApi } from '../api/client'
 
@@ -20,16 +21,37 @@ export function BroadcastPanel() {
   const {
     connected, broadcastState, health, pid,
     composite, activeSceneId, scenes, sources,
+    activeNode, availableNodes, setAvailableNodes,
   } = useBroadcastStore()
   const [outputUrl, setOutputUrl] = useState('rtmp://localhost/live/test')
   const [starting, setStarting] = useState(false)
   const [stopping, setStopping] = useState(false)
   const [switching, setSwitching] = useState<string | null>(null)
+  const [selectedNode, setSelectedNode] = useState('local')
+
+  const fetchNodes = useCallback(async () => {
+    try {
+      const data = await fetchApi<{ nodes: NodeInfo[]; active_node: string }>('/broadcast/nodes')
+      if (Array.isArray(data.nodes)) {
+        setAvailableNodes(data.nodes)
+      }
+    } catch {
+      // nodes endpoint not available yet
+    }
+  }, [setAvailableNodes])
+
+  useEffect(() => {
+    fetchNodes()
+    const interval = setInterval(fetchNodes, 15000)
+    return () => clearInterval(interval)
+  }, [fetchNodes])
+
+  const nodeParam = selectedNode !== 'local' ? `?target_node=${selectedNode}` : ''
 
   const handleStart = async () => {
     setStarting(true)
     try {
-      await fetchApi('/broadcast/start', {
+      await fetchApi(`/broadcast/start${nodeParam}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -72,6 +94,7 @@ export function BroadcastPanel() {
   }
 
   const isLive = broadcastState === 'live'
+  const isRemote = activeNode !== 'local'
   const statusColor = !connected
     ? 'text-neutral-500'
     : isLive
@@ -93,6 +116,34 @@ export function BroadcastPanel() {
         </span>
         {pid && <span className="text-neutral-500">pid:{pid}</span>}
       </div>
+
+      {/* Node Selector */}
+      {availableNodes.length > 1 && (
+        <div className="flex items-center gap-2">
+          <Monitor className="w-3 h-3 text-neutral-400" />
+          <span className="text-[10px] text-neutral-500 uppercase tracking-wider">Engine Node</span>
+          <select
+            value={selectedNode}
+            onChange={(e) => setSelectedNode(e.target.value)}
+            disabled={isLive}
+            className="ml-auto bg-canvas border border-border rounded px-2 py-0.5 text-xs text-white focus:border-cyan focus:outline-none disabled:opacity-50"
+          >
+            {availableNodes.map((n) => (
+              <option key={n.node_id} value={n.node_id}>
+                {n.local ? 'Local (VPS)' : `${n.hostname || n.node_id} (${n.os || 'remote'})`}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Active node indicator when live on remote */}
+      {isLive && isRemote && (
+        <div className="flex items-center gap-2 text-[10px] text-cyan/70 border border-cyan/20 rounded px-2 py-1">
+          <Monitor className="w-3 h-3" />
+          Engine running on: {activeNode}
+        </div>
+      )}
 
       {/* Controls */}
       <div className="space-y-2">

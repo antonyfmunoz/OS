@@ -26,13 +26,14 @@ from typing import Any, Callable
 
 import websockets
 
+from nodes.windows.umh_node.adapters.broadcast import BroadcastAdapter
 from nodes.windows.umh_node.adapters.camera import CameraAdapter
 from nodes.windows.umh_node.adapters.clipboard import ClipboardAdapter
 from nodes.windows.umh_node.adapters.desktop import DesktopAdapter
 from nodes.windows.umh_node.adapters.filesystem import FilesystemAdapter
 from nodes.windows.umh_node.adapters.hermes import HermesAdapter
 from nodes.windows.umh_node.adapters.shell import ShellAdapter
-from nodes.windows.umh_node.config import NodeConfig
+from nodes.windows.umh_node.config import CapabilityConfig, NodeConfig
 from nodes.windows.umh_node.governance import validate_request
 from nodes.windows.umh_node.metrics import collect_metrics
 
@@ -93,6 +94,11 @@ class NodeClient:
         hermes = HermesAdapter()
         if hermes._available:
             self._adapters["hermes"] = hermes
+
+        # Broadcast: always register — FFmpeg availability checked at runtime
+        broadcast_cfg = cap_cfg.get("broadcast")
+        if broadcast_cfg is None or broadcast_cfg.enabled:
+            self._adapters["broadcast"] = BroadcastAdapter()
 
     def _on_camera_frame(self, frame_data: dict[str, Any]) -> None:
         """Called from camera stream thread — enqueues frame for async send.
@@ -200,6 +206,16 @@ class NodeClient:
                     "category": "media",
                     "risk_class": "read_only",
                     "max_risk_class": cfg.max_risk_class if cfg else "read_only",
+                }
+            )
+
+        if "broadcast" in self._adapters:
+            caps.append(
+                {
+                    "name": "broadcast",
+                    "category": "media",
+                    "risk_class": "reversible_write",
+                    "max_risk_class": "external_communication",
                 }
             )
 
@@ -349,6 +365,8 @@ class NodeClient:
 
             adapter_key = cap_name.split(".")[0] if "." in cap_name else cap_name
             cap_config = self._config.capabilities.get(adapter_key)
+            if cap_config is None and adapter_key in self._adapters:
+                cap_config = CapabilityConfig()
             allowed, reason = validate_request(adapter_key, cap_params, risk_class, cap_config)
 
             if not allowed:
@@ -381,15 +399,25 @@ class NodeClient:
                 return
 
             t0 = time.monotonic()
-            loop = asyncio.get_event_loop()
-            executor = self._camera_executor if adapter_key == "camera" else None
+            request_timeout = params.get("timeout_seconds", _CONTROL_TIMEOUT_S)
+            has_async = hasattr(adapter, "execute_async") and callable(adapter.execute_async)
+
             try:
-                result = await asyncio.wait_for(
-                    loop.run_in_executor(executor, adapter.execute, cap_name, cap_params),
-                    timeout=_CONTROL_TIMEOUT_S,
-                )
+                if has_async:
+                    result = await asyncio.wait_for(
+                        adapter.execute_async(cap_name, cap_params),
+                        timeout=request_timeout,
+                    )
+                else:
+                    loop = asyncio.get_event_loop()
+                    executor = self._camera_executor if adapter_key == "camera" else None
+                    result = await asyncio.wait_for(
+                        loop.run_in_executor(executor, adapter.execute, cap_name, cap_params),
+                        timeout=_CONTROL_TIMEOUT_S,
+                    )
             except asyncio.TimeoutError:
-                logger.warning("capability %s timed out after %.0fs", cap_name, _CONTROL_TIMEOUT_S)
+                effective_timeout = request_timeout if has_async else _CONTROL_TIMEOUT_S
+                logger.warning("capability %s timed out after %.0fs", cap_name, effective_timeout)
                 result = {"success": False, "error": f"{cap_name} timed out"}
             duration = (time.monotonic() - t0) * 1000
 

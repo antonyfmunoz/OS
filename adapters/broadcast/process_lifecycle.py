@@ -11,7 +11,11 @@ import asyncio
 import logging
 import os
 import signal
+import subprocess
+import sys
 from typing import Any, Callable
+
+_IS_WIN = sys.platform == "win32"
 
 logger = logging.getLogger(__name__)
 
@@ -78,16 +82,21 @@ class ProcessLifecycle:
             return False
 
         self._stopped = False
-        self._proc = await asyncio.create_subprocess_exec(
-            *self._cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            preexec_fn=os.setsid,
-        )
-        try:
-            self._pgid = os.getpgid(self._proc.pid)
-        except (ProcessLookupError, OSError):
-            self._pgid = None
+        kwargs: dict[str, Any] = {
+            "stdout": asyncio.subprocess.PIPE,
+            "stderr": asyncio.subprocess.PIPE,
+        }
+        if _IS_WIN:
+            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            kwargs["preexec_fn"] = os.setsid
+
+        self._proc = await asyncio.create_subprocess_exec(*self._cmd, **kwargs)
+        if not _IS_WIN:
+            try:
+                self._pgid = os.getpgid(self._proc.pid)
+            except (ProcessLookupError, OSError):
+                self._pgid = None
 
         logger.info(
             "[ProcessLifecycle] started pid=%s pgid=%s cmd=%s",
@@ -120,7 +129,9 @@ class ProcessLifecycle:
         logger.info("[ProcessLifecycle] stopping pid=%s", pid)
 
         try:
-            if self._pgid:
+            if _IS_WIN:
+                self._proc.terminate()
+            elif self._pgid:
                 os.killpg(self._pgid, signal.SIGTERM)
             else:
                 self._proc.terminate()
@@ -130,9 +141,11 @@ class ProcessLifecycle:
         try:
             await asyncio.wait_for(self._proc.wait(), timeout=self._teardown_timeout)
         except asyncio.TimeoutError:
-            logger.warning("[ProcessLifecycle] SIGKILL after timeout pid=%s", pid)
+            logger.warning("[ProcessLifecycle] force-kill after timeout pid=%s", pid)
             try:
-                if self._pgid:
+                if _IS_WIN:
+                    self._proc.kill()
+                elif self._pgid:
                     os.killpg(self._pgid, signal.SIGKILL)
                 else:
                     self._proc.kill()

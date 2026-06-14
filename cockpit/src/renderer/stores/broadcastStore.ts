@@ -39,6 +39,14 @@ export interface SourceInfo {
   source_type: string
 }
 
+export interface NodeInfo {
+  node_id: string
+  hostname?: string
+  os?: string
+  status: string
+  local: boolean
+}
+
 export interface BroadcastStoreState {
   connected: boolean
   broadcastState: BroadcastState
@@ -50,6 +58,8 @@ export interface BroadcastStoreState {
   activeSceneId: string | null
   scenes: SceneInfo[]
   sources: SourceInfo[]
+  activeNode: string
+  availableNodes: NodeInfo[]
 
   setConnected: (v: boolean) => void
   setBroadcastState: (v: BroadcastState) => void
@@ -61,6 +71,8 @@ export interface BroadcastStoreState {
   setActiveSceneId: (v: string | null) => void
   setScenes: (v: SceneInfo[]) => void
   setSources: (v: SourceInfo[]) => void
+  setActiveNode: (v: string) => void
+  setAvailableNodes: (v: NodeInfo[]) => void
   reset: () => void
 }
 
@@ -75,6 +87,8 @@ export const useBroadcastStore = create<BroadcastStoreState>((set) => ({
   activeSceneId: null,
   scenes: [],
   sources: [],
+  activeNode: 'local',
+  availableNodes: [],
 
   setConnected: (connected) => set({ connected }),
   setBroadcastState: (broadcastState) => set({ broadcastState }),
@@ -86,6 +100,8 @@ export const useBroadcastStore = create<BroadcastStoreState>((set) => ({
   setActiveSceneId: (activeSceneId) => set({ activeSceneId }),
   setScenes: (scenes) => set({ scenes }),
   setSources: (sources) => set({ sources }),
+  setActiveNode: (activeNode) => set({ activeNode }),
+  setAvailableNodes: (availableNodes) => set({ availableNodes }),
   reset: () =>
     set({
       connected: false,
@@ -98,5 +114,7 @@ export const useBroadcastStore = create<BroadcastStoreState>((set) => ({
       activeSceneId: null,
       scenes: [],
       sources: [],
+      activeNode: 'local',
+      availableNodes: [],
     }),
 }))
