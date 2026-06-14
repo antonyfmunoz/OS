@@ -139,6 +139,9 @@ def _validate_output_url(url: str) -> str:
     if url.startswith("-"):
         raise ValueError("Output URL must not start with '-'")
 
+    if len(url) >= 2 and url[1] == ":" and url[0].isalpha():
+        return _validate_file_output(url)
+
     parsed = urlparse(url)
 
     if parsed.scheme in _ALLOWED_OUTPUT_SCHEMES:
