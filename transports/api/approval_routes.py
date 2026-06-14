@@ -26,6 +26,11 @@ def _get_service():
     return get_approval_intercept_service()
 
 
+def _authenticated_operator(request: Request) -> str:
+    """Extract operator identity from auth middleware, never from body."""
+    return getattr(request.state, "clerk_user_id", None) or "authenticated-operator"
+
+
 # ── GET handlers ────────────────────────────────────────────────
 
 
@@ -68,8 +73,7 @@ async def approval_approve(request: Request) -> dict:
     """POST /approvals/{approval_id}/approve — approve an intercept."""
     try:
         approval_id = request.path_params.get("approval_id", "")
-        body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
-        operator_id = body.get("operator_id", "operator")
+        operator_id = _authenticated_operator(request)
 
         svc = _get_service()
         result = svc.approve(approval_id, operator_id=operator_id)
@@ -89,7 +93,7 @@ async def approval_reject(request: Request) -> dict:
     try:
         approval_id = request.path_params.get("approval_id", "")
         body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
-        operator_id = body.get("operator_id", "operator")
+        operator_id = _authenticated_operator(request)
         reason = body.get("reason", "")
 
         svc = _get_service()

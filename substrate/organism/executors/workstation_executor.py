@@ -57,6 +57,22 @@ _MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MiB
 _MAX_OUTPUT_BYTES: int = 1 * 1024 * 1024  # 1 MiB stdout/stderr cap
 _DEFAULT_TIMEOUT: float = 30.0
 
+_CRITICAL_CMD_PATTERNS: tuple[str, ...] = (
+    "--force", "-f ", "rm -rf", "rm -r ", "DROP TABLE",
+    "pkill", "kill -9", "git push", "git branch -D",
+)
+
+
+def _is_critical_operation(operation: str, command: str) -> bool:
+    """Fail-closed check: blocks destructive ops when approval module is unavailable."""
+    if operation in ("write_file",):
+        blocked = (".env", "credentials", "secrets", ".ssh")
+        return any(b in command for b in blocked)
+    if operation == "run_command":
+        cmd_lower = command.lower()
+        return any(p.lower() in cmd_lower for p in _CRITICAL_CMD_PATTERNS)
+    return False
+
 
 def _resolve_and_validate(path_str: str) -> tuple[Path, str]:
     """Resolve a path and validate it against approved roots.
@@ -645,7 +661,20 @@ class WorkstationExecutor(ExecutorContract):
                         metadata={"proof": proof.to_dict()},
                     )
         except ImportError:
-            pass
+            logger.warning("Approval intercept module unavailable — low/medium ops proceed, high/critical blocked")
+            cmd = params.get("command", "") if operation == "run_command" else ""
+            if _is_critical_operation(operation, cmd):
+                completed = time.time()
+                return ExecutorResult(
+                    request_id=request.request_id,
+                    executor_type=self.executor_type,
+                    success=False,
+                    outcome="Blocked: approval module unavailable for critical operation",
+                    errors=["Cannot execute critical operations without approval subsystem"],
+                    started_at=started,
+                    completed_at=completed,
+                    duration_seconds=completed - started,
+                )
 
         cmd_desc = operation
         if operation == "run_command":
