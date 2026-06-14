@@ -42,6 +42,7 @@ export type Panel =
   | 'presence'
   | 'commands'
   | 'workstation'
+  | 'sessions'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
