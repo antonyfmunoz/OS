@@ -17,10 +17,11 @@ _ALLOWED_LAVFI_PATTERNS = frozenset({
 
 _ALLOWED_RTMP_SCHEMES = frozenset({"rtmp", "rtmps", "srt"})
 
-_ALLOWED_MEDIA_DIR = os.environ.get(
-    "UMH_BROADCAST_MEDIA_DIR",
-    os.path.join(os.environ.get("UMH_ROOT", "/opt/OS"), "data", "media"),
-)
+def _get_allowed_media_dir() -> str:
+    return os.environ.get(
+        "UMH_BROADCAST_MEDIA_DIR",
+        os.path.join(os.environ.get("UMH_ROOT", "/opt/OS"), "data", "media"),
+    )
 
 
 def build_args(
@@ -116,7 +117,7 @@ def _input_args(
     if source_type == "file":
         path = config["path"]
         real_path = os.path.realpath(path)
-        allowed_dir = os.path.realpath(_ALLOWED_MEDIA_DIR)
+        allowed_dir = os.path.realpath(_get_allowed_media_dir())
         if not real_path.startswith(allowed_dir + os.sep):
             raise ValueError(f"File path outside allowed media dir: {path}")
         args = ["-re", "-i", real_path]
@@ -172,7 +173,7 @@ def _validate_file_output(path: str) -> str:
         path = path[len("file://"):]
 
     real_path = os.path.realpath(path)
-    allowed_dir = os.path.realpath(_ALLOWED_MEDIA_DIR)
+    allowed_dir = os.path.realpath(_get_allowed_media_dir())
     if not real_path.startswith(allowed_dir + os.sep) and real_path != allowed_dir:
         raise ValueError(
             f"File output path outside allowed media dir ({allowed_dir}): {path}"
