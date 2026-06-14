@@ -622,9 +622,25 @@ class TestCommandRuntime(unittest.TestCase):
         pending = self.runtime.get_pending()
         self.assertIsInstance(pending, list)
 
-    def test_reject_command(self):
+    def test_reject_command_not_found(self):
         result = self.runtime.reject_command("cmd-nonexistent", "testing")
+        self.assertFalse(result["rejected"])
+        self.assertIn("not found", result.get("error", ""))
+
+    def test_reject_command_success(self):
+        from substrate.organism.command_runtime import Command
+        cmd = Command(raw_input="test", status="pending_approval")
+        self.runtime._history.save(cmd)
+        result = self.runtime.reject_command(cmd.command_id, "testing")
         self.assertTrue(result["rejected"])
+
+    def test_reject_command_terminal_blocked(self):
+        from substrate.organism.command_runtime import Command
+        cmd = Command(raw_input="test", status="completed")
+        self.runtime._history.save(cmd)
+        result = self.runtime.reject_command(cmd.command_id, "testing")
+        self.assertFalse(result["rejected"])
+        self.assertIn("not rejectable", result.get("error", ""))
 
 
 # ── Acceptance tests ─────────────────────────────────────────────────────

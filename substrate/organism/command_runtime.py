@@ -1029,6 +1029,7 @@ class CommandRuntime:
                          "Full context assembled from Phases 4-8")
 
         # 4. Classify domain (via IntentClassifier)
+        # Fail-closed: if classifier fails, mutations require approval
         try:
             from substrate.organism.intent_classifier import IntentClassifier
             ic = IntentClassifier()
@@ -1039,7 +1040,9 @@ class CommandRuntime:
                 or classification.approval_required
             )
         except Exception as exc:
-            logger.debug("intent classification skipped: %s", exc)
+            logger.warning("intent classification failed, fail-closed: %s", exc)
+            if action_type.is_mutation:
+                command.approval_required = True
 
         # 5. Route
         decision = self._router.route(command)
@@ -1108,15 +1111,24 @@ class CommandRuntime:
         return {"approved": True, "command_id": command_id, "outcome": outcome}
 
     def reject_command(self, command_id: str, reason: str = "") -> dict[str, Any]:
-        """Reject a pending command."""
+        """Reject a pending command. Validates state before rejecting."""
+        _REJECTABLE = {"received", "classified", "context_assembled", "routed", "pending_approval"}
+        commands = [c for c in self._history.get_recent(200) if c.get("command_id") == command_id]
+        if not commands:
+            return {"rejected": False, "error": f"command {command_id} not found"}
+        current_status = commands[0].get("status", "")
+        if current_status not in _REJECTABLE:
+            return {"rejected": False, "error": f"command {command_id} is {current_status}, not rejectable"}
+
+        safe_reason = reason[:500] if reason else ""
         self._history.update_status(
             command_id, CommandStatus.REJECTED.value,
-            {"reason": reason},
+            {"reason": safe_reason},
         )
         self._timeline.emit(CommandEvent(
             event_type=CommandEventType.COMMAND_REJECTED.value,
             command_id=command_id,
-            summary=f"Command rejected: {reason}" if reason else "Command rejected",
+            summary=f"Command rejected: {safe_reason}" if safe_reason else "Command rejected",
         ))
         return {"rejected": True, "command_id": command_id}
 
