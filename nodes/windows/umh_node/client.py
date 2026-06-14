@@ -33,7 +33,7 @@ from nodes.windows.umh_node.adapters.desktop import DesktopAdapter
 from nodes.windows.umh_node.adapters.filesystem import FilesystemAdapter
 from nodes.windows.umh_node.adapters.hermes import HermesAdapter
 from nodes.windows.umh_node.adapters.shell import ShellAdapter
-from nodes.windows.umh_node.config import NodeConfig
+from nodes.windows.umh_node.config import CapabilityConfig, NodeConfig
 from nodes.windows.umh_node.governance import validate_request
 from nodes.windows.umh_node.metrics import collect_metrics
 
@@ -365,6 +365,8 @@ class NodeClient:
 
             adapter_key = cap_name.split(".")[0] if "." in cap_name else cap_name
             cap_config = self._config.capabilities.get(adapter_key)
+            if cap_config is None and adapter_key in self._adapters:
+                cap_config = CapabilityConfig()
             allowed, reason = validate_request(adapter_key, cap_params, risk_class, cap_config)
 
             if not allowed:
