@@ -5,4 +5,5 @@ validate → prepare → execute → monitor → cancel → cleanup.
 
 Available executors:
   - WorkstationExecutor: real machine operations (commands, files, worktrees)
+  - AgentExecutor: governed cognitive worker (Claude Code CLI via gated subprocess)
 """

@@ -118,7 +118,26 @@ interface RuntimeSummary {
   execution_count: number
 }
 
-type Tab = 'workspace' | 'executors' | 'requests' | 'active' | 'results' | 'failures' | 'live' | 'approvals'
+interface AgentExecution {
+  request_id: string
+  execution_plan_id: string
+  executor_type: string
+  status: string
+  description: string
+  created_at: number
+  metadata: Record<string, unknown>
+}
+
+interface AgentResult {
+  result_id: string
+  request_id: string
+  success: boolean
+  outcome: string
+  duration_seconds: number
+  metadata?: Record<string, unknown>
+}
+
+type Tab = 'workspace' | 'agents' | 'executors' | 'requests' | 'active' | 'results' | 'failures' | 'live' | 'approvals'
 
 function KpiCard({ label, value }: { label: string; value: number | string }) {
   return (
@@ -459,6 +478,10 @@ export function ExecutorPanel() {
   const [runtimeContainers, setRuntimeContainers] = useState<ContainerData[]>([])
   const [runtimeExecutions, setRuntimeExecutions] = useState<RuntimeExecution[]>([])
   const [runtimeSummary, setRuntimeSummary] = useState<RuntimeSummary | null>(null)
+  const [agentExecutions, setAgentExecutions] = useState<AgentExecution[]>([])
+  const [agentTask, setAgentTask] = useState('')
+  const [agentSubmitting, setAgentSubmitting] = useState(false)
+  const [agentLastResult, setAgentLastResult] = useState<AgentResult | null>(null)
 
   const apiBase = useCockpitStore((s) => s.apiBase)
 
@@ -477,6 +500,51 @@ export function ExecutorPanel() {
       // silent
     }
   }, [apiBase])
+
+  const fetchAgentExecutions = useCallback(async () => {
+    try {
+      const base = apiBase || ''
+      const res = await fetch(`${base}/agents/executions`).then(r => r.json()).catch(() => null)
+      if (res?.success && res.executions) {
+        setAgentExecutions(res.executions)
+      }
+    } catch {
+      // silent
+    }
+  }, [apiBase])
+
+  const submitAgentTask = useCallback(async () => {
+    if (!agentTask.trim() || agentSubmitting) return
+    setAgentSubmitting(true)
+    setAgentLastResult(null)
+    try {
+      const base = apiBase || ''
+      const res = await fetch(`${base}/agents/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task: agentTask }),
+      }).then(r => r.json())
+      if (res?.result) {
+        setAgentLastResult(res.result)
+      }
+      setAgentTask('')
+      fetchAgentExecutions()
+    } catch {
+      // silent
+    } finally {
+      setAgentSubmitting(false)
+    }
+  }, [apiBase, agentTask, agentSubmitting, fetchAgentExecutions])
+
+  const cancelAgentExecution = useCallback(async (executionId: string) => {
+    try {
+      const base = apiBase || ''
+      await fetch(`${base}/agents/executions/${executionId}/cancel`, { method: 'POST' })
+      fetchAgentExecutions()
+    } catch {
+      // silent
+    }
+  }, [apiBase, fetchAgentExecutions])
 
   const fetchApprovals = useCallback(async () => {
     try {
@@ -539,6 +607,13 @@ export function ExecutorPanel() {
   }, [tab, fetchWorkspace])
 
   useEffect(() => {
+    if (tab !== 'agents') return
+    fetchAgentExecutions()
+    const iv = setInterval(fetchAgentExecutions, 5000)
+    return () => clearInterval(iv)
+  }, [tab, fetchAgentExecutions])
+
+  useEffect(() => {
     if (tab !== 'live') return
     fetchTelemetry()
     const iv = setInterval(fetchTelemetry, 3000)
@@ -584,6 +659,7 @@ export function ExecutorPanel() {
 
   const tabs: { key: Tab; label: string; badge?: number }[] = [
     { key: 'workspace', label: 'Workspace', badge: runtimeSummary ? runtimeSummary.process_count + runtimeSummary.container_count : undefined },
+    { key: 'agents', label: 'Agents', badge: agentExecutions.length },
     { key: 'executors', label: 'Executors', badge: executorTypes.length },
     { key: 'requests', label: 'Requests', badge: requests.length },
     { key: 'active', label: 'Active', badge: active.length },
@@ -746,12 +822,88 @@ export function ExecutorPanel() {
           </div>
         )}
 
+        {tab === 'agents' && (
+          <div className="space-y-4">
+            <div className="bg-surface-2 rounded p-3 border border-border">
+              <h3 className="text-sm font-bold text-secondary mb-2 uppercase">Submit Agent Task</h3>
+              <textarea
+                className="w-full bg-surface-3 text-primary text-sm font-mono rounded p-2 border border-border resize-y min-h-[80px] max-h-[200px] mb-2"
+                placeholder="Describe the task for the governed agent..."
+                value={agentTask}
+                onChange={e => setAgentTask(e.target.value)}
+                disabled={agentSubmitting}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={submitAgentTask}
+                  disabled={!agentTask.trim() || agentSubmitting}
+                  className="text-sm bg-cyan-700 hover:bg-cyan-600 disabled:bg-gray-700 disabled:text-gray-500 text-white px-4 py-1.5 rounded font-bold"
+                >
+                  {agentSubmitting ? 'Running...' : 'Run Task'}
+                </button>
+                <span className="text-xs text-secondary">
+                  Runs through governed ExecutorContract lifecycle with approval gates
+                </span>
+              </div>
+            </div>
+
+            {agentLastResult && (
+              <div className={`bg-surface-2 rounded p-3 border ${agentLastResult.success ? 'border-green-500/50' : 'border-red-500/50'}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-sm font-bold ${agentLastResult.success ? 'text-green-400' : 'text-red-400'}`}>
+                    {agentLastResult.success ? 'Task Completed' : 'Task Failed'}
+                  </span>
+                  <span className="text-xs text-secondary">{agentLastResult.duration_seconds?.toFixed(1)}s</span>
+                </div>
+                <div className="text-xs text-secondary">{agentLastResult.outcome}</div>
+              </div>
+            )}
+
+            <div>
+              <h3 className="text-sm font-bold text-secondary mb-2 uppercase">Agent Executions</h3>
+              {agentExecutions.length === 0 ? (
+                <div className="text-secondary text-sm">No agent executions yet</div>
+              ) : (
+                <div className="space-y-2">
+                  {agentExecutions.map(ae => {
+                    const task = (ae.metadata?.params as Record<string, unknown>)?.task as string || ae.description
+                    const isTerminal = ['completed', 'failed', 'cancelled', 'cleaned_up'].includes(ae.status)
+                    return (
+                      <div key={ae.request_id} className="bg-surface-2 rounded p-3 border border-border">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <span>{'\u{1F916}'}</span>
+                            <span className="font-mono text-sm text-primary">{ae.request_id.slice(0, 17)}</span>
+                            <span className={`text-xs font-bold uppercase ${getStatusColor(ae.status)}`}>
+                              {ae.status}
+                            </span>
+                          </div>
+                          <span className="text-xs text-secondary">{formatTimestamp(ae.created_at)}</span>
+                        </div>
+                        <div className="text-xs text-secondary mb-1 line-clamp-2">{task}</div>
+                        {!isTerminal && (
+                          <button
+                            onClick={() => cancelAgentExecution(ae.request_id)}
+                            className="text-xs bg-red-700 hover:bg-red-600 text-white px-2 py-1 rounded mt-1"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {tab === 'executors' && (
           <div>
             <h3 className="text-sm font-bold text-secondary mb-2 uppercase">Registered Executor Types</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {executorTypes.map(t => {
-                const isReal = t === 'workstation'
+                const isReal = t === 'workstation' || t === 'agent'
                 return (
                   <div key={t} className="bg-surface-2 rounded p-3 border border-border text-center">
                     <div className="text-2xl mb-1">{getTargetIcon(t)}</div>

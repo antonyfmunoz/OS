@@ -459,6 +459,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "RuntimeStateStore": ["substrate.organism.runtime_state_registry"],
     "RuntimeStateRefresher": ["substrate.organism.runtime_state_registry"],
     "RuntimeStateRegistry": ["substrate.organism.runtime_state_registry"],
+    # Phase 17A: Agent Executor
+    "AgentTaskResult": ["substrate.organism.executors.agent_executor"],
+    "AgentExecutionProof": ["substrate.organism.executors.agent_executor"],
+    "AgentExecutor": ["substrate.organism.executors.agent_executor"],
 }
 
 
