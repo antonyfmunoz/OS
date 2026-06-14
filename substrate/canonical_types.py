@@ -444,6 +444,11 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ExecutionTelemetryEvent": ["substrate.organism.executors.execution_telemetry"],
     "InMemoryExecutionTelemetryStore": ["substrate.organism.executors.execution_telemetry"],
     "ExecutionTelemetryEmitter": ["substrate.organism.executors.execution_telemetry"],
+    # Phase 15C: Approval Intercepts
+    "ApprovalInterceptStatus": ["substrate.organism.executors.approval_intercept"],
+    "ApprovalInterceptRequest": ["substrate.organism.executors.approval_intercept"],
+    "ApprovalInterceptStore": ["substrate.organism.executors.approval_intercept"],
+    "ApprovalInterceptService": ["substrate.organism.executors.approval_intercept"],
 }
 
 

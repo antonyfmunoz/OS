@@ -1229,6 +1229,77 @@ class ExecutorRuntime:
         except Exception:
             logger.debug("Could not notify coordinator for %s", request.request_id)
 
+    # ── Approval Intercepts ─────────────────────────────
+
+    def request_approval(
+        self,
+        request: ExecutorRequest,
+        *,
+        reason: str = "",
+        details: dict[str, Any] | None = None,
+        timeout_seconds: float = 900.0,
+    ) -> tuple[bool, str]:
+        """Request runtime approval intercept. Blocks until decided.
+
+        Returns (approved: bool, message: str).
+        If no intercept service is available, auto-approves (fail-open
+        for backwards compatibility with executors that don't use intercepts).
+        """
+        try:
+            from substrate.organism.executors.approval_intercept import (
+                get_approval_intercept_service,
+            )
+            svc = get_approval_intercept_service()
+        except Exception:
+            return True, "No intercept service — auto-approved"
+
+        intercept = svc.request_approval(
+            execution_id=request.request_id,
+            request_id=request.request_id,
+            executor_type=request.executor_type,
+            operation=request.metadata.get("operation", ""),
+            risk_class=request.risk_class,
+            reason=reason,
+            details=details,
+            timeout_seconds=timeout_seconds,
+        )
+
+        request.status = "pending_approval"
+        self._request_store.save(request)
+        self._tel("approval_requested", request, approval_id=intercept.approval_id, reason=reason)
+
+        result = svc.await_decision(intercept.approval_id, timeout=timeout_seconds)
+        if not result:
+            request.status = ExecutorRequestStatus.FAILED.value
+            self._request_store.save(request)
+            return False, "Approval intercept lost"
+
+        if result.status == "approved":
+            request.status = ExecutorRequestStatus.EXECUTING.value
+            self._request_store.save(request)
+            self._tel("approval_granted", request, approval_id=intercept.approval_id)
+            return True, f"Approved by {result.decided_by}"
+
+        if result.status == "rejected":
+            request.status = ExecutorRequestStatus.FAILED.value
+            request.metadata["failure_reason"] = (
+                f"Rejected by {result.decided_by}: {result.rejection_reason}"
+            )
+            self._request_store.save(request)
+            self._tel(
+                "approval_rejected", request,
+                approval_id=intercept.approval_id,
+                reason=result.rejection_reason,
+            )
+            return False, f"Rejected by {result.decided_by}: {result.rejection_reason}"
+
+        # expired
+        request.status = ExecutorRequestStatus.FAILED.value
+        request.metadata["failure_reason"] = "Approval timed out"
+        self._request_store.save(request)
+        self._tel("approval_expired", request, approval_id=intercept.approval_id)
+        return False, "Approval timed out"
+
     # ── Cancel ──────────────────────────────────────────
 
     def cancel_request(self, request_id: str) -> ExecutorRequest | None:

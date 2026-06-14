@@ -426,6 +426,9 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     from transports.api.telemetry_routes import (
         telemetry_latest, telemetry_for_execution, telemetry_stream,
     )
+    from transports.api.approval_routes import (
+        approvals_pending, approval_detail, approval_approve, approval_reject,
+    )
     r.add_api_route("/executor/state", executor_state, methods=["GET"], dependencies=auth)
     r.add_api_route("/executor/requests", executor_requests_all, methods=["GET"], dependencies=auth)
     r.add_api_route("/executor/active", executor_active, methods=["GET"], dependencies=auth)
@@ -444,6 +447,11 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/executor/telemetry/latest", telemetry_latest, methods=["GET"], dependencies=auth)
     r.add_api_route("/executor/telemetry/{execution_id}", telemetry_for_execution, methods=["GET"], dependencies=auth)
     r.add_api_route("/executor/telemetry/{execution_id}/stream", telemetry_stream, methods=["GET"], dependencies=auth)
+    # Phase 15C: Approval Intercepts
+    r.add_api_route("/approvals/pending", approvals_pending, methods=["GET"], dependencies=auth)
+    r.add_api_route("/approvals/{approval_id}", approval_detail, methods=["GET"], dependencies=auth)
+    r.add_api_route("/approvals/{approval_id}/approve", approval_approve, methods=["POST"], dependencies=auth)
+    r.add_api_route("/approvals/{approval_id}/reject", approval_reject, methods=["POST"], dependencies=auth)
 
     return r
 
