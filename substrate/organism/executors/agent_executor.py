@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from substrate.execution.cpu_gate import cpu_gate_check, gated_subprocess_run
+from substrate.execution.cpu_gate import cpu_gate_check, gated_popen, gated_subprocess_run
 from substrate.organism.executor_runtime import (
     ExecutorArtifact,
     ExecutorContract,
@@ -89,12 +89,34 @@ _STUB_OPERATIONS = frozenset({"continue_task", "get_status", "cancel_task"})
 # ── Path Validation ────────────────────────────────────────────
 
 
+_FORBIDDEN_PATH_SEGMENTS = frozenset({
+    ".env", ".ssh", "credentials", ".git/config",
+    "secrets", ".gnupg", ".aws",
+})
+
+
 def _validate_working_dir(path_str: str) -> tuple[Path, str]:
-    """Validate a working directory is in approved roots. Returns (path, error)."""
+    """Validate a working directory is in approved roots. Returns (path, error).
+
+    Rejects the repo root itself — agents must work in a worktree or subdir.
+    Rejects paths containing secrets directories.
+    """
     try:
         resolved = Path(path_str).resolve()
     except (ValueError, OSError) as exc:
         return Path(), f"Cannot resolve path: {exc}"
+
+    repo_root = Path(os.environ.get("UMH_ROOT", "/opt/OS")).resolve()
+    if resolved == repo_root:
+        return Path(), (
+            f"Cannot use repo root {repo_root} as working directory. "
+            "Use a worktree or subdirectory."
+        )
+
+    path_parts = str(resolved).lower()
+    for forbidden in _FORBIDDEN_PATH_SEGMENTS:
+        if forbidden in path_parts:
+            return Path(), f"Path contains forbidden segment '{forbidden}'"
 
     approved = [Path(r).resolve() for r in _APPROVED_ROOTS]
     for root in approved:
@@ -112,10 +134,17 @@ def _validate_working_dir(path_str: str) -> tuple[Path, str]:
 # ── Risk Classification ────────────────────────────────────────
 
 
+_RISK_LEVELS = ("low", "medium", "high", "critical")
+
+
 def classify_agent_task_risk(task: str) -> str:
     """Classify agent task risk from the task description text.
 
-    Returns: "low", "medium", "high", or "critical".
+    All agent tasks are minimum "medium" — LLM execution is inherently
+    higher risk than deterministic operations. The regex patterns escalate
+    to "high" as defense-in-depth; approval intercepts are the real gate.
+
+    Returns: "medium", "high", or "critical".
     """
     if _HIGH_RISK_RE.search(task):
         return "high"
@@ -123,9 +152,9 @@ def classify_agent_task_risk(task: str) -> str:
     mutating_keywords = ("delete", "remove", "drop", "destroy", "overwrite", "reset")
     task_lower = task.lower()
     if any(kw in task_lower for kw in mutating_keywords):
-        return "medium"
+        return "high"
 
-    return "low"
+    return "medium"
 
 
 # ── Runtime Context Builder ───────────────────────────────────
@@ -346,15 +375,19 @@ class AgentExecutionProof:
 
 
 def _redact_output(text: str) -> str:
-    """Strip potential secrets from agent output before telemetry."""
+    """Strip potential secrets from agent output before telemetry.
+
+    Fail-closed: on any redaction failure, suppress the output entirely.
+    """
     try:
         from substrate.organism.executors.execution_telemetry import (
             redact_telemetry_payload,
         )
         redacted = redact_telemetry_payload({"output": text})
-        return str(redacted.get("output", text))
-    except ImportError:
-        return text[:2000]
+        return str(redacted.get("output", "<redaction failed — output suppressed>"))
+    except Exception:
+        logger.warning("Telemetry redaction unavailable — suppressing agent output")
+        return "<redaction unavailable — output suppressed>"
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -368,11 +401,16 @@ class AgentExecutor(ExecutorContract):
     Operation is specified in request.metadata["operation"] ("run_task")
     with parameters in request.metadata["params"]:
       - task (str, required): the task description
-      - repo_path (str, optional): repository path (default: UMH_ROOT)
-      - worktree_path (str, optional): specific worktree to work in
+      - worktree_path (str, required): worktree or subdir to work in
       - timeout_seconds (float, optional): max execution time
-      - allowed_tools (list[str], optional): tool restrictions
-      - risk_class (str, optional): override risk classification
+
+    Security invariants:
+      - risk_class always computed server-side, never from request body
+      - All tasks require operator approval (minimum risk: medium)
+      - CLI invoked with --disallowedTools to mechanically block destructive ops
+      - Working directory must be a worktree/subdir, never repo root
+      - Subprocess via gated_popen for cancellability
+      - Output redaction fail-closed (suppressed on error)
     """
 
     def __init__(
@@ -450,7 +488,13 @@ class AgentExecutor(ExecutorContract):
             return False, f"CPU gate blocked: {gate.reason}"
 
         params = request.metadata.get("params", {})
-        working_dir = params.get("worktree_path") or params.get("repo_path") or _REPO_ROOT
+        working_dir = params.get("worktree_path") or params.get("repo_path", "")
+
+        if not working_dir:
+            return False, (
+                "No working directory specified. "
+                "Provide worktree_path — repo root is not allowed."
+            )
 
         resolved, err = _validate_working_dir(working_dir)
         if err:
@@ -489,15 +533,13 @@ class AgentExecutor(ExecutorContract):
         self._tel("agent_context_built", request, snapshot_id=snapshot_id)
 
         # ── Risk assessment + approval ──
-        task_risk = params.get("risk_class") or classify_agent_task_risk(task)
+        task_risk = classify_agent_task_risk(task)
         request.risk_class = task_risk
 
+        # All agent tasks require approval — LLM execution is never auto-approved
         approval_events: list[dict[str, Any]] = []
-        try:
-            from substrate.organism.executors.approval_intercept import (
-                requires_approval,
-            )
-            if requires_approval(task_risk) and self._runtime:
+        if self._runtime:
+            try:
                 approved, msg = self._runtime.request_approval(
                     request,
                     reason=f"{task_risk.upper()} risk agent task",
@@ -521,14 +563,20 @@ class AgentExecutor(ExecutorContract):
                         proof=proof,
                     )
                 self._tel("agent_approval_required", request, decision="approved")
-        except ImportError:
-            if task_risk in ("high", "critical"):
-                logger.warning("Approval module unavailable — blocking %s risk agent task", task_risk)
+            except Exception as exc:
+                logger.warning("Approval check failed — blocking agent task: %s", exc)
                 return self._fail_result(
                     request, started,
-                    f"Blocked: approval unavailable for {task_risk} risk",
-                    ["Approval subsystem unavailable"],
+                    f"Blocked: approval check failed: {exc}",
+                    ["Approval subsystem error"],
                 )
+        else:
+            logger.warning("No runtime for approval — blocking agent task")
+            return self._fail_result(
+                request, started,
+                "Blocked: no runtime available for approval",
+                ["Approval subsystem unavailable"],
+            )
 
         # ── Build prompt ──
         working_dir = state.get("working_dir", _REPO_ROOT)
@@ -542,18 +590,26 @@ class AgentExecutor(ExecutorContract):
             _MAX_TIMEOUT,
         )
 
-        cmd = ["claude", "--print", prompt]
+        cmd = [
+            "claude", "--print",
+            "--disallowedTools",
+            "Bash(rm *),Bash(git push*),Bash(git branch -D*),Bash(flyctl*),Bash(docker rm*),Bash(docker stop*)",
+            "--add-dir", working_dir,
+            prompt,
+        ]
 
-        result = gated_subprocess_run(
+        import subprocess as _subprocess
+
+        proc = gated_popen(
             cmd,
             caller="agent_executor.run_task",
-            capture_output=True,
+            stdout=_subprocess.PIPE,
+            stderr=_subprocess.PIPE,
             text=True,
-            timeout=timeout,
             cwd=working_dir,
         )
 
-        if result is None:
+        if proc is None:
             proof = self._build_proof(
                 request, task, snapshot_id, started,
                 status="blocked", approval_events=approval_events,
@@ -563,10 +619,31 @@ class AgentExecutor(ExecutorContract):
                 ["CPU gate denied"], proof=proof,
             )
 
+        self._active_pids[request.request_id] = proc.pid
+
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except _subprocess.TimeoutExpired:
+            proc.kill()
+            stdout, stderr = proc.communicate()
+            self._active_pids.pop(request.request_id, None)
+            proof = self._build_proof(
+                request, task, snapshot_id, started,
+                status="timeout", approval_events=approval_events,
+            )
+            return self._fail_result(
+                request, started,
+                f"Agent timed out after {timeout}s",
+                [f"Timeout after {timeout}s"],
+                proof=proof,
+            )
+
+        result_returncode = proc.returncode
+
         # ── Parse output ──
-        stdout = (result.stdout or "")[:_MAX_OUTPUT_BYTES]
-        stderr = (result.stderr or "")[:_MAX_OUTPUT_BYTES]
-        exit_code = result.returncode
+        stdout = (stdout or "")[:_MAX_OUTPUT_BYTES]
+        stderr = (stderr or "")[:_MAX_OUTPUT_BYTES]
+        exit_code = result_returncode
 
         if request.request_id in self._cancelled:
             self._tel("agent_task_cancelled", request)

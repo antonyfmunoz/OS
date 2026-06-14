@@ -60,10 +60,8 @@ async def agent_run(request: Request) -> dict:
     if not task or not task.strip():
         return {"success": False, "error": "Task is required"}
 
-    repo_path = body.get("repo_path", "")
     worktree_path = body.get("worktree_path", "")
     timeout_seconds = body.get("timeout_seconds")
-    risk_class = body.get("risk_class", "")
 
     try:
         from substrate.organism.executor_runtime import ExecutorType
@@ -79,10 +77,8 @@ async def agent_run(request: Request) -> dict:
                 "operation": "run_task",
                 "params": {
                     "task": task,
-                    "repo_path": repo_path,
                     "worktree_path": worktree_path,
                     "timeout_seconds": timeout_seconds,
-                    "risk_class": risk_class,
                 },
                 "submitted_by": operator_id,
             },
