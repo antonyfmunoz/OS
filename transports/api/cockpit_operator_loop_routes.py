@@ -183,6 +183,15 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/command/{command_id}/approve", _command_approve, methods=["POST"], dependencies=auth)
     r.add_api_route("/command/{command_id}/reject", _command_reject, methods=["POST"], dependencies=auth)
 
+    # ── Phase 10: Workstation Runtime routes ──────────────────────
+    r.add_api_route("/workstation/prepare", _workstation_prepare, methods=["POST"], dependencies=auth)
+    r.add_api_route("/workstation/restore", _workstation_restore, methods=["POST"], dependencies=auth)
+    r.add_api_route("/workstation/templates", _workstation_templates, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workstation/snapshots", _workstation_snapshots, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workstation/snapshots/take", _workstation_take_snapshot, methods=["POST"], dependencies=auth)
+    r.add_api_route("/workstation/recommendations", _workstation_recommendations, methods=["GET"], dependencies=auth)
+    r.add_api_route("/workstation/state", _workstation_state, methods=["GET"], dependencies=auth)
+
     return r
 
 
@@ -2139,4 +2148,96 @@ async def _command_reject(request: Request) -> dict:
         return {"success": True, **result}
     except Exception as exc:
         logger.error("command reject failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+# ── Phase 10: Workstation Runtime handlers ────────────────────────────────
+
+
+def _get_workstation_runtime():
+    from substrate.organism.workstation_runtime import get_workstation_runtime
+    return get_workstation_runtime()
+
+
+async def _workstation_prepare(request: Request) -> dict:
+    try:
+        body = await request.json()
+        intent = body.get("intent", "")
+        if not intent:
+            return {"success": False, "error": "intent required"}
+        rt = _get_workstation_runtime()
+        plan = rt.prepare_workspace(
+            intent=intent,
+            profile_mode=body.get("profile_mode", ""),
+            session_id=body.get("session_id", ""),
+            operator_id=body.get("operator_id", ""),
+        )
+        _audit_log("workstation_prepare", {"intent": intent, "mode": plan.mode})
+        return {"success": True, "plan": plan.to_dict()}
+    except Exception as exc:
+        logger.error("workstation prepare failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _workstation_restore(request: Request) -> dict:
+    try:
+        body = await request.json()
+        snapshot_id = body.get("snapshot_id", "")
+        rt = _get_workstation_runtime()
+        plan = rt.restore_workspace(snapshot_id=snapshot_id)
+        _audit_log("workstation_restore", {"snapshot_id": snapshot_id})
+        return {"success": True, "plan": plan.to_dict()}
+    except Exception as exc:
+        logger.error("workstation restore failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _workstation_templates(request: Request) -> dict:
+    try:
+        rt = _get_workstation_runtime()
+        return {"success": True, "templates": rt.get_templates()}
+    except Exception as exc:
+        logger.error("workstation templates failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _workstation_snapshots(request: Request) -> dict:
+    try:
+        limit = int(request.query_params.get("limit", "20"))
+        rt = _get_workstation_runtime()
+        return {"success": True, "snapshots": rt.get_snapshots(limit=limit)}
+    except Exception as exc:
+        logger.error("workstation snapshots failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _workstation_take_snapshot(request: Request) -> dict:
+    try:
+        body = await request.json()
+        trigger = body.get("trigger", "manual")
+        notes = body.get("operator_notes", "")
+        rt = _get_workstation_runtime()
+        snap = rt.take_snapshot(trigger=trigger, operator_notes=notes)
+        _audit_log("workstation_snapshot", {"snapshot_id": snap.snapshot_id})
+        return {"success": True, "snapshot": snap.to_dict()}
+    except Exception as exc:
+        logger.error("workstation take snapshot failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _workstation_recommendations(request: Request) -> dict:
+    try:
+        rt = _get_workstation_runtime()
+        return {"success": True, "recommendations": rt.get_recommendations()}
+    except Exception as exc:
+        logger.error("workstation recommendations failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _workstation_state(request: Request) -> dict:
+    try:
+        rt = _get_workstation_runtime()
+        return {"success": True, "state": rt.get_state()}
+    except Exception as exc:
+        logger.error("workstation state failed: %s", exc)
         return {"success": False, "error": str(exc)}

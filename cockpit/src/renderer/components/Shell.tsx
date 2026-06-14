@@ -51,6 +51,7 @@ import { ProjectionPanel } from '../panels/ProjectionPanel'
 import { ContinuityPanel } from '../panels/ContinuityPanel'
 import { PresencePanel } from '../panels/PresencePanel'
 import { CommandsPanel } from '../panels/CommandsPanel'
+import { WorkstationPanel } from '../panels/WorkstationPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -138,6 +139,8 @@ function ActivePanel() {
       return <PresencePanel />
     case 'commands':
       return <CommandsPanel />
+    case 'workstation':
+      return <WorkstationPanel />
     default:
       return <DashboardPanel />
   }
