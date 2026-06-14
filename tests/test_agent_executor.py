@@ -88,10 +88,10 @@ def _make_executor(
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-def test_classify_minimum_medium():
-    """All agent tasks are at least medium risk."""
-    assert classify_agent_task_risk("add a test file") == "medium"
-    assert classify_agent_task_risk("refactor the auth module") == "medium"
+def test_classify_always_high():
+    """All agent tasks are always high risk — human approver is the gate."""
+    assert classify_agent_task_risk("add a test file") == "high"
+    assert classify_agent_task_risk("refactor the auth module") == "high"
 
 
 def test_classify_mutating_is_high():
@@ -454,7 +454,7 @@ remaining_blockers: none
     cmd = mock_popen.call_args[0][0]
     assert cmd[0] == "claude"
     assert cmd[1] == "--print"
-    assert "--disallowedTools" in cmd
+    assert "--allowedTools" in cmd
 
     assert tel.emit.called
 
