@@ -90,7 +90,9 @@ _STUB_OPERATIONS = frozenset({"continue_task", "get_status", "cancel_task"})
 
 
 _FORBIDDEN_DIR_NAMES = frozenset({
-    ".env", ".ssh", "credentials", ".gnupg", ".aws", "secrets",
+    ".env", ".ssh", ".gnupg", ".aws", ".gcloud", ".azure", ".kube",
+    ".docker", ".config", ".1password",
+    "credentials", "secrets", "private", "private_keys",
 })
 
 
@@ -395,7 +397,7 @@ class AgentExecutor(ExecutorContract):
     Security invariants:
       - risk_class always "high", computed server-side, never from request
       - All tasks require operator approval — human approver is the real gate
-      - CLI invoked with --allowedTools (allowlist: Read/Grep/Glob only)
+      - CLI invoked with --allowedTools Read,Grep,Glob (read-only, no network, no sub-agents)
       - Working directory must be a worktree/subdir, never repo root
       - Path validation rejects forbidden directory names in ancestors
       - Subprocess via gated_popen for cancellability with PID tracking
@@ -580,12 +582,11 @@ class AgentExecutor(ExecutorContract):
             _MAX_TIMEOUT,
         )
 
-        # Allowlist-only: permit safe read tools. Write/Edit/Bash blocked by
-        # omission. The human approver is the real gate — this is defense-in-depth.
-        # Future phase: OS-level sandbox (bubblewrap/container with bind mount).
+        # Allowlist-only: read-only tools, no network, no sub-agents.
+        # Write/Edit/Bash/WebFetch/WebSearch/Agent blocked by omission.
         cmd = [
             "claude", "--print",
-            "--allowedTools", "Read,Grep,Glob,Agent,WebSearch,WebFetch",
+            "--allowedTools", "Read,Grep,Glob",
             "--add-dir", working_dir,
             prompt,
         ]
