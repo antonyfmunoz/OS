@@ -79,7 +79,46 @@ interface ApprovalIntercept {
   rejection_reason: string
 }
 
-type Tab = 'executors' | 'requests' | 'active' | 'results' | 'failures' | 'live' | 'approvals'
+interface WorktreeData {
+  worktree_id: string
+  path: string
+  branch: string
+  is_bare: boolean
+  executor_owner: string
+}
+
+interface ProcessData {
+  pid: number
+  command: string
+  started_at: number
+  cpu_percent: number
+  memory_mb: number
+  executor_owner: string
+}
+
+interface ContainerData {
+  container_id: string
+  name: string
+  status: string
+  image: string
+}
+
+interface RuntimeExecution {
+  execution_id: string
+  status: string
+  executor_type: string
+  started_at: number
+  duration_seconds: number
+}
+
+interface RuntimeSummary {
+  worktree_count: number
+  process_count: number
+  container_count: number
+  execution_count: number
+}
+
+type Tab = 'workspace' | 'executors' | 'requests' | 'active' | 'results' | 'failures' | 'live' | 'approvals'
 
 function KpiCard({ label, value }: { label: string; value: number | string }) {
   return (
@@ -405,7 +444,7 @@ function ResultCard({ result }: { result: ExecutorResultData }) {
 }
 
 export function ExecutorPanel() {
-  const [tab, setTab] = useState<Tab>('executors')
+  const [tab, setTab] = useState<Tab>('workspace')
   const [state, setState] = useState<ExecutorState | null>(null)
   const [requests, setRequests] = useState<ExecutorRequest[]>([])
   const [active, setActive] = useState<ExecutorRequest[]>([])
@@ -415,8 +454,29 @@ export function ExecutorPanel() {
   const [telemetryEvents, setTelemetryEvents] = useState<TelemetryEvent[]>([])
   const [telemetrySeq, setTelemetrySeq] = useState(0)
   const [approvals, setApprovals] = useState<ApprovalIntercept[]>([])
+  const [worktrees, setWorktrees] = useState<WorktreeData[]>([])
+  const [runtimeProcesses, setRuntimeProcesses] = useState<ProcessData[]>([])
+  const [runtimeContainers, setRuntimeContainers] = useState<ContainerData[]>([])
+  const [runtimeExecutions, setRuntimeExecutions] = useState<RuntimeExecution[]>([])
+  const [runtimeSummary, setRuntimeSummary] = useState<RuntimeSummary | null>(null)
 
   const apiBase = useCockpitStore((s) => s.apiBase)
+
+  const fetchWorkspace = useCallback(async () => {
+    try {
+      const base = apiBase || ''
+      const res = await fetch(`${base}/runtime/state`).then(r => r.json()).catch(() => null)
+      if (res?.success) {
+        setWorktrees(res.worktrees || [])
+        setRuntimeProcesses(res.processes || [])
+        setRuntimeContainers(res.containers || [])
+        setRuntimeExecutions(res.executions || [])
+        setRuntimeSummary(res.summary || null)
+      }
+    } catch {
+      // silent
+    }
+  }, [apiBase])
 
   const fetchApprovals = useCallback(async () => {
     try {
@@ -472,6 +532,13 @@ export function ExecutorPanel() {
   }, [fetchData])
 
   useEffect(() => {
+    if (tab !== 'workspace') return
+    fetchWorkspace()
+    const iv = setInterval(fetchWorkspace, 5000)
+    return () => clearInterval(iv)
+  }, [tab, fetchWorkspace])
+
+  useEffect(() => {
     if (tab !== 'live') return
     fetchTelemetry()
     const iv = setInterval(fetchTelemetry, 3000)
@@ -516,6 +583,7 @@ export function ExecutorPanel() {
   const snap = state?.snapshot
 
   const tabs: { key: Tab; label: string; badge?: number }[] = [
+    { key: 'workspace', label: 'Workspace', badge: runtimeSummary ? runtimeSummary.process_count + runtimeSummary.container_count : undefined },
     { key: 'executors', label: 'Executors', badge: executorTypes.length },
     { key: 'requests', label: 'Requests', badge: requests.length },
     { key: 'active', label: 'Active', badge: active.length },
@@ -559,6 +627,125 @@ export function ExecutorPanel() {
       </div>
 
       <div className="flex-1 overflow-auto">
+        {tab === 'workspace' && (
+          <div className="space-y-4">
+            {runtimeSummary && (
+              <div className="flex gap-2 flex-wrap">
+                <KpiCard label="Worktrees" value={runtimeSummary.worktree_count} />
+                <KpiCard label="Processes" value={runtimeSummary.process_count} />
+                <KpiCard label="Containers" value={runtimeSummary.container_count} />
+                <KpiCard label="Executions" value={runtimeSummary.execution_count} />
+              </div>
+            )}
+
+            <div>
+              <h3 className="text-sm font-bold text-secondary mb-2 uppercase">Worktrees</h3>
+              {worktrees.length === 0 ? (
+                <div className="text-secondary text-sm">No worktrees</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-secondary uppercase border-b border-border">
+                      <th className="py-1 pr-2">Branch</th>
+                      <th className="py-1 pr-2">Path</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {worktrees.map(w => (
+                      <tr key={w.worktree_id} className="border-b border-border/50">
+                        <td className="py-1.5 pr-2 font-mono text-cyan-400">{w.branch}</td>
+                        <td className="py-1.5 pr-2 font-mono text-xs text-secondary truncate max-w-[400px]">{w.path}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div>
+              <h3 className="text-sm font-bold text-secondary mb-2 uppercase">Containers</h3>
+              {runtimeContainers.length === 0 ? (
+                <div className="text-secondary text-sm">No containers</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-secondary uppercase border-b border-border">
+                      <th className="py-1 pr-2">Name</th>
+                      <th className="py-1 pr-2">Status</th>
+                      <th className="py-1 pr-2">Image</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runtimeContainers.map(c => (
+                      <tr key={c.container_id} className="border-b border-border/50">
+                        <td className="py-1.5 pr-2 font-mono text-primary">{c.name}</td>
+                        <td className={`py-1.5 pr-2 text-xs ${c.status.toLowerCase().includes('up') ? 'text-green-400' : 'text-yellow-400'}`}>{c.status}</td>
+                        <td className="py-1.5 pr-2 font-mono text-xs text-secondary truncate max-w-[300px]">{c.image}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div>
+              <h3 className="text-sm font-bold text-secondary mb-2 uppercase">Processes</h3>
+              {runtimeProcesses.length === 0 ? (
+                <div className="text-secondary text-sm">No relevant processes</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-secondary uppercase border-b border-border">
+                      <th className="py-1 pr-2">PID</th>
+                      <th className="py-1 pr-2">CPU%</th>
+                      <th className="py-1 pr-2">MEM</th>
+                      <th className="py-1 pr-2">Command</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runtimeProcesses.map(p => (
+                      <tr key={p.pid} className="border-b border-border/50">
+                        <td className="py-1.5 pr-2 font-mono text-xs">{p.pid}</td>
+                        <td className={`py-1.5 pr-2 font-mono text-xs ${p.cpu_percent > 50 ? 'text-red-400' : p.cpu_percent > 10 ? 'text-yellow-400' : 'text-green-400'}`}>{p.cpu_percent.toFixed(1)}%</td>
+                        <td className="py-1.5 pr-2 font-mono text-xs">{p.memory_mb.toFixed(0)}MB</td>
+                        <td className="py-1.5 pr-2 font-mono text-xs text-secondary truncate max-w-[400px]">{p.command}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div>
+              <h3 className="text-sm font-bold text-secondary mb-2 uppercase">Active Executions</h3>
+              {runtimeExecutions.length === 0 ? (
+                <div className="text-secondary text-sm">No active executions</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-secondary uppercase border-b border-border">
+                      <th className="py-1 pr-2">ID</th>
+                      <th className="py-1 pr-2">Type</th>
+                      <th className="py-1 pr-2">Status</th>
+                      <th className="py-1 pr-2">Duration</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runtimeExecutions.map(e => (
+                      <tr key={e.execution_id} className="border-b border-border/50">
+                        <td className="py-1.5 pr-2 font-mono text-xs">{e.execution_id.slice(0, 12)}</td>
+                        <td className="py-1.5 pr-2 text-xs text-primary">{e.executor_type}</td>
+                        <td className={`py-1.5 pr-2 text-xs ${getStatusColor(e.status)}`}>{e.status}</td>
+                        <td className="py-1.5 pr-2 font-mono text-xs">{e.duration_seconds.toFixed(1)}s</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+
         {tab === 'executors' && (
           <div>
             <h3 className="text-sm font-bold text-secondary mb-2 uppercase">Registered Executor Types</h3>
