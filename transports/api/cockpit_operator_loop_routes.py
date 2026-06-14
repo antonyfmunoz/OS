@@ -429,6 +429,11 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     from transports.api.approval_routes import (
         approvals_pending, approval_detail, approval_approve, approval_reject,
     )
+    from transports.api.runtime_state_routes import (
+        runtime_state, runtime_snapshot_latest, runtime_executions,
+        runtime_processes, runtime_worktrees, runtime_containers,
+        runtime_history,
+    )
     r.add_api_route("/executor/state", executor_state, methods=["GET"], dependencies=auth)
     r.add_api_route("/executor/requests", executor_requests_all, methods=["GET"], dependencies=auth)
     r.add_api_route("/executor/active", executor_active, methods=["GET"], dependencies=auth)
@@ -452,6 +457,14 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/approvals/{approval_id}", approval_detail, methods=["GET"], dependencies=auth)
     r.add_api_route("/approvals/{approval_id}/approve", approval_approve, methods=["POST"], dependencies=auth)
     r.add_api_route("/approvals/{approval_id}/reject", approval_reject, methods=["POST"], dependencies=auth)
+    # Phase 16: Runtime State Registry
+    r.add_api_route("/runtime/state", runtime_state, methods=["GET"], dependencies=auth)
+    r.add_api_route("/runtime/snapshot", runtime_snapshot_latest, methods=["GET"], dependencies=auth)
+    r.add_api_route("/runtime/executions", runtime_executions, methods=["GET"], dependencies=auth)
+    r.add_api_route("/runtime/processes", runtime_processes, methods=["GET"], dependencies=auth)
+    r.add_api_route("/runtime/worktrees", runtime_worktrees, methods=["GET"], dependencies=auth)
+    r.add_api_route("/runtime/containers", runtime_containers, methods=["GET"], dependencies=auth)
+    r.add_api_route("/runtime/history", runtime_history, methods=["GET"], dependencies=auth)
 
     return r
 
