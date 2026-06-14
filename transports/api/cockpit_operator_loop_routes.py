@@ -465,6 +465,14 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/runtime/worktrees", runtime_worktrees, methods=["GET"], dependencies=auth)
     r.add_api_route("/runtime/containers", runtime_containers, methods=["GET"], dependencies=auth)
     r.add_api_route("/runtime/history", runtime_history, methods=["GET"], dependencies=auth)
+    # Phase 17A: Agent Executor
+    from transports.api.agent_routes import (
+        agent_run, agent_executions, agent_execution_detail, agent_cancel,
+    )
+    r.add_api_route("/agents/run", agent_run, methods=["POST"], dependencies=auth)
+    r.add_api_route("/agents/executions", agent_executions, methods=["GET"], dependencies=auth)
+    r.add_api_route("/agents/executions/{execution_id}", agent_execution_detail, methods=["GET"], dependencies=auth)
+    r.add_api_route("/agents/executions/{execution_id}/cancel", agent_cancel, methods=["POST"], dependencies=auth)
 
     return r
 
