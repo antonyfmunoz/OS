@@ -317,6 +317,21 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "InterruptibilityEngine": ["substrate.organism.presence_runtime"],
     "PresenceTimeline": ["substrate.organism.presence_runtime"],
     "PresenceRuntime": ["substrate.organism.presence_runtime"],
+    # Phase 9: Command Runtime
+    "CommandActionType": ["substrate.organism.command_runtime"],
+    "CommandStatus": ["substrate.organism.command_runtime"],
+    "CommandSource": ["substrate.organism.command_runtime"],
+    "CommandEventType": ["substrate.organism.command_runtime"],
+    "CommandContext": ["substrate.organism.command_runtime"],
+    "Command": ["substrate.organism.command_runtime"],
+    "CommandEvent": ["substrate.organism.command_runtime"],
+    "CommandRoutingDecision": ["substrate.organism.command_runtime"],
+    "CommandClassifier": ["substrate.organism.command_runtime"],
+    "ContextAssembler": ["substrate.organism.command_runtime"],
+    "CommandRouter": ["substrate.organism.command_runtime"],
+    "CommandTimeline": ["substrate.organism.command_runtime"],
+    "CommandHistory": ["substrate.organism.command_runtime"],
+    "CommandRuntime": ["substrate.organism.command_runtime"],
 }
 
 

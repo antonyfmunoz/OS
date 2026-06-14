@@ -173,6 +173,16 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/presence/timeline", _presence_timeline, methods=["GET"], dependencies=auth)
     r.add_api_route("/presence/history", _presence_session_history, methods=["GET"], dependencies=auth)
 
+    # ── Phase 9: Command Runtime routes ─────────────────────────
+    r.add_api_route("/command/status", _command_status, methods=["GET"], dependencies=auth)
+    r.add_api_route("/command/submit", _command_submit, methods=["POST"], dependencies=auth)
+    r.add_api_route("/command/classify", _command_classify, methods=["POST"], dependencies=auth)
+    r.add_api_route("/command/history", _command_history, methods=["GET"], dependencies=auth)
+    r.add_api_route("/command/pending", _command_pending, methods=["GET"], dependencies=auth)
+    r.add_api_route("/command/timeline", _command_timeline, methods=["GET"], dependencies=auth)
+    r.add_api_route("/command/{command_id}/approve", _command_approve, methods=["POST"], dependencies=auth)
+    r.add_api_route("/command/{command_id}/reject", _command_reject, methods=["POST"], dependencies=auth)
+
     return r
 
 
@@ -2003,4 +2013,130 @@ async def _presence_session_history(request: Request) -> dict:
         return {"success": True, "history": rt.get_session_history()}
     except Exception as exc:
         logger.error("presence session history failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+# ── Phase 9: Command Runtime handlers ────────────────────────────────────
+
+
+def _get_command_runtime():
+    from substrate.organism.command_runtime import get_command_runtime
+    return get_command_runtime()
+
+
+async def _command_status(request: Request) -> dict:
+    try:
+        rt = _get_command_runtime()
+        return {"success": True, **rt.get_status()}
+    except Exception as exc:
+        logger.error("command status failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _command_submit(request: Request) -> dict:
+    try:
+        body = await request.json()
+        raw_input = body.get("raw_input", body.get("command", ""))
+        if not raw_input:
+            return {"success": False, "error": "raw_input required"}
+
+        rt = _get_command_runtime()
+        cmd = rt.submit(
+            raw_input=raw_input,
+            source=body.get("source", "cockpit"),
+            operator_id=body.get("operator_id", ""),
+            session_id=body.get("session_id", ""),
+            profile_mode=body.get("profile_mode", ""),
+        )
+        _audit_log("command_submit", {"command_id": cmd.command_id, "action": cmd.action_type})
+        return {"success": True, "command": cmd.to_dict()}
+    except Exception as exc:
+        logger.error("command submit failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _command_classify(request: Request) -> dict:
+    try:
+        body = await request.json()
+        raw_input = body.get("raw_input", body.get("command", ""))
+        if not raw_input:
+            return {"success": False, "error": "raw_input required"}
+
+        from substrate.organism.command_runtime import CommandClassifier
+        classifier = CommandClassifier()
+        action_type, confidence = classifier.classify(raw_input)
+        return {
+            "success": True,
+            "action_type": action_type.value,
+            "confidence": confidence,
+            "raw_input": raw_input,
+        }
+    except Exception as exc:
+        logger.error("command classify failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _command_history(request: Request) -> dict:
+    try:
+        rt = _get_command_runtime()
+        limit = int(request.query_params.get("limit", "50"))
+        return {"success": True, "commands": rt.get_history(limit=limit)}
+    except Exception as exc:
+        logger.error("command history failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _command_pending(request: Request) -> dict:
+    try:
+        rt = _get_command_runtime()
+        return {"success": True, "pending": rt.get_pending()}
+    except Exception as exc:
+        logger.error("command pending failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _command_timeline(request: Request) -> dict:
+    try:
+        rt = _get_command_runtime()
+        since = float(request.query_params.get("since", "0"))
+        command_id = request.query_params.get("command_id", "")
+        event_type = request.query_params.get("type", "")
+        limit = int(request.query_params.get("limit", "100"))
+        events = rt.get_timeline(
+            since=since, command_id=command_id,
+            event_type=event_type, limit=limit,
+        )
+        return {"success": True, "events": events}
+    except Exception as exc:
+        logger.error("command timeline failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _command_approve(request: Request) -> dict:
+    try:
+        command_id = request.path_params.get("command_id", "")
+        if not command_id:
+            return {"success": False, "error": "command_id required"}
+        rt = _get_command_runtime()
+        result = rt.approve_command(command_id)
+        _audit_log("command_approve", {"command_id": command_id})
+        return {"success": True, **result}
+    except Exception as exc:
+        logger.error("command approve failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _command_reject(request: Request) -> dict:
+    try:
+        command_id = request.path_params.get("command_id", "")
+        if not command_id:
+            return {"success": False, "error": "command_id required"}
+        body = await request.json()
+        reason = body.get("reason", "")
+        rt = _get_command_runtime()
+        result = rt.reject_command(command_id, reason=reason)
+        _audit_log("command_reject", {"command_id": command_id, "reason": reason})
+        return {"success": True, **result}
+    except Exception as exc:
+        logger.error("command reject failed: %s", exc)
         return {"success": False, "error": str(exc)}

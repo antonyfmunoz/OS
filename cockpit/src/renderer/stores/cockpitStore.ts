@@ -40,6 +40,7 @@ export type Panel =
   | 'projections'
   | 'continuity'
   | 'presence'
+  | 'commands'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
