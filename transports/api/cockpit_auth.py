@@ -150,10 +150,13 @@ async def require_clerk_auth(request: Request) -> ClerkUser:
     if auth_header.lower().startswith("bearer "):
         token = auth_header[7:].strip()
         if token:
-            return _validate_jwt(token)
+            user = _validate_jwt(token)
+            request.state.clerk_user_id = user.user_id
+            return user
 
     if _dev_bypass_allowed(request):
         logger.debug("Dev-bypass auth from %s", _real_client_ip(request))
+        request.state.clerk_user_id = "dev-bypass"
         return ClerkUser(user_id="dev-bypass")
 
     raise HTTPException(status_code=401, detail="Authentication required")

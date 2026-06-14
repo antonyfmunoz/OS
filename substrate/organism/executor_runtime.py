@@ -1251,10 +1251,8 @@ class ExecutorRuntime:
             )
             svc = get_approval_intercept_service()
         except Exception:
-            if request.risk_class in ("high", "critical"):
-                logger.warning("Approval service unavailable for %s risk operation — blocking", request.risk_class)
-                return False, "Approval service unavailable — high/critical operations blocked"
-            return True, "No intercept service — auto-approved (low/medium risk)"
+            logger.warning("Approval service unavailable — blocking (caller requested approval for %s)", reason)
+            return False, "Approval service unavailable — operation blocked"
 
         intercept = svc.request_approval(
             execution_id=request.request_id,

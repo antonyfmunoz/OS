@@ -57,21 +57,14 @@ _MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MiB
 _MAX_OUTPUT_BYTES: int = 1 * 1024 * 1024  # 1 MiB stdout/stderr cap
 _DEFAULT_TIMEOUT: float = 30.0
 
-_CRITICAL_CMD_PATTERNS: tuple[str, ...] = (
-    "--force", "-f ", "rm -rf", "rm -r ", "DROP TABLE",
-    "pkill", "kill -9", "git push", "git branch -D",
-)
+_SAFE_OPERATIONS: frozenset[str] = frozenset({
+    "read_file", "list_directory", "create_worktree",
+})
 
 
-def _is_critical_operation(operation: str, command: str) -> bool:
-    """Fail-closed check: blocks destructive ops when approval module is unavailable."""
-    if operation in ("write_file",):
-        blocked = (".env", "credentials", "secrets", ".ssh")
-        return any(b in command for b in blocked)
-    if operation == "run_command":
-        cmd_lower = command.lower()
-        return any(p.lower() in cmd_lower for p in _CRITICAL_CMD_PATTERNS)
-    return False
+def _is_safe_without_approval(operation: str) -> bool:
+    """When approval module is unavailable, only read-only ops proceed."""
+    return operation in _SAFE_OPERATIONS
 
 
 def _resolve_and_validate(path_str: str) -> tuple[Path, str]:
@@ -661,16 +654,15 @@ class WorkstationExecutor(ExecutorContract):
                         metadata={"proof": proof.to_dict()},
                     )
         except ImportError:
-            logger.warning("Approval intercept module unavailable — low/medium ops proceed, high/critical blocked")
-            cmd = params.get("command", "") if operation == "run_command" else ""
-            if _is_critical_operation(operation, cmd):
+            if not _is_safe_without_approval(operation):
+                logger.warning("Approval module unavailable — blocking %s (only read-only ops allowed)", operation)
                 completed = time.time()
                 return ExecutorResult(
                     request_id=request.request_id,
                     executor_type=self.executor_type,
                     success=False,
-                    outcome="Blocked: approval module unavailable for critical operation",
-                    errors=["Cannot execute critical operations without approval subsystem"],
+                    outcome=f"Blocked: approval module unavailable for {operation}",
+                    errors=["Only read-only operations allowed without approval subsystem"],
                     started_at=started,
                     completed_at=completed,
                     duration_seconds=completed - started,
