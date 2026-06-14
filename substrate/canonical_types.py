@@ -436,6 +436,9 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ExecutorGovernanceGate": ["substrate.organism.executor_runtime"],
     "ExecutorContextAssembler": ["substrate.organism.executor_runtime"],
     "ExecutorRuntime": ["substrate.organism.executor_runtime"],
+    # Phase 15A: Workstation Executor
+    "ExecutionProof": ["substrate.organism.executors.workstation_executor"],
+    "WorkstationExecutor": ["substrate.organism.executors.workstation_executor"],
 }
 
 
