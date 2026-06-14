@@ -397,6 +397,24 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "SessionContinuityGraph": ["substrate.organism.session_runtime"],
     "SessionTimeline": ["substrate.organism.session_runtime"],
     "SessionRuntime": ["substrate.organism.session_runtime"],
+    # Phase 13: Execution Coordinator Runtime
+    "ExecutionPlanStatus": ["substrate.organism.execution_coordinator"],
+    "ExecutionTargetType": ["substrate.organism.execution_coordinator"],
+    "ExecutionMode": ["substrate.organism.execution_coordinator"],
+    "ExecutionPriority": ["substrate.organism.execution_coordinator"],
+    "CoordinatorApprovalState": ["substrate.organism.execution_coordinator"],
+    "LifecycleEventType": ["substrate.organism.execution_coordinator"],
+    "CoordinatorExecutionPlan": ["substrate.organism.execution_coordinator"],
+    "ExecutorDefinition": ["substrate.organism.execution_coordinator"],
+    "LifecycleEvent": ["substrate.organism.execution_coordinator"],
+    "ExecutionCoordinatorSnapshot": ["substrate.organism.execution_coordinator"],
+    "ExecutorRegistry": ["substrate.organism.execution_coordinator"],
+    "ExecutionQueue": ["substrate.organism.execution_coordinator"],
+    "ExecutionLifecycleTracker": ["substrate.organism.execution_coordinator"],
+    "GovernanceGate": ["substrate.organism.execution_coordinator"],
+    "PlanStore": ["substrate.organism.execution_coordinator"],
+    "CrossRuntimeCompositor": ["substrate.organism.execution_coordinator"],
+    "ExecutionCoordinator": ["substrate.organism.execution_coordinator"],
 }
 
 

@@ -393,6 +393,28 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         "/session/timeline", _session_timeline, methods=["GET"], dependencies=auth
     )
 
+    # ── Phase 13: Execution Coordinator routes (handlers in execcoord_routes.py) ──
+    from transports.api.execcoord_routes import (
+        execcoord_state, execcoord_queue, execcoord_active,
+        execcoord_awaiting, execcoord_history, execcoord_lifecycle,
+        execcoord_executors, execcoord_create, execcoord_approve,
+        execcoord_deny, execcoord_enqueue, execcoord_dispatch,
+        execcoord_cancel,
+    )
+    r.add_api_route("/execcoord/state", execcoord_state, methods=["GET"], dependencies=auth)
+    r.add_api_route("/execcoord/queue", execcoord_queue, methods=["GET"], dependencies=auth)
+    r.add_api_route("/execcoord/active", execcoord_active, methods=["GET"], dependencies=auth)
+    r.add_api_route("/execcoord/awaiting", execcoord_awaiting, methods=["GET"], dependencies=auth)
+    r.add_api_route("/execcoord/history", execcoord_history, methods=["GET"], dependencies=auth)
+    r.add_api_route("/execcoord/lifecycle", execcoord_lifecycle, methods=["GET"], dependencies=auth)
+    r.add_api_route("/execcoord/executors", execcoord_executors, methods=["GET"], dependencies=auth)
+    r.add_api_route("/execcoord/create", execcoord_create, methods=["POST"], dependencies=auth)
+    r.add_api_route("/execcoord/approve", execcoord_approve, methods=["POST"], dependencies=auth)
+    r.add_api_route("/execcoord/deny", execcoord_deny, methods=["POST"], dependencies=auth)
+    r.add_api_route("/execcoord/enqueue", execcoord_enqueue, methods=["POST"], dependencies=auth)
+    r.add_api_route("/execcoord/dispatch", execcoord_dispatch, methods=["POST"], dependencies=auth)
+    r.add_api_route("/execcoord/cancel", execcoord_cancel, methods=["POST"], dependencies=auth)
+
     return r
 
 

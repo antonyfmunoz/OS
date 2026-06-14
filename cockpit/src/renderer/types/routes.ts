@@ -35,6 +35,7 @@ import {
   Zap,
   Monitor,
   MonitorSmartphone,
+  Cog,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -94,6 +95,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'tracking', label: 'Tracking', icon: Target, group: 'primary', visibility: 'stub', key: 't' },
   { id: 'experiments', label: 'Experiments', icon: FlaskConical, group: 'primary', visibility: 'stub', key: 'x' },
   { id: 'sessions', label: 'Sessions', icon: MonitorSmartphone, group: 'primary', visibility: 'primary', key: 'n' },
+  { id: 'execcoord', label: 'Exec Coordinator', icon: Cog, group: 'primary', visibility: 'primary', key: 'h' },
   { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'primary', key: 'u' },
 ]
 
