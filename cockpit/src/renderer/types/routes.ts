@@ -92,7 +92,7 @@ export const ROUTES: RouteEntry[] = [
   // Stub (NOT searchable)
   { id: 'tracking', label: 'Tracking', icon: Target, group: 'primary', visibility: 'stub', key: 't' },
   { id: 'experiments', label: 'Experiments', icon: FlaskConical, group: 'primary', visibility: 'stub', key: 'x' },
-  { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'stub', key: 'u' },
+  { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'primary', key: 'u' },
 ]
 
 export const ROUTE_GROUPS = [

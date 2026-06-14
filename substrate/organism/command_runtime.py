@@ -41,6 +41,7 @@ class CommandActionType(str, Enum):
     SCHEDULE = "schedule"
     SWITCH_PROFILE = "switch_profile"
     SWITCH_SESSION = "switch_session"
+    SWITCH_SYSTEM_MODE = "switch_system_mode"
     CREATE_OBJECTIVE = "create_objective"
     CREATE_WORKPACKET = "create_workpacket"
     CREATE_SEQUENCE = "create_sequence"
@@ -54,6 +55,7 @@ class CommandActionType(str, Enum):
             CommandActionType.SCHEDULE,
             CommandActionType.SWITCH_PROFILE,
             CommandActionType.SWITCH_SESSION,
+            CommandActionType.SWITCH_SYSTEM_MODE,
             CommandActionType.CREATE_OBJECTIVE,
             CommandActionType.CREATE_WORKPACKET,
             CommandActionType.CREATE_SEQUENCE,
@@ -189,6 +191,7 @@ class Command:
 
     def __post_init__(self) -> None:
         import uuid
+
         if not self.command_id:
             self.command_id = f"cmd-{uuid.uuid4().hex[:12]}"
         if not self.timestamp:
@@ -231,6 +234,7 @@ class CommandEvent:
 
     def __post_init__(self) -> None:
         import uuid
+
         if not self.event_id:
             self.event_id = f"cevt-{uuid.uuid4().hex[:8]}"
         if not self.timestamp:
@@ -293,8 +297,24 @@ _ACTION_PATTERNS: list[tuple[str, CommandActionType]] = [
     # Profile switching
     (r"\bswitch\s+(?:to\s+)?(?:\w+\s+)?profile\b", CommandActionType.SWITCH_PROFILE),
     (r"\bactivate\s+(?:\w+\s+)?profile\b", CommandActionType.SWITCH_PROFILE),
-    (r"\bswitch\s+(?:to\s+)?(?:developer|engineer|research|music|design|content|command|finance|learning)\b",
-     CommandActionType.SWITCH_PROFILE),
+    (r"\bput\s+me\s+in\s+(?:\w+)\s+(?:mode|profile)\b", CommandActionType.SWITCH_PROFILE),
+    (r"\bresume\s+(?:\w+\s+)?profile\b", CommandActionType.SWITCH_PROFILE),
+    (
+        r"\bswitch\s+(?:to\s+)?(?:engineer|developer|founder|artist|research|content|admin|music|design|finance|learning)\b",
+        CommandActionType.SWITCH_PROFILE,
+    ),
+    # System mode switching
+    (
+        r"\b(?:activate|enable|turn\s+on)\s+(?:focus|night|day|maintenance|security|emergency|afk)\s*(?:mode)?\b",
+        CommandActionType.SWITCH_SYSTEM_MODE,
+    ),
+    (
+        r"\b(?:deactivate|disable|turn\s+off)\s+(?:focus|night|day|maintenance|security|emergency|afk)\s*(?:mode)?\b",
+        CommandActionType.SWITCH_SYSTEM_MODE,
+    ),
+    (r"\bgo\s+afk\b", CommandActionType.SWITCH_SYSTEM_MODE),
+    (r"\bfocus\s+mode\b", CommandActionType.SWITCH_SYSTEM_MODE),
+    (r"\bnight\s+mode\b", CommandActionType.SWITCH_SYSTEM_MODE),
     # Session switching
     (r"\bswitch\s+(?:to\s+)?session\b", CommandActionType.SWITCH_SESSION),
     (r"\bjoin\s+session\b", CommandActionType.SWITCH_SESSION),
@@ -356,29 +376,36 @@ _COMPILED_PATTERNS: list[tuple[re.Pattern[str], CommandActionType]] = [
     (re.compile(p, re.IGNORECASE), t) for p, t in _ACTION_PATTERNS
 ]
 
-# Profile mode name mapping
+# Profile mode name mapping — maps aliases to Phase 11 canonical profile names
 _PROFILE_NAMES: dict[str, str] = {
-    "developer": "developer",
-    "dev": "developer",
-    "engineer": "developer",
-    "engineering": "developer",
-    "research": "research",
-    "researcher": "research",
-    "music": "music",
-    "musician": "music",
-    "design": "design",
-    "designer": "design",
+    "engineer": "engineer",
+    "engineering": "engineer",
+    "developer": "engineer",
+    "dev": "engineer",
+    "founder": "founder",
+    "executive": "founder",
+    "ceo": "founder",
+    "artist": "artist",
+    "music": "artist",
+    "musician": "artist",
     "content": "content",
     "creator": "content",
     "writer": "content",
-    "command": "command_center",
-    "command_center": "command_center",
-    "executive": "command_center",
+    "research": "research",
+    "researcher": "research",
+    "admin": "admin",
+    "sysadmin": "admin",
+    "operations": "admin",
+    "ops": "admin",
+    "design": "design",
+    "designer": "design",
     "finance": "finance",
     "financial": "finance",
     "learning": "learning",
     "study": "learning",
     "student": "learning",
+    "command": "command_center",
+    "command_center": "command_center",
 }
 
 
@@ -412,6 +439,20 @@ class CommandClassifier:
             if name in lower:
                 return mode
         return ""
+
+    def extract_system_mode_target(self, raw_input: str) -> tuple[str, str]:
+        """Extract system mode name and action (activate/deactivate)."""
+        lower = raw_input.lower()
+        mode_names = ["focus", "night", "day", "maintenance", "security", "emergency", "afk"]
+        action = "activate"
+        if any(w in lower for w in ("deactivate", "disable", "turn off")):
+            action = "deactivate"
+        if "go afk" in lower:
+            return "afk", "activate"
+        for name in mode_names:
+            if name in lower:
+                return name, action
+        return "", action
 
     def extract_objective_text(self, raw_input: str) -> str:
         """Extract the objective description from a create-objective command."""
@@ -461,6 +502,7 @@ class ContextAssembler:
     def _assemble_presence(self, ctx: CommandContext) -> None:
         try:
             from substrate.organism.presence_runtime import get_presence_runtime
+
             rt = get_presence_runtime()
             snapshot = rt.capture_snapshot()
             ctx.profile_mode = snapshot.active_profile_mode
@@ -475,6 +517,7 @@ class ContextAssembler:
     def _assemble_continuity(self, ctx: CommandContext) -> None:
         try:
             from substrate.organism.continuity_runtime import get_continuity_runtime
+
             rt = get_continuity_runtime()
             snapshot = rt.capture_snapshot()
             ctx.active_objectives = snapshot.active_objectives
@@ -489,11 +532,15 @@ class ContextAssembler:
     def _assemble_strategy(self, ctx: CommandContext) -> None:
         try:
             from substrate.organism.strategic_gap_engine import get_gap_engine
+
             engine = get_gap_engine()
             state = engine.get_strategic_state()
             ctx.drift_warnings = [
-                {"goal": w.get("goal_title", ""), "severity": w.get("severity", ""),
-                 "days": w.get("days_stagnant", 0)}
+                {
+                    "goal": w.get("goal_title", ""),
+                    "severity": w.get("severity", ""),
+                    "days": w.get("days_stagnant", 0),
+                }
                 for w in state.get("drift_warnings", [])
             ]
         except Exception as exc:
@@ -502,21 +549,25 @@ class ContextAssembler:
     def _assemble_tick_loop(self, ctx: CommandContext) -> None:
         try:
             from substrate.organism.strategic_tick_loop import get_tick_loop
+
             loop = get_tick_loop()
             status = loop.get_status()
             ctx.active_loops = ctx.active_loops or []
             if status.get("running"):
-                ctx.active_loops.append({
-                    "system": "tick_loop",
-                    "frequency": status.get("frequency", ""),
-                    "cycle": status.get("cycle_count", 0),
-                })
+                ctx.active_loops.append(
+                    {
+                        "system": "tick_loop",
+                        "frequency": status.get("frequency", ""),
+                        "cycle": status.get("cycle_count", 0),
+                    }
+                )
         except Exception as exc:
             logger.debug("tick loop assembly skipped: %s", exc)
 
     def _assemble_projections(self, ctx: CommandContext) -> None:
         try:
             from substrate.organism.projection_engine import get_projection_engine
+
             engine = get_projection_engine()
             state = engine.get_projection_state()
             ctx.current_projections = state.get("trends", [])[:5]
@@ -560,6 +611,8 @@ class CommandRouter:
                 self._route_switch_profile(command, decision)
             elif action == CommandActionType.SWITCH_SESSION.value:
                 self._route_switch_session(command, decision)
+            elif action == CommandActionType.SWITCH_SYSTEM_MODE.value:
+                self._route_switch_system_mode(command, decision)
             elif action == CommandActionType.CREATE_OBJECTIVE.value:
                 self._route_create_objective(command, decision)
             elif action == CommandActionType.CREATE_WORKPACKET.value:
@@ -603,6 +656,7 @@ class CommandRouter:
         dec.destination_system = "empire_router"
         try:
             from substrate.organism.empire_router import EmpireRouter
+
             router = EmpireRouter()
             result = router.route(
                 intent=cmd.raw_input,
@@ -623,6 +677,7 @@ class CommandRouter:
         dec.approval_state = "not_required"
         try:
             from substrate.organism.empire_router import EmpireRouter
+
             router = EmpireRouter()
             result = router.route(
                 intent=cmd.raw_input,
@@ -660,8 +715,10 @@ class CommandRouter:
         dec.approval_state = "not_required"
         try:
             from substrate.organism.strategic_tick_loop import get_tick_loop
+
             loop = get_tick_loop()
             from substrate.organism.strategic_tick_loop import CandidateWorkItem
+
             candidate = CandidateWorkItem(
                 title=cmd.raw_input,
                 domain=cmd.target_domain or "general",
@@ -679,21 +736,43 @@ class CommandRouter:
             dec.outcome = {"error": str(exc)}
 
     def _route_switch_profile(self, cmd: Command, dec: CommandRoutingDecision) -> None:
-        dec.destination_system = "presence_runtime"
+        dec.destination_system = "profile_runtime"
         dec.approval_state = "not_required"
         classifier = CommandClassifier()
         target_profile = classifier.extract_profile_target(cmd.raw_input)
         if target_profile:
             try:
-                from substrate.organism.presence_runtime import get_presence_runtime
-                rt = get_presence_runtime()
-                rt.change_profile(target_profile)
-                dec.outcome = {"switched": True, "profile": target_profile}
+                from substrate.organism.profile_runtime import get_profile_runtime
+
+                rt = get_profile_runtime()
+                result = rt.activate_profile(target_profile, source="command")
+                dec.outcome = result
             except Exception as exc:
                 logger.error("profile switch failed: %s", exc)
                 dec.outcome = {"error": str(exc)}
         else:
             dec.outcome = {"error": "no profile target found in command"}
+
+    def _route_switch_system_mode(self, cmd: Command, dec: CommandRoutingDecision) -> None:
+        dec.destination_system = "profile_runtime"
+        dec.approval_state = "not_required"
+        classifier = CommandClassifier()
+        mode_name, action = classifier.extract_system_mode_target(cmd.raw_input)
+        if mode_name:
+            try:
+                from substrate.organism.profile_runtime import get_profile_runtime
+
+                rt = get_profile_runtime()
+                if action == "deactivate":
+                    result = rt.deactivate_system_mode(mode_name)
+                else:
+                    result = rt.activate_system_mode(mode_name, source="command")
+                dec.outcome = result
+            except Exception as exc:
+                logger.error("system mode switch failed: %s", exc)
+                dec.outcome = {"error": str(exc)}
+        else:
+            dec.outcome = {"error": "no system mode target found in command"}
 
     def _route_switch_session(self, cmd: Command, dec: CommandRoutingDecision) -> None:
         dec.destination_system = "presence_runtime"
@@ -708,6 +787,7 @@ class CommandRouter:
         if objective_text:
             try:
                 from substrate.organism.strategic_gap_engine import get_gap_engine
+
                 engine = get_gap_engine()
                 goal = engine.add_goal(
                     title=objective_text,
@@ -728,6 +808,7 @@ class CommandRouter:
         dec.destination_system = "empire_router"
         try:
             from substrate.organism.empire_router import EmpireRouter
+
             router = EmpireRouter()
             result = router.route(intent=cmd.raw_input, profile_mode=cmd.profile_mode)
             dec.routing_result = result.to_dict()
@@ -743,6 +824,7 @@ class CommandRouter:
         dec.approval_state = "required"
         try:
             from substrate.organism.empire_router import EmpireRouter
+
             router = EmpireRouter()
             result = router.route(intent=cmd.raw_input, profile_mode=cmd.profile_mode)
             dec.routing_result = result.to_dict()
@@ -757,6 +839,7 @@ class CommandRouter:
     def _query_continuity(self, cmd: Command) -> dict[str, Any]:
         try:
             from substrate.organism.continuity_runtime import get_continuity_runtime
+
             rt = get_continuity_runtime()
             brief = rt.generate_brief()
             brief_data = brief.to_dict() if hasattr(brief, "to_dict") else str(brief)
@@ -767,6 +850,7 @@ class CommandRouter:
     def _query_reality(self, cmd: Command) -> dict[str, Any]:
         try:
             from substrate.organism.empire_router import EmpireRouter
+
             router = EmpireRouter()
             snapshot = router.get_reality_snapshot()
             return {"type": "reality_snapshot", "snapshot": snapshot.to_dict()}
@@ -776,6 +860,7 @@ class CommandRouter:
     def _query_projections(self, cmd: Command) -> dict[str, Any]:
         try:
             from substrate.organism.projection_engine import get_projection_engine
+
             engine = get_projection_engine()
             state = engine.get_projection_state()
             return {
@@ -789,6 +874,7 @@ class CommandRouter:
     def _query_drift(self, cmd: Command) -> dict[str, Any]:
         try:
             from substrate.organism.strategic_tick_loop import get_tick_loop
+
             loop = get_tick_loop()
             status = loop.get_status()
             return {
@@ -801,6 +887,7 @@ class CommandRouter:
     def _process_approval(self, packet_id: str, approved: bool) -> dict[str, Any]:
         try:
             from substrate.organism.universal_work_queue import UniversalWorkQueue
+
             q = UniversalWorkQueue()
             pkt = q.get_packet(packet_id)
             if not pkt:
@@ -919,16 +1006,21 @@ class CommandHistory:
 
     def get_pending(self) -> list[dict[str, Any]]:
         return [
-            c for c in self.get_recent(limit=200)
-            if c.get("status") in ("received", "classified", "context_assembled",
-                                    "routed", "pending_approval", "executing")
+            c
+            for c in self.get_recent(limit=200)
+            if c.get("status")
+            in (
+                "received",
+                "classified",
+                "context_assembled",
+                "routed",
+                "pending_approval",
+                "executing",
+            )
         ]
 
     def get_by_status(self, status: str, limit: int = 50) -> list[dict[str, Any]]:
-        return [
-            c for c in self.get_recent(limit=500)
-            if c.get("status") == status
-        ][:limit]
+        return [c for c in self.get_recent(limit=500) if c.get("status") == status][:limit]
 
     def update_status(
         self,
@@ -957,7 +1049,10 @@ class CommandHistory:
                     try:
                         cmd = json.loads(stripped)
                         if cmd.get("command_id") == command_id:
-                            if required_current_status is not None and cmd.get("status") not in required_current_status:
+                            if (
+                                required_current_status is not None
+                                and cmd.get("status") not in required_current_status
+                            ):
                                 return False
                             cmd["status"] = status
                             if outcome:
@@ -1019,16 +1114,20 @@ class CommandRuntime:
             session_id=session_id,
             profile_mode=profile_mode,
         )
-        self._emit_event(command, CommandEventType.COMMAND_RECEIVED,
-                         f"Command received from {source}")
+        self._emit_event(
+            command, CommandEventType.COMMAND_RECEIVED, f"Command received from {source}"
+        )
 
         # 2. Classify
         action_type, confidence = self._classifier.classify(raw_input)
         command.action_type = action_type.value
         command.confidence = confidence
         command.status = CommandStatus.CLASSIFIED.value
-        self._emit_event(command, CommandEventType.COMMAND_CLASSIFIED,
-                         f"Classified as {action_type.value} (confidence={confidence})")
+        self._emit_event(
+            command,
+            CommandEventType.COMMAND_CLASSIFIED,
+            f"Classified as {action_type.value} (confidence={confidence})",
+        )
 
         # 3. Assemble context
         ctx = self._assembler.assemble()
@@ -1038,19 +1137,20 @@ class CommandRuntime:
         if not command.session_id:
             command.session_id = ctx.session_id
         command.status = CommandStatus.CONTEXT_ASSEMBLED.value
-        self._emit_event(command, CommandEventType.CONTEXT_ASSEMBLED,
-                         "Full context assembled from Phases 4-8")
+        self._emit_event(
+            command, CommandEventType.CONTEXT_ASSEMBLED, "Full context assembled from Phases 4-8"
+        )
 
         # 4. Classify domain (via IntentClassifier)
         # Fail-closed: if classifier fails, mutations require approval
         try:
             from substrate.organism.intent_classifier import IntentClassifier
+
             ic = IntentClassifier()
             classification = ic.classify(raw_input)
             command.target_domain = classification.domain
             command.approval_required = (
-                action_type.requires_approval
-                or classification.approval_required
+                action_type.requires_approval or classification.approval_required
             )
         except Exception as exc:
             logger.warning("intent classification failed, fail-closed: %s", exc)
@@ -1064,16 +1164,19 @@ class CommandRuntime:
 
         if command.approval_required:
             command.status = CommandStatus.PENDING_APPROVAL.value
-            self._emit_event(command, CommandEventType.APPROVAL_REQUESTED,
-                             f"Approval required for {action_type.value}")
+            self._emit_event(
+                command,
+                CommandEventType.APPROVAL_REQUESTED,
+                f"Approval required for {action_type.value}",
+            )
         else:
             command.status = CommandStatus.ROUTED.value
-            self._emit_event(command, CommandEventType.COMMAND_ROUTED,
-                             f"Routed to {decision.destination_system}")
+            self._emit_event(
+                command, CommandEventType.COMMAND_ROUTED, f"Routed to {decision.destination_system}"
+            )
             command.outcome = decision.outcome
             command.status = CommandStatus.COMPLETED.value
-            self._emit_event(command, CommandEventType.EXECUTION_COMPLETED,
-                             "Command completed")
+            self._emit_event(command, CommandEventType.EXECUTION_COMPLETED, "Command completed")
 
         # 7. Record
         self._history.save(command)
@@ -1085,28 +1188,34 @@ class CommandRuntime:
         _APPROVABLE = {"pending_approval", "routed", "received", "classified", "context_assembled"}
 
         if not self._history.update_status(
-            command_id, CommandStatus.APPROVED.value,
+            command_id,
+            CommandStatus.APPROVED.value,
             required_current_status=_APPROVABLE,
         ):
             return {"error": f"command {command_id} not found or not in approvable state"}
 
-        self._timeline.emit(CommandEvent(
-            event_type=CommandEventType.COMMAND_APPROVED.value,
-            command_id=command_id,
-            summary="Command approved by operator",
-        ))
+        self._timeline.emit(
+            CommandEvent(
+                event_type=CommandEventType.COMMAND_APPROVED.value,
+                command_id=command_id,
+                summary="Command approved by operator",
+            )
+        )
 
         if not self._history.update_status(
-            command_id, CommandStatus.EXECUTING.value,
+            command_id,
+            CommandStatus.EXECUTING.value,
             required_current_status={"approved"},
         ):
             return {"error": f"command {command_id} failed to transition approved→executing"}
 
-        self._timeline.emit(CommandEvent(
-            event_type=CommandEventType.EXECUTION_STARTED.value,
-            command_id=command_id,
-            summary="Execution started",
-        ))
+        self._timeline.emit(
+            CommandEvent(
+                event_type=CommandEventType.EXECUTION_STARTED.value,
+                command_id=command_id,
+                summary="Execution started",
+            )
+        )
 
         commands = [c for c in self._history.get_recent(200) if c.get("command_id") == command_id]
         target = commands[0] if commands else {}
@@ -1115,21 +1224,26 @@ class CommandRuntime:
 
         outcome = decision.outcome or decision.routing_result
         if not self._history.update_status(
-            command_id, CommandStatus.COMPLETED.value, outcome,
+            command_id,
+            CommandStatus.COMPLETED.value,
+            outcome,
             required_current_status={"executing"},
         ):
             self._history.update_status(
-                command_id, CommandStatus.FAILED.value,
+                command_id,
+                CommandStatus.FAILED.value,
                 {"error": "state transition executing→completed failed"},
             )
             return {"error": f"command {command_id} failed to transition executing→completed"}
 
-        self._timeline.emit(CommandEvent(
-            event_type=CommandEventType.EXECUTION_COMPLETED.value,
-            command_id=command_id,
-            summary="Execution completed",
-            details=outcome,
-        ))
+        self._timeline.emit(
+            CommandEvent(
+                event_type=CommandEventType.EXECUTION_COMPLETED.value,
+                command_id=command_id,
+                summary="Execution completed",
+                details=outcome,
+            )
+        )
 
         return {"approved": True, "command_id": command_id, "outcome": outcome}
 
@@ -1139,16 +1253,19 @@ class CommandRuntime:
         safe_reason = reason[:500] if reason else ""
 
         if not self._history.update_status(
-            command_id, CommandStatus.REJECTED.value,
+            command_id,
+            CommandStatus.REJECTED.value,
             {"reason": safe_reason},
             required_current_status=_REJECTABLE,
         ):
             return {"rejected": False, "error": f"command {command_id} not found or not rejectable"}
-        self._timeline.emit(CommandEvent(
-            event_type=CommandEventType.COMMAND_REJECTED.value,
-            command_id=command_id,
-            summary=f"Command rejected: {safe_reason}" if safe_reason else "Command rejected",
-        ))
+        self._timeline.emit(
+            CommandEvent(
+                event_type=CommandEventType.COMMAND_REJECTED.value,
+                command_id=command_id,
+                summary=f"Command rejected: {safe_reason}" if safe_reason else "Command rejected",
+            )
+        )
         return {"rejected": True, "command_id": command_id}
 
     def get_history(self, limit: int = 50) -> list[dict[str, Any]]:
@@ -1158,20 +1275,35 @@ class CommandRuntime:
         return self._history.get_pending()
 
     def get_timeline(
-        self, since: float = 0, command_id: str = "",
-        event_type: str = "", limit: int = 100,
+        self,
+        since: float = 0,
+        command_id: str = "",
+        event_type: str = "",
+        limit: int = 100,
     ) -> list[dict[str, Any]]:
         return self._timeline.get_events(
-            since=since, command_id=command_id,
-            event_type=event_type, limit=limit,
+            since=since,
+            command_id=command_id,
+            event_type=event_type,
+            limit=limit,
         )
 
     def get_status(self) -> dict[str, Any]:
         """Overall command runtime status."""
         recent = self._history.get_recent(limit=100)
-        pending = [c for c in recent if c.get("status") in
-                   ("received", "classified", "context_assembled", "routed",
-                    "pending_approval", "executing")]
+        pending = [
+            c
+            for c in recent
+            if c.get("status")
+            in (
+                "received",
+                "classified",
+                "context_assembled",
+                "routed",
+                "pending_approval",
+                "executing",
+            )
+        ]
         completed = [c for c in recent if c.get("status") == "completed"]
         failed = [c for c in recent if c.get("status") == "failed"]
 
@@ -1181,9 +1313,7 @@ class CommandRuntime:
             "pending": len(pending),
             "completed": len(completed),
             "failed": len(failed),
-            "pending_approvals": len([
-                c for c in recent if c.get("status") == "pending_approval"
-            ]),
+            "pending_approvals": len([c for c in recent if c.get("status") == "pending_approval"]),
             "last_command": recent[0] if recent else None,
         }
 
@@ -1192,13 +1322,18 @@ class CommandRuntime:
         return re.sub(r"\s+", " ", raw.strip())
 
     def _emit_event(
-        self, command: Command, event_type: CommandEventType, summary: str,
+        self,
+        command: Command,
+        event_type: CommandEventType,
+        summary: str,
     ) -> None:
-        self._timeline.emit(CommandEvent(
-            event_type=event_type.value,
-            command_id=command.command_id,
-            summary=summary,
-        ))
+        self._timeline.emit(
+            CommandEvent(
+                event_type=event_type.value,
+                command_id=command.command_id,
+                summary=summary,
+            )
+        )
 
 
 # ── Singleton ────────────────────────────────────────────────────────────

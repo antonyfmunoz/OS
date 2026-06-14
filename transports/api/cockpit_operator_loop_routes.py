@@ -75,46 +75,104 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter()
     auth = [Depends(require_operator_dep)]
 
-    r.add_api_route("/operator-loop/submit-intent", _submit_intent, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/operator-loop/submit-intent", _submit_intent, methods=["POST"], dependencies=auth
+    )
     r.add_api_route("/operator-loop/approve", _approve_packet, methods=["POST"], dependencies=auth)
     r.add_api_route("/operator-loop/reject", _reject_packet, methods=["POST"], dependencies=auth)
     r.add_api_route("/operator-loop/execute", _execute_packet, methods=["POST"], dependencies=auth)
-    r.add_api_route("/operator-loop/complete", _complete_packet, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/operator-loop/complete", _complete_packet, methods=["POST"], dependencies=auth
+    )
     r.add_api_route("/operator-loop/status", _loop_status, methods=["GET"], dependencies=auth)
-    r.add_api_route("/operator-loop/packet/{packet_id}", _packet_detail, methods=["GET"], dependencies=auth)
-    r.add_api_route("/operator-loop/pending-approvals", _pending_approvals, methods=["GET"], dependencies=auth)
-    r.add_api_route("/operator-loop/active-packets", _active_packets, methods=["GET"], dependencies=auth)
+    r.add_api_route(
+        "/operator-loop/packet/{packet_id}", _packet_detail, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/operator-loop/pending-approvals", _pending_approvals, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/operator-loop/active-packets", _active_packets, methods=["GET"], dependencies=auth
+    )
     r.add_api_route("/operator-loop/audit-trail", _audit_trail, methods=["GET"], dependencies=auth)
-    r.add_api_route("/operator-loop/record-outcome", _record_outcome, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/operator-loop/record-outcome", _record_outcome, methods=["POST"], dependencies=auth
+    )
     r.add_api_route("/operator-loop/health", _loop_health, methods=["GET"])
-    r.add_api_route("/operator-loop/generate-plan", _generate_plan, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/operator-loop/generate-plan", _generate_plan, methods=["POST"], dependencies=auth
+    )
     r.add_api_route("/operator-loop/plan/{plan_id}", _get_plan, methods=["GET"], dependencies=auth)
-    r.add_api_route("/operator-loop/approve-plan", _approve_plan, methods=["POST"], dependencies=auth)
-    r.add_api_route("/operator-loop/execution-record/{record_id}", _get_execution_record, methods=["GET"], dependencies=auth)
-    r.add_api_route("/operator-loop/packet/{packet_id}/records", _packet_records, methods=["GET"], dependencies=auth)
-    r.add_api_route("/operator-loop/packet/{packet_id}/failure", _packet_failure, methods=["GET"], dependencies=auth)
+    r.add_api_route(
+        "/operator-loop/approve-plan", _approve_plan, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/operator-loop/execution-record/{record_id}",
+        _get_execution_record,
+        methods=["GET"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/operator-loop/packet/{packet_id}/records",
+        _packet_records,
+        methods=["GET"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/operator-loop/packet/{packet_id}/failure",
+        _packet_failure,
+        methods=["GET"],
+        dependencies=auth,
+    )
 
     # ── Phase 3: Empire WorkPacket Engine routes ────────────────
     r.add_api_route("/empire/route", _empire_route, methods=["POST"], dependencies=auth)
     r.add_api_route("/empire/domains", _empire_domains, methods=["GET"], dependencies=auth)
     r.add_api_route("/empire/agents", _empire_agents, methods=["GET"], dependencies=auth)
     r.add_api_route("/empire/reality", _empire_reality, methods=["GET"], dependencies=auth)
-    r.add_api_route("/empire/packets-by-domain", _empire_packets_by_domain, methods=["GET"], dependencies=auth)
-    r.add_api_route("/empire/next-actions", _empire_next_actions, methods=["GET"], dependencies=auth)
+    r.add_api_route(
+        "/empire/packets-by-domain", _empire_packets_by_domain, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/empire/next-actions", _empire_next_actions, methods=["GET"], dependencies=auth
+    )
 
     # ── Phase 4: Strategic Gap Engine routes ───────────────────
     r.add_api_route("/strategy/analyze", _strategy_analyze, methods=["POST"], dependencies=auth)
     r.add_api_route("/strategy/goals", _strategy_goals, methods=["GET"], dependencies=auth)
     r.add_api_route("/strategy/goals/add", _strategy_add_goal, methods=["POST"], dependencies=auth)
-    r.add_api_route("/strategy/goals/{goal_id}", _strategy_goal_detail, methods=["GET"], dependencies=auth)
-    r.add_api_route("/strategy/goals/{goal_id}", _strategy_update_goal, methods=["PUT"], dependencies=auth)
-    r.add_api_route("/strategy/goals/{goal_id}", _strategy_delete_goal, methods=["DELETE"], dependencies=auth)
+    r.add_api_route(
+        "/strategy/goals/{goal_id}", _strategy_goal_detail, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/strategy/goals/{goal_id}", _strategy_update_goal, methods=["PUT"], dependencies=auth
+    )
+    r.add_api_route(
+        "/strategy/goals/{goal_id}", _strategy_delete_goal, methods=["DELETE"], dependencies=auth
+    )
     r.add_api_route("/strategy/gaps", _strategy_gaps, methods=["GET"], dependencies=auth)
-    r.add_api_route("/strategy/recommendations", _strategy_recommendations, methods=["GET"], dependencies=auth)
-    r.add_api_route("/strategy/recommendations/{rec_id}/approve", _strategy_approve_rec, methods=["POST"], dependencies=auth)
-    r.add_api_route("/strategy/recommendations/{rec_id}/reject", _strategy_reject_rec, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/strategy/recommendations", _strategy_recommendations, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/strategy/recommendations/{rec_id}/approve",
+        _strategy_approve_rec,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/strategy/recommendations/{rec_id}/reject",
+        _strategy_reject_rec,
+        methods=["POST"],
+        dependencies=auth,
+    )
     r.add_api_route("/strategy/decisions", _strategy_decisions, methods=["GET"], dependencies=auth)
-    r.add_api_route("/strategy/decisions/{decision_id}/outcome", _strategy_record_outcome, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/strategy/decisions/{decision_id}/outcome",
+        _strategy_record_outcome,
+        methods=["POST"],
+        dependencies=auth,
+    )
 
     # ── Phase 5: Strategic Tick Loop routes ────────────────────
     r.add_api_route("/tick/status", _tick_status, methods=["GET"], dependencies=auth)
@@ -127,8 +185,18 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/tick/frequency", _tick_set_frequency, methods=["POST"], dependencies=auth)
     r.add_api_route("/tick/profiles", _tick_set_profiles, methods=["POST"], dependencies=auth)
     r.add_api_route("/tick/candidates", _tick_candidates, methods=["GET"], dependencies=auth)
-    r.add_api_route("/tick/candidates/{candidate_id}/accept", _tick_accept_candidate, methods=["POST"], dependencies=auth)
-    r.add_api_route("/tick/candidates/{candidate_id}/reject", _tick_reject_candidate, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/tick/candidates/{candidate_id}/accept",
+        _tick_accept_candidate,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/tick/candidates/{candidate_id}/reject",
+        _tick_reject_candidate,
+        methods=["POST"],
+        dependencies=auth,
+    )
     r.add_api_route("/tick/drift", _tick_drift_warnings, methods=["GET"], dependencies=auth)
     r.add_api_route("/tick/history", _tick_history, methods=["GET"], dependencies=auth)
 
@@ -138,24 +206,48 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/projection/run", _projection_run, methods=["POST"], dependencies=auth)
     r.add_api_route("/projection/trends", _projection_trends, methods=["GET"], dependencies=auth)
     r.add_api_route("/projection/risks", _projection_risks, methods=["GET"], dependencies=auth)
-    r.add_api_route("/projection/opportunities", _projection_opportunities, methods=["GET"], dependencies=auth)
-    r.add_api_route("/projection/accuracy", _projection_accuracy, methods=["GET"], dependencies=auth)
-    r.add_api_route("/projection/domain/{domain}", _projection_by_domain, methods=["GET"], dependencies=auth)
-    r.add_api_route("/projection/projected-reality", _projection_projected_reality, methods=["GET"], dependencies=auth)
-    r.add_api_route("/projection/outcome", _projection_record_outcome, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/projection/opportunities", _projection_opportunities, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/projection/accuracy", _projection_accuracy, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/projection/domain/{domain}", _projection_by_domain, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/projection/projected-reality",
+        _projection_projected_reality,
+        methods=["GET"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/projection/outcome", _projection_record_outcome, methods=["POST"], dependencies=auth
+    )
 
     # ── Phase 7: Continuity Runtime routes ────────────────────
     r.add_api_route("/continuity/status", _continuity_status, methods=["GET"], dependencies=auth)
-    r.add_api_route("/continuity/snapshot", _continuity_snapshot, methods=["GET"], dependencies=auth)
+    r.add_api_route(
+        "/continuity/snapshot", _continuity_snapshot, methods=["GET"], dependencies=auth
+    )
     r.add_api_route("/continuity/capture", _continuity_capture, methods=["POST"], dependencies=auth)
     r.add_api_route("/continuity/depart", _continuity_depart, methods=["POST"], dependencies=auth)
     r.add_api_route("/continuity/resume", _continuity_resume, methods=["POST"], dependencies=auth)
     r.add_api_route("/continuity/brief", _continuity_brief, methods=["GET"], dependencies=auth)
-    r.add_api_route("/continuity/generate-brief", _continuity_generate_brief, methods=["POST"], dependencies=auth)
-    r.add_api_route("/continuity/timeline", _continuity_timeline, methods=["GET"], dependencies=auth)
+    r.add_api_route(
+        "/continuity/generate-brief",
+        _continuity_generate_brief,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/continuity/timeline", _continuity_timeline, methods=["GET"], dependencies=auth
+    )
     r.add_api_route("/continuity/lineage", _continuity_lineage, methods=["GET"], dependencies=auth)
     r.add_api_route("/continuity/handoff", _continuity_handoff, methods=["POST"], dependencies=auth)
-    r.add_api_route("/continuity/interaction", _continuity_interaction, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/continuity/interaction", _continuity_interaction, methods=["POST"], dependencies=auth
+    )
 
     # ── Phase 8: Presence Runtime routes ─────────────────────
     r.add_api_route("/presence/status", _presence_status, methods=["GET"], dependencies=auth)
@@ -163,15 +255,32 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/presence/capture", _presence_capture, methods=["POST"], dependencies=auth)
     r.add_api_route("/presence/devices", _presence_devices, methods=["GET"], dependencies=auth)
     r.add_api_route("/presence/sessions", _presence_sessions, methods=["GET"], dependencies=auth)
-    r.add_api_route("/presence/session/register", _presence_register_session, methods=["POST"], dependencies=auth)
-    r.add_api_route("/presence/session/end", _presence_end_session, methods=["POST"], dependencies=auth)
-    r.add_api_route("/presence/session/heartbeat", _presence_heartbeat, methods=["POST"], dependencies=auth)
-    r.add_api_route("/presence/interaction", _presence_interaction, methods=["POST"], dependencies=auth)
-    r.add_api_route("/presence/profile", _presence_change_profile, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/presence/session/register",
+        _presence_register_session,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/presence/session/end", _presence_end_session, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/presence/session/heartbeat", _presence_heartbeat, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/presence/interaction", _presence_interaction, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/presence/profile", _presence_change_profile, methods=["POST"], dependencies=auth
+    )
     r.add_api_route("/presence/attention", _presence_attention, methods=["GET"], dependencies=auth)
-    r.add_api_route("/presence/interruption", _presence_interruption, methods=["GET"], dependencies=auth)
+    r.add_api_route(
+        "/presence/interruption", _presence_interruption, methods=["GET"], dependencies=auth
+    )
     r.add_api_route("/presence/timeline", _presence_timeline, methods=["GET"], dependencies=auth)
-    r.add_api_route("/presence/history", _presence_session_history, methods=["GET"], dependencies=auth)
+    r.add_api_route(
+        "/presence/history", _presence_session_history, methods=["GET"], dependencies=auth
+    )
 
     # ── Phase 9: Command Runtime routes ─────────────────────────
     r.add_api_route("/command/status", _command_status, methods=["GET"], dependencies=auth)
@@ -180,33 +289,92 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/command/history", _command_history, methods=["GET"], dependencies=auth)
     r.add_api_route("/command/pending", _command_pending, methods=["GET"], dependencies=auth)
     r.add_api_route("/command/timeline", _command_timeline, methods=["GET"], dependencies=auth)
-    r.add_api_route("/command/{command_id}/approve", _command_approve, methods=["POST"], dependencies=auth)
-    r.add_api_route("/command/{command_id}/reject", _command_reject, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/command/{command_id}/approve", _command_approve, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/command/{command_id}/reject", _command_reject, methods=["POST"], dependencies=auth
+    )
 
     # ── Phase 10: Workstation Runtime routes ──────────────────────
-    r.add_api_route("/workstation/prepare", _workstation_prepare, methods=["POST"], dependencies=auth)
-    r.add_api_route("/workstation/restore", _workstation_restore, methods=["POST"], dependencies=auth)
-    r.add_api_route("/workstation/templates", _workstation_templates, methods=["GET"], dependencies=auth)
-    r.add_api_route("/workstation/snapshots", _workstation_snapshots, methods=["GET"], dependencies=auth)
-    r.add_api_route("/workstation/snapshots/take", _workstation_take_snapshot, methods=["POST"], dependencies=auth)
-    r.add_api_route("/workstation/recommendations", _workstation_recommendations, methods=["GET"], dependencies=auth)
+    r.add_api_route(
+        "/workstation/prepare", _workstation_prepare, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/workstation/restore", _workstation_restore, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/workstation/templates", _workstation_templates, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/workstation/snapshots", _workstation_snapshots, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/workstation/snapshots/take",
+        _workstation_take_snapshot,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/workstation/recommendations",
+        _workstation_recommendations,
+        methods=["GET"],
+        dependencies=auth,
+    )
     r.add_api_route("/workstation/state", _workstation_state, methods=["GET"], dependencies=auth)
+
+    # ── Phase 11: Profile Runtime routes ─────────────────────────
+    r.add_api_route("/profile/state", _profile_state, methods=["GET"], dependencies=auth)
+    r.add_api_route("/profile/profiles", _profile_profiles, methods=["GET"], dependencies=auth)
+    r.add_api_route(
+        "/profile/system-modes", _profile_system_modes, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/profile/activate-profile", _profile_activate_profile, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/profile/deactivate-profile",
+        _profile_deactivate_profile,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/profile/activate-system-mode",
+        _profile_activate_system_mode,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/profile/deactivate-system-mode",
+        _profile_deactivate_system_mode,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/profile/activation-plan", _profile_activation_plan, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route("/profile/conflicts", _profile_conflicts, methods=["GET"], dependencies=auth)
+    r.add_api_route("/profile/timeline", _profile_timeline, methods=["GET"], dependencies=auth)
+    r.add_api_route("/profile/context", _profile_context, methods=["GET"], dependencies=auth)
 
     return r
 
 
 def _get_queue():
     from substrate.organism.universal_work_queue import UniversalWorkQueue
+
     return UniversalWorkQueue()
 
 
 def _get_runner():
     from substrate.organism.agent_execution_runner import AgentExecutionRunner
+
     return AgentExecutionRunner()
 
 
 def _get_sandbox_manager():
     from substrate.organism.worktree_sandbox import SandboxManager
+
     return SandboxManager()
 
 
@@ -236,6 +404,7 @@ def _record_outcome_internal(
     """Write outcome to reality model."""
     try:
         from substrate.reality_model.instance import InstanceRealityModel, InstanceObservation
+
         org_id = os.environ.get("UMH_ORG_ID", os.environ.get("EOS_ORG_ID", "default"))
         user_id = os.environ.get("UMH_USER_ID", os.environ.get("EOS_USER_ID", "default"))
         instance = InstanceRealityModel(user_id=user_id, org_id=org_id)
@@ -298,7 +467,9 @@ async def _submit_intent(request: Request):
     if non_goals:
         packet.failure_criteria = non_goals if isinstance(non_goals, list) else [non_goals]
     if acceptance_criteria:
-        packet.success_criteria = acceptance_criteria if isinstance(acceptance_criteria, list) else [acceptance_criteria]
+        packet.success_criteria = (
+            acceptance_criteria if isinstance(acceptance_criteria, list) else [acceptance_criteria]
+        )
     if quality_bar:
         packet.validation_plan = f"Quality bar: {quality_bar}. {packet.validation_plan or ''}"
     if approval_policy == "auto":
@@ -308,7 +479,9 @@ async def _submit_intent(request: Request):
     if risk_tolerance and risk_tolerance in ("low", "medium", "high", "critical"):
         packet.risk_class = risk_tolerance
         if risk_tolerance in ("high", "critical"):
-            packet.approval_gates = list(set(packet.approval_gates + ["operator_approval_required"]))
+            packet.approval_gates = list(
+                set(packet.approval_gates + ["operator_approval_required"])
+            )
     if proof_required:
         proofs = proof_required if isinstance(proof_required, list) else [proof_required]
         existing = packet.validation_plan or ""
@@ -321,13 +494,16 @@ async def _submit_intent(request: Request):
 
     needs_approval = bool(packet.approval_gates)
 
-    _audit_log("intent_submitted", {
-        "packet_id": packet.packet_id,
-        "user_intent": user_intent[:500],
-        "risk_class": packet.risk_class,
-        "needs_approval": needs_approval,
-        "execution_mode": execution_mode,
-    })
+    _audit_log(
+        "intent_submitted",
+        {
+            "packet_id": packet.packet_id,
+            "user_intent": user_intent[:500],
+            "risk_class": packet.risk_class,
+            "needs_approval": needs_approval,
+            "execution_mode": execution_mode,
+        },
+    )
 
     return {
         "success": True,
@@ -357,11 +533,14 @@ async def _generate_plan(request: Request):
     runner = _get_runner()
     plan = runner.generate_plan(pkt)
 
-    _audit_log("plan_generated", {
-        "packet_id": packet_id,
-        "plan_id": plan.plan_id,
-        "objectives": plan.objectives[:5],
-    })
+    _audit_log(
+        "plan_generated",
+        {
+            "packet_id": packet_id,
+            "plan_id": plan.plan_id,
+            "objectives": plan.objectives[:5],
+        },
+    )
 
     return {
         "success": True,
@@ -457,7 +636,9 @@ async def _approve_packet(request: Request):
         return {"success": False, "error": f"Cannot approve from status '{current.value}'"}
 
     for next_status in transitions_needed:
-        ok = queue.update_packet_status(packet_id, next_status, f"operator approved → {next_status.value}")
+        ok = queue.update_packet_status(
+            packet_id, next_status, f"operator approved → {next_status.value}"
+        )
         if not ok:
             return {"success": False, "error": f"Transition to {next_status.value} failed"}
 
@@ -522,8 +703,12 @@ async def _execute_packet(request: Request):
         queue.update_packet_status(packet_id, PacketLifecycleStatus.DELEGATED, "delegated")
     elif pkt.status == PacketLifecycleStatus.CLASSIFIED and not pkt.approval_gates:
         queue.update_packet_status(packet_id, PacketLifecycleStatus.PLANNED, "auto-planned")
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.READY_FOR_REVIEW, "auto-reviewed")
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.APPROVAL_PENDING, "auto-pending")
+        queue.update_packet_status(
+            packet_id, PacketLifecycleStatus.READY_FOR_REVIEW, "auto-reviewed"
+        )
+        queue.update_packet_status(
+            packet_id, PacketLifecycleStatus.APPROVAL_PENDING, "auto-pending"
+        )
         queue.update_packet_status(packet_id, PacketLifecycleStatus.APPROVED, "auto-approved")
         queue.update_packet_status(packet_id, PacketLifecycleStatus.DELEGATED, "auto-delegated")
     elif pkt.status == PacketLifecycleStatus.DELEGATED:
@@ -533,11 +718,14 @@ async def _execute_packet(request: Request):
 
     queue.update_packet_status(packet_id, PacketLifecycleStatus.EXECUTING, "execution started")
 
-    _audit_log("packet_executing", {
-        "packet_id": packet_id,
-        "mode": mode,
-        "risk_class": pkt.risk_class,
-    })
+    _audit_log(
+        "packet_executing",
+        {
+            "packet_id": packet_id,
+            "mode": mode,
+            "risk_class": pkt.risk_class,
+        },
+    )
 
     runner = _get_runner()
     pkt = queue.get_packet(packet_id)
@@ -549,13 +737,23 @@ async def _execute_packet(request: Request):
             pass
         else:
             from substrate.organism.agent_execution_runner import AgentExecutionPlan
-            plan = AgentExecutionPlan(**{k: v for k, v in plan_data.items() if k in AgentExecutionPlan.__dataclass_fields__})
+
+            plan = AgentExecutionPlan(
+                **{
+                    k: v
+                    for k, v in plan_data.items()
+                    if k in AgentExecutionPlan.__dataclass_fields__
+                }
+            )
     elif mode in ("implement", "implement_and_validate"):
         plan = runner.generate_plan(pkt)
-        _audit_log("plan_auto_generated", {
-            "packet_id": packet_id,
-            "plan_id": plan.plan_id,
-        })
+        _audit_log(
+            "plan_auto_generated",
+            {
+                "packet_id": packet_id,
+                "plan_id": plan.plan_id,
+            },
+        )
 
     record = runner.execute(pkt, mode=mode, plan=plan)
 
@@ -571,7 +769,9 @@ async def _execute_packet(request: Request):
     if record.success:
         queue.update_packet_status(packet_id, PacketLifecycleStatus.VALIDATING, "validated")
     else:
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.FAILED, record.error or "execution failed")
+        queue.update_packet_status(
+            packet_id, PacketLifecycleStatus.FAILED, record.error or "execution failed"
+        )
 
     _record_outcome_internal(
         packet_id=packet_id,
@@ -585,14 +785,17 @@ async def _execute_packet(request: Request):
         confidence=0.9 if record.success else 0.5,
     )
 
-    _audit_log("execution_complete", {
-        "packet_id": packet_id,
-        "record_id": record.record_id,
-        "mode": mode,
-        "success": record.success,
-        "files_changed": record.files_changed[:20],
-        "duration_seconds": record.duration_seconds,
-    })
+    _audit_log(
+        "execution_complete",
+        {
+            "packet_id": packet_id,
+            "record_id": record.record_id,
+            "mode": mode,
+            "success": record.success,
+            "files_changed": record.files_changed[:20],
+            "duration_seconds": record.duration_seconds,
+        },
+    )
 
     return {
         "success": True,
@@ -610,11 +813,15 @@ async def _execute_packet(request: Request):
         "duration_seconds": record.duration_seconds,
         "error": record.error,
         "plan": plan.to_dict() if plan else None,
-        "failure_report": runner.get_failure(packet_id).to_dict() if runner.get_failure(packet_id) else None,
+        "failure_report": runner.get_failure(packet_id).to_dict()
+        if runner.get_failure(packet_id)
+        else None,
         "needs_review": pkt.risk_class in ("high", "critical") and record.success,
         "next_action": (
-            "review" if pkt.risk_class in ("high", "critical") and record.success
-            else "complete" if record.success
+            "review"
+            if pkt.risk_class in ("high", "critical") and record.success
+            else "complete"
+            if record.success
             else "retry_or_escalate"
         ),
     }
@@ -642,9 +849,13 @@ async def _complete_packet(request: Request):
     if success:
         if pkt.status != PacketLifecycleStatus.VALIDATING:
             queue.update_packet_status(packet_id, PacketLifecycleStatus.VALIDATING, "pre-complete")
-        ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.COMPLETED, outcome or "completed")
+        ok = queue.update_packet_status(
+            packet_id, PacketLifecycleStatus.COMPLETED, outcome or "completed"
+        )
     else:
-        ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.FAILED, outcome or "failed")
+        ok = queue.update_packet_status(
+            packet_id, PacketLifecycleStatus.FAILED, outcome or "failed"
+        )
 
     pkt = queue.get_packet(packet_id)
     pkt.outcome_summary = outcome[:500] if outcome else ""
@@ -657,7 +868,9 @@ async def _complete_packet(request: Request):
         confidence=0.85 if success else 0.5,
     )
 
-    _audit_log("packet_completed", {"packet_id": packet_id, "success": success, "outcome": outcome[:500]})
+    _audit_log(
+        "packet_completed", {"packet_id": packet_id, "success": success, "outcome": outcome[:500]}
+    )
     return {"success": ok, "packet_id": packet_id, "status": "completed" if success else "failed"}
 
 
@@ -725,9 +938,17 @@ async def _pending_approvals():
 
 async def _active_packets():
     queue = _get_queue()
-    active = [p for p in queue.all_packets() if p.status.value in (
-        "executing", "delegated", "reconverging", "validating",
-    )]
+    active = [
+        p
+        for p in queue.all_packets()
+        if p.status.value
+        in (
+            "executing",
+            "delegated",
+            "reconverging",
+            "validating",
+        )
+    ]
     return [p.to_safe_dict() for p in active]
 
 
@@ -909,6 +1130,7 @@ async def _empire_route(request: Request) -> dict:
 
     try:
         from substrate.organism.empire_router import EmpireRouter
+
         router = EmpireRouter()
         result = router.route(
             intent=intent,
@@ -919,13 +1141,16 @@ async def _empire_route(request: Request) -> dict:
             operator_available=operator_available,
         )
 
-        _audit_log("empire_route", {
-            "routing_id": result.routing_id,
-            "domain": result.domain,
-            "scope": result.scope,
-            "packet_count": len(result.work_packets),
-            "intent_preview": intent[:100],
-        })
+        _audit_log(
+            "empire_route",
+            {
+                "routing_id": result.routing_id,
+                "domain": result.domain,
+                "scope": result.scope,
+                "packet_count": len(result.work_packets),
+                "intent_preview": intent[:100],
+            },
+        )
 
         return {
             "success": True,
@@ -940,6 +1165,7 @@ async def _empire_domains(request: Request) -> list:
     """Return all domain definitions."""
     try:
         from substrate.organism.empire_router import EmpireRouter
+
         router = EmpireRouter()
         return router.get_domain_summary()
     except Exception as exc:
@@ -951,6 +1177,7 @@ async def _empire_agents(request: Request) -> list:
     """Return all agent type definitions."""
     try:
         from substrate.organism.empire_router import EmpireRouter
+
         router = EmpireRouter()
         return router.get_agent_summary()
     except Exception as exc:
@@ -962,6 +1189,7 @@ async def _empire_reality(request: Request) -> dict:
     """Return current reality model snapshot."""
     try:
         from substrate.organism.empire_router import EmpireRouter
+
         router = EmpireRouter()
         snapshot = router.get_reality_snapshot()
         return {"success": True, "reality": snapshot.to_dict()}
@@ -996,6 +1224,7 @@ async def _empire_next_actions(request: Request) -> dict:
     """Return computed next best actions."""
     try:
         from substrate.organism.empire_router import EmpireRouter
+
         router = EmpireRouter()
         snapshot = router.get_reality_snapshot()
         return {
@@ -1015,6 +1244,7 @@ async def _empire_next_actions(request: Request) -> dict:
 
 def _get_gap_engine():
     from substrate.organism.strategic_gap_engine import StrategicGapEngine
+
     return StrategicGapEngine()
 
 
@@ -1023,10 +1253,13 @@ async def _strategy_analyze(request: Request) -> dict:
     try:
         engine = _get_gap_engine()
         result = engine.analyze()
-        _audit_log("strategy_analyze", {
-            "gap_count": result["gap_count"],
-            "recommendation_count": result["recommendation_count"],
-        })
+        _audit_log(
+            "strategy_analyze",
+            {
+                "gap_count": result["gap_count"],
+                "recommendation_count": result["recommendation_count"],
+            },
+        )
         return {"success": True, **result}
     except Exception as exc:
         logger.error("strategy analyze failed: %s", exc, exc_info=True)
@@ -1052,17 +1285,24 @@ async def _strategy_add_goal(request: Request) -> dict:
     """Add a new goal."""
     try:
         body = await request.json()
-        from substrate.organism.strategic_gap_engine import Goal, GoalType, GoalStatus, SuccessCriterion
+        from substrate.organism.strategic_gap_engine import (
+            Goal,
+            GoalType,
+            GoalStatus,
+            SuccessCriterion,
+        )
 
         criteria = []
         for c in body.get("success_criteria", []):
-            criteria.append(SuccessCriterion(
-                description=c.get("description", ""),
-                measurable=c.get("measurable", True),
-                current_value=c.get("current_value", ""),
-                target_value=c.get("target_value", ""),
-                met=c.get("met", False),
-            ))
+            criteria.append(
+                SuccessCriterion(
+                    description=c.get("description", ""),
+                    measurable=c.get("measurable", True),
+                    current_value=c.get("current_value", ""),
+                    target_value=c.get("target_value", ""),
+                    met=c.get("met", False),
+                )
+            )
 
         goal = Goal(
             title=body.get("title", ""),
@@ -1082,11 +1322,14 @@ async def _strategy_add_goal(request: Request) -> dict:
         engine = _get_gap_engine()
         engine.goal_registry.add(goal)
 
-        _audit_log("strategy_goal_added", {
-            "goal_id": goal.goal_id,
-            "title": goal.title,
-            "domain": goal.domain,
-        })
+        _audit_log(
+            "strategy_goal_added",
+            {
+                "goal_id": goal.goal_id,
+                "title": goal.title,
+                "domain": goal.domain,
+            },
+        )
 
         return {"success": True, "goal": goal.to_dict()}
     except Exception as exc:
@@ -1145,10 +1388,13 @@ async def _strategy_update_goal(request: Request) -> dict:
 
         engine.goal_registry.update(goal)
 
-        _audit_log("strategy_goal_updated", {
-            "goal_id": goal.goal_id,
-            "title": goal.title,
-        })
+        _audit_log(
+            "strategy_goal_updated",
+            {
+                "goal_id": goal.goal_id,
+                "title": goal.title,
+            },
+        )
 
         return {"success": True, "goal": goal.to_dict()}
     except Exception as exc:
@@ -1212,10 +1458,13 @@ async def _strategy_approve_rec(request: Request) -> dict:
         result = engine.approve_recommendation(rec_id, reason)
 
         if result.get("success"):
-            _audit_log("strategy_rec_approved", {
-                "recommendation_id": rec_id,
-                "packet_id": result.get("packet_id", ""),
-            })
+            _audit_log(
+                "strategy_rec_approved",
+                {
+                    "recommendation_id": rec_id,
+                    "packet_id": result.get("packet_id", ""),
+                },
+            )
 
         return result
     except Exception as exc:
@@ -1233,10 +1482,13 @@ async def _strategy_reject_rec(request: Request) -> dict:
         result = engine.reject_recommendation(rec_id, reason)
 
         if result.get("success"):
-            _audit_log("strategy_rec_rejected", {
-                "recommendation_id": rec_id,
-                "reason": reason[:200],
-            })
+            _audit_log(
+                "strategy_rec_rejected",
+                {
+                    "recommendation_id": rec_id,
+                    "reason": reason[:200],
+                },
+            )
 
         return result
     except Exception as exc:
@@ -1270,10 +1522,13 @@ async def _strategy_record_outcome(request: Request) -> dict:
         result = engine.record_outcome(decision_id, was_effective, summary)
 
         if result.get("success"):
-            _audit_log("strategy_outcome_recorded", {
-                "decision_id": decision_id,
-                "was_effective": was_effective,
-            })
+            _audit_log(
+                "strategy_outcome_recorded",
+                {
+                    "decision_id": decision_id,
+                    "was_effective": was_effective,
+                },
+            )
 
         return result
     except Exception as exc:
@@ -1286,6 +1541,7 @@ async def _strategy_record_outcome(request: Request) -> dict:
 
 def _get_tick_loop():
     from substrate.organism.strategic_tick_loop import get_tick_loop
+
     return get_tick_loop()
 
 
@@ -1314,12 +1570,15 @@ async def _tick_execute(request: Request) -> dict:
     try:
         loop = _get_tick_loop()
         record = loop.execute_tick()
-        _audit_log("tick_executed", {
-            "tick_id": record.tick_id,
-            "change_detected": record.change_detected,
-            "analysis_ran": record.analysis_ran,
-            "gaps_found": record.gaps_found,
-        })
+        _audit_log(
+            "tick_executed",
+            {
+                "tick_id": record.tick_id,
+                "change_detected": record.change_detected,
+                "analysis_ran": record.analysis_ran,
+                "gaps_found": record.gaps_found,
+            },
+        )
         return {"success": True, "tick": record.to_dict()}
     except Exception as exc:
         logger.error("tick execute failed: %s", exc, exc_info=True)
@@ -1334,6 +1593,7 @@ async def _tick_start(request: Request) -> dict:
         loop = _get_tick_loop()
         if freq:
             from substrate.organism.strategic_tick_loop import TickFrequency
+
             loop.frequency = TickFrequency(freq)
         loop.start()
         _audit_log("tick_started", {"frequency": loop.frequency.value})
@@ -1385,6 +1645,7 @@ async def _tick_set_frequency(request: Request) -> dict:
         body = await request.json()
         freq = body.get("frequency", "1m")
         from substrate.organism.strategic_tick_loop import TickFrequency
+
         loop = _get_tick_loop()
         loop.frequency = TickFrequency(freq)
         _audit_log("tick_frequency_changed", {"frequency": freq})
@@ -1431,6 +1692,7 @@ async def _tick_accept_candidate(request: Request) -> dict:
     candidate_id = request.path_params.get("candidate_id", "")
     try:
         from substrate.organism.strategic_tick_loop import RecommendationLifecycle
+
         loop = _get_tick_loop()
         success = loop.candidate_queue.update_lifecycle(
             candidate_id, RecommendationLifecycle.ACCEPTED
@@ -1448,6 +1710,7 @@ async def _tick_reject_candidate(request: Request) -> dict:
     candidate_id = request.path_params.get("candidate_id", "")
     try:
         from substrate.organism.strategic_tick_loop import RecommendationLifecycle
+
         loop = _get_tick_loop()
         success = loop.candidate_queue.update_lifecycle(
             candidate_id, RecommendationLifecycle.REJECTED
@@ -1495,6 +1758,7 @@ async def _tick_history(request: Request) -> dict:
 
 def _get_projection_engine():
     from substrate.organism.projection_engine import get_projection_engine
+
     return get_projection_engine()
 
 
@@ -1521,7 +1785,11 @@ async def _projection_state(request: Request) -> dict:
 async def _projection_run(request: Request) -> dict:
     """Run full projection cycle."""
     try:
-        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        body = (
+            await request.json()
+            if request.headers.get("content-type") == "application/json"
+            else {}
+        )
     except Exception:
         body = {}
 
@@ -1531,6 +1799,7 @@ async def _projection_run(request: Request) -> dict:
     horizons = None
     if horizons_raw:
         from substrate.organism.projection_engine import TimeHorizon
+
         try:
             horizons = [TimeHorizon(h) for h in horizons_raw]
         except (ValueError, KeyError):
@@ -1539,12 +1808,15 @@ async def _projection_run(request: Request) -> dict:
     try:
         engine = _get_projection_engine()
         result = engine.run_projections(horizons=horizons, domains=domains)
-        _audit_log("projection_run", {
-            "run_number": result.get("run_number"),
-            "projection_count": result.get("projection_count"),
-            "risk_count": result.get("risk_count"),
-            "opportunity_count": result.get("opportunity_count"),
-        })
+        _audit_log(
+            "projection_run",
+            {
+                "run_number": result.get("run_number"),
+                "projection_count": result.get("projection_count"),
+                "risk_count": result.get("risk_count"),
+                "opportunity_count": result.get("opportunity_count"),
+            },
+        )
         return {"success": True, **result}
     except Exception as exc:
         logger.error("projection run failed: %s", exc)
@@ -1626,6 +1898,7 @@ async def _projection_projected_reality(request: Request) -> dict:
     """Return projected reality for gap analysis integration."""
     try:
         from substrate.organism.projection_engine import TimeHorizon
+
         horizon_str = request.query_params.get("horizon", "7d")
         try:
             horizon = TimeHorizon(horizon_str)
@@ -1659,10 +1932,13 @@ async def _projection_record_outcome(request: Request) -> dict:
         engine = _get_projection_engine()
         result = engine.record_outcome(projection_id, actual_state, was_accurate, accuracy_score)
         if result.get("success"):
-            _audit_log("projection_outcome_recorded", {
-                "projection_id": projection_id,
-                "was_accurate": was_accurate,
-            })
+            _audit_log(
+                "projection_outcome_recorded",
+                {
+                    "projection_id": projection_id,
+                    "was_accurate": was_accurate,
+                },
+            )
         return result
     except Exception as exc:
         logger.error("projection record outcome failed: %s", exc)
@@ -1674,6 +1950,7 @@ async def _projection_record_outcome(request: Request) -> dict:
 
 def _get_continuity_runtime():
     from substrate.organism.continuity_runtime import get_continuity_runtime
+
     return get_continuity_runtime()
 
 
@@ -1722,10 +1999,13 @@ async def _continuity_resume(request: Request) -> dict:
     try:
         rt = _get_continuity_runtime()
         report = rt.generate_resume()
-        _audit_log("continuity_resume_generated", {
-            "total_changes": report.total_changes,
-            "absence_seconds": report.absence_duration_seconds,
-        })
+        _audit_log(
+            "continuity_resume_generated",
+            {
+                "total_changes": report.total_changes,
+                "absence_seconds": report.absence_duration_seconds,
+            },
+        )
         return {"success": True, "report": report.to_dict()}
     except Exception as exc:
         logger.error("continuity resume failed: %s", exc)
@@ -1790,14 +2070,19 @@ async def _continuity_handoff(request: Request) -> dict:
     try:
         rt = _get_continuity_runtime()
         handoff = rt.record_session_handoff(
-            from_session, to_session,
+            from_session,
+            to_session,
             body.get("from_profile", ""),
             body.get("to_profile", ""),
         )
-        _audit_log("continuity_handoff", {
-            "from": from_session, "to": to_session,
-            "handoff_id": handoff.handoff_id,
-        })
+        _audit_log(
+            "continuity_handoff",
+            {
+                "from": from_session,
+                "to": to_session,
+                "handoff_id": handoff.handoff_id,
+            },
+        )
         return {"success": True, "handoff": handoff.to_dict()}
     except Exception as exc:
         logger.error("continuity handoff failed: %s", exc)
@@ -1819,6 +2104,7 @@ async def _continuity_interaction(request: Request) -> dict:
 
 def _get_presence_runtime():
     from substrate.organism.presence_runtime import get_presence_runtime
+
     return get_presence_runtime()
 
 
@@ -1891,10 +2177,13 @@ async def _presence_register_session(request: Request) -> dict:
             control_surface=body.get("control_surface", ""),
             interaction_surface=body.get("interaction_surface", "none"),
         )
-        _audit_log("presence_session_registered", {
-            "session_id": session_id,
-            "device_id": body.get("device_id", ""),
-        })
+        _audit_log(
+            "presence_session_registered",
+            {
+                "session_id": session_id,
+                "device_id": body.get("device_id", ""),
+            },
+        )
         return {"success": True, "session": session.to_dict()}
     except Exception as exc:
         logger.error("presence register session failed: %s", exc)
@@ -2030,6 +2319,7 @@ async def _presence_session_history(request: Request) -> dict:
 
 def _get_command_runtime():
     from substrate.organism.command_runtime import get_command_runtime
+
     return get_command_runtime()
 
 
@@ -2072,6 +2362,7 @@ async def _command_classify(request: Request) -> dict:
             return {"success": False, "error": "raw_input required"}
 
         from substrate.organism.command_runtime import CommandClassifier
+
         classifier = CommandClassifier()
         action_type, confidence = classifier.classify(raw_input)
         return {
@@ -2112,8 +2403,10 @@ async def _command_timeline(request: Request) -> dict:
         event_type = request.query_params.get("type", "")
         limit = int(request.query_params.get("limit", "100"))
         events = rt.get_timeline(
-            since=since, command_id=command_id,
-            event_type=event_type, limit=limit,
+            since=since,
+            command_id=command_id,
+            event_type=event_type,
+            limit=limit,
         )
         return {"success": True, "events": events}
     except Exception as exc:
@@ -2156,6 +2449,7 @@ async def _command_reject(request: Request) -> dict:
 
 def _get_workstation_runtime():
     from substrate.organism.workstation_runtime import get_workstation_runtime
+
     return get_workstation_runtime()
 
 
@@ -2240,4 +2534,140 @@ async def _workstation_state(request: Request) -> dict:
         return {"success": True, "state": rt.get_state()}
     except Exception as exc:
         logger.error("workstation state failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+# ── Phase 11: Profile Runtime handlers ───────────────────────────
+
+
+def _get_profile_runtime():
+    from substrate.organism.profile_runtime import get_profile_runtime
+
+    return get_profile_runtime()
+
+
+async def _profile_state(request: Request) -> dict:
+    try:
+        rt = _get_profile_runtime()
+        return {"success": True, "state": rt.get_state()}
+    except Exception as exc:
+        logger.error("profile state failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _profile_profiles(request: Request) -> dict:
+    try:
+        rt = _get_profile_runtime()
+        return {"success": True, "profiles": rt.get_profiles()}
+    except Exception as exc:
+        logger.error("profile profiles failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _profile_system_modes(request: Request) -> dict:
+    try:
+        rt = _get_profile_runtime()
+        return {"success": True, "system_modes": rt.get_system_modes()}
+    except Exception as exc:
+        logger.error("profile system modes failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _profile_activate_profile(request: Request) -> dict:
+    try:
+        body = await request.json()
+        profile_mode = body.get("profile_mode", "")
+        source = body.get("source", "cockpit")
+        manual_override = body.get("manual_override", False)
+        if not profile_mode:
+            return {"success": False, "error": "profile_mode is required"}
+        rt = _get_profile_runtime()
+        result = rt.activate_profile(profile_mode, source=source, manual_override=manual_override)
+        _audit_log("profile_activated", {"profile": profile_mode, "source": source})
+        return result
+    except Exception as exc:
+        logger.error("profile activate failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _profile_deactivate_profile(request: Request) -> dict:
+    try:
+        rt = _get_profile_runtime()
+        result = rt.deactivate_profile()
+        _audit_log("profile_deactivated", {})
+        return result
+    except Exception as exc:
+        logger.error("profile deactivate failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _profile_activate_system_mode(request: Request) -> dict:
+    try:
+        body = await request.json()
+        mode_name = body.get("mode_name", "")
+        source = body.get("source", "cockpit")
+        if not mode_name:
+            return {"success": False, "error": "mode_name is required"}
+        rt = _get_profile_runtime()
+        result = rt.activate_system_mode(mode_name, source=source)
+        _audit_log("system_mode_activated", {"mode": mode_name, "source": source})
+        return result
+    except Exception as exc:
+        logger.error("system mode activate failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _profile_deactivate_system_mode(request: Request) -> dict:
+    try:
+        body = await request.json()
+        mode_name = body.get("mode_name", "")
+        if not mode_name:
+            return {"success": False, "error": "mode_name is required"}
+        rt = _get_profile_runtime()
+        result = rt.deactivate_system_mode(mode_name)
+        _audit_log("system_mode_deactivated", {"mode": mode_name})
+        return result
+    except Exception as exc:
+        logger.error("system mode deactivate failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _profile_activation_plan(request: Request) -> dict:
+    try:
+        rt = _get_profile_runtime()
+        plan = rt.get_activation_plan()
+        return {"success": True, "plan": plan}
+    except Exception as exc:
+        logger.error("profile activation plan failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _profile_conflicts(request: Request) -> dict:
+    try:
+        rt = _get_profile_runtime()
+        conflicts = rt.detect_conflicts()
+        return {"success": True, "conflicts": [c.to_dict() for c in conflicts]}
+    except Exception as exc:
+        logger.error("profile conflicts failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _profile_timeline(request: Request) -> dict:
+    try:
+        rt = _get_profile_runtime()
+        limit = int(request.query_params.get("limit", "50"))
+        events = rt.get_timeline(limit)
+        return {"success": True, "events": events}
+    except Exception as exc:
+        logger.error("profile timeline failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _profile_context(request: Request) -> dict:
+    try:
+        rt = _get_profile_runtime()
+        ctx = rt.get_context()
+        return {"success": True, "context": ctx.to_dict()}
+    except Exception as exc:
+        logger.error("profile context failed: %s", exc)
         return {"success": False, "error": str(exc)}

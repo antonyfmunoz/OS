@@ -283,7 +283,6 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "OpportunityDetector": ["substrate.organism.projection_engine"],
     "ProjectionGenerator": ["substrate.organism.projection_engine"],
     "ProjectionEngine": ["substrate.organism.projection_engine"],
-
     # Phase 7: Continuity Runtime
     "AttentionState": ["substrate.organism.continuity_runtime"],
     "TimelineEventType": ["substrate.organism.continuity_runtime"],
@@ -356,6 +355,31 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "RecommendationEngine": ["substrate.organism.workstation_runtime"],
     "PreparationSequencer": ["substrate.organism.workstation_runtime"],
     "WorkstationRuntime": ["substrate.organism.workstation_runtime"],
+    # Phase 11: Profile Runtime
+    "ProfileModeEnum": ["substrate.organism.profile_runtime"],
+    "SystemModeEnum": ["substrate.organism.profile_runtime"],
+    "ActivationSource": ["substrate.organism.profile_runtime"],
+    "ProfileEventType": ["substrate.organism.profile_runtime"],
+    "ConflictSeverity": ["substrate.organism.profile_runtime"],
+    "Profile": ["substrate.organism.profile_runtime"],
+    "SystemMode": ["substrate.organism.profile_runtime"],
+    "ProfileModeState": ["substrate.organism.profile_runtime"],
+    "ProfileModeTransition": ["substrate.organism.profile_runtime"],
+    "ProfilePreference": ["substrate.organism.profile_runtime"],
+    "ProfileContext": ["substrate.organism.profile_runtime"],
+    "ProfileActivationPlan": ["substrate.organism.profile_runtime"],
+    "ProfileRuntimeSnapshot": ["substrate.organism.profile_runtime"],
+    "ProfileConflict": ["substrate.organism.profile_runtime"],
+    "ProfileRecommendation": ["substrate.organism.profile_runtime"],
+    "ProfileRegistry": ["substrate.organism.profile_runtime"],
+    "SystemModeRegistry": ["substrate.organism.profile_runtime"],
+    "ProfileModeStateMachine": ["substrate.organism.profile_runtime"],
+    "SystemModeStateMachine": ["substrate.organism.profile_runtime"],
+    "ConflictDetector": ["substrate.organism.profile_runtime"],
+    "ProfileActivationPlanner": ["substrate.organism.profile_runtime"],
+    "ProfileTimeline": ["substrate.organism.profile_runtime"],
+    "ProfileContextAssembler": ["substrate.organism.profile_runtime"],
+    "ProfileRuntime": ["substrate.organism.profile_runtime"],
 }
 
 

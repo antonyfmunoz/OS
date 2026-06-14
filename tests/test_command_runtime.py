@@ -22,15 +22,26 @@ sys.path.insert(0, "/opt/OS")
 class TestCommandActionType(unittest.TestCase):
     def test_values(self):
         from substrate.organism.command_runtime import CommandActionType
+
         expected = {
-            "query", "execute", "review", "approve", "reject", "schedule",
-            "switch_profile", "switch_session", "create_objective",
-            "create_workpacket", "create_sequence",
+            "query",
+            "execute",
+            "review",
+            "approve",
+            "reject",
+            "schedule",
+            "switch_profile",
+            "switch_session",
+            "switch_system_mode",
+            "create_objective",
+            "create_workpacket",
+            "create_sequence",
         }
         self.assertEqual({e.value for e in CommandActionType}, expected)
 
     def test_is_mutation(self):
         from substrate.organism.command_runtime import CommandActionType
+
         self.assertFalse(CommandActionType.QUERY.is_mutation)
         self.assertFalse(CommandActionType.REVIEW.is_mutation)
         self.assertTrue(CommandActionType.EXECUTE.is_mutation)
@@ -41,6 +52,7 @@ class TestCommandActionType(unittest.TestCase):
 
     def test_requires_approval(self):
         from substrate.organism.command_runtime import CommandActionType
+
         self.assertTrue(CommandActionType.EXECUTE.requires_approval)
         self.assertTrue(CommandActionType.CREATE_SEQUENCE.requires_approval)
         self.assertFalse(CommandActionType.QUERY.requires_approval)
@@ -51,6 +63,7 @@ class TestCommandActionType(unittest.TestCase):
 class TestCommandStatus(unittest.TestCase):
     def test_terminal_states(self):
         from substrate.organism.command_runtime import CommandStatus
+
         self.assertTrue(CommandStatus.COMPLETED.is_terminal)
         self.assertTrue(CommandStatus.FAILED.is_terminal)
         self.assertTrue(CommandStatus.CANCELLED.is_terminal)
@@ -63,6 +76,7 @@ class TestCommandStatus(unittest.TestCase):
 class TestCommandSource(unittest.TestCase):
     def test_values(self):
         from substrate.organism.command_runtime import CommandSource
+
         expected = {"cockpit", "voice", "api", "meeting", "mobile", "tick_loop", "internal"}
         self.assertEqual({e.value for e in CommandSource}, expected)
 
@@ -70,6 +84,7 @@ class TestCommandSource(unittest.TestCase):
 class TestCommandEventType(unittest.TestCase):
     def test_values(self):
         from substrate.organism.command_runtime import CommandEventType
+
         self.assertEqual(len(CommandEventType), 11)
 
 
@@ -79,17 +94,20 @@ class TestCommandEventType(unittest.TestCase):
 class TestCommand(unittest.TestCase):
     def test_default_id(self):
         from substrate.organism.command_runtime import Command
+
         cmd = Command(raw_input="test")
         self.assertTrue(cmd.command_id.startswith("cmd-"))
         self.assertEqual(len(cmd.command_id), 16)
 
     def test_default_timestamp(self):
         from substrate.organism.command_runtime import Command
+
         cmd = Command(raw_input="test")
         self.assertGreater(cmd.timestamp, 0)
 
     def test_to_dict(self):
         from substrate.organism.command_runtime import Command
+
         cmd = Command(raw_input="build something", source="cockpit")
         d = cmd.to_dict()
         self.assertEqual(d["raw_input"], "build something")
@@ -99,14 +117,29 @@ class TestCommand(unittest.TestCase):
 
     def test_all_fields_in_dict(self):
         from substrate.organism.command_runtime import Command
+
         cmd = Command()
         d = cmd.to_dict()
         expected_keys = {
-            "command_id", "source", "raw_input", "normalized_command",
-            "operator_id", "profile_mode", "session_id", "timestamp",
-            "confidence", "target_domain", "target_agents", "action_type",
-            "approval_required", "workpacket_id", "status", "context",
-            "routing_result", "outcome", "error",
+            "command_id",
+            "source",
+            "raw_input",
+            "normalized_command",
+            "operator_id",
+            "profile_mode",
+            "session_id",
+            "timestamp",
+            "confidence",
+            "target_domain",
+            "target_agents",
+            "action_type",
+            "approval_required",
+            "workpacket_id",
+            "status",
+            "context",
+            "routing_result",
+            "outcome",
+            "error",
         }
         self.assertEqual(set(d.keys()), expected_keys)
 
@@ -114,11 +147,13 @@ class TestCommand(unittest.TestCase):
 class TestCommandEvent(unittest.TestCase):
     def test_default_id(self):
         from substrate.organism.command_runtime import CommandEvent
+
         evt = CommandEvent(event_type="test", command_id="cmd-123")
         self.assertTrue(evt.event_id.startswith("cevt-"))
 
     def test_to_dict(self):
         from substrate.organism.command_runtime import CommandEvent
+
         evt = CommandEvent(event_type="command_received", command_id="cmd-abc")
         d = evt.to_dict()
         self.assertEqual(d["event_type"], "command_received")
@@ -128,6 +163,7 @@ class TestCommandEvent(unittest.TestCase):
 class TestCommandContext(unittest.TestCase):
     def test_to_dict(self):
         from substrate.organism.command_runtime import CommandContext
+
         ctx = CommandContext(profile_mode="developer", operator_present=True)
         d = ctx.to_dict()
         self.assertEqual(d["profile_mode"], "developer")
@@ -136,6 +172,7 @@ class TestCommandContext(unittest.TestCase):
 
     def test_defaults(self):
         from substrate.organism.command_runtime import CommandContext
+
         ctx = CommandContext()
         self.assertEqual(ctx.profile_mode, "")
         self.assertFalse(ctx.operator_present)
@@ -145,6 +182,7 @@ class TestCommandContext(unittest.TestCase):
 class TestCommandRoutingDecision(unittest.TestCase):
     def test_to_dict(self):
         from substrate.organism.command_runtime import CommandRoutingDecision
+
         dec = CommandRoutingDecision(
             command_id="cmd-123",
             action_type="query",
@@ -156,6 +194,7 @@ class TestCommandRoutingDecision(unittest.TestCase):
 
     def test_auto_timestamp(self):
         from substrate.organism.command_runtime import CommandRoutingDecision
+
         dec = CommandRoutingDecision()
         self.assertGreater(dec.decided_at, 0)
 
@@ -166,6 +205,7 @@ class TestCommandRoutingDecision(unittest.TestCase):
 class TestCommandClassifier(unittest.TestCase):
     def setUp(self):
         from substrate.organism.command_runtime import CommandClassifier
+
         self.classifier = CommandClassifier()
 
     def test_query_what(self):
@@ -260,10 +300,12 @@ class TestCommandClassifier(unittest.TestCase):
         self.assertEqual(conf, 0.5)
 
     def test_extract_profile_target(self):
-        self.assertEqual(self.classifier.extract_profile_target("switch to developer"), "developer")
-        self.assertEqual(self.classifier.extract_profile_target("switch to engineer profile"), "developer")
+        self.assertEqual(self.classifier.extract_profile_target("switch to developer"), "engineer")
+        self.assertEqual(
+            self.classifier.extract_profile_target("switch to engineer profile"), "engineer"
+        )
         self.assertEqual(self.classifier.extract_profile_target("activate research"), "research")
-        self.assertEqual(self.classifier.extract_profile_target("switch to music"), "music")
+        self.assertEqual(self.classifier.extract_profile_target("switch to music"), "artist")
         self.assertEqual(self.classifier.extract_profile_target("nothing here"), "")
 
     def test_extract_objective_text(self):
@@ -289,14 +331,17 @@ class TestCommandTimeline(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
         from substrate.organism.command_runtime import CommandTimeline
+
         self.timeline = CommandTimeline(data_dir=self.tmpdir)
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_emit_and_read(self):
         from substrate.organism.command_runtime import CommandEvent
+
         evt = CommandEvent(event_type="command_received", command_id="cmd-001", summary="test")
         self.timeline.emit(evt)
 
@@ -306,6 +351,7 @@ class TestCommandTimeline(unittest.TestCase):
 
     def test_filter_by_command_id(self):
         from substrate.organism.command_runtime import CommandEvent
+
         self.timeline.emit(CommandEvent(event_type="t", command_id="cmd-001", summary="a"))
         self.timeline.emit(CommandEvent(event_type="t", command_id="cmd-002", summary="b"))
 
@@ -315,6 +361,7 @@ class TestCommandTimeline(unittest.TestCase):
 
     def test_filter_by_event_type(self):
         from substrate.organism.command_runtime import CommandEvent
+
         self.timeline.emit(CommandEvent(event_type="command_received", command_id="cmd-001"))
         self.timeline.emit(CommandEvent(event_type="command_routed", command_id="cmd-001"))
 
@@ -324,6 +371,7 @@ class TestCommandTimeline(unittest.TestCase):
 
     def test_limit(self):
         from substrate.organism.command_runtime import CommandEvent
+
         for i in range(10):
             self.timeline.emit(CommandEvent(event_type="t", command_id=f"cmd-{i}"))
 
@@ -332,6 +380,7 @@ class TestCommandTimeline(unittest.TestCase):
 
     def test_get_command_history(self):
         from substrate.organism.command_runtime import CommandEvent
+
         self.timeline.emit(CommandEvent(event_type="received", command_id="cmd-x"))
         self.timeline.emit(CommandEvent(event_type="routed", command_id="cmd-x"))
         self.timeline.emit(CommandEvent(event_type="completed", command_id="cmd-x"))
@@ -352,14 +401,17 @@ class TestCommandHistory(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
         from substrate.organism.command_runtime import CommandHistory
+
         self.history = CommandHistory(data_dir=self.tmpdir)
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_save_and_read(self):
         from substrate.organism.command_runtime import Command
+
         cmd = Command(raw_input="test command", status="completed")
         self.history.save(cmd)
 
@@ -369,6 +421,7 @@ class TestCommandHistory(unittest.TestCase):
 
     def test_get_pending(self):
         from substrate.organism.command_runtime import Command
+
         self.history.save(Command(raw_input="a", status="completed"))
         self.history.save(Command(raw_input="b", status="pending_approval"))
         self.history.save(Command(raw_input="c", status="executing"))
@@ -378,6 +431,7 @@ class TestCommandHistory(unittest.TestCase):
 
     def test_get_by_status(self):
         from substrate.organism.command_runtime import Command
+
         self.history.save(Command(raw_input="a", status="completed"))
         self.history.save(Command(raw_input="b", status="completed"))
         self.history.save(Command(raw_input="c", status="failed"))
@@ -387,6 +441,7 @@ class TestCommandHistory(unittest.TestCase):
 
     def test_update_status(self):
         from substrate.organism.command_runtime import Command
+
         cmd = Command(raw_input="test", status="pending_approval")
         self.history.save(cmd)
 
@@ -411,6 +466,7 @@ class TestCommandHistory(unittest.TestCase):
 class TestContextAssembler(unittest.TestCase):
     def test_assemble_returns_context(self):
         from substrate.organism.command_runtime import ContextAssembler
+
         assembler = ContextAssembler()
         ctx = assembler.assemble()
         self.assertIsNotNone(ctx)
@@ -421,6 +477,7 @@ class TestContextAssembler(unittest.TestCase):
 
     def test_graceful_failure(self):
         from substrate.organism.command_runtime import ContextAssembler
+
         assembler = ContextAssembler()
         ctx = assembler.assemble()
         self.assertEqual(ctx.active_objectives, [])
@@ -432,6 +489,7 @@ class TestContextAssembler(unittest.TestCase):
 class TestCommandRouter(unittest.TestCase):
     def test_route_query(self):
         from substrate.organism.command_runtime import CommandRouter, Command
+
         router = CommandRouter()
         cmd = Command(raw_input="what changed?", action_type="query")
         decision = router.route(cmd)
@@ -440,6 +498,7 @@ class TestCommandRouter(unittest.TestCase):
 
     def test_route_query_status(self):
         from substrate.organism.command_runtime import CommandRouter, Command
+
         router = CommandRouter()
         cmd = Command(raw_input="show status overview", action_type="query")
         decision = router.route(cmd)
@@ -447,6 +506,7 @@ class TestCommandRouter(unittest.TestCase):
 
     def test_route_query_risk(self):
         from substrate.organism.command_runtime import CommandRouter, Command
+
         router = CommandRouter()
         cmd = Command(raw_input="what risks exist?", action_type="query")
         decision = router.route(cmd)
@@ -454,6 +514,7 @@ class TestCommandRouter(unittest.TestCase):
 
     def test_route_query_drift(self):
         from substrate.organism.command_runtime import CommandRouter, Command
+
         router = CommandRouter()
         cmd = Command(raw_input="is anything stuck or stagnant?", action_type="query")
         decision = router.route(cmd)
@@ -461,6 +522,7 @@ class TestCommandRouter(unittest.TestCase):
 
     def test_route_execute(self):
         from substrate.organism.command_runtime import CommandRouter, Command
+
         router = CommandRouter()
         cmd = Command(raw_input="build auth system", action_type="execute")
         decision = router.route(cmd)
@@ -468,14 +530,16 @@ class TestCommandRouter(unittest.TestCase):
 
     def test_route_switch_profile(self):
         from substrate.organism.command_runtime import CommandRouter, Command
+
         router = CommandRouter()
         cmd = Command(raw_input="switch to developer", action_type="switch_profile")
         decision = router.route(cmd)
-        self.assertEqual(decision.destination_system, "presence_runtime")
+        self.assertEqual(decision.destination_system, "profile_runtime")
         self.assertEqual(decision.approval_state, "not_required")
 
     def test_route_switch_session(self):
         from substrate.organism.command_runtime import CommandRouter, Command
+
         router = CommandRouter()
         cmd = Command(raw_input="switch to session x", action_type="switch_session")
         decision = router.route(cmd)
@@ -483,13 +547,17 @@ class TestCommandRouter(unittest.TestCase):
 
     def test_route_create_objective(self):
         from substrate.organism.command_runtime import CommandRouter, Command
+
         router = CommandRouter()
-        cmd = Command(raw_input="create objective: finish voice rooms", action_type="create_objective")
+        cmd = Command(
+            raw_input="create objective: finish voice rooms", action_type="create_objective"
+        )
         decision = router.route(cmd)
         self.assertEqual(decision.destination_system, "strategic_gap_engine")
 
     def test_route_schedule(self):
         from substrate.organism.command_runtime import CommandRouter, Command
+
         router = CommandRouter()
         cmd = Command(raw_input="schedule the migration", action_type="schedule")
         decision = router.route(cmd)
@@ -497,6 +565,7 @@ class TestCommandRouter(unittest.TestCase):
 
     def test_route_approve(self):
         from substrate.organism.command_runtime import CommandRouter, Command
+
         router = CommandRouter()
         cmd = Command(raw_input="approve packet wp-123", action_type="approve")
         decision = router.route(cmd)
@@ -504,6 +573,7 @@ class TestCommandRouter(unittest.TestCase):
 
     def test_route_reject(self):
         from substrate.organism.command_runtime import CommandRouter, Command
+
         router = CommandRouter()
         cmd = Command(raw_input="reject packet wp-456", action_type="reject")
         decision = router.route(cmd)
@@ -511,6 +581,7 @@ class TestCommandRouter(unittest.TestCase):
 
     def test_route_create_sequence(self):
         from substrate.organism.command_runtime import CommandRouter, Command
+
         router = CommandRouter()
         cmd = Command(raw_input="create a sequence for deployment", action_type="create_sequence")
         decision = router.route(cmd)
@@ -524,6 +595,7 @@ class TestCommandRouter(unittest.TestCase):
 class TestSingleton(unittest.TestCase):
     def test_singleton(self):
         from substrate.organism.command_runtime import get_command_runtime, reset_command_runtime
+
         reset_command_runtime()
         r1 = get_command_runtime()
         r2 = get_command_runtime()
@@ -531,6 +603,7 @@ class TestSingleton(unittest.TestCase):
 
     def test_reset(self):
         from substrate.organism.command_runtime import get_command_runtime, reset_command_runtime
+
         reset_command_runtime()
         r1 = get_command_runtime()
         reset_command_runtime()
@@ -544,6 +617,7 @@ class TestSingleton(unittest.TestCase):
 class TestCommandRuntime(unittest.TestCase):
     def setUp(self):
         from substrate.organism.command_runtime import CommandRuntime
+
         self.tmpdir = tempfile.mkdtemp()
         self.runtime = CommandRuntime()
         self.runtime._timeline = self._make_timeline()
@@ -551,14 +625,17 @@ class TestCommandRuntime(unittest.TestCase):
 
     def _make_timeline(self):
         from substrate.organism.command_runtime import CommandTimeline
+
         return CommandTimeline(data_dir=os.path.join(self.tmpdir, "timeline"))
 
     def _make_history(self):
         from substrate.organism.command_runtime import CommandHistory
+
         return CommandHistory(data_dir=os.path.join(self.tmpdir, "history"))
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_submit_query(self):
@@ -629,6 +706,7 @@ class TestCommandRuntime(unittest.TestCase):
 
     def test_reject_command_success(self):
         from substrate.organism.command_runtime import Command
+
         cmd = Command(raw_input="test", status="pending_approval")
         self.runtime._history.save(cmd)
         result = self.runtime.reject_command(cmd.command_id, "testing")
@@ -636,6 +714,7 @@ class TestCommandRuntime(unittest.TestCase):
 
     def test_reject_command_terminal_blocked(self):
         from substrate.organism.command_runtime import Command
+
         cmd = Command(raw_input="test", status="completed")
         self.runtime._history.save(cmd)
         result = self.runtime.reject_command(cmd.command_id, "testing")
@@ -651,14 +730,17 @@ class TestAcceptance(unittest.TestCase):
 
     def setUp(self):
         from substrate.organism.command_runtime import CommandRuntime
+
         self.tmpdir = tempfile.mkdtemp()
         self.runtime = CommandRuntime()
         from substrate.organism.command_runtime import CommandTimeline, CommandHistory
+
         self.runtime._timeline = CommandTimeline(data_dir=os.path.join(self.tmpdir, "tl"))
         self.runtime._history = CommandHistory(data_dir=os.path.join(self.tmpdir, "h"))
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_review_operator_roadmap(self):
@@ -673,7 +755,7 @@ class TestAcceptance(unittest.TestCase):
         cmd = self.runtime.submit("switch to engineer profile")
         self.assertEqual(cmd.action_type, "switch_profile")
         routing = cmd.routing_result
-        self.assertEqual(routing.get("destination_system"), "presence_runtime")
+        self.assertEqual(routing.get("destination_system"), "profile_runtime")
 
     def test_create_objective(self):
         """'create objective: finish workstation' creates objective."""
@@ -724,6 +806,7 @@ class TestAcceptance(unittest.TestCase):
     def test_multi_source_consistency(self):
         """Same command from different sources produces same classification."""
         from substrate.organism.command_runtime import CommandClassifier
+
         classifier = CommandClassifier()
 
         for source in ["cockpit", "voice", "api", "meeting", "mobile"]:
@@ -733,6 +816,7 @@ class TestAcceptance(unittest.TestCase):
     def test_no_duplicate_routing(self):
         """Command Runtime composes existing systems — never duplicates them."""
         from substrate.organism.command_runtime import CommandRouter
+
         router = CommandRouter()
 
         destinations = set()
@@ -747,18 +831,24 @@ class TestAcceptance(unittest.TestCase):
         ]
 
         from substrate.organism.command_runtime import Command
+
         for raw, action in test_cases:
             cmd = Command(raw_input=raw, action_type=action)
             dec = router.route(cmd)
             destinations.add(dec.destination_system)
 
         expected_systems = {
-            "continuity_runtime", "empire_router", "approval_system",
-            "tick_loop", "presence_runtime", "strategic_gap_engine",
+            "continuity_runtime",
+            "empire_router",
+            "approval_system",
+            "tick_loop",
+            "presence_runtime",
+            "profile_runtime",
+            "strategic_gap_engine",
         }
-        self.assertTrue(destinations.issubset(
-            expected_systems | {"projection_engine", "strategic_tick_loop"}
-        ))
+        self.assertTrue(
+            destinations.issubset(expected_systems | {"projection_engine", "strategic_tick_loop"})
+        )
 
 
 if __name__ == "__main__":
