@@ -415,6 +415,27 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "PlanStore": ["substrate.organism.execution_coordinator"],
     "CrossRuntimeCompositor": ["substrate.organism.execution_coordinator"],
     "ExecutionCoordinator": ["substrate.organism.execution_coordinator"],
+    # Phase 14: Executor Runtime
+    "ExecutorLifecycleStatus": ["substrate.organism.executor_runtime"],
+    "ExecutorType": ["substrate.organism.executor_runtime"],
+    "ExecutorRequestStatus": ["substrate.organism.executor_runtime"],
+    "ExecutorEventType": ["substrate.organism.executor_runtime"],
+    "ExecutorApprovalState": ["substrate.organism.executor_runtime"],
+    "ExecutorRuntimeContext": ["substrate.organism.executor_runtime"],
+    "ExecutorRequest": ["substrate.organism.executor_runtime"],
+    "ExecutorArtifact": ["substrate.organism.executor_runtime"],
+    "ExecutorResult": ["substrate.organism.executor_runtime"],
+    "ExecutorLifecycleEvent": ["substrate.organism.executor_runtime"],
+    "ExecutorRuntimeSnapshot": ["substrate.organism.executor_runtime"],
+    "ExecutorContract": ["substrate.organism.executor_runtime"],
+    "SimulationExecutor": ["substrate.organism.executor_runtime"],
+    "ExecutorImplementationRegistry": ["substrate.organism.executor_runtime"],
+    "ExecutorRequestStore": ["substrate.organism.executor_runtime"],
+    "ExecutorResultStore": ["substrate.organism.executor_runtime"],
+    "ExecutorLifecycleTracker": ["substrate.organism.executor_runtime"],
+    "ExecutorGovernanceGate": ["substrate.organism.executor_runtime"],
+    "ExecutorContextAssembler": ["substrate.organism.executor_runtime"],
+    "ExecutorRuntime": ["substrate.organism.executor_runtime"],
 }
 
 

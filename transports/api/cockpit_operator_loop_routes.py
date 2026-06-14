@@ -415,6 +415,29 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/execcoord/dispatch", execcoord_dispatch, methods=["POST"], dependencies=auth)
     r.add_api_route("/execcoord/cancel", execcoord_cancel, methods=["POST"], dependencies=auth)
 
+    # ── Phase 14: Executor Runtime routes (handlers in executor_routes.py) ──
+    from transports.api.executor_routes import (
+        executor_state, executor_requests_all, executor_active,
+        executor_results_all, executor_failures, executor_history,
+        executor_lifecycle, executor_types, executor_create,
+        executor_run, executor_approve, executor_deny,
+        executor_cancel, executor_monitor,
+    )
+    r.add_api_route("/executor/state", executor_state, methods=["GET"], dependencies=auth)
+    r.add_api_route("/executor/requests", executor_requests_all, methods=["GET"], dependencies=auth)
+    r.add_api_route("/executor/active", executor_active, methods=["GET"], dependencies=auth)
+    r.add_api_route("/executor/results", executor_results_all, methods=["GET"], dependencies=auth)
+    r.add_api_route("/executor/failures", executor_failures, methods=["GET"], dependencies=auth)
+    r.add_api_route("/executor/history", executor_history, methods=["GET"], dependencies=auth)
+    r.add_api_route("/executor/lifecycle", executor_lifecycle, methods=["GET"], dependencies=auth)
+    r.add_api_route("/executor/types", executor_types, methods=["GET"], dependencies=auth)
+    r.add_api_route("/executor/create", executor_create, methods=["POST"], dependencies=auth)
+    r.add_api_route("/executor/run", executor_run, methods=["POST"], dependencies=auth)
+    r.add_api_route("/executor/approve", executor_approve, methods=["POST"], dependencies=auth)
+    r.add_api_route("/executor/deny", executor_deny, methods=["POST"], dependencies=auth)
+    r.add_api_route("/executor/cancel", executor_cancel, methods=["POST"], dependencies=auth)
+    r.add_api_route("/executor/monitor", executor_monitor, methods=["POST"], dependencies=auth)
+
     return r
 
 
