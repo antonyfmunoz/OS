@@ -625,7 +625,7 @@ class TestCommandRuntime(unittest.TestCase):
     def test_reject_command_not_found(self):
         result = self.runtime.reject_command("cmd-nonexistent", "testing")
         self.assertFalse(result["rejected"])
-        self.assertIn("not found", result.get("error", ""))
+        self.assertIn("not found or not rejectable", result.get("error", ""))
 
     def test_reject_command_success(self):
         from substrate.organism.command_runtime import Command
@@ -640,7 +640,7 @@ class TestCommandRuntime(unittest.TestCase):
         self.runtime._history.save(cmd)
         result = self.runtime.reject_command(cmd.command_id, "testing")
         self.assertFalse(result["rejected"])
-        self.assertIn("not rejectable", result.get("error", ""))
+        self.assertIn("not found or not rejectable", result.get("error", ""))
 
 
 # ── Acceptance tests ─────────────────────────────────────────────────────
