@@ -380,6 +380,23 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ProfileTimeline": ["substrate.organism.profile_runtime"],
     "ProfileContextAssembler": ["substrate.organism.profile_runtime"],
     "ProfileRuntime": ["substrate.organism.profile_runtime"],
+    # Phase 12: Session Runtime
+    "SessionType": ["substrate.organism.session_runtime"],
+    "SessionStatus": ["substrate.organism.session_runtime"],
+    "SessionAuthority": ["substrate.organism.session_runtime"],
+    "SessionEventType": ["substrate.organism.session_runtime"],
+    "HandoffStatus": ["substrate.organism.session_runtime"],
+    "Session": ["substrate.organism.session_runtime"],
+    "SessionEvent": ["substrate.organism.session_runtime"],
+    "SessionHandoff": ["substrate.organism.session_runtime"],
+    "SessionContinuityLink": ["substrate.organism.session_runtime"],
+    "SessionRuntimeSnapshot": ["substrate.organism.session_runtime"],
+    "SessionRegistry": ["substrate.organism.session_runtime"],
+    "SessionLifecycleEngine": ["substrate.organism.session_runtime"],
+    "SessionHandoffRuntime": ["substrate.organism.session_runtime"],
+    "SessionContinuityGraph": ["substrate.organism.session_runtime"],
+    "SessionTimeline": ["substrate.organism.session_runtime"],
+    "SessionRuntime": ["substrate.organism.session_runtime"],
 }
 
 

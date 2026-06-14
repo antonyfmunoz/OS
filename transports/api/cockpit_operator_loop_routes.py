@@ -357,6 +357,42 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/profile/timeline", _profile_timeline, methods=["GET"], dependencies=auth)
     r.add_api_route("/profile/context", _profile_context, methods=["GET"], dependencies=auth)
 
+    # ── Phase 12: Session Runtime routes ─────────────────────────
+    r.add_api_route("/session/state", _session_state, methods=["GET"], dependencies=auth)
+    r.add_api_route("/session/list", _session_list, methods=["GET"], dependencies=auth)
+    r.add_api_route("/session/active", _session_active, methods=["GET"], dependencies=auth)
+    r.add_api_route("/session/start", _session_start, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/session/suspend", _session_suspend, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/session/resume", _session_resume, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/session/disconnect", _session_disconnect, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/session/restore", _session_restore, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/session/promote", _session_promote, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/session/handoff", _session_handoff, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/session/handoff/complete",
+        _session_handoff_complete,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/session/history", _session_history, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/session/timeline", _session_timeline, methods=["GET"], dependencies=auth
+    )
+
     return r
 
 
@@ -2670,4 +2706,191 @@ async def _profile_context(request: Request) -> dict:
         return {"success": True, "context": ctx.to_dict()}
     except Exception as exc:
         logger.error("profile context failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+# ── Phase 12: Session Runtime handlers ────────────────────────────────────
+
+
+def _get_session_runtime():
+    from substrate.organism.session_runtime import get_session_runtime
+
+    return get_session_runtime()
+
+
+async def _session_state(request: Request) -> dict:
+    try:
+        rt = _get_session_runtime()
+        return {"success": True, **rt.get_state()}
+    except Exception as exc:
+        logger.error("session state failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _session_list(request: Request) -> dict:
+    try:
+        rt = _get_session_runtime()
+        sessions = rt.list_sessions()
+        return {"success": True, "sessions": [s.to_dict() for s in sessions]}
+    except Exception as exc:
+        logger.error("session list failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _session_active(request: Request) -> dict:
+    try:
+        rt = _get_session_runtime()
+        active = rt.list_active_sessions()
+        return {"success": True, "sessions": [s.to_dict() for s in active]}
+    except Exception as exc:
+        logger.error("session active failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _session_start(request: Request) -> dict:
+    try:
+        body = await request.json()
+        rt = _get_session_runtime()
+        session = rt.start_session(
+            session_type=body.get("session_type", "desktop"),
+            host_id=body.get("host_id", ""),
+            device_id=body.get("device_id", ""),
+            profile_id=body.get("profile_id", ""),
+            workstation_mode=body.get("workstation_mode", ""),
+            authority=body.get("authority", "secondary"),
+            metadata=body.get("metadata"),
+        )
+        _audit_log("session_started", {"session_id": session.session_id})
+        return {"success": True, "session": session.to_dict()}
+    except Exception as exc:
+        logger.error("session start failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _session_suspend(request: Request) -> dict:
+    try:
+        body = await request.json()
+        session_id = body.get("session_id", "")
+        if not session_id:
+            return {"success": False, "error": "session_id is required"}
+        rt = _get_session_runtime()
+        result = rt.suspend_session(session_id)
+        _audit_log("session_suspended", {"session_id": session_id})
+        return {"success": result}
+    except Exception as exc:
+        logger.error("session suspend failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _session_resume(request: Request) -> dict:
+    try:
+        body = await request.json()
+        session_id = body.get("session_id", "")
+        if not session_id:
+            return {"success": False, "error": "session_id is required"}
+        rt = _get_session_runtime()
+        result = rt.resume_session(session_id)
+        _audit_log("session_resumed", {"session_id": session_id})
+        return {"success": result}
+    except Exception as exc:
+        logger.error("session resume failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _session_disconnect(request: Request) -> dict:
+    try:
+        body = await request.json()
+        session_id = body.get("session_id", "")
+        if not session_id:
+            return {"success": False, "error": "session_id is required"}
+        rt = _get_session_runtime()
+        result = rt.disconnect_session(session_id)
+        _audit_log("session_disconnected", {"session_id": session_id})
+        return {"success": result}
+    except Exception as exc:
+        logger.error("session disconnect failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _session_restore(request: Request) -> dict:
+    try:
+        body = await request.json()
+        session_id = body.get("session_id", "")
+        if not session_id:
+            return {"success": False, "error": "session_id is required"}
+        rt = _get_session_runtime()
+        result = rt.restore_session(session_id)
+        _audit_log("session_restored", {"session_id": session_id})
+        return {"success": result}
+    except Exception as exc:
+        logger.error("session restore failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _session_promote(request: Request) -> dict:
+    try:
+        body = await request.json()
+        session_id = body.get("session_id", "")
+        if not session_id:
+            return {"success": False, "error": "session_id is required"}
+        rt = _get_session_runtime()
+        success, demoted = rt.promote_to_primary(session_id)
+        _audit_log("session_promoted", {"session_id": session_id, "demoted": demoted})
+        return {"success": success, "demoted_session_id": demoted}
+    except Exception as exc:
+        logger.error("session promote failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _session_handoff(request: Request) -> dict:
+    try:
+        body = await request.json()
+        source = body.get("source_session_id", "")
+        target = body.get("target_session_id", "")
+        if not source or not target:
+            return {"success": False, "error": "source_session_id and target_session_id required"}
+        rt = _get_session_runtime()
+        handoff = rt.initiate_handoff(source, target)
+        if handoff:
+            _audit_log("session_handoff_initiated", {"handoff_id": handoff.handoff_id})
+            return {"success": True, "handoff": handoff.to_dict()}
+        return {"success": False, "error": "Handoff failed — check session IDs"}
+    except Exception as exc:
+        logger.error("session handoff failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _session_handoff_complete(request: Request) -> dict:
+    try:
+        body = await request.json()
+        handoff_id = body.get("handoff_id", "")
+        if not handoff_id:
+            return {"success": False, "error": "handoff_id is required"}
+        rt = _get_session_runtime()
+        result = rt.complete_handoff(handoff_id)
+        _audit_log("session_handoff_completed", {"handoff_id": handoff_id})
+        return {"success": result}
+    except Exception as exc:
+        logger.error("session handoff complete failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _session_history(request: Request) -> dict:
+    try:
+        rt = _get_session_runtime()
+        handoffs = rt.get_recent_handoffs(limit=20)
+        return {"success": True, "handoffs": [h.to_dict() for h in handoffs]}
+    except Exception as exc:
+        logger.error("session history failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+async def _session_timeline(request: Request) -> dict:
+    try:
+        rt = _get_session_runtime()
+        limit = int(request.query_params.get("limit", "50"))
+        events = rt.get_timeline(limit)
+        return {"success": True, "events": [e.to_dict() for e in events]}
+    except Exception as exc:
+        logger.error("session timeline failed: %s", exc)
         return {"success": False, "error": str(exc)}

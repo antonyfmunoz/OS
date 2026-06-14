@@ -775,7 +775,7 @@ class CommandRouter:
             dec.outcome = {"error": "no system mode target found in command"}
 
     def _route_switch_session(self, cmd: Command, dec: CommandRoutingDecision) -> None:
-        dec.destination_system = "presence_runtime"
+        dec.destination_system = "session_runtime"
         dec.approval_state = "not_required"
         dec.outcome = {"note": "session switch requires explicit session_id via API"}
 

@@ -543,7 +543,7 @@ class TestCommandRouter(unittest.TestCase):
         router = CommandRouter()
         cmd = Command(raw_input="switch to session x", action_type="switch_session")
         decision = router.route(cmd)
-        self.assertEqual(decision.destination_system, "presence_runtime")
+        self.assertEqual(decision.destination_system, "session_runtime")
 
     def test_route_create_objective(self):
         from substrate.organism.command_runtime import CommandRouter, Command
@@ -844,6 +844,7 @@ class TestAcceptance(unittest.TestCase):
             "tick_loop",
             "presence_runtime",
             "profile_runtime",
+            "session_runtime",
             "strategic_gap_engine",
         }
         self.assertTrue(
