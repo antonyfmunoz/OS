@@ -477,9 +477,27 @@ class WorkstationExecutor(ExecutorContract):
     parameters in request.metadata["params"].
     """
 
-    def __init__(self) -> None:
+    def __init__(self, telemetry_emitter: Any | None = None) -> None:
         self._active_requests: dict[str, dict[str, Any]] = {}
         self._cancelled: set[str] = set()
+        self._telemetry = telemetry_emitter
+
+    def _tel(self, event_type: str, request: ExecutorRequest, **payload: Any) -> None:
+        """Emit telemetry. Never raises."""
+        if not self._telemetry:
+            return
+        try:
+            self._telemetry.emit(
+                event_type,
+                execution_id=request.request_id,
+                request_id=request.request_id,
+                executor_type=self.executor_type,
+                operation=request.metadata.get("operation", ""),
+                status="executing",
+                payload=payload if payload else {},
+            )
+        except Exception:
+            pass
 
     @property
     def executor_type(self) -> str:
@@ -584,6 +602,12 @@ class WorkstationExecutor(ExecutorContract):
                 duration_seconds=time.time() - started,
             )
 
+        cmd_desc = ""
+        if operation == "run_command":
+            cmd = params.get("command", "")
+            cmd_desc = cmd if isinstance(cmd, str) else " ".join(cmd)
+        self._tel("command_started", request, message=cmd_desc or operation)
+
         try:
             success, message, outputs, artifacts = handler(params, request)
         except Exception as exc:
@@ -613,7 +637,22 @@ class WorkstationExecutor(ExecutorContract):
                 metadata={"proof": proof.to_dict()},
             )
 
+        stdout = outputs.get("stdout", "")
+        stderr = outputs.get("stderr", "")
+        if stdout:
+            self._tel("stdout_chunk", request, stdout=stdout[:2000])
+        if stderr:
+            self._tel("stderr_chunk", request, stderr=stderr[:2000])
+
+        exit_code = outputs.get("exit_code")
         completed = time.time()
+        self._tel(
+            "command_completed", request,
+            exit_code=exit_code,
+            duration_ms=(completed - started) * 1000,
+            message=message,
+        )
+
         proof = ExecutionProof(
             execution_id=request.request_id,
             operation=operation,
@@ -626,6 +665,7 @@ class WorkstationExecutor(ExecutorContract):
             artifacts=artifacts,
         )
 
+        self._tel("proof_generated", request, proof_id=proof.proof_id)
         self._active_requests[request.request_id]["status"] = "completed"
 
         return ExecutorResult(

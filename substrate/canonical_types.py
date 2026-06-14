@@ -439,6 +439,11 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # Phase 15A: Workstation Executor
     "ExecutionProof": ["substrate.organism.executors.workstation_executor"],
     "WorkstationExecutor": ["substrate.organism.executors.workstation_executor"],
+    # Phase 15B: Execution Telemetry
+    "TelemetryEventType": ["substrate.organism.executors.execution_telemetry"],
+    "ExecutionTelemetryEvent": ["substrate.organism.executors.execution_telemetry"],
+    "InMemoryExecutionTelemetryStore": ["substrate.organism.executors.execution_telemetry"],
+    "ExecutionTelemetryEmitter": ["substrate.organism.executors.execution_telemetry"],
 }
 
 
