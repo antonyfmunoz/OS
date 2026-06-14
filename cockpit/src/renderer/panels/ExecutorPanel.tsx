@@ -49,7 +49,20 @@ interface ExecutorState {
   }
 }
 
-type Tab = 'executors' | 'requests' | 'active' | 'results' | 'failures'
+interface TelemetryEvent {
+  event_id: string
+  execution_id: string
+  request_id: string
+  executor_type: string
+  operation: string
+  event_type: string
+  timestamp: number
+  status: string
+  sequence_number: number
+  payload: Record<string, unknown>
+}
+
+type Tab = 'executors' | 'requests' | 'active' | 'results' | 'failures' | 'live'
 
 function KpiCard({ label, value }: { label: string; value: number | string }) {
   return (
@@ -192,6 +205,67 @@ function RequestCard({
   )
 }
 
+function getEventColor(eventType: string): string {
+  const map: Record<string, string> = {
+    execution_requested: 'text-blue-400',
+    execution_validating: 'text-blue-300',
+    execution_approved: 'text-green-400',
+    execution_preparing: 'text-yellow-400',
+    execution_started: 'text-cyan-400',
+    command_started: 'text-purple-400',
+    stdout_chunk: 'text-gray-300',
+    stderr_chunk: 'text-orange-400',
+    command_completed: 'text-purple-300',
+    proof_generated: 'text-emerald-400',
+    execution_cleaning_up: 'text-yellow-300',
+    execution_completed: 'text-green-500',
+    execution_failed: 'text-red-500',
+    execution_cancelled: 'text-gray-500',
+  }
+  return map[eventType] || 'text-secondary'
+}
+
+function TelemetryEventRow({ event }: { event: TelemetryEvent }) {
+  const ts = new Date(event.timestamp * 1000).toLocaleTimeString()
+  const isOutput = event.event_type === 'stdout_chunk' || event.event_type === 'stderr_chunk'
+  const output = isOutput ? (event.payload.data as string || '') : null
+  const proofId = event.event_type === 'proof_generated'
+    ? (event.payload.proof_id as string || '') : null
+
+  return (
+    <div className="bg-surface-2 rounded px-3 py-1.5 mb-1 border border-border/50 text-xs">
+      <div className="flex items-center gap-2">
+        <span className="text-secondary font-mono w-[70px] shrink-0">{ts}</span>
+        <span className="text-secondary font-mono w-[30px] shrink-0">#{event.sequence_number}</span>
+        <span className={`font-bold uppercase w-[160px] shrink-0 ${getEventColor(event.event_type)}`}>
+          {event.event_type}
+        </span>
+        <span className="text-secondary font-mono truncate">{event.execution_id.slice(0, 17)}</span>
+        {event.executor_type && (
+          <span className="text-cyan-400 ml-auto">{event.executor_type}</span>
+        )}
+      </div>
+      {output && (
+        <pre className="mt-1 text-[11px] bg-surface-3 p-1.5 rounded font-mono whitespace-pre-wrap max-h-[80px] overflow-auto">
+          {output.slice(0, 500)}{output.length > 500 ? '...' : ''}
+        </pre>
+      )}
+      {proofId && (
+        <div className="mt-1 text-emerald-400 font-mono">proof: {proofId.slice(0, 20)}</div>
+      )}
+      {event.payload.exit_code !== undefined && (
+        <span className="ml-2 text-secondary">exit: {String(event.payload.exit_code)}</span>
+      )}
+      {event.payload.duration_ms !== undefined && (
+        <span className="ml-2 text-secondary">{String(event.payload.duration_ms)}ms</span>
+      )}
+      {event.payload.error && (
+        <div className="mt-1 text-red-400 font-mono text-[11px]">{String(event.payload.error).slice(0, 300)}</div>
+      )}
+    </div>
+  )
+}
+
 function ResultCard({ result }: { result: ExecutorResultData }) {
   const proof = result.metadata?.proof as Record<string, unknown> | undefined
   const exitCode = (proof?.outputs as Record<string, unknown>)?.exit_code as number | undefined
@@ -236,6 +310,8 @@ export function ExecutorPanel() {
   const [results, setResults] = useState<ExecutorResultData[]>([])
   const [failures, setFailures] = useState<ExecutorRequest[]>([])
   const [executorTypes, setExecutorTypes] = useState<string[]>([])
+  const [telemetryEvents, setTelemetryEvents] = useState<TelemetryEvent[]>([])
+  const [telemetrySeq, setTelemetrySeq] = useState(0)
 
   const apiBase = useCockpitStore((s) => s.apiBase)
 
@@ -261,11 +337,31 @@ export function ExecutorPanel() {
     }
   }, [apiBase])
 
+  const fetchTelemetry = useCallback(async () => {
+    try {
+      const base = apiBase || ''
+      const res = await fetch(`${base}/executor/telemetry/latest?limit=100`).then(r => r.json()).catch(() => null)
+      if (res?.success && res.events) {
+        setTelemetryEvents(res.events)
+        setTelemetrySeq(res.sequence || 0)
+      }
+    } catch {
+      // silent
+    }
+  }, [apiBase])
+
   useEffect(() => {
     fetchData()
     const iv = setInterval(fetchData, 15000)
     return () => clearInterval(iv)
   }, [fetchData])
+
+  useEffect(() => {
+    if (tab !== 'live') return
+    fetchTelemetry()
+    const iv = setInterval(fetchTelemetry, 3000)
+    return () => clearInterval(iv)
+  }, [tab, fetchTelemetry])
 
   const doAction = async (endpoint: string, body: Record<string, string>) => {
     try {
@@ -289,6 +385,7 @@ export function ExecutorPanel() {
     { key: 'active', label: 'Active', badge: active.length },
     { key: 'results', label: 'Results', badge: results.length },
     { key: 'failures', label: 'Failures', badge: failures.length },
+    { key: 'live', label: 'Live', badge: telemetryEvents.length },
   ]
 
   return (
@@ -399,6 +496,22 @@ export function ExecutorPanel() {
             ) : (
               failures.map(r => (
                 <RequestCard key={r.request_id} req={r} />
+              ))
+            )}
+          </div>
+        )}
+
+        {tab === 'live' && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-bold text-secondary uppercase">Execution Telemetry</h3>
+              <span className="text-xs text-secondary font-mono">seq: {telemetrySeq}</span>
+            </div>
+            {telemetryEvents.length === 0 ? (
+              <div className="text-secondary text-sm">No telemetry events yet</div>
+            ) : (
+              [...telemetryEvents].reverse().map(e => (
+                <TelemetryEventRow key={e.event_id} event={e} />
               ))
             )}
           </div>

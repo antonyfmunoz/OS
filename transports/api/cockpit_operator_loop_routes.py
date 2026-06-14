@@ -423,6 +423,9 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         executor_run, executor_approve, executor_deny,
         executor_cancel, executor_monitor,
     )
+    from transports.api.telemetry_routes import (
+        telemetry_latest, telemetry_for_execution, telemetry_stream,
+    )
     r.add_api_route("/executor/state", executor_state, methods=["GET"], dependencies=auth)
     r.add_api_route("/executor/requests", executor_requests_all, methods=["GET"], dependencies=auth)
     r.add_api_route("/executor/active", executor_active, methods=["GET"], dependencies=auth)
@@ -437,6 +440,10 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/executor/deny", executor_deny, methods=["POST"], dependencies=auth)
     r.add_api_route("/executor/cancel", executor_cancel, methods=["POST"], dependencies=auth)
     r.add_api_route("/executor/monitor", executor_monitor, methods=["POST"], dependencies=auth)
+    # Phase 15B: Execution Telemetry
+    r.add_api_route("/executor/telemetry/latest", telemetry_latest, methods=["GET"], dependencies=auth)
+    r.add_api_route("/executor/telemetry/{execution_id}", telemetry_for_execution, methods=["GET"], dependencies=auth)
+    r.add_api_route("/executor/telemetry/{execution_id}/stream", telemetry_stream, methods=["GET"], dependencies=auth)
 
     return r
 

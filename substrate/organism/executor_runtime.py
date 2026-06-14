@@ -889,7 +889,11 @@ class ExecutorRuntime:
     Never makes decisions about WHAT to execute — only HOW.
     """
 
-    def __init__(self, data_dir: str | None = None) -> None:
+    def __init__(
+        self,
+        data_dir: str | None = None,
+        telemetry_emitter: Any | None = None,
+    ) -> None:
         dd = data_dir or _executor_data_dir()
         _ensure_dirs()
 
@@ -901,6 +905,7 @@ class ExecutorRuntime:
         self._impl_registry = ExecutorImplementationRegistry()
         self._gate = ExecutorGovernanceGate()
         self._assembler = ExecutorContextAssembler()
+        self._telemetry = telemetry_emitter
 
     # ── Request Creation ────────────────────────────────
 
@@ -1000,6 +1005,39 @@ class ExecutorRuntime:
         )
         return request
 
+    # ── Telemetry ─────────────────────────────────────────
+
+    def _tel(
+        self,
+        event_type: str,
+        request: ExecutorRequest,
+        **payload: Any,
+    ) -> None:
+        """Emit telemetry event. Never raises."""
+        if not self._telemetry:
+            return
+        try:
+            self._telemetry.emit(
+                event_type,
+                execution_id=request.request_id,
+                request_id=request.request_id,
+                executor_type=request.executor_type,
+                operation=request.metadata.get("operation", ""),
+                status=request.status,
+                payload=payload if payload else {},
+            )
+        except Exception:
+            logger.debug("Telemetry emit failed", exc_info=True)
+
+    @property
+    def telemetry(self) -> Any:
+        """Access the telemetry emitter (may be None)."""
+        return self._telemetry
+
+    @telemetry.setter
+    def telemetry(self, emitter: Any) -> None:
+        self._telemetry = emitter
+
     # ── Full Lifecycle Execution ────────────────────────
 
     def run_lifecycle(
@@ -1010,6 +1048,7 @@ class ExecutorRuntime:
 
         validate → prepare → execute → cleanup.
         Each step is recorded.  Governance gate checked before execute.
+        Telemetry emitted at each boundary if emitter is configured.
         """
         request = self._request_store.get(request_id)
         if not request:
@@ -1021,11 +1060,16 @@ class ExecutorRuntime:
             self._fail_request(request, f"No executor for type: {request.executor_type}")
             return None
 
+        self._tel("execution_requested", request, message="Lifecycle started")
+
         # Gate check
         can_exec, gate_reason = self._gate.can_execute(request)
         if not can_exec:
+            self._tel("execution_failed", request, error=gate_reason)
             self._fail_request(request, f"Governance gate: {gate_reason}")
             return None
+
+        self._tel("execution_approved", request, message="Governance passed")
 
         # Validate
         request.status = ExecutorRequestStatus.VALIDATING.value
@@ -1034,6 +1078,7 @@ class ExecutorRuntime:
             request_id, ExecutorEventType.VALIDATION_STARTED.value,
             summary="Validation started",
         )
+        self._tel("execution_validating", request, message="Validation started")
 
         valid, reason = impl.validate(request)
         if not valid:
@@ -1041,6 +1086,7 @@ class ExecutorRuntime:
                 request_id, ExecutorEventType.VALIDATION_FAILED.value,
                 summary=f"Validation failed: {reason}",
             )
+            self._tel("execution_failed", request, error=f"Validation: {reason}")
             self._fail_request(request, f"Validation failed: {reason}")
             return None
 
@@ -1056,6 +1102,7 @@ class ExecutorRuntime:
             request_id, ExecutorEventType.PREPARATION_STARTED.value,
             summary="Preparation started",
         )
+        self._tel("execution_preparing", request, message="Preparation started")
 
         prepared, prep_reason = impl.prepare(request)
         if not prepared:
@@ -1063,6 +1110,7 @@ class ExecutorRuntime:
                 request_id, ExecutorEventType.PREPARATION_FAILED.value,
                 summary=f"Preparation failed: {prep_reason}",
             )
+            self._tel("execution_failed", request, error=f"Preparation: {prep_reason}")
             self._fail_request(request, f"Preparation failed: {prep_reason}")
             return None
 
@@ -1080,6 +1128,7 @@ class ExecutorRuntime:
             request_id, ExecutorEventType.EXECUTION_STARTED.value,
             summary="Execution started",
         )
+        self._tel("execution_started", request, message="Execution started")
 
         try:
             result = impl.execute(request)
@@ -1088,6 +1137,7 @@ class ExecutorRuntime:
                 request_id, ExecutorEventType.EXECUTION_FAILED.value,
                 summary=f"Execution error: {exc}",
             )
+            self._tel("execution_failed", request, error=str(exc))
             self._fail_request(request, f"Execution error: {exc}")
             return None
 
@@ -1098,12 +1148,26 @@ class ExecutorRuntime:
                 summary=result.outcome,
                 details={"artifacts_count": len(result.artifacts)},
             )
+            proof = result.metadata.get("proof", {})
+            if proof:
+                self._tel(
+                    "proof_generated", request,
+                    proof_id=proof.get("proof_id", ""),
+                    duration_ms=proof.get("duration_ms", 0),
+                )
+            self._tel(
+                "execution_completed", request,
+                message=result.outcome,
+                duration_ms=result.duration_seconds * 1000,
+                artifact_count=len(result.artifacts),
+            )
         else:
             request.status = ExecutorRequestStatus.FAILED.value
             self._lifecycle.record(
                 request_id, ExecutorEventType.EXECUTION_FAILED.value,
                 summary=f"Failed: {'; '.join(result.errors)}",
             )
+            self._tel("execution_failed", request, error="; ".join(result.errors))
 
         self._request_store.save(request)
         self._result_store.save(result)
@@ -1113,6 +1177,7 @@ class ExecutorRuntime:
             request_id, ExecutorEventType.CLEANUP_STARTED.value,
             summary="Cleanup started",
         )
+        self._tel("execution_cleaning_up", request, message="Cleanup started")
         try:
             impl.cleanup(request)
         except Exception as exc:
@@ -1189,6 +1254,7 @@ class ExecutorRuntime:
             request_id, ExecutorEventType.CANCELLED.value,
             summary="Request cancelled",
         )
+        self._tel("execution_cancelled", request, message="Cancelled by operator")
         return request
 
     # ── Monitor ─────────────────────────────────────────
@@ -1303,7 +1369,14 @@ _singleton: ExecutorRuntime | None = None
 def get_executor_runtime() -> ExecutorRuntime:
     global _singleton
     if _singleton is None:
-        _singleton = ExecutorRuntime()
+        try:
+            from substrate.organism.executors.execution_telemetry import (
+                get_telemetry_emitter,
+            )
+            emitter = get_telemetry_emitter()
+        except Exception:
+            emitter = None
+        _singleton = ExecutorRuntime(telemetry_emitter=emitter)
     return _singleton
 
 
