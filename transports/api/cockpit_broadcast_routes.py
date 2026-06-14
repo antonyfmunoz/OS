@@ -2,23 +2,28 @@
 
 All endpoints prefixed /api/umh/broadcast/ and registered via include_router.
 Models defined locally (not substrate/) for Slice 0.
+
+Node-aware: every mutating endpoint accepts an optional `target_node`
+query param.  "local" (default) runs FFmpeg on the VPS; any other value
+dispatches to that mesh node via the HTTP relay on port 8095.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import sys
+from typing import Any
 
 _app_root = os.environ.get("UMH_ROOT", "/opt/OS")
 if _app_root not in sys.path:
     sys.path.insert(0, _app_root)
 
 from enum import Enum
-from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from transports.api.cockpit_auth import require_clerk_auth, validate_ws_clerk_token
 
@@ -33,6 +38,10 @@ logger = logging.getLogger(__name__)
 
 broadcast_router = APIRouter(prefix="/broadcast", tags=["broadcast"])
 broadcast_ws_router = APIRouter(prefix="/broadcast", tags=["broadcast-ws"])
+
+_LOCAL = "local"
+_MESH_RELAY_PORT = 8095
+_REMOTE_TIMEOUT_S = 30
 
 
 # ── Models (local to Slice 0) ──
@@ -67,7 +76,7 @@ class BroadcastStatusResponse(BaseModel):
     pid: int | None = None
 
 
-# ── Engine singleton ──
+# ── Local engine singleton ──
 
 _engine = None
 _engine_lock = asyncio.Lock()
@@ -81,6 +90,12 @@ def _get_engine():
     return _engine
 
 
+# ── Active node tracking ──
+
+_active_node: str = _LOCAL
+_active_node_lock = asyncio.Lock()
+
+
 # ── WebSocket health push ──
 
 _ws_clients: set[WebSocket] = set()
@@ -92,11 +107,74 @@ def _on_engine_health(health: dict[str, Any]) -> None:
     _latest_health = health
 
 
+# ── Mesh dispatch helper ──
+
+
+async def _dispatch_remote(
+    node_id: str,
+    capability: str,
+    params: dict[str, Any],
+    timeout: int = _REMOTE_TIMEOUT_S,
+) -> dict[str, Any]:
+    """Dispatch a broadcast capability to a remote mesh node via HTTP relay."""
+    import aiohttp
+
+    relay_url = f"http://127.0.0.1:{_MESH_RELAY_PORT}/dispatch"
+    payload = {
+        "node_id": node_id,
+        "capability": f"broadcast.{capability}",
+        "params": params,
+        "timeout": timeout,
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                relay_url,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=timeout + 5),
+            ) as resp:
+                result = await resp.json()
+    except Exception as exc:
+        logger.error("[BroadcastRoutes] mesh dispatch failed: %s", exc)
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to reach node {node_id}: {exc}",
+        )
+
+    if not result.get("ok"):
+        error = result.get("error", "unknown error")
+        status = result.get("status", "failed")
+        if status == "timeout":
+            raise HTTPException(status_code=504, detail=f"Node {node_id} timed out: {error}")
+        raise HTTPException(status_code=502, detail=f"Node {node_id}: {error}")
+
+    return result.get("result_data", result)
+
+
+def _is_remote(target_node: str) -> bool:
+    return target_node != _LOCAL
+
+
 # ── HTTP Endpoints ──
 
 
 @broadcast_router.post("/start")
-async def start_broadcast(req: BroadcastStartRequest, _user=Depends(require_clerk_auth)):
+async def start_broadcast(
+    req: BroadcastStartRequest,
+    _user=Depends(require_clerk_auth),
+    target_node: str = Query(default=_LOCAL, description="Node to run engine on"),
+):
+    global _active_node
+
+    if _is_remote(target_node):
+        params = req.model_dump()
+        params["source_type"] = req.source_type.value
+        result = await _dispatch_remote(target_node, "start", params)
+        async with _active_node_lock:
+            _active_node = target_node
+        return {"status": "started", "node": target_node, **result}
+
     engine = _get_engine()
     async with _engine_lock:
         if engine.state == "live":
@@ -109,24 +187,54 @@ async def start_broadcast(req: BroadcastStartRequest, _user=Depends(require_cler
         if not ok:
             raise HTTPException(status_code=500, detail="Failed to start broadcast")
 
-    return {"status": "started", "pid": engine._lifecycle.pid if engine._lifecycle else None}
+    async with _active_node_lock:
+        _active_node = _LOCAL
+    return {"status": "started", "node": _LOCAL, "pid": engine._lifecycle.pid if engine._lifecycle else None}
 
 
 @broadcast_router.post("/stop")
-async def stop_broadcast(_user=Depends(require_clerk_auth)):
+async def stop_broadcast(
+    _user=Depends(require_clerk_auth),
+    target_node: str = Query(default="", description="Node to stop; empty = active node"),
+):
+    global _active_node
+
+    node = target_node or _active_node
+    if _is_remote(node):
+        result = await _dispatch_remote(node, "stop", {})
+        async with _active_node_lock:
+            _active_node = _LOCAL
+        return {"status": "stopped", "node": node, **result}
+
     engine = _get_engine()
     async with _engine_lock:
         if engine.state == "idle":
-            return {"status": "already_stopped"}
+            return {"status": "already_stopped", "node": _LOCAL}
         code = await engine.stop()
 
-    return {"status": "stopped", "exit_code": code}
+    async with _active_node_lock:
+        _active_node = _LOCAL
+    return {"status": "stopped", "node": _LOCAL, "exit_code": code}
 
 
 @broadcast_router.get("/status")
-async def get_broadcast_status(_user=Depends(require_clerk_auth)):
+async def get_broadcast_status(
+    _user=Depends(require_clerk_auth),
+    target_node: str = Query(default="", description="Node to query; empty = active node"),
+):
+    node = target_node or _active_node
+    if _is_remote(node):
+        try:
+            result = await _dispatch_remote(node, "status", {}, timeout=10)
+            result["node"] = node
+            return result
+        except HTTPException:
+            return {"state": "unreachable", "node": node}
+
     engine = _get_engine()
-    return engine.get_status()
+    status = engine.get_status()
+    status["node"] = _LOCAL
+    return status
 
 
 # ── Composite (multi-source + scene switching) ──
@@ -181,8 +289,19 @@ class SceneSwitchRequest(BaseModel):
 
 @broadcast_router.post("/composite/start")
 async def start_composite_broadcast(
-    req: CompositeStartRequest, _user=Depends(require_clerk_auth),
+    req: CompositeStartRequest,
+    _user=Depends(require_clerk_auth),
+    target_node: str = Query(default=_LOCAL, description="Node to run engine on"),
 ):
+    global _active_node
+
+    if _is_remote(target_node):
+        params = req.model_dump()
+        result = await _dispatch_remote(target_node, "start_composite", params, timeout=30)
+        async with _active_node_lock:
+            _active_node = target_node
+        return {"status": "started", "mode": "composite", "node": target_node, **result}
+
     engine = _get_engine()
     async with _engine_lock:
         if engine.state == "live":
@@ -222,9 +341,12 @@ async def start_composite_broadcast(
         if not ok:
             raise HTTPException(status_code=500, detail="Failed to start composite broadcast")
 
+    async with _active_node_lock:
+        _active_node = _LOCAL
     return {
         "status": "started",
         "mode": "composite",
+        "node": _LOCAL,
         "pid": engine._lifecycle.pid if engine._lifecycle else None,
         "active_scene_id": req.active_scene_id,
         "source_count": len(req.sources),
@@ -234,8 +356,15 @@ async def start_composite_broadcast(
 
 @broadcast_router.post("/scene/switch")
 async def switch_scene(
-    req: SceneSwitchRequest, _user=Depends(require_clerk_auth),
+    req: SceneSwitchRequest,
+    _user=Depends(require_clerk_auth),
+    target_node: str = Query(default="", description="Node; empty = active node"),
 ):
+    node = target_node or _active_node
+    if _is_remote(node):
+        result = await _dispatch_remote(node, "switch_scene", {"scene_id": req.scene_id})
+        return result
+
     engine = _get_engine()
     result = await engine.switch_scene(req.scene_id)
     if not result.get("success"):
@@ -247,14 +376,65 @@ async def switch_scene(
 
 
 @broadcast_router.get("/scenes")
-async def list_scenes(_user=Depends(require_clerk_auth)):
+async def list_scenes(
+    _user=Depends(require_clerk_auth),
+    target_node: str = Query(default="", description="Node; empty = active node"),
+):
+    node = target_node or _active_node
+    if _is_remote(node):
+        try:
+            result = await _dispatch_remote(node, "status", {}, timeout=10)
+            return {
+                "scenes": result.get("scenes", []),
+                "active_scene_id": result.get("active_scene_id"),
+                "composite": result.get("composite", False),
+                "node": node,
+            }
+        except HTTPException:
+            return {"scenes": [], "active_scene_id": None, "composite": False, "node": node}
+
     engine = _get_engine()
     status = engine.get_status()
     return {
         "scenes": status.get("scenes", []),
         "active_scene_id": status.get("active_scene_id"),
         "composite": status.get("composite", False),
+        "node": _LOCAL,
     }
+
+
+# ── Node discovery ──
+
+
+@broadcast_router.get("/nodes")
+async def list_broadcast_nodes(_user=Depends(require_clerk_auth)):
+    """List mesh nodes that advertise broadcast capability."""
+    import aiohttp
+
+    nodes = [{"node_id": _LOCAL, "status": "available", "local": True}]
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"http://127.0.0.1:{_MESH_RELAY_PORT}/nodes",
+                timeout=aiohttp.ClientTimeout(total=5),
+            ) as resp:
+                all_nodes = await resp.json()
+    except Exception:
+        return {"nodes": nodes, "active_node": _active_node}
+
+    for n in all_nodes:
+        caps = [c.get("name", "") if isinstance(c, dict) else c for c in n.get("capabilities", [])]
+        if "broadcast" in caps:
+            nodes.append({
+                "node_id": n.get("node_id", ""),
+                "hostname": n.get("hostname", ""),
+                "os": n.get("os", ""),
+                "status": n.get("status", "connected"),
+                "local": False,
+            })
+
+    return {"nodes": nodes, "active_node": _active_node}
 
 
 def _extract_ws_subprotocol(ws: WebSocket) -> str | None:
@@ -294,9 +474,14 @@ async def broadcast_ws(ws: WebSocket):
 
     try:
         while True:
-            engine = _get_engine()
-            status = engine.get_status()
-            status["latest_health"] = _latest_health
+            node = _active_node
+            if _is_remote(node):
+                status = await _get_remote_health(node)
+            else:
+                engine = _get_engine()
+                status = engine.get_status()
+                status["latest_health"] = _latest_health
+            status["active_node"] = node
             await ws.send_json({"type": "broadcast_pulse", **status})
 
             try:
@@ -310,3 +495,33 @@ async def broadcast_ws(ws: WebSocket):
     finally:
         _ws_clients.discard(ws)
         logger.info("[BroadcastWS] client disconnected (%d remaining)", len(_ws_clients))
+
+
+async def _get_remote_health(node_id: str) -> dict[str, Any]:
+    """Poll remote engine health via mesh relay — best-effort."""
+    import aiohttp
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"http://127.0.0.1:{_MESH_RELAY_PORT}/dispatch",
+                json={
+                    "node_id": node_id,
+                    "capability": "broadcast.health",
+                    "params": {},
+                    "timeout": 5,
+                },
+                timeout=aiohttp.ClientTimeout(total=8),
+            ) as resp:
+                result = await resp.json()
+        if result.get("ok"):
+            data = result.get("result_data", {})
+            return {
+                "state": data.get("state", "unknown"),
+                "health": data.get("health"),
+                "latest_health": data.get("health", {}),
+            }
+    except Exception as exc:
+        logger.debug("[BroadcastWS] remote health poll failed: %s", exc)
+
+    return {"state": "unreachable", "health": None, "latest_health": {}}

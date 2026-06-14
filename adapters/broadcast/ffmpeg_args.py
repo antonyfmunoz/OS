@@ -17,10 +17,11 @@ _ALLOWED_LAVFI_PATTERNS = frozenset({
 
 _ALLOWED_RTMP_SCHEMES = frozenset({"rtmp", "rtmps", "srt"})
 
-_ALLOWED_MEDIA_DIR = os.environ.get(
-    "UMH_BROADCAST_MEDIA_DIR",
-    os.path.join(os.environ.get("UMH_ROOT", "/opt/OS"), "data", "media"),
-)
+def _get_allowed_media_dir() -> str:
+    return os.environ.get(
+        "UMH_BROADCAST_MEDIA_DIR",
+        os.path.join(os.environ.get("UMH_ROOT", "/opt/OS"), "data", "media"),
+    )
 
 
 def build_args(
@@ -116,7 +117,7 @@ def _input_args(
     if source_type == "file":
         path = config["path"]
         real_path = os.path.realpath(path)
-        allowed_dir = os.path.realpath(_ALLOWED_MEDIA_DIR)
+        allowed_dir = os.path.realpath(_get_allowed_media_dir())
         if not real_path.startswith(allowed_dir + os.sep):
             raise ValueError(f"File path outside allowed media dir: {path}")
         args = ["-re", "-i", real_path]
@@ -134,25 +135,50 @@ _TLS_SCHEMES = frozenset({"rtmps", "srt"})
 
 
 def _validate_output_url(url: str) -> str:
-    """Validate output URL — only streaming protocols, no file/http/local writes."""
+    """Validate output URL — streaming protocols or safe local file paths."""
     _reject_control_chars(url)
     if url.startswith("-"):
         raise ValueError("Output URL must not start with '-'")
+
+    if len(url) >= 2 and url[1] == ":" and url[0].isalpha():
+        return _validate_file_output(url)
+
     parsed = urlparse(url)
-    if parsed.scheme not in _ALLOWED_OUTPUT_SCHEMES:
+
+    if parsed.scheme in _ALLOWED_OUTPUT_SCHEMES:
+        hostname = parsed.hostname or ""
+        if not hostname:
+            raise ValueError("Output URL must have a hostname")
+        if parsed.username or parsed.password:
+            raise ValueError("Credentials must not be embedded in output URL — use env var side channel")
+        if parsed.query:
+            raise ValueError("Query parameters not allowed in output URL (push-only)")
+        resolved_ip = _resolve_and_pin(hostname)
+        return _rebuild_url(parsed, resolved_ip)
+
+    if not parsed.scheme or parsed.scheme == "file":
+        return _validate_file_output(url)
+
+    raise ValueError(
+        f"Disallowed output scheme: {parsed.scheme!r} "
+        f"(allowed: {', '.join(sorted(_ALLOWED_OUTPUT_SCHEMES))} or local file)"
+    )
+
+
+def _validate_file_output(path: str) -> str:
+    """Validate a local file output path — must be under allowed media dir."""
+    if path.startswith("file:///"):
+        path = path[len("file:///"):]
+    elif path.startswith("file://"):
+        path = path[len("file://"):]
+
+    real_path = os.path.realpath(path)
+    allowed_dir = os.path.realpath(_get_allowed_media_dir())
+    if not real_path.startswith(allowed_dir + os.sep) and real_path != allowed_dir:
         raise ValueError(
-            f"Disallowed output scheme: {parsed.scheme!r} "
-            f"(allowed: {', '.join(sorted(_ALLOWED_OUTPUT_SCHEMES))})"
+            f"File output path outside allowed media dir ({allowed_dir}): {path}"
         )
-    hostname = parsed.hostname or ""
-    if not hostname:
-        raise ValueError("Output URL must have a hostname")
-    if parsed.username or parsed.password:
-        raise ValueError("Credentials must not be embedded in output URL — use env var side channel")
-    if parsed.query:
-        raise ValueError("Query parameters not allowed in output URL (push-only)")
-    resolved_ip = _resolve_and_pin(hostname)
-    return _rebuild_url(parsed, resolved_ip)
+    return real_path
 
 
 def _validate_input_url(url: str) -> str:
