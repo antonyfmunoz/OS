@@ -27,6 +27,7 @@ interface ExecutorResultData {
   started_at: number
   completed_at: number
   duration_seconds: number
+  metadata?: Record<string, unknown>
 }
 
 interface LifecycleEvent {
@@ -142,6 +143,11 @@ function RequestCard({
       {req.description && (
         <div className="text-xs text-secondary mb-1">{req.description}</div>
       )}
+      {req.metadata?.operation && (
+        <div className="text-xs text-cyan-400 mb-1">
+          op: {req.metadata.operation as string}
+        </div>
+      )}
       <div className="text-xs text-secondary mb-2">
         Plan: {req.execution_plan_id.slice(0, 17) || '-'} |
         Profile: {req.profile_id || '-'} |
@@ -187,6 +193,9 @@ function RequestCard({
 }
 
 function ResultCard({ result }: { result: ExecutorResultData }) {
+  const proof = result.metadata?.proof as Record<string, unknown> | undefined
+  const exitCode = (proof?.outputs as Record<string, unknown>)?.exit_code as number | undefined
+
   return (
     <div className="bg-surface-2 rounded p-3 border border-border mb-2">
       <div className="flex items-center justify-between mb-1">
@@ -200,10 +209,20 @@ function ResultCard({ result }: { result: ExecutorResultData }) {
         <span className="text-xs text-secondary">{result.duration_seconds.toFixed(2)}s</span>
       </div>
       <div className="text-xs text-secondary mb-1">{result.outcome}</div>
+      {proof && (
+        <div className="text-xs text-cyan-400 mb-1">
+          {proof.operation as string}
+          {exitCode !== undefined && <span className="ml-2">exit: {exitCode}</span>}
+          {proof.duration_ms !== undefined && (
+            <span className="ml-2">{(proof.duration_ms as number).toFixed(0)}ms</span>
+          )}
+        </div>
+      )}
       <div className="text-xs text-secondary">
         Req: {result.request_id.slice(0, 17)} |
         Artifacts: {result.artifacts.length} |
         {result.errors.length > 0 ? `Errors: ${result.errors.length}` : 'No errors'}
+        {proof && <span className="ml-1">| Proof: {(proof.proof_id as string)?.slice(0, 15)}</span>}
       </div>
     </div>
   )
@@ -310,13 +329,18 @@ export function ExecutorPanel() {
           <div>
             <h3 className="text-sm font-bold text-secondary mb-2 uppercase">Registered Executor Types</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {executorTypes.map(t => (
-                <div key={t} className="bg-surface-2 rounded p-3 border border-border text-center">
-                  <div className="text-2xl mb-1">{getTargetIcon(t)}</div>
-                  <div className="text-sm font-mono text-primary">{t}</div>
-                  <div className="text-xs text-green-400">simulation</div>
-                </div>
-              ))}
+              {executorTypes.map(t => {
+                const isReal = t === 'workstation'
+                return (
+                  <div key={t} className="bg-surface-2 rounded p-3 border border-border text-center">
+                    <div className="text-2xl mb-1">{getTargetIcon(t)}</div>
+                    <div className="text-sm font-mono text-primary">{t}</div>
+                    <div className={`text-xs ${isReal ? 'text-cyan-400' : 'text-green-400'}`}>
+                      {isReal ? 'production' : 'simulation'}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
