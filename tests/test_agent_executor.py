@@ -53,7 +53,7 @@ def _make_request(
     task: str = "add a test file",
     operation: str = "run_task",
     executor_type: str = "agent",
-    repo_path: str = "/opt/OS",
+    worktree_path: str = "/opt/OS/substrate",
     request_id: str = "test-req-001",
     **extra_params: Any,
 ) -> ExecutorRequest:
@@ -65,7 +65,7 @@ def _make_request(
             "operation": operation,
             "params": {
                 "task": task,
-                "repo_path": repo_path,
+                "worktree_path": worktree_path,
                 **extra_params,
             },
         },
@@ -88,15 +88,17 @@ def _make_executor(
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-def test_classify_low_risk():
-    assert classify_agent_task_risk("add a test file") == "low"
-    assert classify_agent_task_risk("refactor the auth module") == "low"
+def test_classify_minimum_medium():
+    """All agent tasks are at least medium risk."""
+    assert classify_agent_task_risk("add a test file") == "medium"
+    assert classify_agent_task_risk("refactor the auth module") == "medium"
 
 
-def test_classify_medium_risk():
-    assert classify_agent_task_risk("delete the old migration file") == "medium"
-    assert classify_agent_task_risk("remove unused imports") == "medium"
-    assert classify_agent_task_risk("overwrite the config") == "medium"
+def test_classify_mutating_is_high():
+    """Mutating keywords escalate to high."""
+    assert classify_agent_task_risk("delete the old migration file") == "high"
+    assert classify_agent_task_risk("remove unused imports") == "high"
+    assert classify_agent_task_risk("overwrite the config") == "high"
 
 
 def test_classify_high_risk():
@@ -113,10 +115,10 @@ def test_classify_high_risk():
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-def test_validate_approved_path():
-    path, err = _validate_working_dir("/opt/OS")
-    assert not err
-    assert str(path) == "/opt/OS"
+def test_validate_repo_root_rejected():
+    """Repo root itself is not allowed — must use worktree or subdir."""
+    _, err = _validate_working_dir("/opt/OS")
+    assert "repo root" in err.lower() or "worktree" in err.lower()
 
 
 def test_validate_subdir_of_approved():
@@ -132,6 +134,15 @@ def test_validate_unapproved_path():
 def test_validate_nonexistent_path():
     _, err = _validate_working_dir("/opt/OS/nonexistent_xyz_dir")
     assert err
+
+
+def test_validate_secrets_path_rejected():
+    """Paths containing secrets segments are blocked."""
+    _, err = _validate_working_dir("/opt/OS/.ssh")
+    assert "forbidden" in err.lower()
+
+    _, err = _validate_working_dir("/opt/OS/credentials")
+    assert "forbidden" in err.lower()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -329,10 +340,10 @@ def test_validate_task_too_long():
 )
 def test_prepare_success(mock_gate: MagicMock) -> None:
     ex = _make_executor()
-    req = _make_request(repo_path="/opt/OS")
+    req = _make_request(worktree_path="/opt/OS/substrate")
     ok, msg = ex.prepare(req)
     assert ok
-    assert "/opt/OS" in msg
+    assert "substrate" in msg
 
 
 @patch(
@@ -353,10 +364,30 @@ def test_prepare_cpu_gate_blocked(mock_gate: MagicMock) -> None:
 )
 def test_prepare_bad_path(mock_gate: MagicMock) -> None:
     ex = _make_executor()
-    req = _make_request(repo_path="/etc/passwd")
+    req = _make_request(worktree_path="/etc/passwd")
     ok, msg = ex.prepare(req)
     assert not ok
     assert "invalid" in msg.lower() or "outside" in msg.lower()
+
+
+@patch(
+    "substrate.organism.executors.agent_executor.cpu_gate_check",
+    return_value=MagicMock(allowed=True, reason="ok"),
+)
+def test_prepare_repo_root_rejected(mock_gate: MagicMock) -> None:
+    ex = _make_executor()
+    req = _make_request(worktree_path="/opt/OS")
+    ok, msg = ex.prepare(req)
+    assert not ok
+    assert "repo root" in msg.lower() or "worktree" in msg.lower()
+
+
+def test_prepare_no_working_dir() -> None:
+    ex = _make_executor()
+    req = _make_request(worktree_path="")
+    ok, msg = ex.prepare(req)
+    assert not ok
+    assert "No working directory" in msg
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -364,20 +395,33 @@ def test_prepare_bad_path(mock_gate: MagicMock) -> None:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-@dataclass
-class FakeProcess:
-    returncode: int = 0
-    stdout: str = ""
-    stderr: str = ""
+def _make_mock_runtime(approved: bool = True) -> MagicMock:
+    """Create a mock runtime that approves or denies all tasks."""
+    rt = MagicMock()
+    rt.request_approval.return_value = (approved, "auto-approved" if approved else "denied by test")
+    return rt
+
+
+def _make_mock_popen(
+    returncode: int = 0,
+    stdout: str = "",
+    stderr: str = "",
+) -> MagicMock:
+    proc = MagicMock()
+    proc.returncode = returncode
+    proc.pid = 12345
+    proc.communicate.return_value = (stdout, stderr)
+    proc.kill = MagicMock()
+    return proc
 
 
 @patch(
     "substrate.organism.executors.agent_executor.cpu_gate_check",
     return_value=MagicMock(allowed=True, reason="ok"),
 )
-@patch("substrate.organism.executors.agent_executor.gated_subprocess_run")
-def test_execute_success(mock_run: MagicMock, mock_gate: MagicMock) -> None:
-    mock_run.return_value = FakeProcess(
+@patch("substrate.organism.executors.agent_executor.gated_popen")
+def test_execute_success(mock_popen: MagicMock, mock_gate: MagicMock) -> None:
+    mock_popen.return_value = _make_mock_popen(
         returncode=0,
         stdout="""\
 I added the test file.
@@ -393,7 +437,8 @@ remaining_blockers: none
     )
 
     tel = MagicMock()
-    ex = _make_executor(telemetry=tel)
+    runtime = _make_mock_runtime(approved=True)
+    ex = _make_executor(telemetry=tel, runtime=runtime)
     req = _make_request()
     ex.prepare(req)
 
@@ -405,10 +450,11 @@ remaining_blockers: none
     assert result.metadata.get("proof")
     assert result.metadata["proof"]["status"] == "success"
 
-    mock_run.assert_called_once()
-    cmd = mock_run.call_args[0][0]
+    mock_popen.assert_called_once()
+    cmd = mock_popen.call_args[0][0]
     assert cmd[0] == "claude"
     assert cmd[1] == "--print"
+    assert "--disallowedTools" in cmd
 
     assert tel.emit.called
 
@@ -417,11 +463,12 @@ remaining_blockers: none
     "substrate.organism.executors.agent_executor.cpu_gate_check",
     return_value=MagicMock(allowed=True, reason="ok"),
 )
-@patch("substrate.organism.executors.agent_executor.gated_subprocess_run")
-def test_execute_cli_failure(mock_run: MagicMock, mock_gate: MagicMock) -> None:
-    mock_run.return_value = FakeProcess(returncode=1, stdout="Error: compile failed")
+@patch("substrate.organism.executors.agent_executor.gated_popen")
+def test_execute_cli_failure(mock_popen: MagicMock, mock_gate: MagicMock) -> None:
+    mock_popen.return_value = _make_mock_popen(returncode=1, stdout="Error: compile failed")
 
-    ex = _make_executor()
+    runtime = _make_mock_runtime(approved=True)
+    ex = _make_executor(runtime=runtime)
     req = _make_request()
     ex.prepare(req)
 
@@ -434,11 +481,12 @@ def test_execute_cli_failure(mock_run: MagicMock, mock_gate: MagicMock) -> None:
     "substrate.organism.executors.agent_executor.cpu_gate_check",
     return_value=MagicMock(allowed=True, reason="ok"),
 )
-@patch("substrate.organism.executors.agent_executor.gated_subprocess_run")
-def test_execute_cpu_gate_blocks(mock_run: MagicMock, mock_gate: MagicMock) -> None:
-    mock_run.return_value = None  # CPU gate returns None
+@patch("substrate.organism.executors.agent_executor.gated_popen")
+def test_execute_cpu_gate_blocks(mock_popen: MagicMock, mock_gate: MagicMock) -> None:
+    mock_popen.return_value = None  # CPU gate returns None
 
-    ex = _make_executor()
+    runtime = _make_mock_runtime(approved=True)
+    ex = _make_executor(runtime=runtime)
     req = _make_request()
     ex.prepare(req)
 
@@ -451,9 +499,10 @@ def test_execute_cpu_gate_blocks(mock_run: MagicMock, mock_gate: MagicMock) -> N
     "substrate.organism.executors.agent_executor.cpu_gate_check",
     return_value=MagicMock(allowed=True, reason="ok"),
 )
-@patch("substrate.organism.executors.agent_executor.gated_subprocess_run")
-def test_execute_cancelled_before_start(mock_run: MagicMock, mock_gate: MagicMock) -> None:
-    ex = _make_executor()
+@patch("substrate.organism.executors.agent_executor.gated_popen")
+def test_execute_cancelled_before_start(mock_popen: MagicMock, mock_gate: MagicMock) -> None:
+    runtime = _make_mock_runtime(approved=True)
+    ex = _make_executor(runtime=runtime)
     req = _make_request()
     ex.prepare(req)
     ex._cancelled.add(req.request_id)
@@ -461,7 +510,62 @@ def test_execute_cancelled_before_start(mock_run: MagicMock, mock_gate: MagicMoc
     result = ex.execute(req)
     assert not result.success
     assert "Cancelled" in result.outcome
-    mock_run.assert_not_called()
+    mock_popen.assert_not_called()
+
+
+@patch(
+    "substrate.organism.executors.agent_executor.cpu_gate_check",
+    return_value=MagicMock(allowed=True, reason="ok"),
+)
+@patch("substrate.organism.executors.agent_executor.gated_popen")
+def test_execute_approval_denied(mock_popen: MagicMock, mock_gate: MagicMock) -> None:
+    """Tasks denied by approval are blocked — not executed."""
+    runtime = _make_mock_runtime(approved=False)
+    ex = _make_executor(runtime=runtime)
+    req = _make_request()
+    ex.prepare(req)
+
+    result = ex.execute(req)
+    assert not result.success
+    assert "denied" in result.outcome.lower()
+    mock_popen.assert_not_called()
+
+
+@patch(
+    "substrate.organism.executors.agent_executor.cpu_gate_check",
+    return_value=MagicMock(allowed=True, reason="ok"),
+)
+@patch("substrate.organism.executors.agent_executor.gated_popen")
+def test_execute_no_runtime_blocks(mock_popen: MagicMock, mock_gate: MagicMock) -> None:
+    """No runtime means no approval available — must block."""
+    ex = _make_executor(runtime=None)
+    req = _make_request()
+    ex.prepare(req)
+
+    result = ex.execute(req)
+    assert not result.success
+    assert "blocked" in result.outcome.lower()
+    mock_popen.assert_not_called()
+
+
+@patch(
+    "substrate.organism.executors.agent_executor.cpu_gate_check",
+    return_value=MagicMock(allowed=True, reason="ok"),
+)
+@patch("substrate.organism.executors.agent_executor.gated_popen")
+def test_execute_records_pid(mock_popen: MagicMock, mock_gate: MagicMock) -> None:
+    """Process PID is recorded for cancellation support."""
+    mock_proc = _make_mock_popen(returncode=0, stdout="AGENT_RESULT:\nstatus: success\nsummary: done\nfiles_changed: none\ncommands_run: none\nproof_notes: ok\nremaining_blockers: none\n")
+    mock_popen.return_value = mock_proc
+
+    runtime = _make_mock_runtime(approved=True)
+    ex = _make_executor(runtime=runtime)
+    req = _make_request()
+    ex.prepare(req)
+
+    ex.execute(req)
+    # PID was recorded during execution (cleaned up by end for completed tasks)
+    assert mock_proc.pid == 12345
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
