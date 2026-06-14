@@ -41,6 +41,7 @@ export type Panel =
   | 'continuity'
   | 'presence'
   | 'commands'
+  | 'workstation'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

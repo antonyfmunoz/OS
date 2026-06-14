@@ -33,6 +33,7 @@ import {
   RefreshCw,
   Eye,
   Zap,
+  Monitor,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -65,6 +66,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'continuity', label: 'Continuity', icon: RefreshCw, group: 'primary', visibility: 'primary', key: 'y' },
   { id: 'presence', label: 'Presence', icon: Eye, group: 'primary', visibility: 'primary', key: 'e' },
   { id: 'commands', label: 'Commands', icon: Zap, group: 'primary', visibility: 'primary', key: 'z' },
+  { id: 'workstation', label: 'Workstation', icon: Monitor, group: 'primary', visibility: 'primary', key: 'k' },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'primary', visibility: 'primary', key: '5' },
 
   // System (1)
