@@ -50,6 +50,7 @@ import { TickLoopPanel } from '../panels/TickLoopPanel'
 import { ProjectionPanel } from '../panels/ProjectionPanel'
 import { ContinuityPanel } from '../panels/ContinuityPanel'
 import { PresencePanel } from '../panels/PresencePanel'
+import { CommandsPanel } from '../panels/CommandsPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -135,6 +136,8 @@ function ActivePanel() {
       return <ContinuityPanel />
     case 'presence':
       return <PresencePanel />
+    case 'commands':
+      return <CommandsPanel />
     default:
       return <DashboardPanel />
   }

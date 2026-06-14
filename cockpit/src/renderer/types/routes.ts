@@ -32,6 +32,7 @@ import {
   TrendingUp,
   RefreshCw,
   Eye,
+  Zap,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -63,6 +64,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'projections', label: 'Projections', icon: TrendingUp, group: 'primary', visibility: 'primary', key: 'f' },
   { id: 'continuity', label: 'Continuity', icon: RefreshCw, group: 'primary', visibility: 'primary', key: 'y' },
   { id: 'presence', label: 'Presence', icon: Eye, group: 'primary', visibility: 'primary', key: 'e' },
+  { id: 'commands', label: 'Commands', icon: Zap, group: 'primary', visibility: 'primary', key: 'z' },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'primary', visibility: 'primary', key: '5' },
 
   // System (1)
