@@ -556,6 +556,62 @@ class TestRedaction:
         assert event.payload["api_key"] == "[REDACTED]"
         assert event.payload["safe"] == "value"
 
+    def test_redact_github_pat(self):
+        result = redact_telemetry_payload(
+            {"output": "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij"}
+        )
+        assert result["output"] == "[REDACTED]"
+
+    def test_redact_aws_key(self):
+        result = redact_telemetry_payload(
+            {"output": "AKIAIOSFODNN7EXAMPLE"}
+        )
+        assert result["output"] == "[REDACTED]"
+
+    def test_redact_jwt(self):
+        result = redact_telemetry_payload(
+            {"output": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"}
+        )
+        assert result["output"] == "[REDACTED]"
+
+    def test_redact_slack_token(self):
+        result = redact_telemetry_payload(
+            {"output": "xoxb-FAKE00000000-FAKE0000000TEST-FakeSlackTestVal"}
+        )
+        assert result["output"] == "[REDACTED]"
+
+    def test_redact_url_with_userinfo(self):
+        result = redact_telemetry_payload(
+            {"output": "postgres://admin:s3cretP4ss@db.example.com:5432/mydb"}
+        )
+        assert result["output"] == "[REDACTED]"
+
+    def test_redact_long_hex(self):
+        result = redact_telemetry_payload(
+            {"output": "a" * 40}  # 40-char hex
+        )
+        assert result["output"] == "[REDACTED]"
+
+    def test_redact_list_values(self):
+        result = redact_telemetry_payload(
+            {"items": ["safe", "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij", "also safe"]}
+        )
+        assert result["items"][0] == "safe"
+        assert result["items"][1] == "[REDACTED]"
+        assert result["items"][2] == "also safe"
+
+    def test_redact_openai_key(self):
+        result = redact_telemetry_payload(
+            {"output": "sk-proj-abcdefghijklmnopqrstuvwx"}
+        )
+        assert result["output"] == "[REDACTED]"
+
+    def test_redact_anthropic_key(self):
+        result = redact_telemetry_payload(
+            {"output": "sk-ant-abcdefghijklmnopqrstuvwx"}
+        )
+        assert result["output"] == "[REDACTED]"
+
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 9. Store eviction (bounded capacity)

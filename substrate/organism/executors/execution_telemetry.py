@@ -134,6 +134,40 @@ _SECRET_REGEX = re.compile(
     re.IGNORECASE,
 )
 
+_CREDENTIAL_SHAPES = re.compile(
+    "|".join([
+        r"sk-[a-z]+-[A-Za-z0-9_-]{20,}",
+        r"sk-ant-[A-Za-z0-9_-]{20,}",
+        r"ghp_[A-Za-z0-9]{36}",
+        r"gho_[A-Za-z0-9]{36}",
+        r"github_pat_[A-Za-z0-9_]{22,}",
+        r"AKIA[0-9A-Z]{16}",
+        r"xox[bp]-[A-Za-z0-9\-]{20,}",
+        r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+",
+        r"://[^/\s]+:[^@\s]+@",
+        r"[A-Za-z0-9+/]{40,}={0,2}",
+        r"[0-9a-f]{40,}",
+    ])
+)
+
+
+def _value_looks_secret(value: str) -> bool:
+    if _SECRET_REGEX.search(value):
+        return True
+    if _CREDENTIAL_SHAPES.search(value):
+        return True
+    return False
+
+
+def _redact_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return "[REDACTED]" if _value_looks_secret(value) else value
+    if isinstance(value, dict):
+        return redact_telemetry_payload(value)
+    if isinstance(value, (list, tuple)):
+        return [_redact_value(item) for item in value]
+    return value
+
 
 def redact_telemetry_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Redact secret-looking values from telemetry payloads."""
@@ -144,12 +178,8 @@ def redact_telemetry_payload(payload: dict[str, Any]) -> dict[str, Any]:
     for key, value in payload.items():
         if _SECRET_REGEX.search(key):
             redacted[key] = "[REDACTED]"
-        elif isinstance(value, str) and _SECRET_REGEX.search(value):
-            redacted[key] = "[REDACTED]"
-        elif isinstance(value, dict):
-            redacted[key] = redact_telemetry_payload(value)
         else:
-            redacted[key] = value
+            redacted[key] = _redact_value(value)
     return redacted
 
 

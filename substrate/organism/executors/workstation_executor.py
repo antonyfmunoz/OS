@@ -602,11 +602,12 @@ class WorkstationExecutor(ExecutorContract):
                 duration_seconds=time.time() - started,
             )
 
-        cmd_desc = ""
+        cmd_desc = operation
         if operation == "run_command":
             cmd = params.get("command", "")
-            cmd_desc = cmd if isinstance(cmd, str) else " ".join(cmd)
-        self._tel("command_started", request, message=cmd_desc or operation)
+            argv0 = (cmd if isinstance(cmd, str) else (cmd[0] if cmd else "")).split()[0] if cmd else ""
+            cmd_desc = argv0 or operation
+        self._tel("command_started", request, message=cmd_desc)
 
         try:
             success, message, outputs, artifacts = handler(params, request)
