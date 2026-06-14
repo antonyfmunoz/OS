@@ -53,6 +53,7 @@ import { PresencePanel } from '../panels/PresencePanel'
 import { CommandsPanel } from '../panels/CommandsPanel'
 import { WorkstationPanel } from '../panels/WorkstationPanel'
 import { SessionPanel } from '../panels/SessionPanel'
+import { ExecCoordPanel } from '../panels/ExecCoordPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -144,6 +145,8 @@ function ActivePanel() {
       return <WorkstationPanel />
     case 'sessions':
       return <SessionPanel />
+    case 'execcoord':
+      return <ExecCoordPanel />
     default:
       return <DashboardPanel />
   }
