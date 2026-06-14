@@ -96,6 +96,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'experiments', label: 'Experiments', icon: FlaskConical, group: 'primary', visibility: 'stub', key: 'x' },
   { id: 'sessions', label: 'Sessions', icon: MonitorSmartphone, group: 'primary', visibility: 'primary', key: 'n' },
   { id: 'execcoord', label: 'Exec Coordinator', icon: Cog, group: 'primary', visibility: 'primary', key: 'h' },
+  { id: 'executor', label: 'Executor', icon: Play, group: 'primary', visibility: 'primary', key: 'x' },
   { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'primary', key: 'u' },
 ]
 
