@@ -97,6 +97,7 @@ class OrganismLoopEngine:
         executor: WorkPacketExecutor | None = None,
         event_spine: EventSpine | None = None,
         canonical_write: CanonicalWritePath | None = None,
+        canonical_reality_write: Any | None = None,
     ) -> None:
         self._empire_router = empire_router or EmpireRouter()
         self._work_queue = work_queue or UniversalWorkQueue()
@@ -104,6 +105,7 @@ class OrganismLoopEngine:
         self._executor = executor or build_default_executor()
         self._event_spine = event_spine or EventSpine()
         self._canonical_write = canonical_write or CanonicalWritePath()
+        self._canonical_reality_write = canonical_reality_write
 
     async def execute_intent(
         self,
@@ -207,6 +209,9 @@ class OrganismLoopEngine:
             result.final_status = "failed"
             result.total_duration_ms = int((time.monotonic() - t0) * 1000)
             return result
+
+        # Record governance decision as reality observation
+        self._record_governance_decision(verdict, result, organism_packet, intent)
 
         # Check governance decision
         if not verdict.is_executable():
@@ -355,6 +360,43 @@ class OrganismLoopEngine:
                 "organism_packet_id": organism_packet.packet_id,
             },
         )
+
+    def _record_governance_decision(
+        self,
+        verdict: Any,
+        result: OrganismLoopResult,
+        organism_packet: OrganismWorkPacket,
+        intent: str,
+    ) -> None:
+        try:
+            from substrate.reality_model.reality_mutation import (
+                RealityMutation, MutationSource, MutationType,
+            )
+            from substrate.reality_model.canonical_reality_write import CanonicalRealityWritePath
+            gov_mutation = RealityMutation(
+                mutation_id=f"rm-gov-{uuid4().hex[:12]}",
+                source_system=MutationSource.GOVERNANCE,
+                source_id=result.governance_decision_id or "",
+                mutation_type=MutationType.DECISION_RECORDED,
+                content=f"Governance {verdict.decision.value}: {verdict.rationale[:500]}",
+                confidence=0.95,
+                domain="governance",
+                evidence={
+                    "risk_class": organism_packet.risk_class,
+                    "decision": verdict.decision.value,
+                    "work_packet_id": organism_packet.packet_id,
+                },
+                tags=["governance-decision", verdict.decision.value],
+                metadata={"intent": intent[:200]},
+                governance_context={"verdict_id": result.governance_decision_id or ""},
+            )
+            writer = self._canonical_reality_write or CanonicalRealityWritePath(
+                reality_model=getattr(self._canonical_write, "_reality_model", None),
+                event_spine=self._event_spine,
+            )
+            writer.apply_mutation(gov_mutation)
+        except Exception as exc:
+            logger.debug("organism_loop: governance reality write failed: %s", exc)
 
     # ── Helpers ──────────────────────────────────────────────────────────
 

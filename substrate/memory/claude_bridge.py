@@ -16,6 +16,7 @@ import logging
 import re
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from substrate.memory.candidate_generator import MemoryCandidateGenerator
 from substrate.memory.promoter import MemoryPromoter
@@ -155,6 +156,26 @@ class ClaudeMemoryBridge:
                 promotion = self._promoter.evaluate(candidate)
                 if promotion.get("promoted"):
                     recon = self._reconciler.reconcile_promoted(candidate, promotion)
+                    try:
+                        from substrate.reality_model.reality_mutation import (
+                            RealityMutation, MutationSource, MutationType,
+                        )
+                        from substrate.reality_model.canonical_reality_write import CanonicalRealityWritePath
+                        conv_mutation = RealityMutation(
+                            mutation_id=f"rm-conv-{uuid4().hex[:12]}",
+                            source_system=MutationSource.CONVERSATION_MEMORY,
+                            source_id=candidate.candidate_id,
+                            mutation_type=MutationType.INSIGHT_PROMOTED,
+                            content=candidate.content[:2000],
+                            confidence=candidate.confidence,
+                            domain="conversation",
+                            evidence={"source_file": path.name, "memory_type": mem_type},
+                            tags=["conversation-memory", "promoted", mem_type],
+                            metadata={"memory_id": promotion.get("memory_id", "")},
+                        )
+                        CanonicalRealityWritePath().apply_mutation(conv_mutation)
+                    except Exception as exc:
+                        logger.debug("claude_bridge: reality mutation failed: %s", exc)
                     results["details"].append({
                         "file": path.name,
                         "action": recon.get("action", "unknown"),
