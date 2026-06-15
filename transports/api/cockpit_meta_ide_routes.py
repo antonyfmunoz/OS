@@ -12,7 +12,7 @@ import logging
 import os
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 logger = logging.getLogger(__name__)
 
@@ -130,12 +130,25 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             "generated_at": status.generated_at,
         }
 
+    def _validate_repo_path(engine: Any, repo_path: str) -> str | None:
+        if not repo_path:
+            return None
+        allowed = {os.path.realpath(p) for p in engine._repo_paths}
+        target = os.path.realpath(repo_path)
+        if target not in allowed:
+            raise HTTPException(
+                status_code=403,
+                detail="repo_path not in configured repositories",
+            )
+        return target
+
     @r.get("/meta-ide/worktrees", dependencies=auth)
     async def _worktrees(
         repo_path: str = Query("", description="Repository path"),
     ) -> dict[str, Any]:
         engine = _get_engine()
-        wts = engine.worktree_summary(repo_path=repo_path or None)
+        validated = _validate_repo_path(engine, repo_path)
+        wts = engine.worktree_summary(repo_path=validated)
         return {"worktrees": wts}
 
     @r.get("/meta-ide/branches", dependencies=auth)
@@ -143,7 +156,8 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         repo_path: str = Query("", description="Repository path"),
     ) -> dict[str, Any]:
         engine = _get_engine()
-        branches = engine.branch_summary(repo_path=repo_path or None)
+        validated = _validate_repo_path(engine, repo_path)
+        branches = engine.branch_summary(repo_path=validated)
         return {"branches": branches}
 
     @r.get("/meta-ide/risks", dependencies=auth)
