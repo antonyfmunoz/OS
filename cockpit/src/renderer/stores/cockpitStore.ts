@@ -49,6 +49,7 @@ export type Panel =
   | 'operatortimeline'
   | 'realitytimeline'
   | 'realityintelligence'
+  | 'metaide'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
