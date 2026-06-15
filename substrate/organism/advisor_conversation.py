@@ -300,6 +300,56 @@ class AdvisorConversation:
             logger.debug("Voice route resolution failed: %s", exc)
             return {}
 
+    def _build_reality_context(self) -> str:
+        """Query reality models and work queue for current system state.
+
+        Returns a concise text summary for prompt injection. Non-executing —
+        awareness only, no automatic work packets or execution.
+        """
+        sections: list[str] = []
+
+        try:
+            from substrate.reality_model.instance import InstanceRealityModel
+            instance = InstanceRealityModel()
+            recent = instance.recent(limit=5)
+            if recent:
+                obs_lines = []
+                for obs in recent:
+                    conf = obs.effective_confidence() if hasattr(obs, "effective_confidence") else obs.confidence
+                    obs_lines.append(f"- [{obs.domain}] {obs.content[:120]} (confidence: {conf:.2f})")
+                sections.append("Recent observations:\n" + "\n".join(obs_lines))
+        except Exception:
+            pass
+
+        try:
+            from substrate.reality_model.canonical import CanonicalRealityModel
+            canonical = CanonicalRealityModel()
+            patterns = canonical.all()[:5]
+            if patterns:
+                pat_lines = [f"- {p.name}: {p.description[:100]}" for p in patterns if p.description]
+                if pat_lines:
+                    sections.append("Known patterns:\n" + "\n".join(pat_lines))
+        except Exception:
+            pass
+
+        try:
+            from substrate.organism.universal_work_queue import UniversalWorkQueue
+            q = UniversalWorkQueue()
+            summary = q.compute_queue_summary()
+            approvals = q.get_packets_requiring_approval()
+            total = summary.get("total", 0)
+            if total > 0:
+                queue_text = f"Work queue: {total} packets"
+                if approvals:
+                    queue_text += f", {len(approvals)} awaiting approval"
+                sections.append(queue_text)
+        except Exception:
+            pass
+
+        if not sections:
+            return ""
+        return "System awareness (live state):\n" + "\n".join(sections)
+
     def _handle_conversation(
         self,
         content: str,
@@ -329,6 +379,10 @@ class AdvisorConversation:
             f"You have access to the UMH cockpit, work packets, agents, and Claude Code "
             f"sessions.\n\n" + get_prompt_grounding(ai_name),
         ]
+
+        reality_context = self._build_reality_context()
+        if reality_context:
+            prompt_parts.append(f"\n{reality_context}")
 
         if context_summary:
             prompt_parts.append(f"\nCurrent context: {context_summary}")
