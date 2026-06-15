@@ -46,6 +46,7 @@ export type Panel =
   | 'execcoord'
   | 'executor'
   | 'organismloop'
+  | 'operatortimeline'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

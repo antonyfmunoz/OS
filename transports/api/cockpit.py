@@ -3325,6 +3325,20 @@ def _mount_operator_loop_router() -> None:
 
 _mount_operator_loop_router()
 
+# ── Phase 18: Operator timeline routes ─────────────────────────────────────
+
+
+def _mount_operator_timeline_router() -> None:
+    from transports.api import cockpit_operator_timeline_routes
+
+    cockpit_operator_timeline_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_operator_timeline_routes.operator_timeline_router)
+
+
+_mount_operator_timeline_router()
+
 # ── Phase 14.7A: Self-improvement loop routes ─────────────────────────────
 
 

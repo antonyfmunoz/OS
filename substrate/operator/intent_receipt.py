@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import tempfile
+import threading
 import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
@@ -76,13 +77,16 @@ class IntentReceipt:
 class IntentReceiptStore:
     """JSONL append-only store for IntentReceipts."""
 
+    _lock = threading.Lock()
+
     def __init__(self, store_path: str | None = None) -> None:
         self._path = store_path or _DEFAULT_STORE_PATH
         os.makedirs(os.path.dirname(self._path), exist_ok=True)
 
     def append(self, receipt: IntentReceipt) -> None:
-        with open(self._path, "a") as f:
-            f.write(json.dumps(receipt.to_dict(), default=str, separators=(",", ":")) + "\n")
+        with self._lock:
+            with open(self._path, "a") as f:
+                f.write(json.dumps(receipt.to_dict(), default=str, separators=(",", ":")) + "\n")
 
     def load_all(self) -> list[IntentReceipt]:
         if not os.path.exists(self._path):
@@ -114,7 +118,11 @@ class IntentReceiptStore:
         return None
 
     def update(self, receipt: IntentReceipt) -> None:
-        """Atomic rewrite — replace matching receipt in store."""
+        """Atomic rewrite — replace matching receipt in store. Thread-safe."""
+        with self._lock:
+            return self._update_locked(receipt)
+
+    def _update_locked(self, receipt: IntentReceipt) -> None:
         all_receipts = self.load_all()
         updated = False
         for i, r in enumerate(all_receipts):

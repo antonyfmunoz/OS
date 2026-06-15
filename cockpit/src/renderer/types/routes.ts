@@ -99,6 +99,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'execcoord', label: 'Exec Coordinator', icon: Cog, group: 'primary', visibility: 'primary', key: 'h' },
   { id: 'executor', label: 'Executor', icon: Play, group: 'primary', visibility: 'primary', key: 'x' },
   { id: 'organismloop', label: 'Organism Loop', icon: RotateCcw, group: 'primary', visibility: 'primary', key: 'O' },
+  { id: 'operatortimeline', label: 'Operator Timeline', icon: Activity, group: 'primary', visibility: 'primary', key: 'T' },
   { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'primary', key: 'u' },
 ]
 

@@ -281,7 +281,9 @@ class Substrate:
                 receipt.final_status = ReceiptStatus.COMPLETED.value
 
         except Exception as exc:
-            receipt.error = str(exc)
+            err_type = type(exc).__name__
+            err_msg = str(exc).split("\n")[0][:200]
+            receipt.error = f"{err_type}: {err_msg}"
             receipt.final_status = ReceiptStatus.FAILED.value
 
         receipt.completed_at = time.time()
