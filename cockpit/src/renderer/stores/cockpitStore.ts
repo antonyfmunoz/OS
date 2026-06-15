@@ -48,6 +48,7 @@ export type Panel =
   | 'organismloop'
   | 'operatortimeline'
   | 'realitytimeline'
+  | 'realityintelligence'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

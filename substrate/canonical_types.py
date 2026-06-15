@@ -482,6 +482,12 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "RealityMutation": ["substrate.reality_model.reality_mutation"],
     "RealityMutationReceipt": ["substrate.reality_model.reality_mutation"],
     "CanonicalRealityWritePath": ["substrate.reality_model.canonical_reality_write"],
+    # Phase 20: Reality Intelligence
+    "RealityQueryType": ["substrate.reality_model.reality_query"],
+    "RealityQuery": ["substrate.reality_model.reality_query"],
+    "RealityEvidence": ["substrate.reality_model.reality_query"],
+    "RealityQueryResult": ["substrate.reality_model.reality_query"],
+    "RealityIntelligenceEngine": ["substrate.reality_model.reality_intelligence"],
 }
 
 
