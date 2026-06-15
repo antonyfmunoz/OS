@@ -24,6 +24,7 @@ class MutationSource(str, Enum):
     CONVERSATION_MEMORY = "conversation_memory"
     OBSERVATION_API = "observation_api"
     SIMULATION = "simulation"
+    META_IDE = "meta_ide"
 
 
 class MutationType(str, Enum):
