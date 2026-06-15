@@ -37,6 +37,7 @@ import {
   MonitorSmartphone,
   Cog,
   RotateCcw,
+  Wrench,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -103,6 +104,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'realitytimeline', label: 'Reality Timeline', icon: Eye, group: 'primary', visibility: 'primary', key: 'R' },
   { id: 'realityintelligence', label: 'Reality Intelligence', icon: Brain, group: 'primary', visibility: 'primary', key: 'I' },
   { id: 'metaide', label: 'Meta IDE', icon: Code2, group: 'primary', visibility: 'primary', key: 'M' },
+  { id: 'engineering', label: 'Engineering', icon: Wrench, group: 'primary', visibility: 'primary', key: 'E' },
   { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'primary', key: 'u' },
 ]
 

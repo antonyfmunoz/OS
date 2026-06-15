@@ -3343,6 +3343,22 @@ def _mount_meta_ide_router() -> None:
 
 _mount_meta_ide_router()
 
+# ── Phase 22: Engineering Loop routes ─────────────────────────────────────────
+
+
+def _mount_engineering_loop_router() -> None:
+    from transports.api import cockpit_engineering_routes
+
+    cockpit_engineering_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_engineering_routes.engineering_router,
+    )
+
+
+_mount_engineering_loop_router()
+
 # ── Phase 14.7A: Operator loop routes ────────────────────────────────────────
 
 

@@ -502,6 +502,19 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "PhaseStatus": ["substrate.meta_ide.roadmap_intelligence"],
     "RoadmapStatus": ["substrate.meta_ide.roadmap_intelligence"],
     "RoadmapIntelligence": ["substrate.meta_ide.roadmap_intelligence"],
+
+    # Phase 22: Autonomous Engineering Loop
+    "EngineeringIntentType": ["substrate.meta_ide.engineering_intent"],
+    "EngineeringIntent": ["substrate.meta_ide.engineering_intent"],
+    "EngineeringTask": ["substrate.meta_ide.engineering_intent"],
+    "EngineeringPlan": ["substrate.meta_ide.engineering_intent"],
+    "EngineeringPlanReceipt": ["substrate.meta_ide.engineering_intent"],
+    "EngineeringPlanner": ["substrate.meta_ide.engineering_planner"],
+    "EngineeringWorkGenerator": ["substrate.meta_ide.engineering_work_generator"],
+    "RoadmapGapEngine": ["substrate.meta_ide.roadmap_gap_engine"],
+    "GapAnalysis": ["substrate.meta_ide.roadmap_gap_engine"],
+    "RoadmapGap": ["substrate.meta_ide.roadmap_gap_engine"],
+    "GapRecommendation": ["substrate.meta_ide.roadmap_gap_engine"],
 }
 
 
