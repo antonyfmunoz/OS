@@ -476,6 +476,12 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ReceiptStatus": ["substrate.operator.intent_receipt"],
     "IntentReceipt": ["substrate.operator.intent_receipt"],
     "IntentReceiptStore": ["substrate.operator.intent_receipt"],
+    # Phase 19: Reality Canonicalization
+    "MutationSource": ["substrate.reality_model.reality_mutation"],
+    "MutationType": ["substrate.reality_model.reality_mutation"],
+    "RealityMutation": ["substrate.reality_model.reality_mutation"],
+    "RealityMutationReceipt": ["substrate.reality_model.reality_mutation"],
+    "CanonicalRealityWritePath": ["substrate.reality_model.canonical_reality_write"],
 }
 
 
