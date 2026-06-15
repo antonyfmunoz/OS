@@ -463,6 +463,12 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "AgentTaskResult": ["substrate.organism.executors.agent_executor"],
     "AgentExecutionProof": ["substrate.organism.executors.agent_executor"],
     "AgentExecutor": ["substrate.organism.executors.agent_executor"],
+    # Phase 17B: Canonical Memory Write Path
+    "MemoryWriteReceipt": ["substrate.memory.canonical_write"],
+    "CanonicalWritePath": ["substrate.memory.canonical_write"],
+    # Phase 17C: Organism Loop Engine
+    "OrganismLoopResult": ["substrate.organism.organism_loop"],
+    "OrganismLoopEngine": ["substrate.organism.organism_loop"],
 }
 
 

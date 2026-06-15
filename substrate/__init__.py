@@ -161,6 +161,44 @@ class Substrate:
         """Register a component in the registry."""
         return await self.registry.register(component)
 
+
+    async def execute_work(
+        self,
+        intent: str,
+        desired_end_state: str = "",
+        constraints: list[str] | None = None,
+    ) -> "OrganismLoopResult":
+        """Execute governed work through the organism loop.
+
+        This is the canonical entry point for any caller (cockpit, API, CLI,
+        projection) that wants governed execution. It creates an
+        OrganismLoopEngine and runs the full intent-to-memory cycle:
+        reality check -> work packet -> queue -> governance -> execution ->
+        memory write -> event emission.
+
+        The loop engine handles governance internally — callers must NOT
+        bypass this method to call WorkPacketExecutor directly.
+
+        Args:
+            intent: Natural language description of what to do.
+            desired_end_state: What the world should look like after.
+            constraints: Optional list of constraints on execution.
+
+        Returns:
+            OrganismLoopResult documenting every step of the cycle.
+        """
+        from substrate.organism.organism_loop import (
+            OrganismLoopEngine,
+            OrganismLoopResult,
+        )
+
+        engine = OrganismLoopEngine()
+        return await engine.execute_intent(
+            intent=intent,
+            desired_end_state=desired_end_state,
+            constraints=constraints,
+        )
+
     def check_tier(self, action_type: str, caller_tier: str = "execute") -> dict:
         """Check if a permission tier allows an action type."""
         return self.governance.check_tier(action_type, caller_tier)

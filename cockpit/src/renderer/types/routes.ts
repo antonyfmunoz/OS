@@ -36,6 +36,7 @@ import {
   Monitor,
   MonitorSmartphone,
   Cog,
+  RotateCcw,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -97,6 +98,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'sessions', label: 'Sessions', icon: MonitorSmartphone, group: 'primary', visibility: 'primary', key: 'n' },
   { id: 'execcoord', label: 'Exec Coordinator', icon: Cog, group: 'primary', visibility: 'primary', key: 'h' },
   { id: 'executor', label: 'Executor', icon: Play, group: 'primary', visibility: 'primary', key: 'x' },
+  { id: 'organismloop', label: 'Organism Loop', icon: RotateCcw, group: 'primary', visibility: 'primary', key: 'O' },
   { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'primary', key: 'u' },
 ]
 
