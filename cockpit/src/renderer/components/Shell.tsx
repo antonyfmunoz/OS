@@ -55,6 +55,7 @@ import { WorkstationPanel } from '../panels/WorkstationPanel'
 import { SessionPanel } from '../panels/SessionPanel'
 import { ExecCoordPanel } from '../panels/ExecCoordPanel'
 import { ExecutorPanel } from '../panels/ExecutorPanel'
+import { OrganismLoopPanel } from '../panels/OrganismLoopPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -150,6 +151,9 @@ function ActivePanel() {
       return <ExecCoordPanel />
     case 'executor':
       return <ExecutorPanel />
+    case 'organismloop':
+      return <OrganismLoopPanel />
+
     default:
       return <DashboardPanel />
   }

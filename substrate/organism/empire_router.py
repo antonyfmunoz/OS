@@ -235,16 +235,39 @@ class EmpireRouter:
 
         approvals = len(q.get_packets_requiring_approval())
 
-        outcomes_dir = os.path.join(_repo_root(), "data", "umh", "execution", "outcomes")
-        outcome_files = []
-        if os.path.isdir(outcomes_dir):
-            outcome_files = sorted(os.listdir(outcomes_dir), reverse=True)[:5]
-        for fname in outcome_files:
-            try:
-                with open(os.path.join(outcomes_dir, fname)) as f:
-                    recent.append(json.load(f))
-            except (json.JSONDecodeError, OSError):
-                pass
+        # Enrich from CanonicalRealityModel — extract pattern domains
+        try:
+            from substrate.reality_model.canonical import CanonicalRealityModel
+            canonical = CanonicalRealityModel()
+            for pattern in canonical.all():
+                if pattern.domain:
+                    active_domains.add(pattern.domain)
+        except Exception as e:
+            logger.debug("reality snapshot canonical enrichment: %s", e)
+
+        # Enrich from InstanceRealityModel — recent observations
+        try:
+            from substrate.reality_model.instance import InstanceRealityModel
+            org_id = os.environ.get(
+                "UMH_ORG_ID", os.environ.get("EOS_ORG_ID", "default"),
+            )
+            user_id = os.environ.get(
+                "UMH_USER_ID", os.environ.get("EOS_USER_ID", "default"),
+            )
+            instance = InstanceRealityModel(user_id=user_id, org_id=org_id)
+            for obs in instance.recent(limit=10):
+                recent.append({
+                    "observation_id": str(obs.id),
+                    "content": obs.content,
+                    "domain": obs.domain,
+                    "confidence": obs.effective_confidence(),
+                    "source": (
+                        str(obs.source_signal_id) if obs.source_signal_id else None
+                    ),
+                    "timestamp": obs.observed_at.isoformat(),
+                })
+        except Exception as e:
+            logger.debug("reality snapshot instance enrichment: %s", e)
 
         nba = self._compute_next_best_actions(q)
 
