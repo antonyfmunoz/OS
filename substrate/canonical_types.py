@@ -469,6 +469,13 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # Phase 17C: Organism Loop Engine
     "OrganismLoopResult": ["substrate.organism.organism_loop"],
     "OrganismLoopEngine": ["substrate.organism.organism_loop"],
+    # Phase 18: Operator Convergence
+    "RouteType": ["substrate.operator.intent_router"],
+    "RouteClassification": ["substrate.operator.intent_router"],
+    "IntentRouter": ["substrate.operator.intent_router"],
+    "ReceiptStatus": ["substrate.operator.intent_receipt"],
+    "IntentReceipt": ["substrate.operator.intent_receipt"],
+    "IntentReceiptStore": ["substrate.operator.intent_receipt"],
 }
 
 

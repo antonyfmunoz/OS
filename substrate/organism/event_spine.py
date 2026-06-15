@@ -57,6 +57,7 @@ class EventDomain(str, Enum):
     RECURSION = "recursion"
     MEMORY = "memory"
     OBSERVABILITY = "observability"
+    OPERATOR = "operator"
 
 
 class EventPriority(str, Enum):

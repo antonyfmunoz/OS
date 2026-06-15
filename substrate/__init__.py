@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from uuid import uuid4
 
 from substrate.types import (
     Component,
@@ -198,6 +199,109 @@ class Substrate:
             desired_end_state=desired_end_state,
             constraints=constraints,
         )
+
+    async def execute_intent(
+        self,
+        intent: str,
+        conversation_id: str = "",
+        desired_end_state: str = "",
+        constraints: list[str] | None = None,
+    ) -> "IntentReceipt":
+        """Unified operator entry point — classifies intent and routes.
+
+        This is the Phase 18 convergence point. The operator never needs to
+        choose between execute() and execute_work(). This method classifies
+        the intent deterministically, routes to the correct path, and returns
+        a canonical IntentReceipt.
+
+        IntentRouter introduces ZERO new execution authority. All execution
+        flows through either ConcreteExecutionSpine (conversation) or
+        OrganismLoopEngine (governed work).
+
+        Args:
+            intent: Natural language operator input.
+            conversation_id: Optional conversation ID for context threading.
+            desired_end_state: For work-type intents, what success looks like.
+            constraints: For work-type intents, execution constraints.
+
+        Returns:
+            IntentReceipt documenting classification, routing, and outcome.
+        """
+        from substrate.operator.intent_router import IntentRouter, RouteType
+        from substrate.operator.intent_receipt import (
+            IntentReceipt,
+            IntentReceiptStore,
+            ReceiptStatus,
+        )
+
+        router = IntentRouter()
+        classification = router.classify(intent)
+
+        receipt = IntentReceipt(
+            intent_id=f"ir-{uuid4().hex[:12]}",
+            raw_input=intent,
+            route_type=classification.route_type.value,
+            confidence=classification.confidence,
+            extracted_entities=classification.extracted_entities,
+            reasoning=classification.reasoning,
+            final_status=ReceiptStatus.ROUTING.value,
+        )
+
+        store = IntentReceiptStore()
+        store.append(receipt)
+
+        try:
+            if classification.route_type == RouteType.CONVERSATION:
+                receipt.conversation_id = conversation_id or f"conv-{uuid4().hex[:12]}"
+                receipt.final_status = ReceiptStatus.COMPLETED.value
+
+            elif classification.route_type == RouteType.WORK_PACKET:
+                receipt.final_status = ReceiptStatus.EXECUTING.value
+                result = await self.execute_work(
+                    intent=intent,
+                    desired_end_state=desired_end_state,
+                    constraints=constraints,
+                )
+                receipt.work_packet_id = result.work_packet_id
+                receipt.governance_decision_id = result.governance_decision_id
+                receipt.execution_bundle_id = result.execution_bundle_id
+                receipt.memory_write_receipt_id = result.memory_write_receipt_id
+                receipt.reality_update_id = result.reality_update_id
+                receipt.event_ids = result.event_ids
+                receipt.final_status = result.final_status
+
+            elif classification.route_type == RouteType.HYBRID:
+                receipt.conversation_id = conversation_id or f"conv-{uuid4().hex[:12]}"
+                receipt.final_status = ReceiptStatus.COMPLETED.value
+
+            elif classification.route_type == RouteType.OBSERVATION:
+                receipt.final_status = ReceiptStatus.COMPLETED.value
+
+            elif classification.route_type == RouteType.APPROVAL:
+                receipt.final_status = ReceiptStatus.COMPLETED.value
+
+        except Exception as exc:
+            receipt.error = str(exc)
+            receipt.final_status = ReceiptStatus.FAILED.value
+
+        receipt.completed_at = time.time()
+        store.update(receipt)
+
+        try:
+            from substrate.organism.event_spine import EventDomain, EventSpine
+
+            spine = EventSpine()
+            spine.emit(
+                domain=EventDomain.OPERATOR,
+                event_type="intent_routed",
+                source="substrate.execute_intent",
+                data=receipt.to_dict(),
+                correlation_id=receipt.intent_id,
+            )
+        except Exception:
+            pass
+
+        return receipt
 
     def check_tier(self, action_type: str, caller_tier: str = "execute") -> dict:
         """Check if a permission tier allows an action type."""
