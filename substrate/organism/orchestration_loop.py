@@ -37,6 +37,7 @@ UMH substrate subsystem. Instance-agnostic.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any
@@ -224,6 +225,100 @@ def _stage_state_persist(loop: PersistentLoop, report: CycleReport) -> None:
     _emit_stage_event(daemon, "state_persist", detail)
 
 
+
+
+def _stage_work_queue_drain(loop: PersistentLoop, report: CycleReport) -> None:
+    """Drain approved work packets from the UniversalWorkQueue via OrganismLoopEngine.
+
+    Picks the next best execution-ready packet and feeds it through the full
+    organism loop (governance + execution + memory write). The loop engine
+    handles governance internally — this stage does NOT bypass any gate.
+    """
+    daemon = _get_daemon()
+    if daemon is None:
+        return
+
+    try:
+        from substrate.organism.universal_work_queue import UniversalWorkQueue
+        from substrate.organism.organism_loop import OrganismLoopEngine, OrganismLoopResult
+    except ImportError as exc:
+        logger.debug("work_queue_drain: import failed: %s", exc)
+        return
+
+    queue = UniversalWorkQueue()
+    packet = queue.get_next_best_packet()
+    if packet is None:
+        return
+
+    if not packet.is_execution_ready():
+        return
+
+    engine = OrganismLoopEngine()
+
+    try:
+        loop_obj = asyncio.get_running_loop()
+    except RuntimeError:
+        loop_obj = None
+
+    result: OrganismLoopResult | None = None
+    try:
+        if loop_obj is not None and loop_obj.is_running():
+            import concurrent.futures
+            future: concurrent.futures.Future[OrganismLoopResult] = concurrent.futures.Future()
+
+            async def _run() -> None:
+                try:
+                    r = await engine.execute_intent(
+                        intent=packet.user_intent,
+                        desired_end_state=packet.desired_end_state,
+                        constraints=packet.constraints if packet.constraints else None,
+                    )
+                    future.set_result(r)
+                except Exception as e:
+                    future.set_exception(e)
+
+            loop_obj.create_task(_run())
+            # Cannot block — report that execution was scheduled
+            report.actions_taken += 1
+            detail = {
+                "stage": "work_queue_drain",
+                "packet_id": packet.packet_id,
+                "status": "scheduled",
+                "intent": packet.user_intent[:120],
+            }
+            report.details.append(detail)
+            _emit_stage_event(daemon, "work_queue_drain", detail)
+            return
+
+        # No running loop — safe to run synchronously
+        result = asyncio.run(engine.execute_intent(
+            intent=packet.user_intent,
+            desired_end_state=packet.desired_end_state,
+            constraints=packet.constraints if packet.constraints else None,
+        ))
+    except Exception as exc:
+        logger.debug("work_queue_drain: execution failed: %s", exc)
+        report.errors += 1
+        report.details.append({
+            "stage": "work_queue_drain",
+            "packet_id": packet.packet_id,
+            "error": str(exc)[:200],
+        })
+        return
+
+    report.actions_taken += 1
+    detail = {
+        "stage": "work_queue_drain",
+        "packet_id": packet.packet_id,
+        "result_id": result.result_id if result else "",
+        "final_status": result.final_status if result else "unknown",
+        "steps_completed": result.steps_completed if result else [],
+        "duration_ms": result.total_duration_ms if result else 0,
+    }
+    report.details.append(detail)
+    _emit_stage_event(daemon, "work_queue_drain", detail)
+
+
 def register_organism_stages(daemon: Any) -> None:
     """Register all organism stages with the PersistentLoop stage registry
     and bind them to the given daemon instance."""
@@ -237,8 +332,9 @@ def register_organism_stages(daemon: Any) -> None:
     register_stage("delegation_check", _stage_delegation_check)
     register_stage("objective_advance", _stage_objective_advance)
     register_stage("state_persist", _stage_state_persist)
+    register_stage("work_queue_drain", _stage_work_queue_drain)
 
-    logger.info("organism stages registered: 7 stages bound to daemon")
+    logger.info("organism stages registered: 8 stages bound to daemon")
 
 
 def create_orchestration_loop(
@@ -284,6 +380,7 @@ def create_full_orchestration_loop(interval_seconds: int = 60) -> PersistentLoop
             "homeostasis_check",
             "objective_advance",
             "delegation_check",
+            "work_queue_drain",
             "state_persist",
         ],
         enabled=True,
