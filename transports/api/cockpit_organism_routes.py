@@ -15,6 +15,7 @@ UMH transport layer. Instance-agnostic.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 import time
 from typing import Any, Callable
@@ -79,6 +80,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/assisted", _organism_assisted, methods=["GET"])
     r.add_api_route("/organism/assisted/audit", _organism_assisted_audit, methods=["GET"])
     r.add_api_route("/organism/signal", _organism_signal, methods=["POST"])
+    r.add_api_route("/organism/loop/status", _organism_loop_status, methods=["GET"])
 
     # ── Privileged endpoints (operator auth required) ──────────────────────
 
@@ -89,6 +91,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/automation-candidates/{proposal_id}/deny", _organism_deny_automation, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/maintenance/run", _organism_run_maintenance, methods=["POST"], dependencies=auth)
     r.add_api_route("/organism/assisted/execute", _organism_assisted_execute, methods=["POST"], dependencies=auth)
+    r.add_api_route("/organism/loop/execute", _organism_loop_execute, methods=["POST"], dependencies=auth)
 
     # ── Operator acceptance endpoints ────────────────────────────────────
     r.add_api_route("/organism/operator-acceptance", _operator_acceptance_overview, methods=["GET"])
@@ -480,6 +483,55 @@ async def _organism_signal(payload: dict):
     if not content:
         return {"error": "content required"}
     return daemon.advisor.handle_signal(content)
+
+
+async def _organism_loop_status():
+    """Return recent organism loop cycle events."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"cycles": [], "count": 0}
+    spine = daemon.event_spine
+    all_events = spine.replay()
+    loop_events = [
+        e for e in all_events if e.event_type == "organism_loop_cycle"
+    ]
+    recent = loop_events[-20:]
+    return {
+        "cycles": [e.to_dict() for e in recent],
+        "count": len(recent),
+    }
+
+
+async def _organism_loop_execute(payload: dict, request: Request):
+    """Execute a full organism loop cycle. Rate-limited, operator-auth required."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    client_id = request.client.host if request.client else "unknown"
+    _check_rate_limit("execute_loop", client_id)
+
+    intent = str(payload.get("intent", "")).strip()
+    if not intent:
+        return {"error": "intent is required"}
+    desired_end_state = str(payload.get("desired_end_state", "")).strip()
+
+    try:
+        from substrate.organism.organism_loop import OrganismLoopEngine
+
+        engine = OrganismLoopEngine(
+            empire_router=getattr(daemon, "empire_router", None),
+            work_queue=getattr(daemon, "universal_work_queue", None),
+            policy_engine=getattr(daemon, "policy_engine", None),
+            executor=getattr(daemon, "work_packet_executor", None),
+            event_spine=daemon.event_spine,
+            canonical_write=getattr(daemon, "canonical_write", None),
+        )
+        result = await engine.execute_intent(intent, desired_end_state)
+        return dataclasses.asdict(result)
+    except Exception as exc:
+        logger.exception("organism loop execute failed")
+        return {"error": str(exc)}
 
 
 # ── Operator acceptance handlers ──────────────────────────────────────────
