@@ -87,6 +87,17 @@ _RECALL_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+_REALITY_QUERY_PATTERNS = re.compile(
+    r"^(why (?:did|does|is|was|were|has|have))"
+    r"|^(what (?:changed|happened|is different))"
+    r"|\b(show me evidence|find evidence|evidence for|evidence against)\b"
+    r"|\b(contradictions?|conflicting)\s+(?:in|for|about|between)\b"
+    r"|\b(trace|lineage|chain of|how did we get to|what led to)\b"
+    r"|\b(summarize|summary of)\s+(?:the\s+)?(?:domain|area|topic)\b"
+    r"|\b(what are the priorities|prioriti[sz]e|top priorities|most urgent)\b",
+    re.IGNORECASE,
+)
+
 _HYBRID_QUALIFIERS = re.compile(
     r"^(should (?:we|I)|what if (?:we|I)|could (?:we|I)|would it make sense to|do you think we should)\b",
     re.IGNORECASE,
@@ -148,6 +159,9 @@ class IntentRouter:
 
         if _APPROVAL_PATTERNS.search(text):
             matches.append((RouteType.APPROVAL, 0.95, "approval verb + target detected"))
+
+        if _REALITY_QUERY_PATTERNS.search(text):
+            matches.append((RouteType.OBSERVATION, 0.92, "reality intelligence query detected"))
 
         if _OBSERVATION_PATTERNS.search(text):
             matches.append((RouteType.OBSERVATION, 0.90, "status/observation query detected"))

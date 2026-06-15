@@ -3311,6 +3311,22 @@ def _mount_reality_model_router() -> None:
 
 _mount_reality_model_router()
 
+# ── Phase 20: Reality Intelligence routes ─────────────────────────────────────
+
+
+def _mount_reality_intelligence_router() -> None:
+    from transports.api import cockpit_reality_intelligence_routes
+
+    cockpit_reality_intelligence_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_reality_intelligence_routes.reality_intelligence_router,
+    )
+
+
+_mount_reality_intelligence_router()
+
 # ── Phase 14.7A: Operator loop routes ────────────────────────────────────────
 
 
