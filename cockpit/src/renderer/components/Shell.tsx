@@ -59,6 +59,7 @@ import { OrganismLoopPanel } from '../panels/OrganismLoopPanel'
 import { OperatorTimelinePanel } from '../panels/OperatorTimelinePanel'
 import { RealityTimelinePanel } from '../panels/RealityTimelinePanel'
 import { RealityIntelligencePanel } from '../panels/RealityIntelligencePanel'
+import { MetaIDEPanel } from '../panels/MetaIDEPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -162,6 +163,8 @@ function ActivePanel() {
       return <RealityTimelinePanel />
     case 'realityintelligence':
       return <RealityIntelligencePanel />
+    case 'metaide':
+      return <MetaIDEPanel />
 
     default:
       return <DashboardPanel />

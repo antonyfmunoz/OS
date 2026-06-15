@@ -102,6 +102,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'operatortimeline', label: 'Operator Timeline', icon: Activity, group: 'primary', visibility: 'primary', key: 'T' },
   { id: 'realitytimeline', label: 'Reality Timeline', icon: Eye, group: 'primary', visibility: 'primary', key: 'R' },
   { id: 'realityintelligence', label: 'Reality Intelligence', icon: Brain, group: 'primary', visibility: 'primary', key: 'I' },
+  { id: 'metaide', label: 'Meta IDE', icon: Code2, group: 'primary', visibility: 'primary', key: 'M' },
   { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'primary', key: 'u' },
 ]
 
