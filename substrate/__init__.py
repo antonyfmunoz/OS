@@ -434,6 +434,43 @@ class Substrate:
             return "priorities"
         return None
 
+    async def create_engineering_plan(
+        self,
+        intent: str,
+        desired_end_state: str = "",
+        constraints: list[str] | None = None,
+    ) -> dict:
+        """Create an engineering plan from high-level intent. No execution.
+
+        Returns a reviewable plan with tasks, dependencies, risk assessment,
+        and workspace context. Operator must approve before packets are generated.
+        """
+        from substrate.meta_ide.engineering_planner import EngineeringPlanner
+
+        planner = EngineeringPlanner()
+        plan = planner.create_plan(intent, desired_end_state, constraints)
+        return plan.to_dict()
+
+    async def approve_engineering_plan(self, plan_id: str) -> dict:
+        """Approve a plan and generate governed work packets.
+
+        Each task in the plan becomes a WorkPacket created via the existing
+        WorkPacketEngine and enqueued via UniversalWorkQueue. All packets
+        go through governance before execution.
+        """
+        from substrate.meta_ide.engineering_planner import EngineeringPlanner
+        from substrate.meta_ide.engineering_work_generator import (
+            EngineeringWorkGenerator,
+        )
+
+        planner = EngineeringPlanner()
+        plan = planner.get_plan(plan_id)
+        if not plan:
+            return {"error": f"plan {plan_id} not found", "status": "failed"}
+        generator = EngineeringWorkGenerator()
+        receipt = generator.generate_packets(plan)
+        return receipt.to_dict()
+
     def check_tier(self, action_type: str, caller_tier: str = "execute") -> dict:
         """Check if a permission tier allows an action type."""
         return self.governance.check_tier(action_type, caller_tier)

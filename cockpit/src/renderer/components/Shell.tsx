@@ -60,6 +60,7 @@ import { OperatorTimelinePanel } from '../panels/OperatorTimelinePanel'
 import { RealityTimelinePanel } from '../panels/RealityTimelinePanel'
 import { RealityIntelligencePanel } from '../panels/RealityIntelligencePanel'
 import { MetaIDEPanel } from '../panels/MetaIDEPanel'
+import { EngineeringPanel } from '../panels/EngineeringPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -165,6 +166,8 @@ function ActivePanel() {
       return <RealityIntelligencePanel />
     case 'metaide':
       return <MetaIDEPanel />
+    case 'engineering':
+      return <EngineeringPanel />
 
     default:
       return <DashboardPanel />
