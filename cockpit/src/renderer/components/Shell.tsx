@@ -57,6 +57,7 @@ import { ExecCoordPanel } from '../panels/ExecCoordPanel'
 import { ExecutorPanel } from '../panels/ExecutorPanel'
 import { OrganismLoopPanel } from '../panels/OrganismLoopPanel'
 import { OperatorTimelinePanel } from '../panels/OperatorTimelinePanel'
+import { RealityTimelinePanel } from '../panels/RealityTimelinePanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -156,6 +157,8 @@ function ActivePanel() {
       return <OrganismLoopPanel />
     case 'operatortimeline':
       return <OperatorTimelinePanel />
+    case 'realitytimeline':
+      return <RealityTimelinePanel />
 
     default:
       return <DashboardPanel />
