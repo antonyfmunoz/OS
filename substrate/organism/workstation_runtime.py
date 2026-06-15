@@ -802,16 +802,29 @@ class WorkspaceContextAssembler:
 
     def _assemble_reality_model(self, ctx: dict[str, Any]) -> None:
         try:
-            rm_path = os.path.join(
-                _repo_root(), "data", "umh", "reality_model", "canonical.json"
-            )
-            if os.path.exists(rm_path):
-                with open(rm_path) as f:
-                    data = json.load(f)
-                ctx["reality_model"] = {
-                    "loaded": True,
-                    "sections": list(data.keys()) if isinstance(data, dict) else [],
-                }
+            from substrate.reality_model.canonical import CanonicalRealityModel
+            canonical = CanonicalRealityModel()
+            all_patterns = canonical.all()
+            domains = sorted(set(p.domain for p in all_patterns if p.domain))
+            ctx["reality_model"] = {
+                "loaded": True,
+                "pattern_count": len(all_patterns),
+                "domains": domains,
+                "patterns": [
+                    {
+                        "name": p.name,
+                        "domain": p.domain,
+                        "confidence": p.effective_confidence(),
+                        "evidence_count": p.evidence_count,
+                    }
+                    for p in sorted(
+                        all_patterns,
+                        key=lambda x: x.effective_confidence(),
+                        reverse=True,
+                    )[:20]
+                ],
+                "stats": canonical.stats(),
+            }
         except Exception as e:
             logger.debug("reality_model assembly: %s", e)
 
