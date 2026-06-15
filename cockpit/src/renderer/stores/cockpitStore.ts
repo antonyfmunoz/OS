@@ -45,6 +45,7 @@ export type Panel =
   | 'sessions'
   | 'execcoord'
   | 'executor'
+  | 'organismloop'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
