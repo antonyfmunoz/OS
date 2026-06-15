@@ -22,7 +22,11 @@ from uuid import uuid4, UUID
 
 from substrate.governance.policy_engine import PolicyEngine
 from substrate.governance.risk_classes import ActionRiskCategory
-from substrate.execution.executor import ExecutionBundle, WorkPacketExecutor
+from substrate.execution.executor import (
+    ExecutionBundle,
+    WorkPacketExecutor,
+    build_default_executor,
+)
 from substrate.memory.canonical_write import CanonicalWritePath, MemoryWriteReceipt
 from substrate.organism.empire_router import EmpireRouter, RealitySnapshot
 from substrate.organism.event_spine import EventDomain, EventSpine
@@ -97,7 +101,7 @@ class OrganismLoopEngine:
         self._empire_router = empire_router or EmpireRouter()
         self._work_queue = work_queue or UniversalWorkQueue()
         self._policy_engine = policy_engine or PolicyEngine()
-        self._executor = executor or WorkPacketExecutor()
+        self._executor = executor or build_default_executor()
         self._event_spine = event_spine or EventSpine()
         self._canonical_write = canonical_write or CanonicalWritePath()
 
@@ -228,12 +232,14 @@ class OrganismLoopEngine:
         try:
             executor_packet = self._to_executor_packet(organism_packet, verdict)
 
+            adapter_name = self._select_adapter(organism_packet)
+
             # WorkPacketExecutor.execute is synchronous -- wrap in thread
             execution_bundle = await asyncio.to_thread(
                 self._executor.execute,
                 executor_packet,
                 verdict,
-                "organism_loop",
+                adapter_name,
                 "execute_intent",
                 {
                     "intent": intent,
@@ -302,6 +308,21 @@ class OrganismLoopEngine:
 
         result.total_duration_ms = int((time.monotonic() - t0) * 1000)
         return result
+
+    def _select_adapter(self, packet: OrganismWorkPacket) -> str:
+        """Select an appropriate adapter for the work packet.
+
+        Falls back to 'shell' (always registered by build_default_executor).
+        """
+        registered = self._executor.registered_adapters
+        if not registered:
+            return "shell"
+        domain = (packet.domain or "").lower()
+        if "git" in domain and "git" in registered:
+            return "git"
+        if "file" in domain and "filesystem" in registered:
+            return "filesystem"
+        return registered[0]
 
     # ── Bridge: organism WorkPacket → executor WorkPacket ─────────────────
 
