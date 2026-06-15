@@ -64,6 +64,8 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/reality-model/instance/domains", _instance_domains, methods=["GET"])
     r.add_api_route("/reality-model/instance/stats", _instance_stats, methods=["GET"])
 
+    r.add_api_route("/reality-model/timeline", _reality_timeline, methods=["GET"])
+
     r.add_api_route(
         "/reality-model/canonical/store",
         _canonical_store,
@@ -249,6 +251,67 @@ async def _instance_domains():
 
 async def _instance_stats():
     return _get_instance().stats()
+
+
+async def _reality_timeline(
+    domain: str | None = None,
+    source: str | None = None,
+    limit: int = 50,
+    min_confidence: float = 0.0,
+):
+    instance = _get_instance()
+    recent = instance.recent(limit=max(limit, 200))
+
+    observations = []
+    domains_seen: set[str] = set()
+    sources_seen: set[str] = set()
+
+    for o in recent:
+        eff_conf = o.effective_confidence()
+        if eff_conf < min_confidence:
+            continue
+
+        source_system = ""
+        for tag in o.tags:
+            if tag.startswith("source:"):
+                source_system = tag[7:]
+                break
+
+        if domain and o.domain != domain:
+            continue
+        if source and source_system != source:
+            continue
+
+        domains_seen.add(o.domain)
+        if source_system:
+            sources_seen.add(source_system)
+
+        observations.append({
+            "id": str(o.id),
+            "content": o.content[:500],
+            "domain": o.domain,
+            "confidence": o.confidence,
+            "effective_confidence": eff_conf,
+            "source_system": source_system,
+            "observed_at": o.observed_at.isoformat(),
+            "tags": o.tags,
+            "evidence": {
+                k: v for k, v in (o.metadata or {}).items()
+                if k not in ("mutation_id", "source_system", "source_id")
+            },
+        })
+
+        if len(observations) >= limit:
+            break
+
+    return {
+        "observations": observations,
+        "filters": {
+            "domains": sorted(domains_seen),
+            "sources": sorted(sources_seen),
+        },
+        "total": len(observations),
+    }
 
 
 async def _canonical_store(request: Request):
