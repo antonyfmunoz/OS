@@ -3327,6 +3327,22 @@ def _mount_reality_intelligence_router() -> None:
 
 _mount_reality_intelligence_router()
 
+# ── Phase 21: Meta IDE routes ─────────────────────────────────────────────
+
+
+def _mount_meta_ide_router() -> None:
+    from transports.api import cockpit_meta_ide_routes
+
+    cockpit_meta_ide_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_meta_ide_routes.meta_ide_router,
+    )
+
+
+_mount_meta_ide_router()
+
 # ── Phase 14.7A: Operator loop routes ────────────────────────────────────────
 
 

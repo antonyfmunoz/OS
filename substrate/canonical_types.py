@@ -488,6 +488,20 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "RealityEvidence": ["substrate.reality_model.reality_query"],
     "RealityQueryResult": ["substrate.reality_model.reality_query"],
     "RealityIntelligenceEngine": ["substrate.reality_model.reality_intelligence"],
+    # Phase 21: Meta IDE Convergence
+    "RepositoryHealthStatus": ["substrate.meta_ide.repository_model"],
+    "BranchSnapshot": ["substrate.meta_ide.repository_model"],
+    "WorktreeSnapshot": ["substrate.meta_ide.repository_model"],
+    "RepositoryHealth": ["substrate.meta_ide.repository_model"],
+    "RepositorySnapshot": ["substrate.meta_ide.repository_model"],
+    "RepositoryReader": ["substrate.meta_ide.repository_model"],
+    "MetaIDEWorkspaceEngine": ["substrate.meta_ide.workspace_intelligence"],
+    "EngineeringRisk": ["substrate.meta_ide.workspace_intelligence"],
+    "WorkspaceSummary": ["substrate.meta_ide.workspace_intelligence"],
+    "PhaseState": ["substrate.meta_ide.roadmap_intelligence"],
+    "PhaseStatus": ["substrate.meta_ide.roadmap_intelligence"],
+    "RoadmapStatus": ["substrate.meta_ide.roadmap_intelligence"],
+    "RoadmapIntelligence": ["substrate.meta_ide.roadmap_intelligence"],
 }
 
 
