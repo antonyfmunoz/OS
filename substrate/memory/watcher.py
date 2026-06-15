@@ -22,6 +22,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from watchdog.observers import Observer
@@ -186,6 +187,26 @@ class _MemoryFileHandler(FileSystemEventHandler):
         promotion = self._promoter.evaluate(candidate)
         if promotion.get("promoted"):
             recon = self._reconciler.reconcile_promoted(candidate, promotion)
+            try:
+                from substrate.reality_model.reality_mutation import (
+                    RealityMutation, MutationSource, MutationType,
+                )
+                from substrate.reality_model.canonical_reality_write import CanonicalRealityWritePath
+                watcher_mutation = RealityMutation(
+                    mutation_id=f"rm-watch-{uuid4().hex[:12]}",
+                    source_system=MutationSource.CONVERSATION_MEMORY,
+                    source_id=candidate.candidate_id,
+                    mutation_type=MutationType.INSIGHT_PROMOTED,
+                    content=candidate.content[:2000],
+                    confidence=candidate.confidence,
+                    domain="conversation",
+                    evidence={"source_file": path.name, "agent": self._agent},
+                    tags=["agent-memory", "promoted", self._agent, mem_type],
+                    metadata={"memory_id": promotion.get("memory_id", "")},
+                )
+                CanonicalRealityWritePath().apply_mutation(watcher_mutation)
+            except Exception as exc:
+                logger.debug("watcher: reality mutation failed: %s", exc)
             logger.info(
                 "[MemoryWatcher] %s → canonical (%s, %s, conf=%.2f)",
                 path.name, self._agent, recon.get("action", "?"), confidence,
