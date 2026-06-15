@@ -241,6 +241,7 @@ def _stage_work_queue_drain(loop: PersistentLoop, report: CycleReport) -> None:
     try:
         from substrate.organism.universal_work_queue import UniversalWorkQueue
         from substrate.organism.organism_loop import OrganismLoopEngine, OrganismLoopResult
+        from substrate.organism.work_packet import PacketLifecycleStatus
     except ImportError as exc:
         logger.debug("work_queue_drain: import failed: %s", exc)
         return
@@ -253,6 +254,51 @@ def _stage_work_queue_drain(loop: PersistentLoop, report: CycleReport) -> None:
     if not packet.is_execution_ready():
         return
 
+    # Security fix 1: refuse to drain packets with open approval gates
+    if packet.requires_operator_approval():
+        logger.debug(
+            "work_queue_drain: packet %s has open approval gates — skipping",
+            packet.packet_id,
+        )
+        report.details.append({
+            "stage": "work_queue_drain",
+            "packet_id": packet.packet_id,
+            "status": "skipped_approval_gates",
+        })
+        return
+
+    # Security fix 2: atomically mark EXECUTING before dispatch (lease-and-ack)
+    _prev_status = packet.status
+    try:
+        from substrate.organism.work_packet import _VALID_TRANSITIONS
+        _path_to_executing = [
+            PacketLifecycleStatus.PLANNED,
+            PacketLifecycleStatus.READY_FOR_REVIEW,
+            PacketLifecycleStatus.APPROVAL_PENDING,
+            PacketLifecycleStatus.APPROVED,
+            PacketLifecycleStatus.DELEGATED,
+            PacketLifecycleStatus.EXECUTING,
+        ]
+        for step in _path_to_executing:
+            if packet.status == PacketLifecycleStatus.EXECUTING:
+                break
+            allowed = _VALID_TRANSITIONS.get(packet.status, frozenset())
+            if step in allowed:
+                packet.status = step
+                packet.updated_at = time.time()
+    except Exception as exc:
+        logger.debug("work_queue_drain: in-flight marking failed: %s", exc)
+        packet.status = _prev_status
+        return
+
+    if packet.status != PacketLifecycleStatus.EXECUTING:
+        logger.debug(
+            "work_queue_drain: could not transition %s to EXECUTING (at %s)",
+            packet.packet_id, packet.status.value,
+        )
+        packet.status = _prev_status
+        return
+
     engine = OrganismLoopEngine()
 
     try:
@@ -263,22 +309,30 @@ def _stage_work_queue_drain(loop: PersistentLoop, report: CycleReport) -> None:
     result: OrganismLoopResult | None = None
     try:
         if loop_obj is not None and loop_obj.is_running():
-            import concurrent.futures
-            future: concurrent.futures.Future[OrganismLoopResult] = concurrent.futures.Future()
 
             async def _run() -> None:
-                try:
-                    r = await engine.execute_intent(
-                        intent=packet.user_intent,
-                        desired_end_state=packet.desired_end_state,
-                        constraints=packet.constraints if packet.constraints else None,
-                    )
-                    future.set_result(r)
-                except Exception as e:
-                    future.set_exception(e)
+                return await engine.execute_intent(
+                    intent=packet.user_intent,
+                    desired_end_state=packet.desired_end_state,
+                    constraints=packet.constraints if packet.constraints else None,
+                )
 
-            loop_obj.create_task(_run())
-            # Cannot block — report that execution was scheduled
+            task = loop_obj.create_task(_run())
+
+            # Security fix 3: done_callback logs exceptions and marks FAILED
+            def _on_done(t: asyncio.Task[OrganismLoopResult]) -> None:
+                exc = t.exception() if not t.cancelled() else None
+                if exc is not None:
+                    logger.debug(
+                        "work_queue_drain: async task for %s failed: %s",
+                        packet.packet_id, exc,
+                    )
+                    packet.status = PacketLifecycleStatus.FAILED
+                    packet.status_reason = f"async execution error: {exc}"
+                    packet.updated_at = time.time()
+
+            task.add_done_callback(_on_done)
+
             report.actions_taken += 1
             detail = {
                 "stage": "work_queue_drain",
@@ -298,6 +352,9 @@ def _stage_work_queue_drain(loop: PersistentLoop, report: CycleReport) -> None:
         ))
     except Exception as exc:
         logger.debug("work_queue_drain: execution failed: %s", exc)
+        packet.status = PacketLifecycleStatus.FAILED
+        packet.status_reason = f"execution error: {exc}"
+        packet.updated_at = time.time()
         report.errors += 1
         report.details.append({
             "stage": "work_queue_drain",
