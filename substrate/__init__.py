@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from typing import Any
 from uuid import uuid4
 
 from substrate.types import (
@@ -275,6 +276,17 @@ class Substrate:
                 receipt.final_status = ReceiptStatus.COMPLETED.value
 
             elif classification.route_type == RouteType.OBSERVATION:
+                try:
+                    qt = self._infer_query_type(intent)
+                    if qt:
+                        rq_result = await self.query_reality(
+                            intent, query_type=qt,
+                        )
+                        receipt.extracted_entities["reality_query_id"] = (
+                            rq_result.get("query_id", "")
+                        )
+                except Exception:
+                    pass
                 receipt.final_status = ReceiptStatus.COMPLETED.value
 
             elif classification.route_type == RouteType.APPROVAL:
@@ -304,6 +316,123 @@ class Substrate:
             pass
 
         return receipt
+
+    async def query_reality(
+        self,
+        query_text: str,
+        query_type: str = "why",
+        **kwargs: Any,
+    ) -> dict:
+        """Read-only reality intelligence query. No mutations, no execution."""
+        from substrate.reality_model.reality_query import (
+            RealityQuery,
+            RealityQueryType,
+        )
+        from substrate.reality_model.reality_intelligence import (
+            RealityIntelligenceEngine,
+        )
+
+        engine = self._get_reality_engine()
+        rq = RealityQuery(
+            query_id=f"rq-{uuid4().hex[:12]}",
+            query_type=RealityQueryType(query_type),
+            text=query_text,
+            entity=kwargs.get("entity", query_text),
+            domain=kwargs.get("domain", ""),
+            since_timestamp=kwargs.get("since_timestamp"),
+            min_confidence=kwargs.get("min_confidence", 0.0),
+            limit=kwargs.get("limit", 20),
+        )
+        result = engine.query(rq)
+        return {
+            "query_id": result.query_id,
+            "query_type": result.query_type,
+            "evidence": [
+                {
+                    "source_type": e.source_type,
+                    "source_id": e.source_id,
+                    "content": e.content,
+                    "confidence": e.confidence,
+                    "domain": e.domain,
+                    "timestamp": e.timestamp,
+                    "metadata": e.metadata,
+                }
+                for e in result.evidence
+            ],
+            "confidence": result.confidence,
+            "reasoning": result.reasoning,
+            "generated_at": result.generated_at,
+            "sources_queried": result.sources_queried,
+        }
+
+    def _get_reality_engine(self) -> "RealityIntelligenceEngine":
+        from substrate.reality_model.reality_intelligence import (
+            RealityIntelligenceEngine,
+        )
+        from substrate.reality_model.instance import InstanceRealityModel
+        from substrate.reality_model.canonical import CanonicalRealityModel
+
+        import os
+
+        org_id = os.environ.get("UMH_ORG_ID", os.environ.get("EOS_ORG_ID", "default"))
+        user_id = os.environ.get("UMH_USER_ID", os.environ.get("EOS_USER_ID", "default"))
+
+        instance_model: InstanceRealityModel | None = None
+        canonical_model: CanonicalRealityModel | None = None
+        memory_store = None
+        event_spine = None
+
+        try:
+            instance_model = InstanceRealityModel(user_id=user_id, org_id=org_id)
+        except Exception:
+            pass
+        try:
+            canonical_model = CanonicalRealityModel()
+        except Exception:
+            pass
+        try:
+            from substrate.state.memory.contracts.canonical_memory_store_v1 import (
+                CanonicalMemoryStore,
+            )
+            memory_store = CanonicalMemoryStore()
+        except Exception:
+            pass
+        try:
+            from substrate.organism.event_spine import EventSpine as ES
+
+            es = ES()
+            es.recover()
+            event_spine = es
+        except Exception:
+            pass
+
+        return RealityIntelligenceEngine(
+            instance_model=instance_model,
+            canonical_model=canonical_model,
+            memory_store=memory_store,
+            event_spine=event_spine,
+        )
+
+    @staticmethod
+    def _infer_query_type(text: str) -> str | None:
+        import re as _re
+
+        lower = text.lower()
+        if _re.search(r"^why\b", lower):
+            return "why"
+        if _re.search(r"what (?:changed|happened|is different)", lower):
+            return "what_changed"
+        if _re.search(r"evidence", lower):
+            return "evidence"
+        if _re.search(r"contradiction|conflicting", lower):
+            return "contradictions"
+        if _re.search(r"trace|lineage|chain of|what led to", lower):
+            return "lineage"
+        if _re.search(r"summar", lower):
+            return "domain_summary"
+        if _re.search(r"priorit", lower):
+            return "priorities"
+        return None
 
     def check_tier(self, action_type: str, caller_tier: str = "execute") -> dict:
         """Check if a permission tier allows an action type."""
