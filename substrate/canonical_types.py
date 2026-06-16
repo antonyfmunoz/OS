@@ -537,6 +537,16 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "PreviewObservation": ["substrate.meta_ide.workspace_observation"],
     "EngineeringSessionObservation": ["substrate.meta_ide.workspace_observation"],
     "WorkspaceObservationSnapshot": ["substrate.meta_ide.workspace_observation"],
+    # Phase 26: Governed Action Bridge
+    "ActionRiskLevel": ["substrate.organism.action_catalog"],
+    "ActionCategory": ["substrate.organism.action_catalog"],
+    "ActionStatus": ["substrate.organism.action_catalog"],
+    "ActionDefinition": ["substrate.organism.action_catalog"],
+    "ActionParameter": ["substrate.organism.action_catalog"],
+    "ActionPrecondition": ["substrate.organism.action_catalog"],
+    "ActionRequest": ["substrate.organism.action_bridge"],
+    "ActionResult": ["substrate.organism.action_bridge"],
+    "IntentActionRequest": ["substrate.organism.action_voice_contract"],
 }
 
 
@@ -572,6 +582,10 @@ LEGACY_DUPLICATES: dict[str, set[str]] = {
     "substrate.understanding.perception.orchestrator": {"IngestionResult"},
     "adapters.adapter_engine.substrate_candidate_gen_v1": {"MemoryType"},
     "nodes.environments.execution_binding_contracts": {"EnvironmentType"},
+    # Pre-Phase-26 types that share names with new canonical action types
+    "substrate.organism.next_action_engine": {"ActionCategory", "ActionResult"},
+    "substrate.execution.bridge.actions": {"ActionStatus", "ActionResult"},
+    "substrate.composition.mastery.research.extraction": {"ActionCategory"},
 }
 
 

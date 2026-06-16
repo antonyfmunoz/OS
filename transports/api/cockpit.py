@@ -552,3 +552,20 @@ def _mount_workspace_observation_router() -> None:
 
 
 _mount_workspace_observation_router()
+
+
+# ── Phase 26: Governed Action Bridge routes ──────────────────────────────────
+
+
+def _mount_action_bridge_router() -> None:
+    from transports.api import cockpit_action_bridge_routes
+
+    cockpit_action_bridge_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_action_bridge_routes.action_bridge_router,
+    )
+
+
+_mount_action_bridge_router()
