@@ -39,6 +39,14 @@ _ALLOWED_PATH_ROOTS = ("/opt/OS", "/tmp")
 _LEADING_DASH = re.compile(r"^-")
 
 
+def _under_allowed_root(resolved: str) -> bool:
+    for root in _ALLOWED_PATH_ROOTS:
+        root_abs = os.path.realpath(root)
+        if resolved == root_abs or resolved.startswith(root_abs + os.sep):
+            return True
+    return False
+
+
 @dataclass
 class ActionRequest:
     """Operator's request to perform a governed action."""
@@ -361,7 +369,7 @@ class ActionBridge:
 
             if p.param_type == "path" or p.name.endswith("_path"):
                 resolved = os.path.realpath(value)
-                if not any(resolved.startswith(root) for root in _ALLOWED_PATH_ROOTS):
+                if not _under_allowed_root(resolved):
                     logger.warning("Path param %s resolves outside allowed roots: %s", p.name, resolved)
                     return None
 
