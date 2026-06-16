@@ -28,6 +28,7 @@ class MutationSource(str, Enum):
     ENGINEERING = "engineering"
     ENGINEERING_EXECUTION = "engineering_execution"
     WORKER_RUNTIME = "worker_runtime"
+    META_IDE_RUNTIME = "meta_ide_runtime"
 
 
 class MutationType(str, Enum):

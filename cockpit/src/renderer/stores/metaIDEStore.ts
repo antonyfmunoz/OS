@@ -98,7 +98,47 @@ interface WorkspaceData {
   generated_at: number
 }
 
-type ActiveTab = 'repositories' | 'workspace' | 'roadmap' | 'risks'
+interface TerminalObs {
+  terminal_id: string
+  session_name: string
+  window_name: string
+  pane_index: number
+  current_command: string
+  cwd: string
+  pid: number
+  is_active: boolean
+}
+
+interface ContainerObs {
+  container_id: string
+  container_name: string
+  image: string
+  status: string
+  health: string
+  ports: string[]
+  restart_count: number
+}
+
+interface PreviewObs {
+  preview_id: string
+  name: string
+  port: number
+  url: string
+  process_name: string
+  health: string
+  restart_count: number
+}
+
+interface WorkspaceObservation {
+  terminals: TerminalObs[]
+  containers: ContainerObs[]
+  previews: PreviewObs[]
+  engineering_sessions: Array<Record<string, unknown>>
+  repositories: Array<Record<string, unknown>>
+  snapshot_id: string
+}
+
+type ActiveTab = 'repositories' | 'workspace' | 'roadmap' | 'risks' | 'terminals' | 'containers' | 'previews'
 
 interface MetaIDEState {
   activeTab: ActiveTab
@@ -107,6 +147,7 @@ interface MetaIDEState {
   roadmap: RoadmapData | null
   risks: RiskItem[]
   overallRisk: string
+  observation: WorkspaceObservation | null
   loading: boolean
   error: string | null
 
@@ -115,6 +156,7 @@ interface MetaIDEState {
   fetchWorkspace: () => Promise<void>
   fetchRoadmap: () => Promise<void>
   fetchRisks: () => Promise<void>
+  fetchObservation: () => Promise<void>
 }
 
 export const useMetaIDEStore = create<MetaIDEState>((set) => ({
@@ -124,6 +166,7 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
   roadmap: null,
   risks: [],
   overallRisk: 'none',
+  observation: null,
   loading: false,
   error: null,
 
@@ -168,6 +211,18 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
         '/api/umh/meta-ide/risks',
       )
       set({ risks: data.risks, overallRisk: data.overall_risk, loading: false })
+    } catch (err) {
+      set({ error: String(err), loading: false })
+    }
+  },
+
+  fetchObservation: async () => {
+    set({ loading: true, error: null })
+    try {
+      const data = await fetchApi<WorkspaceObservation>(
+        '/api/umh/meta-ide/workspace-observation',
+      )
+      set({ observation: data, loading: false })
     } catch (err) {
       set({ error: String(err), loading: false })
     }
