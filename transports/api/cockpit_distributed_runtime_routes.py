@@ -10,6 +10,7 @@ Phase 24. UMH transport layer. Instance-agnostic.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -43,7 +44,7 @@ def _get_runtime() -> Any:
 
 
 def _build_router(require_operator_dep: Any) -> APIRouter:
-    r = APIRouter()
+    r = APIRouter(dependencies=[Depends(require_operator_dep)])
 
     @r.get("/organism/distributed-runtime")
     async def overview() -> dict:
@@ -78,7 +79,8 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         rt = _get_runtime()
         if rt is None:
             return {"assignments": []}
-        return {"assignments": rt.assignments(limit=limit)}
+        clamped = max(1, min(limit, 500))
+        return {"assignments": rt.assignments(limit=clamped)}
 
     @r.get("/organism/distributed-runtime/capabilities")
     async def capabilities() -> dict:
@@ -86,6 +88,22 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         if rt is None:
             return {"capabilities": [], "devices": [], "matrix": {}}
         return rt.capabilities_matrix()
+
+    _SAFE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_\-]{1,128}$")
+    _ALLOWED_CAPABILITIES = frozenset(
+        {
+            "code_write",
+            "code_review",
+            "code_execution",
+            "react_build",
+            "electron_build",
+            "browser_automation",
+            "gpu_compute",
+            "media_generation",
+            "deployment",
+            "documentation",
+        }
+    )
 
     @r.post("/organism/distributed-runtime/workers/register")
     async def register_worker(
@@ -100,7 +118,15 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         runtime_id = payload.get("runtime_id", "")
         if not worker_id or not device_id:
             raise HTTPException(status_code=400, detail="worker_id and device_id required")
+        if not _SAFE_ID_PATTERN.match(worker_id) or not _SAFE_ID_PATTERN.match(device_id):
+            raise HTTPException(status_code=400, detail="invalid worker_id or device_id format")
         caps = payload.get("capabilities", [])
+        if not isinstance(caps, list) or not all(
+            isinstance(c, str) and c in _ALLOWED_CAPABILITIES for c in caps
+        ):
+            raise HTTPException(
+                status_code=400, detail="capabilities must be a list of known capability strings"
+            )
         meta = payload.get("metadata", {})
         meta["registered_by"] = principal
         worker = rt.register_worker(
@@ -120,6 +146,8 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         worker_id = payload.get("worker_id", "")
         if not worker_id:
             raise HTTPException(status_code=400, detail="worker_id required")
+        if not _SAFE_ID_PATTERN.match(worker_id):
+            raise HTTPException(status_code=400, detail="invalid worker_id format")
         ok = rt.worker_heartbeat(worker_id)
         return {"ok": ok}
 
@@ -131,6 +159,15 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         rt = _get_runtime()
         if rt is None:
             raise HTTPException(status_code=503, detail="distributed runtime unavailable")
+        if not _SAFE_ID_PATTERN.match(worker_id):
+            raise HTTPException(status_code=400, detail="invalid worker_id format")
+        worker = rt._worker_registry.get(worker_id) if hasattr(rt, "_worker_registry") else None
+        if worker is not None:
+            registered_by = (worker.metadata or {}).get("registered_by", "")
+            if registered_by and registered_by != principal:
+                raise HTTPException(
+                    status_code=403, detail="not authorized to unregister this worker"
+                )
         ok = rt.unregister_worker(worker_id)
         return {"ok": ok}
 
@@ -144,11 +181,20 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             raise HTTPException(status_code=503, detail="distributed runtime unavailable")
 
         class _Packet:
-            pass
+            def __init__(
+                self, packet_id: str, description: str, target_repo: str, action_type: str
+            ) -> None:
+                self.packet_id = packet_id
+                self.description = description
+                self.target_repo = target_repo
+                self.action_type = action_type
 
-        pkt = _Packet()
-        for k, v in payload.items():
-            setattr(pkt, k, v)
+        pkt = _Packet(
+            packet_id=str(payload.get("packet_id", "")),
+            description=str(payload.get("description", "")),
+            target_repo=str(payload.get("target_repo", "")),
+            action_type=str(payload.get("action_type", "")),
+        )
         placement = rt.route_packet(pkt)
         return {"placement": placement.to_dict()}
 
