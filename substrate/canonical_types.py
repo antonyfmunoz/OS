@@ -577,6 +577,16 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "OrganismStateGraph": ["substrate.organism.state_authority_graph"],
     "StateRegistry": ["substrate.organism.state_registry"],
     "StateCoherenceEngine": ["substrate.organism.state_coherence_engine"],
+    # Phase 30: Service Dependency Graph
+    "DependencyStrength": ["substrate.organism.service_dependency_graph"],
+    "ServiceCriticality": ["substrate.organism.service_dependency_graph"],
+    "ServiceHealthImpact": ["substrate.organism.service_dependency_graph"],
+    "ServiceDependency": ["substrate.organism.service_dependency_graph"],
+    "ServiceNode": ["substrate.organism.service_dependency_graph"],
+    "FailureImpact": ["substrate.organism.service_dependency_graph"],
+    "ServiceDependencyTopology": ["substrate.organism.service_dependency_graph"],
+    "ServiceDependencyRegistry": ["substrate.organism.service_dependency_registry"],
+    "ServiceFailureEngine": ["substrate.organism.service_failure_engine"],
 }
 
 
