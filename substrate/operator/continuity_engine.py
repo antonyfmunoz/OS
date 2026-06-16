@@ -60,6 +60,7 @@ class ContinuityEngine:
         self._action_bridge = action_bridge
         self._context_engine = context_engine
         self._node_registry = node_registry
+        self._screen_observation = None
 
     # ── Lazy properties ──────────────────────────────────────────
 
@@ -118,6 +119,21 @@ class ContinuityEngine:
             except Exception:
                 logger.debug("UMHNodeRegistry unavailable")
         return self._node_registry
+
+    @property
+    def screen_observation(self) -> Any:
+        if self._screen_observation is None:
+            try:
+                from substrate.operator.screen_observation_engine import ScreenObservationEngine
+                self._screen_observation = ScreenObservationEngine(
+                    workspace_engine=self.workspace_engine,
+                    topology_engine=self.topology_engine,
+                    continuity_engine=None,
+                    node_registry=self.node_registry,
+                )
+            except Exception:
+                logger.debug("ScreenObservationEngine unavailable")
+        return self._screen_observation
 
     # ── Public API ───────────────────────────────────────────────
 
@@ -220,6 +236,18 @@ class ContinuityEngine:
         suggestion["pending_approvals"] = self._get_pending_approval_count()
 
         return suggestion
+
+    def screen_context(self) -> dict[str, Any] | None:
+        """Current screen awareness context via preference ordering."""
+        engine = self.screen_observation
+        if engine is None:
+            return None
+        try:
+            snap = engine.current_snapshot()
+            return snap.to_dict()
+        except Exception:
+            logger.debug("Failed to get screen context", exc_info=True)
+            return None
 
     # ── Provider methods (composition boundary) ──────────────────
 
@@ -362,15 +390,37 @@ class ContinuityEngine:
     # ── Checkpoint generators ────────────────────────────────────
 
     def _session_checkpoints(self, now: float) -> list[ContinuityCheckpoint]:
-        """Checkpoints from engineering sessions."""
+        """Checkpoints from engineering sessions with visual metadata."""
         checkpoints: list[ContinuityCheckpoint] = []
         session = self._get_session_context()
         if session.get("session_id"):
             device_type, device_id = self._detect_device()
+            detail = f"Session {session['session_id']}"
+            visual = self.screen_context()
+            if visual:
+                parts = [detail]
+                app = visual.get("active_application")
+                if app:
+                    parts.append(f"app={app.get('app_name', '')}")
+                repo = visual.get("repository_context")
+                if repo:
+                    parts.append(f"repo={repo.get('repo_name', '')}")
+                    if repo.get("active_file"):
+                        parts.append(f"file={repo['active_file']}")
+                fc = visual.get("file_context")
+                if fc and fc.get("file_path"):
+                    parts.append(f"editing={fc['file_path']}")
+                src = visual.get("source_type", "")
+                if src:
+                    parts.append(f"source={src}")
+                node = visual.get("source_node_id", "")
+                if node:
+                    parts.append(f"node={node}")
+                detail = " | ".join(parts)
             checkpoints.append(ContinuityCheckpoint(
                 checkpoint_type="engineering_session",
                 title=f"Engineering session: {session.get('session_type', 'unknown')}",
-                detail=f"Session {session['session_id']}",
+                detail=detail,
                 device_type=device_type,
                 device_id=device_id,
                 session_id=session["session_id"],
