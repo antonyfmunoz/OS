@@ -128,31 +128,28 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     router = APIRouter()
     ws_router = APIRouter()
 
-    
-    
     def _load_device_registry() -> list[dict[str, Any]]:
         try:
             with open(_DEVICE_REGISTRY_PATH) as f:
                 return json.load(f)
         except (json.JSONDecodeError, OSError, FileNotFoundError):
             return []
-    
-    
+
     def _get_docker_containers() -> list[dict]:
         """Query Docker Engine API via unix socket for running containers."""
         import socket as _socket
         import http.client
-    
+
         try:
             if not os.path.exists(_DOCKER_SOCK):
                 return []
-    
+
             class _DockerConn(http.client.HTTPConnection):
                 def connect(self):
                     self.sock = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
                     self.sock.settimeout(2)
                     self.sock.connect(_DOCKER_SOCK)
-    
+
             conn = _DockerConn("localhost")
             conn.request("GET", "/containers/json")
             resp = conn.getresponse()
@@ -170,8 +167,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return result
         except Exception:
             return []
-    
-    
+
     def _read_jsonl(path: Path, limit: int | None = None) -> list[dict[str, Any]]:
         if not path.exists():
             return []
@@ -184,8 +180,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if limit:
             return entries[-limit:]
         return entries
-    
-    
+
     def _compute_build_info() -> dict[str, Any]:
         info: dict[str, Any] = {"backend_start": datetime.now(timezone.utc).isoformat()}
         try:
@@ -213,7 +208,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except Exception:
             pass
         import re as _re
-    
+
         index_html = _ROOT / "cockpit" / "dist-web" / "index.html"
         if index_html.is_file():
             html = index_html.read_text()
@@ -224,16 +219,13 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             if css_match:
                 info["css_hash"] = css_match.group(1)
         return info
-    
-    
+
     _BUILD_INFO = _compute_build_info()
-    
-    
+
     @router.get("/build")
     async def build_info():
         return _BUILD_INFO
-    
-    
+
     @router.get("/pulse")
     async def pulse():
         node_metrics = _build_node_metrics()
@@ -245,7 +237,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         active_agents = 0
         pending_approvals = 0
         if daemon is not None:
-            active_agents = sum(1 for a in daemon.advisor.list_agents() if a.get("status") != "offline")
+            active_agents = sum(
+                1 for a in daemon.advisor.list_agents() if a.get("status") != "offline"
+            )
             pending_approvals = daemon.approval_store.pending_count()
         return {
             "uptime": uptime,
@@ -258,19 +252,17 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             "trace_rate": round(len(traces) / max(uptime / 3600, 1), 1),
             "node_metrics": node_metrics,
         }
-    
-    
+
     @router.get("/mesh/metrics")
     async def mesh_metrics():
         """Per-node metrics — reads from mesh server snapshot (single source of truth)."""
         return _build_node_metrics()
-    
-    
+
     @router.get("/models")
     async def models():
         try:
             from adapters.models.routing.config import load_routing_config
-    
+
             config = load_routing_config()
             desc = config.describe()
             result = []
@@ -288,8 +280,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except ImportError:
             result = []
         return result
-    
-    
+
     def _ping_latency(ip: str) -> float | None:
         try:
             out = gated_subprocess_run(
@@ -304,8 +295,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except Exception:
             pass
         return None
-    
-    
+
     def _device_name(peer: dict) -> str:
         dns = peer.get("DNSName", "")
         hostname = dns.split(".")[0] if dns else peer.get("HostName", "unknown")
@@ -314,18 +304,17 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             if dev.get("tailscale_name", "") == hostname:
                 return dev.get("display_name", hostname)
         return hostname
-    
-    
+
     @router.get("/infra")
     async def infra():
         cpu = psutil.cpu_percent(interval=0.1)
         mem = psutil.virtual_memory()
         disk = psutil.disk_usage("/")
-    
+
         compute_nodes: list[dict] = []
         network_nodes: list[dict] = []
         service_nodes: list[dict] = []
-    
+
         registry = _load_device_registry()
         vps_entry = next((d for d in registry if d.get("id") == "vps"), {})
         vps_display = vps_entry.get("display_name", "srv1500858 (VPS)")
@@ -338,7 +327,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 "metrics": {"cpu": cpu, "memory": mem.percent, "disk": disk.percent, "cost": 24},
             }
         )
-    
+
         try:
             out = gated_subprocess_run(
                 ["tailscale", "status", "--json"],
@@ -358,13 +347,13 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     ip = ip_addrs[0] if ip_addrs else ""
                     if online:
                         online_count += 1
-    
+
                     metrics: dict[str, Any] = {}
                     if online and ip:
                         lat = _ping_latency(ip)
                         if lat is not None:
                             metrics["latency"] = lat
-    
+
                     compute_nodes.append(
                         {
                             "id": f"n-ts-{ip or name}",
@@ -374,7 +363,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                             "metrics": metrics,
                         }
                     )
-    
+
                 network_nodes.append(
                     {
                         "id": "n-tailscale",
@@ -386,7 +375,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 )
         except Exception:
             pass
-    
+
         for c in _get_docker_containers():
             is_up = c.get("state") == "running"
             service_nodes.append(
@@ -398,18 +387,16 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     "metrics": {},
                 }
             )
-    
+
         return compute_nodes + network_nodes + service_nodes
-    
-    
+
     @router.get("/approvals")
     async def approvals():
         daemon = _get_organism()
         if daemon is None:
             return []
         return daemon.approval_store.list_approvals()
-    
-    
+
     @router.post("/approvals/{approval_id}/approve", dependencies=[Depends(_require_operator_role)])
     async def approve_item(approval_id: str):
         daemon = _get_organism()
@@ -419,8 +406,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if result is None:
             return {"ok": False, "error": "approval not found"}
         return {"ok": True}
-    
-    
+
     @router.post("/approvals/{approval_id}/deny", dependencies=[Depends(_require_operator_role)])
     async def deny_item(approval_id: str, payload: dict | None = None):
         daemon = _get_organism()
@@ -430,8 +416,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if result is None:
             return {"ok": False, "error": "approval not found"}
         return {"ok": True}
-    
-    
+
     @router.get("/agents")
     async def agents():
         result = []
@@ -457,7 +442,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                         "tasks_completed": 0,
                     }
                 )
-    
+
         daemon = _get_organism()
         if daemon is not None:
             for oa in daemon.advisor.list_agents():
@@ -475,19 +460,18 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     }
                 )
         return result
-    
-    
+
     @router.get("/memory")
     async def memory(source: str = "all", limit: int = 50):
         """Memory entries from typed ConversationMemory and AgentMemory classes,
         with JSONL fallback for legacy ontology data."""
         result = []
-    
+
         if source in ("all", "conversation"):
             try:
                 from substrate.state.memory.memory import ConversationMemory
                 from substrate.state.context.context import try_load_context_from_env
-    
+
                 ctx = try_load_context_from_env()
                 if ctx:
                     conv = ConversationMemory(ctx)
@@ -509,11 +493,11 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                         )
             except Exception as e:
                 logger.debug("conversation memory load: %s", e)
-    
+
         if source in ("all", "agent"):
             try:
                 from substrate.state.memory.memory import AgentMemory
-    
+
                 agent_mem = AgentMemory()
                 recent_interactions = agent_mem.get_recent(limit=limit)
                 for row in recent_interactions:
@@ -532,7 +516,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     )
             except Exception as e:
                 logger.debug("agent memory load: %s", e)
-    
+
         if source in ("all", "ontology"):
             entries = _read_jsonl(MEMORY_STORE)
             for e in entries[:limit]:
@@ -558,10 +542,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                         else None,
                     }
                 )
-    
+
         return result
-    
-    
+
     @router.get("/skills")
     async def skills():
         result = []
@@ -579,7 +562,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                         trigger = line.split(":", 1)[1].strip()
                     elif line.startswith("effort:"):
                         effort = line.split(":", 1)[1].strip()
-    
+
                 result.append(
                     {
                         "id": f"skill-{name}",
@@ -591,12 +574,13 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                         "category": "tool",
                         "usage_count": 0,
                         "last_used": datetime.now(timezone.utc).isoformat(),
-                        "effort": effort if effort in ("low", "medium", "high", "max") else "medium",
+                        "effort": effort
+                        if effort in ("low", "medium", "high", "max")
+                        else "medium",
                     }
                 )
         return result
-    
-    
+
     @router.get("/observations")
     async def observations():
         entries = _read_jsonl(MEMORY_STORE)
@@ -616,8 +600,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 }
             )
         return result
-    
-    
+
     @router.get("/workflows")
     async def workflows():
         traces = _read_jsonl(TRACE_STORE)
@@ -647,7 +630,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 entry["last_status"] = "failed"
             elif status in ("pending", "running"):
                 entry["last_status"] = "running"
-    
+
         result = []
         for wf in adapter_runs.values():
             avg = 0
@@ -665,8 +648,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 }
             )
         return result
-    
-    
+
     @router.get("/tasks")
     async def tasks():
         traces = _read_jsonl(TRACE_STORE)
@@ -694,8 +676,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             )
         result.reverse()
         return result
-    
-    
+
     @router.get("/comms")
     async def comms(limit: int = 100):
         daemon = _get_organism()
@@ -726,8 +707,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             )
         result.reverse()
         return result
-    
-    
+
     def _summarize_message(m: dict) -> str:
         payload = m.get("payload", {})
         task = payload.get("task", "")
@@ -735,8 +715,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return task[:300]
         intent = m.get("intent", "")
         return f"[{intent}] {str(payload)[:250]}" if intent else str(payload)[:300]
-    
-    
+
     @router.get("/tracking")
     async def tracking():
         entries = _read_jsonl(MEMORY_STORE)
@@ -757,23 +736,22 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             if ts > docs[doc_id]["last_changed"]:
                 docs[doc_id]["last_changed"] = ts
         return list(docs.values())
-    
-    
+
     @router.get("/analytics")
     async def analytics():
         traces = _read_jsonl(TRACE_STORE)
         total = len(traces)
         failed = sum(1 for t in traces if t.get("status") == "failed")
         error_rate = failed / max(total, 1)
-    
+
         daily: dict[str, int] = {}
         for t in traces[-1000:]:
             day = (t.get("created_at") or "")[:10]
             if day:
                 daily[day] = daily.get(day, 0) + 1
-    
+
         daily_list = [{"date": d, "count": c} for d, c in sorted(daily.items())[-30:]]
-    
+
         return {
             "model_usage": [
                 {"model": "cc_sdk (Opus 4.6)", "calls": total, "tokens": total * 2000, "cost": 0},
@@ -783,8 +761,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             "avg_latency_ms": 1200,
             "total_cost_30d": 0,
         }
-    
-    
+
     @router.get("/settings")
     async def settings():
         return {
@@ -797,8 +774,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             "governance": {"auto_approve_low": True, "critical_block": True},
             "notifications": {"discord": True, "file": True},
         }
-    
-    
+
     @router.get("/mesh/nodes")
     async def mesh_nodes():
         """Returns all network devices: Tailscale peers + UMH daemon nodes."""
@@ -813,17 +789,17 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             for dev in _registry
             if "tailscale_name" in dev and "display_name" in dev
         }
-    
+
         daemon_nodes: dict[str, dict] = {}
         server = _get_mesh_server()
         if server is not None:
             for n in server.node_registry.all_nodes():
                 d = n.to_api_dict()
                 daemon_nodes[d.get("tailscale_ip", "")] = d
-    
+
         nodes: list[dict] = []
         seen: set[str] = set()
-    
+
         def _map_ts_node(n: dict, is_self: bool = False) -> dict | None:
             hostname = n.get("HostName", "")
             dns_name = n.get("DNSName", "").split(".")[0]  # e.g. "iphone-15-pro-max"
@@ -835,7 +811,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             if key in seen:
                 return None
             seen.add(key)
-    
+
             ips = n.get("TailscaleIPs", [])
             ip = ips[0] if ips else ""
             online = n.get("Online", False) or is_self
@@ -843,9 +819,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             last_seen = n.get("LastSeen", "")
             if last_seen == "0001-01-01T00:00:00Z":
                 last_seen = ""
-    
+
             daemon = daemon_nodes.get(ip, {})
-    
+
             return {
                 "node_id": key,
                 "hostname": _NAME_MAP.get(key, display),
@@ -857,7 +833,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 "daemon_version": daemon.get("daemon_version"),
                 "capabilities": daemon.get("capabilities", []),
             }
-    
+
         def _parse_ts_data(ts: dict) -> None:
             self_node = ts.get("Self")
             if self_node:
@@ -868,7 +844,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 mapped = _map_ts_node(p)
                 if mapped:
                     nodes.append(mapped)
-    
+
         # Try CLI first (works on host), then fall back to snapshot file (works in Docker)
         try:
             result = gated_subprocess_run(
@@ -881,7 +857,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 _parse_ts_data(json.loads(result.stdout))
         except Exception:
             pass
-    
+
         if not nodes:
             snapshot = _ROOT / "data" / "runtime" / "tailscale_status.json"
             if snapshot.exists():
@@ -889,7 +865,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     _parse_ts_data(json.loads(snapshot.read_text(encoding="utf-8")))
                 except Exception:
                     pass
-    
+
         if not nodes:
             _fb_registry = _load_device_registry()
             _fb_vps = next((d for d in _fb_registry if d.get("id") == "vps"), {})
@@ -906,13 +882,11 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     "capabilities": [],
                 }
             )
-    
+
         return nodes
-    
-    
+
     _get_mesh_server = get_mesh_server
-    
-    
+
     _MESH_METRICS_FILE = os.path.join(
         os.environ.get("UMH_ROOT", "/opt/OS"),
         "data",
@@ -920,8 +894,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         "organism",
         "mesh_metrics.json",
     )
-    
-    
+
     def _read_mesh_metrics_file() -> dict[str, dict[str, Any]]:
         """Read node metrics written by the standalone mesh server process."""
         try:
@@ -929,11 +902,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
-    
-    
+
     def _build_node_metrics() -> dict[str, dict[str, Any]]:
         """Build complete node_metrics dict from the mesh snapshot file.
-    
+
         The mesh server is the single source of truth for all organism metrics.
         It writes VPS self-metrics + remote node heartbeats to mesh_metrics.json
         on a 5s cadence. This function reads that file and enriches with display
@@ -945,7 +917,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         result: dict[str, dict[str, Any]] = {}
         for node_id, mdata in snapshot.items():
             dev = next(
-                (d for d in registry if d.get("mesh_node_id") == node_id or d.get("id") == node_id), {}
+                (d for d in registry if d.get("mesh_node_id") == node_id or d.get("id") == node_id),
+                {},
             )
             entry: dict[str, Any] = {
                 "name": dev.get("display_name", node_id),
@@ -974,34 +947,32 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     "status": "offline",
                 }
         return result
-    
-    
+
     _get_organism = get_organism
-    
-    
+
     @router.post("/pipeline/submit", dependencies=[Depends(_require_operator_role)])
     async def pipeline_submit(payload: dict):
         """Submit a command through the full execution pipeline from cockpit."""
         import asyncio
-    
+
         content = payload.get("content", "")
         if not content:
             return {"error": "content required"}
-    
+
         risk_class = payload.get("risk_class", "READ_ONLY")
         adapter = payload.get("adapter", "shell")
         operation = payload.get("operation", "generic")
         params = payload.get("params", {})
         pre_approved = payload.get("pre_approved", False)
-    
+
         try:
             from transports.api.app import _pipeline
             from substrate.governance.risk_classes import RiskClass
-    
+
             risk = RiskClass[risk_class]
         except (ImportError, KeyError):
             return {"error": f"invalid risk_class: {risk_class}"}
-    
+
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(
             None,
@@ -1014,7 +985,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 pre_approved=pre_approved,
             ),
         )
-    
+
         return {
             "trace_id": str(result.trace_id),
             "signal_id": str(result.signal_id),
@@ -1024,22 +995,21 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             "success": result.success,
             "outcome_type": result.outcome_type,
         }
-    
-    
+
     @router.post("/comms/send", dependencies=[Depends(_require_operator_role)])
     async def comms_send(payload: dict):
         """Send a message to an organism agent."""
         daemon = _get_organism()
         if daemon is None:
             return {"error": "organism not running"}
-    
+
         recipient = payload.get("recipient", "")
         content = payload.get("content", "")
         if not recipient or not content:
             return {"error": "recipient and content required"}
-    
+
         from substrate.organism.protocols import AgentMessage
-    
+
         msg = AgentMessage(
             sender="operator",
             recipient=recipient,
@@ -1048,22 +1018,21 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         )
         daemon.store.save_message(msg)
         return {"ok": True, "message_id": str(msg.id)}
-    
-    
+
     @router.post("/workflows/{workflow_id}/trigger", dependencies=[Depends(_require_operator_role)])
     async def workflow_trigger(workflow_id: str, payload: dict | None = None):
         """Trigger a workflow run through the pipeline."""
         import asyncio
-    
+
         adapter = workflow_id.replace("wf-", "")
         content = f"Triggered {adapter} workflow from cockpit"
         if payload and payload.get("params"):
             content = payload["params"].get("command", content)
-    
+
         try:
             from transports.api.app import _pipeline
             from substrate.governance.risk_classes import RiskClass
-    
+
             loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(
                 None,
@@ -1075,7 +1044,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     params=payload.get("params", {}) if payload else {},
                 ),
             )
-    
+
             return {
                 "ok": True,
                 "trace_id": str(result.trace_id),
@@ -1084,20 +1053,18 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             }
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
-    
-    
+
     @router.patch("/settings", dependencies=[Depends(_require_operator_role)])
     async def update_settings(patch: dict):
         """Update cockpit settings (runtime-only, not persisted across restarts)."""
         return {"ok": True, "applied": list(patch.keys())}
-    
-    
+
     @router.post("/organism/control", dependencies=[Depends(_require_operator_role)])
     async def organism_control(payload: dict):
         """Control organism lifecycle — start/stop."""
         daemon = _get_organism()
         action = payload.get("action", "")
-    
+
         if action == "status":
             if daemon is None:
                 return {"running": False}
@@ -1112,8 +1079,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return {"ok": True, "running": daemon.is_running if daemon else False}
         else:
             return {"error": f"unknown action: {action}"}
-    
-    
+
     @router.post("/agents/{agent_id}/signal")
     async def agent_signal(agent_id: str, payload: dict):
         """Send a signal to a specific organism agent."""
@@ -1124,8 +1090,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if not content:
             return {"error": "content required"}
         return daemon.advisor.handle_signal(content)
-    
-    
+
     @router.get("/profile")
     async def profile():
         return {
@@ -1136,20 +1101,18 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             "stage": "pre_revenue",
             "continuity_score": 0.92,
         }
-    
-    
+
     # ── Unified Activity Stream ─────────────────────────────────────────
-    
-    
+
     @router.get("/activity/stream")
     async def activity_stream(limit: int = 200, source: str | None = None):
         """Unified chronological feed merging traces, comms, approvals, deliverables.
-    
+
         Each event has: id, timestamp, source (trace|comms|approval|organism), kind,
         summary, agent, and optional detail dict.
         """
         events: list[dict[str, Any]] = []
-    
+
         if source is None or source == "trace":
             traces = _read_jsonl(TRACE_STORE)
             for t in traces[-500:]:
@@ -1171,9 +1134,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                         },
                     }
                 )
-    
+
         daemon = _get_organism()
-    
+
         if daemon is not None and (source is None or source == "comms"):
             for m in daemon.store.list_messages(limit=500):
                 events.append(
@@ -1192,7 +1155,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                         },
                     }
                 )
-    
+
         if daemon is not None and (source is None or source == "approval"):
             for a in daemon.approval_store.list_approvals():
                 events.append(
@@ -1209,7 +1172,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                         },
                     }
                 )
-    
+
         if daemon is not None and (source is None or source == "organism"):
             for d in daemon.store.list_deliverables(limit=200):
                 events.append(
@@ -1227,36 +1190,33 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                         },
                     }
                 )
-    
+
         events.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
         return events[:limit]
-    
-    
+
     # ── Governance Controls ──────────────────────────────────────────────
-    
-    
+
     def _get_policy_engine():
         """Access the pipeline's PolicyEngine instance."""
         try:
             from transports.api.app import _pipeline
-    
+
             return _pipeline._policy
         except (ImportError, AttributeError):
             return None
-    
-    
+
     @router.get("/governance")
     async def governance_policy():
         """Return current governance policy table — risk class → authority level."""
         from substrate.governance.authority import AuthorityLevel
         from substrate.governance.risk_classes import RiskClass
-    
+
         engine = _get_policy_engine()
         if engine is None:
             return {"error": "policy engine not available"}
-    
+
         from substrate.governance.policy_engine import _DEFAULT_POLICY
-    
+
         result = []
         for rc in RiskClass:
             authority = _DEFAULT_POLICY.get(rc, AuthorityLevel.DENY)
@@ -1270,28 +1230,27 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     "is_blocking_class": rc.is_blocking,
                 }
             )
-    
+
         return {
             "policies": result,
             "safe_roots": engine.safe_roots,
             "allowed_shell_prefixes": engine.allowed_shell_prefixes,
         }
-    
-    
+
     @router.patch("/governance", dependencies=[Depends(_require_operator_role)])
     async def update_governance(payload: dict):
         """Update governance policy at runtime.
-    
+
         Accepts: {"policies": {"risk_class_name": "AUTHORITY_LEVEL", ...}}
         Example: {"policies": {"SAFE_WRITE": "AUTONOMOUS", "REVERSIBLE_WRITE": "APPROVE"}}
         """
         from substrate.governance.authority import AuthorityLevel
         from substrate.governance.policy_engine import _DEFAULT_POLICY
         from substrate.governance.risk_classes import RiskClass
-    
+
         policies = payload.get("policies", {})
         applied = []
-    
+
         for rc_name, auth_name in policies.items():
             try:
                 rc = RiskClass[rc_name]
@@ -1300,15 +1259,14 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 applied.append({"risk_class": rc_name, "authority": auth_name})
             except KeyError:
                 continue
-    
+
         return {"ok": True, "applied": applied}
-    
-    
+
     @router.get("/governance/tiers")
     async def permission_tiers():
         """Return the 4-tier permission model with action mappings."""
         from substrate.types import PermissionTier, TIER_ACTION_MAP, _PERMISSION_TIER_RANK
-    
+
         tiers = []
         for tier in PermissionTier:
             tiers.append(
@@ -1319,18 +1277,20 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 }
             )
         return {"tiers": tiers}
-    
-    
+
     @router.get("/governance/tier-check")
     async def tier_check(action: str, tier: str = "execute"):
         """Check if a permission tier allows a specific action."""
         from substrate.types import PermissionTier, required_tier_for_action
-    
+
         try:
             caller_tier = PermissionTier(tier)
         except ValueError:
-            return {"error": f"invalid tier: {tier}", "valid_tiers": [t.value for t in PermissionTier]}
-    
+            return {
+                "error": f"invalid tier: {tier}",
+                "valid_tiers": [t.value for t in PermissionTier],
+            }
+
         required = required_tier_for_action(action)
         permitted = caller_tier.permits(required)
         return {
@@ -1339,28 +1299,26 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             "required_tier": required.value,
             "permitted": permitted,
         }
-    
-    
+
     # ── DEX Channel ──────────────────────────────────────────────────────
-    
+
     _dex_conversation = None
-    
-    
+
     def _mirror_to_discord_founders_office(text: str) -> None:
         """Mirror a cockpit DEX response to the Discord Founder's Office channel.
-    
+
         Fire-and-forget — failures are logged but never block the cockpit response.
         """
         import threading
-    
+
         def _send():
             try:
                 import urllib.request
-    
+
                 _env_path = Path("/opt/OS/services/.env")
                 token = os.environ.get("DISCORD_BOT_TOKEN", "")
                 channel_id = os.environ.get("DISCORD_FOUNDERS_OFFICE", "")
-    
+
                 if not token and _env_path.exists():
                     with open(_env_path) as f:
                         for line in f:
@@ -1369,10 +1327,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                                 token = line.split("=", 1)[1].strip()
                             elif line.startswith("DISCORD_FOUNDERS_OFFICE="):
                                 channel_id = line.split("=", 1)[1].strip()
-    
+
                 if not token or not channel_id:
                     return
-    
+
                 truncated = text[:2000]
                 url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
                 payload = json.dumps({"content": truncated}).encode()
@@ -1388,10 +1346,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 urllib.request.urlopen(req, timeout=5)
             except Exception as exc:
                 logger.debug("Discord mirror failed (non-fatal): %s", exc)
-    
+
         threading.Thread(target=_send, daemon=True).start()
-    
-    
+
     def _get_dex_conversation():
         global _dex_conversation
         if _dex_conversation is not None:
@@ -1400,26 +1357,25 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if daemon is None:
             return None
         from substrate.organism.dex_conversation import DexConversation
-    
+
         _dex_conversation = DexConversation(advisor=daemon.advisor, store=daemon.store)
         return _dex_conversation
-    
-    
+
     @router.post("/advisor/converse")
     async def advisor_converse(payload: dict):
         """Multi-turn conversational endpoint for the advisor right rail."""
         conv = _get_dex_conversation()
         if conv is None:
             return {"error": "organism not running"}
-    
+
         content = payload.get("content", "")
         if not content:
             return {"error": "content required"}
-    
+
         source = payload.get("source", "text")
         routing = payload.get("routing")  # Optional voice routing metadata
         voice_turn_id = payload.get("voice_turn_id", "")  # Idempotency key for voice turns
-    
+
         response = conv.converse(
             content=content,
             conversation_id=payload.get("conversation_id", ""),
@@ -1428,11 +1384,11 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             routing=routing,
             voice_turn_id=voice_turn_id,
         )
-    
+
         # Persist both sides to OrganismStore so /chat/history survives refresh
         try:
             from substrate.organism.store import OrganismStore
-    
+
             store = OrganismStore()
             store.save_conversation_turn(
                 content=content,
@@ -1442,11 +1398,11 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             )
         except Exception as exc:
             logger.debug("Failed to persist conversation to OrganismStore: %s", exc)
-    
+
         # Mirror to Discord Founder's Office (only for cockpit-originated messages)
         if source != "discord" and response.text:
             _mirror_to_discord_founders_office(response.text)
-    
+
         result: dict = {
             "message_id": f"advisor-{response.timestamp}",
             "text": response.text,
@@ -1462,26 +1418,26 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if response.routing:
             result["routing"] = response.routing
         return result
-    
-    
+
     @router.post("/dex/converse")
     async def dex_converse_compat(payload: dict):
         """Backward-compat shim — canonical route is /advisor/converse."""
         return await advisor_converse(payload)
-    
-    
+
     @router.get("/advisor/history")
     async def advisor_history(limit: int = 50):
         """Recent advisor channel exchanges and system reports for the right-rail chat."""
         daemon = _get_organism()
         if daemon is None:
             return []
-    
+
         messages = daemon.store.list_messages(limit=500)
-    
+
         exchanges: list[dict[str, Any]] = []
-    
-        dex_msgs = [m for m in messages if m.get("payload", {}).get("source") == "cockpit_advisor_channel"]
+
+        dex_msgs = [
+            m for m in messages if m.get("payload", {}).get("source") == "cockpit_advisor_channel"
+        ]
         i = 0
         while i < len(dex_msgs):
             msg = dex_msgs[i]
@@ -1504,7 +1460,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 exchange["response"] = msg.get("payload", {}).get("response")
             exchanges.append(exchange)
             i += 1
-    
+
         _REPORT_SENDERS = {"system", "dex"}
         for m in messages:
             if m.get("intent") == "report" and m.get("sender", "") in _REPORT_SENDERS:
@@ -1514,7 +1470,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 meta = payload.get("metadata", {})
                 file_path = str(payload.get("file_path", ""))[:500]
                 conv_id = m.get("conversation_id", "")
-    
+
                 provenance: dict[str, Any] = {
                     "node": "VPS",
                     "harness": "Claude Code",
@@ -1529,14 +1485,14 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     )
                 if meta.get("task"):
                     provenance["task"] = str(meta["task"])[:100]
-    
+
                 attachment = None
                 if file_path:
                     attachment = {
                         "path": file_path,
                         "filename": file_path.rsplit("/", 1)[-1] if "/" in file_path else file_path,
                     }
-    
+
                 exchanges.append(
                     {
                         "id": m.get("id", ""),
@@ -1550,26 +1506,23 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                         "attachment": attachment,
                     }
                 )
-    
+
         exchanges.sort(key=lambda x: x.get("timestamp", ""))
         return exchanges[-limit:]
-    
-    
+
     @router.get("/dex/history")
     async def dex_history_compat(limit: int = 50):
         """Backward-compat shim — canonical route is /advisor/history."""
         return await advisor_history(limit)
-    
-    
+
     # ─── EOS Projection Endpoints ─────────────────────────────────────────────
-    
-    
+
     @router.get("/eos/pipeline")
     async def eos_pipeline():
         """Pipeline view — CRM data projected into sales stages."""
         try:
             from projections.eos.views.pipeline import PipelineView
-    
+
             org_id = _get_org_id()
             view = PipelineView(org_id=org_id)
             snap = view.snapshot()
@@ -1583,14 +1536,13 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             }
         except Exception as e:
             return {"error": str(e), "stages": []}
-    
-    
+
     @router.get("/eos/kpis")
     async def eos_kpis():
         """KPI dashboard — business metrics as cards."""
         try:
             from projections.eos.views.kpis import KPIView
-    
+
             org_id = _get_org_id()
             view = KPIView(org_id=org_id)
             dash = view.dashboard()
@@ -1609,14 +1561,13 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             }
         except Exception as e:
             return {"error": str(e), "cards": []}
-    
-    
+
     @router.get("/eos/activity")
     async def eos_activity(limit: int = 30):
         """Activity feed — recent system events in chronological order."""
         try:
             from projections.eos.views.activity import ActivityView
-    
+
             org_id = _get_org_id()
             view = ActivityView(org_id=org_id)
             feed = view.feed(limit=limit)
@@ -1634,34 +1585,31 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             }
         except Exception as e:
             return {"error": str(e), "entries": []}
-    
-    
+
     @router.get("/eos/accountability")
     async def eos_accountability():
         """Accountability stats — commitment tracking, streaks, fulfillment rate."""
         try:
             from substrate.governance.accountability.accountability import AccountabilityEngine
             from substrate.state.context.context import load_context_from_env
-    
+
             ctx = load_context_from_env()
             ae = AccountabilityEngine(ctx)
             return ae.stats()
         except Exception as e:
             return {"error": str(e)}
-    
-    
+
     @router.get("/eos/intelligence")
     async def eos_intelligence():
         """Intelligence layer health — pattern/decision stats."""
         try:
             from substrate.intelligence.runtime import IntelligenceRuntime
-    
+
             intel = IntelligenceRuntime()
             return intel.health()
         except Exception as e:
             return {"error": str(e)}
-    
-    
+
     @router.post("/organism/handoff", dependencies=[Depends(_require_operator_role)])
     async def organism_handoff(payload: dict):
         """Submit a task handoff between agents."""
@@ -1674,8 +1622,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             task=payload.get("task", ""),
             context=payload.get("context", ""),
         )
-    
-    
+
     @router.post("/organism/parallel", dependencies=[Depends(_require_operator_role)])
     async def organism_parallel(payload: dict):
         """Execute multiple agent tasks in parallel."""
@@ -1683,8 +1630,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if daemon is None:
             return {"error": "organism not running"}
         return daemon.execute_parallel(payload.get("tasks", []))
-    
-    
+
     @router.get("/organism/delegations")
     async def organism_delegations():
         """Check for overdue delegations and follow-ups."""
@@ -1692,28 +1638,25 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if daemon is None:
             return {"error": "organism not running", "followups": []}
         return {"followups": daemon.check_delegations()}
-    
-    
+
     def _get_org_id() -> str:
         """Get org_id from context for projection queries."""
         try:
             from substrate.state.context.context import load_context_from_env
-    
+
             ctx = load_context_from_env()
             return str(ctx.org_id)
         except Exception:
             return ""
-    
-    
+
     # ── Notifications ────────────────────────────────────────────────────────────
-    
-    
+
     @router.get("/notifications")
     async def notification_history(limit: int = 50):
         """Recent notification history."""
         try:
             from substrate.sockets.notification_engine import get_notification_engine
-    
+
             engine = get_notification_engine()
             return {
                 "history": engine.recent_history(limit),
@@ -1722,15 +1665,13 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             }
         except Exception as e:
             return {"error": str(e), "history": []}
-    
-    
+
     # ── RLHF Feedback ──────────────────────────────────────────────────────────
-    
-    
+
     @router.post("/feedback")
     async def record_feedback(payload: dict):
         """Record explicit RLHF feedback for an interaction.
-    
+
         Body: {interaction_id, rating, outcome_type, notes?}
         rating: thumbs_up | thumbs_down | 1-5
         outcome_type: helpful | unhelpful | incorrect | harmful
@@ -1741,23 +1682,23 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             Rating,
             get_feedback_loop,
         )
-    
+
         interaction_id = payload.get("interaction_id", "")
         if not interaction_id:
             return {"ok": False, "error": "interaction_id required"}
-    
+
         try:
             rating = Rating(str(payload.get("rating", "")))
         except ValueError:
             valid = [r.value for r in Rating]
             return {"ok": False, "error": f"invalid rating, must be one of: {valid}"}
-    
+
         try:
             outcome_type = OutcomeCategory(payload.get("outcome_type", ""))
         except ValueError:
             valid = [o.value for o in OutcomeCategory]
             return {"ok": False, "error": f"invalid outcome_type, must be one of: {valid}"}
-    
+
         loop = get_feedback_loop()
         entry = FeedbackEntry(
             interaction_id=interaction_id,
@@ -1767,17 +1708,15 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         )
         success = loop.record_feedback(entry)
         return {"ok": success}
-    
-    
+
     @router.get("/feedback/stats")
     async def feedback_stats(agent: str = ""):
         """Aggregate RLHF feedback statistics, optionally filtered by agent."""
         from substrate.execution.feedback_loop import get_feedback_loop
-    
+
         loop = get_feedback_loop()
         return loop.get_feedback_stats(agent=agent)
-    
-    
+
     @router.get("/feedback/skills")
     async def feedback_skill_effectiveness(
         agent: str = "",
@@ -1785,27 +1724,25 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         window_days: int = 30,
     ):
         """Skill effectiveness based on RLHF feedback.
-    
+
         Query: ?agent=eos-sales&skill=analyze_icp_signal&window_days=30
         """
         from substrate.execution.feedback_loop import get_feedback_loop
-    
+
         if not agent or not skill:
             return {"error": "both agent and skill query params required"}
-    
+
         loop = get_feedback_loop()
         return loop.skill_effectiveness(agent=agent, skill=skill, window_days=window_days)
-    
-    
+
     @router.get("/feedback/recommendations")
     async def feedback_recommendations():
         """Routing adjustment recommendations based on RLHF feedback patterns."""
         from substrate.execution.feedback_loop import get_feedback_loop
-    
+
         loop = get_feedback_loop()
         return {"recommendations": loop.recommend_routing_adjustment()}
-    
-    
+
     @router.post("/notifications/send", dependencies=[Depends(_require_operator_role)])
     async def send_notification(payload: dict):
         """Send a notification through the engine."""
@@ -1816,7 +1753,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 NotificationPriority,
                 NotificationChannel,
             )
-    
+
             engine = get_notification_engine()
             channels = []
             for ch in payload.get("channels", []):
@@ -1824,7 +1761,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     channels.append(NotificationChannel(ch))
                 except ValueError:
                     pass
-    
+
             notification = Notification(
                 title=payload.get("title", ""),
                 body=payload.get("body", ""),
@@ -1842,24 +1779,21 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             }
         except Exception as e:
             return {"error": str(e), "sent": False}
-    
-    
+
     # ─── WebSocket: live cockpit data stream ──────────────────────────────────────
-    
+
     _cockpit_clients: set[WebSocket] = set()
     _pending_organism_events: list[dict] = []
-    
-    
+
     def push_organism_event(event_dict: dict) -> None:
         """Called by the organism daemon to push events to WebSocket clients."""
         _pending_organism_events.append(event_dict)
         if len(_pending_organism_events) > 200:
             _pending_organism_events[:] = _pending_organism_events[-100:]
-    
-    
+
     def push_chat_message(message: dict) -> None:
         """Queue a chat message for delivery to connected cockpit WS clients.
-    
+
         The message gets wrapped as type='chat_message' and included in
         the next WS pulse cycle. Used by Discord bot and other channels
         to push cross-channel messages to the cockpit in near-real-time.
@@ -1868,8 +1802,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         _pending_organism_events.append(event)
         if len(_pending_organism_events) > 200:
             _pending_organism_events[:] = _pending_organism_events[-100:]
-    
-    
+
     def _extract_ws_subprotocol(ws: WebSocket) -> str | None:
         """Return the bearer subprotocol string if the client sent one, else None."""
         for proto in (ws.headers.get("sec-websocket-protocol") or "").split(","):
@@ -1877,11 +1810,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             if proto.startswith("bearer."):
                 return proto
         return None
-    
-    
+
     def _extract_ws_token(ws: WebSocket) -> str:
         """Extract auth token from Sec-WebSocket-Protocol header or query param.
-    
+
         Preferred: client sends subprotocol 'bearer.<token>' — avoids token in URL/logs.
         Fallback: ?token= query param for clients that cannot set subprotocols.
         """
@@ -1889,8 +1821,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if sub:
             return sub[7:]
         return ws.query_params.get("token", "")
-    
-    
+
     def _real_ws_client_ip(ws: WebSocket) -> str:
         """Real client IP for WebSocket, same trusted-proxy logic as HTTP."""
         tcp_ip = ws.client.host if ws.client else ""
@@ -1899,11 +1830,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             if forwarded:
                 return forwarded.split(",")[0].strip()
         return tcp_ip
-    
-    
+
     def _validate_ws_token(ws: WebSocket) -> bool:
         """Validate WS connection auth.
-    
+
         Tries Clerk JWT first (via cockpit_auth). If a Clerk credential is
         presented but invalid, rejects immediately (no fall-through).
         Falls back to WS token / dev-bypass only when no Clerk credential present.
@@ -1922,12 +1852,11 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if _dev_bypass and _is_private_ip_fn(client_ip):
             return True
         return False
-    
-    
+
     @ws_router.websocket("/ws")
     async def cockpit_ws(ws: WebSocket):
         """Stream live system metrics to connected cockpit clients.
-    
+
         Auth: Sec-WebSocket-Protocol 'bearer.<TOKEN>', or ?token= fallback,
         or dev-bypass from private IP. Rejected with 4001 otherwise.
         """
@@ -1984,33 +1913,36 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         finally:
             _cockpit_clients.discard(ws)
             logger.info(f"cockpit ws disconnected ({len(_cockpit_clients)} clients)")
-    
-    
+
     # ─── Voice WebSocket Proxy ────────────────────────────────────────────────────
-    
+
     _VOICE_WS_UPSTREAM = os.environ.get("VOICE_WS_UPSTREAM", "ws://host.docker.internal:8096/voice")
-    _VOICE_PROXY_MAX_MSG = 2 ** 22  # 4 MiB
-    
-    
+    _VOICE_PROXY_MAX_MSG = 2**22  # 4 MiB
+
     @ws_router.websocket("/voice/ws")
     async def voice_ws_proxy(ws: WebSocket):
         """Proxy browser voice WebSocket to the internal voice server.
-    
+
         Auth: same as cockpit_ws (subprotocol bearer.<token>, query param, or dev-bypass).
         Forwards binary (PCM audio) and JSON control frames in both directions.
         """
         if not _validate_ws_token(ws):
             await ws.close(code=4001, reason="Authentication required")
-            logger.warning("[VoiceProxy] auth rejected from %s", ws.client.host if ws.client else "unknown")
+            logger.warning(
+                "[VoiceProxy] auth rejected from %s", ws.client.host if ws.client else "unknown"
+            )
             return
-    
+
         subprotocol = _extract_ws_subprotocol(ws)
         await ws.accept(subprotocol=subprotocol)
-        logger.info("[VoiceProxy] client_connected from %s", ws.client.host if ws.client else "unknown")
-    
+        logger.info(
+            "[VoiceProxy] client_connected from %s", ws.client.host if ws.client else "unknown"
+        )
+
         upstream = None
         try:
             import websockets.client
+
             upstream = await asyncio.wait_for(
                 websockets.client.connect(
                     _VOICE_WS_UPSTREAM,
@@ -2023,10 +1955,16 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             logger.info("[VoiceProxy] upstream_connected %s", _VOICE_WS_UPSTREAM)
         except Exception as e:
             logger.error("[VoiceProxy] upstream_connect_failed: %s", e)
-            await ws.send_json({"type": "error", "code": "voice_server_unavailable", "message": "Voice server unreachable"})
+            await ws.send_json(
+                {
+                    "type": "error",
+                    "code": "voice_server_unavailable",
+                    "message": "Voice server unreachable",
+                }
+            )
             await ws.close(code=1011, reason="Voice server unreachable")
             return
-    
+
         async def client_to_upstream():
             try:
                 while True:
@@ -2043,7 +1981,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 logger.debug("[VoiceProxy] client_to_upstream error: %s", e)
             finally:
                 logger.info("[VoiceProxy] client_closed")
-    
+
         async def upstream_to_client():
             try:
                 async for message in upstream:
@@ -2055,10 +1993,13 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 logger.debug("[VoiceProxy] upstream_to_client error: %s", e)
             finally:
                 logger.info("[VoiceProxy] upstream_closed")
-    
+
         try:
             done, pending = await asyncio.wait(
-                [asyncio.ensure_future(client_to_upstream()), asyncio.ensure_future(upstream_to_client())],
+                [
+                    asyncio.ensure_future(client_to_upstream()),
+                    asyncio.ensure_future(upstream_to_client()),
+                ],
                 return_when=asyncio.FIRST_COMPLETED,
             )
             for task in pending:
@@ -2073,29 +2014,34 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             except Exception:
                 pass
             logger.info("[VoiceProxy] session_ended")
-    
-    
+
     # ─── Vision WebSocket Proxy ───────────────────────────────────────────────────
-    
-    _VISION_WS_UPSTREAM = os.environ.get("VISION_WS_UPSTREAM", "ws://host.docker.internal:8097/vision")
-    _VISION_PROXY_MAX_MSG = 2 ** 22  # 4 MiB
-    
-    
+
+    _VISION_WS_UPSTREAM = os.environ.get(
+        "VISION_WS_UPSTREAM", "ws://host.docker.internal:8097/vision"
+    )
+    _VISION_PROXY_MAX_MSG = 2**22  # 4 MiB
+
     @ws_router.websocket("/vision/ws")
     async def vision_ws_proxy(ws: WebSocket):
         """Proxy browser vision WebSocket to the internal vision relay."""
         if not _validate_ws_token(ws):
             await ws.close(code=4001, reason="Authentication required")
-            logger.warning("[VisionProxy] auth rejected from %s", ws.client.host if ws.client else "unknown")
+            logger.warning(
+                "[VisionProxy] auth rejected from %s", ws.client.host if ws.client else "unknown"
+            )
             return
-    
+
         subprotocol = _extract_ws_subprotocol(ws)
         await ws.accept(subprotocol=subprotocol)
-        logger.info("[VisionProxy] client_connected from %s", ws.client.host if ws.client else "unknown")
-    
+        logger.info(
+            "[VisionProxy] client_connected from %s", ws.client.host if ws.client else "unknown"
+        )
+
         upstream = None
         try:
             import websockets.client
+
             upstream = await asyncio.wait_for(
                 websockets.client.connect(
                     _VISION_WS_UPSTREAM,
@@ -2108,10 +2054,16 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             logger.info("[VisionProxy] upstream_connected %s", _VISION_WS_UPSTREAM)
         except Exception as e:
             logger.error("[VisionProxy] upstream_connect_failed: %s", e)
-            await ws.send_json({"type": "error", "code": "vision_relay_unavailable", "message": "Vision relay unreachable"})
+            await ws.send_json(
+                {
+                    "type": "error",
+                    "code": "vision_relay_unavailable",
+                    "message": "Vision relay unreachable",
+                }
+            )
             await ws.close(code=1011, reason="Vision relay unreachable")
             return
-    
+
         async def client_to_upstream():
             try:
                 while True:
@@ -2128,7 +2080,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 logger.debug("[VisionProxy] client_to_upstream error: %s", e)
             finally:
                 logger.info("[VisionProxy] client_closed")
-    
+
         async def upstream_to_client():
             try:
                 async for message in upstream:
@@ -2140,10 +2092,13 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 logger.debug("[VisionProxy] upstream_to_client error: %s", e)
             finally:
                 logger.info("[VisionProxy] upstream_closed")
-    
+
         try:
             done, pending = await asyncio.wait(
-                [asyncio.ensure_future(client_to_upstream()), asyncio.ensure_future(upstream_to_client())],
+                [
+                    asyncio.ensure_future(client_to_upstream()),
+                    asyncio.ensure_future(upstream_to_client()),
+                ],
                 return_when=asyncio.FIRST_COMPLETED,
             )
             for task in pending:
@@ -2158,20 +2113,17 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             except Exception:
                 pass
             logger.info("[VisionProxy] session_ended")
-    
-    
+
     # ─── Persistent Loops ────────────────────────────────────────────────────────
-    
-    
+
     def _get_loop_registry():
         from substrate.execution.loop import get_registry
-    
+
         registry = get_registry()
         if not registry.list_loops():
             registry.load_definitions()
         return registry
-    
-    
+
     @router.get("/loops")
     async def loop_status():
         """Status of all persistent loops."""
@@ -2179,22 +2131,20 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return _get_loop_registry().status()
         except Exception as e:
             return {"error": str(e)}
-    
-    
+
     @router.get("/loops/stages")
     async def loop_stages():
         """List available pipeline stages."""
         try:
             from substrate.execution.loop import STAGE_REGISTRY
-    
+
             return {
                 name: (func.__doc__ or "").strip().split("\n")[0]
                 for name, func in sorted(STAGE_REGISTRY.items())
             }
         except Exception as e:
             return {"error": str(e)}
-    
-    
+
     @router.post("/loops/{loop_name}/start", dependencies=[Depends(_require_operator_role)])
     async def loop_start(loop_name: str):
         """Start a persistent loop."""
@@ -2203,8 +2153,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return {"started": ok, "loop": loop_name}
         except Exception as e:
             return {"error": str(e)}
-    
-    
+
     @router.post("/loops/{loop_name}/stop", dependencies=[Depends(_require_operator_role)])
     async def loop_stop(loop_name: str):
         """Stop a persistent loop."""
@@ -2213,8 +2162,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return {"stopped": ok, "loop": loop_name}
         except Exception as e:
             return {"error": str(e)}
-    
-    
+
     @router.post("/loops/{loop_name}/run-once", dependencies=[Depends(_require_operator_role)])
     async def loop_run_once(loop_name: str):
         """Run a single cycle of a loop synchronously."""
@@ -2227,17 +2175,16 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return report.to_dict()
         except Exception as e:
             return {"error": str(e)}
-    
-    
+
     @router.post("/loops/create", dependencies=[Depends(_require_operator_role)])
     async def loop_create(payload: dict):
         """Create a new loop definition at runtime."""
         try:
             from substrate.execution.loop import STAGE_REGISTRY
             from substrate.execution.loop.persistent_loop import LoopDefinition
-    
+
             registry = _get_loop_registry()
-    
+
             stages = payload.get("stages", [])
             unknown = [s for s in stages if s not in STAGE_REGISTRY]
             if unknown:
@@ -2245,7 +2192,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     "error": f"unknown stages: {unknown}",
                     "available": sorted(STAGE_REGISTRY.keys()),
                 }
-    
+
             defn = LoopDefinition(
                 name=payload["name"],
                 domain=payload.get("domain", "general"),
@@ -2258,8 +2205,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return {"created": defn.name, "definition": defn.to_dict()}
         except Exception as e:
             return {"error": str(e)}
-    
-    
+
     @router.delete("/loops/{loop_name}", dependencies=[Depends(_require_operator_role)])
     async def loop_delete(loop_name: str):
         """Remove a loop definition."""
@@ -2271,11 +2217,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return {"removed": ok, "loop": loop_name}
         except Exception as e:
             return {"error": str(e)}
-    
-    
+
     # ── Execution Substrate endpoints ────────────────────────────────────────────
-    
-    
+
     @router.get("/execution/status")
     async def execution_status():
         """Execution status from live organism spine and work packet engine."""
@@ -2285,7 +2229,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             pending_count = 0
             active_count = 0
             completed_count = 0
-    
+
             if organism:
                 spine = getattr(organism, "spine", None)
                 if spine:
@@ -2299,16 +2243,16 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 pending_count = len(pending) if pending else 0
                 active_count = len(active) if active else 0
                 completed_count = len(completed_list) if completed_list else 0
-    
+
             from substrate.organism.work_packet_engine import WorkPacketEngine
-    
+
             wpe = WorkPacketEngine()
             packets = wpe.all_packets()
             packet_summary = {}
             for pkt in packets:
                 status_val = pkt.status.value if hasattr(pkt.status, "value") else str(pkt.status)
                 packet_summary[status_val] = packet_summary.get(status_val, 0) + 1
-    
+
             return {
                 "spine": spine_status,
                 "envelopes": {
@@ -2329,8 +2273,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 "work_packets": {"total": 0, "by_status": {}},
                 "error": str(e),
             }
-    
-    
+
     @router.get("/execution/log")
     async def execution_log(limit: int = 20):
         """Recent execution journal entries from spine."""
@@ -2357,14 +2300,13 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except Exception as e:
             logger.debug("execution_log: %s", e)
             return {"log": [], "count": 0, "error": str(e)}
-    
-    
+
     @router.get("/execution/authority")
     async def execution_authority(layer: str = "native"):
         """Authority preview using live governance engine."""
         try:
             from substrate.governance.policy_engine import PolicyEngine
-    
+
             engine = PolicyEngine()
             return {
                 "layer": layer,
@@ -2383,8 +2325,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 "risk_class": "LOW",
                 "approval_requirement": "none",
             }
-    
-    
+
     @router.post("/execution/start", dependencies=[Depends(_require_operator_role)])
     async def execution_start(request: Request):
         """Start execution of a work packet through the governed spine."""
@@ -2392,15 +2333,15 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         packet_id = body.get("packet_id", "")
         if not packet_id:
             return {"ok": False, "error": "packet_id is required"}
-    
+
         from substrate.organism.work_packet_engine import WorkPacketEngine
         from substrate.organism.work_packet import PacketLifecycleStatus
-    
+
         wpe = WorkPacketEngine()
         pkt = wpe.get_packet(packet_id)
         if not pkt:
             return {"ok": False, "error": f"Work packet {packet_id} not found"}
-    
+
         if pkt.approval_gates and pkt.status != PacketLifecycleStatus.APPROVED:
             return {
                 "ok": False,
@@ -2408,7 +2349,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 "status": pkt.status.value,
                 "approval_gates": pkt.approval_gates,
             }
-    
+
         if pkt.status == PacketLifecycleStatus.APPROVED:
             ok = wpe.update_packet_status(
                 packet_id, PacketLifecycleStatus.DELEGATED, "delegated for execution"
@@ -2427,12 +2368,12 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 "error": f"Cannot start execution from status '{pkt.status.value}'",
                 "valid_start_statuses": ["approved", "delegated"],
             }
-    
+
         from substrate.execution.runtime.capability_router import (
             detect_capability,
             route_capability,
         )
-    
+
         cap = detect_capability(pkt.user_intent or pkt.title)
         routing_result: dict[str, Any] = {
             "capability": cap.value,
@@ -2447,7 +2388,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 routing_result["provider"] = result.provider_id
             else:
                 from adapters.models.model_router import call_with_fallback
-    
+
                 llm_result = call_with_fallback(
                     prompt=pkt.user_intent or pkt.title,
                     system="Execute this work packet concisely.",
@@ -2460,15 +2401,14 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except Exception as exc:
             logger.debug("execution routing failed: %s", exc)
             routing_result["error"] = f"UNAVAILABLE: {exc}"
-    
+
         return {
             "ok": ok,
             "packet_id": packet_id,
             "status": "executing",
             "routing": routing_result,
         }
-    
-    
+
     @router.post("/execution/stop", dependencies=[Depends(_require_operator_role)], deprecated=True)
     async def execution_stop(request: Request):
         """DEPRECATED — use POST /workstation/execution/stop instead."""
@@ -2478,13 +2418,20 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return {"ok": False, "error": "packet_id is required"}
         from substrate.organism.work_packet_engine import WorkPacketEngine
         from substrate.organism.work_packet import PacketLifecycleStatus
-    
+
         wpe = WorkPacketEngine()
-        ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, "stopped by operator")
-        return {"ok": ok, "packet_id": packet_id, "deprecated": "use POST /workstation/execution/stop"}
-    
-    
-    @router.post("/execution/pause", dependencies=[Depends(_require_operator_role)], deprecated=True)
+        ok = wpe.update_packet_status(
+            packet_id, PacketLifecycleStatus.BLOCKED, "stopped by operator"
+        )
+        return {
+            "ok": ok,
+            "packet_id": packet_id,
+            "deprecated": "use POST /workstation/execution/stop",
+        }
+
+    @router.post(
+        "/execution/pause", dependencies=[Depends(_require_operator_role)], deprecated=True
+    )
     async def execution_pause(request: Request):
         """DEPRECATED — use POST /workstation/execution/pause instead."""
         body = await request.json()
@@ -2493,12 +2440,17 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return {"ok": False, "error": "packet_id is required"}
         from substrate.organism.work_packet_engine import WorkPacketEngine
         from substrate.organism.work_packet import PacketLifecycleStatus
-    
+
         wpe = WorkPacketEngine()
-        ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, "paused by operator")
-        return {"ok": ok, "packet_id": packet_id, "deprecated": "use POST /workstation/execution/pause"}
-    
-    
+        ok = wpe.update_packet_status(
+            packet_id, PacketLifecycleStatus.BLOCKED, "paused by operator"
+        )
+        return {
+            "ok": ok,
+            "packet_id": packet_id,
+            "deprecated": "use POST /workstation/execution/pause",
+        }
+
     @router.post("/execution/complete", dependencies=[Depends(_require_operator_role)])
     async def execution_complete(request: Request):
         """Mark a work packet as completed, triggering outcome recording and verification."""
@@ -2507,15 +2459,15 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if not packet_id:
             return {"ok": False, "error": "packet_id is required"}
         reason = body.get("reason", "completed by operator")
-    
+
         from substrate.organism.work_packet_engine import WorkPacketEngine
         from substrate.organism.work_packet import PacketLifecycleStatus
-    
+
         wpe = WorkPacketEngine()
         pkt = wpe.get_packet(packet_id)
         if not pkt:
             return {"ok": False, "error": f"Work packet {packet_id} not found"}
-    
+
         if pkt.status == PacketLifecycleStatus.EXECUTING:
             ok = wpe.update_packet_status(
                 packet_id, PacketLifecycleStatus.VALIDATING, "validating before completion"
@@ -2543,7 +2495,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 "error": f"Cannot complete from status '{pkt.status.value}'",
                 "valid_statuses": ["executing", "validating"],
             }
-    
+
         return {
             "ok": ok,
             "packet_id": packet_id,
@@ -2551,8 +2503,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             "outcome_observation_id": pkt.outcome_observation_id if pkt else "",
             "verification_passed": pkt.verification_passed if pkt else None,
         }
-    
-    
+
     @router.post("/execution/fail", dependencies=[Depends(_require_operator_role)])
     async def execution_fail(request: Request):
         """Mark a work packet as failed, triggering failure outcome recording."""
@@ -2561,15 +2512,15 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if not packet_id:
             return {"ok": False, "error": "packet_id is required"}
         reason = body.get("reason", "failed")
-    
+
         from substrate.organism.work_packet_engine import WorkPacketEngine
         from substrate.organism.work_packet import PacketLifecycleStatus
-    
+
         wpe = WorkPacketEngine()
         pkt = wpe.get_packet(packet_id)
         if not pkt:
             return {"ok": False, "error": f"Work packet {packet_id} not found"}
-    
+
         if pkt.status not in (
             PacketLifecycleStatus.EXECUTING,
             PacketLifecycleStatus.VALIDATING,
@@ -2580,7 +2531,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 "error": f"Cannot fail from status '{pkt.status.value}'",
                 "valid_statuses": ["executing", "validating", "delegated"],
             }
-    
+
         ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.FAILED, reason)
         return {
             "ok": ok,
@@ -2588,9 +2539,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             "status": "failed",
             "outcome_observation_id": pkt.outcome_observation_id if pkt else "",
         }
-    
-    
-    @router.post("/execution/resume", dependencies=[Depends(_require_operator_role)], deprecated=True)
+
+    @router.post(
+        "/execution/resume", dependencies=[Depends(_require_operator_role)], deprecated=True
+    )
     async def execution_resume(request: Request):
         """DEPRECATED — use POST /workstation/execution/resume instead."""
         body = await request.json()
@@ -2599,7 +2551,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return {"ok": False, "error": "packet_id is required"}
         from substrate.organism.work_packet_engine import WorkPacketEngine
         from substrate.organism.work_packet import PacketLifecycleStatus
-    
+
         wpe = WorkPacketEngine()
         ok = wpe.update_packet_status(
             packet_id, PacketLifecycleStatus.CLASSIFIED, "resumed by operator"
@@ -2609,11 +2561,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             "packet_id": packet_id,
             "deprecated": "use POST /workstation/execution/resume",
         }
-    
-    
+
     # ── Provider Health ────────────────────────────────────────────────────────────
-    
-    
+
     @router.get("/providers/health")
     async def providers_health():
         """Return the runtime portfolio — roles, slots, provider status, and purpose routing."""
@@ -2625,10 +2575,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             ProviderRole,
             get_router,
         )
-    
+
         router = get_router()
         router._check_availability()
-    
+
         portfolio = []
         for key, cfg in MODEL_REGISTRY.items():
             # Determine which role this provider fills (if any)
@@ -2637,7 +2587,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 if slot_key == key:
                     role = r.value
                     break
-    
+
             portfolio.append(
                 {
                     "key": key,
@@ -2650,22 +2600,22 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     "cost_per_1k": cfg.cost_per_1k,
                 }
             )
-    
+
         slotted = [p for p in portfolio if p["role"]]
         unslotted = [p for p in portfolio if not p["role"]]
-    
+
         # Count healthy roles
         healthy_roles = sum(1 for p in slotted if p["available"])
-    
+
         from substrate.execution.cpu_gate import cpu_gate_status
-    
+
         # Beast GPU status (best-effort, non-blocking)
         beast_gpu = None
         beast_cfg = MODEL_REGISTRY.get("beast-ollama")
         if beast_cfg and beast_cfg.available:
             try:
                 import requests as _req
-    
+
                 ps_resp = _req.get(f"{beast_cfg.base_url}/api/ps", timeout=2)
                 if ps_resp.status_code == 200:
                     ps_data = ps_resp.json()
@@ -2678,7 +2628,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     }
             except Exception:
                 pass
-    
+
         return {
             "portfolio": slotted,
             "unslotted": unslotted,
@@ -2693,11 +2643,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             if healthy_roles >= 1
             else "critical",
         }
-    
-    
+
     # ── Intent classification (WP-2.1) ────────────────────────────────────────────
-    
-    
+
     @router.post("/intent/classify", dependencies=[Depends(_require_operator_role)])
     async def intent_classify(request: Request):
         """Classify operator text through the spine's deterministic intent engine
@@ -2706,19 +2654,19 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         text = (body.get("text") or "").strip()
         if not text:
             return {"ok": False, "error": "text is required"}
-    
+
         from substrate.execution.spine import _INTENT_PATTERNS
-    
+
         intent = "unknown"
         for pattern, matched_intent in _INTENT_PATTERNS:
             if pattern.search(text):
                 intent = matched_intent
                 break
-    
+
         event_id = ""
         try:
             from substrate.state.memory.memory import ConversationMemory
-    
+
             mem = ConversationMemory()
             org_id = os.environ.get("UMH_ORG_ID") or os.environ.get("EOS_ORG_ID", "")
             if org_id:
@@ -2730,7 +2678,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 )
         except Exception as exc:
             logger.debug("intent_classify persistence failed: %s", exc)
-    
+
         return {
             "ok": True,
             "intent": intent,
@@ -2738,17 +2686,15 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             "persisted": bool(event_id),
             "event_id": event_id,
         }
-    
-    
+
     # ── Chat endpoints (operator ↔ DEX right-rail conversation) ───────────────────
-    
-    
+
     @router.get("/chat/history")
     async def chat_history():
         """Return chat history for the cockpit right-rail ChatDrawer."""
         try:
             from substrate.organism.store import OrganismStore
-    
+
             store = OrganismStore()
             messages = store.list_messages(limit=50)
             result = []
@@ -2811,8 +2757,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except Exception as e:
             logger.error("chat_history failed: %s", e)
             return []
-    
-    
+
     @router.post("/chat/converse", dependencies=[Depends(_require_operator_role)])
     async def chat_converse(request: Request):
         """Route operator message through organism conversation pipeline."""
@@ -2822,7 +2767,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return JSONResponse({"error": "content is required"}, status_code=400)
         try:
             from substrate.organism.store import OrganismStore
-    
+
             store = OrganismStore()
             inbound, outbound = store.save_conversation_turn(
                 content=content,
@@ -2841,8 +2786,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 "response": "Internal error — check server logs.",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
-    
-    
+
     @router.post("/chat/send", dependencies=[Depends(_require_operator_role)])
     async def chat_send(request: Request):
         """Send a message — writes to organism store + pushes to cockpit WS."""
@@ -2852,7 +2796,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return JSONResponse({"error": "content is required"}, status_code=400)
         try:
             from substrate.organism.store import OrganismStore
-    
+
             store = OrganismStore()
             inbound, _ = store.save_conversation_turn(
                 content=content,
@@ -2871,23 +2815,21 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except Exception as e:
             logger.error("chat_send failed: %s", e)
             return JSONResponse({"error": "internal error"}, status_code=500)
-    
-    
+
     @router.post("/chat/push")
     async def chat_push(request: Request):
         """Push a chat message to connected cockpit WS clients."""
         body = await request.json()
         push_chat_message(body)
         return {"ok": True}
-    
-    
+
     @router.get("/chat/attachment")
     async def chat_attachment(path: str):
         """Download an attachment file referenced in a chat message."""
         from pathlib import Path as PathLib
-    
+
         from fastapi.responses import FileResponse
-    
+
         repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
         if path.startswith("/opt/OS/") and repo_root != "/opt/OS":
             path = os.path.join(repo_root, path[len("/opt/OS/") :])
@@ -2905,34 +2847,32 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return FileResponse(
             str(resolved), filename=resolved.name, media_type="application/octet-stream"
         )
-    
-    
+
     # ── Bootstrap (single-request boot) ──────────────────────────────────────────
-    
-    
+
     @router.get("/bootstrap")
     async def bootstrap():
         """Aggregate boot-critical data in one response.
-    
+
         Replaces ~15 parallel GET requests the cockpit fires on page load.
         Each source is independently faulted — partial data is fine.
         """
         errors: list[str] = []
         result: dict[str, Any] = {"ok": True, "ts": ""}
-    
+
         import datetime as _dt
-    
+
         result["ts"] = _dt.datetime.now(_dt.timezone.utc).isoformat()
-    
+
         # config
         try:
             from substrate.sockets.config_port import get_all_config
-    
+
             result["config"] = get_all_config()
         except Exception as e:
             errors.append(f"config: {e}")
             result["config"] = {}
-    
+
         # pulse
         try:
             node_metrics = _build_node_metrics()
@@ -2962,7 +2902,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except Exception as e:
             errors.append(f"pulse: {e}")
             result["pulse"] = {}
-    
+
         # organism status
         try:
             daemon = _get_organism()
@@ -2977,28 +2917,30 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except Exception as e:
             errors.append(f"organism: {e}")
             result["organism"] = {"running": False}
-    
+
         # mode-composite
         try:
             from substrate.workstation.mode_resolver import resolve_composite_mode
-    
+
             result["mode_composite"] = resolve_composite_mode()
         except Exception as e:
             errors.append(f"mode_composite: {e}")
             result["mode_composite"] = {}
-    
+
         # continuity — full composite state
         try:
             from substrate.workstation.continuity_engine import ContinuityEngine
-    
+
             engine = ContinuityEngine()
             composite = engine.get_composite_state()
             result["continuity"] = composite.to_dict()
         except Exception as e:
             # Fallback to basic state machine if engine fails
             try:
-                from transports.api.cockpit_workstation_control_routes import _get_continuity_machine
-    
+                from transports.api.cockpit_workstation_control_routes import (
+                    _get_continuity_machine,
+                )
+
                 machine = _get_continuity_machine()
                 result["continuity"] = {
                     "current_state": machine.current_state.value,
@@ -3007,14 +2949,14 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             except Exception:
                 errors.append(f"continuity: {e}")
                 result["continuity"] = {}
-    
+
         # command-center summary (lightweight subset)
         try:
             from transports.api.cockpit_command_center_routes import (
                 _load_workcell_heartbeats,
                 _load_approvals,
             )
-    
+
             heartbeats = _load_workcell_heartbeats()
             pending = _load_approvals(status_filter="pending")
             result["command_center"] = {
@@ -3025,17 +2967,17 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except Exception as e:
             errors.append(f"command_center: {e}")
             result["command_center"] = {}
-    
+
         # overnight
         try:
             from substrate.workstation.overnight_queue import OvernightQueue
-    
+
             queue = OvernightQueue()
             result["overnight"] = queue.morning_summary()
         except Exception as e:
             errors.append(f"overnight: {e}")
             result["overnight"] = {}
-    
+
         # mesh node count
         try:
             nm = result.get("pulse", {}).get("node_metrics") or _build_node_metrics()
@@ -3043,7 +2985,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except Exception as e:
             errors.append(f"mesh: {e}")
             result["mesh"] = {"node_count": 0}
-    
+
         # chat / dex availability
         try:
             conv = _get_dex_conversation()
@@ -3052,28 +2994,25 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except Exception:
             result["dex_available"] = False
             result["chat_available"] = False
-    
+
         result["_errors"] = errors
         if errors:
             result["ok"] = False
         return result
-    
-    
+
     # ── Config endpoints ──────────────────────────────────────────────────────────
-    
-    
+
     @router.get("/config")
     async def config_get():
         """Get resolved config (ai_name, timezone, theme, etc.)."""
         try:
             from substrate.sockets.config_port import get_all_config
-    
+
             return get_all_config()
         except Exception as e:
             logger.error("config_get failed: %s", e)
             return {}
-    
-    
+
     @router.patch("/config", dependencies=[Depends(_require_operator_role)])
     async def config_patch(request: Request):
         """Set a config value. Body: {key, value, layer?}."""
@@ -3088,7 +3027,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         try:
             from substrate.state.config.config_store import VALID_KEYS
             from substrate.sockets.config_port import set_config, get_config
-    
+
             if key not in VALID_KEYS:
                 return JSONResponse({"error": f"invalid config key: {key}"}, status_code=400)
             set_config(key, value, layer=layer)
@@ -3100,12 +3039,11 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     # ── Late routes (Claude Code bridge, tmux, council, device presence) ──
 
     # ── Claude Code Session Bridge ────────────────────────────────────────
-    
-    
+
     def _log_cc_trace(session: str, text: str, packet_id: str, action: str) -> None:
         """Log Claude Code bridge action to execution journal."""
         import json as _json
-    
+
         entry = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "source": "cc_bridge",
@@ -3127,8 +3065,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 f.write(_json.dumps(entry) + "\n")
         except Exception:
             pass
-    
-    
+
     _RISKY_KEYWORDS = [
         "delete",
         "drop",
@@ -3139,8 +3076,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         "--no-verify",
         "destroy",
     ]
-    
-    
+
     @router.post("/claude-session/send")
     async def claude_session_send(payload: dict) -> dict:  # type: ignore[type-arg]
         """Send a prompt to a Claude Code session via tmux bridge. Governed."""
@@ -3148,7 +3084,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             ensure_session,
             send_message,
         )
-    
+
         session_name = payload.get("session_name", "")
         text = payload.get("text", "")
         target = payload.get("target", "local")
@@ -3170,13 +3106,12 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         _log_cc_trace(session_name, text, work_packet_id, "send")
         base: dict = send_result if isinstance(send_result, dict) else {"ok": True}  # type: ignore[assignment]
         return {**base, "work_packet_id": work_packet_id, "traced": True}
-    
-    
+
     @router.post("/claude-session/capture")
     async def claude_session_capture(payload: dict) -> dict:  # type: ignore[type-arg]
         """Capture output from a Claude Code session."""
         from substrate.execution.bridge.claude_session_bridge import capture_output
-    
+
         session_name = payload.get("session_name", "")
         target = payload.get("target", "local")
         work_packet_id = payload.get("work_packet_id", "")
@@ -3186,16 +3121,14 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         _log_cc_trace(session_name, "", work_packet_id, "capture")
         base: dict = result if isinstance(result, dict) else {"output": str(result)}  # type: ignore[assignment]
         return {**base, "work_packet_id": work_packet_id}
-    
-    
+
     @router.get("/claude-session/list")
     async def claude_session_list() -> dict:  # type: ignore[type-arg]
         """List active Claude Code sessions."""
         from substrate.execution.bridge.claude_session_bridge import list_sessions
-    
+
         return list_sessions()  # type: ignore[return-value]
-    
-    
+
     @router.post("/tmux/send")
     async def tmux_send(payload: dict) -> dict:  # type: ignore[type-arg]
         """Send keys to a tmux session (governed via TmuxOperationalAdapter)."""
@@ -3207,7 +3140,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             from substrate.execution.workers.workstation.tmux_operational_adapter_v1 import (
                 TmuxOperationalAdapter,
             )
-    
+
             adapter = TmuxOperationalAdapter()
             result = adapter.send_approved_command(session_name, text)
             if hasattr(result, "to_dict"):
@@ -3215,13 +3148,12 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return result if isinstance(result, dict) else {"ok": True}
         except Exception as exc:
             return {"error": str(exc)}
-    
-    
+
     @router.post("/council/review")
     async def council_review(payload: dict) -> dict:  # type: ignore[type-arg]
         """Trigger council review for a decision."""
         from substrate.organism.council import Council
-    
+
         council = Council()
         review = council.review(
             decision_context=payload.get("context", ""),
@@ -3229,20 +3161,19 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             artifacts=payload.get("artifacts"),
         )
         return {"ok": True, "review": review.to_dict()}
-    
-    
+
     # ─── Device Presence Registry ─────────────────────────────────────────────────
-    
+
     @router.post("/device/register")
     async def device_register(payload: dict) -> dict:
         """Register a device session with the presence registry."""
         from substrate.workstation.device_presence import DeviceSession, get_registry
-    
+
         session_id = payload.get("session_id", "")
         device_id = payload.get("device_id", "")
         if not session_id or not device_id:
             raise HTTPException(status_code=400, detail="session_id and device_id required")
-    
+
         session = DeviceSession(
             device_id=device_id,
             session_id=session_id,
@@ -3257,44 +3188,40 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         )
         get_registry().register_session(session)
         return {"ok": True, "session_id": session_id}
-    
-    
+
     @router.post("/device/heartbeat")
     async def device_heartbeat(payload: dict) -> dict:
         """Heartbeat — refresh session last_seen and apply optional field updates."""
         from substrate.workstation.device_presence import get_registry
-    
+
         session_id = payload.get("session_id", "")
         if not session_id:
             raise HTTPException(status_code=400, detail="session_id required")
-    
+
         updates = {k: v for k, v in payload.items() if k != "session_id"}
         found = get_registry().heartbeat(session_id, updates=updates or None)
         if not found:
             return {"ok": False, "reason": "session not found"}
         return {"ok": True}
-    
-    
+
     @router.get("/device/sessions")
     async def device_sessions() -> dict:
         """List all active device sessions."""
         from substrate.workstation.device_presence import get_registry
-    
+
         sessions = get_registry().get_active_sessions()
         return {"sessions": [s.to_dict() for s in sessions]}
-    
-    
+
     @router.post("/device/disconnect")
     async def device_disconnect(payload: dict) -> dict:
         """Mark a session as disconnected."""
         from substrate.workstation.device_presence import get_registry
-    
+
         session_id = payload.get("session_id", "")
         if not session_id:
             raise HTTPException(status_code=400, detail="session_id required")
-    
+
         get_registry().mark_disconnected(session_id)
         return {"ok": True}
-    
 
     return router, ws_router

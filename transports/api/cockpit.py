@@ -552,4 +552,3 @@ def _mount_workspace_observation_router() -> None:
 
 
 _mount_workspace_observation_router()
-
