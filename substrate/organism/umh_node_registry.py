@@ -82,6 +82,7 @@ def _load_seed_nodes() -> list[UMHNodeRecord]:
                 active_services=services,
                 capability_ids=entry.get("capability_ids", []),
                 workspace_ids=entry.get("workspace_ids", []),
+                owned_state_domains=entry.get("owned_state_domains", []),
                 primary=entry.get("primary", False),
                 last_seen=entry.get("last_seen", 0.0),
                 metadata=entry.get("metadata", {}),
