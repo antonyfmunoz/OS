@@ -551,3 +551,124 @@ def reset_approval_intercept_service() -> None:
     """Reset the singleton (for testing)."""
     global _singleton
     _singleton = None
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Gate 3 — Approval Policies & Decisions
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+class ApprovalScope(str, Enum):
+    EXECUTION = "execution"
+    PLAN = "plan"
+    ACTION = "action"
+
+
+@dataclass
+class ApprovalPolicy:
+    """Declarative policy governing when approval is required."""
+
+    policy_id: str = ""
+    name: str = ""
+    risk_threshold: str = "medium"
+    auto_approve_below: str = "medium"
+    scope: ApprovalScope = ApprovalScope.PLAN
+
+    def requires_approval(self, risk_class: str) -> bool:
+        risk_order = {"safe": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+        threshold_level = risk_order.get(self.risk_threshold, 2)
+        risk_level = risk_order.get(risk_class, 2)
+        return risk_level >= threshold_level
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "policy_id": self.policy_id,
+            "name": self.name,
+            "risk_threshold": self.risk_threshold,
+            "auto_approve_below": self.auto_approve_below,
+            "scope": self.scope.value
+            if isinstance(self.scope, ApprovalScope) else self.scope,
+        }
+
+
+@dataclass
+class ApprovalDecision:
+    """Record of an approval or rejection decision."""
+
+    decision_id: str = field(
+        default_factory=lambda: f"adec-{uuid4().hex[:12]}"
+    )
+    work_id: str = ""
+    policy_id: str = ""
+    status: str = "approved"
+    decided_by: str = "operator"
+    decided_at: float = field(default_factory=time.time)
+    reason: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "decision_id": self.decision_id,
+            "work_id": self.work_id,
+            "policy_id": self.policy_id,
+            "status": self.status,
+            "decided_by": self.decided_by,
+            "decided_at": self.decided_at,
+            "reason": self.reason,
+        }
+
+
+# Seed policies — LOW auto-approves, MEDIUM+ requires operator
+DEFAULT_APPROVAL_POLICIES: list[ApprovalPolicy] = [
+    ApprovalPolicy(
+        policy_id="pol-default-plan",
+        name="Default Plan Policy",
+        risk_threshold="medium",
+        auto_approve_below="medium",
+        scope=ApprovalScope.PLAN,
+    ),
+    ApprovalPolicy(
+        policy_id="pol-default-execution",
+        name="Default Execution Policy",
+        risk_threshold="medium",
+        auto_approve_below="medium",
+        scope=ApprovalScope.EXECUTION,
+    ),
+    ApprovalPolicy(
+        policy_id="pol-default-action",
+        name="Default Action Policy",
+        risk_threshold="low",
+        auto_approve_below="low",
+        scope=ApprovalScope.ACTION,
+    ),
+]
+
+
+class ApprovalPolicyRegistry:
+    """In-memory registry of approval policies."""
+
+    def __init__(self) -> None:
+        self._policies: dict[str, ApprovalPolicy] = {}
+        for p in DEFAULT_APPROVAL_POLICIES:
+            self._policies[p.policy_id] = p
+
+    def get(self, policy_id: str) -> ApprovalPolicy | None:
+        return self._policies.get(policy_id)
+
+    def for_scope(self, scope: ApprovalScope) -> ApprovalPolicy | None:
+        for p in self._policies.values():
+            if p.scope == scope:
+                return p
+        return None
+
+    def register(self, policy: ApprovalPolicy) -> None:
+        self._policies[policy.policy_id] = policy
+
+    def all_policies(self) -> list[ApprovalPolicy]:
+        return list(self._policies.values())
+
+    def evaluate(self, risk_class: str, scope: ApprovalScope) -> tuple[bool, str]:
+        """Returns (requires_approval, policy_id)."""
+        policy = self.for_scope(scope)
+        if policy is None:
+            return True, ""
+        return policy.requires_approval(risk_class), policy.policy_id
