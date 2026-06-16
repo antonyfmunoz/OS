@@ -587,6 +587,15 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ServiceDependencyTopology": ["substrate.organism.service_dependency_graph"],
     "ServiceDependencyRegistry": ["substrate.organism.service_dependency_registry"],
     "ServiceFailureEngine": ["substrate.organism.service_failure_engine"],
+    # Phase 31: Operator Home & Context Engine
+    "OperatorSeverity": ["substrate.operator.operator_context"],
+    "OperatorAttentionType": ["substrate.operator.operator_context"],
+    "OperatorAttentionItem": ["substrate.operator.operator_context"],
+    "OperatorStatusCard": ["substrate.operator.operator_context"],
+    "OperatorHealthSummary": ["substrate.operator.operator_context"],
+    "OperatorTimelineEvent": ["substrate.operator.operator_context"],
+    "OperatorSnapshot": ["substrate.operator.operator_context"],
+    "OperatorContextEngine": ["substrate.operator.operator_context_engine"],
 }
 
 
