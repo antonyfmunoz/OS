@@ -529,6 +529,14 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "DeviceCapacity": ["substrate.organism.device_capacity"],
     "PacketPlacement": ["substrate.organism.packet_router"],
     "WorkerEventType": ["substrate.organism.worker_lifecycle"],
+    # Phase 25: Workspace Observation
+    "ObservationDomain": ["substrate.meta_ide.workspace_observation"],
+    "ProcessHealth": ["substrate.meta_ide.workspace_observation"],
+    "TerminalObservation": ["substrate.meta_ide.workspace_observation"],
+    "ContainerObservation": ["substrate.meta_ide.workspace_observation"],
+    "PreviewObservation": ["substrate.meta_ide.workspace_observation"],
+    "EngineeringSessionObservation": ["substrate.meta_ide.workspace_observation"],
+    "WorkspaceObservationSnapshot": ["substrate.meta_ide.workspace_observation"],
 }
 
 
