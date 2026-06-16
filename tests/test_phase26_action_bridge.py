@@ -352,6 +352,54 @@ class TestActionBridge:
         cmd = bridge._build_command(action, {"message": "hello; rm -rf /"})
         assert cmd is None
 
+    def test_build_command_rejects_leading_dash(self):
+        from substrate.organism.action_catalog import ActionDefinition, ActionParameter
+
+        bridge = self._make_bridge()
+        action = ActionDefinition(
+            action_id="test",
+            name="Test",
+            description="test",
+            category="test",
+            risk_level="safe",
+            command_template="docker restart {container_name}",
+            parameters=[ActionParameter(name="container_name")],
+        )
+        cmd = bridge._build_command(action, {"container_name": "--rm"})
+        assert cmd is None
+
+    def test_build_command_rejects_path_traversal(self):
+        from substrate.organism.action_catalog import ActionDefinition, ActionParameter
+
+        bridge = self._make_bridge()
+        action = ActionDefinition(
+            action_id="test",
+            name="Test",
+            description="test",
+            category="test",
+            risk_level="safe",
+            command_template="git -C {repo_path} status",
+            parameters=[ActionParameter(name="repo_path", param_type="path")],
+        )
+        cmd = bridge._build_command(action, {"repo_path": "/etc/passwd"})
+        assert cmd is None
+
+    def test_build_command_rejects_spaces(self):
+        from substrate.organism.action_catalog import ActionDefinition, ActionParameter
+
+        bridge = self._make_bridge()
+        action = ActionDefinition(
+            action_id="test",
+            name="Test",
+            description="test",
+            category="test",
+            risk_level="safe",
+            command_template="docker restart {container_name}",
+            parameters=[ActionParameter(name="container_name")],
+        )
+        cmd = bridge._build_command(action, {"container_name": "os-webhook --rm"})
+        assert cmd is None
+
     def test_validate_parameters_choice(self):
         from substrate.organism.action_catalog import ActionDefinition, ActionParameter
 
@@ -448,6 +496,39 @@ class TestActionBridge:
         found = bridge.get_action_status(result.request_id)
         assert found is not None
         assert found.action_id == "list_containers"
+
+    def test_result_carries_requested_by(self):
+        from substrate.organism.action_bridge import ActionRequest
+
+        coord = self._mock_coordinator(auto_approve=True)
+        bridge = self._make_bridge(coordinator=coord)
+        req = ActionRequest(action_id="list_containers", requested_by="user_abc123")
+        result = bridge.execute_action(req)
+        assert result.requested_by == "user_abc123"
+
+    def test_history_filtered_by_operator(self):
+        from substrate.organism.action_bridge import ActionRequest
+
+        coord = self._mock_coordinator(auto_approve=True)
+        bridge = self._make_bridge(coordinator=coord)
+        bridge.execute_action(ActionRequest(action_id="list_containers", requested_by="alice"))
+        bridge.execute_action(ActionRequest(action_id="git_status", requested_by="bob"))
+        alice_history = bridge.history(limit=10, operator_id="alice")
+        assert len(alice_history) == 1
+        assert alice_history[0]["action_id"] == "list_containers"
+        bob_history = bridge.history(limit=10, operator_id="bob")
+        assert len(bob_history) == 1
+        assert bob_history[0]["action_id"] == "git_status"
+
+    def test_status_filtered_by_operator(self):
+        from substrate.organism.action_bridge import ActionRequest
+
+        coord = self._mock_coordinator(auto_approve=True)
+        bridge = self._make_bridge(coordinator=coord)
+        req = ActionRequest(action_id="list_containers", requested_by="alice")
+        result = bridge.execute_action(req)
+        assert bridge.get_action_status(result.request_id, operator_id="alice") is not None
+        assert bridge.get_action_status(result.request_id, operator_id="bob") is None
 
     def test_list_available_enriches(self):
         bridge = self._make_bridge()
