@@ -485,16 +485,13 @@ class GovernedWorkRuntime:
     # ── Internal ─────────────────────────────────────────────────
 
     def _find_plan_for_work(self, work_id: str) -> Any | None:
-        """Find the execution plan associated with a work/packet ID."""
+        """Find the execution plan associated with a work packet ID."""
         if self.execution_coordinator is None:
             return None
         try:
             plans = self.execution_coordinator._plan_store.by_workpacket(work_id)
             if plans:
                 return plans[0]
-            plan = self.execution_coordinator._plan_store.get(work_id)
-            if plan:
-                return plan
         except Exception:
             pass
         return None
