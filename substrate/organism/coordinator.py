@@ -247,12 +247,14 @@ class OrganismCoordinator:
         self,
         graph: RuntimeGraph,
         state_dir: str | Path = "data/umh/coordinator",
+        capacity_model: Any | None = None,
     ) -> None:
         self._graph = graph
         self._state_dir = Path(state_dir)
         self._state_dir.mkdir(parents=True, exist_ok=True)
         self._objectives: dict[str, Objective] = {}
         self._generation: int = 0
+        self._capacity_model = capacity_model
 
     @property
     def generation(self) -> int:
@@ -361,10 +363,17 @@ class OrganismCoordinator:
             device_pref = self._get_device_preference(wu)
             candidates = self._graph.select(cap, device_preference=device_pref)
 
+            candidates = self._apply_device_constraints(wu, candidates)
+
             if candidates:
                 wu.assigned_runtime = candidates[0].runtime_id
                 if device_pref:
                     wu.metadata["target_device"] = device_pref[0]
+                wu.metadata["placement_decision"] = {
+                    "capability": cap.value,
+                    "candidates_considered": len(candidates),
+                    "capacity_checked": self._capacity_model is not None,
+                }
                 assignments[wu.id] = wu.assigned_runtime
             else:
                 logger.warning(
@@ -407,6 +416,42 @@ class OrganismCoordinator:
         except Exception as exc:
             logger.debug("placement policy lookup failed: %s", exc)
             return None
+
+    def _apply_device_constraints(
+        self, wu: WorkUnit, candidates: list[Any]
+    ) -> list[Any]:
+        """Filter candidates by hard device constraints + capacity."""
+        if not candidates:
+            return candidates
+
+        try:
+            from substrate.organism.device_role_registry import (
+                load_registry,
+                seed_known_nodes,
+            )
+
+            profiles = load_registry() or seed_known_nodes()
+            profile_map = {p.node_id: p for p in profiles}
+        except Exception:
+            profile_map = {}
+
+        if not profile_map:
+            return candidates
+
+        filtered = []
+        for node in candidates:
+            device_id = node.metadata.get("device_id", "")
+            profile = profile_map.get(device_id)
+            if profile is not None:
+                wl_type = wu.metadata.get("workload_type", "")
+                if wl_type and wl_type in profile.blocked_workloads:
+                    continue
+            if self._capacity_model is not None and device_id:
+                if self._capacity_model.is_saturated(device_id):
+                    continue
+            filtered.append(node)
+
+        return filtered if filtered else candidates
 
     def execute_ready(self, objective_id: str) -> list[dict[str, Any]]:
         """Execute all ready (unblocked) work units for an objective."""

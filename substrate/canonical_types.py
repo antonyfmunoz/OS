@@ -502,7 +502,6 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "PhaseStatus": ["substrate.meta_ide.roadmap_intelligence"],
     "RoadmapStatus": ["substrate.meta_ide.roadmap_intelligence"],
     "RoadmapIntelligence": ["substrate.meta_ide.roadmap_intelligence"],
-
     # Phase 22: Autonomous Engineering Loop
     "EngineeringIntentType": ["substrate.meta_ide.engineering_intent"],
     "EngineeringIntent": ["substrate.meta_ide.engineering_intent"],
@@ -524,6 +523,12 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "EngineeringProofPackage": ["substrate.meta_ide.engineering_execution"],
     "EngineeringSessionCoordinator": ["substrate.meta_ide.engineering_session_coordinator"],
     "ReviewPackageBuilder": ["substrate.meta_ide.review_package_builder"],
+    # Phase 24: Distributed Worker Runtime
+    "WorkerStatus": ["substrate.organism.worker_registry"],
+    "WorkerInstance": ["substrate.organism.worker_registry"],
+    "DeviceCapacity": ["substrate.organism.device_capacity"],
+    "PacketPlacement": ["substrate.organism.packet_router"],
+    "WorkerEventType": ["substrate.organism.worker_lifecycle"],
 }
 
 
