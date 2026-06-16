@@ -625,6 +625,8 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ReportedScreenContextProvider": ["substrate.operator.screen_context_providers"],
     "ScreenObservationEngine": ["substrate.operator.screen_observation_engine"],
     "RepositoryContextResolver": ["substrate.operator.repository_context_resolver"],
+    # Phase 34: Workstation Observation Runtime
+    "WorkstationTranslator": ["substrate.operator.workstation_translator"],
 }
 
 
