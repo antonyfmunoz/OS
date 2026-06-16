@@ -58,6 +58,7 @@ class EventDomain(str, Enum):
     MEMORY = "memory"
     OBSERVABILITY = "observability"
     OPERATOR = "operator"
+    WORKER = "worker"
 
 
 class EventPriority(str, Enum):
