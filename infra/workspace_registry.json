@@ -36,7 +36,9 @@
         "device_id": "vps"
       }
     ],
-    "device_ids": ["vps"]
+    "device_ids": ["vps", "beast"],
+    "primary_umh_node_id": "umh-vps",
+    "supporting_umh_node_ids": ["umh-windows"]
   },
   {
     "workspace_id": "creatoros",
@@ -70,7 +72,9 @@
         "preferred": true
       }
     ],
-    "device_ids": ["beast"]
+    "device_ids": ["beast"],
+    "primary_umh_node_id": "umh-windows",
+    "supporting_umh_node_ids": ["umh-vps"]
   },
   {
     "workspace_id": "entrepreneuros",
@@ -104,7 +108,9 @@
         "preferred": true
       }
     ],
-    "device_ids": ["beast"]
+    "device_ids": ["beast"],
+    "primary_umh_node_id": "umh-windows",
+    "supporting_umh_node_ids": ["umh-vps"]
   },
   {
     "workspace_id": "lyfeos",
@@ -138,6 +144,8 @@
         "preferred": true
       }
     ],
-    "device_ids": ["beast"]
+    "device_ids": ["beast"],
+    "primary_umh_node_id": "umh-windows",
+    "supporting_umh_node_ids": ["umh-vps"]
   }
 ]

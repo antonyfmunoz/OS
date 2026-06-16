@@ -209,6 +209,17 @@ class DistributedRuntime:
         self._placements.extend(results)
         return results
 
+    def node_topology(self) -> dict[str, Any]:
+        """UMH node topology from the node registry."""
+        try:
+            from substrate.organism.umh_node_registry import UMHNodeRegistry
+
+            reg = UMHNodeRegistry()
+            return reg.topology().to_dict()
+        except Exception as exc:
+            logger.debug("UMHNodeRegistry not available: %s", exc)
+            return {"nodes": [], "node_count": 0}
+
     def _load_online_devices(self) -> set[str]:
         """Read mesh_nodes.json for online status. No transport import."""
         try:

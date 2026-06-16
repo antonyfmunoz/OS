@@ -557,6 +557,17 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "WorkspaceBuildTarget": ["substrate.meta_ide.workspace_runtime_graph"],
     "WorkspaceDefinition": ["substrate.meta_ide.workspace_runtime_graph"],
     "WorkspaceRuntimeGraph": ["substrate.meta_ide.workspace_runtime_graph"],
+    # Phase 28: UMH Node Role & Version Topology
+    "UMHNodeRole": ["substrate.organism.umh_node_topology"],
+    "UMHNodeStatus": ["substrate.organism.umh_node_topology"],
+    "UMHServiceRole": ["substrate.organism.umh_node_topology"],
+    "UMHVersionStatus": ["substrate.organism.umh_node_topology"],
+    "UMHVersionInfo": ["substrate.organism.umh_node_topology"],
+    "UMHServiceActivation": ["substrate.organism.umh_node_topology"],
+    "UMHNodeRecord": ["substrate.organism.umh_node_topology"],
+    "UMHNodeTopology": ["substrate.organism.umh_node_topology"],
+    "UMHNodeRegistry": ["substrate.organism.umh_node_registry"],
+    "UMHVersionCoherenceEngine": ["substrate.organism.umh_version_coherence"],
 }
 
 

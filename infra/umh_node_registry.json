@@ -1,0 +1,52 @@
+[
+  {
+    "node_id": "umh-vps",
+    "device_id": "vps",
+    "hostname": "vps",
+    "purpose": "Always-on orchestration and control-plane node",
+    "roles": ["orchestrator", "control_plane", "observer"],
+    "primary": true,
+    "active_services": [
+      "cockpit_api",
+      "governance",
+      "memory",
+      "event_spine",
+      "distributed_runtime",
+      "action_bridge"
+    ],
+    "capability_ids": [
+      "api_runtime",
+      "queue_processing",
+      "memory_runtime",
+      "governance_runtime",
+      "event_spine_runtime"
+    ],
+    "workspace_ids": ["umh"]
+  },
+  {
+    "node_id": "umh-windows",
+    "device_id": "beast",
+    "hostname": "beast",
+    "purpose": "Workstation, local builder, Meta IDE, projection development node",
+    "roles": ["workstation", "builder", "observer"],
+    "primary": false,
+    "active_services": [
+      "meta_ide",
+      "workspace_observation",
+      "workstation_control",
+      "local_builder",
+      "vision_runtime",
+      "voice_runtime"
+    ],
+    "capability_ids": [
+      "windows_build",
+      "electron_build",
+      "react_build",
+      "browser_automation",
+      "desktop_automation",
+      "local_preview",
+      "projection_repo_access"
+    ],
+    "workspace_ids": ["umh", "creatoros", "entrepreneuros", "lyfeos"]
+  }
+]
