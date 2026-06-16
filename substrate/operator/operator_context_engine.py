@@ -56,6 +56,7 @@ class OperatorContextEngine:
         self._node_registry = node_registry
         self._approval_store = approval_store
         self._workspace_engine = workspace_engine
+        self._screen_observation = None
 
     # ── Lazy properties ──────────────────────────────────────────
 
@@ -133,7 +134,29 @@ class OperatorContextEngine:
                 logger.debug("WorkspaceObservationEngine unavailable")
         return self._workspace_engine
 
+    @property
+    def screen_observation(self) -> Any:
+        if self._screen_observation is None:
+            try:
+                from substrate.operator.screen_observation_engine import ScreenObservationEngine
+                self._screen_observation = ScreenObservationEngine()
+            except Exception:
+                logger.debug("ScreenObservationEngine unavailable")
+        return self._screen_observation
+
     # ── Public API ───────────────────────────────────────────────
+
+    def screen_context(self) -> dict[str, Any]:
+        """Current screen awareness context with preference ordering."""
+        engine = self.screen_observation
+        if engine is None:
+            return {}
+        try:
+            snap = engine.current_snapshot()
+            return snap.to_dict()
+        except Exception:
+            logger.debug("Failed to get screen context", exc_info=True)
+            return {}
 
     def snapshot(self) -> OperatorSnapshot:
         """Full aggregated operator context."""
