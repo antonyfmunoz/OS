@@ -515,6 +515,15 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "GapAnalysis": ["substrate.meta_ide.roadmap_gap_engine"],
     "RoadmapGap": ["substrate.meta_ide.roadmap_gap_engine"],
     "GapRecommendation": ["substrate.meta_ide.roadmap_gap_engine"],
+    # Phase 23: Engineering Proof Loop
+    "EngineeringExecutionStatus": ["substrate.meta_ide.engineering_execution"],
+    "EngineeringArtifactType": ["substrate.meta_ide.engineering_execution"],
+    "OperatorRecommendation": ["substrate.meta_ide.engineering_execution"],
+    "EngineeringExecutionSession": ["substrate.meta_ide.engineering_execution"],
+    "EngineeringArtifact": ["substrate.meta_ide.engineering_execution"],
+    "EngineeringProofPackage": ["substrate.meta_ide.engineering_execution"],
+    "EngineeringSessionCoordinator": ["substrate.meta_ide.engineering_session_coordinator"],
+    "ReviewPackageBuilder": ["substrate.meta_ide.review_package_builder"],
 }
 
 

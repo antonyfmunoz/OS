@@ -1,10 +1,11 @@
-"""Meta IDE — engineering reality awareness and planning for UMH.
+"""Meta IDE — engineering reality awareness, planning, and proof loop.
 
 Read-only layer providing repository, workspace, and roadmap awareness.
 Phase 22 adds autonomous engineering planning and packetization.
-No git mutations. No code execution. Observation and planning only.
+Phase 23 adds governed execution coordination and proof review.
+No git mutations. No auto-merge/push/deploy. Observation, planning, and proof only.
 
-Phases 21–22. UMH substrate subsystem. Instance-agnostic.
+Phases 21–23. UMH substrate subsystem. Instance-agnostic.
 """
 
 from substrate.meta_ide.repository_model import (
@@ -38,6 +39,18 @@ from substrate.meta_ide.roadmap_gap_engine import (
     RoadmapGap,
     RoadmapGapEngine,
 )
+from substrate.meta_ide.engineering_execution import (
+    EngineeringArtifact,
+    EngineeringArtifactType,
+    EngineeringExecutionSession,
+    EngineeringExecutionStatus,
+    EngineeringProofPackage,
+    OperatorRecommendation,
+)
+from substrate.meta_ide.engineering_session_coordinator import (
+    EngineeringSessionCoordinator,
+)
+from substrate.meta_ide.review_package_builder import ReviewPackageBuilder
 
 __all__ = [
     "BranchSnapshot",
@@ -61,4 +74,13 @@ __all__ = [
     "RoadmapStatus",
     "WorkspaceSummary",
     "WorktreeSnapshot",
+    # Phase 23: Engineering Proof Loop
+    "EngineeringArtifact",
+    "EngineeringArtifactType",
+    "EngineeringExecutionSession",
+    "EngineeringExecutionStatus",
+    "EngineeringProofPackage",
+    "EngineeringSessionCoordinator",
+    "OperatorRecommendation",
+    "ReviewPackageBuilder",
 ]

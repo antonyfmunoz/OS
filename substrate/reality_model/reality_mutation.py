@@ -26,6 +26,7 @@ class MutationSource(str, Enum):
     SIMULATION = "simulation"
     META_IDE = "meta_ide"
     ENGINEERING = "engineering"
+    ENGINEERING_EXECUTION = "engineering_execution"
 
 
 class MutationType(str, Enum):
