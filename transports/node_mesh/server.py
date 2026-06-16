@@ -63,6 +63,7 @@ class NodeMeshServer:
         self._view_socket = view_socket
         self._pipeline_submit_fn = pipeline_submit_fn
         self._frame_callback: Callable[..., None] | None = None
+        self._workstation_callback: Callable[[str, dict[str, Any]], None] | None = None
         self._frame_queue: asyncio.Queue[tuple[str, dict[str, Any]]] | None = None
         self._frame_relay_url: str | None = None
         self._frame_relay_token: str = ""
@@ -83,6 +84,12 @@ class NodeMeshServer:
     def register_frame_callback(self, callback: Callable[..., None]) -> None:
         """Register a callback for camera frames: callback(node_id, payload_dict)."""
         self._frame_callback = callback
+
+    def register_workstation_callback(
+        self, callback: Callable[[str, dict[str, Any]], None]
+    ) -> None:
+        """Register a callback for workstation state: callback(node_id, payload)."""
+        self._workstation_callback = callback
 
     def register_frame_relay(self, ws_url: str, token: str = "") -> None:
         """Enable persistent WS frame relay (replaces per-frame HTTP POST)."""
@@ -175,7 +182,8 @@ class NodeMeshServer:
                     while not self._shutdown_event.is_set():
                         try:
                             node_id, payload = await asyncio.wait_for(
-                                self._frame_queue.get(), timeout=5.0,
+                                self._frame_queue.get(),
+                                timeout=5.0,
                             )
                         except asyncio.TimeoutError:
                             continue
@@ -269,7 +277,12 @@ class NodeMeshServer:
                 if isinstance(raw, bytes):
                     _binary_count += 1
                     if _binary_count <= 3 or _binary_count % 500 == 0:
-                        logger.info("binary WS frame from %s: %d bytes (n=%d)", node_id or "?", len(raw), _binary_count)
+                        logger.info(
+                            "binary WS frame from %s: %d bytes (n=%d)",
+                            node_id or "?",
+                            len(raw),
+                            _binary_count,
+                        )
                     if node_id and len(raw) > 6:
                         self._handle_binary_frame(node_id, raw)
                     continue
@@ -324,21 +337,22 @@ class NodeMeshServer:
         if meta_len > 65536 or 4 + meta_len > len(raw):
             return
         try:
-            meta = json.loads(raw[4:4 + meta_len])
+            meta = json.loads(raw[4 : 4 + meta_len])
         except Exception:
             meta = {}
         meta["node_id"] = node_id
 
         if self._frame_queue is not None:
             meta_bytes = json.dumps(meta).encode()
-            fwd = _struct.pack(">I", len(meta_bytes)) + meta_bytes + raw[4 + meta_len:]
+            fwd = _struct.pack(">I", len(meta_bytes)) + meta_bytes + raw[4 + meta_len :]
             try:
                 self._frame_queue.put_nowait(("__binary__", {"__raw__": fwd}))
             except asyncio.QueueFull:
                 pass
         elif self._frame_callback is not None:
             import base64 as _b64
-            jpeg_bytes = raw[4 + meta_len:]
+
+            jpeg_bytes = raw[4 + meta_len :]
             payload = dict(meta)
             payload["image_base64"] = _b64.b64encode(jpeg_bytes).decode("ascii")
             loop = asyncio.get_running_loop()
@@ -545,6 +559,14 @@ class NodeMeshServer:
                 battery=params.get("payload", {}).get("battery"),
             )
             self._metrics.record(snapshot)
+        elif signal_class == "workstation_state":
+            payload = params.get("payload", {})
+            if self._workstation_callback is not None:
+                loop = asyncio.get_running_loop()
+                try:
+                    loop.run_in_executor(None, self._workstation_callback, node_id, payload)
+                except Exception as exc:
+                    logger.debug("workstation callback failed: %s", exc)
         elif signal_class == "camera_frame":
             payload = params.get("payload", {})
             if payload.get("image_base64"):
@@ -555,9 +577,7 @@ class NodeMeshServer:
                         pass
                 elif self._frame_callback is not None:
                     loop = asyncio.get_running_loop()
-                    loop.run_in_executor(
-                        None, self._frame_callback, node_id, payload
-                    )
+                    loop.run_in_executor(None, self._frame_callback, node_id, payload)
         elif self._pipeline_submit_fn is not None:
             content = params.get("content_type", "node.signal")
             payload = params.get("payload", {})

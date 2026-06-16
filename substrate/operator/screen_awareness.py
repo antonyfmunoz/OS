@@ -6,6 +6,7 @@ REPORTED (iPad/iPhone/controller).
 
 UMH substrate subsystem. Instance-agnostic.
 """
+
 from __future__ import annotations
 
 import time
@@ -228,24 +229,32 @@ class ScreenSnapshot:
     file_context: FileContext | None = None
     browser_context: BrowserContext | None = None
     applications: list[FocusedApplication] = field(default_factory=list)
+    workstation_detail: dict[str, Any] = field(default_factory=dict)
     generated_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "source_type": self.source_type.value,
             "status": self.status.value,
-            "device_type": self.device_type.value if isinstance(self.device_type, Enum) else self.device_type,
+            "device_type": self.device_type.value
+            if isinstance(self.device_type, Enum)
+            else self.device_type,
             "device_id": self.device_id,
             "source_node_id": self.source_node_id,
             "source_device_id": self.source_device_id,
             "source_device_role": self.source_device_role,
             "source_confidence": self.source_confidence,
-            "active_application": self.active_application.to_dict() if self.active_application else None,
+            "active_application": self.active_application.to_dict()
+            if self.active_application
+            else None,
             "active_window": self.active_window.to_dict() if self.active_window else None,
-            "repository_context": self.repository_context.to_dict() if self.repository_context else None,
+            "repository_context": self.repository_context.to_dict()
+            if self.repository_context
+            else None,
             "file_context": self.file_context.to_dict() if self.file_context else None,
             "browser_context": self.browser_context.to_dict() if self.browser_context else None,
             "applications": [a.to_dict() for a in self.applications],
+            "workstation_detail": self.workstation_detail,
             "generated_at": self.generated_at,
         }
 
@@ -277,5 +286,6 @@ class ScreenSnapshot:
             file_context=FileContext.from_dict(file_data) if file_data else None,
             browser_context=BrowserContext.from_dict(browser_data) if browser_data else None,
             applications=[FocusedApplication.from_dict(a) for a in apps_data] if apps_data else [],
+            workstation_detail=data.get("workstation_detail", {}),
             generated_at=data.get("generated_at", time.time()),
         )
