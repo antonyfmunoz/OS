@@ -585,3 +585,19 @@ def _mount_workspace_topology_router() -> None:
 
 
 _mount_workspace_topology_router()
+
+# ── Phase 28: UMH Node Topology routes ─────────────────────────────────────
+
+
+def _mount_umh_node_router() -> None:
+    from transports.api import cockpit_umh_node_routes
+
+    cockpit_umh_node_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_umh_node_routes.umh_node_router,
+    )
+
+
+_mount_umh_node_router()

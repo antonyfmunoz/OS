@@ -44,4 +44,11 @@ Phase 5.9 — Real Workload Execution + Automation Promotion:
     wired into AutonomousTick (probes + recommendations)
   - AssistedExecutor: governed execution of approved maintenance
     actions (log rotation, container restart, graph rebuild, etc.)
+
+Phase 28 — UMH Node Role & Version Topology:
+  - UMHNodeTopology: canonical node role, version, and service models
+  - UMHNodeRegistry: single source of truth for organism nodes
+    (loads from infra/umh_node_registry.json)
+  - UMHVersionCoherenceEngine: detects version drift across nodes
+    (capability drift expected, version drift surfaced)
 """
