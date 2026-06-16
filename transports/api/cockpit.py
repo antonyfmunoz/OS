@@ -689,3 +689,20 @@ def _mount_voice_router() -> None:
 
 
 _mount_voice_router()
+
+
+# ── Gate 3: Work Center ──────────────────────────────────────────────
+
+
+def _mount_work_center_router() -> None:
+    from transports.api import cockpit_work_center_routes
+
+    cockpit_work_center_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_work_center_routes.work_center_router,
+    )
+
+
+_mount_work_center_router()
