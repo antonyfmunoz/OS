@@ -1,0 +1,143 @@
+[
+  {
+    "workspace_id": "umh",
+    "name": "UMH",
+    "workspace_type": "core",
+    "repositories": [
+      {
+        "repository_id": "umh-os",
+        "name": "OS",
+        "path": "",
+        "branch": "main"
+      }
+    ],
+    "runtimes": [
+      {
+        "runtime_id": "umh-python",
+        "runtime_type": "python",
+        "host_device_id": "vps"
+      },
+      {
+        "runtime_id": "umh-docker",
+        "runtime_type": "docker",
+        "host_device_id": "vps"
+      }
+    ],
+    "build_targets": [
+      {
+        "target_id": "umh-linux",
+        "build_type": "linux",
+        "device_id": "vps",
+        "preferred": true
+      },
+      {
+        "target_id": "umh-container",
+        "build_type": "container",
+        "device_id": "vps"
+      }
+    ],
+    "device_ids": ["vps"]
+  },
+  {
+    "workspace_id": "creatoros",
+    "name": "CreatorOS",
+    "workspace_type": "product",
+    "repositories": [
+      {
+        "repository_id": "creatoros-app",
+        "name": "CreatorOS",
+        "path": "",
+        "branch": "main"
+      }
+    ],
+    "runtimes": [
+      {
+        "runtime_id": "creatoros-electron",
+        "runtime_type": "electron",
+        "host_device_id": "beast"
+      },
+      {
+        "runtime_id": "creatoros-react",
+        "runtime_type": "react",
+        "host_device_id": "beast"
+      }
+    ],
+    "build_targets": [
+      {
+        "target_id": "creatoros-windows",
+        "build_type": "windows",
+        "device_id": "beast",
+        "preferred": true
+      }
+    ],
+    "device_ids": ["beast"]
+  },
+  {
+    "workspace_id": "entrepreneuros",
+    "name": "EntrepreneurOS",
+    "workspace_type": "product",
+    "repositories": [
+      {
+        "repository_id": "entrepreneuros-app",
+        "name": "EntrepreneurOS",
+        "path": "",
+        "branch": "main"
+      }
+    ],
+    "runtimes": [
+      {
+        "runtime_id": "entrepreneuros-electron",
+        "runtime_type": "electron",
+        "host_device_id": "beast"
+      },
+      {
+        "runtime_id": "entrepreneuros-react",
+        "runtime_type": "react",
+        "host_device_id": "beast"
+      }
+    ],
+    "build_targets": [
+      {
+        "target_id": "entrepreneuros-windows",
+        "build_type": "windows",
+        "device_id": "beast",
+        "preferred": true
+      }
+    ],
+    "device_ids": ["beast"]
+  },
+  {
+    "workspace_id": "lyfeos",
+    "name": "LyfeOS",
+    "workspace_type": "product",
+    "repositories": [
+      {
+        "repository_id": "lyfeos-app",
+        "name": "LyfeOS",
+        "path": "",
+        "branch": "main"
+      }
+    ],
+    "runtimes": [
+      {
+        "runtime_id": "lyfeos-electron",
+        "runtime_type": "electron",
+        "host_device_id": "beast"
+      },
+      {
+        "runtime_id": "lyfeos-react",
+        "runtime_type": "react",
+        "host_device_id": "beast"
+      }
+    ],
+    "build_targets": [
+      {
+        "target_id": "lyfeos-windows",
+        "build_type": "windows",
+        "device_id": "beast",
+        "preferred": true
+      }
+    ],
+    "device_ids": ["beast"]
+  }
+]
