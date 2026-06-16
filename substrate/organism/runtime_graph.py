@@ -390,6 +390,17 @@ class RuntimeGraph:
     def all_nodes(self) -> list[RuntimeNode]:
         return list(self._nodes.values())
 
+    def workspace_for_runtime(self, runtime_id: str) -> str | None:
+        """Return workspace_id for a runtime, if registered via metadata."""
+        node = self._nodes.get(runtime_id)
+        if node:
+            return node.metadata.get("workspace_id")
+        return None
+
+    def runtimes_for_workspace(self, workspace_id: str) -> list[RuntimeNode]:
+        """Return all runtime nodes belonging to a workspace."""
+        return [n for n in self._nodes.values() if n.metadata.get("workspace_id") == workspace_id]
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "total_runtimes": self.node_count,

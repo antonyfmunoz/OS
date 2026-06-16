@@ -547,6 +547,16 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ActionRequest": ["substrate.organism.action_bridge"],
     "ActionResult": ["substrate.organism.action_bridge"],
     "IntentActionRequest": ["substrate.organism.action_voice_contract"],
+    # Phase 27: Workspace Runtime Graph
+    "WorkspaceType": ["substrate.meta_ide.workspace_runtime_graph"],
+    "RuntimeTargetType": ["substrate.meta_ide.workspace_runtime_graph"],
+    "BuildTargetType": ["substrate.meta_ide.workspace_runtime_graph"],
+    "WorkspaceHealth": ["substrate.meta_ide.workspace_runtime_graph"],
+    "WorkspaceRepository": ["substrate.meta_ide.workspace_runtime_graph"],
+    "WorkspaceRuntime": ["substrate.meta_ide.workspace_runtime_graph"],
+    "WorkspaceBuildTarget": ["substrate.meta_ide.workspace_runtime_graph"],
+    "WorkspaceDefinition": ["substrate.meta_ide.workspace_runtime_graph"],
+    "WorkspaceRuntimeGraph": ["substrate.meta_ide.workspace_runtime_graph"],
 }
 
 
