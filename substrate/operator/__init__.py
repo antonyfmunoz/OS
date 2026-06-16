@@ -39,6 +39,15 @@ Phase 33 — Screen Awareness Runtime:
     (VPS), ObservedScreenContextProvider (Beast), ReportedScreenContextProvider
     (iPad/iPhone)
   - RepositoryContextResolver: workspace→repo context mapping
+
+Phase 34 — Workstation Observation Runtime:
+  - WorkstationTranslator: Beast payload dict → canonical ScreenSnapshot
+    using Phase 33 types (no new type system)
+  - Beast workspace collection: full workstation state (monitors, windows,
+    editor context, browser tabs, terminal sessions)
+  - Mesh transport: signal_class="workstation_state" via existing signal.emit
+  - Bridge wiring: mesh callback → translator → report_observed() in app.py
+  - ScreenSnapshot.workstation_detail: dict passthrough for rich workstation data
 """
 
 from substrate.operator.intent_router import IntentRouter, RouteClassification, RouteType

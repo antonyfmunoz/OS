@@ -36,6 +36,7 @@ from nodes.windows.umh_node.adapters.shell import ShellAdapter
 from nodes.windows.umh_node.config import CapabilityConfig, NodeConfig
 from nodes.windows.umh_node.governance import validate_request
 from nodes.windows.umh_node.metrics import collect_metrics
+from nodes.windows.umh_node.workspace import collect_workstation_state, _state_hash
 
 logger = logging.getLogger(__name__)
 
@@ -268,11 +269,13 @@ class NodeClient:
 
             heartbeat_task = asyncio.create_task(self._heartbeat_loop())
             self._media_drain_task = asyncio.create_task(self._media_drain_loop())
+            workspace_task = asyncio.create_task(self._workspace_emission_loop())
             try:
                 async for raw in ws:
                     await self._handle_message(raw)
             finally:
                 heartbeat_task.cancel()
+                workspace_task.cancel()
                 if self._media_drain_task:
                     self._media_drain_task.cancel()
                     self._media_drain_task = None
@@ -326,6 +329,34 @@ class NodeClient:
                 logger.warning("heartbeat send failed: %s", exc)
                 break
 
+    async def _workspace_emission_loop(self) -> None:
+        """Emit workstation state to VPS when it changes. Control plane signal."""
+        if not self._config.signals.workspace_enabled:
+            logger.info("workspace emission disabled by config")
+            return
+
+        interval = max(self._config.signals.workspace_debounce_s, 2.0)
+        last_hash = ""
+        loop = asyncio.get_running_loop()
+
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                state = await loop.run_in_executor(None, collect_workstation_state)
+                h = _state_hash(state)
+                if h == last_hash:
+                    continue
+                last_hash = h
+                state["device_id"] = self._config.node_id
+                await self.emit_signal(
+                    content_type="workstation.state",
+                    payload=state,
+                    signal_class="workstation_state",
+                    urgency="LOW",
+                )
+            except Exception as exc:
+                logger.debug("workspace emission failed: %s", exc)
+
     async def _handle_message(self, raw: str) -> None:
         msg = json.loads(raw)
         method = msg.get("method", "")
@@ -347,11 +378,15 @@ class NodeClient:
             msg_id = msg.get("id")
             if msg_id and self._ws:
                 try:
-                    await self._ws.send(json.dumps({
-                        "jsonrpc": "2.0",
-                        "result": {"success": False, "error": f"internal error: {exc}"},
-                        "id": msg_id,
-                    }))
+                    await self._ws.send(
+                        json.dumps(
+                            {
+                                "jsonrpc": "2.0",
+                                "result": {"success": False, "error": f"internal error: {exc}"},
+                                "id": msg_id,
+                            }
+                        )
+                    )
                 except Exception:
                     pass
 
@@ -375,7 +410,10 @@ class NodeClient:
                     json.dumps(
                         {
                             "jsonrpc": "2.0",
-                            "result": {"success": False, "error": f"node governance denied: {reason}"},
+                            "result": {
+                                "success": False,
+                                "error": f"node governance denied: {reason}",
+                            },
                             "id": msg_id,
                         }
                     )
