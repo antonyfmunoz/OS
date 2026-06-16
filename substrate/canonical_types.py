@@ -596,6 +596,19 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "OperatorTimelineEvent": ["substrate.operator.operator_context"],
     "OperatorSnapshot": ["substrate.operator.operator_context"],
     "OperatorContextEngine": ["substrate.operator.operator_context_engine"],
+    # Phase 32: Presence & Continuity Runtime
+    "PresenceState": ["substrate.operator.operator_presence"],
+    "PresenceDeviceType": ["substrate.operator.operator_presence"],
+    "ContinuityStatus": ["substrate.operator.operator_presence"],
+    "OperatorPresence": ["substrate.operator.operator_presence"],
+    "ActiveContext": ["substrate.operator.operator_presence"],
+    "ContinuityCheckpoint": ["substrate.operator.operator_presence"],
+    "PresenceSnapshot": ["substrate.operator.operator_presence"],
+    "ContinuityEngine": ["substrate.operator.continuity_engine"],
+    "PresenceTransition": ["substrate.operator.presence_timeline"],
+    "PresenceTimeline": ["substrate.operator.presence_timeline"],
+    "DevicePresenceState": ["substrate.operator.device_continuity"],
+    "DeviceContinuityTracker": ["substrate.operator.device_continuity"],
 }
 
 
