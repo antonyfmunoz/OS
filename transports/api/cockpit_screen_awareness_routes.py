@@ -5,6 +5,7 @@ ordering (OBSERVED > REPORTED > INFERRED).
 
 UMH transport layer. Instance-agnostic.
 """
+
 from __future__ import annotations
 
 import logging
@@ -102,5 +103,43 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     async def screen_providers() -> dict[str, Any]:
         engine = _get_engine()
         return engine.provider_status()
+
+    @router.get("/workstation")
+    async def screen_workstation() -> dict[str, Any]:
+        engine = _get_engine()
+        snap = engine.current_snapshot()
+        if snap.source_type.value != "observed":
+            return {"available": False, "source_type": snap.source_type.value}
+        return {
+            "available": True,
+            "source_type": snap.source_type.value,
+            "source_node_id": snap.source_node_id,
+            "source_confidence": snap.source_confidence,
+            **snap.workstation_detail,
+        }
+
+    @router.get("/windows")
+    async def screen_windows() -> dict[str, Any]:
+        engine = _get_engine()
+        snap = engine.current_snapshot()
+        detail = snap.workstation_detail
+        all_windows = detail.get("all_windows", [])
+        return {
+            "source_type": snap.source_type.value,
+            "count": len(all_windows),
+            "windows": all_windows,
+        }
+
+    @router.get("/monitors")
+    async def screen_monitors() -> dict[str, Any]:
+        engine = _get_engine()
+        snap = engine.current_snapshot()
+        detail = snap.workstation_detail
+        monitors = detail.get("monitors", [])
+        return {
+            "source_type": snap.source_type.value,
+            "count": len(monitors),
+            "monitors": monitors,
+        }
 
     return router

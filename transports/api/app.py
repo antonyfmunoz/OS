@@ -321,8 +321,34 @@ def _register_node_mesh() -> None:
             config.port,
             "wired" if graph_hook is not None else "none",
         )
+
+        _wire_workstation_bridge(_mesh_server)
+
     except Exception as exc:
         logger.warning("node mesh not started: %s", exc)
+
+
+def _wire_workstation_bridge(mesh_server: Any) -> None:
+    """Wire Beast workstation observation → ScreenObservationEngine."""
+    try:
+        from substrate.operator.workstation_translator import WorkstationTranslator
+        from substrate.operator.screen_observation_engine import ScreenObservationEngine
+
+        translator = WorkstationTranslator()
+        engine = ScreenObservationEngine()
+
+        def _on_workstation_state(node_id: str, payload: dict) -> None:
+            try:
+                snapshot = translator.translate(node_id, payload)
+                engine.report_observed(snapshot)
+                logger.debug("workstation state received from %s", node_id)
+            except Exception as exc:
+                logger.warning("workstation translation failed: %s", exc)
+
+        mesh_server.register_workstation_callback(_on_workstation_state)
+        logger.info("workstation observation bridge wired")
+    except Exception as exc:
+        logger.warning("workstation bridge not wired: %s", exc)
 
 
 @asynccontextmanager
