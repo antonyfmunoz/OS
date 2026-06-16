@@ -101,20 +101,22 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
     # ── Mutation routes (all through GovernedWorkRuntime) ─────
 
+    _VALID_EXECUTORS = frozenset({"simulation", "workstation", "agent"})
+
     @r.post("/work/submit", dependencies=auth)
     async def work_submit(request: Request) -> dict[str, Any]:
         body = await request.json()
         intent = body.get("intent", "").strip()
         if not intent:
             return {"success": False, "error": "intent is required"}
-        risk_class = body.get("risk_class", "low")
         target_executor = body.get("target_executor", "simulation")
+        if target_executor not in _VALID_EXECUTORS:
+            return {"success": False, "error": f"invalid target_executor: {target_executor}"}
         description = body.get("description", "")
 
         rt = _get_runtime()
         submission = rt.submit_work(
             intent=intent,
-            risk_class=risk_class,
             target_executor=target_executor,
             description=description,
         )
