@@ -60,4 +60,12 @@ Phase 29 — Organism State Authority & Coherence:
     (loads from infra/state_authority_registry.json)
   - StateCoherenceEngine: detects authority coherence across nodes
     (is authority online, reachable, version-coherent?)
+
+Phase 30 — Service Dependency & Failure Graph:
+  - ServiceDependencyGraph: service-to-service dependency models
+    (ServiceNode, ServiceDependency, FailureImpact, topology)
+  - ServiceDependencyRegistry: single source of truth for service
+    dependencies (loads from infra/service_dependency_registry.json)
+  - ServiceFailureEngine: computes failure impact and critical path
+    (blast radius, transitive cascades, severity classification)
 """

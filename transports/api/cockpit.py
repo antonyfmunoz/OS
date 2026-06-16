@@ -617,3 +617,19 @@ def _mount_state_authority_router() -> None:
 
 
 _mount_state_authority_router()
+
+# ── Phase 30: Service Dependency Graph routes ────────────────────────────
+
+
+def _mount_service_graph_router() -> None:
+    from transports.api import cockpit_service_graph_routes
+
+    cockpit_service_graph_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_service_graph_routes.service_graph_router,
+    )
+
+
+_mount_service_graph_router()
