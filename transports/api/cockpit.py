@@ -3359,6 +3359,22 @@ def _mount_engineering_loop_router() -> None:
 
 _mount_engineering_loop_router()
 
+# ── Phase 23: Engineering proof loop routes ───────────────────────────────────
+
+
+def _mount_engineering_review_router() -> None:
+    from transports.api import cockpit_engineering_review_routes
+
+    cockpit_engineering_review_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_engineering_review_routes.engineering_review_router,
+    )
+
+
+_mount_engineering_review_router()
+
 # ── Phase 14.7A: Operator loop routes ────────────────────────────────────────
 
 
