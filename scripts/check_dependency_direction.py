@@ -79,6 +79,7 @@ LEGACY_VIOLATIONS: set[str] = {
     # transports/ → projections/ (EOS-specific cockpit views, needs projection port)
     "transports/api/app.py",
     "transports/api/cockpit.py",
+    "transports/api/cockpit_core_routes.py",
     # EOS analytics route calls organism bridge (should be split into UMH + EOS parts)
     "saas/api/routes/analytics.ts",
 }

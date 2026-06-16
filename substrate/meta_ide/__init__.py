@@ -51,6 +51,16 @@ from substrate.meta_ide.engineering_session_coordinator import (
     EngineeringSessionCoordinator,
 )
 from substrate.meta_ide.review_package_builder import ReviewPackageBuilder
+from substrate.meta_ide.workspace_observation import (
+    ContainerObservation,
+    EngineeringSessionObservation,
+    ObservationDomain,
+    PreviewObservation,
+    ProcessHealth,
+    TerminalObservation,
+    WorkspaceObservationEngine,
+    WorkspaceObservationSnapshot,
+)
 
 __all__ = [
     "BranchSnapshot",
@@ -83,4 +93,13 @@ __all__ = [
     "EngineeringSessionCoordinator",
     "OperatorRecommendation",
     "ReviewPackageBuilder",
+    # Phase 25: Workspace Observation
+    "ContainerObservation",
+    "EngineeringSessionObservation",
+    "ObservationDomain",
+    "PreviewObservation",
+    "ProcessHealth",
+    "TerminalObservation",
+    "WorkspaceObservationEngine",
+    "WorkspaceObservationSnapshot",
 ]
