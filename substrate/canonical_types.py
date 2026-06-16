@@ -568,6 +568,15 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "UMHNodeTopology": ["substrate.organism.umh_node_topology"],
     "UMHNodeRegistry": ["substrate.organism.umh_node_registry"],
     "UMHVersionCoherenceEngine": ["substrate.organism.umh_version_coherence"],
+    # Phase 29: State Authority Graph
+    "StateDomain": ["substrate.organism.state_authority_graph"],
+    "StateAuthorityLevel": ["substrate.organism.state_authority_graph"],
+    "StateCoherenceStatus": ["substrate.organism.state_authority_graph"],
+    "StateAuthority": ["substrate.organism.state_authority_graph"],
+    "StateDomainStatus": ["substrate.organism.state_authority_graph"],
+    "OrganismStateGraph": ["substrate.organism.state_authority_graph"],
+    "StateRegistry": ["substrate.organism.state_registry"],
+    "StateCoherenceEngine": ["substrate.organism.state_coherence_engine"],
 }
 
 

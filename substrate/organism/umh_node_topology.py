@@ -147,6 +147,7 @@ class UMHNodeRecord:
     active_services: list[UMHServiceActivation] = field(default_factory=list)
     capability_ids: list[str] = field(default_factory=list)
     workspace_ids: list[str] = field(default_factory=list)
+    owned_state_domains: list[str] = field(default_factory=list)
     primary: bool = False
     last_seen: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -163,6 +164,7 @@ class UMHNodeRecord:
             "active_services": [s.to_dict() for s in self.active_services],
             "capability_ids": self.capability_ids,
             "workspace_ids": self.workspace_ids,
+            "owned_state_domains": self.owned_state_domains,
             "primary": self.primary,
             "last_seen": self.last_seen,
             "metadata": self.metadata,
@@ -191,6 +193,7 @@ class UMHNodeRecord:
             active_services=services,
             capability_ids=data.get("capability_ids", []),
             workspace_ids=data.get("workspace_ids", []),
+            owned_state_domains=data.get("owned_state_domains", []),
             primary=data.get("primary", False),
             last_seen=data.get("last_seen", 0.0),
             metadata=data.get("metadata", {}),

@@ -234,6 +234,38 @@ class WorkspaceTopologyEngine:
 
         return result
 
+    def workspace_state_domains(self, workspace_id: str) -> dict[str, Any] | None:
+        """Return state domains accessible from a workspace's nodes."""
+        ws = self._registry.get(workspace_id)
+        if not ws:
+            return None
+
+        all_node_ids = []
+        if ws.primary_umh_node_id:
+            all_node_ids.append(ws.primary_umh_node_id)
+        all_node_ids.extend(ws.supporting_umh_node_ids)
+
+        if not all_node_ids:
+            return {"workspace": workspace_id, "domains": []}
+
+        try:
+            from substrate.organism.umh_node_registry import UMHNodeRegistry
+
+            node_reg = UMHNodeRegistry()
+            domains: list[str] = []
+            seen: set[str] = set()
+            for nid in all_node_ids:
+                node = node_reg.get_node(nid)
+                if node:
+                    for d in node.owned_state_domains:
+                        if d not in seen:
+                            seen.add(d)
+                            domains.append(d)
+            return {"workspace": workspace_id, "domains": domains}
+        except Exception:
+            logger.debug("UMHNodeRegistry not available for workspace_state_domains")
+            return {"workspace": workspace_id, "domains": []}
+
     @property
     def registry(self) -> WorkspaceRegistry:
         return self._registry

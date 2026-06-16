@@ -51,4 +51,13 @@ Phase 28 — UMH Node Role & Version Topology:
     (loads from infra/umh_node_registry.json)
   - UMHVersionCoherenceEngine: detects version drift across nodes
     (capability drift expected, version drift surfaced)
+
+Phase 29 — Organism State Authority & Coherence:
+  - StateDomain: 10 canonical state domains (memory, governance,
+    runtime, workspace, session, observation, execution, proof,
+    reality, configuration)
+  - StateRegistry: single source of truth for domain authority
+    (loads from infra/state_authority_registry.json)
+  - StateCoherenceEngine: detects authority coherence across nodes
+    (is authority online, reachable, version-coherent?)
 """
