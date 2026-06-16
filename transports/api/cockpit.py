@@ -3496,6 +3496,23 @@ def _mount_broadcast_router() -> None:
 
 _mount_broadcast_router()
 
+
+# ── Phase 24: Distributed Worker Runtime routes ──────────────────────────────
+
+
+def _mount_distributed_runtime_router() -> None:
+    from transports.api import cockpit_distributed_runtime_routes
+
+    cockpit_distributed_runtime_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_distributed_runtime_routes.distributed_runtime_router,
+    )
+
+
+_mount_distributed_runtime_router()
+
 # ── Claude Code Session Bridge ────────────────────────────────────────
 
 
