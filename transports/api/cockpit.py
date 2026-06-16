@@ -647,3 +647,17 @@ def _mount_operator_home_router() -> None:
 
 
 _mount_operator_home_router()
+
+
+def _mount_operator_presence_router() -> None:
+    from transports.api import cockpit_operator_presence_routes
+
+    cockpit_operator_presence_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_operator_presence_routes.operator_presence_router,
+    )
+
+
+_mount_operator_presence_router()
