@@ -1,0 +1,72 @@
+[
+  {
+    "domain": "memory",
+    "node_id": "umh-vps",
+    "authority_level": "primary",
+    "storage_location": "neon_postgres",
+    "service_owner": "memory"
+  },
+  {
+    "domain": "governance",
+    "node_id": "umh-vps",
+    "authority_level": "primary",
+    "storage_location": "neon_postgres",
+    "service_owner": "governance"
+  },
+  {
+    "domain": "runtime",
+    "node_id": "umh-vps",
+    "authority_level": "primary",
+    "storage_location": "in_memory",
+    "service_owner": "distributed_runtime"
+  },
+  {
+    "domain": "workspace",
+    "node_id": "umh-windows",
+    "authority_level": "primary",
+    "storage_location": "json_file",
+    "service_owner": "workspace_observation"
+  },
+  {
+    "domain": "session",
+    "node_id": "umh-windows",
+    "authority_level": "primary",
+    "storage_location": "in_memory",
+    "service_owner": "workstation_control"
+  },
+  {
+    "domain": "observation",
+    "node_id": "umh-windows",
+    "authority_level": "primary",
+    "storage_location": "in_memory",
+    "service_owner": "workspace_observation"
+  },
+  {
+    "domain": "execution",
+    "node_id": "umh-vps",
+    "authority_level": "primary",
+    "storage_location": "neon_postgres",
+    "service_owner": "distributed_runtime"
+  },
+  {
+    "domain": "proof",
+    "node_id": "umh-vps",
+    "authority_level": "primary",
+    "storage_location": "json_file",
+    "service_owner": "governance"
+  },
+  {
+    "domain": "reality",
+    "node_id": "umh-vps",
+    "authority_level": "primary",
+    "storage_location": "json_file",
+    "service_owner": "governance"
+  },
+  {
+    "domain": "configuration",
+    "node_id": "umh-vps",
+    "authority_level": "primary",
+    "storage_location": "json_file",
+    "service_owner": "cockpit_api"
+  }
+]

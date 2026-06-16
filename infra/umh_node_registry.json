@@ -21,7 +21,16 @@
       "governance_runtime",
       "event_spine_runtime"
     ],
-    "workspace_ids": ["umh"]
+    "workspace_ids": ["umh"],
+    "owned_state_domains": [
+      "memory",
+      "governance",
+      "runtime",
+      "execution",
+      "proof",
+      "reality",
+      "configuration"
+    ]
   },
   {
     "node_id": "umh-windows",
@@ -47,6 +56,11 @@
       "local_preview",
       "projection_repo_access"
     ],
-    "workspace_ids": ["umh", "creatoros", "entrepreneuros", "lyfeos"]
+    "workspace_ids": ["umh", "creatoros", "entrepreneuros", "lyfeos"],
+    "owned_state_domains": [
+      "workspace",
+      "session",
+      "observation"
+    ]
   }
 ]
