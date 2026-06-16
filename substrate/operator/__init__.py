@@ -19,6 +19,16 @@ Phase 31 — Operator Home & Context Engine:
   - OperatorAttentionItem: priority-sorted attention queue
   - OperatorHealthSummary: status cards across all subsystems
   - OperatorTimelineEvent: chronological event feed from EventSpine
+
+Phase 32 — Presence & Continuity Runtime:
+  - ContinuityEngine: aggregation façade composing
+    WorkspaceObservationEngine, WorkspaceTopologyEngine, ActionBridge,
+    OperatorContextEngine, UMHNodeRegistry into operator presence view
+  - PresenceSnapshot: full operator presence state (device, workspace,
+    session, checkpoints)
+  - ContinuityCheckpoint: resumable checkpoint for continuity
+  - PresenceTimeline: in-memory transition log (device/workspace/session)
+  - DeviceContinuityTracker: per-device last-known state
 """
 
 from substrate.operator.intent_router import IntentRouter, RouteClassification, RouteType
