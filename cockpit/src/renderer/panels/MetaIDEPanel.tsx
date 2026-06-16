@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useMetaIDEStore } from '../stores/metaIDEStore'
 
-const TABS = ['workspace', 'repositories', 'roadmap', 'risks'] as const
+const TABS = ['workspace', 'repositories', 'roadmap', 'risks', 'terminals', 'containers', 'previews'] as const
 
 const RISK_COLORS: Record<string, string> = {
   none: 'text-zinc-400',
@@ -17,6 +17,8 @@ const HEALTH_COLORS: Record<string, string> = {
   stale: 'text-orange-400',
   detached: 'text-red-400',
   unknown: 'text-zinc-500',
+  degraded: 'text-orange-400',
+  crashed: 'text-red-400',
 }
 
 const STATE_COLORS: Record<string, string> = {
@@ -229,6 +231,97 @@ function RisksTab() {
   )
 }
 
+function TerminalsTab() {
+  const { observation, fetchObservation, loading } = useMetaIDEStore()
+
+  useEffect(() => { fetchObservation() }, [])
+
+  const terminals = observation?.terminals || []
+  if (loading && terminals.length === 0) return <div className="p-4 text-zinc-500">Loading terminals...</div>
+  if (terminals.length === 0) return <div className="p-4 text-zinc-500">No active terminals</div>
+
+  return (
+    <div className="p-4 space-y-2">
+      {terminals.map((t) => (
+        <div key={t.terminal_id} className="border border-zinc-700 rounded p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-zinc-200">{t.session_name}</span>
+            <span className={`text-xs ${t.is_active ? 'text-green-400' : 'text-zinc-600'}`}>
+              {t.is_active ? '● active' : '○ idle'}
+            </span>
+          </div>
+          <div className="text-xs text-zinc-500 space-y-0.5">
+            <div>Window: <span className="text-zinc-300">{t.window_name || '—'}</span> Pane: {t.pane_index}</div>
+            {t.current_command && <div>Command: <span className="text-cyan-400 font-mono">{t.current_command}</span></div>}
+            {t.cwd && <div className="text-zinc-600 font-mono truncate">{t.cwd}</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ContainersTab() {
+  const { observation, fetchObservation, loading } = useMetaIDEStore()
+
+  useEffect(() => { fetchObservation() }, [])
+
+  const containers = observation?.containers || []
+  if (loading && containers.length === 0) return <div className="p-4 text-zinc-500">Loading containers...</div>
+  if (containers.length === 0) return <div className="p-4 text-zinc-500">No containers found</div>
+
+  return (
+    <div className="p-4 space-y-2">
+      {containers.map((c) => (
+        <div key={c.container_id} className="border border-zinc-700 rounded p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-zinc-200">{c.container_name}</span>
+            <span className={`text-xs ${HEALTH_COLORS[c.health] || 'text-zinc-500'}`}>
+              ● {c.health}
+            </span>
+          </div>
+          <div className="text-xs text-zinc-500 space-y-0.5">
+            <div>Image: <span className="text-zinc-400 font-mono">{c.image}</span></div>
+            <div>Status: <span className="text-zinc-300">{c.status}</span></div>
+            {c.ports.length > 0 && <div>Ports: <span className="text-cyan-400">{c.ports.join(', ')}</span></div>}
+            {c.restart_count > 0 && <div className="text-amber-400">Restarts: {c.restart_count}</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function PreviewsTab() {
+  const { observation, fetchObservation, loading } = useMetaIDEStore()
+
+  useEffect(() => { fetchObservation() }, [])
+
+  const previews = observation?.previews || []
+  if (loading && previews.length === 0) return <div className="p-4 text-zinc-500">Loading previews...</div>
+  if (previews.length === 0) return <div className="p-4 text-zinc-500">No dev servers detected</div>
+
+  return (
+    <div className="p-4 space-y-2">
+      {previews.map((p) => (
+        <div key={p.preview_id} className="border border-zinc-700 rounded p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-zinc-200">{p.name}</span>
+            <span className={`text-xs ${HEALTH_COLORS[p.health] || 'text-zinc-500'}`}>
+              ● {p.health}
+            </span>
+          </div>
+          <div className="text-xs text-zinc-500 space-y-0.5">
+            <div>URL: <span className="text-cyan-400 font-mono">{p.url}</span></div>
+            <div>Port: {p.port} | Process: <span className="text-zinc-300">{p.process_name || '—'}</span></div>
+            {p.restart_count > 0 && <div className="text-amber-400">Restarts: {p.restart_count}</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function StatCard({ label, value, warn }: { label: string; value: number; warn?: boolean }) {
   return (
     <div className="border border-zinc-700 rounded p-3">
@@ -274,6 +367,9 @@ export function MetaIDEPanel() {
         {activeTab === 'repositories' && <RepositoriesTab />}
         {activeTab === 'roadmap' && <RoadmapTab />}
         {activeTab === 'risks' && <RisksTab />}
+        {activeTab === 'terminals' && <TerminalsTab />}
+        {activeTab === 'containers' && <ContainersTab />}
+        {activeTab === 'previews' && <PreviewsTab />}
       </div>
     </div>
   )
