@@ -675,3 +675,17 @@ def _mount_screen_awareness_router() -> None:
 
 
 _mount_screen_awareness_router()
+
+
+def _mount_voice_router() -> None:
+    from transports.api import cockpit_voice_routes
+
+    cockpit_voice_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_voice_routes.voice_router,
+    )
+
+
+_mount_voice_router()

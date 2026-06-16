@@ -627,6 +627,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "RepositoryContextResolver": ["substrate.operator.repository_context_resolver"],
     # Phase 34: Workstation Observation Runtime
     "WorkstationTranslator": ["substrate.operator.workstation_translator"],
+    # Phase 35: Voice Query Engine
+    "QueryDomain": ["substrate.operator.voice_query_engine"],
+    "QueryResolution": ["substrate.operator.voice_query_engine"],
+    "VoiceQueryEngine": ["substrate.operator.voice_query_engine"],
 }
 
 
