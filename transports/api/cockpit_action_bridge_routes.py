@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,13 @@ class ExecuteActionBody(BaseModel):
     action_id: str = Field(..., min_length=1)
     parameters: dict[str, str] = Field(default_factory=dict)
     source: str = "cockpit"
+
+
+def _get_operator_id(request: Any) -> str:
+    """Extract operator identity from authenticated request."""
+    if hasattr(request, "state") and hasattr(request.state, "user_id"):
+        return request.state.user_id
+    return "operator"
 
 
 def configure(*, require_operator_dep: Any) -> None:
@@ -72,22 +79,25 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return entry
 
     @router.post("/execute")
-    async def execute_action(body: ExecuteActionBody) -> dict[str, Any]:
+    async def execute_action(body: ExecuteActionBody, request: Request) -> dict[str, Any]:
         bridge = _get_bridge()
         from substrate.organism.action_bridge import ActionRequest
 
-        request = ActionRequest(
+        operator_id = _get_operator_id(request)
+        action_request = ActionRequest(
             action_id=body.action_id,
             parameters=body.parameters,
             source=body.source,
+            requested_by=operator_id,
         )
-        result = bridge.execute_action(request)
+        result = bridge.execute_action(action_request)
         return result.to_dict()
 
     @router.post("/{execution_plan_id}/approve")
-    async def approve_action(execution_plan_id: str) -> dict[str, Any]:
+    async def approve_action(execution_plan_id: str, request: Request) -> dict[str, Any]:
         bridge = _get_bridge()
-        result = bridge.approve_and_dispatch(execution_plan_id)
+        operator_id = _get_operator_id(request)
+        result = bridge.approve_and_dispatch(execution_plan_id, operator_id=operator_id)
         if not result:
             raise HTTPException(
                 status_code=404,
@@ -96,18 +106,20 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result.to_dict()
 
     @router.get("/status/{request_id}")
-    async def action_status(request_id: str) -> dict[str, Any]:
+    async def action_status(request_id: str, request: Request) -> dict[str, Any]:
         bridge = _get_bridge()
-        result = bridge.get_action_status(request_id)
+        operator_id = _get_operator_id(request)
+        result = bridge.get_action_status(request_id, operator_id=operator_id)
         if not result:
             raise HTTPException(status_code=404, detail=f"No result for request: {request_id}")
         return result.to_dict()
 
     @router.get("/history")
-    async def action_history(limit: int = 20) -> dict[str, Any]:
+    async def action_history(limit: int = 20, request: Request = None) -> dict[str, Any]:
         bridge = _get_bridge()
+        operator_id = _get_operator_id(request) if request else "operator"
         clamped = max(1, min(limit, 100))
-        items = bridge.history(limit=clamped)
+        items = bridge.history(limit=clamped, operator_id=operator_id)
         return {"history": items, "count": len(items)}
 
     return router

@@ -10,6 +10,7 @@ UMH substrate subsystem. Domain-agnostic.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 from collections import deque
@@ -26,7 +27,16 @@ from substrate.organism.action_catalog import (
 
 logger = logging.getLogger(__name__)
 
-_SHELL_UNSAFE = re.compile(r"[;&|`$(){}!<>\\\n\r]")
+_PARAM_ALLOWLISTS: dict[str, re.Pattern[str]] = {
+    "string": re.compile(r"^[A-Za-z0-9_./-]{1,128}$"),
+    "integer": re.compile(r"^[0-9]{1,5}$"),
+    "container_name": re.compile(r"^[A-Za-z0-9_.-]{1,128}$"),
+    "path": re.compile(r"^[A-Za-z0-9_./-]{1,256}$"),
+    "choice": re.compile(r"^[A-Za-z0-9_./-]{1,128}$"),
+    "boolean": re.compile(r"^(true|false|1|0)$"),
+}
+_ALLOWED_PATH_ROOTS = ("/opt/OS", "/tmp")
+_LEADING_DASH = re.compile(r"^-")
 
 
 @dataclass
@@ -64,6 +74,7 @@ class ActionResult:
     started_at: float = 0.0
     completed_at: float = 0.0
     error: str = ""
+    requested_by: str = "operator"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -76,6 +87,7 @@ class ActionResult:
             "started_at": self.started_at,
             "completed_at": self.completed_at,
             "error": self.error,
+            "requested_by": self.requested_by,
         }
 
 
@@ -118,6 +130,7 @@ class ActionBridge:
         result = ActionResult(
             request_id=request.request_id,
             action_id=request.action_id,
+            requested_by=request.requested_by,
             started_at=time.time(),
         )
 
@@ -321,8 +334,9 @@ class ActionBridge:
     ) -> str | None:
         """Substitute parameters into command template.
 
-        Uses str.format_map with validated params. Rejects shell-unsafe
-        characters in parameter values.
+        Uses strict per-type allowlists instead of char denylists.
+        Rejects leading dashes (argument injection) and validates
+        paths resolve under allowed roots.
         """
         if not action.command_template:
             return None
@@ -332,9 +346,25 @@ class ActionBridge:
             value = params.get(p.name, p.default)
             if not value and p.required:
                 return None
-            if value and _SHELL_UNSAFE.search(value):
-                logger.warning("Unsafe chars in param %s: %s", p.name, value)
+            if not value:
+                merged[p.name] = ""
+                continue
+
+            if _LEADING_DASH.match(value):
+                logger.warning("Param %s starts with dash (arg injection): %s", p.name, value)
                 return None
+
+            allowlist = _PARAM_ALLOWLISTS.get(p.param_type, _PARAM_ALLOWLISTS["string"])
+            if not allowlist.match(value):
+                logger.warning("Param %s failed allowlist for type %s: %s", p.name, p.param_type, value)
+                return None
+
+            if p.param_type == "path" or p.name.endswith("_path"):
+                resolved = os.path.realpath(value)
+                if not any(resolved.startswith(root) for root in _ALLOWED_PATH_ROOTS):
+                    logger.warning("Path param %s resolves outside allowed roots: %s", p.name, resolved)
+                    return None
+
             merged[p.name] = value
 
         try:
@@ -380,10 +410,12 @@ class ActionBridge:
         self._store_result(result)
         return result
 
-    def approve_and_dispatch(self, execution_plan_id: str) -> ActionResult | None:
+    def approve_and_dispatch(
+        self, execution_plan_id: str, operator_id: str = "operator"
+    ) -> ActionResult | None:
         """Approve a pending action and dispatch it."""
         for r in self._results:
-            if r.execution_plan_id == execution_plan_id:
+            if r.execution_plan_id == execution_plan_id and r.requested_by == operator_id:
                 coordinator = self._get_coordinator()
                 if not coordinator:
                     return None
@@ -403,11 +435,18 @@ class ActionBridge:
             result.append(entry)
         return result
 
-    def get_action_status(self, request_id: str) -> ActionResult | None:
-        return self._results_by_id.get(request_id)
+    def get_action_status(
+        self, request_id: str, operator_id: str = "operator"
+    ) -> ActionResult | None:
+        result = self._results_by_id.get(request_id)
+        if result and result.requested_by == operator_id:
+            return result
+        return None
 
-    def history(self, limit: int = 20) -> list[dict[str, Any]]:
-        items = list(self._results)
+    def history(
+        self, limit: int = 20, operator_id: str = "operator"
+    ) -> list[dict[str, Any]]:
+        items = [r for r in self._results if r.requested_by == operator_id]
         items.reverse()
         return [r.to_dict() for r in items[:limit]]
 
