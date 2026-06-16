@@ -609,6 +609,22 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "PresenceTimeline": ["substrate.operator.presence_timeline"],
     "DevicePresenceState": ["substrate.operator.device_continuity"],
     "DeviceContinuityTracker": ["substrate.operator.device_continuity"],
+    # Phase 33: Screen Awareness Runtime
+    "ScreenSourceType": ["substrate.operator.screen_awareness"],
+    "ScreenContextStatus": ["substrate.operator.screen_awareness"],
+    "ApplicationCategory": ["substrate.operator.screen_awareness"],
+    "FocusedApplication": ["substrate.operator.screen_awareness"],
+    "ActiveWindow": ["substrate.operator.screen_awareness"],
+    "RepositoryContext": ["substrate.operator.screen_awareness"],
+    "FileContext": ["substrate.operator.screen_awareness"],
+    "BrowserContext": ["substrate.operator.screen_awareness"],
+    "ScreenSnapshot": ["substrate.operator.screen_awareness"],
+    "ScreenContextProvider": ["substrate.operator.screen_context_providers"],
+    "InferredScreenContextProvider": ["substrate.operator.screen_context_providers"],
+    "ObservedScreenContextProvider": ["substrate.operator.screen_context_providers"],
+    "ReportedScreenContextProvider": ["substrate.operator.screen_context_providers"],
+    "ScreenObservationEngine": ["substrate.operator.screen_observation_engine"],
+    "RepositoryContextResolver": ["substrate.operator.repository_context_resolver"],
 }
 
 

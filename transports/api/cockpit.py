@@ -661,3 +661,17 @@ def _mount_operator_presence_router() -> None:
 
 
 _mount_operator_presence_router()
+
+
+def _mount_screen_awareness_router() -> None:
+    from transports.api import cockpit_screen_awareness_routes
+
+    cockpit_screen_awareness_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_screen_awareness_routes.screen_awareness_router,
+    )
+
+
+_mount_screen_awareness_router()
