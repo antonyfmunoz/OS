@@ -66,6 +66,9 @@ class PacketPlacement:
     requires_remote_dispatch: bool = False
     routing_chain: list[str] = field(default_factory=list)
     reason: str = ""
+    preferred_node_id: str = ""
+    node_role_match: str = ""
+    version_coherent: bool = True
     created_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, Any]:
@@ -81,6 +84,9 @@ class PacketPlacement:
             "requires_remote_dispatch": self.requires_remote_dispatch,
             "routing_chain": self.routing_chain,
             "reason": self.reason,
+            "preferred_node_id": self.preferred_node_id,
+            "node_role_match": self.node_role_match,
+            "version_coherent": self.version_coherent,
             "created_at": self.created_at,
         }
 
@@ -138,6 +144,33 @@ class PacketRouter:
                 pass
         chain.append(f"runtime:{runtime_id or 'none'}")
 
+        # Node topology hints (Phase 28) — enriches routing metadata without
+        # overriding capability-first device selection
+        preferred_node_id = ""
+        node_role_match = ""
+        version_coherent = True
+        packet_workspace = getattr(packet, "workspace_id", "") or ""
+        packet_service = getattr(packet, "required_service_role", "") or ""
+        try:
+            from substrate.organism.umh_node_registry import UMHNodeRegistry
+
+            node_reg = UMHNodeRegistry()
+            if packet_workspace:
+                ws_nodes = node_reg.nodes_for_workspace(packet_workspace)
+                primary_nodes = [n for n in ws_nodes if n.primary]
+                if primary_nodes:
+                    preferred_node_id = primary_nodes[0].node_id
+                elif ws_nodes:
+                    preferred_node_id = ws_nodes[0].node_id
+                chain.append(f"node_hint:{preferred_node_id or 'none'}")
+            if packet_service:
+                svc_nodes = node_reg.nodes_for_service(packet_service)
+                if svc_nodes:
+                    node_role_match = svc_nodes[0].node_id
+                chain.append(f"service_node:{node_role_match or 'none'}")
+        except Exception:
+            pass
+
         cap_snapshot = self._capacity.capacity_for(device_id).to_dict() if device_id else {}
         requires_remote = device_id != "" and not self._is_local_device(device_id)
 
@@ -160,6 +193,9 @@ class PacketRouter:
             requires_remote_dispatch=requires_remote,
             routing_chain=chain,
             reason="; ".join(reason_parts),
+            preferred_node_id=preferred_node_id,
+            node_role_match=node_role_match,
+            version_coherent=version_coherent,
         )
 
         self._emit(

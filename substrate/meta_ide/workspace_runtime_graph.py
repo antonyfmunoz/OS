@@ -143,6 +143,8 @@ class WorkspaceDefinition:
     runtimes: list[WorkspaceRuntime] = field(default_factory=list)
     build_targets: list[WorkspaceBuildTarget] = field(default_factory=list)
     device_ids: list[str] = field(default_factory=list)
+    primary_umh_node_id: str = ""
+    supporting_umh_node_ids: list[str] = field(default_factory=list)
     health: WorkspaceHealth = WorkspaceHealth.UNKNOWN
 
     def to_dict(self) -> dict[str, Any]:
@@ -154,6 +156,8 @@ class WorkspaceDefinition:
             "runtimes": [r.to_dict() for r in self.runtimes],
             "build_targets": [b.to_dict() for b in self.build_targets],
             "device_ids": self.device_ids,
+            "primary_umh_node_id": self.primary_umh_node_id,
+            "supporting_umh_node_ids": self.supporting_umh_node_ids,
             "health": self.health.value,
         }
 
@@ -171,6 +175,8 @@ class WorkspaceDefinition:
                 WorkspaceBuildTarget.from_dict(b) for b in data.get("build_targets", [])
             ],
             device_ids=data.get("device_ids", []),
+            primary_umh_node_id=data.get("primary_umh_node_id", ""),
+            supporting_umh_node_ids=data.get("supporting_umh_node_ids", []),
             health=WorkspaceHealth(health) if isinstance(health, str) else health,
         )
 
