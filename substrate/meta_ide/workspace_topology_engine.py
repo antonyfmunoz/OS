@@ -80,6 +80,8 @@ class WorkspaceTopologyEngine:
                 runtimes=ws.runtimes,
                 build_targets=ws.build_targets,
                 device_ids=ws.device_ids,
+                primary_umh_node_id=ws.primary_umh_node_id,
+                supporting_umh_node_ids=ws.supporting_umh_node_ids,
                 health=health,
             )
             enriched.append(enriched_ws)
@@ -200,6 +202,37 @@ class WorkspaceTopologyEngine:
             "observed_at": snap_dict.get("observed_at", 0),
         }
         return filtered
+
+    def workspace_nodes(self, workspace_id: str) -> dict[str, Any] | None:
+        """Return primary and supporting UMH node info for a workspace."""
+        ws = self._registry.get(workspace_id)
+        if not ws:
+            return None
+
+        result: dict[str, Any] = {
+            "workspace_id": workspace_id,
+            "primary_umh_node_id": ws.primary_umh_node_id,
+            "supporting_umh_node_ids": ws.supporting_umh_node_ids,
+        }
+
+        try:
+            from substrate.organism.umh_node_registry import UMHNodeRegistry
+
+            node_reg = UMHNodeRegistry()
+            primary = node_reg.get_node(ws.primary_umh_node_id) if ws.primary_umh_node_id else None
+            result["primary_node"] = primary.to_dict() if primary else None
+            supporting = []
+            for nid in ws.supporting_umh_node_ids:
+                node = node_reg.get_node(nid)
+                if node:
+                    supporting.append(node.to_dict())
+            result["supporting_nodes"] = supporting
+        except Exception:
+            logger.debug("UMHNodeRegistry not available for workspace_nodes")
+            result["primary_node"] = None
+            result["supporting_nodes"] = []
+
+        return result
 
     @property
     def registry(self) -> WorkspaceRegistry:

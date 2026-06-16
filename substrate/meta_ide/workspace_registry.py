@@ -109,6 +109,8 @@ def _load_seed_workspaces() -> list[WorkspaceDefinition]:
                 runtimes=runtimes,
                 build_targets=build_targets,
                 device_ids=entry.get("device_ids", []),
+                primary_umh_node_id=entry.get("primary_umh_node_id", ""),
+                supporting_umh_node_ids=entry.get("supporting_umh_node_ids", []),
             )
         )
 
