@@ -48,6 +48,17 @@ Phase 34 — Workstation Observation Runtime:
   - Mesh transport: signal_class="workstation_state" via existing signal.emit
   - Bridge wiring: mesh callback → translator → report_observed() in app.py
   - ScreenSnapshot.workstation_detail: dict passthrough for rich workstation data
+
+Phase 35 — Voice Query Engine:
+  - VoiceQueryEngine: context-grounded query resolution engine
+    composing IntentRouter + 8 subsystems into structured answers
+  - QueryDomain: 10 sub-intent domains (status, screen, workspace,
+    resume, service, node, state, reality, action, help)
+  - QueryResolution: structured answer with voice-friendly text,
+    cockpit-friendly structured_data, source provenance, confidence
+  - Authority hierarchy: IntentRouter classifies first, VoiceQueryEngine
+    only refines within the route — never overrides classification
+  - All resolvers read-only. No execution authority. No LLM calls.
 """
 
 from substrate.operator.intent_router import IntentRouter, RouteClassification, RouteType
