@@ -213,8 +213,13 @@ class PacketRouter:
         best = self._capacity.best_device_for_work(eligible)
         return best or (eligible[0] if eligible else "")
 
+    _SAFE_REPO = re.compile(r"^[A-Za-z0-9_\-]+$")
+
     def _resolve_workspace(self, device_id: str, target_repo: str) -> str:
         if not target_repo:
+            return ""
+        if not self._SAFE_REPO.match(target_repo):
+            logger.warning("Rejected unsafe target_repo: %r", target_repo)
             return ""
         profile = self._profiles.get(device_id)
         if profile is None:

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import deque
 from pathlib import Path
 from typing import Any
 
@@ -60,7 +61,7 @@ class DistributedRuntime:
             event_spine=event_spine,
         )
         self._lifecycle = WorkerLifecycleEmitter(event_spine) if event_spine else None
-        self._placements: list[PacketPlacement] = []
+        self._placements: deque[PacketPlacement] = deque(maxlen=1000)
 
     def overview(self) -> dict[str, Any]:
         """Full distributed runtime state for cockpit."""
@@ -106,7 +107,8 @@ class DistributedRuntime:
         return [c.to_dict() for c in self._capacity_model.all_capacities()]
 
     def assignments(self, limit: int = 50) -> list[dict[str, Any]]:
-        recent = self._placements[-limit:] if limit else self._placements
+        items = list(self._placements)
+        recent = items[-limit:] if limit else items
         return [p.to_dict() for p in reversed(recent)]
 
     def capabilities_matrix(self) -> dict[str, Any]:
