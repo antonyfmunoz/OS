@@ -569,3 +569,19 @@ def _mount_action_bridge_router() -> None:
 
 
 _mount_action_bridge_router()
+
+# ── Phase 27: Workspace Topology routes ──────────────────────────────────────
+
+
+def _mount_workspace_topology_router() -> None:
+    from transports.api import cockpit_workspace_topology_routes
+
+    cockpit_workspace_topology_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_workspace_topology_routes.workspace_topology_router,
+    )
+
+
+_mount_workspace_topology_router()

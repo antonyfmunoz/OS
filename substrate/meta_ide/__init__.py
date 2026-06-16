@@ -3,9 +3,10 @@
 Read-only layer providing repository, workspace, and roadmap awareness.
 Phase 22 adds autonomous engineering planning and packetization.
 Phase 23 adds governed execution coordination and proof review.
+Phase 27 adds workspace runtime topology (read-only).
 No git mutations. No auto-merge/push/deploy. Observation, planning, and proof only.
 
-Phases 21–23. UMH substrate subsystem. Instance-agnostic.
+Phases 21–27. UMH substrate subsystem. Instance-agnostic.
 """
 
 from substrate.meta_ide.repository_model import (
@@ -61,6 +62,19 @@ from substrate.meta_ide.workspace_observation import (
     WorkspaceObservationEngine,
     WorkspaceObservationSnapshot,
 )
+from substrate.meta_ide.workspace_runtime_graph import (
+    BuildTargetType,
+    RuntimeTargetType,
+    WorkspaceBuildTarget,
+    WorkspaceDefinition,
+    WorkspaceHealth,
+    WorkspaceRepository,
+    WorkspaceRuntime,
+    WorkspaceRuntimeGraph,
+    WorkspaceType,
+)
+from substrate.meta_ide.workspace_registry import WorkspaceRegistry
+from substrate.meta_ide.workspace_topology_engine import WorkspaceTopologyEngine
 
 __all__ = [
     "BranchSnapshot",
@@ -102,4 +116,16 @@ __all__ = [
     "TerminalObservation",
     "WorkspaceObservationEngine",
     "WorkspaceObservationSnapshot",
+    # Phase 27: Workspace Runtime Graph
+    "BuildTargetType",
+    "RuntimeTargetType",
+    "WorkspaceBuildTarget",
+    "WorkspaceDefinition",
+    "WorkspaceHealth",
+    "WorkspaceRegistry",
+    "WorkspaceRepository",
+    "WorkspaceRuntime",
+    "WorkspaceRuntimeGraph",
+    "WorkspaceTopologyEngine",
+    "WorkspaceType",
 ]

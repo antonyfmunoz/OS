@@ -28,10 +28,12 @@ class ExecuteActionBody(BaseModel):
 
 
 def _get_operator_id(request: Any) -> str:
-    """Extract operator identity from authenticated request."""
+    """Extract operator identity from authenticated request. Fail-closed."""
     if hasattr(request, "state") and hasattr(request.state, "user_id"):
-        return request.state.user_id
-    return "operator"
+        uid = request.state.user_id
+        if uid:
+            return uid
+    raise HTTPException(status_code=401, detail="Operator identity not established")
 
 
 def configure(*, require_operator_dep: Any) -> None:
@@ -115,9 +117,9 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result.to_dict()
 
     @router.get("/history")
-    async def action_history(limit: int = 20, request: Request = None) -> dict[str, Any]:
+    async def action_history(request: Request, limit: int = 20) -> dict[str, Any]:
         bridge = _get_bridge()
-        operator_id = _get_operator_id(request) if request else "operator"
+        operator_id = _get_operator_id(request)
         clamped = max(1, min(limit, 100))
         items = bridge.history(limit=clamped, operator_id=operator_id)
         return {"history": items, "count": len(items)}
