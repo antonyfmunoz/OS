@@ -742,3 +742,155 @@ class VoiceQueryEngine:
             sources=[domain.value],
             confidence=0.30,
         )
+
+    # ── Gate 3: Voice Action Resolution ──────────────────────────
+
+    def resolve_action(self, text: str, classification: Any | None = None) -> ActionResolution:
+        """Resolve an action intent → GovernedWorkRuntime operation.
+
+        Detects action type from text, builds ActionResolution with
+        the operation, target, and confirmation text. The caller
+        (OperatorLoopRuntime or cockpit) routes the resolution to
+        GovernedWorkRuntime — this method does NOT execute.
+        """
+        lower = text.lower().strip()
+
+        action_type, target_id, params = _detect_action_intent(lower)
+
+        requires_approval = action_type in ("execute", "retry")
+        confirmation = _build_confirmation(action_type, target_id, text)
+
+        return ActionResolution(
+            action_type=action_type,
+            target_id=target_id,
+            parameters=params,
+            requires_approval=requires_approval,
+            confirmation_text=confirmation,
+            source_text=text,
+        )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Gate 3: ActionResolution types + detection
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@dataclass
+class ActionResolution:
+    """Resolved action intent — routes to GovernedWorkRuntime."""
+
+    action_type: str = "submit"
+    target_id: str = ""
+    parameters: dict[str, Any] = field(default_factory=dict)
+    requires_approval: bool = False
+    confirmation_text: str = ""
+    source_text: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "action_type": self.action_type,
+            "target_id": self.target_id,
+            "parameters": self.parameters,
+            "requires_approval": self.requires_approval,
+            "confirmation_text": self.confirmation_text,
+            "source_text": self.source_text,
+        }
+
+
+_SUBMIT_PATTERNS = re.compile(
+    r"\b(create\s+work|submit\s+work|new\s+packet|create\s+packet"
+    r"|make\s+a?\s*work\s*packet|add\s+work)\b",
+    re.IGNORECASE,
+)
+
+_APPROVE_PATTERNS = re.compile(
+    r"\b(approve|accept|greenlight|sign\s+off)\b",
+    re.IGNORECASE,
+)
+
+_REJECT_PATTERNS = re.compile(
+    r"\b(reject|deny|decline|refuse)\b",
+    re.IGNORECASE,
+)
+
+_EXECUTE_PATTERNS = re.compile(
+    r"\b(execute|run\s+(?:this|it|packet)|dispatch|launch|start\s+execution)\b",
+    re.IGNORECASE,
+)
+
+_CANCEL_PATTERNS = re.compile(
+    r"\b(cancel|abort|stop\s+(?:this|execution|work)|kill)\b",
+    re.IGNORECASE,
+)
+
+_RETRY_PATTERNS = re.compile(
+    r"\b(retry|rerun|try\s+again|redo)\b",
+    re.IGNORECASE,
+)
+
+_RESUME_PATTERNS = re.compile(
+    r"\b(resume|continue|pick\s+up|carry\s+on)\b",
+    re.IGNORECASE,
+)
+
+_ID_PATTERN = re.compile(
+    r"\b(wp-[a-f0-9]{12}|expl-[a-f0-9]{12}|exrq-[a-f0-9]{12})\b",
+    re.IGNORECASE,
+)
+
+
+def _detect_action_intent(text: str) -> tuple[str, str, dict[str, Any]]:
+    """Detect action type and optional target ID from text."""
+    target_match = _ID_PATTERN.search(text)
+    target_id = target_match.group(1) if target_match else ""
+
+    params: dict[str, Any] = {}
+
+    if _SUBMIT_PATTERNS.search(text):
+        intent_text = _SUBMIT_PATTERNS.sub("", text).strip()
+        params["intent"] = intent_text if intent_text else text
+        return "submit", target_id, params
+
+    if _APPROVE_PATTERNS.search(text):
+        return "approve", target_id, params
+
+    if _REJECT_PATTERNS.search(text):
+        reason_text = _REJECT_PATTERNS.sub("", text).strip()
+        if reason_text:
+            params["reason"] = reason_text
+        return "reject", target_id, params
+
+    if _EXECUTE_PATTERNS.search(text):
+        return "execute", target_id, params
+
+    if _CANCEL_PATTERNS.search(text):
+        reason_text = _CANCEL_PATTERNS.sub("", text).strip()
+        if reason_text:
+            params["reason"] = reason_text
+        return "cancel", target_id, params
+
+    if _RETRY_PATTERNS.search(text):
+        return "retry", target_id, params
+
+    if _RESUME_PATTERNS.search(text):
+        return "resume", target_id, params
+
+    params["intent"] = text
+    return "submit", target_id, params
+
+
+def _build_confirmation(action_type: str, target_id: str, source: str) -> str:
+    """Build human-readable confirmation text."""
+    target_str = f" {target_id}" if target_id else ""
+
+    confirmations = {
+        "submit": f"Create new work packet from: {source[:80]}",
+        "approve": f"Approve work{target_str}",
+        "reject": f"Reject work{target_str}",
+        "execute": f"Execute work{target_str} — this will start real execution",
+        "cancel": f"Cancel work{target_str}",
+        "retry": f"Retry work{target_str}",
+        "resume": f"Resume work{target_str}",
+    }
+
+    return confirmations.get(action_type, f"Unknown action: {action_type}")
