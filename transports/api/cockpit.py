@@ -633,3 +633,17 @@ def _mount_service_graph_router() -> None:
 
 
 _mount_service_graph_router()
+
+
+def _mount_operator_home_router() -> None:
+    from transports.api import cockpit_operator_home_routes
+
+    cockpit_operator_home_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_operator_home_routes.operator_home_router,
+    )
+
+
+_mount_operator_home_router()
