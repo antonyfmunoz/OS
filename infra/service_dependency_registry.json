@@ -1,0 +1,187 @@
+{
+  "services": [
+    {
+      "service_role": "cockpit_api",
+      "description": "Cockpit HTTP API — operator interface to organism",
+      "criticality": "critical",
+      "owner_node": "umh-vps",
+      "state_domains": ["configuration"]
+    },
+    {
+      "service_role": "cockpit_frontend",
+      "description": "Cockpit Electron/web UI",
+      "criticality": "supporting",
+      "owner_node": "umh-vps",
+      "state_domains": []
+    },
+    {
+      "service_role": "governance",
+      "description": "Risk classification, approval gates, policy enforcement",
+      "criticality": "critical",
+      "owner_node": "umh-vps",
+      "state_domains": ["governance", "proof", "reality"]
+    },
+    {
+      "service_role": "memory",
+      "description": "Canonical memory store — Neon persistence",
+      "criticality": "critical",
+      "owner_node": "umh-vps",
+      "state_domains": ["memory"]
+    },
+    {
+      "service_role": "event_spine",
+      "description": "Canonical organism event transport",
+      "criticality": "critical",
+      "owner_node": "umh-vps",
+      "state_domains": []
+    },
+    {
+      "service_role": "distributed_runtime",
+      "description": "Work packet routing and execution coordination",
+      "criticality": "core",
+      "owner_node": "umh-vps",
+      "state_domains": ["runtime", "execution"]
+    },
+    {
+      "service_role": "action_bridge",
+      "description": "Governed action catalog and execution bridge",
+      "criticality": "supporting",
+      "owner_node": "umh-vps",
+      "state_domains": []
+    },
+    {
+      "service_role": "meta_ide",
+      "description": "Engineering reality awareness — repos, workspace, roadmap",
+      "criticality": "supporting",
+      "owner_node": "umh-windows",
+      "state_domains": []
+    },
+    {
+      "service_role": "workspace_observation",
+      "description": "Live environment observation — terminals, containers, sessions",
+      "criticality": "supporting",
+      "owner_node": "umh-windows",
+      "state_domains": ["workspace", "observation"]
+    },
+    {
+      "service_role": "workstation_control",
+      "description": "Workspace mode, snapshot, restore, preparation",
+      "criticality": "supporting",
+      "owner_node": "umh-windows",
+      "state_domains": ["session"]
+    },
+    {
+      "service_role": "vision_runtime",
+      "description": "Computer vision and screen observation",
+      "criticality": "optional",
+      "owner_node": "umh-windows",
+      "state_domains": []
+    },
+    {
+      "service_role": "voice_runtime",
+      "description": "Voice synthesis and recognition",
+      "criticality": "optional",
+      "owner_node": "umh-windows",
+      "state_domains": []
+    },
+    {
+      "service_role": "local_builder",
+      "description": "Local build toolchain — electron, react, native",
+      "criticality": "optional",
+      "owner_node": "umh-windows",
+      "state_domains": []
+    }
+  ],
+  "dependencies": [
+    {
+      "source_service": "cockpit_frontend",
+      "target_service": "cockpit_api",
+      "strength": "required",
+      "description": "Frontend renders data from API; no API = blank UI"
+    },
+    {
+      "source_service": "cockpit_api",
+      "target_service": "governance",
+      "strength": "degraded",
+      "description": "API serves governance data; without it, governance panels empty"
+    },
+    {
+      "source_service": "cockpit_api",
+      "target_service": "memory",
+      "strength": "degraded",
+      "description": "API serves memory/reality data"
+    },
+    {
+      "source_service": "cockpit_api",
+      "target_service": "event_spine",
+      "strength": "degraded",
+      "description": "API subscribes to events for SSE telemetry stream"
+    },
+    {
+      "source_service": "distributed_runtime",
+      "target_service": "governance",
+      "strength": "required",
+      "description": "Every work packet requires governance approval before execution"
+    },
+    {
+      "source_service": "distributed_runtime",
+      "target_service": "event_spine",
+      "strength": "degraded",
+      "description": "Runtime emits execution events; without spine, no telemetry"
+    },
+    {
+      "source_service": "distributed_runtime",
+      "target_service": "memory",
+      "strength": "degraded",
+      "description": "Runtime stores execution records in memory"
+    },
+    {
+      "source_service": "action_bridge",
+      "target_service": "governance",
+      "strength": "required",
+      "description": "Every action requires governance risk gate"
+    },
+    {
+      "source_service": "action_bridge",
+      "target_service": "distributed_runtime",
+      "strength": "degraded",
+      "description": "Actions dispatched through runtime for execution"
+    },
+    {
+      "source_service": "meta_ide",
+      "target_service": "workspace_observation",
+      "strength": "degraded",
+      "description": "IDE reads live workspace state from observation"
+    },
+    {
+      "source_service": "workstation_control",
+      "target_service": "workspace_observation",
+      "strength": "degraded",
+      "description": "Control reads current state before applying changes"
+    },
+    {
+      "source_service": "vision_runtime",
+      "target_service": "workstation_control",
+      "strength": "optional",
+      "description": "Vision feeds screen data to workstation for context"
+    },
+    {
+      "source_service": "voice_runtime",
+      "target_service": "event_spine",
+      "strength": "optional",
+      "description": "Voice events published to spine for organism awareness"
+    },
+    {
+      "source_service": "local_builder",
+      "target_service": "workspace_observation",
+      "strength": "optional",
+      "description": "Builder reads workspace config for build targets"
+    },
+    {
+      "source_service": "local_builder",
+      "target_service": "meta_ide",
+      "strength": "optional",
+      "description": "Builder reads repo state for build decisions"
+    }
+  ]
+}
