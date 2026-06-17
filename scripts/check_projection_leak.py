@@ -71,6 +71,8 @@ LEGACY_PROJECTION_LEAKS: dict[str, set[str]] = {
     "substrate/state/context/context.py": {"eos_class"},
     # Projection registry — product names are data entries, not code
     "substrate/state/registries/os_registry.py": {"eos_brand", "creatoros_brand", "lyfeos_brand"},
+    # Projection integration — alias normalization + seed data (C3.5)
+    "substrate/organism/projection_integration_runtime.py": {"eos_brand", "creatoros_brand", "lyfeos_brand"},
     # Architecture docstrings that list projection names for clarity
     "substrate/types.py": {"creatoros_brand", "lyfeos_brand"},
     "substrate/integrations/__init__.py": {"creatoros_brand", "lyfeos_brand"},

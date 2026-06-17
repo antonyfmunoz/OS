@@ -941,3 +941,76 @@ def _mount_projection_router() -> None:
 
 
 _mount_projection_router()
+
+
+# ── Campaign 3 routes ──────────────────────────────────────────────────────
+
+
+def _mount_capability_map_router() -> None:
+    from transports.api import cockpit_capability_map_routes
+
+    cockpit_capability_map_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_capability_map_routes.capability_map_router,
+    )
+
+
+_mount_capability_map_router()
+
+
+def _mount_command_center_mvp_router() -> None:
+    from transports.api import cockpit_command_center_mvp_routes
+
+    cockpit_command_center_mvp_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_command_center_mvp_routes.command_center_mvp_router,
+    )
+
+
+_mount_command_center_mvp_router()
+
+
+def _mount_unified_execution_router() -> None:
+    from transports.api import cockpit_unified_execution_routes
+
+    cockpit_unified_execution_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_unified_execution_routes.unified_execution_router,
+    )
+
+
+_mount_unified_execution_router()
+
+
+def _mount_build_loop_router() -> None:
+    from transports.api import cockpit_meta_ide_projection_loop_routes
+
+    cockpit_meta_ide_projection_loop_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_meta_ide_projection_loop_routes.build_loop_router,
+    )
+
+
+_mount_build_loop_router()
+
+
+def _mount_projection_integration_router() -> None:
+    from transports.api import cockpit_projection_integration_routes
+
+    cockpit_projection_integration_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_projection_integration_routes.projection_integration_router,
+    )
+
+
+_mount_projection_integration_router()

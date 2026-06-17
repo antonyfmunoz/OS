@@ -752,6 +752,44 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ProjectionRegistration": ["substrate.sockets.projection_port"],
     "ProjectionPortProtocol": ["substrate.sockets.projection_port"],
     "ProjectionPort": ["substrate.sockets.projection_port"],
+    # Campaign 3.1 — Cockpit Capability Map
+    "SurfaceCategory": ["substrate.workstation.cockpit_capability_map"],
+    "MVPStatus": ["substrate.workstation.cockpit_capability_map"],
+    "CoverageStatus": ["substrate.workstation.cockpit_capability_map"],
+    "CockpitSurface": ["substrate.workstation.cockpit_capability_map"],
+    "DuplicationFinding": ["substrate.workstation.cockpit_capability_map"],
+    "CockpitCapabilitySnapshot": ["substrate.workstation.cockpit_capability_map"],
+    "CockpitCapabilityMap": ["substrate.workstation.cockpit_capability_map"],
+    # Campaign 3.2 — Command Center MVP Convergence
+    "CommandCenterSection": ["substrate.workstation.command_center_mvp_runtime"],
+    "ExecutionPulse": ["substrate.workstation.command_center_mvp_runtime"],
+    "CapabilityPulse": ["substrate.workstation.command_center_mvp_runtime"],
+    "MigrationPulse": ["substrate.workstation.command_center_mvp_runtime"],
+    "CommandCenterRecommendation": ["substrate.workstation.command_center_mvp_runtime"],
+    "CommandCenterSnapshot": ["substrate.workstation.command_center_mvp_runtime"],
+    "CommandCenterMVPRuntime": ["substrate.workstation.command_center_mvp_runtime"],
+    # Campaign 3.3 — Unified Execution Surface
+    "ExecutionStreamType": ["substrate.workstation.unified_execution_surface_runtime"],
+    "ExecutionStreamStatus": ["substrate.workstation.unified_execution_surface_runtime"],
+    "UnifiedExecutionStream": ["substrate.workstation.unified_execution_surface_runtime"],
+    "UnifiedApprovalItem": ["substrate.workstation.unified_execution_surface_runtime"],
+    "UnifiedExecutionSurfaceRuntime": ["substrate.workstation.unified_execution_surface_runtime"],
+    # Campaign 3.4 — Meta IDE Build Loop
+    "BuildLoopPhase": ["substrate.workstation.meta_ide_projection_loop_runtime"],
+    "BuildRequest": ["substrate.workstation.meta_ide_projection_loop_runtime"],
+    "BuildLoopStatus": ["substrate.workstation.meta_ide_projection_loop_runtime"],
+    "MetaIDEProjectionLoopRuntime": ["substrate.workstation.meta_ide_projection_loop_runtime"],
+    # Campaign 3.5 — Projection Integration Runtime
+    "ProjectionMachineType": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionAvailability": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionMaturityLevel": ["substrate.organism.projection_integration_runtime"],
+    "IntegrationGapType": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionCodeLocation": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionIntegrationProfile": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionIntegrationGap": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionBuildReadiness": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionIntegrationSnapshot": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionIntegrationRuntime": ["substrate.organism.projection_integration_runtime"],
 }
 
 
