@@ -677,6 +677,12 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # Gate 4 — Operator Attention Engine
     "AttentionItem": ["substrate.operator.operator_attention_engine"],
     "OperatorAttentionEngine": ["substrate.operator.operator_attention_engine"],
+    # Gate 5 — Capability Runtime
+    "CapabilityMaturity": ["substrate.organism.capability_runtime"],
+    "CapabilityEvidenceType": ["substrate.organism.capability_runtime"],
+    "CapabilityEvidence": ["substrate.organism.capability_runtime"],
+    "EmergentCapability": ["substrate.organism.capability_runtime"],
+    "CapabilityRuntime": ["substrate.organism.capability_runtime"],
 }
 
 
