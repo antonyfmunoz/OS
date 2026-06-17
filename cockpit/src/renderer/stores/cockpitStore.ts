@@ -53,6 +53,10 @@ export type Panel =
   | 'engineering'
   | 'organismmap'
   | 'intent'
+  | 'capabilitymap'
+  | 'unifiedexecution'
+  | 'buildloop'
+  | 'projectionintegration'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
