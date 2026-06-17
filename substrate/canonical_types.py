@@ -790,6 +790,48 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ProjectionBuildReadiness": ["substrate.organism.projection_integration_runtime"],
     "ProjectionIntegrationSnapshot": ["substrate.organism.projection_integration_runtime"],
     "ProjectionIntegrationRuntime": ["substrate.organism.projection_integration_runtime"],
+
+    # Campaign 4.0 — Orchestrator Awareness Runtime
+    "AwarenessDomain": ["substrate.organism.orchestrator_awareness_runtime"],
+    "OrchestratorContext": ["substrate.organism.orchestrator_awareness_runtime"],
+    "DomainAwareness": ["substrate.organism.orchestrator_awareness_runtime"],
+    "OrchestratorAwarenessSnapshot": ["substrate.organism.orchestrator_awareness_runtime"],
+    "OrchestratorAwarenessRuntime": ["substrate.organism.orchestrator_awareness_runtime"],
+
+    # Campaign 4.1 — Operating Loop Runtime
+    "OperatingLoopStage": ["substrate.workstation.operating_loop_runtime"],
+    "OperatingLoopTransition": ["substrate.workstation.operating_loop_runtime"],
+    "OperatingLoop": ["substrate.workstation.operating_loop_runtime"],
+    "OperatingLoopSnapshot": ["substrate.workstation.operating_loop_runtime"],
+    "OperatingLoopRuntime": ["substrate.workstation.operating_loop_runtime"],
+
+    # Campaign 4.2 — Unified Approval Runtime
+    "ApprovalSourceType": ["substrate.workstation.unified_approval_runtime"],
+    "UnifiedApproval": ["substrate.workstation.unified_approval_runtime"],
+    "ApprovalAction": ["substrate.workstation.unified_approval_runtime"],
+    "UnifiedApprovalSnapshot": ["substrate.workstation.unified_approval_runtime"],
+    "UnifiedApprovalRuntime": ["substrate.workstation.unified_approval_runtime"],
+
+    # Campaign 4.3 — Operating Loop Coherence Runtime
+    "LoopCoherenceStatus": ["substrate.organism.operating_loop_coherence_runtime"],
+    "LoopCoherenceIssueType": ["substrate.organism.operating_loop_coherence_runtime"],
+    "LoopCoherenceIssue": ["substrate.organism.operating_loop_coherence_runtime"],
+    "LoopCoherenceReport": ["substrate.organism.operating_loop_coherence_runtime"],
+    "OperatingLoopCoherenceRuntime": ["substrate.organism.operating_loop_coherence_runtime"],
+
+    # Campaign 4.4 — Workstation Session Runtime
+    "WorkstationSessionStatus": ["substrate.operator.workstation_session_runtime"],
+    "WorkstationSessionCheckpoint": ["substrate.operator.workstation_session_runtime"],
+    "WorkstationSessionResume": ["substrate.operator.workstation_session_runtime"],
+    "WorkstationSession": ["substrate.operator.workstation_session_runtime"],
+    "WorkstationSessionRuntime": ["substrate.operator.workstation_session_runtime"],
+
+    # Campaign 4.5 — MVP Readiness Runtime
+    "MVPDimensionStatus": ["substrate.workstation.mvp_readiness_runtime"],
+    "MVPDimension": ["substrate.workstation.mvp_readiness_runtime"],
+    "MVPEscapePoint": ["substrate.workstation.mvp_readiness_runtime"],
+    "MVPReadinessReport": ["substrate.workstation.mvp_readiness_runtime"],
+    "MVPReadinessRuntime": ["substrate.workstation.mvp_readiness_runtime"],
 }
 
 
