@@ -43,6 +43,7 @@ import {
   Merge,
   Puzzle,
   CheckCircle2,
+  Compass,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -124,6 +125,8 @@ export const ROUTES: RouteEntry[] = [
   { id: 'universalwork', label: 'Universal Work', icon: Layers, group: 'primary', visibility: 'dev', key: 'w' },
   { id: 'worldmodel', label: 'World Model', icon: Globe, group: 'primary', visibility: 'dev', key: 'G' },
   { id: 'realitygraph', label: 'Reality Graph', icon: Map, group: 'primary', visibility: 'dev', key: 'g' },
+  // Campaign 7 — Strategic Context & Executive Reasoning
+  { id: 'strategic', label: 'Strategic', icon: Compass, group: 'primary', visibility: 'dev', key: '/' },
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, group: 'primary', visibility: 'dev', key: 'p' },
   { id: 'company', label: 'Company', icon: Building2, group: 'primary', visibility: 'dev', key: 'c' },
   { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'dev', key: 'u' },
