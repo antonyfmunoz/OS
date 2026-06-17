@@ -805,3 +805,17 @@ def _mount_operationalization_router() -> None:
 
 
 _mount_operationalization_router()
+
+
+def _mount_execution_graph_router() -> None:
+    from transports.api import cockpit_execution_graph_routes
+
+    cockpit_execution_graph_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_execution_graph_routes.execution_graph_router,
+    )
+
+
+_mount_execution_graph_router()
