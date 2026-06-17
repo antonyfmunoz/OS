@@ -774,3 +774,20 @@ def _mount_activity_router() -> None:
 
 
 _mount_activity_router()
+
+
+# ── Gate 5: Capability Runtime ──────────────────────────────────
+
+
+def _mount_capability_router() -> None:
+    from transports.api import cockpit_capability_routes
+
+    cockpit_capability_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_capability_routes.capability_router,
+    )
+
+
+_mount_capability_router()
