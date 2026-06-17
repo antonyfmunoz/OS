@@ -659,6 +659,24 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "OperatorLoopPhase": ["substrate.organism.operator_loop_runtime"],
     "OperatorLoopState": ["substrate.organism.operator_loop_runtime"],
     "OperatorLoopRuntime": ["substrate.organism.operator_loop_runtime"],
+    # Gate 4 — Intent Runtime (Workstation Convergence)
+    "IntentScope": ["substrate.operator.intent_runtime"],
+    "CanonicalIntentStatus": ["substrate.operator.intent_runtime"],
+    "ConflictType": ["substrate.operator.intent_runtime"],
+    "CanonicalIntent": ["substrate.operator.intent_runtime"],
+    "IntentConflict": ["substrate.operator.intent_runtime"],
+    "IntentRuntime": ["substrate.operator.intent_runtime"],
+    # Gate 4 — Operator Snapshot Runtime
+    "SituationSnapshot": ["substrate.operator.operator_snapshot_runtime"],
+    "ChangeEntry": ["substrate.operator.operator_snapshot_runtime"],
+    "DecisionItem": ["substrate.operator.operator_snapshot_runtime"],
+    "OperatorNextAction": ["substrate.operator.operator_snapshot_runtime"],
+    "NextAction": ["substrate.organism.next_action_engine"],
+    "OperatorQuestionSnapshot": ["substrate.operator.operator_snapshot_runtime"],
+    "OperatorSnapshotRuntime": ["substrate.operator.operator_snapshot_runtime"],
+    # Gate 4 — Operator Attention Engine
+    "AttentionItem": ["substrate.operator.operator_attention_engine"],
+    "OperatorAttentionEngine": ["substrate.operator.operator_attention_engine"],
 }
 
 

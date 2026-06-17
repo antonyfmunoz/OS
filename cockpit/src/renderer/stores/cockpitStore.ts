@@ -51,6 +51,8 @@ export type Panel =
   | 'realityintelligence'
   | 'metaide'
   | 'engineering'
+  | 'organismmap'
+  | 'intent'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
@@ -120,6 +122,7 @@ export const useCockpitStore = create<CockpitState>((set) => ({
       runtime: 'execution',
       skills: 'knowledge',
       workspace: 'editor',
+      infrastructure: 'organismmap',
     }
     set({ activePanel: redirects[panel] ?? panel })
   },

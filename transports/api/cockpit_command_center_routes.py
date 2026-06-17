@@ -198,6 +198,80 @@ def _label_environment(item: dict[str, Any]) -> dict[str, Any]:
     return item
 
 
+# ── Gate 4: Operator-question endpoints (compose OperatorSnapshotRuntime) ────
+
+
+def _get_snapshot_runtime() -> Any:
+    if not hasattr(_get_snapshot_runtime, "_instance"):
+        try:
+            from substrate.operator.operator_snapshot_runtime import OperatorSnapshotRuntime
+            _get_snapshot_runtime._instance = OperatorSnapshotRuntime()
+        except Exception:
+            logger.debug("OperatorSnapshotRuntime unavailable")
+            _get_snapshot_runtime._instance = None
+    return _get_snapshot_runtime._instance
+
+
+@command_center_router.get("/situation")
+async def _situation(request: Request) -> dict[str, Any]:
+    """Answers: 'Where am I? What's the context?'"""
+    rt = _get_snapshot_runtime()
+    if rt is None:
+        return {"ok": True, "situation": {}}
+    return {"ok": True, "situation": rt.situation()}
+
+
+@command_center_router.get("/attention")
+async def _attention(request: Request) -> dict[str, Any]:
+    """Answers: 'What needs me right now?'"""
+    rt = _get_snapshot_runtime()
+    if rt is None:
+        return {"ok": True, "attention": []}
+    items = rt.attention()
+    return {"ok": True, "attention": [i.to_dict() if hasattr(i, 'to_dict') else i for i in items]}
+
+
+@command_center_router.get("/changes")
+async def _changes(request: Request) -> dict[str, Any]:
+    """Answers: 'What changed since I last looked?'"""
+    since = float(request.query_params.get("since", "0"))
+    limit = min(int(request.query_params.get("limit", "50")), 200)
+    rt = _get_snapshot_runtime()
+    if rt is None:
+        return {"ok": True, "changes": []}
+    return {"ok": True, "changes": rt.changes(since=since, limit=limit)}
+
+
+@command_center_router.get("/decisions")
+async def _decisions(request: Request) -> dict[str, Any]:
+    """Answers: 'What's waiting for my decision?'"""
+    rt = _get_snapshot_runtime()
+    if rt is None:
+        return {"ok": True, "decisions": []}
+    return {"ok": True, "decisions": rt.decisions()}
+
+
+@command_center_router.get("/next-actions")
+async def _next_actions(request: Request) -> dict[str, Any]:
+    """Answers: 'What should I do next?'"""
+    rt = _get_snapshot_runtime()
+    if rt is None:
+        return {"ok": True, "next_actions": []}
+    return {"ok": True, "next_actions": rt.next_actions()}
+
+
+@command_center_router.get("/snapshot")
+async def _full_snapshot(request: Request) -> dict[str, Any]:
+    """Full operator question snapshot — all 5 questions in one request."""
+    rt = _get_snapshot_runtime()
+    if rt is None:
+        return {"ok": True, "snapshot": {}}
+    return {"ok": True, "snapshot": rt.snapshot().to_dict()}
+
+
+# ── Existing command center routes ─────────────────────────────────
+
+
 @command_center_router.get("/agents")
 async def _agents(request: Request) -> dict[str, Any]:
     """Agent registry — unified view of workcell heartbeats + organism agents."""

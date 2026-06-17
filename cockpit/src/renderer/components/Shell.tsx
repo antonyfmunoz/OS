@@ -61,6 +61,8 @@ import { RealityTimelinePanel } from '../panels/RealityTimelinePanel'
 import { RealityIntelligencePanel } from '../panels/RealityIntelligencePanel'
 import { MetaIDEPanel } from '../panels/MetaIDEPanel'
 import { EngineeringPanel } from '../panels/EngineeringPanel'
+import { OrganismMapPanel } from '../panels/OrganismMapPanel'
+import { IntentPanel } from '../panels/IntentPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -168,6 +170,10 @@ function ActivePanel() {
       return <MetaIDEPanel />
     case 'engineering':
       return <EngineeringPanel />
+    case 'organismmap':
+      return <OrganismMapPanel />
+    case 'intent':
+      return <IntentPanel />
 
     default:
       return <DashboardPanel />

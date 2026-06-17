@@ -706,3 +706,71 @@ def _mount_work_center_router() -> None:
 
 
 _mount_work_center_router()
+
+
+# ── Gate 4: Intent Runtime ───────────────────────────────────────────
+
+
+def _mount_intent_router() -> None:
+    from transports.api import cockpit_intent_routes
+
+    cockpit_intent_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_intent_routes.intent_router,
+    )
+
+
+_mount_intent_router()
+
+
+# ── Gate 4: Organism Map ────────────────────────────────────────────
+
+
+def _mount_organism_map_router() -> None:
+    from transports.api import cockpit_organism_map_routes
+
+    cockpit_organism_map_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_organism_map_routes.organism_map_router,
+    )
+
+
+_mount_organism_map_router()
+
+
+# ── Gate 4: Execution ───────────────────────────────────────────────
+
+
+def _mount_execution_router() -> None:
+    from transports.api import cockpit_execution_routes
+
+    cockpit_execution_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_execution_routes.execution_router,
+    )
+
+
+_mount_execution_router()
+
+
+# ── Gate 4: Activity ────────────────────────────────────────────────
+
+
+def _mount_activity_router() -> None:
+    from transports.api import cockpit_activity_routes
+
+    cockpit_activity_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_activity_routes.activity_router,
+    )
+
+
+_mount_activity_router()
