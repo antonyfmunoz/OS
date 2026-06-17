@@ -29,7 +29,7 @@ def configure(runtime: Any) -> None:
 def _build_router() -> Any:
     from fastapi import APIRouter, HTTPException
 
-    router = APIRouter(prefix="/session", tags=["session"])
+    router = APIRouter(prefix="/wk-session", tags=["wk-session"])
 
     @router.post("/start")
     def start_session() -> dict[str, Any]:

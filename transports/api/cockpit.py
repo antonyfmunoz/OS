@@ -1014,3 +1014,94 @@ def _mount_projection_integration_router() -> None:
 
 
 _mount_projection_integration_router()
+
+
+# ── Campaign 4: Operator-Orchestrator Convergence ─────────────────────────
+
+
+def _mount_orchestrator_awareness_router() -> None:
+    from transports.api import cockpit_orchestrator_awareness_routes
+
+    r = cockpit_orchestrator_awareness_routes._build_router()
+    router.include_router(r)
+
+
+_mount_orchestrator_awareness_router()
+
+
+def _mount_operating_loop_router() -> None:
+    from transports.api import cockpit_operating_loop_routes
+
+    r = cockpit_operating_loop_routes._build_router()
+    router.include_router(r)
+
+
+_mount_operating_loop_router()
+
+
+def _mount_unified_approval_router() -> None:
+    from transports.api import cockpit_unified_approval_routes
+
+    r = cockpit_unified_approval_routes._build_router()
+    router.include_router(r)
+
+
+_mount_unified_approval_router()
+
+
+def _mount_loop_coherence_router() -> None:
+    from transports.api import cockpit_loop_coherence_routes
+
+    r = cockpit_loop_coherence_routes._build_router()
+    router.include_router(r)
+
+
+_mount_loop_coherence_router()
+
+
+def _mount_wk_session_router() -> None:
+    from transports.api import cockpit_session_routes
+
+    r = cockpit_session_routes._build_router()
+    router.include_router(r)
+
+
+_mount_wk_session_router()
+
+
+def _mount_mvp_readiness_router() -> None:
+    from transports.api import cockpit_mvp_readiness_routes
+
+    r = cockpit_mvp_readiness_routes._build_router()
+    router.include_router(r)
+
+
+_mount_mvp_readiness_router()
+
+
+def _mount_delegation_router() -> None:
+    from transports.api import cockpit_delegation_routes
+
+    r = cockpit_delegation_routes._build_router()
+    router.include_router(r)
+
+
+_mount_delegation_router()
+
+
+def _mount_reality_graph_router() -> None:
+    from transports.api import cockpit_reality_graph_routes
+
+    r = cockpit_reality_graph_routes.get_router()
+    router.include_router(r)
+
+
+def _mount_context_resolution_router() -> None:
+    from transports.api import cockpit_context_resolution_routes
+
+    r = cockpit_context_resolution_routes.get_router()
+    router.include_router(r)
+
+
+_mount_reality_graph_router()
+_mount_context_resolution_router()

@@ -348,6 +348,30 @@ class OperatorLoopRuntime:
         """Return current loop state without transitioning phase."""
         return self.observe()
 
+    # ── Delegation ───────────────────────────────────────────────
+
+    def classify(self, message: str) -> str:
+        """Classify operator message intent type."""
+        try:
+            from substrate.organism.delegation_runtime import classify_intent
+            return classify_intent(message).value
+        except Exception:
+            return "discussion"
+
+    def delegate(
+        self, intent: str, clarified_intent: str = "",
+        understanding: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Propose delegation through DelegationRuntime."""
+        try:
+            from substrate.organism.delegation_runtime import DelegationRuntime
+            dr = DelegationRuntime()
+            proposal = dr.propose_delegation(intent, clarified_intent, understanding)
+            return proposal.to_dict()
+        except Exception as e:
+            logger.error("Delegation failed: %s", e)
+            return {"error": str(e)}
+
     # ── Internal ─────────────────────────────────────────────────
 
     @staticmethod

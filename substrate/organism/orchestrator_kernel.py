@@ -491,6 +491,48 @@ class OrchestratorKernel:
         """List recent sessions."""
         return [s.to_dict() for s in self._sessions[-limit:]]
 
+    # ── Delegation ────────────────────────────────────────────────────
+
+    def _get_delegation_runtime(self) -> Any:
+        if not hasattr(self, '_delegation_runtime') or self._delegation_runtime is None:
+            try:
+                from substrate.organism.delegation_runtime import DelegationRuntime
+                self._delegation_runtime = DelegationRuntime()
+            except Exception as e:
+                logger.debug("Delegation runtime unavailable: %s", e)
+                self._delegation_runtime = None
+        return self._delegation_runtime
+
+    def classify_operator_intent(self, message: str) -> str:
+        """Classify operator message intent. Returns OperatorIntentType value."""
+        try:
+            from substrate.organism.delegation_runtime import classify_intent
+            return classify_intent(message).value
+        except Exception:
+            return "discussion"
+
+    def handle_delegation_proposal(self, message: str) -> dict[str, Any]:
+        """For WORK_INTENT: explain understanding, then propose delegation."""
+        dr = self._get_delegation_runtime()
+        if not dr:
+            return {"error": "Delegation runtime unavailable"}
+        from substrate.organism.delegation_runtime import classify_intent
+        intent_type = classify_intent(message)
+        understanding = dr.explain_understanding(message, intent_type)
+        proposal = dr.propose_delegation(message, understanding=understanding)
+        return {"understanding": understanding, "proposal": proposal.to_dict()}
+
+    def resolve_execution_intent(self, message: str) -> dict[str, Any]:
+        """For EXECUTION: resolve to existing WP or create proposal path.
+        Never execute directly from the Right Rail."""
+        dr = self._get_delegation_runtime()
+        if not dr:
+            return {"error": "Delegation runtime unavailable"}
+        from substrate.organism.delegation_runtime import OperatorIntentType
+        understanding = dr.explain_understanding(message, OperatorIntentType.EXECUTION)
+        resolution = dr.resolve_execution_intent(message, understanding)
+        return resolution
+
     # ── Intent routing ────────────────────────────────────────────────
 
     def _route_intent(

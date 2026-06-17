@@ -82,6 +82,12 @@ class OrchestratorContext:
     coherence_summary: dict[str, Any] = field(default_factory=dict)
     continuity_state: dict[str, Any] = field(default_factory=dict)
 
+    # Delegation
+    preferred_execution_device: str = ""
+    available_execution_devices: list[str] = field(default_factory=list)
+    nested_orchestrators: list[dict[str, Any]] = field(default_factory=list)
+    delegation_queue: dict[str, Any] = field(default_factory=dict)
+
     generated_at: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
@@ -117,6 +123,10 @@ class OrchestratorContext:
             "recommendations": self.recommendations,
             "coherence_summary": self.coherence_summary,
             "continuity_state": self.continuity_state,
+            "preferred_execution_device": self.preferred_execution_device,
+            "available_execution_devices": self.available_execution_devices,
+            "nested_orchestrators": self.nested_orchestrators,
+            "delegation_queue": self.delegation_queue,
             "generated_at": self.generated_at,
         }
 
@@ -232,6 +242,7 @@ class OrchestratorAwarenessRuntime:
         compute_fabric: Any | None = None,
         governed_work: Any | None = None,
         execution_graph: Any | None = None,
+        delegation_runtime: Any | None = None,
         # Development domain (3)
         meta_ide: Any | None = None,
         build_loop: Any | None = None,
@@ -262,6 +273,7 @@ class OrchestratorAwarenessRuntime:
         self._fabric = compute_fabric
         self._governed = governed_work
         self._graph = execution_graph
+        self._delegation = delegation_runtime
         # Development
         self._meta_ide = meta_ide
         self._build_loop = build_loop
@@ -526,6 +538,9 @@ class OrchestratorAwarenessRuntime:
         active_exec = _safe_list(self._fabric, "active_executions")
         governed = _safe_list(self._governed, "active")
         ctx.active_executions = active_exec + governed
+
+        ctx.delegation_queue = _safe_dict(self._delegation, "queue_status")
+        ctx.nested_orchestrators = _safe_list(self._delegation, "active_missions")
 
     def _fill_development(self, ctx: OrchestratorContext) -> None:
         workspace = _safe_dict(self._meta_ide, "workspace_snapshot")

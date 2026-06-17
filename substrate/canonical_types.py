@@ -832,6 +832,30 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "MVPEscapePoint": ["substrate.workstation.mvp_readiness_runtime"],
     "MVPReadinessReport": ["substrate.workstation.mvp_readiness_runtime"],
     "MVPReadinessRuntime": ["substrate.workstation.mvp_readiness_runtime"],
+
+    # Campaign 4.7 — Delegation Runtime
+    "OperatorIntentType": ["substrate.organism.delegation_runtime"],
+    "DelegationMissionStatus": ["substrate.organism.delegation_runtime"],
+    "DelegationMission": ["substrate.organism.delegation_runtime"],
+    "DelegationProposal": ["substrate.organism.delegation_runtime"],
+    "NestedOrchestratorState": ["substrate.organism.delegation_runtime"],
+
+    # Campaign 5.0 — Reality Graph
+    "RealityEntityType": ["substrate.organism.reality_graph"],
+    "RealityRelationType": ["substrate.organism.reality_graph"],
+    "RealityEntityStatus": ["substrate.organism.reality_graph"],
+    "RealityEntity": ["substrate.organism.reality_graph"],
+    "RealityRelation": ["substrate.organism.reality_graph"],
+    "RealityGraph": ["substrate.organism.reality_graph"],
+
+    # Campaign 5.2 — Project Registry
+    "ProjectDefinition": ["substrate.organism.project_registry"],
+    "ProjectRegistry": ["substrate.organism.project_registry"],
+
+    # Campaign 5.5 — Context Resolution
+    "ResolutionStrategy": ["substrate.organism.context_resolution"],
+    "ResolvedContext": ["substrate.organism.context_resolution"],
+    "ContextResolutionEngine": ["substrate.organism.context_resolution"],
 }
 
 
