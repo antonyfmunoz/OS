@@ -33,27 +33,43 @@ def _port() -> "ProjectionPort":
     return ProjectionPort()
 
 
-@projection_router.get("/")
+_REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+
+
+def _validate_projection_name(name: str) -> str | None:
+    if "/" in name or "\\" in name or ".." in name or not name:
+        return "invalid projection name"
+    base = os.path.realpath(os.path.join(_REPO_ROOT, "projections"))
+    target = os.path.realpath(os.path.join(base, name))
+    if not target.startswith(base + os.sep):
+        return "invalid projection name"
+    return None
+
+
+@projection_router.get("/", dependencies=_get_dep())
 async def list_projections() -> dict[str, Any]:
     return {"registrations": [r.to_dict() for r in _port().list_registrations()]}
 
 
-@projection_router.get("/summary")
+@projection_router.get("/summary", dependencies=_get_dep())
 async def projection_summary() -> dict[str, Any]:
     return _port().summary()
 
 
-@projection_router.get("/audit")
+@projection_router.get("/audit", dependencies=_get_dep())
 async def audit_all_projections() -> dict[str, Any]:
     return _port().audit_all()
 
 
-@projection_router.get("/audit/{projection_name}")
+@projection_router.get("/audit/{projection_name}", dependencies=_get_dep())
 async def audit_projection(projection_name: str) -> dict[str, Any]:
+    err = _validate_projection_name(projection_name)
+    if err:
+        return {"error": err}
     return _port().audit_projection(projection_name)
 
 
-@projection_router.get("/{projection_id}")
+@projection_router.get("/{projection_id}", dependencies=_get_dep())
 async def get_projection(projection_id: str) -> dict[str, Any]:
     port = _port()
     reg = port.get(projection_id)
@@ -62,7 +78,7 @@ async def get_projection(projection_id: str) -> dict[str, Any]:
     return reg.to_dict()
 
 
-@projection_router.post("/register")
+@projection_router.post("/register", dependencies=_get_dep())
 async def register_projection(body: dict[str, Any]) -> dict[str, Any]:
     from substrate.sockets.projection_port import ProjectionRegistration
 
