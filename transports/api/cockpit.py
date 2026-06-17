@@ -618,6 +618,70 @@ def _mount_compute_fabric_router() -> None:
 
 _mount_compute_fabric_router()
 
+# ── W3: Agent Fleet routes ─────────────────────────────────────────────────
+
+
+def _mount_agent_fleet_router() -> None:
+    from transports.api import cockpit_agent_fleet_routes
+
+    cockpit_agent_fleet_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_agent_fleet_routes.agent_fleet_router,
+    )
+
+
+_mount_agent_fleet_router()
+
+# ── W2: Meta IDE convergence routes ───────────────────────────────────────
+
+
+def _mount_meta_ide_conv_router() -> None:
+    from transports.api import cockpit_meta_ide_conv_routes
+
+    cockpit_meta_ide_conv_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_meta_ide_conv_routes.meta_ide_conv_router,
+    )
+
+
+_mount_meta_ide_conv_router()
+
+# ── W4: Embodiment routes ─────────────────────────────────────────────────
+
+
+def _mount_embodiment_router() -> None:
+    from transports.api import cockpit_embodiment_routes
+
+    cockpit_embodiment_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_embodiment_routes.embodiment_router,
+    )
+
+
+_mount_embodiment_router()
+
+# ── W5: Operator Migration routes ─────────────────────────────────────────
+
+
+def _mount_migration_router() -> None:
+    from transports.api import cockpit_migration_routes
+
+    cockpit_migration_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_migration_routes.migration_router,
+    )
+
+
+_mount_migration_router()
+
 # ── Phase 29: State Authority routes ──────────────────────────────────────
 
 
