@@ -39,6 +39,9 @@ import {
   RotateCcw,
   Wrench,
   FileText,
+  Map,
+  Merge,
+  Puzzle,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -70,6 +73,11 @@ export const ROUTES: RouteEntry[] = [
   { id: 'settings', label: 'Settings', icon: Settings, group: 'system', visibility: 'system', key: '8' },
 
   // ── Dev (searchable with [DEV] badge) ────────────────────────────
+  // Campaign 3 — Cockpit Convergence & Projection Integration
+  { id: 'capabilitymap', label: 'Capability Map', icon: Map, group: 'primary', visibility: 'dev', key: 'C' },
+  { id: 'unifiedexecution', label: 'Unified Execution', icon: Merge, group: 'primary', visibility: 'primary', key: 'U' },
+  { id: 'buildloop', label: 'Build Loop', icon: Hammer, group: 'primary', visibility: 'primary', key: 'L' },
+  { id: 'projectionintegration', label: 'Projection Integration', icon: Puzzle, group: 'primary', visibility: 'primary', key: 'P' },
   // Gate 4: Intent Runtime (access via Command Center, dev-visible for direct debugging)
   { id: 'intent', label: 'Intent', icon: FileText, group: 'primary', visibility: 'dev', key: 'F' },
   // Absorbed into Command Center
