@@ -650,6 +650,22 @@ def _mount_meta_ide_conv_router() -> None:
 
 _mount_meta_ide_conv_router()
 
+# ── W4: Embodiment routes ─────────────────────────────────────────────────
+
+
+def _mount_embodiment_router() -> None:
+    from transports.api import cockpit_embodiment_routes
+
+    cockpit_embodiment_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_embodiment_routes.embodiment_router,
+    )
+
+
+_mount_embodiment_router()
+
 # ── Phase 29: State Authority routes ──────────────────────────────────────
 
 
