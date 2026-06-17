@@ -46,6 +46,8 @@ class RealityEntityType(str, Enum):
     DELEGATION_MISSION = "delegation_mission"
     CAPABILITY = "capability"
     INFRASTRUCTURE = "infrastructure"
+    FILE = "file"
+    ARTIFACT = "artifact"
 
 
 class RealityRelationType(str, Enum):
@@ -57,6 +59,7 @@ class RealityRelationType(str, Enum):
     DOCUMENTS = "documents"
     DEPENDS_ON = "depends_on"
     ACTIVE_IN = "active_in"
+    PRODUCED_BY = "produced_by"
 
 
 class RealityEntityStatus(str, Enum):
@@ -640,6 +643,45 @@ class RealityGraph:
             )
             if self._add_entity(entity):
                 count += 1
+        return count
+
+    def ingest_from_artifact_registry(self, registry: Any) -> int:
+        count = 0
+        now = time.time()
+        artifacts = []
+        if hasattr(registry, "list_artifacts"):
+            artifacts = registry.list_artifacts()
+        elif hasattr(registry, "_artifacts"):
+            artifacts = list(registry._artifacts.values())
+
+        for artifact in artifacts:
+            a_id = getattr(artifact, "artifact_id", "")
+            if not a_id:
+                continue
+
+            entity = RealityEntity(
+                entity_id=f"art-{a_id}",
+                entity_type=RealityEntityType.ARTIFACT,
+                name=getattr(artifact, "name", a_id),
+                status=RealityEntityStatus.ACTIVE if getattr(artifact, "status", "") == "active" else RealityEntityStatus.INACTIVE,
+                properties={
+                    "artifact_type": getattr(artifact, "artifact_type", ""),
+                    "source_path": getattr(artifact, "source_path", ""),
+                    "source_system": getattr(artifact, "source_system", ""),
+                },
+                source_system="artifact_registry",
+                source_id=a_id,
+                last_observed=now,
+            )
+            if self._add_entity(entity):
+                count += 1
+
+            for ref in getattr(artifact, "entity_refs", []):
+                self._add_relation(RealityRelation(
+                    source_id=f"art-{a_id}",
+                    target_id=ref,
+                    relation_type=RealityRelationType.DOCUMENTS,
+                ))
         return count
 
     # ── Summary ───────────────────────────────────────────────────────
