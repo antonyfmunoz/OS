@@ -683,6 +683,11 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "CapabilityEvidence": ["substrate.organism.capability_runtime"],
     "EmergentCapability": ["substrate.organism.capability_runtime"],
     "CapabilityRuntime": ["substrate.organism.capability_runtime"],
+    # Gate 6 — Operationalization Runtime
+    "OperationalizationForm": ["substrate.organism.operationalization_runtime"],
+    "OperationalizationStatus": ["substrate.organism.operationalization_runtime"],
+    "Operationalization": ["substrate.organism.operationalization_runtime"],
+    "OperationalizationRuntime": ["substrate.organism.operationalization_runtime"],
 }
 
 
