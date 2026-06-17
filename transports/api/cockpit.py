@@ -833,3 +833,17 @@ def _mount_infrastructure_router() -> None:
 
 
 _mount_infrastructure_router()
+
+
+def _mount_compounding_router() -> None:
+    from transports.api import cockpit_compounding_routes
+
+    cockpit_compounding_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_compounding_routes.compounding_router,
+    )
+
+
+_mount_compounding_router()
