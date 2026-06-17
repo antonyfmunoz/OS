@@ -791,3 +791,17 @@ def _mount_capability_router() -> None:
 
 
 _mount_capability_router()
+
+
+def _mount_operationalization_router() -> None:
+    from transports.api import cockpit_operationalization_routes
+
+    cockpit_operationalization_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_operationalization_routes.operationalization_router,
+    )
+
+
+_mount_operationalization_router()
