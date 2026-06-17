@@ -634,6 +634,22 @@ def _mount_agent_fleet_router() -> None:
 
 _mount_agent_fleet_router()
 
+# ── W2: Meta IDE convergence routes ───────────────────────────────────────
+
+
+def _mount_meta_ide_conv_router() -> None:
+    from transports.api import cockpit_meta_ide_conv_routes
+
+    cockpit_meta_ide_conv_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_meta_ide_conv_routes.meta_ide_conv_router,
+    )
+
+
+_mount_meta_ide_conv_router()
+
 # ── Phase 29: State Authority routes ──────────────────────────────────────
 
 
