@@ -602,6 +602,22 @@ def _mount_umh_node_router() -> None:
 
 _mount_umh_node_router()
 
+# ── W1: Unified Compute Fabric routes ─────────────────────────────────────
+
+
+def _mount_compute_fabric_router() -> None:
+    from transports.api import cockpit_compute_fabric_routes
+
+    cockpit_compute_fabric_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_compute_fabric_routes.compute_fabric_router,
+    )
+
+
+_mount_compute_fabric_router()
+
 # ── Phase 29: State Authority routes ──────────────────────────────────────
 
 
