@@ -63,6 +63,10 @@ import { MetaIDEPanel } from '../panels/MetaIDEPanel'
 import { EngineeringPanel } from '../panels/EngineeringPanel'
 import { OrganismMapPanel } from '../panels/OrganismMapPanel'
 import { IntentPanel } from '../panels/IntentPanel'
+import { CapabilityMapPanel } from '../panels/CapabilityMapPanel'
+import { UnifiedExecutionPanel } from '../panels/UnifiedExecutionPanel'
+import { BuildLoopPanel } from '../panels/BuildLoopPanel'
+import { ProjectionIntegrationPanel } from '../panels/ProjectionIntegrationPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -174,6 +178,14 @@ function ActivePanel() {
       return <OrganismMapPanel />
     case 'intent':
       return <IntentPanel />
+    case 'capabilitymap':
+      return <CapabilityMapPanel />
+    case 'unifiedexecution':
+      return <UnifiedExecutionPanel />
+    case 'buildloop':
+      return <BuildLoopPanel />
+    case 'projectionintegration':
+      return <ProjectionIntegrationPanel />
 
     default:
       return <DashboardPanel />
