@@ -688,6 +688,11 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "OperationalizationStatus": ["substrate.organism.operationalization_runtime"],
     "Operationalization": ["substrate.organism.operationalization_runtime"],
     "OperationalizationRuntime": ["substrate.organism.operationalization_runtime"],
+    # Gate 8 — Execution Graph
+    "ExecutionNodeType": ["substrate.organism.execution_graph"],
+    "LineageGap": ["substrate.organism.execution_graph"],
+    "ExecutionGraphNode": ["substrate.organism.execution_graph"],
+    "ExecutionGraph": ["substrate.organism.execution_graph"],
 }
 
 
