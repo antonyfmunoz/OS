@@ -693,6 +693,11 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "LineageGap": ["substrate.organism.execution_graph"],
     "ExecutionGraphNode": ["substrate.organism.execution_graph"],
     "ExecutionGraph": ["substrate.organism.execution_graph"],
+    # Gate 7 — Infrastructure Runtime
+    "InfrastructureType": ["substrate.organism.infrastructure_runtime"],
+    "InfrastructureHealth": ["substrate.organism.infrastructure_runtime"],
+    "InfrastructureEntity": ["substrate.organism.infrastructure_runtime"],
+    "InfrastructureRuntime": ["substrate.organism.infrastructure_runtime"],
 }
 
 
