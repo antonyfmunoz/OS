@@ -574,6 +574,16 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ComputeNode": ["substrate.organism.compute_fabric_runtime"],
     "RoutingDecision": ["substrate.organism.compute_fabric_runtime"],
     "ComputeFabricRuntime": ["substrate.organism.compute_fabric_runtime"],
+    # W3: Agent Fleet Runtime
+    "FleetDispatchStatus": ["substrate.organism.agent_fleet_runtime"],
+    "AssignmentRationale": ["substrate.organism.agent_fleet_runtime"],
+    "FleetAssignment": ["substrate.organism.agent_fleet_runtime"],
+    "FleetDispatch": ["substrate.organism.agent_fleet_runtime"],
+    "FleetDispatchResult": ["substrate.organism.agent_fleet_runtime"],
+    "FleetSnapshot": ["substrate.organism.agent_fleet_runtime"],
+    "FleetHealth": ["substrate.organism.agent_fleet_runtime"],
+    "WaveResult": ["substrate.organism.agent_fleet_runtime"],
+    "AgentFleetRuntime": ["substrate.organism.agent_fleet_runtime"],
     # Phase 29: State Authority Graph
     "StateDomain": ["substrate.organism.state_authority_graph"],
     "StateAuthorityLevel": ["substrate.organism.state_authority_graph"],
