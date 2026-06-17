@@ -1122,3 +1122,13 @@ def _mount_c6_routers() -> None:
 
 
 _mount_c6_routers()
+
+
+def _mount_strategic_router() -> None:
+    from transports.api import cockpit_strategic_routes
+
+    r = cockpit_strategic_routes.get_router()
+    router.include_router(r)
+
+
+_mount_strategic_router()

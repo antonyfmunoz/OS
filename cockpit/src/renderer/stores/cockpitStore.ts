@@ -62,6 +62,7 @@ export type Panel =
   | 'sessionresume'
   | 'mvpreadiness'
   | 'delegation'
+  | 'strategic'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

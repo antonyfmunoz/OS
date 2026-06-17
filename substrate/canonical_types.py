@@ -283,6 +283,21 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "OpportunityDetector": ["substrate.organism.projection_engine"],
     "ProjectionGenerator": ["substrate.organism.projection_engine"],
     "ProjectionEngine": ["substrate.organism.projection_engine"],
+    # Campaign 7: Strategic Context & Executive Reasoning
+    "StrategicHealth": ["substrate.organism.strategic_context_runtime"],
+    "StrategicContext": ["substrate.organism.strategic_context_runtime"],
+    "StrategicContextRuntime": ["substrate.organism.strategic_context_runtime"],
+    "PrioritizedItem": ["substrate.organism.priority_engine"],
+    "PriorityEngine": ["substrate.organism.priority_engine"],
+    "RiskCategory": ["substrate.organism.risk_engine"],
+    "UnifiedRisk": ["substrate.organism.risk_engine"],
+    "RiskEngine": ["substrate.organism.risk_engine"],
+    "UnifiedRecommendation": ["substrate.organism.recommendation_engine"],
+    "DriftType": ["substrate.organism.drift_detection_engine"],
+    "UnifiedDriftWarning": ["substrate.organism.drift_detection_engine"],
+    "DriftDetectionEngine": ["substrate.organism.drift_detection_engine"],
+    "ExecutiveBrief": ["substrate.organism.executive_brief_runtime"],
+    "ExecutiveBriefRuntime": ["substrate.organism.executive_brief_runtime"],
     # Phase 7: Continuity Runtime
     "AttentionState": ["substrate.organism.continuity_runtime"],
     "TimelineEventType": ["substrate.organism.continuity_runtime"],
@@ -921,6 +936,7 @@ LEGACY_DUPLICATES: dict[str, set[str]] = {
     "nodes.environments.execution_binding_contracts": {"EnvironmentType"},
     # Pre-Phase-26 types that share names with new canonical action types
     "substrate.organism.next_action_engine": {"ActionCategory", "ActionResult"},
+    "substrate.organism.recommendation_engine": {"RecommendationEngine"},
     "substrate.execution.bridge.actions": {"ActionStatus", "ActionResult"},
     "substrate.composition.mastery.research.extraction": {"ActionCategory"},
 }
