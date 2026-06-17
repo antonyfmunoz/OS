@@ -594,6 +594,14 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "MergeResult": ["substrate.organism.meta_ide_runtime"],
     "IDEStatusSnapshot": ["substrate.organism.meta_ide_runtime"],
     "MetaIDERuntime": ["substrate.organism.meta_ide_runtime"],
+    # W4: Embodiment Runtime
+    "IntentType": ["substrate.organism.embodiment_runtime"],
+    "IntentClassification": ["substrate.organism.embodiment_runtime"],
+    "EmbodimentContext": ["substrate.organism.embodiment_runtime"],
+    "EmbodimentResponse": ["substrate.organism.embodiment_runtime"],
+    "ProcessedIntent": ["substrate.organism.embodiment_runtime"],
+    "RoutingAccuracyReport": ["substrate.organism.embodiment_runtime"],
+    "EmbodimentRuntime": ["substrate.organism.embodiment_runtime"],
     # Phase 29: State Authority Graph
     "StateDomain": ["substrate.organism.state_authority_graph"],
     "StateAuthorityLevel": ["substrate.organism.state_authority_graph"],
