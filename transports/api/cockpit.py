@@ -819,3 +819,17 @@ def _mount_execution_graph_router() -> None:
 
 
 _mount_execution_graph_router()
+
+
+def _mount_infrastructure_router() -> None:
+    from transports.api import cockpit_infrastructure_routes
+
+    cockpit_infrastructure_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_infrastructure_routes.infrastructure_router,
+    )
+
+
+_mount_infrastructure_router()
