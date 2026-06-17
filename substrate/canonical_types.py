@@ -677,6 +677,36 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # Gate 4 — Operator Attention Engine
     "AttentionItem": ["substrate.operator.operator_attention_engine"],
     "OperatorAttentionEngine": ["substrate.operator.operator_attention_engine"],
+    # Gate 5 — Capability Runtime
+    "CapabilityMaturity": ["substrate.organism.capability_runtime"],
+    "CapabilityEvidenceType": ["substrate.organism.capability_runtime"],
+    "CapabilityEvidence": ["substrate.organism.capability_runtime"],
+    "EmergentCapability": ["substrate.organism.capability_runtime"],
+    "CapabilityRuntime": ["substrate.organism.capability_runtime"],
+    # Gate 6 — Operationalization Runtime
+    "OperationalizationForm": ["substrate.organism.operationalization_runtime"],
+    "OperationalizationStatus": ["substrate.organism.operationalization_runtime"],
+    "Operationalization": ["substrate.organism.operationalization_runtime"],
+    "OperationalizationRuntime": ["substrate.organism.operationalization_runtime"],
+    # Gate 8 — Execution Graph
+    "ExecutionNodeType": ["substrate.organism.execution_graph"],
+    "LineageGap": ["substrate.organism.execution_graph"],
+    "ExecutionGraphNode": ["substrate.organism.execution_graph"],
+    "ExecutionGraph": ["substrate.organism.execution_graph"],
+    # Gate 7 — Infrastructure Runtime
+    "InfrastructureType": ["substrate.organism.infrastructure_runtime"],
+    "InfrastructureHealth": ["substrate.organism.infrastructure_runtime"],
+    "InfrastructureEntity": ["substrate.organism.infrastructure_runtime"],
+    "InfrastructureRuntime": ["substrate.organism.infrastructure_runtime"],
+    # Gate 9 — Compounding Engine
+    "PromotionType": ["substrate.organism.compounding_engine"],
+    "PromotionStatus": ["substrate.organism.compounding_engine"],
+    "PromotionCandidate": ["substrate.organism.compounding_engine"],
+    "CompoundingEngine": ["substrate.organism.compounding_engine"],
+    # Gate 10 — Projection Consumption Layer
+    "ProjectionRegistration": ["substrate.sockets.projection_port"],
+    "ProjectionPortProtocol": ["substrate.sockets.projection_port"],
+    "ProjectionPort": ["substrate.sockets.projection_port"],
 }
 
 

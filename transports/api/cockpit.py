@@ -774,3 +774,90 @@ def _mount_activity_router() -> None:
 
 
 _mount_activity_router()
+
+
+# ── Gate 5: Capability Runtime ──────────────────────────────────
+
+
+def _mount_capability_router() -> None:
+    from transports.api import cockpit_capability_routes
+
+    cockpit_capability_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_capability_routes.capability_router,
+    )
+
+
+_mount_capability_router()
+
+
+def _mount_operationalization_router() -> None:
+    from transports.api import cockpit_operationalization_routes
+
+    cockpit_operationalization_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_operationalization_routes.operationalization_router,
+    )
+
+
+_mount_operationalization_router()
+
+
+def _mount_execution_graph_router() -> None:
+    from transports.api import cockpit_execution_graph_routes
+
+    cockpit_execution_graph_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_execution_graph_routes.execution_graph_router,
+    )
+
+
+_mount_execution_graph_router()
+
+
+def _mount_infrastructure_router() -> None:
+    from transports.api import cockpit_infrastructure_routes
+
+    cockpit_infrastructure_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_infrastructure_routes.infrastructure_router,
+    )
+
+
+_mount_infrastructure_router()
+
+
+def _mount_compounding_router() -> None:
+    from transports.api import cockpit_compounding_routes
+
+    cockpit_compounding_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_compounding_routes.compounding_router,
+    )
+
+
+_mount_compounding_router()
+
+
+def _mount_projection_router() -> None:
+    from transports.api import cockpit_projection_routes
+
+    cockpit_projection_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_projection_routes.projection_router,
+    )
+
+
+_mount_projection_router()
