@@ -856,6 +856,34 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ResolutionStrategy": ["substrate.organism.context_resolution"],
     "ResolvedContext": ["substrate.organism.context_resolution"],
     "ContextResolutionEngine": ["substrate.organism.context_resolution"],
+
+    # Campaign 6.0 — Artifact Registry
+    "ArtifactType": ["substrate.organism.artifact_registry"],
+    "ArtifactStatus": ["substrate.organism.artifact_registry"],
+    "ArtifactEntry": ["substrate.organism.artifact_registry"],
+    "ArtifactRegistry": ["substrate.organism.artifact_registry"],
+
+    # Campaign 6.1 — Repository Awareness
+    "FileCategory": ["substrate.organism.repository_awareness_runtime"],
+    "FileEntry": ["substrate.organism.repository_awareness_runtime"],
+    "RepositorySnapshot": ["substrate.organism.repository_awareness_runtime"],
+    "RepositoryAwarenessRuntime": ["substrate.organism.repository_awareness_runtime"],
+
+    # Campaign 6.2 — Documentation Awareness
+    "DocumentStatus": ["substrate.organism.documentation_awareness_runtime"],
+    "DocumentEntry": ["substrate.organism.documentation_awareness_runtime"],
+    "DocumentationSnapshot": ["substrate.organism.documentation_awareness_runtime"],
+    "DocumentationAwarenessRuntime": ["substrate.organism.documentation_awareness_runtime"],
+
+    # Campaign 6.3 — Runtime Awareness
+    "RuntimeAwarenessSnapshot": ["substrate.organism.runtime_awareness_runtime"],
+    "RuntimeAwarenessRuntime": ["substrate.organism.runtime_awareness_runtime"],
+
+    # Campaign 6.4 — Knowledge Awareness
+    "KnowledgeType": ["substrate.organism.knowledge_awareness_runtime"],
+    "KnowledgeEntry": ["substrate.organism.knowledge_awareness_runtime"],
+    "KnowledgeSnapshot": ["substrate.organism.knowledge_awareness_runtime"],
+    "KnowledgeAwarenessRuntime": ["substrate.organism.knowledge_awareness_runtime"],
 }
 
 

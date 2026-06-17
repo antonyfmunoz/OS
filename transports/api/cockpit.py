@@ -1105,3 +1105,20 @@ def _mount_context_resolution_router() -> None:
 
 _mount_reality_graph_router()
 _mount_context_resolution_router()
+
+
+def _mount_c6_routers() -> None:
+    from transports.api.cockpit_artifact_registry_routes import router as artifact_router
+    from transports.api.cockpit_repository_awareness_routes import router as repo_router
+    from transports.api.cockpit_documentation_awareness_routes import router as doc_router
+    from transports.api.cockpit_runtime_awareness_routes import router as runtime_router
+    from transports.api.cockpit_knowledge_awareness_routes import router as knowledge_router
+
+    router.include_router(artifact_router)
+    router.include_router(repo_router)
+    router.include_router(doc_router)
+    router.include_router(runtime_router)
+    router.include_router(knowledge_router)
+
+
+_mount_c6_routers()

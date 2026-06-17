@@ -47,6 +47,13 @@ class ResolvedContext:
     projection: str = ""
     documents: list[dict[str, Any]] = field(default_factory=list)
     infrastructure: list[dict[str, Any]] = field(default_factory=list)
+    # Campaign 6 — Operational Reality Model fields
+    files: list[dict[str, Any]] = field(default_factory=list)
+    decisions: list[dict[str, Any]] = field(default_factory=list)
+    active_work: list[dict[str, Any]] = field(default_factory=list)
+    approvals: list[dict[str, Any]] = field(default_factory=list)
+    constraints: list[dict[str, Any]] = field(default_factory=list)
+    knowledge: list[dict[str, Any]] = field(default_factory=list)
     unresolved_references: list[str] = field(default_factory=list)
     resolution_chain: list[dict[str, str]] = field(default_factory=list)
     confidence: float = 0.0
@@ -66,6 +73,12 @@ class ResolvedContext:
             "projection": self.projection,
             "documents": self.documents,
             "infrastructure": self.infrastructure,
+            "files": self.files,
+            "decisions": self.decisions,
+            "active_work": self.active_work,
+            "approvals": self.approvals,
+            "constraints": self.constraints,
+            "knowledge": self.knowledge,
             "unresolved_references": self.unresolved_references,
             "resolution_chain": self.resolution_chain,
             "confidence": self.confidence,
@@ -134,11 +147,19 @@ class ContextResolutionEngine:
         workspace_awareness: Any = None,
         project_registry: Any = None,
         device_awareness: Any = None,
+        repository_runtime: Any = None,
+        documentation_runtime: Any = None,
+        runtime_awareness: Any = None,
+        knowledge_runtime: Any = None,
     ) -> None:
         self._graph = reality_graph
         self._workspace = workspace_awareness
         self._projects = project_registry
         self._devices = device_awareness
+        self._repo_runtime = repository_runtime
+        self._doc_runtime = documentation_runtime
+        self._runtime_awareness = runtime_awareness
+        self._knowledge_runtime = knowledge_runtime
 
     def resolve(self, text: str) -> ResolvedContext:
         """Main entry: natural language → fully resolved context."""
@@ -151,6 +172,7 @@ class ContextResolutionEngine:
 
         self._resolve_from_candidates(candidates, ctx)
         self._enrich_from_graph(ctx)
+        self._enrich_from_runtimes(ctx)
         self._merge_active_context(ctx)
         self._compute_confidence(ctx)
 
@@ -332,6 +354,76 @@ class ContextResolutionEngine:
             for n in infra_neighbors:
                 ctx.infrastructure.append({"entity_id": n.entity_id, "name": n.name})
 
+    def _enrich_from_runtimes(self, ctx: ResolvedContext) -> None:
+        """Enrich context from C6 operational reality runtimes."""
+        project_entity_id = f"proj-{ctx.project_id}" if ctx.project_id else ""
+
+        if self._repo_runtime is not None and ctx.project_id:
+            try:
+                if hasattr(self._repo_runtime, "find_files_for_entity") and project_entity_id:
+                    files = self._repo_runtime.find_files_for_entity(project_entity_id)
+                    ctx.files = [
+                        f.to_dict() if hasattr(f, "to_dict") else f
+                        for f in files
+                    ]
+                elif hasattr(self._repo_runtime, "snapshot"):
+                    snap = self._repo_runtime.snapshot()
+                    if snap and snap.get("important_files"):
+                        ctx.files = snap["important_files"][:10]
+                ctx.resolution_chain.append({"step": "repo_runtime_enrichment", "files_found": str(len(ctx.files))})
+            except Exception as exc:
+                logger.debug("Repository runtime enrichment failed: %s", exc)
+
+        if self._doc_runtime is not None and ctx.project_id:
+            try:
+                if hasattr(self._doc_runtime, "find_docs_for_entity") and project_entity_id:
+                    docs = self._doc_runtime.find_docs_for_entity(project_entity_id)
+                    for doc in docs:
+                        doc_dict = doc.to_dict() if hasattr(doc, "to_dict") else doc
+                        ctx.documents.append(doc_dict)
+                        if doc_dict.get("decision_count", 0) > 0:
+                            ctx.decisions.append({
+                                "source_doc": doc_dict.get("name", ""),
+                                "decision_count": doc_dict.get("decision_count", 0),
+                            })
+                        if doc_dict.get("constraint_count", 0) > 0:
+                            for _ in range(doc_dict.get("constraint_count", 0)):
+                                ctx.constraints.append({
+                                    "source_doc": doc_dict.get("name", ""),
+                                })
+                ctx.resolution_chain.append({"step": "doc_runtime_enrichment", "docs_found": str(len(ctx.documents))})
+            except Exception as exc:
+                logger.debug("Documentation runtime enrichment failed: %s", exc)
+
+        if self._runtime_awareness is not None:
+            try:
+                active = self._runtime_awareness.active_work()
+                ctx.active_work = active[:10]
+                ctx.resolution_chain.append({"step": "runtime_awareness_enrichment", "active_work": str(len(ctx.active_work))})
+            except Exception as exc:
+                logger.debug("Runtime awareness enrichment failed: %s", exc)
+
+        if self._knowledge_runtime is not None and ctx.project_id:
+            try:
+                if hasattr(self._knowledge_runtime, "find_for_entity") and project_entity_id:
+                    entries = self._knowledge_runtime.find_for_entity(project_entity_id)
+                    for entry in entries:
+                        entry_dict = entry.to_dict() if hasattr(entry, "to_dict") else entry
+                        ctx.knowledge.append(entry_dict)
+                        if entry_dict.get("knowledge_type") == "decision":
+                            ctx.decisions.append({
+                                "summary": entry_dict.get("summary", ""),
+                                "source": "knowledge_registry",
+                            })
+                        elif entry_dict.get("knowledge_type") == "constraint":
+                            ctx.constraints.append({
+                                "summary": entry_dict.get("summary", ""),
+                                "source": "knowledge_registry",
+                            })
+                ctx.resolution_chain.append({"step": "knowledge_runtime_enrichment", "knowledge_found": str(len(ctx.knowledge))})
+            except Exception as exc:
+                logger.debug("Knowledge runtime enrichment failed: %s", exc)
+
     def _merge_active_context(self, ctx: ResolvedContext) -> None:
         """Merge in active workspace/device awareness."""
         if self._workspace is not None:
@@ -353,17 +445,29 @@ class ContextResolutionEngine:
         """Score resolution confidence based on what was resolved."""
         score = 0.0
         if ctx.project_id:
-            score += 0.3
+            score += 0.25
         if ctx.repository_id:
-            score += 0.2
+            score += 0.15
         if ctx.workspace_id:
-            score += 0.15
+            score += 0.1
         if ctx.device_id:
-            score += 0.15
+            score += 0.1
         if ctx.projection:
-            score += 0.1
+            score += 0.05
         if ctx.active_device:
+            score += 0.05
+        if ctx.files:
             score += 0.1
+        if ctx.documents:
+            score += 0.1
+        if ctx.decisions:
+            score += 0.05
+        if ctx.active_work:
+            score += 0.05
+        if ctx.constraints:
+            score += 0.05
+        if ctx.knowledge:
+            score += 0.05
 
         penalty = len(ctx.unresolved_references) * 0.05
         ctx.confidence = max(0.0, min(1.0, score - penalty))
