@@ -847,3 +847,17 @@ def _mount_compounding_router() -> None:
 
 
 _mount_compounding_router()
+
+
+def _mount_projection_router() -> None:
+    from transports.api import cockpit_projection_routes
+
+    cockpit_projection_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_projection_routes.projection_router,
+    )
+
+
+_mount_projection_router()

@@ -703,6 +703,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "PromotionStatus": ["substrate.organism.compounding_engine"],
     "PromotionCandidate": ["substrate.organism.compounding_engine"],
     "CompoundingEngine": ["substrate.organism.compounding_engine"],
+    # Gate 10 — Projection Consumption Layer
+    "ProjectionRegistration": ["substrate.sockets.projection_port"],
+    "ProjectionPortProtocol": ["substrate.sockets.projection_port"],
+    "ProjectionPort": ["substrate.sockets.projection_port"],
 }
 
 
