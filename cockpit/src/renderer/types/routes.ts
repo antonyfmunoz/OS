@@ -38,6 +38,7 @@ import {
   Cog,
   RotateCcw,
   Wrench,
+  FileText,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -51,7 +52,7 @@ export interface RouteEntry {
 }
 
 export const ROUTES: RouteEntry[] = [
-  // Primary (10)
+  // ── 13 Canonical Capabilities ────────────────────────────────────
   { id: 'commandcenter', label: 'Command Center', icon: Target, group: 'primary', visibility: 'primary', key: 'q' },
   { id: 'work', label: 'Work', icon: ListChecks, group: 'primary', visibility: 'primary', key: '3' },
   { id: 'agents', label: 'Agents', icon: Bot, group: 'primary', visibility: 'primary', key: '2' },
@@ -59,53 +60,64 @@ export const ROUTES: RouteEntry[] = [
   { id: 'activity', label: 'Activity', icon: Activity, group: 'primary', visibility: 'primary', key: '9' },
   { id: 'editor', label: 'Meta IDE', icon: Code2, group: 'primary', visibility: 'primary', key: '7' },
   { id: 'execution', label: 'Execution', icon: Layers, group: 'primary', visibility: 'primary', key: '0' },
-  { id: 'infrastructure', label: 'Infrastructure', icon: Server, group: 'primary', visibility: 'primary', key: 'i' },
+  { id: 'organismmap', label: 'Organism Map', icon: Brain, group: 'primary', visibility: 'primary', key: 'i' },
   { id: 'rooms', label: 'Conference Rooms', icon: Radio, group: 'primary', visibility: 'primary', key: 'j' },
-  { id: 'comms', label: 'Comms', icon: MessageSquare, group: 'primary', visibility: 'primary', key: 'm' },
   { id: 'vision', label: 'Vision', icon: Camera, group: 'primary', visibility: 'primary', key: 'v' },
   { id: 'broadcast', label: 'Broadcast', icon: Cast, group: 'primary', visibility: 'primary', key: 'b' },
-  { id: 'strategy', label: 'Strategy', icon: Crosshair, group: 'primary', visibility: 'primary', key: 's' },
-  { id: 'tickloop', label: 'Tick Loop', icon: Activity, group: 'primary', visibility: 'primary', key: 'l' },
-  { id: 'projections', label: 'Projections', icon: TrendingUp, group: 'primary', visibility: 'primary', key: 'f' },
-  { id: 'continuity', label: 'Continuity', icon: RefreshCw, group: 'primary', visibility: 'primary', key: 'y' },
-  { id: 'presence', label: 'Presence', icon: Eye, group: 'primary', visibility: 'primary', key: 'e' },
-  { id: 'commands', label: 'Commands', icon: Zap, group: 'primary', visibility: 'primary', key: 'z' },
-  { id: 'workstation', label: 'Workstation', icon: Monitor, group: 'primary', visibility: 'primary', key: 'k' },
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'primary', visibility: 'primary', key: '5' },
 
   // System (1)
   { id: 'settings', label: 'Settings', icon: Settings, group: 'system', visibility: 'system', key: '8' },
 
-  // Dev (searchable with [DEV] badge)
+  // ── Dev (searchable with [DEV] badge) ────────────────────────────
+  // Gate 4: Intent Runtime (access via Command Center, dev-visible for direct debugging)
+  { id: 'intent', label: 'Intent', icon: FileText, group: 'primary', visibility: 'dev', key: 'F' },
+  // Absorbed into Command Center
+  { id: 'strategy', label: 'Strategy', icon: Crosshair, group: 'primary', visibility: 'dev', key: 's' },
+  { id: 'tickloop', label: 'Tick Loop', icon: Activity, group: 'primary', visibility: 'dev', key: 'l' },
+  { id: 'projections', label: 'Projections', icon: TrendingUp, group: 'primary', visibility: 'dev', key: 'f' },
+  { id: 'continuity', label: 'Continuity', icon: RefreshCw, group: 'primary', visibility: 'dev', key: 'y' },
+  { id: 'presence', label: 'Presence', icon: Eye, group: 'primary', visibility: 'dev', key: 'e' },
+  { id: 'commands', label: 'Commands', icon: Zap, group: 'primary', visibility: 'dev', key: 'z' },
+  { id: 'comms', label: 'Comms', icon: MessageSquare, group: 'primary', visibility: 'dev', key: 'm' },
+  // Absorbed into Meta IDE
+  { id: 'workstation', label: 'Workstation', icon: Monitor, group: 'primary', visibility: 'dev', key: 'k' },
+  // Absorbed into Organism Map
+  { id: 'infrastructure', label: 'Infrastructure', icon: Server, group: 'primary', visibility: 'dev', key: 'h' },
+  // Absorbed into Execution
+  { id: 'sessions', label: 'Sessions', icon: MonitorSmartphone, group: 'primary', visibility: 'dev', key: 'n' },
+  { id: 'execcoord', label: 'Exec Coordinator', icon: Cog, group: 'primary', visibility: 'dev', key: 'H' },
+  { id: 'executor', label: 'Executor', icon: Play, group: 'primary', visibility: 'dev', key: 'x' },
+  { id: 'organismloop', label: 'Organism Loop', icon: RotateCcw, group: 'primary', visibility: 'dev', key: 'O' },
+  { id: 'operatortimeline', label: 'Operator Timeline', icon: Activity, group: 'primary', visibility: 'dev', key: 'T' },
+  // Absorbed into Activity
+  { id: 'realitytimeline', label: 'Reality Timeline', icon: Eye, group: 'primary', visibility: 'dev', key: 'R' },
+  // Absorbed into Meta IDE
+  { id: 'realityintelligence', label: 'Reality Intelligence', icon: Brain, group: 'primary', visibility: 'dev', key: 'I' },
+  { id: 'metaide', label: 'Meta IDE (Legacy)', icon: Code2, group: 'primary', visibility: 'dev', key: 'M' },
+  { id: 'engineering', label: 'Engineering', icon: Wrench, group: 'primary', visibility: 'dev', key: 'E' },
+  // Standalone dev panels
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'primary', visibility: 'dev', key: '1' },
   { id: 'organism', label: 'Organism', icon: Brain, group: 'primary', visibility: 'dev', key: 'o' },
-  { id: 'intelligence', label: 'Intelligence', icon: Lightbulb, group: 'primary', visibility: 'dev', key: 'n' },
+  { id: 'intelligence', label: 'Intelligence', icon: Lightbulb, group: 'primary', visibility: 'dev', key: 'N' },
   { id: 'propagation', label: 'Propagation', icon: Workflow, group: 'primary', visibility: 'dev', key: 'g' },
   { id: 'operator', label: 'Operator', icon: Mic, group: 'primary', visibility: 'dev', key: 'd' },
   { id: 'tmux', label: 'Tmux', icon: Terminal, group: 'primary', visibility: 'dev', key: 't' },
   { id: 'runtime', label: 'Runtime', icon: Play, group: 'primary', visibility: 'dev', key: 'r' },
-  { id: 'selfbuild', label: 'Self-Build', icon: Hammer, group: 'primary', visibility: 'dev', key: 'b' },
+  { id: 'selfbuild', label: 'Self-Build', icon: Hammer, group: 'primary', visibility: 'dev', key: 'B' },
   { id: 'universalwork', label: 'Universal Work', icon: Layers, group: 'primary', visibility: 'dev', key: 'w' },
-  { id: 'worldmodel', label: 'World Model', icon: Globe, group: 'primary', visibility: 'dev', key: 'g' },
+  { id: 'worldmodel', label: 'World Model', icon: Globe, group: 'primary', visibility: 'dev', key: 'G' },
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, group: 'primary', visibility: 'dev', key: 'p' },
   { id: 'company', label: 'Company', icon: Building2, group: 'primary', visibility: 'dev', key: 'c' },
+  { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'dev', key: 'u' },
 
   // Planned (searchable with [PLANNED] badge)
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'primary', visibility: 'planned', key: '6' },
 
   // Stub (NOT searchable)
-  { id: 'tracking', label: 'Tracking', icon: Target, group: 'primary', visibility: 'stub', key: 't' },
-  { id: 'experiments', label: 'Experiments', icon: FlaskConical, group: 'primary', visibility: 'stub', key: 'x' },
-  { id: 'sessions', label: 'Sessions', icon: MonitorSmartphone, group: 'primary', visibility: 'primary', key: 'n' },
-  { id: 'execcoord', label: 'Exec Coordinator', icon: Cog, group: 'primary', visibility: 'primary', key: 'h' },
-  { id: 'executor', label: 'Executor', icon: Play, group: 'primary', visibility: 'primary', key: 'x' },
-  { id: 'organismloop', label: 'Organism Loop', icon: RotateCcw, group: 'primary', visibility: 'primary', key: 'O' },
-  { id: 'operatortimeline', label: 'Operator Timeline', icon: Activity, group: 'primary', visibility: 'primary', key: 'T' },
-  { id: 'realitytimeline', label: 'Reality Timeline', icon: Eye, group: 'primary', visibility: 'primary', key: 'R' },
-  { id: 'realityintelligence', label: 'Reality Intelligence', icon: Brain, group: 'primary', visibility: 'primary', key: 'I' },
-  { id: 'metaide', label: 'Meta IDE', icon: Code2, group: 'primary', visibility: 'primary', key: 'M' },
-  { id: 'engineering', label: 'Engineering', icon: Wrench, group: 'primary', visibility: 'primary', key: 'E' },
-  { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'primary', key: 'u' },
+  { id: 'tracking', label: 'Tracking', icon: Target, group: 'primary', visibility: 'stub', key: 'A' },
+  { id: 'experiments', label: 'Experiments', icon: FlaskConical, group: 'primary', visibility: 'stub', key: 'X' },
+  { id: 'workspace', label: 'Workspace', icon: Monitor, group: 'primary', visibility: 'stub', key: 'W' },
 ]
 
 export const ROUTE_GROUPS = [

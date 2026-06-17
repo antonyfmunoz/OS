@@ -178,4 +178,83 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             "overall_risk": summary.overall_risk.value,
         }
 
+    @r.get("/meta-ide/context", dependencies=auth)
+    async def _context() -> dict[str, Any]:
+        """Engineering context — current screen, active repo, focus state."""
+        try:
+            from substrate.operator.screen_observation_engine import ScreenObservationEngine
+            soe = ScreenObservationEngine()
+            snap = soe.current_snapshot()
+            snap_dict = snap.to_dict() if hasattr(snap, "to_dict") else {}
+
+            active_app = soe.active_application()
+            active_repo = soe.active_repository()
+            active_file = soe.active_file()
+
+            return {
+                "snapshot": snap_dict,
+                "active_application": _safe_dict(active_app),
+                "active_repository": _safe_dict(active_repo),
+                "active_file": _safe_dict(active_file),
+                "provider_status": soe.provider_status(),
+            }
+        except Exception:
+            logger.debug("ScreenObservationEngine unavailable for context")
+            return {
+                "snapshot": {},
+                "active_application": {},
+                "active_repository": {},
+                "active_file": {},
+                "provider_status": {},
+            }
+
+    @r.get("/meta-ide/engineering-state", dependencies=auth)
+    async def _engineering_state() -> dict[str, Any]:
+        """Engineering state — workspace topology, build targets, health."""
+        try:
+            from substrate.meta_ide.workspace_topology_engine import WorkspaceTopologyEngine
+            wte = WorkspaceTopologyEngine()
+            topo = wte.topology()
+            topo_dict = topo.to_dict() if hasattr(topo, "to_dict") else {}
+
+            return {
+                "topology": topo_dict,
+                "registry": _safe_dict(wte.registry()) if hasattr(wte, "registry") else {},
+            }
+        except Exception:
+            logger.debug("WorkspaceTopologyEngine unavailable for engineering-state")
+            return {"topology": {}, "registry": {}}
+
+    @r.get("/meta-ide/screen-history", dependencies=auth)
+    async def _screen_history(
+        limit: int = Query(20, description="Max snapshots"),
+    ) -> dict[str, Any]:
+        """Screen observation history."""
+        try:
+            from substrate.operator.screen_observation_engine import ScreenObservationEngine
+            soe = ScreenObservationEngine()
+            history = soe.history(limit=limit)
+            return {
+                "snapshots": [
+                    s.to_dict() if hasattr(s, "to_dict") else {}
+                    for s in history
+                ],
+                "count": len(history),
+            }
+        except Exception:
+            logger.debug("ScreenObservationEngine.history unavailable")
+            return {"snapshots": [], "count": 0}
+
     return r
+
+
+def _safe_dict(obj: Any) -> dict[str, Any]:
+    if obj is None:
+        return {}
+    if isinstance(obj, dict):
+        return obj
+    if hasattr(obj, "to_dict"):
+        return obj.to_dict()
+    if hasattr(obj, "__dict__"):
+        return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
+    return {"value": str(obj)}
