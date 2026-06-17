@@ -698,6 +698,11 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "InfrastructureHealth": ["substrate.organism.infrastructure_runtime"],
     "InfrastructureEntity": ["substrate.organism.infrastructure_runtime"],
     "InfrastructureRuntime": ["substrate.organism.infrastructure_runtime"],
+    # Gate 9 — Compounding Engine
+    "PromotionType": ["substrate.organism.compounding_engine"],
+    "PromotionStatus": ["substrate.organism.compounding_engine"],
+    "PromotionCandidate": ["substrate.organism.compounding_engine"],
+    "CompoundingEngine": ["substrate.organism.compounding_engine"],
 }
 
 
