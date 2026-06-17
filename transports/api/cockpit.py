@@ -618,6 +618,22 @@ def _mount_compute_fabric_router() -> None:
 
 _mount_compute_fabric_router()
 
+# ── W3: Agent Fleet routes ─────────────────────────────────────────────────
+
+
+def _mount_agent_fleet_router() -> None:
+    from transports.api import cockpit_agent_fleet_routes
+
+    cockpit_agent_fleet_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_agent_fleet_routes.agent_fleet_router,
+    )
+
+
+_mount_agent_fleet_router()
+
 # ── Phase 29: State Authority routes ──────────────────────────────────────
 
 
