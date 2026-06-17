@@ -602,6 +602,17 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ProcessedIntent": ["substrate.organism.embodiment_runtime"],
     "RoutingAccuracyReport": ["substrate.organism.embodiment_runtime"],
     "EmbodimentRuntime": ["substrate.organism.embodiment_runtime"],
+    # W5: Operator Migration Runtime
+    "ExitReason": ["substrate.organism.operator_migration_runtime"],
+    "MigrationStatus": ["substrate.organism.operator_migration_runtime"],
+    "ExitEvent": ["substrate.organism.operator_migration_runtime"],
+    "ExitClassification": ["substrate.organism.operator_migration_runtime"],
+    "MigrationPriority": ["substrate.organism.operator_migration_runtime"],
+    "CoverageReport": ["substrate.organism.operator_migration_runtime"],
+    "OperationalizationSuggestion": ["substrate.organism.operator_migration_runtime"],
+    "Migration": ["substrate.organism.operator_migration_runtime"],
+    "MigrationStatusSnapshot": ["substrate.organism.operator_migration_runtime"],
+    "OperatorMigrationRuntime": ["substrate.organism.operator_migration_runtime"],
     # Phase 29: State Authority Graph
     "StateDomain": ["substrate.organism.state_authority_graph"],
     "StateAuthorityLevel": ["substrate.organism.state_authority_graph"],
