@@ -67,6 +67,12 @@ import { CapabilityMapPanel } from '../panels/CapabilityMapPanel'
 import { UnifiedExecutionPanel } from '../panels/UnifiedExecutionPanel'
 import { BuildLoopPanel } from '../panels/BuildLoopPanel'
 import { ProjectionIntegrationPanel } from '../panels/ProjectionIntegrationPanel'
+import { OrchestratorPanel } from '../panels/OrchestratorPanel'
+import { OperatingLoopPanel } from '../panels/OperatingLoopPanel'
+import { SessionResumePanel } from '../panels/SessionResumePanel'
+import { MVPReadinessPanel } from '../panels/MVPReadinessPanel'
+import { DelegationPanel } from '../panels/DelegationPanel'
+import { RealityGraphPanel } from '../panels/RealityGraphPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -186,6 +192,18 @@ function ActivePanel() {
       return <BuildLoopPanel />
     case 'projectionintegration':
       return <ProjectionIntegrationPanel />
+    case 'orchestratorawareness':
+      return <OrchestratorPanel />
+    case 'operatingloopview':
+      return <OperatingLoopPanel />
+    case 'sessionresume':
+      return <SessionResumePanel />
+    case 'mvpreadiness':
+      return <MVPReadinessPanel />
+    case 'delegation':
+      return <DelegationPanel />
+    case 'realitygraph':
+      return <RealityGraphPanel />
 
     default:
       return <DashboardPanel />

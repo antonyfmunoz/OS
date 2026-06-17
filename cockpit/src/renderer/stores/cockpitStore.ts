@@ -57,6 +57,11 @@ export type Panel =
   | 'unifiedexecution'
   | 'buildloop'
   | 'projectionintegration'
+  | 'orchestratorawareness'
+  | 'operatingloopview'
+  | 'sessionresume'
+  | 'mvpreadiness'
+  | 'delegation'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

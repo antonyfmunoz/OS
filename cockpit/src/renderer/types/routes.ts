@@ -42,6 +42,7 @@ import {
   Map,
   Merge,
   Puzzle,
+  CheckCircle2,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -78,6 +79,13 @@ export const ROUTES: RouteEntry[] = [
   { id: 'unifiedexecution', label: 'Unified Execution', icon: Merge, group: 'primary', visibility: 'primary', key: 'U' },
   { id: 'buildloop', label: 'Build Loop', icon: Hammer, group: 'primary', visibility: 'primary', key: 'L' },
   { id: 'projectionintegration', label: 'Projection Integration', icon: Puzzle, group: 'primary', visibility: 'primary', key: 'P' },
+  // Campaign 4 — Operator-Orchestrator Convergence
+  { id: 'orchestratorawareness', label: 'Orchestrator', icon: Brain, group: 'primary', visibility: 'primary', key: 'a' },
+  { id: 'operatingloopview', label: 'Operating Loop', icon: RotateCcw, group: 'primary', visibility: 'primary', key: 'D' },
+  { id: 'sessionresume', label: 'Session Resume', icon: MonitorSmartphone, group: 'primary', visibility: 'primary', key: 'S' },
+  { id: 'mvpreadiness', label: 'MVP Readiness', icon: CheckCircle2, group: 'primary', visibility: 'dev', key: 'V' },
+  // Campaign 4.7 — Cockpit Delegation
+  { id: 'delegation', label: 'Delegation', icon: Workflow, group: 'primary', visibility: 'primary', key: 'Y' },
   // Gate 4: Intent Runtime (access via Command Center, dev-visible for direct debugging)
   { id: 'intent', label: 'Intent', icon: FileText, group: 'primary', visibility: 'dev', key: 'F' },
   // Absorbed into Command Center
@@ -115,6 +123,7 @@ export const ROUTES: RouteEntry[] = [
   { id: 'selfbuild', label: 'Self-Build', icon: Hammer, group: 'primary', visibility: 'dev', key: 'B' },
   { id: 'universalwork', label: 'Universal Work', icon: Layers, group: 'primary', visibility: 'dev', key: 'w' },
   { id: 'worldmodel', label: 'World Model', icon: Globe, group: 'primary', visibility: 'dev', key: 'G' },
+  { id: 'realitygraph', label: 'Reality Graph', icon: Map, group: 'primary', visibility: 'dev', key: 'g' },
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, group: 'primary', visibility: 'dev', key: 'p' },
   { id: 'company', label: 'Company', icon: Building2, group: 'primary', visibility: 'dev', key: 'c' },
   { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'dev', key: 'u' },
