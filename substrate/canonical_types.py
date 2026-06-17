@@ -584,6 +584,16 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "FleetHealth": ["substrate.organism.agent_fleet_runtime"],
     "WaveResult": ["substrate.organism.agent_fleet_runtime"],
     "AgentFleetRuntime": ["substrate.organism.agent_fleet_runtime"],
+    # W2: Meta IDE Runtime
+    "ReviewStatus": ["substrate.organism.meta_ide_runtime"],
+    "DevelopmentPhase": ["substrate.organism.meta_ide_runtime"],
+    "WorkspaceSnapshot": ["substrate.organism.meta_ide_runtime"],
+    "IDEPlan": ["substrate.organism.meta_ide_runtime"],
+    "DevelopmentStream": ["substrate.organism.meta_ide_runtime"],
+    "ReviewDetail": ["substrate.organism.meta_ide_runtime"],
+    "MergeResult": ["substrate.organism.meta_ide_runtime"],
+    "IDEStatusSnapshot": ["substrate.organism.meta_ide_runtime"],
+    "MetaIDERuntime": ["substrate.organism.meta_ide_runtime"],
     # Phase 29: State Authority Graph
     "StateDomain": ["substrate.organism.state_authority_graph"],
     "StateAuthorityLevel": ["substrate.organism.state_authority_graph"],
