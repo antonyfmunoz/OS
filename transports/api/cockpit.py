@@ -666,6 +666,22 @@ def _mount_embodiment_router() -> None:
 
 _mount_embodiment_router()
 
+# ── W5: Operator Migration routes ─────────────────────────────────────────
+
+
+def _mount_migration_router() -> None:
+    from transports.api import cockpit_migration_routes
+
+    cockpit_migration_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_migration_routes.migration_router,
+    )
+
+
+_mount_migration_router()
+
 # ── Phase 29: State Authority routes ──────────────────────────────────────
 
 
