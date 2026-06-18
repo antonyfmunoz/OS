@@ -167,37 +167,35 @@ class TestOrganismPortfolioSnapshot:
 
 
 class TestNoDeps:
+    @classmethod
+    def setup_class(cls) -> None:
+        cls.rt = OrganismPortfolioRuntime()
+
     def test_coherence_score_returns_float(self) -> None:
-        rt = OrganismPortfolioRuntime()
-        score = rt.coherence_score()
+        score = self.rt.coherence_score()
         assert isinstance(score, float)
         assert 0.0 <= score <= 1.0
 
     def test_subsystem_health_returns_list(self) -> None:
-        rt = OrganismPortfolioRuntime()
-        entries = rt.subsystem_health()
+        entries = self.rt.subsystem_health()
         assert isinstance(entries, list)
         assert len(entries) == 8
 
     def test_drift_warnings_returns_list(self) -> None:
-        rt = OrganismPortfolioRuntime()
-        warnings = rt.drift_warnings()
+        warnings = self.rt.drift_warnings()
         assert isinstance(warnings, list)
 
     def test_health_returns_enum(self) -> None:
-        rt = OrganismPortfolioRuntime()
-        h = rt.health()
+        h = self.rt.health()
         assert isinstance(h, OrganismHealth)
 
     def test_snapshot_returns_snapshot(self) -> None:
-        rt = OrganismPortfolioRuntime()
-        s = rt.snapshot()
+        s = self.rt.snapshot()
         assert isinstance(s, OrganismPortfolioSnapshot)
         assert s.generated_at > 0
 
     def test_summary_has_keys(self) -> None:
-        rt = OrganismPortfolioRuntime()
-        s = rt.summary()
+        s = self.rt.summary()
         assert "organism_health" in s
         assert "coherence_score" in s
         assert "total_drift_count" in s
