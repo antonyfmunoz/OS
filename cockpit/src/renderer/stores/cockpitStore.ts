@@ -63,6 +63,8 @@ export type Panel =
   | 'mvpreadiness'
   | 'delegation'
   | 'strategic'
+  | 'goals'
+  | 'realitygraph'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

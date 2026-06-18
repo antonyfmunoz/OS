@@ -127,6 +127,8 @@ export const ROUTES: RouteEntry[] = [
   { id: 'realitygraph', label: 'Reality Graph', icon: Map, group: 'primary', visibility: 'dev', key: 'g' },
   // Campaign 7 — Strategic Context & Executive Reasoning
   { id: 'strategic', label: 'Strategic', icon: Compass, group: 'primary', visibility: 'dev', key: '/' },
+  // Campaign 8 — Goal Systems & Strategic Planning
+  { id: 'goals', label: 'Goals', icon: Target, group: 'primary', visibility: 'primary', key: 'J' },
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, group: 'primary', visibility: 'dev', key: 'p' },
   { id: 'company', label: 'Company', icon: Building2, group: 'primary', visibility: 'dev', key: 'c' },
   { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'dev', key: 'u' },

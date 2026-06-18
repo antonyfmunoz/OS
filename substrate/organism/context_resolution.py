@@ -54,6 +54,7 @@ class ResolvedContext:
     approvals: list[dict[str, Any]] = field(default_factory=list)
     constraints: list[dict[str, Any]] = field(default_factory=list)
     knowledge: list[dict[str, Any]] = field(default_factory=list)
+    goals: list[dict[str, Any]] = field(default_factory=list)
     unresolved_references: list[str] = field(default_factory=list)
     resolution_chain: list[dict[str, str]] = field(default_factory=list)
     confidence: float = 0.0
@@ -79,6 +80,7 @@ class ResolvedContext:
             "approvals": self.approvals,
             "constraints": self.constraints,
             "knowledge": self.knowledge,
+            "goals": self.goals,
             "unresolved_references": self.unresolved_references,
             "resolution_chain": self.resolution_chain,
             "confidence": self.confidence,
@@ -151,6 +153,7 @@ class ContextResolutionEngine:
         documentation_runtime: Any = None,
         runtime_awareness: Any = None,
         knowledge_runtime: Any = None,
+        goal_registry: Any = None,
     ) -> None:
         self._graph = reality_graph
         self._workspace = workspace_awareness
@@ -160,6 +163,7 @@ class ContextResolutionEngine:
         self._doc_runtime = documentation_runtime
         self._runtime_awareness = runtime_awareness
         self._knowledge_runtime = knowledge_runtime
+        self._goal_registry = goal_registry
 
     def resolve(self, text: str) -> ResolvedContext:
         """Main entry: natural language → fully resolved context."""
@@ -173,6 +177,7 @@ class ContextResolutionEngine:
         self._resolve_from_candidates(candidates, ctx)
         self._enrich_from_graph(ctx)
         self._enrich_from_runtimes(ctx)
+        self._resolve_goals(candidates, ctx)
         self._merge_active_context(ctx)
         self._compute_confidence(ctx)
 
@@ -424,6 +429,28 @@ class ContextResolutionEngine:
             except Exception as exc:
                 logger.debug("Knowledge runtime enrichment failed: %s", exc)
 
+    def _resolve_goals(self, candidates: list[str], ctx: ResolvedContext) -> None:
+        """Match candidate names against goal titles in the registry."""
+        if self._goal_registry is None:
+            return
+        try:
+            all_goals = self._goal_registry.all_goals()
+            for goal in all_goals:
+                goal_title = goal.title.lower() if hasattr(goal, "title") else ""
+                for candidate in candidates:
+                    if candidate.lower() in goal_title or goal_title in candidate.lower():
+                        ctx.goals.append({
+                            "goal_id": goal.goal_id,
+                            "title": goal.title,
+                            "type": goal.goal_type.value if hasattr(goal.goal_type, "value") else str(goal.goal_type),
+                            "status": goal.status.value if hasattr(goal.status, "value") else str(goal.status),
+                        })
+                        break
+            if ctx.goals:
+                ctx.resolution_chain.append({"step": "goal_registry_match", "goals_found": str(len(ctx.goals))})
+        except Exception as exc:
+            logger.debug("Goal registry resolution failed: %s", exc)
+
     def _merge_active_context(self, ctx: ResolvedContext) -> None:
         """Merge in active workspace/device awareness."""
         if self._workspace is not None:
@@ -467,6 +494,8 @@ class ContextResolutionEngine:
         if ctx.constraints:
             score += 0.05
         if ctx.knowledge:
+            score += 0.05
+        if ctx.goals:
             score += 0.05
 
         penalty = len(ctx.unresolved_references) * 0.05
