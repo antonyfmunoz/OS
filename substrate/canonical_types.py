@@ -950,6 +950,22 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # C9.5 — Decision Impact
     "DecisionImpact": ["substrate.organism.decision_impact_engine"],
     "DecisionImpactEngine": ["substrate.organism.decision_impact_engine"],
+    # Campaign 11 — Work Intelligence & Execution Readiness
+    # C11.0 — Work Readiness Runtime
+    "ReadinessStatus": ["substrate.organism.work_readiness_runtime"],
+    "ReadinessAssessment": ["substrate.organism.work_readiness_runtime"],
+    "WorkReadinessSnapshot": ["substrate.organism.work_readiness_runtime"],
+    "WorkReadinessRuntime": ["substrate.organism.work_readiness_runtime"],
+    # C11.1 — Delegation Readiness Runtime
+    "DelegationReadiness": ["substrate.organism.delegation_readiness_runtime"],
+    "DelegationReadinessSnapshot": ["substrate.organism.delegation_readiness_runtime"],
+    "DelegationReadinessRuntime": ["substrate.organism.delegation_readiness_runtime"],
+    # C11.2 — Work Portfolio Runtime
+    "WorkPortfolioHealth": ["substrate.organism.work_portfolio_runtime"],
+    "WorkDriftType": ["substrate.organism.work_portfolio_runtime"],
+    "WorkDriftWarning": ["substrate.organism.work_portfolio_runtime"],
+    "WorkPortfolioSnapshot": ["substrate.organism.work_portfolio_runtime"],
+    "WorkPortfolioRuntime": ["substrate.organism.work_portfolio_runtime"],
 }
 
 

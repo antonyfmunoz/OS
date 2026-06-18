@@ -77,6 +77,7 @@ import { StrategicPanel } from '../panels/StrategicPanel'
 import { GoalPanel } from '../panels/GoalPanel'
 import { MemoryPanel } from '../panels/MemoryPanel'
 import { CapabilitiesPanel } from '../panels/CapabilitiesPanel'
+import { WorkIntelligencePanel } from '../panels/WorkIntelligencePanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -216,6 +217,8 @@ function ActivePanel() {
       return <MemoryPanel />
     case 'capabilities':
       return <CapabilitiesPanel />
+    case 'workintelligence':
+      return <WorkIntelligencePanel />
 
     default:
       return <DashboardPanel />
