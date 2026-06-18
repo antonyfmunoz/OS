@@ -67,6 +67,8 @@ export type Panel =
   | 'realitygraph'
   | 'memory'
   | 'capabilities'
+  | 'workintelligence'
+  | 'learning'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

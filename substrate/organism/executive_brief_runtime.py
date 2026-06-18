@@ -40,6 +40,9 @@ class ExecutiveBrief:
     top_capabilities: list[str] = field(default_factory=list)
     critical_capability_gaps: list[str] = field(default_factory=list)
     capability_health: str = "unknown"
+    learning_health: str = "unknown"
+    learning_velocity: float = 0.0
+    learning_drift_count: int = 0
     health: str = "healthy"
     generated_at: float = 0.0
 
@@ -61,6 +64,9 @@ class ExecutiveBrief:
             "top_capabilities": self.top_capabilities,
             "critical_capability_gaps": self.critical_capability_gaps,
             "capability_health": self.capability_health,
+            "learning_health": self.learning_health,
+            "learning_velocity": self.learning_velocity,
+            "learning_drift_count": self.learning_drift_count,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -212,6 +218,7 @@ class ExecutiveBriefRuntime:
         self._fill_goal_drift(brief)
         self._fill_decisions(brief)
         self._fill_capabilities(brief)
+        self._fill_learning(brief)
 
         return brief
 
@@ -406,3 +413,14 @@ class ExecutiveBriefRuntime:
                 brief.critical_capability_gaps.append(rec)
         except Exception as exc:
             logger.debug("executive_brief: capabilities fill failed: %s", exc)
+
+    def _fill_learning(self, brief: ExecutiveBrief) -> None:
+        try:
+            from substrate.organism.learning_portfolio_runtime import LearningPortfolioRuntime
+            lpr = LearningPortfolioRuntime()
+            h = lpr.health()
+            brief.learning_health = h.value if hasattr(h, "value") else str(h)
+            brief.learning_velocity = lpr.lesson_velocity()
+            brief.learning_drift_count = len(lpr.drift_warnings())
+        except Exception as exc:
+            logger.debug("executive_brief: learning fill failed: %s", exc)
