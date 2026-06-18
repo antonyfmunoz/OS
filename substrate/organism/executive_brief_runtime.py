@@ -51,6 +51,9 @@ class ExecutiveBrief:
     overcommitment_index: float = 0.0
     executive_health: str = "unknown"
     executive_drift_count: int = 0
+    governance_health: str = "unknown"
+    organism_coherence_score: float = 0.0
+    governance_conflict_count: int = 0
     health: str = "healthy"
     generated_at: float = 0.0
 
@@ -83,6 +86,9 @@ class ExecutiveBrief:
             "overcommitment_index": self.overcommitment_index,
             "executive_health": self.executive_health,
             "executive_drift_count": self.executive_drift_count,
+            "governance_health": self.governance_health,
+            "organism_coherence_score": self.organism_coherence_score,
+            "governance_conflict_count": self.governance_conflict_count,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -187,6 +193,12 @@ class ExecutiveBrief:
             for item in self.top_allocations:
                 lines.append(f"  $ {item}")
 
+        if self.governance_health != "unknown":
+            lines.append("")
+            lines.append(f"Governance: {self.governance_health.upper()} "
+                         f"(coherence: {self.organism_coherence_score:.0%}, "
+                         f"conflicts: {self.governance_conflict_count})")
+
         return "\n".join(lines).strip()
 
 
@@ -250,6 +262,7 @@ class ExecutiveBriefRuntime:
         self._fill_learning(brief)
         self._fill_prediction(brief)
         self._fill_executive(brief)
+        self._fill_governance(brief)
 
         return brief
 
@@ -492,3 +505,16 @@ class ExecutiveBriefRuntime:
                 brief.top_allocations.append(f"{name} ({priority})")
         except Exception as exc:
             logger.debug("executive_brief: executive fill failed: %s", exc)
+
+    def _fill_governance(self, brief: ExecutiveBrief) -> None:
+        try:
+            from substrate.organism.organism_portfolio_runtime import OrganismPortfolioRuntime
+            opr = OrganismPortfolioRuntime()
+            h = opr.health()
+            brief.governance_health = h.value if hasattr(h, "value") else str(h)
+            brief.organism_coherence_score = opr.coherence_score()
+            from substrate.organism.governance_runtime import GovernanceRuntime
+            gr = GovernanceRuntime()
+            brief.governance_conflict_count = len(gr.active_conflicts())
+        except Exception as exc:
+            logger.debug("executive_brief: governance fill failed: %s", exc)

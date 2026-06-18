@@ -62,6 +62,7 @@ class StrategicContext:
     learning_health: dict[str, Any] = field(default_factory=dict)
     prediction_health: dict[str, Any] = field(default_factory=dict)
     executive_health: dict[str, Any] = field(default_factory=dict)
+    governance_health: dict[str, Any] = field(default_factory=dict)
     health: str = StrategicHealth.HEALTHY.value
     generated_at: float = 0.0
 
@@ -85,6 +86,7 @@ class StrategicContext:
             "learning_health": self.learning_health,
             "prediction_health": self.prediction_health,
             "executive_health": self.executive_health,
+            "governance_health": self.governance_health,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -147,6 +149,7 @@ class StrategicContextRuntime:
         self._fill_from_learning_system(ctx)
         self._fill_from_prediction_system(ctx)
         self._fill_from_executive_system(ctx)
+        self._fill_from_governance_system(ctx)
 
         ctx.health = self._classify_health(ctx).value
         return ctx
@@ -442,3 +445,22 @@ class StrategicContextRuntime:
             }
         except Exception:
             logger.debug("Failed to fill executive health", exc_info=True)
+
+    def _fill_from_governance_system(self, ctx: StrategicContext) -> None:
+        try:
+            from substrate.organism.organism_portfolio_runtime import OrganismPortfolioRuntime
+            from substrate.organism.governance_runtime import GovernanceRuntime
+            opr = OrganismPortfolioRuntime()
+            gr = GovernanceRuntime()
+            opr_summary = opr.summary()
+            gr_summary = gr.summary()
+            ctx.governance_health = {
+                "organism_health": opr_summary.get("organism_health", "unknown"),
+                "coherence_score": opr_summary.get("coherence_score", 0.0),
+                "governance_health": gr_summary.get("governance_health", "unknown"),
+                "conflict_count": gr_summary.get("conflict_count", 0),
+                "resolution_rate": gr_summary.get("resolution_rate", 0.0),
+                "drift_count": opr_summary.get("total_drift_count", 0),
+            }
+        except Exception:
+            logger.debug("Failed to fill governance health", exc_info=True)

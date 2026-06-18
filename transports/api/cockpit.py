@@ -1208,3 +1208,16 @@ def _mount_executive_router() -> None:
 
 
 _mount_executive_router()
+
+
+# ── Campaign 15: Organism Governance ──────────────────────────────
+
+
+def _mount_governance_router() -> None:
+    from transports.api import cockpit_governance_routes
+
+    r = cockpit_governance_routes.get_router()
+    router.include_router(r)
+
+
+_mount_governance_router()
