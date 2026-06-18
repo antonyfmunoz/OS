@@ -1027,6 +1027,40 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ExecutiveDriftWarning": ["substrate.organism.executive_portfolio_runtime"],
     "ExecutivePortfolioSnapshot": ["substrate.organism.executive_portfolio_runtime"],
     "ExecutivePortfolioRuntime": ["substrate.organism.executive_portfolio_runtime"],
+
+    # ── Campaign 15: Organism Governance & Coordination ──────────────
+    # C15.0 — Governance Runtime
+    "GovernanceAuthority": ["substrate.organism.governance_runtime"],
+    "ConflictStatus": ["substrate.organism.governance_runtime"],
+    "ConflictSeverityLevel": ["substrate.organism.governance_runtime"],
+    "GovernanceHealth": ["substrate.organism.governance_runtime"],
+    "SubsystemConflict": ["substrate.organism.governance_runtime"],
+    "GovernancePolicy": ["substrate.organism.governance_runtime"],
+    "GovernanceDriftType": ["substrate.organism.governance_runtime"],
+    "GovernanceDriftWarning": ["substrate.organism.governance_runtime"],
+    "GovernanceRuntimeSnapshot": ["substrate.organism.governance_runtime"],
+    "GovernanceRuntime": ["substrate.organism.governance_runtime"],
+    # C15.1 — Organism Coordination Engine
+    "CoordinationIssueType": ["substrate.organism.organism_coordination_engine"],
+    "CoordinationHealth": ["substrate.organism.organism_coordination_engine"],
+    "CoordinationIssue": ["substrate.organism.organism_coordination_engine"],
+    "CoordinationSnapshot": ["substrate.organism.organism_coordination_engine"],
+    "OrganismCoordinationEngine": ["substrate.organism.organism_coordination_engine"],
+    # C15.2 — Institutional Memory Runtime
+    "KnowledgeState": ["substrate.organism.institutional_memory_runtime"],
+    "InstitutionalMemoryHealth": ["substrate.organism.institutional_memory_runtime"],
+    "MemoryDriftType": ["substrate.organism.institutional_memory_runtime"],
+    "InstitutionalKnowledge": ["substrate.organism.institutional_memory_runtime"],
+    "InstitutionalMemoryDriftWarning": ["substrate.organism.institutional_memory_runtime"],
+    "InstitutionalMemorySnapshot": ["substrate.organism.institutional_memory_runtime"],
+    "InstitutionalMemoryRuntime": ["substrate.organism.institutional_memory_runtime"],
+    # C15.3 — Organism Portfolio Runtime
+    "OrganismHealth": ["substrate.organism.organism_portfolio_runtime"],
+    "OrganismDriftType": ["substrate.organism.organism_portfolio_runtime"],
+    "OrganismDriftWarning": ["substrate.organism.organism_portfolio_runtime"],
+    "SubsystemHealthEntry": ["substrate.organism.organism_portfolio_runtime"],
+    "OrganismPortfolioSnapshot": ["substrate.organism.organism_portfolio_runtime"],
+    "OrganismPortfolioRuntime": ["substrate.organism.organism_portfolio_runtime"],
 }
 
 
