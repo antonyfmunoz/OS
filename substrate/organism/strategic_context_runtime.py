@@ -55,6 +55,8 @@ class StrategicContext:
     drift_warnings: list[dict[str, Any]] = field(default_factory=list)
     goal_summary: dict[str, Any] = field(default_factory=dict)
     goal_alignment: dict[str, Any] = field(default_factory=dict)
+    decision_health: dict[str, Any] = field(default_factory=dict)
+    memory_health: dict[str, Any] = field(default_factory=dict)
     health: str = StrategicHealth.HEALTHY.value
     generated_at: float = 0.0
 
@@ -71,6 +73,8 @@ class StrategicContext:
             "drift_warnings": self.drift_warnings,
             "goal_summary": self.goal_summary,
             "goal_alignment": self.goal_alignment,
+            "decision_health": self.decision_health,
+            "memory_health": self.memory_health,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -98,6 +102,8 @@ class StrategicContextRuntime:
         knowledge_awareness: Any | None = None,
         reality_graph: Any | None = None,
         goal_alignment_engine: Any | None = None,
+        decision_registry: Any | None = None,
+        memory_engine: Any | None = None,
     ) -> None:
         self._gap_engine = gap_engine
         self._tick_loop = tick_loop
@@ -108,6 +114,8 @@ class StrategicContextRuntime:
         self._knowledge_awareness = knowledge_awareness
         self._reality_graph = reality_graph
         self._goal_alignment_engine = goal_alignment_engine
+        self._decision_registry = decision_registry
+        self._memory_engine = memory_engine
 
     def context(self) -> StrategicContext:
         """Synthesize strategic context from all composed engines."""
@@ -122,6 +130,7 @@ class StrategicContextRuntime:
         self._fill_from_operator_context(ctx)
         self._fill_from_next_action_engine(ctx)
         self._fill_from_goal_system(ctx)
+        self._fill_from_decision_system(ctx)
 
         ctx.health = self._classify_health(ctx).value
         return ctx
@@ -335,3 +344,23 @@ class StrategicContextRuntime:
             return StrategicHealth.WATCH
 
         return StrategicHealth.HEALTHY
+
+    def _fill_from_decision_system(self, ctx: StrategicContext) -> None:
+        if self._decision_registry:
+            try:
+                s = self._decision_registry.summary()
+                ctx.decision_health = {
+                    "total": s.get("total", 0),
+                    "by_status": s.get("by_status", {}),
+                }
+            except Exception:
+                logger.debug("Failed to fill decision health", exc_info=True)
+        if self._memory_engine:
+            try:
+                s = self._memory_engine.summary()
+                ctx.memory_health = {
+                    "snapshot_count": s.get("snapshot_count", 0),
+                    "pattern_count": s.get("pattern_count", 0),
+                }
+            except Exception:
+                logger.debug("Failed to fill memory health", exc_info=True)

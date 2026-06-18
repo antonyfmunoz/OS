@@ -129,6 +129,8 @@ export const ROUTES: RouteEntry[] = [
   { id: 'strategic', label: 'Strategic', icon: Compass, group: 'primary', visibility: 'dev', key: '/' },
   // Campaign 8 — Goal Systems & Strategic Planning
   { id: 'goals', label: 'Goals', icon: Target, group: 'primary', visibility: 'primary', key: 'J' },
+  // Campaign 9 — Decision Intelligence & Strategic Memory
+  { id: 'memory', label: 'Memory', icon: Brain, group: 'primary', visibility: 'dev', key: 'K' },
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, group: 'primary', visibility: 'dev', key: 'p' },
   { id: 'company', label: 'Company', icon: Building2, group: 'primary', visibility: 'dev', key: 'c' },
   { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'dev', key: 'u' },

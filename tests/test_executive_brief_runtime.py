@@ -141,6 +141,7 @@ class TestExecutiveBrief:
             "situation", "progress", "blockers", "risks",
             "priorities", "recommendations", "drift_warnings",
             "active_goals", "goal_health", "goal_drift",
+            "critical_decisions", "at_risk_decisions", "invalid_assumptions",
             "health", "generated_at",
         }
         assert set(d.keys()) == expected

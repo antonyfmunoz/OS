@@ -154,6 +154,7 @@ class ContextResolutionEngine:
         runtime_awareness: Any = None,
         knowledge_runtime: Any = None,
         goal_registry: Any = None,
+        decision_registry: Any = None,
     ) -> None:
         self._graph = reality_graph
         self._workspace = workspace_awareness
@@ -164,6 +165,7 @@ class ContextResolutionEngine:
         self._runtime_awareness = runtime_awareness
         self._knowledge_runtime = knowledge_runtime
         self._goal_registry = goal_registry
+        self._decision_registry = decision_registry
 
     def resolve(self, text: str) -> ResolvedContext:
         """Main entry: natural language → fully resolved context."""
@@ -178,6 +180,7 @@ class ContextResolutionEngine:
         self._enrich_from_graph(ctx)
         self._enrich_from_runtimes(ctx)
         self._resolve_goals(candidates, ctx)
+        self._resolve_decisions(ctx)
         self._merge_active_context(ctx)
         self._compute_confidence(ctx)
 
@@ -450,6 +453,30 @@ class ContextResolutionEngine:
                 ctx.resolution_chain.append({"step": "goal_registry_match", "goals_found": str(len(ctx.goals))})
         except Exception as exc:
             logger.debug("Goal registry resolution failed: %s", exc)
+
+    def _resolve_decisions(self, ctx: ResolvedContext) -> None:
+        """Enrich decisions from DecisionRegistry for resolved goals/projects."""
+        if self._decision_registry is None:
+            return
+        try:
+            for goal_dict in ctx.goals:
+                goal_id = goal_dict.get("goal_id", "")
+                if goal_id:
+                    related = self._decision_registry.decisions_for_goal(goal_id)
+                    for d in related:
+                        ctx.decisions.append({
+                            "decision_id": d.decision_id,
+                            "title": d.title,
+                            "status": d.status.value if hasattr(d.status, "value") else str(d.status),
+                            "source": "decision_registry",
+                        })
+            if ctx.decisions:
+                ctx.resolution_chain.append({
+                    "step": "decision_registry_enrichment",
+                    "decisions_found": str(len(ctx.decisions)),
+                })
+        except Exception as exc:
+            logger.debug("Decision registry enrichment failed: %s", exc)
 
     def _merge_active_context(self, ctx: ResolvedContext) -> None:
         """Merge in active workspace/device awareness."""
