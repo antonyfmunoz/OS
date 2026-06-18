@@ -80,6 +80,7 @@ import { CapabilitiesPanel } from '../panels/CapabilitiesPanel'
 import { WorkIntelligencePanel } from '../panels/WorkIntelligencePanel'
 import { LearningPanel } from '../panels/LearningPanel'
 import { PredictionPanel } from '../panels/PredictionPanel'
+import { ExecutivePanel } from '../panels/ExecutivePanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -225,6 +226,8 @@ function ActivePanel() {
       return <LearningPanel />
     case 'prediction':
       return <PredictionPanel />
+    case 'executive':
+      return <ExecutivePanel />
 
     default:
       return <DashboardPanel />

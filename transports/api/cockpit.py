@@ -1195,3 +1195,16 @@ def _mount_prediction_router() -> None:
 
 
 _mount_prediction_router()
+
+
+# ── Campaign 14: Executive Intelligence ──────────────────────────────
+
+
+def _mount_executive_router() -> None:
+    from transports.api import cockpit_executive_routes
+
+    r = cockpit_executive_routes.get_router()
+    router.include_router(r)
+
+
+_mount_executive_router()
