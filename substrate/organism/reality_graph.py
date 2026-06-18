@@ -65,6 +65,10 @@ class RealityRelationType(str, Enum):
     CREATED = "created"
     APPROVED_BY = "approved_by"
     SUPERSEDES = "supersedes"
+    IMPLEMENTS = "implements"
+    ENABLES = "enables"
+    COMPOSES = "composes"
+    CONFLICTS_WITH = "conflicts_with"
 
 
 class RealityEntityStatus(str, Enum):

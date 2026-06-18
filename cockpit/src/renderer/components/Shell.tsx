@@ -76,6 +76,7 @@ import { RealityGraphPanel } from '../panels/RealityGraphPanel'
 import { StrategicPanel } from '../panels/StrategicPanel'
 import { GoalPanel } from '../panels/GoalPanel'
 import { MemoryPanel } from '../panels/MemoryPanel'
+import { CapabilitiesPanel } from '../panels/CapabilitiesPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -213,6 +214,8 @@ function ActivePanel() {
       return <GoalPanel />
     case 'memory':
       return <MemoryPanel />
+    case 'capabilities':
+      return <CapabilitiesPanel />
 
     default:
       return <DashboardPanel />

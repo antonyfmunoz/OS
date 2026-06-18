@@ -156,6 +156,7 @@ class TestStrategicContext:
             "strategic_priorities", "risks", "recommendations",
             "drift_warnings", "goal_summary", "goal_alignment",
             "decision_health", "memory_health",
+            "capability_health", "capability_gaps",
             "health", "generated_at",
         }
         assert set(d.keys()) == expected_keys
