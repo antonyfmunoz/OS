@@ -126,33 +126,32 @@ class TestHealthScoreMapping:
 
 
 class TestOrganismCoordinationEngine:
+    @classmethod
+    def setup_class(cls) -> None:
+        cls.rt = OrganismCoordinationEngine()
+
     def test_no_deps_graceful_degradation(self) -> None:
-        rt = OrganismCoordinationEngine()
-        assert isinstance(rt.detect_issues(), list)
-        assert isinstance(rt.subsystem_alignment(), dict)
-        score = rt.synchronization_score()
+        assert isinstance(self.rt.detect_issues(), list)
+        assert isinstance(self.rt.subsystem_alignment(), dict)
+        score = self.rt.synchronization_score()
         assert 0.0 <= score <= 1.0
 
     def test_detect_issues_returns_list(self) -> None:
-        rt = OrganismCoordinationEngine()
-        issues = rt.detect_issues()
+        issues = self.rt.detect_issues()
         assert isinstance(issues, list)
 
     def test_subsystem_alignment_has_names(self) -> None:
-        rt = OrganismCoordinationEngine()
-        alignment = rt.subsystem_alignment()
+        alignment = self.rt.subsystem_alignment()
         assert isinstance(alignment, dict)
         expected_names = {"governance", "executive", "prediction", "work", "learning", "capability"}
         assert expected_names.issubset(set(alignment.keys()))
 
     def test_synchronization_score_bounded(self) -> None:
-        rt = OrganismCoordinationEngine()
-        score = rt.synchronization_score()
+        score = self.rt.synchronization_score()
         assert 0.0 <= score <= 1.0
 
     def test_health_with_no_deps(self) -> None:
-        rt = OrganismCoordinationEngine()
-        h = rt.health()
+        h = self.rt.health()
         assert isinstance(h, CoordinationHealth)
 
     def test_health_synchronized_with_healthy_subsystems(self) -> None:
@@ -208,8 +207,7 @@ class TestOrganismCoordinationEngine:
         assert h == CoordinationHealth.CRITICAL
 
     def test_snapshot_fields(self) -> None:
-        rt = OrganismCoordinationEngine()
-        snap = rt.snapshot()
+        snap = self.rt.snapshot()
         assert isinstance(snap, CoordinationSnapshot)
         d = snap.to_dict()
         assert "coordination_health" in d
@@ -220,8 +218,7 @@ class TestOrganismCoordinationEngine:
         assert "generated_at" in d
 
     def test_summary_keys(self) -> None:
-        rt = OrganismCoordinationEngine()
-        s = rt.summary()
+        s = self.rt.summary()
         assert "coordination_health" in s
         assert "synchronization_score" in s
         assert "issue_count" in s

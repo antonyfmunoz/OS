@@ -148,23 +148,24 @@ class TestDataclasses:
 
 
 class TestGovernanceRuntime:
+    @classmethod
+    def setup_class(cls) -> None:
+        cls.rt = GovernanceRuntime()
+
     def test_no_deps_graceful_degradation(self) -> None:
-        rt = GovernanceRuntime()
-        assert rt.health() == GovernanceHealth.COHERENT
-        assert isinstance(rt.drift_warnings(), list)
-        assert isinstance(rt.detect_conflicts(), list)
+        assert self.rt.health() == GovernanceHealth.COHERENT
+        assert isinstance(self.rt.drift_warnings(), list)
+        assert isinstance(self.rt.detect_conflicts(), list)
 
     def test_resolve_conflict_higher_wins(self) -> None:
-        rt = GovernanceRuntime()
-        c = rt.resolve_conflict("reality", "work", "observe X", "execute Y")
+        c = self.rt.resolve_conflict("reality", "work", "observe X", "execute Y")
         assert c.winning_authority == "reality"
         assert c.losing_authority == "work"
         assert c.resolution == "observe X"
         assert c.status == "arbitrated"
 
     def test_resolve_conflict_strategy_beats_executive(self) -> None:
-        rt = GovernanceRuntime()
-        c = rt.resolve_conflict("executive", "strategy", "allocate to X", "avoid X")
+        c = self.rt.resolve_conflict("executive", "strategy", "allocate to X", "avoid X")
         assert c.winning_authority == "strategy"
         assert c.losing_authority == "executive"
         assert c.resolution == "avoid X"
@@ -172,56 +173,48 @@ class TestGovernanceRuntime:
         assert "rank" in c.rationale.lower()
 
     def test_resolve_conflict_equal_authority_source_wins(self) -> None:
-        rt = GovernanceRuntime()
-        c = rt.resolve_conflict("work", "work", "rec A", "rec B")
+        c = self.rt.resolve_conflict("work", "work", "rec A", "rec B")
         assert c.winning_authority == "work"
         assert c.resolution == "rec A"
 
     def test_resolve_conflict_no_mutation(self) -> None:
         """Acceptance test: governance resolves but does not mutate subsystems."""
-        rt = GovernanceRuntime()
-        c = rt.resolve_conflict("executive", "strategy", "allocate to X", "avoid X")
+        c = self.rt.resolve_conflict("executive", "strategy", "allocate to X", "avoid X")
         assert c.winning_authority == "strategy"
         assert c.losing_authority == "executive"
-        # No mutation methods called — resolution is recorded, not enacted
         assert c.status == "arbitrated"
-        # The runtime itself has no mutate/apply/execute methods
-        assert not hasattr(rt, "apply_resolution")
-        assert not hasattr(rt, "execute_resolution")
-        assert not hasattr(rt, "mutate")
+        assert not hasattr(self.rt, "apply_resolution")
+        assert not hasattr(self.rt, "execute_resolution")
+        assert not hasattr(self.rt, "mutate")
 
     def test_conflict_id_uniqueness(self) -> None:
-        rt = GovernanceRuntime()
-        c1 = rt.resolve_conflict("reality", "work", "a", "b")
-        c2 = rt.resolve_conflict("reality", "work", "a", "b")
+        c1 = self.rt.resolve_conflict("reality", "work", "a", "b")
+        c2 = self.rt.resolve_conflict("reality", "work", "a", "b")
         assert c1.conflict_id != c2.conflict_id
 
     def test_authority_for_known_domains(self) -> None:
-        rt = GovernanceRuntime()
-        assert rt.authority_for("reality") == "reality"
-        assert rt.authority_for("strategy") == "strategy"
-        assert rt.authority_for("goals") == "goals"
-        assert rt.authority_for("decisions") == "decisions"
-        assert rt.authority_for("executive") == "executive"
-        assert rt.authority_for("work") == "work"
-        assert rt.authority_for("goal_alignment") == "goals"
-        assert rt.authority_for("resource_allocation") == "executive"
+        assert self.rt.authority_for("reality") == "reality"
+        assert self.rt.authority_for("strategy") == "strategy"
+        assert self.rt.authority_for("goals") == "goals"
+        assert self.rt.authority_for("decisions") == "decisions"
+        assert self.rt.authority_for("executive") == "executive"
+        assert self.rt.authority_for("work") == "work"
+        assert self.rt.authority_for("goal_alignment") == "goals"
+        assert self.rt.authority_for("resource_allocation") == "executive"
 
     def test_authority_for_unknown_defaults_to_work(self) -> None:
-        rt = GovernanceRuntime()
-        assert rt.authority_for("unknown_domain") == "work"
+        assert self.rt.authority_for("unknown_domain") == "work"
 
     def test_active_policies_returns_six(self) -> None:
-        rt = GovernanceRuntime()
-        policies = rt.active_policies()
+        policies = self.rt.active_policies()
         assert len(policies) == 6
         names = [p.name for p in policies]
         assert "Authority Hierarchy" in names
         assert "No Direct Mutation" in names
 
     def test_health_coherent_no_conflicts(self) -> None:
-        rt = GovernanceRuntime()
-        assert rt.health() == GovernanceHealth.COHERENT
+        fresh = GovernanceRuntime()
+        assert fresh.health() == GovernanceHealth.COHERENT
 
     def test_health_critical_with_critical_conflict(self) -> None:
         rt = GovernanceRuntime()
@@ -233,8 +226,7 @@ class TestGovernanceRuntime:
         assert rt.health() == GovernanceHealth.CRITICAL
 
     def test_snapshot_fields(self) -> None:
-        rt = GovernanceRuntime()
-        snap = rt.snapshot()
+        snap = self.rt.snapshot()
         assert isinstance(snap, GovernanceRuntimeSnapshot)
         d = snap.to_dict()
         assert "governance_health" in d
@@ -248,8 +240,7 @@ class TestGovernanceRuntime:
         assert "generated_at" in d
 
     def test_summary_keys(self) -> None:
-        rt = GovernanceRuntime()
-        s = rt.summary()
+        s = self.rt.summary()
         assert "governance_health" in s
         assert "active_conflict_count" in s
         assert "drift_warning_count" in s
