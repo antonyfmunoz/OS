@@ -140,6 +140,7 @@ class TestExecutiveBrief:
         expected = {
             "situation", "progress", "blockers", "risks",
             "priorities", "recommendations", "drift_warnings",
+            "active_goals", "goal_health", "goal_drift",
             "health", "generated_at",
         }
         assert set(d.keys()) == expected

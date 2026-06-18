@@ -154,7 +154,8 @@ class TestStrategicContext:
             "active_projects", "active_work", "blocked_work",
             "pending_approvals", "critical_constraints",
             "strategic_priorities", "risks", "recommendations",
-            "drift_warnings", "health", "generated_at",
+            "drift_warnings", "goal_summary", "goal_alignment",
+            "health", "generated_at",
         }
         assert set(d.keys()) == expected_keys
 
