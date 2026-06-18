@@ -74,6 +74,7 @@ import { MVPReadinessPanel } from '../panels/MVPReadinessPanel'
 import { DelegationPanel } from '../panels/DelegationPanel'
 import { RealityGraphPanel } from '../panels/RealityGraphPanel'
 import { StrategicPanel } from '../panels/StrategicPanel'
+import { GoalPanel } from '../panels/GoalPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -207,6 +208,8 @@ function ActivePanel() {
       return <RealityGraphPanel />
     case 'strategic':
       return <StrategicPanel />
+    case 'goals':
+      return <GoalPanel />
 
     default:
       return <DashboardPanel />

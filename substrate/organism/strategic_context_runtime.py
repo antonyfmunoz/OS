@@ -53,6 +53,8 @@ class StrategicContext:
     risks: list[dict[str, Any]] = field(default_factory=list)
     recommendations: list[dict[str, Any]] = field(default_factory=list)
     drift_warnings: list[dict[str, Any]] = field(default_factory=list)
+    goal_summary: dict[str, Any] = field(default_factory=dict)
+    goal_alignment: dict[str, Any] = field(default_factory=dict)
     health: str = StrategicHealth.HEALTHY.value
     generated_at: float = 0.0
 
@@ -67,6 +69,8 @@ class StrategicContext:
             "risks": self.risks,
             "recommendations": self.recommendations,
             "drift_warnings": self.drift_warnings,
+            "goal_summary": self.goal_summary,
+            "goal_alignment": self.goal_alignment,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -93,6 +97,7 @@ class StrategicContextRuntime:
         runtime_awareness: Any | None = None,
         knowledge_awareness: Any | None = None,
         reality_graph: Any | None = None,
+        goal_alignment_engine: Any | None = None,
     ) -> None:
         self._gap_engine = gap_engine
         self._tick_loop = tick_loop
@@ -102,6 +107,7 @@ class StrategicContextRuntime:
         self._runtime_awareness = runtime_awareness
         self._knowledge_awareness = knowledge_awareness
         self._reality_graph = reality_graph
+        self._goal_alignment_engine = goal_alignment_engine
 
     def context(self) -> StrategicContext:
         """Synthesize strategic context from all composed engines."""
@@ -115,6 +121,7 @@ class StrategicContextRuntime:
         self._fill_from_projection_engine(ctx)
         self._fill_from_operator_context(ctx)
         self._fill_from_next_action_engine(ctx)
+        self._fill_from_goal_system(ctx)
 
         ctx.health = self._classify_health(ctx).value
         return ctx
@@ -248,6 +255,32 @@ class StrategicContextRuntime:
                 )
         except Exception as exc:
             logger.debug("strategic_context: next_action_engine fill failed: %s", exc)
+
+    def _fill_from_goal_system(self, ctx: StrategicContext) -> None:
+        if self._goal_alignment_engine is None:
+            return
+        try:
+            report = self._goal_alignment_engine.report()
+            report_dict = report.to_dict() if hasattr(report, "to_dict") else report
+            ctx.goal_alignment = {
+                "score": report_dict.get("alignment_score", 0.0),
+                "unlinked_count": report_dict.get("unlinked_work_count", 0),
+            }
+        except Exception as exc:
+            logger.debug("strategic_context: goal_alignment fill failed: %s", exc)
+
+        if self._gap_engine is not None:
+            try:
+                registry = getattr(self._gap_engine, "registry", None)
+                if registry is not None:
+                    from substrate.organism.strategic_gap_engine import GoalStatus
+                    active = registry.goals_by_status(GoalStatus.ACTIVE)
+                    ctx.goal_summary = {
+                        "active_count": len(active),
+                        "total_count": len(registry.all_goals()),
+                    }
+            except Exception as exc:
+                logger.debug("strategic_context: goal_summary fill failed: %s", exc)
 
     # ── Health classification ─────────────────────────────────────
 

@@ -526,3 +526,142 @@ class TestAcceptanceTest:
         print(f"  Approved → Domain: {routing['domain']}")
         print(f"  Decision recorded: {dec['decision_id']}")
         print(f"  Outcome:          effective\n")
+
+
+# ── Campaign 8.0 — Goal Registry Enhancement ────────────────────────
+
+
+class TestC80GoalTypeExtension:
+    def test_vision_type_exists(self):
+        assert GoalType.VISION.value == "vision"
+
+    def test_objective_type_exists(self):
+        assert GoalType.OBJECTIVE.value == "objective"
+
+    def test_outcome_type_exists(self):
+        assert GoalType.OUTCOME.value == "outcome"
+
+    def test_initiative_type_exists(self):
+        assert GoalType.INITIATIVE.value == "initiative"
+
+    def test_legacy_types_preserved(self):
+        assert GoalType.GOAL.value == "goal"
+        assert GoalType.ROADMAP.value == "roadmap"
+        assert GoalType.MILESTONE.value == "milestone"
+        assert GoalType.PROJECT.value == "project"
+
+
+class TestC80GoalStatusDraft:
+    def test_draft_status_exists(self):
+        assert GoalStatus.DRAFT.value == "draft"
+
+    def test_create_draft_goal(self, goal_registry):
+        g = Goal(title="Draft idea", status=GoalStatus.DRAFT)
+        goal_registry.add(g)
+        retrieved = goal_registry.get(g.goal_id)
+        assert retrieved is not None
+        assert retrieved.status == GoalStatus.DRAFT
+
+
+class TestC80GoalRegistryAncestors:
+    def test_ancestors_empty_for_root(self, goal_registry):
+        root = Goal(title="Vision", goal_type=GoalType.VISION)
+        goal_registry.add(root)
+        assert goal_registry.ancestors(root.goal_id) == []
+
+    def test_ancestors_single_parent(self, goal_registry):
+        root = Goal(title="Vision", goal_type=GoalType.VISION)
+        child = Goal(title="Objective", goal_type=GoalType.OBJECTIVE, parent_goal_id=root.goal_id)
+        goal_registry.add(root)
+        goal_registry.add(child)
+        ancestors = goal_registry.ancestors(child.goal_id)
+        assert len(ancestors) == 1
+        assert ancestors[0].goal_id == root.goal_id
+
+    def test_ancestors_chain_order(self, goal_registry):
+        vision = Goal(goal_id="v1", title="Vision", goal_type=GoalType.VISION)
+        obj = Goal(goal_id="o1", title="Objective", goal_type=GoalType.OBJECTIVE, parent_goal_id="v1")
+        proj = Goal(goal_id="p1", title="Project", goal_type=GoalType.PROJECT, parent_goal_id="o1")
+        for g in [vision, obj, proj]:
+            goal_registry.add(g)
+        ancestors = goal_registry.ancestors("p1")
+        assert len(ancestors) == 2
+        assert ancestors[0].goal_id == "o1"
+        assert ancestors[1].goal_id == "v1"
+
+    def test_ancestors_handles_cycle(self, goal_registry):
+        g1 = Goal(goal_id="g1", title="A", parent_goal_id="g2")
+        g2 = Goal(goal_id="g2", title="B", parent_goal_id="g1")
+        goal_registry.add(g1)
+        goal_registry.add(g2)
+        ancestors = goal_registry.ancestors("g1")
+        assert len(ancestors) <= 2
+
+    def test_ancestors_nonexistent_id(self, goal_registry):
+        assert goal_registry.ancestors("nonexistent") == []
+
+
+class TestC80GoalRegistryGoalsByStatus:
+    def test_filter_active(self, goal_registry):
+        goal_registry.add(Goal(title="A", status=GoalStatus.ACTIVE))
+        goal_registry.add(Goal(title="B", status=GoalStatus.DRAFT))
+        goal_registry.add(Goal(title="C", status=GoalStatus.COMPLETED))
+        result = goal_registry.goals_by_status(GoalStatus.ACTIVE)
+        assert len(result) == 1
+        assert result[0].title == "A"
+
+    def test_filter_draft(self, goal_registry):
+        goal_registry.add(Goal(title="D1", status=GoalStatus.DRAFT))
+        goal_registry.add(Goal(title="D2", status=GoalStatus.DRAFT))
+        goal_registry.add(Goal(title="Active", status=GoalStatus.ACTIVE))
+        result = goal_registry.goals_by_status(GoalStatus.DRAFT)
+        assert len(result) == 2
+
+    def test_filter_empty(self, goal_registry):
+        goal_registry.add(Goal(title="X", status=GoalStatus.ACTIVE))
+        assert goal_registry.goals_by_status(GoalStatus.ABANDONED) == []
+
+
+class TestC80GoalRegistryTree:
+    def test_tree_empty(self, goal_registry):
+        result = goal_registry.tree()
+        assert result == {"roots": []}
+
+    def test_tree_single_root(self, goal_registry):
+        root = Goal(goal_id="v1", title="Vision")
+        goal_registry.add(root)
+        result = goal_registry.tree()
+        assert len(result["roots"]) == 1
+        assert result["roots"][0]["goal_id"] == "v1"
+        assert result["roots"][0]["children"] == []
+
+    def test_tree_nested(self, goal_registry):
+        vision = Goal(goal_id="v1", title="Vision", goal_type=GoalType.VISION)
+        obj = Goal(goal_id="o1", title="Objective", goal_type=GoalType.OBJECTIVE, parent_goal_id="v1")
+        proj = Goal(goal_id="p1", title="Project", goal_type=GoalType.PROJECT, parent_goal_id="o1")
+        for g in [vision, obj, proj]:
+            goal_registry.add(g)
+        result = goal_registry.tree()
+        assert len(result["roots"]) == 1
+        vision_node = result["roots"][0]
+        assert vision_node["goal_id"] == "v1"
+        assert len(vision_node["children"]) == 1
+        obj_node = vision_node["children"][0]
+        assert obj_node["goal_id"] == "o1"
+        assert len(obj_node["children"]) == 1
+        assert obj_node["children"][0]["goal_id"] == "p1"
+
+    def test_tree_specific_root(self, goal_registry):
+        vision = Goal(goal_id="v1", title="Vision")
+        obj = Goal(goal_id="o1", title="Objective", parent_goal_id="v1")
+        for g in [vision, obj]:
+            goal_registry.add(g)
+        result = goal_registry.tree(root_id="v1")
+        assert result["goal_id"] == "v1"
+        assert len(result["children"]) == 1
+
+    def test_tree_multiple_roots(self, goal_registry):
+        goal_registry.add(Goal(goal_id="v1", title="Vision1"))
+        goal_registry.add(Goal(goal_id="v2", title="Vision2"))
+        result = goal_registry.tree()
+        assert len(result["roots"]) == 2

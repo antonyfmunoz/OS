@@ -31,6 +31,9 @@ class ExecutiveBrief:
     priorities: list[str] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
     drift_warnings: list[str] = field(default_factory=list)
+    active_goals: list[str] = field(default_factory=list)
+    goal_health: str = "unknown"
+    goal_drift: list[str] = field(default_factory=list)
     health: str = "healthy"
     generated_at: float = 0.0
 
@@ -43,6 +46,9 @@ class ExecutiveBrief:
             "priorities": self.priorities,
             "recommendations": self.recommendations,
             "drift_warnings": self.drift_warnings,
+            "active_goals": self.active_goals,
+            "goal_health": self.goal_health,
+            "goal_drift": self.goal_drift,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -87,6 +93,18 @@ class ExecutiveBrief:
                 lines.append(f"  - {item}")
             lines.append("")
 
+        if self.active_goals:
+            lines.append(f"Goals ({self.goal_health}):")
+            for item in self.active_goals:
+                lines.append(f"  - {item}")
+            lines.append("")
+
+        if self.goal_drift:
+            lines.append("Goal Drift:")
+            for item in self.goal_drift:
+                lines.append(f"  - {item}")
+            lines.append("")
+
         if self.recommendations:
             lines.append("Recommended Actions:")
             for item in self.recommendations:
@@ -116,12 +134,16 @@ class ExecutiveBriefRuntime:
         risk_engine: Any | None = None,
         recommendation_engine: Any | None = None,
         drift_engine: Any | None = None,
+        goal_drift_engine: Any | None = None,
+        outcome_tracking: Any | None = None,
     ) -> None:
         self._strategic_context = strategic_context
         self._priority_engine = priority_engine
         self._risk_engine = risk_engine
         self._recommendation_engine = recommendation_engine
         self._drift_engine = drift_engine
+        self._goal_drift_engine = goal_drift_engine
+        self._outcome_tracking = outcome_tracking
 
     def generate(self) -> ExecutiveBrief:
         """Generate a deterministic executive brief."""
@@ -134,6 +156,8 @@ class ExecutiveBriefRuntime:
         self._fill_priorities(brief)
         self._fill_recommendations(brief)
         self._fill_drift(brief)
+        self._fill_goal_health(brief)
+        self._fill_goal_drift(brief)
 
         return brief
 
@@ -256,3 +280,28 @@ class ExecutiveBriefRuntime:
                 brief.drift_warnings.append(f"[{dtype}] {title}")
         except Exception as exc:
             logger.debug("executive_brief: drift fill failed: %s", exc)
+
+    def _fill_goal_health(self, brief: ExecutiveBrief) -> None:
+        if self._outcome_tracking is None:
+            return
+        try:
+            snapshot = self._outcome_tracking.snapshot()
+            snap_dict = snapshot.to_dict() if hasattr(snapshot, "to_dict") else snapshot
+            brief.goal_health = snap_dict.get("overall_health", "unknown")
+            for g in snap_dict.get("goals", [])[:5]:
+                title = g.get("title", g.get("goal_id", "goal"))
+                brief.active_goals.append(title)
+        except Exception as exc:
+            logger.debug("executive_brief: goal_health fill failed: %s", exc)
+
+    def _fill_goal_drift(self, brief: ExecutiveBrief) -> None:
+        if self._goal_drift_engine is None:
+            return
+        try:
+            warnings = self._goal_drift_engine.high_drift()
+            for w in warnings[:5]:
+                title = w.goal_title if hasattr(w, "goal_title") else str(w)
+                dtype = w.drift_type if hasattr(w, "drift_type") else "unknown"
+                brief.goal_drift.append(f"[{dtype}] {title}")
+        except Exception as exc:
+            logger.debug("executive_brief: goal_drift fill failed: %s", exc)
