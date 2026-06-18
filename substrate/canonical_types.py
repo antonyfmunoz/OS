@@ -966,6 +966,30 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "WorkDriftWarning": ["substrate.organism.work_portfolio_runtime"],
     "WorkPortfolioSnapshot": ["substrate.organism.work_portfolio_runtime"],
     "WorkPortfolioRuntime": ["substrate.organism.work_portfolio_runtime"],
+
+    # ── Campaign 12: Learning Intelligence ────────────────────────────
+    "LessonCategory": ["substrate.organism.learning_extraction_runtime"],
+    "ExtractedLesson": ["substrate.organism.learning_extraction_runtime"],
+    "LessonExtractionSnapshot": ["substrate.organism.learning_extraction_runtime"],
+    "LearningExtractionRuntime": ["substrate.organism.learning_extraction_runtime"],
+
+    "PatternType": ["substrate.organism.outcome_pattern_engine"],
+    "DetectedPattern": ["substrate.organism.outcome_pattern_engine"],
+    "AttributionLink": ["substrate.organism.outcome_pattern_engine"],
+    "PatternSnapshot": ["substrate.organism.outcome_pattern_engine"],
+    "OutcomePatternEngine": ["substrate.organism.outcome_pattern_engine"],
+
+    "EvolutionEventType": ["substrate.organism.capability_evolution_engine"],
+    "EvolutionEvent": ["substrate.organism.capability_evolution_engine"],
+    "CapabilityTrajectory": ["substrate.organism.capability_evolution_engine"],
+    "EvolutionSnapshot": ["substrate.organism.capability_evolution_engine"],
+    "CapabilityEvolutionEngine": ["substrate.organism.capability_evolution_engine"],
+
+    "LearningHealth": ["substrate.organism.learning_portfolio_runtime"],
+    "LearningDriftType": ["substrate.organism.learning_portfolio_runtime"],
+    "LearningDriftWarning": ["substrate.organism.learning_portfolio_runtime"],
+    "LearningPortfolioSnapshot": ["substrate.organism.learning_portfolio_runtime"],
+    "LearningPortfolioRuntime": ["substrate.organism.learning_portfolio_runtime"],
 }
 
 

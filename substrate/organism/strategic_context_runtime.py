@@ -59,6 +59,7 @@ class StrategicContext:
     memory_health: dict[str, Any] = field(default_factory=dict)
     capability_health: dict[str, Any] = field(default_factory=dict)
     capability_gaps: list[dict[str, Any]] = field(default_factory=list)
+    learning_health: dict[str, Any] = field(default_factory=dict)
     health: str = StrategicHealth.HEALTHY.value
     generated_at: float = 0.0
 
@@ -79,6 +80,7 @@ class StrategicContext:
             "memory_health": self.memory_health,
             "capability_health": self.capability_health,
             "capability_gaps": self.capability_gaps,
+            "learning_health": self.learning_health,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -138,6 +140,7 @@ class StrategicContextRuntime:
         self._fill_from_goal_system(ctx)
         self._fill_from_decision_system(ctx)
         self._fill_from_capability_system(ctx)
+        self._fill_from_learning_system(ctx)
 
         ctx.health = self._classify_health(ctx).value
         return ctx
@@ -387,3 +390,18 @@ class StrategicContextRuntime:
             ctx.capability_gaps = snap_dict.get("critical_gaps", [])[:10]
         except Exception:
             logger.debug("Failed to fill capability health", exc_info=True)
+
+    def _fill_from_learning_system(self, ctx: StrategicContext) -> None:
+        try:
+            from substrate.organism.learning_portfolio_runtime import LearningPortfolioRuntime
+            lpr = LearningPortfolioRuntime()
+            summary = lpr.summary()
+            ctx.learning_health = {
+                "health": summary.get("health", "unknown"),
+                "compounding_score": summary.get("compounding_score", 0.0),
+                "lesson_count": summary.get("lesson_count", 0),
+                "lesson_velocity": summary.get("lesson_velocity", 0.0),
+                "drift_count": len(summary.get("drift_warnings", [])),
+            }
+        except Exception:
+            logger.debug("Failed to fill learning health", exc_info=True)

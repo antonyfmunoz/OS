@@ -1172,3 +1172,13 @@ def _mount_work_intelligence_router() -> None:
 
 
 _mount_work_intelligence_router()
+
+
+def _mount_learning_router() -> None:
+    from transports.api import cockpit_learning_routes
+
+    r = cockpit_learning_routes.get_router()
+    router.include_router(r)
+
+
+_mount_learning_router()
