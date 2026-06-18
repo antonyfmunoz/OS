@@ -60,6 +60,7 @@ class StrategicContext:
     capability_health: dict[str, Any] = field(default_factory=dict)
     capability_gaps: list[dict[str, Any]] = field(default_factory=list)
     learning_health: dict[str, Any] = field(default_factory=dict)
+    prediction_health: dict[str, Any] = field(default_factory=dict)
     health: str = StrategicHealth.HEALTHY.value
     generated_at: float = 0.0
 
@@ -81,6 +82,7 @@ class StrategicContext:
             "capability_health": self.capability_health,
             "capability_gaps": self.capability_gaps,
             "learning_health": self.learning_health,
+            "prediction_health": self.prediction_health,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -141,6 +143,7 @@ class StrategicContextRuntime:
         self._fill_from_decision_system(ctx)
         self._fill_from_capability_system(ctx)
         self._fill_from_learning_system(ctx)
+        self._fill_from_prediction_system(ctx)
 
         ctx.health = self._classify_health(ctx).value
         return ctx
@@ -405,3 +408,18 @@ class StrategicContextRuntime:
             }
         except Exception:
             logger.debug("Failed to fill learning health", exc_info=True)
+
+    def _fill_from_prediction_system(self, ctx: StrategicContext) -> None:
+        try:
+            from substrate.organism.prediction_portfolio_runtime import PredictionPortfolioRuntime
+            ppr = PredictionPortfolioRuntime()
+            summary = ppr.summary()
+            ctx.prediction_health = {
+                "health": summary.get("prediction_health", "unknown"),
+                "average_confidence": summary.get("average_confidence", 0.0),
+                "uncertainty_index": summary.get("uncertainty_index", 1.0),
+                "forecast_count": summary.get("forecast_count", 0),
+                "drift_count": summary.get("drift_count", 0),
+            }
+        except Exception:
+            logger.debug("Failed to fill prediction health", exc_info=True)

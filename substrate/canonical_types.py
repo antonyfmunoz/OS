@@ -990,6 +990,21 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "LearningDriftWarning": ["substrate.organism.learning_portfolio_runtime"],
     "LearningPortfolioSnapshot": ["substrate.organism.learning_portfolio_runtime"],
     "LearningPortfolioRuntime": ["substrate.organism.learning_portfolio_runtime"],
+
+    # ── Campaign 13: Prediction Intelligence ──────────────────────────
+    "TrajectoryStatus": ["substrate.organism.trajectory_intelligence_runtime"],
+    "TrajectoryForecast": ["substrate.organism.trajectory_intelligence_runtime"],
+    "TrajectoryIntelligenceRuntime": ["substrate.organism.trajectory_intelligence_runtime"],
+
+    "ScenarioType": ["substrate.organism.scenario_intelligence_engine"],
+    "FutureScenario": ["substrate.organism.scenario_intelligence_engine"],
+    "ScenarioIntelligenceEngine": ["substrate.organism.scenario_intelligence_engine"],
+
+    "PredictionHealth": ["substrate.organism.prediction_portfolio_runtime"],
+    "PredictionDriftType": ["substrate.organism.prediction_portfolio_runtime"],
+    "PredictionDriftWarning": ["substrate.organism.prediction_portfolio_runtime"],
+    "PredictionPortfolioSnapshot": ["substrate.organism.prediction_portfolio_runtime"],
+    "PredictionPortfolioRuntime": ["substrate.organism.prediction_portfolio_runtime"],
 }
 
 

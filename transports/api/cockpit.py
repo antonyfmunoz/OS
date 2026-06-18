@@ -1182,3 +1182,16 @@ def _mount_learning_router() -> None:
 
 
 _mount_learning_router()
+
+
+# ── Campaign 13: Prediction Intelligence ──────────────────────────────
+
+
+def _mount_prediction_router() -> None:
+    from transports.api import cockpit_prediction_routes
+
+    r = cockpit_prediction_routes.get_router()
+    router.include_router(r)
+
+
+_mount_prediction_router()

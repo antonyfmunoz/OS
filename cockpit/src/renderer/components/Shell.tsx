@@ -79,6 +79,7 @@ import { MemoryPanel } from '../panels/MemoryPanel'
 import { CapabilitiesPanel } from '../panels/CapabilitiesPanel'
 import { WorkIntelligencePanel } from '../panels/WorkIntelligencePanel'
 import { LearningPanel } from '../panels/LearningPanel'
+import { PredictionPanel } from '../panels/PredictionPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -222,6 +223,8 @@ function ActivePanel() {
       return <WorkIntelligencePanel />
     case 'learning':
       return <LearningPanel />
+    case 'prediction':
+      return <PredictionPanel />
 
     default:
       return <DashboardPanel />
