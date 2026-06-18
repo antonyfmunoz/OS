@@ -153,6 +153,7 @@ class StrategicContextRuntime:
         self._fill_from_executive_system(ctx)
         self._fill_from_governance_system(ctx)
         self._fill_from_execution_loop(ctx)
+        self._fill_from_workstation_presence(ctx)
 
         ctx.health = self._classify_health(ctx).value
         return ctx
@@ -492,3 +493,21 @@ class StrategicContextRuntime:
             }
         except Exception:
             logger.debug("Failed to fill execution loop", exc_info=True)
+
+    def _fill_from_workstation_presence(self, ctx: StrategicContext) -> None:
+        try:
+            from substrate.workstation.orchestrator_presence_runtime import (
+                OrchestratorPresenceRuntime,
+            )
+
+            opr = OrchestratorPresenceRuntime()
+            summary = opr.summary()
+            ctx.workstation_presence = {
+                "device": summary.get("active_device", ""),
+                "mode": summary.get("mode", "listening"),
+                "organism_mode": summary.get("organism_mode", "idle"),
+                "pending_approval_count": summary.get("pending_approval_count", 0),
+                "session_count": summary.get("active_delegation_count", 0),
+            }
+        except Exception:
+            logger.debug("Failed to fill workstation presence", exc_info=True)

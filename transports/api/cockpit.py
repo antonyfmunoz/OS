@@ -1221,3 +1221,36 @@ def _mount_governance_router() -> None:
 
 
 _mount_governance_router()
+
+
+# ── Campaign 17: Workstation Embodiment ──────────────────────────────
+
+
+def _mount_orchestrator_presence_router() -> None:
+    from transports.api import cockpit_orchestrator_presence_routes
+
+    r = cockpit_orchestrator_presence_routes.get_router()
+    router.include_router(r)
+
+
+_mount_orchestrator_presence_router()
+
+
+def _mount_meta_ide_context_router() -> None:
+    from transports.api import cockpit_meta_ide_context_routes
+
+    r = cockpit_meta_ide_context_routes.get_router()
+    router.include_router(r)
+
+
+_mount_meta_ide_context_router()
+
+
+def _mount_workstation_presence_router() -> None:
+    from transports.api import cockpit_workstation_presence_routes
+
+    r = cockpit_workstation_presence_routes.get_router()
+    router.include_router(r)
+
+
+_mount_workstation_presence_router()

@@ -1077,6 +1077,16 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "LifecycleArc": ["substrate.organism.execution_lifecycle_runtime"],
     "ExecutionLifecycleSnapshot": ["substrate.organism.execution_lifecycle_runtime"],
     "ExecutionLifecycleRuntime": ["substrate.organism.execution_lifecycle_runtime"],
+    # C17.0 — Orchestrator Presence Runtime
+    "PresenceMode": ["substrate.workstation.orchestrator_presence_runtime"],
+    "OrchestratorPresenceSnapshot": ["substrate.workstation.orchestrator_presence_runtime"],
+    "OrchestratorPresenceRuntime": ["substrate.workstation.orchestrator_presence_runtime"],
+    # C17.1 — Meta IDE Context Runtime
+    "MetaIdeContextSnapshot": ["substrate.workstation.meta_ide_context_runtime"],
+    "MetaIdeContextRuntime": ["substrate.workstation.meta_ide_context_runtime"],
+    # C17.2 — Workstation Presence Runtime
+    "WorkstationPresenceSnapshot": ["substrate.workstation.workstation_presence_runtime"],
+    "WorkstationPresenceRuntime": ["substrate.workstation.workstation_presence_runtime"],
 }
 
 

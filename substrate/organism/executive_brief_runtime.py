@@ -270,6 +270,7 @@ class ExecutiveBriefRuntime:
         self._fill_executive(brief)
         self._fill_governance(brief)
         self._fill_execution_loop(brief)
+        self._fill_workstation_presence(brief)
 
         return brief
 
@@ -539,3 +540,16 @@ class ExecutiveBriefRuntime:
             brief.execution_blocked_count = assessment.blocked_count
         except Exception as exc:
             logger.debug("executive_brief: execution_loop fill failed: %s", exc)
+
+    def _fill_workstation_presence(self, brief: ExecutiveBrief) -> None:
+        try:
+            from substrate.workstation.orchestrator_presence_runtime import (
+                OrchestratorPresenceRuntime,
+            )
+
+            opr = OrchestratorPresenceRuntime()
+            brief.operator_device = opr.active_device()
+            brief.presence_mode = opr.mode().value
+            brief.active_panel = opr.snapshot().active_panel
+        except Exception as exc:
+            logger.debug("executive_brief: workstation_presence fill failed: %s", exc)
