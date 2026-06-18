@@ -1061,6 +1061,22 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "SubsystemHealthEntry": ["substrate.organism.organism_portfolio_runtime"],
     "OrganismPortfolioSnapshot": ["substrate.organism.organism_portfolio_runtime"],
     "OrganismPortfolioRuntime": ["substrate.organism.organism_portfolio_runtime"],
+    # C16.0 — Governed Execution Runtime
+    "ExecutionState": ["substrate.organism.governed_execution_runtime"],
+    "ExecutionBlocker": ["substrate.organism.governed_execution_runtime"],
+    "GovernedExecutionHealth": ["substrate.organism.governed_execution_runtime"],
+    "ExecutionStateAssessment": ["substrate.organism.governed_execution_runtime"],
+    "GovernedExecutionSnapshot": ["substrate.organism.governed_execution_runtime"],
+    "GovernedExecutionRuntime": ["substrate.organism.governed_execution_runtime"],
+    # C16.1 — Organism State Runtime
+    "OrganismMode": ["substrate.organism.organism_state_runtime"],
+    "OrganismStateSnapshot": ["substrate.organism.organism_state_runtime"],
+    "OrganismStateRuntime": ["substrate.organism.organism_state_runtime"],
+    # C16.2 — Execution Lifecycle Runtime
+    "LifecycleStage": ["substrate.organism.execution_lifecycle_runtime"],
+    "LifecycleArc": ["substrate.organism.execution_lifecycle_runtime"],
+    "ExecutionLifecycleSnapshot": ["substrate.organism.execution_lifecycle_runtime"],
+    "ExecutionLifecycleRuntime": ["substrate.organism.execution_lifecycle_runtime"],
 }
 
 
