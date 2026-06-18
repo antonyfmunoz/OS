@@ -282,6 +282,7 @@ class DelegationProposal:
     what_orchestrator_keeps: list[str] = field(default_factory=list)
     what_gets_delegated: list[str] = field(default_factory=list)
     goal_refs: list[str] = field(default_factory=list)
+    decision_refs: list[str] = field(default_factory=list)
     status: str = "pending"
     decided_at: float = 0.0
     created_at: float = 0.0
@@ -307,6 +308,7 @@ class DelegationProposal:
             "what_orchestrator_keeps": self.what_orchestrator_keeps,
             "what_gets_delegated": self.what_gets_delegated,
             "goal_refs": self.goal_refs,
+            "decision_refs": self.decision_refs,
             "status": self.status,
             "decided_at": self.decided_at,
             "created_at": self.created_at,
@@ -328,6 +330,7 @@ class DelegationProposal:
             what_orchestrator_keeps=d.get("what_orchestrator_keeps", []),
             what_gets_delegated=d.get("what_gets_delegated", []),
             goal_refs=d.get("goal_refs", []),
+            decision_refs=d.get("decision_refs", []),
             status=d.get("status", "pending"),
             decided_at=float(d.get("decided_at", 0.0)),
             created_at=float(d.get("created_at", 0.0)),

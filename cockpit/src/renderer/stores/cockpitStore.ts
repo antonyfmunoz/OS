@@ -65,6 +65,7 @@ export type Panel =
   | 'strategic'
   | 'goals'
   | 'realitygraph'
+  | 'memory'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

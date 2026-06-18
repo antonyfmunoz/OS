@@ -915,6 +915,31 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "KnowledgeEntry": ["substrate.organism.knowledge_awareness_runtime"],
     "KnowledgeSnapshot": ["substrate.organism.knowledge_awareness_runtime"],
     "KnowledgeAwarenessRuntime": ["substrate.organism.knowledge_awareness_runtime"],
+
+    # Campaign 9 — Decision Intelligence & Strategic Memory
+    # C9.0 — Decision Registry
+    "DecisionStatus": ["substrate.organism.decision_registry"],
+    "StrategicDecision": ["substrate.organism.decision_registry"],
+    "DecisionRegistry": ["substrate.organism.decision_registry"],
+    # C9.1 — Decision Lineage
+    "LineageNode": ["substrate.organism.decision_lineage_engine"],
+    "DecisionLineage": ["substrate.organism.decision_lineage_engine"],
+    "DecisionLineageEngine": ["substrate.organism.decision_lineage_engine"],
+    # C9.2 — Assumption Tracking
+    "AssumptionStatus": ["substrate.organism.assumption_tracking_runtime"],
+    "AssumptionRecord": ["substrate.organism.assumption_tracking_runtime"],
+    "AssumptionTrackingRuntime": ["substrate.organism.assumption_tracking_runtime"],
+    # C9.3 — Decision Validity
+    "ValidityStatus": ["substrate.organism.decision_validity_engine"],
+    "DecisionValidity": ["substrate.organism.decision_validity_engine"],
+    "DecisionValidityEngine": ["substrate.organism.decision_validity_engine"],
+    # C9.4 — Strategic Memory
+    "MemorySnapshot": ["substrate.organism.strategic_memory_engine"],
+    "StrategicMemory": ["substrate.organism.strategic_memory_engine"],
+    "StrategicMemoryEngine": ["substrate.organism.strategic_memory_engine"],
+    # C9.5 — Decision Impact
+    "DecisionImpact": ["substrate.organism.decision_impact_engine"],
+    "DecisionImpactEngine": ["substrate.organism.decision_impact_engine"],
 }
 
 

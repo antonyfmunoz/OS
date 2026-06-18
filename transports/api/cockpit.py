@@ -1142,3 +1142,13 @@ def _mount_goal_router() -> None:
 
 
 _mount_goal_router()
+
+
+def _mount_memory_router() -> None:
+    from transports.api import cockpit_memory_routes
+
+    r = cockpit_memory_routes.get_router()
+    router.include_router(r)
+
+
+_mount_memory_router()

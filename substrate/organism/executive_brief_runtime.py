@@ -34,6 +34,9 @@ class ExecutiveBrief:
     active_goals: list[str] = field(default_factory=list)
     goal_health: str = "unknown"
     goal_drift: list[str] = field(default_factory=list)
+    critical_decisions: list[str] = field(default_factory=list)
+    at_risk_decisions: list[str] = field(default_factory=list)
+    invalid_assumptions: list[str] = field(default_factory=list)
     health: str = "healthy"
     generated_at: float = 0.0
 
@@ -49,6 +52,9 @@ class ExecutiveBrief:
             "active_goals": self.active_goals,
             "goal_health": self.goal_health,
             "goal_drift": self.goal_drift,
+            "critical_decisions": self.critical_decisions,
+            "at_risk_decisions": self.at_risk_decisions,
+            "invalid_assumptions": self.invalid_assumptions,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -105,6 +111,24 @@ class ExecutiveBrief:
                 lines.append(f"  - {item}")
             lines.append("")
 
+        if self.critical_decisions:
+            lines.append("Critical Decisions:")
+            for item in self.critical_decisions:
+                lines.append(f"  - {item}")
+            lines.append("")
+
+        if self.at_risk_decisions:
+            lines.append("At-Risk Decisions:")
+            for item in self.at_risk_decisions:
+                lines.append(f"  ! {item}")
+            lines.append("")
+
+        if self.invalid_assumptions:
+            lines.append("Invalid Assumptions:")
+            for item in self.invalid_assumptions:
+                lines.append(f"  X {item}")
+            lines.append("")
+
         if self.recommendations:
             lines.append("Recommended Actions:")
             for item in self.recommendations:
@@ -136,6 +160,9 @@ class ExecutiveBriefRuntime:
         drift_engine: Any | None = None,
         goal_drift_engine: Any | None = None,
         outcome_tracking: Any | None = None,
+        decision_registry: Any | None = None,
+        validity_engine: Any | None = None,
+        assumption_tracking: Any | None = None,
     ) -> None:
         self._strategic_context = strategic_context
         self._priority_engine = priority_engine
@@ -144,6 +171,9 @@ class ExecutiveBriefRuntime:
         self._drift_engine = drift_engine
         self._goal_drift_engine = goal_drift_engine
         self._outcome_tracking = outcome_tracking
+        self._decision_registry = decision_registry
+        self._validity_engine = validity_engine
+        self._assumption_tracking = assumption_tracking
 
     def generate(self) -> ExecutiveBrief:
         """Generate a deterministic executive brief."""
@@ -158,6 +188,7 @@ class ExecutiveBriefRuntime:
         self._fill_drift(brief)
         self._fill_goal_health(brief)
         self._fill_goal_drift(brief)
+        self._fill_decisions(brief)
 
         return brief
 
@@ -305,3 +336,32 @@ class ExecutiveBriefRuntime:
                 brief.goal_drift.append(f"[{dtype}] {title}")
         except Exception as exc:
             logger.debug("executive_brief: goal_drift fill failed: %s", exc)
+
+    def _fill_decisions(self, brief: ExecutiveBrief) -> None:
+        if self._decision_registry:
+            try:
+                from substrate.organism.decision_registry import DecisionStatus
+                active = self._decision_registry.list_decisions(
+                    status=DecisionStatus.ACTIVE
+                )
+                for d in active[:5]:
+                    brief.critical_decisions.append(d.title)
+            except Exception as exc:
+                logger.debug("executive_brief: decisions fill failed: %s", exc)
+
+        if self._validity_engine:
+            try:
+                at_risk = self._validity_engine.at_risk()
+                for v in at_risk[:5]:
+                    label = v.decision_title if hasattr(v, "decision_title") else v.decision_id
+                    brief.at_risk_decisions.append(label)
+            except Exception as exc:
+                logger.debug("executive_brief: at_risk fill failed: %s", exc)
+
+        if self._assumption_tracking:
+            try:
+                invalid = self._assumption_tracking.invalidated()
+                for a in invalid[:5]:
+                    brief.invalid_assumptions.append(a.statement)
+            except Exception as exc:
+                logger.debug("executive_brief: invalid_assumptions fill failed: %s", exc)

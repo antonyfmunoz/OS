@@ -48,6 +48,7 @@ class RealityEntityType(str, Enum):
     INFRASTRUCTURE = "infrastructure"
     FILE = "file"
     ARTIFACT = "artifact"
+    DECISION = "decision"
 
 
 class RealityRelationType(str, Enum):
@@ -60,6 +61,10 @@ class RealityRelationType(str, Enum):
     DEPENDS_ON = "depends_on"
     ACTIVE_IN = "active_in"
     PRODUCED_BY = "produced_by"
+    SUPPORTS = "supports"
+    CREATED = "created"
+    APPROVED_BY = "approved_by"
+    SUPERSEDES = "supersedes"
 
 
 class RealityEntityStatus(str, Enum):
