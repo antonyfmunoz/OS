@@ -57,6 +57,8 @@ class StrategicContext:
     goal_alignment: dict[str, Any] = field(default_factory=dict)
     decision_health: dict[str, Any] = field(default_factory=dict)
     memory_health: dict[str, Any] = field(default_factory=dict)
+    capability_health: dict[str, Any] = field(default_factory=dict)
+    capability_gaps: list[dict[str, Any]] = field(default_factory=list)
     health: str = StrategicHealth.HEALTHY.value
     generated_at: float = 0.0
 
@@ -75,6 +77,8 @@ class StrategicContext:
             "goal_alignment": self.goal_alignment,
             "decision_health": self.decision_health,
             "memory_health": self.memory_health,
+            "capability_health": self.capability_health,
+            "capability_gaps": self.capability_gaps,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -104,6 +108,7 @@ class StrategicContextRuntime:
         goal_alignment_engine: Any | None = None,
         decision_registry: Any | None = None,
         memory_engine: Any | None = None,
+        capability_portfolio: Any | None = None,
     ) -> None:
         self._gap_engine = gap_engine
         self._tick_loop = tick_loop
@@ -116,6 +121,7 @@ class StrategicContextRuntime:
         self._goal_alignment_engine = goal_alignment_engine
         self._decision_registry = decision_registry
         self._memory_engine = memory_engine
+        self._capability_portfolio = capability_portfolio
 
     def context(self) -> StrategicContext:
         """Synthesize strategic context from all composed engines."""
@@ -131,6 +137,7 @@ class StrategicContextRuntime:
         self._fill_from_next_action_engine(ctx)
         self._fill_from_goal_system(ctx)
         self._fill_from_decision_system(ctx)
+        self._fill_from_capability_system(ctx)
 
         ctx.health = self._classify_health(ctx).value
         return ctx
@@ -364,3 +371,19 @@ class StrategicContextRuntime:
                 }
             except Exception:
                 logger.debug("Failed to fill memory health", exc_info=True)
+
+    def _fill_from_capability_system(self, ctx: StrategicContext) -> None:
+        if self._capability_portfolio is None:
+            return
+        try:
+            snap = self._capability_portfolio.snapshot()
+            snap_dict = snap.to_dict() if hasattr(snap, "to_dict") else {}
+            ctx.capability_health = {
+                "health": snap_dict.get("health", "unknown"),
+                "compounding_score": snap_dict.get("compounding_score", 0.0),
+                "total_capabilities": snap_dict.get("total_capabilities", 0),
+                "by_maturity": snap_dict.get("by_maturity", {}),
+            }
+            ctx.capability_gaps = snap_dict.get("critical_gaps", [])[:10]
+        except Exception:
+            logger.debug("Failed to fill capability health", exc_info=True)

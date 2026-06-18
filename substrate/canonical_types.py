@@ -759,6 +759,16 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "CapabilityEvidence": ["substrate.organism.capability_runtime"],
     "EmergentCapability": ["substrate.organism.capability_runtime"],
     "CapabilityRuntime": ["substrate.organism.capability_runtime"],
+    # Campaign 10 — Capability Intelligence
+    "CapabilityRelationType": ["substrate.organism.capability_graph_engine"],
+    "CapabilityEdge": ["substrate.organism.capability_graph_engine"],
+    "CapabilityGraphEngine": ["substrate.organism.capability_graph_engine"],
+    "CapabilityGapSeverity": ["substrate.organism.capability_gap_engine"],
+    "CapabilityGap": ["substrate.organism.capability_gap_engine"],
+    "CapabilityGapEngine": ["substrate.organism.capability_gap_engine"],
+    "PortfolioHealth": ["substrate.organism.capability_portfolio_runtime"],
+    "CapabilityPortfolioSnapshot": ["substrate.organism.capability_portfolio_runtime"],
+    "CapabilityPortfolioRuntime": ["substrate.organism.capability_portfolio_runtime"],
     # Gate 6 — Operationalization Runtime
     "OperationalizationForm": ["substrate.organism.operationalization_runtime"],
     "OperationalizationStatus": ["substrate.organism.operationalization_runtime"],

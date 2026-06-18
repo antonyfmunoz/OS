@@ -55,6 +55,7 @@ class ResolvedContext:
     constraints: list[dict[str, Any]] = field(default_factory=list)
     knowledge: list[dict[str, Any]] = field(default_factory=list)
     goals: list[dict[str, Any]] = field(default_factory=list)
+    capabilities: list[dict[str, Any]] = field(default_factory=list)
     unresolved_references: list[str] = field(default_factory=list)
     resolution_chain: list[dict[str, str]] = field(default_factory=list)
     confidence: float = 0.0
@@ -81,6 +82,7 @@ class ResolvedContext:
             "constraints": self.constraints,
             "knowledge": self.knowledge,
             "goals": self.goals,
+            "capabilities": self.capabilities,
             "unresolved_references": self.unresolved_references,
             "resolution_chain": self.resolution_chain,
             "confidence": self.confidence,
@@ -155,6 +157,7 @@ class ContextResolutionEngine:
         knowledge_runtime: Any = None,
         goal_registry: Any = None,
         decision_registry: Any = None,
+        capability_runtime: Any = None,
     ) -> None:
         self._graph = reality_graph
         self._workspace = workspace_awareness
@@ -166,6 +169,7 @@ class ContextResolutionEngine:
         self._knowledge_runtime = knowledge_runtime
         self._goal_registry = goal_registry
         self._decision_registry = decision_registry
+        self._capability_runtime = capability_runtime
 
     def resolve(self, text: str) -> ResolvedContext:
         """Main entry: natural language → fully resolved context."""
@@ -181,6 +185,7 @@ class ContextResolutionEngine:
         self._enrich_from_runtimes(ctx)
         self._resolve_goals(candidates, ctx)
         self._resolve_decisions(ctx)
+        self._resolve_capabilities(ctx)
         self._merge_active_context(ctx)
         self._compute_confidence(ctx)
 
@@ -477,6 +482,28 @@ class ContextResolutionEngine:
                 })
         except Exception as exc:
             logger.debug("Decision registry enrichment failed: %s", exc)
+
+    def _resolve_capabilities(self, ctx: ResolvedContext) -> None:
+        """Enrich capabilities from CapabilityRuntime for resolved goals."""
+        if self._capability_runtime is None:
+            return
+        try:
+            all_caps = self._capability_runtime.list_capabilities()
+            for cap in all_caps[:20]:
+                mat = cap.maturity.value if hasattr(cap.maturity, "value") else str(cap.maturity)
+                ctx.capabilities.append({
+                    "capability_id": cap.capability_id,
+                    "name": cap.name,
+                    "maturity": mat,
+                    "source": "capability_runtime",
+                })
+            if ctx.capabilities:
+                ctx.resolution_chain.append({
+                    "step": "capability_enrichment",
+                    "capabilities_found": str(len(ctx.capabilities)),
+                })
+        except Exception as exc:
+            logger.debug("Capability enrichment failed: %s", exc)
 
     def _merge_active_context(self, ctx: ResolvedContext) -> None:
         """Merge in active workspace/device awareness."""

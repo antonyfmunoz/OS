@@ -37,6 +37,9 @@ class ExecutiveBrief:
     critical_decisions: list[str] = field(default_factory=list)
     at_risk_decisions: list[str] = field(default_factory=list)
     invalid_assumptions: list[str] = field(default_factory=list)
+    top_capabilities: list[str] = field(default_factory=list)
+    critical_capability_gaps: list[str] = field(default_factory=list)
+    capability_health: str = "unknown"
     health: str = "healthy"
     generated_at: float = 0.0
 
@@ -55,6 +58,9 @@ class ExecutiveBrief:
             "critical_decisions": self.critical_decisions,
             "at_risk_decisions": self.at_risk_decisions,
             "invalid_assumptions": self.invalid_assumptions,
+            "top_capabilities": self.top_capabilities,
+            "critical_capability_gaps": self.critical_capability_gaps,
+            "capability_health": self.capability_health,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -129,6 +135,18 @@ class ExecutiveBrief:
                 lines.append(f"  X {item}")
             lines.append("")
 
+        if self.top_capabilities:
+            lines.append(f"Capabilities ({self.capability_health}):")
+            for item in self.top_capabilities:
+                lines.append(f"  - {item}")
+            lines.append("")
+
+        if self.critical_capability_gaps:
+            lines.append("Capability Gaps:")
+            for item in self.critical_capability_gaps:
+                lines.append(f"  ! {item}")
+            lines.append("")
+
         if self.recommendations:
             lines.append("Recommended Actions:")
             for item in self.recommendations:
@@ -163,6 +181,8 @@ class ExecutiveBriefRuntime:
         decision_registry: Any | None = None,
         validity_engine: Any | None = None,
         assumption_tracking: Any | None = None,
+        capability_runtime: Any | None = None,
+        capability_portfolio: Any | None = None,
     ) -> None:
         self._strategic_context = strategic_context
         self._priority_engine = priority_engine
@@ -174,6 +194,8 @@ class ExecutiveBriefRuntime:
         self._decision_registry = decision_registry
         self._validity_engine = validity_engine
         self._assumption_tracking = assumption_tracking
+        self._capability_runtime = capability_runtime
+        self._capability_portfolio = capability_portfolio
 
     def generate(self) -> ExecutiveBrief:
         """Generate a deterministic executive brief."""
@@ -189,6 +211,7 @@ class ExecutiveBriefRuntime:
         self._fill_goal_health(brief)
         self._fill_goal_drift(brief)
         self._fill_decisions(brief)
+        self._fill_capabilities(brief)
 
         return brief
 
@@ -365,3 +388,21 @@ class ExecutiveBriefRuntime:
                     brief.invalid_assumptions.append(a.statement)
             except Exception as exc:
                 logger.debug("executive_brief: invalid_assumptions fill failed: %s", exc)
+
+    def _fill_capabilities(self, brief: ExecutiveBrief) -> None:
+        if self._capability_portfolio is None:
+            return
+        try:
+            snap = self._capability_portfolio.snapshot()
+            brief.capability_health = (
+                snap.health.value if hasattr(snap.health, "value") else str(snap.health)
+            )
+            for cap in getattr(snap, "top_capabilities", [])[:5]:
+                name = cap.get("name", "")
+                maturity = cap.get("maturity", "")
+                brief.top_capabilities.append(f"{name} ({maturity})")
+            for gap in getattr(snap, "critical_gaps", [])[:5]:
+                rec = gap.get("recommendation", str(gap))
+                brief.critical_capability_gaps.append(rec)
+        except Exception as exc:
+            logger.debug("executive_brief: capabilities fill failed: %s", exc)
