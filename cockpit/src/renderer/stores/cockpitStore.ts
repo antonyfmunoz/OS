@@ -69,6 +69,7 @@ export type Panel =
   | 'capabilities'
   | 'workintelligence'
   | 'learning'
+  | 'prediction'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

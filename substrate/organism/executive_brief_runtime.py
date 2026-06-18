@@ -43,6 +43,9 @@ class ExecutiveBrief:
     learning_health: str = "unknown"
     learning_velocity: float = 0.0
     learning_drift_count: int = 0
+    prediction_health: str = "unknown"
+    top_forecasts: list[str] = field(default_factory=list)
+    critical_future_risks: list[str] = field(default_factory=list)
     health: str = "healthy"
     generated_at: float = 0.0
 
@@ -67,6 +70,9 @@ class ExecutiveBrief:
             "learning_health": self.learning_health,
             "learning_velocity": self.learning_velocity,
             "learning_drift_count": self.learning_drift_count,
+            "prediction_health": self.prediction_health,
+            "top_forecasts": self.top_forecasts,
+            "critical_future_risks": self.critical_future_risks,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -219,6 +225,7 @@ class ExecutiveBriefRuntime:
         self._fill_decisions(brief)
         self._fill_capabilities(brief)
         self._fill_learning(brief)
+        self._fill_prediction(brief)
 
         return brief
 
@@ -424,3 +431,23 @@ class ExecutiveBriefRuntime:
             brief.learning_drift_count = len(lpr.drift_warnings())
         except Exception as exc:
             logger.debug("executive_brief: learning fill failed: %s", exc)
+
+    def _fill_prediction(self, brief: ExecutiveBrief) -> None:
+        try:
+            from substrate.organism.prediction_portfolio_runtime import PredictionPortfolioRuntime
+            ppr = PredictionPortfolioRuntime()
+            h = ppr.health()
+            brief.prediction_health = h.value if hasattr(h, "value") else str(h)
+            top = ppr.highest_risk_forecasts(limit=3)
+            for f in top:
+                eid = getattr(f, "entity_id", "") if hasattr(f, "entity_id") else f.get("entity_id", "")
+                status = getattr(f, "status", "") if hasattr(f, "status") else f.get("status", "")
+                brief.top_forecasts.append(f"{eid} ({status})")
+            snap = ppr.snapshot()
+            for risk in getattr(snap, "critical_risks", [])[:3]:
+                if isinstance(risk, dict):
+                    brief.critical_future_risks.append(risk.get("risk", str(risk)))
+                else:
+                    brief.critical_future_risks.append(str(risk))
+        except Exception as exc:
+            logger.debug("executive_brief: prediction fill failed: %s", exc)
