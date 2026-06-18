@@ -39,6 +39,36 @@ def _get_runtime() -> Any:
     return _get_runtime._instance
 
 
+def _get_governed_execution() -> Any:
+    if not hasattr(_get_governed_execution, "_instance"):
+        from substrate.organism.governed_execution_runtime import (
+            GovernedExecutionRuntime,
+        )
+
+        _get_governed_execution._instance = GovernedExecutionRuntime()
+    return _get_governed_execution._instance
+
+
+def _get_organism_state() -> Any:
+    if not hasattr(_get_organism_state, "_instance"):
+        from substrate.organism.organism_state_runtime import (
+            OrganismStateRuntime,
+        )
+
+        _get_organism_state._instance = OrganismStateRuntime()
+    return _get_organism_state._instance
+
+
+def _get_execution_lifecycle() -> Any:
+    if not hasattr(_get_execution_lifecycle, "_instance"):
+        from substrate.organism.execution_lifecycle_runtime import (
+            ExecutionLifecycleRuntime,
+        )
+
+        _get_execution_lifecycle._instance = ExecutionLifecycleRuntime()
+    return _get_execution_lifecycle._instance
+
+
 def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter()
     auth = [Depends(require_operator_dep)]
@@ -74,5 +104,19 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     @r.get("/command-center-mvp/section/{section_name}", dependencies=auth)
     async def section(section_name: str) -> dict[str, Any]:
         return _get_runtime().section(section_name)
+
+    # ── C16 — Governed Execution Loop endpoints ─────────────────
+
+    @r.get("/command-center-mvp/governed-execution", dependencies=auth)
+    async def governed_execution() -> dict[str, Any]:
+        return _get_governed_execution().snapshot().to_dict()
+
+    @r.get("/command-center-mvp/organism-state", dependencies=auth)
+    async def organism_state() -> dict[str, Any]:
+        return _get_organism_state().snapshot().to_dict()
+
+    @r.get("/command-center-mvp/execution-lifecycle", dependencies=auth)
+    async def execution_lifecycle() -> dict[str, Any]:
+        return _get_execution_lifecycle().snapshot().to_dict()
 
     return r

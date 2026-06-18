@@ -54,6 +54,9 @@ class ExecutiveBrief:
     governance_health: str = "unknown"
     organism_coherence_score: float = 0.0
     governance_conflict_count: int = 0
+    execution_state: str = "idle"
+    execution_readiness_count: int = 0
+    execution_blocked_count: int = 0
     health: str = "healthy"
     generated_at: float = 0.0
 
@@ -89,6 +92,9 @@ class ExecutiveBrief:
             "governance_health": self.governance_health,
             "organism_coherence_score": self.organism_coherence_score,
             "governance_conflict_count": self.governance_conflict_count,
+            "execution_state": self.execution_state,
+            "execution_readiness_count": self.execution_readiness_count,
+            "execution_blocked_count": self.execution_blocked_count,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -263,6 +269,7 @@ class ExecutiveBriefRuntime:
         self._fill_prediction(brief)
         self._fill_executive(brief)
         self._fill_governance(brief)
+        self._fill_execution_loop(brief)
 
         return brief
 
@@ -518,3 +525,17 @@ class ExecutiveBriefRuntime:
             brief.governance_conflict_count = len(gr.active_conflicts())
         except Exception as exc:
             logger.debug("executive_brief: governance fill failed: %s", exc)
+
+    def _fill_execution_loop(self, brief: ExecutiveBrief) -> None:
+        try:
+            from substrate.organism.governed_execution_runtime import (
+                GovernedExecutionRuntime,
+            )
+
+            ger = GovernedExecutionRuntime()
+            assessment = ger.assessment()
+            brief.execution_state = assessment.state
+            brief.execution_readiness_count = assessment.ready_count
+            brief.execution_blocked_count = assessment.blocked_count
+        except Exception as exc:
+            logger.debug("executive_brief: execution_loop fill failed: %s", exc)

@@ -63,6 +63,7 @@ class StrategicContext:
     prediction_health: dict[str, Any] = field(default_factory=dict)
     executive_health: dict[str, Any] = field(default_factory=dict)
     governance_health: dict[str, Any] = field(default_factory=dict)
+    execution_loop: dict[str, Any] = field(default_factory=dict)
     health: str = StrategicHealth.HEALTHY.value
     generated_at: float = 0.0
 
@@ -87,6 +88,7 @@ class StrategicContext:
             "prediction_health": self.prediction_health,
             "executive_health": self.executive_health,
             "governance_health": self.governance_health,
+            "execution_loop": self.execution_loop,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -150,6 +152,7 @@ class StrategicContextRuntime:
         self._fill_from_prediction_system(ctx)
         self._fill_from_executive_system(ctx)
         self._fill_from_governance_system(ctx)
+        self._fill_from_execution_loop(ctx)
 
         ctx.health = self._classify_health(ctx).value
         return ctx
@@ -464,3 +467,28 @@ class StrategicContextRuntime:
             }
         except Exception:
             logger.debug("Failed to fill governance health", exc_info=True)
+
+    def _fill_from_execution_loop(self, ctx: StrategicContext) -> None:
+        try:
+            from substrate.organism.governed_execution_runtime import (
+                GovernedExecutionRuntime,
+            )
+            from substrate.organism.execution_lifecycle_runtime import (
+                ExecutionLifecycleRuntime,
+            )
+
+            ger = GovernedExecutionRuntime()
+            elr = ExecutionLifecycleRuntime()
+            ger_summary = ger.summary()
+            elr_summary = elr.summary()
+            ctx.execution_loop = {
+                "state": ger_summary.get("state", "idle"),
+                "health": ger_summary.get("health", "offline"),
+                "ready_count": ger_summary.get("ready_count", 0),
+                "blocked_count": ger_summary.get("blocked_count", 0),
+                "lifecycle_stage": elr_summary.get("overall_stage", "not_started"),
+                "lesson_count": elr_summary.get("advancing_capabilities", 0),
+                "momentum_score": elr_summary.get("momentum_score", 0.0),
+            }
+        except Exception:
+            logger.debug("Failed to fill execution loop", exc_info=True)
