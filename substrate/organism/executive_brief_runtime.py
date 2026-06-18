@@ -46,6 +46,11 @@ class ExecutiveBrief:
     prediction_health: str = "unknown"
     top_forecasts: list[str] = field(default_factory=list)
     critical_future_risks: list[str] = field(default_factory=list)
+    allocation_health: str = "unknown"
+    top_allocations: list[str] = field(default_factory=list)
+    overcommitment_index: float = 0.0
+    executive_health: str = "unknown"
+    executive_drift_count: int = 0
     health: str = "healthy"
     generated_at: float = 0.0
 
@@ -73,6 +78,11 @@ class ExecutiveBrief:
             "prediction_health": self.prediction_health,
             "top_forecasts": self.top_forecasts,
             "critical_future_risks": self.critical_future_risks,
+            "allocation_health": self.allocation_health,
+            "top_allocations": self.top_allocations,
+            "overcommitment_index": self.overcommitment_index,
+            "executive_health": self.executive_health,
+            "executive_drift_count": self.executive_drift_count,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -163,6 +173,19 @@ class ExecutiveBrief:
             lines.append("Recommended Actions:")
             for item in self.recommendations:
                 lines.append(f"  > {item}")
+            lines.append("")
+
+        if self.executive_health != "unknown":
+            lines.append(f"Executive: {self.executive_health.upper()} "
+                         f"(allocation: {self.allocation_health}, "
+                         f"overcommit: {self.overcommitment_index:.0%}, "
+                         f"drifts: {self.executive_drift_count})")
+            lines.append("")
+
+        if self.top_allocations:
+            lines.append("Top Allocations:")
+            for item in self.top_allocations:
+                lines.append(f"  $ {item}")
 
         return "\n".join(lines).strip()
 
@@ -226,6 +249,7 @@ class ExecutiveBriefRuntime:
         self._fill_capabilities(brief)
         self._fill_learning(brief)
         self._fill_prediction(brief)
+        self._fill_executive(brief)
 
         return brief
 
@@ -451,3 +475,20 @@ class ExecutiveBriefRuntime:
                     brief.critical_future_risks.append(str(risk))
         except Exception as exc:
             logger.debug("executive_brief: prediction fill failed: %s", exc)
+
+    def _fill_executive(self, brief: ExecutiveBrief) -> None:
+        try:
+            from substrate.organism.executive_portfolio_runtime import ExecutivePortfolioRuntime
+            epr = ExecutivePortfolioRuntime()
+            h = epr.health()
+            brief.executive_health = h.value if hasattr(h, "value") else str(h)
+            brief.allocation_health = epr._get_allocation_health()
+            brief.overcommitment_index = epr.overcommitment_index()
+            brief.executive_drift_count = len(epr.drift_warnings())
+            top = epr.top_recommendations(limit=3)
+            for r in top:
+                name = r.get("target_name", "") if isinstance(r, dict) else getattr(r, "target_name", "")
+                priority = r.get("priority", "") if isinstance(r, dict) else getattr(r, "priority", "")
+                brief.top_allocations.append(f"{name} ({priority})")
+        except Exception as exc:
+            logger.debug("executive_brief: executive fill failed: %s", exc)

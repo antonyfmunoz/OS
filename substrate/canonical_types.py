@@ -1005,6 +1005,28 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "PredictionDriftWarning": ["substrate.organism.prediction_portfolio_runtime"],
     "PredictionPortfolioSnapshot": ["substrate.organism.prediction_portfolio_runtime"],
     "PredictionPortfolioRuntime": ["substrate.organism.prediction_portfolio_runtime"],
+
+    # ── Campaign 14: Executive Intelligence ──────────────────────────
+    # C14.0
+    "ResourceType": ["substrate.organism.resource_allocation_runtime"],
+    "AllocationPriority": ["substrate.organism.resource_allocation_runtime"],
+    "AllocationHealth": ["substrate.organism.resource_allocation_runtime"],
+    "AllocationRecommendation": ["substrate.organism.resource_allocation_runtime"],
+    "ResourceBudget": ["substrate.organism.resource_allocation_runtime"],
+    "AllocationSnapshot": ["substrate.organism.resource_allocation_runtime"],
+    "ResourceAllocationRuntime": ["substrate.organism.resource_allocation_runtime"],
+    # C14.1
+    "TradeoffSeverity": ["substrate.organism.tradeoff_intelligence_engine"],
+    "TradeoffOption": ["substrate.organism.tradeoff_intelligence_engine"],
+    "TradeoffAnalysis": ["substrate.organism.tradeoff_intelligence_engine"],
+    "TradeoffSnapshot": ["substrate.organism.tradeoff_intelligence_engine"],
+    "TradeoffIntelligenceEngine": ["substrate.organism.tradeoff_intelligence_engine"],
+    # C14.2
+    "ExecutiveHealth": ["substrate.organism.executive_portfolio_runtime"],
+    "ExecutiveDriftType": ["substrate.organism.executive_portfolio_runtime"],
+    "ExecutiveDriftWarning": ["substrate.organism.executive_portfolio_runtime"],
+    "ExecutivePortfolioSnapshot": ["substrate.organism.executive_portfolio_runtime"],
+    "ExecutivePortfolioRuntime": ["substrate.organism.executive_portfolio_runtime"],
 }
 
 

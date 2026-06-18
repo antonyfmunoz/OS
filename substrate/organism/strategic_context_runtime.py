@@ -61,6 +61,7 @@ class StrategicContext:
     capability_gaps: list[dict[str, Any]] = field(default_factory=list)
     learning_health: dict[str, Any] = field(default_factory=dict)
     prediction_health: dict[str, Any] = field(default_factory=dict)
+    executive_health: dict[str, Any] = field(default_factory=dict)
     health: str = StrategicHealth.HEALTHY.value
     generated_at: float = 0.0
 
@@ -83,6 +84,7 @@ class StrategicContext:
             "capability_gaps": self.capability_gaps,
             "learning_health": self.learning_health,
             "prediction_health": self.prediction_health,
+            "executive_health": self.executive_health,
             "health": self.health,
             "generated_at": self.generated_at,
         }
@@ -144,6 +146,7 @@ class StrategicContextRuntime:
         self._fill_from_capability_system(ctx)
         self._fill_from_learning_system(ctx)
         self._fill_from_prediction_system(ctx)
+        self._fill_from_executive_system(ctx)
 
         ctx.health = self._classify_health(ctx).value
         return ctx
@@ -423,3 +426,19 @@ class StrategicContextRuntime:
             }
         except Exception:
             logger.debug("Failed to fill prediction health", exc_info=True)
+
+    def _fill_from_executive_system(self, ctx: StrategicContext) -> None:
+        try:
+            from substrate.organism.executive_portfolio_runtime import ExecutivePortfolioRuntime
+            epr = ExecutivePortfolioRuntime()
+            summary = epr.summary()
+            ctx.executive_health = {
+                "health": summary.get("executive_health", "unknown"),
+                "allocation_health": summary.get("allocation_health", "unknown"),
+                "focus_score": summary.get("focus_score", 0.0),
+                "overcommitment_index": summary.get("overcommitment_index", 0.0),
+                "drift_count": summary.get("drift_count", 0),
+                "active_goal_count": summary.get("active_goal_count", 0),
+            }
+        except Exception:
+            logger.debug("Failed to fill executive health", exc_info=True)
