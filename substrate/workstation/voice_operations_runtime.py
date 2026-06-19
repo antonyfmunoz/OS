@@ -280,6 +280,7 @@ class VoiceOperationsRuntime:
             try:
                 ingress_status = self.voice_ingress_runtime.snapshot().to_dict()
             except Exception:
+                logger.debug("Voice ingress snapshot unavailable")
                 ingress_status = {"error": "unavailable"}
 
         active_sessions: list[dict[str, Any]] = []
@@ -288,7 +289,7 @@ class VoiceOperationsRuntime:
                 snap = self.voice_session_manager.snapshot()
                 active_sessions = snap.active_sessions
             except Exception:
-                pass
+                logger.debug("Voice session snapshot unavailable")
 
         ambient_state = "dormant"
         devices_listening: list[str] = []
@@ -297,13 +298,14 @@ class VoiceOperationsRuntime:
                 ambient_state = self.ambient_wake_runtime.current_state().value
                 devices_listening = self.ambient_wake_runtime.listening_devices()
             except Exception:
-                pass
+                logger.debug("Ambient wake snapshot unavailable")
 
         output_status: dict[str, Any] = {}
         if self.voice_output_runtime is not None:
             try:
                 output_status = self.voice_output_runtime.snapshot().to_dict()
             except Exception:
+                logger.debug("Voice output snapshot unavailable")
                 output_status = {"error": "unavailable"}
 
         query_domains: list[str] = []
@@ -312,7 +314,7 @@ class VoiceOperationsRuntime:
                 from substrate.operator.voice_query_engine import QueryDomain
                 query_domains = [d.value for d in QueryDomain]
             except Exception:
-                pass
+                logger.debug("Voice query engine domains unavailable")
 
         caps = self.capabilities()
 
@@ -359,7 +361,7 @@ class VoiceOperationsRuntime:
                 wake_word = state.value != "dormant"
                 ambient = True
             except Exception:
-                pass
+                logger.debug("Ambient wake state check failed")
 
         if self.voice_session_manager is not None:
             conference = True
