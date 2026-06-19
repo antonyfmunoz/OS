@@ -1,38 +1,42 @@
-"""Voice Ingress API routes — Campaign 20.0."""
+"""Cockpit routes for VoiceIngressRuntime — Campaign 20.0."""
 
 from __future__ import annotations
 
-import logging
+from typing import Any
 
-logger = logging.getLogger(__name__)
+from fastapi import APIRouter
+
+_runtime: Any = None
 
 
-def register_voice_ingress_routes(app: object) -> None:
-    """Mount voice ingress routes on the cockpit app."""
-    from flask import jsonify
-
-    flask_app: object = app
-
-    @flask_app.route("/voice/ingress/status", methods=["GET"])  # type: ignore[attr-defined]
-    def voice_ingress_status() -> tuple:
+def _get_runtime() -> Any:
+    global _runtime
+    if _runtime is None:
         try:
             from substrate.workstation.voice_ingress_runtime import (
                 VoiceIngressRuntime,
             )
-            runtime = VoiceIngressRuntime()
-            return jsonify(runtime.snapshot().to_dict()), 200
-        except Exception as exc:
-            logger.debug("voice ingress status failed: %s", exc)
-            return jsonify({"error": str(exc)}), 500
+            _runtime = VoiceIngressRuntime()
+        except Exception:
+            pass
+    return _runtime
 
-    @flask_app.route("/voice/ingress/sources", methods=["GET"])  # type: ignore[attr-defined]
-    def voice_ingress_sources() -> tuple:
-        try:
-            from substrate.workstation.voice_ingress_runtime import (
-                VoiceIngressRuntime,
-            )
-            runtime = VoiceIngressRuntime()
-            return jsonify({"sources": runtime.active_sources()}), 200
-        except Exception as exc:
-            logger.debug("voice ingress sources failed: %s", exc)
-            return jsonify({"error": str(exc)}), 500
+
+def get_router() -> APIRouter:
+    router = APIRouter(prefix="/voice/ingress", tags=["voice-ingress"])
+
+    @router.get("/status")
+    def voice_ingress_status() -> dict[str, Any]:
+        rt = _get_runtime()
+        if rt is None:
+            return {"error": "VoiceIngressRuntime unavailable"}
+        return rt.snapshot().to_dict()
+
+    @router.get("/sources")
+    def voice_ingress_sources() -> dict[str, Any]:
+        rt = _get_runtime()
+        if rt is None:
+            return {"sources": []}
+        return {"sources": rt.active_sources()}
+
+    return router

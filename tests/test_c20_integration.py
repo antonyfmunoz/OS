@@ -64,26 +64,16 @@ class TestC20Imports(unittest.TestCase):
         assert VoiceOperationsRuntime is not None
 
     def test_import_route_registrations(self):
-        from transports.api.cockpit_voice_ingress_routes import (
-            register_voice_ingress_routes,
-        )
-        from transports.api.cockpit_voice_session_routes import (
-            register_voice_session_routes,
-        )
-        from transports.api.cockpit_ambient_wake_routes import (
-            register_ambient_wake_routes,
-        )
-        from transports.api.cockpit_voice_output_routes import (
-            register_voice_output_routes,
-        )
-        from transports.api.cockpit_voice_ops_routes import (
-            register_voice_ops_routes,
-        )
-        assert register_voice_ingress_routes is not None
-        assert register_voice_session_routes is not None
-        assert register_ambient_wake_routes is not None
-        assert register_voice_output_routes is not None
-        assert register_voice_ops_routes is not None
+        from transports.api.cockpit_voice_ingress_routes import get_router as r0
+        from transports.api.cockpit_voice_session_routes import get_router as r1
+        from transports.api.cockpit_ambient_wake_routes import get_router as r2
+        from transports.api.cockpit_voice_output_routes import get_router as r3
+        from transports.api.cockpit_voice_ops_routes import get_router as r4
+        assert r0 is not None
+        assert r1 is not None
+        assert r2 is not None
+        assert r3 is not None
+        assert r4 is not None
 
 
 # ── Full pipeline tests ──────────────────────────────────────────────
