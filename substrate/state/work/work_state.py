@@ -83,8 +83,10 @@ def has_recent_signal() -> bool:
 def _measure_pressure() -> Pressure:
     """Read OS load and swap to determine resource pressure.
 
-    Thresholds tuned for shared VPS (Hostinger) where sustained high CPU
-    triggers a week-long account limitation. Conservative to stay safe.
+    Thresholds aligned with substrate cpu_gate (1.8/core ceiling).
+    MODERATE starts above cpu_gate ceiling so normal gated operation
+    stays LOW. HIGH/CRITICAL remain as escalation for severe overload.
+    Swap thresholds unchanged.
     """
     try:
         load1, _, _ = os.getloadavg()
@@ -95,9 +97,9 @@ def _measure_pressure() -> Pressure:
 
         if load_per_cpu > 3.0 or swap_pct > 60.0:
             return Pressure.CRITICAL
-        if load_per_cpu > 2.0 or swap_pct > 40.0:
+        if load_per_cpu > 2.5 or swap_pct > 40.0:
             return Pressure.HIGH
-        if load_per_cpu > 1.0 or swap_pct > 20.0:
+        if load_per_cpu > 1.8 or swap_pct > 20.0:
             return Pressure.MODERATE
         return Pressure.LOW
     except Exception:

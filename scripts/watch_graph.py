@@ -74,8 +74,9 @@ RUNAWAY_THRESHOLD = 20
 RUNAWAY_WINDOW = 10.0
 RUNAWAY_BACKOFF_MS = 5000
 
-# Skip updates when load is above this (5-min avg unreliable, use 1-min).
-CPU_GUARD_LOAD = 4.0
+# Skip updates when load-per-core is above this (5-min avg unreliable, use 1-min).
+# Was absolute 4.0, which blocked at 1.0/core on a 4-core box — too aggressive.
+CPU_GUARD_LOAD_PER_CORE = 2.0
 
 # Tracked extensions: python + non-python handled by the parser registry.
 TRACKED_EXTS = {".py"} | set(NON_PYTHON_EXTENSIONS)
@@ -236,18 +237,21 @@ def _process_batch(
 ) -> None:
     start = time.monotonic()
     load1 = 0.0
+    cores = os.cpu_count() or 4
     try:
         load1 = os.getloadavg()[0]
     except (AttributeError, OSError):
         pass
-    if load1 > CPU_GUARD_LOAD:
-        print(f"[watch] CPU guard tripped (load {load1:.2f} > {CPU_GUARD_LOAD}), skipping batch of {len(paths)}")
+    load_per_core = load1 / cores
+    if load_per_core > CPU_GUARD_LOAD_PER_CORE:
+        print(f"[watch] CPU guard tripped (load {load1:.2f}, {load_per_core:.2f}/core > {CPU_GUARD_LOAD_PER_CORE}), skipping batch of {len(paths)}")
         _append_perf(
             {
                 "ts": _now(),
                 "batch_size": len(paths),
                 "skipped": "cpu_guard",
                 "load1": load1,
+                "load_per_core": load_per_core,
             }
         )
         return
