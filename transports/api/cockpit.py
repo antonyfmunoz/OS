@@ -114,6 +114,11 @@ async def _require_api_key(
     request: Request,
     key: str | None = Security(_api_key_header),
 ) -> str:
+    # Clerk JWT already validated by parent router — skip API key check
+    clerk_user = getattr(request.state, "clerk_user_id", None)
+    if clerk_user and clerk_user != "dev-bypass":
+        return f"clerk:{clerk_user}"
+
     if not _API_KEY:
         if _dev_bypass_allowed(request):
             return "dev-bypass"

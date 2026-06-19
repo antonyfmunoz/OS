@@ -38,120 +38,25 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter()
     auth = [Depends(require_operator_dep)]
 
-    r.add_api_route(
-        "/workstation/execution/pause",
-        _execution_pause,
-        methods=["POST"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/execution/resume",
-        _execution_resume,
-        methods=["POST"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/execution/stop",
-        _execution_stop,
-        methods=["POST"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/execution/status",
-        _execution_status,
-        methods=["GET"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/nodes",
-        _workstation_nodes,
-        methods=["GET"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/resume",
-        _workstation_resume,
-        methods=["GET"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/mode-composite",
-        _mode_composite,
-        methods=["GET"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/tmux/sessions",
-        _tmux_sessions,
-        methods=["GET"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/tmux/capture/{session_name}/{pane_id}",
-        _tmux_capture,
-        methods=["GET"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/continuity",
-        _continuity_state,
-        methods=["GET"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/continuity/transition",
-        _continuity_transition,
-        methods=["POST"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/checkpoint",
-        _latest_checkpoint,
-        methods=["GET"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/return-brief",
-        _return_brief,
-        methods=["GET"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/return-brief/generate",
-        _generate_return_brief,
-        methods=["POST"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/mode-switch",
-        _mode_switch,
-        methods=["POST"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/profile-modes",
-        _set_profile_modes,
-        methods=["POST"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/overnight/queue",
-        _overnight_queue_work,
-        methods=["POST"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/overnight/status",
-        _overnight_status,
-        methods=["GET"],
-        dependencies=auth,
-    )
-    r.add_api_route(
-        "/workstation/overnight/approve",
-        _overnight_approve,
-        methods=["POST"],
-        dependencies=auth,
-    )
+    r.add_api_route("/workstation/execution/pause", _execution_pause, methods=["POST"], dependencies=auth)
+    r.add_api_route("/workstation/execution/resume", _execution_resume, methods=["POST"], dependencies=auth)
+    r.add_api_route("/workstation/execution/stop", _execution_stop, methods=["POST"], dependencies=auth)
+    r.add_api_route("/workstation/execution/status", _execution_status, methods=["GET"])
+    r.add_api_route("/workstation/nodes", _workstation_nodes, methods=["GET"])
+    r.add_api_route("/workstation/resume", _workstation_resume, methods=["GET"])
+    r.add_api_route("/workstation/mode-composite", _mode_composite, methods=["GET"])
+    r.add_api_route("/tmux/sessions", _tmux_sessions, methods=["GET"])
+    r.add_api_route("/tmux/capture/{session_name}/{pane_id}", _tmux_capture, methods=["GET"])
+    r.add_api_route("/workstation/continuity", _continuity_state, methods=["GET"])
+    r.add_api_route("/workstation/continuity/transition", _continuity_transition, methods=["POST"], dependencies=auth)
+    r.add_api_route("/workstation/checkpoint", _latest_checkpoint, methods=["GET"])
+    r.add_api_route("/workstation/return-brief", _return_brief, methods=["GET"])
+    r.add_api_route("/workstation/return-brief/generate", _generate_return_brief, methods=["POST"], dependencies=auth)
+    r.add_api_route("/workstation/mode-switch", _mode_switch, methods=["POST"], dependencies=auth)
+    r.add_api_route("/workstation/profile-modes", _set_profile_modes, methods=["POST"], dependencies=auth)
+    r.add_api_route("/workstation/overnight/queue", _overnight_queue_work, methods=["POST"], dependencies=auth)
+    r.add_api_route("/workstation/overnight/status", _overnight_status, methods=["GET"])
+    r.add_api_route("/workstation/overnight/approve", _overnight_approve, methods=["POST"], dependencies=auth)
 
     return r
 
