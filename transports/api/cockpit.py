@@ -1274,3 +1274,33 @@ def _mount_attention_router() -> None:
 
 
 _mount_attention_router()
+
+
+def _mount_execution_fabric_router() -> None:
+    from transports.api import cockpit_execution_fabric_routes
+
+    r = cockpit_execution_fabric_routes.get_router()
+    router.include_router(r)
+
+
+_mount_execution_fabric_router()
+
+
+def _mount_agent_workforce_router() -> None:
+    from transports.api import cockpit_agent_workforce_routes
+
+    r = cockpit_agent_workforce_routes.get_router()
+    router.include_router(r)
+
+
+_mount_agent_workforce_router()
+
+
+def _mount_session_machine_router() -> None:
+    from transports.api import cockpit_session_machine_routes
+
+    r = cockpit_session_machine_routes.get_router()
+    router.include_router(r)
+
+
+_mount_session_machine_router()

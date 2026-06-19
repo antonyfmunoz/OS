@@ -1094,6 +1094,18 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # C18.2 — Attention Aggregation Runtime
     "AttentionQueueSnapshot": ["substrate.workstation.attention_aggregation_runtime"],
     "AttentionAggregationRuntime": ["substrate.workstation.attention_aggregation_runtime"],
+    # C19.0 — Execution Fabric Runtime
+    "ExecutionFabricState": ["substrate.workstation.execution_fabric_runtime"],
+    "ExecutionFabricSnapshot": ["substrate.workstation.execution_fabric_runtime"],
+    "ExecutionFabricRuntime": ["substrate.workstation.execution_fabric_runtime"],
+    # C19.1 — Agent Workforce Runtime
+    "WorkforceHealth": ["substrate.workstation.agent_workforce_runtime"],
+    "AgentWorkforceSnapshot": ["substrate.workstation.agent_workforce_runtime"],
+    "AgentWorkforceRuntime": ["substrate.workstation.agent_workforce_runtime"],
+    # C19.2 — Session Machine Runtime
+    "MachineSessionBinding": ["substrate.workstation.session_machine_runtime"],
+    "SessionMachineSnapshot": ["substrate.workstation.session_machine_runtime"],
+    "SessionMachineRuntime": ["substrate.workstation.session_machine_runtime"],
 }
 
 

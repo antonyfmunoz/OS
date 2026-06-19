@@ -82,6 +82,7 @@ import { LearningPanel } from '../panels/LearningPanel'
 import { PredictionPanel } from '../panels/PredictionPanel'
 import { ExecutivePanel } from '../panels/ExecutivePanel'
 import { GovernancePanel } from '../panels/GovernancePanel'
+import { OperationsPanel } from '../panels/OperationsPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -231,6 +232,8 @@ function ActivePanel() {
       return <ExecutivePanel />
     case 'governance':
       return <GovernancePanel />
+    case 'operations':
+      return <OperationsPanel />
 
     default:
       return <DashboardPanel />
