@@ -1,44 +1,53 @@
-"""Ambient Wake API routes — Campaign 20.2."""
+"""Cockpit routes for AmbientWakeRuntime — Campaign 20.2."""
 
 from __future__ import annotations
 
-import logging
+from typing import Any
 
-logger = logging.getLogger(__name__)
+from fastapi import APIRouter
+from pydantic import BaseModel
 
 
-def register_ambient_wake_routes(app: object) -> None:
-    """Mount ambient wake routes on the cockpit app."""
-    from flask import jsonify, request
+class WakeRequest(BaseModel):
+    device_id: str = "local"
+    phrase: str = ""
 
-    flask_app: object = app
 
-    @flask_app.route("/voice/ambient/status", methods=["GET"])  # type: ignore[attr-defined]
-    def voice_ambient_status() -> tuple:
+_runtime: Any = None
+
+
+def _get_runtime() -> Any:
+    global _runtime
+    if _runtime is None:
         try:
             from substrate.workstation.ambient_wake_runtime import (
                 AmbientWakeRuntime,
             )
-            runtime = AmbientWakeRuntime()
-            return jsonify(runtime.snapshot().to_dict()), 200
-        except Exception as exc:
-            logger.debug("ambient wake status failed: %s", exc)
-            return jsonify({"error": str(exc)}), 500
+            _runtime = AmbientWakeRuntime()
+        except Exception:
+            pass
+    return _runtime
 
-    @flask_app.route("/voice/ambient/wake", methods=["POST"])  # type: ignore[attr-defined]
-    def voice_ambient_wake() -> tuple:
-        try:
-            from substrate.workstation.ambient_wake_runtime import (
-                AmbientWakeRuntime,
-            )
-            body = request.get_json(silent=True) or {}
-            runtime = AmbientWakeRuntime()
-            runtime.activate()
-            transition = runtime.on_wake_detected(
-                device_id=body.get("device_id", "local"),
-                phrase=body.get("phrase", ""),
-            )
-            return jsonify(transition.to_dict()), 200
-        except Exception as exc:
-            logger.debug("ambient wake trigger failed: %s", exc)
-            return jsonify({"error": str(exc)}), 500
+
+def get_router() -> APIRouter:
+    router = APIRouter(prefix="/voice/ambient", tags=["voice-ambient"])
+
+    @router.get("/status")
+    def voice_ambient_status() -> dict[str, Any]:
+        rt = _get_runtime()
+        if rt is None:
+            return {"error": "AmbientWakeRuntime unavailable"}
+        return rt.snapshot().to_dict()
+
+    @router.post("/wake")
+    def voice_ambient_wake(body: WakeRequest) -> dict[str, Any]:
+        rt = _get_runtime()
+        if rt is None:
+            return {"error": "AmbientWakeRuntime unavailable"}
+        rt.activate()
+        transition = rt.on_wake_detected(
+            device_id=body.device_id, phrase=body.phrase,
+        )
+        return transition.to_dict()
+
+    return router

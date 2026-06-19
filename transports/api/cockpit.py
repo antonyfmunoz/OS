@@ -1304,3 +1304,53 @@ def _mount_session_machine_router() -> None:
 
 
 _mount_session_machine_router()
+
+
+def _mount_voice_ingress_router() -> None:
+    from transports.api import cockpit_voice_ingress_routes
+
+    r = cockpit_voice_ingress_routes.get_router()
+    router.include_router(r)
+
+
+_mount_voice_ingress_router()
+
+
+def _mount_voice_session_router() -> None:
+    from transports.api import cockpit_voice_session_routes
+
+    r = cockpit_voice_session_routes.get_router()
+    router.include_router(r)
+
+
+_mount_voice_session_router()
+
+
+def _mount_ambient_wake_router() -> None:
+    from transports.api import cockpit_ambient_wake_routes
+
+    r = cockpit_ambient_wake_routes.get_router()
+    router.include_router(r)
+
+
+_mount_ambient_wake_router()
+
+
+def _mount_voice_output_router() -> None:
+    from transports.api import cockpit_voice_output_routes
+
+    r = cockpit_voice_output_routes.get_router()
+    router.include_router(r)
+
+
+_mount_voice_output_router()
+
+
+def _mount_voice_ops_router() -> None:
+    from transports.api import cockpit_voice_ops_routes
+
+    r = cockpit_voice_ops_routes.get_router()
+    router.include_router(r)
+
+
+_mount_voice_ops_router()

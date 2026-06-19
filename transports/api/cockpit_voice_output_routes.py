@@ -1,26 +1,35 @@
-"""Voice Output API routes — Campaign 20.3."""
+"""Cockpit routes for VoiceOutputRuntime — Campaign 20.3."""
 
 from __future__ import annotations
 
-import logging
+from typing import Any
 
-logger = logging.getLogger(__name__)
+from fastapi import APIRouter
+
+_runtime: Any = None
 
 
-def register_voice_output_routes(app: object) -> None:
-    """Mount voice output routes on the cockpit app."""
-    from flask import jsonify
-
-    flask_app: object = app
-
-    @flask_app.route("/voice/output/status", methods=["GET"])  # type: ignore[attr-defined]
-    def voice_output_status() -> tuple:
+def _get_runtime() -> Any:
+    global _runtime
+    if _runtime is None:
         try:
             from substrate.workstation.voice_output_runtime import (
                 VoiceOutputRuntime,
             )
-            runtime = VoiceOutputRuntime()
-            return jsonify(runtime.snapshot().to_dict()), 200
-        except Exception as exc:
-            logger.debug("voice output status failed: %s", exc)
-            return jsonify({"error": str(exc)}), 500
+            _runtime = VoiceOutputRuntime()
+        except Exception:
+            pass
+    return _runtime
+
+
+def get_router() -> APIRouter:
+    router = APIRouter(prefix="/voice/output", tags=["voice-output"])
+
+    @router.get("/status")
+    def voice_output_status() -> dict[str, Any]:
+        rt = _get_runtime()
+        if rt is None:
+            return {"error": "VoiceOutputRuntime unavailable"}
+        return rt.snapshot().to_dict()
+
+    return router

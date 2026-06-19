@@ -1,62 +1,72 @@
-"""Voice Session API routes — Campaign 20.1."""
+"""Cockpit routes for VoiceSessionManager — Campaign 20.1."""
 
 from __future__ import annotations
 
-import logging
+from typing import Any
 
-logger = logging.getLogger(__name__)
+from fastapi import APIRouter
+from pydantic import BaseModel
 
 
-def register_voice_session_routes(app: object) -> None:
-    """Mount voice session routes on the cockpit app."""
-    from flask import jsonify, request
+class SessionStartRequest(BaseModel):
+    source_type: str = "right_rail"
+    device_id: str = ""
+    speaker_id: str = ""
+    activation_mode: str = ""
 
-    flask_app: object = app
 
-    @flask_app.route("/voice/sessions", methods=["GET"])  # type: ignore[attr-defined]
-    def voice_sessions_list() -> tuple:
+_manager: Any = None
+
+
+def _get_manager() -> Any:
+    global _manager
+    if _manager is None:
         try:
             from substrate.workstation.voice_session_manager import (
                 VoiceSessionManager,
             )
-            mgr = VoiceSessionManager()
-            return jsonify(mgr.snapshot().to_dict()), 200
-        except Exception as exc:
-            logger.debug("voice sessions list failed: %s", exc)
-            return jsonify({"error": str(exc)}), 500
+            _manager = VoiceSessionManager()
+        except Exception:
+            pass
+    return _manager
 
-    @flask_app.route("/voice/sessions/start", methods=["POST"])  # type: ignore[attr-defined]
-    def voice_session_start() -> tuple:
+
+def get_router() -> APIRouter:
+    router = APIRouter(prefix="/voice/sessions", tags=["voice-sessions"])
+
+    @router.get("")
+    def voice_sessions_list() -> dict[str, Any]:
+        mgr = _get_manager()
+        if mgr is None:
+            return {"error": "VoiceSessionManager unavailable"}
+        return mgr.snapshot().to_dict()
+
+    @router.post("/start")
+    def voice_session_start(body: SessionStartRequest) -> dict[str, Any]:
+        mgr = _get_manager()
+        if mgr is None:
+            return {"error": "VoiceSessionManager unavailable"}
         try:
             from substrate.workstation.voice_ingress_runtime import (
                 VoiceIngressEvent,
             )
-            from substrate.workstation.voice_session_manager import (
-                VoiceSessionManager,
-            )
-            body = request.get_json(silent=True) or {}
             event = VoiceIngressEvent(
-                source_type=body.get("source_type", "right_rail"),
-                device_id=body.get("device_id", ""),
-                speaker_id=body.get("speaker_id", ""),
-                activation_mode=body.get("activation_mode", "push_to_talk"),
+                source_type=body.source_type,
+                device_id=body.device_id,
+                speaker_id=body.speaker_id,
+                activation_mode=body.activation_mode,
             )
-            mgr = VoiceSessionManager()
             session = mgr.start_session(event)
-            return jsonify(session.to_dict()), 201
+            return session.to_dict()
         except Exception as exc:
-            logger.debug("voice session start failed: %s", exc)
-            return jsonify({"error": str(exc)}), 500
+            return {"error": str(exc)}
 
-    @flask_app.route("/voice/sessions/<session_id>/end", methods=["POST"])  # type: ignore[attr-defined]
-    def voice_session_end(session_id: str) -> tuple:
-        try:
-            from substrate.workstation.voice_session_manager import (
-                VoiceSessionManager,
-            )
-            mgr = VoiceSessionManager()
-            success = mgr.end_session(session_id)
-            return jsonify({"ended": success, "session_id": session_id}), 200
-        except Exception as exc:
-            logger.debug("voice session end failed: %s", exc)
-            return jsonify({"error": str(exc)}), 500
+    @router.post("/{session_id}/end")
+    def voice_session_end(session_id: str) -> dict[str, Any]:
+        mgr = _get_manager()
+        if mgr is None:
+            return {"error": "VoiceSessionManager unavailable"}
+        success = mgr.end_session(session_id)
+        return {"ended": success, "session_id": session_id}
+
+    return router
