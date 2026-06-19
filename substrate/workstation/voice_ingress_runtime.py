@@ -348,4 +348,5 @@ class VoiceIngressRuntime:
         try:
             return fn()
         except Exception:
+            logger.debug("_safe_call failed for %s", fn)
             return default
