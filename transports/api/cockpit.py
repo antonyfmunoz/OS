@@ -1415,3 +1415,13 @@ def _mount_visual_ops_router() -> None:
 
 
 _mount_visual_ops_router()
+
+
+def _mount_production_router() -> None:
+    from transports.api import cockpit_production_routes
+
+    cockpit_production_routes.configure(require_operator)
+    router.include_router(cockpit_production_routes.production_router)
+
+
+_mount_production_router()
