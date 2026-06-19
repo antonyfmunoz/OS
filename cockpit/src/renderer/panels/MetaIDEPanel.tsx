@@ -489,7 +489,7 @@ function ContextSidebar() {
 
   if (collapsed) {
     return (
-      <div className="w-8 border-r border-zinc-800 flex flex-col items-center pt-2 shrink-0">
+      <div className="w-8 border-r border-zinc-800 flex flex-col items-center pt-2 shrink-0 bg-surface">
         <button onClick={() => setCollapsed(false)} className="p-1 text-zinc-500 hover:text-zinc-300">
           <ChevronRight size={14} />
         </button>
@@ -504,7 +504,7 @@ function ContextSidebar() {
   const constraints = (ctx?.constraints as string[]) || []
 
   return (
-    <div className="w-[240px] border-r border-zinc-800 overflow-y-auto p-3 shrink-0">
+    <div className="w-[240px] border-r border-zinc-800 overflow-y-auto p-3 shrink-0 bg-surface">
       <div className="flex items-center justify-between mb-3">
         <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Context</span>
         <button onClick={() => setCollapsed(true)} className="p-0.5 text-zinc-500 hover:text-zinc-300">
@@ -553,7 +553,7 @@ export function MetaIDEPanel() {
   const { activeTab, setActiveTab } = useMetaIDEStore()
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden bg-surface">
       <div className="flex items-center gap-1 px-4 py-2 border-b border-zinc-800">
         {TABS.map((tab) => (
           <button
