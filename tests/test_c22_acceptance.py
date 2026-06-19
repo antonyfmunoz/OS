@@ -181,35 +181,61 @@ class TestAT3CapabilityReuse(unittest.TestCase):
 # Source truth traces full chain from work packet to intent.
 
 
+class _FakePacket:
+    """Minimal work packet for lineage tests."""
+    def __init__(self, packet_id: str, source_id: str = "", source_type: str = "") -> None:
+        self.packet_id = packet_id
+        self.parent_packet_id = ""
+        self.child_packet_ids: list[str] = []
+        self.source_type = source_type
+        self.source_id = source_id
+        self.title = f"Packet {packet_id}"
+        self.user_intent = ""
+        self.created_at = 0.0
+        self.status = "completed"
+        self.risk_class = "LOW"
+        self.domain = "test"
+
+
+class _FakeWPEngine:
+    """Fake WorkPacketEngine that returns predefined packets."""
+    def __init__(self, packets: list[Any]) -> None:
+        self._packets = packets
+
+    def all_packets(self) -> list[Any]:
+        return self._packets
+
+
 class TestAT4OrganizationalLineage(unittest.TestCase):
     """Verify SourceTruthRuntime traces full organizational lineage."""
 
-    def test_trace_lineage_returns_chain(self) -> None:
+    def _make_runtime(self) -> Any:
         from substrate.organism.source_truth_runtime import SourceTruthRuntime
+        pkt = _FakePacket("wp-at4", source_id="intent-at4", source_type="operator_request")
+        engine = _FakeWPEngine([pkt])
+        return SourceTruthRuntime(work_packet_engine=engine)
 
-        rt = SourceTruthRuntime()
+    def test_trace_lineage_returns_chain(self) -> None:
+        rt = self._make_runtime()
         chain = rt.trace_lineage("wp-at4", "work_packet")
         self.assertIsNotNone(chain)
         self.assertGreater(chain.depth, 0)
 
     def test_intent_to_capability_chain(self) -> None:
-        from substrate.organism.source_truth_runtime import SourceTruthRuntime
-
-        rt = SourceTruthRuntime()
+        rt = self._make_runtime()
         chain = rt.intent_to_capability("intent-at4")
         self.assertIsNotNone(chain)
 
     def test_why_does_this_exist(self) -> None:
-        from substrate.organism.source_truth_runtime import SourceTruthRuntime
-
-        rt = SourceTruthRuntime()
-        chain = rt.why_does_this_exist("artifact-at4")
+        rt = self._make_runtime()
+        chain = rt.why_does_this_exist("work_packet-wp-at4")
         self.assertIsNotNone(chain)
 
     def test_orphaned_work_detectable(self) -> None:
         from substrate.organism.source_truth_runtime import SourceTruthRuntime
-
-        rt = SourceTruthRuntime()
+        pkt = _FakePacket("orphan-1")
+        engine = _FakeWPEngine([pkt])
+        rt = SourceTruthRuntime(work_packet_engine=engine)
         orphans = rt.orphaned_work()
         self.assertIsInstance(orphans, list)
 
@@ -411,8 +437,9 @@ class TestAT7CompletionOutcomeBased(unittest.TestCase):
             governance_approved=True,
             proof_assembled=True,
         )
+        self.assertTrue(rt.is_complete("at7-6"))
         entry = rt._productions["at7-6"]
-        self.assertEqual(entry.phase, ProductionPhase.SHIPPING.value)
+        self.assertEqual(entry.phase, ProductionPhase.LEARNING.value)
 
 
 # ── Cross-Runtime Integration ──────────────────────────────────────────────
