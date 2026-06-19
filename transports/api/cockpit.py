@@ -1254,3 +1254,23 @@ def _mount_workstation_presence_router() -> None:
 
 
 _mount_workstation_presence_router()
+
+
+def _mount_unified_workstation_router() -> None:
+    from transports.api import cockpit_unified_workstation_routes
+
+    r = cockpit_unified_workstation_routes.get_router()
+    router.include_router(r)
+
+
+_mount_unified_workstation_router()
+
+
+def _mount_attention_router() -> None:
+    from transports.api import cockpit_attention_routes
+
+    r = cockpit_attention_routes.get_router()
+    router.include_router(r)
+
+
+_mount_attention_router()

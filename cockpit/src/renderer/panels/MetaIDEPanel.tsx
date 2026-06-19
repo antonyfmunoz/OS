@@ -1,5 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMetaIDEStore } from '../stores/metaIDEStore'
+import { fetchApi } from '../api/client'
+import { usePolling } from '../hooks/usePolling'
 
 const TABS = ['workspace', 'repositories', 'roadmap', 'risks', 'terminals', 'containers', 'previews'] as const
 
@@ -341,6 +344,76 @@ function PhaseRow({ phase }: { phase: { phase_number: string; phase_name: string
   )
 }
 
+function ContextSidebar() {
+  const [ctx, setCtx] = useState<Record<string, unknown> | null>(null)
+  const [collapsed, setCollapsed] = useState(false)
+
+  usePolling(useCallback(() => {
+    fetchApi('/meta-ide-context/context').then(setCtx).catch(() => {})
+  }, []), 10000, true, 1000)
+
+  if (collapsed) {
+    return (
+      <div className="w-8 border-r border-zinc-800 flex flex-col items-center pt-2 shrink-0">
+        <button onClick={() => setCollapsed(false)} className="p-1 text-zinc-500 hover:text-zinc-300">
+          <ChevronRight size={14} />
+        </button>
+      </div>
+    )
+  }
+
+  const project = (ctx?.active_project as string) || ''
+  const repo = (ctx?.active_repo as string) || ''
+  const goals = (ctx?.related_goals as Array<Record<string, string>>) || []
+  const decisions = (ctx?.related_decisions as Array<Record<string, string>>) || []
+  const constraints = (ctx?.constraints as string[]) || []
+
+  return (
+    <div className="w-[240px] border-r border-zinc-800 overflow-y-auto p-3 shrink-0">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Context</span>
+        <button onClick={() => setCollapsed(true)} className="p-0.5 text-zinc-500 hover:text-zinc-300">
+          <ChevronLeft size={12} />
+        </button>
+      </div>
+
+      {project && <div className="text-[11px] mb-1"><span className="text-zinc-500">Project</span> <span className="text-zinc-200">{project}</span></div>}
+      {repo && <div className="text-[11px] mb-3"><span className="text-zinc-500">Repo</span> <span className="text-zinc-200">{repo}</span></div>}
+
+      {goals.length > 0 && (
+        <div className="mb-3">
+          <div className="text-[10px] text-zinc-400 uppercase tracking-wider mb-1">Goals</div>
+          {goals.slice(0, 5).map((g, i) => (
+            <div key={i} className="text-[11px] text-zinc-300 py-0.5">{g.title || g.description || ''}</div>
+          ))}
+        </div>
+      )}
+
+      {decisions.length > 0 && (
+        <div className="mb-3">
+          <div className="text-[10px] text-zinc-400 uppercase tracking-wider mb-1">Decisions</div>
+          {decisions.slice(0, 5).map((d, i) => (
+            <div key={i} className="text-[11px] text-zinc-300 py-0.5">{d.title || d.description || ''}</div>
+          ))}
+        </div>
+      )}
+
+      {constraints.length > 0 && (
+        <div className="mb-3">
+          <div className="text-[10px] text-zinc-400 uppercase tracking-wider mb-1">Constraints</div>
+          {constraints.slice(0, 5).map((c, i) => (
+            <div key={i} className="text-[11px] text-amber-400 py-0.5">{c}</div>
+          ))}
+        </div>
+      )}
+
+      {!project && !repo && goals.length === 0 && (
+        <div className="text-[11px] text-zinc-600 text-center py-4">No context available</div>
+      )}
+    </div>
+  )
+}
+
 export function MetaIDEPanel() {
   const { activeTab, setActiveTab } = useMetaIDEStore()
 
@@ -362,14 +435,17 @@ export function MetaIDEPanel() {
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {activeTab === 'workspace' && <WorkspaceTab />}
-        {activeTab === 'repositories' && <RepositoriesTab />}
-        {activeTab === 'roadmap' && <RoadmapTab />}
-        {activeTab === 'risks' && <RisksTab />}
-        {activeTab === 'terminals' && <TerminalsTab />}
-        {activeTab === 'containers' && <ContainersTab />}
-        {activeTab === 'previews' && <PreviewsTab />}
+      <div className="flex-1 flex overflow-hidden">
+        <ContextSidebar />
+        <div className="flex-1 overflow-y-auto">
+          {activeTab === 'workspace' && <WorkspaceTab />}
+          {activeTab === 'repositories' && <RepositoriesTab />}
+          {activeTab === 'roadmap' && <RoadmapTab />}
+          {activeTab === 'risks' && <RisksTab />}
+          {activeTab === 'terminals' && <TerminalsTab />}
+          {activeTab === 'containers' && <ContainersTab />}
+          {activeTab === 'previews' && <PreviewsTab />}
+        </div>
       </div>
     </div>
   )

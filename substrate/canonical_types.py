@@ -1087,6 +1087,13 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # C17.2 — Workstation Presence Runtime
     "WorkstationPresenceSnapshot": ["substrate.workstation.workstation_presence_runtime"],
     "WorkstationPresenceRuntime": ["substrate.workstation.workstation_presence_runtime"],
+    # C18.0 — Unified Workstation Runtime
+    "UnifiedWorkstationState": ["substrate.workstation.unified_workstation_runtime"],
+    "UnifiedWorkstationSnapshot": ["substrate.workstation.unified_workstation_runtime"],
+    "UnifiedWorkstationRuntime": ["substrate.workstation.unified_workstation_runtime"],
+    # C18.2 — Attention Aggregation Runtime
+    "AttentionQueueSnapshot": ["substrate.workstation.attention_aggregation_runtime"],
+    "AttentionAggregationRuntime": ["substrate.workstation.attention_aggregation_runtime"],
 }
 
 
