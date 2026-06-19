@@ -172,6 +172,7 @@ class VoiceQueryEngine:
         self._intent_router: Any = None
         self._context_engine: Any = None
         self._screen_engine: Any = None
+        self._visual_operations: Any = None
         self._continuity_engine: Any = None
         self._service_engine: Any = None
         self._node_registry: Any = None
@@ -204,6 +205,18 @@ class VoiceQueryEngine:
             except Exception:
                 logger.debug("OperatorContextEngine unavailable")
         return self._context_engine
+
+    @property
+    def visual_operations(self) -> Any:
+        if self._visual_operations is None:
+            try:
+                from substrate.workstation.visual_operations_runtime import (
+                    VisualOperationsRuntime,
+                )
+                self._visual_operations = VisualOperationsRuntime()
+            except Exception:
+                logger.debug("VisualOperationsRuntime unavailable")
+        return self._visual_operations
 
     @property
     def screen_engine(self) -> Any:
@@ -427,6 +440,49 @@ class VoiceQueryEngine:
         )
 
     def _resolve_screen(self, text: str) -> QueryResolution:
+        # C21: try VisualOperationsRuntime first for richer context
+        vis = self.visual_operations
+        if vis is not None:
+            try:
+                result = vis.what_am_i_looking_at()
+                if "screen_error" not in result:
+                    parts = []
+                    binding = result.get("context_binding", {})
+                    screen = result.get("screen", {}).get("current_screen", {})
+                    app = screen.get("active_application", {})
+                    repo_ctx = screen.get("repository_context", {})
+                    file_ctx = screen.get("file_context", {})
+
+                    if app.get("app_name"):
+                        parts.append(f"Active app: {app['app_name']}.")
+                    if file_ctx.get("file_name"):
+                        parts.append(f"Editing {file_ctx['file_name']}.")
+                    if repo_ctx.get("repo_name"):
+                        branch = repo_ctx.get("branch", "")
+                        branch_info = f" on {branch}" if branch else ""
+                        parts.append(f"Repo: {repo_ctx['repo_name']}{branch_info}.")
+                    if binding.get("campaign"):
+                        parts.append(f"Campaign: {binding['campaign']}.")
+                    if binding.get("goals"):
+                        goals = binding["goals"][:3]
+                        parts.append(f"Goals: {', '.join(str(g) for g in goals)}.")
+
+                    critical = result.get("critical_signals", [])
+                    if critical:
+                        parts.append(f"{len(critical)} critical visual signal(s) detected.")
+
+                    if parts:
+                        return QueryResolution(
+                            domain=QueryDomain.SCREEN.value,
+                            answer_text=" ".join(parts),
+                            structured_data=result,
+                            sources=["VisualOperationsRuntime"],
+                            confidence=binding.get("confidence", 0.80),
+                        )
+            except Exception:
+                logger.debug("VisualOperationsRuntime screen resolution failed, falling back")
+
+        # Fallback to raw ScreenObservationEngine
         engine = self.screen_engine
         if engine is None:
             return self._unavailable(QueryDomain.SCREEN)

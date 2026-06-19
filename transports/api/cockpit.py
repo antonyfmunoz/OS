@@ -1354,3 +1354,56 @@ def _mount_voice_ops_router() -> None:
 
 
 _mount_voice_ops_router()
+
+
+# ── Campaign 21: Visual Awareness & Environmental Context ───────────
+
+
+def _mount_visual_awareness_router() -> None:
+    from transports.api import cockpit_visual_awareness_routes
+
+    r = cockpit_visual_awareness_routes.get_router()
+    router.include_router(r)
+
+
+_mount_visual_awareness_router()
+
+
+def _mount_visual_environment_router() -> None:
+    from transports.api import cockpit_visual_environment_routes
+
+    r = cockpit_visual_environment_routes.get_router()
+    router.include_router(r)
+
+
+_mount_visual_environment_router()
+
+
+def _mount_visual_context_router() -> None:
+    from transports.api import cockpit_visual_context_routes
+
+    r = cockpit_visual_context_routes.get_router()
+    router.include_router(r)
+
+
+_mount_visual_context_router()
+
+
+def _mount_visual_attention_router() -> None:
+    from transports.api import cockpit_visual_attention_routes
+
+    r = cockpit_visual_attention_routes.get_router()
+    router.include_router(r)
+
+
+_mount_visual_attention_router()
+
+
+def _mount_visual_ops_router() -> None:
+    from transports.api import cockpit_visual_ops_routes
+
+    r = cockpit_visual_ops_routes.get_router()
+    router.include_router(r)
+
+
+_mount_visual_ops_router()
