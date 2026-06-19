@@ -105,7 +105,7 @@ function FilesTab() {
   const [windowsOnline, setWindowsOnline] = useState(false)
 
   useEffect(() => {
-    browseDir('').then((entries) => { if (entries.length) setVpsTree(entries) })
+    browseDir('/').then((entries) => { if (entries.length) setVpsTree(entries) })
     browseDir('C:\\', 'windows').then((entries) => { if (entries.length) setWindowsTree(entries) })
 
     fetchApi<{ ok: boolean; nodes: MeshNode[] }>('/workspace/mesh-nodes')
