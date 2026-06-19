@@ -221,22 +221,178 @@ function ProvidersSection() {
   );
 }
 
+function VisualContextSection() {
+  const visualOps = useScreenAwarenessStore((s) => s.visualOps);
+  const binding = visualOps?.context_binding;
+  if (!binding || !binding.depth) return null;
+
+  return (
+    <div>
+      <SectionHeader title="Visual Context" />
+      <InfoCard label="Depth" value={binding.depth.toUpperCase()} color="#a78bfa" />
+      {binding.campaign && (
+        <InfoCard label="Campaign" value={binding.campaign} color="#f472b6" />
+      )}
+      {binding.goals && binding.goals.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4 }}>
+            Goals
+          </div>
+          {binding.goals.slice(0, 3).map((goal, i) => (
+            <div
+              key={i}
+              style={{
+                fontSize: 12,
+                color: "#94a3b8",
+                paddingLeft: 8,
+                borderLeft: "2px solid #334155",
+                marginBottom: 2,
+              }}
+            >
+              {String(goal)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VisualAttentionSection() {
+  const visualOps = useScreenAwarenessStore((s) => s.visualOps);
+  if (!visualOps || (!visualOps.critical_count && !visualOps.warning_count))
+    return null;
+
+  const severityColor = (s: string) => {
+    switch (s) {
+      case "critical":
+        return "#ef4444";
+      case "warning":
+        return "#eab308";
+      default:
+        return "#94a3b8";
+    }
+  };
+
+  return (
+    <div>
+      <SectionHeader title="Visual Attention" />
+      {visualOps.critical_count > 0 && (
+        <InfoCard
+          label="Critical"
+          value={String(visualOps.critical_count)}
+          color="#ef4444"
+        />
+      )}
+      {visualOps.warning_count > 0 && (
+        <InfoCard
+          label="Warnings"
+          value={String(visualOps.warning_count)}
+          color="#eab308"
+        />
+      )}
+      {visualOps.visual_signals.slice(0, 5).map((sig, i) => (
+        <div
+          key={i}
+          style={{
+            fontSize: 12,
+            color: severityColor(sig.severity),
+            paddingLeft: 8,
+            borderLeft: `2px solid ${severityColor(sig.severity)}`,
+            marginBottom: 4,
+          }}
+        >
+          {sig.signal_type}: {sig.description || sig.detected_from || "—"}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function VisualHealthBar() {
+  const visualOps = useScreenAwarenessStore((s) => s.visualOps);
+  if (!visualOps) return null;
+
+  const healthColor = (h: string) => {
+    switch (h) {
+      case "optimal":
+        return "#22c55e";
+      case "active":
+        return "#3b82f6";
+      case "degraded":
+        return "#eab308";
+      case "offline":
+        return "#64748b";
+      default:
+        return "#64748b";
+    }
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 12,
+        padding: "6px 10px",
+        background: "#0f172a",
+        borderRadius: 6,
+        border: "1px solid #1e293b",
+      }}
+    >
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: healthColor(visualOps.health),
+        }}
+      />
+      <span style={{ fontSize: 12, color: "#94a3b8" }}>Visual Brain</span>
+      <span
+        style={{
+          fontSize: 12,
+          color: healthColor(visualOps.health),
+          fontWeight: 600,
+        }}
+      >
+        {visualOps.health.toUpperCase()}
+      </span>
+      {visualOps.surface_count > 0 && (
+        <span style={{ fontSize: 11, color: "#64748b", marginLeft: "auto" }}>
+          {visualOps.surface_count} surface
+          {visualOps.surface_count !== 1 ? "s" : ""}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function ScreenAwarenessPanel() {
-  const { fetchSnapshot, fetchRepositories, fetchProviders, loading, error } =
-    useScreenAwarenessStore();
+  const {
+    fetchSnapshot,
+    fetchVisualOps,
+    fetchRepositories,
+    fetchProviders,
+    loading,
+    error,
+  } = useScreenAwarenessStore();
 
   useEffect(() => {
     fetchSnapshot();
+    fetchVisualOps();
     fetchRepositories();
     fetchProviders();
 
     const interval = setInterval(() => {
       fetchSnapshot();
+      fetchVisualOps();
       fetchProviders();
     }, 10_000);
 
     return () => clearInterval(interval);
-  }, [fetchSnapshot, fetchRepositories, fetchProviders]);
+  }, [fetchSnapshot, fetchVisualOps, fetchRepositories, fetchProviders]);
 
   return (
     <div style={{ padding: 16, color: "#e2e8f0", fontFamily: "monospace" }}>
@@ -246,12 +402,15 @@ export default function ScreenAwarenessPanel() {
       <p style={{ fontSize: 12, color: "#64748b", marginBottom: 16 }}>
         Operator visual workspace context across nodes
       </p>
+      <VisualHealthBar />
       {loading && (
         <div style={{ color: "#94a3b8", fontSize: 12 }}>Loading...</div>
       )}
       {error && (
         <div style={{ color: "#ef4444", fontSize: 12 }}>Error: {error}</div>
       )}
+      <VisualAttentionSection />
+      <VisualContextSection />
       <SourceSection />
       <ApplicationSection />
       <RepositorySection />
