@@ -50,7 +50,7 @@ export function RightRail() {
   const [activeTab, setActiveTab] = useState<RightTab>('conversation')
 
   const tabs: Array<{ id: RightTab; icon: typeof MessageSquare; label: string }> = [
-    { id: 'conversation', icon: MessageSquare, label: 'Conversation' },
+    { id: 'conversation', icon: MessageSquare, label: 'Chat' },
     { id: 'context', icon: FolderOpen, label: 'Context' },
     { id: 'execution', icon: Play, label: 'Execution' },
   ]
@@ -93,11 +93,11 @@ export function RightRail() {
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
                 className={clsx(
-                  'flex items-center gap-2 px-2 py-1 text-[10px] font-mono uppercase tracking-wider leading-none transition-colors',
+                  'flex items-center gap-1 px-1.5 py-1 text-[10px] font-mono uppercase tracking-wider leading-none transition-colors',
                   activeTab === t.id ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary',
                 )}
               >
-                <Icon size={14} />
+                <Icon size={12} />
                 {t.label}
               </button>
             )
