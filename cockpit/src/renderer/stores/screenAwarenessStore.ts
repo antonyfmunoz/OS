@@ -72,22 +72,56 @@ interface ProviderStatus {
   last_update?: number;
 }
 
+interface VisualContext {
+  depth: string;
+  application: string;
+  repository: string;
+  branch: string;
+  file_path: string;
+  campaign: string;
+  goals: string[];
+  confidence: number;
+}
+
+interface VisualSignal {
+  signal_type: string;
+  severity: string;
+  description: string;
+  detected_from: string;
+}
+
+interface VisualOperationsSnapshot {
+  health: string;
+  screen_state: Record<string, unknown>;
+  environment: Record<string, unknown>;
+  context_binding: VisualContext | null;
+  visual_signals: VisualSignal[];
+  capabilities: Record<string, boolean>;
+  critical_count: number;
+  warning_count: number;
+  surface_count: number;
+}
+
 interface ScreenAwarenessStoreState {
   snapshot: ScreenSnapshot | null;
+  visualOps: VisualOperationsSnapshot | null;
   repositories: RepositoryContext[];
   providers: Record<string, ProviderStatus> | null;
   loading: boolean;
   error: string | null;
   fetchSnapshot: () => Promise<void>;
+  fetchVisualOps: () => Promise<void>;
   fetchRepositories: () => Promise<void>;
   fetchProviders: () => Promise<void>;
 }
 
 const API_BASE = "/api/umh/screen";
+const VISUAL_API = "/api/umh/visual/operations";
 
 export const useScreenAwarenessStore = create<ScreenAwarenessStoreState>(
   (set) => ({
     snapshot: null,
+    visualOps: null,
     repositories: [],
     providers: null,
     loading: false,
@@ -102,6 +136,17 @@ export const useScreenAwarenessStore = create<ScreenAwarenessStoreState>(
         set({ snapshot: data, loading: false });
       } catch (e) {
         set({ error: String(e), loading: false });
+      }
+    },
+
+    fetchVisualOps: async () => {
+      try {
+        const res = await fetch(`${VISUAL_API}/snapshot`);
+        if (!res.ok) return;
+        const data = await res.json();
+        set({ visualOps: data });
+      } catch {
+        /* silent — visual ops may not be available yet */
       }
     },
 
