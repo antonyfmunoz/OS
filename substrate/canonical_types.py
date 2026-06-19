@@ -1177,6 +1177,29 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "VisualCapabilityStatus": ["substrate.workstation.visual_operations_runtime"],
     "VisualOperationsSnapshot": ["substrate.workstation.visual_operations_runtime"],
     "VisualOperationsRuntime": ["substrate.workstation.visual_operations_runtime"],
+    # ── C22 — Software Production Organism ─────────────────────────────
+    # C22.0 — Production Operations Runtime
+    "ProductionPhase": ["substrate.organism.production_ops_runtime"],
+    "ProductionTarget": ["substrate.organism.production_ops_runtime"],
+    "ProductionHealth": ["substrate.organism.production_ops_runtime"],
+    # C22.1 — Production Planning Runtime
+    "ProductionDiscipline": ["substrate.organism.production_planning_runtime"],
+    "ProductionType": ["substrate.organism.production_planning_runtime"],
+    # C22.2 — Production Workforce Runtime
+    "ProductionRole": ["substrate.organism.production_workforce_runtime"],
+    "ProductionAuthority": ["substrate.organism.production_workforce_runtime"],
+    # C22.3 — Production Review Runtime
+    "ReviewVerdict": ["substrate.organism.production_review_runtime"],
+    "QualityDimension": ["substrate.organism.production_review_runtime"],
+    # C22.4 — Capability Compounding Runtime
+    "CompoundingStage": ["substrate.organism.capability_compounding_runtime"],
+    "CompoundingHealth": ["substrate.organism.capability_compounding_runtime"],
+    # C22.5 — Product Factory Runtime
+    "ProductGoalType": ["substrate.organism.product_factory_runtime"],
+    "ProductReadiness": ["substrate.organism.product_factory_runtime"],
+    # C22.6 — Source Truth Runtime
+    "LineageNodeType": ["substrate.organism.source_truth_runtime"],
+    "LineageTerminalState": ["substrate.organism.source_truth_runtime"],
 }
 
 

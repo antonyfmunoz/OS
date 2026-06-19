@@ -57,9 +57,13 @@ export function RightRail() {
 
   if (collapsed) {
     return (
-      <div className="flex flex-col items-center py-2 w-10 bg-surface border-l border-border">
-        <button onClick={toggleCollapsed} className="p-1 text-text-tertiary hover:text-cyan">
-          <ChevronLeft size={14} />
+      <div className="flex flex-col items-center w-10 bg-surface border-l border-border">
+        <button
+          onClick={toggleCollapsed}
+          className="flex items-center justify-center w-full h-9 text-text-tertiary hover:text-cyan hover:bg-surface-raised transition-colors border-b border-border shrink-0"
+          title="Expand panel"
+        >
+          <ChevronLeft size={16} />
         </button>
         {tabs.map((t) => {
           const Icon = t.icon
@@ -67,10 +71,13 @@ export function RightRail() {
             <button
               key={t.id}
               onClick={() => { toggleCollapsed(); setActiveTab(t.id) }}
-              className={clsx('p-2 mt-1', activeTab === t.id ? 'text-cyan' : 'text-text-tertiary')}
+              className={clsx(
+                'flex items-center justify-center w-full h-9 transition-colors',
+                activeTab === t.id ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary',
+              )}
               title={t.label}
             >
-              <Icon size={14} />
+              <Icon size={16} />
             </button>
           )
         })}
