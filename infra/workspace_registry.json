@@ -8,7 +8,15 @@
         "repository_id": "umh-os",
         "name": "OS",
         "path": "",
-        "branch": "main"
+        "branch": "main",
+        "host_device_id": "vps"
+      },
+      {
+        "repository_id": "umh-os-beast",
+        "name": "OS (Beast)",
+        "path": "C:\\dev\\dev\\OS",
+        "branch": "main",
+        "host_device_id": "beast"
       }
     ],
     "runtimes": [
@@ -48,8 +56,9 @@
       {
         "repository_id": "creatoros-app",
         "name": "CreatorOS",
-        "path": "",
-        "branch": "main"
+        "path": "C:\\dev\\dev\\CreatorOS",
+        "branch": "main",
+        "host_device_id": "beast"
       }
     ],
     "runtimes": [
@@ -84,8 +93,9 @@
       {
         "repository_id": "entrepreneuros-app",
         "name": "EntrepreneurOS",
-        "path": "",
-        "branch": "main"
+        "path": "C:\\dev\\dev\\EntrepreneurOS",
+        "branch": "main",
+        "host_device_id": "beast"
       }
     ],
     "runtimes": [
@@ -120,8 +130,9 @@
       {
         "repository_id": "lyfeos-app",
         "name": "LyfeOS",
-        "path": "",
-        "branch": "main"
+        "path": "C:\\dev\\dev\\LyfeOS",
+        "branch": "main",
+        "host_device_id": "beast"
       }
     ],
     "runtimes": [
