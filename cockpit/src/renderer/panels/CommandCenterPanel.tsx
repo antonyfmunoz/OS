@@ -4,8 +4,10 @@ import { useViewContextStore } from '../stores/viewContextStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useVisionStore } from '../stores/visionStore'
 import { useVisionPopout } from '../components/VisionPopout'
+import { useUnifiedWorkstationStore } from '../stores/unifiedWorkstationStore'
 import { ActionRequired, buildActionItems } from '../components/ActionRequired'
 import { fetchApi } from '../api/client'
+import { usePolling } from '../hooks/usePolling'
 
 interface SummaryData {
   ok: boolean
@@ -381,10 +383,73 @@ export function CommandCenterPanel() {
         </Section>
       )}
 
+      <OrganismHealthSection />
+
       <div className="text-[10px] text-gray-600 pt-2 border-t border-gray-800">
         Auto-refresh: 10s | Packets: {summary.total_packets ?? 0}
       </div>
     </div>
+  )
+}
+
+function OrganismHealthSection() {
+  const snap = useUnifiedWorkstationStore((s) => s.snapshot)
+  const fetchSnapshot = useUnifiedWorkstationStore((s) => s.fetchSnapshot)
+  usePolling(fetchSnapshot, 10000, true, 2000)
+
+  if (!snap) return null
+
+  const state = (snap.workstation_state as string) || 'idle'
+  const orgMode = (snap.organism_mode as string) || 'idle'
+  const execState = (snap.execution_state as string) || 'idle'
+  const health = (snap.organism_health as string) || 'unknown'
+  const coherence = (snap.coherence_score as number) || 0
+  const subsystems = (snap.subsystem_health as Array<{ subsystem: string; health: string }>) || []
+
+  const stateColors: Record<string, string> = {
+    idle: 'text-gray-400', building: 'text-cyan-400', governing: 'text-yellow-400',
+    executing: 'text-green-400', monitoring: 'text-blue-400', degraded: 'text-red-400',
+  }
+  const healthColors: Record<string, string> = {
+    coherent: 'text-green-400', aligned: 'text-green-400', strained: 'text-yellow-400',
+    fragmented: 'text-red-400', critical: 'text-red-400',
+  }
+
+  return (
+    <Section title="Organism Health">
+      <div className="grid grid-cols-3 gap-2 mb-2">
+        <div className="text-center">
+          <div className={`text-sm font-mono uppercase ${stateColors[state] || 'text-gray-400'}`}>{state}</div>
+          <div className="text-[9px] text-gray-500">Workstation</div>
+        </div>
+        <div className="text-center">
+          <div className={`text-sm font-mono uppercase ${stateColors[orgMode] || 'text-gray-400'}`}>{orgMode}</div>
+          <div className="text-[9px] text-gray-500">Organism</div>
+        </div>
+        <div className="text-center">
+          <div className={`text-sm font-mono uppercase ${stateColors[execState] || 'text-gray-400'}`}>{execState}</div>
+          <div className="text-[9px] text-gray-500">Execution</div>
+        </div>
+      </div>
+      <div className="flex items-center justify-between text-[11px] mb-1">
+        <span className="text-gray-400">Health</span>
+        <span className={healthColors[health] || 'text-gray-400'}>{health}</span>
+      </div>
+      <div className="flex items-center justify-between text-[11px] mb-2">
+        <span className="text-gray-400">Coherence</span>
+        <span className="text-cyan-400">{Math.round(coherence * 100)}%</span>
+      </div>
+      {subsystems.length > 0 && (
+        <div className="space-y-0.5">
+          {subsystems.slice(0, 8).map((s, i) => (
+            <div key={i} className="flex items-center justify-between text-[10px]">
+              <span className="text-gray-500 truncate">{s.subsystem}</span>
+              <span className={s.health === 'healthy' || s.health === 'coherent' ? 'text-green-400' : 'text-yellow-400'}>{s.health}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
   )
 }
 

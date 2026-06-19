@@ -1,12 +1,10 @@
 import { clsx } from 'clsx'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, MessageSquare, Activity, Terminal, Send, Pencil, Check, Download, Mic, MicOff } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MessageSquare, FolderOpen, Play, Send, Pencil, Check, Download, Mic, MicOff } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { useSystemStore } from '../stores/systemStore'
 import { useChatStore, type ChatMessage, type Provenance, type Attachment } from '../stores/chatStore'
 import { usePolling } from '../hooks/usePolling'
-import { relativeTime } from '../lib/time'
 import { useConfigStore } from '../stores/configStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useVoiceStore } from '../stores/voiceStore'
@@ -30,7 +28,7 @@ const markdownComponents = {
   img: () => null,
 }
 
-type RightTab = 'chat' | 'activity' | 'logs'
+type RightTab = 'conversation' | 'context' | 'execution'
 
 const RIGHT_RAIL_KEY = 'cockpit:rightRailCollapsed'
 
@@ -49,16 +47,12 @@ export function RightRail() {
       return next
     })
   }, [])
-  const [activeTab, setActiveTab] = useState<RightTab>('chat')
-  const traces = useSystemStore((s) => s.traces)
-  const fetchTraces = useSystemStore((s) => s.fetchTraces)
-
-  usePolling(fetchTraces, 5000, true, 750)
+  const [activeTab, setActiveTab] = useState<RightTab>('conversation')
 
   const tabs: Array<{ id: RightTab; icon: typeof MessageSquare; label: string }> = [
-    { id: 'chat', icon: MessageSquare, label: 'Chat' },
-    { id: 'activity', icon: Activity, label: 'Activity' },
-    { id: 'logs', icon: Terminal, label: 'Logs' },
+    { id: 'conversation', icon: MessageSquare, label: 'Conversation' },
+    { id: 'context', icon: FolderOpen, label: 'Context' },
+    { id: 'execution', icon: Play, label: 'Execution' },
   ]
 
   if (collapsed) {
@@ -113,9 +107,9 @@ export function RightRail() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3">
-        {activeTab === 'chat' && <ChatSection />}
-        {activeTab === 'activity' && <ActivitySection traces={traces} />}
-        {activeTab === 'logs' && <LogsSection traces={traces} />}
+        {activeTab === 'conversation' && <ChatSection />}
+        {activeTab === 'context' && <ContextSection />}
+        {activeTab === 'execution' && <ExecutionSection />}
       </div>
     </div>
   )
@@ -522,48 +516,135 @@ function ChatSection() {
   )
 }
 
-function ActivitySection({ traces }: { traces: Array<{ id: string; timestamp: string; agent: string; action: string; status: string }> }) {
-  const statusIcon: Record<string, string> = { running: '◉', completed: '✓', failed: '✗', pending: '○' }
-  const statusColor: Record<string, string> = { running: 'text-cyan', completed: 'text-ok', failed: 'text-danger', pending: 'text-text-tertiary' }
+function ContextSection() {
+  const [ctx, setCtx] = useState<Record<string, unknown> | null>(null)
+  const [presence, setPresence] = useState<Record<string, unknown> | null>(null)
+
+  usePolling(useCallback(() => {
+    fetchApi('/meta-ide-context/context').then(setCtx).catch(() => {})
+    fetchApi('/orchestrator-presence/snapshot').then(setPresence).catch(() => {})
+  }, []), 5000, true, 750)
+
+  const project = (presence?.active_project as string) || ''
+  const repo = (presence?.active_repo as string) || ''
+  const directory = (ctx?.active_directory as string) || ''
+  const branch = (ctx?.active_branch as string) || ''
+  const goals = (ctx?.related_goals as Array<Record<string, string>>) || []
+  const decisions = (ctx?.related_decisions as Array<Record<string, string>>) || []
+  const constraints = (ctx?.constraints as string[]) || []
+  const activeFiles = (ctx?.active_files as string[]) || []
 
   return (
-    <div>
-      <div className="wv-label mb-2">AGENT ACTIVITY</div>
-      <div className="space-y-1">
-        {traces.slice(0, 30).map((t) => (
-          <div key={t.id} className="flex items-start gap-2 py-1 border-b border-border/50">
-            <span className={clsx('w-3 text-center text-[11px]', statusColor[t.status])}>
-              {statusIcon[t.status] || '○'}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] text-text-primary truncate">{t.action}</p>
-              <p className="text-[10px] text-text-tertiary">{t.agent} · {relativeTime(t.timestamp)}</p>
-            </div>
-          </div>
-        ))}
-        {traces.length === 0 && (
-          <p className="text-[11px] text-text-tertiary text-center py-4">No recent activity</p>
-        )}
-      </div>
+    <div className="space-y-3">
+      <div className="wv-label mb-2">PROJECT CONTEXT</div>
+      {project && <div className="text-[11px]"><span className="text-text-tertiary">Project</span> <span className="text-text-primary">{project}</span></div>}
+      {repo && <div className="text-[11px]"><span className="text-text-tertiary">Repo</span> <span className="text-text-primary">{repo}</span></div>}
+      {branch && <div className="text-[11px]"><span className="text-text-tertiary">Branch</span> <span className="text-cyan">{branch}</span></div>}
+      {directory && <div className="text-[11px]"><span className="text-text-tertiary">Dir</span> <span className="text-text-secondary font-mono">{directory}</span></div>}
+
+      {goals.length > 0 && (
+        <div>
+          <div className="wv-label mb-1">GOALS</div>
+          {goals.slice(0, 5).map((g, i) => (
+            <div key={i} className="text-[11px] text-text-secondary py-0.5">{g.title || g.description || JSON.stringify(g)}</div>
+          ))}
+        </div>
+      )}
+
+      {decisions.length > 0 && (
+        <div>
+          <div className="wv-label mb-1">DECISIONS</div>
+          {decisions.slice(0, 5).map((d, i) => (
+            <div key={i} className="text-[11px] text-text-secondary py-0.5">{d.title || d.description || JSON.stringify(d)}</div>
+          ))}
+        </div>
+      )}
+
+      {constraints.length > 0 && (
+        <div>
+          <div className="wv-label mb-1">CONSTRAINTS</div>
+          {constraints.slice(0, 5).map((c, i) => (
+            <div key={i} className="text-[11px] text-warn py-0.5">{c}</div>
+          ))}
+        </div>
+      )}
+
+      {activeFiles.length > 0 && (
+        <div>
+          <div className="wv-label mb-1">ACTIVE FILES</div>
+          {activeFiles.slice(0, 8).map((f, i) => (
+            <div key={i} className="text-[10px] font-mono text-text-tertiary py-0.5 truncate">{f}</div>
+          ))}
+        </div>
+      )}
+
+      {!project && !repo && (
+        <p className="text-[11px] text-text-tertiary text-center py-4">No active context</p>
+      )}
     </div>
   )
 }
 
-function LogsSection({ traces }: { traces: Array<{ id: string; timestamp: string; agent: string; action: string; status: string }> }) {
-  const completed = traces.filter((t) => t.status === 'completed' || t.status === 'failed')
+function ExecutionSection() {
+  const [exec, setExec] = useState<Record<string, unknown> | null>(null)
+  const [approvals, setApprovals] = useState<Record<string, unknown> | null>(null)
+
+  usePolling(useCallback(() => {
+    fetchApi('/command-center-mvp/governed-execution').then(setExec).catch(() => {})
+    fetchApi('/unified-approval/pending').then(setApprovals).catch(() => {})
+  }, []), 5000, true, 750)
+
+  const state = (exec?.state as string) || 'idle'
+  const readyCount = (exec?.ready_count as number) || 0
+  const blockedCount = (exec?.blocked_count as number) || 0
+  const pendingApprovals = (exec?.pending_approval_count as number) || 0
+  const topBlockers = (exec?.top_blockers as Array<Record<string, string>>) || []
+  const delegationCoverage = (exec?.delegation_coverage as number) || 0
+  const pendingItems = (approvals?.pending as Array<Record<string, string>>) || []
+
+  const stateColor: Record<string, string> = {
+    idle: 'text-text-tertiary', assessing: 'text-cyan', governed: 'text-ok',
+    executing: 'text-ok', blocked: 'text-danger',
+  }
+
   return (
-    <div>
-      <div className="wv-label mb-2">EXECUTION LOGS</div>
-      <div className="space-y-1 font-mono text-[10px]">
-        {completed.slice(0, 50).map((t) => (
-          <div key={t.id} className={clsx('py-1', t.status === 'failed' ? 'text-danger' : 'text-text-secondary')}>
-            [{t.status === 'completed' ? 'OK' : 'FAIL'}] {t.agent}: {t.action.slice(0, 60)}
-          </div>
-        ))}
-        {completed.length === 0 && (
-          <p className="text-text-tertiary text-center py-4">No execution logs</p>
-        )}
+    <div className="space-y-3">
+      <div className="wv-label mb-2">EXECUTION STATE</div>
+      <div className="flex items-center gap-2">
+        <span className={clsx('text-[11px] font-mono uppercase', stateColor[state] || 'text-text-tertiary')}>{state}</span>
       </div>
+
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div><div className="text-[14px] font-mono text-ok">{readyCount}</div><div className="text-[9px] text-text-tertiary">Ready</div></div>
+        <div><div className="text-[14px] font-mono text-warn">{pendingApprovals}</div><div className="text-[9px] text-text-tertiary">Pending</div></div>
+        <div><div className="text-[14px] font-mono text-danger">{blockedCount}</div><div className="text-[9px] text-text-tertiary">Blocked</div></div>
+      </div>
+
+      {delegationCoverage > 0 && (
+        <div className="text-[11px]"><span className="text-text-tertiary">Delegation</span> <span className="text-text-primary">{Math.round(delegationCoverage * 100)}%</span></div>
+      )}
+
+      {topBlockers.length > 0 && (
+        <div>
+          <div className="wv-label mb-1">BLOCKERS</div>
+          {topBlockers.slice(0, 5).map((b, i) => (
+            <div key={i} className="text-[11px] text-danger py-0.5">{b.blocker || b.detail || JSON.stringify(b)}</div>
+          ))}
+        </div>
+      )}
+
+      {pendingItems.length > 0 && (
+        <div>
+          <div className="wv-label mb-1">AWAITING APPROVAL</div>
+          {pendingItems.slice(0, 5).map((p, i) => (
+            <div key={i} className="text-[11px] text-text-secondary py-0.5">{p.title || p.description || JSON.stringify(p)}</div>
+          ))}
+        </div>
+      )}
+
+      {state === 'idle' && topBlockers.length === 0 && pendingItems.length === 0 && (
+        <p className="text-[11px] text-text-tertiary text-center py-4">No active execution</p>
+      )}
     </div>
   )
 }
