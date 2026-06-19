@@ -63,6 +63,25 @@ import { MetaIDEPanel } from '../panels/MetaIDEPanel'
 import { EngineeringPanel } from '../panels/EngineeringPanel'
 import { OrganismMapPanel } from '../panels/OrganismMapPanel'
 import { IntentPanel } from '../panels/IntentPanel'
+import { CapabilityMapPanel } from '../panels/CapabilityMapPanel'
+import { UnifiedExecutionPanel } from '../panels/UnifiedExecutionPanel'
+import { BuildLoopPanel } from '../panels/BuildLoopPanel'
+import { ProjectionIntegrationPanel } from '../panels/ProjectionIntegrationPanel'
+import { OrchestratorPanel } from '../panels/OrchestratorPanel'
+import { OperatingLoopPanel } from '../panels/OperatingLoopPanel'
+import { SessionResumePanel } from '../panels/SessionResumePanel'
+import { MVPReadinessPanel } from '../panels/MVPReadinessPanel'
+import { DelegationPanel } from '../panels/DelegationPanel'
+import { RealityGraphPanel } from '../panels/RealityGraphPanel'
+import { StrategicPanel } from '../panels/StrategicPanel'
+import { GoalPanel } from '../panels/GoalPanel'
+import { MemoryPanel } from '../panels/MemoryPanel'
+import { CapabilitiesPanel } from '../panels/CapabilitiesPanel'
+import { WorkIntelligencePanel } from '../panels/WorkIntelligencePanel'
+import { LearningPanel } from '../panels/LearningPanel'
+import { PredictionPanel } from '../panels/PredictionPanel'
+import { ExecutivePanel } from '../panels/ExecutivePanel'
+import { GovernancePanel } from '../panels/GovernancePanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 
@@ -174,6 +193,44 @@ function ActivePanel() {
       return <OrganismMapPanel />
     case 'intent':
       return <IntentPanel />
+    case 'capabilitymap':
+      return <CapabilityMapPanel />
+    case 'unifiedexecution':
+      return <UnifiedExecutionPanel />
+    case 'buildloop':
+      return <BuildLoopPanel />
+    case 'projectionintegration':
+      return <ProjectionIntegrationPanel />
+    case 'orchestratorawareness':
+      return <OrchestratorPanel />
+    case 'operatingloopview':
+      return <OperatingLoopPanel />
+    case 'sessionresume':
+      return <SessionResumePanel />
+    case 'mvpreadiness':
+      return <MVPReadinessPanel />
+    case 'delegation':
+      return <DelegationPanel />
+    case 'realitygraph':
+      return <RealityGraphPanel />
+    case 'strategic':
+      return <StrategicPanel />
+    case 'goals':
+      return <GoalPanel />
+    case 'memory':
+      return <MemoryPanel />
+    case 'capabilities':
+      return <CapabilitiesPanel />
+    case 'workintelligence':
+      return <WorkIntelligencePanel />
+    case 'learning':
+      return <LearningPanel />
+    case 'prediction':
+      return <PredictionPanel />
+    case 'executive':
+      return <ExecutivePanel />
+    case 'governance':
+      return <GovernancePanel />
 
     default:
       return <DashboardPanel />

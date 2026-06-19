@@ -1,0 +1,50 @@
+[
+  {
+    "project_id": "umh",
+    "name": "UMH",
+    "description": "Universal Meta Harness — AI intelligence substrate",
+    "projection": "",
+    "repositories": ["umh-os"],
+    "documents": [],
+    "infrastructure": ["cockpit-api", "os-discord", "os-operator", "os-webhook"],
+    "capabilities": ["orchestration", "governance", "execution", "observation"],
+    "owner_device_ids": ["vps", "beast"],
+    "status": "active"
+  },
+  {
+    "project_id": "creatoros",
+    "name": "CreatorOS",
+    "description": "Creator workspace desktop application",
+    "projection": "creatoros",
+    "repositories": ["creatoros-app"],
+    "documents": [],
+    "infrastructure": [],
+    "capabilities": ["desktop-app", "electron"],
+    "owner_device_ids": ["beast"],
+    "status": "active"
+  },
+  {
+    "project_id": "entrepreneuros",
+    "name": "EntrepreneurOS",
+    "description": "Entrepreneur workspace SaaS application",
+    "projection": "eos",
+    "repositories": ["entrepreneuros-app"],
+    "documents": [],
+    "infrastructure": [],
+    "capabilities": ["saas", "web-app"],
+    "owner_device_ids": ["beast"],
+    "status": "active"
+  },
+  {
+    "project_id": "lyfeos",
+    "name": "LyfeOS",
+    "description": "Life operating system desktop application",
+    "projection": "lyfeos",
+    "repositories": ["lyfeos-app"],
+    "documents": [],
+    "infrastructure": [],
+    "capabilities": ["desktop-app", "electron"],
+    "owner_device_ids": ["beast"],
+    "status": "active"
+  }
+]

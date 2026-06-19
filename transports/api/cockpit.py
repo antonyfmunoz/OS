@@ -941,3 +941,336 @@ def _mount_projection_router() -> None:
 
 
 _mount_projection_router()
+
+
+# ── Campaign 3 routes ──────────────────────────────────────────────────────
+
+
+def _mount_capability_map_router() -> None:
+    from transports.api import cockpit_capability_map_routes
+
+    cockpit_capability_map_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_capability_map_routes.capability_map_router,
+    )
+
+
+_mount_capability_map_router()
+
+
+def _mount_command_center_mvp_router() -> None:
+    from transports.api import cockpit_command_center_mvp_routes
+
+    cockpit_command_center_mvp_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_command_center_mvp_routes.command_center_mvp_router,
+    )
+
+
+_mount_command_center_mvp_router()
+
+
+def _mount_unified_execution_router() -> None:
+    from transports.api import cockpit_unified_execution_routes
+
+    cockpit_unified_execution_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_unified_execution_routes.unified_execution_router,
+    )
+
+
+_mount_unified_execution_router()
+
+
+def _mount_build_loop_router() -> None:
+    from transports.api import cockpit_meta_ide_projection_loop_routes
+
+    cockpit_meta_ide_projection_loop_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_meta_ide_projection_loop_routes.build_loop_router,
+    )
+
+
+_mount_build_loop_router()
+
+
+def _mount_projection_integration_router() -> None:
+    from transports.api import cockpit_projection_integration_routes
+
+    cockpit_projection_integration_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(
+        cockpit_projection_integration_routes.projection_integration_router,
+    )
+
+
+_mount_projection_integration_router()
+
+
+# ── Campaign 4: Operator-Orchestrator Convergence ─────────────────────────
+
+
+def _mount_orchestrator_awareness_router() -> None:
+    from transports.api import cockpit_orchestrator_awareness_routes
+
+    r = cockpit_orchestrator_awareness_routes._build_router()
+    router.include_router(r)
+
+
+_mount_orchestrator_awareness_router()
+
+
+def _mount_operating_loop_router() -> None:
+    from transports.api import cockpit_operating_loop_routes
+
+    r = cockpit_operating_loop_routes._build_router()
+    router.include_router(r)
+
+
+_mount_operating_loop_router()
+
+
+def _mount_unified_approval_router() -> None:
+    from transports.api import cockpit_unified_approval_routes
+
+    r = cockpit_unified_approval_routes._build_router()
+    router.include_router(r)
+
+
+_mount_unified_approval_router()
+
+
+def _mount_loop_coherence_router() -> None:
+    from transports.api import cockpit_loop_coherence_routes
+
+    r = cockpit_loop_coherence_routes._build_router()
+    router.include_router(r)
+
+
+_mount_loop_coherence_router()
+
+
+def _mount_wk_session_router() -> None:
+    from transports.api import cockpit_session_routes
+
+    r = cockpit_session_routes._build_router()
+    router.include_router(r)
+
+
+_mount_wk_session_router()
+
+
+def _mount_mvp_readiness_router() -> None:
+    from transports.api import cockpit_mvp_readiness_routes
+
+    r = cockpit_mvp_readiness_routes._build_router()
+    router.include_router(r)
+
+
+_mount_mvp_readiness_router()
+
+
+def _mount_delegation_router() -> None:
+    from transports.api import cockpit_delegation_routes
+
+    r = cockpit_delegation_routes._build_router()
+    router.include_router(r)
+
+
+_mount_delegation_router()
+
+
+def _mount_reality_graph_router() -> None:
+    from transports.api import cockpit_reality_graph_routes
+
+    r = cockpit_reality_graph_routes.get_router()
+    router.include_router(r)
+
+
+def _mount_context_resolution_router() -> None:
+    from transports.api import cockpit_context_resolution_routes
+
+    r = cockpit_context_resolution_routes.get_router()
+    router.include_router(r)
+
+
+_mount_reality_graph_router()
+_mount_context_resolution_router()
+
+
+def _mount_c6_routers() -> None:
+    from transports.api.cockpit_artifact_registry_routes import router as artifact_router
+    from transports.api.cockpit_repository_awareness_routes import router as repo_router
+    from transports.api.cockpit_documentation_awareness_routes import router as doc_router
+    from transports.api.cockpit_runtime_awareness_routes import router as runtime_router
+    from transports.api.cockpit_knowledge_awareness_routes import router as knowledge_router
+
+    router.include_router(artifact_router)
+    router.include_router(repo_router)
+    router.include_router(doc_router)
+    router.include_router(runtime_router)
+    router.include_router(knowledge_router)
+
+
+_mount_c6_routers()
+
+
+def _mount_strategic_router() -> None:
+    from transports.api import cockpit_strategic_routes
+
+    r = cockpit_strategic_routes.get_router()
+    router.include_router(r)
+
+
+_mount_strategic_router()
+
+
+def _mount_goal_router() -> None:
+    from transports.api import cockpit_goal_routes
+
+    r = cockpit_goal_routes.get_router()
+    router.include_router(r)
+
+
+_mount_goal_router()
+
+
+def _mount_memory_router() -> None:
+    from transports.api import cockpit_memory_routes
+
+    r = cockpit_memory_routes.get_router()
+    router.include_router(r)
+
+
+_mount_memory_router()
+
+
+def _mount_capability_intelligence_router() -> None:
+    from transports.api import cockpit_capability_intelligence_routes
+
+    r = cockpit_capability_intelligence_routes.get_router()
+    router.include_router(r)
+
+
+_mount_capability_intelligence_router()
+
+
+def _mount_work_intelligence_router() -> None:
+    from transports.api import cockpit_work_intelligence_routes
+
+    r = cockpit_work_intelligence_routes.get_router()
+    router.include_router(r)
+
+
+_mount_work_intelligence_router()
+
+
+def _mount_learning_router() -> None:
+    from transports.api import cockpit_learning_routes
+
+    r = cockpit_learning_routes.get_router()
+    router.include_router(r)
+
+
+_mount_learning_router()
+
+
+# ── Campaign 13: Prediction Intelligence ──────────────────────────────
+
+
+def _mount_prediction_router() -> None:
+    from transports.api import cockpit_prediction_routes
+
+    r = cockpit_prediction_routes.get_router()
+    router.include_router(r)
+
+
+_mount_prediction_router()
+
+
+# ── Campaign 14: Executive Intelligence ──────────────────────────────
+
+
+def _mount_executive_router() -> None:
+    from transports.api import cockpit_executive_routes
+
+    r = cockpit_executive_routes.get_router()
+    router.include_router(r)
+
+
+_mount_executive_router()
+
+
+# ── Campaign 15: Organism Governance ──────────────────────────────
+
+
+def _mount_governance_router() -> None:
+    from transports.api import cockpit_governance_routes
+
+    r = cockpit_governance_routes.get_router()
+    router.include_router(r)
+
+
+_mount_governance_router()
+
+
+# ── Campaign 17: Workstation Embodiment ──────────────────────────────
+
+
+def _mount_orchestrator_presence_router() -> None:
+    from transports.api import cockpit_orchestrator_presence_routes
+
+    r = cockpit_orchestrator_presence_routes.get_router()
+    router.include_router(r)
+
+
+_mount_orchestrator_presence_router()
+
+
+def _mount_meta_ide_context_router() -> None:
+    from transports.api import cockpit_meta_ide_context_routes
+
+    r = cockpit_meta_ide_context_routes.get_router()
+    router.include_router(r)
+
+
+_mount_meta_ide_context_router()
+
+
+def _mount_workstation_presence_router() -> None:
+    from transports.api import cockpit_workstation_presence_routes
+
+    r = cockpit_workstation_presence_routes.get_router()
+    router.include_router(r)
+
+
+_mount_workstation_presence_router()
+
+
+def _mount_unified_workstation_router() -> None:
+    from transports.api import cockpit_unified_workstation_routes
+
+    r = cockpit_unified_workstation_routes.get_router()
+    router.include_router(r)
+
+
+_mount_unified_workstation_router()
+
+
+def _mount_attention_router() -> None:
+    from transports.api import cockpit_attention_routes
+
+    r = cockpit_attention_routes.get_router()
+    router.include_router(r)
+
+
+_mount_attention_router()

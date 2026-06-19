@@ -7,6 +7,7 @@ import { useCockpitStore } from '../stores/cockpitStore'
 import { useVoiceStore } from '../stores/voiceStore'
 import { useVisionStore } from '../stores/visionStore'
 import { useRealtimeStore } from '../stores/realtimeStore'
+import { useUnifiedWorkstationStore } from '../stores/unifiedWorkstationStore'
 import { usePolling } from '../hooks/usePolling'
 
 function StatusDot({ status }: { status: 'connected' | 'connecting' | 'disconnected' }) {
@@ -90,6 +91,10 @@ export function HudBar() {
   const lastTranscript = useVoiceStore((s) => s.lastTranscript)
   const cameraStatus = useVisionStore((s) => s.cameraStatus)
   const cameraPreset = useVisionStore((s) => s.activePreset)
+  const attention = useUnifiedWorkstationStore((s) => s.attention)
+  const fetchAttention = useUnifiedWorkstationStore((s) => s.fetchAttention)
+
+  usePolling(fetchAttention, 10000, true, 2000)
 
   const [posture, setPosture] = useState<string>('')
   const [nodeCount, setNodeCount] = useState<number>(0)
@@ -224,6 +229,17 @@ export function HudBar() {
       )}
 
       {micState === 'idle' && <div className="flex-1" />}
+
+      {/* Attention badge */}
+      {attention && attention.total > 0 && (
+        <span className={clsx(
+          'wv-label px-2 py-0.5 rounded',
+          attention.critical > 0 ? 'bg-danger/10 text-danger' : 'bg-warn/10 text-warn',
+        )}>
+          attn:<span className="font-mono">{attention.total}</span>
+          {attention.critical > 0 && <span className="text-danger ml-1">({attention.critical} crit)</span>}
+        </span>
+      )}
 
       {/* System metrics */}
       <OrganismMetrics />
