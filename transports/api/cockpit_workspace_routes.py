@@ -45,23 +45,22 @@ def _build_router(
 ) -> APIRouter:
     r = APIRouter()
     auth = [Depends(require_operator_dep)]
-    read_auth = [Depends(require_api_key_dep)] if require_api_key_dep else auth
 
-    r.add_api_route("/workspace/browse", _browse_dir, methods=["GET"], dependencies=read_auth)
-    r.add_api_route("/workspace/read-file", _read_file, methods=["GET"], dependencies=read_auth)
-    r.add_api_route("/workspace/git-status", _git_status, methods=["GET"], dependencies=read_auth)
-    r.add_api_route("/workspace/git-diff", _git_diff, methods=["GET"], dependencies=read_auth)
-    r.add_api_route("/workspace/git-diff-file", _git_diff_file, methods=["GET"], dependencies=read_auth)
-    r.add_api_route("/workspace/test-results", _test_results, methods=["GET"], dependencies=read_auth)
-    r.add_api_route("/workspace/execution-logs", _execution_logs, methods=["GET"], dependencies=read_auth)
-    r.add_api_route("/workspace/proof-artifacts", _proof_artifacts, methods=["GET"], dependencies=read_auth)
-    r.add_api_route("/workspace/health", _health_check, methods=["GET"], dependencies=read_auth)
-    r.add_api_route("/workspace/trace-linkage", _trace_linkage, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/browse", _browse_dir, methods=["GET"])
+    r.add_api_route("/workspace/read-file", _read_file, methods=["GET"])
+    r.add_api_route("/workspace/git-status", _git_status, methods=["GET"])
+    r.add_api_route("/workspace/git-diff", _git_diff, methods=["GET"])
+    r.add_api_route("/workspace/git-diff-file", _git_diff_file, methods=["GET"])
+    r.add_api_route("/workspace/test-results", _test_results, methods=["GET"])
+    r.add_api_route("/workspace/execution-logs", _execution_logs, methods=["GET"])
+    r.add_api_route("/workspace/proof-artifacts", _proof_artifacts, methods=["GET"])
+    r.add_api_route("/workspace/health", _health_check, methods=["GET"])
+    r.add_api_route("/workspace/trace-linkage", _trace_linkage, methods=["GET"])
     r.add_api_route("/workspace/write-file", _write_file, methods=["POST"], dependencies=auth)
-    r.add_api_route("/workspace/remote-browse", _remote_browse, methods=["GET"], dependencies=read_auth)
-    r.add_api_route("/workspace/remote-read-file", _remote_read_file, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/remote-browse", _remote_browse, methods=["GET"])
+    r.add_api_route("/workspace/remote-read-file", _remote_read_file, methods=["GET"])
     r.add_api_route("/workspace/remote-write-file", _remote_write_file, methods=["POST"], dependencies=auth)
-    r.add_api_route("/workspace/mesh-nodes", _mesh_nodes_status, methods=["GET"], dependencies=read_auth)
+    r.add_api_route("/workspace/mesh-nodes", _mesh_nodes_status, methods=["GET"])
 
     return r
 
