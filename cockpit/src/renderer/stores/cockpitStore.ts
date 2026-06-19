@@ -72,6 +72,7 @@ export type Panel =
   | 'prediction'
   | 'executive'
   | 'governance'
+  | 'operations'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

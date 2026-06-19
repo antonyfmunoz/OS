@@ -87,6 +87,8 @@ export const ROUTES: RouteEntry[] = [
   { id: 'mvpreadiness', label: 'MVP Readiness', icon: CheckCircle2, group: 'primary', visibility: 'dev', key: 'V' },
   // Campaign 4.7 — Cockpit Delegation
   { id: 'delegation', label: 'Delegation', icon: Workflow, group: 'primary', visibility: 'primary', key: 'Y' },
+  // Campaign 19 — Execution Fabric & Agent Operations
+  { id: 'operations', label: 'Operations', icon: Monitor, group: 'primary', visibility: 'primary', key: 'Z' },
   // Gate 4: Intent Runtime (access via Command Center, dev-visible for direct debugging)
   { id: 'intent', label: 'Intent', icon: FileText, group: 'primary', visibility: 'dev', key: 'F' },
   // Absorbed into Command Center
