@@ -708,6 +708,18 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "QueryResolution": ["substrate.operator.voice_query_engine"],
     "VoiceQueryEngine": ["substrate.operator.voice_query_engine"],
     "ActionResolution": ["substrate.operator.voice_query_engine"],
+    # ── Voice Session & Wake Producer (pre-C20) ─────────────────────
+    "VoiceSessionStatus": ["substrate.execution.bridge.voice_session"],
+    "VoiceTurnSource": ["substrate.execution.bridge.voice_session"],
+    "VoiceTurn": ["substrate.execution.bridge.voice_session"],
+    "VoiceSession": ["substrate.execution.bridge.voice_session"],
+    "VoiceSessionStore": ["substrate.execution.bridge.voice_session"],
+    "VoiceSessionRuntime": ["substrate.execution.bridge.voice_session"],
+    "WakeProducerKind": ["substrate.execution.bridge.wake_producer"],
+    "WakeProducerEvent": ["substrate.execution.bridge.wake_producer"],
+    "WakeProducerHistory": ["substrate.execution.bridge.wake_producer"],
+    "WakeProducerRuntime": ["substrate.execution.bridge.wake_producer"],
+    "VoiceRoute": ["substrate.workstation.voice_route_resolver"],
     # Gate 3: Governed Work Runtime
     "WorkNodeType": ["substrate.organism.work_graph"],
     "BlockerType": ["substrate.organism.work_graph"],
@@ -1106,6 +1118,37 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "MachineSessionBinding": ["substrate.workstation.session_machine_runtime"],
     "SessionMachineSnapshot": ["substrate.workstation.session_machine_runtime"],
     "SessionMachineRuntime": ["substrate.workstation.session_machine_runtime"],
+    # ── Campaign 20: Voice Operations & Ambient Jarvis ──────────────
+    # C20.0 — Voice Ingress Runtime
+    "VoiceSourceType": ["substrate.workstation.voice_ingress_runtime"],
+    "ActivationMode": ["substrate.workstation.voice_ingress_runtime"],
+    "VoiceChannelContext": ["substrate.workstation.voice_ingress_runtime"],
+    "VoicePermissionScope": ["substrate.workstation.voice_ingress_runtime"],
+    "VoiceIngressEvent": ["substrate.workstation.voice_ingress_runtime"],
+    "VoiceIngressSnapshot": ["substrate.workstation.voice_ingress_runtime"],
+    "VoiceIngressRuntime": ["substrate.workstation.voice_ingress_runtime"],
+    # C20.1 — Voice Session Manager
+    "VoiceSessionType": ["substrate.workstation.voice_session_manager"],
+    "VoiceSessionPriority": ["substrate.workstation.voice_session_manager"],
+    "ManagedVoiceSession": ["substrate.workstation.voice_session_manager"],
+    "SessionConflictResolution": ["substrate.workstation.voice_session_manager"],
+    "VoiceSessionManagerSnapshot": ["substrate.workstation.voice_session_manager"],
+    "VoiceSessionManager": ["substrate.workstation.voice_session_manager"],
+    # C20.2 — Ambient Wake Runtime
+    "AmbientState": ["substrate.workstation.ambient_wake_runtime"],
+    "WakeTransition": ["substrate.workstation.ambient_wake_runtime"],
+    "AmbientWakeSnapshot": ["substrate.workstation.ambient_wake_runtime"],
+    "AmbientWakeRuntime": ["substrate.workstation.ambient_wake_runtime"],
+    # C20.3 — Voice Output Runtime
+    "VoiceOutputTarget": ["substrate.workstation.voice_output_runtime"],
+    "OutputRoutingDecision": ["substrate.workstation.voice_output_runtime"],
+    "VoiceOutputSnapshot": ["substrate.workstation.voice_output_runtime"],
+    "VoiceOutputRuntime": ["substrate.workstation.voice_output_runtime"],
+    # C20.4 — Voice Operations Runtime
+    "VoiceOperationsHealth": ["substrate.workstation.voice_operations_runtime"],
+    "VoiceCapabilityStatus": ["substrate.workstation.voice_operations_runtime"],
+    "VoiceOperationsSnapshot": ["substrate.workstation.voice_operations_runtime"],
+    "VoiceOperationsRuntime": ["substrate.workstation.voice_operations_runtime"],
 }
 
 
