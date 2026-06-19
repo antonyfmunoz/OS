@@ -119,7 +119,8 @@ def _is_path_allowed(target: str) -> bool:
 
     for root in ALLOWED_ROOTS:
         root_resolved = os.path.realpath(root)
-        if resolved == root_resolved or resolved.startswith(root_resolved + os.sep):
+        prefix = root_resolved if root_resolved.endswith(os.sep) else root_resolved + os.sep
+        if resolved == root_resolved or resolved.startswith(prefix):
             for pattern in DENIED_PATTERNS:
                 if pattern in resolved:
                     return False
