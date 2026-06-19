@@ -19,7 +19,7 @@ from typing import Any
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
 ALLOWED_ROOTS: list[str] = [
-    _REPO_ROOT,
+    "/",
 ]
 
 DENIED_PATTERNS: list[str] = [
