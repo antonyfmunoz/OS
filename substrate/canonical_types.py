@@ -1149,6 +1149,34 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "VoiceCapabilityStatus": ["substrate.workstation.voice_operations_runtime"],
     "VoiceOperationsSnapshot": ["substrate.workstation.voice_operations_runtime"],
     "VoiceOperationsRuntime": ["substrate.workstation.voice_operations_runtime"],
+    # ── Campaign 21: Visual Awareness & Environmental Context ───────
+    # C21.0 — Screen Awareness Runtime
+    "ScreenAwarenessHealth": ["substrate.workstation.screen_awareness_runtime"],
+    "DeviceScreenBinding": ["substrate.workstation.screen_awareness_runtime"],
+    "ScreenAwarenessSnapshot": ["substrate.workstation.screen_awareness_runtime"],
+    "ScreenAwarenessRuntime": ["substrate.workstation.screen_awareness_runtime"],
+    # C21.1 — Environment Awareness Runtime
+    "SurfaceType": ["substrate.workstation.environment_awareness_runtime"],
+    "SurfaceHealth": ["substrate.workstation.environment_awareness_runtime"],
+    "ObservedSurface": ["substrate.workstation.environment_awareness_runtime"],
+    "EnvironmentAwarenessSnapshot": ["substrate.workstation.environment_awareness_runtime"],
+    "EnvironmentAwarenessRuntime": ["substrate.workstation.environment_awareness_runtime"],
+    # C21.2 — Visual Context Runtime
+    "ContextBindingDepth": ["substrate.workstation.visual_context_runtime"],
+    "ContextBinding": ["substrate.workstation.visual_context_runtime"],
+    "VisualContextSnapshot": ["substrate.workstation.visual_context_runtime"],
+    "VisualContextRuntime": ["substrate.workstation.visual_context_runtime"],
+    # C21.3 — Attention Vision Runtime
+    "VisualSignalType": ["substrate.workstation.attention_vision_runtime"],
+    "VisualSignalSeverity": ["substrate.workstation.attention_vision_runtime"],
+    "VisualAttentionSignal": ["substrate.workstation.attention_vision_runtime"],
+    "AttentionVisionSnapshot": ["substrate.workstation.attention_vision_runtime"],
+    "AttentionVisionRuntime": ["substrate.workstation.attention_vision_runtime"],
+    # C21.4 — Visual Operations Runtime
+    "VisualOperationsHealth": ["substrate.workstation.visual_operations_runtime"],
+    "VisualCapabilityStatus": ["substrate.workstation.visual_operations_runtime"],
+    "VisualOperationsSnapshot": ["substrate.workstation.visual_operations_runtime"],
+    "VisualOperationsRuntime": ["substrate.workstation.visual_operations_runtime"],
 }
 
 
