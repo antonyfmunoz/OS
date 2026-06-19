@@ -3,8 +3,9 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMetaIDEStore } from '../stores/metaIDEStore'
 import { fetchApi } from '../api/client'
 import { usePolling } from '../hooks/usePolling'
+import { VPS, BEAST } from '../constants/devices'
 
-const TABS = ['workspace', 'repositories', 'roadmap', 'risks', 'terminals', 'containers', 'previews'] as const
+const TABS = ['files', 'workspace', 'repositories', 'roadmap', 'risks', 'terminals', 'containers', 'previews'] as const
 
 const RISK_COLORS: Record<string, string> = {
   none: 'text-zinc-400',
@@ -30,6 +31,140 @@ const STATE_COLORS: Record<string, string> = {
   planned: 'text-zinc-400',
   blocked: 'text-red-400',
   unknown: 'text-zinc-500',
+}
+
+type FileEntry = { name: string; path: string; type: 'file' | 'directory' }
+
+async function browseDir(path: string, node?: string): Promise<FileEntry[]> {
+  if (node === 'windows') {
+    try {
+      const data = await fetchApi<{ ok: boolean; entries: FileEntry[] }>(
+        `/workspace/remote-browse?node=windows&path=${encodeURIComponent(path)}`,
+      )
+      if (data.ok && data.entries) return data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type }))
+    } catch { /* remote browse failed */ }
+    return []
+  }
+  try {
+    const qs = path ? `?path=${encodeURIComponent(path)}` : ''
+    const data = await fetchApi<{ ok: boolean; entries: FileEntry[] }>(`/workspace/browse${qs}`)
+    if (data.ok && data.entries) return data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type }))
+  } catch { /* API fallback failed */ }
+  return []
+}
+
+function IDEFileTreeNode({ name, path, type, depth, node }: {
+  name: string; path: string; type: 'file' | 'directory'; depth: number; node?: string
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [children, setChildren] = useState<FileEntry[]>([])
+
+  const handleClick = async () => {
+    if (type === 'directory') {
+      if (!expanded) setChildren(await browseDir(path, node))
+      setExpanded(!expanded)
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={handleClick}
+        className={`w-full text-left flex items-center gap-1 py-0.5 hover:bg-zinc-800 transition-colors text-[11px] ${
+          type === 'directory' ? 'text-zinc-200' : 'text-zinc-400'
+        }`}
+        style={{ paddingLeft: `${depth * 12 + 8}px` }}
+      >
+        <span className="text-zinc-500 w-3 text-center text-[9px]">
+          {type === 'directory' ? (expanded ? '▾' : '▸') : '·'}
+        </span>
+        <span className="truncate">{name}</span>
+      </button>
+      {expanded && children.map((child) => (
+        <IDEFileTreeNode
+          key={child.path}
+          name={child.name}
+          path={child.path}
+          type={child.type}
+          depth={depth + 1}
+          node={node}
+        />
+      ))}
+    </>
+  )
+}
+
+interface MeshNode { id: string; name: string; os: string; status: string }
+
+function FilesTab() {
+  const [vpsTree, setVpsTree] = useState<FileEntry[]>([])
+  const [windowsTree, setWindowsTree] = useState<FileEntry[]>([])
+  const [vpsExpanded, setVpsExpanded] = useState(true)
+  const [windowsExpanded, setWindowsExpanded] = useState(true)
+  const [meshNodes, setMeshNodes] = useState<MeshNode[]>([])
+  const [windowsOnline, setWindowsOnline] = useState(false)
+
+  useEffect(() => {
+    browseDir('').then((entries) => { if (entries.length) setVpsTree(entries) })
+    browseDir('C:\\dev\\dev', 'windows').then((entries) => { if (entries.length) setWindowsTree(entries) })
+
+    fetchApi<{ ok: boolean; nodes: MeshNode[] }>('/workspace/mesh-nodes')
+      .then((data) => {
+        if (data.ok && data.nodes) {
+          setMeshNodes(data.nodes)
+          setWindowsOnline(data.nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online')))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const vpsName = meshNodes.find((n) => n.id === 'vps')?.name || VPS.displayName
+  const windowsName = meshNodes.find((n) => n.os === 'windows')?.name || BEAST.displayName
+
+  return (
+    <div className="py-1">
+      <button
+        onClick={() => setVpsExpanded(!vpsExpanded)}
+        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800 transition-colors"
+      >
+        <span className="text-zinc-500 text-[9px]">{vpsExpanded ? '▾' : '▸'}</span>
+        <span className="text-green-400 text-[9px]">●</span>
+        <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider flex-1 text-left">{vpsName}</span>
+      </button>
+      {vpsExpanded && (
+        <>
+          {vpsTree.map((f) => (
+            <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} />
+          ))}
+          {vpsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-zinc-600">Loading...</p>}
+        </>
+      )}
+
+      <button
+        onClick={() => setWindowsExpanded(!windowsExpanded)}
+        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800 transition-colors border-t border-zinc-800 mt-1"
+      >
+        <span className="text-zinc-500 text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
+        <span className={`text-[9px] ${windowsOnline ? 'text-green-400' : 'text-zinc-600'}`}>●</span>
+        <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider flex-1 text-left">{windowsName}</span>
+        {!windowsOnline && <span className="text-[9px] text-zinc-600">offline</span>}
+      </button>
+      {windowsExpanded && (
+        <>
+          {windowsOnline ? (
+            <>
+              {windowsTree.map((f) => (
+                <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" />
+              ))}
+              {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-zinc-600">Loading files...</p>}
+            </>
+          ) : (
+            <p className="text-[11px] px-4 py-2 text-zinc-600">Device offline — connect to view files</p>
+          )}
+        </>
+      )}
+    </div>
+  )
 }
 
 function WorkspaceTab() {
@@ -438,6 +573,7 @@ export function MetaIDEPanel() {
       <div className="flex-1 flex overflow-hidden">
         <ContextSidebar />
         <div className="flex-1 overflow-y-auto">
+          {activeTab === 'files' && <FilesTab />}
           {activeTab === 'workspace' && <WorkspaceTab />}
           {activeTab === 'repositories' && <RepositoriesTab />}
           {activeTab === 'roadmap' && <RoadmapTab />}
