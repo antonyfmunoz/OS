@@ -113,7 +113,6 @@ export const ROUTES: RouteEntry[] = [
   { id: 'realitytimeline', label: 'Reality Timeline', icon: Eye, group: 'primary', visibility: 'dev', key: 'R' },
   // Absorbed into Meta IDE
   { id: 'realityintelligence', label: 'Reality Intelligence', icon: Brain, group: 'primary', visibility: 'dev', key: 'I' },
-  { id: 'metaide', label: 'Meta IDE (Legacy)', icon: Code2, group: 'primary', visibility: 'dev', key: 'M' },
   { id: 'engineering', label: 'Engineering', icon: Wrench, group: 'primary', visibility: 'dev', key: 'E' },
   // Standalone dev panels
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'primary', visibility: 'dev', key: '1' },

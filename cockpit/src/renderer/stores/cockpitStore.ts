@@ -49,7 +49,6 @@ export type Panel =
   | 'operatortimeline'
   | 'realitytimeline'
   | 'realityintelligence'
-  | 'metaide'
   | 'engineering'
   | 'organismmap'
   | 'intent'

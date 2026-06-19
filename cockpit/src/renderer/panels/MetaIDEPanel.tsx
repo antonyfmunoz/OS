@@ -1,11 +1,17 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMetaIDEStore } from '../stores/metaIDEStore'
+import { useEditorStore } from '../stores/editorStore'
+import { useProviderRegistryStore } from '../stores/providerRegistryStore'
+import { useViewContextStore } from '../stores/viewContextStore'
 import { fetchApi } from '../api/client'
 import { usePolling } from '../hooks/usePolling'
 import { VPS, BEAST } from '../constants/devices'
 
-const TABS = ['files', 'workspace', 'repositories', 'roadmap', 'risks', 'terminals', 'containers', 'previews'] as const
+const TABS = [
+  'files', 'editor', 'sessions', 'workspace', 'repositories',
+  'roadmap', 'risks', 'terminals', 'containers', 'runtimes', 'previews',
+] as const
 
 const RISK_COLORS: Record<string, string> = {
   none: 'text-zinc-400',
@@ -53,8 +59,67 @@ async function browseDir(path: string, node?: string): Promise<FileEntry[]> {
   return []
 }
 
-function IDEFileTreeNode({ name, path, type, depth, node }: {
+function detectLang(name: string): string {
+  const ext = name.split('.').pop()?.toLowerCase() || ''
+  const map: Record<string, string> = {
+    ts: 'typescript', tsx: 'typescriptreact', js: 'javascript', jsx: 'javascriptreact',
+    py: 'python', md: 'markdown', json: 'json', css: 'css', html: 'html',
+    yaml: 'yaml', yml: 'yaml', toml: 'toml', sql: 'sql', sh: 'shellscript',
+    rs: 'rust', go: 'go', rb: 'ruby', java: 'java', c: 'c', cpp: 'cpp',
+    ps1: 'powershell', bat: 'bat', cmd: 'bat', xml: 'xml', txt: 'plaintext',
+  }
+  return map[ext] || 'plaintext'
+}
+
+async function readFileContent(path: string, node?: string): Promise<{ content: string; name: string } | null> {
+  const sep = node === 'windows' ? '\\' : '/'
+  const fname = path.split(sep).pop() || path
+  if (node === 'windows') {
+    try {
+      const data = await fetchApi<{ ok: boolean; content: string }>(`/workspace/remote-read-file?node=windows&path=${encodeURIComponent(path)}`)
+      if (data.ok && data.content !== undefined) return { content: data.content, name: fname }
+    } catch { /* remote read failed */ }
+    return null
+  }
+  try {
+    const content = await window.cockpit?.readFile?.(path)
+    if (content !== undefined) return { content, name: fname }
+  } catch { /* IPC unavailable */ }
+  try {
+    const data = await fetchApi<{ ok: boolean; content: string }>(`/workspace/read-file?path=${encodeURIComponent(path)}`)
+    if (data.ok && data.content !== undefined) return { content: data.content, name: fname }
+  } catch { /* API fallback failed */ }
+  return null
+}
+
+async function writeFileContent(path: string, content: string, node?: string): Promise<boolean> {
+  if (node === 'windows') {
+    try {
+      const data = await fetchApi<{ ok: boolean }>('/workspace/remote-write-file', {
+        method: 'POST', body: JSON.stringify({ node: 'windows', path, content }),
+      })
+      return data.ok === true
+    } catch { return false }
+  }
+  try {
+    await window.cockpit?.writeFile?.(path, content)
+    return true
+  } catch { /* IPC unavailable */ }
+  try {
+    const data = await fetchApi<{ ok: boolean }>('/workspace/write-file', {
+      method: 'POST', body: JSON.stringify({ path, content }),
+    })
+    return data.ok === true
+  } catch { return false }
+}
+
+interface MeshNode { id: string; name: string; os: string; status: string; ip?: string; device_type?: string }
+
+// --- File tree node (used by Files tab) ---
+
+function IDEFileTreeNode({ name, path, type, depth, node, onFileOpen }: {
   name: string; path: string; type: 'file' | 'directory'; depth: number; node?: string
+  onFileOpen?: (path: string, node?: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const [children, setChildren] = useState<FileEntry[]>([])
@@ -63,6 +128,8 @@ function IDEFileTreeNode({ name, path, type, depth, node }: {
     if (type === 'directory') {
       if (!expanded) setChildren(await browseDir(path, node))
       setExpanded(!expanded)
+    } else if (onFileOpen) {
+      onFileOpen(path, node)
     }
   }
 
@@ -88,13 +155,14 @@ function IDEFileTreeNode({ name, path, type, depth, node }: {
           type={child.type}
           depth={depth + 1}
           node={node}
+          onFileOpen={onFileOpen}
         />
       ))}
     </>
   )
 }
 
-interface MeshNode { id: string; name: string; os: string; status: string }
+// --- Files Tab ---
 
 function FilesTab() {
   const [vpsTree, setVpsTree] = useState<FileEntry[]>([])
@@ -103,6 +171,7 @@ function FilesTab() {
   const [windowsExpanded, setWindowsExpanded] = useState(true)
   const [meshNodes, setMeshNodes] = useState<MeshNode[]>([])
   const [windowsOnline, setWindowsOnline] = useState(false)
+  const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
 
   useEffect(() => {
     browseDir('/').then((entries) => { if (entries.length) setVpsTree(entries) })
@@ -117,6 +186,17 @@ function FilesTab() {
       })
       .catch(() => {})
   }, [])
+
+  const openFileInEditor = async (path: string, node?: string) => {
+    const result = await readFileContent(path, node)
+    if (result) {
+      useEditorStore.getState().openFile({
+        path, name: result.name, content: result.content,
+        language: detectLang(result.name), dirty: false, node,
+      })
+      setActiveTab('editor')
+    }
+  }
 
   const vpsName = meshNodes.find((n) => n.id === 'vps')?.name || VPS.displayName
   const windowsName = meshNodes.find((n) => n.os === 'windows')?.name || BEAST.displayName
@@ -134,7 +214,7 @@ function FilesTab() {
       {vpsExpanded && (
         <>
           {vpsTree.map((f) => (
-            <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} />
+            <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} onFileOpen={openFileInEditor} />
           ))}
           {vpsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-zinc-600">Loading...</p>}
         </>
@@ -154,7 +234,7 @@ function FilesTab() {
           {windowsOnline ? (
             <>
               {windowsTree.map((f) => (
-                <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" />
+                <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" onFileOpen={openFileInEditor} />
               ))}
               {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-zinc-600">Loading files...</p>}
             </>
@@ -166,6 +246,304 @@ function FilesTab() {
     </div>
   )
 }
+
+// --- Editor Tab (code editing capability) ---
+
+function EditorTab() {
+  const openFiles = useEditorStore((s) => s.openFiles)
+  const activeFile = useEditorStore((s) => s.activeFile)
+  const setActiveFile = useEditorStore((s) => s.setActiveFile)
+  const closeFile = useEditorStore((s) => s.closeFile)
+  const updateContent = useEditorStore((s) => s.updateContent)
+  const gitBranch = useEditorStore((s) => s.gitBranch)
+  const activeNode = useEditorStore((s) => s.activeNode)
+  const setViewContext = useViewContextStore((s) => s.setContext)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (activeFile) {
+      setViewContext({
+        selected_object_type: 'file',
+        selected_path: activeFile,
+        selected_node: activeNode,
+        selected_branch: gitBranch,
+      })
+    }
+  }, [activeFile, activeNode, gitBranch, setViewContext])
+
+  const activeContent = openFiles.find((f) => f.path === activeFile)
+
+  const handleKeyDown = async (e: React.KeyboardEvent) => {
+    if (e.ctrlKey && e.key === 's' && activeFile) {
+      e.preventDefault()
+      const file = openFiles.find((f) => f.path === activeFile)
+      if (!file) return
+      const ok = await writeFileContent(file.path, file.content, file.node)
+      if (ok) useEditorStore.getState().markClean(file.path)
+    }
+  }
+
+  if (openFiles.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <p className="font-mono text-lg mb-2 text-cyan-400">META IDE</p>
+          <p className="text-xs text-zinc-500">Open a file from the Files tab to begin editing</p>
+          <p className="text-xs mt-1 text-zinc-500">
+            Ctrl+S to save{gitBranch && ` · ${gitBranch}`}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex-1 flex flex-col min-w-0" onKeyDown={handleKeyDown}>
+      {/* Tab bar */}
+      <div className="flex items-center h-8 shrink-0 overflow-x-auto border-b border-zinc-800 bg-zinc-950">
+        {openFiles.map((file) => (
+          <button
+            key={file.path}
+            onClick={() => setActiveFile(file.path)}
+            className={`flex items-center gap-2 px-3 h-full text-xs shrink-0 border-r border-zinc-800 transition-colors ${
+              activeFile === file.path ? 'text-zinc-200 bg-zinc-900' : 'text-zinc-500'
+            }`}
+          >
+            <span>{file.name}</span>
+            {file.dirty && <span className="text-amber-400">●</span>}
+            <span
+              onClick={(e) => { e.stopPropagation(); closeFile(file.path) }}
+              className="ml-1 text-zinc-500 hover:text-white"
+            >
+              ×
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Code editor */}
+      {activeContent ? (
+        <div className="flex-1 relative overflow-hidden">
+          <div className="absolute inset-0 flex">
+            <div className="shrink-0 text-right pr-2 pt-2 font-mono text-xs select-none overflow-hidden w-12 text-zinc-600 bg-zinc-950">
+              {activeContent.content.split('\n').map((_, i) => (
+                <div key={i} className="h-5">{i + 1}</div>
+              ))}
+            </div>
+            <textarea
+              ref={textareaRef}
+              value={activeContent.content}
+              onChange={(e) => updateContent(activeContent.path, e.target.value)}
+              spellCheck={false}
+              className="flex-1 resize-none p-2 font-mono text-xs text-zinc-200 bg-zinc-900 outline-none"
+              style={{ lineHeight: '1.25rem', tabSize: 2, caretColor: '#00e5ff' }}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center text-zinc-500 text-xs">
+          Select a file tab above
+        </div>
+      )}
+
+      {/* Terminal bridge */}
+      <TerminalSection />
+    </div>
+  )
+}
+
+// --- Sessions Tab (tmux sessions + CC delegation) ---
+
+function SessionsTab() {
+  const sessions = useEditorStore((s) => s.sessions)
+  const ccDelegating = useEditorStore((s) => s.ccDelegating)
+  const fetchSessions = useEditorStore((s) => s.fetchSessions)
+  const delegateToClaudeCode = useEditorStore((s) => s.delegateToClaudeCode)
+  const captureSession = useEditorStore((s) => s.captureSession)
+  const gitBranch = useEditorStore((s) => s.gitBranch)
+  const gitChangedCount = useEditorStore((s) => s.gitChangedCount)
+  const fetchGitStatus = useEditorStore((s) => s.fetchGitStatus)
+  const setViewContext = useViewContextStore((s) => s.setContext)
+
+  const [ccPrompt, setCcPrompt] = useState('')
+  const [ccTarget, setCcTarget] = useState('')
+  const [capturedOutput, setCapturedOutput] = useState('')
+
+  useEffect(() => {
+    fetchGitStatus()
+    fetchSessions()
+    const id = setInterval(() => { fetchGitStatus(); fetchSessions() }, 15000)
+    return () => clearInterval(id)
+  }, [fetchGitStatus, fetchSessions])
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Git status */}
+      {gitBranch && (
+        <div className="border border-zinc-700 rounded p-3">
+          <div className="text-xs text-zinc-500 mb-1">Git</div>
+          <div className="text-sm text-cyan-400 font-mono">
+            {gitBranch}{gitChangedCount > 0 ? <span className="text-amber-400 ml-2">+{gitChangedCount} changed</span> : ''}
+          </div>
+        </div>
+      )}
+
+      {/* Active sessions */}
+      <div>
+        <div className="text-[10px] text-zinc-400 uppercase tracking-wider mb-2">Active Sessions</div>
+        {sessions.length === 0 && <p className="text-xs text-zinc-600 text-center py-4">No active sessions</p>}
+        {sessions.map((s) => (
+          <div key={s.name} className="flex items-center gap-2 py-2 px-3 rounded hover:bg-zinc-800 text-xs border border-zinc-800 mb-1">
+            <span className={`w-2 h-2 rounded-full ${s.status === 'active' ? 'bg-green-400' : 'bg-zinc-600'}`} />
+            <span className="text-zinc-200 flex-1 truncate font-mono text-[10px]">{s.name}</span>
+            <span className="text-[8px] text-zinc-500 uppercase">{s.type}</span>
+            <button
+              onClick={async () => {
+                const output = await captureSession(s.name)
+                setCapturedOutput(output)
+                setViewContext({ selected_object_type: 'session', selected_session_id: s.name })
+              }}
+              className="text-[9px] text-cyan-400 hover:underline"
+            >
+              capture
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Claude Code delegation */}
+      <div className="border border-zinc-700 rounded p-3">
+        <div className="text-[10px] text-zinc-400 uppercase tracking-wider mb-2">Delegate to Claude Code</div>
+        <select
+          value={ccTarget}
+          onChange={(e) => setCcTarget(e.target.value)}
+          className="w-full mb-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-zinc-200"
+        >
+          <option value="">Select session...</option>
+          {sessions.map((s) => (
+            <option key={s.name} value={s.name}>{s.name}</option>
+          ))}
+        </select>
+        <textarea
+          value={ccPrompt}
+          onChange={(e) => setCcPrompt(e.target.value)}
+          placeholder="Enter prompt for Claude Code..."
+          className="w-full text-[10px] bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-zinc-200 placeholder-zinc-600 resize-none h-20"
+        />
+        <button
+          onClick={async () => {
+            if (ccTarget && ccPrompt.trim()) {
+              await delegateToClaudeCode(ccTarget, ccPrompt)
+              setCcPrompt('')
+            }
+          }}
+          disabled={!ccTarget || !ccPrompt.trim() || ccDelegating}
+          className="mt-2 w-full text-[10px] px-2 py-1.5 bg-cyan-950 text-cyan-400 border border-cyan-800 rounded hover:bg-cyan-900 disabled:opacity-30 font-mono uppercase tracking-wider"
+        >
+          {ccDelegating ? 'Sending...' : 'Send Prompt'}
+        </button>
+      </div>
+
+      {/* Captured output */}
+      {capturedOutput && (
+        <div className="border border-zinc-700 rounded p-3">
+          <div className="text-[10px] text-zinc-400 uppercase tracking-wider mb-1">Captured Output</div>
+          <pre className="text-[9px] font-mono text-zinc-400 bg-zinc-950 p-2 rounded max-h-40 overflow-y-auto whitespace-pre-wrap">
+            {capturedOutput}
+          </pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- Terminal Section (tmux bridge — shared by editor) ---
+
+function TerminalSection() {
+  const [cmd, setCmd] = useState('')
+  const [output, setOutput] = useState<string[]>([])
+  const [sending, setSending] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight) }, [output])
+
+  const send = async () => {
+    const text = cmd.trim()
+    if (!text) return
+    setOutput((p) => [...p, `$ ${text}`])
+    setCmd('')
+    setSending(true)
+    try {
+      const res = await fetchApi<{ ok?: boolean; output?: string; error?: string }>('/tmux/send', {
+        method: 'POST',
+        body: JSON.stringify({ session_name: 'main', text }),
+      })
+      if (res.error) {
+        setOutput((p) => [...p, `err: ${res.error}`])
+      } else {
+        await new Promise((r) => setTimeout(r, 1500))
+        try {
+          const cap = await fetchApi<{ output?: string; content?: string }>('/claude-session/capture', {
+            method: 'POST',
+            body: JSON.stringify({ session_name: 'main' }),
+          })
+          const out = cap.output || cap.content || '(no output captured)'
+          setOutput((p) => [...p, out])
+        } catch { setOutput((p) => [...p, '(capture failed)']) }
+      }
+    } catch (e) {
+      setOutput((p) => [...p, `err: ${e instanceof Error ? e.message : 'send failed'}`])
+    }
+    setSending(false)
+  }
+
+  if (!expanded) {
+    return (
+      <div className="shrink-0 border-t border-zinc-800 bg-zinc-950">
+        <button
+          onClick={() => setExpanded(true)}
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-[9px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
+        >
+          <span>▸</span>
+          <span className="uppercase tracking-wider">Terminal</span>
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-48 shrink-0 flex flex-col border-t border-zinc-800 bg-zinc-950">
+      <div className="flex items-center gap-2 px-3 py-1 border-b border-zinc-800">
+        <button onClick={() => setExpanded(false)} className="text-zinc-500 hover:text-zinc-300 text-[9px]">▾</button>
+        <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider">Terminal</span>
+        <span className="text-zinc-600 text-[9px]">tmux bridge</span>
+      </div>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 font-mono text-[10px] text-zinc-400">
+        {output.length === 0 && <p className="text-zinc-600">Commands run via governed tmux bridge</p>}
+        {output.map((line, i) => (
+          <pre key={i} className={`whitespace-pre-wrap ${line.startsWith('$') ? 'text-cyan-400' : line.startsWith('err:') ? 'text-red-400' : ''}`}>{line}</pre>
+        ))}
+      </div>
+      <div className="flex items-center gap-1 px-3 py-2 border-t border-zinc-800">
+        <span className="text-cyan-400 text-[10px] font-mono">$</span>
+        <input
+          value={cmd}
+          onChange={(e) => setCmd(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+          placeholder="command..."
+          disabled={sending}
+          className="flex-1 text-[10px] font-mono px-2 py-1 bg-zinc-800 text-zinc-200 border border-zinc-700 rounded outline-none placeholder:text-zinc-600"
+        />
+        <button onClick={send} disabled={sending || !cmd.trim()} className="text-[10px] font-mono px-2 py-1 text-cyan-400 border border-zinc-700 rounded hover:bg-cyan-950 disabled:opacity-30">
+          {sending ? '...' : 'Run'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// --- Workspace Tab ---
 
 function WorkspaceTab() {
   const { workspace, fetchWorkspace, loading } = useMetaIDEStore()
@@ -211,6 +589,8 @@ function WorkspaceTab() {
     </div>
   )
 }
+
+// --- Repositories Tab ---
 
 function RepositoriesTab() {
   const { repositories, fetchRepositories, loading } = useMetaIDEStore()
@@ -263,6 +643,8 @@ function RepositoriesTab() {
   )
 }
 
+// --- Roadmap Tab ---
+
 function RoadmapTab() {
   const { roadmap, fetchRoadmap, loading } = useMetaIDEStore()
 
@@ -281,10 +663,7 @@ function RoadmapTab() {
       <div className="border border-zinc-700 rounded p-3">
         <div className="text-xs text-zinc-500 mb-1">Progress</div>
         <div className="h-2 bg-zinc-800 rounded overflow-hidden">
-          <div
-            className="h-full bg-green-500 rounded"
-            style={{ width: `${Math.round(roadmap.completion_ratio * 100)}%` }}
-          />
+          <div className="h-full bg-green-500 rounded" style={{ width: `${Math.round(roadmap.completion_ratio * 100)}%` }} />
         </div>
         <div className="text-xs text-zinc-400 mt-1">{Math.round(roadmap.completion_ratio * 100)}% complete</div>
       </div>
@@ -292,9 +671,7 @@ function RoadmapTab() {
       {roadmap.current_phase && (
         <div className="border border-cyan-800 rounded p-3">
           <div className="text-xs text-cyan-400 mb-1">Current Phase</div>
-          <div className="text-sm text-zinc-200">
-            Phase {roadmap.current_phase.phase_number}: {roadmap.current_phase.phase_name}
-          </div>
+          <div className="text-sm text-zinc-200">Phase {roadmap.current_phase.phase_number}: {roadmap.current_phase.phase_name}</div>
         </div>
       )}
 
@@ -302,9 +679,7 @@ function RoadmapTab() {
         <div>
           <div className="text-xs text-zinc-500 mb-2">Completed ({roadmap.completed_phases.length})</div>
           <div className="space-y-1 max-h-48 overflow-y-auto">
-            {roadmap.completed_phases.map((p) => (
-              <PhaseRow key={p.phase_number} phase={p} />
-            ))}
+            {roadmap.completed_phases.map((p) => <PhaseRow key={p.phase_number} phase={p} />)}
           </div>
         </div>
       )}
@@ -313,9 +688,7 @@ function RoadmapTab() {
         <div>
           <div className="text-xs text-zinc-500 mb-2">Planned ({roadmap.planned_phases.length})</div>
           <div className="space-y-1">
-            {roadmap.planned_phases.map((p) => (
-              <PhaseRow key={p.phase_number} phase={p} />
-            ))}
+            {roadmap.planned_phases.map((p) => <PhaseRow key={p.phase_number} phase={p} />)}
           </div>
         </div>
       )}
@@ -324,15 +697,15 @@ function RoadmapTab() {
         <div>
           <div className="text-xs text-red-400 mb-2">Blocked ({roadmap.blocked_phases.length})</div>
           <div className="space-y-1">
-            {roadmap.blocked_phases.map((p) => (
-              <PhaseRow key={p.phase_number} phase={p} />
-            ))}
+            {roadmap.blocked_phases.map((p) => <PhaseRow key={p.phase_number} phase={p} />)}
           </div>
         </div>
       )}
     </div>
   )
 }
+
+// --- Risks Tab ---
 
 function RisksTab() {
   const { risks, overallRisk, fetchRisks, loading } = useMetaIDEStore()
@@ -345,11 +718,8 @@ function RisksTab() {
     <div className="p-4 space-y-4">
       <div className="border border-zinc-700 rounded p-3 flex items-center justify-between">
         <span className="text-xs text-zinc-500">Overall Risk</span>
-        <span className={`text-sm font-bold ${RISK_COLORS[overallRisk] || 'text-zinc-400'}`}>
-          {overallRisk.toUpperCase()}
-        </span>
+        <span className={`text-sm font-bold ${RISK_COLORS[overallRisk] || 'text-zinc-400'}`}>{overallRisk.toUpperCase()}</span>
       </div>
-
       {risks.length === 0 ? (
         <div className="text-zinc-500 text-sm">No engineering risks detected.</div>
       ) : (
@@ -368,6 +738,8 @@ function RisksTab() {
     </div>
   )
 }
+
+// --- Terminals Tab ---
 
 function TerminalsTab() {
   const { observation, fetchObservation, loading } = useMetaIDEStore()
@@ -399,6 +771,8 @@ function TerminalsTab() {
   )
 }
 
+// --- Containers Tab ---
+
 function ContainersTab() {
   const { observation, fetchObservation, loading } = useMetaIDEStore()
 
@@ -414,9 +788,7 @@ function ContainersTab() {
         <div key={c.container_id} className="border border-zinc-700 rounded p-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-sm font-medium text-zinc-200">{c.container_name}</span>
-            <span className={`text-xs ${HEALTH_COLORS[c.health] || 'text-zinc-500'}`}>
-              ● {c.health}
-            </span>
+            <span className={`text-xs ${HEALTH_COLORS[c.health] || 'text-zinc-500'}`}>● {c.health}</span>
           </div>
           <div className="text-xs text-zinc-500 space-y-0.5">
             <div>Image: <span className="text-zinc-400 font-mono">{c.image}</span></div>
@@ -429,6 +801,70 @@ function ContainersTab() {
     </div>
   )
 }
+
+// --- Runtimes Tab (provider registry) ---
+
+const STATUS_BADGE: Record<string, { color: string; label: string }> = {
+  operational: { color: 'bg-green-400', label: 'OK' },
+  configured: { color: 'bg-cyan-400', label: 'CFG' },
+  not_configured: { color: 'bg-zinc-600', label: 'N/A' },
+  error: { color: 'bg-red-400', label: 'ERR' },
+  unknown: { color: 'bg-zinc-600', label: '?' },
+}
+
+function RuntimesTab() {
+  const providers = useProviderRegistryStore((s) => s.providers)
+  const fetchProviders = useProviderRegistryStore((s) => s.fetchProviders)
+  const smokeTest = useProviderRegistryStore((s) => s.smokeTest)
+  const [testResult, setTestResult] = useState<Record<string, string>>({})
+
+  useEffect(() => { fetchProviders() }, [fetchProviders])
+
+  const runSmoke = async (id: string) => {
+    setTestResult((p) => ({ ...p, [id]: 'testing...' }))
+    const res = await smokeTest(id)
+    setTestResult((p) => ({ ...p, [id]: res.success ? 'pass' : res.detail }))
+  }
+
+  return (
+    <div className="p-4 space-y-2">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Provider Registry</span>
+        <button onClick={fetchProviders} className="text-[10px] text-cyan-400 font-mono hover:underline">refresh</button>
+      </div>
+      {providers.map((p) => {
+        const badge = STATUS_BADGE[p.status] || STATUS_BADGE.unknown
+        return (
+          <div key={p.id} className="border border-zinc-700 rounded p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${badge.color}`} />
+              <span className="text-xs font-medium text-zinc-200">{p.name}</span>
+              <span className="text-[9px] font-mono text-zinc-500">{p.type}</span>
+              <span className="ml-auto text-[9px] font-mono text-zinc-500">{badge.label}</span>
+            </div>
+            <div className="flex flex-wrap gap-1 mb-2">
+              {p.capabilities.map((c) => (
+                <span key={c} className="px-1 py-0.5 text-[9px] rounded bg-zinc-800 text-zinc-400">{c}</span>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => runSmoke(p.id)} className="px-2 py-1 text-[10px] rounded text-cyan-400 border border-zinc-700 hover:bg-cyan-950">
+                smoke test
+              </button>
+              {testResult[p.id] && (
+                <span className={`text-[10px] font-mono ${testResult[p.id] === 'pass' ? 'text-green-400' : testResult[p.id] === 'testing...' ? 'text-zinc-500' : 'text-red-400'}`}>
+                  {testResult[p.id]}
+                </span>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// --- Previews Tab ---
 
 function PreviewsTab() {
   const { observation, fetchObservation, loading } = useMetaIDEStore()
@@ -445,9 +881,7 @@ function PreviewsTab() {
         <div key={p.preview_id} className="border border-zinc-700 rounded p-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-sm font-medium text-zinc-200">{p.name}</span>
-            <span className={`text-xs ${HEALTH_COLORS[p.health] || 'text-zinc-500'}`}>
-              ● {p.health}
-            </span>
+            <span className={`text-xs ${HEALTH_COLORS[p.health] || 'text-zinc-500'}`}>● {p.health}</span>
           </div>
           <div className="text-xs text-zinc-500 space-y-0.5">
             <div>URL: <span className="text-cyan-400 font-mono">{p.url}</span></div>
@@ -459,6 +893,8 @@ function PreviewsTab() {
     </div>
   )
 }
+
+// --- Shared components ---
 
 function StatCard({ label, value, warn }: { label: string; value: number; warn?: boolean }) {
   return (
@@ -479,6 +915,8 @@ function PhaseRow({ phase }: { phase: { phase_number: string; phase_name: string
   )
 }
 
+// --- Context Sidebar ---
+
 function ContextSidebar() {
   const [ctx, setCtx] = useState<Record<string, unknown> | null>(null)
   const [collapsed, setCollapsed] = useState(false)
@@ -489,7 +927,7 @@ function ContextSidebar() {
 
   if (collapsed) {
     return (
-      <div className="w-8 border-r border-zinc-800 flex flex-col items-center pt-2 shrink-0">
+      <div className="w-8 border-r border-zinc-800 flex flex-col items-center pt-2 shrink-0 bg-surface">
         <button onClick={() => setCollapsed(false)} className="p-1 text-zinc-500 hover:text-zinc-300">
           <ChevronRight size={14} />
         </button>
@@ -504,7 +942,7 @@ function ContextSidebar() {
   const constraints = (ctx?.constraints as string[]) || []
 
   return (
-    <div className="w-[240px] border-r border-zinc-800 overflow-y-auto p-3 shrink-0">
+    <div className="w-[240px] border-r border-zinc-800 overflow-y-auto p-3 shrink-0 bg-surface">
       <div className="flex items-center justify-between mb-3">
         <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Context</span>
         <button onClick={() => setCollapsed(true)} className="p-0.5 text-zinc-500 hover:text-zinc-300">
@@ -549,17 +987,19 @@ function ContextSidebar() {
   )
 }
 
+// --- Main Meta IDE Panel ---
+
 export function MetaIDEPanel() {
   const { activeTab, setActiveTab } = useMetaIDEStore()
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-zinc-800">
+    <div className="h-full flex flex-col overflow-hidden bg-surface">
+      <div className="flex items-center gap-1 px-4 py-2 border-b border-zinc-800 overflow-x-auto shrink-0">
         {TABS.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-3 py-1.5 text-xs rounded transition-colors ${
+            className={`px-3 py-1.5 text-xs rounded transition-colors whitespace-nowrap ${
               activeTab === tab
                 ? 'bg-zinc-700 text-zinc-100'
                 : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
@@ -574,12 +1014,15 @@ export function MetaIDEPanel() {
         <ContextSidebar />
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'files' && <FilesTab />}
+          {activeTab === 'editor' && <EditorTab />}
+          {activeTab === 'sessions' && <SessionsTab />}
           {activeTab === 'workspace' && <WorkspaceTab />}
           {activeTab === 'repositories' && <RepositoriesTab />}
           {activeTab === 'roadmap' && <RoadmapTab />}
           {activeTab === 'risks' && <RisksTab />}
           {activeTab === 'terminals' && <TerminalsTab />}
           {activeTab === 'containers' && <ContainersTab />}
+          {activeTab === 'runtimes' && <RuntimesTab />}
           {activeTab === 'previews' && <PreviewsTab />}
         </div>
       </div>
