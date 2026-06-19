@@ -43,6 +43,7 @@ def _ensure_dirs() -> None:
 
 
 class GoalStatus(str, Enum):
+    DRAFT = "draft"
     ACTIVE = "active"
     COMPLETED = "completed"
     PAUSED = "paused"
@@ -50,8 +51,12 @@ class GoalStatus(str, Enum):
 
 
 class GoalType(str, Enum):
-    GOAL = "goal"
+    VISION = "vision"
+    OBJECTIVE = "objective"
+    OUTCOME = "outcome"
+    INITIATIVE = "initiative"
     PROJECT = "project"
+    GOAL = "goal"
     ROADMAP = "roadmap"
     MILESTONE = "milestone"
 
@@ -404,6 +409,42 @@ class GoalRegistry:
 
     def children_of(self, goal_id: str) -> list[Goal]:
         return [g for g in self._goals.values() if g.parent_goal_id == goal_id]
+
+    def goals_by_status(self, status: GoalStatus) -> list[Goal]:
+        return [g for g in self._goals.values() if g.status == status]
+
+    def ancestors(self, goal_id: str) -> list[Goal]:
+        """Walk parent_goal_id chain upward. Returns leaf-to-root order."""
+        chain: list[Goal] = []
+        seen: set[str] = set()
+        current = self._goals.get(goal_id)
+        while current and current.parent_goal_id:
+            if current.parent_goal_id in seen:
+                break
+            seen.add(current.parent_goal_id)
+            parent = self._goals.get(current.parent_goal_id)
+            if parent:
+                chain.append(parent)
+            current = parent
+        return chain
+
+    def tree(self, root_id: str | None = None) -> dict[str, Any]:
+        """Nested dict of goal hierarchy. If root_id is None, returns forest."""
+        def _build(gid: str) -> dict[str, Any]:
+            goal = self._goals.get(gid)
+            if not goal:
+                return {}
+            children = self.children_of(gid)
+            return {
+                **goal.to_dict(),
+                "children": [_build(c.goal_id) for c in children],
+            }
+
+        if root_id:
+            return _build(root_id)
+
+        roots = [g for g in self._goals.values() if not g.parent_goal_id]
+        return {"roots": [_build(r.goal_id) for r in roots]}
 
 
 # ── Priority Engine ───────────────────────────────────────────────────

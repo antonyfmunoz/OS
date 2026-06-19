@@ -255,6 +255,22 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "GapDetector": ["substrate.organism.strategic_gap_engine"],
     "RecommendationEngine": ["substrate.organism.strategic_gap_engine"],
     "StrategicGapEngine": ["substrate.organism.strategic_gap_engine"],
+    # Campaign 8: Goal Systems & Strategic Planning
+    "GoalHierarchyEngine": ["substrate.organism.goal_hierarchy_engine"],
+    "HierarchyValidation": ["substrate.organism.goal_hierarchy_engine"],
+    "OutcomeProgress": ["substrate.organism.outcome_tracking_runtime"],
+    "OutcomeSnapshot": ["substrate.organism.outcome_tracking_runtime"],
+    "OutcomeTrackingRuntime": ["substrate.organism.outcome_tracking_runtime"],
+    "PlanningStatus": ["substrate.organism.strategic_planning_engine"],
+    "StrategicMilestone": ["substrate.organism.strategic_planning_engine"],
+    "StrategicPlan": ["substrate.organism.strategic_planning_engine"],
+    "StrategicPlanningEngine": ["substrate.organism.strategic_planning_engine"],
+    "AlignmentReport": ["substrate.organism.goal_alignment_engine"],
+    "GoalAlignmentEngine": ["substrate.organism.goal_alignment_engine"],
+    "GoalDriftType": ["substrate.organism.goal_drift_engine"],
+    "GoalDriftWarning": ["substrate.organism.goal_drift_engine"],
+    "GoalDriftSnapshot": ["substrate.organism.goal_drift_engine"],
+    "GoalDriftEngine": ["substrate.organism.goal_drift_engine"],
     # Phase 5: Strategic Tick Loop
     "TickFrequency": ["substrate.organism.strategic_tick_loop"],
     "RecommendationLifecycle": ["substrate.organism.strategic_tick_loop"],
@@ -283,6 +299,21 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "OpportunityDetector": ["substrate.organism.projection_engine"],
     "ProjectionGenerator": ["substrate.organism.projection_engine"],
     "ProjectionEngine": ["substrate.organism.projection_engine"],
+    # Campaign 7: Strategic Context & Executive Reasoning
+    "StrategicHealth": ["substrate.organism.strategic_context_runtime"],
+    "StrategicContext": ["substrate.organism.strategic_context_runtime"],
+    "StrategicContextRuntime": ["substrate.organism.strategic_context_runtime"],
+    "PrioritizedItem": ["substrate.organism.priority_engine"],
+    "PriorityEngine": ["substrate.organism.priority_engine"],
+    "RiskCategory": ["substrate.organism.risk_engine"],
+    "UnifiedRisk": ["substrate.organism.risk_engine"],
+    "RiskEngine": ["substrate.organism.risk_engine"],
+    "UnifiedRecommendation": ["substrate.organism.recommendation_engine"],
+    "DriftType": ["substrate.organism.drift_detection_engine"],
+    "UnifiedDriftWarning": ["substrate.organism.drift_detection_engine"],
+    "DriftDetectionEngine": ["substrate.organism.drift_detection_engine"],
+    "ExecutiveBrief": ["substrate.organism.executive_brief_runtime"],
+    "ExecutiveBriefRuntime": ["substrate.organism.executive_brief_runtime"],
     # Phase 7: Continuity Runtime
     "AttentionState": ["substrate.organism.continuity_runtime"],
     "TimelineEventType": ["substrate.organism.continuity_runtime"],
@@ -728,6 +759,16 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "CapabilityEvidence": ["substrate.organism.capability_runtime"],
     "EmergentCapability": ["substrate.organism.capability_runtime"],
     "CapabilityRuntime": ["substrate.organism.capability_runtime"],
+    # Campaign 10 — Capability Intelligence
+    "CapabilityRelationType": ["substrate.organism.capability_graph_engine"],
+    "CapabilityEdge": ["substrate.organism.capability_graph_engine"],
+    "CapabilityGraphEngine": ["substrate.organism.capability_graph_engine"],
+    "CapabilityGapSeverity": ["substrate.organism.capability_gap_engine"],
+    "CapabilityGap": ["substrate.organism.capability_gap_engine"],
+    "CapabilityGapEngine": ["substrate.organism.capability_gap_engine"],
+    "PortfolioHealth": ["substrate.organism.capability_portfolio_runtime"],
+    "CapabilityPortfolioSnapshot": ["substrate.organism.capability_portfolio_runtime"],
+    "CapabilityPortfolioRuntime": ["substrate.organism.capability_portfolio_runtime"],
     # Gate 6 — Operationalization Runtime
     "OperationalizationForm": ["substrate.organism.operationalization_runtime"],
     "OperationalizationStatus": ["substrate.organism.operationalization_runtime"],
@@ -752,6 +793,307 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ProjectionRegistration": ["substrate.sockets.projection_port"],
     "ProjectionPortProtocol": ["substrate.sockets.projection_port"],
     "ProjectionPort": ["substrate.sockets.projection_port"],
+    # Campaign 3.1 — Cockpit Capability Map
+    "SurfaceCategory": ["substrate.workstation.cockpit_capability_map"],
+    "MVPStatus": ["substrate.workstation.cockpit_capability_map"],
+    "CoverageStatus": ["substrate.workstation.cockpit_capability_map"],
+    "CockpitSurface": ["substrate.workstation.cockpit_capability_map"],
+    "DuplicationFinding": ["substrate.workstation.cockpit_capability_map"],
+    "CockpitCapabilitySnapshot": ["substrate.workstation.cockpit_capability_map"],
+    "CockpitCapabilityMap": ["substrate.workstation.cockpit_capability_map"],
+    # Campaign 3.2 — Command Center MVP Convergence
+    "CommandCenterSection": ["substrate.workstation.command_center_mvp_runtime"],
+    "ExecutionPulse": ["substrate.workstation.command_center_mvp_runtime"],
+    "CapabilityPulse": ["substrate.workstation.command_center_mvp_runtime"],
+    "MigrationPulse": ["substrate.workstation.command_center_mvp_runtime"],
+    "CommandCenterRecommendation": ["substrate.workstation.command_center_mvp_runtime"],
+    "CommandCenterSnapshot": ["substrate.workstation.command_center_mvp_runtime"],
+    "CommandCenterMVPRuntime": ["substrate.workstation.command_center_mvp_runtime"],
+    # Campaign 3.3 — Unified Execution Surface
+    "ExecutionStreamType": ["substrate.workstation.unified_execution_surface_runtime"],
+    "ExecutionStreamStatus": ["substrate.workstation.unified_execution_surface_runtime"],
+    "UnifiedExecutionStream": ["substrate.workstation.unified_execution_surface_runtime"],
+    "UnifiedApprovalItem": ["substrate.workstation.unified_execution_surface_runtime"],
+    "UnifiedExecutionSurfaceRuntime": ["substrate.workstation.unified_execution_surface_runtime"],
+    # Campaign 3.4 — Meta IDE Build Loop
+    "BuildLoopPhase": ["substrate.workstation.meta_ide_projection_loop_runtime"],
+    "BuildRequest": ["substrate.workstation.meta_ide_projection_loop_runtime"],
+    "BuildLoopStatus": ["substrate.workstation.meta_ide_projection_loop_runtime"],
+    "MetaIDEProjectionLoopRuntime": ["substrate.workstation.meta_ide_projection_loop_runtime"],
+    # Campaign 3.5 — Projection Integration Runtime
+    "ProjectionMachineType": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionAvailability": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionMaturityLevel": ["substrate.organism.projection_integration_runtime"],
+    "IntegrationGapType": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionCodeLocation": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionIntegrationProfile": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionIntegrationGap": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionBuildReadiness": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionIntegrationSnapshot": ["substrate.organism.projection_integration_runtime"],
+    "ProjectionIntegrationRuntime": ["substrate.organism.projection_integration_runtime"],
+
+    # Campaign 4.0 — Orchestrator Awareness Runtime
+    "AwarenessDomain": ["substrate.organism.orchestrator_awareness_runtime"],
+    "OrchestratorContext": ["substrate.organism.orchestrator_awareness_runtime"],
+    "DomainAwareness": ["substrate.organism.orchestrator_awareness_runtime"],
+    "OrchestratorAwarenessSnapshot": ["substrate.organism.orchestrator_awareness_runtime"],
+    "OrchestratorAwarenessRuntime": ["substrate.organism.orchestrator_awareness_runtime"],
+
+    # Campaign 4.1 — Operating Loop Runtime
+    "OperatingLoopStage": ["substrate.workstation.operating_loop_runtime"],
+    "OperatingLoopTransition": ["substrate.workstation.operating_loop_runtime"],
+    "OperatingLoop": ["substrate.workstation.operating_loop_runtime"],
+    "OperatingLoopSnapshot": ["substrate.workstation.operating_loop_runtime"],
+    "OperatingLoopRuntime": ["substrate.workstation.operating_loop_runtime"],
+
+    # Campaign 4.2 — Unified Approval Runtime
+    "ApprovalSourceType": ["substrate.workstation.unified_approval_runtime"],
+    "UnifiedApproval": ["substrate.workstation.unified_approval_runtime"],
+    "ApprovalAction": ["substrate.workstation.unified_approval_runtime"],
+    "UnifiedApprovalSnapshot": ["substrate.workstation.unified_approval_runtime"],
+    "UnifiedApprovalRuntime": ["substrate.workstation.unified_approval_runtime"],
+
+    # Campaign 4.3 — Operating Loop Coherence Runtime
+    "LoopCoherenceStatus": ["substrate.organism.operating_loop_coherence_runtime"],
+    "LoopCoherenceIssueType": ["substrate.organism.operating_loop_coherence_runtime"],
+    "LoopCoherenceIssue": ["substrate.organism.operating_loop_coherence_runtime"],
+    "LoopCoherenceReport": ["substrate.organism.operating_loop_coherence_runtime"],
+    "OperatingLoopCoherenceRuntime": ["substrate.organism.operating_loop_coherence_runtime"],
+
+    # Campaign 4.4 — Workstation Session Runtime
+    "WorkstationSessionStatus": ["substrate.operator.workstation_session_runtime"],
+    "WorkstationSessionCheckpoint": ["substrate.operator.workstation_session_runtime"],
+    "WorkstationSessionResume": ["substrate.operator.workstation_session_runtime"],
+    "WorkstationSession": ["substrate.operator.workstation_session_runtime"],
+    "WorkstationSessionRuntime": ["substrate.operator.workstation_session_runtime"],
+
+    # Campaign 4.5 — MVP Readiness Runtime
+    "MVPDimensionStatus": ["substrate.workstation.mvp_readiness_runtime"],
+    "MVPDimension": ["substrate.workstation.mvp_readiness_runtime"],
+    "MVPEscapePoint": ["substrate.workstation.mvp_readiness_runtime"],
+    "MVPReadinessReport": ["substrate.workstation.mvp_readiness_runtime"],
+    "MVPReadinessRuntime": ["substrate.workstation.mvp_readiness_runtime"],
+
+    # Campaign 4.7 — Delegation Runtime
+    "OperatorIntentType": ["substrate.organism.delegation_runtime"],
+    "DelegationMissionStatus": ["substrate.organism.delegation_runtime"],
+    "DelegationMission": ["substrate.organism.delegation_runtime"],
+    "DelegationProposal": ["substrate.organism.delegation_runtime"],
+    "NestedOrchestratorState": ["substrate.organism.delegation_runtime"],
+
+    # Campaign 5.0 — Reality Graph
+    "RealityEntityType": ["substrate.organism.reality_graph"],
+    "RealityRelationType": ["substrate.organism.reality_graph"],
+    "RealityEntityStatus": ["substrate.organism.reality_graph"],
+    "RealityEntity": ["substrate.organism.reality_graph"],
+    "RealityRelation": ["substrate.organism.reality_graph"],
+    "RealityGraph": ["substrate.organism.reality_graph"],
+
+    # Campaign 5.2 — Project Registry
+    "ProjectDefinition": ["substrate.organism.project_registry"],
+    "ProjectRegistry": ["substrate.organism.project_registry"],
+
+    # Campaign 5.5 — Context Resolution
+    "ResolutionStrategy": ["substrate.organism.context_resolution"],
+    "ResolvedContext": ["substrate.organism.context_resolution"],
+    "ContextResolutionEngine": ["substrate.organism.context_resolution"],
+
+    # Campaign 6.0 — Artifact Registry
+    "ArtifactType": ["substrate.organism.artifact_registry"],
+    "ArtifactStatus": ["substrate.organism.artifact_registry"],
+    "ArtifactEntry": ["substrate.organism.artifact_registry"],
+    "ArtifactRegistry": ["substrate.organism.artifact_registry"],
+
+    # Campaign 6.1 — Repository Awareness
+    "FileCategory": ["substrate.organism.repository_awareness_runtime"],
+    "FileEntry": ["substrate.organism.repository_awareness_runtime"],
+    "RepositorySnapshot": ["substrate.organism.repository_awareness_runtime"],
+    "RepositoryAwarenessRuntime": ["substrate.organism.repository_awareness_runtime"],
+
+    # Campaign 6.2 — Documentation Awareness
+    "DocumentStatus": ["substrate.organism.documentation_awareness_runtime"],
+    "DocumentEntry": ["substrate.organism.documentation_awareness_runtime"],
+    "DocumentationSnapshot": ["substrate.organism.documentation_awareness_runtime"],
+    "DocumentationAwarenessRuntime": ["substrate.organism.documentation_awareness_runtime"],
+
+    # Campaign 6.3 — Runtime Awareness
+    "RuntimeAwarenessSnapshot": ["substrate.organism.runtime_awareness_runtime"],
+    "RuntimeAwarenessRuntime": ["substrate.organism.runtime_awareness_runtime"],
+
+    # Campaign 6.4 — Knowledge Awareness
+    "KnowledgeType": ["substrate.organism.knowledge_awareness_runtime"],
+    "KnowledgeEntry": ["substrate.organism.knowledge_awareness_runtime"],
+    "KnowledgeSnapshot": ["substrate.organism.knowledge_awareness_runtime"],
+    "KnowledgeAwarenessRuntime": ["substrate.organism.knowledge_awareness_runtime"],
+
+    # Campaign 9 — Decision Intelligence & Strategic Memory
+    # C9.0 — Decision Registry
+    "DecisionStatus": ["substrate.organism.decision_registry"],
+    "StrategicDecision": ["substrate.organism.decision_registry"],
+    "DecisionRegistry": ["substrate.organism.decision_registry"],
+    # C9.1 — Decision Lineage
+    "LineageNode": ["substrate.organism.decision_lineage_engine"],
+    "DecisionLineage": ["substrate.organism.decision_lineage_engine"],
+    "DecisionLineageEngine": ["substrate.organism.decision_lineage_engine"],
+    # C9.2 — Assumption Tracking
+    "AssumptionStatus": ["substrate.organism.assumption_tracking_runtime"],
+    "AssumptionRecord": ["substrate.organism.assumption_tracking_runtime"],
+    "AssumptionTrackingRuntime": ["substrate.organism.assumption_tracking_runtime"],
+    # C9.3 — Decision Validity
+    "ValidityStatus": ["substrate.organism.decision_validity_engine"],
+    "DecisionValidity": ["substrate.organism.decision_validity_engine"],
+    "DecisionValidityEngine": ["substrate.organism.decision_validity_engine"],
+    # C9.4 — Strategic Memory
+    "MemorySnapshot": ["substrate.organism.strategic_memory_engine"],
+    "StrategicMemory": ["substrate.organism.strategic_memory_engine"],
+    "StrategicMemoryEngine": ["substrate.organism.strategic_memory_engine"],
+    # C9.5 — Decision Impact
+    "DecisionImpact": ["substrate.organism.decision_impact_engine"],
+    "DecisionImpactEngine": ["substrate.organism.decision_impact_engine"],
+    # Campaign 11 — Work Intelligence & Execution Readiness
+    # C11.0 — Work Readiness Runtime
+    "ReadinessStatus": ["substrate.organism.work_readiness_runtime"],
+    "ReadinessAssessment": ["substrate.organism.work_readiness_runtime"],
+    "WorkReadinessSnapshot": ["substrate.organism.work_readiness_runtime"],
+    "WorkReadinessRuntime": ["substrate.organism.work_readiness_runtime"],
+    # C11.1 — Delegation Readiness Runtime
+    "DelegationReadiness": ["substrate.organism.delegation_readiness_runtime"],
+    "DelegationReadinessSnapshot": ["substrate.organism.delegation_readiness_runtime"],
+    "DelegationReadinessRuntime": ["substrate.organism.delegation_readiness_runtime"],
+    # C11.2 — Work Portfolio Runtime
+    "WorkPortfolioHealth": ["substrate.organism.work_portfolio_runtime"],
+    "WorkDriftType": ["substrate.organism.work_portfolio_runtime"],
+    "WorkDriftWarning": ["substrate.organism.work_portfolio_runtime"],
+    "WorkPortfolioSnapshot": ["substrate.organism.work_portfolio_runtime"],
+    "WorkPortfolioRuntime": ["substrate.organism.work_portfolio_runtime"],
+
+    # ── Campaign 12: Learning Intelligence ────────────────────────────
+    "LessonCategory": ["substrate.organism.learning_extraction_runtime"],
+    "ExtractedLesson": ["substrate.organism.learning_extraction_runtime"],
+    "LessonExtractionSnapshot": ["substrate.organism.learning_extraction_runtime"],
+    "LearningExtractionRuntime": ["substrate.organism.learning_extraction_runtime"],
+
+    "PatternType": ["substrate.organism.outcome_pattern_engine"],
+    "DetectedPattern": ["substrate.organism.outcome_pattern_engine"],
+    "AttributionLink": ["substrate.organism.outcome_pattern_engine"],
+    "PatternSnapshot": ["substrate.organism.outcome_pattern_engine"],
+    "OutcomePatternEngine": ["substrate.organism.outcome_pattern_engine"],
+
+    "EvolutionEventType": ["substrate.organism.capability_evolution_engine"],
+    "EvolutionEvent": ["substrate.organism.capability_evolution_engine"],
+    "CapabilityTrajectory": ["substrate.organism.capability_evolution_engine"],
+    "EvolutionSnapshot": ["substrate.organism.capability_evolution_engine"],
+    "CapabilityEvolutionEngine": ["substrate.organism.capability_evolution_engine"],
+
+    "LearningHealth": ["substrate.organism.learning_portfolio_runtime"],
+    "LearningDriftType": ["substrate.organism.learning_portfolio_runtime"],
+    "LearningDriftWarning": ["substrate.organism.learning_portfolio_runtime"],
+    "LearningPortfolioSnapshot": ["substrate.organism.learning_portfolio_runtime"],
+    "LearningPortfolioRuntime": ["substrate.organism.learning_portfolio_runtime"],
+
+    # ── Campaign 13: Prediction Intelligence ──────────────────────────
+    "TrajectoryStatus": ["substrate.organism.trajectory_intelligence_runtime"],
+    "TrajectoryForecast": ["substrate.organism.trajectory_intelligence_runtime"],
+    "TrajectoryIntelligenceRuntime": ["substrate.organism.trajectory_intelligence_runtime"],
+
+    "ScenarioType": ["substrate.organism.scenario_intelligence_engine"],
+    "FutureScenario": ["substrate.organism.scenario_intelligence_engine"],
+    "ScenarioIntelligenceEngine": ["substrate.organism.scenario_intelligence_engine"],
+
+    "PredictionHealth": ["substrate.organism.prediction_portfolio_runtime"],
+    "PredictionDriftType": ["substrate.organism.prediction_portfolio_runtime"],
+    "PredictionDriftWarning": ["substrate.organism.prediction_portfolio_runtime"],
+    "PredictionPortfolioSnapshot": ["substrate.organism.prediction_portfolio_runtime"],
+    "PredictionPortfolioRuntime": ["substrate.organism.prediction_portfolio_runtime"],
+
+    # ── Campaign 14: Executive Intelligence ──────────────────────────
+    # C14.0
+    "ResourceType": ["substrate.organism.resource_allocation_runtime"],
+    "AllocationPriority": ["substrate.organism.resource_allocation_runtime"],
+    "AllocationHealth": ["substrate.organism.resource_allocation_runtime"],
+    "AllocationRecommendation": ["substrate.organism.resource_allocation_runtime"],
+    "ResourceBudget": ["substrate.organism.resource_allocation_runtime"],
+    "AllocationSnapshot": ["substrate.organism.resource_allocation_runtime"],
+    "ResourceAllocationRuntime": ["substrate.organism.resource_allocation_runtime"],
+    # C14.1
+    "TradeoffSeverity": ["substrate.organism.tradeoff_intelligence_engine"],
+    "TradeoffOption": ["substrate.organism.tradeoff_intelligence_engine"],
+    "TradeoffAnalysis": ["substrate.organism.tradeoff_intelligence_engine"],
+    "TradeoffSnapshot": ["substrate.organism.tradeoff_intelligence_engine"],
+    "TradeoffIntelligenceEngine": ["substrate.organism.tradeoff_intelligence_engine"],
+    # C14.2
+    "ExecutiveHealth": ["substrate.organism.executive_portfolio_runtime"],
+    "ExecutiveDriftType": ["substrate.organism.executive_portfolio_runtime"],
+    "ExecutiveDriftWarning": ["substrate.organism.executive_portfolio_runtime"],
+    "ExecutivePortfolioSnapshot": ["substrate.organism.executive_portfolio_runtime"],
+    "ExecutivePortfolioRuntime": ["substrate.organism.executive_portfolio_runtime"],
+
+    # ── Campaign 15: Organism Governance & Coordination ──────────────
+    # C15.0 — Governance Runtime
+    "GovernanceAuthority": ["substrate.organism.governance_runtime"],
+    "ConflictStatus": ["substrate.organism.governance_runtime"],
+    "ConflictSeverityLevel": ["substrate.organism.governance_runtime"],
+    "GovernanceHealth": ["substrate.organism.governance_runtime"],
+    "SubsystemConflict": ["substrate.organism.governance_runtime"],
+    "GovernancePolicy": ["substrate.organism.governance_runtime"],
+    "GovernanceDriftType": ["substrate.organism.governance_runtime"],
+    "GovernanceDriftWarning": ["substrate.organism.governance_runtime"],
+    "GovernanceRuntimeSnapshot": ["substrate.organism.governance_runtime"],
+    "GovernanceRuntime": ["substrate.organism.governance_runtime"],
+    # C15.1 — Organism Coordination Engine
+    "CoordinationIssueType": ["substrate.organism.organism_coordination_engine"],
+    "CoordinationHealth": ["substrate.organism.organism_coordination_engine"],
+    "CoordinationIssue": ["substrate.organism.organism_coordination_engine"],
+    "CoordinationSnapshot": ["substrate.organism.organism_coordination_engine"],
+    "OrganismCoordinationEngine": ["substrate.organism.organism_coordination_engine"],
+    # C15.2 — Institutional Memory Runtime
+    "KnowledgeState": ["substrate.organism.institutional_memory_runtime"],
+    "InstitutionalMemoryHealth": ["substrate.organism.institutional_memory_runtime"],
+    "MemoryDriftType": ["substrate.organism.institutional_memory_runtime"],
+    "InstitutionalKnowledge": ["substrate.organism.institutional_memory_runtime"],
+    "InstitutionalMemoryDriftWarning": ["substrate.organism.institutional_memory_runtime"],
+    "InstitutionalMemorySnapshot": ["substrate.organism.institutional_memory_runtime"],
+    "InstitutionalMemoryRuntime": ["substrate.organism.institutional_memory_runtime"],
+    # C15.3 — Organism Portfolio Runtime
+    "OrganismHealth": ["substrate.organism.organism_portfolio_runtime"],
+    "OrganismDriftType": ["substrate.organism.organism_portfolio_runtime"],
+    "OrganismDriftWarning": ["substrate.organism.organism_portfolio_runtime"],
+    "SubsystemHealthEntry": ["substrate.organism.organism_portfolio_runtime"],
+    "OrganismPortfolioSnapshot": ["substrate.organism.organism_portfolio_runtime"],
+    "OrganismPortfolioRuntime": ["substrate.organism.organism_portfolio_runtime"],
+    # C16.0 — Governed Execution Runtime
+    "ExecutionState": ["substrate.organism.governed_execution_runtime"],
+    "ExecutionBlocker": ["substrate.organism.governed_execution_runtime"],
+    "GovernedExecutionHealth": ["substrate.organism.governed_execution_runtime"],
+    "ExecutionStateAssessment": ["substrate.organism.governed_execution_runtime"],
+    "GovernedExecutionSnapshot": ["substrate.organism.governed_execution_runtime"],
+    "GovernedExecutionRuntime": ["substrate.organism.governed_execution_runtime"],
+    # C16.1 — Organism State Runtime
+    "OrganismMode": ["substrate.organism.organism_state_runtime"],
+    "OrganismStateSnapshot": ["substrate.organism.organism_state_runtime"],
+    "OrganismStateRuntime": ["substrate.organism.organism_state_runtime"],
+    # C16.2 — Execution Lifecycle Runtime
+    "LifecycleStage": ["substrate.organism.execution_lifecycle_runtime"],
+    "LifecycleArc": ["substrate.organism.execution_lifecycle_runtime"],
+    "ExecutionLifecycleSnapshot": ["substrate.organism.execution_lifecycle_runtime"],
+    "ExecutionLifecycleRuntime": ["substrate.organism.execution_lifecycle_runtime"],
+    # C17.0 — Orchestrator Presence Runtime
+    "PresenceMode": ["substrate.workstation.orchestrator_presence_runtime"],
+    "OrchestratorPresenceSnapshot": ["substrate.workstation.orchestrator_presence_runtime"],
+    "OrchestratorPresenceRuntime": ["substrate.workstation.orchestrator_presence_runtime"],
+    # C17.1 — Meta IDE Context Runtime
+    "MetaIdeContextSnapshot": ["substrate.workstation.meta_ide_context_runtime"],
+    "MetaIdeContextRuntime": ["substrate.workstation.meta_ide_context_runtime"],
+    # C17.2 — Workstation Presence Runtime
+    "WorkstationPresenceSnapshot": ["substrate.workstation.workstation_presence_runtime"],
+    "WorkstationPresenceRuntime": ["substrate.workstation.workstation_presence_runtime"],
+    # C18.0 — Unified Workstation Runtime
+    "UnifiedWorkstationState": ["substrate.workstation.unified_workstation_runtime"],
+    "UnifiedWorkstationSnapshot": ["substrate.workstation.unified_workstation_runtime"],
+    "UnifiedWorkstationRuntime": ["substrate.workstation.unified_workstation_runtime"],
+    # C18.2 — Attention Aggregation Runtime
+    "AttentionQueueSnapshot": ["substrate.workstation.attention_aggregation_runtime"],
+    "AttentionAggregationRuntime": ["substrate.workstation.attention_aggregation_runtime"],
 }
 
 
@@ -789,6 +1131,7 @@ LEGACY_DUPLICATES: dict[str, set[str]] = {
     "nodes.environments.execution_binding_contracts": {"EnvironmentType"},
     # Pre-Phase-26 types that share names with new canonical action types
     "substrate.organism.next_action_engine": {"ActionCategory", "ActionResult"},
+    "substrate.organism.recommendation_engine": {"RecommendationEngine"},
     "substrate.execution.bridge.actions": {"ActionStatus", "ActionResult"},
     "substrate.composition.mastery.research.extraction": {"ActionCategory"},
 }
