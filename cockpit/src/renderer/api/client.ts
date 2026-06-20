@@ -7,9 +7,18 @@ export class ApiError extends Error {
 }
 
 let _getToken: (() => Promise<string | null>) | null = null
+let _tokenReady: Promise<void> | null = null
+let _resolveTokenReady: (() => void) | null = null
 
 export function setTokenGetter(fn: () => Promise<string | null>) {
   _getToken = fn
+  const tryResolve = () => {
+    fn().then((t) => {
+      if (t && _resolveTokenReady) { _resolveTokenReady(); _resolveTokenReady = null }
+      else if (!t && _resolveTokenReady) setTimeout(tryResolve, 200)
+    })
+  }
+  tryResolve()
 }
 
 export function getApiKey(): string {
@@ -23,6 +32,21 @@ export function getWsToken(): string {
 export async function getClerkToken(): Promise<string | null> {
   if (!_getToken) return null
   return _getToken()
+}
+
+export function waitForToken(timeoutMs = 5000): Promise<void> {
+  if (!_tokenReady) {
+    _tokenReady = new Promise((resolve) => {
+      _resolveTokenReady = resolve
+      setTimeout(() => { resolve(); _resolveTokenReady = null }, timeoutMs)
+      if (_getToken) {
+        _getToken().then((t) => {
+          if (t) { resolve(); _resolveTokenReady = null }
+        })
+      }
+    })
+  }
+  return _tokenReady
 }
 
 const _inflight = new Map<string, Promise<unknown>>()
