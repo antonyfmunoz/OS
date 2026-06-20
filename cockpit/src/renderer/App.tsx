@@ -15,9 +15,8 @@ function ClerkTokenBridge() {
   const { getToken } = useAuth()
   const ref = useRef(getToken)
   ref.current = getToken
-  useEffect(() => {
-    setTokenGetter(async () => ref.current())
-  }, [])
+  // Set synchronously during render so token is available before any child effects fire
+  setTokenGetter(async () => ref.current())
   return null
 }
 
