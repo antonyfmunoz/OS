@@ -1,42 +1,57 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useMetaIDEStore } from '../stores/metaIDEStore'
+import {
+  FolderTree, MonitorPlay, GitBranch, Database, Map, Shield,
+  Terminal as TerminalIcon, Box, Cpu, Eye,
+} from 'lucide-react'
+import { useMetaIDEStore, type SidebarTab, type CenterTab } from '../stores/metaIDEStore'
 import { useEditorStore } from '../stores/editorStore'
 import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { fetchApi } from '../api/client'
 import { usePolling } from '../hooks/usePolling'
 import { VPS, BEAST } from '../constants/devices'
+import type { LucideIcon } from 'lucide-react'
 
-const TABS = [
-  'files', 'editor', 'sessions', 'workspace', 'repositories',
-  'roadmap', 'risks', 'terminals', 'containers', 'runtimes', 'previews',
-] as const
+const SIDEBAR_ITEMS: Array<{ id: SidebarTab; icon: LucideIcon; label: string }> = [
+  { id: 'files', icon: FolderTree, label: 'FILES' },
+  { id: 'sessions', icon: MonitorPlay, label: 'SESSIONS' },
+  { id: 'workspace', icon: GitBranch, label: 'WORKSPACE' },
+  { id: 'repositories', icon: Database, label: 'REPOSITORIES' },
+  { id: 'roadmap', icon: Map, label: 'ROADMAP' },
+  { id: 'risks', icon: Shield, label: 'RISKS' },
+]
+
+const CENTER_TABS: Array<{ id: CenterTab; icon: LucideIcon; label: string }> = [
+  { id: 'terminals', icon: TerminalIcon, label: 'Terminals' },
+  { id: 'containers', icon: Box, label: 'Containers' },
+  { id: 'runtimes', icon: Cpu, label: 'Runtimes' },
+  { id: 'previews', icon: Eye, label: 'Previews' },
+]
 
 const RISK_COLORS: Record<string, string> = {
-  none: 'text-zinc-400',
-  low: 'text-green-400',
-  medium: 'text-amber-400',
+  none: 'text-text-secondary',
+  low: 'text-ok',
+  medium: 'text-warn',
   high: 'text-orange-400',
-  critical: 'text-red-400',
+  critical: 'text-danger',
 }
 
 const HEALTH_COLORS: Record<string, string> = {
-  healthy: 'text-green-400',
-  dirty: 'text-amber-400',
+  healthy: 'text-ok',
+  dirty: 'text-warn',
   stale: 'text-orange-400',
-  detached: 'text-red-400',
-  unknown: 'text-zinc-500',
+  detached: 'text-danger',
+  unknown: 'text-text-tertiary',
   degraded: 'text-orange-400',
-  crashed: 'text-red-400',
+  crashed: 'text-danger',
 }
 
 const STATE_COLORS: Record<string, string> = {
-  completed: 'text-green-400',
-  in_progress: 'text-cyan-400',
-  planned: 'text-zinc-400',
-  blocked: 'text-red-400',
-  unknown: 'text-zinc-500',
+  completed: 'text-ok',
+  in_progress: 'text-cyan',
+  planned: 'text-text-secondary',
+  blocked: 'text-danger',
+  unknown: 'text-text-tertiary',
 }
 
 type FileEntry = { name: string; path: string; type: 'file' | 'directory' }
@@ -115,7 +130,7 @@ async function writeFileContent(path: string, content: string, node?: string): P
 
 interface MeshNode { id: string; name: string; os: string; status: string; ip?: string; device_type?: string }
 
-// --- File tree node (used by Files tab) ---
+// ─── File tree node ──────────────────────────────────────────────
 
 function IDEFileTreeNode({ name, path, type, depth, node, onFileOpen }: {
   name: string; path: string; type: 'file' | 'directory'; depth: number; node?: string
@@ -137,12 +152,12 @@ function IDEFileTreeNode({ name, path, type, depth, node, onFileOpen }: {
     <>
       <button
         onClick={handleClick}
-        className={`w-full text-left flex items-center gap-1 py-0.5 hover:bg-zinc-800 transition-colors text-[11px] ${
-          type === 'directory' ? 'text-zinc-200' : 'text-zinc-400'
+        className={`w-full text-left flex items-center gap-1 py-0.5 hover:bg-surface-raised transition-colors text-[11px] ${
+          type === 'directory' ? 'text-text-primary' : 'text-text-secondary'
         }`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
-        <span className="text-zinc-500 w-3 text-center text-[9px]">
+        <span className="text-text-tertiary w-3 text-center text-[9px]">
           {type === 'directory' ? (expanded ? '▾' : '▸') : '·'}
         </span>
         <span className="truncate">{name}</span>
@@ -162,21 +177,20 @@ function IDEFileTreeNode({ name, path, type, depth, node, onFileOpen }: {
   )
 }
 
-// --- Files Tab ---
+// ─── Sidebar: Files ──────────────────────────────────────────────
 
-function FilesTab() {
+function FilesPanel() {
   const [vpsTree, setVpsTree] = useState<FileEntry[]>([])
   const [windowsTree, setWindowsTree] = useState<FileEntry[]>([])
   const [vpsExpanded, setVpsExpanded] = useState(true)
   const [windowsExpanded, setWindowsExpanded] = useState(true)
   const [meshNodes, setMeshNodes] = useState<MeshNode[]>([])
   const [windowsOnline, setWindowsOnline] = useState(false)
-  const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
+  const setActiveCenter = useMetaIDEStore((s) => s.setActiveCenter)
 
   useEffect(() => {
     browseDir('/').then((entries) => { if (entries.length) setVpsTree(entries) })
     browseDir('C:\\', 'windows').then((entries) => { if (entries.length) setWindowsTree(entries) })
-
     fetchApi<{ ok: boolean; nodes: MeshNode[] }>('/workspace/mesh-nodes')
       .then((data) => {
         if (data.ok && data.nodes) {
@@ -194,7 +208,7 @@ function FilesTab() {
         path, name: result.name, content: result.content,
         language: detectLang(result.name), dirty: false, node,
       })
-      setActiveTab('editor')
+      setActiveCenter('editor')
     }
   }
 
@@ -205,29 +219,29 @@ function FilesTab() {
     <div className="py-1">
       <button
         onClick={() => setVpsExpanded(!vpsExpanded)}
-        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800 transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-raised transition-colors"
       >
-        <span className="text-zinc-500 text-[9px]">{vpsExpanded ? '▾' : '▸'}</span>
-        <span className="text-green-400 text-[9px]">●</span>
-        <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider flex-1 text-left">{vpsName}</span>
+        <span className="text-text-tertiary text-[9px]">{vpsExpanded ? '▾' : '▸'}</span>
+        <span className="text-ok text-[9px]">●</span>
+        <span className="wv-label flex-1 text-left">{vpsName}</span>
       </button>
       {vpsExpanded && (
         <>
           {vpsTree.map((f) => (
             <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} onFileOpen={openFileInEditor} />
           ))}
-          {vpsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-zinc-600">Loading...</p>}
+          {vpsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-text-tertiary">Loading...</p>}
         </>
       )}
 
       <button
         onClick={() => setWindowsExpanded(!windowsExpanded)}
-        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800 transition-colors border-t border-zinc-800 mt-1"
+        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-raised transition-colors border-t border-border mt-1"
       >
-        <span className="text-zinc-500 text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
-        <span className={`text-[9px] ${windowsOnline ? 'text-green-400' : 'text-zinc-600'}`}>●</span>
-        <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider flex-1 text-left">{windowsName}</span>
-        {!windowsOnline && <span className="text-[9px] text-zinc-600">offline</span>}
+        <span className="text-text-tertiary text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
+        <span className={`text-[9px] ${windowsOnline ? 'text-ok' : 'text-text-tertiary'}`}>●</span>
+        <span className="wv-label flex-1 text-left">{windowsName}</span>
+        {!windowsOnline && <span className="text-[9px] text-text-tertiary">offline</span>}
       </button>
       {windowsExpanded && (
         <>
@@ -236,10 +250,10 @@ function FilesTab() {
               {windowsTree.map((f) => (
                 <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" onFileOpen={openFileInEditor} />
               ))}
-              {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-zinc-600">Loading files...</p>}
+              {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-text-tertiary">Loading files...</p>}
             </>
           ) : (
-            <p className="text-[11px] px-4 py-2 text-zinc-600">Device offline — connect to view files</p>
+            <p className="text-[11px] px-4 py-2 text-text-tertiary">Device offline</p>
           )}
         </>
       )}
@@ -247,13 +261,295 @@ function FilesTab() {
   )
 }
 
-// --- Editor Tab (code editing capability) ---
+// ─── Sidebar: Sessions ───────────────────────────────────────────
 
-function EditorTab() {
+function SessionsPanel() {
+  const sessions = useEditorStore((s) => s.sessions)
+  const ccDelegating = useEditorStore((s) => s.ccDelegating)
+  const fetchSessions = useEditorStore((s) => s.fetchSessions)
+  const delegateToClaudeCode = useEditorStore((s) => s.delegateToClaudeCode)
+  const captureSession = useEditorStore((s) => s.captureSession)
+  const gitBranch = useEditorStore((s) => s.gitBranch)
+  const gitChangedCount = useEditorStore((s) => s.gitChangedCount)
+  const fetchGitStatus = useEditorStore((s) => s.fetchGitStatus)
+  const setViewContext = useViewContextStore((s) => s.setContext)
+
+  const [ccPrompt, setCcPrompt] = useState('')
+  const [ccTarget, setCcTarget] = useState('')
+  const [capturedOutput, setCapturedOutput] = useState('')
+
+  useEffect(() => {
+    fetchGitStatus()
+    fetchSessions()
+    const id = setInterval(() => { fetchGitStatus(); fetchSessions() }, 15000)
+    return () => clearInterval(id)
+  }, [fetchGitStatus, fetchSessions])
+
+  return (
+    <div className="p-3 space-y-3">
+      {gitBranch && (
+        <div className="border border-border rounded p-2">
+          <div className="wv-label mb-1">Git</div>
+          <div className="text-xs text-cyan font-mono">
+            {gitBranch}{gitChangedCount > 0 ? <span className="text-warn ml-2">+{gitChangedCount}</span> : ''}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <div className="wv-label mb-2">Active Sessions</div>
+        {sessions.length === 0 && <p className="text-xs text-text-tertiary text-center py-3">No active sessions</p>}
+        {sessions.map((s) => (
+          <div key={s.name} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-surface-raised text-xs border border-border mb-1">
+            <span className={`w-2 h-2 rounded-full ${s.status === 'active' ? 'bg-ok' : 'bg-text-tertiary'}`} />
+            <span className="text-text-primary flex-1 truncate font-mono text-[10px]">{s.name}</span>
+            <span className="text-[8px] text-text-tertiary uppercase">{s.type}</span>
+            <button
+              onClick={async () => {
+                const output = await captureSession(s.name)
+                setCapturedOutput(output)
+                setViewContext({ selected_object_type: 'session', selected_session_id: s.name })
+              }}
+              className="text-[9px] text-cyan hover:underline"
+            >
+              capture
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="border border-border rounded p-2">
+        <div className="wv-label mb-2">Delegate to Claude Code</div>
+        <select
+          value={ccTarget}
+          onChange={(e) => setCcTarget(e.target.value)}
+          className="w-full mb-2 text-[10px] bg-surface-raised border border-border rounded px-2 py-1 text-text-primary"
+        >
+          <option value="">Select session...</option>
+          {sessions.map((s) => (
+            <option key={s.name} value={s.name}>{s.name}</option>
+          ))}
+        </select>
+        <textarea
+          value={ccPrompt}
+          onChange={(e) => setCcPrompt(e.target.value)}
+          placeholder="Enter prompt..."
+          className="w-full text-[10px] bg-surface-raised border border-border rounded px-2 py-1 text-text-primary placeholder-text-tertiary resize-none h-16"
+        />
+        <button
+          onClick={async () => {
+            if (ccTarget && ccPrompt.trim()) {
+              await delegateToClaudeCode(ccTarget, ccPrompt)
+              setCcPrompt('')
+            }
+          }}
+          disabled={!ccTarget || !ccPrompt.trim() || ccDelegating}
+          className="mt-1.5 w-full text-[10px] px-2 py-1 bg-cyan-glow text-cyan border border-cyan/30 rounded hover:bg-cyan/20 disabled:opacity-30 font-mono uppercase tracking-wider"
+        >
+          {ccDelegating ? 'Sending...' : 'Send Prompt'}
+        </button>
+      </div>
+
+      {capturedOutput && (
+        <div className="border border-border rounded p-2">
+          <div className="wv-label mb-1">Captured Output</div>
+          <pre className="text-[9px] font-mono text-text-secondary bg-canvas p-2 rounded max-h-32 overflow-y-auto whitespace-pre-wrap">
+            {capturedOutput}
+          </pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Sidebar: Workspace ──────────────────────────────────────────
+
+function WorkspacePanel() {
+  const { workspace, fetchWorkspace, loading } = useMetaIDEStore()
+
+  useEffect(() => { fetchWorkspace() }, [])
+
+  if (loading && !workspace) return <div className="p-3 text-text-tertiary text-xs">Loading workspace...</div>
+  if (!workspace) return <div className="p-3 text-text-tertiary text-xs">No workspace data</div>
+
+  return (
+    <div className="p-3 space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <StatCard label="Dirty" value={workspace.totals.dirty_files} warn={workspace.totals.dirty_files > 0} />
+        <StatCard label="Branches" value={workspace.totals.branches} />
+        <StatCard label="Worktrees" value={workspace.totals.worktrees} />
+        <StatCard label="Stale" value={workspace.totals.stale_branches} warn={workspace.totals.stale_branches > 0} />
+      </div>
+
+      <div className="border border-border rounded p-2">
+        <div className="wv-label mb-1">Risk</div>
+        <div className={`text-sm font-bold ${RISK_COLORS[workspace.overall_risk] || 'text-text-secondary'}`}>
+          {workspace.overall_risk.toUpperCase()}
+        </div>
+      </div>
+
+      {workspace.repos.map((repo) => (
+        <div key={repo.path} className="border border-border rounded p-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium text-text-primary">{repo.name}</span>
+            <span className={`text-[10px] ${HEALTH_COLORS[repo.health] || 'text-text-tertiary'}`}>{repo.health}</span>
+          </div>
+          <div className="text-[10px] text-text-secondary">
+            <span className="text-text-primary">{repo.branch}</span> · {repo.dirty}D {repo.staged}S {repo.branches}B {repo.worktrees}W
+          </div>
+          {repo.issues.length > 0 && <div className="text-[10px] text-warn mt-1">{repo.issues.join(' · ')}</div>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Sidebar: Repositories ───────────────────────────────────────
+
+function RepositoriesPanel() {
+  const { repositories, fetchRepositories, loading } = useMetaIDEStore()
+
+  useEffect(() => { fetchRepositories() }, [])
+
+  if (loading && repositories.length === 0) return <div className="p-3 text-text-tertiary text-xs">Loading...</div>
+  if (repositories.length === 0) return <div className="p-3 text-text-tertiary text-xs">No repositories</div>
+
+  return (
+    <div className="p-3 space-y-3">
+      {repositories.map((repo) => (
+        <div key={repo.repo_path} className="border border-border rounded p-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-text-primary">{repo.repo_name}</span>
+            <span className={`text-[10px] ${HEALTH_COLORS[repo.health.status]}`}>{repo.health.status}</span>
+          </div>
+          <div className="text-[10px] text-text-secondary">
+            <span className="text-text-primary">{repo.current_branch}</span> @ {repo.head_commit.slice(0, 8)}
+          </div>
+          {repo.dirty_files.length > 0 && (
+            <div className="text-[10px]">
+              <div className="text-warn mb-0.5">Dirty ({repo.dirty_files.length})</div>
+              <div className="max-h-20 overflow-y-auto space-y-0.5">
+                {repo.dirty_files.slice(0, 8).map((f) => (
+                  <div key={f} className="text-text-tertiary font-mono truncate">{f}</div>
+                ))}
+                {repo.dirty_files.length > 8 && <div className="text-text-tertiary">+{repo.dirty_files.length - 8} more</div>}
+              </div>
+            </div>
+          )}
+          {repo.worktrees.length > 1 && (
+            <div className="text-[10px]">
+              <div className="text-cyan mb-0.5">Worktrees ({repo.worktrees.length})</div>
+              {repo.worktrees.map((w) => (
+                <div key={w.path} className="flex items-center gap-2 text-text-tertiary">
+                  <span className="font-mono truncate flex-1">{w.branch || '(detached)'}</span>
+                  {w.locked && <span className="text-warn text-[9px]">LOCKED</span>}
+                  {w.detached && <span className="text-danger text-[9px]">DETACHED</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Sidebar: Roadmap ────────────────────────────────────────────
+
+function RoadmapPanel() {
+  const { roadmap, fetchRoadmap, loading } = useMetaIDEStore()
+
+  useEffect(() => { fetchRoadmap() }, [])
+
+  if (loading && !roadmap) return <div className="p-3 text-text-tertiary text-xs">Loading roadmap...</div>
+  if (!roadmap) return <div className="p-3 text-text-tertiary text-xs">No roadmap data</div>
+
+  return (
+    <div className="p-3 space-y-3">
+      <div className="border border-border rounded p-2">
+        <div className="wv-label mb-1">Progress</div>
+        <div className="h-1.5 bg-surface-raised rounded overflow-hidden">
+          <div className="h-full bg-ok rounded" style={{ width: `${Math.round(roadmap.completion_ratio * 100)}%` }} />
+        </div>
+        <div className="text-[10px] text-text-secondary mt-1">{Math.round(roadmap.completion_ratio * 100)}% · {roadmap.completed_phases.length}/{roadmap.total_phases}</div>
+      </div>
+
+      {roadmap.current_phase && (
+        <div className="border border-cyan/30 rounded p-2">
+          <div className="wv-label text-cyan mb-1">Current</div>
+          <div className="text-xs text-text-primary">P{roadmap.current_phase.phase_number}: {roadmap.current_phase.phase_name}</div>
+        </div>
+      )}
+
+      {roadmap.completed_phases.length > 0 && (
+        <div>
+          <div className="wv-label mb-1">Completed ({roadmap.completed_phases.length})</div>
+          <div className="space-y-0.5 max-h-40 overflow-y-auto">
+            {roadmap.completed_phases.map((p) => <PhaseRow key={p.phase_number} phase={p} />)}
+          </div>
+        </div>
+      )}
+
+      {roadmap.planned_phases.length > 0 && (
+        <div>
+          <div className="wv-label mb-1">Planned ({roadmap.planned_phases.length})</div>
+          <div className="space-y-0.5">
+            {roadmap.planned_phases.map((p) => <PhaseRow key={p.phase_number} phase={p} />)}
+          </div>
+        </div>
+      )}
+
+      {roadmap.blocked_phases.length > 0 && (
+        <div>
+          <div className="wv-label text-danger mb-1">Blocked ({roadmap.blocked_phases.length})</div>
+          <div className="space-y-0.5">
+            {roadmap.blocked_phases.map((p) => <PhaseRow key={p.phase_number} phase={p} />)}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Sidebar: Risks ──────────────────────────────────────────────
+
+function RisksPanel() {
+  const { risks, overallRisk, fetchRisks, loading } = useMetaIDEStore()
+
+  useEffect(() => { fetchRisks() }, [])
+
+  if (loading && risks.length === 0) return <div className="p-3 text-text-tertiary text-xs">Loading risks...</div>
+
+  return (
+    <div className="p-3 space-y-3">
+      <div className="border border-border rounded p-2 flex items-center justify-between">
+        <span className="wv-label">Overall</span>
+        <span className={`text-xs font-bold ${RISK_COLORS[overallRisk] || 'text-text-secondary'}`}>{overallRisk.toUpperCase()}</span>
+      </div>
+      {risks.length === 0 ? (
+        <div className="text-text-tertiary text-xs text-center py-3">No risks detected</div>
+      ) : (
+        <div className="space-y-2">
+          {risks.map((r) => (
+            <div key={r.id} className="border border-border rounded p-2">
+              <div className="flex items-center justify-between mb-0.5">
+                <span className={`text-[10px] font-medium ${RISK_COLORS[r.level]}`}>{r.level.toUpperCase()}</span>
+                <span className="text-[9px] text-text-tertiary">{r.category}</span>
+              </div>
+              <div className="text-xs text-text-primary">{r.description}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Center: Code Editor ─────────────────────────────────────────
+
+function EditorContent() {
   const openFiles = useEditorStore((s) => s.openFiles)
   const activeFile = useEditorStore((s) => s.activeFile)
-  const setActiveFile = useEditorStore((s) => s.setActiveFile)
-  const closeFile = useEditorStore((s) => s.closeFile)
   const updateContent = useEditorStore((s) => s.updateContent)
   const gitBranch = useEditorStore((s) => s.gitBranch)
   const activeNode = useEditorStore((s) => s.activeNode)
@@ -285,11 +581,11 @@ function EditorTab() {
 
   if (openFiles.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center bg-surface">
         <div className="text-center">
-          <p className="font-mono text-lg mb-2 text-cyan-400">META IDE</p>
-          <p className="text-xs text-zinc-500">Open a file from the Files tab to begin editing</p>
-          <p className="text-xs mt-1 text-zinc-500">
+          <p className="font-mono text-lg mb-2 text-cyan">META IDE</p>
+          <p className="text-[10px] text-text-tertiary">Open a file from the sidebar to begin editing</p>
+          <p className="text-[10px] mt-1 text-text-tertiary">
             Ctrl+S to save{gitBranch && ` · ${gitBranch}`}
           </p>
         </div>
@@ -297,173 +593,192 @@ function EditorTab() {
     )
   }
 
-  return (
-    <div className="flex-1 flex flex-col min-w-0" onKeyDown={handleKeyDown}>
-      {/* Tab bar */}
-      <div className="flex items-center h-8 shrink-0 overflow-x-auto border-b border-zinc-800 bg-zinc-950">
-        {openFiles.map((file) => (
-          <button
-            key={file.path}
-            onClick={() => setActiveFile(file.path)}
-            className={`flex items-center gap-2 px-3 h-full text-xs shrink-0 border-r border-zinc-800 transition-colors ${
-              activeFile === file.path ? 'text-zinc-200 bg-zinc-900' : 'text-zinc-500'
-            }`}
-          >
-            <span>{file.name}</span>
-            {file.dirty && <span className="text-amber-400">●</span>}
-            <span
-              onClick={(e) => { e.stopPropagation(); closeFile(file.path) }}
-              className="ml-1 text-zinc-500 hover:text-white"
-            >
-              ×
-            </span>
-          </button>
-        ))}
-      </div>
+  if (!activeContent) {
+    return <div className="flex-1 flex items-center justify-center text-text-tertiary text-xs bg-surface">Select a file tab</div>
+  }
 
-      {/* Code editor */}
-      {activeContent ? (
-        <div className="flex-1 relative overflow-hidden">
-          <div className="absolute inset-0 flex">
-            <div className="shrink-0 text-right pr-2 pt-2 font-mono text-xs select-none overflow-hidden w-12 text-zinc-600 bg-zinc-950">
-              {activeContent.content.split('\n').map((_, i) => (
-                <div key={i} className="h-5">{i + 1}</div>
+  return (
+    <div className="flex-1 relative overflow-hidden bg-surface" onKeyDown={handleKeyDown}>
+      <div className="absolute inset-0 flex">
+        <div className="shrink-0 text-right pr-2 pt-2 font-mono text-[10px] select-none overflow-hidden w-12 text-text-tertiary bg-canvas">
+          {activeContent.content.split('\n').map((_, i) => (
+            <div key={i} className="h-5">{i + 1}</div>
+          ))}
+        </div>
+        <textarea
+          ref={textareaRef}
+          value={activeContent.content}
+          onChange={(e) => updateContent(activeContent.path, e.target.value)}
+          spellCheck={false}
+          className="flex-1 resize-none p-2 font-mono text-xs text-text-primary bg-surface outline-none"
+          style={{ lineHeight: '1.25rem', tabSize: 2, caretColor: 'var(--color-cyan)' }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ─── Center: Terminals ───────────────────────────────────────────
+
+function TerminalsContent() {
+  const { observation, fetchObservation, loading } = useMetaIDEStore()
+
+  useEffect(() => { fetchObservation() }, [])
+
+  const terminals = observation?.terminals || []
+  if (loading && terminals.length === 0) return <div className="p-4 text-text-tertiary text-xs">Loading terminals...</div>
+  if (terminals.length === 0) return <div className="p-4 text-text-tertiary text-xs">No active terminals</div>
+
+  return (
+    <div className="p-4 space-y-2">
+      {terminals.map((t) => (
+        <div key={t.terminal_id} className="border border-border rounded p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-text-primary">{t.session_name}</span>
+            <span className={`text-xs ${t.is_active ? 'text-ok' : 'text-text-tertiary'}`}>
+              {t.is_active ? '● active' : '○ idle'}
+            </span>
+          </div>
+          <div className="text-xs text-text-secondary space-y-0.5">
+            <div>Window: <span className="text-text-primary">{t.window_name || '—'}</span> Pane: {t.pane_index}</div>
+            {t.current_command && <div>Command: <span className="text-cyan font-mono">{t.current_command}</span></div>}
+            {t.cwd && <div className="text-text-tertiary font-mono truncate">{t.cwd}</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Center: Containers ──────────────────────────────────────────
+
+function ContainersContent() {
+  const { observation, fetchObservation, loading } = useMetaIDEStore()
+
+  useEffect(() => { fetchObservation() }, [])
+
+  const containers = observation?.containers || []
+  if (loading && containers.length === 0) return <div className="p-4 text-text-tertiary text-xs">Loading containers...</div>
+  if (containers.length === 0) return <div className="p-4 text-text-tertiary text-xs">No containers found</div>
+
+  return (
+    <div className="p-4 space-y-2">
+      {containers.map((c) => (
+        <div key={c.container_id} className="border border-border rounded p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-text-primary">{c.container_name}</span>
+            <span className={`text-xs ${HEALTH_COLORS[c.health] || 'text-text-tertiary'}`}>● {c.health}</span>
+          </div>
+          <div className="text-xs text-text-secondary space-y-0.5">
+            <div>Image: <span className="text-text-secondary font-mono">{c.image}</span></div>
+            <div>Status: <span className="text-text-primary">{c.status}</span></div>
+            {c.ports.length > 0 && <div>Ports: <span className="text-cyan">{c.ports.join(', ')}</span></div>}
+            {c.restart_count > 0 && <div className="text-warn">Restarts: {c.restart_count}</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Center: Runtimes (Provider Registry) ────────────────────────
+
+const STATUS_BADGE: Record<string, { color: string; label: string }> = {
+  operational: { color: 'bg-ok', label: 'OK' },
+  configured: { color: 'bg-cyan', label: 'CFG' },
+  not_configured: { color: 'bg-text-tertiary', label: 'N/A' },
+  error: { color: 'bg-danger', label: 'ERR' },
+  unknown: { color: 'bg-text-tertiary', label: '?' },
+}
+
+function RuntimesContent() {
+  const providers = useProviderRegistryStore((s) => s.providers)
+  const fetchProviders = useProviderRegistryStore((s) => s.fetchProviders)
+  const smokeTest = useProviderRegistryStore((s) => s.smokeTest)
+  const [testResult, setTestResult] = useState<Record<string, string>>({})
+
+  useEffect(() => { fetchProviders() }, [fetchProviders])
+
+  const runSmoke = async (id: string) => {
+    setTestResult((p) => ({ ...p, [id]: 'testing...' }))
+    const res = await smokeTest(id)
+    setTestResult((p) => ({ ...p, [id]: res.success ? 'pass' : res.detail }))
+  }
+
+  return (
+    <div className="p-4 space-y-2">
+      <div className="flex items-center justify-between mb-2">
+        <span className="wv-label">Provider Registry</span>
+        <button onClick={fetchProviders} className="text-[10px] text-cyan font-mono hover:underline">refresh</button>
+      </div>
+      {providers.map((p) => {
+        const badge = STATUS_BADGE[p.status] || STATUS_BADGE.unknown
+        return (
+          <div key={p.id} className="border border-border rounded p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${badge.color}`} />
+              <span className="text-xs font-medium text-text-primary">{p.name}</span>
+              <span className="text-[9px] font-mono text-text-tertiary">{p.type}</span>
+              <span className="ml-auto text-[9px] font-mono text-text-tertiary">{badge.label}</span>
+            </div>
+            <div className="flex flex-wrap gap-1 mb-2">
+              {p.capabilities.map((c) => (
+                <span key={c} className="px-1 py-0.5 text-[9px] rounded bg-surface-raised text-text-secondary">{c}</span>
               ))}
             </div>
-            <textarea
-              ref={textareaRef}
-              value={activeContent.content}
-              onChange={(e) => updateContent(activeContent.path, e.target.value)}
-              spellCheck={false}
-              className="flex-1 resize-none p-2 font-mono text-xs text-zinc-200 bg-zinc-900 outline-none"
-              style={{ lineHeight: '1.25rem', tabSize: 2, caretColor: '#00e5ff' }}
-            />
+            <div className="flex items-center gap-2">
+              <button onClick={() => runSmoke(p.id)} className="px-2 py-1 text-[10px] rounded text-cyan border border-border hover:bg-cyan-glow">
+                smoke test
+              </button>
+              {testResult[p.id] && (
+                <span className={`text-[10px] font-mono ${testResult[p.id] === 'pass' ? 'text-ok' : testResult[p.id] === 'testing...' ? 'text-text-tertiary' : 'text-danger'}`}>
+                  {testResult[p.id]}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center text-zinc-500 text-xs">
-          Select a file tab above
-        </div>
-      )}
-
-      {/* Terminal bridge */}
-      <TerminalSection />
+        )
+      })}
     </div>
   )
 }
 
-// --- Sessions Tab (tmux sessions + CC delegation) ---
+// ─── Center: Previews ────────────────────────────────────────────
 
-function SessionsTab() {
-  const sessions = useEditorStore((s) => s.sessions)
-  const ccDelegating = useEditorStore((s) => s.ccDelegating)
-  const fetchSessions = useEditorStore((s) => s.fetchSessions)
-  const delegateToClaudeCode = useEditorStore((s) => s.delegateToClaudeCode)
-  const captureSession = useEditorStore((s) => s.captureSession)
-  const gitBranch = useEditorStore((s) => s.gitBranch)
-  const gitChangedCount = useEditorStore((s) => s.gitChangedCount)
-  const fetchGitStatus = useEditorStore((s) => s.fetchGitStatus)
-  const setViewContext = useViewContextStore((s) => s.setContext)
+function PreviewsContent() {
+  const { observation, fetchObservation, loading } = useMetaIDEStore()
 
-  const [ccPrompt, setCcPrompt] = useState('')
-  const [ccTarget, setCcTarget] = useState('')
-  const [capturedOutput, setCapturedOutput] = useState('')
+  useEffect(() => { fetchObservation() }, [])
 
-  useEffect(() => {
-    fetchGitStatus()
-    fetchSessions()
-    const id = setInterval(() => { fetchGitStatus(); fetchSessions() }, 15000)
-    return () => clearInterval(id)
-  }, [fetchGitStatus, fetchSessions])
+  const previews = observation?.previews || []
+  if (loading && previews.length === 0) return <div className="p-4 text-text-tertiary text-xs">Loading previews...</div>
+  if (previews.length === 0) return <div className="p-4 text-text-tertiary text-xs">No dev servers detected</div>
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Git status */}
-      {gitBranch && (
-        <div className="border border-zinc-700 rounded p-3">
-          <div className="text-xs text-zinc-500 mb-1">Git</div>
-          <div className="text-sm text-cyan-400 font-mono">
-            {gitBranch}{gitChangedCount > 0 ? <span className="text-amber-400 ml-2">+{gitChangedCount} changed</span> : ''}
+    <div className="p-4 space-y-2">
+      {previews.map((p) => (
+        <div key={p.preview_id} className="border border-border rounded p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-text-primary">{p.name}</span>
+            <span className={`text-xs ${HEALTH_COLORS[p.health] || 'text-text-tertiary'}`}>● {p.health}</span>
+          </div>
+          <div className="text-xs text-text-secondary space-y-0.5">
+            <div>URL: <span className="text-cyan font-mono">{p.url}</span></div>
+            <div>Port: {p.port} | Process: <span className="text-text-primary">{p.process_name || '—'}</span></div>
+            {p.restart_count > 0 && <div className="text-warn">Restarts: {p.restart_count}</div>}
           </div>
         </div>
-      )}
-
-      {/* Active sessions */}
-      <div>
-        <div className="text-[10px] text-zinc-400 uppercase tracking-wider mb-2">Active Sessions</div>
-        {sessions.length === 0 && <p className="text-xs text-zinc-600 text-center py-4">No active sessions</p>}
-        {sessions.map((s) => (
-          <div key={s.name} className="flex items-center gap-2 py-2 px-3 rounded hover:bg-zinc-800 text-xs border border-zinc-800 mb-1">
-            <span className={`w-2 h-2 rounded-full ${s.status === 'active' ? 'bg-green-400' : 'bg-zinc-600'}`} />
-            <span className="text-zinc-200 flex-1 truncate font-mono text-[10px]">{s.name}</span>
-            <span className="text-[8px] text-zinc-500 uppercase">{s.type}</span>
-            <button
-              onClick={async () => {
-                const output = await captureSession(s.name)
-                setCapturedOutput(output)
-                setViewContext({ selected_object_type: 'session', selected_session_id: s.name })
-              }}
-              className="text-[9px] text-cyan-400 hover:underline"
-            >
-              capture
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* Claude Code delegation */}
-      <div className="border border-zinc-700 rounded p-3">
-        <div className="text-[10px] text-zinc-400 uppercase tracking-wider mb-2">Delegate to Claude Code</div>
-        <select
-          value={ccTarget}
-          onChange={(e) => setCcTarget(e.target.value)}
-          className="w-full mb-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-zinc-200"
-        >
-          <option value="">Select session...</option>
-          {sessions.map((s) => (
-            <option key={s.name} value={s.name}>{s.name}</option>
-          ))}
-        </select>
-        <textarea
-          value={ccPrompt}
-          onChange={(e) => setCcPrompt(e.target.value)}
-          placeholder="Enter prompt for Claude Code..."
-          className="w-full text-[10px] bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-zinc-200 placeholder-zinc-600 resize-none h-20"
-        />
-        <button
-          onClick={async () => {
-            if (ccTarget && ccPrompt.trim()) {
-              await delegateToClaudeCode(ccTarget, ccPrompt)
-              setCcPrompt('')
-            }
-          }}
-          disabled={!ccTarget || !ccPrompt.trim() || ccDelegating}
-          className="mt-2 w-full text-[10px] px-2 py-1.5 bg-cyan-950 text-cyan-400 border border-cyan-800 rounded hover:bg-cyan-900 disabled:opacity-30 font-mono uppercase tracking-wider"
-        >
-          {ccDelegating ? 'Sending...' : 'Send Prompt'}
-        </button>
-      </div>
-
-      {/* Captured output */}
-      {capturedOutput && (
-        <div className="border border-zinc-700 rounded p-3">
-          <div className="text-[10px] text-zinc-400 uppercase tracking-wider mb-1">Captured Output</div>
-          <pre className="text-[9px] font-mono text-zinc-400 bg-zinc-950 p-2 rounded max-h-40 overflow-y-auto whitespace-pre-wrap">
-            {capturedOutput}
-          </pre>
-        </div>
-      )}
+      ))}
     </div>
   )
 }
 
-// --- Terminal Section (tmux bridge — shared by editor) ---
+// ─── Bottom: Terminal Bridge ─────────────────────────────────────
 
-function TerminalSection() {
+function TerminalBridge() {
   const [cmd, setCmd] = useState('')
   const [output, setOutput] = useState<string[]>([])
   const [sending, setSending] = useState(false)
-  const [expanded, setExpanded] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight) }, [output])
@@ -498,44 +813,29 @@ function TerminalSection() {
     setSending(false)
   }
 
-  if (!expanded) {
-    return (
-      <div className="shrink-0 border-t border-zinc-800 bg-zinc-950">
-        <button
-          onClick={() => setExpanded(true)}
-          className="w-full flex items-center gap-2 px-3 py-1.5 text-[9px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
-        >
-          <span>▸</span>
-          <span className="uppercase tracking-wider">Terminal</span>
-        </button>
-      </div>
-    )
-  }
-
   return (
-    <div className="h-48 shrink-0 flex flex-col border-t border-zinc-800 bg-zinc-950">
-      <div className="flex items-center gap-2 px-3 py-1 border-b border-zinc-800">
-        <button onClick={() => setExpanded(false)} className="text-zinc-500 hover:text-zinc-300 text-[9px]">▾</button>
-        <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider">Terminal</span>
-        <span className="text-zinc-600 text-[9px]">tmux bridge</span>
+    <div className="h-48 shrink-0 flex flex-col border-t border-border bg-canvas">
+      <div className="flex items-center gap-2 px-3 py-1 border-b border-border">
+        <span className="wv-label">Terminal</span>
+        <span className="text-text-tertiary text-[9px]">tmux bridge</span>
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 font-mono text-[10px] text-zinc-400">
-        {output.length === 0 && <p className="text-zinc-600">Commands run via governed tmux bridge</p>}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 font-mono text-[10px] text-text-secondary">
+        {output.length === 0 && <p className="text-text-tertiary">Commands run via governed tmux bridge</p>}
         {output.map((line, i) => (
-          <pre key={i} className={`whitespace-pre-wrap ${line.startsWith('$') ? 'text-cyan-400' : line.startsWith('err:') ? 'text-red-400' : ''}`}>{line}</pre>
+          <pre key={i} className={`whitespace-pre-wrap ${line.startsWith('$') ? 'text-cyan' : line.startsWith('err:') ? 'text-danger' : ''}`}>{line}</pre>
         ))}
       </div>
-      <div className="flex items-center gap-1 px-3 py-2 border-t border-zinc-800">
-        <span className="text-cyan-400 text-[10px] font-mono">$</span>
+      <div className="flex items-center gap-1 px-3 py-2 border-t border-border">
+        <span className="text-cyan text-[10px] font-mono">$</span>
         <input
           value={cmd}
           onChange={(e) => setCmd(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
           placeholder="command..."
           disabled={sending}
-          className="flex-1 text-[10px] font-mono px-2 py-1 bg-zinc-800 text-zinc-200 border border-zinc-700 rounded outline-none placeholder:text-zinc-600"
+          className="flex-1 text-[10px] font-mono px-2 py-1 bg-surface border border-border rounded outline-none placeholder:text-text-tertiary text-text-primary"
         />
-        <button onClick={send} disabled={sending || !cmd.trim()} className="text-[10px] font-mono px-2 py-1 text-cyan-400 border border-zinc-700 rounded hover:bg-cyan-950 disabled:opacity-30">
+        <button onClick={send} disabled={sending || !cmd.trim()} className="text-[10px] font-mono px-2 py-1 text-cyan border border-border rounded hover:bg-cyan-glow disabled:opacity-30">
           {sending ? '...' : 'Run'}
         </button>
       </div>
@@ -543,488 +843,143 @@ function TerminalSection() {
   )
 }
 
-// --- Workspace Tab ---
-
-function WorkspaceTab() {
-  const { workspace, fetchWorkspace, loading } = useMetaIDEStore()
-
-  useEffect(() => { fetchWorkspace() }, [])
-
-  if (loading && !workspace) return <div className="p-4 text-zinc-500">Loading workspace...</div>
-  if (!workspace) return <div className="p-4 text-zinc-500">No workspace data</div>
-
-  return (
-    <div className="p-4 space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Dirty Files" value={workspace.totals.dirty_files} warn={workspace.totals.dirty_files > 0} />
-        <StatCard label="Branches" value={workspace.totals.branches} />
-        <StatCard label="Worktrees" value={workspace.totals.worktrees} />
-        <StatCard label="Stale Branches" value={workspace.totals.stale_branches} warn={workspace.totals.stale_branches > 0} />
-        <StatCard label="Detached WTs" value={workspace.totals.detached_worktrees} warn={workspace.totals.detached_worktrees > 0} />
-        <div className="border border-zinc-700 rounded p-3">
-          <div className="text-xs text-zinc-500 mb-1">Overall Risk</div>
-          <div className={`text-lg font-bold ${RISK_COLORS[workspace.overall_risk] || 'text-zinc-400'}`}>
-            {workspace.overall_risk.toUpperCase()}
-          </div>
-        </div>
-      </div>
-
-      {workspace.repos.map((repo) => (
-        <div key={repo.path} className="border border-zinc-700 rounded p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-zinc-200">{repo.name}</span>
-            <span className={`text-xs px-2 py-0.5 rounded ${HEALTH_COLORS[repo.health] || 'text-zinc-500'}`}>
-              {repo.health}
-            </span>
-          </div>
-          <div className="text-xs text-zinc-500 space-y-0.5">
-            <div>Branch: <span className="text-zinc-300">{repo.branch}</span></div>
-            <div>Dirty: {repo.dirty} | Staged: {repo.staged} | Branches: {repo.branches} | WTs: {repo.worktrees}</div>
-            {repo.issues.length > 0 && (
-              <div className="text-amber-400 mt-1">{repo.issues.join(' · ')}</div>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// --- Repositories Tab ---
-
-function RepositoriesTab() {
-  const { repositories, fetchRepositories, loading } = useMetaIDEStore()
-
-  useEffect(() => { fetchRepositories() }, [])
-
-  if (loading && repositories.length === 0) return <div className="p-4 text-zinc-500">Loading...</div>
-  if (repositories.length === 0) return <div className="p-4 text-zinc-500">No repositories found</div>
-
-  return (
-    <div className="p-4 space-y-4">
-      {repositories.map((repo) => (
-        <div key={repo.repo_path} className="border border-zinc-700 rounded p-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-200">{repo.repo_name}</span>
-            <span className={`text-xs ${HEALTH_COLORS[repo.health.status]}`}>{repo.health.status}</span>
-          </div>
-
-          <div className="text-xs text-zinc-400">
-            <span className="text-zinc-300">{repo.current_branch}</span> @ {repo.head_commit.slice(0, 8)}
-          </div>
-
-          {repo.dirty_files.length > 0 && (
-            <div className="text-xs">
-              <div className="text-amber-400 mb-1">Dirty ({repo.dirty_files.length})</div>
-              <div className="max-h-24 overflow-y-auto space-y-0.5">
-                {repo.dirty_files.slice(0, 10).map((f) => (
-                  <div key={f} className="text-zinc-500 font-mono truncate">{f}</div>
-                ))}
-                {repo.dirty_files.length > 10 && <div className="text-zinc-600">...and {repo.dirty_files.length - 10} more</div>}
-              </div>
-            </div>
-          )}
-
-          {repo.worktrees.length > 1 && (
-            <div className="text-xs">
-              <div className="text-cyan-400 mb-1">Worktrees ({repo.worktrees.length})</div>
-              {repo.worktrees.map((w) => (
-                <div key={w.path} className="flex items-center gap-2 text-zinc-500">
-                  <span className="font-mono truncate flex-1">{w.branch || '(detached)'}</span>
-                  {w.locked && <span className="text-amber-400 text-[10px]">LOCKED</span>}
-                  {w.detached && <span className="text-red-400 text-[10px]">DETACHED</span>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// --- Roadmap Tab ---
-
-function RoadmapTab() {
-  const { roadmap, fetchRoadmap, loading } = useMetaIDEStore()
-
-  useEffect(() => { fetchRoadmap() }, [])
-
-  if (loading && !roadmap) return <div className="p-4 text-zinc-500">Loading roadmap...</div>
-  if (!roadmap) return <div className="p-4 text-zinc-500">No roadmap data</div>
-
-  return (
-    <div className="p-4 space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Total Phases" value={roadmap.total_phases} />
-        <StatCard label="Completed" value={roadmap.completed_phases.length} />
-      </div>
-
-      <div className="border border-zinc-700 rounded p-3">
-        <div className="text-xs text-zinc-500 mb-1">Progress</div>
-        <div className="h-2 bg-zinc-800 rounded overflow-hidden">
-          <div className="h-full bg-green-500 rounded" style={{ width: `${Math.round(roadmap.completion_ratio * 100)}%` }} />
-        </div>
-        <div className="text-xs text-zinc-400 mt-1">{Math.round(roadmap.completion_ratio * 100)}% complete</div>
-      </div>
-
-      {roadmap.current_phase && (
-        <div className="border border-cyan-800 rounded p-3">
-          <div className="text-xs text-cyan-400 mb-1">Current Phase</div>
-          <div className="text-sm text-zinc-200">Phase {roadmap.current_phase.phase_number}: {roadmap.current_phase.phase_name}</div>
-        </div>
-      )}
-
-      {roadmap.completed_phases.length > 0 && (
-        <div>
-          <div className="text-xs text-zinc-500 mb-2">Completed ({roadmap.completed_phases.length})</div>
-          <div className="space-y-1 max-h-48 overflow-y-auto">
-            {roadmap.completed_phases.map((p) => <PhaseRow key={p.phase_number} phase={p} />)}
-          </div>
-        </div>
-      )}
-
-      {roadmap.planned_phases.length > 0 && (
-        <div>
-          <div className="text-xs text-zinc-500 mb-2">Planned ({roadmap.planned_phases.length})</div>
-          <div className="space-y-1">
-            {roadmap.planned_phases.map((p) => <PhaseRow key={p.phase_number} phase={p} />)}
-          </div>
-        </div>
-      )}
-
-      {roadmap.blocked_phases.length > 0 && (
-        <div>
-          <div className="text-xs text-red-400 mb-2">Blocked ({roadmap.blocked_phases.length})</div>
-          <div className="space-y-1">
-            {roadmap.blocked_phases.map((p) => <PhaseRow key={p.phase_number} phase={p} />)}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// --- Risks Tab ---
-
-function RisksTab() {
-  const { risks, overallRisk, fetchRisks, loading } = useMetaIDEStore()
-
-  useEffect(() => { fetchRisks() }, [])
-
-  if (loading && risks.length === 0) return <div className="p-4 text-zinc-500">Loading risks...</div>
-
-  return (
-    <div className="p-4 space-y-4">
-      <div className="border border-zinc-700 rounded p-3 flex items-center justify-between">
-        <span className="text-xs text-zinc-500">Overall Risk</span>
-        <span className={`text-sm font-bold ${RISK_COLORS[overallRisk] || 'text-zinc-400'}`}>{overallRisk.toUpperCase()}</span>
-      </div>
-      {risks.length === 0 ? (
-        <div className="text-zinc-500 text-sm">No engineering risks detected.</div>
-      ) : (
-        <div className="space-y-2">
-          {risks.map((r) => (
-            <div key={r.id} className="border border-zinc-700 rounded p-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-xs font-medium ${RISK_COLORS[r.level]}`}>{r.level.toUpperCase()}</span>
-                <span className="text-xs text-zinc-600">{r.category}</span>
-              </div>
-              <div className="text-sm text-zinc-300">{r.description}</div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// --- Terminals Tab ---
-
-function TerminalsTab() {
-  const { observation, fetchObservation, loading } = useMetaIDEStore()
-
-  useEffect(() => { fetchObservation() }, [])
-
-  const terminals = observation?.terminals || []
-  if (loading && terminals.length === 0) return <div className="p-4 text-zinc-500">Loading terminals...</div>
-  if (terminals.length === 0) return <div className="p-4 text-zinc-500">No active terminals</div>
-
-  return (
-    <div className="p-4 space-y-2">
-      {terminals.map((t) => (
-        <div key={t.terminal_id} className="border border-zinc-700 rounded p-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-medium text-zinc-200">{t.session_name}</span>
-            <span className={`text-xs ${t.is_active ? 'text-green-400' : 'text-zinc-600'}`}>
-              {t.is_active ? '● active' : '○ idle'}
-            </span>
-          </div>
-          <div className="text-xs text-zinc-500 space-y-0.5">
-            <div>Window: <span className="text-zinc-300">{t.window_name || '—'}</span> Pane: {t.pane_index}</div>
-            {t.current_command && <div>Command: <span className="text-cyan-400 font-mono">{t.current_command}</span></div>}
-            {t.cwd && <div className="text-zinc-600 font-mono truncate">{t.cwd}</div>}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// --- Containers Tab ---
-
-function ContainersTab() {
-  const { observation, fetchObservation, loading } = useMetaIDEStore()
-
-  useEffect(() => { fetchObservation() }, [])
-
-  const containers = observation?.containers || []
-  if (loading && containers.length === 0) return <div className="p-4 text-zinc-500">Loading containers...</div>
-  if (containers.length === 0) return <div className="p-4 text-zinc-500">No containers found</div>
-
-  return (
-    <div className="p-4 space-y-2">
-      {containers.map((c) => (
-        <div key={c.container_id} className="border border-zinc-700 rounded p-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-medium text-zinc-200">{c.container_name}</span>
-            <span className={`text-xs ${HEALTH_COLORS[c.health] || 'text-zinc-500'}`}>● {c.health}</span>
-          </div>
-          <div className="text-xs text-zinc-500 space-y-0.5">
-            <div>Image: <span className="text-zinc-400 font-mono">{c.image}</span></div>
-            <div>Status: <span className="text-zinc-300">{c.status}</span></div>
-            {c.ports.length > 0 && <div>Ports: <span className="text-cyan-400">{c.ports.join(', ')}</span></div>}
-            {c.restart_count > 0 && <div className="text-amber-400">Restarts: {c.restart_count}</div>}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// --- Runtimes Tab (provider registry) ---
-
-const STATUS_BADGE: Record<string, { color: string; label: string }> = {
-  operational: { color: 'bg-green-400', label: 'OK' },
-  configured: { color: 'bg-cyan-400', label: 'CFG' },
-  not_configured: { color: 'bg-zinc-600', label: 'N/A' },
-  error: { color: 'bg-red-400', label: 'ERR' },
-  unknown: { color: 'bg-zinc-600', label: '?' },
-}
-
-function RuntimesTab() {
-  const providers = useProviderRegistryStore((s) => s.providers)
-  const fetchProviders = useProviderRegistryStore((s) => s.fetchProviders)
-  const smokeTest = useProviderRegistryStore((s) => s.smokeTest)
-  const [testResult, setTestResult] = useState<Record<string, string>>({})
-
-  useEffect(() => { fetchProviders() }, [fetchProviders])
-
-  const runSmoke = async (id: string) => {
-    setTestResult((p) => ({ ...p, [id]: 'testing...' }))
-    const res = await smokeTest(id)
-    setTestResult((p) => ({ ...p, [id]: res.success ? 'pass' : res.detail }))
-  }
-
-  return (
-    <div className="p-4 space-y-2">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Provider Registry</span>
-        <button onClick={fetchProviders} className="text-[10px] text-cyan-400 font-mono hover:underline">refresh</button>
-      </div>
-      {providers.map((p) => {
-        const badge = STATUS_BADGE[p.status] || STATUS_BADGE.unknown
-        return (
-          <div key={p.id} className="border border-zinc-700 rounded p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${badge.color}`} />
-              <span className="text-xs font-medium text-zinc-200">{p.name}</span>
-              <span className="text-[9px] font-mono text-zinc-500">{p.type}</span>
-              <span className="ml-auto text-[9px] font-mono text-zinc-500">{badge.label}</span>
-            </div>
-            <div className="flex flex-wrap gap-1 mb-2">
-              {p.capabilities.map((c) => (
-                <span key={c} className="px-1 py-0.5 text-[9px] rounded bg-zinc-800 text-zinc-400">{c}</span>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => runSmoke(p.id)} className="px-2 py-1 text-[10px] rounded text-cyan-400 border border-zinc-700 hover:bg-cyan-950">
-                smoke test
-              </button>
-              {testResult[p.id] && (
-                <span className={`text-[10px] font-mono ${testResult[p.id] === 'pass' ? 'text-green-400' : testResult[p.id] === 'testing...' ? 'text-zinc-500' : 'text-red-400'}`}>
-                  {testResult[p.id]}
-                </span>
-              )}
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// --- Previews Tab ---
-
-function PreviewsTab() {
-  const { observation, fetchObservation, loading } = useMetaIDEStore()
-
-  useEffect(() => { fetchObservation() }, [])
-
-  const previews = observation?.previews || []
-  if (loading && previews.length === 0) return <div className="p-4 text-zinc-500">Loading previews...</div>
-  if (previews.length === 0) return <div className="p-4 text-zinc-500">No dev servers detected</div>
-
-  return (
-    <div className="p-4 space-y-2">
-      {previews.map((p) => (
-        <div key={p.preview_id} className="border border-zinc-700 rounded p-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-medium text-zinc-200">{p.name}</span>
-            <span className={`text-xs ${HEALTH_COLORS[p.health] || 'text-zinc-500'}`}>● {p.health}</span>
-          </div>
-          <div className="text-xs text-zinc-500 space-y-0.5">
-            <div>URL: <span className="text-cyan-400 font-mono">{p.url}</span></div>
-            <div>Port: {p.port} | Process: <span className="text-zinc-300">{p.process_name || '—'}</span></div>
-            {p.restart_count > 0 && <div className="text-amber-400">Restarts: {p.restart_count}</div>}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// --- Shared components ---
+// ─── Shared ──────────────────────────────────────────────────────
 
 function StatCard({ label, value, warn }: { label: string; value: number; warn?: boolean }) {
   return (
-    <div className="border border-zinc-700 rounded p-3">
-      <div className="text-xs text-zinc-500 mb-1">{label}</div>
-      <div className={`text-lg font-bold ${warn ? 'text-amber-400' : 'text-zinc-200'}`}>{value}</div>
+    <div className="border border-border rounded p-2">
+      <div className="wv-label mb-0.5">{label}</div>
+      <div className={`text-sm font-bold ${warn ? 'text-warn' : 'text-text-primary'}`}>{value}</div>
     </div>
   )
 }
 
 function PhaseRow({ phase }: { phase: { phase_number: string; phase_name: string; state: string } }) {
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className={`${STATE_COLORS[phase.state] || 'text-zinc-500'}`}>●</span>
-      <span className="text-zinc-400 w-8">P{phase.phase_number}</span>
-      <span className="text-zinc-300 truncate flex-1">{phase.phase_name}</span>
+    <div className="flex items-center gap-2 text-[10px]">
+      <span className={`${STATE_COLORS[phase.state] || 'text-text-tertiary'}`}>●</span>
+      <span className="text-text-secondary w-7">P{phase.phase_number}</span>
+      <span className="text-text-primary truncate flex-1">{phase.phase_name}</span>
     </div>
   )
 }
 
-// --- Context Sidebar ---
-
-function ContextSidebar() {
-  const [ctx, setCtx] = useState<Record<string, unknown> | null>(null)
-  const [collapsed, setCollapsed] = useState(false)
-
-  usePolling(useCallback(() => {
-    fetchApi('/meta-ide-context/context').then(setCtx).catch(() => {})
-  }, []), 10000, true, 1000)
-
-  if (collapsed) {
-    return (
-      <div className="w-8 border-r border-zinc-800 flex flex-col items-center pt-2 shrink-0 bg-surface">
-        <button onClick={() => setCollapsed(false)} className="p-1 text-zinc-500 hover:text-zinc-300">
-          <ChevronRight size={14} />
-        </button>
-      </div>
-    )
-  }
-
-  const project = (ctx?.active_project as string) || ''
-  const repo = (ctx?.active_repo as string) || ''
-  const goals = (ctx?.related_goals as Array<Record<string, string>>) || []
-  const decisions = (ctx?.related_decisions as Array<Record<string, string>>) || []
-  const constraints = (ctx?.constraints as string[]) || []
-
-  return (
-    <div className="w-[240px] border-r border-zinc-800 overflow-y-auto p-3 shrink-0 bg-surface">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Context</span>
-        <button onClick={() => setCollapsed(true)} className="p-0.5 text-zinc-500 hover:text-zinc-300">
-          <ChevronLeft size={12} />
-        </button>
-      </div>
-
-      {project && <div className="text-[11px] mb-1"><span className="text-zinc-500">Project</span> <span className="text-zinc-200">{project}</span></div>}
-      {repo && <div className="text-[11px] mb-3"><span className="text-zinc-500">Repo</span> <span className="text-zinc-200">{repo}</span></div>}
-
-      {goals.length > 0 && (
-        <div className="mb-3">
-          <div className="text-[10px] text-zinc-400 uppercase tracking-wider mb-1">Goals</div>
-          {goals.slice(0, 5).map((g, i) => (
-            <div key={i} className="text-[11px] text-zinc-300 py-0.5">{g.title || g.description || ''}</div>
-          ))}
-        </div>
-      )}
-
-      {decisions.length > 0 && (
-        <div className="mb-3">
-          <div className="text-[10px] text-zinc-400 uppercase tracking-wider mb-1">Decisions</div>
-          {decisions.slice(0, 5).map((d, i) => (
-            <div key={i} className="text-[11px] text-zinc-300 py-0.5">{d.title || d.description || ''}</div>
-          ))}
-        </div>
-      )}
-
-      {constraints.length > 0 && (
-        <div className="mb-3">
-          <div className="text-[10px] text-zinc-400 uppercase tracking-wider mb-1">Constraints</div>
-          {constraints.slice(0, 5).map((c, i) => (
-            <div key={i} className="text-[11px] text-amber-400 py-0.5">{c}</div>
-          ))}
-        </div>
-      )}
-
-      {!project && !repo && goals.length === 0 && (
-        <div className="text-[11px] text-zinc-600 text-center py-4">No context available</div>
-      )}
-    </div>
-  )
-}
-
-// --- Main Meta IDE Panel ---
+// ─── Main: Meta IDE Panel ────────────────────────────────────────
 
 export function MetaIDEPanel() {
-  const { activeTab, setActiveTab } = useMetaIDEStore()
+  const { activeSidebar, setActiveSidebar, activeCenter, setActiveCenter } = useMetaIDEStore()
+  const openFiles = useEditorStore((s) => s.openFiles)
+  const activeFile = useEditorStore((s) => s.activeFile)
+  const setActiveFile = useEditorStore((s) => s.setActiveFile)
+  const closeFile = useEditorStore((s) => s.closeFile)
+  const [showTerminal, setShowTerminal] = useState(false)
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-surface">
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-zinc-800 overflow-x-auto shrink-0">
-        {TABS.map((tab) => (
+    <div className="h-full flex overflow-hidden bg-canvas">
+      {/* ── Activity Bar ── */}
+      <div className="w-12 shrink-0 flex flex-col items-center py-2 gap-0.5 border-r border-border bg-canvas">
+        {SIDEBAR_ITEMS.map(({ id, icon: Icon }) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-3 py-1.5 text-xs rounded transition-colors whitespace-nowrap ${
-              activeTab === tab
-                ? 'bg-zinc-700 text-zinc-100'
-                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+            key={id}
+            onClick={() => setActiveSidebar(id)}
+            className={`w-10 h-9 flex items-center justify-center rounded transition-colors ${
+              activeSidebar === id
+                ? 'text-cyan border-l-2 border-cyan bg-cyan-glow'
+                : 'text-text-tertiary hover:text-text-secondary'
             }`}
+            title={id}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            <Icon size={18} />
           </button>
         ))}
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        <ContextSidebar />
-        <div className="flex-1 overflow-y-auto">
-          {activeTab === 'files' && <FilesTab />}
-          {activeTab === 'editor' && <EditorTab />}
-          {activeTab === 'sessions' && <SessionsTab />}
-          {activeTab === 'workspace' && <WorkspaceTab />}
-          {activeTab === 'repositories' && <RepositoriesTab />}
-          {activeTab === 'roadmap' && <RoadmapTab />}
-          {activeTab === 'risks' && <RisksTab />}
-          {activeTab === 'terminals' && <TerminalsTab />}
-          {activeTab === 'containers' && <ContainersTab />}
-          {activeTab === 'runtimes' && <RuntimesTab />}
-          {activeTab === 'previews' && <PreviewsTab />}
+      {/* ── Left Sidebar ── */}
+      <div className="w-[240px] shrink-0 flex flex-col border-r border-border bg-surface overflow-hidden">
+        <div className="px-3 py-2 border-b border-border shrink-0">
+          <span className="wv-label">{SIDEBAR_ITEMS.find((s) => s.id === activeSidebar)?.label || ''}</span>
         </div>
+        <div className="flex-1 overflow-y-auto">
+          {activeSidebar === 'files' && <FilesPanel />}
+          {activeSidebar === 'sessions' && <SessionsPanel />}
+          {activeSidebar === 'workspace' && <WorkspacePanel />}
+          {activeSidebar === 'repositories' && <RepositoriesPanel />}
+          {activeSidebar === 'roadmap' && <RoadmapPanel />}
+          {activeSidebar === 'risks' && <RisksPanel />}
+        </div>
+      </div>
+
+      {/* ── Center + Bottom ── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Editor/infra tab bar */}
+        <div className="flex items-center h-8 shrink-0 border-b border-border bg-canvas overflow-x-auto">
+          {/* Open file tabs */}
+          {openFiles.map((file) => (
+            <button
+              key={file.path}
+              onClick={() => { setActiveFile(file.path); setActiveCenter('editor') }}
+              className={`flex items-center gap-1.5 px-3 h-full text-[11px] shrink-0 border-r border-border transition-colors ${
+                activeCenter === 'editor' && activeFile === file.path
+                  ? 'text-text-primary bg-surface'
+                  : 'text-text-tertiary hover:text-text-secondary'
+              }`}
+            >
+              <span className="truncate max-w-[120px]">{file.name}</span>
+              {file.dirty && <span className="text-warn text-[9px]">●</span>}
+              <span
+                onClick={(e) => { e.stopPropagation(); closeFile(file.path) }}
+                className="ml-0.5 text-text-tertiary hover:text-text-primary text-[10px]"
+              >
+                ×
+              </span>
+            </button>
+          ))}
+
+          <div className="flex-1" />
+
+          {/* Pinned infrastructure tabs */}
+          {CENTER_TABS.map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setActiveCenter(id)}
+              className={`flex items-center gap-1 px-2.5 h-full text-[10px] shrink-0 border-l border-border transition-colors ${
+                activeCenter === id
+                  ? 'text-cyan bg-surface'
+                  : 'text-text-tertiary hover:text-text-secondary'
+              }`}
+              title={label}
+            >
+              <Icon size={12} />
+              <span className="hidden xl:inline">{label}</span>
+            </button>
+          ))}
+
+          {/* Terminal toggle */}
+          <button
+            onClick={() => setShowTerminal(!showTerminal)}
+            className={`flex items-center gap-1 px-2.5 h-full text-[10px] shrink-0 border-l border-border transition-colors ${
+              showTerminal ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary'
+            }`}
+            title="Toggle Terminal"
+          >
+            <TerminalIcon size={12} />
+            <span className="hidden xl:inline">⌘</span>
+          </button>
+        </div>
+
+        {/* Center content */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
+            {activeCenter === 'editor' && <EditorContent />}
+            {activeCenter === 'terminals' && <TerminalsContent />}
+            {activeCenter === 'containers' && <ContainersContent />}
+            {activeCenter === 'runtimes' && <RuntimesContent />}
+            {activeCenter === 'previews' && <PreviewsContent />}
+          </div>
+        </div>
+
+        {/* Bottom panel: Terminal */}
+        {showTerminal && <TerminalBridge />}
       </div>
     </div>
   )
