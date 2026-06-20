@@ -167,6 +167,9 @@ interface MetaIDEState {
   windowsTree: FileEntry[]
   fileMeshNodes: FileMeshNode[]
   windowsOnline: boolean
+  vpsExpanded: boolean
+  windowsExpanded: boolean
+  expandedDirs: Set<string>
 
   setActiveTab: (tab: ActiveTab) => void
   setActiveSidebar: (tab: SidebarTab) => void
@@ -182,6 +185,10 @@ interface MetaIDEState {
   setWindowsTree: (entries: FileEntry[]) => void
   setFileMeshNodes: (nodes: FileMeshNode[]) => void
   setWindowsOnline: (online: boolean) => void
+  setVpsExpanded: (v: boolean) => void
+  setWindowsExpanded: (v: boolean) => void
+  toggleDir: (path: string) => void
+  isDirExpanded: (path: string) => boolean
   fetchRepositories: () => Promise<void>
   fetchWorkspace: () => Promise<void>
   fetchRoadmap: () => Promise<void>
@@ -211,6 +218,9 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
   windowsTree: [],
   fileMeshNodes: [],
   windowsOnline: false,
+  vpsExpanded: true,
+  windowsExpanded: true,
+  expandedDirs: new Set<string>(),
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   setActiveSidebar: (tab) => set({ activeSidebar: tab, showSidebar: true }),
@@ -233,6 +243,14 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
     set({ fileMeshNodes: nodes, windowsOnline: online })
   },
   setWindowsOnline: (online) => set({ windowsOnline: online }),
+  setVpsExpanded: (v) => set({ vpsExpanded: v }),
+  setWindowsExpanded: (v) => set({ windowsExpanded: v }),
+  toggleDir: (path) => set((s) => {
+    const next = new Set(s.expandedDirs)
+    if (next.has(path)) next.delete(path); else next.add(path)
+    return { expandedDirs: next }
+  }),
+  isDirExpanded: (path) => useMetaIDEStore.getState().expandedDirs.has(path),
 
   fetchRepositories: async () => {
     set({ loading: true, error: null })
