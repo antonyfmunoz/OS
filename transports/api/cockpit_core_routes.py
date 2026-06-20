@@ -2856,13 +2856,52 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         Replaces ~15 parallel GET requests the cockpit fires on page load.
         Each source is independently faulted — partial data is fine.
+        Runs blocking work in a thread to avoid stalling the event loop,
+        with a 15-second ceiling so Fly never 504s.
         """
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(_bootstrap_sync), timeout=15,
+            )
+        except asyncio.TimeoutError:
+            return {"ok": False, "ts": "", "_errors": ["bootstrap timed out after 15s"]}
+
+    def _fetch_windows_files() -> dict[str, Any]:
+        """SSH to Beast for root file listing — isolated so it can be deadline-capped."""
+        from transports.api.cockpit_workspace_routes import _ssh_cmd
+        _win_ok, _win_out = _ssh_cmd(
+            'powershell -Command "Get-ChildItem -LiteralPath \'C:\\\''
+            ' | ForEach-Object { $_.Name + \'|\''
+            ' + $(if($_.PSIsContainer){\'directory\'}else{\'file\'})'
+            ' + \'|\' + $_.Length }"'
+        )
+        _win_entries: list[dict[str, Any]] = []
+        if _win_ok:
+            for _line in _win_out.strip().splitlines():
+                _parts = _line.strip().split("|")
+                if len(_parts) >= 2:
+                    _win_entries.append({
+                        "name": _parts[0],
+                        "path": "C:\\" + _parts[0],
+                        "type": _parts[1],
+                        "source_env": "windows",
+                    })
+        return {"ok": _win_ok, "entries": _win_entries}
+
+    def _bootstrap_sync() -> dict[str, Any]:
+        """All blocking bootstrap work — runs in a worker thread."""
+        import concurrent.futures
+
         errors: list[str] = []
         result: dict[str, Any] = {"ok": True, "ts": ""}
 
         import datetime as _dt
 
         result["ts"] = _dt.datetime.now(_dt.timezone.utc).isoformat()
+
+        # kick off Windows SSH in parallel immediately
+        win_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        win_future = win_executor.submit(_fetch_windows_files)
 
         # config
         try:
@@ -3142,32 +3181,17 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             errors.append(f"vps_files: {e}")
             result["vps_files"] = {}
 
-        # Windows root file listing (avoids separate /workspace/remote-browse call)
+        # Windows root file listing — collect from parallel future (kicked off at top)
         try:
-            from transports.api.cockpit_workspace_routes import _ssh_cmd
-            _win_ok, _win_out = _ssh_cmd(
-                'powershell -Command "Get-ChildItem -LiteralPath \'C:\\\''
-                ' | ForEach-Object { $_.Name + \'|\''
-                ' + $(if($_.PSIsContainer){\'directory\'}else{\'file\'})'
-                ' + \'|\' + $_.Length }"'
-            )
-            _win_entries: list[dict[str, Any]] = []
-            if _win_ok:
-                for _line in _win_out.strip().splitlines():
-                    _parts = _line.strip().split("|")
-                    if len(_parts) >= 2:
-                        _wname = _parts[0]
-                        _wtype = _parts[1]
-                        _win_entries.append({
-                            "name": _wname,
-                            "path": "C:\\" + _wname,
-                            "type": _wtype,
-                            "source_env": "windows",
-                        })
-            result["windows_files"] = {"ok": _win_ok, "entries": _win_entries}
+            result["windows_files"] = win_future.result(timeout=10)
+        except concurrent.futures.TimeoutError:
+            errors.append("windows_files: SSH timed out")
+            result["windows_files"] = {"ok": False, "entries": []}
         except Exception as e:
             errors.append(f"windows_files: {e}")
             result["windows_files"] = {"ok": False, "entries": []}
+        finally:
+            win_executor.shutdown(wait=False)
 
         # chat / dex availability
         try:
