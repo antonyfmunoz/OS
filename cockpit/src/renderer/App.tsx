@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { SignedIn, SignedOut, SignIn, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react'
 import { Shell } from './components/Shell'
 import { GuestJoinPage } from './components/rooms/GuestJoinPage'
@@ -11,19 +11,30 @@ import { setTokenGetter } from './api/client'
 
 const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
-function ClerkTokenBridge() {
+function TokenGate({ children }: { children: ReactNode }) {
   const { getToken } = useAuth()
   const ref = useRef(getToken)
   ref.current = getToken
+  const [ready, setReady] = useState(false)
+
   useEffect(() => {
-    setTokenGetter(async () => {
-      const token = await ref.current()
-      if (token) return token
-      await new Promise<void>((r) => setTimeout(r, 300))
-      return ref.current()
-    })
+    setTokenGetter(async () => ref.current())
+    let cancelled = false
+    const poll = async () => {
+      for (let i = 0; i < 20; i++) {
+        if (cancelled) return
+        const t = await ref.current()
+        if (t) { setReady(true); return }
+        await new Promise<void>((r) => setTimeout(r, 250))
+      }
+      setReady(true)
+    }
+    poll()
+    return () => { cancelled = true }
   }, [])
-  return null
+
+  if (!ready) return null
+  return <>{children}</>
 }
 
 function AuthenticatedApp() {
@@ -111,8 +122,9 @@ export function App() {
       </ClerkLoading>
       <ClerkLoaded>
         <SignedIn>
-          <ClerkTokenBridge />
-          <AuthenticatedApp />
+          <TokenGate>
+            <AuthenticatedApp />
+          </TokenGate>
         </SignedIn>
         <SignedOut>
           <LoginScreen />
