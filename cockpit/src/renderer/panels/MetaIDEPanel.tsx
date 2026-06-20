@@ -997,7 +997,7 @@ export function MetaIDEPanel() {
     activeSidebar, showSidebar, toggleSidebarTab,
     activePanel, setActivePanel, showPanel, setShowPanel, togglePanel,
     panelMaximized, togglePanelMaximized,
-    sidebarWidth, setSidebarWidth, panelHeight, setPanelHeight,
+    panelHeight, setPanelHeight,
   } = useMetaIDEStore()
   const openFiles = useEditorStore((s) => s.openFiles)
   const activeFile = useEditorStore((s) => s.activeFile)
@@ -1008,7 +1008,6 @@ export function MetaIDEPanel() {
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null)
 
-  const sidebarDrag = useDragResize('x', setSidebarWidth)
   const panelDrag = useDragResize('y', setPanelHeight, true)
 
   // Keyboard shortcuts
@@ -1054,7 +1053,7 @@ export function MetaIDEPanel() {
             onClick={() => toggleSidebarTab(id)}
             className={`w-full h-10 flex items-center justify-center transition-colors ${
               activeSidebar === id && showSidebar
-                ? 'text-cyan bg-cyan-glow border-r-2 border-cyan'
+                ? 'text-cyan'
                 : 'text-text-tertiary hover:text-text-secondary hover:bg-surface-raised'
             }`}
             title={id}
@@ -1079,7 +1078,7 @@ export function MetaIDEPanel() {
       {/* ── Left Sidebar ── */}
       {showSidebar && (
         <>
-          <div className="shrink-0 flex flex-col border-r border-border overflow-hidden" style={{ width: sidebarWidth }}>
+          <div className="shrink-0 flex flex-col border-r border-border overflow-hidden" style={{ width: 'var(--spacing-rail)' }}>
             <div className="px-3 py-2 border-b border-border shrink-0">
               <span className="wv-label">{SIDEBAR_ITEMS.find((s) => s.id === activeSidebar)?.label || ''}</span>
             </div>
@@ -1092,11 +1091,6 @@ export function MetaIDEPanel() {
               {activeSidebar === 'risks' && <RisksPanel />}
             </div>
           </div>
-          {/* Sidebar resize handle */}
-          <div
-            className="w-1 shrink-0 cursor-col-resize hover:bg-cyan/30 active:bg-cyan/50 transition-colors"
-            onMouseDown={(e) => sidebarDrag(e, sidebarWidth)}
-          />
         </>
       )}
 
