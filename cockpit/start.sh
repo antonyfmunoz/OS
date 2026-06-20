@@ -21,7 +21,7 @@ tailscaled --state=/var/lib/tailscale/tailscaled.state \
 sleep 2
 
 # Connect to tailnet (non-fatal — nginx already serving static assets)
-tailscale up --authkey="${TAILSCALE_AUTHKEY}" --hostname=umh-cockpit --accept-routes --reset || true
+tailscale up --authkey="${TAILSCALE_AUTHKEY}" --hostname=umh-cockpit --accept-routes || true
 
 sleep 2
 
