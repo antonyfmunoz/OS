@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { SignedIn, SignedOut, SignIn, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react'
 import { Shell } from './components/Shell'
 import { GuestJoinPage } from './components/rooms/GuestJoinPage'
@@ -11,13 +11,27 @@ import { setTokenGetter } from './api/client'
 
 const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
-function ClerkTokenBridge() {
-  const { getToken } = useAuth()
+function TokenGate({ children }: { children: ReactNode }) {
+  const { getToken, isLoaded } = useAuth()
   const ref = useRef(getToken)
   ref.current = getToken
-  // Set synchronously during render so token is available before any child effects fire
+  const [ready, setReady] = useState(false)
+
   setTokenGetter(async () => ref.current())
-  return null
+
+  useEffect(() => {
+    if (!isLoaded) return
+    let cancelled = false
+    const check = async () => {
+      const t = await ref.current()
+      if (!cancelled && t) setReady(true)
+    }
+    check()
+    return () => { cancelled = true }
+  }, [isLoaded])
+
+  if (!ready) return null
+  return <>{children}</>
 }
 
 function AuthenticatedApp() {
@@ -105,8 +119,9 @@ export function App() {
       </ClerkLoading>
       <ClerkLoaded>
         <SignedIn>
-          <ClerkTokenBridge />
-          <AuthenticatedApp />
+          <TokenGate>
+            <AuthenticatedApp />
+          </TokenGate>
         </SignedIn>
         <SignedOut>
           <LoginScreen />
