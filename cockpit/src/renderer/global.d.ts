@@ -29,7 +29,7 @@ declare global {
     cockpit?: CockpitBridge
     Clerk?: {
       session?: {
-        getToken: () => Promise<string>
+        getToken: (opts?: { skipCache?: boolean }) => Promise<string>
       }
     }
   }
