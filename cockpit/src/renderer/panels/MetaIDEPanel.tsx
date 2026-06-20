@@ -1047,15 +1047,15 @@ export function MetaIDEPanel() {
   return (
     <div className="h-full flex overflow-hidden bg-surface">
       {/* ── Activity Bar ── */}
-      <div className="w-12 shrink-0 flex flex-col items-center py-2 gap-0.5 border-r border-border">
+      <div className="w-12 shrink-0 flex flex-col border-r border-border">
         {SIDEBAR_ITEMS.map(({ id, icon: Icon }) => (
           <button
             key={id}
             onClick={() => toggleSidebarTab(id)}
-            className={`w-10 h-9 flex items-center justify-center rounded transition-colors ${
+            className={`w-full h-10 flex items-center justify-center transition-colors ${
               activeSidebar === id && showSidebar
-                ? 'text-cyan border-l-2 border-cyan bg-cyan-glow'
-                : 'text-text-tertiary hover:text-text-secondary'
+                ? 'text-cyan bg-cyan-glow border-r-2 border-cyan'
+                : 'text-text-tertiary hover:text-text-secondary hover:bg-surface-raised'
             }`}
             title={id}
           >
@@ -1067,7 +1067,7 @@ export function MetaIDEPanel() {
 
         <button
           onClick={togglePanel}
-          className={`w-10 h-9 flex items-center justify-center rounded transition-colors ${
+          className={`w-full h-10 flex items-center justify-center transition-colors ${
             showPanel ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary'
           }`}
           title="Toggle Panel (Ctrl+`)"
