@@ -111,6 +111,7 @@ interface SystemState {
   fetchInfra: () => Promise<void>
   fetchBuildInfo: () => Promise<void>
   setPulse: (data: PulseData) => void
+  setMeshNodes: (raw: Array<Record<string, unknown>>) => void
 }
 
 export const useSystemStore = create<SystemState>((set) => ({
@@ -124,6 +125,23 @@ export const useSystemStore = create<SystemState>((set) => ({
   error: null,
 
   setPulse: (data) => set({ pulse: data, error: null }),
+
+  setMeshNodes: (raw) => {
+    const nodes: MeshNode[] = raw.map((n) => {
+      const hostname = (n.hostname ?? n.name ?? '') as string
+      return {
+        node_id: (n.node_id ?? n.id ?? '') as string,
+        hostname,
+        name: (n.name ?? hostname) as string,
+        role: (n.role ?? 'node') as string,
+        status: String(n.status) === 'connected' || String(n.status) === 'online' ? 'online' : String(n.status),
+        os: (n.os ?? '') as string,
+        ip: (n.ip ?? '') as string,
+        last_seen: (n.last_seen ?? n.last_heartbeat ?? '') as string,
+      }
+    })
+    set({ meshNodes: nodes, error: null })
+  },
 
   fetchPulse: async () => {
     try {

@@ -9,6 +9,7 @@ import { useEditorStore } from '../stores/editorStore'
 import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { fetchApi } from '../api/client'
+import { useBootstrapStore } from '../stores/bootstrapStore'
 import { VPS, BEAST } from '../constants/devices'
 import type { LucideIcon } from 'lucide-react'
 
@@ -288,6 +289,17 @@ function FilesPanel() {
   }
 
   useEffect(() => {
+    const bsCache = useBootstrapStore.getState().cache
+    if (bsCache.vps_files?.ok && bsCache.vps_files.entries?.length) {
+      setVpsTree(bsCache.vps_files.entries.map((e) => ({ name: e.name, path: e.path, type: e.type as 'file' | 'directory' })))
+      setVpsLoading(false)
+    }
+    if (bsCache.mesh_nodes && Array.isArray(bsCache.mesh_nodes)) {
+      const nodes = bsCache.mesh_nodes as MeshNode[]
+      setMeshNodes(nodes)
+      setWindowsOnline(nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online')))
+    }
+
     loadData()
     const id = setInterval(loadData, 30000)
     return () => clearInterval(id)

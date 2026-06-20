@@ -17,6 +17,11 @@ interface BootstrapResponse {
   dex_available: boolean
   chat_available: boolean
   _errors: string[]
+  command_center_summary?: Record<string, unknown>
+  approvals?: Array<Record<string, unknown>>
+  mesh_nodes?: Array<Record<string, unknown>>
+  workstation_nodes?: Record<string, unknown>
+  vps_files?: { ok?: boolean; entries?: Array<{ name: string; path: string; type: string }> }
 }
 
 interface BootstrapState {
@@ -26,6 +31,7 @@ interface BootstrapState {
   chatAvailable: boolean
   dexAvailable: boolean
   degraded: boolean
+  cache: Partial<BootstrapResponse>
 
   boot: () => Promise<void>
 }
@@ -37,6 +43,7 @@ export const useBootstrapStore = create<BootstrapState>((set) => ({
   chatAvailable: false,
   dexAvailable: false,
   degraded: false,
+  cache: {},
 
   boot: async () => {
     set({ loading: true })
@@ -65,6 +72,10 @@ export const useBootstrapStore = create<BootstrapState>((set) => ({
         })
       }
 
+      if (data.mesh_nodes && Array.isArray(data.mesh_nodes)) {
+        useSystemStore.getState().setMeshNodes(data.mesh_nodes)
+      }
+
       set({
         loaded: true,
         loading: false,
@@ -72,6 +83,16 @@ export const useBootstrapStore = create<BootstrapState>((set) => ({
         dexAvailable: data.dex_available ?? false,
         errors: data._errors ?? [],
         degraded: (data._errors?.length ?? 0) > 0,
+        cache: {
+          command_center_summary: data.command_center_summary,
+          approvals: data.approvals,
+          mesh_nodes: data.mesh_nodes,
+          workstation_nodes: data.workstation_nodes,
+          vps_files: data.vps_files,
+          mode_composite: data.mode_composite,
+          continuity: data.continuity,
+          overnight: data.overnight,
+        },
       })
     } catch (err) {
       console.error('[bootstrap] failed:', err)

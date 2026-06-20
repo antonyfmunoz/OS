@@ -8,6 +8,7 @@ import { useUnifiedWorkstationStore } from '../stores/unifiedWorkstationStore'
 import { ActionRequired, buildActionItems } from '../components/ActionRequired'
 import { fetchApi } from '../api/client'
 import { usePolling } from '../hooks/usePolling'
+import { useBootstrapStore } from '../stores/bootstrapStore'
 
 interface SummaryData {
   ok: boolean
@@ -98,7 +99,13 @@ export function CommandCenterPanel() {
   }, [])
 
   useEffect(() => {
-    fetchSummary()
+    const cached = useBootstrapStore.getState().cache.command_center_summary as SummaryData | undefined
+    if (cached && cached.ok) {
+      setSummary(cached)
+      setLoading(false)
+    } else {
+      fetchSummary()
+    }
     const id = setInterval(fetchSummary, 10000)
     return () => clearInterval(id)
   }, [fetchSummary])
@@ -108,6 +115,25 @@ export function CommandCenterPanel() {
   }, [setViewContext])
 
   useEffect(() => {
+    const bsCache = useBootstrapStore.getState().cache
+    if (bsCache.continuity) {
+      const c = bsCache.continuity as Record<string, unknown>
+      setContinuityState((c.state as string) || 'ACTIVE')
+    }
+    if (bsCache.mode_composite) {
+      const m = bsCache.mode_composite as Record<string, unknown>
+      setRiskCeiling((m.risk_ceiling as string) || 'HIGH')
+      setLifecycleMode((m.lifecycle_mode as string) || 'DAY_CYCLE')
+    }
+    if (bsCache.overnight) {
+      const o = bsCache.overnight as Record<string, unknown>
+      setOvernightStatus({
+        safe: (o.safe_count as number) || 0,
+        pending: (o.pending_count as number) || 0,
+        blocked: (o.blocked_count as number) || 0,
+      })
+    }
+
     const fetchExtras = async () => {
       try {
         const d = await fetchApi<{ state?: string }>('/workstation/continuity')
