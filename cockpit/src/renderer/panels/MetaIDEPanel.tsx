@@ -8,7 +8,7 @@ import { useMetaIDEStore, type SidebarTab, type PanelTab } from '../stores/metaI
 import { useEditorStore } from '../stores/editorStore'
 import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 import { useViewContextStore } from '../stores/viewContextStore'
-import { fetchApi, ApiError } from '../api/client'
+import { fetchApi } from '../api/client'
 import { VPS, BEAST } from '../constants/devices'
 import type { LucideIcon } from 'lucide-react'
 
@@ -144,18 +144,14 @@ async function browseDir(path: string, node?: string): Promise<FileEntry[]> {
         `/workspace/remote-browse?node=windows&path=${encodeURIComponent(path)}`,
       )
       if (data.ok && data.entries) return data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type }))
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 401) throw e
-    }
+    } catch { /* remote browse failed */ }
     return []
   }
   try {
     const qs = path ? `?path=${encodeURIComponent(path)}` : ''
     const data = await fetchApi<{ ok: boolean; entries: FileEntry[] }>(`/workspace/browse${qs}`)
     if (data.ok && data.entries) return data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type }))
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 401) throw e
-  }
+  } catch { /* API fallback failed */ }
   return []
 }
 
@@ -272,33 +268,21 @@ function FilesPanel() {
   const [windowsExpanded, setWindowsExpanded] = useState(true)
   const [meshNodes, setMeshNodes] = useState<MeshNode[]>([])
   const [windowsOnline, setWindowsOnline] = useState(false)
-  const [authExpired, setAuthExpired] = useState(false)
   const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
 
   const loadData = async () => {
     setVpsLoading(true)
-    try {
-      const vpsEntries = await browseDir('/')
-      if (vpsEntries.length > 0) {
-        setVpsTree(vpsEntries)
-        setAuthExpired(false)
-      }
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 401) setAuthExpired(true)
-    }
+    const vpsEntries = await browseDir('/')
+    setVpsTree(vpsEntries)
     setVpsLoading(false)
+
+    browseDir('C:\\', 'windows').then((entries) => setWindowsTree(entries))
 
     try {
       const data = await fetchApi<{ ok: boolean; nodes: MeshNode[] }>('/workspace/mesh-nodes')
       if (data.ok && data.nodes) {
         setMeshNodes(data.nodes)
-        const online = data.nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online'))
-        setWindowsOnline(online)
-        if (online) {
-          browseDir('C:\\', 'windows').then((entries) => {
-            if (entries.length > 0) setWindowsTree(entries)
-          }).catch(() => {})
-        }
+        setWindowsOnline(data.nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online')))
       }
     } catch { /* mesh-nodes unavailable */ }
   }
@@ -325,21 +309,12 @@ function FilesPanel() {
 
   return (
     <div className="py-1">
-      {authExpired && (
-        <button
-          onClick={() => window.location.reload()}
-          className="w-full text-[11px] px-3 py-2 text-danger hover:underline text-left"
-        >
-          Session expired — click to refresh
-        </button>
-      )}
-
       <button
         onClick={() => setVpsExpanded(!vpsExpanded)}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-raised transition-colors"
       >
         <span className="text-text-tertiary text-[9px]">{vpsExpanded ? '▾' : '▸'}</span>
-        <span className="text-[9px] text-ok">●</span>
+        <span className="text-ok text-[9px]">●</span>
         <span className="wv-label flex-1 text-left">{vpsName}</span>
       </button>
       {vpsExpanded && (
