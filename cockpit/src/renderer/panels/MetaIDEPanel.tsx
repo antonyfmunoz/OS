@@ -9,6 +9,7 @@ import { useEditorStore } from '../stores/editorStore'
 import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { fetchApi } from '../api/client'
+import { useBootstrapStore } from '../stores/bootstrapStore'
 import { VPS, BEAST } from '../constants/devices'
 import type { LucideIcon } from 'lucide-react'
 
@@ -278,13 +279,14 @@ function FilesPanel() {
   const vpsExpanded = useMetaIDEStore((s) => s.vpsExpanded)
   const windowsExpanded = useMetaIDEStore((s) => s.windowsExpanded)
   const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
-  const [initialLoading, setInitialLoading] = useState(vpsTree.length === 0)
+  const bootstrapLoaded = useBootstrapStore((s) => s.loaded)
+  const [fetchFailed, setFetchFailed] = useState(false)
 
   const refreshData = async () => {
     const store = useMetaIDEStore.getState()
     const vpsEntries = await browseDir('/')
-    if (vpsEntries.length > 0) store.setVpsTree(vpsEntries)
-    setInitialLoading(false)
+    if (vpsEntries.length > 0) { store.setVpsTree(vpsEntries); setFetchFailed(false) }
+    else if (store.vpsTree.length === 0) setFetchFailed(true)
 
     browseDir('C:\\', 'windows').then((entries) => { if (entries.length > 0) store.setWindowsTree(entries) })
 
@@ -315,6 +317,7 @@ function FilesPanel() {
 
   const vpsName = meshNodes.find((n) => n.id === 'vps')?.name || VPS.displayName
   const windowsName = meshNodes.find((n) => n.os === 'windows')?.name || BEAST.displayName
+  const windowsKnown = bootstrapLoaded || meshNodes.length > 0
 
   return (
     <div className="py-1">
@@ -333,9 +336,9 @@ function FilesPanel() {
           ))}
           {vpsTree.length === 0 && (
             <p className="text-[11px] px-4 py-2 text-text-tertiary">
-              {initialLoading ? 'Loading...' : (
+              {fetchFailed ? (
                 <button onClick={refreshData} className="text-cyan hover:underline">Retry — failed to load</button>
-              )}
+              ) : 'Loading...'}
             </p>
           )}
         </>
@@ -358,7 +361,11 @@ function FilesPanel() {
               ))}
               {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-text-tertiary">Loading files...</p>}
             </>
-          ) : null}
+          ) : (
+            <p className="text-[11px] px-4 py-2 text-text-tertiary">
+              {windowsKnown ? 'Offline' : 'Connecting...'}
+            </p>
+          )}
         </>
       )}
     </div>
