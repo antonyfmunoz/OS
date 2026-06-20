@@ -284,14 +284,15 @@ function FilesPanel() {
   const toggleSection = useCollapseStore((s) => s.toggle)
   const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
   const bootstrapLoaded = useBootstrapStore((s) => s.loaded)
-  const slowLoading = useBootstrapStore((s) => s.slowLoading)
   const [fetchFailed, setFetchFailed] = useState(false)
+  const [fetching, setFetching] = useState(true)
 
   const refreshData = async () => {
     const store = useMetaIDEStore.getState()
     const vpsEntries = await browseDir('/')
     if (vpsEntries.length > 0) { store.setVpsTree(vpsEntries); setFetchFailed(false) }
     else if (store.vpsTree.length === 0) setFetchFailed(true)
+    setFetching(false)
 
     browseDir('C:\\', 'windows').then((entries) => { if (entries.length > 0) store.setWindowsTree(entries) })
 
@@ -343,7 +344,7 @@ function FilesPanel() {
             <p className="text-[11px] px-4 py-2 text-text-tertiary">
               {fetchFailed ? (
                 <button onClick={refreshData} className="text-cyan hover:underline">Retry — failed to load</button>
-              ) : slowLoading ? 'Fetching files...' : 'No files loaded'}
+              ) : fetching ? 'Fetching files...' : 'No files loaded'}
             </p>
           )}
         </>
@@ -368,7 +369,7 @@ function FilesPanel() {
             </>
           ) : (
             <p className="text-[11px] px-4 py-2 text-text-tertiary">
-              {windowsKnown ? 'Offline' : slowLoading ? 'Fetching...' : 'Offline'}
+              {windowsKnown ? 'Offline' : fetching ? 'Fetching...' : 'Offline'}
             </p>
           )}
         </>
