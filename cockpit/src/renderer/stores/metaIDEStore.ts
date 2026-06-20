@@ -142,6 +142,9 @@ type ActiveTab = 'files' | 'editor' | 'sessions' | 'repositories' | 'workspace' 
 export type SidebarTab = 'files' | 'sessions' | 'workspace' | 'repositories' | 'roadmap' | 'risks'
 export type PanelTab = 'terminal' | 'terminals' | 'containers' | 'runtimes'
 
+export interface FileEntry { name: string; path: string; type: 'file' | 'directory' }
+export interface FileMeshNode { id: string; name: string; os: string; status: string; ip?: string; device_type?: string }
+
 interface MetaIDEState {
   activeTab: ActiveTab
   activeSidebar: SidebarTab
@@ -160,6 +163,11 @@ interface MetaIDEState {
   loading: boolean
   error: string | null
 
+  vpsTree: FileEntry[]
+  windowsTree: FileEntry[]
+  fileMeshNodes: FileMeshNode[]
+  windowsOnline: boolean
+
   setActiveTab: (tab: ActiveTab) => void
   setActiveSidebar: (tab: SidebarTab) => void
   setShowSidebar: (show: boolean) => void
@@ -170,6 +178,10 @@ interface MetaIDEState {
   togglePanelMaximized: () => void
   setSidebarWidth: (w: number) => void
   setPanelHeight: (h: number) => void
+  setVpsTree: (entries: FileEntry[]) => void
+  setWindowsTree: (entries: FileEntry[]) => void
+  setFileMeshNodes: (nodes: FileMeshNode[]) => void
+  setWindowsOnline: (online: boolean) => void
   fetchRepositories: () => Promise<void>
   fetchWorkspace: () => Promise<void>
   fetchRoadmap: () => Promise<void>
@@ -195,6 +207,11 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
   loading: false,
   error: null,
 
+  vpsTree: [],
+  windowsTree: [],
+  fileMeshNodes: [],
+  windowsOnline: false,
+
   setActiveTab: (tab) => set({ activeTab: tab }),
   setActiveSidebar: (tab) => set({ activeSidebar: tab, showSidebar: true }),
   setShowSidebar: (show) => set({ showSidebar: show }),
@@ -208,6 +225,14 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
   togglePanelMaximized: () => set((s) => ({ panelMaximized: !s.panelMaximized })),
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(150, Math.min(400, w)) }),
   setPanelHeight: (h) => set({ panelHeight: Math.max(100, Math.min(600, h)) }),
+
+  setVpsTree: (entries) => set({ vpsTree: entries }),
+  setWindowsTree: (entries) => set({ windowsTree: entries }),
+  setFileMeshNodes: (nodes) => {
+    const online = nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online'))
+    set({ fileMeshNodes: nodes, windowsOnline: online })
+  },
+  setWindowsOnline: (online) => set({ windowsOnline: online }),
 
   fetchRepositories: async () => {
     set({ loading: true, error: null })

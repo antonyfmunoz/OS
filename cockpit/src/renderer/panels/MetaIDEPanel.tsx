@@ -9,7 +9,6 @@ import { useEditorStore } from '../stores/editorStore'
 import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { fetchApi } from '../api/client'
-import { useBootstrapStore } from '../stores/bootstrapStore'
 import { VPS, BEAST } from '../constants/devices'
 import type { LucideIcon } from 'lucide-react'
 
@@ -137,6 +136,7 @@ function TabContextMenu({ x, y, path, onClose }: {
 }
 
 type FileEntry = { name: string; path: string; type: 'file' | 'directory' }
+type MeshNode = { id: string; name: string; os: string; status: string; ip?: string; device_type?: string }
 
 async function browseDir(path: string, node?: string): Promise<FileEntry[]> {
   if (node === 'windows') {
@@ -210,8 +210,6 @@ async function writeFileContent(path: string, content: string, node?: string): P
   } catch { return false }
 }
 
-interface MeshNode { id: string; name: string; os: string; status: string; ip?: string; device_type?: string }
-
 // ─── File tree node ──────────────────────────────────────────────
 
 function IDEFileTreeNode({ name, path, type, depth, node, onFileOpen }: {
@@ -262,46 +260,34 @@ function IDEFileTreeNode({ name, path, type, depth, node, onFileOpen }: {
 // ─── Sidebar: Files ──────────────────────────────────────────────
 
 function FilesPanel() {
-  const [vpsTree, setVpsTree] = useState<FileEntry[]>([])
-  const [windowsTree, setWindowsTree] = useState<FileEntry[]>([])
-  const [vpsLoading, setVpsLoading] = useState(true)
+  const vpsTree = useMetaIDEStore((s) => s.vpsTree)
+  const windowsTree = useMetaIDEStore((s) => s.windowsTree)
+  const meshNodes = useMetaIDEStore((s) => s.fileMeshNodes)
+  const windowsOnline = useMetaIDEStore((s) => s.windowsOnline)
+  const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
   const [vpsExpanded, setVpsExpanded] = useState(true)
   const [windowsExpanded, setWindowsExpanded] = useState(true)
-  const [meshNodes, setMeshNodes] = useState<MeshNode[]>([])
-  const [windowsOnline, setWindowsOnline] = useState(false)
-  const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
+  const [initialLoading, setInitialLoading] = useState(vpsTree.length === 0)
 
-  const loadData = async () => {
-    setVpsLoading(true)
+  const refreshData = async () => {
+    const store = useMetaIDEStore.getState()
     const vpsEntries = await browseDir('/')
-    setVpsTree(vpsEntries)
-    setVpsLoading(false)
+    if (vpsEntries.length > 0) store.setVpsTree(vpsEntries)
+    setInitialLoading(false)
 
-    browseDir('C:\\', 'windows').then((entries) => setWindowsTree(entries))
+    browseDir('C:\\', 'windows').then((entries) => { if (entries.length > 0) store.setWindowsTree(entries) })
 
     try {
       const data = await fetchApi<{ ok: boolean; nodes: MeshNode[] }>('/workspace/mesh-nodes')
       if (data.ok && data.nodes) {
-        setMeshNodes(data.nodes)
-        setWindowsOnline(data.nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online')))
+        store.setFileMeshNodes(data.nodes)
       }
     } catch { /* mesh-nodes unavailable */ }
   }
 
   useEffect(() => {
-    const bsCache = useBootstrapStore.getState().cache
-    if (bsCache.vps_files?.ok && bsCache.vps_files.entries?.length) {
-      setVpsTree(bsCache.vps_files.entries.map((e) => ({ name: e.name, path: e.path, type: e.type as 'file' | 'directory' })))
-      setVpsLoading(false)
-    }
-    if (bsCache.mesh_nodes && Array.isArray(bsCache.mesh_nodes)) {
-      const nodes = bsCache.mesh_nodes as MeshNode[]
-      setMeshNodes(nodes)
-      setWindowsOnline(nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online')))
-    }
-
-    loadData()
-    const id = setInterval(loadData, 30000)
+    refreshData()
+    const id = setInterval(refreshData, 30000)
     return () => clearInterval(id)
   }, [])
 
@@ -336,8 +322,8 @@ function FilesPanel() {
           ))}
           {vpsTree.length === 0 && (
             <p className="text-[11px] px-4 py-2 text-text-tertiary">
-              {vpsLoading ? 'Loading...' : (
-                <button onClick={loadData} className="text-cyan hover:underline">Retry — failed to load</button>
+              {initialLoading ? 'Loading...' : (
+                <button onClick={refreshData} className="text-cyan hover:underline">Retry — failed to load</button>
               )}
             </p>
           )}
