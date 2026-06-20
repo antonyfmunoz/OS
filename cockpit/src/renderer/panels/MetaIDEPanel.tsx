@@ -275,14 +275,12 @@ function FilesPanel() {
   const [authExpired, setAuthExpired] = useState(false)
   const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
 
-  const loadData = async (): Promise<boolean> => {
+  const loadData = async () => {
     setVpsLoading(true)
-    let vpsOk = false
     try {
       const vpsEntries = await browseDir('/')
       setVpsTree(vpsEntries)
       setAuthExpired(false)
-      vpsOk = vpsEntries.length > 0
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) setAuthExpired(true)
     }
@@ -299,16 +297,12 @@ function FilesPanel() {
         }
       }
     } catch { /* mesh-nodes unavailable */ }
-    return vpsOk
   }
 
   useEffect(() => {
-    let retryTimer: ReturnType<typeof setTimeout> | null = null
-    loadData().then((ok) => {
-      if (!ok) retryTimer = setTimeout(loadData, 3000)
-    })
+    loadData()
     const id = setInterval(loadData, 30000)
-    return () => { clearInterval(id); if (retryTimer) clearTimeout(retryTimer) }
+    return () => clearInterval(id)
   }, [])
 
   const openFileInEditor = async (path: string, node?: string) => {
@@ -376,9 +370,7 @@ function FilesPanel() {
               ))}
               {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-text-tertiary">Loading files...</p>}
             </>
-          ) : (
-            <p className="text-[11px] px-4 py-2 text-text-tertiary">Offline</p>
-          )}
+          ) : null}
         </>
       )}
     </div>
