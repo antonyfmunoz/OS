@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { SignedIn, SignedOut, SignIn, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react'
 import { Shell } from './components/Shell'
 import { GuestJoinPage } from './components/rooms/GuestJoinPage'
@@ -13,9 +13,16 @@ const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 function ClerkTokenBridge() {
   const { getToken } = useAuth()
+  const ref = useRef(getToken)
+  ref.current = getToken
   useEffect(() => {
-    setTokenGetter(() => getToken())
-  }, [getToken])
+    setTokenGetter(async () => {
+      const token = await ref.current()
+      if (token) return token
+      await new Promise<void>((r) => setTimeout(r, 300))
+      return ref.current()
+    })
+  }, [])
   return null
 }
 
