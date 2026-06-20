@@ -34,8 +34,8 @@ function AuthenticatedApp() {
   const bootSlow = useBootstrapStore((s) => s.bootSlow)
 
   useEffect(() => {
+    bootSlow()
     boot().then(() => {
-      bootSlow()
       loadHistory()
       startPolling()
     })
