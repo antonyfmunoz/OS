@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Zap,
 } from 'lucide-react'
+import { useCollapseStore } from '../stores/collapseStore'
 import { useOperatorLoopStore } from '../stores/operatorLoopStore'
 import type { GoalData, GapData, RecommendationData, DecisionData } from '../stores/operatorLoopStore'
 
@@ -322,14 +323,16 @@ function GoalsTab({
 }
 
 function GoalCard({ goal, onDelete }: { goal: GoalData; onDelete: (id: string) => Promise<boolean> }) {
-  const [expanded, setExpanded] = useState(false)
+  const key = `strategy:goal:${goal.id}`
+  const expanded = useCollapseStore((s) => s.isOpen(key))
+  const toggle = useCollapseStore((s) => s.toggle)
   const met = goal.success_criteria.filter((c) => c.met).length
   const total = goal.success_criteria.length
   const progress = total > 0 ? Math.round((met / total) * 100) : 0
 
   return (
     <div className="border border-border rounded overflow-hidden">
-      <button onClick={() => setExpanded(!expanded)} className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-surface-raised">
+      <button onClick={() => toggle(key)} className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-surface-raised">
         <ChevronRight size={12} className={`text-text-tertiary transition-transform ${expanded ? 'rotate-90' : ''}`} />
         <span className="text-xs text-text-primary flex-1">{goal.title}</span>
         <span className={`px-1.5 py-0.5 text-[9px] font-mono uppercase rounded ${STATUS_COLORS[goal.status] ?? ''}`}>{goal.status}</span>

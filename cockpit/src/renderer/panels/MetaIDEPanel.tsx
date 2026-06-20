@@ -5,6 +5,7 @@ import {
   Maximize2, Minimize2,
 } from 'lucide-react'
 import { useMetaIDEStore, type SidebarTab, type PanelTab } from '../stores/metaIDEStore'
+import { useCollapseStore } from '../stores/collapseStore'
 import { useEditorStore } from '../stores/editorStore'
 import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 import { useViewContextStore } from '../stores/viewContextStore'
@@ -217,7 +218,9 @@ function IDEFileTreeNode({ name, path, type, depth, node, onFileOpen }: {
   name: string; path: string; type: 'file' | 'directory'; depth: number; node?: string
   onFileOpen?: (path: string, node?: string) => void
 }) {
-  const expanded = useMetaIDEStore((s) => s.expandedDirs.has(path))
+  const dirKey = `filetree:${node || 'vps'}:${path}`
+  const expanded = useCollapseStore((s) => s.isOpen(dirKey))
+  const toggleDir = useCollapseStore((s) => s.toggle)
   const [children, setChildren] = useState<FileEntry[]>([])
   const childrenLoaded = useRef(false)
 
@@ -234,7 +237,7 @@ function IDEFileTreeNode({ name, path, type, depth, node, onFileOpen }: {
         setChildren(entries)
         childrenLoaded.current = true
       }
-      useMetaIDEStore.getState().toggleDir(path)
+      toggleDir(dirKey)
     } else if (onFileOpen) {
       onFileOpen(path, node)
     }
@@ -276,8 +279,9 @@ function FilesPanel() {
   const windowsTree = useMetaIDEStore((s) => s.windowsTree)
   const meshNodes = useMetaIDEStore((s) => s.fileMeshNodes)
   const windowsOnline = useMetaIDEStore((s) => s.windowsOnline)
-  const vpsExpanded = useMetaIDEStore((s) => s.vpsExpanded)
-  const windowsExpanded = useMetaIDEStore((s) => s.windowsExpanded)
+  const vpsExpanded = useCollapseStore((s) => s.isOpen('metaide:vps', true))
+  const windowsExpanded = useCollapseStore((s) => s.isOpen('metaide:windows', true))
+  const toggleSection = useCollapseStore((s) => s.toggle)
   const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
   const bootstrapLoaded = useBootstrapStore((s) => s.loaded)
   const [fetchFailed, setFetchFailed] = useState(false)
@@ -322,7 +326,7 @@ function FilesPanel() {
   return (
     <div className="py-1">
       <button
-        onClick={() => useMetaIDEStore.getState().setVpsExpanded(!vpsExpanded)}
+        onClick={() => toggleSection('metaide:vps')}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-raised transition-colors"
       >
         <span className="text-text-tertiary text-[9px]">{vpsExpanded ? '▾' : '▸'}</span>
@@ -345,7 +349,7 @@ function FilesPanel() {
       )}
 
       <button
-        onClick={() => useMetaIDEStore.getState().setWindowsExpanded(!windowsExpanded)}
+        onClick={() => toggleSection('metaide:windows')}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-raised transition-colors border-t border-border mt-1"
       >
         <span className="text-text-tertiary text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>

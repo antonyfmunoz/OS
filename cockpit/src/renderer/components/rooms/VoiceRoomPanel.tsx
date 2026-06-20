@@ -31,6 +31,7 @@ import {
   Send,
 } from 'lucide-react'
 import { useRoomsStore } from '../../stores/roomsStore'
+import { useCollapseStore } from '../../stores/collapseStore'
 import { useConferenceRoom } from '../../hooks/useConferenceRoom'
 import type {
   ConferenceParticipant as VoiceParticipant,
@@ -993,11 +994,12 @@ function AIGovernanceSection({
   governance: AIGovernancePermissions
   onUpdate: (patch: Partial<AIGovernancePermissions>) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('voice:ai-governance'))
+  const toggle = useCollapseStore((s) => s.toggle)
 
   return (
     <div className="rounded border" style={{ borderColor: 'var(--color-border)' }}>
-      <button onClick={() => setExpanded(!expanded)}
+      <button onClick={() => toggle('voice:ai-governance')}
         className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[9px] font-mono"
         style={{ color: 'var(--color-text-tertiary)' }}
       >
@@ -1048,12 +1050,13 @@ function GovernanceRow({ icon: Icon, label, value }: { icon: typeof Bot; label: 
 }
 
 function ProductionTestChecklist({ items }: { items: ProductionTestItem[] }) {
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('voice:prod-test'))
+  const toggle = useCollapseStore((s) => s.toggle)
   const passCount = items.filter(i => i.status === 'pass').length
 
   return (
     <div className="rounded border" style={{ borderColor: 'var(--color-border)' }}>
-      <button onClick={() => setExpanded(!expanded)}
+      <button onClick={() => toggle('voice:prod-test')}
         className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[9px] font-mono"
         style={{ color: 'var(--color-text-tertiary)' }}
       >
@@ -1087,11 +1090,12 @@ function ProductionTestChecklist({ items }: { items: ProductionTestItem[] }) {
 }
 
 function DiagnosticsSection({ diagnostics, state }: { diagnostics: VoiceDiagnostics; state: string }) {
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('voice:diagnostics'))
+  const toggle = useCollapseStore((s) => s.toggle)
 
   return (
     <div className="rounded border" style={{ borderColor: 'var(--color-border)' }}>
-      <button onClick={() => setExpanded(!expanded)}
+      <button onClick={() => toggle('voice:diagnostics')}
         className="w-full flex items-center gap-1 px-2 py-1.5 text-[9px] font-mono"
         style={{ color: 'var(--color-text-tertiary)' }}
       >

@@ -2,6 +2,7 @@ import { useRef, useCallback, useState } from 'react'
 import { clsx } from 'clsx'
 import { Camera, CameraOff, Aperture, Eye, ChevronDown, Maximize2, Minimize2, PictureInPicture2 } from 'lucide-react'
 import { useVisionStore } from '../stores/visionStore'
+import { useCollapseStore } from '../stores/collapseStore'
 import { getVisionClient } from '../hooks/useVisionConnection'
 import { useVisionPopout } from './VisionPopout'
 import { VisionConnectionStatus } from './vision/VisionConnectionStatus'
@@ -20,7 +21,8 @@ export function CameraPreview() {
   const height = useVisionStore((s) => s.height)
   const poppedOut = useVisionStore((s) => s.poppedOut)
   const { openPopout } = useVisionPopout()
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('vision:camera-preview'))
+  const togglePreview = useCollapseStore((s) => s.toggle)
   const [presetOpen, setPresetOpen] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
 
@@ -94,7 +96,7 @@ export function CameraPreview() {
         {/* Expand/collapse + Pop-out only */}
         <div className="absolute top-1 left-1 flex items-center gap-1">
           <button
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => togglePreview('vision:camera-preview')}
             className="p-1 rounded bg-black/60 text-text-secondary hover:text-white"
             title={expanded ? 'Collapse' : 'Expand'}
           >

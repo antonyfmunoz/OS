@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useCollapseStore } from '../stores/collapseStore'
 import { useOperatorExperienceStore } from '../stores/operatorExperienceStore'
 import { useOperatorLoopStore } from '../stores/operatorLoopStore'
 import type { IntentContract, PacketSummary, PacketDetail, ValidationResult, AuditEntry, ExecuteResult } from '../stores/operatorLoopStore'
@@ -161,7 +162,9 @@ function IntentForm({ onSubmit, loading }: { onSubmit: (c: IntentContract) => Pr
   const [nonGoals, setNonGoals] = useState('')
   const [riskTolerance, setRiskTolerance] = useState<'low' | 'medium' | 'high' | ''>('')
   const [approvalPolicy, setApprovalPolicy] = useState<'auto' | 'always' | ''>('')
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('operator:intent-form'))
+  const collapseToggle = useCollapseStore((s) => s.toggle)
+  const collapseSet = useCollapseStore((s) => s.setOpen)
 
   const handleSubmit = async () => {
     if (!intent.trim()) return
@@ -181,7 +184,7 @@ function IntentForm({ onSubmit, loading }: { onSubmit: (c: IntentContract) => Pr
     setCriteria('')
     setConstraints('')
     setNonGoals('')
-    setExpanded(false)
+    collapseSet('operator:intent-form', false)
   }
 
   return (
@@ -189,7 +192,7 @@ function IntentForm({ onSubmit, loading }: { onSubmit: (c: IntentContract) => Pr
       <div className="flex items-center justify-between mb-2">
         <h3 className="wv-label">Submit Intent</h3>
         <button
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => collapseToggle('operator:intent-form')}
           className="text-[10px] text-cyan font-mono hover:underline"
         >
           {expanded ? 'simple' : 'full contract'}
@@ -328,7 +331,8 @@ function ActivePackets({ packets, onSelect, onExecute, executing }: {
 /* ─── Execution Results ───────────────────────────────────── */
 
 function ExecutionResults({ result }: { result: ExecuteResult }) {
-  const [expanded, setExpanded] = useState(true)
+  const expanded = useCollapseStore((s) => s.isOpen('operator:exec-results', true))
+  const toggle = useCollapseStore((s) => s.toggle)
 
   return (
     <section className={`wv-card p-3 border ${result.all_passed ? 'border-ok/30' : 'border-danger/30'}`}>
@@ -338,7 +342,7 @@ function ExecutionResults({ result }: { result: ExecuteResult }) {
           <span className={`text-[10px] font-mono uppercase ${result.all_passed ? 'text-ok' : 'text-danger'}`}>
             {result.all_passed ? 'ALL PASSED' : 'FAILED'}
           </span>
-          <button onClick={() => setExpanded(!expanded)} className="text-[10px] text-cyan font-mono hover:underline">
+          <button onClick={() => toggle('operator:exec-results')} className="text-[10px] text-cyan font-mono hover:underline">
             {expanded ? 'collapse' : 'expand'}
           </button>
         </div>
@@ -384,7 +388,9 @@ function ExecutionResults({ result }: { result: ExecuteResult }) {
 /* ─── Validation Step ─────────────────────────────────────── */
 
 function ValidationStep({ result }: { result: ValidationResult }) {
-  const [showOutput, setShowOutput] = useState(!result.passed)
+  const key = `operator:validation:${result.label}`
+  const showOutput = useCollapseStore((s) => s.isOpen(key, !result.passed))
+  const toggle = useCollapseStore((s) => s.toggle)
 
   return (
     <div className={`px-2 py-1.5 rounded ${result.passed ? 'bg-ok/5' : 'bg-danger/5'}`}>
@@ -395,7 +401,7 @@ function ValidationStep({ result }: { result: ValidationResult }) {
         <span className={`text-[9px] font-mono ${result.passed ? 'text-ok' : 'text-danger'}`}>
           exit {result.exit_code}
         </span>
-        <button onClick={() => setShowOutput(!showOutput)} className="text-[10px] text-cyan font-mono hover:underline">
+        <button onClick={() => toggle(key)} className="text-[10px] text-cyan font-mono hover:underline">
           {showOutput ? 'hide' : 'output'}
         </button>
       </div>
@@ -762,14 +768,15 @@ function CommandHeader({ sessionId, turnCount }: { sessionId: string | null; tur
 }
 
 function SessionHistory({ turns }: { turns: SessionTurn[] }) {
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('operator:session-history'))
+  const toggle = useCollapseStore((s) => s.toggle)
   const visible = expanded ? turns : turns.slice(-3)
   return (
     <section>
       <div className="flex items-center gap-2 mb-2">
         <h3 className="wv-label">History</h3>
         {turns.length > 3 && (
-          <button onClick={() => setExpanded(!expanded)} className="text-[10px] text-cyan hover:underline font-mono">
+          <button onClick={() => toggle('operator:session-history')} className="text-[10px] text-cyan hover:underline font-mono">
             {expanded ? 'collapse' : `show all ${turns.length}`}
           </button>
         )}

@@ -9,6 +9,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useWorkspaceTopologyStore, type WorkspaceEntry } from '../stores/workspaceTopologyStore';
+import { useCollapseStore } from '../stores/collapseStore';
 
 const healthColor = (h: string): string => {
   switch (h) {
@@ -29,7 +30,9 @@ const healthLabel = (h: string): string => {
 };
 
 const WorkspaceCard: React.FC<{ ws: WorkspaceEntry }> = ({ ws }) => {
-  const [expanded, setExpanded] = useState(false);
+  const key = `workspace:${ws.name}`
+  const expanded = useCollapseStore((s) => s.isOpen(key))
+  const toggle = useCollapseStore((s) => s.toggle)
 
   return (
     <div
@@ -43,7 +46,7 @@ const WorkspaceCard: React.FC<{ ws: WorkspaceEntry }> = ({ ws }) => {
     >
       <div
         style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 8 }}
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => toggle(key)}
       >
         <span style={{ fontSize: 12, color: '#888' }}>{expanded ? '▼' : '▶'}</span>
         <span

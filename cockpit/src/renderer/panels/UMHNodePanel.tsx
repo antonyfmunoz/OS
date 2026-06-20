@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useUMHNodeStore } from '../stores/umhNodeStore';
+import { useCollapseStore } from '../stores/collapseStore';
 
 const STATUS_COLORS: Record<string, string> = {
   online: '#22c55e',
@@ -11,7 +12,9 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function NodeCard({ node }: { node: any }) {
-  const [expanded, setExpanded] = useState(false);
+  const key = `node:${node.node_id}`
+  const expanded = useCollapseStore((s) => s.isOpen(key))
+  const toggle = useCollapseStore((s) => s.toggle)
 
   return (
     <div
@@ -25,7 +28,7 @@ function NodeCard({ node }: { node: any }) {
     >
       <div
         style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => toggle(key)}
       >
         <div>
           <strong>{node.node_id}</strong>
