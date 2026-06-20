@@ -275,32 +275,40 @@ function FilesPanel() {
   const [authExpired, setAuthExpired] = useState(false)
   const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
 
-  const loadData = async () => {
+  const loadData = async (): Promise<boolean> => {
     setVpsLoading(true)
+    let vpsOk = false
     try {
       const vpsEntries = await browseDir('/')
       setVpsTree(vpsEntries)
       setAuthExpired(false)
+      vpsOk = vpsEntries.length > 0
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) setAuthExpired(true)
     }
     setVpsLoading(false)
 
-    browseDir('C:\\', 'windows').then((entries) => setWindowsTree(entries)).catch(() => {})
-
     try {
       const data = await fetchApi<{ ok: boolean; nodes: MeshNode[] }>('/workspace/mesh-nodes')
       if (data.ok && data.nodes) {
         setMeshNodes(data.nodes)
-        setWindowsOnline(data.nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online')))
+        const online = data.nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online'))
+        setWindowsOnline(online)
+        if (online) {
+          browseDir('C:\\', 'windows').then((entries) => setWindowsTree(entries)).catch(() => {})
+        }
       }
     } catch { /* mesh-nodes unavailable */ }
+    return vpsOk
   }
 
   useEffect(() => {
-    loadData()
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+    loadData().then((ok) => {
+      if (!ok) retryTimer = setTimeout(loadData, 3000)
+    })
     const id = setInterval(loadData, 30000)
-    return () => clearInterval(id)
+    return () => { clearInterval(id); if (retryTimer) clearTimeout(retryTimer) }
   }, [])
 
   const openFileInEditor = async (path: string, node?: string) => {
@@ -368,7 +376,9 @@ function FilesPanel() {
               ))}
               {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-text-tertiary">Loading files...</p>}
             </>
-          ) : null}
+          ) : (
+            <p className="text-[11px] px-4 py-2 text-text-tertiary">Offline</p>
+          )}
         </>
       )}
     </div>
