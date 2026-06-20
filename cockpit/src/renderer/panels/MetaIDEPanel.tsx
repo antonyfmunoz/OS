@@ -279,8 +279,10 @@ function FilesPanel() {
     setVpsLoading(true)
     try {
       const vpsEntries = await browseDir('/')
-      setVpsTree(vpsEntries)
-      setAuthExpired(false)
+      if (vpsEntries.length > 0) {
+        setVpsTree(vpsEntries)
+        setAuthExpired(false)
+      }
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) setAuthExpired(true)
     }
@@ -293,7 +295,9 @@ function FilesPanel() {
         const online = data.nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online'))
         setWindowsOnline(online)
         if (online) {
-          browseDir('C:\\', 'windows').then((entries) => setWindowsTree(entries)).catch(() => {})
+          browseDir('C:\\', 'windows').then((entries) => {
+            if (entries.length > 0) setWindowsTree(entries)
+          }).catch(() => {})
         }
       }
     } catch { /* mesh-nodes unavailable */ }

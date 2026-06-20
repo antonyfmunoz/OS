@@ -60,6 +60,7 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
 
   const promise = _doFetch<T>(path, options).catch(async (err) => {
     if (err instanceof ApiError && err.status === 401 && _getToken) {
+      await new Promise<void>((r) => setTimeout(r, 1000))
       return _doFetch<T>(path, options)
     }
     throw err
