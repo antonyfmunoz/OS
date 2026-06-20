@@ -28,6 +28,14 @@ export async function getClerkToken(): Promise<string | null> {
   return null
 }
 
+async function freshToken(): Promise<string | null> {
+  if (window.Clerk?.session) {
+    try { return await window.Clerk.session.getToken({ skipCache: true }) } catch { /* fall through */ }
+  }
+  if (_getToken) return _getToken()
+  return null
+}
+
 const _inflight = new Map<string, Promise<unknown>>()
 
 export async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
@@ -37,24 +45,24 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
     if (existing) return existing
   }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options?.headers as Record<string, string>),
-  }
+  const doFetch = async (retry: boolean): Promise<T> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options?.headers as Record<string, string>),
+    }
 
-  let token: string | null = null
-  if (window.Clerk?.session) {
-    try { token = await window.Clerk.session.getToken() } catch { /* fall through */ }
-  }
-  if (!token && _getToken) {
-    token = await _getToken()
-  }
-  if (token) headers['Authorization'] = `Bearer ${token}`
+    const token = retry ? await freshToken() : await getClerkToken()
+    if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const promise = fetch(`${API_BASE}${path}`, { ...options, headers }).then(res => {
+    const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+    if (res.status === 401 && !retry) {
+      return doFetch(true)
+    }
     if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`)
     return res.json() as Promise<T>
-  })
+  }
+
+  const promise = doFetch(false)
 
   if (method === 'GET') {
     _inflight.set(path, promise)
