@@ -133,9 +133,9 @@ export function ControlPanel() {
     continuityState === 'NIGHT_SLEEPING' || continuityState === 'EXTENDED_ABSENCE'
 
   return (
-    <div className="wv-card mx-4 mt-2 mb-1">
+    <div className="wv-card mx-4 mt-2 mb-1" style={{ height: expanded ? undefined : '76px' }}>
       {/* ── Collapsed: instrument strip ── */}
-      <div className="flex items-center gap-2 px-4 py-3 flex-wrap">
+      <div className="flex items-center gap-2 px-4 py-2 flex-wrap overflow-hidden h-full">
         {/* 1. Status badge */}
         <span className="text-[10px] font-bold px-2 py-1 rounded border bg-green-600/20 text-green-400 border-green-600/30">
           STATUS: {(continuityState || 'ACTIVE').replace(/_/g, ' ')}
