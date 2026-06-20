@@ -140,12 +140,17 @@ interface WorkspaceObservation {
 
 type ActiveTab = 'files' | 'editor' | 'sessions' | 'repositories' | 'workspace' | 'roadmap' | 'risks' | 'terminals' | 'containers' | 'runtimes' | 'previews'
 export type SidebarTab = 'files' | 'sessions' | 'workspace' | 'repositories' | 'roadmap' | 'risks'
-export type CenterTab = 'editor' | 'terminals' | 'containers' | 'runtimes' | 'previews'
+export type PanelTab = 'terminal' | 'terminals' | 'containers' | 'runtimes' | 'previews'
 
 interface MetaIDEState {
   activeTab: ActiveTab
   activeSidebar: SidebarTab
-  activeCenter: CenterTab
+  showSidebar: boolean
+  activePanel: PanelTab
+  showPanel: boolean
+  panelMaximized: boolean
+  sidebarWidth: number
+  panelHeight: number
   repositories: Repository[]
   workspace: WorkspaceData | null
   roadmap: RoadmapData | null
@@ -157,7 +162,14 @@ interface MetaIDEState {
 
   setActiveTab: (tab: ActiveTab) => void
   setActiveSidebar: (tab: SidebarTab) => void
-  setActiveCenter: (tab: CenterTab) => void
+  setShowSidebar: (show: boolean) => void
+  toggleSidebarTab: (tab: SidebarTab) => void
+  setActivePanel: (tab: PanelTab) => void
+  setShowPanel: (show: boolean) => void
+  togglePanel: () => void
+  togglePanelMaximized: () => void
+  setSidebarWidth: (w: number) => void
+  setPanelHeight: (h: number) => void
   fetchRepositories: () => Promise<void>
   fetchWorkspace: () => Promise<void>
   fetchRoadmap: () => Promise<void>
@@ -168,7 +180,12 @@ interface MetaIDEState {
 export const useMetaIDEStore = create<MetaIDEState>((set) => ({
   activeTab: 'files',
   activeSidebar: 'files',
-  activeCenter: 'editor',
+  showSidebar: true,
+  activePanel: 'terminal',
+  showPanel: true,
+  panelMaximized: false,
+  sidebarWidth: 240,
+  panelHeight: 240,
   repositories: [],
   workspace: null,
   roadmap: null,
@@ -179,8 +196,18 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
   error: null,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
-  setActiveSidebar: (tab) => set({ activeSidebar: tab }),
-  setActiveCenter: (tab) => set({ activeCenter: tab }),
+  setActiveSidebar: (tab) => set({ activeSidebar: tab, showSidebar: true }),
+  setShowSidebar: (show) => set({ showSidebar: show }),
+  toggleSidebarTab: (tab) => set((s) => {
+    if (s.activeSidebar === tab && s.showSidebar) return { showSidebar: false }
+    return { activeSidebar: tab, showSidebar: true }
+  }),
+  setActivePanel: (tab) => set({ activePanel: tab }),
+  setShowPanel: (show) => set({ showPanel: show, panelMaximized: show ? undefined : false } as Partial<MetaIDEState>),
+  togglePanel: () => set((s) => ({ showPanel: !s.showPanel, panelMaximized: !s.showPanel ? s.panelMaximized : false })),
+  togglePanelMaximized: () => set((s) => ({ panelMaximized: !s.panelMaximized })),
+  setSidebarWidth: (w) => set({ sidebarWidth: Math.max(150, Math.min(400, w)) }),
+  setPanelHeight: (h) => set({ panelHeight: Math.max(100, Math.min(600, h)) }),
 
   fetchRepositories: async () => {
     set({ loading: true, error: null })

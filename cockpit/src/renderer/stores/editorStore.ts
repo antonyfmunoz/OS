@@ -37,6 +37,8 @@ interface EditorState {
   setFileTree: (tree: FileNode[]) => void
   openFile: (file: OpenFile) => void
   closeFile: (path: string) => void
+  closeOtherFiles: (path: string) => void
+  closeAllFiles: () => void
   setActiveFile: (path: string) => void
   updateContent: (path: string, content: string) => void
   markClean: (path: string) => void
@@ -93,6 +95,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       : activeFile
     set({ openFiles: filtered, activeFile: newActive })
   },
+
+  closeOtherFiles: (path) => {
+    const { openFiles } = get()
+    const kept = openFiles.filter((f) => f.path === path)
+    set({ openFiles: kept, activeFile: kept.length > 0 ? kept[0].path : null })
+  },
+
+  closeAllFiles: () => set({ openFiles: [], activeFile: null }),
 
   setActiveFile: (path) => set({ activeFile: path }),
 
