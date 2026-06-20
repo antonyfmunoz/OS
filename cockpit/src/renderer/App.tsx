@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { SignedIn, SignedOut, SignIn, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react'
 import { Shell } from './components/Shell'
 import { GuestJoinPage } from './components/rooms/GuestJoinPage'
@@ -12,31 +12,17 @@ import { setTokenGetter } from './api/client'
 const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 function TokenGate({ children }: { children: ReactNode }) {
-  const { getToken, isLoaded, isSignedIn } = useAuth()
+  const { getToken } = useAuth()
   const ref = useRef(getToken)
   ref.current = getToken
-  const [ready, setReady] = useState(false)
 
-  setTokenGetter(async () => ref.current())
-
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) return
-    let cancelled = false
-    let attempts = 0
-    const check = async () => {
-      while (!cancelled && attempts < 20) {
-        const t = await ref.current()
-        if (t) { if (!cancelled) setReady(true); return }
-        attempts++
-        await new Promise<void>(r => setTimeout(r, 250))
-      }
-      if (!cancelled) setReady(true)
+  setTokenGetter(async () => {
+    if (window.Clerk?.session) {
+      try { return await window.Clerk.session.getToken() } catch { /* fall through */ }
     }
-    check()
-    return () => { cancelled = true }
-  }, [isLoaded, isSignedIn])
+    return ref.current()
+  })
 
-  if (!ready) return null
   return <>{children}</>
 }
 

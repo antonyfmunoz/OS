@@ -21,8 +21,11 @@ export function getWsToken(): string {
 }
 
 export async function getClerkToken(): Promise<string | null> {
-  if (!_getToken) return null
-  return _getToken()
+  if (window.Clerk?.session) {
+    try { return await window.Clerk.session.getToken() } catch { /* fall through */ }
+  }
+  if (_getToken) return _getToken()
+  return null
 }
 
 const _inflight = new Map<string, Promise<unknown>>()
@@ -39,10 +42,14 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
     ...(options?.headers as Record<string, string>),
   }
 
-  if (_getToken) {
-    const token = await _getToken()
-    if (token) headers['Authorization'] = `Bearer ${token}`
+  let token: string | null = null
+  if (window.Clerk?.session) {
+    try { token = await window.Clerk.session.getToken() } catch { /* fall through */ }
   }
+  if (!token && _getToken) {
+    token = await _getToken()
+  }
+  if (token) headers['Authorization'] = `Bearer ${token}`
 
   const promise = fetch(`${API_BASE}${path}`, { ...options, headers }).then(res => {
     if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`)
