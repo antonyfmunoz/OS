@@ -222,7 +222,7 @@ function QueueTab() {
 
   useEffect(() => { fetchQueue() }, [])
 
-  if (loading) return <div style={{ padding: 16, color: '#9ca3af' }}>Loading...</div>
+  if (loading) return <div style={{ padding: 16, color: '#9ca3af' }}>—</div>
 
   const summary = queueSummary as Record<string, unknown> | null
   if (!summary) return <div style={{ padding: 16, color: '#9ca3af' }}>No engineering packets in queue.</div>
@@ -263,7 +263,7 @@ function GapsTab() {
 
   useEffect(() => { fetchGaps() }, [])
 
-  if (loading) return <div style={{ padding: 16, color: '#9ca3af' }}>Loading...</div>
+  if (loading) return <div style={{ padding: 16, color: '#9ca3af' }}>—</div>
 
   return (
     <div style={{ padding: 16 }}>
@@ -330,7 +330,7 @@ function SessionsTab() {
 
   useEffect(() => { fetchSessions() }, [])
 
-  if (loading && sessions.length === 0) return <div style={{ padding: 16, color: '#9ca3af' }}>Loading...</div>
+  if (loading && sessions.length === 0) return <div style={{ padding: 16, color: '#9ca3af' }}>—</div>
 
   return (
     <div style={{ padding: 16 }}>
@@ -398,7 +398,7 @@ function ReviewTab() {
 
   useEffect(() => { fetchReviews() }, [])
 
-  if (loading && !proofPackage) return <div style={{ padding: 16, color: '#9ca3af' }}>Loading...</div>
+  if (loading && !proofPackage) return <div style={{ padding: 16, color: '#9ca3af' }}>—</div>
 
   if (!proofPackage) {
     return <div style={{ padding: 16, color: '#9ca3af' }}>No proof packages awaiting review. Execute a session first.</div>

@@ -46,7 +46,7 @@ function OverviewTab() {
   const { context, brief } = useStrategicStore()
 
   const health = (context as Record<string, unknown>)?.health as string ?? 'unknown'
-  const situation = (brief as Record<string, unknown>)?.situation as string ?? 'Loading...'
+  const situation = (brief as Record<string, unknown>)?.situation as string ?? '—'
   const priorities = ((brief as Record<string, unknown>)?.priorities as string[]) ?? []
   const blockers = ((brief as Record<string, unknown>)?.blockers as string[]) ?? []
   const risks = ((brief as Record<string, unknown>)?.risks as string[]) ?? []

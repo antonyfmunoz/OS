@@ -905,7 +905,7 @@ function RoadmapSection({ roadmap, approvals }: { roadmap: Record<string, unknow
             {roadmap.state != null && <Row label="State" value={String(roadmap.state)} />}
           </>
         ) : (
-          <span className="text-text-tertiary">Loading...</span>
+          <span className="text-text-tertiary">—</span>
         )}
       </div>
     </section>

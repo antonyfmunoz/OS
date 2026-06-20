@@ -274,7 +274,7 @@ export function LearningPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {loading && <div className="text-gray-400 text-center py-8">Loading...</div>}
+        {loading && <div className="text-gray-400 text-center py-8">—</div>}
         {error && <div className="text-red-400 text-center py-4">{error}</div>}
         {!loading && activeTab === 'overview' && <OverviewTab />}
         {!loading && activeTab === 'lessons' && <LessonsTab />}

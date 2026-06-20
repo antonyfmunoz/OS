@@ -65,8 +65,18 @@ interface ReturnBrief {
 }
 
 export function CommandCenterPanel() {
-  const [summary, setSummary] = useState<SummaryData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const defaultSummary: SummaryData = {
+    ok: true,
+    what_is_happening: { continuity_state: '—', active_agents: 0, idle_agents: 0, total_agents: 0, executing_packets: 0 },
+    who_is_working: [],
+    what_is_blocked: { count: 0, items: [] },
+    what_needs_approval: { count: 0, items: [] },
+    what_finished: { recent_completed: 0, latest: '—' },
+    what_failed: { recent_failed: 0, latest: '—' },
+    what_should_resume_next: null,
+  }
+  const cachedSummary = useBootstrapStore.getState().cache.command_center_summary as SummaryData | undefined
+  const [summary, setSummary] = useState<SummaryData>(cachedSummary?.ok ? cachedSummary : defaultSummary)
   const [error, setError] = useState('')
 
   const [continuityState, setContinuityState] = useState('ACTIVE')
@@ -93,19 +103,11 @@ export function CommandCenterPanel() {
       setError('')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'fetch failed')
-    } finally {
-      setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    const cached = useBootstrapStore.getState().cache.command_center_summary as SummaryData | undefined
-    if (cached && cached.ok) {
-      setSummary(cached)
-      setLoading(false)
-    } else {
-      fetchSummary()
-    }
+    fetchSummary()
     const id = setInterval(fetchSummary, 10000)
     return () => clearInterval(id)
   }, [fetchSummary])
@@ -182,9 +184,7 @@ export function CommandCenterPanel() {
     [summary, setPanel]
   )
 
-  if (loading) return <div className="p-4 text-xs font-mono text-gray-400">Loading command center...</div>
   if (error) return <div className="p-4 text-xs font-mono text-red-400">Error: {error}</div>
-  if (!summary) return null
 
   const wih = summary.what_is_happening
   const cp = summary.checkpoint
@@ -197,7 +197,7 @@ export function CommandCenterPanel() {
       </div>
 
       {/* Action Required */}
-      <ActionRequired items={actionItems} loading={loading} />
+      <ActionRequired items={actionItems} loading={false} />
 
       {/* What Is Happening */}
       <Section title="What is happening?">

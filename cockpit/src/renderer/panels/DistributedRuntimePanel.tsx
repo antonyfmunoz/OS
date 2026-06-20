@@ -81,7 +81,7 @@ function UtilBar({ value, max }: { value: number; max: number }) {
 }
 
 function TopologyTab({ topology }: { topology: RuntimeData['topology'] | null }) {
-  if (!topology) return <div className="p-4 text-text-secondary">Loading...</div>
+  if (!topology) return <div className="p-4 text-text-secondary">—</div>
   const caps = Object.entries(topology.capabilities || {}).sort(([a], [b]) => a.localeCompare(b))
   return (
     <div className="p-4 space-y-3">
@@ -173,7 +173,7 @@ function WorkersTab({ workers }: { workers: Worker[] }) {
 }
 
 function CapacityTab({ capacity }: { capacity: RuntimeData['capacity'] | null }) {
-  if (!capacity) return <div className="p-4 text-text-secondary">Loading...</div>
+  if (!capacity) return <div className="p-4 text-text-secondary">—</div>
   return (
     <div className="p-4 space-y-3">
       <div className="flex gap-4 text-xs text-text-secondary mb-2">

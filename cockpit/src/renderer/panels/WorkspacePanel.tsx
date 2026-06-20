@@ -265,7 +265,7 @@ function TestResultsPane() {
   usePolling(fetchResults, 30000)
 
   if (!results) {
-    return <div className="flex-1 flex items-center justify-center"><p className="text-[11px] text-text-tertiary">Loading...</p></div>
+    return <div className="flex-1 flex items-center justify-center"><p className="text-[11px] text-text-tertiary">—</p></div>
   }
 
   if (!results.has_results) {
@@ -469,7 +469,7 @@ function HealthPane() {
   usePolling(fetchHealth, 30000)
 
   if (!health) {
-    return <div className="flex-1 flex items-center justify-center"><p className="text-[11px] text-text-tertiary">Loading...</p></div>
+    return <div className="flex-1 flex items-center justify-center"><p className="text-[11px] text-text-tertiary">—</p></div>
   }
 
   return (

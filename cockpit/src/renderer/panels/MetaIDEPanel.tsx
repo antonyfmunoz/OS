@@ -342,7 +342,7 @@ function FilesPanel() {
             <p className="text-[11px] px-4 py-2 text-text-tertiary">
               {fetchFailed ? (
                 <button onClick={refreshData} className="text-cyan hover:underline">Retry — failed to load</button>
-              ) : 'Loading...'}
+              ) : 'No files loaded'}
             </p>
           )}
         </>
@@ -526,7 +526,7 @@ function RepositoriesPanel() {
 
   useEffect(() => { fetchRepositories() }, [])
 
-  if (loading && repositories.length === 0) return <div className="p-3 text-text-tertiary text-xs">Loading...</div>
+  if (loading && repositories.length === 0) return <div className="p-3 text-text-tertiary text-xs">—</div>
   if (repositories.length === 0) return <div className="p-3 text-text-tertiary text-xs">No repositories</div>
 
   return (
