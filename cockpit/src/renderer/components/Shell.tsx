@@ -19,7 +19,6 @@ import { ActivityPanel } from '../panels/ActivityPanel'
 import { KnowledgePanel } from '../panels/KnowledgePanel'
 import { AnalyticsPanel } from '../panels/AnalyticsPanel'
 import { SettingsPanel } from '../panels/SettingsPanel'
-import { EditorPanel } from '../panels/EditorPanel'
 import { ExecutionPanel } from '../panels/ExecutionPanel'
 import { PortfolioPanel } from '../panels/PortfolioPanel'
 import { CompanyPanel } from '../panels/CompanyPanel'
@@ -105,7 +104,7 @@ function ActivePanel() {
     case 'analytics':
       return <AnalyticsPanel />
     case 'editor':
-      return <EditorPanel />
+      return <MetaIDEPanel />
     case 'settings':
       return <SettingsPanel />
     case 'execution':
@@ -186,8 +185,6 @@ function ActivePanel() {
       return <RealityTimelinePanel />
     case 'realityintelligence':
       return <RealityIntelligencePanel />
-    case 'metaide':
-      return <MetaIDEPanel />
     case 'engineering':
       return <EngineeringPanel />
     case 'organismmap':
