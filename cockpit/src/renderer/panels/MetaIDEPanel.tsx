@@ -1043,7 +1043,7 @@ export function MetaIDEPanel() {
   return (
     <div className="h-full flex overflow-hidden bg-surface">
       {/* ── Activity Bar ── */}
-      <div className="w-10 shrink-0 flex flex-col items-center py-2 border-r border-border">
+      <div className="w-10 shrink-0 flex flex-col items-center pt-[78px] pb-2 border-r border-border">
         {SIDEBAR_ITEMS.map(({ id, icon: Icon }) => (
           <button
             key={id}
