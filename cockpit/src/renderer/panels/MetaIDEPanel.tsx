@@ -263,23 +263,34 @@ function IDEFileTreeNode({ name, path, type, depth, node, onFileOpen }: {
 function FilesPanel() {
   const [vpsTree, setVpsTree] = useState<FileEntry[]>([])
   const [windowsTree, setWindowsTree] = useState<FileEntry[]>([])
+  const [vpsLoading, setVpsLoading] = useState(true)
   const [vpsExpanded, setVpsExpanded] = useState(true)
   const [windowsExpanded, setWindowsExpanded] = useState(true)
   const [meshNodes, setMeshNodes] = useState<MeshNode[]>([])
   const [windowsOnline, setWindowsOnline] = useState(false)
   const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
 
+  const loadData = async () => {
+    setVpsLoading(true)
+    const vpsEntries = await browseDir('/')
+    setVpsTree(vpsEntries)
+    setVpsLoading(false)
+
+    browseDir('C:\\', 'windows').then((entries) => setWindowsTree(entries))
+
+    try {
+      const data = await fetchApi<{ ok: boolean; nodes: MeshNode[] }>('/workspace/mesh-nodes')
+      if (data.ok && data.nodes) {
+        setMeshNodes(data.nodes)
+        setWindowsOnline(data.nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online')))
+      }
+    } catch { /* mesh-nodes unavailable */ }
+  }
+
   useEffect(() => {
-    browseDir('/').then((entries) => { if (entries.length) setVpsTree(entries) })
-    browseDir('C:\\', 'windows').then((entries) => { if (entries.length) setWindowsTree(entries) })
-    fetchApi<{ ok: boolean; nodes: MeshNode[] }>('/workspace/mesh-nodes')
-      .then((data) => {
-        if (data.ok && data.nodes) {
-          setMeshNodes(data.nodes)
-          setWindowsOnline(data.nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online')))
-        }
-      })
-      .catch(() => {})
+    loadData()
+    const id = setInterval(loadData, 30000)
+    return () => clearInterval(id)
   }, [])
 
   const openFileInEditor = async (path: string, node?: string) => {
@@ -311,7 +322,13 @@ function FilesPanel() {
           {vpsTree.map((f) => (
             <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} onFileOpen={openFileInEditor} />
           ))}
-          {vpsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-text-tertiary">Loading...</p>}
+          {vpsTree.length === 0 && (
+            <p className="text-[11px] px-4 py-2 text-text-tertiary">
+              {vpsLoading ? 'Loading...' : (
+                <button onClick={loadData} className="text-cyan hover:underline">Retry — failed to load</button>
+              )}
+            </p>
+          )}
         </>
       )}
 
@@ -1043,7 +1060,7 @@ export function MetaIDEPanel() {
   return (
     <div className="h-full flex overflow-hidden bg-surface">
       {/* ── Activity Bar ── */}
-      <div className="w-10 shrink-0 flex flex-col items-center pt-[78px] pb-2 border-r border-border">
+      <div className="w-10 shrink-0 flex flex-col items-center pt-2 pb-2 border-r border-border">
         {SIDEBAR_ITEMS.map(({ id, icon: Icon }) => (
           <button
             key={id}
