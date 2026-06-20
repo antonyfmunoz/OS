@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   FolderTree, MonitorPlay, GitBranch, Database, Map, Shield,
-  Terminal as TerminalIcon, Box, Cpu, Eye,
+  Terminal as TerminalIcon, Box, Cpu, Eye, X, PanelBottomOpen,
+  Maximize2, Minimize2,
 } from 'lucide-react'
-import { useMetaIDEStore, type SidebarTab, type CenterTab } from '../stores/metaIDEStore'
+import { useMetaIDEStore, type SidebarTab, type PanelTab } from '../stores/metaIDEStore'
 import { useEditorStore } from '../stores/editorStore'
 import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { fetchApi } from '../api/client'
-import { usePolling } from '../hooks/usePolling'
 import { VPS, BEAST } from '../constants/devices'
 import type { LucideIcon } from 'lucide-react'
 
@@ -21,8 +21,9 @@ const SIDEBAR_ITEMS: Array<{ id: SidebarTab; icon: LucideIcon; label: string }> 
   { id: 'risks', icon: Shield, label: 'RISKS' },
 ]
 
-const CENTER_TABS: Array<{ id: CenterTab; icon: LucideIcon; label: string }> = [
-  { id: 'terminals', icon: TerminalIcon, label: 'Terminals' },
+const PANEL_TABS: Array<{ id: PanelTab; icon: LucideIcon; label: string }> = [
+  { id: 'terminal', icon: TerminalIcon, label: 'Terminal' },
+  { id: 'terminals', icon: TerminalIcon, label: 'Sessions' },
   { id: 'containers', icon: Box, label: 'Containers' },
   { id: 'runtimes', icon: Cpu, label: 'Runtimes' },
   { id: 'previews', icon: Eye, label: 'Previews' },
@@ -52,6 +53,87 @@ const STATE_COLORS: Record<string, string> = {
   planned: 'text-text-secondary',
   blocked: 'text-danger',
   unknown: 'text-text-tertiary',
+}
+
+// ─── Drag resize hook ───────────────────────────────────────────
+
+function useDragResize(
+  axis: 'x' | 'y',
+  onResize: (px: number) => void,
+  invert = false,
+) {
+  const dragging = useRef(false)
+  const startPos = useRef(0)
+  const startSize = useRef(0)
+
+  const onMouseDown = (e: React.MouseEvent, currentSize: number) => {
+    e.preventDefault()
+    dragging.current = true
+    startPos.current = axis === 'x' ? e.clientX : e.clientY
+    startSize.current = currentSize
+    document.body.style.cursor = axis === 'x' ? 'col-resize' : 'row-resize'
+    document.body.style.userSelect = 'none'
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!dragging.current) return
+      const delta = (axis === 'x' ? ev.clientX : ev.clientY) - startPos.current
+      onResize(startSize.current + (invert ? -delta : delta))
+    }
+    const onMouseUp = () => {
+      dragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }
+
+  return onMouseDown
+}
+
+// ─── Tab context menu ───────────────────────────────────────────
+
+function TabContextMenu({ x, y, path, onClose }: {
+  x: number; y: number; path: string; onClose: () => void
+}) {
+  const closeFile = useEditorStore((s) => s.closeFile)
+  const closeOtherFiles = useEditorStore((s) => s.closeOtherFiles)
+  const closeAllFiles = useEditorStore((s) => s.closeAllFiles)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [onClose])
+
+  const items = [
+    { label: 'Close', action: () => closeFile(path) },
+    { label: 'Close Others', action: () => closeOtherFiles(path) },
+    { label: 'Close All', action: () => closeAllFiles() },
+  ]
+
+  return (
+    <div
+      ref={menuRef}
+      className="fixed z-50 bg-surface-raised border border-border rounded shadow-lg py-1 min-w-[140px]"
+      style={{ left: x, top: y }}
+    >
+      {items.map((item) => (
+        <button
+          key={item.label}
+          onClick={() => { item.action(); onClose() }}
+          className="w-full text-left px-3 py-1.5 text-[11px] text-text-primary hover:bg-cyan-glow hover:text-cyan transition-colors"
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 type FileEntry = { name: string; path: string; type: 'file' | 'directory' }
@@ -186,7 +268,7 @@ function FilesPanel() {
   const [windowsExpanded, setWindowsExpanded] = useState(true)
   const [meshNodes, setMeshNodes] = useState<MeshNode[]>([])
   const [windowsOnline, setWindowsOnline] = useState(false)
-  const setActiveCenter = useMetaIDEStore((s) => s.setActiveCenter)
+  const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
 
   useEffect(() => {
     browseDir('/').then((entries) => { if (entries.length) setVpsTree(entries) })
@@ -208,7 +290,7 @@ function FilesPanel() {
         path, name: result.name, content: result.content,
         language: detectLang(result.name), dirty: false, node,
       })
-      setActiveCenter('editor')
+      setActiveTab('editor')
     }
   }
 
@@ -353,7 +435,7 @@ function SessionsPanel() {
       {capturedOutput && (
         <div className="border border-border rounded p-2">
           <div className="wv-label mb-1">Captured Output</div>
-          <pre className="text-[9px] font-mono text-text-secondary bg-canvas p-2 rounded max-h-32 overflow-y-auto whitespace-pre-wrap">
+          <pre className="text-[9px] font-mono text-text-secondary bg-surface p-2 rounded max-h-32 overflow-y-auto whitespace-pre-wrap">
             {capturedOutput}
           </pre>
         </div>
@@ -600,7 +682,7 @@ function EditorContent() {
   return (
     <div className="flex-1 relative overflow-hidden bg-surface" onKeyDown={handleKeyDown}>
       <div className="absolute inset-0 flex">
-        <div className="shrink-0 text-right pr-2 pt-2 font-mono text-[10px] select-none overflow-hidden w-12 text-text-tertiary bg-canvas">
+        <div className="shrink-0 text-right pr-2 pt-2 font-mono text-[10px] select-none overflow-hidden w-12 text-text-tertiary bg-surface">
           {activeContent.content.split('\n').map((_, i) => (
             <div key={i} className="h-5">{i + 1}</div>
           ))}
@@ -814,11 +896,7 @@ function TerminalBridge() {
   }
 
   return (
-    <div className="h-48 shrink-0 flex flex-col border-t border-border bg-canvas">
-      <div className="flex items-center gap-2 px-3 py-1 border-b border-border">
-        <span className="wv-label">Terminal</span>
-        <span className="text-text-tertiary text-[9px]">tmux bridge</span>
-      </div>
+    <div className="h-full flex flex-col">
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 font-mono text-[10px] text-text-secondary">
         {output.length === 0 && <p className="text-text-tertiary">Commands run via governed tmux bridge</p>}
         {output.map((line, i) => (
@@ -833,7 +911,7 @@ function TerminalBridge() {
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
           placeholder="command..."
           disabled={sending}
-          className="flex-1 text-[10px] font-mono px-2 py-1 bg-surface border border-border rounded outline-none placeholder:text-text-tertiary text-text-primary"
+          className="flex-1 text-[10px] font-mono px-2 py-1 bg-surface-raised border border-border rounded outline-none placeholder:text-text-tertiary text-text-primary"
         />
         <button onClick={send} disabled={sending || !cmd.trim()} className="text-[10px] font-mono px-2 py-1 text-cyan border border-border rounded hover:bg-cyan-glow disabled:opacity-30">
           {sending ? '...' : 'Run'}
@@ -864,26 +942,134 @@ function PhaseRow({ phase }: { phase: { phase_number: string; phase_name: string
   )
 }
 
+// ─── Right Preview Sidebar ───────────────────────────────────────
+
+function PreviewSidebar() {
+  const [tab, setTab] = useState<'runtimes' | 'preview'>('runtimes')
+  return (
+    <>
+      <div className="flex items-center h-8 px-3 shrink-0 border-b border-border gap-2">
+        <button onClick={() => setTab('runtimes')}
+          className={`wv-label text-[10px] ${tab === 'runtimes' ? 'text-cyan' : 'text-text-tertiary'}`}>
+          Runtimes
+        </button>
+        <button onClick={() => setTab('preview')}
+          className={`wv-label text-[10px] ${tab === 'preview' ? 'text-cyan' : 'text-text-tertiary'}`}>
+          Preview
+        </button>
+      </div>
+      {tab === 'runtimes' ? <RuntimesContent /> : (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-xs text-text-tertiary">Live preview server integration</p>
+            <p className="text-xs mt-1 text-text-tertiary">Will render running web apps with hot reload</p>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// ─── File tab with dirty indicator + middle-click ───────────────
+
+function FileTab({ file, isActive, onActivate, onClose, onContextMenu }: {
+  file: { path: string; name: string; dirty: boolean }
+  isActive: boolean
+  onActivate: () => void
+  onClose: () => void
+  onContextMenu: (e: React.MouseEvent) => void
+}) {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <button
+      onClick={onActivate}
+      onMouseDown={(e) => { if (e.button === 1) { e.preventDefault(); onClose() } }}
+      onContextMenu={onContextMenu}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={`flex items-center gap-1.5 px-3 h-full text-[11px] shrink-0 border-r border-border transition-colors ${
+        isActive ? 'text-text-primary bg-surface-raised' : 'text-text-tertiary hover:text-text-secondary'
+      }`}
+    >
+      <span className="truncate max-w-[120px]">{file.name}</span>
+      <span
+        onClick={(e) => { e.stopPropagation(); onClose() }}
+        className="ml-0.5 w-4 text-center text-[10px]"
+      >
+        {file.dirty && !hovered
+          ? <span className="text-warn text-[9px]">●</span>
+          : <span className="text-text-tertiary hover:text-text-primary">×</span>
+        }
+      </span>
+    </button>
+  )
+}
+
 // ─── Main: Meta IDE Panel ────────────────────────────────────────
 
 export function MetaIDEPanel() {
-  const { activeSidebar, setActiveSidebar, activeCenter, setActiveCenter } = useMetaIDEStore()
+  const {
+    activeSidebar, showSidebar, toggleSidebarTab,
+    activePanel, setActivePanel, showPanel, setShowPanel, togglePanel,
+    panelMaximized, togglePanelMaximized,
+    sidebarWidth, setSidebarWidth, panelHeight, setPanelHeight,
+  } = useMetaIDEStore()
   const openFiles = useEditorStore((s) => s.openFiles)
   const activeFile = useEditorStore((s) => s.activeFile)
   const setActiveFile = useEditorStore((s) => s.setActiveFile)
   const closeFile = useEditorStore((s) => s.closeFile)
-  const [showTerminal, setShowTerminal] = useState(false)
+  const showPreview = useEditorStore((s) => s.showPreview)
+  const togglePreview = useEditorStore((s) => s.togglePreview)
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null)
+
+  const sidebarDrag = useDragResize('x', setSidebarWidth)
+  const panelDrag = useDragResize('y', setPanelHeight, true)
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault()
+        useMetaIDEStore.getState().setShowSidebar(!useMetaIDEStore.getState().showSidebar)
+      }
+      if (e.ctrlKey && e.key === '`') {
+        e.preventDefault()
+        togglePanel()
+      }
+      if (e.ctrlKey && e.key === 'w') {
+        e.preventDefault()
+        const af = useEditorStore.getState().activeFile
+        if (af) useEditorStore.getState().closeFile(af)
+      }
+      if (e.ctrlKey && e.key === 'Tab') {
+        e.preventDefault()
+        const { openFiles: files, activeFile: current } = useEditorStore.getState()
+        if (files.length < 2) return
+        const idx = files.findIndex((f) => f.path === current)
+        const next = files[(idx + 1) % files.length]
+        useEditorStore.getState().setActiveFile(next.path)
+      }
+      if (e.ctrlKey && e.key === '\\') {
+        e.preventDefault()
+        useEditorStore.getState().togglePreview()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [togglePanel])
 
   return (
-    <div className="h-full flex overflow-hidden bg-canvas">
+    <div className="h-full flex overflow-hidden bg-surface">
       {/* ── Activity Bar ── */}
-      <div className="w-12 shrink-0 flex flex-col items-center py-2 gap-0.5 border-r border-border bg-canvas">
+      <div className="w-12 shrink-0 flex flex-col items-center py-2 gap-0.5 border-r border-border">
         {SIDEBAR_ITEMS.map(({ id, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => setActiveSidebar(id)}
+            onClick={() => toggleSidebarTab(id)}
             className={`w-10 h-9 flex items-center justify-center rounded transition-colors ${
-              activeSidebar === id
+              activeSidebar === id && showSidebar
                 ? 'text-cyan border-l-2 border-cyan bg-cyan-glow'
                 : 'text-text-tertiary hover:text-text-secondary'
             }`}
@@ -892,95 +1078,153 @@ export function MetaIDEPanel() {
             <Icon size={18} />
           </button>
         ))}
+
+        <div className="flex-1" />
+
+        <button
+          onClick={togglePanel}
+          className={`w-10 h-9 flex items-center justify-center rounded transition-colors ${
+            showPanel ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary'
+          }`}
+          title="Toggle Panel (Ctrl+`)"
+        >
+          <PanelBottomOpen size={18} />
+        </button>
       </div>
 
       {/* ── Left Sidebar ── */}
-      <div className="w-[240px] shrink-0 flex flex-col border-r border-border bg-surface overflow-hidden">
-        <div className="px-3 py-2 border-b border-border shrink-0">
-          <span className="wv-label">{SIDEBAR_ITEMS.find((s) => s.id === activeSidebar)?.label || ''}</span>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {activeSidebar === 'files' && <FilesPanel />}
-          {activeSidebar === 'sessions' && <SessionsPanel />}
-          {activeSidebar === 'workspace' && <WorkspacePanel />}
-          {activeSidebar === 'repositories' && <RepositoriesPanel />}
-          {activeSidebar === 'roadmap' && <RoadmapPanel />}
-          {activeSidebar === 'risks' && <RisksPanel />}
-        </div>
-      </div>
-
-      {/* ── Center + Bottom ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Editor/infra tab bar */}
-        <div className="flex items-center h-8 shrink-0 border-b border-border bg-canvas overflow-x-auto">
-          {/* Open file tabs */}
-          {openFiles.map((file) => (
-            <button
-              key={file.path}
-              onClick={() => { setActiveFile(file.path); setActiveCenter('editor') }}
-              className={`flex items-center gap-1.5 px-3 h-full text-[11px] shrink-0 border-r border-border transition-colors ${
-                activeCenter === 'editor' && activeFile === file.path
-                  ? 'text-text-primary bg-surface'
-                  : 'text-text-tertiary hover:text-text-secondary'
-              }`}
-            >
-              <span className="truncate max-w-[120px]">{file.name}</span>
-              {file.dirty && <span className="text-warn text-[9px]">●</span>}
-              <span
-                onClick={(e) => { e.stopPropagation(); closeFile(file.path) }}
-                className="ml-0.5 text-text-tertiary hover:text-text-primary text-[10px]"
-              >
-                ×
-              </span>
-            </button>
-          ))}
-
-          <div className="flex-1" />
-
-          {/* Pinned infrastructure tabs */}
-          {CENTER_TABS.map(({ id, icon: Icon, label }) => (
-            <button
-              key={id}
-              onClick={() => setActiveCenter(id)}
-              className={`flex items-center gap-1 px-2.5 h-full text-[10px] shrink-0 border-l border-border transition-colors ${
-                activeCenter === id
-                  ? 'text-cyan bg-surface'
-                  : 'text-text-tertiary hover:text-text-secondary'
-              }`}
-              title={label}
-            >
-              <Icon size={12} />
-              <span className="hidden xl:inline">{label}</span>
-            </button>
-          ))}
-
-          {/* Terminal toggle */}
-          <button
-            onClick={() => setShowTerminal(!showTerminal)}
-            className={`flex items-center gap-1 px-2.5 h-full text-[10px] shrink-0 border-l border-border transition-colors ${
-              showTerminal ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary'
-            }`}
-            title="Toggle Terminal"
-          >
-            <TerminalIcon size={12} />
-            <span className="hidden xl:inline">⌘</span>
-          </button>
-        </div>
-
-        {/* Center content */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="flex-1 overflow-y-auto">
-            {activeCenter === 'editor' && <EditorContent />}
-            {activeCenter === 'terminals' && <TerminalsContent />}
-            {activeCenter === 'containers' && <ContainersContent />}
-            {activeCenter === 'runtimes' && <RuntimesContent />}
-            {activeCenter === 'previews' && <PreviewsContent />}
+      {showSidebar && (
+        <>
+          <div className="shrink-0 flex flex-col border-r border-border overflow-hidden" style={{ width: sidebarWidth }}>
+            <div className="px-3 py-2 border-b border-border shrink-0">
+              <span className="wv-label">{SIDEBAR_ITEMS.find((s) => s.id === activeSidebar)?.label || ''}</span>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {activeSidebar === 'files' && <FilesPanel />}
+              {activeSidebar === 'sessions' && <SessionsPanel />}
+              {activeSidebar === 'workspace' && <WorkspacePanel />}
+              {activeSidebar === 'repositories' && <RepositoriesPanel />}
+              {activeSidebar === 'roadmap' && <RoadmapPanel />}
+              {activeSidebar === 'risks' && <RisksPanel />}
+            </div>
           </div>
-        </div>
+          {/* Sidebar resize handle */}
+          <div
+            className="w-1 shrink-0 cursor-col-resize hover:bg-cyan/30 active:bg-cyan/50 transition-colors"
+            onMouseDown={(e) => sidebarDrag(e, sidebarWidth)}
+          />
+        </>
+      )}
 
-        {/* Bottom panel: Terminal */}
-        {showTerminal && <TerminalBridge />}
+      {/* ── Center + Panel ── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Editor tab bar — file tabs + preview toggle */}
+        {!panelMaximized && (
+          <div className="flex items-center h-8 shrink-0 border-b border-border overflow-x-auto">
+            {openFiles.map((file) => (
+              <FileTab
+                key={file.path}
+                file={file}
+                isActive={activeFile === file.path}
+                onActivate={() => setActiveFile(file.path)}
+                onClose={() => closeFile(file.path)}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  setContextMenu({ x: e.clientX, y: e.clientY, path: file.path })
+                }}
+              />
+            ))}
+            <div className="flex-1" />
+            <button
+              onClick={togglePreview}
+              className={`px-2 h-full text-xs transition-colors ${showPreview ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary'}`}
+              title="Toggle Preview (Ctrl+\)"
+            >
+              ⊞
+            </button>
+          </div>
+        )}
+
+        {/* Editor + optional right preview split */}
+        {!panelMaximized && (
+          <div className="flex-1 flex min-h-0 overflow-hidden">
+            <div className={`${showPreview ? 'w-1/2' : 'flex-1'} overflow-hidden`}>
+              <EditorContent />
+            </div>
+            {showPreview && (
+              <div className="w-1/2 shrink-0 flex flex-col border-l border-border">
+                <PreviewSidebar />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Bottom Panel ── */}
+        {showPanel && (
+          <>
+            {/* Panel resize handle */}
+            {!panelMaximized && (
+              <div
+                className="h-1 shrink-0 cursor-row-resize hover:bg-cyan/30 active:bg-cyan/50 transition-colors border-t border-border"
+                onMouseDown={(e) => panelDrag(e, panelHeight)}
+              />
+            )}
+            <div
+              className={`shrink-0 flex flex-col ${panelMaximized ? 'flex-1' : ''}`}
+              style={panelMaximized ? undefined : { height: panelHeight }}
+            >
+              <div className="flex items-center h-7 shrink-0 border-b border-border px-1">
+                {PANEL_TABS.map(({ id, icon: Icon, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => setActivePanel(id)}
+                    className={`flex items-center gap-1 px-2 h-full text-[10px] transition-colors ${
+                      activePanel === id
+                        ? 'text-cyan border-b border-cyan'
+                        : 'text-text-tertiary hover:text-text-secondary'
+                    }`}
+                  >
+                    <Icon size={12} />
+                    <span>{label}</span>
+                  </button>
+                ))}
+                <div className="flex-1" />
+                <button
+                  onClick={togglePanelMaximized}
+                  className="p-1 text-text-tertiary hover:text-text-primary transition-colors"
+                  title={panelMaximized ? 'Restore Panel' : 'Maximize Panel'}
+                >
+                  {panelMaximized ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+                </button>
+                <button
+                  onClick={() => setShowPanel(false)}
+                  className="p-1 text-text-tertiary hover:text-text-primary transition-colors"
+                  title="Close Panel"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {activePanel === 'terminal' && <TerminalBridge />}
+                {activePanel === 'terminals' && <TerminalsContent />}
+                {activePanel === 'containers' && <ContainersContent />}
+                {activePanel === 'runtimes' && <RuntimesContent />}
+                {activePanel === 'previews' && <PreviewsContent />}
+              </div>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Tab context menu */}
+      {contextMenu && (
+        <TabContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          path={contextMenu.path}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   )
 }
