@@ -282,7 +282,7 @@ function FilesPanel() {
       setVpsTree(vpsEntries)
       setAuthExpired(false)
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) { setAuthExpired(true); setVpsLoading(false); return }
+      if (e instanceof ApiError && e.status === 401) setAuthExpired(true)
     }
     setVpsLoading(false)
 
@@ -333,10 +333,10 @@ function FilesPanel() {
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-raised transition-colors"
       >
         <span className="text-text-tertiary text-[9px]">{vpsExpanded ? '▾' : '▸'}</span>
-        <span className={`text-[9px] ${authExpired ? 'text-danger' : 'text-ok'}`}>●</span>
+        <span className="text-[9px] text-ok">●</span>
         <span className="wv-label flex-1 text-left">{vpsName}</span>
       </button>
-      {vpsExpanded && !authExpired && (
+      {vpsExpanded && (
         <>
           {vpsTree.map((f) => (
             <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} onFileOpen={openFileInEditor} />
@@ -356,10 +356,10 @@ function FilesPanel() {
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-raised transition-colors border-t border-border mt-1"
       >
         <span className="text-text-tertiary text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
-        <span className={`text-[9px] ${authExpired ? 'text-danger' : windowsOnline ? 'text-ok' : 'text-text-tertiary'}`}>●</span>
+        <span className={`text-[9px] ${windowsOnline ? 'text-ok' : 'text-text-tertiary'}`}>●</span>
         <span className="wv-label flex-1 text-left">{windowsName}</span>
       </button>
-      {windowsExpanded && !authExpired && (
+      {windowsExpanded && (
         <>
           {windowsOnline ? (
             <>
