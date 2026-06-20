@@ -216,13 +216,24 @@ function IDEFileTreeNode({ name, path, type, depth, node, onFileOpen }: {
   name: string; path: string; type: 'file' | 'directory'; depth: number; node?: string
   onFileOpen?: (path: string, node?: string) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useMetaIDEStore((s) => s.expandedDirs.has(path))
   const [children, setChildren] = useState<FileEntry[]>([])
+  const childrenLoaded = useRef(false)
+
+  useEffect(() => {
+    if (expanded && !childrenLoaded.current) {
+      browseDir(path, node).then((entries) => { setChildren(entries); childrenLoaded.current = true })
+    }
+  }, [expanded, path, node])
 
   const handleClick = async () => {
     if (type === 'directory') {
-      if (!expanded) setChildren(await browseDir(path, node))
-      setExpanded(!expanded)
+      if (!expanded && !childrenLoaded.current) {
+        const entries = await browseDir(path, node)
+        setChildren(entries)
+        childrenLoaded.current = true
+      }
+      useMetaIDEStore.getState().toggleDir(path)
     } else if (onFileOpen) {
       onFileOpen(path, node)
     }
@@ -264,9 +275,9 @@ function FilesPanel() {
   const windowsTree = useMetaIDEStore((s) => s.windowsTree)
   const meshNodes = useMetaIDEStore((s) => s.fileMeshNodes)
   const windowsOnline = useMetaIDEStore((s) => s.windowsOnline)
+  const vpsExpanded = useMetaIDEStore((s) => s.vpsExpanded)
+  const windowsExpanded = useMetaIDEStore((s) => s.windowsExpanded)
   const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
-  const [vpsExpanded, setVpsExpanded] = useState(true)
-  const [windowsExpanded, setWindowsExpanded] = useState(true)
   const [initialLoading, setInitialLoading] = useState(vpsTree.length === 0)
 
   const refreshData = async () => {
@@ -308,7 +319,7 @@ function FilesPanel() {
   return (
     <div className="py-1">
       <button
-        onClick={() => setVpsExpanded(!vpsExpanded)}
+        onClick={() => useMetaIDEStore.getState().setVpsExpanded(!vpsExpanded)}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-raised transition-colors"
       >
         <span className="text-text-tertiary text-[9px]">{vpsExpanded ? '▾' : '▸'}</span>
@@ -331,7 +342,7 @@ function FilesPanel() {
       )}
 
       <button
-        onClick={() => setWindowsExpanded(!windowsExpanded)}
+        onClick={() => useMetaIDEStore.getState().setWindowsExpanded(!windowsExpanded)}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-raised transition-colors border-t border-border mt-1"
       >
         <span className="text-text-tertiary text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
