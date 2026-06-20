@@ -8,7 +8,7 @@ import { useMetaIDEStore, type SidebarTab, type PanelTab } from '../stores/metaI
 import { useEditorStore } from '../stores/editorStore'
 import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 import { useViewContextStore } from '../stores/viewContextStore'
-import { fetchApi } from '../api/client'
+import { fetchApi, ApiError } from '../api/client'
 import { VPS, BEAST } from '../constants/devices'
 import type { LucideIcon } from 'lucide-react'
 
@@ -144,14 +144,18 @@ async function browseDir(path: string, node?: string): Promise<FileEntry[]> {
         `/workspace/remote-browse?node=windows&path=${encodeURIComponent(path)}`,
       )
       if (data.ok && data.entries) return data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type }))
-    } catch { /* remote browse failed */ }
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) throw e
+    }
     return []
   }
   try {
     const qs = path ? `?path=${encodeURIComponent(path)}` : ''
     const data = await fetchApi<{ ok: boolean; entries: FileEntry[] }>(`/workspace/browse${qs}`)
     if (data.ok && data.entries) return data.entries.map((e) => ({ name: e.name, path: e.path, type: e.type }))
-  } catch { /* API fallback failed */ }
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) throw e
+  }
   return []
 }
 
@@ -268,15 +272,21 @@ function FilesPanel() {
   const [windowsExpanded, setWindowsExpanded] = useState(true)
   const [meshNodes, setMeshNodes] = useState<MeshNode[]>([])
   const [windowsOnline, setWindowsOnline] = useState(false)
+  const [authExpired, setAuthExpired] = useState(false)
   const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
 
   const loadData = async () => {
     setVpsLoading(true)
-    const vpsEntries = await browseDir('/')
-    setVpsTree(vpsEntries)
+    try {
+      const vpsEntries = await browseDir('/')
+      setVpsTree(vpsEntries)
+      setAuthExpired(false)
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) { setAuthExpired(true); setVpsLoading(false); return }
+    }
     setVpsLoading(false)
 
-    browseDir('C:\\', 'windows').then((entries) => setWindowsTree(entries))
+    browseDir('C:\\', 'windows').then((entries) => setWindowsTree(entries)).catch(() => {})
 
     try {
       const data = await fetchApi<{ ok: boolean; nodes: MeshNode[] }>('/workspace/mesh-nodes')
@@ -309,15 +319,24 @@ function FilesPanel() {
 
   return (
     <div className="py-1">
+      {authExpired && (
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full text-[11px] px-3 py-2 text-danger hover:underline text-left"
+        >
+          Session expired — click to refresh
+        </button>
+      )}
+
       <button
         onClick={() => setVpsExpanded(!vpsExpanded)}
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-raised transition-colors"
       >
         <span className="text-text-tertiary text-[9px]">{vpsExpanded ? '▾' : '▸'}</span>
-        <span className="text-ok text-[9px]">●</span>
+        <span className={`text-[9px] ${authExpired ? 'text-danger' : 'text-ok'}`}>●</span>
         <span className="wv-label flex-1 text-left">{vpsName}</span>
       </button>
-      {vpsExpanded && (
+      {vpsExpanded && !authExpired && (
         <>
           {vpsTree.map((f) => (
             <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} onFileOpen={openFileInEditor} />
@@ -337,10 +356,10 @@ function FilesPanel() {
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-raised transition-colors border-t border-border mt-1"
       >
         <span className="text-text-tertiary text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
-        <span className={`text-[9px] ${windowsOnline ? 'text-ok' : 'text-text-tertiary'}`}>●</span>
+        <span className={`text-[9px] ${authExpired ? 'text-danger' : windowsOnline ? 'text-ok' : 'text-text-tertiary'}`}>●</span>
         <span className="wv-label flex-1 text-left">{windowsName}</span>
       </button>
-      {windowsExpanded && (
+      {windowsExpanded && !authExpired && (
         <>
           {windowsOnline ? (
             <>
