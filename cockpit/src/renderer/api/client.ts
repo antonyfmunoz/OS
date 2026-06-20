@@ -27,16 +27,24 @@ export async function getClerkToken(): Promise<string | null> {
 
 const _inflight = new Map<string, Promise<unknown>>()
 
+async function _acquireToken(): Promise<string | null> {
+  if (!_getToken) return null
+  for (let i = 0; i < 10; i++) {
+    const t = await _getToken()
+    if (t) return t
+    await new Promise<void>((r) => setTimeout(r, 300))
+  }
+  return null
+}
+
 async function _doFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
   }
 
-  if (_getToken) {
-    const token = await _getToken()
-    if (token) headers['Authorization'] = `Bearer ${token}`
-  }
+  const token = await _acquireToken()
+  if (token) headers['Authorization'] = `Bearer ${token}`
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
   if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`)
