@@ -4,6 +4,7 @@ import { useSystemStore } from '../stores/systemStore'
 import { useApprovalStore } from '../stores/approvalStore'
 import { useUnifiedApprovalStore } from '../stores/unifiedApprovalStore'
 import { useCockpitStore } from '../stores/cockpitStore'
+import { useCollapseStore } from '../stores/collapseStore'
 import { usePolling } from '../hooks/usePolling'
 import { fetchApi } from '../api/client'
 
@@ -37,7 +38,8 @@ const STATUS_DOT: Record<string, string> = {
 }
 
 export function ControlPanel() {
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('control-panel'))
+  const toggleExpanded = useCollapseStore((s) => s.toggle)
   const [continuityState, setContinuityState] = useState('ACTIVE')
   const [riskCeiling, setRiskCeiling] = useState('HIGH')
   const [lifecycleMode, setLifecycleMode] = useState('DAY_CYCLE')
@@ -184,7 +186,7 @@ export function ControlPanel() {
 
         {/* 10. Expand/collapse — far right */}
         <button
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => toggleExpanded('control-panel')}
           className="p-1 text-text-tertiary hover:text-cyan transition-colors"
         >
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}

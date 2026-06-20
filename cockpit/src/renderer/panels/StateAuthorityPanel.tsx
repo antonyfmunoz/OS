@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useStateAuthorityStore } from '../stores/stateAuthorityStore';
+import { useCollapseStore } from '../stores/collapseStore';
 
 const statusColor = (status: string): string => {
   switch (status) {
@@ -19,7 +20,9 @@ const healthColor = (health: string): string => {
 };
 
 const DomainCard: React.FC<{ domain: any }> = ({ domain }) => {
-  const [expanded, setExpanded] = useState(false);
+  const key = `domain:${domain.domain}`
+  const expanded = useCollapseStore((s) => s.isOpen(key))
+  const toggle = useCollapseStore((s) => s.toggle)
 
   return (
     <div
@@ -31,7 +34,7 @@ const DomainCard: React.FC<{ domain: any }> = ({ domain }) => {
         background: '#1f2937',
         cursor: 'pointer',
       }}
-      onClick={() => setExpanded(!expanded)}
+      onClick={() => toggle(key)}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontWeight: 600, textTransform: 'uppercase', fontSize: 13 }}>

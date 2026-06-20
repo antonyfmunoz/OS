@@ -40,6 +40,7 @@ import {
   StickyNote,
 } from 'lucide-react'
 import { useRoomsStore } from '../../stores/roomsStore'
+import { useCollapseStore } from '../../stores/collapseStore'
 import { useConferenceRoom, detectScreenShareSupport } from '../../hooks/useConferenceRoom'
 import type {
   ConferenceParticipant,
@@ -1109,11 +1110,12 @@ function AIGovernanceBadge({
   governance: AIGovernancePermissions
   onUpdate: (patch: Partial<AIGovernancePermissions>) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('meeting:ai-governance'))
+  const toggle = useCollapseStore((s) => s.toggle)
 
   return (
     <div className="w-full rounded border mt-1 mb-2" style={{ borderColor: 'var(--color-border)' }}>
-      <button onClick={() => setExpanded(!expanded)}
+      <button onClick={() => toggle('meeting:ai-governance')}
         className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-mono"
         style={{ color: 'var(--color-text-tertiary)' }}
       >
@@ -1183,13 +1185,14 @@ function GovernanceRow({ icon: Icon, label, value }: { icon: typeof Bot; label: 
 }
 
 function ProductionTestChecklist({ items }: { items: ProductionTestItem[] }) {
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('meeting:prod-test'))
+  const toggle = useCollapseStore((s) => s.toggle)
 
   const passCount = items.filter(i => i.status === 'pass').length
 
   return (
     <div className="w-full rounded border mt-1 mb-2" style={{ borderColor: 'var(--color-border)' }}>
-      <button onClick={() => setExpanded(!expanded)}
+      <button onClick={() => toggle('meeting:prod-test')}
         className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-mono"
         style={{ color: 'var(--color-text-tertiary)' }}
       >
@@ -1522,13 +1525,14 @@ function ActionsPanel({
 }
 
 function DiagnosticsPanel({ diagnostics, state }: { diagnostics: ConferenceDiagnostics; state: string }) {
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('meeting:diagnostics'))
+  const toggle = useCollapseStore((s) => s.toggle)
 
   if (state === 'idle' && !diagnostics.lastEvent) return null
 
   return (
     <div className="w-full rounded border mt-2" style={{ borderColor: 'var(--color-border)' }}>
-      <button onClick={() => setExpanded(!expanded)}
+      <button onClick={() => toggle('meeting:diagnostics')}
         className="w-full flex items-center gap-1 px-3 py-1.5 text-[9px] font-mono"
         style={{ color: 'var(--color-text-tertiary)' }}
       >

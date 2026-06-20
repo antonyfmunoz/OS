@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { clsx } from 'clsx'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useVisionStore, type MotionState, type StreamMetrics, type QualityMode, type RelayPipelineMetrics, type BeastStreamMetrics } from '../../stores/visionStore'
+import { useCollapseStore } from '../../stores/collapseStore'
 
 const QUALITY_DESCRIPTIONS: Record<QualityMode, string> = {
   smooth: '720p 30fps',
@@ -38,7 +39,8 @@ export function DiagnosticsPanel({
   const beastMetrics = useVisionStore((s) => s.beastStreamMetrics)
   const visionEvents = useVisionStore((s) => s.visionEvents)
   const commandTelemetry = useVisionStore((s) => s.commandTelemetry)
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('vision:diagnostics'))
+  const toggleDiag = useCollapseStore((s) => s.toggle)
 
   const enabledTrackers = trackerStack.enabled_trackers.filter((t) => t.enabled)
 
@@ -56,7 +58,7 @@ export function DiagnosticsPanel({
   return (
     <div className="border-t border-border pt-2">
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => toggleDiag('vision:diagnostics')}
         className="flex items-center gap-1 text-[10px] font-mono text-text-quaternary hover:text-text-secondary uppercase tracking-wider w-full"
       >
         {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}

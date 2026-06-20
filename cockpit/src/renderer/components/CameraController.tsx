@@ -25,6 +25,7 @@ import { VisionOverlay } from './vision'
 import { StatusHud } from './vision/StatusHud'
 import { CameraModeSelector } from './vision/CameraModeSelector'
 import { SceneInventory } from './vision/SceneInventory'
+import { useCollapseStore } from '../stores/collapseStore'
 import { DiagnosticsPanel } from './vision/DiagnosticsPanel'
 import { ToastContainer } from './vision/ToastContainer'
 import { NotificationCenter } from './vision/NotificationCenter'
@@ -88,7 +89,8 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
   const settingsOpen = useVisionStore((s) => s.settingsOpen)
 
   const { openPopout } = useVisionPopout()
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('vision:camera-controller'))
+  const toggleCC = useCollapseStore((s) => s.toggle)
   const [savingPreset, setSavingPreset] = useState(false)
   const [newPresetName, setNewPresetName] = useState('')
   const [newPresetLabel, setNewPresetLabel] = useState('')
@@ -805,7 +807,7 @@ export function CameraController({ compact = false }: { compact?: boolean }) {
         {/* Minimal top-left: expand + pop-out only */}
         <div className="absolute top-1 left-1 flex items-center gap-1">
           <button
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => toggleCC('vision:camera-controller')}
             className="p-1.5 rounded bg-black/60 text-text-secondary hover:text-white"
             title={expanded ? 'Collapse' : 'Expand'}
           >

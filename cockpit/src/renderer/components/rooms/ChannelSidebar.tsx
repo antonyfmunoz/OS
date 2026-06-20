@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useRoomsStore } from '../../stores/roomsStore'
+import { useCollapseStore } from '../../stores/collapseStore'
 import type { ChannelType, RoomChannel, ServerCategory } from '../../types/rooms'
 import { ChannelCreateModal } from './ChannelCreateModal'
 
@@ -40,14 +41,16 @@ interface CategoryGroupProps {
 }
 
 function CategoryGroup({ category, channels }: CategoryGroupProps) {
-  const [collapsed, setCollapsed] = useState(category.collapsed)
+  const key = `rooms:category:${category.id}`
+  const collapsed = useCollapseStore((s) => !s.isOpen(key, !category.collapsed))
+  const toggle = useCollapseStore((s) => s.toggle)
   const activeChannelId = useRoomsStore((s) => s.activeChannelId)
   const setActiveChannel = useRoomsStore((s) => s.setActiveChannel)
 
   return (
     <div className="mb-1">
       <button
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={() => toggle(key)}
         className="flex items-center gap-1 w-full px-2 py-1 text-left"
       >
         {collapsed ? (

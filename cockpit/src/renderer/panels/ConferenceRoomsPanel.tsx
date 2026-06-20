@@ -1,40 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRoomsStore } from '../stores/roomsStore'
+import { useCollapseStore } from '../stores/collapseStore'
 import { ServerRail } from '../components/rooms/ServerRail'
 import { ChannelSidebar } from '../components/rooms/ChannelSidebar'
 import { RoomMainView } from '../components/rooms/RoomMainView'
 import { RoomRightRail } from '../components/rooms/RoomRightRail'
 
-const CH_SIDEBAR_KEY = 'rooms:chSidebarV2'
-const RIGHT_RAIL_KEY = 'rooms:rightRailV2'
-
-function loadBool(key: string, fallback: boolean): boolean {
-  try {
-    const v = localStorage.getItem(key)
-    if (v === null) return fallback
-    return v === 'true'
-  } catch { return fallback }
-}
-
 export function ConferenceRoomsPanel() {
   const fetchServers = useRoomsStore((s) => s.fetchServers)
   const activeServerId = useRoomsStore((s) => s.activeServerId)
   const loading = useRoomsStore((s) => s.loading)
-  const [channelSidebarCollapsed, setChannelSidebarCollapsed] = useState(() => loadBool(CH_SIDEBAR_KEY, true))
-  const [rightRailCollapsed, setRightRailCollapsed] = useState(() => loadBool(RIGHT_RAIL_KEY, true))
+  const channelSidebarCollapsed = useCollapseStore((s) => !s.isOpen('rooms:channel-sidebar'))
+  const rightRailCollapsed = useCollapseStore((s) => !s.isOpen('rooms:right-rail'))
   const [chatRequested, setChatRequested] = useState(false)
 
-  const toggleChannelSidebar = useCallback(() => setChannelSidebarCollapsed((v) => {
-    const next = !v
-    try { localStorage.setItem(CH_SIDEBAR_KEY, String(next)) } catch {}
-    return next
-  }), [])
-
-  const toggleRightRail = useCallback(() => setRightRailCollapsed((v) => {
-    const next = !v
-    try { localStorage.setItem(RIGHT_RAIL_KEY, String(next)) } catch {}
-    return next
-  }), [])
+  const toggleChannelSidebar = useCallback(() => useCollapseStore.getState().toggle('rooms:channel-sidebar'), [])
+  const toggleRightRail = useCallback(() => useCollapseStore.getState().toggle('rooms:right-rail'), [])
 
   const handleOpenChat = useCallback(() => {
     setChatRequested(true)

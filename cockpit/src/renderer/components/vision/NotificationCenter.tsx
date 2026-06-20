@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { clsx } from 'clsx'
 import { Bell, BellOff, Check, Trash2, X, ChevronDown, ChevronRight } from 'lucide-react'
 import { useVisionStore, type SecurityNotification, type NotificationSeverity } from '../../stores/visionStore'
+import { useCollapseStore } from '../../stores/collapseStore'
 
 const SEVERITY_STYLES: Record<NotificationSeverity, { bg: string; border: string; text: string; dot: string }> = {
   info: { bg: 'bg-cyan/5', border: 'border-cyan/20', text: 'text-cyan', dot: 'bg-cyan' },
@@ -61,7 +62,8 @@ export function NotificationCenter() {
   const acknowledgeNotification = useVisionStore((s) => s.acknowledgeNotification)
   const clearNotification = useVisionStore((s) => s.clearNotification)
   const clearAllNotifications = useVisionStore((s) => s.clearAllNotifications)
-  const [expanded, setExpanded] = useState(false)
+  const expanded = useCollapseStore((s) => s.isOpen('vision:notifications'))
+  const toggle = useCollapseStore((s) => s.toggle)
 
   const sorted = [...notifications].sort((a, b) => b.timestamp - a.timestamp)
   const criticalCount = sorted.filter((n) => n.severity === 'critical' && !n.acknowledged).length
@@ -69,7 +71,7 @@ export function NotificationCenter() {
   return (
     <div className="border-t border-border pt-2">
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => toggle('vision:notifications')}
         className="flex items-center gap-1.5 text-[10px] font-mono text-text-quaternary hover:text-text-secondary uppercase tracking-wider w-full"
       >
         {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useServiceGraphStore } from '../stores/serviceGraphStore';
+import { useCollapseStore } from '../stores/collapseStore';
 
 const criticalityColor = (criticality: string): string => {
   switch (criticality) {
@@ -24,7 +25,9 @@ const severityColor = (severity: string): string => {
 type TabId = 'services' | 'critical-path' | 'impact';
 
 const ServiceCard: React.FC<{ service: any; onSelect: (role: string) => void }> = ({ service, onSelect }) => {
-  const [expanded, setExpanded] = useState(false);
+  const key = `service:${service.service_role}`
+  const expanded = useCollapseStore((s) => s.isOpen(key))
+  const toggle = useCollapseStore((s) => s.toggle)
 
   return (
     <div
@@ -36,7 +39,7 @@ const ServiceCard: React.FC<{ service: any; onSelect: (role: string) => void }> 
         background: '#1f2937',
         cursor: 'pointer',
       }}
-      onClick={() => setExpanded(!expanded)}
+      onClick={() => toggle(key)}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontWeight: 600, fontSize: 13 }}>{service.service_role}</div>

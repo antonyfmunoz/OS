@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm'
 import { useChatStore, type ChatMessage, type Provenance, type Attachment } from '../stores/chatStore'
 import { usePolling } from '../hooks/usePolling'
 import { useConfigStore } from '../stores/configStore'
+import { useCollapseStore } from '../stores/collapseStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useVoiceStore } from '../stores/voiceStore'
 import { startVoice, stopVoice } from '../api/voice-controller'
@@ -30,23 +31,9 @@ const markdownComponents = {
 
 type RightTab = 'conversation' | 'context' | 'execution'
 
-const RIGHT_RAIL_KEY = 'cockpit:rightRailCollapsed'
-
 export function RightRail() {
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      const v = localStorage.getItem(RIGHT_RAIL_KEY)
-      if (v === null) return true
-      return v === 'true'
-    } catch { return true }
-  })
-  const toggleCollapsed = useCallback(() => {
-    setCollapsed((v) => {
-      const next = !v
-      try { localStorage.setItem(RIGHT_RAIL_KEY, String(next)) } catch {}
-      return next
-    })
-  }, [])
+  const collapsed = useCollapseStore((s) => !s.isOpen('right-rail'))
+  const toggleCollapsed = useCallback(() => useCollapseStore.getState().toggle('right-rail'), [])
   const [activeTab, setActiveTab] = useState<RightTab>('conversation')
 
   const tabs: Array<{ id: RightTab; icon: typeof MessageSquare; label: string }> = [
