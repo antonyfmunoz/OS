@@ -342,10 +342,14 @@ function FilesPanel() {
       </button>
       {windowsExpanded && (
         <>
-          {windowsTree.map((f) => (
-            <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" onFileOpen={openFileInEditor} />
-          ))}
-          {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-text-tertiary">Loading files...</p>}
+          {windowsOnline ? (
+            <>
+              {windowsTree.map((f) => (
+                <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" onFileOpen={openFileInEditor} />
+              ))}
+              {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-text-tertiary">Loading files...</p>}
+            </>
+          ) : null}
         </>
       )}
     </div>
