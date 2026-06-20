@@ -27,5 +27,10 @@ interface CockpitBridge {
 declare global {
   interface Window {
     cockpit?: CockpitBridge
+    Clerk?: {
+      session?: {
+        getToken: () => Promise<string>
+      }
+    }
   }
 }
