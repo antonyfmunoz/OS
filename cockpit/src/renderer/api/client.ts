@@ -22,7 +22,7 @@ export function getWsToken(): string {
 
 export async function getClerkToken(): Promise<string | null> {
   if (window.Clerk?.session) {
-    try { return await window.Clerk.session.getToken() } catch { /* fall through */ }
+    try { return await window.Clerk.session.getToken({ skipCache: true }) } catch { /* fall through */ }
   }
   if (_getToken) return _getToken()
   return null
@@ -44,7 +44,7 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
 
   let token: string | null = null
   if (window.Clerk?.session) {
-    try { token = await window.Clerk.session.getToken() } catch { /* fall through */ }
+    try { token = await window.Clerk.session.getToken({ skipCache: true }) } catch { /* fall through */ }
   }
   if (!token && _getToken) {
     token = await _getToken()

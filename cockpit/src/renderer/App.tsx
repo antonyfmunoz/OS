@@ -18,7 +18,7 @@ function TokenGate({ children }: { children: ReactNode }) {
 
   setTokenGetter(async () => {
     if (window.Clerk?.session) {
-      try { return await window.Clerk.session.getToken() } catch { /* fall through */ }
+      try { return await window.Clerk.session.getToken({ skipCache: true }) } catch { /* fall through */ }
     }
     return ref.current()
   })
