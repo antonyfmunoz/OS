@@ -1093,7 +1093,7 @@ export function MetaIDEPanel() {
       {showSidebar && (
         <>
           <div className="shrink-0 flex flex-col border-r border-border overflow-hidden" style={{ width: 'var(--spacing-rail)' }}>
-            <div className="px-3 py-2 border-b border-border shrink-0">
+            <div className="flex items-center px-3 h-8 border-b border-border shrink-0">
               <span className="wv-label">{SIDEBAR_ITEMS.find((s) => s.id === activeSidebar)?.label || ''}</span>
             </div>
             <div className="flex-1 overflow-y-auto">
