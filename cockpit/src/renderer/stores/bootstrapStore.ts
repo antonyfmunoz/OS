@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { fetchApi } from '../api/client'
 import { useConfigStore } from './configStore'
 import { useSystemStore } from './systemStore'
+import { useMetaIDEStore } from './metaIDEStore'
 
 interface BootstrapResponse {
   ok: boolean
@@ -22,6 +23,7 @@ interface BootstrapResponse {
   mesh_nodes?: Array<Record<string, unknown>>
   workstation_nodes?: Record<string, unknown>
   vps_files?: { ok?: boolean; entries?: Array<{ name: string; path: string; type: string }> }
+  windows_files?: { ok?: boolean; entries?: Array<{ name: string; path: string; type: string }> }
 }
 
 interface BootstrapState {
@@ -74,6 +76,26 @@ export const useBootstrapStore = create<BootstrapState>((set) => ({
 
       if (data.mesh_nodes && Array.isArray(data.mesh_nodes)) {
         useSystemStore.getState().setMeshNodes(data.mesh_nodes)
+        const ide = useMetaIDEStore.getState()
+        ide.setFileMeshNodes(data.mesh_nodes.map((n) => ({
+          id: (n.id ?? '') as string,
+          name: (n.name ?? '') as string,
+          os: (n.os ?? '') as string,
+          status: (n.status ?? 'offline') as string,
+          ip: (n.ip ?? '') as string,
+          device_type: (n.device_type ?? '') as string,
+        })))
+      }
+
+      if (data.vps_files?.ok && data.vps_files.entries?.length) {
+        useMetaIDEStore.getState().setVpsTree(
+          data.vps_files.entries.map((e) => ({ name: e.name, path: e.path, type: e.type as 'file' | 'directory' })),
+        )
+      }
+      if (data.windows_files?.ok && data.windows_files.entries?.length) {
+        useMetaIDEStore.getState().setWindowsTree(
+          data.windows_files.entries.map((e) => ({ name: e.name, path: e.path, type: e.type as 'file' | 'directory' })),
+        )
       }
 
       set({
@@ -89,6 +111,7 @@ export const useBootstrapStore = create<BootstrapState>((set) => ({
           mesh_nodes: data.mesh_nodes,
           workstation_nodes: data.workstation_nodes,
           vps_files: data.vps_files,
+          windows_files: data.windows_files,
           mode_composite: data.mode_composite,
           continuity: data.continuity,
           overnight: data.overnight,

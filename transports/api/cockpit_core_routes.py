@@ -3142,6 +3142,33 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             errors.append(f"vps_files: {e}")
             result["vps_files"] = {}
 
+        # Windows root file listing (avoids separate /workspace/remote-browse call)
+        try:
+            from transports.api.cockpit_workspace_routes import _ssh_cmd
+            _win_ok, _win_out = _ssh_cmd(
+                'powershell -Command "Get-ChildItem -LiteralPath \'C:\\\''
+                ' | ForEach-Object { $_.Name + \'|\''
+                ' + $(if($_.PSIsContainer){\'directory\'}else{\'file\'})'
+                ' + \'|\' + $_.Length }"'
+            )
+            _win_entries: list[dict[str, Any]] = []
+            if _win_ok:
+                for _line in _win_out.strip().splitlines():
+                    _parts = _line.strip().split("|")
+                    if len(_parts) >= 2:
+                        _wname = _parts[0]
+                        _wtype = _parts[1]
+                        _win_entries.append({
+                            "name": _wname,
+                            "path": "C:\\" + _wname,
+                            "type": _wtype,
+                            "source_env": "windows",
+                        })
+            result["windows_files"] = {"ok": _win_ok, "entries": _win_entries}
+        except Exception as e:
+            errors.append(f"windows_files: {e}")
+            result["windows_files"] = {"ok": False, "entries": []}
+
         # chat / dex availability
         try:
             conv = _get_dex_conversation()
