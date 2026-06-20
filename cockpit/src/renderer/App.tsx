@@ -12,7 +12,7 @@ import { setTokenGetter } from './api/client'
 const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 function TokenGate({ children }: { children: ReactNode }) {
-  const { getToken, isLoaded } = useAuth()
+  const { getToken, isLoaded, isSignedIn } = useAuth()
   const ref = useRef(getToken)
   ref.current = getToken
   const [ready, setReady] = useState(false)
@@ -20,15 +20,21 @@ function TokenGate({ children }: { children: ReactNode }) {
   setTokenGetter(async () => ref.current())
 
   useEffect(() => {
-    if (!isLoaded) return
+    if (!isLoaded || !isSignedIn) return
     let cancelled = false
+    let attempts = 0
     const check = async () => {
-      const t = await ref.current()
-      if (!cancelled && t) setReady(true)
+      while (!cancelled && attempts < 20) {
+        const t = await ref.current()
+        if (t) { if (!cancelled) setReady(true); return }
+        attempts++
+        await new Promise<void>(r => setTimeout(r, 250))
+      }
+      if (!cancelled) setReady(true)
     }
     check()
     return () => { cancelled = true }
-  }, [isLoaded])
+  }, [isLoaded, isSignedIn])
 
   if (!ready) return null
   return <>{children}</>
