@@ -68,7 +68,14 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
     }
     if (token) headers['Authorization'] = `Bearer ${token}`
 
-    const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30_000)
+    let res: Response
+    try {
+      res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: controller.signal })
+    } finally {
+      clearTimeout(timeoutId)
+    }
     if (res.status === 401 && attempt < 3) {
       await new Promise(r => setTimeout(r, 1000))
       return doFetch(attempt + 1)
