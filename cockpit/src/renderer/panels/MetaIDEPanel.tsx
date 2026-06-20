@@ -8,7 +8,7 @@ import { useMetaIDEStore, type SidebarTab, type PanelTab } from '../stores/metaI
 import { useEditorStore } from '../stores/editorStore'
 import { useProviderRegistryStore } from '../stores/providerRegistryStore'
 import { useViewContextStore } from '../stores/viewContextStore'
-import { fetchApi, ApiError } from '../api/client'
+import { fetchApi, ApiError, waitForToken } from '../api/client'
 import { VPS, BEAST } from '../constants/devices'
 import type { LucideIcon } from 'lucide-react'
 
@@ -298,7 +298,7 @@ function FilesPanel() {
   }
 
   useEffect(() => {
-    loadData()
+    waitForToken().then(loadData)
     const id = setInterval(loadData, 30000)
     return () => clearInterval(id)
   }, [])
