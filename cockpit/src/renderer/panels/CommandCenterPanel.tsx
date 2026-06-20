@@ -75,8 +75,8 @@ export function CommandCenterPanel() {
     what_failed: { recent_failed: 0, latest: '—' },
     what_should_resume_next: null,
   }
-  const cachedSummary = useBootstrapStore.getState().cache.command_center_summary as SummaryData | undefined
-  const [summary, setSummary] = useState<SummaryData>(cachedSummary?.ok ? cachedSummary : defaultSummary)
+  const [summary, setSummary] = useState<SummaryData>(defaultSummary)
+  const cachedSummary = useBootstrapStore((s) => s.cache.command_center_summary) as SummaryData | undefined
   const [error, setError] = useState('')
 
   const [continuityState, setContinuityState] = useState('ACTIVE')
@@ -107,6 +107,10 @@ export function CommandCenterPanel() {
   }, [])
 
   useEffect(() => {
+    if (cachedSummary?.ok) setSummary(cachedSummary)
+  }, [cachedSummary])
+
+  useEffect(() => {
     fetchSummary()
     const id = setInterval(fetchSummary, 10000)
     return () => clearInterval(id)
@@ -116,23 +120,21 @@ export function CommandCenterPanel() {
     setViewContext({ active_route: 'commandcenter', visible_context_summary: 'Command Center overview' })
   }, [setViewContext])
 
+  const cachedContinuity = useBootstrapStore((s) => s.cache.continuity) as Record<string, unknown> | undefined
+  const cachedMode = useBootstrapStore((s) => s.cache.mode_composite) as Record<string, unknown> | undefined
+  const cachedOvernight = useBootstrapStore((s) => s.cache.overnight) as Record<string, unknown> | undefined
+
   useEffect(() => {
-    const bsCache = useBootstrapStore.getState().cache
-    if (bsCache.continuity) {
-      const c = bsCache.continuity as Record<string, unknown>
-      setContinuityState((c.state as string) || 'ACTIVE')
+    if (cachedContinuity) setContinuityState((cachedContinuity.state as string) || 'ACTIVE')
+    if (cachedMode) {
+      setRiskCeiling((cachedMode.risk_ceiling as string) || 'HIGH')
+      setLifecycleMode((cachedMode.lifecycle_mode as string) || 'DAY_CYCLE')
     }
-    if (bsCache.mode_composite) {
-      const m = bsCache.mode_composite as Record<string, unknown>
-      setRiskCeiling((m.risk_ceiling as string) || 'HIGH')
-      setLifecycleMode((m.lifecycle_mode as string) || 'DAY_CYCLE')
-    }
-    if (bsCache.overnight) {
-      const o = bsCache.overnight as Record<string, unknown>
+    if (cachedOvernight) {
       setOvernightStatus({
-        safe: (o.safe_count as number) || 0,
-        pending: (o.pending_count as number) || 0,
-        blocked: (o.blocked_count as number) || 0,
+        safe: (cachedOvernight.safe_count as number) || 0,
+        pending: (cachedOvernight.pending_count as number) || 0,
+        blocked: (cachedOvernight.blocked_count as number) || 0,
       })
     }
 
@@ -164,7 +166,7 @@ export function CommandCenterPanel() {
     fetchExtras()
     const id = setInterval(fetchExtras, 10000)
     return () => clearInterval(id)
-  }, [continuityState])
+  }, [continuityState, cachedContinuity, cachedMode, cachedOvernight])
 
   const handleApproval = useCallback(async (id: string, decision: 'approved' | 'denied') => {
     try {
