@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   FolderTree, MonitorPlay, GitBranch, Database, Map, Shield,
-  Terminal as TerminalIcon, Box, Cpu, Eye, X, PanelBottomOpen,
+  Terminal as TerminalIcon, Box, Cpu, X, PanelBottomOpen,
   Maximize2, Minimize2,
 } from 'lucide-react'
 import { useMetaIDEStore, type SidebarTab, type PanelTab } from '../stores/metaIDEStore'
@@ -26,7 +26,6 @@ const PANEL_TABS: Array<{ id: PanelTab; icon: LucideIcon; label: string }> = [
   { id: 'terminals', icon: TerminalIcon, label: 'Sessions' },
   { id: 'containers', icon: Box, label: 'Containers' },
   { id: 'runtimes', icon: Cpu, label: 'Runtimes' },
-  { id: 'previews', icon: Eye, label: 'Previews' },
 ]
 
 const RISK_COLORS: Record<string, string> = {
@@ -945,28 +944,13 @@ function PhaseRow({ phase }: { phase: { phase_number: string; phase_name: string
 // ─── Right Preview Sidebar ───────────────────────────────────────
 
 function PreviewSidebar() {
-  const [tab, setTab] = useState<'runtimes' | 'preview'>('runtimes')
   return (
-    <>
-      <div className="flex items-center h-8 px-3 shrink-0 border-b border-border gap-2">
-        <button onClick={() => setTab('runtimes')}
-          className={`wv-label text-[10px] ${tab === 'runtimes' ? 'text-cyan' : 'text-text-tertiary'}`}>
-          Runtimes
-        </button>
-        <button onClick={() => setTab('preview')}
-          className={`wv-label text-[10px] ${tab === 'preview' ? 'text-cyan' : 'text-text-tertiary'}`}>
-          Preview
-        </button>
+    <div className="flex-1 flex flex-col">
+      <div className="flex items-center h-8 px-3 shrink-0 border-b border-border">
+        <span className="wv-label text-[10px] text-cyan">Preview</span>
       </div>
-      {tab === 'runtimes' ? <RuntimesContent /> : (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-xs text-text-tertiary">Live preview server integration</p>
-            <p className="text-xs mt-1 text-text-tertiary">Will render running web apps with hot reload</p>
-          </div>
-        </div>
-      )}
-    </>
+      <PreviewsContent />
+    </div>
   )
 }
 
@@ -1075,7 +1059,7 @@ export function MetaIDEPanel() {
             }`}
             title={id}
           >
-            <Icon size={18} />
+            <Icon size={14} />
           </button>
         ))}
 
@@ -1088,7 +1072,7 @@ export function MetaIDEPanel() {
           }`}
           title="Toggle Panel (Ctrl+`)"
         >
-          <PanelBottomOpen size={18} />
+          <PanelBottomOpen size={14} />
         </button>
       </div>
 
@@ -1209,7 +1193,6 @@ export function MetaIDEPanel() {
                 {activePanel === 'terminals' && <TerminalsContent />}
                 {activePanel === 'containers' && <ContainersContent />}
                 {activePanel === 'runtimes' && <RuntimesContent />}
-                {activePanel === 'previews' && <PreviewsContent />}
               </div>
             </div>
           </>
