@@ -69,7 +69,7 @@ export function ControlPanel() {
   const fetchWorkstationData = useCallback(async () => {
     try {
       const c = await fetchApi<{ state: string }>('/workstation/continuity')
-      setContinuityState(c.state)
+      if (c.state) setContinuityState(c.state)
     } catch { /* stale is fine */ }
 
     try {
@@ -138,7 +138,7 @@ export function ControlPanel() {
       <div className="flex items-center gap-2 px-4 py-2 flex-wrap">
         {/* 1. Status badge */}
         <span className="text-[10px] font-bold px-2 py-1 rounded border bg-green-600/20 text-green-400 border-green-600/30">
-          STATUS: {continuityState.replace(/_/g, ' ')}
+          STATUS: {(continuityState || 'ACTIVE').replace(/_/g, ' ')}
         </span>
 
         {/* 2. Mode badge */}
