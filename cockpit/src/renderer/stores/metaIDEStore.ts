@@ -138,7 +138,7 @@ interface WorkspaceObservation {
   snapshot_id: string
 }
 
-type ActiveTab = 'files' | 'repositories' | 'workspace' | 'roadmap' | 'risks' | 'terminals' | 'containers' | 'previews'
+type ActiveTab = 'files' | 'editor' | 'sessions' | 'repositories' | 'workspace' | 'roadmap' | 'risks' | 'terminals' | 'containers' | 'runtimes' | 'previews'
 
 interface MetaIDEState {
   activeTab: ActiveTab
