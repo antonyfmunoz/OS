@@ -138,9 +138,9 @@ interface WorkspaceObservation {
   snapshot_id: string
 }
 
-type ActiveTab = 'files' | 'editor' | 'sessions' | 'repositories' | 'workspace' | 'roadmap' | 'risks' | 'terminals' | 'containers' | 'runtimes' | 'previews'
+type ActiveTab = 'files' | 'editor' | 'sessions' | 'repositories' | 'workspace' | 'roadmap' | 'risks' | 'terminals' | 'containers' | 'runtimes'
 export type SidebarTab = 'files' | 'sessions' | 'workspace' | 'repositories' | 'roadmap' | 'risks'
-export type PanelTab = 'terminal' | 'terminals' | 'containers' | 'runtimes' | 'previews'
+export type PanelTab = 'terminal' | 'terminals' | 'containers' | 'runtimes'
 
 interface MetaIDEState {
   activeTab: ActiveTab
