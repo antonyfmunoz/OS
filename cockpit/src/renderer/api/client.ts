@@ -43,6 +43,8 @@ async function _doFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+const _wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+
 export async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const method = (options?.method ?? 'GET').toUpperCase()
   if (method === 'GET') {
@@ -51,8 +53,12 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
   }
 
   const promise = _doFetch<T>(path, options).catch(async (err) => {
-    if (err instanceof ApiError && err.status === 401 && _getToken) {
-      return _doFetch<T>(path, options)
+    if (!(err instanceof ApiError && err.status === 401 && _getToken)) throw err
+    for (const delay of [500, 1500, 3000]) {
+      await _wait(delay)
+      try { return await _doFetch<T>(path, options) } catch (e) {
+        if (!(e instanceof ApiError && e.status === 401)) throw e
+      }
     }
     throw err
   })
