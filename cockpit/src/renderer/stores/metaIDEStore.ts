@@ -139,9 +139,13 @@ interface WorkspaceObservation {
 }
 
 type ActiveTab = 'files' | 'editor' | 'sessions' | 'repositories' | 'workspace' | 'roadmap' | 'risks' | 'terminals' | 'containers' | 'runtimes' | 'previews'
+export type SidebarTab = 'files' | 'sessions' | 'workspace' | 'repositories' | 'roadmap' | 'risks'
+export type CenterTab = 'editor' | 'terminals' | 'containers' | 'runtimes' | 'previews'
 
 interface MetaIDEState {
   activeTab: ActiveTab
+  activeSidebar: SidebarTab
+  activeCenter: CenterTab
   repositories: Repository[]
   workspace: WorkspaceData | null
   roadmap: RoadmapData | null
@@ -152,6 +156,8 @@ interface MetaIDEState {
   error: string | null
 
   setActiveTab: (tab: ActiveTab) => void
+  setActiveSidebar: (tab: SidebarTab) => void
+  setActiveCenter: (tab: CenterTab) => void
   fetchRepositories: () => Promise<void>
   fetchWorkspace: () => Promise<void>
   fetchRoadmap: () => Promise<void>
@@ -160,7 +166,9 @@ interface MetaIDEState {
 }
 
 export const useMetaIDEStore = create<MetaIDEState>((set) => ({
-  activeTab: 'workspace',
+  activeTab: 'files',
+  activeSidebar: 'files',
+  activeCenter: 'editor',
   repositories: [],
   workspace: null,
   roadmap: null,
@@ -171,6 +179,8 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
   error: null,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
+  setActiveSidebar: (tab) => set({ activeSidebar: tab }),
+  setActiveCenter: (tab) => set({ activeCenter: tab }),
 
   fetchRepositories: async () => {
     set({ loading: true, error: null })
