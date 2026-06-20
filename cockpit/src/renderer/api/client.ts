@@ -27,13 +27,7 @@ export async function getClerkToken(): Promise<string | null> {
 
 const _inflight = new Map<string, Promise<unknown>>()
 
-export async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const method = (options?.method ?? 'GET').toUpperCase()
-  if (method === 'GET') {
-    const existing = _inflight.get(path) as Promise<T> | undefined
-    if (existing) return existing
-  }
-
+async function _doFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
@@ -44,9 +38,23 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
     if (token) headers['Authorization'] = `Bearer ${token}`
   }
 
-  const promise = fetch(`${API_BASE}${path}`, { ...options, headers }).then(res => {
-    if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`)
-    return res.json() as Promise<T>
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`)
+  return res.json() as Promise<T>
+}
+
+export async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
+  const method = (options?.method ?? 'GET').toUpperCase()
+  if (method === 'GET') {
+    const existing = _inflight.get(path) as Promise<T> | undefined
+    if (existing) return existing
+  }
+
+  const promise = _doFetch<T>(path, options).catch(async (err) => {
+    if (err instanceof ApiError && err.status === 401 && _getToken) {
+      return _doFetch<T>(path, options)
+    }
+    throw err
   })
 
   if (method === 'GET') {
