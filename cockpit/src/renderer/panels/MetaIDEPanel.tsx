@@ -284,6 +284,7 @@ function FilesPanel() {
   const toggleSection = useCollapseStore((s) => s.toggle)
   const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
   const bootstrapLoaded = useBootstrapStore((s) => s.loaded)
+  const slowLoading = useBootstrapStore((s) => s.slowLoading)
   const [fetchFailed, setFetchFailed] = useState(false)
 
   const refreshData = async () => {
@@ -342,7 +343,7 @@ function FilesPanel() {
             <p className="text-[11px] px-4 py-2 text-text-tertiary">
               {fetchFailed ? (
                 <button onClick={refreshData} className="text-cyan hover:underline">Retry — failed to load</button>
-              ) : 'No files loaded'}
+              ) : slowLoading ? 'Fetching files...' : 'No files loaded'}
             </p>
           )}
         </>
@@ -363,11 +364,11 @@ function FilesPanel() {
               {windowsTree.map((f) => (
                 <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" onFileOpen={openFileInEditor} />
               ))}
-              {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-text-tertiary">Loading files...</p>}
+              {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-text-tertiary">Fetching files...</p>}
             </>
           ) : (
             <p className="text-[11px] px-4 py-2 text-text-tertiary">
-              {windowsKnown ? 'Offline' : 'Connecting...'}
+              {windowsKnown ? 'Offline' : slowLoading ? 'Fetching...' : 'Offline'}
             </p>
           )}
         </>

@@ -38,6 +38,7 @@ interface SlowBootstrapResponse {
 interface BootstrapState {
   loaded: boolean
   loading: boolean
+  slowLoading: boolean
   errors: string[]
   chatAvailable: boolean
   dexAvailable: boolean
@@ -77,6 +78,7 @@ export const useBootstrapStore = create<BootstrapState>()(
     (set, get) => ({
       loaded: false,
       loading: false,
+      slowLoading: false,
       errors: [],
       chatAvailable: false,
       dexAvailable: false,
@@ -140,6 +142,7 @@ export const useBootstrapStore = create<BootstrapState>()(
       },
 
       bootSlow: async () => {
+        set({ slowLoading: true })
         try {
           const data = await fetchApi<SlowBootstrapResponse>('/bootstrap/slow')
           const prev = get().cache
@@ -162,6 +165,7 @@ export const useBootstrapStore = create<BootstrapState>()(
           }
 
           set({
+            slowLoading: false,
             cache: {
               ...prev,
               vps_files: data.vps_files ?? prev.vps_files,
@@ -171,6 +175,7 @@ export const useBootstrapStore = create<BootstrapState>()(
           })
         } catch (err) {
           console.error('[bootstrap:slow] failed:', err)
+          set({ slowLoading: false })
         }
       },
     }),
