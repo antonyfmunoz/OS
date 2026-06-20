@@ -322,7 +322,6 @@ function FilesPanel() {
         <span className="text-text-tertiary text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
         <span className={`text-[9px] ${windowsOnline ? 'text-ok' : 'text-text-tertiary'}`}>●</span>
         <span className="wv-label flex-1 text-left">{windowsName}</span>
-        {!windowsOnline && <span className="text-[9px] text-text-tertiary">offline</span>}
       </button>
       {windowsExpanded && (
         <>
@@ -333,9 +332,7 @@ function FilesPanel() {
               ))}
               {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-text-tertiary">Loading files...</p>}
             </>
-          ) : (
-            <p className="text-[11px] px-4 py-2 text-text-tertiary">Device offline</p>
-          )}
+          ) : null}
         </>
       )}
     </div>
@@ -1046,15 +1043,15 @@ export function MetaIDEPanel() {
   return (
     <div className="h-full flex overflow-hidden bg-surface">
       {/* ── Activity Bar ── */}
-      <div className="w-12 shrink-0 flex flex-col border-r border-border">
+      <div className="w-10 shrink-0 flex flex-col items-center py-2 border-r border-border">
         {SIDEBAR_ITEMS.map(({ id, icon: Icon }) => (
           <button
             key={id}
             onClick={() => toggleSidebarTab(id)}
-            className={`w-full h-10 flex items-center justify-center transition-colors ${
+            className={`p-2 mt-1 transition-colors ${
               activeSidebar === id && showSidebar
                 ? 'text-cyan'
-                : 'text-text-tertiary hover:text-text-secondary hover:bg-surface-raised'
+                : 'text-text-tertiary hover:text-text-secondary'
             }`}
             title={id}
           >
@@ -1066,7 +1063,7 @@ export function MetaIDEPanel() {
 
         <button
           onClick={togglePanel}
-          className={`w-full h-10 flex items-center justify-center transition-colors ${
+          className={`p-2 transition-colors ${
             showPanel ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary'
           }`}
           title="Toggle Panel (Ctrl+`)"
