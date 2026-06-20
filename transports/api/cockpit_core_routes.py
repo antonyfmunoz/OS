@@ -2950,23 +2950,118 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 errors.append(f"continuity: {e}")
                 result["continuity"] = {}
 
-        # command-center summary (lightweight subset)
+        # command-center full summary (replaces separate /command-center/summary call)
         try:
             from transports.api.cockpit_command_center_routes import (
                 _load_workcell_heartbeats,
                 _load_approvals,
+                _load_work_packets,
+                _load_blocked_packets,
+                _load_journal_recent,
             )
 
             heartbeats = _load_workcell_heartbeats()
             pending = _load_approvals(status_filter="pending")
+            packets = _load_work_packets(limit=100)
+            blocked = _load_blocked_packets()
+            journal = _load_journal_recent(50)
+
+            active_agents = [h for h in heartbeats if h.get("status") == "active"]
+            idle_agents = [h for h in heartbeats if h.get("status") == "idle"]
+            completed = [j for j in journal if j.get("phase") == "EXECUTION_COMPLETED"]
+            failed = [j for j in journal if j.get("phase") in ("EXECUTION_FAILED", "VERIFICATION_FAILED")]
+            by_status: dict[str, int] = {}
+            for p in packets:
+                s = p.get("status", "unknown")
+                by_status[s] = by_status.get(s, 0) + 1
+            executing = [p for p in packets if p.get("status") in ("executing", "delegated")]
+            next_packet = None
+            ready = [p for p in packets if p.get("status") in ("approved", "ready_for_review", "planned")]
+            if ready:
+                ready.sort(key=lambda p: p.get("leverage_score", 0), reverse=True)
+                next_packet = {
+                    "packet_id": ready[0].get("packet_id", ""),
+                    "title": ready[0].get("title", ""),
+                    "status": ready[0].get("status", ""),
+                    "leverage_score": ready[0].get("leverage_score", 0),
+                }
+
+            checkpoint_path = os.path.join(
+                os.environ.get("UMH_ROOT", "/opt/OS"),
+                "data", "umh", "organism", "workstation_state", "latest_checkpoint.json",
+            )
+            checkpoint_detail: dict[str, Any] = {}
+            cc_continuity = "active"
+            if os.path.exists(checkpoint_path):
+                try:
+                    with open(checkpoint_path) as f:
+                        checkpoint_detail = json.load(f)
+                    cc_continuity = checkpoint_detail.get(
+                        "continuity_state",
+                        checkpoint_detail.get("new_continuity_state", "active"),
+                    )
+                except (json.JSONDecodeError, OSError):
+                    pass
+
             result["command_center"] = {
-                "active_workcells": sum(1 for h in heartbeats if h.get("status") == "active"),
-                "idle_workcells": sum(1 for h in heartbeats if h.get("status") == "idle"),
+                "active_workcells": len(active_agents),
+                "idle_workcells": len(idle_agents),
                 "pending_approvals": len(pending),
             }
+            result["command_center_summary"] = {
+                "ok": True,
+                "checkpoint": {
+                    "last_checkpoint_id": checkpoint_detail.get("checkpoint_id", ""),
+                    "continuity_state": cc_continuity,
+                    "lifecycle_mode": checkpoint_detail.get("lifecycle_mode", ""),
+                    "active_node": checkpoint_detail.get("active_node", ""),
+                    "active_environment": checkpoint_detail.get("active_environment", ""),
+                    "open_loops": checkpoint_detail.get("open_loops", []),
+                    "recommended_next_action": checkpoint_detail.get("recommended_next_action", ""),
+                    "transition_reason": checkpoint_detail.get("transition_reason", ""),
+                },
+                "what_is_happening": {
+                    "continuity_state": cc_continuity,
+                    "active_agents": len(active_agents),
+                    "idle_agents": len(idle_agents),
+                    "total_agents": len(heartbeats),
+                    "executing_packets": len(executing),
+                },
+                "who_is_working": [
+                    {"agent_id": h.get("workcell_id", ""), "role": h.get("role", ""), "status": h.get("status", "")}
+                    for h in heartbeats
+                ],
+                "what_is_blocked": {
+                    "count": len(blocked),
+                    "items": [{"id": b.get("packet_id", ""), "title": b.get("title", ""), "blockers": b.get("blockers", [])} for b in blocked[:5]],
+                },
+                "what_needs_approval": {
+                    "count": len(pending),
+                    "items": [{"id": a.get("id", ""), "title": a.get("title", ""), "risk_level": a.get("risk_level", "")} for a in pending[:5]],
+                },
+                "what_finished": {
+                    "recent_completed": len(completed),
+                    "latest": completed[-1].get("details", {}).get("intent", "") if completed else "",
+                },
+                "what_failed": {
+                    "recent_failed": len(failed),
+                    "latest": failed[-1].get("details", {}).get("error", failed[-1].get("source", "")) if failed else "",
+                },
+                "what_should_resume_next": next_packet,
+                "packets_by_status": by_status,
+                "total_packets": len(packets),
+                "source_env": os.environ.get("UMH_ENV", "container"),
+                "node": os.uname().nodename,
+            }
+            result["approvals"] = [
+                {"id": a.get("id", ""), "title": a.get("title", ""), "risk_level": a.get("risk_level", ""), "status": a.get("status", "")}
+                for a in pending[:10]
+            ]
         except Exception as e:
             errors.append(f"command_center: {e}")
             result["command_center"] = {}
+            result["command_center_summary"] = {}
+            result["approvals"] = []
 
         # overnight
         try:
@@ -2978,13 +3073,74 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             errors.append(f"overnight: {e}")
             result["overnight"] = {}
 
-        # mesh node count
+        # mesh nodes (full list, not just count)
         try:
             nm = result.get("pulse", {}).get("node_metrics") or _build_node_metrics()
             result["mesh"] = {"node_count": len(nm)}
+            _repo = os.environ.get("UMH_ROOT", "/opt/OS")
+            _registry_path = os.path.join(_repo, "infra", "device_registry.json")
+            _mesh_hb_path = os.path.join(_repo, "data", "runtime", "mesh_nodes.json")
+            _registry: list[dict[str, Any]] = []
+            _hb_map: dict[str, dict[str, Any]] = {}
+            try:
+                with open(_registry_path) as f:
+                    _registry = json.load(f)
+            except (json.JSONDecodeError, OSError, FileNotFoundError):
+                pass
+            try:
+                with open(_mesh_hb_path) as f:
+                    for _n in json.load(f):
+                        _hb_map[_n.get("id", "")] = _n
+            except (json.JSONDecodeError, OSError, FileNotFoundError):
+                pass
+            _mesh_list = []
+            for _dev in _registry:
+                _mid = _dev.get("mesh_node_id", "")
+                _hb = _hb_map.get(_mid, {})
+                _st = "online" if _dev.get("always_online") else _hb.get("status", "offline")
+                _mesh_list.append({
+                    "id": _dev["id"],
+                    "name": _dev.get("display_name", _dev.get("tailscale_name", _dev["id"])),
+                    "os": _dev.get("os", ""),
+                    "status": _st,
+                    "ip": _dev.get("tailscale_ip", ""),
+                    "device_type": _dev.get("device_type", ""),
+                    "last_heartbeat": _hb.get("last_heartbeat", ""),
+                })
+            result["mesh_nodes"] = _mesh_list
         except Exception as e:
-            errors.append(f"mesh: {e}")
-            result["mesh"] = {"node_count": 0}
+            errors.append(f"mesh_nodes: {e}")
+            nm = result.get("pulse", {}).get("node_metrics") or {}
+            result["mesh"] = {"node_count": len(nm)}
+            result["mesh_nodes"] = []
+
+        # workstation nodes
+        try:
+            from transports.api.cockpit_workstation_control_routes import (
+                _read_vps_node,
+                _read_mesh_snapshot,
+            )
+            vps_node = _read_vps_node()
+            mesh_snapshot = _read_mesh_snapshot()
+            result["workstation_nodes"] = {
+                "ok": True,
+                "nodes": [vps_node] + mesh_snapshot,
+                "count": 1 + len(mesh_snapshot),
+                "vps": vps_node,
+                "remote_nodes": mesh_snapshot,
+            }
+        except Exception as e:
+            errors.append(f"workstation_nodes: {e}")
+            result["workstation_nodes"] = {}
+
+        # VPS root file listing (avoids separate /workspace/browse?path=/ call)
+        try:
+            from substrate.workstation.file_browser import browse_directory
+            vps_root = browse_directory("/")
+            result["vps_files"] = vps_root.to_dict()
+        except Exception as e:
+            errors.append(f"vps_files: {e}")
+            result["vps_files"] = {}
 
         # chat / dex availability
         try:
