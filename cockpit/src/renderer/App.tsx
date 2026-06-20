@@ -16,12 +16,7 @@ function TokenGate({ children }: { children: ReactNode }) {
   const ref = useRef(getToken)
   ref.current = getToken
 
-  setTokenGetter(async () => {
-    if (window.Clerk?.session) {
-      try { return await window.Clerk.session.getToken() } catch { /* fall through */ }
-    }
-    return ref.current()
-  })
+  setTokenGetter(() => ref.current())
 
   return <>{children}</>
 }

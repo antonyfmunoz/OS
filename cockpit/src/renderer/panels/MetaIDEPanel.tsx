@@ -284,6 +284,7 @@ function FilesPanel() {
   const toggleSection = useCollapseStore((s) => s.toggle)
   const setActiveTab = useMetaIDEStore((s) => s.setActiveTab)
   const bootstrapLoaded = useBootstrapStore((s) => s.loaded)
+  const slowLoading = useBootstrapStore((s) => s.slowLoading)
   const [fetchFailed, setFetchFailed] = useState(false)
   const [fetching, setFetching] = useState(true)
 
@@ -305,10 +306,11 @@ function FilesPanel() {
   }
 
   useEffect(() => {
-    refreshData()
+    if (vpsTree.length > 0) setFetching(false)
+    else if (!slowLoading) refreshData()
     const id = setInterval(refreshData, 30000)
     return () => clearInterval(id)
-  }, [])
+  }, [slowLoading])
 
   const openFileInEditor = async (path: string, node?: string) => {
     const result = await readFileContent(path, node)
