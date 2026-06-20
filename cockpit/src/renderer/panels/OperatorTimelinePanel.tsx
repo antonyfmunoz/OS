@@ -56,7 +56,7 @@ export function OperatorTimelinePanel() {
             <option value="memory_write">Memory</option>
           </select>
           {loading && (
-            <span className="text-xs text-text-secondary animate-pulse">Loading...</span>
+            <span className="text-xs text-text-secondary animate-pulse">—</span>
           )}
         </div>
       </div>

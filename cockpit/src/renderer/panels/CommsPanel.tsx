@@ -140,7 +140,7 @@ export function CommsPanel() {
         <div className="w-60 shrink-0 border-r overflow-y-auto" style={{ borderColor: 'var(--color-border)' }}>
           {loading ? (
             <div className="px-3 py-4 text-xs text-center" style={{ color: 'var(--color-text-tertiary)' }}>
-              Loading...
+              —
             </div>
           ) : (
             <ConversationList

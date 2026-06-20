@@ -59,7 +59,7 @@ function WorldTab() {
   const fetchPatternDetail = useWorldModelStore((s) => s.fetchPatternDetail)
   const selectedPattern = useWorldModelStore((s) => s.selectedPattern)
 
-  if (loading) return <Empty msg="Loading reality model..." />
+  if (loading) return <Empty msg="—" />
   if (!status) return <Empty msg="Reality model not yet available" />
 
   const byDomain: Record<string, typeof patterns> = {}
@@ -188,7 +188,7 @@ function GraphTab() {
   const status = useWorldModelStore((s) => s.status)
   const [selectedName, setSelectedName] = useState<string | null>(null)
 
-  if (loading) return <Empty msg="Loading dependency graph..." />
+  if (loading) return <Empty msg="—" />
   if (!status) return <Empty msg="Reality model not loaded" />
 
   const handleSelect = (name: string) => {
@@ -448,7 +448,7 @@ function ObservationsTab() {
   const loading = useWorldModelStore((s) => s.loading)
   const status = useWorldModelStore((s) => s.status)
 
-  if (loading) return <Empty msg="Loading observations..." />
+  if (loading) return <Empty msg="—" />
   if (!status) return <Empty msg="Instance model not yet available" />
 
   return (
@@ -519,7 +519,7 @@ function InstanceTab() {
   const status = useWorldModelStore((s) => s.status)
   const loading = useWorldModelStore((s) => s.loading)
 
-  if (loading) return <Empty msg="Loading instance stats..." />
+  if (loading) return <Empty msg="—" />
   if (!status || !instanceStats) return <Empty msg="Instance stats not yet available" />
 
   return (

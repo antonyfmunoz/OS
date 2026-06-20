@@ -245,7 +245,7 @@ export function PredictionPanel() {
     <div className="h-full flex flex-col p-4 space-y-4 overflow-auto">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">Prediction Intelligence</h2>
-        {loading && <span className="text-xs text-gray-500">Loading...</span>}
+        {loading && <span className="text-xs text-gray-500">—</span>}
       </div>
 
       <div className="flex gap-2">

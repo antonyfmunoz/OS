@@ -234,7 +234,7 @@ export default function OperatorContinuityPanel() {
       </p>
 
       {loading && (
-        <div style={{ color: "#64748b", fontSize: 12 }}>Loading...</div>
+        <div style={{ color: "#64748b", fontSize: 12 }}>—</div>
       )}
       {error && (
         <div style={{ color: "#ef4444", fontSize: 12 }}>Error: {error}</div>

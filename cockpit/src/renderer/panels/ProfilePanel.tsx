@@ -161,7 +161,7 @@ export function ProfilePanel() {
         ))}
       </div>
 
-      {loading && <p className="text-xs text-text-tertiary">Loading...</p>}
+      {loading && <p className="text-xs text-text-tertiary">—</p>}
 
       {/* Active Tab */}
       {tab === 'active' && state && (

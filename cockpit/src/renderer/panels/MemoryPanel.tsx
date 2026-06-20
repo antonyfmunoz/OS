@@ -77,7 +77,7 @@ function DecisionDetail({
   }, [decisionId])
 
   const d = selectedDecision
-  if (!d) return <div className="p-4 text-secondary">Loading...</div>
+  if (!d) return <div className="p-4 text-secondary">—</div>
 
   return (
     <div className="p-4 space-y-3 overflow-y-auto h-full">

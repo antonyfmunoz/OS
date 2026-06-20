@@ -36,13 +36,16 @@ function AuthenticatedApp() {
   const startPolling = useChatStore((s) => s.startPolling)
   const stopPolling = useChatStore((s) => s.stopPolling)
 
+  const bootSlow = useBootstrapStore((s) => s.bootSlow)
+
   useEffect(() => {
     boot().then(() => {
+      bootSlow()
       loadHistory()
       startPolling()
     })
     return () => { stopPolling() }
-  }, [boot, loadHistory, startPolling, stopPolling])
+  }, [boot, bootSlow, loadHistory, startPolling, stopPolling])
 
   return <Shell />
 }

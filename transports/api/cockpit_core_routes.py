@@ -2889,19 +2889,13 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return {"ok": _win_ok, "entries": _win_entries}
 
     def _bootstrap_sync() -> dict[str, Any]:
-        """All blocking bootstrap work — runs in a worker thread."""
-        import concurrent.futures
-
+        """Fast-tier bootstrap — local reads only, no SSH, no slow I/O."""
         errors: list[str] = []
         result: dict[str, Any] = {"ok": True, "ts": ""}
 
         import datetime as _dt
 
         result["ts"] = _dt.datetime.now(_dt.timezone.utc).isoformat()
-
-        # kick off Windows SSH in parallel immediately
-        win_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        win_future = win_executor.submit(_fetch_windows_files)
 
         # config
         try:
@@ -3153,35 +3147,61 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             result["mesh"] = {"node_count": len(nm)}
             result["mesh_nodes"] = []
 
-        # workstation nodes
+        # chat / dex availability
+        try:
+            conv = _get_dex_conversation()
+            result["dex_available"] = conv is not None
+            result["chat_available"] = conv is not None
+        except Exception:
+            result["dex_available"] = False
+            result["chat_available"] = False
+
+        result["_errors"] = errors
+        if errors:
+            result["ok"] = False
+        return result
+
+    @router.get("/bootstrap/slow")
+    async def bootstrap_slow():
+        """Slow-tier bootstrap — file trees and workstation nodes (SSH, browse)."""
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(_bootstrap_slow_sync), timeout=15,
+            )
+        except asyncio.TimeoutError:
+            return {"ok": False, "_errors": ["slow bootstrap timed out"]}
+
+    def _bootstrap_slow_sync() -> dict[str, Any]:
+        """Slow-tier: VPS files, Windows files (SSH), workstation nodes."""
+        import concurrent.futures
+        errors: list[str] = []
+        result: dict[str, Any] = {"ok": True}
+
+        win_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        win_future = win_executor.submit(_fetch_windows_files)
+
         try:
             from transports.api.cockpit_workstation_control_routes import (
-                _read_vps_node,
-                _read_mesh_snapshot,
+                _read_vps_node, _read_mesh_snapshot,
             )
             vps_node = _read_vps_node()
             mesh_snapshot = _read_mesh_snapshot()
             result["workstation_nodes"] = {
-                "ok": True,
-                "nodes": [vps_node] + mesh_snapshot,
+                "ok": True, "nodes": [vps_node] + mesh_snapshot,
                 "count": 1 + len(mesh_snapshot),
-                "vps": vps_node,
-                "remote_nodes": mesh_snapshot,
+                "vps": vps_node, "remote_nodes": mesh_snapshot,
             }
         except Exception as e:
             errors.append(f"workstation_nodes: {e}")
             result["workstation_nodes"] = {}
 
-        # VPS root file listing (avoids separate /workspace/browse?path=/ call)
         try:
             from substrate.workstation.file_browser import browse_directory
-            vps_root = browse_directory("/")
-            result["vps_files"] = vps_root.to_dict()
+            result["vps_files"] = browse_directory("/").to_dict()
         except Exception as e:
             errors.append(f"vps_files: {e}")
             result["vps_files"] = {}
 
-        # Windows root file listing — collect from parallel future (kicked off at top)
         try:
             result["windows_files"] = win_future.result(timeout=10)
         except concurrent.futures.TimeoutError:
@@ -3192,15 +3212,6 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             result["windows_files"] = {"ok": False, "entries": []}
         finally:
             win_executor.shutdown(wait=False)
-
-        # chat / dex availability
-        try:
-            conv = _get_dex_conversation()
-            result["dex_available"] = conv is not None
-            result["chat_available"] = conv is not None
-        except Exception:
-            result["dex_available"] = False
-            result["chat_available"] = False
 
         result["_errors"] = errors
         if errors:

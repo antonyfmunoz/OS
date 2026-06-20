@@ -39,7 +39,7 @@ export function SettingsPanel() {
             ))}
           </div>
         ) : (
-          <p className="text-xs text-text-tertiary">Loading...</p>
+          <p className="text-xs text-text-tertiary">—</p>
         )}
       </section>
 
@@ -129,7 +129,7 @@ export function SettingsPanel() {
             ))}
           </div>
         ) : (
-          <p className="text-xs text-text-tertiary">Loading...</p>
+          <p className="text-xs text-text-tertiary">—</p>
         )}
       </section>
     </div>

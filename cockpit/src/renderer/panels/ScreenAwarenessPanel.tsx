@@ -404,7 +404,7 @@ export default function ScreenAwarenessPanel() {
       </p>
       <VisualHealthBar />
       {loading && (
-        <div style={{ color: "#94a3b8", fontSize: 12 }}>Loading...</div>
+        <div style={{ color: "#94a3b8", fontSize: 12 }}>—</div>
       )}
       {error && (
         <div style={{ color: "#ef4444", fontSize: 12 }}>Error: {error}</div>

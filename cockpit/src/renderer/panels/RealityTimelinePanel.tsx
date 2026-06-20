@@ -71,7 +71,7 @@ export function RealityTimelinePanel() {
             ))}
           </select>
           {loading && (
-            <span className="text-xs text-text-secondary animate-pulse">Loading...</span>
+            <span className="text-xs text-text-secondary animate-pulse">—</span>
           )}
         </div>
       </div>
