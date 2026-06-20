@@ -159,6 +159,13 @@ async def require_clerk_auth(request: Request) -> ClerkUser:
         request.state.clerk_user_id = "dev-bypass"
         return ClerkUser(user_id="dev-bypass")
 
+    client_ip = _real_client_ip(request)
+    has_auth = bool(auth_header)
+    logger.warning(
+        "Auth rejected: path=%s client=%s has_auth=%s auth_prefix=%s",
+        request.url.path, client_ip, has_auth,
+        auth_header[:20] if auth_header else "NONE",
+    )
     raise HTTPException(status_code=401, detail="Authentication required")
 
 
