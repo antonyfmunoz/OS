@@ -39,6 +39,7 @@ interface BootstrapState {
   loaded: boolean
   loading: boolean
   slowLoading: boolean
+  hydrated: boolean
   errors: string[]
   chatAvailable: boolean
   dexAvailable: boolean
@@ -50,6 +51,26 @@ interface BootstrapState {
 }
 
 function seedDownstreamStores(cache: Partial<BootstrapResponse>) {
+  if (cache.config && Object.keys(cache.config).length > 0) {
+    const aiName = (cache.config.ai_name as string) || import.meta.env.VITE_AI_NAME || 'Assistant'
+    useConfigStore.setState({
+      config: { ai_name: aiName, timezone: 'UTC', locale: 'en', theme: 'dark', founder_name: '', org_name: '', ...cache.config },
+      loaded: true,
+      aiName,
+    })
+  }
+  if (cache.pulse && Object.keys(cache.pulse).length > 0) {
+    useSystemStore.getState().setPulse({
+      cpu_percent: (cache.pulse.cpu_percent as number) || 0,
+      memory_percent: (cache.pulse.memory_percent as number) || 0,
+      disk_percent: (cache.pulse.disk_percent as number) || 0,
+      uptime: (cache.pulse.uptime as number) || 0,
+      active_agents: (cache.pulse.active_agents as number) || 0,
+      pending_tasks: (cache.pulse.pending_tasks as number) || 0,
+      pending_approvals: (cache.pulse.pending_approvals as number) || 0,
+      trace_rate: (cache.pulse.trace_rate as number) || 0,
+    })
+  }
   if (cache.mesh_nodes && Array.isArray(cache.mesh_nodes)) {
     useSystemStore.getState().setMeshNodes(cache.mesh_nodes)
     useMetaIDEStore.getState().setFileMeshNodes(cache.mesh_nodes.map((n) => ({
@@ -79,6 +100,7 @@ export const useBootstrapStore = create<BootstrapState>()(
       loaded: false,
       loading: false,
       slowLoading: false,
+      hydrated: false,
       errors: [],
       chatAvailable: false,
       dexAvailable: false,
@@ -113,6 +135,8 @@ export const useBootstrapStore = create<BootstrapState>()(
           }
 
           const newCache = {
+            config: data.config,
+            pulse: data.pulse,
             command_center_summary: data.command_center_summary,
             approvals: data.approvals,
             mesh_nodes: data.mesh_nodes,
@@ -182,9 +206,12 @@ export const useBootstrapStore = create<BootstrapState>()(
     {
       name: 'cockpit:bootstrap-cache',
       partialize: (state) => ({ cache: state.cache }),
-      onRehydrateStorage: () => (state) => {
-        if (state?.cache && Object.keys(state.cache).length > 0) {
+      onRehydrateStorage: () => (state, error) => {
+        if (!error && state?.cache && Object.keys(state.cache).length > 0) {
           seedDownstreamStores(state.cache)
+          useBootstrapStore.setState({ loaded: true, hydrated: true })
+        } else {
+          useBootstrapStore.setState({ hydrated: true })
         }
       },
     },
