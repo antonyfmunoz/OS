@@ -357,18 +357,17 @@ function FilesPanel() {
         className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-raised transition-colors border-t border-border mt-1"
       >
         <span className="text-text-tertiary text-[9px]">{windowsExpanded ? '▾' : '▸'}</span>
-        <span className={`text-[9px] ${windowsOnline ? 'text-ok' : 'text-text-tertiary'}`}>●</span>
+        <span className={`text-[9px] ${windowsOnline || windowsTree.length > 0 ? 'text-ok' : 'text-text-tertiary'}`}>●</span>
         <span className="wv-label flex-1 text-left">{windowsName}</span>
       </button>
       {windowsExpanded && (
         <>
-          {windowsOnline ? (
-            <>
-              {windowsTree.map((f) => (
-                <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" onFileOpen={openFileInEditor} />
-              ))}
-              {windowsTree.length === 0 && <p className="text-[11px] px-4 py-2 text-text-tertiary">Fetching files...</p>}
-            </>
+          {windowsTree.length > 0 ? (
+            windowsTree.map((f) => (
+              <IDEFileTreeNode key={f.path} name={f.name} path={f.path} type={f.type} depth={1} node="windows" onFileOpen={openFileInEditor} />
+            ))
+          ) : windowsOnline ? (
+            <p className="text-[11px] px-4 py-2 text-text-tertiary">Fetching files...</p>
           ) : (
             <p className="text-[11px] px-4 py-2 text-text-tertiary">
               {windowsKnown ? 'Offline' : fetching ? 'Fetching...' : 'Offline'}
