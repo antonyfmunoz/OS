@@ -82,16 +82,25 @@ function seedDownstreamStores(cache: Partial<BootstrapResponse>) {
       device_type: (n.device_type ?? '') as string,
     })))
   }
-  if (cache.vps_files?.ok && cache.vps_files.entries?.length) {
+  if (cache.vps_files?.entries?.length) {
     useMetaIDEStore.getState().setVpsTree(
       cache.vps_files.entries.map((e) => ({ name: e.name, path: e.path, type: e.type as 'file' | 'directory' })),
     )
   }
-  if (cache.windows_files?.ok && cache.windows_files.entries?.length) {
+  if (cache.windows_files?.entries?.length) {
     useMetaIDEStore.getState().setWindowsTree(
       cache.windows_files.entries.map((e) => ({ name: e.name, path: e.path, type: e.type as 'file' | 'directory' })),
     )
   }
+}
+
+export function waitForHydration(): Promise<void> {
+  if (useBootstrapStore.getState().hydrated) return Promise.resolve()
+  return new Promise((resolve) => {
+    const unsub = useBootstrapStore.subscribe((s) => {
+      if (s.hydrated) { unsub(); resolve() }
+    })
+  })
 }
 
 export const useBootstrapStore = create<BootstrapState>()(
@@ -134,21 +143,20 @@ export const useBootstrapStore = create<BootstrapState>()(
             })
           }
 
-          const newCache = {
+          const mergedCache = {
+            ...get().cache,
             config: data.config,
             pulse: data.pulse,
             command_center_summary: data.command_center_summary,
             approvals: data.approvals,
             mesh_nodes: data.mesh_nodes,
             workstation_nodes: data.workstation_nodes,
-            vps_files: get().cache.vps_files,
-            windows_files: get().cache.windows_files,
             mode_composite: data.mode_composite,
             continuity: data.continuity,
             overnight: data.overnight,
           }
 
-          seedDownstreamStores(newCache)
+          seedDownstreamStores(mergedCache)
 
           set({
             loaded: true,
@@ -157,7 +165,7 @@ export const useBootstrapStore = create<BootstrapState>()(
             dexAvailable: data.dex_available ?? false,
             errors: data._errors ?? [],
             degraded: (data._errors?.length ?? 0) > 0,
-            cache: newCache,
+            cache: mergedCache,
           })
         } catch (err) {
           console.error('[bootstrap] failed:', err)
@@ -169,14 +177,13 @@ export const useBootstrapStore = create<BootstrapState>()(
         set({ slowLoading: true })
         try {
           const data = await fetchApi<SlowBootstrapResponse>('/bootstrap/slow')
-          const prev = get().cache
 
-          if (data.vps_files?.ok && data.vps_files.entries?.length) {
+          if (data.vps_files?.entries?.length) {
             useMetaIDEStore.getState().setVpsTree(
               data.vps_files.entries.map((e) => ({ name: e.name, path: e.path, type: e.type as 'file' | 'directory' })),
             )
           }
-          if (data.windows_files?.ok && data.windows_files.entries?.length) {
+          if (data.windows_files?.entries?.length) {
             useMetaIDEStore.getState().setWindowsTree(
               data.windows_files.entries.map((e) => ({ name: e.name, path: e.path, type: e.type as 'file' | 'directory' })),
             )
@@ -188,15 +195,15 @@ export const useBootstrapStore = create<BootstrapState>()(
             }
           }
 
-          set({
+          set((prev) => ({
             slowLoading: false,
             cache: {
-              ...prev,
-              vps_files: data.vps_files ?? prev.vps_files,
-              windows_files: data.windows_files ?? prev.windows_files,
-              workstation_nodes: data.workstation_nodes ?? prev.workstation_nodes,
+              ...prev.cache,
+              ...(data.vps_files?.entries?.length ? { vps_files: data.vps_files } : {}),
+              ...(data.windows_files?.entries?.length ? { windows_files: data.windows_files } : {}),
+              ...(data.workstation_nodes ? { workstation_nodes: data.workstation_nodes } : {}),
             },
-          })
+          }))
         } catch (err) {
           console.error('[bootstrap:slow] failed:', err)
           set({ slowLoading: false })

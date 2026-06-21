@@ -287,13 +287,24 @@ function FilesPanel() {
   const slowLoading = useBootstrapStore((s) => s.slowLoading)
   const [fetchFailed, setFetchFailed] = useState(false)
   const [fetching, setFetching] = useState(true)
+  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const retryCount = useRef(0)
 
   const refreshData = async () => {
     setFetching(true)
     const store = useMetaIDEStore.getState()
     const vpsEntries = await browseDir('/')
-    if (vpsEntries.length > 0) { store.setVpsTree(vpsEntries); setFetchFailed(false) }
-    else if (store.vpsTree.length === 0) setFetchFailed(true)
+    if (vpsEntries.length > 0) {
+      store.setVpsTree(vpsEntries)
+      setFetchFailed(false)
+      retryCount.current = 0
+    } else if (store.vpsTree.length === 0) {
+      setFetchFailed(true)
+      const delay = Math.min(3000 * Math.pow(2, retryCount.current), 30000)
+      retryCount.current++
+      if (retryRef.current) clearTimeout(retryRef.current)
+      retryRef.current = setTimeout(refreshData, delay)
+    }
     setFetching(false)
 
     browseDir('C:\\', 'windows').then((entries) => { if (entries.length > 0) store.setWindowsTree(entries) })
@@ -319,6 +330,10 @@ function FilesPanel() {
     const id = setInterval(refreshData, 30000)
     return () => clearInterval(id)
   }, [bootstrapLoaded])
+
+  useEffect(() => {
+    return () => { if (retryRef.current) clearTimeout(retryRef.current) }
+  }, [])
 
   const openFileInEditor = async (path: string, node?: string) => {
     const result = await readFileContent(path, node)

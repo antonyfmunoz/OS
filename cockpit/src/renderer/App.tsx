@@ -5,7 +5,7 @@ import { GuestJoinPage } from './components/rooms/GuestJoinPage'
 import { useKeyboard } from './hooks/useKeyboard'
 import { useOrganismRealtime } from './hooks/useOrganismRealtime'
 import { useVisionConnection } from './hooks/useVisionConnection'
-import { useBootstrapStore } from './stores/bootstrapStore'
+import { useBootstrapStore, waitForHydration } from './stores/bootstrapStore'
 import { useChatStore } from './stores/chatStore'
 import { setTokenGetter } from './api/client'
 
@@ -34,10 +34,12 @@ function AuthenticatedApp() {
   const bootSlow = useBootstrapStore((s) => s.bootSlow)
 
   useEffect(() => {
-    bootSlow()
-    boot().then(() => {
-      loadHistory()
-      startPolling()
+    waitForHydration().then(() => {
+      bootSlow()
+      boot().then(() => {
+        loadHistory()
+        startPolling()
+      })
     })
     return () => { stopPolling() }
   }, [boot, bootSlow, loadHistory, startPolling, stopPolling])
