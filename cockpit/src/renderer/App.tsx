@@ -35,8 +35,8 @@ function AuthenticatedApp() {
 
   useEffect(() => {
     waitForHydration().then(() => {
-      bootSlow()
       boot().then(() => {
+        bootSlow()
         loadHistory()
         startPolling()
       })

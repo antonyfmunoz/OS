@@ -179,10 +179,7 @@ export const useBootstrapStore = create<BootstrapState>()(
       },
 
       bootSlow: async () => {
-        set({ slowLoading: true })
-        try {
-          const data = await fetchApi<SlowBootstrapResponse>('/bootstrap/slow')
-
+        const applySlowData = (data: SlowBootstrapResponse) => {
           if (data.vps_files?.entries?.length) {
             useMetaIDEStore.getState().setVpsTree(
               data.vps_files.entries.map((e) => ({ name: e.name, path: e.path, type: e.type as 'file' | 'directory' })),
@@ -199,7 +196,6 @@ export const useBootstrapStore = create<BootstrapState>()(
               useSystemStore.getState().setMeshNodes(nodes)
             }
           }
-
           set((prev) => ({
             slowLoading: false,
             cache: {
@@ -209,9 +205,25 @@ export const useBootstrapStore = create<BootstrapState>()(
               ...(data.workstation_nodes ? { workstation_nodes: data.workstation_nodes } : {}),
             },
           }))
+        }
+
+        set({ slowLoading: true })
+        try {
+          const data = await fetchApi<SlowBootstrapResponse>('/bootstrap/slow')
+          applySlowData(data)
         } catch (err) {
-          console.error('[bootstrap:slow] failed:', err)
+          console.error('[bootstrap:slow] failed, retrying in 3s:', err)
           set({ slowLoading: false })
+          setTimeout(async () => {
+            try {
+              set({ slowLoading: true })
+              const data = await fetchApi<SlowBootstrapResponse>('/bootstrap/slow')
+              applySlowData(data)
+            } catch (retryErr) {
+              console.error('[bootstrap:slow] retry failed:', retryErr)
+              set({ slowLoading: false })
+            }
+          }, 3000)
         }
       },
     }),
