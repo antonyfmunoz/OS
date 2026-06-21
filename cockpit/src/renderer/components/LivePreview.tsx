@@ -80,7 +80,7 @@ export function LivePreview({ url, defaultUrl = 'http://localhost:5173' }: LiveP
           style={{ background: '#fff' }}
           onLoad={() => setLoading(false)}
           onError={() => setLoading(false)}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          sandbox="allow-scripts allow-forms allow-popups"
         />
       </div>
     </div>
