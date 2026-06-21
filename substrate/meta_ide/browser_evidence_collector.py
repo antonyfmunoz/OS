@@ -26,10 +26,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from substrate.execution.cpu_gate import gated_subprocess_run
+from substrate.meta_ide.browser_verification_gate import DEFAULT_PASS_COUNT
 
 logger = logging.getLogger(__name__)
-
-REQUIRED_PASSES = 3
 
 _BEAST_SSH = os.environ.get("UMH_BEAST_SSH", "")
 
@@ -166,7 +165,7 @@ class PassEvidence:
 
 def trigger_collection(
     target_url: str,
-    pass_count: int = REQUIRED_PASSES,
+    pass_count: int = DEFAULT_PASS_COUNT,
 ) -> dict[str, Any]:
     """Trigger evidence collection on Beast via SSH.
 
