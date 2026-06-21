@@ -131,7 +131,12 @@ def collect_log_layer(page=None) -> dict:
     if page is not None:
         try:
             api_result = page.evaluate("""() => {
-                return fetch('/api/umh/health', { credentials: 'include' })
+                const getToken = window.Clerk?.session?.getToken;
+                const tokenP = getToken ? getToken.call(window.Clerk.session) : Promise.resolve(null);
+                return tokenP.then(token => {
+                    const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+                    return fetch('/api/umh/health', { headers, credentials: 'include' });
+                })
                     .then(r => {
                         if (!r.ok) return { ok: false, error: 'HTTP ' + r.status };
                         return r.json();
