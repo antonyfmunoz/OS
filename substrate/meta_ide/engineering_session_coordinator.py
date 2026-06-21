@@ -20,6 +20,9 @@ import time
 from typing import Any
 from uuid import uuid4
 
+from substrate.meta_ide.browser_evidence_collector import (
+    trigger_collection,
+)
 from substrate.meta_ide.browser_verification_gate import (
     BrowserVerificationGate,
     BrowserVerificationResult,
@@ -335,7 +338,12 @@ class EngineeringSessionCoordinator:
         session: EngineeringExecutionSession,
         evidence: dict[str, Any] | None = None,
     ) -> BrowserVerificationResult:
-        """Check browser verification requirement and validate evidence."""
+        """Check browser verification requirement and validate evidence.
+
+        When verification is required and no evidence is provided,
+        auto-triggers collection on Beast (GPU workstation with display).
+        Browser tests NEVER run headless on VPS.
+        """
         artifact_paths = [a.file_path for a in session.artifacts if a.file_path]
 
         packet_flags: dict[str, Any] = {}
@@ -358,6 +366,23 @@ class EngineeringSessionCoordinator:
         if evidence is None:
             existing = session.task_results.get("__browser_verification__", {})
             evidence = existing if existing else {}
+
+        required, reasons = self._browser_gate.requires_verification(
+            artifact_paths, packet_flags, proof_requirements
+        )
+        if required and not evidence.get("passes"):
+            target_url = session.task_results.get(
+                "__target_url__", "https://universalmetaharness.tech/"
+            )
+            logger.info(
+                "Browser verification required — triggering collection on Beast for %s",
+                target_url,
+            )
+            self._emit_event(
+                "browser_collection_triggered",
+                {"session_id": session.session_id, "target_url": target_url, "reasons": reasons},
+            )
+            evidence = trigger_collection(target_url)
 
         return self._browser_gate.validate_evidence(
             evidence=evidence,
