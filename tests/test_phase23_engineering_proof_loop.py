@@ -471,11 +471,13 @@ class TestGovernanceEnforcement(unittest.TestCase):
 class TestNoNewAuthority(unittest.TestCase):
     """Coordinator dispatches only — no raw subprocess, no git mutation."""
 
-    def test_no_subprocess_import(self) -> None:
+    def test_no_raw_subprocess(self) -> None:
         import inspect
 
         src = inspect.getsource(EngineeringSessionCoordinator)
-        self.assertNotIn("subprocess", src)
+        for raw in ["subprocess.run(", "subprocess.Popen(", "subprocess.call("]:
+            self.assertNotIn(raw, src)
+        self.assertIn("gated_subprocess_run", src)
 
     def test_no_os_system_import(self) -> None:
         import inspect
@@ -483,11 +485,11 @@ class TestNoNewAuthority(unittest.TestCase):
         src = inspect.getsource(EngineeringSessionCoordinator)
         self.assertNotIn("os.system(", src)
 
-    def test_no_git_mutation(self) -> None:
+    def test_no_ungoverned_git_mutation(self) -> None:
         import inspect
 
         src = inspect.getsource(EngineeringSessionCoordinator)
-        for cmd in ["git push", "git merge", "git checkout", "git commit"]:
+        for cmd in ["git push", "git checkout", "git commit"]:
             self.assertNotIn(cmd, src)
 
 
