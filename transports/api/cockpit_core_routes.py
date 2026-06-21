@@ -2871,11 +2871,27 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except asyncio.TimeoutError:
             return {"ok": False, "ts": "", "_errors": ["bootstrap timed out after 15s"]}
 
+    def _get_device_project_root(device_id: str, fallback: str) -> str:
+        """Read project_root for a device from infra/device_registry.json."""
+        try:
+            import json as _json
+            reg_path = os.path.join(os.environ.get("UMH_ROOT", "/opt/OS"), "infra", "device_registry.json")
+            with open(reg_path) as f:
+                devices = _json.load(f)
+            for dev in devices:
+                if dev.get("id") == device_id:
+                    return dev.get("project_root", fallback)
+        except Exception:
+            pass
+        return fallback
+
     def _fetch_windows_files() -> dict[str, Any]:
-        """SSH to Beast for root file listing — isolated so it can be deadline-capped."""
+        """SSH to Beast for project directory listing — isolated so it can be deadline-capped."""
         from transports.api.cockpit_workspace_routes import _ssh_cmd
+        _win_root = _get_device_project_root("beast", "C:\\dev\\dev")
+        _win_root_escaped = _win_root.replace("'", "''")
         _win_ok, _win_out = _ssh_cmd(
-            'powershell -Command "Get-ChildItem -LiteralPath \'C:\\\''
+            f'powershell -Command "Get-ChildItem -LiteralPath \'{_win_root_escaped}\''
             ' | ForEach-Object { $_.Name + \'|\''
             ' + $(if($_.PSIsContainer){\'directory\'}else{\'file\'})'
             ' + \'|\' + $_.Length }"'
@@ -2887,7 +2903,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 if len(_parts) >= 2:
                     _win_entries.append({
                         "name": _parts[0],
-                        "path": "C:\\" + _parts[0],
+                        "path": _win_root + "\\" + _parts[0],
                         "type": _parts[1],
                         "source_env": "windows",
                     })
@@ -3170,6 +3186,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     else:
                         result[key] = {}
 
+        result["vps_root"] = os.environ.get("UMH_ROOT", "/opt/OS")
+        result["windows_root"] = _get_device_project_root("beast", "C:\\dev\\dev")
         result["_errors"] = errors
         if errors:
             result["ok"] = False
@@ -3211,7 +3229,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         try:
             from substrate.workstation.file_browser import browse_directory
-            result["vps_files"] = browse_directory("/").to_dict()
+            result["vps_files"] = browse_directory(os.environ.get("UMH_ROOT", "/opt/OS")).to_dict()
         except Exception as e:
             errors.append(f"vps_files: {e}")
             result["vps_files"] = {}

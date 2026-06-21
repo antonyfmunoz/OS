@@ -8,7 +8,8 @@
     "role": "orchestrator",
     "tailscale_ip": "100.77.233.50",
     "always_online": true,
-    "compute": true
+    "compute": true,
+    "project_root": "/opt/OS"
   },
   {
     "id": "beast",
@@ -20,6 +21,7 @@
     "tailscale_ip": "100.74.199.102",
     "mesh_node_id": "windows-desktop",
     "compute": true,
+    "project_root": "C:\\dev\\dev",
     "gpu": "NVIDIA GeForce GTX 1080 Ti",
     "vram_mb": 11264,
     "ram_mb": 16235,
