@@ -1,0 +1,82 @@
+[
+  {
+    "defect_id": "wrong_import",
+    "category": "architecture",
+    "description": "substrate file importing from transports",
+    "file_relative": "substrate/_bench_wrong_import.py",
+    "injected_content": "from __future__ import annotations\nfrom transports.api import cockpit\ndef process(): return cockpit\n",
+    "detection_pattern": "from\\s+transports"
+  },
+  {
+    "defect_id": "dependency_violation",
+    "category": "architecture",
+    "description": "substrate file importing from services",
+    "file_relative": "substrate/_bench_dep_violation.py",
+    "injected_content": "from __future__ import annotations\nfrom services.discord_bot import client\ndef get_client(): return client\n",
+    "detection_pattern": "from\\s+services"
+  },
+  {
+    "defect_id": "hardcoded_env",
+    "category": "instance_context",
+    "description": "hardcoded IP address in substrate",
+    "file_relative": "substrate/_bench_hardcoded_env.py",
+    "injected_content": "from __future__ import annotations\nVPS_HOST = \"100.77.233.50\"\ndef connect(): return VPS_HOST\n",
+    "detection_pattern": "100\\.77\\.233\\.50"
+  },
+  {
+    "defect_id": "shadow_type",
+    "category": "type_coherence",
+    "description": "shadow type definition duplicating canonical type",
+    "file_relative": "substrate/_bench_shadow_type.py",
+    "injected_content": "from __future__ import annotations\nfrom enum import Enum\nclass RiskClass(Enum):\n    LOW = \"low\"\n    HIGH = \"high\"\n",
+    "detection_pattern": "class\\s+RiskClass\\s*\\("
+  },
+  {
+    "defect_id": "projection_leak",
+    "category": "projection_boundary",
+    "description": "projection name in substrate code",
+    "file_relative": "substrate/_bench_projection_leak.py",
+    "injected_content": "from __future__ import annotations\nSYSTEM_NAME = \"EntrepreneurOS\"\ndef get_name(): return SYSTEM_NAME\n",
+    "detection_pattern": "EntrepreneurOS"
+  },
+  {
+    "defect_id": "instance_leak",
+    "category": "instance_context",
+    "description": "hardcoded persona name in substrate",
+    "file_relative": "substrate/_bench_instance_leak.py",
+    "injected_content": "from __future__ import annotations\nAI_NAME = \"DEX\"\ndef greet(): return f'Hello from {AI_NAME}'\n",
+    "detection_pattern": "\"DEX\""
+  },
+  {
+    "defect_id": "silent_except",
+    "category": "quality",
+    "description": "silent except pass with no logging",
+    "file_relative": "substrate/_bench_silent_except.py",
+    "injected_content": "from __future__ import annotations\ndef risky():\n    try:\n        return 1 / 0\n    except Exception:\n        pass\n",
+    "detection_pattern": "except\\s+\\w+.*:\\s*\\n\\s+pass"
+  },
+  {
+    "defect_id": "security_issue",
+    "category": "security",
+    "description": "eval on untrusted input",
+    "file_relative": "substrate/_bench_security.py",
+    "injected_content": "from __future__ import annotations\ndef handle_request(user_input: str):\n    result = eval(user_input)\n    return result\n",
+    "detection_pattern": "eval\\s*\\("
+  },
+  {
+    "defect_id": "cpu_gate_bypass",
+    "category": "cpu_gate",
+    "description": "raw subprocess.run in gated directory",
+    "file_relative": "substrate/_bench_cpu_gate_bypass.py",
+    "injected_content": "from __future__ import annotations\nimport subprocess\ndef run_cmd():\n    return subprocess.run([\"ls\", \"-la\"], capture_output=True)\n",
+    "detection_pattern": "subprocess\\.(run|Popen|call|check_output|check_call)\\s*\\("
+  },
+  {
+    "defect_id": "stale_comment",
+    "category": "quality",
+    "description": "stale TODO referencing completed phase",
+    "file_relative": "substrate/_bench_stale_comment.py",
+    "injected_content": "from __future__ import annotations\n# TODO: remove after phase 5\ndef placeholder(): return True\n",
+    "detection_pattern": "#\\s*TODO.*remove\\s+after\\s+phase"
+  }
+]
