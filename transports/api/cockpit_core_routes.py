@@ -13,6 +13,7 @@ import asyncio
 import logging
 import os
 import hmac as _hmac
+import re
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -2871,6 +2872,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except asyncio.TimeoutError:
             return {"ok": False, "ts": "", "_errors": ["bootstrap timed out after 15s"]}
 
+    _SAFE_PATH_RE = re.compile(r'^[A-Za-z]:\\[A-Za-z0-9_\\\-. ]*$')
+
     def _get_device_project_root(device_id: str, fallback: str) -> str:
         """Read project_root for a device from infra/device_registry.json."""
         try:
@@ -2889,6 +2892,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         """SSH to Beast for project directory listing — isolated so it can be deadline-capped."""
         from transports.api.cockpit_workspace_routes import _ssh_cmd
         _win_root = _get_device_project_root("beast", "C:\\dev\\dev")
+        if not _SAFE_PATH_RE.match(_win_root):
+            logger.warning("Rejected unsafe Windows path from device registry: %s", _win_root)
+            return {"ok": False, "entries": []}
         _win_root_escaped = _win_root.replace("'", "''")
         _win_ok, _win_out = _ssh_cmd(
             f'powershell -Command "Get-ChildItem -LiteralPath \'{_win_root_escaped}\''
