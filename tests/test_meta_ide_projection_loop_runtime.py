@@ -269,3 +269,57 @@ class TestTypeSerialization:
         req = BuildRequest(text="test")
         assert req.request_id.startswith("br-")
         assert len(req.request_id) > 3
+
+
+# ── Full Lifecycle Validation ─────────────────────────────────────────────
+
+class TestFullLifecycleValidation:
+    """End-to-end engineering loop validation for governed changes."""
+
+    def test_file_tree_fix_lifecycle(self) -> None:
+        """Validate the Meta IDE file tree fix through full engineering loop."""
+        meta_ide = MagicMock()
+        plan = MagicMock()
+        plan.plan_id = "plan-file-tree-fix"
+        meta_ide.plan_from_intent.return_value = plan
+        meta_ide.dispatch_plan.return_value = [
+            MagicMock(dispatch_id="d-browse-backend"),
+            MagicMock(dispatch_id="d-browse-frontend"),
+            MagicMock(dispatch_id="d-cache-hydration"),
+        ]
+        meta_ide.review_packages.return_value = MagicMock(review_id="rv-file-tree")
+        meta_ide.approve_and_merge.return_value = {"status": "merged", "commits": 6}
+
+        eg = MagicMock()
+        runtime = MetaIDEProjectionLoopRuntime(
+            meta_ide=meta_ide, execution_graph=eg,
+        )
+
+        req = runtime.submit(
+            "Fix Meta IDE file tree: eliminate frontend path assumptions, "
+            "let backend resolve browse roots via UMH_ROOT and device_registry.json"
+        )
+        assert req.phase == BuildLoopPhase.EXECUTION
+        assert req.plan_id == "plan-file-tree-fix"
+        assert len(req.dispatch_ids) == 3
+
+        result = runtime.review(req.request_id)
+        assert result.phase == BuildLoopPhase.REVIEW
+        assert result.review_id == "rv-file-tree"
+
+        result = runtime.merge(req.request_id)
+        assert result.phase == BuildLoopPhase.COMPLETE
+        assert result.merge_result["status"] == "merged"
+
+        assert len(runtime.active_requests()) == 0
+        assert len(runtime.history()) == 1
+
+        eg.record.assert_called()
+
+    def test_no_deps_still_processes(self) -> None:
+        """Engineering loop without wired dependencies records and tracks."""
+        runtime = MetaIDEProjectionLoopRuntime()
+        req = runtime.submit("Validate a fix without MetaIDERuntime")
+        assert req.request_id.startswith("br-")
+        assert runtime.request_detail(req.request_id) is not None
+        assert runtime.status().active_requests == 1
