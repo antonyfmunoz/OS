@@ -86,6 +86,8 @@ LEGACY_PROJECTION_LEAKS: dict[str, set[str]] = {
     "substrate/control_plane/registry.py": {"eos_env"},
     "substrate/control_plane/context/__init__.py": {"eos_env"},
     "substrate/control_plane/context/context_builder.py": {"eos_env"},
+    # Benchmark defect seeder — intentionally contains projection names as test data
+    "substrate/organism/benchmarks/production_quality.py": {"eos_brand"},
 }
 
 _EXCLUDES = {

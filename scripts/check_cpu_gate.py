@@ -35,6 +35,8 @@ GATED_DIRS = [
 EXEMPT_FILES = {
     "substrate/execution/cpu_gate.py",
     "adapters/models/cc_sdk.py",
+    # Benchmark defect seeder — intentionally contains raw subprocess as test data
+    "substrate/organism/benchmarks/production_quality.py",
 }
 
 EXEMPT_PATTERNS = [

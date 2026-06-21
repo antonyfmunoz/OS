@@ -79,9 +79,8 @@ _COMPILED_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
 # Format: relative path from repo root → set of categories allowed.
 
 LEGACY_INSTANCE_LEAKS: dict[str, set[str]] = {
-    # All 45 legacy leaks have been migrated to runtime lookups.
-    # This dict is intentionally empty — the gate now blocks all instance values
-    # in substrate/ code with zero exceptions.
+    # Benchmark defect seeder — intentionally contains instance values as test data
+    "substrate/organism/benchmarks/production_quality.py": {"ai_name", "infra_ip"},
 }
 
 # ── Directories to skip ──────────────────────────────────────────────────────
