@@ -71,7 +71,8 @@ export function WorkspacePanel() {
 
 function FileBrowserPane() {
   const [entries, setEntries] = useState<FileEntry[]>([])
-  const [currentPath, setCurrentPath] = useState('/opt/OS')
+  const [currentPath, setCurrentPath] = useState('')
+  const [rootPath, setRootPath] = useState('')
   const [fileContent, setFileContent] = useState<string | null>(null)
   const [fileLang, setFileLang] = useState('plaintext')
   const [fileName, setFileName] = useState('')
@@ -80,17 +81,19 @@ function FileBrowserPane() {
 
   const browse = useCallback(async (path: string) => {
     try {
-      const data = await fetchApi<any>(`/workspace/browse?path=${encodeURIComponent(path)}`)
+      const qs = path ? `?path=${encodeURIComponent(path)}` : ''
+      const data = await fetchApi<any>(`/workspace/browse${qs}`)
       if (data.ok) {
         setEntries(data.entries)
         setCurrentPath(data.path)
+        if (!rootPath) setRootPath(data.path)
         setSourceEnv(data.source_env)
         setError('')
       } else {
         setError(data.error || 'Browse failed')
       }
     } catch { setError('Network error') }
-  }, [])
+  }, [rootPath])
 
   useEffect(() => { browse(currentPath) }, [])
 
@@ -113,9 +116,9 @@ function FileBrowserPane() {
           <p className="wv-label">Explorer</p>
           {sourceEnv && <span className="text-[9px] font-mono text-text-tertiary">{sourceEnv}</span>}
         </div>
-        {currentPath !== '/opt/OS' && (
+        {rootPath && currentPath !== rootPath && (
           <button
-            onClick={() => browse(currentPath.split('/').slice(0, -1).join('/') || '/opt/OS')}
+            onClick={() => browse(currentPath.split('/').slice(0, -1).join('/') || rootPath)}
             className="w-full text-left px-3 py-1 text-[11px] text-cyan hover:bg-surface-raised"
           >
             ← ..
