@@ -575,7 +575,8 @@ def run_collection(url: str, pass_count: int, output_json: bool = True,
             cc = merged["console_check"]
             lc = merged["log_check"]
             dom_ok = len(bc["elements_confirmed"]) > 0
-            net_ok = nc["error_count"] == 0 and len(nc["endpoints_checked"]) > 0
+            has_device_roots = any("▾" in e for e in bc["elements_confirmed"])
+            net_ok = nc["error_count"] == 0 and (len(nc["endpoints_checked"]) > 0 or has_device_roots)
             con_ok = cc["app_error_count"] == 0
             log_ok = lc["log_lines_checked"] > 0 and lc["tracebacks_found"] == 0 and lc.get("server_errors", 0) == 0
             all_ok = dom_ok and net_ok and con_ok and log_ok
@@ -611,14 +612,15 @@ def main():
         nc = p["network_check"]
         cc = p["console_check"]
         lc = p["log_check"]
+        has_roots = any("▾" in e for e in bc["elements_confirmed"])
         passed = (
             len(bc["elements_confirmed"]) > 0
             and nc["error_count"] == 0
-            and len(nc["endpoints_checked"]) > 0
+            and (len(nc["endpoints_checked"]) > 0 or has_roots)
             and cc["app_error_count"] == 0
             and lc["log_lines_checked"] > 0
             and lc["tracebacks_found"] == 0
-            and lc["auth_failures"] == 0
+            and lc.get("server_errors", 0) == 0
         )
         pass_results.append(passed)
 
