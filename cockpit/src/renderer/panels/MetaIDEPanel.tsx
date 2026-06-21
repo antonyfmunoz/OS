@@ -1197,7 +1197,7 @@ export function MetaIDEPanel() {
         {/* Editor + optional right preview split */}
         {!panelMaximized && (
           <div className="flex-1 flex min-h-0 overflow-hidden">
-            <div className={`${showPreview ? 'w-1/2' : 'flex-1'} overflow-hidden`}>
+            <div className={`${showPreview ? 'w-1/2' : 'flex-1'} flex flex-col overflow-hidden`}>
               <EditorContent />
             </div>
             {showPreview && (
