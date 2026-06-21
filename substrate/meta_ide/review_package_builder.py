@@ -75,12 +75,10 @@ class ReviewPackageBuilder:
 
         if session is not None:
             for task_id, result in session.task_results.items():
-                if task_id == "__validation__":
-                    if result.get("failed", 0) > 0:
+                if task_id.startswith("__") and task_id.endswith("__"):
+                    if task_id == "__validation__" and result.get("failed", 0) > 0:
                         all_validations_pass = False
                         reasoning.append(f"Validation: {result['failed']} checks failed")
-                    continue
-                if task_id == "__browser_verification__":
                     continue
                 if not result.get("success", False):
                     has_failed_tasks = True
@@ -182,7 +180,7 @@ class ReviewPackageBuilder:
         risks: list[dict[str, Any]] = []
 
         for task_id, result in session.task_results.items():
-            if task_id == "__validation__":
+            if task_id.startswith("__") and task_id.endswith("__"):
                 continue
 
             task_meta = result.get("metadata", {})
