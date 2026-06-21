@@ -3192,8 +3192,6 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     else:
                         result[key] = {}
 
-        result["vps_root"] = os.environ.get("UMH_ROOT", "/opt/OS")
-        result["windows_root"] = _get_device_project_root("beast", "C:\\dev\\dev")
         result["_errors"] = errors
         if errors:
             result["ok"] = False
