@@ -10,6 +10,7 @@ sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 import adapters  # noqa: E402 — lock correct resolution before execution_spine shadows it
 
 import asyncio
+import concurrent.futures
 import json
 import logging
 import subprocess
@@ -46,6 +47,8 @@ logging.basicConfig(level=logging.INFO)
 _loop_registry = None
 _organism_daemon = None
 _tick_task = None
+_tick_executor: concurrent.futures.ThreadPoolExecutor | None = None
+_api_executor: concurrent.futures.ThreadPoolExecutor | None = None
 
 
 def _wire_spine_to_cockpit_ws(daemon) -> None:
@@ -65,11 +68,15 @@ def _wire_spine_to_cockpit_ws(daemon) -> None:
         logger.warning("cockpit WS bridge not wired: %s", exc)
 
 
-async def _tick_loop(daemon) -> None:
-    """Background async loop that drives the organism metabolism."""
+async def _tick_loop(daemon, executor: concurrent.futures.ThreadPoolExecutor) -> None:
+    """Background async loop that drives the organism metabolism.
+
+    Uses a dedicated executor so the tick never competes with API request threads.
+    """
+    loop = asyncio.get_running_loop()
     while True:
         try:
-            await asyncio.to_thread(daemon.tick)
+            await loop.run_in_executor(executor, daemon.tick)
         except Exception as exc:
             logger.warning("organism tick failed: %s", exc)
         interval = daemon.autonomous_tick.current_interval
@@ -78,7 +85,18 @@ async def _tick_loop(daemon) -> None:
 
 @asynccontextmanager
 async def lifespan(application):
-    global _loop_registry, _organism_daemon, _tick_task
+    global _loop_registry, _organism_daemon, _tick_task, _tick_executor, _api_executor
+
+    # ── Thread pool isolation: tick gets its own thread, API gets 4 ───────
+    _tick_executor = concurrent.futures.ThreadPoolExecutor(
+        max_workers=1, thread_name_prefix="tick",
+    )
+    _api_executor = concurrent.futures.ThreadPoolExecutor(
+        max_workers=4, thread_name_prefix="api",
+    )
+    asyncio.get_running_loop().set_default_executor(_api_executor)
+    logger.info("thread pools: tick=1 (dedicated), api=4 (default)")
+
     # ── Register config store ─────────────────────────────────────────────
     try:
         from substrate.state.config.config_store import ConfigStore
@@ -111,8 +129,8 @@ async def lifespan(application):
         _organism_daemon = OrganismDaemon(graph=graph)
         _organism_daemon.start()
         _wire_spine_to_cockpit_ws(_organism_daemon)
-        _tick_task = asyncio.create_task(_tick_loop(_organism_daemon))
-        logger.info("organism daemon started with autonomous tick loop")
+        _tick_task = asyncio.create_task(_tick_loop(_organism_daemon, _tick_executor))
+        logger.info("organism daemon started with autonomous tick loop (dedicated thread)")
     except Exception as exc:
         import traceback
 
@@ -146,6 +164,11 @@ async def lifespan(application):
         _organism_daemon.stop()
         logger.info("organism daemon stopped")
 
+    if _tick_executor is not None:
+        _tick_executor.shutdown(wait=False)
+    if _api_executor is not None:
+        _api_executor.shutdown(wait=False)
+
     if _loop_registry is not None:
         stopped = _loop_registry.stop_all()
         logger.info("persistent loops stopped: %s", stopped)
@@ -153,7 +176,29 @@ async def lifespan(application):
 
 app = FastAPI(title="UMH Operator API", version="1.0.0", lifespan=lifespan)
 
+from starlette.middleware.base import BaseHTTPMiddleware
 from substrate.integrations.cors import cors_origins
+
+
+class _RequestTimeoutMiddleware(BaseHTTPMiddleware):
+    """Kill requests that exceed 25s server-side.
+
+    Prevents thread pile-up when the pool is busy.  25s < the frontend's
+    30s AbortController, so the client gets a real 504 instead of an
+    opaque abort error.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        if request.url.path.endswith("/health") or request.url.path.endswith("/ws"):
+            return await call_next(request)
+        try:
+            return await asyncio.wait_for(call_next(request), timeout=25.0)
+        except asyncio.TimeoutError:
+            return JSONResponse(
+                {"error": "request timeout", "detail": "server exceeded 25s"},
+                status_code=504,
+            )
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -162,6 +207,7 @@ app.add_middleware(
     allow_headers=["*"],
     allow_credentials=True,
 )
+app.add_middleware(_RequestTimeoutMiddleware)
 
 # ─── ExecutionSpine import (production path) ──────────────────────────────────
 _HAS_SPINE = False

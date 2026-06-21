@@ -13,7 +13,8 @@ import { getWsToken, getClerkToken } from '../api/client'
 const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30000
 const HEARTBEAT_INTERVAL_MS = 25000
-const FALLBACK_POLL_MS = 5000
+const FALLBACK_POLL_BASE_MS = 5000
+const FALLBACK_POLL_MAX_MS = 30000
 
 function buildWsUrl(): string {
   const envUrl = import.meta.env.VITE_ORGANISM_WS_URL as string | undefined
@@ -32,7 +33,8 @@ export function useOrganismRealtime(): void {
   const reconnectDelay = useRef(RECONNECT_BASE_MS)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null)
-  const fallbackTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const fallbackDelay = useRef(FALLBACK_POLL_BASE_MS)
   const shouldReconnect = useRef(true)
 
   const setStatus = useRealtimeStore.getState().setStatus
@@ -40,25 +42,38 @@ export function useOrganismRealtime(): void {
   const pushPulse = useRealtimeStore.getState().pushPulse
   const incrementReconnect = useRealtimeStore.getState().incrementReconnect
 
-  const startFallbackPolling = useCallback(() => {
+  const scheduleFallbackTick = useCallback(() => {
     if (fallbackTimer.current) return
-    useRealtimeStore.getState().setStatus('fallback')
 
-    fallbackTimer.current = setInterval(async () => {
+    const tick = async () => {
       try {
         await useOrganismStore.getState().fetchAll()
         await useOrganismStore.getState().fetchEvents()
       } catch {
         // polling failure is silent — WS reconnect will take over
       }
-    }, FALLBACK_POLL_MS)
+      fallbackDelay.current = Math.min(fallbackDelay.current * 2, FALLBACK_POLL_MAX_MS)
+      if (shouldReconnect.current) {
+        fallbackTimer.current = setTimeout(tick, fallbackDelay.current)
+      }
+    }
+
+    fallbackTimer.current = setTimeout(tick, fallbackDelay.current)
   }, [])
+
+  const startFallbackPolling = useCallback(() => {
+    if (fallbackTimer.current) return
+    useRealtimeStore.getState().setStatus('fallback')
+    fallbackDelay.current = FALLBACK_POLL_BASE_MS
+    scheduleFallbackTick()
+  }, [scheduleFallbackTick])
 
   const stopFallbackPolling = useCallback(() => {
     if (fallbackTimer.current) {
-      clearInterval(fallbackTimer.current)
+      clearTimeout(fallbackTimer.current)
       fallbackTimer.current = null
     }
+    fallbackDelay.current = FALLBACK_POLL_BASE_MS
   }, [])
 
   const connect = useCallback(async () => {
