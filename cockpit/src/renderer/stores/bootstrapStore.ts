@@ -1,9 +1,23 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { fetchApi } from '../api/client'
 import { useConfigStore } from './configStore'
 import { useSystemStore } from './systemStore'
 import { useMetaIDEStore } from './metaIDEStore'
+
+function safeStorage() {
+  return createJSONStorage(() => ({
+    getItem: (name: string) => {
+      try { return localStorage.getItem(name) } catch { return null }
+    },
+    setItem: (name: string, value: string) => {
+      try { localStorage.setItem(name, value) } catch { /* Safari Private Browsing */ }
+    },
+    removeItem: (name: string) => {
+      try { localStorage.removeItem(name) } catch { /* Safari Private Browsing */ }
+    },
+  }))
+}
 
 interface BootstrapResponse {
   ok: boolean
@@ -211,28 +225,31 @@ export const useBootstrapStore = create<BootstrapState>()(
           }))
         }
 
-        set({ slowLoading: true })
-        try {
-          const data = await fetchApi<SlowBootstrapResponse>('/bootstrap/slow')
-          applySlowData(data)
-        } catch (err) {
-          console.error('[bootstrap:slow] failed, retrying in 3s:', err)
-          set({ slowLoading: false })
-          setTimeout(async () => {
-            try {
-              set({ slowLoading: true })
-              const data = await fetchApi<SlowBootstrapResponse>('/bootstrap/slow')
-              applySlowData(data)
-            } catch (retryErr) {
-              console.error('[bootstrap:slow] retry failed:', retryErr)
-              set({ slowLoading: false })
-            }
-          }, 3000)
+        const tryFetch = async (attempt: number): Promise<boolean> => {
+          set({ slowLoading: true })
+          try {
+            const data = await fetchApi<SlowBootstrapResponse>('/bootstrap/slow')
+            applySlowData(data)
+            return true
+          } catch (err) {
+            console.error(`[bootstrap:slow] attempt ${attempt + 1} failed:`, err)
+            set({ slowLoading: false })
+            return false
+          }
+        }
+
+        if (await tryFetch(0)) return
+        const delays = [3000, 6000, 15000]
+        for (let i = 0; i < delays.length; i++) {
+          await new Promise((r) => setTimeout(r, delays[i]))
+          if (useMetaIDEStore.getState().vpsTree.length > 0) return
+          if (await tryFetch(i + 1)) return
         }
       },
     }),
     {
       name: 'cockpit:bootstrap-cache',
+      storage: safeStorage(),
       partialize: (state) => ({ cache: state.cache }),
       onRehydrateStorage: () => (state, error) => {
         if (!error && state?.cache && Object.keys(state.cache).length > 0) {
