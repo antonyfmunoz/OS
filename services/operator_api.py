@@ -188,14 +188,17 @@ class _RequestTimeoutMiddleware(BaseHTTPMiddleware):
     opaque abort error.
     """
 
+    _LONG_TIMEOUT_PATHS = ("/advisor/converse", "/dex/converse", "/chat/converse")
+
     async def dispatch(self, request: Request, call_next):
         if request.url.path.endswith("/health") or request.url.path.endswith("/ws"):
             return await call_next(request)
+        timeout = 60.0 if any(request.url.path.endswith(p) for p in self._LONG_TIMEOUT_PATHS) else 25.0
         try:
-            return await asyncio.wait_for(call_next(request), timeout=25.0)
+            return await asyncio.wait_for(call_next(request), timeout=timeout)
         except asyncio.TimeoutError:
             return JSONResponse(
-                {"error": "request timeout", "detail": "server exceeded 25s"},
+                {"error": "request timeout", "detail": f"server exceeded {int(timeout)}s"},
                 status_code=504,
             )
 
