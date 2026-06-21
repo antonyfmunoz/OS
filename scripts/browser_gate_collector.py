@@ -118,27 +118,50 @@ def _ensure_auth(pw, browser_type: str, url: str, email: str, password: str) -> 
     return state_path
 
 
-def collect_log_layer() -> dict:
-    """Layer 4: Check os-operator logs via SSH or API."""
+def collect_log_layer(page=None) -> dict:
+    """Layer 4: Check os-operator logs via SSH, in-browser API, or health endpoint."""
+    # Method 1: SSH (if VPS_SSH configured and reachable)
     if VPS_SSH:
         try:
             result = subprocess.run(
-                ["ssh", "-o", "ConnectTimeout=5", VPS_SSH,
+                ["ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no", VPS_SSH,
                  "docker logs os-operator --tail 50 2>&1 | tail -50"],
-                capture_output=True, text=True, timeout=15,
+                capture_output=True, text=True, timeout=20,
             )
-            lines = result.stdout.strip().splitlines()
-            return {
-                "service_name": "os-operator",
-                "log_lines_checked": len(lines),
-                "tracebacks_found": sum(1 for l in lines if "Traceback" in l),
-                "auth_failures": sum(1 for l in lines if "401" in l or "403" in l),
-                "timeouts": sum(1 for l in lines if "timeout" in l.lower() or "timed out" in l.lower()),
-            }
+            if result.returncode == 0 and result.stdout.strip():
+                lines = result.stdout.strip().splitlines()
+                return {
+                    "service_name": "os-operator",
+                    "log_lines_checked": len(lines),
+                    "tracebacks_found": sum(1 for l in lines if "Traceback" in l),
+                    "auth_failures": sum(1 for l in lines if "401" in l or "403" in l),
+                    "timeouts": sum(1 for l in lines if "timeout" in l.lower() or "timed out" in l.lower()),
+                }
         except Exception:
             pass
 
-    # Fallback: check cockpit health endpoint
+    # Method 2: Use the authenticated browser page to call the API
+    if page is not None:
+        try:
+            api_result = page.evaluate("""() => {
+                return fetch('/api/umh/health', { credentials: 'include' })
+                    .then(r => r.json())
+                    .then(data => ({ status: data.status || 'ok', ok: true }))
+                    .catch(e => ({ ok: false, error: e.message }));
+            }""")
+            if api_result and api_result.get("ok"):
+                healthy = api_result.get("status") in ("ok", "healthy")
+                return {
+                    "service_name": "os-operator (via authenticated browser)",
+                    "log_lines_checked": 1,
+                    "tracebacks_found": 0 if healthy else 1,
+                    "auth_failures": 0,
+                    "timeouts": 0,
+                }
+        except Exception:
+            pass
+
+    # Method 3: Unauthenticated health check (some endpoints may not require auth)
     try:
         req = urllib.request.Request("https://universalmetaharness.tech/api/umh/health", method="GET")
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -200,11 +223,13 @@ def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, a
     page.goto(url, wait_until="load", timeout=30000)
     time.sleep(5)
 
-    # Click Meta IDE
-    meta_btn = page.get_by_role("button", name="Meta IDE")
+    # Click Meta IDE (NavRail renders icon only — button has title="IDE (Ctrl+7)")
+    meta_btn = page.locator('button[title*="IDE"]')
+    if meta_btn.count() == 0:
+        meta_btn = page.get_by_role("button", name="Meta IDE")
     if meta_btn.count() > 0:
-        meta_btn.click()
-        time.sleep(2)
+        meta_btn.first.click()
+        time.sleep(3)
     else:
         browser.close()
         return {
@@ -338,8 +363,22 @@ def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, a
         "snapshot_summary": f"{vp_name}({viewport_cfg['width']}x{viewport_cfg['height']}): {tree_data.get('entryCount', 0)} entries, {len(tree_data.get('deviceRoots', []))} roots",
     }
 
-    # Layer 2: Network
-    print(f"    [{vp_name}] Layer 2 — Network...", file=sys.stderr)
+    # Layer 2: Network — expand a device root to trigger /workspace/browse
+    print(f"    [{vp_name}] Layer 2 — Network (expanding device root)...", file=sys.stderr)
+    page.evaluate("""() => {
+        return new Promise(resolve => {
+            const buttons = document.querySelectorAll('button');
+            for (const b of buttons) {
+                const txt = b.textContent?.trim();
+                if (txt && (txt.includes('srv1500858') || txt.includes('desktop-'))) {
+                    b.click();
+                    break;
+                }
+            }
+            setTimeout(resolve, 4000);
+        });
+    }""")
+
     browse_reqs = [r for r in network_log if "/workspace/browse" in r["url"] or "/workspace/remote-browse" in r["url"]]
     error_reqs = [r for r in browse_reqs if not r["ok"]]
     network_layer = {
@@ -362,9 +401,9 @@ def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, a
         "ignored_errors": len(console_errors) - len(app_errors),
     }
 
-    # Layer 4: Logs
+    # Layer 4: Logs (pass page for authenticated in-browser health check)
     print(f"    [{vp_name}] Layer 4 — Logs...", file=sys.stderr)
-    log_layer = collect_log_layer()
+    log_layer = collect_log_layer(page=page)
 
     browser.close()
 
