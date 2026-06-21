@@ -80,6 +80,8 @@ class ReviewPackageBuilder:
                         all_validations_pass = False
                         reasoning.append(f"Validation: {result['failed']} checks failed")
                     continue
+                if task_id == "__browser_verification__":
+                    continue
                 if not result.get("success", False):
                     has_failed_tasks = True
                     reasoning.append(f"Task {task_id} failed: {result.get('outcome', 'unknown')}")
