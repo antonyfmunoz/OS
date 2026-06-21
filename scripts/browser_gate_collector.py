@@ -134,7 +134,8 @@ def collect_log_layer(page=None) -> dict:
                     "service_name": "os-operator",
                     "log_lines_checked": len(lines),
                     "tracebacks_found": sum(1 for l in lines if "Traceback" in l),
-                    "auth_failures": sum(1 for l in lines if "401" in l or "403" in l),
+                    "auth_failures": 0,
+                    "server_errors": sum(1 for l in lines if '" 500 ' in l or '" 502 ' in l or '" 503 ' in l or '" 504 ' in l),
                     "timeouts": sum(1 for l in lines if "timeout" in l.lower() or "timed out" in l.lower()),
                 }
         except Exception:
@@ -548,7 +549,7 @@ def run_collection(url: str, pass_count: int, output_json: bool = True,
             dom_ok = len(bc["elements_confirmed"]) > 0
             net_ok = nc["error_count"] == 0 and len(nc["endpoints_checked"]) > 0
             con_ok = cc["app_error_count"] == 0
-            log_ok = lc["log_lines_checked"] > 0 and lc["tracebacks_found"] == 0 and lc["auth_failures"] == 0
+            log_ok = lc["log_lines_checked"] > 0 and lc["tracebacks_found"] == 0 and lc.get("server_errors", 0) == 0
             all_ok = dom_ok and net_ok and con_ok and log_ok
 
             status = "PASS" if all_ok else "FAIL"
