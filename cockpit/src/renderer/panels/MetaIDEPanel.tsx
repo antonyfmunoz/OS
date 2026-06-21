@@ -293,7 +293,9 @@ function FilesPanel() {
   const refreshData = async () => {
     setFetching(true)
     const store = useMetaIDEStore.getState()
-    const vpsEntries = await browseDir('/')
+    const vpsRoot = store.vpsRoot
+    const windowsRoot = store.windowsRoot
+    const vpsEntries = await browseDir(vpsRoot)
     if (vpsEntries.length > 0) {
       store.setVpsTree(vpsEntries)
       setFetchFailed(false)
@@ -310,7 +312,7 @@ function FilesPanel() {
     }
     setFetching(false)
 
-    browseDir('C:\\', 'windows').then((entries) => {
+    browseDir(windowsRoot, 'windows').then((entries) => {
       if (entries.length > 0) {
         store.setWindowsTree(entries)
         useBootstrapStore.setState((prev) => ({

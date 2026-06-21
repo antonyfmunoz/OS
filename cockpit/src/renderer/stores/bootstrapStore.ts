@@ -32,6 +32,8 @@ interface SlowBootstrapResponse {
   workstation_nodes?: Record<string, unknown>
   vps_files?: { ok?: boolean; entries?: Array<{ name: string; path: string; type: string }> }
   windows_files?: { ok?: boolean; entries?: Array<{ name: string; path: string; type: string }> }
+  vps_root?: string
+  windows_root?: string
   _errors?: string[]
 }
 
@@ -180,6 +182,8 @@ export const useBootstrapStore = create<BootstrapState>()(
 
       bootSlow: async () => {
         const applySlowData = (data: SlowBootstrapResponse) => {
+          if (data.vps_root) useMetaIDEStore.getState().setVpsRoot(data.vps_root)
+          if (data.windows_root) useMetaIDEStore.getState().setWindowsRoot(data.windows_root)
           if (data.vps_files?.entries?.length) {
             useMetaIDEStore.getState().setVpsTree(
               data.vps_files.entries.map((e) => ({ name: e.name, path: e.path, type: e.type as 'file' | 'directory' })),

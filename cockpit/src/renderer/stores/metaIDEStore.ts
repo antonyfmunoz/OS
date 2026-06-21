@@ -165,6 +165,8 @@ interface MetaIDEState {
 
   vpsTree: FileEntry[]
   windowsTree: FileEntry[]
+  vpsRoot: string
+  windowsRoot: string
   fileMeshNodes: FileMeshNode[]
   windowsOnline: boolean
   vpsExpanded: boolean
@@ -183,6 +185,8 @@ interface MetaIDEState {
   setPanelHeight: (h: number) => void
   setVpsTree: (entries: FileEntry[]) => void
   setWindowsTree: (entries: FileEntry[]) => void
+  setVpsRoot: (root: string) => void
+  setWindowsRoot: (root: string) => void
   setFileMeshNodes: (nodes: FileMeshNode[]) => void
   setWindowsOnline: (online: boolean) => void
   setVpsExpanded: (v: boolean) => void
@@ -216,6 +220,8 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
 
   vpsTree: [],
   windowsTree: [],
+  vpsRoot: '/opt/OS',
+  windowsRoot: 'C:\\dev\\dev',
   fileMeshNodes: [],
   windowsOnline: false,
   vpsExpanded: true,
@@ -238,6 +244,8 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
 
   setVpsTree: (entries) => set({ vpsTree: entries }),
   setWindowsTree: (entries) => set({ windowsTree: entries }),
+  setVpsRoot: (root) => set({ vpsRoot: root }),
+  setWindowsRoot: (root) => set({ windowsRoot: root }),
   setFileMeshNodes: (nodes) => {
     const online = nodes.some((n) => n.os === 'windows' && (n.status === 'connected' || n.status === 'online'))
     set({ fileMeshNodes: nodes, windowsOnline: online })
