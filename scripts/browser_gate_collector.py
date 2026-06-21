@@ -118,19 +118,27 @@ def _ensure_auth(pw, browser_type: str, url: str, email: str, password: str) -> 
     return state_path
 
 
+_log_layer_cache: dict | None = None
+
+
 def collect_log_layer(page=None) -> dict:
     """Layer 4: Check os-operator logs via SSH, in-browser API, or health endpoint."""
+    global _log_layer_cache
+    if _log_layer_cache is not None:
+        return _log_layer_cache
+
     # Method 1: SSH (if VPS_SSH configured and reachable)
     if VPS_SSH:
         try:
             result = subprocess.run(
-                ["ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new", VPS_SSH,
-                 "docker logs os-operator --tail 50 2>&1 | tail -50"],
-                capture_output=True, text=True, timeout=20,
+                ["ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new",
+                 "-o", "ServerAliveInterval=5", VPS_SSH,
+                 "docker logs os-operator --tail 20 2>&1 | tail -20"],
+                capture_output=True, text=True, timeout=30,
             )
             if result.returncode == 0 and result.stdout.strip():
                 lines = result.stdout.strip().splitlines()
-                return {
+                _log_layer_cache = {
                     "service_name": "os-operator",
                     "log_lines_checked": len(lines),
                     "tracebacks_found": sum(1 for l in lines if "Traceback" in l),
@@ -138,6 +146,7 @@ def collect_log_layer(page=None) -> dict:
                     "server_errors": sum(1 for l in lines if '" 500 ' in l or '" 502 ' in l or '" 503 ' in l or '" 504 ' in l),
                     "timeouts": sum(1 for l in lines if "timeout" in l.lower() or "timed out" in l.lower()),
                 }
+                return _log_layer_cache
         except Exception:
             pass
 
@@ -159,13 +168,14 @@ def collect_log_layer(page=None) -> dict:
             }""")
             if api_result and api_result.get("ok"):
                 healthy = api_result.get("status") in ("ok", "healthy")
-                return {
+                _log_layer_cache = {
                     "service_name": "os-operator (via authenticated browser)",
                     "log_lines_checked": 1,
                     "tracebacks_found": 0 if healthy else 1,
                     "auth_failures": 0,
                     "timeouts": 0,
                 }
+                return _log_layer_cache
         except Exception:
             pass
 
@@ -175,13 +185,14 @@ def collect_log_layer(page=None) -> dict:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
             healthy = data.get("status") == "ok" or resp.status == 200
-            return {
+            _log_layer_cache = {
                 "service_name": "os-operator (via health API)",
                 "log_lines_checked": 1,
                 "tracebacks_found": 0 if healthy else 1,
                 "auth_failures": 0,
                 "timeouts": 0,
             }
+            return _log_layer_cache
     except Exception as e:
         return {
             "service_name": "os-operator",
@@ -519,6 +530,8 @@ def run_collection(url: str, pass_count: int, output_json: bool = True,
 
         for pass_num in range(1, pass_count + 1):
             print(f"\n--- Pass {pass_num}/{pass_count} ---", file=sys.stderr)
+            global _log_layer_cache
+            _log_layer_cache = None
             viewport_results = []
 
             for vp_cfg in VIEWPORTS:
