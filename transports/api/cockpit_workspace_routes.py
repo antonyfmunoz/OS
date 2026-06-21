@@ -511,9 +511,26 @@ def _ssh_cmd(cmd: str) -> tuple[bool, str]:
         return False, str(e)
 
 
+def _get_windows_project_root() -> str:
+    """Read Windows project_root from device registry, fallback to C:\\dev\\dev."""
+    try:
+        reg_path = os.path.join(_REPO_ROOT, "infra", "device_registry.json")
+        with open(reg_path) as f:
+            import json as _json
+            devices = _json.load(f)
+        for dev in devices:
+            if dev.get("id") == "beast":
+                return dev.get("project_root", "C:\\dev\\dev")
+    except Exception:
+        pass
+    return "C:\\dev\\dev"
+
+
 async def _remote_browse(request: Request) -> dict[str, Any]:
     node = request.query_params.get("node", "windows")
-    path = request.query_params.get("path", _WINDOWS_ALLOWED_ROOT)
+    path = request.query_params.get("path", "")
+    if not path:
+        path = _get_windows_project_root()
     if node != "windows":
         return {"ok": False, "error": f"Unknown remote node: {node}"}
     err = _validate_windows_path(path)
