@@ -40,6 +40,7 @@ class ReviewPackageBuilder:
         diff_summary = self._build_diff_summary(session)
         validation_results = self._collect_validation_results(session)
         risk_summary = self._build_risk_summary(session)
+        browser_verification = self._collect_browser_verification(session)
 
         package = EngineeringProofPackage(
             session_id=session.session_id,
@@ -49,6 +50,7 @@ class ReviewPackageBuilder:
             risk_summary=risk_summary,
             diff_summary=diff_summary,
             trace_ids=list(session.execution_trace_ids),
+            browser_verification=browser_verification,
         )
 
         recommendation, reasoning = self.compute_recommendation(package, session)
@@ -97,9 +99,24 @@ class ReviewPackageBuilder:
                 all_validations_pass = False
                 reasoning.append(f"Validation failed: {vr.get('artifact_id', 'unknown')}")
 
+        browser_v = package.browser_verification
+        browser_verification_failed = (
+            browser_v.get("required", False) and not browser_v.get("verified", False)
+        )
+        if browser_verification_failed:
+            passing = browser_v.get("consecutive_passing", 0)
+            required = browser_v.get("required_passes", 3)
+            reasoning.append(
+                f"Browser verification incomplete: {passing}/{required} consecutive passes"
+            )
+
         if has_errors or has_failed_tasks:
             reasoning.insert(0, "REJECT: errors or failed tasks detected")
             return OperatorRecommendation.REJECT, reasoning
+
+        if browser_verification_failed:
+            reasoning.insert(0, "NEEDS_REVIEW: browser verification not yet passed")
+            return OperatorRecommendation.NEEDS_REVIEW, reasoning
 
         if not all_validations_pass:
             reasoning.insert(0, "NEEDS_REVIEW: validation failures detected")
@@ -148,6 +165,15 @@ class ReviewPackageBuilder:
         if validation is None:
             return []
         return validation.get("details", [])
+
+    def _collect_browser_verification(
+        self, session: EngineeringExecutionSession
+    ) -> dict[str, Any]:
+        """Collect browser verification evidence from session."""
+        bv = session.task_results.get("__browser_verification__")
+        if bv is None:
+            return {}
+        return bv
 
     def _build_risk_summary(self, session: EngineeringExecutionSession) -> list[dict[str, Any]]:
         """Build risk summary from task results and artifacts."""

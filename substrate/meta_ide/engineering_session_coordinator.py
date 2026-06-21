@@ -20,6 +20,10 @@ import time
 from typing import Any
 from uuid import uuid4
 
+from substrate.meta_ide.browser_verification_gate import (
+    BrowserVerificationGate,
+    BrowserVerificationResult,
+)
 from substrate.meta_ide.engineering_execution import (
     EngineeringArtifact,
     EngineeringExecutionSession,
@@ -46,6 +50,7 @@ class EngineeringSessionCoordinator:
         self._planner = planner
         self._executor = executor
         self._event_spine = event_spine
+        self._browser_gate = BrowserVerificationGate()
         self._sessions: dict[str, EngineeringExecutionSession] = {}
         self._plans: dict[str, EngineeringPlan] = {}
         self._proof_packages: dict[str, EngineeringProofPackage] = {}
@@ -153,9 +158,23 @@ class EngineeringSessionCoordinator:
             validation = self._run_validation(session)
             session.task_results["__validation__"] = validation
 
-            session.status = EngineeringExecutionStatus.AWAITING_REVIEW
-            session.updated_at = time.time()
-            session.completed_at = time.time()
+            browser_result = self._run_browser_verification(session)
+            session.task_results["__browser_verification__"] = browser_result.to_dict()
+
+            if browser_result.required and not browser_result.verified:
+                self._emit_event(
+                    "browser_verification_pending",
+                    {
+                        "session_id": session_id,
+                        "consecutive_passing": browser_result.consecutive_passing,
+                        "required_passes": 3,
+                        "reasons": browser_result.requirement_reasons,
+                    },
+                )
+            else:
+                session.status = EngineeringExecutionStatus.AWAITING_REVIEW
+                session.updated_at = time.time()
+                session.completed_at = time.time()
 
         self._emit_event(
             "session_completed",
@@ -257,6 +276,89 @@ class EngineeringSessionCoordinator:
             },
         )
         return pkg
+
+    def submit_browser_evidence(
+        self,
+        session_id: str,
+        evidence: dict[str, Any],
+    ) -> BrowserVerificationResult | None:
+        """Submit browser verification evidence for a VALIDATING session.
+
+        Called by the executing agent after collecting 4-layer evidence.
+        If 3 consecutive passes now pass, transitions to AWAITING_REVIEW.
+        """
+        session = self._sessions.get(session_id)
+        if session is None:
+            return None
+        if session.status != EngineeringExecutionStatus.VALIDATING:
+            logger.warning(
+                "Cannot submit browser evidence for session %s in status %s",
+                session_id,
+                session.status.value,
+            )
+            return None
+
+        result = self._run_browser_verification(session, evidence)
+        session.task_results["__browser_verification__"] = result.to_dict()
+
+        if result.verified:
+            session.status = EngineeringExecutionStatus.AWAITING_REVIEW
+            session.updated_at = time.time()
+            session.completed_at = time.time()
+            self._emit_event(
+                "browser_verification_passed",
+                {
+                    "session_id": session_id,
+                    "total_attempts": len(result.passes),
+                },
+            )
+        else:
+            self._emit_event(
+                "browser_verification_incomplete",
+                {
+                    "session_id": session_id,
+                    "consecutive_passing": result.consecutive_passing,
+                    "total_attempts": len(result.passes),
+                },
+            )
+
+        return result
+
+    def _run_browser_verification(
+        self,
+        session: EngineeringExecutionSession,
+        evidence: dict[str, Any] | None = None,
+    ) -> BrowserVerificationResult:
+        """Check browser verification requirement and validate evidence."""
+        artifact_paths = [a.file_path for a in session.artifacts if a.file_path]
+
+        packet_flags: dict[str, Any] = {}
+        proof_requirements: list[str] = []
+
+        plan = self._plans.get(session.plan_id)
+        if plan is not None:
+            for task in plan.tasks:
+                meta = getattr(task, "metadata", {}) or {}
+                if meta.get("playwright_enabled"):
+                    packet_flags["playwright_enabled"] = True
+                if meta.get("cdp_enabled"):
+                    packet_flags["cdp_enabled"] = True
+                if meta.get("screenshot_capture"):
+                    packet_flags["screenshot_capture"] = True
+                for req in meta.get("proof_requirements", []):
+                    if req not in proof_requirements:
+                        proof_requirements.append(req)
+
+        if evidence is None:
+            existing = session.task_results.get("__browser_verification__", {})
+            evidence = existing if existing else {}
+
+        return self._browser_gate.validate_evidence(
+            evidence=evidence,
+            artifact_paths=artifact_paths,
+            packet_flags=packet_flags,
+            proof_requirements=proof_requirements,
+        )
 
     def _dispatch_task(
         self,
