@@ -80,8 +80,8 @@ def _ensure_auth(pw, browser_type: str, url: str, email: str, password: str) -> 
     context = browser.new_context()
     page = context.new_page()
 
-    page.goto(url, wait_until="networkidle", timeout=30000)
-    time.sleep(2)
+    page.goto(url, wait_until="load", timeout=30000)
+    time.sleep(3)
 
     # Clerk login flow
     email_input = page.locator('input[name="identifier"], input[type="email"]')
@@ -197,8 +197,8 @@ def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, a
 
     # Navigate
     print(f"    [{vp_name}] Navigating to {url}...", file=sys.stderr)
-    page.goto(url, wait_until="networkidle", timeout=30000)
-    time.sleep(3)
+    page.goto(url, wait_until="load", timeout=30000)
+    time.sleep(5)
 
     # Click Meta IDE
     meta_btn = page.get_by_role("button", name="Meta IDE")
