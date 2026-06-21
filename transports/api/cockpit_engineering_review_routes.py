@@ -29,6 +29,27 @@ def configure(require_operator_dep: Any) -> None:
     engineering_review_router = _build_router(require_operator_dep)
 
 
+def _get_executor() -> Any:
+    """Try to construct an executor. Returns None if unavailable."""
+    try:
+        from substrate.organism.executor_runtime import (
+            AgentExecutor,
+        )
+
+        return AgentExecutor()
+    except Exception:
+        pass
+    try:
+        from substrate.organism.executor_runtime import (
+            WorkstationExecutor,
+        )
+
+        return WorkstationExecutor()
+    except Exception:
+        pass
+    return None
+
+
 def _get_coordinator() -> Any:
     global _coordinator_instance
     if _coordinator_instance is not None:
@@ -38,7 +59,10 @@ def _get_coordinator() -> Any:
             EngineeringSessionCoordinator,
         )
 
-        _coordinator_instance = EngineeringSessionCoordinator()
+        executor = _get_executor()
+        _coordinator_instance = EngineeringSessionCoordinator(executor=executor)
+        if executor is not None:
+            logger.info("engineering coordinator wired with executor: %s", type(executor).__name__)
         return _coordinator_instance
     except Exception as exc:
         logger.debug("engineering review routes: failed to create coordinator: %s", exc)
@@ -239,7 +263,11 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         package = coordinator.approve_review(proof_id, reviewed_by=principal)
         if package is None:
             raise HTTPException(404, f"review {proof_id} not found")
-        return package.to_dict()
+
+        integration = coordinator.integrate_session(package.session_id)
+        result = package.to_dict()
+        result["integration"] = integration
+        return result
 
     @router.post("/engineering/reviews/{proof_id}/reject")
     async def reject_review(

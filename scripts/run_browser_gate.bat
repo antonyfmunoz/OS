@@ -1,9 +1,8 @@
 @echo off
-REM Browser Gate Runner — reads credentials from %USERPROFILE%\.umh\cockpit.env
+REM Browser Gate Runner — credentials from 1Password via op run
 REM
-REM Create %USERPROFILE%\.umh\cockpit.env with:
-REM   UMH_COCKPIT_EMAIL=your@email.com
-REM   UMH_COCKPIT_PASSWORD=your-password
+REM Requires: 1Password CLI (op) with OP_SERVICE_ACCOUNT_TOKEN set
+REM Template: scripts\.env.beast.tpl references op://UMH-Production/Cockpit Clerk
 REM
 REM Usage: run_browser_gate.bat [url] [passes]
 
@@ -15,17 +14,5 @@ if "%URL%"=="" set "URL=https://universalmetaharness.tech/"
 set "PASSES=%~2"
 if "%PASSES%"=="" set "PASSES=3"
 
-set "ENV_FILE=%USERPROFILE%\.umh\cockpit.env"
-
-if not exist "%ENV_FILE%" (
-    echo ERROR: %ENV_FILE% not found
-    echo Create it with UMH_COCKPIT_EMAIL and UMH_COCKPIT_PASSWORD
-    exit /b 1
-)
-
-for /f "usebackq tokens=1,* delims==" %%A in ("%ENV_FILE%") do (
-    set "%%A=%%B"
-)
-
 cd /d C:\dev\dev\OS
-python scripts/browser_gate_collector.py --url "%URL%" --passes %PASSES% --output-json
+op run --env-file=scripts\.env.beast.tpl -- python scripts/browser_gate_collector.py --url "%URL%" --passes %PASSES% --output-json
