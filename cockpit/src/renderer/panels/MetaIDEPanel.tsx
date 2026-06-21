@@ -298,6 +298,9 @@ function FilesPanel() {
       store.setVpsTree(vpsEntries)
       setFetchFailed(false)
       retryCount.current = 0
+      useBootstrapStore.setState((prev) => ({
+        cache: { ...prev.cache, vps_files: { entries: vpsEntries } },
+      }))
     } else if (store.vpsTree.length === 0) {
       setFetchFailed(true)
       const delay = Math.min(3000 * Math.pow(2, retryCount.current), 30000)
@@ -307,7 +310,14 @@ function FilesPanel() {
     }
     setFetching(false)
 
-    browseDir('C:\\', 'windows').then((entries) => { if (entries.length > 0) store.setWindowsTree(entries) })
+    browseDir('C:\\', 'windows').then((entries) => {
+      if (entries.length > 0) {
+        store.setWindowsTree(entries)
+        useBootstrapStore.setState((prev) => ({
+          cache: { ...prev.cache, windows_files: { entries } },
+        }))
+      }
+    })
 
     try {
       const data = await fetchApi<{ ok: boolean; nodes: MeshNode[] }>('/workspace/mesh-nodes')
