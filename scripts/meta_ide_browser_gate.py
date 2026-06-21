@@ -286,9 +286,9 @@ def main():
             all_verdicts.append({"pass": i, "passed": passed, "failures": failures})
 
             if passed:
-                print(f"  Pass {i}: ✓ ALL 4 LAYERS PASSED")
+                print(f"  Pass {i}: PASS - ALL 4 LAYERS PASSED")
             else:
-                print(f"  Pass {i}: ✗ FAILED")
+                print(f"  Pass {i}: FAIL")
                 for f in failures:
                     print(f"    - {f}")
 
@@ -304,7 +304,7 @@ def main():
     print(f"RESULT: {'VERIFIED' if verified else 'FAILED'}")
     print(f"Passes: {consecutive_passing}/{PASS_COUNT}")
     for v in all_verdicts:
-        status = "✓" if v["passed"] else "✗"
+        status = "PASS" if v["passed"] else "FAIL"
         print(f"  Pass {v['pass']}: {status}")
         for f in v.get("failures", []):
             print(f"    - {f}")

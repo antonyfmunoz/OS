@@ -48,6 +48,7 @@ _validate_ws_clerk_token_fn: Any = None
 _ws_token: str = ""
 _dev_bypass: bool = False
 _trusted_proxies: set = set()
+_dex_conversation: Any = None
 
 
 def configure(
