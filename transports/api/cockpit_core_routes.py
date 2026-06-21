@@ -2874,24 +2874,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
     _SAFE_PATH_RE = re.compile(r'^[A-Za-z]:\\[A-Za-z0-9_\\\-. ]*$')
 
-    def _get_device_project_root(device_id: str, fallback: str) -> str:
-        """Read project_root for a device from infra/device_registry.json."""
-        try:
-            import json as _json
-            reg_path = os.path.join(os.environ.get("UMH_ROOT", "/opt/OS"), "infra", "device_registry.json")
-            with open(reg_path) as f:
-                devices = _json.load(f)
-            for dev in devices:
-                if dev.get("id") == device_id:
-                    return dev.get("project_root", fallback)
-        except Exception:
-            pass
-        return fallback
-
     def _fetch_windows_files() -> dict[str, Any]:
-        """SSH to Beast for project directory listing — isolated so it can be deadline-capped."""
+        """SSH to Beast for filesystem root listing — isolated so it can be deadline-capped."""
         from transports.api.cockpit_workspace_routes import _ssh_cmd
-        _win_root = _get_device_project_root("beast", "C:\\dev\\dev")
+        _win_root = "C:\\"
         if not _SAFE_PATH_RE.match(_win_root):
             logger.warning("Rejected unsafe Windows path from device registry: %s", _win_root)
             return {"ok": False, "entries": []}
@@ -3233,7 +3219,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         try:
             from substrate.workstation.file_browser import browse_directory
-            result["vps_files"] = browse_directory(os.environ.get("UMH_ROOT", "/opt/OS")).to_dict()
+            result["vps_files"] = browse_directory("/").to_dict()
         except Exception as e:
             errors.append(f"vps_files: {e}")
             result["vps_files"] = {}
