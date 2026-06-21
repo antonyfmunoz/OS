@@ -347,6 +347,13 @@ function ChatSection() {
         }).then(() => sendMessage('Intent decomposed into work packets.', 'text'))
           .catch(() => sendMessage('Decomposition failed.', 'text'))
         break
+      case 'engineering_plan':
+        import('../stores/engineeringStore').then(({ useEngineeringStore }) => {
+          useEngineeringStore.getState().createPlan(action.payload.intent as string)
+          setPanel('engineering')
+          sendMessage('Engineering plan created.', 'text')
+        }).catch(() => sendMessage('Failed to create engineering plan.', 'text'))
+        break
       default:
         break
     }

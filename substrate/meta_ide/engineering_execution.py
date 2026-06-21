@@ -131,6 +131,8 @@ class EngineeringExecutionSession:
     operator_id: str = ""
     execution_trace_ids: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    sandbox_worktree: str = ""
+    sandbox_branch: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -151,6 +153,8 @@ class EngineeringExecutionSession:
             "operator_id": self.operator_id,
             "execution_trace_ids": self.execution_trace_ids,
             "errors": self.errors,
+            "sandbox_worktree": self.sandbox_worktree,
+            "sandbox_branch": self.sandbox_branch,
         }
 
 

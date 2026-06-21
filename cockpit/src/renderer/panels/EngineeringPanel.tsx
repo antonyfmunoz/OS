@@ -326,17 +326,41 @@ function GapsTab() {
 }
 
 function SessionsTab() {
-  const { sessions, activeSession, fetchSessions, executeSession, pauseSession, cancelSession, loading } = useEngineeringStore()
+  const { sessions, activeSession, fetchSessions, executeSession, pauseSession, cancelSession, plans, createSession, fetchPlans, loading } = useEngineeringStore()
 
-  useEffect(() => { fetchSessions() }, [])
+  useEffect(() => { fetchSessions(); fetchPlans() }, [])
 
   if (loading && sessions.length === 0) return <div style={{ padding: 16, color: '#9ca3af' }}>—</div>
+
+  const approvedPlans = plans.filter((p) => p.status === 'approved')
 
   return (
     <div style={{ padding: 16 }}>
       <h3 style={{ margin: '0 0 12px', fontSize: 15, color: '#e2e8f0' }}>Execution Sessions</h3>
 
-      {sessions.length === 0 && (
+      {approvedPlans.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', marginBottom: 6 }}>Approved Plans</div>
+          {approvedPlans.map((plan) => (
+            <div key={plan.plan_id} style={{ background: '#1e293b', padding: 12, borderRadius: 6, border: '1px solid #334155', marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <div style={{ color: '#22d3ee', fontSize: 12, fontFamily: 'monospace' }}>{plan.plan_id}</div>
+                <span style={{ color: '#4ade80', fontSize: 11, textTransform: 'uppercase' }}>approved</span>
+              </div>
+              <div style={{ color: '#94a3b8', fontSize: 12, marginBottom: 8 }}>{plan.intent?.goal || plan.intent?.raw_input || 'Engineering plan'}</div>
+              <button
+                onClick={() => createSession(plan.plan_id, ['OS'])}
+                disabled={loading}
+                style={{ padding: '4px 12px', background: '#22d3ee', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}
+              >
+                Create Session
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {sessions.length === 0 && approvedPlans.length === 0 && (
         <div style={{ color: '#9ca3af', fontSize: 13 }}>No execution sessions. Approve a plan first, then create a session.</div>
       )}
 

@@ -20,12 +20,15 @@ import time
 from typing import Any
 from uuid import uuid4
 
+import os
+
 from substrate.meta_ide.browser_evidence_collector import (
     trigger_collection,
 )
 from substrate.meta_ide.browser_verification_gate import (
     BrowserVerificationGate,
     BrowserVerificationResult,
+    get_pass_count,
 )
 from substrate.meta_ide.engineering_execution import (
     EngineeringArtifact,
@@ -114,9 +117,18 @@ class EngineeringSessionCoordinator:
 
         session.status = EngineeringExecutionStatus.EXECUTING
         session.updated_at = time.time()
+
+        worktree_path = self._create_sandbox_worktree(session)
+        if worktree_path:
+            session.sandbox_worktree = worktree_path
+            session.sandbox_branch = f"eng/{session.session_id}"
+
         self._emit_event(
             "session_executing",
-            {"session_id": session_id},
+            {
+                "session_id": session_id,
+                "sandbox_worktree": session.sandbox_worktree,
+            },
         )
 
         waves = _build_execution_waves(plan.tasks, plan.dependency_graph)
@@ -170,7 +182,7 @@ class EngineeringSessionCoordinator:
                     {
                         "session_id": session_id,
                         "consecutive_passing": browser_result.consecutive_passing,
-                        "required_passes": 3,
+                        "required_passes": browser_result.required_passes,
                         "reasons": browser_result.requirement_reasons,
                     },
                 )
@@ -270,6 +282,9 @@ class EngineeringSessionCoordinator:
             session.status = EngineeringExecutionStatus.REJECTED
             session.updated_at = time.time()
 
+        if session is not None:
+            self._cleanup_sandbox_worktree(session)
+
         self._emit_event(
             "review_rejected",
             {
@@ -279,6 +294,112 @@ class EngineeringSessionCoordinator:
             },
         )
         return pkg
+
+    def integrate_session(self, session_id: str) -> dict[str, Any]:
+        """Merge sandbox worktree branch to main after review approval.
+
+        Returns a summary dict with merge status. Only merges if the
+        session has a sandbox_worktree set (G4 isolation was active).
+        """
+        session = self._sessions.get(session_id)
+        if session is None:
+            return {"merged": False, "reason": "session not found"}
+        if session.status != EngineeringExecutionStatus.APPROVED:
+            return {"merged": False, "reason": f"session status is {session.status.value}"}
+
+        if not session.sandbox_worktree or not session.sandbox_branch:
+            self._emit_event(
+                "session_integrated",
+                {"session_id": session_id, "merged": False, "reason": "no sandbox"},
+            )
+            return {"merged": False, "reason": "no sandbox worktree to merge"}
+
+        repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
+        try:
+            from substrate.execution.cpu_gate import gated_subprocess_run
+
+            merge_result = gated_subprocess_run(
+                ["git", "merge", "--no-ff", session.sandbox_branch, "-m",
+                 f"eng: integrate session {session.session_id}"],
+                caller="engineering_session_coordinator.integrate_session",
+                cwd=repo_root,
+            )
+            merged = merge_result is not None and merge_result.returncode == 0
+            self._cleanup_sandbox_worktree(session)
+
+            self._emit_event(
+                "session_integrated",
+                {"session_id": session_id, "merged": merged},
+            )
+            return {
+                "merged": merged,
+                "branch": session.sandbox_branch,
+                "session_id": session_id,
+            }
+        except Exception as exc:
+            logger.warning("integrate_session failed: %s", exc)
+            return {"merged": False, "reason": str(exc)}
+
+    def _create_sandbox_worktree(
+        self, session: EngineeringExecutionSession
+    ) -> str:
+        """Create an isolated git worktree for session execution.
+
+        Returns the worktree path on success, empty string on failure.
+        """
+        repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
+        branch_name = f"eng/{session.session_id}"
+        worktree_dir = os.path.join(repo_root, ".claude", "worktrees", branch_name)
+
+        try:
+            from substrate.execution.cpu_gate import gated_subprocess_run
+
+            result = gated_subprocess_run(
+                ["git", "worktree", "add", "-b", branch_name, worktree_dir],
+                caller="engineering_session_coordinator._create_sandbox_worktree",
+                cwd=repo_root,
+            )
+            if result is not None and result.returncode == 0:
+                logger.info("Created sandbox worktree at %s", worktree_dir)
+                return worktree_dir
+            logger.warning(
+                "Failed to create worktree: %s",
+                result.stderr if result else "CPU gate blocked",
+            )
+            return ""
+        except Exception as exc:
+            logger.warning("Worktree creation failed: %s", exc)
+            return ""
+
+    def _cleanup_sandbox_worktree(
+        self, session: EngineeringExecutionSession
+    ) -> bool:
+        """Remove sandbox worktree after merge or rejection."""
+        if not session.sandbox_worktree:
+            return False
+        repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
+        try:
+            from substrate.execution.cpu_gate import gated_subprocess_run
+
+            result = gated_subprocess_run(
+                ["git", "worktree", "remove", "--force", session.sandbox_worktree],
+                caller="engineering_session_coordinator._cleanup_sandbox_worktree",
+                cwd=repo_root,
+            )
+            if result is not None and result.returncode == 0:
+                if session.sandbox_branch:
+                    gated_subprocess_run(
+                        ["git", "branch", "-d", session.sandbox_branch],
+                        caller="engineering_session_coordinator._cleanup_sandbox_worktree",
+                        cwd=repo_root,
+                    )
+                session.sandbox_worktree = ""
+                session.sandbox_branch = ""
+                return True
+            return False
+        except Exception as exc:
+            logger.warning("Worktree cleanup failed: %s", exc)
+            return False
 
     def submit_browser_evidence(
         self,
@@ -333,6 +454,21 @@ class EngineeringSessionCoordinator:
 
         return result
 
+    def _derive_session_risk(self, session: EngineeringExecutionSession) -> str:
+        """Derive risk class from the session's plan or default to 'low'."""
+        plan = self._plans.get(session.plan_id)
+        if plan is None:
+            return "low"
+        risk = getattr(plan, "risk_class", None) or getattr(plan, "risk_level", None)
+        if risk:
+            return str(risk).lower()
+        for task in getattr(plan, "tasks", []):
+            meta = getattr(task, "metadata", {}) or {}
+            task_risk = meta.get("risk_class") or meta.get("risk_level")
+            if task_risk:
+                return str(task_risk).lower()
+        return "low"
+
     def _run_browser_verification(
         self,
         session: EngineeringExecutionSession,
@@ -382,13 +518,17 @@ class EngineeringSessionCoordinator:
                 "browser_collection_triggered",
                 {"session_id": session.session_id, "target_url": target_url, "reasons": reasons},
             )
-            evidence = trigger_collection(target_url)
+            risk_class = self._derive_session_risk(session)
+            pass_count = get_pass_count(risk_class)
+            evidence = trigger_collection(target_url, pass_count=pass_count)
 
+        risk_class = self._derive_session_risk(session)
         return self._browser_gate.validate_evidence(
             evidence=evidence,
             artifact_paths=artifact_paths,
             packet_flags=packet_flags,
             proof_requirements=proof_requirements,
+            risk_class=risk_class,
         )
 
     def _dispatch_task(
@@ -414,6 +554,8 @@ class EngineeringSessionCoordinator:
                         "wave": wave_idx,
                         "worker_id": worker_id,
                         "workspace_targets": session.workspace_targets,
+                        "sandbox_worktree": session.sandbox_worktree,
+                        "sandbox_branch": session.sandbox_branch,
                     },
                 )
                 session.executor_request_ids.append(request.request_id)

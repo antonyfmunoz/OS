@@ -676,6 +676,11 @@ class AdvisorConversation:
                 suggested_actions=[
                     {"label": "Open Work", "action": "navigate", "payload": {"panel": "work"}},
                     {
+                        "label": "Create Engineering Plan",
+                        "action": "engineering_plan",
+                        "payload": {"intent": content},
+                    },
+                    {
                         "label": "Run Council Review",
                         "action": "query",
                         "payload": {"content": "run council review on the latest batch"},

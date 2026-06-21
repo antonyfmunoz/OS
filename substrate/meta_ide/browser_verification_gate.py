@@ -22,7 +22,19 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-REQUIRED_PASSES = 3
+RISK_PASS_COUNT: dict[str, int] = {
+    "critical": 10,
+    "high": 7,
+    "medium": 5,
+    "low": 3,
+    "negligible": 3,
+}
+DEFAULT_PASS_COUNT = 3
+
+
+def get_pass_count(risk_class: str) -> int:
+    """Return required pass count based on risk classification."""
+    return RISK_PASS_COUNT.get(risk_class.lower(), DEFAULT_PASS_COUNT)
 
 _UI_FILE_EXTENSIONS = frozenset({
     ".tsx", ".jsx", ".vue", ".svelte", ".html",
@@ -189,20 +201,21 @@ class VerificationPass:
 
 @dataclass
 class BrowserVerificationResult:
-    """Complete result of the 3-pass verification protocol."""
+    """Complete result of the risk-scaled verification protocol."""
 
     required: bool = False
     requirement_reasons: list[str] = field(default_factory=list)
     passes: list[VerificationPass] = field(default_factory=list)
     verified_at: float = 0.0
+    required_passes: int = DEFAULT_PASS_COUNT
 
     @property
     def verified(self) -> bool:
         if not self.required:
             return True
-        if len(self.passes) < REQUIRED_PASSES:
+        if len(self.passes) < self.required_passes:
             return False
-        last_n = self.passes[-REQUIRED_PASSES:]
+        last_n = self.passes[-self.required_passes:]
         return all(p.passed for p in last_n)
 
     @property
@@ -224,6 +237,7 @@ class BrowserVerificationResult:
             "consecutive_passing": self.consecutive_passing,
             "total_attempts": len(self.passes),
             "verified_at": self.verified_at,
+            "required_passes": self.required_passes,
         }
 
     @classmethod
@@ -236,6 +250,7 @@ class BrowserVerificationResult:
             ],
             verified_at=data.get("verified_at", 0.0),
         )
+        result.required_passes = data.get("required_passes", DEFAULT_PASS_COUNT)
         return result
 
 
@@ -312,6 +327,7 @@ class BrowserVerificationGate:
         artifact_paths: list[str],
         packet_flags: dict[str, Any] | None = None,
         proof_requirements: list[str] | None = None,
+        risk_class: str = "low",
     ) -> BrowserVerificationResult:
         """Validate collected browser verification evidence.
 
@@ -332,6 +348,7 @@ class BrowserVerificationGate:
             required=True,
             requirement_reasons=reasons,
         )
+        result.required_passes = get_pass_count(risk_class)
 
         raw_passes = evidence.get("passes", [])
         if not raw_passes:
@@ -348,13 +365,13 @@ class BrowserVerificationGate:
             logger.info(
                 "Browser verification passed: %d/%d consecutive passes",
                 result.consecutive_passing,
-                REQUIRED_PASSES,
+                result.required_passes,
             )
         else:
             logger.info(
                 "Browser verification incomplete: %d/%d consecutive passes",
                 result.consecutive_passing,
-                REQUIRED_PASSES,
+                result.required_passes,
             )
 
         return result
@@ -370,7 +387,7 @@ class BrowserVerificationGate:
             "requirement_reasons": result.requirement_reasons,
             "total_attempts": len(result.passes),
             "consecutive_passing": result.consecutive_passing,
-            "required_passes": REQUIRED_PASSES,
+            "required_passes": result.required_passes,
         }
 
         if result.passes:

@@ -54,3 +54,6 @@ COCKPIT_DOMAIN=universalmetaharness.tech
 # ── Cockpit Auth (Clerk JWT) ───────────────────────────────────────────────
 CLERK_JWKS_URL=https://obliging-donkey-31.clerk.accounts.dev/.well-known/jwks.json
 ALLOWED_CLERK_USER_IDS=user_3EHDsQSiGJUVF5FdLVkGflrwFlu
+
+# ── Beast SSH (browser verification) ──────────────────────────────────────
+UMH_BEAST_SSH=op://UMH-Production/Beast SSH/connection-string
