@@ -239,6 +239,26 @@ class BrowserVerificationResult:
         return result
 
 
+def _recompute_pass_verdicts(vp: VerificationPass) -> None:
+    """Recompute passed flags from evidence fields — never trust submitted flags."""
+    b = vp.browser_check
+    b.passed = bool(b.elements_confirmed) and bool(b.snapshot_summary)
+
+    n = vp.network_check
+    n.passed = n.error_count == 0 and len(n.endpoints_checked) > 0
+
+    c = vp.console_check
+    c.passed = c.app_error_count == 0
+
+    lg = vp.log_check
+    lg.passed = (
+        lg.log_lines_checked > 0
+        and lg.tracebacks_found == 0
+        and lg.auth_failures == 0
+        and lg.timeouts == 0
+    )
+
+
 class BrowserVerificationGate:
     """Blocking gate that validates browser verification evidence.
 
@@ -320,6 +340,7 @@ class BrowserVerificationGate:
 
         for raw_pass in raw_passes:
             vp = VerificationPass.from_dict(raw_pass)
+            _recompute_pass_verdicts(vp)
             result.passes.append(vp)
 
         if result.verified:
