@@ -87,8 +87,8 @@ def _ensure_auth(pw, browser_type: str, url: str, email: str, password: str) -> 
     email_input = page.locator('input[name="identifier"], input[type="email"]')
     if email_input.count() > 0:
         email_input.fill(email)
-        # Click continue/submit
-        continue_btn = page.locator('button:has-text("Continue"), button[type="submit"]')
+        # Click visible continue/submit (Clerk hides a type=submit button)
+        continue_btn = page.locator('button:visible:has-text("Continue")')
         if continue_btn.count() > 0:
             continue_btn.first.click()
             time.sleep(2)
@@ -97,7 +97,7 @@ def _ensure_auth(pw, browser_type: str, url: str, email: str, password: str) -> 
         pw_input = page.locator('input[type="password"]')
         if pw_input.count() > 0:
             pw_input.fill(password)
-            submit_btn = page.locator('button:has-text("Continue"), button:has-text("Sign in"), button[type="submit"]')
+            submit_btn = page.locator('button:visible:has-text("Continue"), button:visible:has-text("Sign in")')
             if submit_btn.count() > 0:
                 submit_btn.first.click()
                 time.sleep(3)
