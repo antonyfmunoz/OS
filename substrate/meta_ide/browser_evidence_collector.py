@@ -18,8 +18,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shlex
 import subprocess
 import time
+import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -171,10 +173,14 @@ def trigger_collection(
     Returns evidence dict with 'passes' key suitable for
     BrowserVerificationGate.validate_evidence().
     """
+    parsed = urllib.parse.urlparse(target_url)
+    if parsed.scheme != "https":
+        return {"passes": [], "error": f"Only https URLs allowed, got {parsed.scheme}"}
+
     cmd = (
-        f'python "{_COLLECTOR_SCRIPT_PATH}" '
-        f'--url "{target_url}" '
-        f'--passes {pass_count} '
+        f'python {shlex.quote(_COLLECTOR_SCRIPT_PATH)} '
+        f'--url {shlex.quote(target_url)} '
+        f'--passes {int(pass_count)} '
         f'--output-json'
     )
 
