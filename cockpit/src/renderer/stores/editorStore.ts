@@ -161,9 +161,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const file = get().openFiles.find((f) => f.path === path)
     if (!file) return
     try {
-      await window.cockpit?.writeFile?.(path, file.content)
-      get().markClean(path)
+      const ipc = window.cockpit?.writeFile
+      if (ipc) { await ipc(path, file.content); get().markClean(path); return }
     } catch { /* IPC not available */ }
+    try {
+      const data = await fetchApi<{ ok: boolean }>('/workspace/write-file', {
+        method: 'POST', body: JSON.stringify({ path, content: file.content }),
+      })
+      if (data.ok) get().markClean(path)
+    } catch { /* API fallback failed */ }
   },
 
   fetchGitStatus: async () => {
