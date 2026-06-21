@@ -230,14 +230,15 @@ function IDEFileTreeNode({ name, path, type, depth, node, onFileOpen }: {
     }
   }, [expanded, path, node])
 
-  const handleClick = async () => {
+  const handleClick = () => {
     if (type === 'directory') {
-      if (!expanded && !childrenLoaded.current) {
-        const entries = await browseDir(path, node)
-        setChildren(entries)
-        childrenLoaded.current = true
-      }
       toggleDir(dirKey)
+      if (!childrenLoaded.current) {
+        browseDir(path, node).then((entries) => {
+          setChildren(entries)
+          childrenLoaded.current = true
+        })
+      }
     } else if (onFileOpen) {
       onFileOpen(path, node)
     }
