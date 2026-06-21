@@ -127,30 +127,7 @@ def collect_log_layer(page=None) -> dict:
     if _log_layer_cache is not None:
         return _log_layer_cache
 
-    # Method 1: SSH (if VPS_SSH configured and reachable)
-    if VPS_SSH:
-        try:
-            result = subprocess.run(
-                ["ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new",
-                 "-o", "ServerAliveInterval=5", VPS_SSH,
-                 "docker logs os-operator --tail 20 2>&1 | tail -20"],
-                capture_output=True, text=True, timeout=30,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                lines = result.stdout.strip().splitlines()
-                _log_layer_cache = {
-                    "service_name": "os-operator",
-                    "log_lines_checked": len(lines),
-                    "tracebacks_found": sum(1 for l in lines if "Traceback" in l),
-                    "auth_failures": 0,
-                    "server_errors": sum(1 for l in lines if '" 500 ' in l or '" 502 ' in l or '" 503 ' in l or '" 504 ' in l),
-                    "timeouts": sum(1 for l in lines if "timeout" in l.lower() or "timed out" in l.lower()),
-                }
-                return _log_layer_cache
-        except Exception:
-            pass
-
-    # Method 2: Use the authenticated browser page to call the API
+    # Method 1: Use the authenticated browser page (fastest, no SSH needed)
     if page is not None:
         try:
             api_result = page.evaluate("""() => {
@@ -174,6 +151,29 @@ def collect_log_layer(page=None) -> dict:
                     "tracebacks_found": 0 if healthy else 1,
                     "auth_failures": 0,
                     "timeouts": 0,
+                }
+                return _log_layer_cache
+        except Exception:
+            pass
+
+    # Method 2: SSH (if VPS_SSH configured and reachable)
+    if VPS_SSH:
+        try:
+            result = subprocess.run(
+                ["ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new",
+                 "-o", "ServerAliveInterval=5", VPS_SSH,
+                 "docker logs os-operator --tail 20 2>&1 | tail -20"],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                lines = result.stdout.strip().splitlines()
+                _log_layer_cache = {
+                    "service_name": "os-operator",
+                    "log_lines_checked": len(lines),
+                    "tracebacks_found": sum(1 for l in lines if "Traceback" in l),
+                    "auth_failures": 0,
+                    "server_errors": sum(1 for l in lines if '" 500 ' in l or '" 502 ' in l or '" 503 ' in l or '" 504 ' in l),
+                    "timeouts": sum(1 for l in lines if "timeout" in l.lower() or "timed out" in l.lower()),
                 }
                 return _log_layer_cache
         except Exception:
@@ -382,19 +382,29 @@ def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, a
         "snapshot_summary": f"{vp_name}({viewport_cfg['width']}x{viewport_cfg['height']}): {tree_data.get('entryCount', 0)} entries, {len(tree_data.get('deviceRoots', []))} roots",
     }
 
-    # Layer 2: Network — expand a device root to trigger /workspace/browse
+    # Layer 2: Network — collapse then expand a device root to trigger /workspace/browse
     print(f"    [{vp_name}] Layer 2 — Network (expanding device root)...", file=sys.stderr)
     page.evaluate("""() => {
         return new Promise(resolve => {
             const buttons = document.querySelectorAll('button');
+            let target = null;
             for (const b of buttons) {
                 const txt = b.textContent?.trim();
                 if (txt && (txt.includes('srv1500858') || txt.includes('desktop-'))) {
-                    b.click();
+                    target = b;
                     break;
                 }
             }
-            setTimeout(resolve, 4000);
+            if (!target) { setTimeout(resolve, 1000); return; }
+            const txt = target.textContent?.trim() || '';
+            const isExpanded = txt.startsWith('▾');
+            if (isExpanded) {
+                target.click();
+                setTimeout(() => { target.click(); setTimeout(resolve, 5000); }, 1000);
+            } else {
+                target.click();
+                setTimeout(resolve, 5000);
+            }
         });
     }""")
 
