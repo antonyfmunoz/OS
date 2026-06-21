@@ -223,6 +223,75 @@ rules, SSL termination, CDN caching.
 - Service workers can serve stale content. Hard refresh
   or disable service worker during testing.
 
+## Integration with Engineering Execution Loop
+
+When building through chat and Meta IDE via WorkPackets, this
+protocol runs automatically during the `VALIDATING` phase.
+
+### Automatic triggering
+`BrowserVerificationGate` (`substrate/meta_ide/browser_verification_gate.py`)
+determines if verification is required based on:
+- `playwright_enabled=True` on any WorkPacket
+- Artifact file paths matching UI patterns (`.tsx`, `.vue`,
+  `components/`, `panels/`, `pages/`, etc.)
+- `proof_requirements` including `"browser"` or `"ui"`
+
+### How it works in the loop
+1. Engineering session executes all task waves
+2. Session transitions to `VALIDATING`
+3. Artifact validation runs (existence, content hash)
+4. Browser verification gate checks if UI evidence required
+5. If required and evidence missing → session stays `VALIDATING`
+6. Executing agent collects 4-layer evidence via MCP tools
+7. Agent submits evidence via `submit_browser_evidence()`
+8. Gate validates: 3 consecutive passes all green → `AWAITING_REVIEW`
+9. If any pass fails → stays `VALIDATING`, agent loops
+
+### Evidence format agents must produce
+```json
+{
+  "passes": [
+    {
+      "pass_number": 1,
+      "browser_check": {
+        "elements_confirmed": ["sidebar loaded", "tree has 20 entries"],
+        "snapshot_summary": "DOM snapshot shows file tree populated",
+        "passed": true
+      },
+      "network_check": {
+        "endpoints_checked": [
+          {"url": "/api/bootstrap", "status": 200},
+          {"url": "/api/browse", "status": 200}
+        ],
+        "error_count": 0,
+        "passed": true
+      },
+      "console_check": {
+        "app_error_count": 0,
+        "app_errors": [],
+        "ignored_errors": 2,
+        "passed": true
+      },
+      "log_check": {
+        "service_name": "os-operator",
+        "log_lines_checked": 50,
+        "tracebacks_found": 0,
+        "auth_failures": 0,
+        "timeouts": 0,
+        "passed": true
+      }
+    }
+  ]
+}
+```
+
+### When working outside the engineering loop
+For ad-hoc fixes, hotfixes, or work not routed through
+WorkPackets, invoke this skill manually and follow the
+protocol directly. The evidence format is the same —
+structure your verification the same way so proof is
+consistent whether automated or manual.
+
 ## What this replaces
 
 - "I deployed it, should be working" (no verification)
