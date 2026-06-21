@@ -201,8 +201,8 @@ async function writeFileContent(path: string, content: string, node?: string): P
     } catch { return false }
   }
   try {
-    await window.cockpit?.writeFile?.(path, content)
-    return true
+    const ipc = window.cockpit?.writeFile
+    if (ipc) { await ipc(path, content); return true }
   } catch { /* IPC unavailable */ }
   try {
     const data = await fetchApi<{ ok: boolean }>('/workspace/write-file', {
@@ -749,9 +749,10 @@ function EditorContent() {
   }
 
   return (
-    <div className="flex-1 relative overflow-hidden bg-surface" onKeyDown={handleKeyDown}>
-      <div className="absolute inset-0 flex">
-        <div className="shrink-0 text-right pr-2 pt-2 font-mono text-[10px] select-none overflow-hidden w-12 text-text-tertiary bg-surface">
+    <div className="flex-1 relative overflow-hidden bg-surface" onKeyDown={handleKeyDown}
+      onClick={() => textareaRef.current?.focus()}>
+      <div className="absolute inset-0 flex overflow-auto">
+        <div className="shrink-0 text-right pr-2 pt-2 font-mono text-[10px] select-none w-12 text-text-tertiary bg-surface sticky left-0">
           {activeContent.content.split('\n').map((_, i) => (
             <div key={i} className="h-5">{i + 1}</div>
           ))}
@@ -761,7 +762,7 @@ function EditorContent() {
           value={activeContent.content}
           onChange={(e) => updateContent(activeContent.path, e.target.value)}
           spellCheck={false}
-          className="flex-1 resize-none p-2 font-mono text-xs text-text-primary bg-surface outline-none"
+          className="flex-1 resize-none p-2 font-mono text-xs text-text-primary bg-surface outline-none min-h-full"
           style={{ lineHeight: '1.25rem', tabSize: 2, caretColor: 'var(--color-cyan)' }}
         />
       </div>
