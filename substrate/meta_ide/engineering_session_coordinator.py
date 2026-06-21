@@ -281,11 +281,13 @@ class EngineeringSessionCoordinator:
         self,
         session_id: str,
         evidence: dict[str, Any],
+        submitter_id: str = "",
     ) -> BrowserVerificationResult | None:
         """Submit browser verification evidence for a VALIDATING session.
 
         Called by the executing agent after collecting 4-layer evidence.
         If 3 consecutive passes now pass, transitions to AWAITING_REVIEW.
+        submitter_id identifies the agent/operator submitting evidence for audit.
         """
         session = self._sessions.get(session_id)
         if session is None:
@@ -299,7 +301,9 @@ class EngineeringSessionCoordinator:
             return None
 
         result = self._run_browser_verification(session, evidence)
-        session.task_results["__browser_verification__"] = result.to_dict()
+        bv_data = result.to_dict()
+        bv_data["submitter_id"] = submitter_id
+        session.task_results["__browser_verification__"] = bv_data
 
         if result.verified:
             session.status = EngineeringExecutionStatus.AWAITING_REVIEW
@@ -310,6 +314,7 @@ class EngineeringSessionCoordinator:
                 {
                     "session_id": session_id,
                     "total_attempts": len(result.passes),
+                    "submitter_id": submitter_id,
                 },
             )
         else:
@@ -319,6 +324,7 @@ class EngineeringSessionCoordinator:
                     "session_id": session_id,
                     "consecutive_passing": result.consecutive_passing,
                     "total_attempts": len(result.passes),
+                    "submitter_id": submitter_id,
                 },
             )
 
