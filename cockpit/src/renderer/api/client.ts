@@ -69,7 +69,8 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
     if (token) headers['Authorization'] = `Bearer ${token}`
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30_000)
+    const isConverse = path.includes('/converse')
+    const timeoutId = setTimeout(() => controller.abort(), isConverse ? 65_000 : 30_000)
     let res: Response
     try {
       res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: controller.signal })

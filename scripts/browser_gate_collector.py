@@ -124,7 +124,7 @@ def collect_log_layer(page=None) -> dict:
     if VPS_SSH:
         try:
             result = subprocess.run(
-                ["ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no", VPS_SSH,
+                ["ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new", VPS_SSH,
                  "docker logs os-operator --tail 50 2>&1 | tail -50"],
                 capture_output=True, text=True, timeout=20,
             )
@@ -145,8 +145,15 @@ def collect_log_layer(page=None) -> dict:
         try:
             api_result = page.evaluate("""() => {
                 return fetch('/api/umh/health', { credentials: 'include' })
-                    .then(r => r.json())
-                    .then(data => ({ status: data.status || 'ok', ok: true }))
+                    .then(r => {
+                        if (!r.ok) return { ok: false, error: 'HTTP ' + r.status };
+                        return r.json();
+                    })
+                    .then(data => {
+                        if (data.error) return data;
+                        if (!data.status) return { ok: false, error: 'no status field' };
+                        return { status: data.status, ok: true };
+                    })
                     .catch(e => ({ ok: false, error: e.message }));
             }""")
             if api_result and api_result.get("ok"):
