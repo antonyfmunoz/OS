@@ -289,6 +289,7 @@ function FilesPanel() {
   const [fetching, setFetching] = useState(true)
 
   const refreshData = async () => {
+    setFetching(true)
     const store = useMetaIDEStore.getState()
     const vpsEntries = await browseDir('/')
     if (vpsEntries.length > 0) { store.setVpsTree(vpsEntries); setFetchFailed(false) }
@@ -306,11 +307,18 @@ function FilesPanel() {
   }
 
   useEffect(() => {
-    if (vpsTree.length > 0) setFetching(false)
-    else if (!slowLoading) refreshData()
+    if (vpsTree.length > 0) {
+      setFetching(false)
+    } else if (bootstrapLoaded && !slowLoading) {
+      refreshData()
+    }
+  }, [bootstrapLoaded, slowLoading, vpsTree.length])
+
+  useEffect(() => {
+    if (!bootstrapLoaded) return
     const id = setInterval(refreshData, 30000)
     return () => clearInterval(id)
-  }, [slowLoading])
+  }, [bootstrapLoaded])
 
   const openFileInEditor = async (path: string, node?: string) => {
     const result = await readFileContent(path, node)
