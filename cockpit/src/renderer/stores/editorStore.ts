@@ -127,7 +127,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   fetchFileTree: async (root?: string) => {
     try {
-      const res = await window.cockpit?.readDir?.(root || '/opt/OS')
+      const res = await window.cockpit?.readDir?.(root || '')
       if (res) { set({ fileTree: res }); return }
     } catch { /* IPC not available in web mode */ }
     try {
