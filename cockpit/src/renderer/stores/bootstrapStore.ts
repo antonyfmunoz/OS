@@ -100,6 +100,11 @@ export function waitForHydration(): Promise<void> {
     const unsub = useBootstrapStore.subscribe((s) => {
       if (s.hydrated) { unsub(); resolve() }
     })
+    setTimeout(() => {
+      if (!useBootstrapStore.getState().hydrated) {
+        useBootstrapStore.setState({ hydrated: true })
+      }
+    }, 500)
   })
 }
 
