@@ -138,7 +138,10 @@ async def _require_operator_role(
     operator_token: str | None = Security(_operator_token_header),
 ) -> str:
     """Validates operator-level credentials for privileged endpoints."""
-    await _require_api_key(request, key)
+    api_identity = await _require_api_key(request, key)
+
+    if api_identity.startswith("clerk:"):
+        return api_identity
 
     if not _OPERATOR_TOKEN:
         if _dev_bypass_allowed(request):
