@@ -259,6 +259,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             "node_metrics": node_metrics,
         }
 
+    @router.get("/auth-check", dependencies=[Depends(_require_operator_role)])
+    async def auth_check():
+        return {"ok": True}
+
     @router.get("/mesh/metrics")
     async def mesh_metrics():
         """Per-node metrics — reads from mesh server snapshot (single source of truth)."""
