@@ -193,6 +193,8 @@ class AdvisorConversation:
             response = self._handle_startup_sequence()
         elif intent == CommandIntent.SHUTDOWN_SEQUENCE:
             response = self._handle_shutdown_sequence()
+        elif intent == CommandIntent.ENGINEERING_BUILD:
+            response = self._handle_engineering_build(content)
         elif intent == CommandIntent.INTENT_CAPTURE:
             response = self._handle_intent_capture(content)
         elif intent == CommandIntent.MODE_SWITCH:
@@ -1479,6 +1481,70 @@ class AdvisorConversation:
                 text=f"Shutdown sequence failed: {exc}",
                 conversation_id="",
                 intent="shutdown_sequence",
+            )
+
+    def _handle_engineering_build(self, content: str) -> AdvisorResponse:
+        """Route engineering intent to the shared planner and return a plan for approval."""
+        try:
+            from substrate.meta_ide.shared_planner import get_shared_planner
+
+            planner = get_shared_planner()
+            if planner is None:
+                return AdvisorResponse(
+                    text="Engineering planner unavailable.",
+                    conversation_id="",
+                    intent="engineering_build",
+                )
+
+            plan = planner.create_plan(content)
+            task_lines = []
+            for i, task in enumerate(plan.tasks):
+                desc = task.description if hasattr(task, "description") else str(task)
+                task_lines.append(f"  {i + 1}. {desc}")
+
+            lines = [
+                f"**Engineering Plan Created**\n",
+                f"**Goal:** {plan.intent.goal}",
+                f"**Type:** {plan.intent.intent_type.value if hasattr(plan.intent.intent_type, 'value') else plan.intent.intent_type}",
+                f"**Tasks ({len(plan.tasks)}):**",
+                *task_lines,
+                f"\n**Plan ID:** `{plan.plan_id}`",
+                f"**Status:** {plan.status}",
+            ]
+
+            return AdvisorResponse(
+                text="\n".join(lines),
+                conversation_id="",
+                intent="engineering_build",
+                metadata={
+                    "plan_id": plan.plan_id,
+                    "task_count": len(plan.tasks),
+                    "intent_type": str(plan.intent.intent_type.value if hasattr(plan.intent.intent_type, "value") else plan.intent.intent_type),
+                },
+                suggested_actions=[
+                    {
+                        "label": "Approve Plan",
+                        "action": "approve_engineering_plan",
+                        "payload": {"plan_id": plan.plan_id},
+                    },
+                    {
+                        "label": "Reject Plan",
+                        "action": "reject_engineering_plan",
+                        "payload": {"plan_id": plan.plan_id},
+                    },
+                    {
+                        "label": "Refine Plan",
+                        "action": "query",
+                        "payload": {"content": f"refine engineering plan {plan.plan_id}"},
+                    },
+                ],
+            )
+        except Exception as exc:
+            logger.error("Engineering build failed: %s", exc)
+            return AdvisorResponse(
+                text=f"Engineering plan creation failed: {exc}",
+                conversation_id="",
+                intent="engineering_build",
             )
 
     def _handle_intent_capture(self, content: str) -> AdvisorResponse:

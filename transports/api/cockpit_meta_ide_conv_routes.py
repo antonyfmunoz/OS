@@ -40,6 +40,7 @@ def _get_ide() -> Any:
         from substrate.organism.compute_fabric_runtime import ComputeFabricRuntime
         from substrate.organism.distributed_runtime import DistributedRuntime
         from substrate.organism.meta_ide_runtime import MetaIDERuntime
+        from substrate.meta_ide.shared_planner import get_shared_planner
 
         dr = DistributedRuntime()
         fabric = ComputeFabricRuntime(dr)
@@ -50,7 +51,10 @@ def _get_ide() -> Any:
             compute_fabric=fabric,
             agent_registry=registry,
         )
-        _ide_instance = MetaIDERuntime(agent_fleet=fleet)
+        _ide_instance = MetaIDERuntime(
+            agent_fleet=fleet,
+            engineering_planner=get_shared_planner(),
+        )
         return _ide_instance
     except Exception as exc:
         logger.debug("meta ide routes: failed to create runtime: %s", exc)
@@ -116,20 +120,30 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
     @r.get("/ide/reviews")
     async def ide_reviews(status: str = "pending") -> dict:
+        reviews: list[dict] = []
         ide = _get_ide()
-        if ide is None:
-            return {"reviews": []}
-        return {"reviews": [r.to_dict() for r in ide.review_packages(status)]}
+        if ide is not None:
+            reviews.extend([rv.to_dict() for rv in ide.review_packages(status)])
+        from transports.api._mesh_dispatch import get_proof_packages
+        for proof in get_proof_packages().values():
+            if status == "pending" and proof.get("review_status") == "pending":
+                reviews.append(proof)
+            elif status != "pending":
+                reviews.append(proof)
+        return {"reviews": reviews}
 
     @r.get("/ide/reviews/{review_id}")
     async def ide_review_detail(review_id: str) -> dict:
         ide = _get_ide()
-        if ide is None:
-            raise HTTPException(status_code=503, detail="meta ide unavailable")
-        review = ide.review_detail(review_id)
-        if not review:
-            raise HTTPException(status_code=404, detail="review not found")
-        return review.to_dict()
+        if ide is not None:
+            review = ide.review_detail(review_id)
+            if review:
+                return review.to_dict()
+        from transports.api._mesh_dispatch import get_proof_packages
+        proof = get_proof_packages().get(review_id)
+        if proof:
+            return proof
+        raise HTTPException(status_code=404, detail="review not found")
 
     @r.post("/ide/reviews/{review_id}/approve")
     async def ide_approve(review_id: str) -> dict:
