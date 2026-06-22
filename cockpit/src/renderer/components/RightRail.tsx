@@ -246,19 +246,24 @@ function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: st
         <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={safeUrl} components={markdownComponents}>{msg.content}</ReactMarkdown>
       </div>
       {msg.attachment && <AttachmentLink attachment={msg.attachment} />}
-      {msg.suggested_actions && msg.suggested_actions.length > 0 && onAction && (
-        <div className="flex flex-wrap gap-1 mt-1.5 pt-1.5 border-t border-border/50">
-          {msg.suggested_actions.map((action, i) => (
-            <button
-              key={i}
-              onClick={() => onAction(action)}
-              className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-cyan/30 text-cyan hover:bg-cyan-glow transition-colors"
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {msg.suggested_actions && msg.suggested_actions.length > 0 && onAction && (() => {
+        const filtered = msg.suggested_actions!.filter(
+          (a) => a.action !== 'approve_engineering_plan' && a.action !== 'reject_engineering_plan'
+        )
+        return filtered.length > 0 ? (
+          <div className="flex flex-wrap gap-1 mt-1.5 pt-1.5 border-t border-border/50">
+            {filtered.map((action, i) => (
+              <button
+                key={i}
+                onClick={() => onAction(action)}
+                className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-cyan/30 text-cyan hover:bg-cyan-glow transition-colors"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        ) : null
+      })()}
     </div>
   )
 }

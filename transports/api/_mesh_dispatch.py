@@ -17,9 +17,9 @@ _MESH_RELAY_URL = "http://localhost:8095/dispatch"
 
 _ALLOWED_NODE_IDS = frozenset({"windows-desktop"})
 _ALLOWED_CWD_ROOTS = (
-    r"C:\dev\dev",
-    r"C:\dev",
-    r"D:\dev",
+    r"C:\dev\dev" + "\\",
+    r"C:\dev" + "\\",
+    r"D:\dev" + "\\",
 )
 
 _proof_packages: dict[str, Any] = {}
@@ -35,11 +35,13 @@ def _validate_node_id(node_id: str) -> None:
 
 
 def _validate_cwd(cwd: str) -> None:
-    normalized = cwd.replace("/", "\\").rstrip("\\")
+    from pathlib import PureWindowsPath
+    normalized = str(PureWindowsPath(cwd))
     if ".." in normalized or normalized.startswith("\\\\"):
-        raise ValueError(f"cwd rejected (path traversal or UNC): {cwd}")
-    if not any(normalized.startswith(root) for root in _ALLOWED_CWD_ROOTS):
-        raise ValueError(f"cwd not under allowed workspace root: {cwd}")
+        raise ValueError("cwd rejected: path traversal or UNC not allowed")
+    check = normalized.lower().rstrip("\\") + "\\"
+    if not any(check.startswith(root.lower()) for root in _ALLOWED_CWD_ROOTS):
+        raise ValueError("cwd not under allowed workspace root")
 
 
 async def dispatch_plan_to_node(
