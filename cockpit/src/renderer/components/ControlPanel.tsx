@@ -80,15 +80,20 @@ export function ControlPanel() {
   const approvePlan = useCallback(async (planId: string) => {
     try {
       await fetchApi(`/engineering/plans/${planId}/approve`, { method: 'POST' })
-      sendMessage(`Plan ${planId} approved. Work packets generated.`, 'text')
-      const res = await fetchApi(`/engineering/plans/${planId}/dispatch`, {
+      sendMessage(`Plan ${planId} approved. Dispatching to Beast...`, 'text')
+      fetchEngineeringPlans()
+      fetchApi(`/engineering/plans/${planId}/dispatch`, {
         method: 'POST',
         body: JSON.stringify({ node_id: 'windows-desktop' }),
-      }) as Record<string, unknown>
-      sendMessage(`Dispatched to Beast: ${res.dispatched || 0} tasks sent.`, 'text')
-      fetchEngineeringPlans()
+      }).then((res) => {
+        const r = res as Record<string, unknown>
+        sendMessage(`Dispatch complete: ${r.dispatched || 0}/${r.total_tasks || '?'} tasks executed. Proof: ${r.proof_id || 'pending'}`, 'text')
+        fetchEngineeringPlans()
+      }).catch(() => {
+        sendMessage('Dispatch to Beast failed. Check mesh connectivity.', 'text')
+      })
     } catch {
-      sendMessage('Plan approval or dispatch failed.', 'text')
+      sendMessage('Plan approval failed.', 'text')
     }
   }, [sendMessage, fetchEngineeringPlans])
 
