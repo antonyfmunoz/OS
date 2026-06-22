@@ -8,12 +8,14 @@ After execution, assembles a proof package for operator review.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_MESH_RELAY_URL = "http://localhost:8095/dispatch"
+_MESH_RELAY_HOST = os.environ.get("UMH_MESH_RELAY_HOST", "localhost")
+_MESH_RELAY_URL = f"http://{_MESH_RELAY_HOST}:8095/dispatch"
 
 _ALLOWED_NODE_IDS = frozenset({"windows-desktop"})
 _ALLOWED_CWD_ROOTS = (
