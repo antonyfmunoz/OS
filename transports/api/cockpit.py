@@ -1420,7 +1420,7 @@ _mount_visual_ops_router()
 def _mount_production_router() -> None:
     from transports.api import cockpit_production_routes
 
-    cockpit_production_routes.configure(require_operator)
+    cockpit_production_routes.configure(_require_operator_role)
     router.include_router(cockpit_production_routes.production_router)
 
 
