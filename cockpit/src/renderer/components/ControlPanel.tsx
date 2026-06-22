@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronDown, ChevronUp, AlertTriangle, Moon, Sun, Shield } from 'lucide-react'
+import { ChevronDown, ChevronUp, AlertTriangle, Moon, Sun, Shield, Hammer } from 'lucide-react'
 import { useSystemStore } from '../stores/systemStore'
 import { useApprovalStore } from '../stores/approvalStore'
 import { useUnifiedApprovalStore } from '../stores/unifiedApprovalStore'
@@ -7,6 +7,7 @@ import { useCockpitStore } from '../stores/cockpitStore'
 import { useCollapseStore } from '../stores/collapseStore'
 import { usePolling } from '../hooks/usePolling'
 import { fetchApi } from '../api/client'
+import { useChatStore } from '../stores/chatStore'
 
 /* ── colour maps ── */
 const CONTINUITY_COLORS: Record<string, string> = {
@@ -49,6 +50,7 @@ export function ControlPanel() {
     blocked: number
   }>({ safe: 0, pending: 0, blocked: 0 })
   const [summaryData, setSummaryData] = useState<any>(null)
+  const [engineeringPlans, setEngineeringPlans] = useState<any[]>([])
 
   const pulse = useSystemStore((s) => s.pulse)
   const approvals = useApprovalStore((s) => s.approvals)
@@ -60,12 +62,48 @@ export function ControlPanel() {
   const mode = useCockpitStore((s) => s.mode)
   const apiStatus = useCockpitStore((s) => s.apiStatus)
   const wsStatus = useCockpitStore((s) => s.wsStatus)
+  const sendMessage = useChatStore((s) => s.sendMessage)
 
   usePolling(fetchApprovals, 5000, true, 500)
   usePolling(fetchByUrgency, 5000, true, 800)
 
+  const fetchEngineeringPlans = useCallback(async () => {
+    try {
+      const data = await fetchApi<{ plans: any[]; count: number }>('/engineering/plans')
+      const draft = (data.plans ?? []).filter((p: any) => p.status === 'draft' || p.status === 'approved')
+      setEngineeringPlans(draft)
+    } catch { /* silent */ }
+  }, [])
+
+  usePolling(fetchEngineeringPlans, 5000, true, 1200)
+
+  const approvePlan = useCallback(async (planId: string) => {
+    try {
+      await fetchApi(`/engineering/plans/${planId}/approve`, { method: 'POST' })
+      sendMessage(`Plan ${planId} approved. Work packets generated.`, 'text')
+      const res = await fetchApi(`/engineering/plans/${planId}/dispatch`, {
+        method: 'POST',
+        body: JSON.stringify({ node_id: 'windows-desktop' }),
+      }) as Record<string, unknown>
+      sendMessage(`Dispatched to Beast: ${res.dispatched || 0} tasks sent.`, 'text')
+      fetchEngineeringPlans()
+    } catch {
+      sendMessage('Plan approval or dispatch failed.', 'text')
+    }
+  }, [sendMessage, fetchEngineeringPlans])
+
+  const rejectPlan = useCallback(async (planId: string) => {
+    try {
+      await fetchApi(`/engineering/plans/${planId}/reject`, { method: 'POST' })
+      sendMessage(`Plan ${planId} rejected.`, 'text')
+      fetchEngineeringPlans()
+    } catch {
+      sendMessage('Plan rejection failed.', 'text')
+    }
+  }, [sendMessage, fetchEngineeringPlans])
+
   const pendingApprovals = approvals.filter((a) => a.status === 'pending')
-  const totalPending = pendingApprovals.length + unifiedPending.length
+  const totalPending = pendingApprovals.length + unifiedPending.length + engineeringPlans.length
 
   /* ── workstation data polling ── */
   const fetchWorkstationData = useCallback(async () => {
@@ -194,6 +232,38 @@ export function ControlPanel() {
       </div>
 
       {/* ── Expanded: detail grid ── */}
+      {/* ── Engineering Plan Notification Banner ── */}
+      {engineeringPlans.length > 0 && (
+        <div className="mx-4 mb-1">
+          {engineeringPlans.slice(0, 2).map((plan: any) => {
+            const planId = plan.plan_id ?? plan.id ?? ''
+            const goal = plan.intent?.goal ?? plan.goal ?? planId
+            const taskCount = plan.tasks?.length ?? 0
+            return (
+              <div key={planId} className="flex items-center gap-2 px-3 py-1.5 rounded border border-cyan/30 bg-cyan/5 mb-1">
+                <Hammer size={12} className="text-cyan shrink-0" />
+                <span className="text-[11px] text-text-primary truncate flex-1" title={goal}>
+                  {goal}
+                </span>
+                <span className="text-[9px] font-mono text-text-tertiary shrink-0">{taskCount} tasks</span>
+                <button
+                  onClick={() => approvePlan(planId)}
+                  className="text-[10px] px-2 py-0.5 rounded bg-green-600/20 text-green-400 hover:bg-green-600/40 transition-colors shrink-0"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => rejectPlan(planId)}
+                  className="text-[10px] px-2 py-0.5 rounded bg-red-600/20 text-red-400 hover:bg-red-600/40 transition-colors shrink-0"
+                >
+                  Reject
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {expanded && (
         <div className="px-4 pb-3 pt-1 border-t border-border">
           <div className="grid grid-cols-3 gap-4 mt-2">
