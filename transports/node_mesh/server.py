@@ -764,9 +764,17 @@ class NodeMeshServer:
                 if method == "GET" and path.rstrip("/") == "/health":
                     resp = self._http_health()
                 elif method == "POST" and path.rstrip("/") == "/dispatch":
+                    import hmac
                     relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
                     auth_header = headers.get("authorization", "")
-                    if relay_secret and auth_header != f"Bearer {relay_secret}":
+                    expected = f"Bearer {relay_secret}" if relay_secret else ""
+                    auth_ok = (
+                        bool(relay_secret)
+                        and bool(auth_header)
+                        and hmac.compare_digest(auth_header.encode(), expected.encode())
+                    ) or not relay_secret
+                    if not auth_ok:
+                        logger.warning("mesh relay /dispatch auth failed from %s", writer.get_extra_info("peername"))
                         resp_body = json.dumps({"error": "unauthorized"}).encode()
                         writer.write(
                             b"HTTP/1.1 401 Unauthorized\r\n"
