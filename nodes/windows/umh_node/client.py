@@ -437,7 +437,9 @@ class NodeClient:
                 return
 
             t0 = time.monotonic()
-            request_timeout = params.get("timeout_seconds", _CONTROL_TIMEOUT_S)
+            _MAX_CAPABILITY_TIMEOUT_S = 300.0
+            raw_timeout = params.get("timeout_seconds", _CONTROL_TIMEOUT_S)
+            request_timeout = max(1.0, min(float(raw_timeout), _MAX_CAPABILITY_TIMEOUT_S))
             has_async = hasattr(adapter, "execute_async") and callable(adapter.execute_async)
 
             try:
