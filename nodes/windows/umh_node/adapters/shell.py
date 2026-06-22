@@ -14,20 +14,25 @@ class ShellAdapter:
     """Executes shell and PowerShell commands locally."""
 
     def execute(self, operation: str, params: dict[str, Any]) -> dict[str, Any]:
+        argv = params.get("argv")
         command = params.get("command", "")
         timeout = params.get("timeout", 30)
         cwd = params.get("cwd")
 
-        if not command:
-            return {"success": False, "error": "no command provided"}
-
-        if operation == "shell.powershell" and sys.platform == "win32":
-            args = ["powershell", "-NoProfile", "-NonInteractive", "-Command", command]
-        elif operation == "shell.query":
-            args = self._build_args(command)
-            timeout = min(timeout, 10)
+        if argv and isinstance(argv, list):
+            args = [str(a) for a in argv]
+            use_shell = False
+        elif command:
+            if operation == "shell.powershell" and sys.platform == "win32":
+                args = ["powershell", "-NoProfile", "-NonInteractive", "-Command", command]
+            elif operation == "shell.query":
+                args = self._build_args(command)
+                timeout = min(timeout, 10)
+            else:
+                args = self._build_args(command)
+            use_shell = (sys.platform != "win32") and not isinstance(args, list)
         else:
-            args = self._build_args(command)
+            return {"success": False, "error": "no command or argv provided"}
 
         try:
             result = subprocess.run(
@@ -36,7 +41,7 @@ class ShellAdapter:
                 text=True,
                 timeout=timeout,
                 cwd=cwd,
-                shell=(sys.platform != "win32"),
+                shell=use_shell,
             )
             return {
                 "success": result.returncode == 0,

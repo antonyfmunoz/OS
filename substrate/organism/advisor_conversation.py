@@ -1542,7 +1542,7 @@ class AdvisorConversation:
         except Exception as exc:
             logger.error("Engineering build failed: %s", exc)
             return AdvisorResponse(
-                text=f"Engineering plan creation failed: {exc}",
+                text="Engineering plan creation failed. Check logs for details.",
                 conversation_id="",
                 intent="engineering_build",
             )

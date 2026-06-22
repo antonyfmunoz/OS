@@ -1,7 +1,7 @@
 """Mesh dispatch — sends engineering plan tasks to a connected node via mesh HTTP relay.
 
 Dispatches each task in sequence to a Beast node running Claude Code.
-Each task becomes a `shell` capability execute with `claude -p "<prompt>"`.
+Each task sends an argv list to the mesh relay (no shell string building).
 After execution, assembles a proof package for operator review.
 """
 
@@ -15,11 +15,31 @@ logger = logging.getLogger(__name__)
 
 _MESH_RELAY_URL = "http://localhost:8095/dispatch"
 
+_ALLOWED_NODE_IDS = frozenset({"windows-desktop"})
+_ALLOWED_CWD_ROOTS = (
+    r"C:\dev\dev",
+    r"C:\dev",
+    r"D:\dev",
+)
+
 _proof_packages: dict[str, Any] = {}
 
 
 def get_proof_packages() -> dict[str, Any]:
-    return _proof_packages
+    return dict(_proof_packages)
+
+
+def _validate_node_id(node_id: str) -> None:
+    if node_id not in _ALLOWED_NODE_IDS:
+        raise ValueError(f"node_id not in allowlist: {node_id}")
+
+
+def _validate_cwd(cwd: str) -> None:
+    normalized = cwd.replace("/", "\\").rstrip("\\")
+    if ".." in normalized or normalized.startswith("\\\\"):
+        raise ValueError(f"cwd rejected (path traversal or UNC): {cwd}")
+    if not any(normalized.startswith(root) for root in _ALLOWED_CWD_ROOTS):
+        raise ValueError(f"cwd not under allowed workspace root: {cwd}")
 
 
 async def dispatch_plan_to_node(
@@ -31,10 +51,13 @@ async def dispatch_plan_to_node(
     """Dispatch all tasks from an engineering plan to a mesh node.
 
     Sends each task sequentially via the mesh HTTP relay.
-    Each task runs `claude -p "<task description>" --output-format json` on the node.
+    Each task sends an argv list (not a shell string) to avoid injection.
     After all tasks complete, assembles a proof package for review.
     """
     import httpx
+
+    _validate_node_id(node_id)
+    _validate_cwd(cwd)
 
     results: list[dict[str, Any]] = []
     dispatched = 0
@@ -47,7 +70,7 @@ async def dispatch_plan_to_node(
         task_id = task.task_id if hasattr(task, "task_id") else ""
 
         prompt = _build_claude_prompt(description, plan)
-        command = f'claude -p "{_escape_for_shell(prompt)}" --output-format json'
+        argv = ["claude", "-p", prompt, "--output-format", "json"]
 
         try:
             async with httpx.AsyncClient(timeout=timeout_per_task + 10) as client:
@@ -56,7 +79,7 @@ async def dispatch_plan_to_node(
                     json={
                         "node_id": node_id,
                         "capability": "shell",
-                        "params": {"command": command, "cwd": cwd},
+                        "params": {"argv": argv, "cwd": cwd},
                         "timeout": timeout_per_task,
                     },
                 )
@@ -87,7 +110,7 @@ async def dispatch_plan_to_node(
                 "task_id": task_id,
                 "description": description[:120],
                 "status": "error",
-                "error": str(exc),
+                "error": "dispatch failed",
             })
 
     proof = _assemble_proof(plan, results, node_id)
@@ -192,6 +215,3 @@ def _build_claude_prompt(task_description: str, plan: Any) -> str:
     )
 
 
-def _escape_for_shell(s: str) -> str:
-    """Escape a string for use inside double quotes in a shell command."""
-    return s.replace("\\", "\\\\").replace('"', '\\"').replace("$", "\\$").replace("`", "\\`")
