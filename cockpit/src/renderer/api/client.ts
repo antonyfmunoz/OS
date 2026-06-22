@@ -70,7 +70,9 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
 
     const controller = new AbortController()
     const isConverse = path.includes('/converse')
-    const timeoutId = setTimeout(() => controller.abort(), isConverse ? 65_000 : 30_000)
+    const isApproveOrDispatch = path.includes('/approve') || path.includes('/dispatch')
+    const timeoutMs = isConverse ? 120_000 : isApproveOrDispatch ? 120_000 : 60_000
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
     let res: Response
     try {
       res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: controller.signal })
