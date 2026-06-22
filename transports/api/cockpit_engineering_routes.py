@@ -56,6 +56,7 @@ def _get_gap_engine() -> Any:
 
 
 _planners: dict[str, Any] = {}
+_active_dispatches: dict[str, Any] = {}
 
 
 def _get_or_create_planner() -> Any:
@@ -151,6 +152,19 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         if not plan:
             raise HTTPException(status_code=404, detail=f"Plan {plan_id} not found")
 
+        plan_status = plan.status if hasattr(plan, "status") else ""
+        if plan_status not in ("approved", "dispatching"):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Plan status is '{plan_status}', must be approved to dispatch",
+            )
+
+        if plan_id in _active_dispatches:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Dispatch already in progress for plan {plan_id}",
+            )
+
         node_id = body.get("node_id", "windows-desktop")
         cwd = body.get("cwd", r"C:\dev\dev\LYFEOS")
 
@@ -166,12 +180,16 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
+        _active_dispatches[plan_id] = True
+
         async def _run_dispatch() -> None:
             try:
                 result = await dispatch_plan_to_node(plan, node_id=node_id, cwd=cwd)
                 logger.info("dispatch %s completed: %d dispatched", plan_id, result.get("dispatched", 0))
             except Exception as exc:
                 logger.error("dispatch %s background failed: %s", plan_id, exc)
+            finally:
+                _active_dispatches.pop(plan_id, None)
 
         asyncio.create_task(_run_dispatch())
         return {"ok": True, "status": "dispatching", "plan_id": plan_id, "node_id": node_id}
