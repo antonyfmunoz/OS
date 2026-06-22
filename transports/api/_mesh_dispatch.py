@@ -99,16 +99,26 @@ async def dispatch_plan_to_node(
                 "timeout": timeout_per_task,
             }
             data = None
-            for attempt in range(2):
+            for attempt in range(3):
                 try:
+                    if attempt > 0:
+                        import asyncio
+                        await asyncio.sleep(1)
+                        try:
+                            async with httpx.AsyncClient(timeout=10) as warmup:
+                                health_url = _MESH_RELAY_URL.rsplit("/", 1)[0] + "/health"
+                                await warmup.get(health_url)
+                                logger.info("dispatch task %s retry warmup ok", task_id)
+                        except Exception:
+                            pass
                     async with httpx.AsyncClient(timeout=timeouts) as client:
                         resp = await client.post(_MESH_RELAY_URL, headers=req_headers, json=payload)
                         logger.info("dispatch task %s got HTTP %d, %d bytes", task_id, resp.status_code, len(resp.content))
                         data = resp.json()
                     break
                 except httpx.ReadError as read_err:
-                    if attempt == 0:
-                        logger.warning("dispatch task %s ReadError on attempt 1, retrying: %r", task_id, read_err)
+                    if attempt < 2:
+                        logger.warning("dispatch task %s ReadError on attempt %d, retrying: %r", task_id, attempt + 1, read_err)
                         continue
                     raise
 
