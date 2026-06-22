@@ -28,13 +28,9 @@ def configure(require_operator_dep: Any) -> None:
 
 
 def _get_planner() -> Any:
-    try:
-        from substrate.meta_ide.engineering_planner import EngineeringPlanner
+    from substrate.meta_ide.shared_planner import get_shared_planner
 
-        return EngineeringPlanner()
-    except Exception as exc:
-        logger.debug("engineering routes: failed to create planner: %s", exc)
-        return None
+    return get_shared_planner()
 
 
 def _get_generator() -> Any:
@@ -136,6 +132,25 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
         receipt = generator.generate_packets(plan)
         return receipt.to_dict()
+
+    @router.post("/engineering/plans/{plan_id}/dispatch", dependencies=auth)
+    async def dispatch_plan(plan_id: str, body: dict[str, Any] = {}) -> dict[str, Any]:
+        """Dispatch approved plan's work packets to a connected node for execution."""
+        planner = _get_or_create_planner()
+        if not planner:
+            raise HTTPException(status_code=503, detail="Planner unavailable")
+
+        plan = planner.get_plan(plan_id)
+        if not plan:
+            raise HTTPException(status_code=404, detail=f"Plan {plan_id} not found")
+
+        node_id = body.get("node_id", "windows-desktop")
+        cwd = body.get("cwd", r"C:\dev\dev\LYFEOS")
+
+        from transports.api._mesh_dispatch import dispatch_plan_to_node
+
+        result = await dispatch_plan_to_node(plan, node_id=node_id, cwd=cwd)
+        return result
 
     @router.post("/engineering/plans/{plan_id}/reject", dependencies=auth)
     async def reject_plan(plan_id: str) -> dict[str, Any]:

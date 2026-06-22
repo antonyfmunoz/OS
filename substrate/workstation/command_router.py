@@ -40,6 +40,7 @@ class CommandIntent(str, Enum):
     SHUTDOWN_SEQUENCE = "shutdown_sequence"
     INTENT_CAPTURE = "intent_capture"
     CAMERA_CONTROL = "camera_control"
+    ENGINEERING_BUILD = "engineering_build"
     UNKNOWN = "unknown"
 
 
@@ -564,6 +565,31 @@ _CAMERA_CONTROL_SIGNALS = [
     "stop security harden",
 ]
 
+_ENGINEERING_BUILD_SIGNALS = [
+    "migrate",
+    "create engineering plan",
+    "plan the migration",
+    "plan the build",
+    "engineering plan for",
+    "build a feature",
+    "add authentication",
+    "swap auth",
+    "replace firebase",
+    "replace auth",
+    "integrate clerk",
+    "add clerk",
+    "deploy to fly",
+    "deploy to production",
+    "add posthog",
+    "add analytics",
+    "create deployment",
+    "set up deployment",
+    "refactor the auth",
+    "rewrite the auth",
+    "swap the oauth",
+    "replace the oauth",
+]
+
 _STARTUP_SEQUENCE_SIGNALS = [
     "start my workday",
     "start my day",
@@ -705,6 +731,11 @@ def classify_intent(text: str) -> CommandIntent:
     for signal in _SHUTDOWN_SEQUENCE_SIGNALS:
         if signal in t:
             return CommandIntent.SHUTDOWN_SEQUENCE
+
+    # ── Engineering build (multi-step engineering tasks) ──────────────
+    for signal in _ENGINEERING_BUILD_SIGNALS:
+        if signal in t:
+            return CommandIntent.ENGINEERING_BUILD
 
     for signal in _INTENT_CAPTURE_SIGNALS:
         if signal in t:

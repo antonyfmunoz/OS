@@ -286,7 +286,7 @@ class MetaIDERuntime:
         tasks: list[dict[str, Any]] = []
         if self._engineering_planner is not None:
             try:
-                planner_result = self._engineering_planner.plan(intent_text)
+                planner_result = self._engineering_planner.create_plan(intent_text)
                 if hasattr(planner_result, "tasks"):
                     tasks = [
                         t.to_dict() if hasattr(t, "to_dict") else {"description": str(t)}

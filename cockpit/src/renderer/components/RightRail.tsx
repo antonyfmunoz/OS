@@ -354,6 +354,26 @@ function ChatSection() {
           sendMessage('Engineering plan created.', 'text')
         }).catch(() => sendMessage('Failed to create engineering plan.', 'text'))
         break
+      case 'approve_engineering_plan':
+        fetchApi(`/engineering/plans/${action.payload.plan_id}/approve`, {
+          method: 'POST',
+        }).then(() => {
+          sendMessage(`Plan ${action.payload.plan_id} approved. Work packets generated.`, 'text')
+          return fetchApi(`/engineering/plans/${action.payload.plan_id}/dispatch`, {
+            method: 'POST',
+            body: JSON.stringify({ node_id: 'windows-desktop' }),
+          })
+        }).then((res) => {
+          const r = res as Record<string, unknown>
+          sendMessage(`Dispatched to Beast: ${r.dispatched || 0} tasks sent.`, 'text')
+        }).catch(() => sendMessage('Plan approval or dispatch failed.', 'text'))
+        break
+      case 'reject_engineering_plan':
+        fetchApi(`/engineering/plans/${action.payload.plan_id}/reject`, {
+          method: 'POST',
+        }).then(() => sendMessage(`Plan ${action.payload.plan_id} rejected.`, 'text'))
+          .catch(() => sendMessage('Plan rejection failed.', 'text'))
+        break
       default:
         break
     }

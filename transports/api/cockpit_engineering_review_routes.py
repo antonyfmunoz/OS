@@ -111,21 +111,10 @@ def _validate_workspace_targets(targets: Any) -> list[str]:
     return validated
 
 
-_shared_planner: Any = None
-
-
 def _get_shared_planner() -> Any:
-    global _shared_planner
-    if _shared_planner is not None:
-        return _shared_planner
-    try:
-        from substrate.meta_ide.engineering_planner import EngineeringPlanner
+    from substrate.meta_ide.shared_planner import get_shared_planner
 
-        _shared_planner = EngineeringPlanner()
-        return _shared_planner
-    except Exception as exc:
-        logger.debug("engineering review routes: failed to create planner: %s", exc)
-        return None
+    return get_shared_planner()
 
 
 def _build_router(require_operator_dep: Any) -> APIRouter:
