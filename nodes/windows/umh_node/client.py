@@ -449,12 +449,14 @@ class NodeClient:
                 else:
                     loop = asyncio.get_event_loop()
                     executor = self._camera_executor if adapter_key == "camera" else None
+                    if "timeout" not in cap_params and request_timeout > _CONTROL_TIMEOUT_S:
+                        cap_params["timeout"] = int(request_timeout)
                     result = await asyncio.wait_for(
                         loop.run_in_executor(executor, adapter.execute, cap_name, cap_params),
-                        timeout=_CONTROL_TIMEOUT_S,
+                        timeout=request_timeout,
                     )
             except asyncio.TimeoutError:
-                effective_timeout = request_timeout if has_async else _CONTROL_TIMEOUT_S
+                effective_timeout = request_timeout
                 logger.warning("capability %s timed out after %.0fs", cap_name, effective_timeout)
                 result = {"success": False, "error": f"{cap_name} timed out"}
             duration = (time.monotonic() - t0) * 1000
