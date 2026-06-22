@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "2026-06-21",
+  "benchmarks": {
+    "swe_bench_verified": {
+      "name": "SWE-bench Verified",
+      "organization": "Princeton NLP",
+      "status": "saturated_retired",
+      "measures": "real-world GitHub issue resolution (500 Python issues)",
+      "scoring": "percentage of issues resolved",
+      "notes": "OpenAI retired in Feb 2026 citing saturation and training data contamination. Scores still widely reported.",
+      "scores": {
+        "claude_code": 87.6,
+        "codex": 85.0,
+        "cursor": 51.7,
+        "devin": 45.8,
+        "augment": 70.6,
+        "openhands": 68.4,
+        "windsurf": 72.5
+      },
+      "sources": [
+        {"url": "swebench.com", "date": "2026-06"},
+        {"url": "llm-stats.com/benchmarks/swe-bench-verified", "date": "2026-06"},
+        {"url": "benchlm.ai/benchmarks/sweVerified", "date": "2026-06"}
+      ]
+    },
+    "swe_bench_pro": {
+      "name": "SWE-bench Pro",
+      "organization": "Scale AI",
+      "status": "active",
+      "measures": "harder multi-file issues, contamination-resistant",
+      "scoring": "percentage of issues resolved (standardized scaffolding)",
+      "notes": "Current gold standard for agent comparison. Standardized vs vendor-reported scores diverge significantly.",
+      "scores": {
+        "claude_code": 49.8,
+        "codex": 46.5,
+        "cursor": 50.2,
+        "augment": 51.8
+      },
+      "sources": [
+        {"url": "labs.scale.com/leaderboard/swe_bench_pro_public", "date": "2026-06"}
+      ]
+    },
+    "terminal_bench": {
+      "name": "Terminal-Bench 2.1",
+      "organization": "CodingFleet",
+      "status": "active",
+      "measures": "CLI/terminal task completion (package mgmt, git, builds, shell)",
+      "scoring": "percentage of tasks completed",
+      "scores": {
+        "claude_code": 83.1,
+        "codex": 83.4,
+        "antigravity": 76.2
+      },
+      "sources": [
+        {"url": "codingfleet.com/blog/terminal-bench-leaderboard-2026", "date": "2026-06"}
+      ]
+    },
+    "aider_polyglot": {
+      "name": "Aider Polyglot",
+      "organization": "Aider",
+      "status": "active",
+      "measures": "multi-language code generation (225 exercises across C++, Go, Java, JS, Python, Rust)",
+      "scoring": "percentage of exercises passing",
+      "scores": {
+        "claude_code": 89.4,
+        "aider": 89.4
+      },
+      "sources": [
+        {"url": "llm-stats.com/benchmarks/aider-polyglot", "date": "2026-06"}
+      ]
+    }
+  }
+}

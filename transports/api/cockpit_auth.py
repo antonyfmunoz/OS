@@ -104,11 +104,16 @@ def _validate_jwt(token: str) -> ClerkUser:
     else:
         decode_opts["verify_iss"] = False
 
+    # Clerk JWTs have a 60s TTL; add generous leeway for proxy/network
+    # transit and slow upstream responses (converse can take 30-90s)
+    _LEEWAY_SECONDS = 120
+
     try:
         payload = jwt.decode(
             token,
             signing_key.key,
             options=decode_opts,
+            leeway=_LEEWAY_SECONDS,
             **decode_kwargs,
         )
     except jwt.ExpiredSignatureError:
