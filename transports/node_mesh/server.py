@@ -764,6 +764,18 @@ class NodeMeshServer:
                 if method == "GET" and path.rstrip("/") == "/health":
                     resp = self._http_health()
                 elif method == "POST" and path.rstrip("/") == "/dispatch":
+                    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+                    auth_header = headers.get("authorization", "")
+                    if relay_secret and auth_header != f"Bearer {relay_secret}":
+                        resp_body = json.dumps({"error": "unauthorized"}).encode()
+                        writer.write(
+                            b"HTTP/1.1 401 Unauthorized\r\n"
+                            b"Content-Type: application/json\r\n"
+                            b"Content-Length: " + str(len(resp_body)).encode() + b"\r\n"
+                            b"Connection: close\r\n\r\n" + resp_body
+                        )
+                        await writer.drain()
+                        return
                     resp = await self._http_dispatch(json.loads(body))
                 elif method == "GET" and path.rstrip("/") == "/nodes":
                     resp = self._http_nodes()

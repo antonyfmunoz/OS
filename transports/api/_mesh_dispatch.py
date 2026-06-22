@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 _MESH_RELAY_HOST = os.environ.get("UMH_MESH_RELAY_HOST", "localhost")
 _MESH_RELAY_URL = f"http://{_MESH_RELAY_HOST}:8095/dispatch"
+_MESH_RELAY_SECRET = os.environ.get("UMH_MESH_RELAY_SECRET", "")
 
 _ALLOWED_NODE_IDS = frozenset({"windows-desktop"})
 _ALLOWED_CWD_ROOTS = (
@@ -77,9 +78,13 @@ async def dispatch_plan_to_node(
         argv = ["claude", "-p", prompt, "--output-format", "json"]
 
         try:
+            req_headers = {}
+            if _MESH_RELAY_SECRET:
+                req_headers["Authorization"] = f"Bearer {_MESH_RELAY_SECRET}"
             async with httpx.AsyncClient(timeout=timeout_per_task + 10) as client:
                 resp = await client.post(
                     _MESH_RELAY_URL,
+                    headers=req_headers,
                     json={
                         "node_id": node_id,
                         "capability": "shell",
