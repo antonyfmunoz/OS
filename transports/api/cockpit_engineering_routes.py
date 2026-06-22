@@ -149,7 +149,10 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
         from transports.api._mesh_dispatch import dispatch_plan_to_node
 
-        result = await dispatch_plan_to_node(plan, node_id=node_id, cwd=cwd)
+        try:
+            result = await dispatch_plan_to_node(plan, node_id=node_id, cwd=cwd)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
         return result
 
     @router.post("/engineering/plans/{plan_id}/reject", dependencies=auth)
